@@ -38,6 +38,8 @@ typedef signed char stio_int8_t;
 typedef unsigned char stio_uint8_t;
 typedef unsigned long stio_size_t;
 #define STIO_MEMSET(dst,byte,count) memset(dst,byte,count)
+#define STIO_MEMCPY(dst,src,count) memcpy(dst,src,count)
+#define STIO_MEMMOVE(dst,src,count) memmove(dst,src,count)
 #define STIO_ASSERT assert
 
 
@@ -84,6 +86,7 @@ typedef struct stio_sckadr_t stio_sckadr_t;
 	typedef int stio_syshnd_t;
 #endif
 
+typedef int stio_sckfam_t;
 
 
 /* ------------------------------------------------------------------------- */
@@ -91,6 +94,8 @@ typedef struct stio_t stio_t;
 typedef struct stio_dev_t stio_dev_t;
 typedef struct stio_dev_mth_t stio_dev_mth_t;
 typedef struct stio_dev_evcb_t stio_dev_evcb_t;
+
+typedef struct stio_wq_t stio_wq_t;
 typedef unsigned int stio_len_t; /* TODO: remove it? */
 
 
@@ -109,35 +114,102 @@ typedef enum stio_errnum_t stio_errnum_t;
 
 struct stio_dev_mth_t
 {
-	/* --------------------------------------------------------------------------------------------- */
-	int           (*make)      (stio_dev_t* dev, void* ctx); /* mandatory. called in stix_makedev() */
-	void          (*kill)      (stio_dev_t* dev); /* mandatory. called in stix_killdev(). called in stix_makedev() upon failure after make() success */
-	stio_syshnd_t (*getsyshnd) (stio_dev_t* dev); /* mandatory. called in stix_makedev() after successful make() */
+	/* ------------------------------------------------------------------ */
+	int           (*make)         (stio_dev_t* dev, void* ctx); /* mandatory. called in stix_makedev() */
 
+	/* ------------------------------------------------------------------ */
+	void          (*kill)         (stio_dev_t* dev); /* mandatory. called in stix_killdev(). called in stix_makedev() upon failure after make() success */
 
-	int           (*ioctl)     (stio_dev_t* dev, int cmd, void* arg);
+	/* ------------------------------------------------------------------ */
+#if 0
+/* TODO: countsyshnds() if the device has multiple handles.
+ * getsyshnd() to accept the handle id between 0 and countsysnhnds() - 1
+ */
+	int           (*countsyshnds) (stio_dev_t* dev); /* optional */
+#endif
+	stio_syshnd_t (*getsyshnd)    (stio_dev_t* dev); /* mandatory. called in stix_makedev() after successful make() */
 
-	/* --------------------------------------------------------------------------------------------- */
-	int           (*recv)      (stio_dev_t* dev, void* data, stio_len_t* len);
-	/* --------------------------------------------------------------------------------------------- */
-	int           (*send)      (stio_dev_t* dev, const void* data, stio_len_t* len);
-	/* --------------------------------------------------------------------------------------------- */
+	/* ------------------------------------------------------------------ */
+	int           (*ioctl)        (stio_dev_t* dev, int cmd, void* arg);
+
+	/* ------------------------------------------------------------------ */
+	int           (*recv)         (stio_dev_t* dev, void* data, stio_len_t* len);
+
+	/* ------------------------------------------------------------------ */
+	int           (*send)         (stio_dev_t* dev, const void* data, stio_len_t* len);
 };
 
 struct stio_dev_evcb_t
 {
-	int           (*ready)            (stio_dev_t* dev, int events);
-	/*int           (*on_error)         (stio_dev_t* dev);
-	int           (*on_hangup)        (stio_dev_t* dev);*/
-	int           (*on_recv)          (stio_dev_t* dev, const void* data, stio_len_t len);
-	int           (*on_sent)          (stio_dev_t* dev, const void* data, stio_len_t len);
-	
+	/* return -1 on failure. 0 or 1 on success.
+	 * when 0 is returned, it doesn't attempt to perform actual I/O.
+	 * when 1 is returned, it attempts to perform actual I/O.
+	 * it must not kill the device */
+	int           (*ready)        (stio_dev_t* dev, int events);
+
+	/* return -1 on failure, 0 on success
+	 * it must not kill the device */
+	int           (*on_recv)      (stio_dev_t* dev, const void* data, stio_len_t len);
+
+	/* return -1 on failure, 0 on success. 
+	 * it must not kill the device */
+	int           (*on_sent)      (stio_dev_t* dev, void* sendctx);
 };
+
+struct stio_wq_t
+{
+	stio_wq_t*    next;
+	stio_wq_t*    prev;
+
+	stio_uint8_t* ptr;
+	stio_len_t    len;
+	void*         ctx;
+};
+
+#define STIO_WQ_INIT(wq) ((wq)->next = (wq)->prev = (wq))
+#define STIO_WQ_TAIL(wq) ((wq)->prev)
+#define STIO_WQ_HEAD(wq) ((wq)->next)
+#define STIO_WQ_ISEMPTY(wq) (STIO_WQ_HEAD(wq) == (wq))
+#define STIO_WQ_ISNODE(wq,x) ((wq) != (x))
+#define STIO_WQ_ISHEAD(wq,x) (STIO_WQ_HEAD(wq) == (x))
+#define STIO_WQ_ISTAIL(wq,x) (STIO_WQ_TAIL(wq) == (x))
+
+#define STIO_WQ_NEXT(x) ((x)->next)
+#define STIO_WQ_PREV(x) ((x)->prev)
+
+#define STIO_WQ_LINK(p,x,n) do { \
+	stio_wq_t* pp = (p), * nn = (n); \
+	(x)->prev = (p); \
+	(x)->next = (n); \
+	nn->prev = (x); \
+	pp->next = (x); \
+} while (0)
+
+#define STIO_WQ_UNLINK(x) do { \
+	stio_wq_t* pp = (x)->prev, * nn = (x)->next; \
+	nn->prev = pp; pp->next = nn; \
+} while (0)
+
+#define STIO_WQ_REPL(o,n) do { \
+	stio_wq_t* oo = (o), * nn = (n); \
+	nn->next = oo->next; \
+	nn->next->prev = nn; \
+	nn->prev = oo->prev; \
+	nn->prev->next = nn; \
+} while (0)
+
+/* insert an item at the back of the queue */
+/*#define STIO_WQ_ENQ(wq,x)  STIO_WQ_LINK(STIO_WQ_TAIL(wq), x, STIO_WQ_TAIL(wq)->next)*/
+#define STIO_WQ_ENQ(wq,x)  STIO_WQ_LINK(STIO_WQ_TAIL(wq), x, wq)
+
+/* remove an item in the front from the queue */
+#define STIO_WQ_DEQ(wq) STIO_WQ_UNLINK(STIO_WQ_HEAD(wq))
 
 #define STIO_DEV_HEADERS \
 	stio_t* stio; \
 	stio_dev_mth_t* mth; \
 	stio_dev_evcb_t* evcb; \
+	stio_wq_t wq; \
 	stio_dev_t* prev; \
 	stio_dev_t* next 
 
@@ -161,112 +233,8 @@ enum stio_dev_event_flag_t
 	STIO_DEV_EVENT_PRI = (1 << 2),
 	STIO_DEV_EVENT_HUP = (1 << 3),
 	STIO_DEV_EVENT_ERR = (1 << 4)
-	
 };
 typedef enum stio_dev_event_flag_t stio_dev_event_flag_t;
-
-
-
-/* -------------------------------------------------------------------------- */
-
-
-enum stio_dev_tcp_ioctl_cmd_t
-{
-	STIO_DEV_TCP_BIND, 
-	STIO_DEV_TCP_CONNECT,
-	STIO_DEV_TCP_LISTEN
-};
-typedef enum stio_dev_tcp_ioctl_cmd_t stio_dev_tcp_ioctl_cmd_t;
-
-enum stio_dev_tcp_state_t
-{
-	STIO_DEV_TCP_CONNECTING = (1 << 0),
-	STIO_DEV_TCP_CONNECTED  = (1 << 1),
-	STIO_DEV_TCP_LISTENING  = (1 << 2),
-	STIO_DEV_TCP_ACCEPTED   = (1 << 3)
-};
-typedef enum stio_dev_tcp_state_t stio_dev_tcp_state_t;
-
-typedef struct stio_dev_tcp_t stio_dev_tcp_t;
-
-typedef void (*stio_dev_tcp_on_connected_t) (stio_dev_tcp_t* dev);
-typedef void (*stio_dev_tcp_on_accepted_t) (stio_dev_tcp_t* dev, stio_dev_tcp_t* clidev);
-typedef void (*stio_dev_tcp_on_disconnected_t) (stio_dev_tcp_t* dev);
-
-struct stio_dev_tcp_t
-{
-	STIO_DEV_HEADERS;
-
-	stio_sckhnd_t sck;
-
-	unsigned int state;
-
-	/* peer address - valid if one of the followings is set:
-	 *  STIO_DEV_TCP_ACCEPTED
-	 *  STIO_DEV_TCP_CONNECTED
-	 *  STIO_DEV_TCP_CONNECTING */
-	stio_sckadr_t peer;
-
-	/* parent tcp device. valid if STIO_DEV_TCP_ACCEPTED is set */
-	stio_dev_tcp_t* parent;
-
-	stio_dev_tcp_on_connected_t on_connected;
-	stio_dev_tcp_on_disconnected_t on_disconnected;
-	stio_dev_tcp_on_accepted_t on_accepted;
-};
-
-typedef struct stio_dev_tcp_bind_t stio_dev_tcp_bind_t;
-struct stio_dev_tcp_bind_t
-{
-	int options; /* TODO: REUSEADDR , TRANSPARENT, etc  or someting?? */
-	stio_sckadr_t addr;
-	/* TODO: add device name for BIND_TO_DEVICE */
-};
-
-#if 0
-struct stio_dev_tcp_make_t
-{
-	set io callbacks.. 
-};
-#endif
-
-typedef struct stio_dev_tcp_connect_t stio_dev_tcp_connect_t;
-struct stio_dev_tcp_connect_t
-{
-	stio_sckadr_t addr;
-	stio_dev_tcp_on_connected_t on_connected;
-	stio_dev_tcp_on_disconnected_t on_disconnected;
-};
-
-typedef struct stio_dev_tcp_listen_t stio_dev_tcp_listen_t;
-struct stio_dev_tcp_listen_t
-{
-	int backlogs;
-	stio_dev_tcp_on_accepted_t on_accepted; /* optional, but new connections are dropped immediately without this */
-	stio_dev_tcp_on_disconnected_t on_disconnected;
-};
-
-typedef struct stio_dev_tcp_accept_t stio_dev_tcp_accept_t;
-struct stio_dev_tcp_accept_t
-{
-	stio_syshnd_t sck;
-	stio_dev_tcp_t* parent;
-	stio_sckadr_t peer;
-};
-
-/* -------------------------------------------------------------------------- */
-
-typedef struct stio_dev_udp_t stio_dev_udp_t;
-
-struct stio_dev_udp_t
-{
-	STIO_DEV_HEADERS;
-	stio_sckhnd_t sck;
-
-	stio_sckadr_t peer;
-};
-
-/* -------------------------------------------------------------------------- */
 
 
 #ifdef __cplusplus
@@ -283,6 +251,18 @@ void stio_close (
 	stio_t* stio
 );
 
+int stio_exec (
+	stio_t* stio
+);
+
+int stio_loop (
+	stio_t* stio
+);
+
+void stio_stop (
+	stio_t* stio
+);
+
 stio_dev_t* stio_makedev (
 	stio_t*          stio,
 	stio_size_t      dev_size,
@@ -296,24 +276,23 @@ void stio_killdev (
 	stio_dev_t* dev
 );
 
-
-stio_dev_tcp_t* stio_dev_tcp_make (
-	stio_t*        stio,
-	stio_sckadr_t* addr
+int stio_dev_ioctl (
+	stio_dev_t* dev,
+	int         cmd,
+	void*       arg
 );
 
-void stio_dev_tcp_kill (
-	stio_dev_tcp_t* tcp
+int stio_dev_event (
+	stio_dev_t*          dev,
+	stio_dev_event_cmd_t cmd,
+	int                  flags
 );
 
-
-stio_dev_udp_t* stio_dev_udp_make (
-	stio_t*        stio,
-	stio_sckadr_t* addr
-);
-
-void stio_dev_udp_kill (
-	stio_dev_udp_t* udp
+int stio_dev_send (
+	stio_dev_t*   dev,
+	const void*   data,
+	stio_len_t    len,
+	void*         sendctx
 );
 
 #ifdef __cplusplus

@@ -24,33 +24,19 @@
     THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  */
 
-#ifndef _STIO_PRV_H_
-#define _STIO_PRV_H_
 
-#include "stio.h"
-#include <sys/epoll.h>
+#ifndef _STIO_UDP_H_
+#define _STIO_UDP_H_
 
-struct stio_t
+#include <stio.h>
+
+typedef struct stio_dev_udp_t stio_dev_udp_t;
+
+struct stio_dev_udp_t
 {
-	stio_mmgr_t* mmgr;
-	stio_errnum_t errnum;
-	int stopreq;  /* stop request to abort stio_loop() */
-
-	struct
-	{
-		stio_dev_t* head;
-		stio_dev_t* tail;
-	} dev;
-
-	stio_uint8_t bigbuf[65535]; /* make this dynamic depending on devices added. device may indicate a buffer size required??? */
-
-
-#if defined(_WIN32)
-	HANDLE iocp;
-#else
-	int mux;
-	struct epoll_event revs[100];
-#endif
+	STIO_DEV_HEADERS;
+	stio_sckhnd_t sck;
+	stio_sckadr_t peer;
 };
 
 
@@ -58,15 +44,19 @@ struct stio_t
 extern "C" {
 #endif
 
-stio_sckhnd_t stio_openasyncsck (int domain, int type);
-void stio_closeasyncsck (stio_sckhnd_t sck);
-int stio_makesckasync (stio_sckhnd_t sck);
 
-int stio_getsckadrinfo (stio_t* stio, const stio_sckadr_t* addr, stio_scklen_t* len, stio_sckfam_t* family);
+stio_dev_udp_t* stio_dev_udp_make (
+	stio_t*        stio,
+	stio_size_t    xtnsize,
+	stio_sckadr_t* addr
+);
+
+void stio_dev_udp_kill (
+	stio_dev_udp_t* udp
+);
 
 #ifdef __cplusplus
 }
 #endif
-
 
 #endif
