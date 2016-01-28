@@ -133,6 +133,10 @@ int main ()
 	sigact.sa_handler = handle_signal;
 	sigaction (SIGINT, &sigact, STIO_NULL);
 
+	//STIO_MEMSET (&sigact, 0, STIO_SIZEOF(sigact));
+	//sigact.sa_handler = SIG_IGN;
+	//sigaction (SIGPIPE, &sigact, STIO_NULL);
+
 /*
 	pkt = stio_pkt_open  (packet type, protocol type); // packet socket 
 	arp = stio_arp_open (binding_addr); // raw socket - arp filter

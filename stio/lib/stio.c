@@ -231,7 +231,11 @@ int stio_exec (stio_t* stio)
 			int x, events = 0;
 
 			if (stio->revs[i].events & EPOLLERR) events |= STIO_DEV_EVENT_ERR;
+		#if defined(EPOLLRDHUP)
 			if (stio->revs[i].events & (EPOLLHUP | EPOLLRDHUP)) events |= STIO_DEV_EVENT_HUP;
+		#else
+			if (stio->revs[i].events & EPOLLHUP) events |= STIO_DEV_EVENT_HUP;
+		#endif
 			if (stio->revs[i].events & EPOLLIN) events |= STIO_DEV_EVENT_IN;
 			if (stio->revs[i].events & EPOLLOUT) events |= STIO_DEV_EVENT_OUT;
 			if (stio->revs[i].events & EPOLLPRI) events |= STIO_DEV_EVENT_PRI;
