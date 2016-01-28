@@ -129,9 +129,13 @@ static int tcp_send (stio_dev_t* dev, const void* data, stio_len_t* len)
 {
 	stio_dev_tcp_t* tcp = (stio_dev_tcp_t*)dev;
 	ssize_t x;
-
+	int flags = 0;
+	
 /* flags MSG_DONTROUTE, MSG_DONTWAIT, MSG_MORE, MSG_OOB, MSG_NOSIGNAL */
-	x = sendto (tcp->sck, data, *len, 0, STIO_NULL, 0);
+#if defined(MSG_NOSIGNAL)
+	flags |= MSG_NOSIGNAL;
+#endif
+	x = sendto (tcp->sck, data, *len, flags, STIO_NULL, 0);
 	if (x <= -1) 
 	{
 		if (errno == EINPROGRESS || errno == EWOULDBLOCK) return 0;  /* no data can be written */
