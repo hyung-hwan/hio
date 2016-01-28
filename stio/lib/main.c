@@ -25,7 +25,10 @@
  */
 
 
-#include "stio.h"
+#include <stio.h>
+#include <stio-tcp.h>
+#include <stio-udp.h>
+
 #include <stdlib.h>
 #include <stdio.h>
 #include <sys/socket.h>
@@ -50,13 +53,6 @@ static stio_mmgr_t mmgr =
 	STIO_NULL
 };
 
-
-
-static void tcp_on_connected (stio_dev_tcp_t* tcp)
-{
-	printf ("REALLY CONNECTED.......\n");
-}
-
 static void tcp_on_disconnected (stio_dev_tcp_t* tcp)
 {
 	if (tcp->state & STIO_DEV_TCP_LISTENING)
@@ -76,11 +72,32 @@ static void tcp_on_disconnected (stio_dev_tcp_t* tcp)
 		printf ("TCP DISCONNECTED - THIS MUST NOT HAPPEN (%d)\n", tcp->sck);
 	}
 }
-static void tcp_on_accepted (stio_dev_tcp_t* tcp, stio_dev_tcp_t* clitcp)
+static int tcp_on_connected (stio_dev_tcp_t* tcp)
 {
-	printf ("device accepted client device... ....\n");
+
+	if (tcp->state & STIO_DEV_TCP_CONNECTED)
+	{
+printf ("device connected to a remote server... .asdfjkasdfkljasdlfkjasdj...\n");
+	}
+	else if (tcp->state & STIO_DEV_TCP_ACCEPTED)
+	{
+printf ("device accepted client device... .asdfjkasdfkljasdlfkjasdj...\n");
+	}
+
+	return stio_dev_tcp_send  (tcp, "hello", 5, STIO_NULL);
 }
 
+
+static int tcp_on_sent (stio_dev_tcp_t* tcp, void* sendctx)
+{
+	printf (">>> TCP SENT MESSAGE\n");
+	return 0;
+}
+
+static int tcp_on_recv (stio_dev_tcp_t* tcp, const void* buf, stio_len_t len)
+{
+	return stio_dev_tcp_send  (tcp, "HELLO", 5, STIO_NULL);
+}
 
 static stio_t* g_stio;
 
@@ -99,6 +116,7 @@ int main ()
 	struct sigaction sigact;
 	stio_dev_tcp_connect_t tcp_conn;
 	stio_dev_tcp_listen_t tcp_lstn;
+	stio_dev_tcp_make_t tcp_make;
 
 
 	stio = stio_open (&mmgr, 0, STIO_NULL);
@@ -169,7 +187,13 @@ int main ()
 	}
 #else
 	sin.sin_port = htons(1234);
-	tcp = stio_dev_tcp_make (stio, (stio_sckadr_t*)&sin);
+	
+
+	STIO_MEMCPY (&tcp_make.addr, &sin, STIO_SIZEOF(sin));
+	tcp_make.on_sent = tcp_on_sent; /* inherit this handler */
+	tcp_make.on_recv = tcp_on_recv; /* inherit this handler */
+
+	tcp = stio_dev_tcp_make (stio, 0, &tcp_make);
 	if (!tcp)
 	{
 		printf ("Cannot make tcp\n");
@@ -177,7 +201,7 @@ int main ()
 	}
 
 	tcp_lstn.backlogs = 100;
-	tcp_lstn.on_accepted = tcp_on_accepted;
+	tcp_lstn.on_connected = tcp_on_connected;
 	tcp_lstn.on_disconnected = tcp_on_disconnected;
 	if (stio_dev_tcp_listen (tcp, &tcp_lstn) <= -1)
 	{

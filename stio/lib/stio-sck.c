@@ -28,7 +28,10 @@
 #include "stio-prv.h"
 #include <sys/socket.h>
 #include <fcntl.h>
+#include <unistd.h>
 #include <errno.h>
+#include <netinet/in.h>
+#include <arpa/inet.h>
 
 /* ------------------------------------------------------------------------ */
 void stio_closeasyncsck (stio_sckhnd_t sck)
@@ -83,3 +86,23 @@ stio_sckhnd_t stio_openasyncsck (int domain, int type)
 	return sck;
 }
 
+int stio_getsckadrinfo (stio_t* stio, const stio_sckadr_t* addr, stio_scklen_t* len, stio_sckfam_t* family)
+{
+	struct sockaddr* saddr = (struct sockaddr*)addr;
+
+	if (saddr->sa_family == AF_INET) 
+	{
+		if (len) *len = STIO_SIZEOF(struct sockaddr_in);
+		if (family) *family = AF_INET;
+		return 0;
+	}
+	else if (saddr->sa_family == AF_INET6)
+	{
+		if (len) *len =  STIO_SIZEOF(struct sockaddr_in6);
+		if (family) *family = AF_INET6;
+		return 0;
+	}
+
+	stio->errnum = STIO_EINVAL;
+	return -1;
+}

@@ -26,6 +26,7 @@
 
 
 #include "stio-prv.h"
+#include "stio-udp.h"
 
 #include <sys/socket.h>
 #include <netinet/in.h>
@@ -172,7 +173,7 @@ printf ("dATA received %d bytes\n", (int)len);
 
 }
 
-static int udp_on_sent (stio_dev_t* dev, const void* data, stio_len_t len)
+static int udp_on_sent (stio_dev_t* dev, void* msgid)
 {
 	return 0;
 
@@ -186,12 +187,11 @@ static stio_dev_evcb_t udp_evcb =
 };
 
 
-
-stio_dev_udp_t* stio_dev_udp_make (stio_t* stio, stio_sckadr_t* addr)
+stio_dev_udp_t* stio_dev_udp_make (stio_t* stio, stio_size_t xtnsize, stio_sckadr_t* addr)
 {
 	stio_dev_udp_t* udp;
 
-	udp = (stio_dev_udp_t*)stio_makedev (stio, STIO_SIZEOF(*udp), &udp_mth, &udp_evcb, addr);
+	udp = (stio_dev_udp_t*)stio_makedev (stio, STIO_SIZEOF(*udp) + xtnsize, &udp_mth, &udp_evcb, addr);
 
 	return udp;
 }
