@@ -30,6 +30,7 @@
 #include <stio-udp.h>
 
 #include <stdlib.h>
+#include <string.h>
 #include <stdio.h>
 #include <sys/socket.h>
 #include <netinet/in.h>
@@ -41,6 +42,11 @@ static void* mmgr_alloc (stio_mmgr_t* mmgr, stio_size_t size)
 	return malloc (size);
 }
 
+static void* mmgr_realloc (stio_mmgr_t* mmgr, void* ptr, stio_size_t size)
+{
+	return realloc (ptr, size);
+}
+
 static void mmgr_free (stio_mmgr_t* mmgr, void* ptr)
 {
 	return free (ptr);
@@ -49,13 +55,18 @@ static void mmgr_free (stio_mmgr_t* mmgr, void* ptr)
 static stio_mmgr_t mmgr = 
 {
 	mmgr_alloc,
+	mmgr_realloc,
 	mmgr_free,
 	STIO_NULL
 };
 
 static void tcp_on_disconnected (stio_dev_tcp_t* tcp)
 {
-	if (tcp->state & STIO_DEV_TCP_LISTENING)
+	if (tcp->state & STIO_DEV_TCP_CONNECTING)
+	{
+		printf ("TCP DISCONNECTED - FAILED TO CONNECT (%d) TO REMOTE SERVER\n", tcp->sck);
+	}
+	else if (tcp->state & STIO_DEV_TCP_LISTENING)
 	{
 		printf ("SHUTTING DOWN THE SERVER SOCKET(%d)...\n", tcp->sck);
 	}
@@ -111,15 +122,14 @@ int main ()
 
 	stio_t* stio;
 	stio_dev_udp_t* udp;
-	stio_dev_tcp_t* tcp;
+	stio_dev_tcp_t* tcp[2];
 	struct sockaddr_in sin;
 	struct sigaction sigact;
 	stio_dev_tcp_connect_t tcp_conn;
 	stio_dev_tcp_listen_t tcp_lstn;
 	stio_dev_tcp_make_t tcp_make;
 
-
-	stio = stio_open (&mmgr, 0, STIO_NULL);
+	stio = stio_open (&mmgr, 0, 512, STIO_NULL);
 	if (!stio)
 	{
 		printf ("Cannot open stio\n");
@@ -128,7 +138,7 @@ int main ()
 
 	g_stio = stio;
 
-	STIO_MEMSET (&sigact, 0, STIO_SIZEOF(sigact));
+	memset (&sigact, 0, STIO_SIZEOF(sigact));
 	sigact.sa_flags = SA_RESTART;
 	sigact.sa_handler = handle_signal;
 	sigaction (SIGINT, &sigact, STIO_NULL);
@@ -137,21 +147,7 @@ int main ()
 	//sigact.sa_handler = SIG_IGN;
 	//sigaction (SIGPIPE, &sigact, STIO_NULL);
 
-/*
-	pkt = stio_pkt_open  (packet type, protocol type); // packet socket 
-	arp = stio_arp_open (binding_addr); // raw socket - arp filter
-	tcpd = stio_tcp_open (binding_addr); // crude tcp
-	udpd= stio_udp_open (binding_addr); // crude udp
-	httpd = stio_httpd_open (binding_addr);
-	httpsd = stio_httpsd_open (binding_addr);
-	radiusd = stio_radiusd_open (binding_addr); // udp - radius
-
-	stio_register (stio, httpd);
-	stio_register (stio, httpsd);
-	stio_register (stio, radiusd);
-*/
-
-	STIO_MEMSET (&sin, 0, STIO_SIZEOF(sin));
+	memset (&sin, 0, STIO_SIZEOF(sin));
 	sin.sin_family = AF_INET;
 	sin.sin_port = htons(1234);
 /*
@@ -163,12 +159,14 @@ int main ()
 	}
 */
 
-	STIO_MEMSET (&sin, 0, STIO_SIZEOF(sin));
+	memset (&sin, 0, STIO_SIZEOF(sin));
 	sin.sin_family = AF_INET;
-#if 0
-	
-	tcp = (stio_dev_tcp_t*)stio_makedev (stio, STIO_SIZEOF(*tcp), &tcp_mth, &tcp_evcb, &sin);
-	if (!tcp)
+
+	memcpy (&tcp_make.addr, &sin, STIO_SIZEOF(sin));
+	tcp_make.on_sent = tcp_on_sent;
+	tcp_make.on_recv = tcp_on_recv;
+	tcp[0] = stio_dev_tcp_make (stio, 0, &tcp_make);
+	if (!tcp[0])
 	{
 		printf ("Cannot make tcp\n");
 		goto oops;
@@ -184,21 +182,19 @@ int main ()
 		tcp_conn.on_disconnected = tcp_on_disconnected;
 		//tcp_conn.on_failure = .... (error code? etc???) or on_connect to access success or failure??? what is better??
 	}
-	if (stio_dev_tcp_connect (tcp, &tcp_conn) <= -1)
+	if (stio_dev_tcp_connect (tcp[0], &tcp_conn) <= -1)
 	{
 		printf ("stio_dev_tcp_connect() failed....\n");
 		goto oops;
 	}
-#else
+
 	sin.sin_port = htons(1234);
-	
+	memcpy (&tcp_make.addr, &sin, STIO_SIZEOF(sin));
+	tcp_make.on_sent = tcp_on_sent;
+	tcp_make.on_recv = tcp_on_recv;
 
-	STIO_MEMCPY (&tcp_make.addr, &sin, STIO_SIZEOF(sin));
-	tcp_make.on_sent = tcp_on_sent; /* inherit this handler */
-	tcp_make.on_recv = tcp_on_recv; /* inherit this handler */
-
-	tcp = stio_dev_tcp_make (stio, 0, &tcp_make);
-	if (!tcp)
+	tcp[1] = stio_dev_tcp_make (stio, 0, &tcp_make);
+	if (!tcp[1])
 	{
 		printf ("Cannot make tcp\n");
 		goto oops;
@@ -207,21 +203,18 @@ int main ()
 	tcp_lstn.backlogs = 100;
 	tcp_lstn.on_connected = tcp_on_connected;
 	tcp_lstn.on_disconnected = tcp_on_disconnected;
-	if (stio_dev_tcp_listen (tcp, &tcp_lstn) <= -1)
+	if (stio_dev_tcp_listen (tcp[1], &tcp_lstn) <= -1)
 	{
 		printf ("stio_dev_tcp_listen() failed....\n");
 		goto oops;
 	}
 
-#endif
-
-	////////////////////////////
 
 	stio_loop (stio);
-	////////////////////////////
 
 	g_stio = STIO_NULL;
 	stio_close (stio);
+
 	return 0;
 
 oops:

@@ -27,67 +27,52 @@
 #ifndef _STIO_H_
 #define _STIO_H_
 
-/* TODO: remove these headers */
-#include <assert.h>
-#include <string.h>
-#include <stdio.h>
-#include <sys/socket.h>
-
-
-typedef signed char stio_int8_t;
-typedef unsigned char stio_uint8_t;
-typedef unsigned long stio_size_t;
-#define STIO_MEMSET(dst,byte,count) memset(dst,byte,count)
-#define STIO_MEMCPY(dst,src,count) memcpy(dst,src,count)
-#define STIO_MEMMOVE(dst,src,count) memmove(dst,src,count)
-#define STIO_ASSERT assert
-
-
-#define STIO_SIZEOF(x) sizeof(x)
-#define STIO_COUNTOF(x) (sizeof(x) / sizeof(x[0]))
-#define STIO_NULL ((void*)0)
-
-typedef struct stio_mmgr_t stio_mmgr_t;
-
-typedef void* (*stio_mmgr_alloc_t) (stio_mmgr_t* mmgr, stio_size_t size);
-typedef void (*stio_mmgr_free_t) (stio_mmgr_t* mmgr, void* ptr);
-
-struct stio_mmgr_t
-{
-	stio_mmgr_alloc_t alloc;	
-	stio_mmgr_free_t free;
-	void* ctx;
-};
-
-#define STIO_MMGR_ALLOC(mmgr,size) (mmgr)->alloc(mmgr,size)
-#define STIO_MMGR_FREE(mmgr,ptr) (mmgr)->free(mmgr,ptr)
+#include <stio-cmn.h>
 
 struct stio_sckadr_t
 {
 	int family;
-	stio_uint8_t data[64]; /* TODO: use the actual sockaddr size */
+	stio_uint8_t data[128]; /* TODO: use the actual sockaddr size */
 };
 
 typedef struct stio_sckadr_t stio_sckadr_t;
 
+#if (STIO_SIZEOF_SOCKLEN_T == STIO_SIZEOF_INT)
+	#if defined(STIO_SOCKLEN_T_IS_SIGNED)
+		typedef int stio_scklen_t;
+	#else
+		typedef unsigned int stio_scklen_t;
+	#endif
+#elif (STIO_SIZEOF_SOCKLEN_T == STIO_SIZEOF_LONG)
+	#if defined(STIO_SOCKLEN_T_IS_SIGNED)
+		typedef long stio_scklen_t;
+	#else
+		typedef unsigned long stio_scklen_t;
+	#endif
+#else
+	typedef int stio_scklen_t;
+#endif
+
 #if defined(_WIN32)
 #	define STIO_IOCP_KEY 1
-
-	typedef int stio_scklen_t;
+	/*
+	typedef HANDLE stio_syshnd_t;
 	typedef SOCKET stio_sckhnd_t;
 #	define STIO_SCKHND_INVALID (INVALID_SOCKET)
+	*/
 
-	typedef HANDLE stio_syshnd_t;
+	typedef stio_uintptr_t qse_syshnd_t;
+	typedef stio_uintptr_t qse_sckhnd_t;
+#	define STIO_SCKHND_INVALID (~(qse_sck_hnd_t)0)
+
 #else
-	typedef socklen_t stio_scklen_t;
+	typedef int stio_syshnd_t;
 	typedef int stio_sckhnd_t;
 #	define STIO_SCKHND_INVALID (-1)
-
-	typedef int stio_syshnd_t;
+	
 #endif
 
 typedef int stio_sckfam_t;
-
 
 /* ------------------------------------------------------------------------- */
 typedef struct stio_t stio_t;
@@ -104,6 +89,7 @@ enum stio_errnum_t
 	STIO_ENOERR,
 	STIO_ENOMEM,
 	STIO_EINVAL,
+	STIO_ENOENT,
 	STIO_ENOSUP, /* not supported */
 
 	STIO_EDEVMAKE
@@ -115,10 +101,10 @@ typedef enum stio_errnum_t stio_errnum_t;
 struct stio_dev_mth_t
 {
 	/* ------------------------------------------------------------------ */
-	int           (*make)         (stio_dev_t* dev, void* ctx); /* mandatory. called in stix_makedev() */
+	int           (*make)         (stio_dev_t* dev, void* ctx); /* mandatory. called in stio_makedev() */
 
 	/* ------------------------------------------------------------------ */
-	void          (*kill)         (stio_dev_t* dev); /* mandatory. called in stix_killdev(). called in stix_makedev() upon failure after make() success */
+	void          (*kill)         (stio_dev_t* dev); /* mandatory. called in stio_killdev(). called in stio_makedev() upon failure after make() success */
 
 	/* ------------------------------------------------------------------ */
 #if 0
@@ -127,12 +113,16 @@ struct stio_dev_mth_t
  */
 	int           (*countsyshnds) (stio_dev_t* dev); /* optional */
 #endif
-	stio_syshnd_t (*getsyshnd)    (stio_dev_t* dev); /* mandatory. called in stix_makedev() after successful make() */
+	stio_syshnd_t (*getsyshnd)    (stio_dev_t* dev); /* mandatory. called in stio_makedev() after successful make() */
 
 	/* ------------------------------------------------------------------ */
 	int           (*ioctl)        (stio_dev_t* dev, int cmd, void* arg);
 
 	/* ------------------------------------------------------------------ */
+	/* return -1 on failure, 0 if no data is availble, 1 otherwise.
+	 * when returning 1, *len must be sent to the length of data read.
+	 * if *len is set to 0, it's treated as EOF.
+	 * it must not kill the device */
 	int           (*recv)         (stio_dev_t* dev, void* data, stio_len_t* len);
 
 	/* ------------------------------------------------------------------ */
@@ -221,7 +211,7 @@ struct stio_dev_t
 enum stio_dev_event_cmd_t
 {
 	STIO_DEV_EVENT_ADD,
-	STIO_DEV_EVENT_MOD,
+	STIO_DEV_EVENT_UPD,
 	STIO_DEV_EVENT_DEL
 };
 typedef enum stio_dev_event_cmd_t stio_dev_event_cmd_t;
@@ -241,29 +231,40 @@ typedef enum stio_dev_event_flag_t stio_dev_event_flag_t;
 extern "C" {
 #endif
 
-stio_t* stio_open (
-	stio_mmgr_t* mmgr,
-	stio_size_t xtnsize,
+STIO_EXPORT stio_t* stio_open (
+	stio_mmgr_t*   mmgr,
+	stio_size_t    xtnsize,
+	stio_size_t    tmrcapa,  /**< initial timer capacity */
 	stio_errnum_t* errnum
 );
 
-void stio_close (
+STIO_EXPORT void stio_close (
 	stio_t* stio
 );
 
-int stio_exec (
+STIO_EXPORT int stio_init (
+	stio_t*      stio,
+	stio_mmgr_t* mmgr,
+	stio_size_t  tmrcapa
+);
+
+STIO_EXPORT void stio_fini (
+	stio_t*      stio
+);
+
+STIO_EXPORT int stio_exec (
 	stio_t* stio
 );
 
-int stio_loop (
+STIO_EXPORT int stio_loop (
 	stio_t* stio
 );
 
-void stio_stop (
+STIO_EXPORT void stio_stop (
 	stio_t* stio
 );
 
-stio_dev_t* stio_makedev (
+STIO_EXPORT stio_dev_t* stio_makedev (
 	stio_t*          stio,
 	stio_size_t      dev_size,
 	stio_dev_mth_t*  dev_mth,
@@ -271,24 +272,24 @@ stio_dev_t* stio_makedev (
 	void*            make_ctx
 );
 
-void stio_killdev (
+STIO_EXPORT void stio_killdev (
 	stio_t*     stio,
 	stio_dev_t* dev
 );
 
-int stio_dev_ioctl (
+STIO_EXPORT int stio_dev_ioctl (
 	stio_dev_t* dev,
 	int         cmd,
 	void*       arg
 );
 
-int stio_dev_event (
+STIO_EXPORT int stio_dev_event (
 	stio_dev_t*          dev,
 	stio_dev_event_cmd_t cmd,
 	int                  flags
 );
 
-int stio_dev_send (
+STIO_EXPORT int stio_dev_send (
 	stio_dev_t*   dev,
 	const void*   data,
 	stio_len_t    len,

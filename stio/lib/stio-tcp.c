@@ -34,7 +34,6 @@
 #include <arpa/inet.h>
 #include <errno.h>
 
-
 static int tcp_make (stio_dev_t* dev, void* ctx)
 {
 /* NOTE: this can be extended to use ctx to tell between INET and INET6 or other types of sockets without creating a new dev method set. */
@@ -131,7 +130,7 @@ static int tcp_send (stio_dev_t* dev, const void* data, stio_len_t* len)
 	ssize_t x;
 	int flags = 0;
 	
-/* flags MSG_DONTROUTE, MSG_DONTWAIT, MSG_MORE, MSG_OOB, MSG_NOSIGNAL */
+	/* TODO: flags MSG_DONTROUTE, MSG_DONTWAIT, MSG_MORE, MSG_OOB, MSG_NOSIGNAL */
 #if defined(MSG_NOSIGNAL)
 	flags |= MSG_NOSIGNAL;
 #endif
@@ -143,16 +142,28 @@ static int tcp_send (stio_dev_t* dev, const void* data, stio_len_t* len)
 		return -1;
 	}
 
-/***************/
-{
-static int x = 0;
-if (x <= 2) { x++;  return 0; }
-}
-/***************/
-
 	*len = x;
 	return 1;
 }
+
+static void tmr_connect_handle (stio_t* stio, const stio_ntime_t* now, stio_tmrjob_t* job)
+{
+	stio_dev_tcp_t* tcp = (stio_dev_tcp_t*)job->ctx;
+
+	if (tcp->state & STIO_DEV_TCP_CONNECTING)
+	{
+		/* the state check is actually redundant as it must not be fired 
+		 * after it gets connected. the timer job doesn't need to be deleted
+		 * when it gets connected for this check here */
+		if (tcp->on_disconnected) tcp->on_disconnected (tcp);
+	}
+}
+
+static void tmr_connect_update (stio_t* stio, stio_tmridx_t old_index, stio_tmridx_t new_index, stio_tmrjob_t* job)
+{
+	stio_dev_tcp_t* tcp = (stio_dev_tcp_t*)job->ctx;
+}
+
 
 static int tcp_ioctl (stio_dev_t* dev, int cmd, void* arg)
 {
@@ -212,8 +223,23 @@ static int tcp_ioctl (stio_dev_t* dev, int cmd, void* arg)
 			{
 				if (errno == EINPROGRESS || errno == EWOULDBLOCK)
 				{
-					if (stio_dev_event ((stio_dev_t*)tcp, STIO_DEV_EVENT_MOD, STIO_DEV_EVENT_IN | STIO_DEV_EVENT_OUT) >= 0)
+					if (stio_dev_event ((stio_dev_t*)tcp, STIO_DEV_EVENT_UPD, STIO_DEV_EVENT_IN | STIO_DEV_EVENT_OUT) >= 0)
 					{
+						stio_tmrjob_t tmrjob;
+
+						if (!stio_iszerotime(&conn->timeout))
+						{
+							STIO_MEMSET (&tmrjob, 0, STIO_SIZEOF(tmrjob));
+							tmrjob.ctx = tcp;
+							tmrjob.when = conn->timeout;
+							tmrjob.handler = tmr_connect_handle;
+							tmrjob.updater = tmr_connect_update;
+							if (stio_instmrjob (tcp->stio, &tmrjob) == STIO_TMRIDX_INVALID) 
+							{
+								return -1;
+							}
+						}
+
 						tcp->state |= STIO_DEV_TCP_CONNECTING;
 						tcp->peer = conn->addr;
 						tcp->on_connected = conn->on_connected;
@@ -324,7 +350,8 @@ printf ("TCP READY...%p\n", dev);
 				tcp->state &= ~STIO_DEV_TCP_CONNECTING;
 				tcp->state |= STIO_DEV_TCP_CONNECTED;
 
-				if (stio_dev_event ((stio_dev_t*)tcp, STIO_DEV_EVENT_MOD, STIO_DEV_EVENT_IN) <= -1)
+				if (stio_dev_event ((stio_dev_t*)tcp, STIO_DEV_EVENT_UPD, STIO_DEV_EVENT_IN) <= -1)
+				if (stio_dev_event ((stio_dev_t*)tcp, STIO_DEV_EVENT_UPD, STIO_DEV_EVENT_IN) <= -1)
 				{
 					printf ("CAANOT MANIPULTE EVENT ...\n");
 					return -1;
