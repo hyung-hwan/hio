@@ -54,7 +54,7 @@
 	#define EPOCH_DIFF_SECS  ((stio_intptr_t)EPOCH_DIFF_DAYS*24*60*60)
 #endif
 
-int stio_gettime (stio_ntime_t* t)
+void stio_gettime (stio_ntime_t* t)
 {
 #if defined(_WIN32)
 	SYSTEMTIME st;
@@ -67,7 +67,7 @@ int stio_gettime (stio_ntime_t* t)
 	 */
 
 	GetSystemTime (&st);
-	if (SystemTimeToFileTime (&st, &ft) == FALSE) return -1;
+	SystemTimeToFileTime (&st, &ft); /* this must not fail */
 
 	li.LowPart = ft.dwLowDateTime;
 	li.HighPart = ft.dwHighDateTime;
@@ -76,11 +76,8 @@ int stio_gettime (stio_ntime_t* t)
 	t->sec = (li.QuadPart / (STIO_NSECS_PER_SEC / 100)) - EPOCH_DIFF_SECS;
 	t->nsec = (li.QuadPart % (STIO_NSECS_PER_SEC / 100)) * 100;
 
-	return 0;
-
 #elif defined(__OS2__)
 
-	APIRET rc;
 	DATETIME dt;
 	stio_btime_t bt;
 
@@ -89,8 +86,8 @@ int stio_gettime (stio_ntime_t* t)
 	 * Maybe, resolution too low as it returns values 
 	 * in seconds. */
 
-	rc = DosGetDateTime (&dt);
-	if (rc != NO_ERROR) return -1;
+	DosGetDateTime (&dt);
+	/* DosGetDateTime() never fails. it always returns NO_ERROR */
 
 	bt.year = dt.year - STIO_BTIME_YEAR_BASE;
 	bt.mon = dt.month - 1;
@@ -101,8 +98,15 @@ int stio_gettime (stio_ntime_t* t)
 	/*bt.msec = dt.hundredths * 10;*/
 	bt.isdst = -1; /* determine dst for me */
 
-	if (stio_timelocal (&bt, t) <= -1) return -1;
-	t->nsec = STIO_MSEC_TO_NSEC(dt.hundredths * 10);
+	if (stio_timelocal (&bt, t) <= -1) 
+	{
+		t->sec = time (STIO_NULL);
+		t->nsec = 0;
+	}
+	else
+	{
+		t->nsec = STIO_MSEC_TO_NSEC(dt.hundredths * 10);
+	}
 	return 0;
 
 #elif defined(__DOS__)
@@ -123,41 +127,51 @@ int stio_gettime (stio_ntime_t* t)
 	/*bt.msec = dt.hsecond * 10; */
 	bt.isdst = -1; /* determine dst for me */
 
-	if (stio_timelocal (&bt, t) <= -1) return -1;
-	t->nsec = STIO_MSEC_TO_NSEC(dt.hsecond * 10);
-	return 0;
+	if (stio_timelocal (&bt, t) <= -1) 
+	{
+		t->sec = time (STIO_NULL);
+		t->nsec = 0;
+	}
+	else
+	{
+		t->nsec = STIO_MSEC_TO_NSEC(dt.hsecond * 10);
+	}
 
 #elif defined(macintosh)
 	unsigned long tv;
 
 	GetDateTime (&tv);
-
 	t->sec = tv;
 	tv->nsec = 0;
-	
-	return 0;
+
+#elif defined(HAVE_CLOCK_GETTIME) && defined(CLOCK_REALTIME)
+	struct timespec ts;
+
+	if (clock_gettime (CLOCK_REALTIME, &ts) == -1 && errno == EINVAL)
+	{
+	#if defined(HAVE_GETTIMEOFDAY)
+		struct timeval tv;
+		gettimeofday (&tv, STIO_NULL);
+		t->sec = tv.tv_sec;
+		t->nsec = STIO_USEC_TO_NSEC(tv.tv_usec);
+	#else
+		t->sec = time (STIO_NULL);
+		t->nsec = 0;
+	#endif
+	}
+
+	t->sec = ts.tv_sec;
+	t->nsec = ts.tv_nsec;
 
 #elif defined(HAVE_GETTIMEOFDAY)
 	struct timeval tv;
-	int n;
-
-	/* TODO: consider using clock_gettime() if it's avaialble.. -lrt may be needed */
-	n = gettimeofday (&tv, STIO_NULL);
-	if (n == -1) 
-	{
-/* TODO: set stio->errnum using errno... */
-		return -1;
-	}
-
+	gettimeofday (&tv, STIO_NULL);
 	t->sec = tv.tv_sec;
 	t->nsec = STIO_USEC_TO_NSEC(tv.tv_usec);
-	return 0;
 
 #else
-	t->sec = STIO_TIME (STIO_NULL);
+	t->sec = time (STIO_NULL);
 	t->nsec = 0;
-
-	return 0;
 #endif
 }
 

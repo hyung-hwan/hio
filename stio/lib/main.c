@@ -161,7 +161,7 @@ int main ()
 
 	memset (&sin, 0, STIO_SIZEOF(sin));
 	sin.sin_family = AF_INET;
-
+	memset (&tcp_make, 0, STIO_SIZEOF(&tcp_make));
 	memcpy (&tcp_make.addr, &sin, STIO_SIZEOF(sin));
 	tcp_make.on_sent = tcp_on_sent;
 	tcp_make.on_recv = tcp_on_recv;
@@ -172,23 +172,28 @@ int main ()
 		goto oops;
 	}
 
-	{
-		struct sockaddr_in* p;
-		p = (struct sockaddr_in*)&tcp_conn.addr;
-		p->sin_family = AF_INET;
-		p->sin_port = htons(9999);
-		inet_pton (p->sin_family, "127.0.0.1", &p->sin_addr);
-		tcp_conn.on_connected = tcp_on_connected;
-		tcp_conn.on_disconnected = tcp_on_disconnected;
-		//tcp_conn.on_failure = .... (error code? etc???) or on_connect to access success or failure??? what is better??
-	}
+
+	memset (&sin, 0, STIO_SIZEOF(sin));
+	sin.sin_family = AF_INET;
+	sin.sin_port = htons(9999);
+	//inet_pton (sin.sin_family, "192.168.1.1", &sin.sin_addr);
+	inet_pton (sin.sin_family, "127.0.0.1", &sin.sin_addr);
+
+	memset (&tcp_conn, 0, STIO_SIZEOF(tcp_conn));
+	memcpy (&tcp_conn.addr, &sin, STIO_SIZEOF(sin));
+	tcp_conn.timeout.sec = 5;
+	tcp_conn.on_connected = tcp_on_connected;
+	tcp_conn.on_disconnected = tcp_on_disconnected;
 	if (stio_dev_tcp_connect (tcp[0], &tcp_conn) <= -1)
 	{
 		printf ("stio_dev_tcp_connect() failed....\n");
 		goto oops;
 	}
 
+	memset (&sin, 0, STIO_SIZEOF(sin));
+	sin.sin_family = AF_INET;
 	sin.sin_port = htons(1234);
+	memset (&tcp_make, 0, STIO_SIZEOF(&tcp_make));
 	memcpy (&tcp_make.addr, &sin, STIO_SIZEOF(sin));
 	tcp_make.on_sent = tcp_on_sent;
 	tcp_make.on_recv = tcp_on_recv;

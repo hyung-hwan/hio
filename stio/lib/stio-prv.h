@@ -42,8 +42,7 @@
 #define STIO_MEMMOVE(dst,src,count) memmove(dst,src,count)
 #define STIO_ASSERT assert
 
-typedef struct stio_tmrjob_t stio_tmrjob_t;
-typedef stio_size_t stio_tmridx_t;
+
 
 typedef void (*stio_tmr_handler_t) (
 	stio_t*             stio,
@@ -137,9 +136,10 @@ void stio_cleartmrjobs (
 	stio_t* stio
 );
 
-stio_size_t stio_firetmrjobs (
+void stio_firetmrjobs (
 	stio_t*             stio,
-	const stio_ntime_t* tm
+	const stio_ntime_t* tm,
+	stio_size_t*        firecnt
 );
 
 int stio_gettmrtmout (

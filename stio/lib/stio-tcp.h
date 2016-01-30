@@ -62,7 +62,8 @@ struct stio_dev_tcp_t
 
 	stio_sckhnd_t sck;
 
-	unsigned int state;
+	/* bitwised-ORed of #stio_dev_tcp_state_t enumerators */
+	int state;
 
 	/* peer address - valid if one of the followings is set:
 	 *  STIO_DEV_TCP_ACCEPTED
@@ -81,6 +82,8 @@ struct stio_dev_tcp_t
 	stio_dev_tcp_on_disconnected_t on_disconnected;
 	stio_dev_tcp_on_recv_t on_recv;
 	stio_dev_tcp_on_sent_t on_sent;
+
+	stio_tmridx_t tmridx_connect;
 };
 
 typedef struct stio_dev_tcp_make_t stio_dev_tcp_make_t;

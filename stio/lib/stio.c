@@ -227,14 +227,16 @@ int stio_exec (stio_t* stio)
 
 	/*if (!stio->dev.head) return 0;*/
 
-	
+	/* execute the scheduled jobs before checking devices with the 
+	 * multiplexer. the scheduled jobs can safely destroy the devices */
+	stio_firetmrjobs (stio, STIO_NULL, STIO_NULL);
+
 	if (stio_gettmrtmout (stio, STIO_NULL, &tmout) <= -1)
 	{
 		/* defaults to 1 second if timeout can't be acquired */
-		tmout.sec = 1;
+		tmout.sec = 1; /* TODO: make the default timeout configurable */
 		tmout.nsec = 0;
 	}
-
 
 #if defined(_WIN32)
 /*
