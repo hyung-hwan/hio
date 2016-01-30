@@ -172,35 +172,35 @@ stio_tmridx_t stio_updtmrjob (stio_t* stio, stio_size_t index, const stio_tmrjob
 	return YOUNGER_THAN(job, &item)? sift_up (stio, index, 0): sift_down (stio, index, 0);
 }
 
-stio_size_t stio_firetmrjobs (stio_t* stio, const stio_ntime_t* tm)
+void stio_firetmrjobs (stio_t* stio, const stio_ntime_t* tm, stio_size_t* firecnt)
 {
 	stio_ntime_t now;
 	stio_tmrjob_t event;
-	stio_size_t fire_count = 0;
+	stio_size_t count = 0;
 
 	/* if the current time is not specified, get it from the system */
 	if (tm) now = *tm;
-	else if (stio_gettime (&now) <= -1) return -1;
+	else stio_gettime (&now);
 
 	while (stio->tmr.size > 0)
 	{
 		if (stio_cmptime(&stio->tmr.jobs[0].when, &now) > 0) break;
 
 		event = stio->tmr.jobs[0];
-		stio_deltmrjob (stio, 0); /* remove the registered event structure */
+		stio_deltmrjob (stio, 0); /* remove the registered job */
 
-		fire_count++;
-		event.handler (stio, &now, &event); /* then fire the event */
+		count++;
+		event.handler (stio, &now, &event); /* then fire the job */
 	}
 
-	return fire_count;
+	if (firecnt) *firecnt = count;
 }
 
 int stio_gettmrtmout (stio_t* stio, const stio_ntime_t* tm, stio_ntime_t* tmout)
 {
 	stio_ntime_t now;
 
-	/* time-out can't be calculated when there's no event scheduled */
+	/* time-out can't be calculated when there's no job scheduled */
 	if (stio->tmr.size <= 0) 
 	{
 		stio->errnum = STIO_ENOENT;
@@ -209,7 +209,7 @@ int stio_gettmrtmout (stio_t* stio, const stio_ntime_t* tm, stio_ntime_t* tmout)
 
 	/* if the current time is not specified, get it from the system */
 	if (tm) now = *tm;
-	else if (stio_gettime (&now) <= -1) return -1;
+	else stio_gettime (&now);
 
 	stio_subtime (&stio->tmr.jobs[0].when, &now, tmout);
 	if (tmout->sec < 0) stio_cleartime (tmout);

@@ -29,6 +29,9 @@
 
 #include <stio-cmn.h>
 
+typedef struct stio_tmrjob_t stio_tmrjob_t;
+typedef stio_size_t stio_tmridx_t;
+
 struct stio_sckadr_t
 {
 	int family;

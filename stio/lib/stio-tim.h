@@ -106,7 +106,7 @@ extern "C" {
 /**
  * The stio_gettime() function gets the current time.
  */
-STIO_EXPORT int stio_gettime (
+STIO_EXPORT void stio_gettime (
 	stio_ntime_t* nt
 );
 
