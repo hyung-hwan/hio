@@ -32,26 +32,27 @@
 #include <unistd.h>
 #include <errno.h>
 
-stio_t* stio_open (stio_mmgr_t* mmgr, stio_size_t xtnsize, stio_errnum_t* errnum)
+
+
+
+stio_t* stio_open (stio_mmgr_t* mmgr, stio_size_t xtnsize, stio_size_t tmrcapa, stio_errnum_t* errnum)
 {
 	stio_t* stio;
 
-	stio = STIO_MMGR_ALLOC (mmgr, STIO_SIZEOF(*stio));
-	if (!stio) 
+	stio = STIO_MMGR_ALLOC (mmgr, STIO_SIZEOF(stio_t) + xtnsize);
+	if (stio)
+	{
+		if (stio_init (stio, mmgr, tmrcapa) <= -1)
+		{
+			if (errnum) *errnum = stio->errnum;
+			STIO_MMGR_FREE (mmgr, stio);
+			stio = STIO_NULL;
+		}
+		else STIO_MEMSET (stio + 1, 0, xtnsize);
+	}
+	else
 	{
 		if (errnum) *errnum = STIO_ENOMEM;
-		return STIO_NULL;
-	}
-
-	STIO_MEMSET (stio, 0, STIO_SIZEOF(*stio));
-	stio->mmgr = mmgr;
-
-	stio->mux = epoll_create (1000);
-	if (stio->mux == -1)
-	{
-		//if (errnum) *errnum = XXXXX
-		STIO_MMGR_FREE (stio->mmgr, stio);
-		return STIO_NULL;
 	}
 
 	return stio;
@@ -59,13 +60,52 @@ stio_t* stio_open (stio_mmgr_t* mmgr, stio_size_t xtnsize, stio_errnum_t* errnum
 
 void stio_close (stio_t* stio)
 {
+	stio_fini (stio);
+	STIO_MMGR_FREE (stio->mmgr, stio);
+}
+
+int stio_init (stio_t* stio, stio_mmgr_t* mmgr, stio_size_t tmrcapa)
+{
+	STIO_MEMSET (stio, 0, STIO_SIZEOF(*stio));
+	stio->mmgr = mmgr;
+
+	/* intialize the multiplexer object */
+	stio->mux = epoll_create (1000);
+	if (stio->mux == -1)
+	{
+/* TODO: set error number */
+		//if (stio->errnum) *errnum = XXXXX
+		return -1;
+	}
+
+	/* initialize the timer object */
+	if (tmrcapa <= 0) tmrcapa = 1;
+	stio->tmr.jobs = STIO_MMGR_ALLOC (stio->mmgr, tmrcapa * STIO_SIZEOF(stio_tmrjob_t));
+	if (!stio->tmr.jobs) 
+	{
+		stio->errnum = STIO_ENOMEM;
+		close (stio->mux);
+		return -1;
+	}
+	stio->tmr.capa = tmrcapa;
+
+	return 0;
+}
+
+void stio_fini (stio_t* stio)
+{
+	/* kill all registered devices */
 	while (stio->dev.tail)
 	{
 		stio_killdev (stio, stio->dev.tail);
 	}
 
+	/* purge scheduled timer jobs and kill the timer */
+	stio_cleartmrjobs (stio);
+	STIO_MMGR_FREE (stio->mmgr, stio->tmr.jobs);
+
+	/* close the multiplexer */
 	close (stio->mux);
-	STIO_MMGR_FREE (stio->mmgr, stio);
 }
 
 stio_dev_t* stio_makedev (stio_t* stio, stio_size_t dev_size, stio_dev_mth_t* dev_mth, stio_dev_evcb_t* dev_evcb, void* make_ctx)
@@ -156,18 +196,7 @@ printf ("DELETING UNSENT REQUETS...%p\n", wq);
 	else
 		stio->dev.tail = dev->prev;
 
-	/* ------------------------------------ */
-	{
-	#if defined(_WIN32)
-		/* nothing - can't deassociate it. closing the socket
-		 * will do. kill should close it */
-	#else
-		struct epoll_event ev; /* dummy */
-		epoll_ctl (stio->mux, EPOLL_CTL_DEL, dev->mth->getsyshnd(dev), &ev); 
-		/* don't care about failure */
-	#endif
-	}
-	/* ------------------------------------ */
+	stio_dev_event (dev, STIO_DEV_EVENT_DEL, 0);
 
 	/* and call the callback function */
 	dev->mth->kill (dev);
@@ -188,7 +217,7 @@ void stio_epilogue (stio_t* stio)
 
 int stio_exec (stio_t* stio)
 {
-	int timeout;
+	stio_ntime_t tmout;
 
 #if defined(_WIN32)
 	ULONG nentries, i;
@@ -198,7 +227,14 @@ int stio_exec (stio_t* stio)
 
 	/*if (!stio->dev.head) return 0;*/
 
-	timeout = 1000; //TODO: get_timeout (stio); // use the task heap to get the timeout.
+	
+	if (stio_gettmrtmout (stio, STIO_NULL, &tmout) <= -1)
+	{
+		/* defaults to 1 second if timeout can't be acquired */
+		tmout.sec = 1;
+		tmout.nsec = 0;
+	}
+
 
 #if defined(_WIN32)
 /*
@@ -214,14 +250,17 @@ int stio_exec (stio_t* stio)
 */
 
 #else
-
-	nentries = epoll_wait (stio->mux, stio->revs, STIO_COUNTOF(stio->revs), timeout);
+	nentries = epoll_wait (stio->mux, stio->revs, STIO_COUNTOF(stio->revs), STIO_SECNSEC_TO_MSEC(tmout.sec, tmout.nsec));
 	if (nentries <= -1)
 	{
+		if (errno == EINTR) return 0; /* it's actually ok */
+
+		/* other errors are critical - EBADF, EFAULT, EINVAL */
 		/* TODO: set errnum */
 		return -1;
 	}
 
+	/* TODO: merge events??? for the same descriptor */
 	for (i = 0; i < nentries; i++)
 	{
 		stio_dev_t* dev = stio->revs[i].data.ptr;
@@ -257,7 +296,11 @@ int stio_exec (stio_t* stio)
 		}
 		else
 		{
+			int dev_eof;
+
 		invoke_evcb:
+
+			dev_eof = 0;
 			if (dev && stio->revs[i].events & EPOLLPRI)
 			{
 				/* urgent data */
@@ -269,29 +312,44 @@ int stio_exec (stio_t* stio)
 				stio_len_t len;
 				int x;
 
-				len = STIO_COUNTOF(stio->bigbuf);
-				x = dev->mth->recv (dev, stio->bigbuf, &len);
+				/* the devices are all non-blocking. so read as much as possible */
+				/* TODO: limit the number of iterations? */
+				while (1)
+				{
+					len = STIO_COUNTOF(stio->bigbuf);
+					x = dev->mth->recv (dev, stio->bigbuf, &len);
 
-printf ("DATA...recv %d  length %d\n", (int)x, len);
-				if (x <= -1)
-				{
-					/*TODO: waht to do? killdev? how to indicate an error? call on_recv? with erro rindicator?? */
-					stio_killdev (stio, dev);
-					dev = STIO_NULL;
-				}
-				else if (x == 0)
-				{
-					/* EOF received. kill the device. */
-					stio_killdev (stio, dev);
-					dev = STIO_NULL;
-				}
-				else if (x >= 1)
-				{
-					/* data available??? */
-					if (dev->evcb->on_recv (dev, stio->bigbuf, len) <= -1)
+	printf ("DATA...recv %d  length %d\n", (int)x, len);
+					if (x <= -1)
 					{
+						/*TODO: what to do? killdev? how to indicate an error? call on_recv? with error indicator?? */
 						stio_killdev (stio, dev);
 						dev = STIO_NULL;
+						break;
+					}
+					else if (x == 0)
+					{
+						/* no data is available */
+						break;
+					}
+					else if (x >= 1)
+					{
+						if (len <= 0) 
+						{
+							/* EOF received. delay killing until output has been handled */
+							dev_eof = 1;
+							break;
+						}
+						else
+						{
+							/* data available */
+							if (dev->evcb->on_recv (dev, stio->bigbuf, len) <= -1)
+							{
+								stio_killdev (stio, dev);
+								dev = STIO_NULL;
+								break;
+							}
+						}
 					}
 				}
 			}
@@ -355,13 +413,20 @@ printf ("DATA...recv %d  length %d\n", (int)x, len);
 				{
 					/* no pending request to write. 
 					 * watch input only. disable output watching */
-					if (stio_dev_event (dev, STIO_DEV_EVENT_MOD, STIO_DEV_EVENT_IN) <= -1)
+					if (stio_dev_event (dev, STIO_DEV_EVENT_UPD, STIO_DEV_EVENT_IN) <= -1)
 					{
 						/* TODO: call an error handler??? */
 						stio_killdev (stio, dev);
 						dev = STIO_NULL;
 					}
 				}
+			}
+
+			if (dev && dev_eof)
+			{
+				/* handled delayed device killing */
+				stio_killdev (stio, dev);
+				dev = STIO_NULL;
 			}
 		}
 	}
@@ -426,12 +491,12 @@ int stio_dev_event (stio_dev_t* dev, stio_dev_event_cmd_t cmd, int flags)
 			epoll_op = EPOLL_CTL_ADD;
 			break;
 
-		case STIO_DEV_EVENT_MOD:
+		case STIO_DEV_EVENT_UPD:
 			epoll_op = EPOLL_CTL_MOD;
 			break;
 
 		case STIO_DEV_EVENT_DEL:
-			epoll_op = EPOLL_CTL_ADD;
+			epoll_op = EPOLL_CTL_DEL;
 			break;
 
 		default:
@@ -489,7 +554,7 @@ int stio_dev_send (stio_dev_t* dev, const void* data, stio_len_t len, void* send
 			STIO_WQ_ENQ (&dev->wq, q);
 			if (wq_empty)
 			{
-				if (stio_dev_event (dev, STIO_DEV_EVENT_MOD, STIO_DEV_EVENT_IN | STIO_DEV_EVENT_OUT) <= -1)
+				if (stio_dev_event (dev, STIO_DEV_EVENT_UPD, STIO_DEV_EVENT_IN | STIO_DEV_EVENT_OUT) <= -1)
 				{
 					STIO_WQ_UNLINK (q); /* unlink the ENQed item */
 					STIO_MMGR_FREE (dev->stio->mmgr, q);

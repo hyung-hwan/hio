@@ -28,6 +28,7 @@
 #define _STIO_TCP_H_
 
 #include <stio.h>
+#include <stio-tim.h>
 
 enum stio_dev_tcp_ioctl_cmd_t
 {
@@ -94,7 +95,7 @@ struct stio_dev_tcp_make_t
 typedef struct stio_dev_tcp_bind_t stio_dev_tcp_bind_t;
 struct stio_dev_tcp_bind_t
 {
-	int options; /* TODO: REUSEADDR , TRANSPARENT, etc  or someting?? */
+	int opts; /* TODO: REUSEADDR , TRANSPARENT, etc  or someting?? */
 	stio_sckadr_t addr;
 	/* TODO: add device name for BIND_TO_DEVICE */
 };
@@ -103,10 +104,9 @@ typedef struct stio_dev_tcp_connect_t stio_dev_tcp_connect_t;
 struct stio_dev_tcp_connect_t
 {
 	stio_sckadr_t addr;
-/* TODO: add timeout */
+	stio_ntime_t timeout; /* connect timeout */
 	stio_dev_tcp_on_connected_t on_connected;
 	stio_dev_tcp_on_disconnected_t on_disconnected;
-	/* stio_dev_tcp_on_timeout_t on_timeout; should the timeout handler be here? what about write timeout? or accept timeout? */
 };
 
 typedef struct stio_dev_tcp_listen_t stio_dev_tcp_listen_t;
@@ -130,31 +130,31 @@ struct stio_dev_tcp_accept_t
 extern "C" {
 #endif
 
-stio_dev_tcp_t* stio_dev_tcp_make (
+STIO_EXPORT  stio_dev_tcp_t* stio_dev_tcp_make (
 	stio_t*                    stio,
 	stio_size_t                xtnsize,
 	const stio_dev_tcp_make_t* data
 );
 
-void stio_dev_tcp_kill (
+STIO_EXPORT void stio_dev_tcp_kill (
 	stio_dev_tcp_t* tcp
 );
 
-int stio_dev_tcp_bind (
+STIO_EXPORT int stio_dev_tcp_bind (
 	stio_dev_tcp_t*         tcp,
 	stio_dev_tcp_bind_t*    bind
 );
 
-int stio_dev_tcp_connect (
+STIO_EXPORT int stio_dev_tcp_connect (
 	stio_dev_tcp_t*         tcp,
 	stio_dev_tcp_connect_t* conn);
 
-int stio_dev_tcp_listen (
+STIO_EXPORT int stio_dev_tcp_listen (
 	stio_dev_tcp_t*         tcp,
 	stio_dev_tcp_listen_t*  lstn
 );
 
-int stio_dev_tcp_send (
+STIO_EXPORT int stio_dev_tcp_send (
 	stio_dev_tcp_t*  tcp,
 	const void*      data,
 	stio_len_t       len,

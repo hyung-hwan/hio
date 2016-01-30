@@ -45,13 +45,13 @@ extern "C" {
 #endif
 
 
-stio_dev_udp_t* stio_dev_udp_make (
+STIO_EXPORT stio_dev_udp_t* stio_dev_udp_make (
 	stio_t*        stio,
 	stio_size_t    xtnsize,
 	stio_sckadr_t* addr
 );
 
-void stio_dev_udp_kill (
+STIO_EXPORT void stio_dev_udp_kill (
 	stio_dev_udp_t* udp
 );
 
