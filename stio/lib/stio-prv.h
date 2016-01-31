@@ -103,6 +103,8 @@ struct stio_t
 extern "C" {
 #endif
 
+stio_errnum_t stio_syserrtoerrnum (int no);
+
 stio_sckhnd_t stio_openasyncsck (int domain, int type);
 void stio_closeasyncsck (stio_sckhnd_t sck);
 int stio_makesckasync (stio_sckhnd_t sck);

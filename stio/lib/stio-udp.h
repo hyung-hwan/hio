@@ -32,13 +32,27 @@
 
 typedef struct stio_dev_udp_t stio_dev_udp_t;
 
+typedef int (*stio_dev_udp_on_recv_t) (stio_dev_udp_t* dev, const void* data, stio_len_t len);
+typedef int (*stio_dev_udp_on_sent_t) (stio_dev_udp_t* dev, void* sendctx);
+
+typedef struct stio_dev_udp_make_t stio_dev_udp_make_t;
+struct stio_dev_udp_make_t
+{
+	/* TODO: options: REUSEADDR for binding?? */
+	stio_sckadr_t addr; /* binding address. */
+	stio_dev_udp_on_sent_t on_sent;
+	stio_dev_udp_on_recv_t on_recv;
+};
+
 struct stio_dev_udp_t
 {
 	STIO_DEV_HEADERS;
 	stio_sckhnd_t sck;
 	stio_sckadr_t peer;
-};
 
+	stio_dev_udp_on_sent_t on_sent;
+	stio_dev_udp_on_recv_t on_recv;
+};
 
 #ifdef __cplusplus
 extern "C" {
@@ -46,9 +60,9 @@ extern "C" {
 
 
 STIO_EXPORT stio_dev_udp_t* stio_dev_udp_make (
-	stio_t*        stio,
-	stio_size_t    xtnsize,
-	stio_sckadr_t* addr
+	stio_t*                    stio,
+	stio_size_t                xtnsize,
+	const stio_dev_udp_make_t* data
 );
 
 STIO_EXPORT void stio_dev_udp_kill (
