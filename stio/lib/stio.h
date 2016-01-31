@@ -29,8 +29,17 @@
 
 #include <stio-cmn.h>
 
-typedef struct stio_tmrjob_t stio_tmrjob_t;
-typedef stio_size_t stio_tmridx_t;
+/**
+ * The stio_ntime_t type defines a numeric time type expressed in the 
+ *  number of milliseconds since the Epoch (00:00:00 UTC, Jan 1, 1970).
+ */
+typedef struct stio_ntime_t stio_ntime_t;
+struct stio_ntime_t
+{
+	stio_intptr_t  sec;
+	stio_int32_t   nsec; /* nanoseconds */
+};
+
 
 struct stio_sckadr_t
 {
@@ -232,6 +241,22 @@ enum stio_dev_event_flag_t
 };
 typedef enum stio_dev_event_flag_t stio_dev_event_flag_t;
 
+
+typedef struct stio_tmrjob_t stio_tmrjob_t;
+typedef stio_size_t stio_tmridx_t;
+
+typedef void (*stio_tmrjob_handler_t) (
+	stio_t*             stio,
+	const stio_ntime_t* now, 
+	stio_tmrjob_t*      tmrjob
+);
+
+typedef void (*stio_tmrjob_updater_t) (
+	stio_t*         stio,
+	stio_tmridx_t   old_index,
+	stio_tmridx_t   new_index,
+	stio_tmrjob_t*  tmrjob
+);
 
 #ifdef __cplusplus
 extern "C" {
