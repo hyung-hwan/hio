@@ -36,36 +36,25 @@
 
 static int udp_make (stio_dev_t* dev, void* ctx)
 {
-/* NOTE: this can be extended to use ctx to tell between INET and INET6 or other types of sockets without creating a new dev method set. */
-
 	stio_dev_udp_t* udp = (stio_dev_udp_t*)dev;
-	struct sockaddr* saddr = (struct sockaddr*)ctx;
+	stio_dev_udp_make_t* arg = (stio_dev_udp_make_t*)ctx;
+	stio_scklen_t len;
+	stio_sckfam_t family;
 
-	udp->sck = stio_openasyncsck (AF_INET, SOCK_DGRAM);
+	if (stio_getsckadrinfo(dev->stio, &arg->addr, &len, &family) <= -1) return -1;
+
+	udp->sck = stio_openasyncsck (family, SOCK_DGRAM);
 	if (udp->sck == STIO_SCKHND_INVALID) goto oops;
 
-	if (saddr)
+	/* some socket options? */
+	if (bind (udp->sck, (struct sockaddr*)&arg->addr, len) == -1) 
 	{
-		stio_scklen_t len;
-		if (saddr->sa_family == AF_INET) 
-			len = STIO_SIZEOF(struct sockaddr_in);
-		else if (saddr->sa_family == AF_INET6)
-			len = STIO_SIZEOF(struct sockaddr_in6);
-		else	
-		{
-			dev->stio->errnum = STIO_EINVAL;
-			goto oops;
-		}
-
-
-		//setsockopt (udp->sck, SOL_SOCKET, SO_REUSEADDR, ...);
-		if (bind (udp->sck, saddr, len) == -1) 
-		{
-			//dev->stio->errnum = STIO_EINVAL; TODO:
-			goto oops;
-		}
+		udp->stio->errnum = stio_syserrtoerrnum(errno);
+		goto oops;
 	}
 
+	udp->on_sent = arg->on_sent;
+	udp->on_recv = arg->on_recv;
 	return 0;
 
 oops:
@@ -99,12 +88,15 @@ static int udp_recv (stio_dev_t* dev, void* buf, stio_len_t* len)
 	stio_scklen_t addrlen;
 	int x;
 
+/* TODO: udp_recv need source address ... have to extend the send callback to accept the source address */
 printf ("UDP RECVFROM...\n");
 	addrlen = STIO_SIZEOF(udp->peer);
 	x = recvfrom (udp->sck, buf, *len, 0, (struct sockaddr*)&udp->peer, &addrlen);
 	if (x <= -1)
 	{
 		if (errno == EINPROGRESS || errno == EWOULDBLOCK) return 0;  /* no data available */
+		if (errno == EINTR) return 0;
+		udp->stio->errnum = stio_syserrtoerrnum(errno);
 		return -1;
 	}
 
@@ -118,10 +110,13 @@ static int udp_send (stio_dev_t* dev, const void* data, stio_len_t* len)
 	ssize_t x;
 
 #if 0
+/* TODO: udp_send need target address ... have to extend the send callback to accept the target address */
 	x = sendto (udp->sck, data, *len, skad, stio_getskadlen(skad));
 	if (x <= -1) 
 	{
 		if (errno == EINPROGRESS || errno == EWOULDBLOCK) return 0;  /* no data can be written */
+		if (errno == EINTR) return 0;
+		udp->stio->errnum = stio_syserrtoerrnum(errno);
 		return -1;
 	}
 
@@ -157,6 +152,7 @@ static stio_dev_mth_t udp_mth =
 
 static int udp_ready (stio_dev_t* dev, int events)
 {
+/* TODO: ... */
 	if (events & STIO_DEV_EVENT_ERR) printf ("UDP READY ERROR.....\n");
 	if (events & STIO_DEV_EVENT_HUP) printf ("UDP READY HANGUP.....\n");
 	if (events & STIO_DEV_EVENT_PRI) printf ("UDP READY PRI.....\n");
@@ -187,13 +183,9 @@ static stio_dev_evcb_t udp_evcb =
 };
 
 
-stio_dev_udp_t* stio_dev_udp_make (stio_t* stio, stio_size_t xtnsize, stio_sckadr_t* addr)
+stio_dev_udp_t* stio_dev_udp_make (stio_t* stio, stio_size_t xtnsize, const stio_dev_udp_make_t* data)
 {
-	stio_dev_udp_t* udp;
-
-	udp = (stio_dev_udp_t*)stio_makedev (stio, STIO_SIZEOF(*udp) + xtnsize, &udp_mth, &udp_evcb, addr);
-
-	return udp;
+	return (stio_dev_udp_t*)stio_makedev (stio, STIO_SIZEOF(stio_dev_udp_t) + xtnsize, &udp_mth, &udp_evcb, (void*)data);
 }
 
 

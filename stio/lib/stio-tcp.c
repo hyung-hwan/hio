@@ -55,8 +55,7 @@ static int tcp_make (stio_dev_t* dev, void* ctx)
 	if (setsockopt (tcp->sck, SOL_SOCKET, SO_REUSEADDR, &iv, STIO_SIZEOF(iv)) == -1 ||
 	    bind (tcp->sck, (struct sockaddr*)&arg->addr, len) == -1) 
 	{
-		// TODO: set errnum from errno ...
-		//dev->stio->errnum = STIO_EINVAL;
+		tcp->stio->errnum = stio_syserrtoerrnum(errno);
 		goto oops;
 	}
 
@@ -124,6 +123,7 @@ static int tcp_recv (stio_dev_t* dev, void* buf, stio_len_t* len)
 	{
 		if (errno == EINPROGRESS || errno == EWOULDBLOCK) return 0;  /* no data available */
 		if (errno == EINTR) return 0;
+		tcp->stio->errnum = stio_syserrtoerrnum(errno);
 		return -1;
 	}
 
@@ -146,6 +146,7 @@ static int tcp_send (stio_dev_t* dev, const void* data, stio_len_t* len)
 	{
 		if (errno == EINPROGRESS || errno == EWOULDBLOCK) return 0;  /* no data can be written */
 		if (errno == EINTR) return 0;
+		tcp->stio->errnum = stio_syserrtoerrnum(errno);
 		return -1;
 	}
 
@@ -199,7 +200,7 @@ static int tcp_ioctl (stio_dev_t* dev, int cmd, void* arg)
 			x = bind (tcp->sck, sa, sl);
 			if (x == -1)
 			{
-				/* TODO: set dev->errnum from errno */
+				tcp->stio->errnum = stio_syserrtoerrnum(errno);
 				return -1;
 			}
 
@@ -264,7 +265,7 @@ static int tcp_ioctl (stio_dev_t* dev, int cmd, void* arg)
 					}
 				}
 
-				/* TODO: set dev->errnum from errno */
+				tcp->stio->errnum = stio_syserrtoerrnum(errno);
 				return -1;
 			}
 
@@ -288,7 +289,7 @@ static int tcp_ioctl (stio_dev_t* dev, int cmd, void* arg)
 			x = listen (tcp->sck, lstn->backlogs);
 			if (x == -1) 
 			{
-				/* TODO: set tcp->stio->errnum */
+				tcp->stio->errnum = stio_syserrtoerrnum(errno);
 				return -1;
 			}
 
@@ -340,9 +341,14 @@ printf ("TCP READY...%p\n", dev);
 			stio_scklen_t len;
 
 			len = STIO_SIZEOF(errcode);
-			if (getsockopt (tcp->sck, SOL_SOCKET, SO_ERROR, (char*)&errcode, &len) == 0)
+			if (getsockopt (tcp->sck, SOL_SOCKET, SO_ERROR, (char*)&errcode, &len) == -1)
 			{
-				printf ("CANNOT CONNECT ERRORCODE - %s\n", strerror(errcode));
+printf ("CANNOT CONNECT ERRORCODE - %s\n", strerror(errcode));
+				tcp->stio->errnum = stio_syserrtoerrnum(errno);
+			}
+			else
+			{
+				tcp->stio->errnum = stio_syserrtoerrnum(errcode);
 			}
 
 			return -1;
@@ -354,11 +360,11 @@ printf ("TCP READY...%p\n", dev);
 
 			STIO_ASSERT (!(tcp->state & STIO_DEV_TCP_CONNECTED));
 
-	printf ("XXXXXXXXXXXXXXX CONNECTED...\n");
+printf ("XXXXXXXXXXXXXXX CONNECTED...\n");
 			len = STIO_SIZEOF(errcode);
 			if (getsockopt (tcp->sck, SOL_SOCKET, SO_ERROR, (char*)&errcode, &len) == -1)
 			{
-				printf ("CANNOT GET SOCKET CONNECTION STATE....\n");
+				tcp->stio->errnum = stio_syserrtoerrnum(errno);
 				return -1;
 			}
 			else if (errcode == 0)
@@ -368,7 +374,7 @@ printf ("TCP READY...%p\n", dev);
 
 				if (stio_dev_event ((stio_dev_t*)tcp, STIO_DEV_EVENT_UPD, STIO_DEV_EVENT_IN) <= -1)
 				{
-					printf ("CAANOT MANIPULTE EVENT ...\n");
+printf ("CAANOT MANIPULTE EVENT ...\n");
 					return -1;
 				}
 
@@ -390,7 +396,7 @@ printf ("TCP READY...%p\n", dev);
 			}
 			else
 			{
-				printf ("failed to get SOCKET PROGRESS CODE...\n");
+				tcp->stio->errnum = stio_syserrtoerrnum(errcode);
 				return -1;
 			}
 		}
@@ -413,7 +419,7 @@ printf ("TCP READY...%p\n", dev);
 			if (errno == EINPROGRESS || errno == EWOULDBLOCK) return 0;
 			if (errno == EINTR) return 0; /* if interrupted by a signal, treat it as if it's EINPROGRESS */
 
-			/* TODO: set tcp->stio->errnum from errno */
+			tcp->stio->errnum = stio_syserrtoerrnum(errno);
 			return -1;
 		}
 
@@ -430,7 +436,6 @@ printf ("TCP READY...%p\n", dev);
 		clitcp->state |= STIO_DEV_TCP_ACCEPTED;
 		clitcp->peer = peer;
 		clitcp->parent = tcp;
-
 
 
 		/* inherit some event handlers from the parent.
@@ -475,9 +480,9 @@ static stio_dev_evcb_t tcp_evcb =
 	tcp_on_sent
 };
 
-stio_dev_tcp_t* stio_dev_tcp_make (stio_t* stio, stio_size_t xtnsize, const stio_dev_tcp_make_t* arg)
+stio_dev_tcp_t* stio_dev_tcp_make (stio_t* stio, stio_size_t xtnsize, const stio_dev_tcp_make_t* data)
 {
-	return (stio_dev_tcp_t*)stio_makedev (stio, STIO_SIZEOF(stio_dev_tcp_t) + xtnsize, &tcp_mth, &tcp_evcb, (void*)arg);
+	return (stio_dev_tcp_t*)stio_makedev (stio, STIO_SIZEOF(stio_dev_tcp_t) + xtnsize, &tcp_mth, &tcp_evcb, (void*)data);
 }
 
 void stio_dev_tcp_kill (stio_dev_tcp_t* tcp)

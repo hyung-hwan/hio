@@ -32,9 +32,6 @@
 #include <unistd.h>
 #include <errno.h>
 
-
-
-
 stio_t* stio_open (stio_mmgr_t* mmgr, stio_size_t xtnsize, stio_size_t tmrcapa, stio_errnum_t* errnum)
 {
 	stio_t* stio;
@@ -73,8 +70,7 @@ int stio_init (stio_t* stio, stio_mmgr_t* mmgr, stio_size_t tmrcapa)
 	stio->mux = epoll_create (1000);
 	if (stio->mux == -1)
 	{
-/* TODO: set error number */
-		//if (stio->errnum) *errnum = XXXXX
+		stio->errnum = stio_syserrtoerrnum(errno);
 		return -1;
 	}
 
@@ -256,9 +252,8 @@ int stio_exec (stio_t* stio)
 	if (nentries <= -1)
 	{
 		if (errno == EINTR) return 0; /* it's actually ok */
-
 		/* other errors are critical - EBADF, EFAULT, EINVAL */
-		/* TODO: set errnum */
+		stio->errnum = stio_syserrtoerrnum(errno);
 		return -1;
 	}
 
@@ -508,7 +503,7 @@ int stio_dev_event (stio_dev_t* dev, stio_dev_event_cmd_t cmd, int flags)
 
 	if (epoll_ctl (dev->stio->mux, epoll_op, dev->mth->getsyshnd(dev), &ev) == -1)
 	{
-		/* TODO: set dev->stio->errnum from errno */
+		dev->stio->errnum = stio_syserrtoerrnum(errno);
 		return -1;
 	}
 
@@ -575,4 +570,31 @@ int stio_dev_send (stio_dev_t* dev, const void* data, stio_len_t len, void* send
 
 	dev->evcb->on_sent (dev, sendctx);
 	return 0;
+}
+
+
+stio_errnum_t stio_syserrtoerrnum (int no)
+{
+	switch (no)
+	{
+		case ENOMEM:
+			return STIO_ENOMEM;
+
+		case EINVAL:
+			return STIO_EINVAL;
+
+		case ENOENT:
+			return STIO_ENOENT;
+
+		case EMFILE:
+			return STIO_EMFILE;
+
+	#if defined(ENFILE)
+		case ENFILE:
+			return STIO_ENFILE;
+	#endif
+
+		default:
+			return STIO_ESYSERR;
+	}
 }

@@ -94,8 +94,11 @@ enum stio_errnum_t
 	STIO_EINVAL,
 	STIO_ENOENT,
 	STIO_ENOSUP, /* not supported */
+	STIO_EMFILE,
+	STIO_ENFILE,
 
-	STIO_EDEVMAKE
+	STIO_EDEVMAKE,
+	STIO_ESYSERR
 };
 
 typedef enum stio_errnum_t stio_errnum_t;
