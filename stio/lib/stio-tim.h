@@ -79,17 +79,6 @@
 #define STIO_SEC_TO_USEC(sec) ((sec) * STIO_USECS_PER_SEC)
 #define STIO_USEC_TO_SEC(usec) ((usec) / STIO_USECS_PER_SEC)
 
-/**
- * The stio_ntime_t type defines a numeric time type expressed in the 
- *  number of milliseconds since the Epoch (00:00:00 UTC, Jan 1, 1970).
- */
-typedef struct stio_ntime_t stio_ntime_t;
-struct stio_ntime_t
-{
-	stio_intptr_t  sec;
-	stio_int32_t nsec; /* nanoseconds */
-};
-
 #define stio_inittime(x,s,ns) (((x)->sec = (s)), ((x)->nsec = (ns)))
 #define stio_cleartime(x) stio_inittime(x,0,0)
 /*#define stio_cleartime(x) ((x)->sec = (x)->nsec = 0)*/

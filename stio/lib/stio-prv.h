@@ -42,28 +42,16 @@
 #define STIO_MEMMOVE(dst,src,count) memmove(dst,src,count)
 #define STIO_ASSERT assert
 
-
-
-typedef void (*stio_tmr_handler_t) (
-	stio_t*             stio,
-	const stio_ntime_t* now, 
-	stio_tmrjob_t*      evt
-);
-
-typedef void (*stio_updtmrjobr_t) (
-	stio_t*         stio,
-	stio_tmridx_t   old_index,
-	stio_tmridx_t   new_index,
-	stio_tmrjob_t*  evt
-);
-
-
 struct stio_tmrjob_t
 {
-	void*               ctx;
-	stio_ntime_t        when;
-	stio_tmr_handler_t  handler;
-	stio_updtmrjobr_t   updater;
+	void*                  ctx;
+	stio_ntime_t           when;
+	stio_tmrjob_handler_t  handler;
+#if defined(STIO_USE_TMRJOB_IDXPTR)
+	stio_tmridx_t*         idxptr; /* pointer to the index holder */
+#else
+	stio_tmrjob_updater_t  updater;
+#endif
 };
 
 #define STIO_TMRIDX_INVALID ((stio_tmridx_t)-1)
