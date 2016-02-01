@@ -29,8 +29,6 @@ pkginclude_HEADERS = \
 pkglib_LTLIBRARIES = libstio.la
 libstio_la_SOURCES = \
 	stio-prv.h \
-	stio-tim.h \
-	stio-tmr.h \
 	stio.c \
 	stio-sck.c \
 	stio-tcp.c \

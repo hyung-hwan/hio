@@ -24,7 +24,6 @@
     THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  */
 
-#include "stio-tim.h"
 #include "stio-prv.h"
 
 #if defined(_WIN32)

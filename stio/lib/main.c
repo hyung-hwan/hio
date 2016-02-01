@@ -176,8 +176,8 @@ int main ()
 	memset (&sin, 0, STIO_SIZEOF(sin));
 	sin.sin_family = AF_INET;
 	sin.sin_port = htons(9999);
-	//inet_pton (sin.sin_family, "192.168.1.1", &sin.sin_addr);
-	inet_pton (sin.sin_family, "127.0.0.1", &sin.sin_addr);
+	inet_pton (sin.sin_family, "192.168.1.1", &sin.sin_addr);
+	//inet_pton (sin.sin_family, "127.0.0.1", &sin.sin_addr);
 
 	memset (&tcp_conn, 0, STIO_SIZEOF(tcp_conn));
 	memcpy (&tcp_conn.addr, &sin, STIO_SIZEOF(sin));
