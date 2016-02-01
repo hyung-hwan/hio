@@ -105,8 +105,13 @@ enum stio_errnum_t
 	STIO_ENOSUP, /* not supported */
 	STIO_EMFILE,
 	STIO_ENFILE,
+	STIO_ECONRF, /* connection refused */
+	STIO_ECONRS, /* connection reset */
 
 	STIO_EDEVMAKE,
+	STIO_EDEVERR,
+	STIO_EDEVHUP,
+
 	STIO_ESYSERR
 };
 

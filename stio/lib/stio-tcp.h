@@ -28,7 +28,6 @@
 #define _STIO_TCP_H_
 
 #include <stio.h>
-#include <stio-tim.h>
 
 enum stio_dev_tcp_ioctl_cmd_t
 {
@@ -72,7 +71,7 @@ struct stio_dev_tcp_t
 	stio_sckadr_t peer;
 
 	/* parent tcp device. valid if STIO_DEV_TCP_ACCEPTED is set */
-	stio_dev_tcp_t* parent;
+	/*stio_dev_tcp_t* parent;*/
 
 	/** return 0 on succes, -1 on failure/
 	 *  called on a new tcp device for an accepted client or
@@ -125,7 +124,7 @@ struct stio_dev_tcp_accept_t
 {
 	stio_syshnd_t   sck;
 /* TODO: add timeout */
-	stio_dev_tcp_t* parent; /* TODO: is this really needed? */
+	/*stio_dev_tcp_t* parent;*/
 	stio_sckadr_t   peer;
 };
 

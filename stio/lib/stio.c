@@ -267,14 +267,15 @@ int stio_exec (stio_t* stio)
 			int x, events = 0;
 
 			if (stio->revs[i].events & EPOLLERR) events |= STIO_DEV_EVENT_ERR;
-		#if defined(EPOLLRDHUP)
-			if (stio->revs[i].events & (EPOLLHUP | EPOLLRDHUP)) events |= STIO_DEV_EVENT_HUP;
-		#else
 			if (stio->revs[i].events & EPOLLHUP) events |= STIO_DEV_EVENT_HUP;
-		#endif
+			#if defined(EPOLLRDHUP)
+			/* treat it the same way as EPOLLHUP */
+			if (stio->revs[i].events & EPOLLRDHUP) events |= STIO_DEV_EVENT_HUP;
+			#endif
 			if (stio->revs[i].events & EPOLLIN) events |= STIO_DEV_EVENT_IN;
 			if (stio->revs[i].events & EPOLLOUT) events |= STIO_DEV_EVENT_OUT;
 			if (stio->revs[i].events & EPOLLPRI) events |= STIO_DEV_EVENT_PRI;
+
 
 			/* return value of ready()
 			 *   <= -1 - failure. kill the device.
@@ -592,6 +593,16 @@ stio_errnum_t stio_syserrtoerrnum (int no)
 	#if defined(ENFILE)
 		case ENFILE:
 			return STIO_ENFILE;
+	#endif
+
+	#if defined(ECONNREFUSED)
+		case ECONNREFUSED:
+			return STIO_ECONRF;
+	#endif
+
+	#if defined(ECONNRESETD)
+		case ECONNRESET:
+			return STIO_ECONRS;
 	#endif
 
 		default:

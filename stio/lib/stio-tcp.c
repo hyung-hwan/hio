@@ -88,7 +88,7 @@ static void tcp_kill (stio_dev_t* dev)
 {
 	stio_dev_tcp_t* tcp = (stio_dev_tcp_t*)dev;
 
-	if (tcp->state & (STIO_DEV_TCP_ACCEPTED | STIO_DEV_TCP_CONNECTED))
+	if (tcp->state & (STIO_DEV_TCP_ACCEPTED | STIO_DEV_TCP_CONNECTED | STIO_DEV_TCP_CONNECTING | STIO_DEV_TCP_LISTENING))
 	{
 		if (tcp->on_disconnected) tcp->on_disconnected (tcp);
 	}
@@ -160,12 +160,15 @@ static void tmr_connect_handle (stio_t* stio, const stio_ntime_t* now, stio_tmrj
 
 	if (tcp->state & STIO_DEV_TCP_CONNECTING)
 	{
-		/* the state check is actually redundant as it must not be fired 
-		 * after it gets connected. the timer job doesn't need to be deleted
-		 * when it gets connected for this check here */
+		/* the state check for STIO_DEV_TCP_CONNECTING is actually redundant
+		 * as it must not be fired  after it gets connected. the timer job 
+		 * doesn't need to be deleted when it gets connected for this check 
+		 * here. this libarary, however, deletes the job when it gets 
+		 * connected. */
+/*
 		if (tcp->on_disconnected) tcp->on_disconnected (tcp);
-
 		tcp->state &= ~STIO_DEV_TCP_CONNECTING;
+*/
 		stio_dev_tcp_kill (tcp);
 	}
 }
@@ -341,24 +344,39 @@ static int tcp_ready (stio_dev_t* dev, int events)
 	stio_dev_tcp_t* tcp = (stio_dev_tcp_t*)dev;
 printf ("TCP READY...%p\n", dev);
 
+	if (events & STIO_DEV_EVENT_ERR)
+	{
+		int errcode;
+		stio_scklen_t len;
+
+		len = STIO_SIZEOF(errcode);
+		if (getsockopt (tcp->sck, SOL_SOCKET, SO_ERROR, (char*)&errcode, &len) == -1)
+		{
+			/* the error number is set to the socket error code.
+			 * errno resulting from getsockopt() doesn't reflect the actual
+			 * socket error. so errno is not used to set the error number.
+			 * instead, the generic device error STIO_EDEVERRR is used */
+			tcp->stio->errnum = STIO_EDEVERR;
+		}
+		else
+		{
+			tcp->stio->errnum = stio_syserrtoerrnum (errcode);
+		}
+		return -1;
+	}
+
 	if (tcp->state & STIO_DEV_TCP_CONNECTING)
 	{
-		if (events & (STIO_DEV_EVENT_ERR | STIO_DEV_EVENT_HUP | STIO_DEV_EVENT_PRI | STIO_DEV_EVENT_IN))
+		if (events & STIO_DEV_EVENT_HUP)
 		{
-			int errcode;
-			stio_scklen_t len;
-
-			len = STIO_SIZEOF(errcode);
-			if (getsockopt (tcp->sck, SOL_SOCKET, SO_ERROR, (char*)&errcode, &len) == -1)
-			{
-printf ("CANNOT CONNECT ERRORCODE - %s\n", strerror(errcode));
-				tcp->stio->errnum = stio_syserrtoerrnum(errno);
-			}
-			else
-			{
-				tcp->stio->errnum = stio_syserrtoerrnum(errcode);
-			}
-
+			/* device hang-up */
+			tcp->stio->errnum = STIO_EDEVHUP;
+			return -1;
+		}
+		else if (events & (STIO_DEV_EVENT_PRI | STIO_DEV_EVENT_IN))
+		{
+			/* invalid event masks. generic device error */
+			tcp->stio->errnum = STIO_EDEVERR;
 			return -1;
 		}
 		else if (events & STIO_DEV_EVENT_OUT)
@@ -413,57 +431,73 @@ printf ("CAANOT MANIPULTE EVENT ...\n");
 	}
 	else if (tcp->state & STIO_DEV_TCP_LISTENING)
 	{
-		stio_sckhnd_t clisck;
-		stio_sckadr_t peer;
-		stio_scklen_t addrlen;
-		stio_dev_tcp_t* clitcp;
-
-		/* this is a server(lisening) socket */
-
-		addrlen = STIO_SIZEOF(peer);
-		clisck = accept (tcp->sck, (struct sockaddr*)&peer, &addrlen);
-		if (clisck == -1)
+		if (events & STIO_DEV_EVENT_HUP)
 		{
-			if (errno == EINPROGRESS || errno == EWOULDBLOCK) return 0;
-			if (errno == EINTR) return 0; /* if interrupted by a signal, treat it as if it's EINPROGRESS */
-
-			tcp->stio->errnum = stio_syserrtoerrnum(errno);
+			/* device hang-up */
+			tcp->stio->errnum = STIO_EDEVHUP;
 			return -1;
 		}
-
-
-		/* addr is the address of the peer */
-		/* local addresss is inherited from the server */
-		clitcp = (stio_dev_tcp_t*)stio_makedev (tcp->stio, STIO_SIZEOF(*tcp), &tcp_acc_mth, tcp->evcb, &clisck); 
-		if (!clitcp) 
+		else if (events & (STIO_DEV_EVENT_PRI | STIO_DEV_EVENT_OUT))
 		{
-			close (clisck);
+			tcp->stio->errnum = STIO_EDEVERR;
 			return -1;
 		}
+		else if (events & STIO_DEV_EVENT_IN)
+		{
+			stio_sckhnd_t clisck;
+			stio_sckadr_t peer;
+			stio_scklen_t addrlen;
+			stio_dev_tcp_t* clitcp;
 
-		clitcp->state |= STIO_DEV_TCP_ACCEPTED;
-		clitcp->peer = peer;
-		clitcp->parent = tcp;
+			/* this is a server(lisening) socket */
+
+			addrlen = STIO_SIZEOF(peer);
+			clisck = accept (tcp->sck, (struct sockaddr*)&peer, &addrlen);
+			if (clisck == -1)
+			{
+				if (errno == EINPROGRESS || errno == EWOULDBLOCK) return 0;
+				if (errno == EINTR) return 0; /* if interrupted by a signal, treat it as if it's EINPROGRESS */
+
+				tcp->stio->errnum = stio_syserrtoerrnum(errno);
+				return -1;
+			}
+
+			/* addr is the address of the peer */
+			/* local addresss is inherited from the server */
+			clitcp = (stio_dev_tcp_t*)stio_makedev (tcp->stio, STIO_SIZEOF(*tcp), &tcp_acc_mth, tcp->evcb, &clisck); 
+			if (!clitcp) 
+			{
+				close (clisck);
+				return -1;
+			}
+
+			clitcp->state |= STIO_DEV_TCP_ACCEPTED;
+			clitcp->peer = peer;
+			/*clitcp->parent = tcp;*/
 
 
-		/* inherit some event handlers from the parent.
-		 * you can still change them inside the on_connected handler */
-		clitcp->on_connected = tcp->on_connected;
-		clitcp->on_disconnected = tcp->on_disconnected; 
-		clitcp->on_sent = tcp->on_sent;
-		clitcp->on_recv = tcp->on_recv;
+			/* inherit some event handlers from the parent.
+			 * you can still change them inside the on_connected handler */
+			clitcp->on_connected = tcp->on_connected;
+			clitcp->on_disconnected = tcp->on_disconnected; 
+			clitcp->on_sent = tcp->on_sent;
+			clitcp->on_recv = tcp->on_recv;
 
-		clitcp->tmridx_connect = STIO_TMRIDX_INVALID;
-		if (clitcp->on_connected (clitcp) <= -1) stio_dev_tcp_kill (clitcp);
-		return 0; /* success but don't invoke on_recv() */ 
+			clitcp->tmridx_connect = STIO_TMRIDX_INVALID;
+			if (clitcp->on_connected (clitcp) <= -1) stio_dev_tcp_kill (clitcp);
+			return 0; /* success but don't invoke on_recv() */ 
+		}
 	}
-
-printf ("READY WITH %d\n", events);
-
-	if (events & (STIO_DEV_EVENT_ERR | STIO_DEV_EVENT_HUP))
+	else if (events & STIO_DEV_EVENT_HUP)
 	{
-printf ("DISCONNECTED or ERROR \n");
-		return -1; /* the caller must kill the device */
+		if (events & (STIO_DEV_EVENT_PRI | STIO_DEV_EVENT_IN | STIO_DEV_EVENT_OUT)) 
+		{
+			/* probably half-open? */
+			return 1;
+		}
+
+		tcp->stio->errnum = STIO_EDEVHUP;
+		return -1;
 	}
 
 	return 1; /* the device is ok. carry on reading or writing */
