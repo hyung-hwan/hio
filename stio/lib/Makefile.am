@@ -22,6 +22,8 @@ pkgbindir = $(bindir)
 pkginclude_HEADERS = \
 	stio-cfg.h \
 	stio-cmn.h \
+	stio-pro.h \
+	stio-sck.h \
 	stio-tcp.h \
 	stio-udp.h \
 	stio.h
@@ -30,6 +32,7 @@ pkglib_LTLIBRARIES = libstio.la
 libstio_la_SOURCES = \
 	stio-prv.h \
 	stio.c \
+	stio-pro.c \
 	stio-sck.c \
 	stio-tcp.c \
 	stio-tim.c \

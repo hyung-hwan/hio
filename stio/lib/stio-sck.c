@@ -25,7 +25,9 @@
  */
 
 
+#include "stio-sck.h"
 #include "stio-prv.h"
+
 #include <sys/socket.h>
 #include <fcntl.h>
 #include <unistd.h>
@@ -34,7 +36,7 @@
 #include <arpa/inet.h>
 
 /* ------------------------------------------------------------------------ */
-void stio_closeasyncsck (stio_sckhnd_t sck)
+void stio_closeasyncsck (stio_t* stio, stio_sckhnd_t sck)
 {
 #if defined(_WIN32)
 	closesocket (sck);
@@ -43,21 +45,12 @@ void stio_closeasyncsck (stio_sckhnd_t sck)
 #endif
 }
 
-int stio_makesckasync (stio_sckhnd_t sck)
+int stio_makesckasync (stio_t* stio, stio_sckhnd_t sck)
 {
-	int flags;
-
-	if ((flags = fcntl (sck, F_GETFL)) <= -1 ||
-	    (flags = fcntl (sck, F_SETFL, flags | O_NONBLOCK)) <= -1)
-	{
-		/* stio_seterrnum (dev->stio, STIO_ESYSERR); or translate errno to stio errnum */
-		return -1;
-	}
-
-	return 0;
+	return stio_makesyshndasync (stio, (stio_syshnd_t)sck);
 }
 
-stio_sckhnd_t stio_openasyncsck (int domain, int type)
+stio_sckhnd_t stio_openasyncsck (stio_t* stio, int domain, int type)
 {
 	stio_sckhnd_t sck;
 
@@ -76,7 +69,7 @@ stio_sckhnd_t stio_openasyncsck (int domain, int type)
 		return STIO_SCKHND_INVALID;
 	}
 
-	if (stio_makesckasync (sck) <= -1)
+	if (stio_makesckasync (stio, sck) <= -1)
 	{
 		close (sck);
 		return STIO_SCKHND_INVALID;

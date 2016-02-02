@@ -28,6 +28,7 @@
 #define _STIO_TCP_H_
 
 #include <stio.h>
+#include <stio-sck.h>
 
 enum stio_dev_tcp_ioctl_cmd_t
 {
@@ -48,12 +49,12 @@ typedef enum stio_dev_tcp_state_t stio_dev_tcp_state_t;
 
 typedef struct stio_dev_tcp_t stio_dev_tcp_t;
 
-typedef int (*stio_dev_tcp_on_connected_t) (stio_dev_tcp_t* dev);
+typedef int (*stio_dev_tcp_on_connect_t) (stio_dev_tcp_t* dev);
 typedef void (*stio_dev_tcp_on_accepted_t) (stio_dev_tcp_t* dev, stio_dev_tcp_t* clidev);
-typedef void (*stio_dev_tcp_on_disconnected_t) (stio_dev_tcp_t* dev);
+typedef void (*stio_dev_tcp_on_disconnect_t) (stio_dev_tcp_t* dev);
 
-typedef int (*stio_dev_tcp_on_recv_t) (stio_dev_tcp_t* dev, const void* data, stio_len_t len);
-typedef int (*stio_dev_tcp_on_sent_t) (stio_dev_tcp_t* dev, void* sendctx);
+typedef int (*stio_dev_tcp_on_read_t) (stio_dev_tcp_t* dev, const void* data, stio_len_t len);
+typedef int (*stio_dev_tcp_on_write_t) (stio_dev_tcp_t* dev, void* wrctx);
 
 struct stio_dev_tcp_t
 {
@@ -70,17 +71,14 @@ struct stio_dev_tcp_t
 	 *  STIO_DEV_TCP_CONNECTING */
 	stio_sckadr_t peer;
 
-	/* parent tcp device. valid if STIO_DEV_TCP_ACCEPTED is set */
-	/*stio_dev_tcp_t* parent;*/
-
 	/** return 0 on succes, -1 on failure/
 	 *  called on a new tcp device for an accepted client or
 	 *         on a tcp device conntected to a remote server */
-	stio_dev_tcp_on_connected_t on_connected;
+	stio_dev_tcp_on_connect_t on_connect;
 
-	stio_dev_tcp_on_disconnected_t on_disconnected;
-	stio_dev_tcp_on_recv_t on_recv;
-	stio_dev_tcp_on_sent_t on_sent;
+	stio_dev_tcp_on_disconnect_t on_disconnect;
+	stio_dev_tcp_on_read_t on_read;
+	stio_dev_tcp_on_write_t on_write;
 
 	stio_tmridx_t tmridx_connect;
 };
@@ -90,8 +88,8 @@ struct stio_dev_tcp_make_t
 {
 	/* TODO: options: REUSEADDR for binding?? */
 	stio_sckadr_t addr; /* binding address. */
-	stio_dev_tcp_on_sent_t on_sent;
-	stio_dev_tcp_on_recv_t on_recv;
+	stio_dev_tcp_on_write_t on_write;
+	stio_dev_tcp_on_read_t on_read;
 };
 
 typedef struct stio_dev_tcp_bind_t stio_dev_tcp_bind_t;
@@ -107,16 +105,16 @@ struct stio_dev_tcp_connect_t
 {
 	stio_sckadr_t addr;
 	stio_ntime_t timeout; /* connect timeout */
-	stio_dev_tcp_on_connected_t on_connected;
-	stio_dev_tcp_on_disconnected_t on_disconnected;
+	stio_dev_tcp_on_connect_t on_connect;
+	stio_dev_tcp_on_disconnect_t on_disconnect;
 };
 
 typedef struct stio_dev_tcp_listen_t stio_dev_tcp_listen_t;
 struct stio_dev_tcp_listen_t
 {
 	int backlogs;
-	stio_dev_tcp_on_connected_t on_connected; /* optional, but new connections are dropped immediately without this */
-	stio_dev_tcp_on_disconnected_t on_disconnected; /* should on_discconneted be part of on_accept_t??? */
+	stio_dev_tcp_on_connect_t on_connect; /* optional, but new connections are dropped immediately without this */
+	stio_dev_tcp_on_disconnect_t on_disconnect; /* should on_discconneted be part of on_accept_t??? */
 };
 
 typedef struct stio_dev_tcp_accept_t stio_dev_tcp_accept_t;
@@ -124,7 +122,6 @@ struct stio_dev_tcp_accept_t
 {
 	stio_syshnd_t   sck;
 /* TODO: add timeout */
-	/*stio_dev_tcp_t* parent;*/
 	stio_sckadr_t   peer;
 };
 
@@ -156,11 +153,11 @@ STIO_EXPORT int stio_dev_tcp_listen (
 	stio_dev_tcp_listen_t*  lstn
 );
 
-STIO_EXPORT int stio_dev_tcp_send (
+STIO_EXPORT int stio_dev_tcp_write (
 	stio_dev_tcp_t*  tcp,
 	const void*      data,
 	stio_len_t       len,
-	void*            sendctx
+	void*            wrctx
 );
 
 #ifdef __cplusplus

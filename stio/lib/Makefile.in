@@ -129,9 +129,10 @@ LTLIBRARIES = $(pkglib_LTLIBRARIES)
 am__DEPENDENCIES_1 =
 am__DEPENDENCIES_2 = $(am__DEPENDENCIES_1)
 libstio_la_DEPENDENCIES = $(am__DEPENDENCIES_2)
-am_libstio_la_OBJECTS = libstio_la-stio.lo libstio_la-stio-sck.lo \
-	libstio_la-stio-tcp.lo libstio_la-stio-tim.lo \
-	libstio_la-stio-tmr.lo libstio_la-stio-udp.lo
+am_libstio_la_OBJECTS = libstio_la-stio.lo libstio_la-stio-pro.lo \
+	libstio_la-stio-sck.lo libstio_la-stio-tcp.lo \
+	libstio_la-stio-tim.lo libstio_la-stio-tmr.lo \
+	libstio_la-stio-udp.lo
 libstio_la_OBJECTS = $(am_libstio_la_OBJECTS)
 AM_V_lt = $(am__v_lt_@AM_V@)
 am__v_lt_ = $(am__v_lt_@AM_DEFAULT_V@)
@@ -379,6 +380,8 @@ pkgbindir = $(bindir)
 pkginclude_HEADERS = \
 	stio-cfg.h \
 	stio-cmn.h \
+	stio-pro.h \
+	stio-sck.h \
 	stio-tcp.h \
 	stio-udp.h \
 	stio.h
@@ -387,6 +390,7 @@ pkglib_LTLIBRARIES = libstio.la
 libstio_la_SOURCES = \
 	stio-prv.h \
 	stio.c \
+	stio-pro.c \
 	stio-sck.c \
 	stio-tcp.c \
 	stio-tim.c \
@@ -548,6 +552,7 @@ mostlyclean-compile:
 distclean-compile:
 	-rm -f *.tab.c
 
+@AMDEP_TRUE@@am__include@ @am__quote@./$(DEPDIR)/libstio_la-stio-pro.Plo@am__quote@
 @AMDEP_TRUE@@am__include@ @am__quote@./$(DEPDIR)/libstio_la-stio-sck.Plo@am__quote@
 @AMDEP_TRUE@@am__include@ @am__quote@./$(DEPDIR)/libstio_la-stio-tcp.Plo@am__quote@
 @AMDEP_TRUE@@am__include@ @am__quote@./$(DEPDIR)/libstio_la-stio-tim.Plo@am__quote@
@@ -583,6 +588,13 @@ libstio_la-stio.lo: stio.c
 @AMDEP_TRUE@@am__fastdepCC_FALSE@	$(AM_V_CC)source='stio.c' object='libstio_la-stio.lo' libtool=yes @AMDEPBACKSLASH@
 @AMDEP_TRUE@@am__fastdepCC_FALSE@	DEPDIR=$(DEPDIR) $(CCDEPMODE) $(depcomp) @AMDEPBACKSLASH@
 @am__fastdepCC_FALSE@	$(AM_V_CC@am__nodep@)$(LIBTOOL) $(AM_V_lt) --tag=CC $(AM_LIBTOOLFLAGS) $(LIBTOOLFLAGS) --mode=compile $(CC) $(DEFS) $(DEFAULT_INCLUDES) $(INCLUDES) $(libstio_la_CPPFLAGS) $(CPPFLAGS) $(AM_CFLAGS) $(CFLAGS) -c -o libstio_la-stio.lo `test -f 'stio.c' || echo '$(srcdir)/'`stio.c
+
+libstio_la-stio-pro.lo: stio-pro.c
+@am__fastdepCC_TRUE@	$(AM_V_CC)$(LIBTOOL) $(AM_V_lt) --tag=CC $(AM_LIBTOOLFLAGS) $(LIBTOOLFLAGS) --mode=compile $(CC) $(DEFS) $(DEFAULT_INCLUDES) $(INCLUDES) $(libstio_la_CPPFLAGS) $(CPPFLAGS) $(AM_CFLAGS) $(CFLAGS) -MT libstio_la-stio-pro.lo -MD -MP -MF $(DEPDIR)/libstio_la-stio-pro.Tpo -c -o libstio_la-stio-pro.lo `test -f 'stio-pro.c' || echo '$(srcdir)/'`stio-pro.c
+@am__fastdepCC_TRUE@	$(AM_V_at)$(am__mv) $(DEPDIR)/libstio_la-stio-pro.Tpo $(DEPDIR)/libstio_la-stio-pro.Plo
+@AMDEP_TRUE@@am__fastdepCC_FALSE@	$(AM_V_CC)source='stio-pro.c' object='libstio_la-stio-pro.lo' libtool=yes @AMDEPBACKSLASH@
+@AMDEP_TRUE@@am__fastdepCC_FALSE@	DEPDIR=$(DEPDIR) $(CCDEPMODE) $(depcomp) @AMDEPBACKSLASH@
+@am__fastdepCC_FALSE@	$(AM_V_CC@am__nodep@)$(LIBTOOL) $(AM_V_lt) --tag=CC $(AM_LIBTOOLFLAGS) $(LIBTOOLFLAGS) --mode=compile $(CC) $(DEFS) $(DEFAULT_INCLUDES) $(INCLUDES) $(libstio_la_CPPFLAGS) $(CPPFLAGS) $(AM_CFLAGS) $(CFLAGS) -c -o libstio_la-stio-pro.lo `test -f 'stio-pro.c' || echo '$(srcdir)/'`stio-pro.c
 
 libstio_la-stio-sck.lo: stio-sck.c
 @am__fastdepCC_TRUE@	$(AM_V_CC)$(LIBTOOL) $(AM_V_lt) --tag=CC $(AM_LIBTOOLFLAGS) $(LIBTOOLFLAGS) --mode=compile $(CC) $(DEFS) $(DEFAULT_INCLUDES) $(INCLUDES) $(libstio_la_CPPFLAGS) $(CPPFLAGS) $(AM_CFLAGS) $(CFLAGS) -MT libstio_la-stio-sck.lo -MD -MP -MF $(DEPDIR)/libstio_la-stio-sck.Tpo -c -o libstio_la-stio-sck.lo `test -f 'stio-sck.c' || echo '$(srcdir)/'`stio-sck.c
