@@ -157,14 +157,14 @@ struct stio_t
 extern "C" {
 #endif
 
-stio_errnum_t stio_syserrtoerrnum (int no);
+int stio_makesyshndasync (
+	stio_t*       stio,
+	stio_syshnd_t hnd
+);
 
-stio_sckhnd_t stio_openasyncsck (int domain, int type);
-void stio_closeasyncsck (stio_sckhnd_t sck);
-int stio_makesckasync (stio_sckhnd_t sck);
-
-int stio_getsckadrinfo (stio_t* stio, const stio_sckadr_t* addr, stio_scklen_t* len, stio_sckfam_t* family);
-
+stio_errnum_t stio_syserrtoerrnum (
+	int no
+);
 
 
 /**

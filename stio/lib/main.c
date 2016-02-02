@@ -60,7 +60,7 @@ static stio_mmgr_t mmgr =
 	STIO_NULL
 };
 
-static void tcp_on_disconnected (stio_dev_tcp_t* tcp)
+static void tcp_on_disconnect (stio_dev_tcp_t* tcp)
 {
 	if (tcp->state & STIO_DEV_TCP_CONNECTING)
 	{
@@ -83,7 +83,7 @@ static void tcp_on_disconnected (stio_dev_tcp_t* tcp)
 		printf ("TCP DISCONNECTED - THIS MUST NOT HAPPEN (%d)\n", tcp->sck);
 	}
 }
-static int tcp_on_connected (stio_dev_tcp_t* tcp)
+static int tcp_on_connect (stio_dev_tcp_t* tcp)
 {
 
 	if (tcp->state & STIO_DEV_TCP_CONNECTED)
@@ -95,24 +95,24 @@ printf ("device connected to a remote server... .asdfjkasdfkljasdlfkjasdj...\n")
 printf ("device accepted client device... .asdfjkasdfkljasdlfkjasdj...\n");
 	}
 
-	return stio_dev_tcp_send  (tcp, "hello", 5, STIO_NULL);
+	return stio_dev_tcp_write  (tcp, "hello", 5, STIO_NULL);
 }
 
 
-static int tcp_on_sent (stio_dev_tcp_t* tcp, void* sendctx)
+static int tcp_on_write (stio_dev_tcp_t* tcp, void* wrctx)
 {
 	printf (">>> TCP SENT MESSAGE\n");
 	return 0;
 }
 
-static int tcp_on_recv (stio_dev_tcp_t* tcp, const void* buf, stio_len_t len)
+static int tcp_on_read (stio_dev_tcp_t* tcp, const void* buf, stio_len_t len)
 {
 int n;
 static char a ='A';
 char* xxx = malloc (1000000);
 memset (xxx, a++ ,1000000);
-	//return stio_dev_tcp_send  (tcp, "HELLO", 5, STIO_NULL);
-	n = stio_dev_tcp_send  (tcp, xxx, 1000000, STIO_NULL);
+	//return stio_dev_tcp_write  (tcp, "HELLO", 5, STIO_NULL);
+	n = stio_dev_tcp_write  (tcp, xxx, 1000000, STIO_NULL);
 free (xxx);
 return n;
 }
@@ -170,8 +170,8 @@ int main ()
 	sin.sin_family = AF_INET;
 	memset (&tcp_make, 0, STIO_SIZEOF(&tcp_make));
 	memcpy (&tcp_make.addr, &sin, STIO_SIZEOF(sin));
-	tcp_make.on_sent = tcp_on_sent;
-	tcp_make.on_recv = tcp_on_recv;
+	tcp_make.on_write = tcp_on_write;
+	tcp_make.on_read = tcp_on_read;
 	tcp[0] = stio_dev_tcp_make (stio, 0, &tcp_make);
 	if (!tcp[0])
 	{
@@ -189,8 +189,8 @@ int main ()
 	memset (&tcp_conn, 0, STIO_SIZEOF(tcp_conn));
 	memcpy (&tcp_conn.addr, &sin, STIO_SIZEOF(sin));
 	tcp_conn.timeout.sec = 5;
-	tcp_conn.on_connected = tcp_on_connected;
-	tcp_conn.on_disconnected = tcp_on_disconnected;
+	tcp_conn.on_connect = tcp_on_connect;
+	tcp_conn.on_disconnect = tcp_on_disconnect;
 	if (stio_dev_tcp_connect (tcp[0], &tcp_conn) <= -1)
 	{
 		printf ("stio_dev_tcp_connect() failed....\n");
@@ -202,8 +202,8 @@ int main ()
 	sin.sin_port = htons(1234);
 	memset (&tcp_make, 0, STIO_SIZEOF(&tcp_make));
 	memcpy (&tcp_make.addr, &sin, STIO_SIZEOF(sin));
-	tcp_make.on_sent = tcp_on_sent;
-	tcp_make.on_recv = tcp_on_recv;
+	tcp_make.on_write = tcp_on_write;
+	tcp_make.on_read = tcp_on_read;
 
 	tcp[1] = stio_dev_tcp_make (stio, 0, &tcp_make);
 	if (!tcp[1])
@@ -213,8 +213,8 @@ int main ()
 	}
 
 	tcp_lstn.backlogs = 100;
-	tcp_lstn.on_connected = tcp_on_connected;
-	tcp_lstn.on_disconnected = tcp_on_disconnected;
+	tcp_lstn.on_connect = tcp_on_connect;
+	tcp_lstn.on_disconnect = tcp_on_disconnect;
 	if (stio_dev_tcp_listen (tcp[1], &tcp_lstn) <= -1)
 	{
 		printf ("stio_dev_tcp_listen() failed....\n");

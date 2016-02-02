@@ -348,7 +348,7 @@ int stio_exec (stio_t* stio)
 				while (1)
 				{
 					len = STIO_COUNTOF(stio->bigbuf);
-					x = dev->dev_mth->recv (dev, stio->bigbuf, &len);
+					x = dev->dev_mth->read (dev, stio->bigbuf, &len);
 
 					if (x <= -1)
 					{
@@ -390,11 +390,11 @@ int stio_exec (stio_t* stio)
 						}
 						else
 						{
-				/* TODO: for a stream device, merge received data if bigbuf isn't full and fire the on_recv callback
+				/* TODO: for a stream device, merge received data if bigbuf isn't full and fire the on_read callback
 				 *        when x == 0 or <= -1. you can  */
 
 							/* data available */
-							if (dev->dev_evcb->on_recv (dev, stio->bigbuf, len) <= -1)
+							if (dev->dev_evcb->on_read (dev, stio->bigbuf, len) <= -1)
 							{
 								stio_ruindev (stio, dev);
 								dev = STIO_NULL;
@@ -421,7 +421,7 @@ int stio_exec (stio_t* stio)
 
 				send_leftover:
 					ulen = urem;
-					x = dev->dev_mth->send (dev, uptr, &ulen);
+					x = dev->dev_mth->write (dev, uptr, &ulen);
 					if (x <= -1)
 					{
 						/* TODO: error handling? call callback? or what? */
@@ -446,7 +446,7 @@ int stio_exec (stio_t* stio)
 							int y;
 
 							STIO_WQ_UNLINK (q); /* STIO_WQ_DEQ(&dev->wq); */
-							y = dev->dev_evcb->on_sent (dev, q->ctx);
+							y = dev->dev_evcb->on_write (dev, q->ctx);
 							STIO_MMGR_FREE (dev->stio->mmgr, q);
 
 							if (y <= -1)
@@ -589,7 +589,7 @@ int stio_dev_watch (stio_dev_t* dev, stio_dev_watch_cmd_t cmd, int events)
 	return 0;
 }
 
-int stio_dev_send (stio_dev_t* dev, const void* data, stio_len_t len, void* sendctx)
+int stio_dev_write (stio_dev_t* dev, const void* data, stio_len_t len, void* wrctx)
 {
 	const stio_uint8_t* uptr;
 	stio_len_t urem, ulen;
@@ -611,7 +611,7 @@ int stio_dev_send (stio_dev_t* dev, const void* data, stio_len_t len, void* send
 	while (urem > 0)
 	{
 		ulen = urem;
-		x = dev->dev_mth->send (dev, data, &ulen);
+		x = dev->dev_mth->write (dev, data, &ulen);
 		if (x <= -1) return -1;
 		else if (x == 0) goto enqueue_data; /* enqueue remaining data */
 		else 
@@ -621,7 +621,7 @@ int stio_dev_send (stio_dev_t* dev, const void* data, stio_len_t len, void* send
 		}
 	}
 
-	dev->dev_evcb->on_sent (dev, sendctx);
+	dev->dev_evcb->on_write (dev, wrctx);
 	return 0;
 
 enqueue_data:
@@ -633,7 +633,7 @@ enqueue_data:
 		return -1;
 	}
 
-	q->ctx = sendctx;
+	q->ctx = wrctx;
 	q->ptr = (stio_uint8_t*)(q + 1);
 	q->len = urem;
 	STIO_MEMCPY (q->ptr, uptr, urem);
@@ -650,6 +650,25 @@ enqueue_data:
 	}
 
 	return 0;
+}
+
+int stio_makesyshndasync (stio_t* stio, stio_syshnd_t hnd)
+{
+#if defined(F_GETFL) && defined(F_SETFL) && defined(O_NONBLOCK)
+	int flags;
+
+	if ((flags = fcntl (hnd, F_GETFL)) <= -1 ||
+	    (flags = fcntl (hnd, F_SETFL, flags | O_NONBLOCK)) <= -1)
+	{
+		stio->errnum = stio_syserrtoerrnum (errno);
+		return -1;
+	}
+
+	return 0;
+#else
+	stio->errnum = STIO_ENOSUP;
+	return -1;
+#endif
 }
 
 stio_errnum_t stio_syserrtoerrnum (int no)

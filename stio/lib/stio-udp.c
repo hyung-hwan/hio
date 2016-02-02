@@ -25,8 +25,8 @@
  */
 
 
-#include "stio-prv.h"
 #include "stio-udp.h"
+#include "stio-prv.h"
 
 #include <sys/socket.h>
 #include <netinet/in.h>
@@ -43,7 +43,7 @@ static int udp_make (stio_dev_t* dev, void* ctx)
 
 	if (stio_getsckadrinfo(dev->stio, &arg->addr, &len, &family) <= -1) return -1;
 
-	udp->sck = stio_openasyncsck (family, SOCK_DGRAM);
+	udp->sck = stio_openasyncsck (dev->stio, family, SOCK_DGRAM);
 	if (udp->sck == STIO_SCKHND_INVALID) goto oops;
 
 	/* some socket options? */
@@ -53,14 +53,14 @@ static int udp_make (stio_dev_t* dev, void* ctx)
 		goto oops;
 	}
 
-	udp->on_sent = arg->on_sent;
-	udp->on_recv = arg->on_recv;
+	udp->on_write = arg->on_write;
+	udp->on_read = arg->on_read;
 	return 0;
 
 oops:
 	if (udp->sck != STIO_SCKHND_INVALID)
 	{
-		stio_closeasyncsck (udp->sck);
+		stio_closeasyncsck (udp->stio, udp->sck);
 		udp->sck = STIO_SCKHND_INVALID;
 	}
 	return -1;
@@ -71,7 +71,7 @@ static void udp_kill (stio_dev_t* dev)
 	stio_dev_udp_t* udp = (stio_dev_udp_t*)dev;
 	if (udp->sck != STIO_SCKHND_INVALID) 
 	{
-		stio_closeasyncsck (udp->sck);
+		stio_closeasyncsck (udp->stio, udp->sck);
 		udp->sck = STIO_SCKHND_INVALID;
 	}
 }
@@ -82,13 +82,13 @@ static stio_syshnd_t udp_getsyshnd (stio_dev_t* dev)
 	return (stio_syshnd_t)udp->sck;
 }
 
-static int udp_recv (stio_dev_t* dev, void* buf, stio_len_t* len)
+static int udp_read (stio_dev_t* dev, void* buf, stio_len_t* len)
 {
 	stio_dev_udp_t* udp = (stio_dev_udp_t*)dev;
 	stio_scklen_t addrlen;
 	int x;
 
-/* TODO: udp_recv need source address ... have to extend the send callback to accept the source address */
+/* TODO: udp_read need source address ... have to extend the send callback to accept the source address */
 printf ("UDP RECVFROM...\n");
 	addrlen = STIO_SIZEOF(udp->peer);
 	x = recvfrom (udp->sck, buf, *len, 0, (struct sockaddr*)&udp->peer, &addrlen);
@@ -104,13 +104,13 @@ printf ("UDP RECVFROM...\n");
 	return 1;
 }
 
-static int udp_send (stio_dev_t* dev, const void* data, stio_len_t* len)
+static int udp_write (stio_dev_t* dev, const void* data, stio_len_t* len)
 {
 	stio_dev_udp_t* udp = (stio_dev_udp_t*)udp;
 	ssize_t x;
 
 #if 0
-/* TODO: udp_send need target address ... have to extend the send callback to accept the target address */
+/* TODO: udp_write need target address ... have to extend the send callback to accept the target address */
 	x = sendto (udp->sck, data, *len, skad, stio_getskadlen(skad));
 	if (x <= -1) 
 	{
@@ -137,17 +137,15 @@ static int udp_ioctl (stio_dev_t* dev, int cmd, void* arg)
 
 /* ------------------------------------------------------------------------ */
 
-// -----------------------------------------------------------------
-
 static stio_dev_mth_t udp_mth = 
 {
 	udp_make,
 	udp_kill,
 	udp_getsyshnd,
 
+	udp_read,
+	udp_write,
 	udp_ioctl,     /* ioctl */
-	udp_recv,
-	udp_send
 };
 
 static int udp_ready (stio_dev_t* dev, int events)
@@ -162,14 +160,14 @@ static int udp_ready (stio_dev_t* dev, int events)
 	return 0;
 }
 
-static int udp_on_recv (stio_dev_t* dev, const void* data, stio_len_t len)
+static int udp_on_read (stio_dev_t* dev, const void* data, stio_len_t len)
 {
 printf ("dATA received %d bytes\n", (int)len);
 	return 0;
 
 }
 
-static int udp_on_sent (stio_dev_t* dev, void* msgid)
+static int udp_on_write (stio_dev_t* dev, void* msgid)
 {
 	return 0;
 
@@ -178,8 +176,8 @@ static int udp_on_sent (stio_dev_t* dev, void* msgid)
 static stio_dev_evcb_t udp_evcb =
 {
 	udp_ready,
-	udp_on_recv,
-	udp_on_sent
+	udp_on_read,
+	udp_on_write
 };
 
 

@@ -24,54 +24,86 @@
     THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  */
 
-
-#ifndef _STIO_UDP_H_
-#define _STIO_UDP_H_
+#ifndef _STIO_SCK_H_
+#define _STIO_SCK_H_
 
 #include <stio.h>
-#include <stio-sck.h>
 
-typedef struct stio_dev_udp_t stio_dev_udp_t;
-
-typedef int (*stio_dev_udp_on_read_t) (stio_dev_udp_t* dev, const void* data, stio_len_t len);
-typedef int (*stio_dev_udp_on_write_t) (stio_dev_udp_t* dev, void* wrctx);
-
-typedef struct stio_dev_udp_make_t stio_dev_udp_make_t;
-struct stio_dev_udp_make_t
+struct stio_sckadr_t
 {
-	/* TODO: options: REUSEADDR for binding?? */
-	stio_sckadr_t addr; /* binding address. */
-	stio_dev_udp_on_write_t on_write;
-	stio_dev_udp_on_read_t on_read;
+	int family;
+	stio_uint8_t data[128]; /* TODO: use the actual sockaddr size */
 };
 
-struct stio_dev_udp_t
-{
-	STIO_DEV_HEADERS;
-	stio_sckhnd_t sck;
-	stio_sckadr_t peer;
+typedef struct stio_sckadr_t stio_sckadr_t;
 
-	stio_dev_udp_on_write_t on_write;
-	stio_dev_udp_on_read_t on_read;
-};
+#if (STIO_SIZEOF_SOCKLEN_T == STIO_SIZEOF_INT)
+	#if defined(STIO_SOCKLEN_T_IS_SIGNED)
+		typedef int stio_scklen_t;
+	#else
+		typedef unsigned int stio_scklen_t;
+	#endif
+#elif (STIO_SIZEOF_SOCKLEN_T == STIO_SIZEOF_LONG)
+	#if defined(STIO_SOCKLEN_T_IS_SIGNED)
+		typedef long stio_scklen_t;
+	#else
+		typedef unsigned long stio_scklen_t;
+	#endif
+#else
+	typedef int stio_scklen_t;
+#endif
+
+#if defined(_WIN32)
+#	define STIO_IOCP_KEY 1
+	/*
+	typedef HANDLE stio_syshnd_t;
+	typedef SOCKET stio_sckhnd_t;
+#	define STIO_SCKHND_INVALID (INVALID_SOCKET)
+	*/
+
+	typedef stio_uintptr_t qse_sckhnd_t;
+#	define STIO_SCKHND_INVALID (~(qse_sck_hnd_t)0)
+
+#else
+	typedef int stio_sckhnd_t;
+#	define STIO_SCKHND_INVALID (-1)
+	
+#endif
+
+typedef int stio_sckfam_t;
 
 #ifdef __cplusplus
 extern "C" {
 #endif
 
 
-STIO_EXPORT stio_dev_udp_t* stio_dev_udp_make (
-	stio_t*                    stio,
-	stio_size_t                xtnsize,
-	const stio_dev_udp_make_t* data
+STIO_EXPORT stio_sckhnd_t stio_openasyncsck (
+	stio_t* stio,
+	int     domain, 
+	int     type
 );
 
-STIO_EXPORT void stio_dev_udp_kill (
-	stio_dev_udp_t* udp
+STIO_EXPORT void stio_closeasyncsck (
+	stio_t*       stio,
+	stio_sckhnd_t sck
 );
+
+STIO_EXPORT int stio_makesckasync (
+	stio_t*       stio,
+	stio_sckhnd_t sck
+);
+
+STIO_EXPORT int stio_getsckadrinfo (
+	stio_t*              stio,
+	const stio_sckadr_t* addr,
+	stio_scklen_t*       len,
+	stio_sckfam_t*       family
+);
+
 
 #ifdef __cplusplus
 }
 #endif
+
 
 #endif

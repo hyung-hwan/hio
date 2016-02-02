@@ -25,8 +25,8 @@
  */
 
 
-#include "stio-prv.h"
 #include "stio-tcp.h"
+#include "stio-prv.h"
 
 #include <unistd.h>
 #include <sys/socket.h>
@@ -36,8 +36,6 @@
 
 static int tcp_make (stio_dev_t* dev, void* ctx)
 {
-/* NOTE: this can be extended to use ctx to tell between INET and INET6 or other types of sockets without creating a new dev method set. */
-
 	stio_dev_tcp_t* tcp = (stio_dev_tcp_t*)dev;
 	stio_dev_tcp_make_t* arg = (stio_dev_tcp_make_t*)ctx;
 	stio_scklen_t len;
@@ -46,7 +44,7 @@ static int tcp_make (stio_dev_t* dev, void* ctx)
 
 	if (stio_getsckadrinfo(dev->stio, &arg->addr, &len, &family) <= -1) return -1;
 
-	tcp->sck = stio_openasyncsck (family, SOCK_STREAM);
+	tcp->sck = stio_openasyncsck (dev->stio, family, SOCK_STREAM);
 	if (tcp->sck == STIO_SCKHND_INVALID) goto oops;
 
 	//setsockopt (udp->sck, SOL_SOCKET, SO_REUSEADDR, ...);
@@ -59,15 +57,15 @@ static int tcp_make (stio_dev_t* dev, void* ctx)
 		goto oops;
 	}
 
-	tcp->on_sent = arg->on_sent;
-	tcp->on_recv = arg->on_recv; 
+	tcp->on_write = arg->on_write;
+	tcp->on_read = arg->on_read; 
 	tcp->tmridx_connect = STIO_TMRIDX_INVALID;
 	return 0;
 
 oops:
 	if (tcp->sck != STIO_SCKHND_INVALID)
 	{
-		stio_closeasyncsck (tcp->sck);
+		stio_closeasyncsck (tcp->stio, tcp->sck);
 		tcp->sck = STIO_SCKHND_INVALID;
 	}
 	return -1;
@@ -79,7 +77,7 @@ static int tcp_make_accepted (stio_dev_t* dev, void* ctx)
 	stio_syshnd_t* sck = (stio_syshnd_t*)ctx;
 
 	tcp->sck = *sck;
-	if (stio_makesckasync (tcp->sck) <= -1) return -1;
+	if (stio_makesckasync (dev->stio, tcp->sck) <= -1) return -1;
 
 	return 0;
 }
@@ -90,7 +88,7 @@ static void tcp_kill (stio_dev_t* dev)
 
 	if (tcp->state & (STIO_DEV_TCP_ACCEPTED | STIO_DEV_TCP_CONNECTED | STIO_DEV_TCP_CONNECTING | STIO_DEV_TCP_LISTENING))
 	{
-		if (tcp->on_disconnected) tcp->on_disconnected (tcp);
+		if (tcp->on_disconnect) tcp->on_disconnect (tcp);
 	}
 
 	if (tcp->tmridx_connect != STIO_TMRIDX_INVALID)
@@ -101,7 +99,7 @@ static void tcp_kill (stio_dev_t* dev)
 
 	if (tcp->sck != STIO_SCKHND_INVALID) 
 	{
-		stio_closeasyncsck (tcp->sck);
+		stio_closeasyncsck (tcp->stio, tcp->sck);
 		tcp->sck = STIO_SCKHND_INVALID;
 	}
 }
@@ -113,7 +111,7 @@ static stio_syshnd_t tcp_getsyshnd (stio_dev_t* dev)
 }
 
 
-static int tcp_recv (stio_dev_t* dev, void* buf, stio_len_t* len)
+static int tcp_read (stio_dev_t* dev, void* buf, stio_len_t* len)
 {
 	stio_dev_tcp_t* tcp = (stio_dev_tcp_t*)dev;
 	ssize_t x;
@@ -131,7 +129,7 @@ static int tcp_recv (stio_dev_t* dev, void* buf, stio_len_t* len)
 	return 1;
 }
 
-static int tcp_send (stio_dev_t* dev, const void* data, stio_len_t* len)
+static int tcp_write (stio_dev_t* dev, const void* data, stio_len_t* len)
 {
 	stio_dev_tcp_t* tcp = (stio_dev_tcp_t*)dev;
 	ssize_t x;
@@ -266,8 +264,8 @@ static int tcp_ioctl (stio_dev_t* dev, int cmd, void* arg)
 
 						tcp->state |= STIO_DEV_TCP_CONNECTING;
 						tcp->peer = conn->addr;
-						tcp->on_connected = conn->on_connected;
-						tcp->on_disconnected = conn->on_disconnected;
+						tcp->on_connect = conn->on_connect;
+						tcp->on_disconnect = conn->on_disconnect;
 						return 0;
 					}
 				}
@@ -279,8 +277,8 @@ static int tcp_ioctl (stio_dev_t* dev, int cmd, void* arg)
 			/* connected immediately */
 			tcp->state |= STIO_DEV_TCP_CONNECTED;
 			tcp->peer = conn->addr;
-			tcp->on_connected = conn->on_connected;
-			tcp->on_disconnected = conn->on_disconnected;
+			tcp->on_connect = conn->on_connect;
+			tcp->on_disconnect = conn->on_disconnect;
 			return 0;
 		#endif
 		}
@@ -301,8 +299,8 @@ static int tcp_ioctl (stio_dev_t* dev, int cmd, void* arg)
 			}
 
 			tcp->state |= STIO_DEV_TCP_LISTENING;
-			tcp->on_connected = lstn->on_connected;
-			tcp->on_disconnected = lstn->on_disconnected;
+			tcp->on_connect = lstn->on_connect;
+			tcp->on_disconnect = lstn->on_disconnect;
 			return 0;
 		#endif
 		}
@@ -317,9 +315,9 @@ static stio_dev_mth_t tcp_mth =
 	tcp_make,
 	tcp_kill,
 	tcp_getsyshnd,
+	tcp_read,
+	tcp_write,
 	tcp_ioctl, 
-	tcp_recv,
-	tcp_send
 };
 
 /* accepted tcp socket */
@@ -328,9 +326,9 @@ static stio_dev_mth_t tcp_acc_mth =
 	tcp_make_accepted,
 	tcp_kill,
 	tcp_getsyshnd,
-	tcp_ioctl, 
-	tcp_recv,
-	tcp_send
+	tcp_read,
+	tcp_write,
+	tcp_ioctl
 };
 
 /* ------------------------------------------------------------------------ */
@@ -405,7 +403,7 @@ printf ("CAANOT MANIPULTE WATCHER ...\n");
 					STIO_ASSERT (tcp->tmridx_connect == STIO_TMRIDX_INVALID);
 				}
 
-				if (tcp->on_connected (tcp) <= -1) 
+				if (tcp->on_connect (tcp) <= -1) 
 				{
 					printf ("ON_CONNECTE HANDLER RETURNEF FAILURE...\n");
 					return -1;
@@ -422,7 +420,7 @@ printf ("CAANOT MANIPULTE WATCHER ...\n");
 			}
 		}
 
-		return 0; /* success but don't invoke on_recv() */ 
+		return 0; /* success but don't invoke on_read() */ 
 	}
 	else if (tcp->state & STIO_DEV_TCP_LISTENING)
 	{
@@ -448,7 +446,7 @@ printf ("CAANOT MANIPULTE WATCHER ...\n");
 
 			addrlen = STIO_SIZEOF(peer);
 			clisck = accept (tcp->sck, (struct sockaddr*)&peer, &addrlen);
-			if (clisck == -1)
+			if (clisck == STIO_SCKHND_INVALID)
 			{
 				if (errno == EINPROGRESS || errno == EWOULDBLOCK) return 0;
 				if (errno == EINTR) return 0; /* if interrupted by a signal, treat it as if it's EINPROGRESS */
@@ -472,15 +470,15 @@ printf ("CAANOT MANIPULTE WATCHER ...\n");
 
 
 			/* inherit some event handlers from the parent.
-			 * you can still change them inside the on_connected handler */
-			clitcp->on_connected = tcp->on_connected;
-			clitcp->on_disconnected = tcp->on_disconnected; 
-			clitcp->on_sent = tcp->on_sent;
-			clitcp->on_recv = tcp->on_recv;
+			 * you can still change them inside the on_connect handler */
+			clitcp->on_connect = tcp->on_connect;
+			clitcp->on_disconnect = tcp->on_disconnect; 
+			clitcp->on_write = tcp->on_write;
+			clitcp->on_read = tcp->on_read;
 
 			clitcp->tmridx_connect = STIO_TMRIDX_INVALID;
-			if (clitcp->on_connected (clitcp) <= -1) stio_dev_tcp_kill (clitcp);
-			return 0; /* success but don't invoke on_recv() */ 
+			if (clitcp->on_connect (clitcp) <= -1) stio_dev_tcp_kill (clitcp);
+			return 0; /* success but don't invoke on_read() */ 
 		}
 	}
 	else if (events & STIO_DEV_EVENT_HUP)
@@ -498,23 +496,23 @@ printf ("CAANOT MANIPULTE WATCHER ...\n");
 	return 1; /* the device is ok. carry on reading or writing */
 }
 
-static int tcp_on_recv (stio_dev_t* dev, const void* data, stio_len_t len)
+static int tcp_on_read (stio_dev_t* dev, const void* data, stio_len_t len)
 {
 	stio_dev_tcp_t* tcp = (stio_dev_tcp_t*)dev;
-	return tcp->on_recv (tcp, data, len);
+	return tcp->on_read (tcp, data, len);
 }
 
-static int tcp_on_sent (stio_dev_t* dev, void* sendctx)
+static int tcp_on_write (stio_dev_t* dev, void* wrctx)
 {
 	stio_dev_tcp_t* tcp = (stio_dev_tcp_t*)dev;
-	return tcp->on_sent (tcp, sendctx);
+	return tcp->on_write (tcp, wrctx);
 }
 
 static stio_dev_evcb_t tcp_evcb =
 {
 	tcp_ready,
-	tcp_on_recv,
-	tcp_on_sent
+	tcp_on_read,
+	tcp_on_write
 };
 
 stio_dev_tcp_t* stio_dev_tcp_make (stio_t* stio, stio_size_t xtnsize, const stio_dev_tcp_make_t* data)
@@ -542,7 +540,7 @@ int stio_dev_tcp_listen (stio_dev_tcp_t* tcp, stio_dev_tcp_listen_t* lstn)
 	return stio_dev_ioctl ((stio_dev_t*)tcp, STIO_DEV_TCP_LISTEN, lstn);
 }
 
-int stio_dev_tcp_send (stio_dev_tcp_t* tcp, const void* data, stio_len_t len, void* sendctx)
+int stio_dev_tcp_write (stio_dev_tcp_t* tcp, const void* data, stio_len_t len, void* wrctx)
 {
-	return stio_dev_send ((stio_dev_t*)tcp, data, len, sendctx);
+	return stio_dev_write ((stio_dev_t*)tcp, data, len, wrctx);
 }

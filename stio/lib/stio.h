@@ -40,51 +40,14 @@ struct stio_ntime_t
 	stio_int32_t   nsec; /* nanoseconds */
 };
 
-
-struct stio_sckadr_t
-{
-	int family;
-	stio_uint8_t data[128]; /* TODO: use the actual sockaddr size */
-};
-
-typedef struct stio_sckadr_t stio_sckadr_t;
-
-#if (STIO_SIZEOF_SOCKLEN_T == STIO_SIZEOF_INT)
-	#if defined(STIO_SOCKLEN_T_IS_SIGNED)
-		typedef int stio_scklen_t;
-	#else
-		typedef unsigned int stio_scklen_t;
-	#endif
-#elif (STIO_SIZEOF_SOCKLEN_T == STIO_SIZEOF_LONG)
-	#if defined(STIO_SOCKLEN_T_IS_SIGNED)
-		typedef long stio_scklen_t;
-	#else
-		typedef unsigned long stio_scklen_t;
-	#endif
-#else
-	typedef int stio_scklen_t;
-#endif
-
 #if defined(_WIN32)
-#	define STIO_IOCP_KEY 1
-	/*
-	typedef HANDLE stio_syshnd_t;
-	typedef SOCKET stio_sckhnd_t;
-#	define STIO_SCKHND_INVALID (INVALID_SOCKET)
-	*/
-
 	typedef stio_uintptr_t qse_syshnd_t;
-	typedef stio_uintptr_t qse_sckhnd_t;
-#	define STIO_SCKHND_INVALID (~(qse_sck_hnd_t)0)
-
+	#define STIO_SYSHND_INVALID (~(stio_uintptr_t)0)
 #else
 	typedef int stio_syshnd_t;
-	typedef int stio_sckhnd_t;
-#	define STIO_SCKHND_INVALID (-1)
-	
+	#define STIO_SYSHND_INVALID (-1)
 #endif
 
-typedef int stio_sckfam_t;
 
 /* ------------------------------------------------------------------------- */
 typedef struct stio_t stio_t;
@@ -130,18 +93,20 @@ struct stio_dev_mth_t
 	/* ------------------------------------------------------------------ */
 	stio_syshnd_t (*getsyshnd)    (stio_dev_t* dev); /* mandatory. called in stio_makedev() after successful make() */
 
-	/* ------------------------------------------------------------------ */
-	int           (*ioctl)        (stio_dev_t* dev, int cmd, void* arg);
 
 	/* ------------------------------------------------------------------ */
 	/* return -1 on failure, 0 if no data is availble, 1 otherwise.
 	 * when returning 1, *len must be sent to the length of data read.
 	 * if *len is set to 0, it's treated as EOF.
 	 * it must not kill the device */
-	int           (*recv)         (stio_dev_t* dev, void* data, stio_len_t* len);
+	int           (*read)         (stio_dev_t* dev, void* data, stio_len_t* len);
 
 	/* ------------------------------------------------------------------ */
-	int           (*send)         (stio_dev_t* dev, const void* data, stio_len_t* len);
+	int           (*write)        (stio_dev_t* dev, const void* data, stio_len_t* len);
+
+	/* ------------------------------------------------------------------ */
+	int           (*ioctl)        (stio_dev_t* dev, int cmd, void* arg);
+
 };
 
 struct stio_dev_evcb_t
@@ -154,11 +119,11 @@ struct stio_dev_evcb_t
 
 	/* return -1 on failure, 0 on success
 	 * it must not kill the device */
-	int           (*on_recv)      (stio_dev_t* dev, const void* data, stio_len_t len);
+	int           (*on_read)      (stio_dev_t* dev, const void* data, stio_len_t len);
 
 	/* return -1 on failure, 0 on success. 
 	 * it must not kill the device */
-	int           (*on_sent)      (stio_dev_t* dev, void* sendctx);
+	int           (*on_write)      (stio_dev_t* dev, void* wrctx);
 };
 
 struct stio_wq_t
@@ -340,11 +305,11 @@ STIO_EXPORT int stio_dev_watch (
 	int                  events
 );
 
-STIO_EXPORT int stio_dev_send (
+STIO_EXPORT int stio_dev_write (
 	stio_dev_t*   dev,
 	const void*   data,
 	stio_len_t    len,
-	void*         sendctx
+	void*         wrctx
 );
 
 #ifdef __cplusplus
