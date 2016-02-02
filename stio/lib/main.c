@@ -107,7 +107,14 @@ static int tcp_on_sent (stio_dev_tcp_t* tcp, void* sendctx)
 
 static int tcp_on_recv (stio_dev_tcp_t* tcp, const void* buf, stio_len_t len)
 {
-	return stio_dev_tcp_send  (tcp, "HELLO", 5, STIO_NULL);
+int n;
+static char a ='A';
+char* xxx = malloc (1000000);
+memset (xxx, a++ ,1000000);
+	//return stio_dev_tcp_send  (tcp, "HELLO", 5, STIO_NULL);
+	n = stio_dev_tcp_send  (tcp, xxx, 1000000, STIO_NULL);
+free (xxx);
+return n;
 }
 
 static stio_t* g_stio;
@@ -143,13 +150,13 @@ int main ()
 	sigact.sa_handler = handle_signal;
 	sigaction (SIGINT, &sigact, STIO_NULL);
 
-	//STIO_MEMSET (&sigact, 0, STIO_SIZEOF(sigact));
-	//sigact.sa_handler = SIG_IGN;
-	//sigaction (SIGPIPE, &sigact, STIO_NULL);
+	memset (&sigact, 0, STIO_SIZEOF(sigact));
+	sigact.sa_handler = SIG_IGN;
+	sigaction (SIGPIPE, &sigact, STIO_NULL);
 
-	memset (&sin, 0, STIO_SIZEOF(sin));
+	/*memset (&sin, 0, STIO_SIZEOF(sin));
 	sin.sin_family = AF_INET;
-	sin.sin_port = htons(1234);
+	sin.sin_port = htons(1234); */
 /*
 	udp = (stio_dev_udp_t*)stio_makedev (stio, STIO_SIZEOF(*udp), &udp_mth, &udp_evcb, &sin);
 	if (!udp)

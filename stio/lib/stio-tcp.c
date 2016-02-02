@@ -165,10 +165,6 @@ static void tmr_connect_handle (stio_t* stio, const stio_ntime_t* now, stio_tmrj
 		 * doesn't need to be deleted when it gets connected for this check 
 		 * here. this libarary, however, deletes the job when it gets 
 		 * connected. */
-/*
-		if (tcp->on_disconnected) tcp->on_disconnected (tcp);
-		tcp->state &= ~STIO_DEV_TCP_CONNECTING;
-*/
 		stio_dev_tcp_kill (tcp);
 	}
 }
@@ -241,7 +237,7 @@ static int tcp_ioctl (stio_dev_t* dev, int cmd, void* arg)
 			{
 				if (errno == EINPROGRESS || errno == EWOULDBLOCK)
 				{
-					if (stio_dev_event ((stio_dev_t*)tcp, STIO_DEV_EVENT_UPD, STIO_DEV_EVENT_IN | STIO_DEV_EVENT_OUT) >= 0)
+					if (stio_dev_watch ((stio_dev_t*)tcp, STIO_DEV_WATCH_UPDATE, STIO_DEV_EVENT_IN | STIO_DEV_EVENT_OUT) >= 0)
 					{
 						stio_tmrjob_t tmrjob;
 
@@ -262,7 +258,7 @@ static int tcp_ioctl (stio_dev_t* dev, int cmd, void* arg)
 							tcp->tmridx_connect = stio_instmrjob (tcp->stio, &tmrjob);
 							if (tcp->tmridx_connect == STIO_TMRIDX_INVALID)
 							{
-								stio_dev_event ((stio_dev_t*)tcp, STIO_DEV_EVENT_UPD, STIO_DEV_EVENT_IN);
+								stio_dev_watch ((stio_dev_t*)tcp, STIO_DEV_WATCH_UPDATE, STIO_DEV_EVENT_IN);
 								/* event manipulation failure can't be handled properly. so ignore it */
 								return -1;
 							}
@@ -386,7 +382,6 @@ printf ("TCP READY...%p\n", dev);
 
 			STIO_ASSERT (!(tcp->state & STIO_DEV_TCP_CONNECTED));
 
-printf ("XXXXXXXXXXXXXXX CONNECTED...\n");
 			len = STIO_SIZEOF(errcode);
 			if (getsockopt (tcp->sck, SOL_SOCKET, SO_ERROR, (char*)&errcode, &len) == -1)
 			{
@@ -398,9 +393,9 @@ printf ("XXXXXXXXXXXXXXX CONNECTED...\n");
 				tcp->state &= ~STIO_DEV_TCP_CONNECTING;
 				tcp->state |= STIO_DEV_TCP_CONNECTED;
 
-				if (stio_dev_event ((stio_dev_t*)tcp, STIO_DEV_EVENT_UPD, STIO_DEV_EVENT_IN) <= -1)
+				if (stio_dev_watch ((stio_dev_t*)tcp, STIO_DEV_WATCH_UPDATE, STIO_DEV_EVENT_IN) <= -1)
 				{
-printf ("CAANOT MANIPULTE EVENT ...\n");
+printf ("CAANOT MANIPULTE WATCHER ...\n");
 					return -1;
 				}
 
@@ -464,7 +459,7 @@ printf ("CAANOT MANIPULTE EVENT ...\n");
 
 			/* addr is the address of the peer */
 			/* local addresss is inherited from the server */
-			clitcp = (stio_dev_tcp_t*)stio_makedev (tcp->stio, STIO_SIZEOF(*tcp), &tcp_acc_mth, tcp->evcb, &clisck); 
+			clitcp = (stio_dev_tcp_t*)stio_makedev (tcp->stio, STIO_SIZEOF(*tcp), &tcp_acc_mth, tcp->dev_evcb, &clisck); 
 			if (!clitcp) 
 			{
 				close (clisck);

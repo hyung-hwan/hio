@@ -123,43 +123,41 @@ stio_dev_t* stio_makedev (stio_t* stio, stio_size_t dev_size, stio_dev_mth_t* de
 
 	STIO_MEMSET (dev, 0, dev_size);
 	dev->stio = stio;
-	dev->mth = dev_mth;
-	dev->evcb = dev_evcb;
+	/* default capability. dev->dev_mth->make() can change this.
+	 * stio_dev_watch() is affected by the capability change. */
+	dev->dev_capa = STIO_DEV_CAPA_IN | STIO_DEV_CAPA_OUT;
+	dev->dev_mth = dev_mth;
+	dev->dev_evcb = dev_evcb;
 	STIO_WQ_INIT(&dev->wq);
 
 	/* call the callback function first */
 	stio->errnum = STIO_ENOERR;
-	if (dev->mth->make (dev, make_ctx) <= -1)
+	if (dev->dev_mth->make (dev, make_ctx) <= -1)
 	{
 		if (stio->errnum == STIO_ENOERR) stio->errnum = STIO_EDEVMAKE;
 		goto oops;
 	}
 
-	/* ------------------------------------ */
+#if defined(_WIN32)
+	if (CreateIoCompletionPort ((HANDLE)dev->dev_mth->getsyshnd(dev), stio->iocp, STIO_IOCP_KEY, 0) == NULL)
 	{
-	#if defined(_WIN32)
-		if (CreateIoCompletionPort ((HANDLE)dev->mth->getsyshnd(dev), stio->iocp, STIO_IOCP_KEY, 0) == NULL)
-		{
-			/* TODO: set errnum from GetLastError()... */
-			goto oops_after_make;
-		}
-		
-	#else
-		if (stio_dev_event (dev, STIO_DEV_EVENT_ADD, STIO_DEV_EVENT_IN) <= -1) goto oops_after_make;
-	#endif
+		/* TODO: set errnum from GetLastError()... */
+		goto oops_after_make;
 	}
-	/* ------------------------------------ */
+#else
+	if (stio_dev_watch (dev, STIO_DEV_WATCH_START, STIO_DEV_EVENT_IN) <= -1) goto oops_after_make;
+#endif
 
 	/* and place the new dev at the back */
-	if (stio->dev.tail) stio->dev.tail->next = dev;
+	if (stio->dev.tail) stio->dev.tail->dev_next = dev;
 	else stio->dev.head = dev;
-	dev->prev = stio->dev.tail;
+	dev->dev_prev = stio->dev.tail;
 	stio->dev.tail = dev;
 
 	return dev;
 
 oops_after_make:
-	dev->mth->kill (dev);
+	dev->dev_mth->kill (dev);
 oops:
 	STIO_MMGR_FREE (stio->mmgr, dev);
 	return STIO_NULL;
@@ -175,29 +173,54 @@ void stio_killdev (stio_t* stio, stio_dev_t* dev)
 		stio_wq_t* wq;
 
 		wq = STIO_WQ_HEAD(&dev->wq);
-printf ("DELETING UNSENT REQUETS...%p\n", wq);
 		STIO_WQ_DEQ (&dev->wq);
 
 		STIO_MMGR_FREE (stio->mmgr, wq);
 	}
 
 	/* delink the dev object */
-	if (dev->prev)
-		dev->prev->next = dev->next;
-	else
-		stio->dev.head = dev->next;
+	if (!(dev->dev_capa & STIO_DEV_CAPA_RUINED))
+	{
+		if (dev->dev_prev)
+			dev->dev_prev->dev_next = dev->dev_next;
+		else
+			stio->dev.head = dev->dev_next;
 
-	if (dev->next)
-		dev->next->prev = dev->prev;
-	else
-		stio->dev.tail = dev->prev;
+		if (dev->dev_next)
+			dev->dev_next->dev_prev = dev->dev_prev;
+		else
+			stio->dev.tail = dev->dev_prev;
+	}
 
-	stio_dev_event (dev, STIO_DEV_EVENT_DEL, 0);
+	stio_dev_watch (dev, STIO_DEV_WATCH_STOP, 0);
 
 	/* and call the callback function */
-	dev->mth->kill (dev);
+	dev->dev_mth->kill (dev);
 
 	STIO_MMGR_FREE (stio->mmgr, dev);
+}
+
+void stio_ruindev (stio_t* stio, stio_dev_t* dev)
+{
+	if (!(dev->dev_capa & STIO_DEV_CAPA_RUINED))
+	{
+		/* delink the dev object from the device list */
+		if (dev->dev_prev)
+			dev->dev_prev->dev_next = dev->dev_next;
+		else
+			stio->dev.head = dev->dev_next;
+		if (dev->dev_next)
+			dev->dev_next->dev_prev = dev->dev_prev;
+		else
+			stio->dev.tail = dev->dev_prev;
+
+		/* place it at the beginning of the ruined device list */
+		dev->dev_prev = STIO_NULL;
+		dev->dev_next = stio->rdev;
+		stio->rdev = dev;
+
+		dev->dev_capa |= STIO_DEV_CAPA_RUINED;
+	}
 }
 
 int stio_prologue (stio_t* stio)
@@ -214,6 +237,7 @@ void stio_epilogue (stio_t* stio)
 int stio_exec (stio_t* stio)
 {
 	stio_ntime_t tmout;
+
 
 #if defined(_WIN32)
 	ULONG nentries, i;
@@ -260,31 +284,42 @@ int stio_exec (stio_t* stio)
 	/* TODO: merge events??? for the same descriptor */
 	for (i = 0; i < nentries; i++)
 	{
-		stio_dev_t* dev = stio->revs[i].data.ptr;
+		stio_dev_t* dev;
 
-		if (dev->evcb->ready)
+		dev = stio->revs[i].data.ptr;
+
+		if (dev->dev_evcb->ready)
 		{
 			int x, events = 0;
 
 			if (stio->revs[i].events & EPOLLERR) events |= STIO_DEV_EVENT_ERR;
 			if (stio->revs[i].events & EPOLLHUP) events |= STIO_DEV_EVENT_HUP;
-			#if defined(EPOLLRDHUP)
-			/* treat it the same way as EPOLLHUP */
-			if (stio->revs[i].events & EPOLLRDHUP) events |= STIO_DEV_EVENT_HUP;
-			#endif
 			if (stio->revs[i].events & EPOLLIN) events |= STIO_DEV_EVENT_IN;
 			if (stio->revs[i].events & EPOLLOUT) events |= STIO_DEV_EVENT_OUT;
 			if (stio->revs[i].events & EPOLLPRI) events |= STIO_DEV_EVENT_PRI;
 
+			#if defined(EPOLLRDHUP)
+			/* interprete EPOLLRDHUP the same way as EPOLLHUP.
+			 * 
+			 * when EPOLLRDHUP is set, EPOLLIN or EPOLLPRI or both are 
+			 * assumed to be set as EPOLLRDHUP is requested only if 
+			 * STIO_DEV_WATCH_IN is set for stio_dev_watch(). 
+			 * in linux, when EPOLLRDHUP is set, EPOLLIN is set together 
+			 * if it's requested together. it seems to be safe to have
+			 * the following assertion. however, let me commect it out 
+			 * in case the assumption above is not right.
+			 * STIO_ASSERT (events & (STIO_DEV_EVENT_IN | STIO_DEV_EVENT_PRI));
+			 */
+			if (stio->revs[i].events & EPOLLRDHUP) events |= STIO_DEV_EVENT_HUP;
+			#endif
 
 			/* return value of ready()
 			 *   <= -1 - failure. kill the device.
 			 *   == 0 - ok. but don't invoke recv() or send().
 			 *   >= 1 - everything is ok. */
-/* TODO: can the revs array contain the same file descriptor again??? */
-			if ((x = dev->evcb->ready (dev, events)) <= -1) 
+			if ((x = dev->dev_evcb->ready (dev, events)) <= -1) 
 			{
-				stio_killdev (stio, dev);
+				stio_ruindev (stio, dev);
 				dev = STIO_NULL;
 			}
 			else if (x >= 1) 
@@ -294,14 +329,12 @@ int stio_exec (stio_t* stio)
 		}
 		else
 		{
-			int dev_eof;
-
 		invoke_evcb:
-
-			dev_eof = 0;
 			if (dev && stio->revs[i].events & EPOLLPRI)
 			{
 				/* urgent data */
+/* TODO: urgent data.... */
+				/*x = dev->dev_mth->urgrecv (dev, stio->bugbuf, &len);*/
 	printf ("has urgent data...\n");
 			}
 
@@ -315,35 +348,55 @@ int stio_exec (stio_t* stio)
 				while (1)
 				{
 					len = STIO_COUNTOF(stio->bigbuf);
-					x = dev->mth->recv (dev, stio->bigbuf, &len);
+					x = dev->dev_mth->recv (dev, stio->bigbuf, &len);
 
-	printf ("DATA...recv %d  length %d\n", (int)x, len);
 					if (x <= -1)
 					{
-						/*TODO: what to do? killdev? how to indicate an error? call on_recv? with error indicator?? */
-						stio_killdev (stio, dev);
+						stio_ruindev (stio, dev);
 						dev = STIO_NULL;
 						break;
 					}
 					else if (x == 0)
 					{
-						/* no data is available */
+						/* no data is available - EWOULDBLOCK or something similar */
 						break;
 					}
 					else if (x >= 1)
 					{
 						if (len <= 0) 
 						{
-							/* EOF received. delay killing until output has been handled */
-							dev_eof = 1;
+							/* EOF received. delay killing until output has been handled. */
+							if (STIO_WQ_ISEMPTY(&dev->wq))
+							{
+								/* no pending writes - ruin the device to kill it eventually */
+								stio_ruindev (stio, dev);
+								/* don't set 'dev' to STIO_NULL so that 
+							      * output handling can kick in if EPOLLOUT is set */
+							}
+							else
+							{
+								/* it might be in a half-open state */
+								dev->dev_capa &= ~(STIO_DEV_CAPA_IN | STIO_DEV_CAPA_PRI);
+
+								/* disable the input watching */
+								if (stio_dev_watch (dev, STIO_DEV_WATCH_UPDATE, STIO_DEV_EVENT_OUT) <= -1)
+								{
+									stio_ruindev (stio, dev);
+									dev = STIO_NULL;
+								}
+							}
+							
 							break;
 						}
 						else
 						{
+				/* TODO: for a stream device, merge received data if bigbuf isn't full and fire the on_recv callback
+				 *        when x == 0 or <= -1. you can  */
+
 							/* data available */
-							if (dev->evcb->on_recv (dev, stio->bigbuf, len) <= -1)
+							if (dev->dev_evcb->on_recv (dev, stio->bigbuf, len) <= -1)
 							{
-								stio_killdev (stio, dev);
+								stio_ruindev (stio, dev);
 								dev = STIO_NULL;
 								break;
 							}
@@ -368,7 +421,7 @@ int stio_exec (stio_t* stio)
 
 				send_leftover:
 					ulen = urem;
-					x = dev->mth->send (dev, uptr, &ulen);
+					x = dev->dev_mth->send (dev, uptr, &ulen);
 					if (x <= -1)
 					{
 						/* TODO: error handling? call callback? or what? */
@@ -393,7 +446,7 @@ int stio_exec (stio_t* stio)
 							int y;
 
 							STIO_WQ_UNLINK (q); /* STIO_WQ_DEQ(&dev->wq); */
-							y = dev->evcb->on_sent (dev, q->ctx);
+							y = dev->dev_evcb->on_sent (dev, q->ctx);
 							STIO_MMGR_FREE (dev->stio->mmgr, q);
 
 							if (y <= -1)
@@ -411,22 +464,33 @@ int stio_exec (stio_t* stio)
 				{
 					/* no pending request to write. 
 					 * watch input only. disable output watching */
-					if (stio_dev_event (dev, STIO_DEV_EVENT_UPD, STIO_DEV_EVENT_IN) <= -1)
+					if (dev->dev_capa & STIO_DEV_CAPA_IN)
 					{
-						/* TODO: call an error handler??? */
-						stio_killdev (stio, dev);
+						if (stio_dev_watch (dev, STIO_DEV_WATCH_UPDATE, STIO_DEV_EVENT_IN) <= -1)
+						{
+							stio_ruindev (stio, dev);
+							dev = STIO_NULL;
+						}
+					}
+					else
+					{
+						/* the device is not capable of reading. 
+						 * finish the device */
+						stio_ruindev (stio, dev);
 						dev = STIO_NULL;
 					}
 				}
 			}
-
-			if (dev && dev_eof)
-			{
-				/* handled delayed device killing */
-				stio_killdev (stio, dev);
-				dev = STIO_NULL;
-			}
 		}
+	}
+
+	/* kill all ruined devices */
+	while (stio->rdev)
+	{
+		stio_dev_t* next;
+		next = stio->rdev->dev_next;
+		stio_killdev (stio, stio->rdev);
+		stio->rdev = next;
 	}
 
 #endif
@@ -456,44 +520,58 @@ int stio_loop (stio_t* stio)
 	return 0;
 }
 
-
 int stio_dev_ioctl (stio_dev_t* dev, int cmd, void* arg)
 {
-	if (dev->mth->ioctl) return dev->mth->ioctl (dev, cmd, arg);
+	if (dev->dev_mth->ioctl) return dev->dev_mth->ioctl (dev, cmd, arg);
 	dev->stio->errnum = STIO_ENOSUP; /* TODO: different error code ? */
 	return -1;
 }
 
-int stio_dev_event (stio_dev_t* dev, stio_dev_event_cmd_t cmd, int flags)
+int stio_dev_watch (stio_dev_t* dev, stio_dev_watch_cmd_t cmd, int events)
 {
-#if defined(_WIN32)
-
-	/* TODO */
-#else
 	struct epoll_event ev;
 	int epoll_op;
 
+	/* this function honors STIO_DEV_EVENT_IN and STIO_DEV_EVENT_OUT only
+	 * as valid input event bits. it intends to provide simple abstraction
+	 * by reducing the variety of event bits that the caller has to handle. */
 	ev.events = EPOLLHUP | EPOLLERR;
-#if defined(EPOLLRDHUP)
-	ev.events |= EPOLLRDHUP;
-#endif
 
-	if (flags & STIO_DEV_EVENT_IN) ev.events |= EPOLLIN;
-	if (flags & STIO_DEV_EVENT_OUT) ev.events |= EPOLLOUT;
-	if (flags & STIO_DEV_EVENT_PRI) ev.events |= EPOLLPRI;
+	if (events & STIO_DEV_EVENT_IN)
+	{
+		if (dev->dev_capa & STIO_DEV_CAPA_IN) 
+		{
+			ev.events |= EPOLLIN;
+		#if defined(EPOLLRDHUP)
+			ev.events |= EPOLLRDHUP;
+		#endif
+		}
+		if (dev->dev_capa & STIO_DEV_CAPA_PRI) 
+		{
+			ev.events |= EPOLLPRI;
+		#if defined(EPOLLRDHUP)
+			ev.events |= EPOLLRDHUP;
+		#endif
+		}
+	}
+
+	if (events & STIO_DEV_EVENT_OUT)
+	{
+		if (dev->dev_capa & STIO_DEV_CAPA_OUT) ev.events |= EPOLLOUT;
+	}
+
 	ev.data.ptr = dev;
-
 	switch (cmd)
 	{
-		case STIO_DEV_EVENT_ADD:
+		case STIO_DEV_WATCH_START:
 			epoll_op = EPOLL_CTL_ADD;
 			break;
 
-		case STIO_DEV_EVENT_UPD:
+		case STIO_DEV_WATCH_UPDATE:
 			epoll_op = EPOLL_CTL_MOD;
 			break;
 
-		case STIO_DEV_EVENT_DEL:
+		case STIO_DEV_WATCH_STOP:
 			epoll_op = EPOLL_CTL_DEL;
 			break;
 
@@ -502,66 +580,40 @@ int stio_dev_event (stio_dev_t* dev, stio_dev_event_cmd_t cmd, int flags)
 			return -1;
 	}
 
-	if (epoll_ctl (dev->stio->mux, epoll_op, dev->mth->getsyshnd(dev), &ev) == -1)
+	if (epoll_ctl (dev->stio->mux, epoll_op, dev->dev_mth->getsyshnd(dev), &ev) == -1)
 	{
 		dev->stio->errnum = stio_syserrtoerrnum(errno);
 		return -1;
 	}
 
 	return 0;
-#endif
 }
 
 int stio_dev_send (stio_dev_t* dev, const void* data, stio_len_t len, void* sendctx)
 {
 	const stio_uint8_t* uptr;
 	stio_len_t urem, ulen;
-	int x;
+	stio_wq_t* q;
+	int x, wq_empty;
+
+	if (!(dev->dev_capa & STIO_DEV_CAPA_OUT))
+	{
+		dev->stio->errnum = STIO_ENOCAPA;
+		return -1;
+	}
 
 	uptr = data;
 	urem = len;
 
+	wq_empty = STIO_WQ_ISEMPTY(&dev->wq);
+	if (!wq_empty) goto enqueue_data;
+
 	while (urem > 0)
 	{
 		ulen = urem;
-		x = dev->mth->send (dev, data, &ulen);
-		if (x <= -1) 
-		{
-			return -1;
-		}
-		else if (x == 0)
-		{
-			stio_wq_t* q;
-			int wq_empty;
-
-			/* queue the uremaining data*/
-			wq_empty = STIO_WQ_ISEMPTY(&dev->wq);
-
-			q = (stio_wq_t*)STIO_MMGR_ALLOC (dev->stio->mmgr, STIO_SIZEOF(*q) + urem);
-			if (!q)
-			{
-				dev->stio->errnum = STIO_ENOMEM;
-				return -1;
-			}
-
-			q->ctx = sendctx;
-			q->ptr = (stio_uint8_t*)(q + 1);
-			q->len = urem;
-			STIO_MEMCPY (q->ptr, uptr, urem);
-
-			STIO_WQ_ENQ (&dev->wq, q);
-			if (wq_empty)
-			{
-				if (stio_dev_event (dev, STIO_DEV_EVENT_UPD, STIO_DEV_EVENT_IN | STIO_DEV_EVENT_OUT) <= -1)
-				{
-					STIO_WQ_UNLINK (q); /* unlink the ENQed item */
-					STIO_MMGR_FREE (dev->stio->mmgr, q);
-					return -1;
-				}
-			}
-
-			return 0;
-		}
+		x = dev->dev_mth->send (dev, data, &ulen);
+		if (x <= -1) return -1;
+		else if (x == 0) goto enqueue_data; /* enqueue remaining data */
 		else 
 		{
 			urem -= ulen;
@@ -569,10 +621,36 @@ int stio_dev_send (stio_dev_t* dev, const void* data, stio_len_t len, void* send
 		}
 	}
 
-	dev->evcb->on_sent (dev, sendctx);
+	dev->dev_evcb->on_sent (dev, sendctx);
+	return 0;
+
+enqueue_data:
+	/* queue the remaining data*/
+	q = (stio_wq_t*)STIO_MMGR_ALLOC (dev->stio->mmgr, STIO_SIZEOF(*q) + urem);
+	if (!q)
+	{
+		dev->stio->errnum = STIO_ENOMEM;
+		return -1;
+	}
+
+	q->ctx = sendctx;
+	q->ptr = (stio_uint8_t*)(q + 1);
+	q->len = urem;
+	STIO_MEMCPY (q->ptr, uptr, urem);
+
+	STIO_WQ_ENQ (&dev->wq, q);
+	if (wq_empty)
+	{
+		if (stio_dev_watch (dev, STIO_DEV_WATCH_UPDATE, STIO_DEV_EVENT_IN | STIO_DEV_EVENT_OUT) <= -1)
+		{
+			STIO_WQ_UNLINK (q); /* unlink the ENQed item */
+			STIO_MMGR_FREE (dev->stio->mmgr, q);
+			return -1;
+		}
+	}
+
 	return 0;
 }
-
 
 stio_errnum_t stio_syserrtoerrnum (int no)
 {
