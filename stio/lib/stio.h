@@ -102,11 +102,12 @@ enum stio_errnum_t
 	STIO_ENOMEM,
 	STIO_EINVAL,
 	STIO_ENOENT,
-	STIO_ENOSUP, /* not supported */
+	STIO_ENOSUP,  /* not supported */
 	STIO_EMFILE,
 	STIO_ENFILE,
-	STIO_ECONRF, /* connection refused */
-	STIO_ECONRS, /* connection reset */
+	STIO_ECONRF,  /* connection refused */
+	STIO_ECONRS,  /* connection reset */
+	STIO_ENOCAPA, /* no capability */
 
 	STIO_EDEVMAKE,
 	STIO_EDEVERR,
@@ -127,12 +128,6 @@ struct stio_dev_mth_t
 	void          (*kill)         (stio_dev_t* dev); /* mandatory. called in stio_killdev(). called in stio_makedev() upon failure after make() success */
 
 	/* ------------------------------------------------------------------ */
-#if 0
-/* TODO: countsyshnds() if the device has multiple handles.
- * getsyshnd() to accept the handle id between 0 and countsysnhnds() - 1
- */
-	int           (*countsyshnds) (stio_dev_t* dev); /* optional */
-#endif
 	stio_syshnd_t (*getsyshnd)    (stio_dev_t* dev); /* mandatory. called in stio_makedev() after successful make() */
 
 	/* ------------------------------------------------------------------ */
@@ -216,35 +211,49 @@ struct stio_wq_t
 #define STIO_WQ_DEQ(wq) STIO_WQ_UNLINK(STIO_WQ_HEAD(wq))
 
 #define STIO_DEV_HEADERS \
-	stio_t* stio; \
-	stio_dev_mth_t* mth; \
-	stio_dev_evcb_t* evcb; \
-	stio_wq_t wq; \
-	stio_dev_t* prev; \
-	stio_dev_t* next 
+	stio_t*          stio; \
+	int              dev_capa; \
+	stio_dev_mth_t*  dev_mth; \
+	stio_dev_evcb_t* dev_evcb; \
+	stio_wq_t        wq; \
+	stio_dev_t*      dev_prev; \
+	stio_dev_t*      dev_next 
 
 struct stio_dev_t
 {
 	STIO_DEV_HEADERS;
 };
 
-enum stio_dev_event_cmd_t
+enum stio_dev_capa_t
 {
-	STIO_DEV_EVENT_ADD,
-	STIO_DEV_EVENT_UPD,
-	STIO_DEV_EVENT_DEL
-};
-typedef enum stio_dev_event_cmd_t stio_dev_event_cmd_t;
+	STIO_DEV_CAPA_IN     = (1 << 0),
+	STIO_DEV_CAPA_OUT    = (1 << 1),
+	STIO_DEV_CAPA_PRI    = (1 << 2),
+	STIO_DEV_CAPA_STREAM = (1 << 3),
 
-enum stio_dev_event_flag_t
+	/* internal use only. never set this bit to the dev_capa field */
+	STIO_DEV_CAPA_RUINED = (1 << 15)
+};
+typedef enum stio_dev_capa_t stio_dev_capa_t;
+
+enum stio_dev_watch_cmd_t
+{
+	STIO_DEV_WATCH_START,
+	STIO_DEV_WATCH_UPDATE,
+	STIO_DEV_WATCH_STOP
+};
+typedef enum stio_dev_watch_cmd_t stio_dev_watch_cmd_t;
+
+enum stio_dev_event_t
 {
 	STIO_DEV_EVENT_IN  = (1 << 0),
 	STIO_DEV_EVENT_OUT = (1 << 1),
+
 	STIO_DEV_EVENT_PRI = (1 << 2),
 	STIO_DEV_EVENT_HUP = (1 << 3),
 	STIO_DEV_EVENT_ERR = (1 << 4)
 };
-typedef enum stio_dev_event_flag_t stio_dev_event_flag_t;
+typedef enum stio_dev_event_t stio_dev_event_t;
 
 
 typedef struct stio_tmrjob_t stio_tmrjob_t;
@@ -313,16 +322,22 @@ STIO_EXPORT void stio_killdev (
 	stio_dev_t* dev
 );
 
+STIO_EXPORT void stio_ruindev (
+	stio_t*     stio,
+	stio_dev_t* dev
+);
+
 STIO_EXPORT int stio_dev_ioctl (
 	stio_dev_t* dev,
 	int         cmd,
 	void*       arg
 );
 
-STIO_EXPORT int stio_dev_event (
+STIO_EXPORT int stio_dev_watch (
 	stio_dev_t*          dev,
-	stio_dev_event_cmd_t cmd,
-	int                  flags
+	stio_dev_watch_cmd_t cmd,
+	/** 0 or bitwise-ORed of #STIO_DEV_EVENT_IN and #STIO_DEV_EVENT_OUT */
+	int                  events
 );
 
 STIO_EXPORT int stio_dev_send (
