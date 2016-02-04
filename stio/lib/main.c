@@ -37,9 +37,26 @@
 #include <arpa/inet.h>
 #include <signal.h>
 
+struct mmgr_stat_t
+{
+	stio_size_t total_count;
+};
+
+typedef struct mmgr_stat_t mmgr_stat_t;
+
+static mmgr_stat_t mmgr_stat;
+
 static void* mmgr_alloc (stio_mmgr_t* mmgr, stio_size_t size)
 {
-	return malloc (size);
+	if (((mmgr_stat_t*)mmgr->ctx)->total_count > 100)
+	{
+printf ("CRITICAL ERROR ---> too many heap chunks...\n");
+		return STIO_NULL;
+	}
+
+	void* x = malloc (size);
+	if (x) ((mmgr_stat_t*)mmgr->ctx)->total_count++;
+	return x;
 }
 
 static void* mmgr_realloc (stio_mmgr_t* mmgr, void* ptr, stio_size_t size)
@@ -49,16 +66,24 @@ static void* mmgr_realloc (stio_mmgr_t* mmgr, void* ptr, stio_size_t size)
 
 static void mmgr_free (stio_mmgr_t* mmgr, void* ptr)
 {
+	((mmgr_stat_t*)mmgr->ctx)->total_count--;
 	return free (ptr);
 }
+
 
 static stio_mmgr_t mmgr = 
 {
 	mmgr_alloc,
 	mmgr_realloc,
 	mmgr_free,
-	STIO_NULL
+	&mmgr_stat
 };
+
+struct tcp_server_t
+{
+	int tally;
+};
+typedef struct tcp_server_t tcp_server_t;
 
 static void tcp_on_disconnect (stio_dev_tcp_t* tcp)
 {
@@ -101,12 +126,33 @@ printf ("device accepted client device... .asdfjkasdfkljasdlfkjasdj...\n");
 
 static int tcp_on_write (stio_dev_tcp_t* tcp, void* wrctx)
 {
-	printf (">>> TCP SENT MESSAGE\n");
+	tcp_server_t* ts;
+
+	ts = (tcp_server_t*)(tcp + 1);
+	printf (">>> TCP SENT MESSAGE %d\n", ts->tally);
+
+	ts->tally++;
+//	if (ts->tally >= 2) stio_dev_tcp_halt (tcp);
+
+	//stio_dev_tcp_read (tcp);
+
+printf ("ENABLING READING..............................\n");
+	stio_dev_read (tcp, 1);
 	return 0;
 }
 
 static int tcp_on_read (stio_dev_tcp_t* tcp, const void* buf, stio_len_t len)
 {
+	if (len <= 0)
+	{
+		printf ("STREAM DEVICE: EOF RECEIVED...\n");
+		/* no outstanding request. but EOF */
+		stio_dev_tcp_halt (tcp);
+		return 0;
+	}
+
+printf ("on read %d\n", (int)len);
+
 int n;
 static char a ='A';
 char* xxx = malloc (1000000);
@@ -114,7 +160,18 @@ memset (xxx, a++ ,1000000);
 	//return stio_dev_tcp_write  (tcp, "HELLO", 5, STIO_NULL);
 	n = stio_dev_tcp_write  (tcp, xxx, 1000000, STIO_NULL);
 free (xxx);
-return n;
+
+	if (n <= -1) return -1;
+
+	/* post the write finisher */
+	n = stio_dev_tcp_write  (tcp, STIO_NULL, 0, STIO_NULL);
+	if (n <= -1) return -1;
+
+printf ("DISABLING READING..............................\n");
+	stio_dev_read (tcp, 0);
+	return 0;
+
+/* return 1; let the main loop to read more greedily without consulint the multiplexer */
 }
 
 static stio_t* g_stio;
@@ -135,6 +192,7 @@ int main ()
 	stio_dev_tcp_connect_t tcp_conn;
 	stio_dev_tcp_listen_t tcp_lstn;
 	stio_dev_tcp_make_t tcp_make;
+	tcp_server_t* ts;
 
 	stio = stio_open (&mmgr, 0, 512, STIO_NULL);
 	if (!stio)
@@ -172,19 +230,21 @@ int main ()
 	memcpy (&tcp_make.addr, &sin, STIO_SIZEOF(sin));
 	tcp_make.on_write = tcp_on_write;
 	tcp_make.on_read = tcp_on_read;
-	tcp[0] = stio_dev_tcp_make (stio, 0, &tcp_make);
+	tcp[0] = stio_dev_tcp_make (stio, STIO_SIZEOF(tcp_server_t), &tcp_make);
 	if (!tcp[0])
 	{
 		printf ("Cannot make tcp\n");
 		goto oops;
 	}
 
+	ts = (tcp_server_t*)(tcp[0] + 1);
+	ts->tally = 0;
 
 	memset (&sin, 0, STIO_SIZEOF(sin));
 	sin.sin_family = AF_INET;
 	sin.sin_port = htons(9999);
-	inet_pton (sin.sin_family, "192.168.1.1", &sin.sin_addr);
-	//inet_pton (sin.sin_family, "127.0.0.1", &sin.sin_addr);
+	//inet_pton (sin.sin_family, "192.168.1.1", &sin.sin_addr);
+	inet_pton (sin.sin_family, "127.0.0.1", &sin.sin_addr);
 
 	memset (&tcp_conn, 0, STIO_SIZEOF(tcp_conn));
 	memcpy (&tcp_conn.addr, &sin, STIO_SIZEOF(sin));
@@ -205,12 +265,14 @@ int main ()
 	tcp_make.on_write = tcp_on_write;
 	tcp_make.on_read = tcp_on_read;
 
-	tcp[1] = stio_dev_tcp_make (stio, 0, &tcp_make);
+	tcp[1] = stio_dev_tcp_make (stio, STIO_SIZEOF(tcp_server_t), &tcp_make);
 	if (!tcp[1])
 	{
 		printf ("Cannot make tcp\n");
 		goto oops;
 	}
+	ts = (tcp_server_t*)(tcp[1] + 1);
+	ts->tally = 0;
 
 	tcp_lstn.backlogs = 100;
 	tcp_lstn.on_connect = tcp_on_connect;

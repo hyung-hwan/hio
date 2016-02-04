@@ -45,6 +45,13 @@ void stio_closeasyncsck (stio_t* stio, stio_sckhnd_t sck)
 #endif
 }
 
+#if 0
+int  stio_shutasyncsck (stio_t* stio, stio_sckhnd_t sck, int how)
+{
+	shutdown (sck, how);
+}
+#endif
+
 int stio_makesckasync (stio_t* stio, stio_sckhnd_t sck)
 {
 	return stio_makesyshndasync (stio, (stio_syshnd_t)sck);

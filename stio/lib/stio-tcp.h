@@ -135,10 +135,6 @@ STIO_EXPORT  stio_dev_tcp_t* stio_dev_tcp_make (
 	const stio_dev_tcp_make_t* data
 );
 
-STIO_EXPORT void stio_dev_tcp_kill (
-	stio_dev_tcp_t* tcp
-);
-
 STIO_EXPORT int stio_dev_tcp_bind (
 	stio_dev_tcp_t*         tcp,
 	stio_dev_tcp_bind_t*    bind
@@ -158,6 +154,10 @@ STIO_EXPORT int stio_dev_tcp_write (
 	const void*      data,
 	stio_len_t       len,
 	void*            wrctx
+);
+
+STIO_EXPORT int stio_dev_tcp_halt (
+	stio_dev_tcp_t* tcp
 );
 
 #ifdef __cplusplus
