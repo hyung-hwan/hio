@@ -97,8 +97,7 @@ struct stio_dev_mth_t
 	/* ------------------------------------------------------------------ */
 	/* return -1 on failure, 0 if no data is availble, 1 otherwise.
 	 * when returning 1, *len must be sent to the length of data read.
-	 * if *len is set to 0, it's treated as EOF.
-	 * it must not kill the device */
+	 * if *len is set to 0, it's treated as EOF. */
 	int           (*read)         (stio_dev_t* dev, void* data, stio_len_t* len);
 
 	/* ------------------------------------------------------------------ */
@@ -113,12 +112,12 @@ struct stio_dev_evcb_t
 {
 	/* return -1 on failure. 0 or 1 on success.
 	 * when 0 is returned, it doesn't attempt to perform actual I/O.
-	 * when 1 is returned, it attempts to perform actual I/O.
-	 * it must not kill the device */
+	 * when 1 is returned, it attempts to perform actual I/O. */
 	int           (*ready)        (stio_dev_t* dev, int events);
 
-	/* return -1 on failure, 0 on success
-	 * it must not kill the device */
+	/* return -1 on failure, 0 or 1 on success.
+	 * when 0 is returned, the main loop stops the attempt to read more data.
+	 * when 1 is returned, the main loop attempts to read more data without*/
 	int           (*on_read)      (stio_dev_t* dev, const void* data, stio_len_t len);
 
 	/* return -1 on failure, 0 on success. 
@@ -126,14 +125,16 @@ struct stio_dev_evcb_t
 	int           (*on_write)      (stio_dev_t* dev, void* wrctx);
 };
 
+typedef enum stio_wq_type_t stio_wq_type_t;
+
 struct stio_wq_t
 {
-	stio_wq_t*    next;
-	stio_wq_t*    prev;
+	stio_wq_t*     next;
+	stio_wq_t*     prev;
 
-	stio_uint8_t* ptr;
-	stio_len_t    len;
-	void*         ctx;
+	stio_uint8_t*  ptr;
+	stio_len_t     len;
+	void*          ctx;
 };
 
 #define STIO_WQ_INIT(wq) ((wq)->next = (wq)->prev = (wq))
@@ -177,6 +178,7 @@ struct stio_wq_t
 
 #define STIO_DEV_HEADERS \
 	stio_t*          stio; \
+	stio_size_t      dev_size; \
 	int              dev_capa; \
 	stio_dev_mth_t*  dev_mth; \
 	stio_dev_evcb_t* dev_evcb; \
@@ -191,13 +193,24 @@ struct stio_dev_t
 
 enum stio_dev_capa_t
 {
-	STIO_DEV_CAPA_IN     = (1 << 0),
-	STIO_DEV_CAPA_OUT    = (1 << 1),
-	STIO_DEV_CAPA_PRI    = (1 << 2),
-	STIO_DEV_CAPA_STREAM = (1 << 3),
+	STIO_DEV_CAPA_IN           = (1 << 0),
+	STIO_DEV_CAPA_OUT          = (1 << 1),
+
+	/* #STIO_DEV_CAPA_PRI is meaningful only if #STIO_DEV_CAPA_IN is set */
+	STIO_DEV_CAPA_PRI          = (1 << 2), 
+
+	/*STIO_DEV_CAPA_HALFOPEN    = (1 << 3),*/
+	STIO_DEV_CAPA_STREAM       = (1 << 4),
 
 	/* internal use only. never set this bit to the dev_capa field */
-	STIO_DEV_CAPA_RUINED = (1 << 15)
+	STIO_DEV_CAPA_IN_DISABLED  = (1 << 9),
+	STIO_DEV_CAPA_IN_CLOSED    = (1 << 10),
+	STIO_DEV_CAPA_OUT_CLOSED   = (1 << 11),
+	STIO_DEV_CAPA_IN_WATCHED   = (1 << 12),
+	STIO_DEV_CAPA_OUT_WATCHED  = (1 << 13),
+	STIO_DEV_CAPA_PRI_WATCHED  = (1 << 14), /**< can be set only if STIO_DEV_CAPA_IN_WATCHED is set */
+
+	STIO_DEV_CAPA_HALTED       = (1 << 15)
 };
 typedef enum stio_dev_capa_t stio_dev_capa_t;
 
@@ -205,6 +218,7 @@ enum stio_dev_watch_cmd_t
 {
 	STIO_DEV_WATCH_START,
 	STIO_DEV_WATCH_UPDATE,
+	STIO_DEV_WATCH_RENEW, /* automatic update */
 	STIO_DEV_WATCH_STOP
 };
 typedef enum stio_dev_watch_cmd_t stio_dev_watch_cmd_t;
@@ -287,11 +301,6 @@ STIO_EXPORT void stio_killdev (
 	stio_dev_t* dev
 );
 
-STIO_EXPORT void stio_ruindev (
-	stio_t*     stio,
-	stio_dev_t* dev
-);
-
 STIO_EXPORT int stio_dev_ioctl (
 	stio_dev_t* dev,
 	int         cmd,
@@ -305,11 +314,20 @@ STIO_EXPORT int stio_dev_watch (
 	int                  events
 );
 
+STIO_EXPORT void stio_dev_read (
+	stio_dev_t*   dev,
+	int           enabled
+);
+
 STIO_EXPORT int stio_dev_write (
 	stio_dev_t*   dev,
 	const void*   data,
 	stio_len_t    len,
 	void*         wrctx
+);
+
+STIO_EXPORT void stio_dev_halt (
+	stio_dev_t* dev
 );
 
 #ifdef __cplusplus

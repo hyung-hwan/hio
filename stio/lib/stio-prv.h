@@ -70,9 +70,10 @@ struct stio_t
 		stio_dev_t* tail;
 	} dev; /* normal devices */
 
-	stio_dev_t* rdev; /* ruined device list - singly linked list */
+	stio_dev_t* hdev; /* halted device list - singly linked list */
 
 	stio_uint8_t bigbuf[65535]; /* TODO: make this dynamic depending on devices added. device may indicate a buffer size required??? */
+	int renew_watch;
 
 	struct
 	{

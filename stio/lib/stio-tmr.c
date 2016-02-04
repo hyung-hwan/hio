@@ -46,10 +46,18 @@ static stio_tmridx_t sift_up (stio_t* stio, stio_tmridx_t index, int notify)
 	if (index > 0 && YOUNGER_THAN(&stio->tmr.jobs[index], &stio->tmr.jobs[parent]))
 	{
 		stio_tmrjob_t item;
+#if defined(STIO_USE_TMRJOB_IDXPTR)
+		/* nothing */
+#else
 		stio_size_t old_index;
+#endif
 
 		item = stio->tmr.jobs[index]; 
+#if defined(STIO_USE_TMRJOB_IDXPTR)
+		/* nothing */
+#else
 		old_index = index;
+#endif
 
 		do
 		{
@@ -89,10 +97,19 @@ static stio_tmridx_t sift_down (stio_t* stio, stio_tmridx_t index, int notify)
 	if (index < base) /* at least 1 child is under the 'index' positmrn */
 	{
 		stio_tmrjob_t item;
+#if defined(STIO_USE_TMRJOB_IDXPTR)
+		/* nothing */
+#else
 		stio_size_t old_index;
+#endif
 
 		item = stio->tmr.jobs[index];
+
+#if defined(STIO_USE_TMRJOB_IDXPTR)
+		/* nothing */
+#else
 		old_index = index;
+#endif
 
 		do
 		{

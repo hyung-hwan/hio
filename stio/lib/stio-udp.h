@@ -66,7 +66,7 @@ STIO_EXPORT stio_dev_udp_t* stio_dev_udp_make (
 	const stio_dev_udp_make_t* data
 );
 
-STIO_EXPORT void stio_dev_udp_kill (
+STIO_EXPORT void stio_dev_udp_halt (
 	stio_dev_udp_t* udp
 );
 

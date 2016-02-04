@@ -47,8 +47,11 @@ static int tcp_make (stio_dev_t* dev, void* ctx)
 	tcp->sck = stio_openasyncsck (dev->stio, family, SOCK_STREAM);
 	if (tcp->sck == STIO_SCKHND_INVALID) goto oops;
 
-	//setsockopt (udp->sck, SOL_SOCKET, SO_REUSEADDR, ...);
-	// TRANSPARENT, ETC.
+/* TODO:
+	setsockopt (udp->sck, SOL_SOCKET, SO_REUSEADDR, ...);
+	 TRANSPARENT, ETC. 
+ */
+
 	iv = 1;
 	if (setsockopt (tcp->sck, SOL_SOCKET, SO_REUSEADDR, &iv, STIO_SIZEOF(iv)) == -1 ||
 	    bind (tcp->sck, (struct sockaddr*)&arg->addr, len) == -1) 
@@ -57,6 +60,7 @@ static int tcp_make (stio_dev_t* dev, void* ctx)
 		goto oops;
 	}
 
+	tcp->dev_capa = STIO_DEV_CAPA_IN | STIO_DEV_CAPA_OUT | STIO_DEV_CAPA_STREAM;
 	tcp->on_write = arg->on_write;
 	tcp->on_read = arg->on_read; 
 	tcp->tmridx_connect = STIO_TMRIDX_INVALID;
@@ -110,14 +114,13 @@ static stio_syshnd_t tcp_getsyshnd (stio_dev_t* dev)
 	return (stio_syshnd_t)tcp->sck;
 }
 
-
 static int tcp_read (stio_dev_t* dev, void* buf, stio_len_t* len)
 {
 	stio_dev_tcp_t* tcp = (stio_dev_tcp_t*)dev;
 	ssize_t x;
 
 	x = recv (tcp->sck, buf, *len, 0);
-	if (x <= -1)
+	if (x == -1)
 	{
 		if (errno == EINPROGRESS || errno == EWOULDBLOCK) return 0;  /* no data available */
 		if (errno == EINTR) return 0;
@@ -134,13 +137,26 @@ static int tcp_write (stio_dev_t* dev, const void* data, stio_len_t* len)
 	stio_dev_tcp_t* tcp = (stio_dev_tcp_t*)dev;
 	ssize_t x;
 	int flags = 0;
-	
+
+	if (*len <= 0)
+	{
+		/* it's a writing finish indicator. close the writing end of
+		 * the socket, probably leaving it in the half-closed state */
+		if (shutdown (tcp->sck, SHUT_WR) == -1)
+		{
+			tcp->stio->errnum = stio_syserrtoerrnum(errno);
+			return -1;
+		}
+
+		return 1;
+	}
+
 	/* TODO: flags MSG_DONTROUTE, MSG_DONTWAIT, MSG_MORE, MSG_OOB, MSG_NOSIGNAL */
 #if defined(MSG_NOSIGNAL)
 	flags |= MSG_NOSIGNAL;
 #endif
 	x = sendto (tcp->sck, data, *len, flags, STIO_NULL, 0);
-	if (x <= -1) 
+	if (x == -1) 
 	{
 		if (errno == EINPROGRESS || errno == EWOULDBLOCK) return 0;  /* no data can be written */
 		if (errno == EINTR) return 0;
@@ -163,7 +179,7 @@ static void tmr_connect_handle (stio_t* stio, const stio_ntime_t* now, stio_tmrj
 		 * doesn't need to be deleted when it gets connected for this check 
 		 * here. this libarary, however, deletes the job when it gets 
 		 * connected. */
-		stio_dev_tcp_kill (tcp);
+		stio_dev_tcp_halt (tcp);
 	}
 }
 
@@ -391,11 +407,7 @@ printf ("TCP READY...%p\n", dev);
 				tcp->state &= ~STIO_DEV_TCP_CONNECTING;
 				tcp->state |= STIO_DEV_TCP_CONNECTED;
 
-				if (stio_dev_watch ((stio_dev_t*)tcp, STIO_DEV_WATCH_UPDATE, STIO_DEV_EVENT_IN) <= -1)
-				{
-printf ("CAANOT MANIPULTE WATCHER ...\n");
-					return -1;
-				}
+				if (stio_dev_watch ((stio_dev_t*)tcp, STIO_DEV_WATCH_RENEW, 0) <= -1) return -1;
 
 				if (tcp->tmridx_connect != STIO_TMRIDX_INVALID)
 				{
@@ -455,19 +467,21 @@ printf ("CAANOT MANIPULTE WATCHER ...\n");
 				return -1;
 			}
 
-			/* addr is the address of the peer */
-			/* local addresss is inherited from the server */
-			clitcp = (stio_dev_tcp_t*)stio_makedev (tcp->stio, STIO_SIZEOF(*tcp), &tcp_acc_mth, tcp->dev_evcb, &clisck); 
+			/* use tcp->dev_size when instantiating a client tcp device
+			 * instead of STIO_SIZEOF(stio_dev_tcp_t). therefore, the 
+			 * extension area as big as that of the master tcp device
+			 * is created in the client tcp device */
+			clitcp = (stio_dev_tcp_t*)stio_makedev (tcp->stio, tcp->dev_size, &tcp_acc_mth, tcp->dev_evcb, &clisck); 
 			if (!clitcp) 
 			{
 				close (clisck);
 				return -1;
 			}
 
+			clitcp->dev_capa |= STIO_DEV_CAPA_IN | STIO_DEV_CAPA_OUT | STIO_DEV_CAPA_STREAM;
 			clitcp->state |= STIO_DEV_TCP_ACCEPTED;
 			clitcp->peer = peer;
 			/*clitcp->parent = tcp;*/
-
 
 			/* inherit some event handlers from the parent.
 			 * you can still change them inside the on_connect handler */
@@ -477,7 +491,8 @@ printf ("CAANOT MANIPULTE WATCHER ...\n");
 			clitcp->on_read = tcp->on_read;
 
 			clitcp->tmridx_connect = STIO_TMRIDX_INVALID;
-			if (clitcp->on_connect (clitcp) <= -1) stio_dev_tcp_kill (clitcp);
+			if (clitcp->on_connect (clitcp) <= -1) stio_dev_tcp_halt (clitcp);
+
 			return 0; /* success but don't invoke on_read() */ 
 		}
 	}
@@ -520,11 +535,6 @@ stio_dev_tcp_t* stio_dev_tcp_make (stio_t* stio, stio_size_t xtnsize, const stio
 	return (stio_dev_tcp_t*)stio_makedev (stio, STIO_SIZEOF(stio_dev_tcp_t) + xtnsize, &tcp_mth, &tcp_evcb, (void*)data);
 }
 
-void stio_dev_tcp_kill (stio_dev_tcp_t* tcp)
-{
-	stio_killdev (tcp->stio, (stio_dev_t*)tcp);
-}
-
 int stio_dev_tcp_bind (stio_dev_tcp_t* tcp, stio_dev_tcp_bind_t* bind)
 {
 	return stio_dev_ioctl ((stio_dev_t*)tcp, STIO_DEV_TCP_BIND, bind);
@@ -543,4 +553,9 @@ int stio_dev_tcp_listen (stio_dev_tcp_t* tcp, stio_dev_tcp_listen_t* lstn)
 int stio_dev_tcp_write (stio_dev_tcp_t* tcp, const void* data, stio_len_t len, void* wrctx)
 {
 	return stio_dev_write ((stio_dev_t*)tcp, data, len, wrctx);
+}
+
+int stio_dev_tcp_halt (stio_dev_tcp_t* tcp)
+{
+	stio_dev_halt ((stio_dev_t*)tcp);
 }
