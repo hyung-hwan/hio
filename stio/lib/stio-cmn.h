@@ -416,16 +416,14 @@ struct stio_mmgr_t
 #	define STIO_INLINE inline
 #	define STIO_HAVE_INLINE
 #elif defined(__GNUC__) && defined(__GNUC_GNU_INLINE__)
-		/* gcc disables inline when -std=c89 or -ansi is used. 
-		 * so use __inline__ supported by gcc regardless of the options */
+	/* gcc disables inline when -std=c89 or -ansi is used. 
+	 * so use __inline__ supported by gcc regardless of the options */
 #	define STIO_INLINE /*extern*/ __inline__
 #	define STIO_HAVE_INLINE
 #else
 #	define STIO_INLINE 
 #	undef STIO_HAVE_INLINE
 #endif
-
-
 
 
 /**

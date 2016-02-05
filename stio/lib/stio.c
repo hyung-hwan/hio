@@ -117,11 +117,24 @@ void stio_epilogue (stio_t* stio)
 	/* TODO: */
 }
 
-STIO_INLINE static void handle_event (stio_t* stio, stio_size_t i)
+static STIO_INLINE void unlink_wq (stio_t* stio, stio_wq_t* q)
+{
+	if (q->tmridx != STIO_TMRIDX_INVALID)
+	{
+		stio_deltmrjob (stio, q->tmridx);
+		STIO_ASSERT (q->tmridx == STIO_TMRIDX_INVALID);
+	}
+	STIO_WQ_UNLINK (q);
+}
+
+static STIO_INLINE void handle_event (stio_t* stio, stio_size_t i)
 {
 	stio_dev_t* dev;
 
+	stio->renew_watch = 0;
 	dev = stio->revs[i].data.ptr;
+
+	STIO_ASSERT (stio == dev->stio);
 
 	if (dev->dev_evcb->ready)
 	{
@@ -153,7 +166,7 @@ STIO_INLINE static void handle_event (stio_t* stio, stio_size_t i)
 	{
 		/* urgent data */
 /* TODO: urgent data.... */
-		/*x = dev->dev_mth->urgrecv (dev, stio->bugbuf, &len);*/
+		/*x = dev->dev_mth->urgread (dev, stio->bugbuf, &len);*/
 printf ("has urgent data...\n");
 	}
 
@@ -207,9 +220,9 @@ printf ("has urgent data...\n");
 						out_closed = 1;
 					}
 
-					STIO_WQ_UNLINK (q); /* STIO_WQ_DEQ(&dev->wq); */
-					y = dev->dev_evcb->on_write (dev, q->ctx);
-					STIO_MMGR_FREE (dev->stio->mmgr, q);
+					unlink_wq (stio, q);
+					y = dev->dev_evcb->on_write (dev, q->olen, q->ctx);
+					STIO_MMGR_FREE (stio->mmgr, q);
 
 					if (y <= -1)
 					{
@@ -225,7 +238,7 @@ printf ("has urgent data...\n");
 						while (!STIO_WQ_ISEMPTY(&dev->wq))
 						{
 							q = STIO_WQ_HEAD(&dev->wq);
-							STIO_WQ_UNLINK (q);
+							unlink_wq (stio, q);
 							STIO_MMGR_FREE (dev->stio->mmgr, q);
 						}
 						break;
@@ -321,28 +334,39 @@ printf ("has urgent data...\n");
 		}
 	}
 
-	if (dev && stio->revs[i].events & (EPOLLERR | EPOLLHUP)) 
-	{ 
-		/* if error or hangup has been reported on the device,
-		 * halt the device. this check is performed after
-		 * EPOLLIN or EPOLLOUT check because EPOLLERR or EPOLLHUP
-		 * can be set together with EPOLLIN or EPOLLOUT. */
-		dev->dev_capa |= STIO_DEV_CAPA_IN_CLOSED | STIO_DEV_CAPA_OUT_CLOSED;
-		stio->renew_watch = 1;
-	}
-#if defined(EPOLLRDHUP)
-	else if (dev && stio->revs[i].events & EPOLLRDHUP) 
+	if (dev)
 	{
+		if (stio->revs[i].events & (EPOLLERR | EPOLLHUP)) 
+		{ 
+			/* if error or hangup has been reported on the device,
+			 * halt the device. this check is performed after
+			 * EPOLLIN or EPOLLOUT check because EPOLLERR or EPOLLHUP
+			 * can be set together with EPOLLIN or EPOLLOUT. */
+			dev->dev_capa |= STIO_DEV_CAPA_IN_CLOSED | STIO_DEV_CAPA_OUT_CLOSED;
+			stio->renew_watch = 1;
+		}
+	#if defined(EPOLLRDHUP)
+		else if (dev && stio->revs[i].events & EPOLLRDHUP) 
+		{
+			if (stio->revs[i].events & (EPOLLIN | EPOLLOUT | EPOLLPRI))
+			{
+				/* it may be a half-open state. don't do anything here
+				 * to let the next read detect EOF */
+			}
+			else
+			{
+				dev->dev_capa |= STIO_DEV_CAPA_IN_CLOSED | STIO_DEV_CAPA_OUT_CLOSED;
+				stio->renew_watch = 1;
+			}
+		}
+	#endif
 
-	}
-#endif
-
-	if (dev && 
-	    (dev->dev_capa & STIO_DEV_CAPA_IN_CLOSED) &&
-	    (dev->dev_capa & STIO_DEV_CAPA_OUT_CLOSED))
-	{
-		stio_dev_halt (dev);
-		dev = STIO_NULL;
+		if ((dev->dev_capa & STIO_DEV_CAPA_IN_CLOSED) &&
+		    (dev->dev_capa & STIO_DEV_CAPA_OUT_CLOSED))
+		{
+			stio_dev_halt (dev);
+			dev = STIO_NULL;
+		}
 	}
 
 skip_evcb:
@@ -353,7 +377,7 @@ skip_evcb:
 	}
 }
 
-int stio_exec (stio_t* stio)
+static STIO_INLINE int __exec (stio_t* stio)
 {
 	stio_ntime_t tmout;
 
@@ -403,7 +427,6 @@ int stio_exec (stio_t* stio)
 	
 	for (i = 0; i < nentries; i++)
 	{
-		stio->renew_watch = 0;
 		handle_event (stio, i);
 	}
 
@@ -421,6 +444,17 @@ int stio_exec (stio_t* stio)
 	return 0;
 }
 
+int stio_exec (stio_t* stio)
+{
+	int n;
+
+	stio->in_exec = 1;
+	n = __exec (stio);
+	stio->in_exec = 0;
+
+	return n;
+}
+
 void stio_stop (stio_t* stio)
 {
 	stio->stopreq = 1;
@@ -435,17 +469,6 @@ int stio_loop (stio_t* stio)
 
 	if (stio_prologue (stio) <= -1) return -1;
 
-	if (stio->renew_watch)
-	{
-printf (">>> GLOBAL WATCHIN RENEWAL....\n");
-		stio_dev_t* dev;
-		for (dev = stio->dev.head; dev; dev = dev->dev_next)
-		{
-			stio_dev_watch (dev, STIO_DEV_WATCH_RENEW, 0);
-		}
-		stio->renew_watch = 0;
-	}
-	
 	while (!stio->stopreq && stio->dev.head)
 	{
 		if (stio_exec (stio) <= -1) break;
@@ -529,12 +552,10 @@ void stio_killdev (stio_t* stio, stio_dev_t* dev)
 	/* clear pending send requests */
 	while (!STIO_WQ_ISEMPTY(&dev->wq))
 	{
-		stio_wq_t* wq;
-
-		wq = STIO_WQ_HEAD(&dev->wq);
-		STIO_WQ_DEQ (&dev->wq);
-
-		STIO_MMGR_FREE (stio->mmgr, wq);
+		stio_wq_t* q;
+		q = STIO_WQ_HEAD(&dev->wq);
+		unlink_wq (stio, q);
+		STIO_MMGR_FREE (stio->mmgr, q);
 	}
 
 	/* delink the dev object */
@@ -682,17 +703,53 @@ int stio_dev_watch (stio_dev_t* dev, stio_dev_watch_cmd_t cmd, int events)
 	return 0;
 }
 
-void stio_dev_read (stio_dev_t* dev, int enabled)
+int stio_dev_read (stio_dev_t* dev, int enabled)
 {
+	if (dev->dev_capa & STIO_DEV_CAPA_IN_CLOSED)
+	{
+		dev->stio->errnum = STIO_ENOCAPA;
+		return -1;
+	}
+
 	if (enabled)
+	{
 		dev->dev_capa &= ~STIO_DEV_CAPA_IN_DISABLED;
+		if (!dev->stio->in_exec && (dev->dev_capa & STIO_DEV_CAPA_IN_WATCHED)) goto renew_watch_now;
+	}
 	else
+	{
 		dev->dev_capa |= STIO_DEV_CAPA_IN_DISABLED;
+		if (!dev->stio->in_exec && !(dev->dev_capa & STIO_DEV_CAPA_IN_WATCHED)) goto renew_watch_now;
+	}
 
 	dev->stio->renew_watch = 1;
+	return 0;
+
+renew_watch_now:
+	if (stio_dev_watch (dev, STIO_DEV_WATCH_RENEW, 0) <= -1) return -1;
+	return 0;
 }
 
-int stio_dev_write (stio_dev_t* dev, const void* data, stio_len_t len, void* wrctx)
+static void on_write_timeout (stio_t* stio, const stio_ntime_t* now, stio_tmrjob_t* job)
+{
+	stio_wq_t* q;
+	stio_dev_t* dev;
+	int x;
+
+	q = (stio_wq_t*)job->ctx;
+	dev = q->dev;
+
+	dev->stio->errnum = STIO_ETMOUT;
+	x = dev->dev_evcb->on_write (dev, -1, q->ctx); 
+
+	STIO_ASSERT (q->tmridx == STIO_TMRIDX_INVALID);
+	STIO_WQ_UNLINK(q);
+	STIO_MMGR_FREE (stio->mmgr, q);
+
+	if (x <= -1) stio_dev_halt (dev);
+}
+
+static int __dev_write (stio_dev_t* dev, const void* data, stio_len_t len, const stio_ntime_t* tmout, void* wrctx)
 {
 	const stio_uint8_t* uptr;
 	stio_len_t urem, ulen;
@@ -715,42 +772,55 @@ int stio_dev_write (stio_dev_t* dev, const void* data, stio_len_t len, void* wrc
 		goto enqueue_data;
 	}
 
-	/* use the do..while() loop to be able to send a zero-length data */
-	do
+	if (dev->dev_capa & STIO_DEV_CAPA_STREAM)
+	{
+		/* use the do..while() loop to be able to send a zero-length data */
+		do
+		{
+			ulen = urem;
+			x = dev->dev_mth->write (dev, data, &ulen);
+			if (x <= -1) return -1;
+			else if (x == 0) 
+			{
+				/* [NOTE] 
+				 * the write queue is empty at this moment. a zero-length 
+				 * request for a stream device can still get enqueued  if the
+				 * write callback returns 0 though i can't figure out if there
+				 * is a compelling reason to do so 
+				 */
+				goto enqueue_data; /* enqueue remaining data */
+			}
+			else 
+			{
+				urem -= ulen;
+				uptr += ulen;
+			}
+		}
+		while (urem > 0);
+
+		if (len <= 0) /* original length */
+		{
+			/* a zero-length writing request is to close the writing end */
+			dev->dev_capa |= STIO_DEV_CAPA_OUT_CLOSED;
+		}
+
+		if (dev->dev_evcb->on_write (dev, len, wrctx) <= -1) return -1;
+	}
+	else
 	{
 		ulen = urem;
 		x = dev->dev_mth->write (dev, data, &ulen);
 		if (x <= -1) return -1;
-		else if (x == 0) 
-		{
-			/* [NOTE] 
-			 * the write queue is empty at this moment. a zero-length 
-			 * request for a stream device can still get enqueued  if the
-			 * write callback returns 0 though i can't figure out if there
-			 * is a compelling reason to do so 
-			 */
-			goto enqueue_data; /* enqueue remaining data */
-		}
-		else 
-		{
-			urem -= ulen;
-			uptr += ulen;
-		}
-	}
-	while (urem > 0);
+		else if (x == 0) goto enqueue_data;
 
-	if (len <= 0 && (dev->dev_capa & STIO_DEV_CAPA_STREAM))
-	{
-		/* a zero-length writing request is to close the writing end */
-		dev->dev_capa |= STIO_DEV_CAPA_OUT_CLOSED;
+		/* partial writing is still considered ok for a non-stream device */
+		if (dev->dev_evcb->on_write (dev, ulen, wrctx) <= -1) return -1;
 	}
 
-	dev->dev_evcb->on_write (dev, wrctx);
-	return 0;
+	return 1; /* written immediately and called on_write callback */
 
 enqueue_data:
 	/* queue the remaining data*/
-printf ("ENQUEING DATA...\n");
 	q = (stio_wq_t*)STIO_MMGR_ALLOC (dev->stio->mmgr, STIO_SIZEOF(*q) + urem);
 	if (!q)
 	{
@@ -758,28 +828,60 @@ printf ("ENQUEING DATA...\n");
 		return -1;
 	}
 
+	q->tmridx = STIO_TMRIDX_INVALID;
+	q->dev = dev;
 	q->ctx = wrctx;
 	q->ptr = (stio_uint8_t*)(q + 1);
 	q->len = urem;
+	q->olen = len;
 	STIO_MEMCPY (q->ptr, uptr, urem);
 
-	STIO_WQ_ENQ (&dev->wq, q);
-
-	dev->stio->renew_watch = 1;
-#if 0
-	if (!(dev->dev_capa & STIO_DEV_CAPA_OUT_WATCHED))
+	if (tmout && !stio_isnegtime(tmout))
 	{
-		/* if output is not being watched, arrange to do so */
-		if (stio_dev_watch (dev, STIO_DEV_WATCH_RENEW, 0) <= -1)
+		stio_tmrjob_t tmrjob;
+
+		STIO_MEMSET (&tmrjob, 0, STIO_SIZEOF(tmrjob));
+		tmrjob.ctx = q;
+		stio_gettime (&tmrjob.when);
+		stio_addtime (&tmrjob.when, tmout, &tmrjob.when);
+		tmrjob.handler = on_write_timeout;
+		tmrjob.idxptr = &q->tmridx;
+
+		q->tmridx = stio_instmrjob (dev->stio, &tmrjob);
+		if (q->tmridx == STIO_TMRIDX_INVALID) 
 		{
-			STIO_WQ_UNLINK (q); /* unlink the ENQed item */
 			STIO_MMGR_FREE (dev->stio->mmgr, q);
 			return -1;
 		}
 	}
-#endif
 
-	return 0;
+	STIO_WQ_ENQ (&dev->wq, q);
+	if (!dev->stio->in_exec && !(dev->dev_capa & STIO_DEV_CAPA_OUT_WATCHED))
+	{
+		/* if output is not being watched, arrange to do so */
+		if (stio_dev_watch (dev, STIO_DEV_WATCH_RENEW, 0) <= -1)
+		{
+			unlink_wq (dev->stio, q);
+			STIO_MMGR_FREE (dev->stio->mmgr, q);
+			return -1;
+		}
+	}
+	else
+	{
+		dev->stio->renew_watch = 1;
+	}
+
+	return 0; /* request pused to a write queue. */
+}
+
+int stio_dev_write (stio_dev_t* dev, const void* data, stio_len_t len, void* wrctx)
+{
+	return __dev_write (dev, data, len, STIO_NULL, wrctx);
+}
+
+int stio_dev_timedwrite (stio_dev_t* dev, const void* data, stio_len_t len, const stio_ntime_t* tmout, void* wrctx)
+{
+	return __dev_write (dev, data, len, tmout, wrctx);
 }
 
 int stio_makesyshndasync (stio_t* stio, stio_syshnd_t hnd)

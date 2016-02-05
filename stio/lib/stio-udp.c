@@ -167,7 +167,7 @@ printf ("dATA received %d bytes\n", (int)len);
 
 }
 
-static int udp_on_write (stio_dev_t* dev, void* msgid)
+static int udp_on_write (stio_dev_t* dev, stio_len_t wrlen, void* wrctx)
 {
 	return 0;
 
@@ -183,9 +183,4 @@ static stio_dev_evcb_t udp_evcb =
 stio_dev_udp_t* stio_dev_udp_make (stio_t* stio, stio_size_t xtnsize, const stio_dev_udp_make_t* data)
 {
 	return (stio_dev_udp_t*)stio_makedev (stio, STIO_SIZEOF(stio_dev_udp_t) + xtnsize, &udp_mth, &udp_evcb, (void*)data);
-}
-
-void stio_dev_udp_halt (stio_dev_udp_t* udp)
-{
-	stio_dev_halt ((stio_dev_t*)udp);
 }

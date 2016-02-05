@@ -51,7 +51,6 @@ static int tcp_make (stio_dev_t* dev, void* ctx)
 	setsockopt (udp->sck, SOL_SOCKET, SO_REUSEADDR, ...);
 	 TRANSPARENT, ETC. 
  */
-
 	iv = 1;
 	if (setsockopt (tcp->sck, SOL_SOCKET, SO_REUSEADDR, &iv, STIO_SIZEOF(iv)) == -1 ||
 	    bind (tcp->sck, (struct sockaddr*)&arg->addr, len) == -1) 
@@ -255,12 +254,12 @@ static int tcp_ioctl (stio_dev_t* dev, int cmd, void* arg)
 					{
 						stio_tmrjob_t tmrjob;
 
-						if (!stio_iszerotime(&conn->timeout))
+						if (!stio_isnegtime(&conn->tmout))
 						{
 							STIO_MEMSET (&tmrjob, 0, STIO_SIZEOF(tmrjob));
 							tmrjob.ctx = tcp;
 							stio_gettime (&tmrjob.when);
-							stio_addtime (&tmrjob.when, &conn->timeout, &tmrjob.when);
+							stio_addtime (&tmrjob.when, &conn->tmout, &tmrjob.when);
 							tmrjob.handler = tmr_connect_handle;
 						#if defined(STIO_USE_TMRJOB_IDXPTR)
 							tmrjob.idxptr = &tcp->tmridx_connect;
@@ -273,7 +272,8 @@ static int tcp_ioctl (stio_dev_t* dev, int cmd, void* arg)
 							if (tcp->tmridx_connect == STIO_TMRIDX_INVALID)
 							{
 								stio_dev_watch ((stio_dev_t*)tcp, STIO_DEV_WATCH_UPDATE, STIO_DEV_EVENT_IN);
-								/* event manipulation failure can't be handled properly. so ignore it */
+								/* event manipulation failure can't be handled properly. so ignore it. 
+								 * anyway, it's already in a failure condition */
 								return -1;
 							}
 						}
@@ -517,10 +517,10 @@ static int tcp_on_read (stio_dev_t* dev, const void* data, stio_len_t len)
 	return tcp->on_read (tcp, data, len);
 }
 
-static int tcp_on_write (stio_dev_t* dev, void* wrctx)
+static int tcp_on_write (stio_dev_t* dev, stio_len_t wrlen, void* wrctx)
 {
 	stio_dev_tcp_t* tcp = (stio_dev_tcp_t*)dev;
-	return tcp->on_write (tcp, wrctx);
+	return tcp->on_write (tcp, wrlen, wrctx);
 }
 
 static stio_dev_evcb_t tcp_evcb =
@@ -550,12 +550,3 @@ int stio_dev_tcp_listen (stio_dev_tcp_t* tcp, stio_dev_tcp_listen_t* lstn)
 	return stio_dev_ioctl ((stio_dev_t*)tcp, STIO_DEV_TCP_LISTEN, lstn);
 }
 
-int stio_dev_tcp_write (stio_dev_tcp_t* tcp, const void* data, stio_len_t len, void* wrctx)
-{
-	return stio_dev_write ((stio_dev_t*)tcp, data, len, wrctx);
-}
-
-int stio_dev_tcp_halt (stio_dev_tcp_t* tcp)
-{
-	stio_dev_halt ((stio_dev_t*)tcp);
-}

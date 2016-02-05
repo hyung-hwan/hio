@@ -73,7 +73,9 @@ struct stio_t
 	stio_dev_t* hdev; /* halted device list - singly linked list */
 
 	stio_uint8_t bigbuf[65535]; /* TODO: make this dynamic depending on devices added. device may indicate a buffer size required??? */
-	int renew_watch;
+
+	unsigned int renew_watch: 1;
+	unsigned int in_exec: 1;
 
 	struct
 	{
@@ -144,15 +146,6 @@ struct stio_t
 #define STIO_SEC_TO_USEC(sec) ((sec) * STIO_USECS_PER_SEC)
 #define STIO_USEC_TO_SEC(usec) ((usec) / STIO_USECS_PER_SEC)
 
-#define stio_inittime(x,s,ns) (((x)->sec = (s)), ((x)->nsec = (ns)))
-#define stio_cleartime(x) stio_inittime(x,0,0)
-/*#define stio_cleartime(x) ((x)->sec = (x)->nsec = 0)*/
-#define stio_cmptime(x,y) \
-	(((x)->sec == (y)->sec)? ((x)->nsec - (y)->nsec): \
-	                         ((x)->sec -  (y)->sec))
-
-#define stio_iszerotime(x) ((x)->sec == 0 && (x)->nsec == 0)
-
 
 #ifdef __cplusplus
 extern "C" {
@@ -168,52 +161,6 @@ stio_errnum_t stio_syserrtoerrnum (
 );
 
 
-/**
- * The stio_gettime() function gets the current time.
- */
-STIO_EXPORT void stio_gettime (
-	stio_ntime_t* nt
-);
-
-/**
- * The stio_addtime() function adds x and y and stores the result in z 
- */
-STIO_EXPORT void stio_addtime (
-	const stio_ntime_t* x,
-	const stio_ntime_t* y,
-	stio_ntime_t*       z
-);
-
-/**
- * The stio_subtime() function subtract y from x and stores the result in z.
- */
-STIO_EXPORT void stio_subtime (
-	const stio_ntime_t* x,
-	const stio_ntime_t* y,
-	stio_ntime_t*       z
-);
-
-/**
- * The stio_instmrjob() function schedules a new event.
- *
- * \return #STIO_TMRIDX_INVALID on failure, valid index on success.
- */
-
-stio_tmridx_t stio_instmrjob (
-	stio_t*              stio,
-	const stio_tmrjob_t* job
-);
-
-stio_tmridx_t stio_updtmrjob (
-	stio_t*              stio,
-	stio_tmridx_t        index,
-	const stio_tmrjob_t* job
-);
-
-void stio_deltmrjob (
-	stio_t*          stio,
-	stio_tmridx_t    index
-);
 
 void stio_cleartmrjobs (
 	stio_t* stio
@@ -221,24 +168,17 @@ void stio_cleartmrjobs (
 
 void stio_firetmrjobs (
 	stio_t*             stio,
-	const stio_ntime_t* tm,
+	const stio_ntime_t* tmbase,
 	stio_size_t*        firecnt
 );
 
+
 int stio_gettmrtmout (
 	stio_t*             stio,
-	const stio_ntime_t* tm,
+	const stio_ntime_t* tmbase,
 	stio_ntime_t*       tmout
 );
 
-/**
- * The stio_gettmrjob() function returns the
- * pointer to the registered event at the given index.
- */
-stio_tmrjob_t* stio_gettmrjob (
-	stio_t*            stio,
-	stio_tmridx_t   index
-);
 #ifdef __cplusplus
 }
 #endif
