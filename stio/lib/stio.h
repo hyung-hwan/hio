@@ -48,7 +48,6 @@ struct stio_ntime_t
 	#define STIO_SYSHND_INVALID (-1)
 #endif
 
-
 /* ------------------------------------------------------------------------- */
 typedef struct stio_t stio_t;
 typedef struct stio_dev_t stio_dev_t;
@@ -56,8 +55,7 @@ typedef struct stio_dev_mth_t stio_dev_mth_t;
 typedef struct stio_dev_evcb_t stio_dev_evcb_t;
 
 typedef struct stio_wq_t stio_wq_t;
-typedef unsigned int stio_len_t; /* TODO: remove it? */
-
+typedef stio_intptr_t stio_len_t; /* NOTE: this is a signed type */
 
 enum stio_errnum_t
 {
@@ -65,12 +63,13 @@ enum stio_errnum_t
 	STIO_ENOMEM,
 	STIO_EINVAL,
 	STIO_ENOENT,
-	STIO_ENOSUP,  /* not supported */
-	STIO_EMFILE,
+	STIO_ENOSUP,     /* not supported */
+	STIO_EMFILE,     /* too many open files */
 	STIO_ENFILE,
-	STIO_ECONRF,  /* connection refused */
-	STIO_ECONRS,  /* connection reset */
-	STIO_ENOCAPA, /* no capability */
+	STIO_ECONRF,     /* connection refused */
+	STIO_ECONRS,     /* connection reset */
+	STIO_ENOCAPA,    /* no capability */
+	STIO_ETMOUT,  /* timed out */
 
 	STIO_EDEVMAKE,
 	STIO_EDEVERR,
@@ -81,6 +80,21 @@ enum stio_errnum_t
 
 typedef enum stio_errnum_t stio_errnum_t;
 
+typedef struct stio_tmrjob_t stio_tmrjob_t;
+typedef stio_size_t stio_tmridx_t;
+
+typedef void (*stio_tmrjob_handler_t) (
+	stio_t*             stio,
+	const stio_ntime_t* now, 
+	stio_tmrjob_t*      tmrjob
+);
+
+typedef void (*stio_tmrjob_updater_t) (
+	stio_t*         stio,
+	stio_tmridx_t   old_index,
+	stio_tmridx_t   new_index,
+	stio_tmrjob_t*  tmrjob
+);
 
 struct stio_dev_mth_t
 {
@@ -121,20 +135,24 @@ struct stio_dev_evcb_t
 	int           (*on_read)      (stio_dev_t* dev, const void* data, stio_len_t len);
 
 	/* return -1 on failure, 0 on success. 
-	 * it must not kill the device */
-	int           (*on_write)      (stio_dev_t* dev, void* wrctx);
+	 * wrlen is the length of data written. it is the length of the originally
+	 * posted writing request for a stream device. For a non stream device, it
+	 * may be shorter than the originally posted length. */
+	int           (*on_write)      (stio_dev_t* dev, stio_len_t wrlen, void* wrctx);
 };
-
-typedef enum stio_wq_type_t stio_wq_type_t;
 
 struct stio_wq_t
 {
 	stio_wq_t*     next;
 	stio_wq_t*     prev;
 
+	stio_len_t     olen; /* original length */
 	stio_uint8_t*  ptr;
 	stio_len_t     len;
 	void*          ctx;
+	stio_dev_t*    dev; /* back-pointer to the device */
+
+	stio_tmridx_t  tmridx;
 };
 
 #define STIO_WQ_INIT(wq) ((wq)->next = (wq)->prev = (wq))
@@ -235,22 +253,6 @@ enum stio_dev_event_t
 typedef enum stio_dev_event_t stio_dev_event_t;
 
 
-typedef struct stio_tmrjob_t stio_tmrjob_t;
-typedef stio_size_t stio_tmridx_t;
-
-typedef void (*stio_tmrjob_handler_t) (
-	stio_t*             stio,
-	const stio_ntime_t* now, 
-	stio_tmrjob_t*      tmrjob
-);
-
-typedef void (*stio_tmrjob_updater_t) (
-	stio_t*         stio,
-	stio_tmridx_t   old_index,
-	stio_tmridx_t   new_index,
-	stio_tmrjob_t*  tmrjob
-);
-
 #ifdef __cplusplus
 extern "C" {
 #endif
@@ -314,20 +316,107 @@ STIO_EXPORT int stio_dev_watch (
 	int                  events
 );
 
-STIO_EXPORT void stio_dev_read (
+STIO_EXPORT int stio_dev_read (
 	stio_dev_t*   dev,
 	int           enabled
 );
 
+/**
+ * The stio_dev_write() function posts a writing request. 
+ * It attempts to write data immediately if there is no pending requests.
+ * If writing fails, it returns -1. If writing succeeds, it calls the
+ * on_write callback. If the callback fails, it returns -1. If the callback 
+ * succeeds, it returns 1. If no immediate writing is possible, the request
+ * is enqueued to a pending request list. If enqueing gets successful,
+ * it returns 0. otherwise it returns -1.
+ */ 
 STIO_EXPORT int stio_dev_write (
-	stio_dev_t*   dev,
-	const void*   data,
-	stio_len_t    len,
-	void*         wrctx
+	stio_dev_t*         dev,
+	const void*         data,
+	stio_len_t          len,
+	void*               wrctx
+);
+
+
+STIO_EXPORT int stio_dev_timedwrite (
+	stio_dev_t*         dev,
+	const void*         data,
+	stio_len_t          len,
+	const stio_ntime_t* tmout,
+	void*               wrctx
 );
 
 STIO_EXPORT void stio_dev_halt (
 	stio_dev_t* dev
+);
+
+
+/* ------------------------------------------------ */
+
+#define stio_inittime(x,s,ns) (((x)->sec = (s)), ((x)->nsec = (ns)))
+#define stio_cleartime(x) stio_inittime(x,0,0)
+#define stio_cmptime(x,y) \
+	(((x)->sec == (y)->sec)? ((x)->nsec - (y)->nsec): \
+	                         ((x)->sec -  (y)->sec))
+
+/* if time has been normalized properly, nsec must be equal to or
+ * greater than 0. */
+#define stio_isnegtime(x) ((x)->sec < 0)
+
+/**
+ * The stio_gettime() function gets the current time.
+ */
+STIO_EXPORT void stio_gettime (
+	stio_ntime_t* nt
+);
+
+/**
+ * The stio_addtime() function adds x and y and stores the result in z 
+ */
+STIO_EXPORT void stio_addtime (
+	const stio_ntime_t* x,
+	const stio_ntime_t* y,
+	stio_ntime_t*       z
+);
+
+/**
+ * The stio_subtime() function subtract y from x and stores the result in z.
+ */
+STIO_EXPORT void stio_subtime (
+	const stio_ntime_t* x,
+	const stio_ntime_t* y,
+	stio_ntime_t*       z
+);
+
+/**
+ * The stio_instmrjob() function schedules a new event.
+ *
+ * \return #STIO_TMRIDX_INVALID on failure, valid index on success.
+ */
+
+STIO_EXPORT stio_tmridx_t stio_instmrjob (
+	stio_t*              stio,
+	const stio_tmrjob_t* job
+);
+
+STIO_EXPORT stio_tmridx_t stio_updtmrjob (
+	stio_t*              stio,
+	stio_tmridx_t        index,
+	const stio_tmrjob_t* job
+);
+
+STIO_EXPORT void stio_deltmrjob (
+	stio_t*          stio,
+	stio_tmridx_t    index
+);
+
+/**
+ * The stio_gettmrjob() function returns the
+ * pointer to the registered event at the given index.
+ */
+STIO_EXPORT stio_tmrjob_t* stio_gettmrjob (
+	stio_t*            stio,
+	stio_tmridx_t      index
 );
 
 #ifdef __cplusplus

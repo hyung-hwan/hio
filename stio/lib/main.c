@@ -124,20 +124,28 @@ printf ("device accepted client device... .asdfjkasdfkljasdlfkjasdj...\n");
 }
 
 
-static int tcp_on_write (stio_dev_tcp_t* tcp, void* wrctx)
+static int tcp_on_write (stio_dev_tcp_t* tcp, stio_len_t wrlen, void* wrctx)
 {
 	tcp_server_t* ts;
 
+if (wrlen <= -1)
+{
+printf ("SEDING TIMED OUT...........\n");
+	stio_dev_tcp_halt(tcp);
+}
+else
+{
+
+
 	ts = (tcp_server_t*)(tcp + 1);
-	printf (">>> TCP SENT MESSAGE %d\n", ts->tally);
+	printf (">>> SENT MESSAGE %d of length %ld\n", ts->tally, (long int)wrlen);
 
 	ts->tally++;
 //	if (ts->tally >= 2) stio_dev_tcp_halt (tcp);
 
-	//stio_dev_tcp_read (tcp);
-
 printf ("ENABLING READING..............................\n");
-	stio_dev_read (tcp, 1);
+	stio_dev_tcp_read (tcp, 1);
+}
 	return 0;
 }
 
@@ -153,12 +161,14 @@ static int tcp_on_read (stio_dev_tcp_t* tcp, const void* buf, stio_len_t len)
 
 printf ("on read %d\n", (int)len);
 
+stio_ntime_t tmout;
 int n;
 static char a ='A';
 char* xxx = malloc (1000000);
 memset (xxx, a++ ,1000000);
 	//return stio_dev_tcp_write  (tcp, "HELLO", 5, STIO_NULL);
-	n = stio_dev_tcp_write  (tcp, xxx, 1000000, STIO_NULL);
+	stio_inittime (&tmout, 1, 0);
+	n = stio_dev_tcp_timedwrite  (tcp, xxx, 1000000, &tmout, STIO_NULL);
 free (xxx);
 
 	if (n <= -1) return -1;
@@ -168,7 +178,7 @@ free (xxx);
 	if (n <= -1) return -1;
 
 printf ("DISABLING READING..............................\n");
-	stio_dev_read (tcp, 0);
+	stio_dev_tcp_read (tcp, 0);
 	return 0;
 
 /* return 1; let the main loop to read more greedily without consulint the multiplexer */
@@ -243,12 +253,12 @@ int main ()
 	memset (&sin, 0, STIO_SIZEOF(sin));
 	sin.sin_family = AF_INET;
 	sin.sin_port = htons(9999);
-	//inet_pton (sin.sin_family, "192.168.1.1", &sin.sin_addr);
-	inet_pton (sin.sin_family, "127.0.0.1", &sin.sin_addr);
+	inet_pton (sin.sin_family, "192.168.1.4", &sin.sin_addr);
+	//inet_pton (sin.sin_family, "127.0.0.1", &sin.sin_addr);
 
 	memset (&tcp_conn, 0, STIO_SIZEOF(tcp_conn));
 	memcpy (&tcp_conn.addr, &sin, STIO_SIZEOF(sin));
-	tcp_conn.timeout.sec = 5;
+	tcp_conn.tmout.sec = 5;
 	tcp_conn.on_connect = tcp_on_connect;
 	tcp_conn.on_disconnect = tcp_on_disconnect;
 	if (stio_dev_tcp_connect (tcp[0], &tcp_conn) <= -1)

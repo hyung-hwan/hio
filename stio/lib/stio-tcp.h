@@ -54,7 +54,7 @@ typedef void (*stio_dev_tcp_on_accepted_t) (stio_dev_tcp_t* dev, stio_dev_tcp_t*
 typedef void (*stio_dev_tcp_on_disconnect_t) (stio_dev_tcp_t* dev);
 
 typedef int (*stio_dev_tcp_on_read_t) (stio_dev_tcp_t* dev, const void* data, stio_len_t len);
-typedef int (*stio_dev_tcp_on_write_t) (stio_dev_tcp_t* dev, void* wrctx);
+typedef int (*stio_dev_tcp_on_write_t) (stio_dev_tcp_t* dev, stio_len_t wrlen, void* wrctx);
 
 struct stio_dev_tcp_t
 {
@@ -104,7 +104,7 @@ typedef struct stio_dev_tcp_connect_t stio_dev_tcp_connect_t;
 struct stio_dev_tcp_connect_t
 {
 	stio_sckadr_t addr;
-	stio_ntime_t timeout; /* connect timeout */
+	stio_ntime_t tmout; /* connect timeout */
 	stio_dev_tcp_on_connect_t on_connect;
 	stio_dev_tcp_on_disconnect_t on_disconnect;
 };
@@ -149,16 +149,37 @@ STIO_EXPORT int stio_dev_tcp_listen (
 	stio_dev_tcp_listen_t*  lstn
 );
 
-STIO_EXPORT int stio_dev_tcp_write (
-	stio_dev_tcp_t*  tcp,
-	const void*      data,
-	stio_len_t       len,
-	void*            wrctx
-);
 
-STIO_EXPORT int stio_dev_tcp_halt (
-	stio_dev_tcp_t* tcp
-);
+#if defined(STIO_HAVE_INLINE)
+
+static STIO_INLINE int stio_dev_tcp_read (stio_dev_tcp_t* tcp, int enabled)
+{
+	return stio_dev_read ((stio_dev_t*)tcp, enabled);
+}
+
+static STIO_INLINE int stio_dev_tcp_write (stio_dev_tcp_t* tcp, const void* data, stio_len_t len, void* wrctx)
+{
+	return stio_dev_write ((stio_dev_t*)tcp, data, len, wrctx);
+}
+
+static STIO_INLINE int stio_dev_tcp_timedwrite (stio_dev_tcp_t* tcp, const void* data, stio_len_t len, const stio_ntime_t* tmout, void* wrctx)
+{
+	return stio_dev_timedwrite ((stio_dev_t*)tcp, data, len, tmout, wrctx);
+}
+
+
+static STIO_INLINE void stio_dev_tcp_halt (stio_dev_tcp_t* tcp)
+{
+	stio_dev_halt ((stio_dev_t*)tcp);
+}
+#else
+
+#define stio_dev_tcp_read(tcp,enabled) stio_dev_read((stio_dev_t*)tcp, enabled)
+#define stio_dev_tcp_write(tcp,data,len,wrctx) stio_dev_write((stio_dev_t*)tcp, data, len, wrctx)
+#define stio_dev_tcp_timedwrite(tcp,data,len,tmout,wrctx) stio_dev_timedwrite((stio_dev_t*)tcp, data, len, tmout, wrctx)
+#define stio_dev_tcp_halt(tcp) stio_dev_halt((stio_dev_t*)tcp)
+
+#endif
 
 #ifdef __cplusplus
 }

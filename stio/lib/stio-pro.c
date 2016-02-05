@@ -233,12 +233,13 @@ void stio_dev_pro_kill (stio_dev_pro_t* pro)
 	stio_killdev (pro->stio, (stio_dev_t*)pro);
 }
 
+#if 0
 int stio_dev_pro_write (stio_dev_pro_t* pro, const void* data, stio_len_t len, void* wrctx)
 {
 	return stio_dev_write ((stio_dev_t*)pro, data, len, wrctx);
 }
 
-#if 0
+
 stio_dev_pro_t* stio_dev_pro_getdev (stio_dev_pro_t* pro, stio_dev_pro_type_t type)
 {
 	switch (type)
