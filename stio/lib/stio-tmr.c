@@ -40,7 +40,7 @@ void stio_cleartmrjobs (stio_t* stio)
 
 static stio_tmridx_t sift_up (stio_t* stio, stio_tmridx_t index, int notify)
 {
-	stio_size_t parent;
+	stio_tmridx_t parent;
 
 	parent = HEAP_PARENT(index);
 	if (index > 0 && YOUNGER_THAN(&stio->tmr.jobs[index], &stio->tmr.jobs[parent]))
@@ -49,7 +49,7 @@ static stio_tmridx_t sift_up (stio_t* stio, stio_tmridx_t index, int notify)
 #if defined(STIO_USE_TMRJOB_IDXPTR)
 		/* nothing */
 #else
-		stio_size_t old_index;
+		stio_tmridx_t old_index;
 #endif
 
 		item = stio->tmr.jobs[index]; 
@@ -100,7 +100,7 @@ static stio_tmridx_t sift_down (stio_t* stio, stio_tmridx_t index, int notify)
 #if defined(STIO_USE_TMRJOB_IDXPTR)
 		/* nothing */
 #else
-		stio_size_t old_index;
+		stio_tmridx_t old_index;
 #endif
 
 		item = stio->tmr.jobs[index];
@@ -113,9 +113,9 @@ static stio_tmridx_t sift_down (stio_t* stio, stio_tmridx_t index, int notify)
 
 		do
 		{
-			stio_size_t left, right, younger;
+			stio_tmridx_t left, right, younger;
 
-			left= HEAP_LEFT(index);
+			left = HEAP_LEFT(index);
 			right = HEAP_RIGHT(index);
 
 			if (right < stio->tmr.size && YOUNGER_THAN(&stio->tmr.jobs[right], &stio->tmr.jobs[left]))
@@ -208,7 +208,7 @@ stio_tmridx_t stio_instmrjob (stio_t* stio, const stio_tmrjob_t* job)
 	return sift_up (stio, index, 0);
 }
 
-stio_tmridx_t stio_updtmrjob (stio_t* stio, stio_size_t index, const stio_tmrjob_t* job)
+stio_tmridx_t stio_updtmrjob (stio_t* stio, stio_tmridx_t index, const stio_tmrjob_t* job)
 {
 	stio_tmrjob_t item;
 	item = stio->tmr.jobs[index];
