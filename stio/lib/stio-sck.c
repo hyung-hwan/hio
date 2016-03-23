@@ -57,22 +57,22 @@ int stio_makesckasync (stio_t* stio, stio_sckhnd_t sck)
 	return stio_makesyshndasync (stio, (stio_syshnd_t)sck);
 }
 
-stio_sckhnd_t stio_openasyncsck (stio_t* stio, int domain, int type)
+stio_sckhnd_t stio_openasyncsck (stio_t* stio, int domain, int type, int proto)
 {
 	stio_sckhnd_t sck;
 
 #if defined(_WIN32)
-	sck = WSASocket (domain, type, 0, NULL, 0, WSA_FLAG_OVERLAPPED /*| WSA_FLAG_NO_HANDLE_INHERIT*/);
+	sck = WSASocket (domain, type, proto, NULL, 0, WSA_FLAG_OVERLAPPED /*| WSA_FLAG_NO_HANDLE_INHERIT*/);
 	if (sck == STIO_SCKHND_INVALID) 
 	{
 		/* stio_seterrnum (dev->stio, STIO_ESYSERR); or translate errno to stio errnum */
 		return STIO_SCKHND_INVALID;
 	}
 #else
-	sck = socket (domain, type, 0); /* NO CLOEXEC or somethign */
+	sck = socket (domain, type, proto); 
 	if (sck == STIO_SCKHND_INVALID) 
 	{
-		/* stio_seterrnum (dev->stio, STIO_ESYSERR); or translate errno to stio errnum */
+		stio->errnum = stio_syserrtoerrnum(errno);
 		return STIO_SCKHND_INVALID;
 	}
 
@@ -81,6 +81,8 @@ stio_sckhnd_t stio_openasyncsck (stio_t* stio, int domain, int type)
 		close (sck);
 		return STIO_SCKHND_INVALID;
 	}
+
+	/* TODO: set CLOEXEC if it's defined */
 #endif
 
 	return sck;

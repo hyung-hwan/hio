@@ -44,7 +44,7 @@ static int tcp_make (stio_dev_t* dev, void* ctx)
 
 	if (stio_getsckadrinfo(dev->stio, &arg->addr, &len, &family) <= -1) return -1;
 
-	tcp->sck = stio_openasyncsck (dev->stio, family, SOCK_STREAM);
+	tcp->sck = stio_openasyncsck (dev->stio, family, SOCK_STREAM, 0);
 	if (tcp->sck == STIO_SCKHND_INVALID) goto oops;
 
 /* TODO:

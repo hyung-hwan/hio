@@ -26,6 +26,7 @@ pkginclude_HEADERS = \
 	stio-sck.h \
 	stio-tcp.h \
 	stio-udp.h \
+	stio-arp.h \
 	stio.h
 
 pkglib_LTLIBRARIES = libstio.la
@@ -37,7 +38,8 @@ libstio_la_SOURCES = \
 	stio-tcp.c \
 	stio-tim.c \
 	stio-tmr.c \
-	stio-udp.c
+	stio-udp.c \
+	stio-arp.c
 libstio_la_CPPFLAGS = $(CPPFLAGS_LIB_COMMON)
 libstio_la_LDFLAGS = $(LDFLAGS_LIB_COMMON)
 libstio_la_LIBADD = $(LIBADD_LIB_COMMON)
