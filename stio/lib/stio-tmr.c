@@ -94,7 +94,7 @@ static stio_tmridx_t sift_down (stio_t* stio, stio_tmridx_t index, int notify)
 {
 	stio_size_t base = stio->tmr.size / 2;
 
-	if (index < base) /* at least 1 child is under the 'index' positmrn */
+	if (index < base) /* at least 1 child is under the 'index' position */
 	{
 		stio_tmrjob_t item;
 #if defined(STIO_USE_TMRJOB_IDXPTR)

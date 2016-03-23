@@ -28,6 +28,7 @@
 #include <stio.h>
 #include <stio-tcp.h>
 #include <stio-udp.h>
+#include <stio-arp.h>
 
 #include <stdlib.h>
 #include <string.h>
@@ -36,6 +37,8 @@
 #include <netinet/in.h>
 #include <arpa/inet.h>
 #include <signal.h>
+
+/* ========================================================================= */
 
 struct mmgr_stat_t
 {
@@ -78,6 +81,8 @@ static stio_mmgr_t mmgr =
 	mmgr_free,
 	&mmgr_stat
 };
+
+/* ========================================================================= */
 
 struct tcp_server_t
 {
@@ -181,8 +186,23 @@ printf ("DISABLING READING..............................\n");
 	stio_dev_tcp_read (tcp, 0);
 	return 0;
 
-/* return 1; let the main loop to read more greedily without consulint the multiplexer */
+/* return 1; let the main loop to read more greedily without consulting the multiplexer */
 }
+
+/* ========================================================================= */
+
+static int arp_on_read (stio_dev_arp_t* arp, const void* buf, stio_len_t len, stio_sckadr_t* )
+{
+	return 0;
+}
+
+static int arp_on_write (stio_dev_arp_t* arp, stio_len_t wrlen, void* wrctx)
+{
+	return 0;
+}
+
+
+/* ========================================================================= */
 
 static stio_t* g_stio;
 
@@ -196,12 +216,14 @@ int main ()
 
 	stio_t* stio;
 	stio_dev_udp_t* udp;
+	stio_dev_arp_t* arp;
 	stio_dev_tcp_t* tcp[2];
 	struct sockaddr_in sin;
 	struct sigaction sigact;
 	stio_dev_tcp_connect_t tcp_conn;
 	stio_dev_tcp_listen_t tcp_lstn;
 	stio_dev_tcp_make_t tcp_make;
+	stio_dev_arp_make_t arp_make;
 	tcp_server_t* ts;
 
 	stio = stio_open (&mmgr, 0, 512, STIO_NULL);
@@ -293,6 +315,16 @@ int main ()
 		goto oops;
 	}
 
+
+	memset (&arp_make, 0, STIO_SIZEOF(arp_make));
+	arp_make.on_write = arp_on_write;
+	arp_make.on_read = arp_on_read;
+	arp = stio_dev_arp_make (stio, 0, &arp_make);
+	if (!arp)
+	{
+		printf ("Cannot make arp\n");
+		goto oops;
+	}
 
 	stio_loop (stio);
 

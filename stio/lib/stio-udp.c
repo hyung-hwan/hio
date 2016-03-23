@@ -43,7 +43,7 @@ static int udp_make (stio_dev_t* dev, void* ctx)
 
 	if (stio_getsckadrinfo(dev->stio, &arg->addr, &len, &family) <= -1) return -1;
 
-	udp->sck = stio_openasyncsck (dev->stio, family, SOCK_DGRAM);
+	udp->sck = stio_openasyncsck (dev->stio, family, SOCK_DGRAM, 0);
 	if (udp->sck == STIO_SCKHND_INVALID) goto oops;
 
 	/* some socket options? */
