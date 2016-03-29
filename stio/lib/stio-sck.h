@@ -72,6 +72,49 @@ typedef struct stio_sckadr_t stio_sckadr_t;
 
 typedef int stio_sckfam_t;
 
+
+#define STIO_SCK_ETH_PROTO_IP4   0x0800 
+#define STIO_SCK_ETH_PROTO_ARP   0x0806
+#define STIO_SCK_ETH_PROTO_8021Q 0x8100 /* 802.1Q VLAN */
+#define STIO_SCK_ETH_PROTO_IP6   0x86DD
+
+/* ========================================================================= */
+
+
+typedef struct stio_dev_sck_t stio_dev_sck_t;
+
+typedef int (*stio_dev_sck_on_read_t) (stio_dev_sck_t* dev, const void* data, stio_len_t dlen, const stio_sckadr_t* srcadr);
+typedef int (*stio_dev_sck_on_write_t) (stio_dev_sck_t* dev, stio_len_t wrlen, void* wrctx);
+
+enum stio_dev_sck_type_t
+{
+	STIO_DEV_SCK_TCP4,
+	STIO_DEV_SCK_TCP6,
+	STIO_DEV_SCK_UPD4,
+	STIO_DEV_SCK_UDP6,
+
+	STIO_DEV_SCK_ARP,
+	STIO_DEV_SCK_ARP_DGRAM
+};
+typedef enum stio_dev_sck_type_t stio_dev_sck_type_t;
+
+typedef struct stio_dev_sck_make_t stio_dev_sck_make_t;
+struct stio_dev_sck_make_t
+{
+	stio_dev_sck_type_t type;
+	stio_dev_sck_on_write_t on_write;
+	stio_dev_sck_on_read_t on_read;
+};
+
+struct stio_dev_sck_t
+{
+	STIO_DEV_HEADERS;
+	stio_sckhnd_t sck;
+	stio_dev_sck_on_write_t on_write;
+	stio_dev_sck_on_read_t on_read;
+};
+
+
 #ifdef __cplusplus
 extern "C" {
 #endif
@@ -101,10 +144,37 @@ STIO_EXPORT int stio_getsckadrinfo (
 	stio_sckfam_t*       family
 );
 
+/* ========================================================================= */
+
+STIO_EXPORT stio_dev_sck_t* stio_dev_sck_make (
+	stio_t*                    stio,
+	stio_size_t                xtnsize,
+	const stio_dev_sck_make_t* data
+);
+
+STIO_EXPORT int stio_dev_sck_write (
+	stio_dev_sck_t*       dev,
+	const void*           data,
+	stio_len_t            len,
+	void*                 wrctx,
+	const stio_adr_t*     dstadr
+);
+
+STIO_EXPORT int stio_dev_sck_timedwrite (
+	stio_dev_sck_t*       dev,
+	const void*           data,
+	stio_len_t            len,
+	const stio_ntime_t*   tmout,
+	void*                 wrctx,
+	const stio_adr_t*     dstadr
+);
+
 
 #ifdef __cplusplus
 }
 #endif
+
+
 
 
 #endif

@@ -38,6 +38,9 @@
 #include <arpa/inet.h>
 #include <signal.h>
 
+#include <netpacket/packet.h>
+#include <net/if.h>
+
 /* ========================================================================= */
 
 struct mmgr_stat_t
@@ -191,12 +194,12 @@ printf ("DISABLING READING..............................\n");
 
 /* ========================================================================= */
 
-static int arp_on_read (stio_dev_arp_t* arp, const void* buf, stio_len_t len, stio_sckadr_t* )
+static int sck_on_read (stio_dev_sck_t* dev, const void* buf, stio_len_t len, const stio_sckadr_t* srcadr)
 {
 	return 0;
 }
 
-static int arp_on_write (stio_dev_arp_t* arp, stio_len_t wrlen, void* wrctx)
+static int sck_on_write (stio_dev_sck_t* dev, stio_len_t wrlen, void* wrctx)
 {
 	return 0;
 }
@@ -216,14 +219,14 @@ int main ()
 
 	stio_t* stio;
 	stio_dev_udp_t* udp;
-	stio_dev_arp_t* arp;
+	stio_dev_sck_t* sck;
 	stio_dev_tcp_t* tcp[2];
 	struct sockaddr_in sin;
 	struct sigaction sigact;
 	stio_dev_tcp_connect_t tcp_conn;
 	stio_dev_tcp_listen_t tcp_lstn;
 	stio_dev_tcp_make_t tcp_make;
-	stio_dev_arp_make_t arp_make;
+	stio_dev_sck_make_t sck_make;
 	tcp_server_t* ts;
 
 	stio = stio_open (&mmgr, 0, 512, STIO_NULL);
@@ -316,15 +319,60 @@ int main ()
 	}
 
 
-	memset (&arp_make, 0, STIO_SIZEOF(arp_make));
-	arp_make.on_write = arp_on_write;
-	arp_make.on_read = arp_on_read;
-	arp = stio_dev_arp_make (stio, 0, &arp_make);
-	if (!arp)
+	memset (&sck_make, 0, STIO_SIZEOF(sck_make));
+	sck_make.type = STIO_DEV_SCK_ARP;
+	//sck_make.type = STIO_DEV_SCK_ARP_DGRAM;
+	sck_make.on_write = sck_on_write;
+	sck_make.on_read = sck_on_read;
+	sck = stio_dev_sck_make (stio, 0, &sck_make);
+	if (!sck)
 	{
-		printf ("Cannot make arp\n");
+		printf ("Cannot make socket device\n");
 		goto oops;
 	}
+
+#if 1
+{
+	stio_etharp_pkt_t etharp;
+	struct sockaddr_ll sll;
+	stio_adr_t adr;
+
+	memset (&sll, 0, sizeof(sll));
+	adr.ptr = &sll;
+	adr.len = sizeof(sll);
+	sll.sll_family = AF_PACKET;
+	//sll.sll_protocol = STIO_CONST_HTON16(0x0003); /* P_ALL */
+	sll.sll_protocol = STIO_CONST_HTON16(STIO_ETHHDR_PROTO_ARP);
+	sll.sll_hatype = STIO_CONST_HTON16(STIO_ARPHDR_HTYPE_ETH);
+	sll.sll_halen = STIO_ETHADR_LEN;
+	memcpy (sll.sll_addr, "\xFF\xFF\xFF\xFF\xFF\xFF", sll.sll_halen);
+	sll.sll_ifindex = if_nametoindex ("enp0s25.3");
+
+	/* if unicast ... */
+	//sll.sll_pkttype = PACKET_OTHERHOST;
+	sll.sll_pkttype = PACKET_BROADCAST;
+
+	memset (&etharp, 0, sizeof(etharp));
+
+	memcpy (etharp.ethhdr.source, "\xB8\x6B\x23\x9C\x10\x76", STIO_ETHADR_LEN);
+	memcpy (etharp.ethhdr.dest, "\xFF\xFF\xFF\xFF\xFF\xFF", STIO_ETHADR_LEN);
+	etharp.ethhdr.proto = STIO_CONST_HTON16(STIO_ETHHDR_PROTO_ARP);
+
+	etharp.arphdr.htype = STIO_CONST_HTON16(STIO_ARPHDR_HTYPE_ETH);
+	etharp.arphdr.ptype = STIO_CONST_HTON16(STIO_ARPHDR_PTYPE_IP4);
+	etharp.arphdr.hlen = STIO_ETHADR_LEN;
+	etharp.arphdr.plen = STIO_IP4ADR_LEN;
+	etharp.arphdr.opcode = STIO_CONST_HTON16(STIO_ARPHDR_OPCODE_REQUEST);
+
+	memcpy (etharp.arppld.sha, "\xB8\x6B\x23\x9C\x10\x76", STIO_ETHADR_LEN);
+
+	if (stio_dev_sck_write (sck, &etharp, sizeof(etharp), NULL, &adr) <= -1)
+	//if (stio_dev_sck_write (sck, &etharp.arphdr, sizeof(etharp) - sizeof(etharp.ethhdr), NULL, &adr) <= -1)
+	{
+		printf ("CANNOT WRITE ARP...\n");
+	}
+}
+#endif
 
 	stio_loop (stio);
 

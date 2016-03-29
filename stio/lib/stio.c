@@ -187,7 +187,7 @@ printf ("has urgent data...\n");
 
 		send_leftover:
 			ulen = urem;
-			x = dev->dev_mth->write (dev, uptr, &ulen);
+			x = dev->dev_mth->write (dev, uptr, &ulen, &q->dstadr);
 			if (x <= -1)
 			{
 				stio_dev_halt (dev);
@@ -221,7 +221,7 @@ printf ("has urgent data...\n");
 					}
 
 					unlink_wq (stio, q);
-					y = dev->dev_evcb->on_write (dev, q->olen, q->ctx);
+					y = dev->dev_evcb->on_write (dev, q->olen, q->ctx, &q->dstadr);
 					STIO_MMGR_FREE (stio->mmgr, q);
 
 					if (y <= -1)
@@ -266,6 +266,7 @@ printf ("has urgent data...\n");
 
 	if (dev && stio->revs[i].events & EPOLLIN)
 	{
+		stio_adr_t srcadr;
 		stio_len_t len;
 		int x;
 
@@ -275,7 +276,7 @@ printf ("has urgent data...\n");
 		while (1)
 		{
 			len = STIO_COUNTOF(stio->bigbuf);
-			x = dev->dev_mth->read (dev, stio->bigbuf, &len);
+			x = dev->dev_mth->read (dev, stio->bigbuf, &len, &srcadr);
 			if (x <= -1)
 			{
 				stio_dev_halt (dev);
@@ -297,7 +298,7 @@ printf ("has urgent data...\n");
 					stio->renew_watch = 1;
 
 					/* call the on_read callback to report EOF */
-					if (dev->dev_evcb->on_read (dev, stio->bigbuf, len) <= -1 ||
+					if (dev->dev_evcb->on_read (dev, stio->bigbuf, len, &srcadr) <= -1 ||
 					    (dev->dev_capa & STIO_DEV_CAPA_OUT_CLOSED))
 					{
 						/* 1. input ended and its reporting failed or 
@@ -316,7 +317,7 @@ printf ("has urgent data...\n");
 		 *        when x == 0 or <= -1. you can  */
 
 					/* data available */
-					y = dev->dev_evcb->on_read (dev, stio->bigbuf, len);
+					y = dev->dev_evcb->on_read (dev, stio->bigbuf, len, &srcadr);
 					if (y <= -1)
 					{
 						stio_dev_halt (dev);
@@ -740,7 +741,7 @@ static void on_write_timeout (stio_t* stio, const stio_ntime_t* now, stio_tmrjob
 	dev = q->dev;
 
 	dev->stio->errnum = STIO_ETMOUT;
-	x = dev->dev_evcb->on_write (dev, -1, q->ctx); 
+	x = dev->dev_evcb->on_write (dev, -1, q->ctx, &q->dstadr); 
 
 	STIO_ASSERT (q->tmridx == STIO_TMRIDX_INVALID);
 	STIO_WQ_UNLINK(q);
@@ -749,7 +750,7 @@ static void on_write_timeout (stio_t* stio, const stio_ntime_t* now, stio_tmrjob
 	if (x <= -1) stio_dev_halt (dev);
 }
 
-static int __dev_write (stio_dev_t* dev, const void* data, stio_len_t len, const stio_ntime_t* tmout, void* wrctx)
+static int __dev_write (stio_dev_t* dev, const void* data, stio_len_t len, const stio_ntime_t* tmout, void* wrctx, const stio_adr_t* dstadr)
 {
 	const stio_uint8_t* uptr;
 	stio_len_t urem, ulen;
@@ -778,7 +779,7 @@ static int __dev_write (stio_dev_t* dev, const void* data, stio_len_t len, const
 		do
 		{
 			ulen = urem;
-			x = dev->dev_mth->write (dev, data, &ulen);
+			x = dev->dev_mth->write (dev, data, &ulen, dstadr);
 			if (x <= -1) return -1;
 			else if (x == 0) 
 			{
@@ -804,24 +805,30 @@ static int __dev_write (stio_dev_t* dev, const void* data, stio_len_t len, const
 			dev->dev_capa |= STIO_DEV_CAPA_OUT_CLOSED;
 		}
 
-		if (dev->dev_evcb->on_write (dev, len, wrctx) <= -1) return -1;
+		if (dev->dev_evcb->on_write (dev, len, wrctx, dstadr) <= -1) return -1;
 	}
 	else
 	{
 		ulen = urem;
-		x = dev->dev_mth->write (dev, data, &ulen);
+		x = dev->dev_mth->write (dev, data, &ulen, dstadr);
 		if (x <= -1) return -1;
 		else if (x == 0) goto enqueue_data;
 
 		/* partial writing is still considered ok for a non-stream device */
-		if (dev->dev_evcb->on_write (dev, ulen, wrctx) <= -1) return -1;
+		if (dev->dev_evcb->on_write (dev, ulen, wrctx, dstadr) <= -1) return -1;
 	}
 
 	return 1; /* written immediately and called on_write callback */
 
 enqueue_data:
+	if (!(dev->dev_capa & STIO_DEV_CAPA_OUT_QUEUED)) 
+	{
+		/* writing queuing is not requested. so return failure */
+		return -1;
+	}
+
 	/* queue the remaining data*/
-	q = (stio_wq_t*)STIO_MMGR_ALLOC (dev->stio->mmgr, STIO_SIZEOF(*q) + urem);
+	q = (stio_wq_t*)STIO_MMGR_ALLOC (dev->stio->mmgr, STIO_SIZEOF(*q) + (dstadr? dstadr->len: 0) + urem);
 	if (!q)
 	{
 		dev->stio->errnum = STIO_ENOMEM;
@@ -831,10 +838,24 @@ enqueue_data:
 	q->tmridx = STIO_TMRIDX_INVALID;
 	q->dev = dev;
 	q->ctx = wrctx;
-	q->ptr = (stio_uint8_t*)(q + 1);
+
+	if (dstadr)
+	{
+		q->dstadr.ptr = (stio_uint8_t*)(q + 1);
+		q->dstadr.len = dstadr->len;
+		STIO_MEMCPY (q->dstadr.ptr, dstadr->ptr, dstadr->len);
+	}
+	else
+	{
+		q->dstadr.ptr = STIO_NULL;
+		q->dstadr.len = 0;
+	}
+
+	q->ptr = (stio_uint8_t*)(q + 1) + q->dstadr.len;
 	q->len = urem;
 	q->olen = len;
 	STIO_MEMCPY (q->ptr, uptr, urem);
+
 
 	if (tmout && !stio_isnegtime(tmout))
 	{
@@ -874,14 +895,14 @@ enqueue_data:
 	return 0; /* request pused to a write queue. */
 }
 
-int stio_dev_write (stio_dev_t* dev, const void* data, stio_len_t len, void* wrctx)
+int stio_dev_write (stio_dev_t* dev, const void* data, stio_len_t len, void* wrctx, const stio_adr_t* dstadr)
 {
-	return __dev_write (dev, data, len, STIO_NULL, wrctx);
+	return __dev_write (dev, data, len, STIO_NULL, wrctx, dstadr);
 }
 
-int stio_dev_timedwrite (stio_dev_t* dev, const void* data, stio_len_t len, const stio_ntime_t* tmout, void* wrctx)
+int stio_dev_timedwrite (stio_dev_t* dev, const void* data, stio_len_t len, const stio_ntime_t* tmout, void* wrctx, const stio_adr_t* dstadr)
 {
-	return __dev_write (dev, data, len, tmout, wrctx);
+	return __dev_write (dev, data, len, tmout, wrctx, dstadr);
 }
 
 int stio_makesyshndasync (stio_t* stio, stio_syshnd_t hnd)

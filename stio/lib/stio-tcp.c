@@ -59,7 +59,7 @@ static int tcp_make (stio_dev_t* dev, void* ctx)
 		goto oops;
 	}
 
-	tcp->dev_capa = STIO_DEV_CAPA_IN | STIO_DEV_CAPA_OUT | STIO_DEV_CAPA_STREAM;
+	tcp->dev_capa = STIO_DEV_CAPA_IN | STIO_DEV_CAPA_OUT | STIO_DEV_CAPA_OUT_QUEUED | STIO_DEV_CAPA_STREAM;
 	tcp->on_write = arg->on_write;
 	tcp->on_read = arg->on_read; 
 	tcp->tmridx_connect = STIO_TMRIDX_INVALID;
@@ -113,7 +113,7 @@ static stio_syshnd_t tcp_getsyshnd (stio_dev_t* dev)
 	return (stio_syshnd_t)tcp->sck;
 }
 
-static int tcp_read (stio_dev_t* dev, void* buf, stio_len_t* len)
+static int tcp_read (stio_dev_t* dev, void* buf, stio_len_t* len, void* src_addr)
 {
 	stio_dev_tcp_t* tcp = (stio_dev_tcp_t*)dev;
 	ssize_t x;
@@ -131,7 +131,7 @@ static int tcp_read (stio_dev_t* dev, void* buf, stio_len_t* len)
 	return 1;
 }
 
-static int tcp_write (stio_dev_t* dev, const void* data, stio_len_t* len)
+static int tcp_write (stio_dev_t* dev, const void* data, stio_len_t* len, const void* dest_addr)
 {
 	stio_dev_tcp_t* tcp = (stio_dev_tcp_t*)dev;
 	ssize_t x;
