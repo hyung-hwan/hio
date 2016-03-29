@@ -34,6 +34,7 @@
 #include <arpa/inet.h>
 #include <errno.h>
 
+#if 0
 /* ======================================================================== */
 
 static int arp_make (stio_dev_t* dev, void* ctx)
@@ -179,3 +180,14 @@ stio_dev_arp_t* stio_dev_arp_make (stio_t* stio, stio_size_t xtnsize, const stio
 {
 	return (stio_dev_arp_t*)stio_makedev (stio, STIO_SIZEOF(stio_dev_arp_t) + xtnsize, &arp_mth, &arp_evcb, (void*)data);
 }
+
+int stio_dev_arp_write (stio_dev_arp_t* dev, const stio_pkt_arp_t* arp, void* wrctx)
+{
+	return stio_dev_write ((stio_dev_t*)dev, arp, STIO_SIZEOF(*arp), wrctx);
+}
+
+int stio_dev_arp_timedwrite (stio_dev_arp_t* dev, const stio_pkt_arp_t* arp, const stio_ntime_t* tmout, void* wrctx)
+{
+	return stio_dev_write ((stio_dev_t*)dev, arp, STIO_SIZEOF(*arp), wrctx);
+}
+#endif

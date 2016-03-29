@@ -154,6 +154,7 @@ static int pro_read (stio_dev_t* dev, void* buf, stio_len_t* len)
 
 static int pro_write (stio_dev_t* dev, const void* data, stio_len_t* len)
 {
+	return -1;
 }
 
 static stio_syshnd_t pro_getsyshnd (stio_dev_t* dev)
@@ -204,13 +205,13 @@ printf ("PRO READY...%p\n", dev);
 	return 1; /* the device is ok. carry on reading or writing */
 }
 
-static int pro_on_read (stio_dev_t* dev, const void* data, stio_len_t len)
+static int pro_on_read (stio_dev_t* dev, const void* data, stio_len_t len, const stio_adr_t* srcadr)
 {
 	stio_dev_pro_t* pro = (stio_dev_pro_t*)dev;
 	return pro->on_read (pro, data, len);
 }
 
-static int pro_on_write (stio_dev_t* dev, void* wrctx)
+static int pro_on_write (stio_dev_t* dev, void* wrctx, const stio_adr_t* dstadr)
 {
 	stio_dev_pro_t* pro = (stio_dev_pro_t*)dev;
 	return pro->on_write (pro, wrctx);

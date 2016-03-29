@@ -159,14 +159,13 @@ static STIO_INLINE int stio_dev_tcp_read (stio_dev_tcp_t* tcp, int enabled)
 
 static STIO_INLINE int stio_dev_tcp_write (stio_dev_tcp_t* tcp, const void* data, stio_len_t len, void* wrctx)
 {
-	return stio_dev_write ((stio_dev_t*)tcp, data, len, wrctx);
+	return stio_dev_write ((stio_dev_t*)tcp, data, len, wrctx, STIO_NULL);
 }
 
 static STIO_INLINE int stio_dev_tcp_timedwrite (stio_dev_tcp_t* tcp, const void* data, stio_len_t len, const stio_ntime_t* tmout, void* wrctx)
 {
-	return stio_dev_timedwrite ((stio_dev_t*)tcp, data, len, tmout, wrctx);
+	return stio_dev_timedwrite ((stio_dev_t*)tcp, data, len, tmout, wrctx, STIO_NULL);
 }
-
 
 static STIO_INLINE void stio_dev_tcp_halt (stio_dev_tcp_t* tcp)
 {
@@ -175,8 +174,8 @@ static STIO_INLINE void stio_dev_tcp_halt (stio_dev_tcp_t* tcp)
 #else
 
 #define stio_dev_tcp_read(tcp,enabled) stio_dev_read((stio_dev_t*)tcp, enabled)
-#define stio_dev_tcp_write(tcp,data,len,wrctx) stio_dev_write((stio_dev_t*)tcp, data, len, wrctx)
-#define stio_dev_tcp_timedwrite(tcp,data,len,tmout,wrctx) stio_dev_timedwrite((stio_dev_t*)tcp, data, len, tmout, wrctx)
+#define stio_dev_tcp_write(tcp,data,len,wrctx) stio_dev_write((stio_dev_t*)tcp, data, len, wrctx, STIO_NULL)
+#define stio_dev_tcp_timedwrite(tcp,data,len,tmout,wrctx) stio_dev_timedwrite((stio_dev_t*)tcp, data, len, tmout, wrctx, STIO_NULL)
 #define stio_dev_tcp_halt(tcp) stio_dev_halt((stio_dev_t*)tcp)
 
 #endif

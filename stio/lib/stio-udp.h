@@ -74,14 +74,14 @@ static STIO_INLINE int stio_dev_udp_read (stio_dev_udp_t* udp, int enabled)
 	return stio_dev_read ((stio_dev_t*)udp, enabled);
 }
 
-static STIO_INLINE int stio_dev_udp_write (stio_dev_udp_t* udp, const void* data, stio_len_t len, void* wrctx)
+static STIO_INLINE int stio_dev_udp_write (stio_dev_udp_t* udp, const void* data, stio_len_t len, void* wrctx, const stio_adr_t* dstadr)
 {
-	return stio_dev_write ((stio_dev_t*)udp, data, len, wrctx);
+	return stio_dev_write ((stio_dev_t*)udp, data, len, wrctx, dstadr);
 }
 
-static STIO_INLINE int stio_dev_udp_timedwrite (stio_dev_udp_t* udp, const void* data, stio_len_t len, const stio_ntime_t* tmout, void* wrctx)
+static STIO_INLINE int stio_dev_udp_timedwrite (stio_dev_udp_t* udp, const void* data, stio_len_t len, const stio_ntime_t* tmout, void* wrctx, const stio_adr_t* dstadr)
 {
-	return stio_dev_timedwrite ((stio_dev_t*)udp, data, len, tmout, wrctx);
+	return stio_dev_timedwrite ((stio_dev_t*)udp, data, len, tmout, wrctx, dstadr);
 }
 
 static STIO_INLINE void stio_dev_udp_halt (stio_dev_udp_t* udp)
@@ -91,8 +91,8 @@ static STIO_INLINE void stio_dev_udp_halt (stio_dev_udp_t* udp)
 #else
 
 #define stio_dev_udp_read(udp,enabled) stio_dev_read((stio_dev_t*)udp, enabled)
-#define stio_dev_udp_write(udp,data,len,wrctx) stio_dev_write((stio_dev_t*)udp, data, len, wrctx)
-#define stio_dev_udp_timedwrite(udp,data,len,tmout,wrctx) stio_dev_timedwrite((stio_dev_t*)udp, data, len, tmout, wrctx)
+#define stio_dev_udp_write(udp,data,len,wrctx,dstadr) stio_dev_write((stio_dev_t*)udp, data, len, wrctx, dstadr)
+#define stio_dev_udp_timedwrite(udp,data,len,tmout,wrctx,dstadr) stio_dev_timedwrite((stio_dev_t*)udp, data, len, tmout, wrctx, dstadr)
 #define stio_dev_udp_halt(udp) stio_dev_halt((stio_dev_t*)udp)
 
 #endif

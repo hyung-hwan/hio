@@ -48,6 +48,38 @@ struct stio_ntime_t
 	#define STIO_SYSHND_INVALID (-1)
 #endif
 
+
+typedef struct stio_adr_t stio_adr_t;
+struct stio_adr_t
+{
+	void* ptr;
+	int   len;
+};
+
+#define STIO_CONST_SWAP16(x) \
+	((stio_uint16_t)((((stio_uint16_t)(x) & (stio_uint16_t)0x00ffU) << 8) | \
+	                 (((stio_uint16_t)(x) & (stio_uint16_t)0xff00U) >> 8) ))
+
+#define STIO_CONST_SWAP32(x) \
+	((stio_uint32_t)((((stio_uint32_t)(x) & (stio_uint32_t)0x000000ffUL) << 24) | \
+	                 (((stio_uint32_t)(x) & (stio_uint32_t)0x0000ff00UL) <<  8) | \
+	                 (((stio_uint32_t)(x) & (stio_uint32_t)0x00ff0000UL) >>  8) | \
+	                 (((stio_uint32_t)(x) & (stio_uint32_t)0xff000000UL) >> 24) ))
+
+#if defined(STIO_ENDIAN_LITTLE)
+#	define STIO_CONST_NTOH16(x) STIO_CONST_SWAP16(x)
+#	define STIO_CONST_HTON16(x) STIO_CONST_SWAP16(x)
+#	define STIO_CONST_NTOH32(x) STIO_CONST_SWAP32(x)
+#	define STIO_CONST_HTON32(x) STIO_CONST_SWAP32(x)
+#elif defined(STIO_ENDIAN_BIG)
+#	define STIO_CONST_NTOH16(x)
+#	define STIO_CONST_HTON16(x)
+#	define STIO_CONST_NTOH32(x)
+#	define STIO_CONST_HTON32(x)
+#else
+#	error UNKNOWN ENDIAN
+#endif
+
 /* ------------------------------------------------------------------------- */
 typedef struct stio_t stio_t;
 typedef struct stio_dev_t stio_dev_t;
@@ -112,10 +144,10 @@ struct stio_dev_mth_t
 	/* return -1 on failure, 0 if no data is availble, 1 otherwise.
 	 * when returning 1, *len must be sent to the length of data read.
 	 * if *len is set to 0, it's treated as EOF. */
-	int           (*read)         (stio_dev_t* dev, void* data, stio_len_t* len);
+	int           (*read)         (stio_dev_t* dev, void* data, stio_len_t* len, stio_adr_t* srcadr);
 
 	/* ------------------------------------------------------------------ */
-	int           (*write)        (stio_dev_t* dev, const void* data, stio_len_t* len);
+	int           (*write)        (stio_dev_t* dev, const void* data, stio_len_t* len, const stio_adr_t* dstadr);
 
 	/* ------------------------------------------------------------------ */
 	int           (*ioctl)        (stio_dev_t* dev, int cmd, void* arg);
@@ -132,13 +164,13 @@ struct stio_dev_evcb_t
 	/* return -1 on failure, 0 or 1 on success.
 	 * when 0 is returned, the main loop stops the attempt to read more data.
 	 * when 1 is returned, the main loop attempts to read more data without*/
-	int           (*on_read)      (stio_dev_t* dev, const void* data, stio_len_t len);
+	int           (*on_read)      (stio_dev_t* dev, const void* data, stio_len_t len, const stio_adr_t* srcadr);
 
 	/* return -1 on failure, 0 on success. 
 	 * wrlen is the length of data written. it is the length of the originally
 	 * posted writing request for a stream device. For a non stream device, it
 	 * may be shorter than the originally posted length. */
-	int           (*on_write)      (stio_dev_t* dev, stio_len_t wrlen, void* wrctx);
+	int           (*on_write)      (stio_dev_t* dev, stio_len_t wrlen, void* wrctx, const stio_adr_t* dstadr);
 };
 
 struct stio_wq_t
@@ -146,13 +178,14 @@ struct stio_wq_t
 	stio_wq_t*     next;
 	stio_wq_t*     prev;
 
-	stio_len_t     olen; /* original length */
-	stio_uint8_t*  ptr;
-	stio_len_t     len;
+	stio_len_t     olen; /* original data length */
+	stio_uint8_t*  ptr;  /* pointer to data */
+	stio_len_t     len;  /* remaining data length */
 	void*          ctx;
 	stio_dev_t*    dev; /* back-pointer to the device */
 
 	stio_tmridx_t  tmridx;
+	stio_adr_t     dstadr;
 };
 
 #define STIO_WQ_INIT(wq) ((wq)->next = (wq)->prev = (wq))
@@ -219,6 +252,7 @@ enum stio_dev_capa_t
 
 	/*STIO_DEV_CAPA_HALFOPEN    = (1 << 3),*/
 	STIO_DEV_CAPA_STREAM       = (1 << 4),
+	STIO_DEV_CAPA_OUT_QUEUED   = (1 << 5),
 
 	/* internal use only. never set this bit to the dev_capa field */
 	STIO_DEV_CAPA_IN_DISABLED  = (1 << 9),
@@ -334,7 +368,8 @@ STIO_EXPORT int stio_dev_write (
 	stio_dev_t*         dev,
 	const void*         data,
 	stio_len_t          len,
-	void*               wrctx
+	void*               wrctx,
+	const stio_adr_t*   dstadr
 );
 
 
@@ -343,7 +378,8 @@ STIO_EXPORT int stio_dev_timedwrite (
 	const void*         data,
 	stio_len_t          len,
 	const stio_ntime_t* tmout,
-	void*               wrctx
+	void*               wrctx,
+	const stio_adr_t*   dstadr
 );
 
 STIO_EXPORT void stio_dev_halt (

@@ -82,7 +82,7 @@ static stio_syshnd_t udp_getsyshnd (stio_dev_t* dev)
 	return (stio_syshnd_t)udp->sck;
 }
 
-static int udp_read (stio_dev_t* dev, void* buf, stio_len_t* len)
+static int udp_read (stio_dev_t* dev, void* buf, stio_len_t* len, stio_adr_t* adr)
 {
 	stio_dev_udp_t* udp = (stio_dev_udp_t*)dev;
 	stio_scklen_t addrlen;
@@ -104,7 +104,7 @@ printf ("UDP RECVFROM...\n");
 	return 1;
 }
 
-static int udp_write (stio_dev_t* dev, const void* data, stio_len_t* len)
+static int udp_write (stio_dev_t* dev, const void* data, stio_len_t* len, const stio_adr_t* adr)
 {
 	stio_dev_udp_t* udp = (stio_dev_udp_t*)udp;
 	ssize_t x;
