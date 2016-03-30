@@ -48,12 +48,11 @@ struct stio_ntime_t
 	#define STIO_SYSHND_INVALID (-1)
 #endif
 
-
 typedef struct stio_adr_t stio_adr_t;
 struct stio_adr_t
 {
+	int len;
 	void* ptr;
-	int   len;
 };
 
 #define STIO_CONST_SWAP16(x) \
@@ -101,7 +100,7 @@ enum stio_errnum_t
 	STIO_ECONRF,     /* connection refused */
 	STIO_ECONRS,     /* connection reset */
 	STIO_ENOCAPA,    /* no capability */
-	STIO_ETMOUT,  /* timed out */
+	STIO_ETMOUT,     /* timed out */
 
 	STIO_EDEVMAKE,
 	STIO_EDEVERR,

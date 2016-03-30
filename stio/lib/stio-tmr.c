@@ -46,28 +46,14 @@ static stio_tmridx_t sift_up (stio_t* stio, stio_tmridx_t index, int notify)
 	if (index > 0 && YOUNGER_THAN(&stio->tmr.jobs[index], &stio->tmr.jobs[parent]))
 	{
 		stio_tmrjob_t item;
-#if defined(STIO_USE_TMRJOB_IDXPTR)
-		/* nothing */
-#else
-		stio_tmridx_t old_index;
-#endif
 
 		item = stio->tmr.jobs[index]; 
-#if defined(STIO_USE_TMRJOB_IDXPTR)
-		/* nothing */
-#else
-		old_index = index;
-#endif
 
 		do
 		{
 			/* move down the parent to my current position */
 			stio->tmr.jobs[index] = stio->tmr.jobs[parent];
-#if defined(STIO_USE_TMRJOB_IDXPTR)
 			if (stio->tmr.jobs[index].idxptr) *stio->tmr.jobs[index].idxptr = index;
-#else
-			stio->tmr.jobs[index].updater (stio, parent, index, &stio->tmr.jobs[index]);
-#endif
 
 			/* traverse up */
 			index = parent;
@@ -76,15 +62,7 @@ static stio_tmridx_t sift_up (stio_t* stio, stio_tmridx_t index, int notify)
 		while (index > 0 && YOUNGER_THAN(&item, &stio->tmr.jobs[parent]));
 
 		stio->tmr.jobs[index] = item;
-#if defined(STIO_USE_TMRJOB_IDXPTR)
 		if (stio->tmr.jobs[index].idxptr) *stio->tmr.jobs[index].idxptr = index;
-#else
-		/* we send no notification if the item is added with stio_instmrjob()
-		 * or updated with stio_updtmrjob(). the caller of these functions
-		 * must rely on the return value. */
-		if (notify && index != old_index)
-			stio->tmr.jobs[index].updater (stio, old_index, index, &stio->tmr.jobs[index]);
-#endif
 	}
 
 	return index;
@@ -97,19 +75,8 @@ static stio_tmridx_t sift_down (stio_t* stio, stio_tmridx_t index, int notify)
 	if (index < base) /* at least 1 child is under the 'index' position */
 	{
 		stio_tmrjob_t item;
-#if defined(STIO_USE_TMRJOB_IDXPTR)
-		/* nothing */
-#else
-		stio_tmridx_t old_index;
-#endif
 
 		item = stio->tmr.jobs[index];
-
-#if defined(STIO_USE_TMRJOB_IDXPTR)
-		/* nothing */
-#else
-		old_index = index;
-#endif
 
 		do
 		{
@@ -130,23 +97,14 @@ static stio_tmridx_t sift_down (stio_t* stio, stio_tmridx_t index, int notify)
 			if (YOUNGER_THAN(&item, &stio->tmr.jobs[younger])) break;
 
 			stio->tmr.jobs[index] = stio->tmr.jobs[younger];
-#if defined(STIO_USE_TMRJOB_IDXPTR)
 			if (stio->tmr.jobs[index].idxptr) *stio->tmr.jobs[index].idxptr = index;
-#else
-			stio->tmr.jobs[index].updater (stio, younger, index, &stio->tmr.jobs[index]);
-#endif
 
 			index = younger;
 		}
 		while (index < base);
 		
 		stio->tmr.jobs[index] = item;
-#if defined(STIO_USE_TMRJOB_IDXPTR)
 		if (stio->tmr.jobs[index].idxptr) *stio->tmr.jobs[index].idxptr = index;
-#else
-		if (notify && index != old_index)
-			stio->tmr.jobs[index].updater (stio, old_index, index, &stio->tmr.jobs[index]);
-#endif
 	}
 
 	return index;
@@ -159,21 +117,13 @@ void stio_deltmrjob (stio_t* stio, stio_tmridx_t index)
 	STIO_ASSERT (index < stio->tmr.size);
 
 	item = stio->tmr.jobs[index];
-#if defined(STIO_USE_TMRJOB_IDXPTR)
 	if (stio->tmr.jobs[index].idxptr) *stio->tmr.jobs[index].idxptr = STIO_TMRIDX_INVALID;
-#else
-	stio->tmr.jobs[index].updater (stio, index, STIO_TMRIDX_INVALID, &stio->tmr.jobs[index]);
-#endif
 
 	stio->tmr.size = stio->tmr.size - 1;
 	if (stio->tmr.size > 0 && index != stio->tmr.size)
 	{
 		stio->tmr.jobs[index] = stio->tmr.jobs[stio->tmr.size];
-#if defined(STIO_USE_TMRJOB_IDXPTR)
 		if (stio->tmr.jobs[index].idxptr) *stio->tmr.jobs[index].idxptr = index;
-#else
-		stio->tmr.jobs[index].updater (stio, stio->tmr.size, index, &stio->tmr.jobs[index]);
-#endif
 		YOUNGER_THAN(&stio->tmr.jobs[index], &item)? sift_up(stio, index, 1): sift_down(stio, index, 1);
 	}
 }
@@ -202,9 +152,7 @@ stio_tmridx_t stio_instmrjob (stio_t* stio, const stio_tmrjob_t* job)
 
 	stio->tmr.size = stio->tmr.size + 1;
 	stio->tmr.jobs[index] = *job;
-#if defined(STIO_USE_TMRJOB_IDXPTR)
 	if (stio->tmr.jobs[index].idxptr) *stio->tmr.jobs[index].idxptr = index;
-#endif
 	return sift_up (stio, index, 0);
 }
 
@@ -213,9 +161,7 @@ stio_tmridx_t stio_updtmrjob (stio_t* stio, stio_tmridx_t index, const stio_tmrj
 	stio_tmrjob_t item;
 	item = stio->tmr.jobs[index];
 	stio->tmr.jobs[index] = *job;
-#if defined(STIO_USE_TMRJOB_IDXPTR)
 	if (stio->tmr.jobs[index].idxptr) *stio->tmr.jobs[index].idxptr = index;
-#endif
 	return YOUNGER_THAN(job, &item)? sift_up (stio, index, 0): sift_down (stio, index, 0);
 }
 

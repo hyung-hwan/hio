@@ -182,17 +182,6 @@ static void tmr_connect_handle (stio_t* stio, const stio_ntime_t* now, stio_tmrj
 	}
 }
 
-#if defined(STIO_USE_TMRJOB_IDXPTR)
-/* nothing to define */
-#else
-static void tmr_connect_update (stio_t* stio, stio_tmridx_t old_index, stio_tmridx_t new_index, stio_tmrjob_t* job)
-{
-	stio_dev_tcp_t* tcp = (stio_dev_tcp_t*)job->ctx;
-	tcp->tmridx_connect = new_index;
-}
-#endif
-
-
 static int tcp_ioctl (stio_dev_t* dev, int cmd, void* arg)
 {
 	stio_dev_tcp_t* tcp = (stio_dev_tcp_t*)dev;
@@ -261,11 +250,7 @@ static int tcp_ioctl (stio_dev_t* dev, int cmd, void* arg)
 							stio_gettime (&tmrjob.when);
 							stio_addtime (&tmrjob.when, &conn->tmout, &tmrjob.when);
 							tmrjob.handler = tmr_connect_handle;
-						#if defined(STIO_USE_TMRJOB_IDXPTR)
 							tmrjob.idxptr = &tcp->tmridx_connect;
-						#else
-							tmrjob.updater = tmr_connect_update;
-						#endif
 
 							STIO_ASSERT (tcp->tmridx_connect == STIO_TMRIDX_INVALID);
 							tcp->tmridx_connect = stio_instmrjob (tcp->stio, &tmrjob);
