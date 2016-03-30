@@ -41,9 +41,31 @@
 
 #define STIO_ETHADR_LEN 6
 #define STIO_IP4ADR_LEN 4
+#define STIO_IP6ADR_LEN 16 
 
 #pragma pack(push)
 #pragma pack(1)
+
+
+struct stio_ethadr_t
+{
+	stio_uint8_t v[STIO_ETHADR_LEN]; 
+};
+typedef struct stio_ethadr_t stio_ethadr_t;
+
+struct stio_ip4adr_t
+{
+	stio_uint8_t v[STIO_IP4ADR_LEN];
+};
+typedef struct stio_ip4adr_t stio_ip4adr_t;
+
+struct stio_ip6adr_t
+{
+	stio_uint8_t v[STIO_IP6ADR_LEN]; 
+};
+typedef struct stio_ip6adr_t stio_ip6adr_t;
+
+
 struct stio_ethhdr_t
 {
 	stio_uint8_t  dest[STIO_ETHADR_LEN];

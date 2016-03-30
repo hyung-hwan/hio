@@ -68,7 +68,7 @@ struct stio_dev_tcp_t
 	 *  STIO_DEV_TCP_ACCEPTED
 	 *  STIO_DEV_TCP_CONNECTED
 	 *  STIO_DEV_TCP_CONNECTING */
-	stio_sckadr_t peer;
+	stio_sckadr_t peeradr;
 
 	/** return 0 on succes, -1 on failure/
 	 *  called on a new tcp device for an accepted client or
@@ -121,7 +121,7 @@ struct stio_dev_tcp_accept_t
 {
 	stio_syshnd_t   sck;
 /* TODO: add timeout */
-	stio_sckadr_t   peer;
+	stio_sckadr_t   peeradr;
 };
 
 #ifdef __cplusplus

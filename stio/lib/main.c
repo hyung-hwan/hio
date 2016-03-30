@@ -93,7 +93,7 @@ struct tcp_server_t
 };
 typedef struct tcp_server_t tcp_server_t;
 
-static void tcp_on_disconnect (stio_dev_tcp_t* tcp)
+static void tcp_on_disconnect (stio_dev_sck_t* tcp)
 {
 	if (tcp->state & STIO_DEV_TCP_CONNECTING)
 	{
@@ -116,7 +116,7 @@ static void tcp_on_disconnect (stio_dev_tcp_t* tcp)
 		printf ("TCP DISCONNECTED - THIS MUST NOT HAPPEN (%d - %x)\n", (int)tcp->sck, (unsigned int)tcp->state);
 	}
 }
-static int tcp_on_connect (stio_dev_tcp_t* tcp)
+static int tcp_on_connect (stio_dev_sck_t* tcp)
 {
 
 	if (tcp->state & STIO_DEV_TCP_CONNECTED)
@@ -128,18 +128,17 @@ printf ("device connected to a remote server... .asdfjkasdfkljasdlfkjasdj...\n")
 printf ("device accepted client device... .asdfjkasdfkljasdlfkjasdj...\n");
 	}
 
-	return stio_dev_tcp_write  (tcp, "hello", 5, STIO_NULL);
+	return stio_dev_sck_write  (tcp, "hello", 5, STIO_NULL, STIO_NULL);
 }
 
-
-static int tcp_on_write (stio_dev_tcp_t* tcp, stio_len_t wrlen, void* wrctx)
+static int tcp_on_write (stio_dev_sck_t* tcp, stio_len_t wrlen, void* wrctx, const stio_sckadr_t* dstadr)
 {
 	tcp_server_t* ts;
 
 if (wrlen <= -1)
 {
 printf ("SEDING TIMED OUT...........\n");
-	stio_dev_tcp_halt(tcp);
+	stio_dev_sck_halt(tcp);
 }
 else
 {
@@ -147,21 +146,21 @@ else
 	printf (">>> SENT MESSAGE %d of length %ld\n", ts->tally, (long int)wrlen);
 
 	ts->tally++;
-//	if (ts->tally >= 2) stio_dev_tcp_halt (tcp);
+//	if (ts->tally >= 2) stio_dev_sck_halt (tcp);
 
 printf ("ENABLING READING..............................\n");
-	stio_dev_tcp_read (tcp, 1);
+	stio_dev_sck_read (tcp, 1);
 }
 	return 0;
 }
 
-static int tcp_on_read (stio_dev_tcp_t* tcp, const void* buf, stio_len_t len)
+static int tcp_on_read (stio_dev_sck_t* tcp, const void* buf, stio_len_t len, const stio_sckadr_t* srcadr)
 {
 	if (len <= 0)
 	{
 		printf ("STREAM DEVICE: EOF RECEIVED...\n");
 		/* no outstanding request. but EOF */
-		stio_dev_tcp_halt (tcp);
+		stio_dev_sck_halt (tcp);
 		return 0;
 	}
 
@@ -172,19 +171,19 @@ int n;
 static char a ='A';
 char* xxx = malloc (1000000);
 memset (xxx, a++ ,1000000);
-	//return stio_dev_tcp_write  (tcp, "HELLO", 5, STIO_NULL);
+	//return stio_dev_sck_write  (tcp, "HELLO", 5, STIO_NULL);
 	stio_inittime (&tmout, 1, 0);
-	n = stio_dev_tcp_timedwrite  (tcp, xxx, 1000000, &tmout, STIO_NULL);
+	n = stio_dev_sck_timedwrite  (tcp, xxx, 1000000, &tmout, STIO_NULL, STIO_NULL);
 free (xxx);
 
 	if (n <= -1) return -1;
 
 	/* post the write finisher */
-	n = stio_dev_tcp_write  (tcp, STIO_NULL, 0, STIO_NULL);
+	n = stio_dev_sck_write  (tcp, STIO_NULL, 0, STIO_NULL, STIO_NULL);
 	if (n <= -1) return -1;
 
 printf ("DISABLING READING..............................\n");
-	stio_dev_tcp_read (tcp, 0);
+	stio_dev_sck_read (tcp, 0);
 	return 0;
 
 /* return 1; let the main loop to read more greedily without consulting the multiplexer */
@@ -192,14 +191,15 @@ printf ("DISABLING READING..............................\n");
 
 /* ========================================================================= */
 
-static int arp_sck_on_read (stio_dev_sck_t* dev, const void* data, stio_len_t dlen, const stio_adr_t* srcadr)
+static int arp_sck_on_read (stio_dev_sck_t* dev, const void* data, stio_len_t dlen, const stio_sckadr_t* srcadr)
 {
 	stio_etharp_pkt_t* eap;
+	struct sockaddr_ll* sll = (struct sockaddr_ll*)srcadr; 
 
 	if (dlen < STIO_SIZEOF(*eap)) return 0; /* drop */
 
 	eap = (stio_etharp_pkt_t*)data;
-	printf ("ARP OPCODE: %d", ntohs(eap->arphdr.opcode));
+	printf ("ARP ON IFINDEX %d OPCODE: %d", sll->sll_ifindex, ntohs(eap->arphdr.opcode));
 	printf (" SHA: %02X:%02X:%02X:%02X:%02X:%02X", eap->arppld.sha[0], eap->arppld.sha[1], eap->arppld.sha[2], eap->arppld.sha[3], eap->arppld.sha[4], eap->arppld.sha[5]);
 	printf (" SPA: %d.%d.%d.%d", eap->arppld.spa[0], eap->arppld.spa[1], eap->arppld.spa[2], eap->arppld.spa[3]);
 	printf (" THA: %02X:%02X:%02X:%02X:%02X:%02X", eap->arppld.tha[0], eap->arppld.tha[1], eap->arppld.tha[2], eap->arppld.tha[3], eap->arppld.tha[4], eap->arppld.tha[5]);
@@ -227,14 +227,15 @@ int main ()
 {
 
 	stio_t* stio;
-	stio_dev_udp_t* udp;
 	stio_dev_sck_t* sck;
-	stio_dev_tcp_t* tcp[2];
+	stio_dev_sck_t* tcp[2];
 	struct sockaddr_in sin;
 	struct sigaction sigact;
-	stio_dev_tcp_connect_t tcp_conn;
-	stio_dev_tcp_listen_t tcp_lstn;
-	stio_dev_tcp_make_t tcp_make;
+	stio_dev_sck_connect_t tcp_conn;
+	stio_dev_sck_listen_t tcp_lstn;
+	stio_dev_sck_bind_t tcp_bind;
+	stio_dev_sck_make_t tcp_make;
+	
 	stio_dev_sck_make_t sck_make;
 	tcp_server_t* ts;
 
@@ -268,13 +269,11 @@ int main ()
 	}
 */
 
-	memset (&sin, 0, STIO_SIZEOF(sin));
-	sin.sin_family = AF_INET;
 	memset (&tcp_make, 0, STIO_SIZEOF(&tcp_make));
-	memcpy (&tcp_make.addr, &sin, STIO_SIZEOF(sin));
+	tcp_make.type = STIO_DEV_SCK_TCP4;
 	tcp_make.on_write = tcp_on_write;
 	tcp_make.on_read = tcp_on_read;
-	tcp[0] = stio_dev_tcp_make (stio, STIO_SIZEOF(tcp_server_t), &tcp_make);
+	tcp[0] = stio_dev_sck_make (stio, STIO_SIZEOF(tcp_server_t), &tcp_make);
 	if (!tcp[0])
 	{
 		printf ("Cannot make tcp\n");
@@ -287,7 +286,7 @@ int main ()
 	memset (&sin, 0, STIO_SIZEOF(sin));
 	sin.sin_family = AF_INET;
 	sin.sin_port = htons(9999);
-	inet_pton (sin.sin_family, "192.168.1.4", &sin.sin_addr);
+	inet_pton (sin.sin_family, "192.168.1.119", &sin.sin_addr);
 	//inet_pton (sin.sin_family, "127.0.0.1", &sin.sin_addr);
 
 	memset (&tcp_conn, 0, STIO_SIZEOF(tcp_conn));
@@ -295,21 +294,17 @@ int main ()
 	tcp_conn.tmout.sec = 5;
 	tcp_conn.on_connect = tcp_on_connect;
 	tcp_conn.on_disconnect = tcp_on_disconnect;
-	if (stio_dev_tcp_connect (tcp[0], &tcp_conn) <= -1)
+	if (stio_dev_sck_connect (tcp[0], &tcp_conn) <= -1)
 	{
-		printf ("stio_dev_tcp_connect() failed....\n");
+		printf ("stio_dev_sck_connect() failed....\n");
 		goto oops;
 	}
 
-	memset (&sin, 0, STIO_SIZEOF(sin));
-	sin.sin_family = AF_INET;
-	sin.sin_port = htons(1234);
 	memset (&tcp_make, 0, STIO_SIZEOF(&tcp_make));
-	memcpy (&tcp_make.addr, &sin, STIO_SIZEOF(sin));
 	tcp_make.on_write = tcp_on_write;
 	tcp_make.on_read = tcp_on_read;
 
-	tcp[1] = stio_dev_tcp_make (stio, STIO_SIZEOF(tcp_server_t), &tcp_make);
+	tcp[1] = stio_dev_sck_make (stio, STIO_SIZEOF(tcp_server_t), &tcp_make);
 	if (!tcp[1])
 	{
 		printf ("Cannot make tcp\n");
@@ -318,12 +313,23 @@ int main ()
 	ts = (tcp_server_t*)(tcp[1] + 1);
 	ts->tally = 0;
 
+	memset (&tcp_bind, 0, STIO_SIZEOF(tcp_bind));
+	//memcpy (&tcp_bind.addr, &sin, STIO_SIZEOF(sin));
+	((struct sockaddr_in*)&tcp_bind.addr)->sin_family = AF_INET;
+	((struct sockaddr_in*)&tcp_bind.addr)->sin_port = htons(1234);
+
+	if (stio_dev_sck_bind (tcp[1],&tcp_bind) <= -1)
+	{
+		printf ("stio_dev_sck_bind() failed....\n");
+		goto oops;
+	}
+
 	tcp_lstn.backlogs = 100;
 	tcp_lstn.on_connect = tcp_on_connect;
 	tcp_lstn.on_disconnect = tcp_on_disconnect;
-	if (stio_dev_tcp_listen (tcp[1], &tcp_lstn) <= -1)
+	if (stio_dev_sck_listen (tcp[1], &tcp_lstn) <= -1)
 	{
-		printf ("stio_dev_tcp_listen() failed....\n");
+		printf ("stio_dev_sck_listen() failed....\n");
 		goto oops;
 	}
 
@@ -344,11 +350,8 @@ int main ()
 {
 	stio_etharp_pkt_t etharp;
 	struct sockaddr_ll sll;
-	stio_adr_t adr;
 
 	memset (&sll, 0, sizeof(sll));
-	adr.ptr = &sll;
-	adr.len = sizeof(sll);
 	sll.sll_family = AF_PACKET;
 //	sll.sll_protocol = STIO_CONST_HTON16(STIO_ETHHDR_PROTO_ARP);
 //	sll.sll_hatype = STIO_CONST_HTON16(STIO_ARPHDR_HTYPE_ETH);
@@ -359,7 +362,6 @@ int main ()
 	/* if unicast ... */
 	//sll.sll_pkttype = PACKET_OTHERHOST;
 //	sll.sll_pkttype = PACKET_BROADCAST;
-
 	memset (&etharp, 0, sizeof(etharp));
 
 	memcpy (etharp.ethhdr.source, "\xB8\x6B\x23\x9C\x10\x76", STIO_ETHADR_LEN);
@@ -374,7 +376,7 @@ int main ()
 
 	memcpy (etharp.arppld.sha, "\xB8\x6B\x23\x9C\x10\x76", STIO_ETHADR_LEN);
 
-	if (stio_dev_sck_write (sck, &etharp, sizeof(etharp), NULL, &adr) <= -1)
+	if (stio_dev_sck_write (sck, &etharp, sizeof(etharp), NULL, &sll) <= -1)
 	//if (stio_dev_sck_write (sck, &etharp.arphdr, sizeof(etharp) - sizeof(etharp.ethhdr), NULL, &adr) <= -1)
 	{
 		printf ("CANNOT WRITE ARP...\n");

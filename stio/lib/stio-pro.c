@@ -205,13 +205,13 @@ printf ("PRO READY...%p\n", dev);
 	return 1; /* the device is ok. carry on reading or writing */
 }
 
-static int pro_on_read (stio_dev_t* dev, const void* data, stio_len_t len, const stio_adr_t* srcadr)
+static int pro_on_read (stio_dev_t* dev, const void* data, stio_len_t len, const stio_devadr_t* srcadr)
 {
 	stio_dev_pro_t* pro = (stio_dev_pro_t*)dev;
 	return pro->on_read (pro, data, len);
 }
 
-static int pro_on_write (stio_dev_t* dev, void* wrctx, const stio_adr_t* dstadr)
+static int pro_on_write (stio_dev_t* dev, void* wrctx, const stio_devadr_t* dstadr)
 {
 	stio_dev_pro_t* pro = (stio_dev_pro_t*)dev;
 	return pro->on_write (pro, wrctx);

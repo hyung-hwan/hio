@@ -32,8 +32,10 @@
 #include <fcntl.h>
 #include <unistd.h>
 #include <errno.h>
+
 #include <netinet/in.h>
 #include <arpa/inet.h>
+#include <netpacket/packet.h>
 
 /* ========================================================================= */
 void stio_closeasyncsck (stio_t* stio, stio_sckhnd_t sck)
@@ -92,24 +94,80 @@ int stio_getsckadrinfo (stio_t* stio, const stio_sckadr_t* addr, stio_scklen_t* 
 {
 	struct sockaddr* saddr = (struct sockaddr*)addr;
 
-	if (saddr->sa_family == AF_INET) 
+	switch (saddr->sa_family)
 	{
-		if (len) *len = STIO_SIZEOF(struct sockaddr_in);
-		if (family) *family = AF_INET;
-		return 0;
-	}
-	else if (saddr->sa_family == AF_INET6)
-	{
-		if (len) *len =  STIO_SIZEOF(struct sockaddr_in6);
-		if (family) *family = AF_INET6;
-		return 0;
+		case AF_INET:
+			if (len) *len = STIO_SIZEOF(struct sockaddr_in);
+			if (family) *family = AF_INET;
+			return 0;
+
+		case AF_INET6:
+			if (len) *len =  STIO_SIZEOF(struct sockaddr_in6);
+			if (family) *family = AF_INET6;
+			return 0;
+
+		case AF_PACKET:
+			if (len) *len =  STIO_SIZEOF(struct sockaddr_ll);
+			if (family) *family = AF_INET6;
+			return 0;
 	}
 
 	stio->errnum = STIO_EINVAL;
 	return -1;
 }
 
+#if 0
+static void stio_initsckadrforip4 (stio_sckadr_t* sckadr, stio_uint16_t port, stio_ip4adr_t* ip4adr)
+{
+	struct sockaddr_in* sin = (struct sockaddr_in*)sckadr;
 
+	STIO_MEMSET (sin, 0, STIO_SIZEOF(*sin));
+	sin->sin_family = AF_INET;
+	sin->sin_port = htons(port);
+	STIO_MEMSET (&sin->sin_addr, ip4adr, STIO_IP4ADR_LEN);
+}
+
+static void stio_initsckadrforip6 (stio_sckadr_t* sckadr, stio_uint16_t port, stio_ip6adr_t* ip6adr)
+{
+	struct sockaddr_in6* sin = (struct sockaddr_in6*)sckadr;
+
+/* TODO: include sin6_scope_id */
+	STIO_MEMSET (sin, 0, STIO_SIZEOF(*sin));
+	sin->sin6_family = AF_INET;
+	sin->sin6_port = htons(port);
+	STIO_MEMSET (&sin->sin_addr, ip6adr, STIO_IP6ADR_LEN);
+}
+
+stio void stio_intisckadrforeth (stio_sckadr_t* sckadr, int ifindex, stio_ethadr_t* ethadr)
+{
+	struct sockaddr_ll* sll = (struct sockaddr_in*)sckadr;
+	STIO_MEMSET (sll, 0, STIO_SIZEOF(*sll));
+	sll->sll_family = AF_PACKET;
+	sll->sll_ifindex = ifindex;
+	sll->sll_halen = STIO_ETHADR_LEN;
+	STIO_MEMSET (sll->sll_addr, ethadr, STIO_ETHADR_LEN);
+}
+#endif
+
+static stio_devadr_t* sckadr_to_devadr (stio_dev_sck_t* dev, const stio_sckadr_t* sckadr, stio_devadr_t* devadr)
+{
+	if (sckadr)
+	{
+		stio_scklen_t len;
+
+		stio_getsckadrinfo (dev->stio, sckadr, &len, STIO_NULL);
+		devadr->ptr = (void*)sckadr;
+		devadr->len = len;
+		return devadr;
+	}
+
+	return STIO_NULL;
+}
+
+static STIO_INLINE stio_sckadr_t* devadr_to_sckadr (stio_dev_sck_t* dev, const stio_devadr_t* devadr, stio_sckadr_t* sckadr)
+{
+	return (stio_sckadr_t*)devadr->ptr;
+}
 /* ========================================================================= */
 
 #define IS_STATEFUL(sck) ((sck)->dev_capa & STIO_DEV_CAPA_STREAM)
@@ -120,7 +178,6 @@ struct sck_type_map_t
 	int type;
 	int proto;
 	int extra_dev_capa;
-	int sck_capa;
 };
 
 static struct sck_type_map_t sck_type_map[] =
@@ -131,7 +188,9 @@ static struct sck_type_map_t sck_type_map[] =
 	{ AF_INET6,   SOCK_DGRAM,     0,                         0                                                },
 
 	{ AF_PACKET,  SOCK_RAW,       STIO_CONST_HTON16(0x0806), 0                                                },
-	{ AF_PACKET,  SOCK_DGRAM,     STIO_CONST_HTON16(0x0806), 0                                                } 
+	{ AF_PACKET,  SOCK_DGRAM,     STIO_CONST_HTON16(0x0806), 0                                                },
+
+	{ AF_INET,    SOCK_RAW,       IPPROTO_ICMP,              0,                                               }
 };
 
 /* ======================================================================== */
@@ -229,7 +288,7 @@ static stio_syshnd_t dev_sck_getsyshnd (stio_dev_t* dev)
 	return (stio_syshnd_t)rdev->sck;
 }
 
-static int dev_sck_read_stateful (stio_dev_t* dev, void* buf, stio_len_t* len, stio_adr_t* srcadr)
+static int dev_sck_read_stateful (stio_dev_t* dev, void* buf, stio_len_t* len, stio_devadr_t* srcadr)
 {
 	stio_dev_sck_t* tcp = (stio_dev_sck_t*)dev;
 	ssize_t x;
@@ -247,14 +306,14 @@ static int dev_sck_read_stateful (stio_dev_t* dev, void* buf, stio_len_t* len, s
 	return 1;
 }
 
-static int dev_sck_read_stateless (stio_dev_t* dev, void* buf, stio_len_t* len, stio_adr_t* srcadr)
+static int dev_sck_read_stateless (stio_dev_t* dev, void* buf, stio_len_t* len, stio_devadr_t* srcadr)
 {
 	stio_dev_sck_t* rdev = (stio_dev_sck_t*)dev;
 	stio_scklen_t srcadrlen;
 	ssize_t x;
 
-	srcadrlen = srcadr->len;
-	x = recvfrom (rdev->sck, buf, *len, 0, srcadr->ptr, &srcadrlen);
+	srcadrlen = STIO_SIZEOF(rdev->peeradr);
+	x = recvfrom (rdev->sck, buf, *len, 0, (struct sockaddr*)&rdev->peeradr, &srcadrlen);
 	if (x <= -1)
 	{
 		if (errno == EINPROGRESS || errno == EWOULDBLOCK) return 0;  /* no data available */
@@ -263,13 +322,15 @@ static int dev_sck_read_stateless (stio_dev_t* dev, void* buf, stio_len_t* len, 
 		return -1;
 	}
 
+	srcadr->ptr = &rdev->peeradr;
 	srcadr->len = srcadrlen;
+
 	*len = x;
 	return 1;
 }
 
 
-static int dev_sck_write_stateful (stio_dev_t* dev, const void* data, stio_len_t* len, const stio_adr_t* dstadr)
+static int dev_sck_write_stateful (stio_dev_t* dev, const void* data, stio_len_t* len, const stio_devadr_t* dstadr)
 {
 	stio_dev_sck_t* rdev = (stio_dev_sck_t*)dev;
 	ssize_t x;
@@ -305,7 +366,7 @@ static int dev_sck_write_stateful (stio_dev_t* dev, const void* data, stio_len_t
 	return 1;
 }
 
-static int dev_sck_write_stateless (stio_dev_t* dev, const void* data, stio_len_t* len, const stio_adr_t* dstadr)
+static int dev_sck_write_stateless (stio_dev_t* dev, const void* data, stio_len_t* len, const stio_devadr_t* dstadr)
 {
 	stio_dev_sck_t* rdev = (stio_dev_sck_t*)dev;
 	ssize_t x;
@@ -402,7 +463,7 @@ static int dev_sck_ioctl (stio_dev_t* dev, int cmd, void* arg)
 						}
 
 						rdev->state |= STIO_DEV_SCK_CONNECTING;
-						rdev->peer = conn->addr;
+						rdev->peeradr = conn->addr;
 						rdev->on_connect = conn->on_connect;
 						rdev->on_disconnect = conn->on_disconnect;
 						return 0;
@@ -415,7 +476,7 @@ static int dev_sck_ioctl (stio_dev_t* dev, int cmd, void* arg)
 
 			/* connected immediately */
 			rdev->state |= STIO_DEV_SCK_CONNECTED;
-			rdev->peer = conn->addr;
+			rdev->peeradr = conn->addr;
 			rdev->on_connect = conn->on_connect;
 			rdev->on_disconnect = conn->on_disconnect;
 			return 0;
@@ -616,7 +677,7 @@ static int dev_evcb_sck_ready_stateful (stio_dev_t* dev, int events)
 
 			clidev->dev_capa |= STIO_DEV_CAPA_IN | STIO_DEV_CAPA_OUT | STIO_DEV_CAPA_STREAM;
 			clidev->state |= STIO_DEV_SCK_ACCEPTED;
-			clidev->peer = peer;
+			clidev->peeradr = peer;
 			/*clidev->parent = sck;*/
 
 			/* inherit some event handlers from the parent.
@@ -680,52 +741,63 @@ static int dev_evcb_sck_ready_stateless (stio_dev_t* dev, int events)
 	return 1; /* the device is ok. carry on reading or writing */
 }
 
-static int dev_evcb_sck_on_read (stio_dev_t* dev, const void* data, stio_len_t dlen, const stio_adr_t* adr)
+static int dev_evcb_sck_on_read_stateful (stio_dev_t* dev, const void* data, stio_len_t dlen, const stio_devadr_t* srcadr)
 {
 	stio_dev_sck_t* rdev = (stio_dev_sck_t*)dev;
-	return rdev->on_read (rdev, data, dlen, adr);
+	return rdev->on_read (rdev, data, dlen, STIO_NULL);
 }
 
-static int dev_evcb_sck_on_write (stio_dev_t* dev, stio_len_t wrlen, void* wrctx, const stio_adr_t* adr)
+static int dev_evcb_sck_on_write_stateful (stio_dev_t* dev, stio_len_t wrlen, void* wrctx, const stio_devadr_t* dstadr)
 {
 	stio_dev_sck_t* rdev = (stio_dev_sck_t*)dev;
-	return rdev->on_write (rdev, wrlen, wrctx);
+	return rdev->on_write (rdev, wrlen, wrctx, STIO_NULL);
+}
+
+static int dev_evcb_sck_on_read_stateless (stio_dev_t* dev, const void* data, stio_len_t dlen, const stio_devadr_t* srcadr)
+{
+	stio_dev_sck_t* rdev = (stio_dev_sck_t*)dev;
+	return rdev->on_read (rdev, data, dlen, srcadr->ptr);
+}
+
+static int dev_evcb_sck_on_write_stateless (stio_dev_t* dev, stio_len_t wrlen, void* wrctx, const stio_devadr_t* dstadr)
+{
+	stio_dev_sck_t* rdev = (stio_dev_sck_t*)dev;
+	return rdev->on_write (rdev, wrlen, wrctx, dstadr->ptr);
 }
 
 static stio_dev_evcb_t dev_evcb_sck_stateful =
 {
 	dev_evcb_sck_ready_stateful,
-	dev_evcb_sck_on_read,
-	dev_evcb_sck_on_write
+	dev_evcb_sck_on_read_stateful,
+	dev_evcb_sck_on_write_stateful
 };
 
 static stio_dev_evcb_t dev_evcb_sck_stateless =
 {
 	dev_evcb_sck_ready_stateless,
-	dev_evcb_sck_on_read,
-	dev_evcb_sck_on_write
+	dev_evcb_sck_on_read_stateless,
+	dev_evcb_sck_on_write_stateless
 };
 
 /* ========================================================================= */
 
-stio_dev_sck_t* stio_dev_sck_make (stio_t* stio, stio_size_t xtnsize, const stio_dev_sck_make_t* mkinf)
+stio_dev_sck_t* stio_dev_sck_make (stio_t* stio, stio_size_t xtnsize, const stio_dev_sck_make_t* info)
 {
 	stio_dev_sck_t* rdev;
 
-
-	if (mkinf->type < 0 && mkinf->type >= STIO_COUNTOF(sck_type_map))
+	if (info->type < 0 && info->type >= STIO_COUNTOF(sck_type_map))
 	{
 		stio->errnum = STIO_EINVAL;
 		return STIO_NULL;
 	}
 
-	if (sck_type_map[mkinf->type].extra_dev_capa & STIO_DEV_CAPA_STREAM) /* can't use the IS_STATEFUL() macro yet */
+	if (sck_type_map[info->type].extra_dev_capa & STIO_DEV_CAPA_STREAM) /* can't use the IS_STATEFUL() macro yet */
 	{
-		rdev = (stio_dev_sck_t*)stio_makedev (stio, STIO_SIZEOF(stio_dev_sck_t) + xtnsize, &dev_mth_sck_stateful, &dev_evcb_sck_stateful, (void*)mkinf);
+		rdev = (stio_dev_sck_t*)stio_makedev (stio, STIO_SIZEOF(stio_dev_sck_t) + xtnsize, &dev_mth_sck_stateful, &dev_evcb_sck_stateful, (void*)info);
 	}
 	else
 	{
-		rdev = (stio_dev_sck_t*)stio_makedev (stio, STIO_SIZEOF(stio_dev_sck_t) + xtnsize, &dev_mth_sck_stateless, &dev_evcb_sck_stateless, (void*)mkinf);
+		rdev = (stio_dev_sck_t*)stio_makedev (stio, STIO_SIZEOF(stio_dev_sck_t) + xtnsize, &dev_mth_sck_stateless, &dev_evcb_sck_stateless, (void*)info);
 	}
 
 	return rdev;
@@ -746,12 +818,14 @@ int stio_dev_sck_listen (stio_dev_sck_t* dev, stio_dev_sck_listen_t* info)
 	return stio_dev_ioctl ((stio_dev_t*)dev, STIO_DEV_SCK_LISTEN, info);
 }
 
-int stio_dev_sck_write (stio_dev_sck_t* dev, const void* data, stio_len_t dlen, void* wrctx, const stio_adr_t* dstadr)
+int stio_dev_sck_write (stio_dev_sck_t* dev, const void* data, stio_len_t dlen, void* wrctx, const stio_sckadr_t* dstadr)
 {
-	return stio_dev_write ((stio_dev_t*)dev, data, dlen, wrctx, dstadr);
+	stio_devadr_t devadr;
+	return stio_dev_write ((stio_dev_t*)dev, data, dlen, wrctx, sckadr_to_devadr(dev, dstadr, &devadr));
 }
 
-int stio_dev_sck_timedwrite (stio_dev_sck_t* dev, const void* data, stio_len_t dlen, const stio_ntime_t* tmout, void* wrctx, const stio_adr_t* dstadr)
+int stio_dev_sck_timedwrite (stio_dev_sck_t* dev, const void* data, stio_len_t dlen, const stio_ntime_t* tmout, void* wrctx, const stio_sckadr_t* dstadr)
 {
-	return stio_dev_write ((stio_dev_t*)dev, data, dlen, wrctx, dstadr);
+	stio_devadr_t devadr;
+	return stio_dev_timedwrite ((stio_dev_t*)dev, data, dlen, tmout, wrctx, sckadr_to_devadr(dev, dstadr, &devadr));
 }
