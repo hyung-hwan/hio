@@ -25,6 +25,7 @@
  */
 
 
+#if 0
 #include "stio-udp.h"
 #include "stio-prv.h"
 
@@ -82,7 +83,7 @@ static stio_syshnd_t udp_getsyshnd (stio_dev_t* dev)
 	return (stio_syshnd_t)udp->sck;
 }
 
-static int udp_read (stio_dev_t* dev, void* buf, stio_len_t* len, stio_adr_t* adr)
+static int udp_read (stio_dev_t* dev, void* buf, stio_len_t* len, stio_devadr_t* adr)
 {
 	stio_dev_udp_t* udp = (stio_dev_udp_t*)dev;
 	stio_scklen_t addrlen;
@@ -90,8 +91,8 @@ static int udp_read (stio_dev_t* dev, void* buf, stio_len_t* len, stio_adr_t* ad
 
 /* TODO: udp_read need source address ... have to extend the send callback to accept the source address */
 printf ("UDP RECVFROM...\n");
-	addrlen = STIO_SIZEOF(udp->peer);
-	x = recvfrom (udp->sck, buf, *len, 0, (struct sockaddr*)&udp->peer, &addrlen);
+	addrlen = STIO_SIZEOF(udp->peeradr);
+	x = recvfrom (udp->sck, buf, *len, 0, (struct sockaddr*)&udp->peeradr, &addrlen);
 	if (x <= -1)
 	{
 		if (errno == EINPROGRESS || errno == EWOULDBLOCK) return 0;  /* no data available */
@@ -104,7 +105,7 @@ printf ("UDP RECVFROM...\n");
 	return 1;
 }
 
-static int udp_write (stio_dev_t* dev, const void* data, stio_len_t* len, const stio_adr_t* adr)
+static int udp_write (stio_dev_t* dev, const void* data, stio_len_t* len, const stio_devadr_t* adr)
 {
 	stio_dev_udp_t* udp = (stio_dev_udp_t*)udp;
 	ssize_t x;
@@ -184,3 +185,5 @@ stio_dev_udp_t* stio_dev_udp_make (stio_t* stio, stio_size_t xtnsize, const stio
 {
 	return (stio_dev_udp_t*)stio_makedev (stio, STIO_SIZEOF(stio_dev_udp_t) + xtnsize, &udp_mth, &udp_evcb, (void*)data);
 }
+
+#endif

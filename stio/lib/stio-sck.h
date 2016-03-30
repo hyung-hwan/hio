@@ -101,15 +101,16 @@ typedef enum stio_dev_sck_state_t stio_dev_sck_state_t;
 typedef struct stio_dev_sck_t stio_dev_sck_t;
 
 typedef int (*stio_dev_sck_on_read_t) (
-	stio_dev_sck_t*   dev,
-	const void*       data,
-	stio_len_t        dlen,
-	const stio_adr_t* srcadr
+	stio_dev_sck_t*      dev,
+	const void*          data,
+	stio_len_t           dlen,
+	const stio_sckadr_t* srcadr
 );
 typedef int (*stio_dev_sck_on_write_t) (
-	stio_dev_sck_t*   dev,
-	stio_len_t        wrlen,
-	void*             wrctx
+	stio_dev_sck_t*      dev,
+	stio_len_t           wrlen,
+	void*                wrctx,
+	const stio_sckadr_t* dstadr
 );
 
 typedef int (*stio_dev_sck_on_connect_t) (stio_dev_sck_t* dev);
@@ -123,7 +124,13 @@ enum stio_dev_sck_type_t
 	STIO_DEV_SCK_UDP6,
 
 	STIO_DEV_SCK_ARP,
-	STIO_DEV_SCK_ARP_DGRAM
+	STIO_DEV_SCK_ARP_DGRAM,
+
+	STIO_DEV_SCK_ICMP4
+
+#if 0
+	STIO_DEV_SCK_RAW,  /* raw L2-level packet */
+#endif
 };
 typedef enum stio_dev_sck_type_t stio_dev_sck_type_t;
 
@@ -165,10 +172,8 @@ struct stio_dev_sck_accept_t
 {
 	stio_syshnd_t   sck;
 /* TODO: add timeout */
-	stio_sckadr_t   peer;
+	stio_sckadr_t   peeradr;
 };
-
-
 
 struct stio_dev_sck_t
 {
@@ -186,7 +191,16 @@ struct stio_dev_sck_t
 	stio_dev_sck_on_connect_t on_connect;
 	stio_dev_sck_on_disconnect_t on_disconnect;
 	stio_tmridx_t tmridx_connect;
-	stio_sckadr_t peer;
+
+	/* peer address for a stateful stream socket. valid if one of the 
+	 * followings is set in state:
+	 *   STIO_DEV_TCP_ACCEPTED
+	 *   STIO_DEV_TCP_CONNECTED
+	 *   STIO_DEV_TCP_CONNECTING
+	 *
+	 * also used as a placeholder to store source address for
+	 * a stateless socket */
+	stio_sckadr_t peeradr; 
 };
 
 #ifdef __cplusplus
@@ -245,7 +259,7 @@ STIO_EXPORT int stio_dev_sck_write (
 	const void*           data,
 	stio_len_t            len,
 	void*                 wrctx,
-	const stio_adr_t*     dstadr
+	const stio_sckadr_t*  dstadr
 );
 
 STIO_EXPORT int stio_dev_sck_timedwrite (
@@ -254,7 +268,7 @@ STIO_EXPORT int stio_dev_sck_timedwrite (
 	stio_len_t            len,
 	const stio_ntime_t*   tmout,
 	void*                 wrctx,
-	const stio_adr_t*     dstadr
+	const stio_sckadr_t*  dstadr
 );
 
 #if defined(STIO_HAVE_INLINE)
@@ -271,7 +285,7 @@ static STIO_INLINE int stio_dev_sck_read (stio_dev_sck_t* sck, int enabled)
 }
 
 /*
-static STIO_INLINE int stio_dev_sck_write (stio_dev_sck_t* sck, const void* data, stio_len_t len, void* wrctx, const stio_adr_t* dstadr)
+static STIO_INLINE int stio_dev_sck_write (stio_dev_sck_t* sck, const void* data, stio_len_t len, void* wrctx, const stio_devadr_t* dstadr)
 {
 	return stio_dev_write ((stio_dev_t*)sck, data, len, wrctx, STIO_NULL);
 }

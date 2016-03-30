@@ -264,7 +264,7 @@ static int tcp_ioctl (stio_dev_t* dev, int cmd, void* arg)
 						}
 
 						tcp->state |= STIO_DEV_TCP_CONNECTING;
-						tcp->peer = conn->addr;
+						tcp->peeradr = conn->addr;
 						tcp->on_connect = conn->on_connect;
 						tcp->on_disconnect = conn->on_disconnect;
 						return 0;
@@ -277,7 +277,7 @@ static int tcp_ioctl (stio_dev_t* dev, int cmd, void* arg)
 
 			/* connected immediately */
 			tcp->state |= STIO_DEV_TCP_CONNECTED;
-			tcp->peer = conn->addr;
+			tcp->peeradr = conn->addr;
 			tcp->on_connect = conn->on_connect;
 			tcp->on_disconnect = conn->on_disconnect;
 			return 0;
@@ -465,7 +465,7 @@ printf ("TCP READY...%p\n", dev);
 
 			clitcp->dev_capa |= STIO_DEV_CAPA_IN | STIO_DEV_CAPA_OUT | STIO_DEV_CAPA_STREAM;
 			clitcp->state |= STIO_DEV_TCP_ACCEPTED;
-			clitcp->peer = peer;
+			clitcp->peeradr = peer;
 			/*clitcp->parent = tcp;*/
 
 			/* inherit some event handlers from the parent.

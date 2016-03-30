@@ -266,7 +266,7 @@ printf ("has urgent data...\n");
 
 	if (dev && stio->revs[i].events & EPOLLIN)
 	{
-		stio_adr_t srcadr;
+		stio_devadr_t srcadr;
 		stio_len_t len;
 		int x;
 
@@ -750,7 +750,7 @@ static void on_write_timeout (stio_t* stio, const stio_ntime_t* now, stio_tmrjob
 	if (x <= -1) stio_dev_halt (dev);
 }
 
-static int __dev_write (stio_dev_t* dev, const void* data, stio_len_t len, const stio_ntime_t* tmout, void* wrctx, const stio_adr_t* dstadr)
+static int __dev_write (stio_dev_t* dev, const void* data, stio_len_t len, const stio_ntime_t* tmout, void* wrctx, const stio_devadr_t* dstadr)
 {
 	const stio_uint8_t* uptr;
 	stio_len_t urem, ulen;
@@ -894,12 +894,12 @@ enqueue_data:
 	return 0; /* request pused to a write queue. */
 }
 
-int stio_dev_write (stio_dev_t* dev, const void* data, stio_len_t len, void* wrctx, const stio_adr_t* dstadr)
+int stio_dev_write (stio_dev_t* dev, const void* data, stio_len_t len, void* wrctx, const stio_devadr_t* dstadr)
 {
 	return __dev_write (dev, data, len, STIO_NULL, wrctx, dstadr);
 }
 
-int stio_dev_timedwrite (stio_dev_t* dev, const void* data, stio_len_t len, const stio_ntime_t* tmout, void* wrctx, const stio_adr_t* dstadr)
+int stio_dev_timedwrite (stio_dev_t* dev, const void* data, stio_len_t len, const stio_ntime_t* tmout, void* wrctx, const stio_devadr_t* dstadr)
 {
 	return __dev_write (dev, data, len, tmout, wrctx, dstadr);
 }

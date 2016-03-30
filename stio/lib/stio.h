@@ -48,8 +48,8 @@ struct stio_ntime_t
 	#define STIO_SYSHND_INVALID (-1)
 #endif
 
-typedef struct stio_adr_t stio_adr_t;
-struct stio_adr_t
+typedef struct stio_devadr_t stio_devadr_t;
+struct stio_devadr_t
 {
 	int len;
 	void* ptr;
@@ -143,10 +143,10 @@ struct stio_dev_mth_t
 	/* return -1 on failure, 0 if no data is availble, 1 otherwise.
 	 * when returning 1, *len must be sent to the length of data read.
 	 * if *len is set to 0, it's treated as EOF. */
-	int           (*read)         (stio_dev_t* dev, void* data, stio_len_t* len, stio_adr_t* srcadr);
+	int           (*read)         (stio_dev_t* dev, void* data, stio_len_t* len, stio_devadr_t* srcadr);
 
 	/* ------------------------------------------------------------------ */
-	int           (*write)        (stio_dev_t* dev, const void* data, stio_len_t* len, const stio_adr_t* dstadr);
+	int           (*write)        (stio_dev_t* dev, const void* data, stio_len_t* len, const stio_devadr_t* dstadr);
 
 	/* ------------------------------------------------------------------ */
 	int           (*ioctl)        (stio_dev_t* dev, int cmd, void* arg);
@@ -163,13 +163,13 @@ struct stio_dev_evcb_t
 	/* return -1 on failure, 0 or 1 on success.
 	 * when 0 is returned, the main loop stops the attempt to read more data.
 	 * when 1 is returned, the main loop attempts to read more data without*/
-	int           (*on_read)      (stio_dev_t* dev, const void* data, stio_len_t len, const stio_adr_t* srcadr);
+	int           (*on_read)      (stio_dev_t* dev, const void* data, stio_len_t len, const stio_devadr_t* srcadr);
 
 	/* return -1 on failure, 0 on success. 
 	 * wrlen is the length of data written. it is the length of the originally
 	 * posted writing request for a stream device. For a non stream device, it
 	 * may be shorter than the originally posted length. */
-	int           (*on_write)      (stio_dev_t* dev, stio_len_t wrlen, void* wrctx, const stio_adr_t* dstadr);
+	int           (*on_write)      (stio_dev_t* dev, stio_len_t wrlen, void* wrctx, const stio_devadr_t* dstadr);
 };
 
 struct stio_wq_t
@@ -184,7 +184,7 @@ struct stio_wq_t
 	stio_dev_t*    dev; /* back-pointer to the device */
 
 	stio_tmridx_t  tmridx;
-	stio_adr_t     dstadr;
+	stio_devadr_t     dstadr;
 };
 
 #define STIO_WQ_INIT(wq) ((wq)->next = (wq)->prev = (wq))
@@ -368,7 +368,7 @@ STIO_EXPORT int stio_dev_write (
 	const void*         data,
 	stio_len_t          len,
 	void*               wrctx,
-	const stio_adr_t*   dstadr
+	const stio_devadr_t*   dstadr
 );
 
 
@@ -378,7 +378,7 @@ STIO_EXPORT int stio_dev_timedwrite (
 	stio_len_t          len,
 	const stio_ntime_t* tmout,
 	void*               wrctx,
-	const stio_adr_t*   dstadr
+	const stio_devadr_t*   dstadr
 );
 
 STIO_EXPORT void stio_dev_halt (
