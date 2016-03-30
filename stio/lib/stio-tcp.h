@@ -50,7 +50,6 @@ typedef enum stio_dev_tcp_state_t stio_dev_tcp_state_t;
 typedef struct stio_dev_tcp_t stio_dev_tcp_t;
 
 typedef int (*stio_dev_tcp_on_connect_t) (stio_dev_tcp_t* dev);
-typedef void (*stio_dev_tcp_on_accepted_t) (stio_dev_tcp_t* dev, stio_dev_tcp_t* clidev);
 typedef void (*stio_dev_tcp_on_disconnect_t) (stio_dev_tcp_t* dev);
 
 typedef int (*stio_dev_tcp_on_read_t) (stio_dev_tcp_t* dev, const void* data, stio_len_t len);

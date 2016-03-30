@@ -847,7 +847,6 @@ enqueue_data:
 	}
 	else
 	{
-		q->dstadr.ptr = STIO_NULL;
 		q->dstadr.len = 0;
 	}
 

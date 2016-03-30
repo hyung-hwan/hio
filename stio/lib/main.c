@@ -97,23 +97,23 @@ static void tcp_on_disconnect (stio_dev_tcp_t* tcp)
 {
 	if (tcp->state & STIO_DEV_TCP_CONNECTING)
 	{
-		printf ("TCP DISCONNECTED - FAILED TO CONNECT (%d) TO REMOTE SERVER\n", tcp->sck);
+		printf ("TCP DISCONNECTED - FAILED TO CONNECT (%d) TO REMOTE SERVER\n", (int)tcp->sck);
 	}
 	else if (tcp->state & STIO_DEV_TCP_LISTENING)
 	{
-		printf ("SHUTTING DOWN THE SERVER SOCKET(%d)...\n", tcp->sck);
+		printf ("SHUTTING DOWN THE SERVER SOCKET(%d)...\n", (int)tcp->sck);
 	}
 	else if (tcp->state & STIO_DEV_TCP_CONNECTED)
 	{
-		printf ("CLIENT ORIGINATING FROM HERE GOT DISCONNECTED(%d).......\n", tcp->sck);
+		printf ("CLIENT ORIGINATING FROM HERE GOT DISCONNECTED(%d).......\n", (int)tcp->sck);
 	}
 	else if (tcp->state & STIO_DEV_TCP_ACCEPTED)
 	{
-		printf ("CLIENT BEING SERVED GOT DISCONNECTED(%d).......\n", tcp->sck);
+		printf ("CLIENT BEING SERVED GOT DISCONNECTED(%d).......\n", (int)tcp->sck);
 	}
 	else
 	{
-		printf ("TCP DISCONNECTED - THIS MUST NOT HAPPEN (%d)\n", tcp->sck);
+		printf ("TCP DISCONNECTED - THIS MUST NOT HAPPEN (%d - %x)\n", (int)tcp->sck, (unsigned int)tcp->state);
 	}
 }
 static int tcp_on_connect (stio_dev_tcp_t* tcp)
@@ -143,8 +143,6 @@ printf ("SEDING TIMED OUT...........\n");
 }
 else
 {
-
-
 	ts = (tcp_server_t*)(tcp + 1);
 	printf (">>> SENT MESSAGE %d of length %ld\n", ts->tally, (long int)wrlen);
 
@@ -194,12 +192,23 @@ printf ("DISABLING READING..............................\n");
 
 /* ========================================================================= */
 
-static int sck_on_read (stio_dev_sck_t* dev, const void* buf, stio_len_t len, const stio_sckadr_t* srcadr)
+static int arp_sck_on_read (stio_dev_sck_t* dev, const void* data, stio_len_t dlen, const stio_adr_t* srcadr)
 {
+	stio_etharp_pkt_t* eap;
+
+	if (dlen < STIO_SIZEOF(*eap)) return 0; /* drop */
+
+	eap = (stio_etharp_pkt_t*)data;
+	printf ("ARP OPCODE: %d", ntohs(eap->arphdr.opcode));
+	printf (" SHA: %02X:%02X:%02X:%02X:%02X:%02X", eap->arppld.sha[0], eap->arppld.sha[1], eap->arppld.sha[2], eap->arppld.sha[3], eap->arppld.sha[4], eap->arppld.sha[5]);
+	printf (" SPA: %d.%d.%d.%d", eap->arppld.spa[0], eap->arppld.spa[1], eap->arppld.spa[2], eap->arppld.spa[3]);
+	printf (" THA: %02X:%02X:%02X:%02X:%02X:%02X", eap->arppld.tha[0], eap->arppld.tha[1], eap->arppld.tha[2], eap->arppld.tha[3], eap->arppld.tha[4], eap->arppld.tha[5]);
+	printf (" TPA: %d.%d.%d.%d", eap->arppld.tpa[0], eap->arppld.tpa[1], eap->arppld.tpa[2], eap->arppld.tpa[3]);
+	printf ("\n");
 	return 0;
 }
 
-static int sck_on_write (stio_dev_sck_t* dev, stio_len_t wrlen, void* wrctx)
+static int arp_sck_on_write (stio_dev_sck_t* dev, stio_len_t wrlen, void* wrctx)
 {
 	return 0;
 }
@@ -322,8 +331,8 @@ int main ()
 	memset (&sck_make, 0, STIO_SIZEOF(sck_make));
 	sck_make.type = STIO_DEV_SCK_ARP;
 	//sck_make.type = STIO_DEV_SCK_ARP_DGRAM;
-	sck_make.on_write = sck_on_write;
-	sck_make.on_read = sck_on_read;
+	sck_make.on_write = arp_sck_on_write;
+	sck_make.on_read = arp_sck_on_read;
 	sck = stio_dev_sck_make (stio, 0, &sck_make);
 	if (!sck)
 	{
@@ -341,16 +350,15 @@ int main ()
 	adr.ptr = &sll;
 	adr.len = sizeof(sll);
 	sll.sll_family = AF_PACKET;
-	//sll.sll_protocol = STIO_CONST_HTON16(0x0003); /* P_ALL */
-	sll.sll_protocol = STIO_CONST_HTON16(STIO_ETHHDR_PROTO_ARP);
-	sll.sll_hatype = STIO_CONST_HTON16(STIO_ARPHDR_HTYPE_ETH);
+//	sll.sll_protocol = STIO_CONST_HTON16(STIO_ETHHDR_PROTO_ARP);
+//	sll.sll_hatype = STIO_CONST_HTON16(STIO_ARPHDR_HTYPE_ETH);
 	sll.sll_halen = STIO_ETHADR_LEN;
 	memcpy (sll.sll_addr, "\xFF\xFF\xFF\xFF\xFF\xFF", sll.sll_halen);
 	sll.sll_ifindex = if_nametoindex ("enp0s25.3");
 
 	/* if unicast ... */
 	//sll.sll_pkttype = PACKET_OTHERHOST;
-	sll.sll_pkttype = PACKET_BROADCAST;
+//	sll.sll_pkttype = PACKET_BROADCAST;
 
 	memset (&etharp, 0, sizeof(etharp));
 

@@ -30,7 +30,6 @@
 #include <stio.h>
 #include <stio-sck.h>
 
-typedef struct stio_dev_arp_t stio_dev_arp_t;
 #define STIO_ETHHDR_PROTO_IP4 0x0800
 #define STIO_ETHHDR_PROTO_ARP 0x0806
 
@@ -80,8 +79,8 @@ struct stio_etharp_pkt_t
 	stio_etharp_t arppld;
 };
 typedef struct stio_etharp_pkt_t stio_etharp_pkt_t;
-#pragma pack(pop)
 
+#pragma pack(pop)
 
 #if 0
 typedef int (*stio_dev_arp_on_read_t) (stio_dev_arp_t* dev, stio_pkt_arp_t* pkt, stio_len_t len);

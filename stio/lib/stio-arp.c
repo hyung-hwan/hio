@@ -158,7 +158,6 @@ static int arp_on_read (stio_dev_t* dev, const void* data, stio_len_t len)
 {
 printf ("dATA received %d bytes\n", (int)len);
 	return 0;
-
 }
 
 static int arp_on_write (stio_dev_t* dev, stio_len_t wrlen, void* wrctx)

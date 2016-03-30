@@ -80,11 +80,40 @@ typedef int stio_sckfam_t;
 
 /* ========================================================================= */
 
+enum stio_dev_sck_ioctl_cmd_t
+{
+	STIO_DEV_SCK_BIND, 
+	STIO_DEV_SCK_CONNECT,
+	STIO_DEV_SCK_LISTEN
+};
+typedef enum stio_dev_sck_ioctl_cmd_t stio_dev_sck_ioctl_cmd_t;
+
+
+enum stio_dev_sck_state_t
+{
+	STIO_DEV_SCK_CONNECTING = (1 << 0),
+	STIO_DEV_SCK_CONNECTED  = (1 << 1),
+	STIO_DEV_SCK_LISTENING  = (1 << 2),
+	STIO_DEV_SCK_ACCEPTED   = (1 << 3)
+};
+typedef enum stio_dev_sck_state_t stio_dev_sck_state_t;
 
 typedef struct stio_dev_sck_t stio_dev_sck_t;
 
-typedef int (*stio_dev_sck_on_read_t) (stio_dev_sck_t* dev, const void* data, stio_len_t dlen, const stio_sckadr_t* srcadr);
-typedef int (*stio_dev_sck_on_write_t) (stio_dev_sck_t* dev, stio_len_t wrlen, void* wrctx);
+typedef int (*stio_dev_sck_on_read_t) (
+	stio_dev_sck_t*   dev,
+	const void*       data,
+	stio_len_t        dlen,
+	const stio_adr_t* srcadr
+);
+typedef int (*stio_dev_sck_on_write_t) (
+	stio_dev_sck_t*   dev,
+	stio_len_t        wrlen,
+	void*             wrctx
+);
+
+typedef int (*stio_dev_sck_on_connect_t) (stio_dev_sck_t* dev);
+typedef void (*stio_dev_sck_on_disconnect_t) (stio_dev_sck_t* dev);
 
 enum stio_dev_sck_type_t
 {
@@ -106,19 +135,63 @@ struct stio_dev_sck_make_t
 	stio_dev_sck_on_read_t on_read;
 };
 
+typedef struct stio_dev_sck_bind_t stio_dev_sck_bind_t;
+struct stio_dev_sck_bind_t
+{
+	int opts; /* TODO: REUSEADDR , TRANSPARENT, etc  or someting?? */
+	stio_sckadr_t addr;
+	/* TODO: add device name for BIND_TO_DEVICE */
+};
+
+typedef struct stio_dev_sck_connect_t stio_dev_sck_connect_t;
+struct stio_dev_sck_connect_t
+{
+	stio_sckadr_t addr;
+	stio_ntime_t tmout; /* connect timeout */
+	stio_dev_sck_on_connect_t on_connect;
+	stio_dev_sck_on_disconnect_t on_disconnect;
+};
+
+typedef struct stio_dev_sck_listen_t stio_dev_sck_listen_t;
+struct stio_dev_sck_listen_t
+{
+	int backlogs;
+	stio_dev_sck_on_connect_t on_connect; /* optional, but new connections are dropped immediately without this */
+	stio_dev_sck_on_disconnect_t on_disconnect; /* should on_discconneted be part of on_accept_t??? */
+};
+
+typedef struct stio_dev_sck_accept_t stio_dev_sck_accept_t;
+struct stio_dev_sck_accept_t
+{
+	stio_syshnd_t   sck;
+/* TODO: add timeout */
+	stio_sckadr_t   peer;
+};
+
+
+
 struct stio_dev_sck_t
 {
 	STIO_DEV_HEADERS;
+	stio_dev_sck_type_t type;
 	stio_sckhnd_t sck;
+
 	stio_dev_sck_on_write_t on_write;
 	stio_dev_sck_on_read_t on_read;
-};
 
+	int state;
+	/** return 0 on succes, -1 on failure/
+	 *  called on a new tcp device for an accepted client or
+	 *         on a tcp device conntected to a remote server */
+	stio_dev_sck_on_connect_t on_connect;
+	stio_dev_sck_on_disconnect_t on_disconnect;
+	stio_tmridx_t tmridx_connect;
+	stio_sckadr_t peer;
+};
 
 #ifdef __cplusplus
 extern "C" {
 #endif
-
 
 STIO_EXPORT stio_sckhnd_t stio_openasyncsck (
 	stio_t* stio,
@@ -149,7 +222,22 @@ STIO_EXPORT int stio_getsckadrinfo (
 STIO_EXPORT stio_dev_sck_t* stio_dev_sck_make (
 	stio_t*                    stio,
 	stio_size_t                xtnsize,
-	const stio_dev_sck_make_t* data
+	const stio_dev_sck_make_t* info
+);
+
+STIO_EXPORT int stio_dev_sck_bind (
+	stio_dev_sck_t*         dev,
+	stio_dev_sck_bind_t*    info
+);
+
+STIO_EXPORT int stio_dev_sck_connect (
+	stio_dev_sck_t*         dev,
+	stio_dev_sck_connect_t* info
+);
+
+STIO_EXPORT int stio_dev_sck_listen (
+	stio_dev_sck_t*         dev,
+	stio_dev_sck_listen_t*  info
 );
 
 STIO_EXPORT int stio_dev_sck_write (
@@ -168,6 +256,45 @@ STIO_EXPORT int stio_dev_sck_timedwrite (
 	void*                 wrctx,
 	const stio_adr_t*     dstadr
 );
+
+#if defined(STIO_HAVE_INLINE)
+
+static STIO_INLINE void stio_dev_sck_halt (stio_dev_sck_t* sck)
+{
+	stio_dev_halt ((stio_dev_t*)sck);
+
+}
+
+static STIO_INLINE int stio_dev_sck_read (stio_dev_sck_t* sck, int enabled)
+{
+	return stio_dev_read ((stio_dev_t*)sck, enabled);
+}
+
+/*
+static STIO_INLINE int stio_dev_sck_write (stio_dev_sck_t* sck, const void* data, stio_len_t len, void* wrctx, const stio_adr_t* dstadr)
+{
+	return stio_dev_write ((stio_dev_t*)sck, data, len, wrctx, STIO_NULL);
+}
+
+static STIO_INLINE int stio_dev_sck_timedwrite (stio_dev_sck_t* sck, const void* data, stio_len_t len, const stio_ntime_t* tmout, void* wrctx)
+{
+	return stio_dev_timedwrite ((stio_dev_t*)sck, data, len, tmout, wrctx, STIO_NULL);
+}
+*/
+
+
+#else
+
+#define stio_dev_sck_halt(sck) stio_dev_halt((stio_dev_t*)sck)
+#define stio_dev_sck_read(sck,enabled) stio_dev_read((stio_dev_t*)sck, enabled)
+/*
+#define stio_dev_sck_write(sck,data,len,wrctx) stio_dev_write((stio_dev_t*)sck, data, len, wrctx, STIO_NULL)
+#define stio_dev_sck_timedwrite(sck,data,len,tmout,wrctx) stio_dev_timedwrite((stio_dev_t*)sck, data, len, tmout, wrctx, STIO_NULL)
+*/
+
+
+
+#endif
 
 
 #ifdef __cplusplus
