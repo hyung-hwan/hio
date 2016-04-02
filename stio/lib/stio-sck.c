@@ -404,6 +404,26 @@ static int dev_sck_ioctl (stio_dev_t* dev, int cmd, void* arg)
 			stio_sckfam_t fam;
 			int x;
 
+			if (bnd->options & STIO_DEV_SCK_BIND_BROADCAST)
+			{
+				int v = 1;
+				if (setsockopt (rdev->sck, SOL_SOCKET, SO_BROADCAST, &v, STIO_SIZEOF(v)) == -1)
+				{
+					rdev->stio->errnum = stio_syserrtoerrnum(errno);
+					return -1;
+				}
+			}
+
+			if (bnd->options & STIO_DEV_SCK_BIND_REUSEADDR)
+			{
+				int v = 1;
+				if (setsockopt (rdev->sck, SOL_SOCKET, SO_REUSEADDR, &v, STIO_SIZEOF(v)) == -1)
+				{
+					rdev->stio->errnum = stio_syserrtoerrnum(errno);
+					return -1;
+				}
+			}
+
 			if (stio_getsckadrinfo (dev->stio, &bnd->addr, &sl, &fam) <= -1) return -1;
 
 			/* the socket is already non-blocking */
