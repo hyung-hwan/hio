@@ -177,7 +177,7 @@ printf ("has urgent data...\n");
 		{
 			stio_wq_t* q;
 			const stio_uint8_t* uptr;
-			stio_len_t urem, ulen;
+			stio_iolen_t urem, ulen;
 			int x;
 
 			q = STIO_WQ_HEAD(&dev->wq);
@@ -267,7 +267,7 @@ printf ("has urgent data...\n");
 	if (dev && stio->revs[i].events & EPOLLIN)
 	{
 		stio_devadr_t srcadr;
-		stio_len_t len;
+		stio_iolen_t len;
 		int x;
 
 		/* the devices are all non-blocking. read as much as possible
@@ -516,6 +516,12 @@ stio_dev_t* stio_makedev (stio_t* stio, stio_size_t dev_size, stio_dev_mth_t* de
 		goto oops;
 	}
 
+	/* the make callback must not change these fields */
+	STIO_ASSERT (dev->dev_mth == dev_mth);
+	STIO_ASSERT (dev->dev_evcb == dev_evcb);
+	STIO_ASSERT (dev->dev_prev == STIO_NULL);
+	STIO_ASSERT (dev->dev_next == STIO_NULL);
+
 	/* set some internal capability bits according to the capabilities 
 	 * removed by the device making callback for convenience sake. */
 	if (!(dev->dev_capa & STIO_DEV_CAPA_IN)) dev->dev_capa |= STIO_DEV_CAPA_IN_CLOSED;
@@ -750,10 +756,10 @@ static void on_write_timeout (stio_t* stio, const stio_ntime_t* now, stio_tmrjob
 	if (x <= -1) stio_dev_halt (dev);
 }
 
-static int __dev_write (stio_dev_t* dev, const void* data, stio_len_t len, const stio_ntime_t* tmout, void* wrctx, const stio_devadr_t* dstadr)
+static int __dev_write (stio_dev_t* dev, const void* data, stio_iolen_t len, const stio_ntime_t* tmout, void* wrctx, const stio_devadr_t* dstadr)
 {
 	const stio_uint8_t* uptr;
-	stio_len_t urem, ulen;
+	stio_iolen_t urem, ulen;
 	stio_wq_t* q;
 	int x;
 
@@ -810,6 +816,7 @@ static int __dev_write (stio_dev_t* dev, const void* data, stio_len_t len, const
 	else
 	{
 		ulen = urem;
+
 		x = dev->dev_mth->write (dev, data, &ulen, dstadr);
 		if (x <= -1) return -1;
 		else if (x == 0) goto enqueue_data;
@@ -894,12 +901,12 @@ enqueue_data:
 	return 0; /* request pused to a write queue. */
 }
 
-int stio_dev_write (stio_dev_t* dev, const void* data, stio_len_t len, void* wrctx, const stio_devadr_t* dstadr)
+int stio_dev_write (stio_dev_t* dev, const void* data, stio_iolen_t len, void* wrctx, const stio_devadr_t* dstadr)
 {
 	return __dev_write (dev, data, len, STIO_NULL, wrctx, dstadr);
 }
 
-int stio_dev_timedwrite (stio_dev_t* dev, const void* data, stio_len_t len, const stio_ntime_t* tmout, void* wrctx, const stio_devadr_t* dstadr)
+int stio_dev_timedwrite (stio_dev_t* dev, const void* data, stio_iolen_t len, const stio_ntime_t* tmout, void* wrctx, const stio_devadr_t* dstadr)
 {
 	return __dev_write (dev, data, len, tmout, wrctx, dstadr);
 }

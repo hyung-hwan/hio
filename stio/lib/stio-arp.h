@@ -30,82 +30,9 @@
 #include <stio.h>
 #include <stio-sck.h>
 
-#define STIO_ETHHDR_PROTO_IP4 0x0800
-#define STIO_ETHHDR_PROTO_ARP 0x0806
-
-#define STIO_ARPHDR_OPCODE_REQUEST 1
-#define STIO_ARPHDR_OPCODE_REPLY   2
-
-#define STIO_ARPHDR_HTYPE_ETH 0x0001
-#define STIO_ARPHDR_PTYPE_IP4 0x0800
-
-#define STIO_ETHADR_LEN 6
-#define STIO_IP4ADR_LEN 4
-#define STIO_IP6ADR_LEN 16 
-
-#pragma pack(push)
-#pragma pack(1)
-
-
-struct stio_ethadr_t
-{
-	stio_uint8_t v[STIO_ETHADR_LEN]; 
-};
-typedef struct stio_ethadr_t stio_ethadr_t;
-
-struct stio_ip4adr_t
-{
-	stio_uint8_t v[STIO_IP4ADR_LEN];
-};
-typedef struct stio_ip4adr_t stio_ip4adr_t;
-
-struct stio_ip6adr_t
-{
-	stio_uint8_t v[STIO_IP6ADR_LEN]; 
-};
-typedef struct stio_ip6adr_t stio_ip6adr_t;
-
-
-struct stio_ethhdr_t
-{
-	stio_uint8_t  dest[STIO_ETHADR_LEN];
-	stio_uint8_t  source[STIO_ETHADR_LEN];
-	stio_uint16_t proto;
-};
-typedef struct stio_ethhdr_t stio_ethhdr_t;
-
-struct stio_arphdr_t
-{
-	stio_uint16_t htype;   /* hardware type (ethernet: 0x0001) */
-	stio_uint16_t ptype;   /* protocol type (ipv4: 0x0800) */
-	stio_uint8_t  hlen;    /* hardware address length (ethernet: 6) */
-	stio_uint8_t  plen;    /* protocol address length (ipv4 :4) */
-	stio_uint16_t opcode;  /* operation code */
-};
-typedef struct stio_arphdr_t stio_arphdr_t;
-
-/* arp payload for ipv4 over ethernet */
-struct stio_etharp_t
-{
-	stio_uint8_t sha[STIO_ETHADR_LEN];   /* source hardware address */
-	stio_uint8_t spa[STIO_IP4ADR_LEN];   /* source protocol address */
-	stio_uint8_t tha[STIO_ETHADR_LEN];   /* target hardware address */
-	stio_uint8_t tpa[STIO_IP4ADR_LEN];   /* target protocol address */
-};
-typedef struct stio_etharp_t stio_etharp_t;
-
-struct stio_etharp_pkt_t
-{
-	stio_ethhdr_t ethhdr;
-	stio_arphdr_t arphdr;
-	stio_etharp_t arppld;
-};
-typedef struct stio_etharp_pkt_t stio_etharp_pkt_t;
-
-#pragma pack(pop)
 
 #if 0
-typedef int (*stio_dev_arp_on_read_t) (stio_dev_arp_t* dev, stio_pkt_arp_t* pkt, stio_len_t len);
+typedef int (*stio_dev_arp_on_read_t) (stio_dev_arp_t* dev, stio_pkt_arp_t* pkt, stio_iolen_t len);
 typedef int (*stio_dev_arp_on_write_t) (stio_dev_arp_t* dev, void* wrctx);
 
 typedef struct stio_dev_arp_make_t stio_dev_arp_make_t;

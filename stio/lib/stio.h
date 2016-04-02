@@ -86,7 +86,7 @@ typedef struct stio_dev_mth_t stio_dev_mth_t;
 typedef struct stio_dev_evcb_t stio_dev_evcb_t;
 
 typedef struct stio_wq_t stio_wq_t;
-typedef stio_intptr_t stio_len_t; /* NOTE: this is a signed type */
+typedef stio_intptr_t stio_iolen_t; /* NOTE: this is a signed type */
 
 enum stio_errnum_t
 {
@@ -143,10 +143,10 @@ struct stio_dev_mth_t
 	/* return -1 on failure, 0 if no data is availble, 1 otherwise.
 	 * when returning 1, *len must be sent to the length of data read.
 	 * if *len is set to 0, it's treated as EOF. */
-	int           (*read)         (stio_dev_t* dev, void* data, stio_len_t* len, stio_devadr_t* srcadr);
+	int           (*read)         (stio_dev_t* dev, void* data, stio_iolen_t* len, stio_devadr_t* srcadr);
 
 	/* ------------------------------------------------------------------ */
-	int           (*write)        (stio_dev_t* dev, const void* data, stio_len_t* len, const stio_devadr_t* dstadr);
+	int           (*write)        (stio_dev_t* dev, const void* data, stio_iolen_t* len, const stio_devadr_t* dstadr);
 
 	/* ------------------------------------------------------------------ */
 	int           (*ioctl)        (stio_dev_t* dev, int cmd, void* arg);
@@ -163,13 +163,13 @@ struct stio_dev_evcb_t
 	/* return -1 on failure, 0 or 1 on success.
 	 * when 0 is returned, the main loop stops the attempt to read more data.
 	 * when 1 is returned, the main loop attempts to read more data without*/
-	int           (*on_read)      (stio_dev_t* dev, const void* data, stio_len_t len, const stio_devadr_t* srcadr);
+	int           (*on_read)      (stio_dev_t* dev, const void* data, stio_iolen_t len, const stio_devadr_t* srcadr);
 
 	/* return -1 on failure, 0 on success. 
 	 * wrlen is the length of data written. it is the length of the originally
 	 * posted writing request for a stream device. For a non stream device, it
 	 * may be shorter than the originally posted length. */
-	int           (*on_write)      (stio_dev_t* dev, stio_len_t wrlen, void* wrctx, const stio_devadr_t* dstadr);
+	int           (*on_write)      (stio_dev_t* dev, stio_iolen_t wrlen, void* wrctx, const stio_devadr_t* dstadr);
 };
 
 struct stio_wq_t
@@ -177,9 +177,9 @@ struct stio_wq_t
 	stio_wq_t*     next;
 	stio_wq_t*     prev;
 
-	stio_len_t     olen; /* original data length */
+	stio_iolen_t     olen; /* original data length */
 	stio_uint8_t*  ptr;  /* pointer to data */
-	stio_len_t     len;  /* remaining data length */
+	stio_iolen_t     len;  /* remaining data length */
 	void*          ctx;
 	stio_dev_t*    dev; /* back-pointer to the device */
 
@@ -286,6 +286,86 @@ enum stio_dev_event_t
 typedef enum stio_dev_event_t stio_dev_event_t;
 
 
+
+
+
+/* ========================================================================= */
+/* TOOD: move these to a separte file */
+
+#define STIO_ETHHDR_PROTO_IP4 0x0800
+#define STIO_ETHHDR_PROTO_ARP 0x0806
+
+#define STIO_ARPHDR_OPCODE_REQUEST 1
+#define STIO_ARPHDR_OPCODE_REPLY   2
+
+#define STIO_ARPHDR_HTYPE_ETH 0x0001
+#define STIO_ARPHDR_PTYPE_IP4 0x0800
+
+#define STIO_ETHADR_LEN 6
+#define STIO_IP4ADR_LEN 4
+#define STIO_IP6ADR_LEN 16 
+
+#pragma pack(push)
+#pragma pack(1)
+struct stio_ethadr_t
+{
+	stio_uint8_t v[STIO_ETHADR_LEN]; 
+};
+typedef struct stio_ethadr_t stio_ethadr_t;
+
+struct stio_ip4adr_t
+{
+	stio_uint8_t v[STIO_IP4ADR_LEN];
+};
+typedef struct stio_ip4adr_t stio_ip4adr_t;
+
+struct stio_ip6adr_t
+{
+	stio_uint8_t v[STIO_IP6ADR_LEN]; 
+};
+typedef struct stio_ip6adr_t stio_ip6adr_t;
+
+
+struct stio_ethhdr_t
+{
+	stio_uint8_t  dest[STIO_ETHADR_LEN];
+	stio_uint8_t  source[STIO_ETHADR_LEN];
+	stio_uint16_t proto;
+};
+typedef struct stio_ethhdr_t stio_ethhdr_t;
+
+struct stio_arphdr_t
+{
+	stio_uint16_t htype;   /* hardware type (ethernet: 0x0001) */
+	stio_uint16_t ptype;   /* protocol type (ipv4: 0x0800) */
+	stio_uint8_t  hlen;    /* hardware address length (ethernet: 6) */
+	stio_uint8_t  plen;    /* protocol address length (ipv4 :4) */
+	stio_uint16_t opcode;  /* operation code */
+};
+typedef struct stio_arphdr_t stio_arphdr_t;
+
+/* arp payload for ipv4 over ethernet */
+struct stio_etharp_t
+{
+	stio_uint8_t sha[STIO_ETHADR_LEN];   /* source hardware address */
+	stio_uint8_t spa[STIO_IP4ADR_LEN];   /* source protocol address */
+	stio_uint8_t tha[STIO_ETHADR_LEN];   /* target hardware address */
+	stio_uint8_t tpa[STIO_IP4ADR_LEN];   /* target protocol address */
+};
+typedef struct stio_etharp_t stio_etharp_t;
+
+struct stio_etharp_pkt_t
+{
+	stio_ethhdr_t ethhdr;
+	stio_arphdr_t arphdr;
+	stio_etharp_t arppld;
+};
+typedef struct stio_etharp_pkt_t stio_etharp_pkt_t;
+#pragma pack(pop)
+
+/* ========================================================================= */
+
+
 #ifdef __cplusplus
 extern "C" {
 #endif
@@ -366,7 +446,7 @@ STIO_EXPORT int stio_dev_read (
 STIO_EXPORT int stio_dev_write (
 	stio_dev_t*         dev,
 	const void*         data,
-	stio_len_t          len,
+	stio_iolen_t          len,
 	void*               wrctx,
 	const stio_devadr_t*   dstadr
 );
@@ -375,7 +455,7 @@ STIO_EXPORT int stio_dev_write (
 STIO_EXPORT int stio_dev_timedwrite (
 	stio_dev_t*         dev,
 	const void*         data,
-	stio_len_t          len,
+	stio_iolen_t          len,
 	const stio_ntime_t* tmout,
 	void*               wrctx,
 	const stio_devadr_t*   dstadr

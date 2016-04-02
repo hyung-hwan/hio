@@ -40,7 +40,7 @@ typedef enum stio_dev_pro_type_t stio_dev_pro_type_t;
 
 typedef struct stio_dev_pro_t stio_dev_pro_t;
 
-typedef int (*stio_dev_pro_on_read_t) (stio_dev_pro_t* dev, const void* data, stio_len_t len);
+typedef int (*stio_dev_pro_on_read_t) (stio_dev_pro_t* dev, const void* data, stio_iolen_t len);
 typedef int (*stio_dev_pro_on_write_t) (stio_dev_pro_t* dev, void* wrctx);
 
 struct stio_dev_pro_t
@@ -100,7 +100,7 @@ STIO_EXPORT void stio_dev_pro_kill (
 STIO_EXPORT int stio_dev_pro_write (
 	stio_dev_pro_t*  pro,
 	const void*      data,
-	stio_len_t       len,
+	stio_iolen_t       len,
 	void*            wrctx
 );
 

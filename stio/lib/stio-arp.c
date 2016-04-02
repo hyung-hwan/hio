@@ -74,7 +74,7 @@ static stio_syshnd_t arp_getsyshnd (stio_dev_t* dev)
 	return (stio_syshnd_t)arp->sck;
 }
 
-static int arp_read (stio_dev_t* dev, void* buf, stio_len_t* len)
+static int arp_read (stio_dev_t* dev, void* buf, stio_iolen_t* len)
 {
 	stio_dev_arp_t* arp = (stio_dev_arp_t*)dev;
 	stio_scklen_t addrlen;
@@ -98,7 +98,7 @@ printf ("ARP RECVFROM...\n");
 	return 1;
 }
 
-static int arp_write (stio_dev_t* dev, const void* data, stio_len_t* len)
+static int arp_write (stio_dev_t* dev, const void* data, stio_iolen_t* len)
 {
 	stio_dev_arp_t* arp = (stio_dev_arp_t*)arp;
 	ssize_t x;
@@ -154,13 +154,13 @@ static int arp_ready (stio_dev_t* dev, int events)
 	return 0;
 }
 
-static int arp_on_read (stio_dev_t* dev, const void* data, stio_len_t len)
+static int arp_on_read (stio_dev_t* dev, const void* data, stio_iolen_t len)
 {
 printf ("dATA received %d bytes\n", (int)len);
 	return 0;
 }
 
-static int arp_on_write (stio_dev_t* dev, stio_len_t wrlen, void* wrctx)
+static int arp_on_write (stio_dev_t* dev, stio_iolen_t wrlen, void* wrctx)
 {
 	return 0;
 
