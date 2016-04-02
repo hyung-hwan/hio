@@ -134,7 +134,7 @@ static void pro_kill (stio_dev_t* dev)
 {
 }
 
-static int pro_read (stio_dev_t* dev, void* buf, stio_len_t* len)
+static int pro_read (stio_dev_t* dev, void* buf, stio_iolen_t* len)
 {
 	stio_dev_pro_t* pro = (stio_dev_pro_t*)dev;
 	ssize_t x;
@@ -152,7 +152,7 @@ static int pro_read (stio_dev_t* dev, void* buf, stio_len_t* len)
 	return 1;
 }
 
-static int pro_write (stio_dev_t* dev, const void* data, stio_len_t* len)
+static int pro_write (stio_dev_t* dev, const void* data, stio_iolen_t* len)
 {
 	return -1;
 }
@@ -205,7 +205,7 @@ printf ("PRO READY...%p\n", dev);
 	return 1; /* the device is ok. carry on reading or writing */
 }
 
-static int pro_on_read (stio_dev_t* dev, const void* data, stio_len_t len, const stio_devadr_t* srcadr)
+static int pro_on_read (stio_dev_t* dev, const void* data, stio_iolen_t len, const stio_devadr_t* srcadr)
 {
 	stio_dev_pro_t* pro = (stio_dev_pro_t*)dev;
 	return pro->on_read (pro, data, len);
@@ -235,7 +235,7 @@ void stio_dev_pro_kill (stio_dev_pro_t* pro)
 }
 
 #if 0
-int stio_dev_pro_write (stio_dev_pro_t* pro, const void* data, stio_len_t len, void* wrctx)
+int stio_dev_pro_write (stio_dev_pro_t* pro, const void* data, stio_iolen_t len, void* wrctx)
 {
 	return stio_dev_write ((stio_dev_t*)pro, data, len, wrctx);
 }

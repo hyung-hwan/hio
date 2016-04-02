@@ -103,12 +103,12 @@ typedef struct stio_dev_sck_t stio_dev_sck_t;
 typedef int (*stio_dev_sck_on_read_t) (
 	stio_dev_sck_t*      dev,
 	const void*          data,
-	stio_len_t           dlen,
+	stio_iolen_t           dlen,
 	const stio_sckadr_t* srcadr
 );
 typedef int (*stio_dev_sck_on_write_t) (
 	stio_dev_sck_t*      dev,
-	stio_len_t           wrlen,
+	stio_iolen_t           wrlen,
 	void*                wrctx,
 	const stio_sckadr_t* dstadr
 );
@@ -145,8 +145,8 @@ struct stio_dev_sck_make_t
 typedef struct stio_dev_sck_bind_t stio_dev_sck_bind_t;
 struct stio_dev_sck_bind_t
 {
-	int opts; /* TODO: REUSEADDR , TRANSPARENT, etc  or someting?? */
 	stio_sckadr_t addr;
+	/*int opts;*/ /* TODO: REUSEADDR , TRANSPARENT, etc  or someting?? */
 	/* TODO: add device name for BIND_TO_DEVICE */
 };
 
@@ -178,6 +178,7 @@ struct stio_dev_sck_accept_t
 struct stio_dev_sck_t
 {
 	STIO_DEV_HEADERS;
+
 	stio_dev_sck_type_t type;
 	stio_sckhnd_t sck;
 
@@ -231,6 +232,26 @@ STIO_EXPORT int stio_getsckadrinfo (
 	stio_sckfam_t*       family
 );
 
+
+
+void stio_sckadr_initforip4 (
+	stio_sckadr_t* sckadr,
+	stio_uint16_t  port,
+	stio_ip4adr_t* ip4adr
+);
+
+void stio_sckadr_initforip6 (
+	stio_sckadr_t* sckadr,
+	stio_uint16_t  port,
+	stio_ip6adr_t* ip6adr
+);
+
+void stio_sckadr_initforeth (
+	stio_sckadr_t* sckadr,
+	int            ifindex,
+	stio_ethadr_t* ethadr
+);
+
 /* ========================================================================= */
 
 STIO_EXPORT stio_dev_sck_t* stio_dev_sck_make (
@@ -257,7 +278,7 @@ STIO_EXPORT int stio_dev_sck_listen (
 STIO_EXPORT int stio_dev_sck_write (
 	stio_dev_sck_t*       dev,
 	const void*           data,
-	stio_len_t            len,
+	stio_iolen_t            len,
 	void*                 wrctx,
 	const stio_sckadr_t*  dstadr
 );
@@ -265,7 +286,7 @@ STIO_EXPORT int stio_dev_sck_write (
 STIO_EXPORT int stio_dev_sck_timedwrite (
 	stio_dev_sck_t*       dev,
 	const void*           data,
-	stio_len_t            len,
+	stio_iolen_t            len,
 	const stio_ntime_t*   tmout,
 	void*                 wrctx,
 	const stio_sckadr_t*  dstadr
@@ -285,12 +306,12 @@ static STIO_INLINE int stio_dev_sck_read (stio_dev_sck_t* sck, int enabled)
 }
 
 /*
-static STIO_INLINE int stio_dev_sck_write (stio_dev_sck_t* sck, const void* data, stio_len_t len, void* wrctx, const stio_devadr_t* dstadr)
+static STIO_INLINE int stio_dev_sck_write (stio_dev_sck_t* sck, const void* data, stio_iolen_t len, void* wrctx, const stio_devadr_t* dstadr)
 {
 	return stio_dev_write ((stio_dev_t*)sck, data, len, wrctx, STIO_NULL);
 }
 
-static STIO_INLINE int stio_dev_sck_timedwrite (stio_dev_sck_t* sck, const void* data, stio_len_t len, const stio_ntime_t* tmout, void* wrctx)
+static STIO_INLINE int stio_dev_sck_timedwrite (stio_dev_sck_t* sck, const void* data, stio_iolen_t len, const stio_ntime_t* tmout, void* wrctx)
 {
 	return stio_dev_timedwrite ((stio_dev_t*)sck, data, len, tmout, wrctx, STIO_NULL);
 }

@@ -116,18 +116,19 @@ int stio_getsckadrinfo (stio_t* stio, const stio_sckadr_t* addr, stio_scklen_t* 
 	return -1;
 }
 
-#if 0
-static void stio_initsckadrforip4 (stio_sckadr_t* sckadr, stio_uint16_t port, stio_ip4adr_t* ip4adr)
+/* ========================================================================= */
+
+void stio_sckadr_initforip4 (stio_sckadr_t* sckadr, stio_uint16_t port, stio_ip4adr_t* ip4adr)
 {
 	struct sockaddr_in* sin = (struct sockaddr_in*)sckadr;
 
 	STIO_MEMSET (sin, 0, STIO_SIZEOF(*sin));
 	sin->sin_family = AF_INET;
 	sin->sin_port = htons(port);
-	STIO_MEMSET (&sin->sin_addr, ip4adr, STIO_IP4ADR_LEN);
+	if (ip4adr) STIO_MEMCPY (&sin->sin_addr, ip4adr, STIO_IP4ADR_LEN);
 }
 
-static void stio_initsckadrforip6 (stio_sckadr_t* sckadr, stio_uint16_t port, stio_ip6adr_t* ip6adr)
+void stio_sckadr_initforip6 (stio_sckadr_t* sckadr, stio_uint16_t port, stio_ip6adr_t* ip6adr)
 {
 	struct sockaddr_in6* sin = (struct sockaddr_in6*)sckadr;
 
@@ -135,19 +136,23 @@ static void stio_initsckadrforip6 (stio_sckadr_t* sckadr, stio_uint16_t port, st
 	STIO_MEMSET (sin, 0, STIO_SIZEOF(*sin));
 	sin->sin6_family = AF_INET;
 	sin->sin6_port = htons(port);
-	STIO_MEMSET (&sin->sin_addr, ip6adr, STIO_IP6ADR_LEN);
+	if (ip6adr) STIO_MEMCPY (&sin->sin6_addr, ip6adr, STIO_IP6ADR_LEN);
 }
 
-stio void stio_intisckadrforeth (stio_sckadr_t* sckadr, int ifindex, stio_ethadr_t* ethadr)
+void stio_sckadr_initforeth (stio_sckadr_t* sckadr, int ifindex, stio_ethadr_t* ethadr)
 {
-	struct sockaddr_ll* sll = (struct sockaddr_in*)sckadr;
+	struct sockaddr_ll* sll = (struct sockaddr_ll*)sckadr;
 	STIO_MEMSET (sll, 0, STIO_SIZEOF(*sll));
 	sll->sll_family = AF_PACKET;
 	sll->sll_ifindex = ifindex;
-	sll->sll_halen = STIO_ETHADR_LEN;
-	STIO_MEMSET (sll->sll_addr, ethadr, STIO_ETHADR_LEN);
+	if (ethadr)
+	{
+		sll->sll_halen = STIO_ETHADR_LEN;
+		STIO_MEMCPY (sll->sll_addr, ethadr, STIO_ETHADR_LEN);
+	}
 }
-#endif
+
+/* ========================================================================= */
 
 static stio_devadr_t* sckadr_to_devadr (stio_dev_sck_t* dev, const stio_sckadr_t* sckadr, stio_devadr_t* devadr)
 {
@@ -168,6 +173,7 @@ static STIO_INLINE stio_sckadr_t* devadr_to_sckadr (stio_dev_sck_t* dev, const s
 {
 	return (stio_sckadr_t*)devadr->ptr;
 }
+
 /* ========================================================================= */
 
 #define IS_STATEFUL(sck) ((sck)->dev_capa & STIO_DEV_CAPA_STREAM)
@@ -228,8 +234,8 @@ static int dev_sck_make (stio_dev_t* dev, void* ctx)
 	rdev->on_write = arg->on_write;
 	rdev->on_read = arg->on_read;
 	rdev->type = arg->type;
-
 	rdev->tmridx_connect = STIO_TMRIDX_INVALID;
+
 	return 0;
 
 oops:
@@ -288,7 +294,7 @@ static stio_syshnd_t dev_sck_getsyshnd (stio_dev_t* dev)
 	return (stio_syshnd_t)rdev->sck;
 }
 
-static int dev_sck_read_stateful (stio_dev_t* dev, void* buf, stio_len_t* len, stio_devadr_t* srcadr)
+static int dev_sck_read_stateful (stio_dev_t* dev, void* buf, stio_iolen_t* len, stio_devadr_t* srcadr)
 {
 	stio_dev_sck_t* tcp = (stio_dev_sck_t*)dev;
 	ssize_t x;
@@ -306,7 +312,7 @@ static int dev_sck_read_stateful (stio_dev_t* dev, void* buf, stio_len_t* len, s
 	return 1;
 }
 
-static int dev_sck_read_stateless (stio_dev_t* dev, void* buf, stio_len_t* len, stio_devadr_t* srcadr)
+static int dev_sck_read_stateless (stio_dev_t* dev, void* buf, stio_iolen_t* len, stio_devadr_t* srcadr)
 {
 	stio_dev_sck_t* rdev = (stio_dev_sck_t*)dev;
 	stio_scklen_t srcadrlen;
@@ -330,7 +336,7 @@ static int dev_sck_read_stateless (stio_dev_t* dev, void* buf, stio_len_t* len, 
 }
 
 
-static int dev_sck_write_stateful (stio_dev_t* dev, const void* data, stio_len_t* len, const stio_devadr_t* dstadr)
+static int dev_sck_write_stateful (stio_dev_t* dev, const void* data, stio_iolen_t* len, const stio_devadr_t* dstadr)
 {
 	stio_dev_sck_t* rdev = (stio_dev_sck_t*)dev;
 	ssize_t x;
@@ -366,7 +372,7 @@ static int dev_sck_write_stateful (stio_dev_t* dev, const void* data, stio_len_t
 	return 1;
 }
 
-static int dev_sck_write_stateless (stio_dev_t* dev, const void* data, stio_len_t* len, const stio_devadr_t* dstadr)
+static int dev_sck_write_stateless (stio_dev_t* dev, const void* data, stio_iolen_t* len, const stio_devadr_t* dstadr)
 {
 	stio_dev_sck_t* rdev = (stio_dev_sck_t*)dev;
 	ssize_t x;
@@ -741,25 +747,25 @@ static int dev_evcb_sck_ready_stateless (stio_dev_t* dev, int events)
 	return 1; /* the device is ok. carry on reading or writing */
 }
 
-static int dev_evcb_sck_on_read_stateful (stio_dev_t* dev, const void* data, stio_len_t dlen, const stio_devadr_t* srcadr)
+static int dev_evcb_sck_on_read_stateful (stio_dev_t* dev, const void* data, stio_iolen_t dlen, const stio_devadr_t* srcadr)
 {
 	stio_dev_sck_t* rdev = (stio_dev_sck_t*)dev;
 	return rdev->on_read (rdev, data, dlen, STIO_NULL);
 }
 
-static int dev_evcb_sck_on_write_stateful (stio_dev_t* dev, stio_len_t wrlen, void* wrctx, const stio_devadr_t* dstadr)
+static int dev_evcb_sck_on_write_stateful (stio_dev_t* dev, stio_iolen_t wrlen, void* wrctx, const stio_devadr_t* dstadr)
 {
 	stio_dev_sck_t* rdev = (stio_dev_sck_t*)dev;
 	return rdev->on_write (rdev, wrlen, wrctx, STIO_NULL);
 }
 
-static int dev_evcb_sck_on_read_stateless (stio_dev_t* dev, const void* data, stio_len_t dlen, const stio_devadr_t* srcadr)
+static int dev_evcb_sck_on_read_stateless (stio_dev_t* dev, const void* data, stio_iolen_t dlen, const stio_devadr_t* srcadr)
 {
 	stio_dev_sck_t* rdev = (stio_dev_sck_t*)dev;
 	return rdev->on_read (rdev, data, dlen, srcadr->ptr);
 }
 
-static int dev_evcb_sck_on_write_stateless (stio_dev_t* dev, stio_len_t wrlen, void* wrctx, const stio_devadr_t* dstadr)
+static int dev_evcb_sck_on_write_stateless (stio_dev_t* dev, stio_iolen_t wrlen, void* wrctx, const stio_devadr_t* dstadr)
 {
 	stio_dev_sck_t* rdev = (stio_dev_sck_t*)dev;
 	return rdev->on_write (rdev, wrlen, wrctx, dstadr->ptr);
@@ -818,13 +824,13 @@ int stio_dev_sck_listen (stio_dev_sck_t* dev, stio_dev_sck_listen_t* info)
 	return stio_dev_ioctl ((stio_dev_t*)dev, STIO_DEV_SCK_LISTEN, info);
 }
 
-int stio_dev_sck_write (stio_dev_sck_t* dev, const void* data, stio_len_t dlen, void* wrctx, const stio_sckadr_t* dstadr)
+int stio_dev_sck_write (stio_dev_sck_t* dev, const void* data, stio_iolen_t dlen, void* wrctx, const stio_sckadr_t* dstadr)
 {
 	stio_devadr_t devadr;
 	return stio_dev_write ((stio_dev_t*)dev, data, dlen, wrctx, sckadr_to_devadr(dev, dstadr, &devadr));
 }
 
-int stio_dev_sck_timedwrite (stio_dev_sck_t* dev, const void* data, stio_len_t dlen, const stio_ntime_t* tmout, void* wrctx, const stio_sckadr_t* dstadr)
+int stio_dev_sck_timedwrite (stio_dev_sck_t* dev, const void* data, stio_iolen_t dlen, const stio_ntime_t* tmout, void* wrctx, const stio_sckadr_t* dstadr)
 {
 	stio_devadr_t devadr;
 	return stio_dev_timedwrite ((stio_dev_t*)dev, data, dlen, tmout, wrctx, sckadr_to_devadr(dev, dstadr, &devadr));

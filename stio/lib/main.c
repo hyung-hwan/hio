@@ -26,9 +26,8 @@
 
 
 #include <stio.h>
+#include <stio-sck.h>
 #include <stio-tcp.h>
-#include <stio-udp.h>
-#include <stio-arp.h>
 
 #include <stdlib.h>
 #include <string.h>
@@ -93,7 +92,7 @@ struct tcp_server_t
 };
 typedef struct tcp_server_t tcp_server_t;
 
-static void tcp_on_disconnect (stio_dev_sck_t* tcp)
+static void tcp_sck_on_disconnect (stio_dev_sck_t* tcp)
 {
 	if (tcp->state & STIO_DEV_TCP_CONNECTING)
 	{
@@ -116,7 +115,7 @@ static void tcp_on_disconnect (stio_dev_sck_t* tcp)
 		printf ("TCP DISCONNECTED - THIS MUST NOT HAPPEN (%d - %x)\n", (int)tcp->sck, (unsigned int)tcp->state);
 	}
 }
-static int tcp_on_connect (stio_dev_sck_t* tcp)
+static int tcp_sck_on_connect (stio_dev_sck_t* tcp)
 {
 
 	if (tcp->state & STIO_DEV_TCP_CONNECTED)
@@ -131,7 +130,7 @@ printf ("device accepted client device... .asdfjkasdfkljasdlfkjasdj...\n");
 	return stio_dev_sck_write  (tcp, "hello", 5, STIO_NULL, STIO_NULL);
 }
 
-static int tcp_on_write (stio_dev_sck_t* tcp, stio_len_t wrlen, void* wrctx, const stio_sckadr_t* dstadr)
+static int tcp_sck_on_write (stio_dev_sck_t* tcp, stio_iolen_t wrlen, void* wrctx, const stio_sckadr_t* dstadr)
 {
 	tcp_server_t* ts;
 
@@ -154,7 +153,7 @@ printf ("ENABLING READING..............................\n");
 	return 0;
 }
 
-static int tcp_on_read (stio_dev_sck_t* tcp, const void* buf, stio_len_t len, const stio_sckadr_t* srcadr)
+static int tcp_sck_on_read (stio_dev_sck_t* tcp, const void* buf, stio_iolen_t len, const stio_sckadr_t* srcadr)
 {
 	if (len <= 0)
 	{
@@ -191,7 +190,7 @@ printf ("DISABLING READING..............................\n");
 
 /* ========================================================================= */
 
-static int arp_sck_on_read (stio_dev_sck_t* dev, const void* data, stio_len_t dlen, const stio_sckadr_t* srcadr)
+static int arp_sck_on_read (stio_dev_sck_t* dev, const void* data, stio_iolen_t dlen, const stio_sckadr_t* srcadr)
 {
 	stio_etharp_pkt_t* eap;
 	struct sockaddr_ll* sll = (struct sockaddr_ll*)srcadr; 
@@ -208,7 +207,7 @@ static int arp_sck_on_read (stio_dev_sck_t* dev, const void* data, stio_len_t dl
 	return 0;
 }
 
-static int arp_sck_on_write (stio_dev_sck_t* dev, stio_len_t wrlen, void* wrctx)
+static int arp_sck_on_write (stio_dev_sck_t* dev, stio_iolen_t wrlen, void* wrctx, const stio_sckadr_t* dstadr)
 {
 	return 0;
 }
@@ -229,7 +228,7 @@ int main ()
 	stio_t* stio;
 	stio_dev_sck_t* sck;
 	stio_dev_sck_t* tcp[2];
-	struct sockaddr_in sin;
+
 	struct sigaction sigact;
 	stio_dev_sck_connect_t tcp_conn;
 	stio_dev_sck_listen_t tcp_lstn;
@@ -271,8 +270,8 @@ int main ()
 
 	memset (&tcp_make, 0, STIO_SIZEOF(&tcp_make));
 	tcp_make.type = STIO_DEV_SCK_TCP4;
-	tcp_make.on_write = tcp_on_write;
-	tcp_make.on_read = tcp_on_read;
+	tcp_make.on_write = tcp_sck_on_write;
+	tcp_make.on_read = tcp_sck_on_read;
 	tcp[0] = stio_dev_sck_make (stio, STIO_SIZEOF(tcp_server_t), &tcp_make);
 	if (!tcp[0])
 	{
@@ -283,17 +282,15 @@ int main ()
 	ts = (tcp_server_t*)(tcp[0] + 1);
 	ts->tally = 0;
 
-	memset (&sin, 0, STIO_SIZEOF(sin));
-	sin.sin_family = AF_INET;
-	sin.sin_port = htons(9999);
-	inet_pton (sin.sin_family, "192.168.1.119", &sin.sin_addr);
-	//inet_pton (sin.sin_family, "127.0.0.1", &sin.sin_addr);
 
 	memset (&tcp_conn, 0, STIO_SIZEOF(tcp_conn));
-	memcpy (&tcp_conn.addr, &sin, STIO_SIZEOF(sin));
+{
+	in_addr_t ia = inet_addr("192.168.1.119");
+	stio_sckadr_initforip4 (&tcp_conn.addr, 9999, (stio_ip4adr_t*)&ia);
+}
 	tcp_conn.tmout.sec = 5;
-	tcp_conn.on_connect = tcp_on_connect;
-	tcp_conn.on_disconnect = tcp_on_disconnect;
+	tcp_conn.on_connect = tcp_sck_on_connect;
+	tcp_conn.on_disconnect = tcp_sck_on_disconnect;
 	if (stio_dev_sck_connect (tcp[0], &tcp_conn) <= -1)
 	{
 		printf ("stio_dev_sck_connect() failed....\n");
@@ -301,8 +298,8 @@ int main ()
 	}
 
 	memset (&tcp_make, 0, STIO_SIZEOF(&tcp_make));
-	tcp_make.on_write = tcp_on_write;
-	tcp_make.on_read = tcp_on_read;
+	tcp_make.on_write = tcp_sck_on_write;
+	tcp_make.on_read = tcp_sck_on_read;
 
 	tcp[1] = stio_dev_sck_make (stio, STIO_SIZEOF(tcp_server_t), &tcp_make);
 	if (!tcp[1])
@@ -314,9 +311,7 @@ int main ()
 	ts->tally = 0;
 
 	memset (&tcp_bind, 0, STIO_SIZEOF(tcp_bind));
-	//memcpy (&tcp_bind.addr, &sin, STIO_SIZEOF(sin));
-	((struct sockaddr_in*)&tcp_bind.addr)->sin_family = AF_INET;
-	((struct sockaddr_in*)&tcp_bind.addr)->sin_port = htons(1234);
+	stio_sckadr_initforip4 (&tcp_bind.addr, 1234, STIO_NULL);
 
 	if (stio_dev_sck_bind (tcp[1],&tcp_bind) <= -1)
 	{
@@ -324,15 +319,22 @@ int main ()
 		goto oops;
 	}
 
+
 	tcp_lstn.backlogs = 100;
-	tcp_lstn.on_connect = tcp_on_connect;
-	tcp_lstn.on_disconnect = tcp_on_disconnect;
+	tcp_lstn.on_connect = tcp_sck_on_connect;
+	tcp_lstn.on_disconnect = tcp_sck_on_disconnect;
 	if (stio_dev_sck_listen (tcp[1], &tcp_lstn) <= -1)
 	{
 		printf ("stio_dev_sck_listen() failed....\n");
 		goto oops;
 	}
 
+
+#if 1
+{
+
+	stio_sckadr_t ethdst;
+	stio_etharp_pkt_t etharp;
 
 	memset (&sck_make, 0, STIO_SIZEOF(sck_make));
 	sck_make.type = STIO_DEV_SCK_ARP;
@@ -346,26 +348,14 @@ int main ()
 		goto oops;
 	}
 
-#if 1
-{
-	stio_etharp_pkt_t etharp;
-	struct sockaddr_ll sll;
+	//stio_sckadr_initforeth (&ethdst, if_nametoindex("enp0s25.3"), (stio_ethadr_t*)"\xFF\xFF\xFF\xFF\xFF\xFF");
+	stio_sckadr_initforeth (&ethdst, if_nametoindex("enp0s25.3"), (stio_ethadr_t*)"\xAA\xBB\xFF\xCC\xDD\xFF");
 
-	memset (&sll, 0, sizeof(sll));
-	sll.sll_family = AF_PACKET;
-//	sll.sll_protocol = STIO_CONST_HTON16(STIO_ETHHDR_PROTO_ARP);
-//	sll.sll_hatype = STIO_CONST_HTON16(STIO_ARPHDR_HTYPE_ETH);
-	sll.sll_halen = STIO_ETHADR_LEN;
-	memcpy (sll.sll_addr, "\xFF\xFF\xFF\xFF\xFF\xFF", sll.sll_halen);
-	sll.sll_ifindex = if_nametoindex ("enp0s25.3");
-
-	/* if unicast ... */
-	//sll.sll_pkttype = PACKET_OTHERHOST;
-//	sll.sll_pkttype = PACKET_BROADCAST;
 	memset (&etharp, 0, sizeof(etharp));
 
 	memcpy (etharp.ethhdr.source, "\xB8\x6B\x23\x9C\x10\x76", STIO_ETHADR_LEN);
-	memcpy (etharp.ethhdr.dest, "\xFF\xFF\xFF\xFF\xFF\xFF", STIO_ETHADR_LEN);
+	//memcpy (etharp.ethhdr.dest, "\xFF\xFF\xFF\xFF\xFF\xFF", STIO_ETHADR_LEN);
+	memcpy (etharp.ethhdr.dest, "\xAA\xBB\xFF\xCC\xDD\xFF", STIO_ETHADR_LEN);
 	etharp.ethhdr.proto = STIO_CONST_HTON16(STIO_ETHHDR_PROTO_ARP);
 
 	etharp.arphdr.htype = STIO_CONST_HTON16(STIO_ARPHDR_HTYPE_ETH);
@@ -376,8 +366,8 @@ int main ()
 
 	memcpy (etharp.arppld.sha, "\xB8\x6B\x23\x9C\x10\x76", STIO_ETHADR_LEN);
 
-	if (stio_dev_sck_write (sck, &etharp, sizeof(etharp), NULL, &sll) <= -1)
-	//if (stio_dev_sck_write (sck, &etharp.arphdr, sizeof(etharp) - sizeof(etharp.ethhdr), NULL, &adr) <= -1)
+	if (stio_dev_sck_write (sck, &etharp, sizeof(etharp), NULL, &ethdst) <= -1)
+	//if (stio_dev_sck_write (sck, &etharp.arphdr, sizeof(etharp) - sizeof(etharp.ethhdr), NULL, &ethadr) <= -1)
 	{
 		printf ("CANNOT WRITE ARP...\n");
 	}
