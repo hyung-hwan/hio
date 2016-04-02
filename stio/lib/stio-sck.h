@@ -142,11 +142,19 @@ struct stio_dev_sck_make_t
 	stio_dev_sck_on_read_t on_read;
 };
 
+enum stio_dev_sck_bind_option_t
+{
+	STIO_DEV_SCK_BIND_BROADCAST = (1 << 0),
+	STIO_DEV_SCK_BIND_REUSEADDR = (1 << 1)
+/* TODO: more options --- TRANSPARENT...SO_RCVBUF, SO_SNDBUF, SO_RCVTIMEO, SO_SNDTIMEO, SO_KEEPALIVE */
+};
+typedef enum stio_dev_sck_bind_option_t stio_dev_sck_bind_option_t;
+
 typedef struct stio_dev_sck_bind_t stio_dev_sck_bind_t;
 struct stio_dev_sck_bind_t
 {
+	int options;
 	stio_sckadr_t addr;
-	/*int opts;*/ /* TODO: REUSEADDR , TRANSPARENT, etc  or someting?? */
 	/* TODO: add device name for BIND_TO_DEVICE */
 };
 
