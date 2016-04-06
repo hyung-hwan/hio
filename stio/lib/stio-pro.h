@@ -48,9 +48,9 @@ struct stio_dev_pro_t
 	STIO_DEV_HEADERS;
 
 	stio_syshnd_t pfd;
-
-	/* bitwised-ORed of #stio_dev_pro_state_t enumerators */
 	stio_dev_pro_type_t type;
+
+	stio_intptr_t child_pid;
 
 	stio_dev_pro_t* sibling[2];
 
@@ -65,12 +65,17 @@ enum stio_dev_pro_make_flag_t
 	STIO_DEV_PRO_WRITEIN  = (1 << 0),
 	STIO_DEV_PRO_READOUT  = (1 << 1),
 	STIO_DEV_PRO_READERR  = (1 << 2),
-	STIO_DEV_PRO_INTONUL  = (1 << 3),
-	STIO_DEV_PRO_OUTTONUL = (1 << 4),
-	STIO_DEV_PRO_ERRTONUL = (1 << 5),
-	STUO_DEV_PRO_DROPIN   = (1 << 6),
-	STUO_DEV_PRO_DROPOUT  = (1 << 7),
-	STUO_DEV_PRO_DROPERR  = (1 << 8)
+
+	STIO_DEV_PRO_ERRTOOUT = (1 << 3),
+	STIO_DEV_PRO_OUTTOERR = (1 << 4),
+
+	STIO_DEV_PRO_INTONUL  = (1 << 5),
+	STIO_DEV_PRO_OUTTONUL = (1 << 6),
+	STIO_DEV_PRO_ERRTONUL = (1 << 7),
+
+	STUO_DEV_PRO_DROPIN   = (1 << 8),
+	STUO_DEV_PRO_DROPOUT  = (1 << 9),
+	STUO_DEV_PRO_DROPERR  = (1 << 10)
 };
 typedef enum stio_dev_pro_make_flag_t stio_dev_pro_make_flag_t;
 
@@ -100,7 +105,7 @@ STIO_EXPORT void stio_dev_pro_kill (
 STIO_EXPORT int stio_dev_pro_write (
 	stio_dev_pro_t*  pro,
 	const void*      data,
-	stio_iolen_t       len,
+	stio_iolen_t     len,
 	void*            wrctx
 );
 

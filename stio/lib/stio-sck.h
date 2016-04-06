@@ -286,7 +286,7 @@ STIO_EXPORT int stio_dev_sck_listen (
 STIO_EXPORT int stio_dev_sck_write (
 	stio_dev_sck_t*       dev,
 	const void*           data,
-	stio_iolen_t            len,
+	stio_iolen_t          len,
 	void*                 wrctx,
 	const stio_sckadr_t*  dstadr
 );
@@ -294,7 +294,7 @@ STIO_EXPORT int stio_dev_sck_write (
 STIO_EXPORT int stio_dev_sck_timedwrite (
 	stio_dev_sck_t*       dev,
 	const void*           data,
-	stio_iolen_t            len,
+	stio_iolen_t          len,
 	const stio_ntime_t*   tmout,
 	void*                 wrctx,
 	const stio_sckadr_t*  dstadr
@@ -313,28 +313,10 @@ static STIO_INLINE int stio_dev_sck_read (stio_dev_sck_t* sck, int enabled)
 	return stio_dev_read ((stio_dev_t*)sck, enabled);
 }
 
-/*
-static STIO_INLINE int stio_dev_sck_write (stio_dev_sck_t* sck, const void* data, stio_iolen_t len, void* wrctx, const stio_devadr_t* dstadr)
-{
-	return stio_dev_write ((stio_dev_t*)sck, data, len, wrctx, STIO_NULL);
-}
-
-static STIO_INLINE int stio_dev_sck_timedwrite (stio_dev_sck_t* sck, const void* data, stio_iolen_t len, const stio_ntime_t* tmout, void* wrctx)
-{
-	return stio_dev_timedwrite ((stio_dev_t*)sck, data, len, tmout, wrctx, STIO_NULL);
-}
-*/
-
-
 #else
 
 #define stio_dev_sck_halt(sck) stio_dev_halt((stio_dev_t*)sck)
 #define stio_dev_sck_read(sck,enabled) stio_dev_read((stio_dev_t*)sck, enabled)
-/*
-#define stio_dev_sck_write(sck,data,len,wrctx) stio_dev_write((stio_dev_t*)sck, data, len, wrctx, STIO_NULL)
-#define stio_dev_sck_timedwrite(sck,data,len,tmout,wrctx) stio_dev_timedwrite((stio_dev_t*)sck, data, len, tmout, wrctx, STIO_NULL)
-*/
-
 
 
 #endif
