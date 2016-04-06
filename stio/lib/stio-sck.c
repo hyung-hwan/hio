@@ -64,7 +64,7 @@ stio_sckhnd_t stio_openasyncsck (stio_t* stio, int domain, int type, int proto)
 	stio_sckhnd_t sck;
 
 #if defined(_WIN32)
-	sck = WSASocket (domain, type, proto, NULL, 0, WSA_FLAG_OVERLAPPED /*| WSA_FLAG_NO_HANDLE_INHERIT*/);
+	sck = WSASocket (domain, type, proto, NULL, 0, WSA_FLAG_OVERLAPPED | WSA_FLAG_NO_HANDLE_INHERIT);
 	if (sck == STIO_SCKHND_INVALID) 
 	{
 		/* stio_seterrnum (dev->stio, STIO_ESYSERR); or translate errno to stio errnum */
@@ -78,13 +78,24 @@ stio_sckhnd_t stio_openasyncsck (stio_t* stio, int domain, int type, int proto)
 		return STIO_SCKHND_INVALID;
 	}
 
+#if defined(FD_CLOEXEC)
+	{
+		int flags = fcntl (sck, F_GETFD, 0);
+		if (fcntl (sck, F_SETFD, flags | FD_CLOEXEC) == -1)
+		{
+			stio->errnum = stio_syserrtoerrnum(errno);
+			return STIO_SCKHND_INVALID;
+		}
+	}
+#endif
+
 	if (stio_makesckasync (stio, sck) <= -1)
 	{
 		close (sck);
 		return STIO_SCKHND_INVALID;
 	}
 
-	/* TODO: set CLOEXEC if it's defined */
+
 #endif
 
 	return sck;
@@ -536,7 +547,7 @@ static int dev_sck_ioctl (stio_dev_t* dev, int cmd, void* arg)
 	return 0;
 }
 
-static stio_dev_mth_t dev_mth_sck_stateless = 
+static stio_dev_mth_t dev_sck_methods_stateless = 
 {
 	dev_sck_make,
 	dev_sck_kill,
@@ -548,7 +559,7 @@ static stio_dev_mth_t dev_mth_sck_stateless =
 };
 
 
-static stio_dev_mth_t dev_mth_sck_stateful = 
+static stio_dev_mth_t dev_sck_methods_stateful = 
 {
 	dev_sck_make,
 	dev_sck_kill,
@@ -791,14 +802,14 @@ static int dev_evcb_sck_on_write_stateless (stio_dev_t* dev, stio_iolen_t wrlen,
 	return rdev->on_write (rdev, wrlen, wrctx, dstadr->ptr);
 }
 
-static stio_dev_evcb_t dev_evcb_sck_stateful =
+static stio_dev_evcb_t dev_sck_event_callbacks_stateful =
 {
 	dev_evcb_sck_ready_stateful,
 	dev_evcb_sck_on_read_stateful,
 	dev_evcb_sck_on_write_stateful
 };
 
-static stio_dev_evcb_t dev_evcb_sck_stateless =
+static stio_dev_evcb_t dev_sck_event_callbacks_stateless =
 {
 	dev_evcb_sck_ready_stateless,
 	dev_evcb_sck_on_read_stateless,
@@ -819,11 +830,15 @@ stio_dev_sck_t* stio_dev_sck_make (stio_t* stio, stio_size_t xtnsize, const stio
 
 	if (sck_type_map[info->type].extra_dev_capa & STIO_DEV_CAPA_STREAM) /* can't use the IS_STATEFUL() macro yet */
 	{
-		rdev = (stio_dev_sck_t*)stio_makedev (stio, STIO_SIZEOF(stio_dev_sck_t) + xtnsize, &dev_mth_sck_stateful, &dev_evcb_sck_stateful, (void*)info);
+		rdev = (stio_dev_sck_t*)stio_makedev (
+			stio, STIO_SIZEOF(stio_dev_sck_t) + xtnsize, 
+			&dev_sck_methods_stateful, &dev_sck_event_callbacks_stateful, (void*)info);
 	}
 	else
 	{
-		rdev = (stio_dev_sck_t*)stio_makedev (stio, STIO_SIZEOF(stio_dev_sck_t) + xtnsize, &dev_mth_sck_stateless, &dev_evcb_sck_stateless, (void*)info);
+		rdev = (stio_dev_sck_t*)stio_makedev (
+			stio, STIO_SIZEOF(stio_dev_sck_t) + xtnsize,
+			&dev_sck_methods_stateless, &dev_sck_event_callbacks_stateless, (void*)info);
 	}
 
 	return rdev;
