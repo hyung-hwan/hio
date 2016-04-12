@@ -37,27 +37,36 @@ enum stio_dev_pro_type_t
 };
 typedef enum stio_dev_pro_type_t stio_dev_pro_type_t;
 
-
 typedef struct stio_dev_pro_t stio_dev_pro_t;
+typedef struct stio_dev_pro_slave_t stio_dev_pro_slave_t;
 
 typedef int (*stio_dev_pro_on_read_t) (stio_dev_pro_t* dev, const void* data, stio_iolen_t len);
-typedef int (*stio_dev_pro_on_write_t) (stio_dev_pro_t* dev, void* wrctx);
+typedef int (*stio_dev_pro_on_write_t) (stio_dev_pro_t* dev, stio_iolen_t wrlen, void* wrctx);
 
 struct stio_dev_pro_t
 {
 	STIO_DEV_HEADERS;
 
-	stio_syshnd_t pfd;
 	stio_dev_pro_type_t type;
 
 	stio_intptr_t child_pid;
-
-	stio_dev_pro_t* sibling[2];
+	stio_dev_pro_slave_t* slave[3];
 
 	stio_dev_pro_on_read_t on_read;
 	stio_dev_pro_on_write_t on_write;
 
 	stio_tmridx_t tmridx_connect;
+
+	stio_mchar_t* mcmd;
+	int flags;
+};
+
+struct stio_dev_pro_slave_t
+{
+	STIO_DEV_HEADERS;
+	int id;
+	stio_syshnd_t pfd;
+	stio_dev_pro_t* master; /* parent device */
 };
 
 enum stio_dev_pro_make_flag_t
@@ -75,7 +84,10 @@ enum stio_dev_pro_make_flag_t
 
 	STUO_DEV_PRO_DROPIN   = (1 << 8),
 	STUO_DEV_PRO_DROPOUT  = (1 << 9),
-	STUO_DEV_PRO_DROPERR  = (1 << 10)
+	STUO_DEV_PRO_DROPERR  = (1 << 10),
+
+
+	STIO_DEV_PRO_SHELL    = (1 << 13),
 };
 typedef enum stio_dev_pro_make_flag_t stio_dev_pro_make_flag_t;
 
@@ -103,10 +115,18 @@ STIO_EXPORT void stio_dev_pro_kill (
 );
 
 STIO_EXPORT int stio_dev_pro_write (
-	stio_dev_pro_t*  pro,
-	const void*      data,
-	stio_iolen_t     len,
-	void*            wrctx
+	stio_dev_pro_t*     pro,
+	const void*         data,
+	stio_iolen_t        len,
+	void*               wrctx
+);
+
+STIO_EXPORT int stio_dev_pro_timedwrite (
+	stio_dev_pro_t*     pro,
+	const void*         data,
+	stio_iolen_t        len,
+	const stio_ntime_t* tmout,
+	void*               wrctx
 );
 
 #ifdef __cplusplus

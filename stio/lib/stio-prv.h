@@ -64,7 +64,17 @@ struct stio_t
 		stio_dev_t* tail;
 	} dev; /* normal devices */
 
-	stio_dev_t* hdev; /* halted device list - singly linked list */
+	struct
+	{
+		stio_dev_t* head;
+		stio_dev_t* tail;
+	} hdev; /* halted devices */
+
+	struct
+	{
+		stio_dev_t* head;
+		stio_dev_t* tail;
+	} kdev; /* killed devices */
 
 	stio_uint8_t bigbuf[65535]; /* TODO: make this dynamic depending on devices added. device may indicate a buffer size required??? */
 
@@ -86,8 +96,6 @@ struct stio_t
 	struct epoll_event revs[100];
 #endif
 };
-
-
 
 
 #define STIO_EPOCH_YEAR  (1970)
@@ -155,6 +163,32 @@ stio_errnum_t stio_syserrtoerrnum (
 );
 
 
+stio_mchar_t* stio_mbsdup (
+	stio_t*             stio,
+	const stio_mchar_t* src
+);
+
+stio_size_t stio_mbscpy (
+	stio_mchar_t*       buf,
+	const stio_mchar_t* str
+);
+
+int stio_mbsspltrn (
+	stio_mchar_t*       s,
+	const stio_mchar_t* delim,
+	stio_mchar_t        lquote,
+	stio_mchar_t        rquote, 
+	stio_mchar_t        escape,
+	const stio_mchar_t* trset
+);
+
+int stio_mbsspl (
+	stio_mchar_t*       s,
+	const stio_mchar_t* delim,
+	stio_mchar_t        lquote,
+	stio_mchar_t        rquote,
+	stio_mchar_t        escape
+);
 
 void stio_cleartmrjobs (
 	stio_t* stio

@@ -27,7 +27,7 @@
 
 #include <stio.h>
 #include <stio-sck.h>
-#include <stio-tcp.h>
+#include <stio-pro.h>
 
 #include <stdlib.h>
 #include <string.h>
@@ -94,19 +94,19 @@ typedef struct tcp_server_t tcp_server_t;
 
 static void tcp_sck_on_disconnect (stio_dev_sck_t* tcp)
 {
-	if (tcp->state & STIO_DEV_TCP_CONNECTING)
+	if (tcp->state & STIO_DEV_SCK_CONNECTING)
 	{
 		printf ("TCP DISCONNECTED - FAILED TO CONNECT (%d) TO REMOTE SERVER\n", (int)tcp->sck);
 	}
-	else if (tcp->state & STIO_DEV_TCP_LISTENING)
+	else if (tcp->state & STIO_DEV_SCK_LISTENING)
 	{
 		printf ("SHUTTING DOWN THE SERVER SOCKET(%d)...\n", (int)tcp->sck);
 	}
-	else if (tcp->state & STIO_DEV_TCP_CONNECTED)
+	else if (tcp->state & STIO_DEV_SCK_CONNECTED)
 	{
 		printf ("CLIENT ORIGINATING FROM HERE GOT DISCONNECTED(%d).......\n", (int)tcp->sck);
 	}
-	else if (tcp->state & STIO_DEV_TCP_ACCEPTED)
+	else if (tcp->state & STIO_DEV_SCK_ACCEPTED)
 	{
 		printf ("CLIENT BEING SERVED GOT DISCONNECTED(%d).......\n", (int)tcp->sck);
 	}
@@ -118,11 +118,11 @@ static void tcp_sck_on_disconnect (stio_dev_sck_t* tcp)
 static int tcp_sck_on_connect (stio_dev_sck_t* tcp)
 {
 
-	if (tcp->state & STIO_DEV_TCP_CONNECTED)
+	if (tcp->state & STIO_DEV_SCK_CONNECTED)
 	{
 printf ("device connected to a remote server... .asdfjkasdfkljasdlfkjasdj...\n");
 	}
-	else if (tcp->state & STIO_DEV_TCP_ACCEPTED)
+	else if (tcp->state & STIO_DEV_SCK_ACCEPTED)
 	{
 printf ("device accepted client device... .asdfjkasdfkljasdlfkjasdj...\n");
 	}
@@ -212,6 +212,20 @@ static int arp_sck_on_write (stio_dev_sck_t* dev, stio_iolen_t wrlen, void* wrct
 	return 0;
 }
 
+/* ========================================================================= */
+
+static int pro_on_read (stio_dev_pro_t* dev, const void* data, stio_iolen_t dlen)
+{
+printf ("PROCESS READ DATA... [%.*s]\n", (int)dlen, (char*)data);
+	return 0;
+}
+
+
+static int pro_on_write (stio_dev_pro_t* dev, stio_iolen_t wrlen, void* wrctx)
+{
+printf ("PROCESS WROTE DATA...\n");
+	return 0;
+}
 
 /* ========================================================================= */
 
@@ -373,6 +387,26 @@ int main ()
 	}
 }
 #endif
+
+
+{
+	stio_dev_pro_t* pro;
+	stio_dev_pro_make_t pro_make;
+
+	memset (&pro_make, 0, STIO_SIZEOF(pro_make));
+	pro_make.flags = STIO_DEV_PRO_READOUT | STIO_DEV_PRO_READERR | STIO_DEV_PRO_WRITEIN;
+	//pro_make.cmd = "/bin/ls -laF /usr/bin";
+	pro_make.cmd = "/bin/ls -laF";
+	pro_make.on_read = pro_on_read;
+	pro_make.on_write = pro_on_write;
+
+	pro = stio_dev_pro_make (stio, 0, &pro_make);
+	if (!pro)
+	{
+		printf ("CANNOT CREATE PROCESS PIPE\n");
+		goto oops;
+	}
+}
 
 	stio_loop (stio);
 
