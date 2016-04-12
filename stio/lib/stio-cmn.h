@@ -281,6 +281,10 @@ typedef stio_uint8_t stio_byte_t;
 typedef stio_uintptr_t stio_size_t;
 
 
+typedef char stio_mchar_t;
+typedef int stio_mcint_t;
+
+#define STIO_MT(x) (x)
 /* =========================================================================
  * PRIMITIVE MACROS
  * ========================================================================= */

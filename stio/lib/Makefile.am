@@ -15,18 +15,18 @@ CPPFLAGS_LIB_COMMON = $(CPPFLAGS_ALL_COMMON) $(LTDLINCL)
 LDFLAGS_LIB_COMMON = $(LDFLAGS_ALL_COMMON) -version-info 1:0:0 -no-undefined
 LIBADD_LIB_COMMON = $(LIBM) $(LIBLTDL) 
 
-pkgincludedir = $(includedir)
-pkglibdir = $(libdir)
-pkgbindir = $(bindir)
+#pkgincludedir = $(includedir)
+#pkglibdir = $(libdir)
+#pkgbindir = $(bindir)
 
-pkginclude_HEADERS = \
+include_HEADERS = \
 	stio-cfg.h \
 	stio-cmn.h \
 	stio-pro.h \
 	stio-sck.h \
 	stio.h
 
-pkglib_LTLIBRARIES = libstio.la
+lib_LTLIBRARIES = libstio.la
 libstio_la_SOURCES = \
 	stio-prv.h \
 	stio.c \
@@ -38,7 +38,7 @@ libstio_la_CPPFLAGS = $(CPPFLAGS_LIB_COMMON)
 libstio_la_LDFLAGS = $(LDFLAGS_LIB_COMMON)
 libstio_la_LIBADD = $(LIBADD_LIB_COMMON)
 
-pkgbin_PROGRAMS = stio
+bin_PROGRAMS = stio
 stio_SOURCES = main.c
 stio_CPPFLAGS = $(CPPFLAGS_LIB_COMMON)
 stio_LDFLAGS = $(LDFLAGS_LIB_COMMON)

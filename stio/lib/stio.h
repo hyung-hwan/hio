@@ -91,6 +91,10 @@ typedef stio_intptr_t stio_iolen_t; /* NOTE: this is a signed type */
 enum stio_errnum_t
 {
 	STIO_ENOERR,
+	STIO_ENOIMPL,
+	STIO_ESYSERR,
+	STIO_EINTERN,
+
 	STIO_ENOMEM,
 	STIO_EINVAL,
 	STIO_ENOENT,
@@ -104,9 +108,7 @@ enum stio_errnum_t
 
 	STIO_EDEVMAKE,
 	STIO_EDEVERR,
-	STIO_EDEVHUP,
-
-	STIO_ESYSERR
+	STIO_EDEVHUP
 };
 
 typedef enum stio_errnum_t stio_errnum_t;
@@ -243,13 +245,11 @@ struct stio_dev_t
 
 enum stio_dev_capa_t
 {
-	STIO_DEV_CAPA_IN           = (1 << 0),
-	STIO_DEV_CAPA_OUT          = (1 << 1),
-
+	STIO_DEV_CAPA_VIRTUAL      = (1 << 0),
+	STIO_DEV_CAPA_IN           = (1 << 1),
+	STIO_DEV_CAPA_OUT          = (1 << 2),
 	/* #STIO_DEV_CAPA_PRI is meaningful only if #STIO_DEV_CAPA_IN is set */
-	STIO_DEV_CAPA_PRI          = (1 << 2), 
-
-	/*STIO_DEV_CAPA_HALFOPEN    = (1 << 3),*/
+	STIO_DEV_CAPA_PRI          = (1 << 3), 
 	STIO_DEV_CAPA_STREAM       = (1 << 4),
 	STIO_DEV_CAPA_OUT_QUEUED   = (1 << 5),
 
@@ -261,7 +261,8 @@ enum stio_dev_capa_t
 	STIO_DEV_CAPA_OUT_WATCHED  = (1 << 13),
 	STIO_DEV_CAPA_PRI_WATCHED  = (1 << 14), /**< can be set only if STIO_DEV_CAPA_IN_WATCHED is set */
 
-	STIO_DEV_CAPA_HALTED       = (1 << 15)
+	STIO_DEV_CAPA_HALTED       = (1 << 15),
+	STIO_DEV_CAPA_KILLED       = (1 << 16)
 };
 typedef enum stio_dev_capa_t stio_dev_capa_t;
 
@@ -462,21 +463,21 @@ STIO_EXPORT int stio_dev_read (
  * it returns 0. otherwise it returns -1.
  */ 
 STIO_EXPORT int stio_dev_write (
-	stio_dev_t*         dev,
-	const void*         data,
+	stio_dev_t*           dev,
+	const void*           data,
 	stio_iolen_t          len,
-	void*               wrctx,
-	const stio_devadr_t*   dstadr
+	void*                 wrctx,
+	const stio_devadr_t*  dstadr
 );
 
 
 STIO_EXPORT int stio_dev_timedwrite (
-	stio_dev_t*         dev,
-	const void*         data,
-	stio_iolen_t          len,
-	const stio_ntime_t* tmout,
-	void*               wrctx,
-	const stio_devadr_t*   dstadr
+	stio_dev_t*          dev,
+	const void*          data,
+	stio_iolen_t         len,
+	const stio_ntime_t*  tmout,
+	void*                wrctx,
+	const stio_devadr_t* dstadr
 );
 
 STIO_EXPORT void stio_dev_halt (

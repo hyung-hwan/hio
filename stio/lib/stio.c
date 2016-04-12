@@ -33,6 +33,8 @@
 
 #define DEV_CAPA_ALL_WATCHED (STIO_DEV_CAPA_IN_WATCHED | STIO_DEV_CAPA_OUT_WATCHED | STIO_DEV_CAPA_PRI_WATCHED)
 
+#define IS_MSPACE(x) ((x) == STIO_MT(' ') || (x) == STIO_MT('\t'))
+
 stio_t* stio_open (stio_mmgr_t* mmgr, stio_size_t xtnsize, stio_size_t tmrcapa, stio_errnum_t* errnum)
 {
 	stio_t* stio;
@@ -432,13 +434,8 @@ static STIO_INLINE int __exec (stio_t* stio)
 	}
 
 	/* kill all halted devices */
-	while (stio->hdev)
-	{
-		stio_dev_t* next;
-		next = stio->hdev->dev_next;
-		stio_killdev (stio, stio->hdev);
-		stio->hdev = next;
-	}
+	while (stio->hdev.head) stio_killdev (stio, stio->hdev.head);
+	STIO_ASSERT (stio->hdev.tail == STIO_NULL);
 
 #endif
 
@@ -479,7 +476,6 @@ int stio_loop (stio_t* stio)
 	stio_epilogue (stio);
 	return 0;
 }
-
 
 stio_dev_t* stio_makedev (stio_t* stio, stio_size_t dev_size, stio_dev_mth_t* dev_mth, stio_dev_evcb_t* dev_evcb, void* make_ctx)
 {
@@ -556,6 +552,12 @@ void stio_killdev (stio_t* stio, stio_dev_t* dev)
 {
 	STIO_ASSERT (stio == dev->stio);
 
+	if (dev->dev_capa & STIO_DEV_CAPA_KILLED)
+	{
+		STIO_ASSERT (STIO_WQ_ISEMPTY(&dev->wq));
+		goto kill_device;
+	}
+
 	/* clear pending send requests */
 	while (!STIO_WQ_ISEMPTY(&dev->wq))
 	{
@@ -566,7 +568,19 @@ void stio_killdev (stio_t* stio, stio_dev_t* dev)
 	}
 
 	/* delink the dev object */
-	if (!(dev->dev_capa & STIO_DEV_CAPA_HALTED))
+	if (dev->dev_capa & STIO_DEV_CAPA_HALTED)
+	{
+		if (dev->dev_prev)
+			dev->dev_prev->dev_next = dev->dev_next;
+		else
+			stio->hdev.head = dev->dev_next;
+
+		if (dev->dev_next)
+			dev->dev_next->dev_prev = dev->dev_prev;
+		else
+			stio->hdev.tail = dev->dev_prev;
+	}
+	else
 	{
 		if (dev->dev_prev)
 			dev->dev_prev->dev_next = dev->dev_next;
@@ -581,10 +595,52 @@ void stio_killdev (stio_t* stio, stio_dev_t* dev)
 
 	stio_dev_watch (dev, STIO_DEV_WATCH_STOP, 0);
 
-	/* and call the callback function */
-	dev->dev_mth->kill (dev);
+kill_device:
+	/* call the kill callback function */
+	if (dev->dev_mth->kill(dev) <= -1)
+	{
+		stio_tmrjob_t kill_job;
 
-	STIO_MMGR_FREE (stio->mmgr, dev);
+		if (!(dev->dev_capa & STIO_DEV_CAPA_KILLED))
+		{
+			dev->dev_capa &= STIO_DEV_CAPA_KILLED;
+
+			/* place it at the back of the killed device list */
+			if (stio->hdev.tail) stio->hdev.tail->dev_next = dev;
+			else stio->hdev.head = dev;
+			dev->dev_prev = stio->hdev.tail;
+			dev->dev_next = STIO_NULL;
+			stio->hdev.tail = dev;
+		}
+
+		/* TODO: schedule a timer job for delayed kills */
+		STIO_MEMSET (&kill_job, 0, STIO_SIZEOF(kill_job));
+		kill_job.ctx = rdev;
+		stio_gettime (&kill_job.when);
+		stio_addtime (&kill_job.when, &conn->tmout, &kill_job.when);
+		kill_job.handler = tmr_connect_handle;
+		kill_job.idxptr = &rdev->tmridx_connect;
+
+		stio_instmrjob (dev->stio, &kill_job);
+	}
+	else
+	{
+		if (dev->dev_capa & STIO_DEV_CAPA_KILLED)
+		{
+			/* detach it from the killed device list */
+			if (dev->dev_prev)
+				dev->dev_prev->dev_next = dev->dev_next;
+			else
+				stio->kdev.head = dev->dev_next;
+
+			if (dev->dev_next)
+				dev->dev_next->dev_prev = dev->dev_prev;
+			else
+				stio->kdev.tail = dev->dev_prev;
+		}
+
+		STIO_MMGR_FREE (stio->mmgr, dev);
+	}
 }
 
 void stio_dev_halt (stio_dev_t* dev)
@@ -605,11 +661,12 @@ void stio_dev_halt (stio_dev_t* dev)
 		else
 			stio->dev.tail = dev->dev_prev;
 
-		/* place it at the beginning of the halted device list.
-		 * the halted device list is singly linked. */
-		dev->dev_prev = STIO_NULL;
-		dev->dev_next = stio->hdev;
-		stio->hdev = dev;
+		/* place it at the back of the halted device list */
+		if (stio->hdev.tail) stio->hdev.tail->dev_next = dev;
+		else stio->hdev.head = dev;
+		dev->dev_prev = stio->hdev.tail;
+		dev->dev_next = STIO_NULL;
+		stio->hdev.tail = dev;
 
 		dev->dev_capa |= STIO_DEV_CAPA_HALTED;
 	}
@@ -627,6 +684,12 @@ int stio_dev_watch (stio_dev_t* dev, stio_dev_watch_cmd_t cmd, int events)
 	struct epoll_event ev;
 	int epoll_op;
 	int dev_capa;
+
+	/* the virtual device doesn't perform actual I/O.
+	 * it's different from not hanving STIO_DEV_CAPA_IN and STIO_DEV_CAPA_OUT.
+	 * a non-virtual device without the capabilities still gets attention
+	 * of the system multiplexer for hangup and error. */
+	if (dev->dev_capa & STIO_DEV_CAPA_VIRTUAL) return 0;
 
 	ev.data.ptr = dev;
 	switch (cmd)
@@ -699,6 +762,7 @@ int stio_dev_watch (stio_dev_t* dev, stio_dev_watch_cmd_t cmd, int events)
 	}
 	else
 	{
+printf ("MODING cmd=%d %d\n", (int)cmd, (int)dev->dev_mth->getsyshnd(dev));
 		if (epoll_ctl (dev->stio->mux, epoll_op, dev->dev_mth->getsyshnd(dev), &ev) == -1)
 		{
 			dev->stio->errnum = stio_syserrtoerrnum(errno);
@@ -964,4 +1028,317 @@ stio_errnum_t stio_syserrtoerrnum (int no)
 		default:
 			return STIO_ESYSERR;
 	}
+}
+
+stio_mchar_t* stio_mbsdup (stio_t* stio, const stio_mchar_t* src)
+{
+	stio_mchar_t* dst;
+	stio_size_t len;
+
+	dst = (stio_mchar_t*)src;
+	while (*dst != STIO_MT('\0')) dst++;
+	len = dst - src;
+
+	dst = STIO_MMGR_ALLOC (stio->mmgr, (len + 1) * STIO_SIZEOF(*src));
+	if (!dst)
+	{
+		stio->errnum = STIO_ENOMEM;
+		return STIO_NULL;
+	}
+
+	STIO_MEMCPY (dst, src, (len + 1) * STIO_SIZEOF(*src));
+	return dst;
+}
+
+stio_size_t stio_mbscpy (stio_mchar_t* buf, const stio_mchar_t* str)
+{
+	stio_mchar_t* org = buf;
+	while ((*buf++ = *str++) != STIO_MT('\0'));
+	return buf - org - 1;
+}
+
+int stio_mbsspltrn (
+	stio_mchar_t* s, const stio_mchar_t* delim,
+	stio_mchar_t lquote, stio_mchar_t rquote, 
+	stio_mchar_t escape, const stio_mchar_t* trset)
+{
+	stio_mchar_t* p = s, *d;
+	stio_mchar_t* sp = STIO_NULL, * ep = STIO_NULL;
+	int delim_mode;
+	int cnt = 0;
+
+	if (delim == STIO_NULL) delim_mode = 0;
+	else 
+	{
+		delim_mode = 1;
+		for (d = (stio_mchar_t*)delim; *d != STIO_MT('\0'); d++)
+			if (!IS_MSPACE(*d)) delim_mode = 2;
+	}
+
+	if (delim_mode == 0) 
+	{
+		/* skip preceding space characters */
+		while (IS_MSPACE(*p)) p++;
+
+		/* when 0 is given as "delim", it has an effect of cutting
+		   preceding and trailing space characters off "s". */
+		if (lquote != STIO_MT('\0') && *p == lquote) 
+		{
+			stio_mbscpy (p, p + 1);
+
+			for (;;) 
+			{
+				if (*p == STIO_MT('\0')) return -1;
+
+				if (escape != STIO_MT('\0') && *p == escape) 
+				{
+					if (trset != STIO_NULL && p[1] != STIO_MT('\0'))
+					{
+						const stio_mchar_t* ep = trset;
+						while (*ep != STIO_MT('\0'))
+						{
+							if (p[1] == *ep++) 
+							{
+								p[1] = *ep;
+								break;
+							}
+						}
+					}
+
+					stio_mbscpy (p, p + 1);
+				}
+				else 
+				{
+					if (*p == rquote) 
+					{
+						p++;
+						break;
+					}
+				}
+
+				if (sp == 0) sp = p;
+				ep = p;
+				p++;
+			}
+			while (IS_MSPACE(*p)) p++;
+			if (*p != STIO_MT('\0')) return -1;
+
+			if (sp == 0 && ep == 0) s[0] = STIO_MT('\0');
+			else 
+			{
+				ep[1] = STIO_MT('\0');
+				if (s != (stio_mchar_t*)sp) stio_mbscpy (s, sp);
+				cnt++;
+			}
+		}
+		else 
+		{
+			while (*p) 
+			{
+				if (!IS_MSPACE(*p)) 
+				{
+					if (sp == 0) sp = p;
+					ep = p;
+				}
+				p++;
+			}
+
+			if (sp == 0 && ep == 0) s[0] = STIO_MT('\0');
+			else 
+			{
+				ep[1] = STIO_MT('\0');
+				if (s != (stio_mchar_t*)sp) stio_mbscpy (s, sp);
+				cnt++;
+			}
+		}
+	}
+	else if (delim_mode == 1) 
+	{
+		stio_mchar_t* o;
+
+		while (*p) 
+		{
+			o = p;
+			while (IS_MSPACE(*p)) p++;
+			if (o != p) { stio_mbscpy (o, p); p = o; }
+
+			if (lquote != STIO_MT('\0') && *p == lquote) 
+			{
+				stio_mbscpy (p, p + 1);
+
+				for (;;) 
+				{
+					if (*p == STIO_MT('\0')) return -1;
+
+					if (escape != STIO_MT('\0') && *p == escape) 
+					{
+						if (trset != STIO_NULL && p[1] != STIO_MT('\0'))
+						{
+							const stio_mchar_t* ep = trset;
+							while (*ep != STIO_MT('\0'))
+							{
+								if (p[1] == *ep++) 
+								{
+									p[1] = *ep;
+									break;
+								}
+							}
+						}
+						stio_mbscpy (p, p + 1);
+					}
+					else 
+					{
+						if (*p == rquote) 
+						{
+							*p++ = STIO_MT('\0');
+							cnt++;
+							break;
+						}
+					}
+					p++;
+				}
+			}
+			else 
+			{
+				o = p;
+				for (;;) 
+				{
+					if (*p == STIO_MT('\0')) 
+					{
+						if (o != p) cnt++;
+						break;
+					}
+					if (IS_MSPACE (*p)) 
+					{
+						*p++ = STIO_MT('\0');
+						cnt++;
+						break;
+					}
+					p++;
+				}
+			}
+		}
+	}
+	else /* if (delim_mode == 2) */
+	{
+		stio_mchar_t* o;
+		int ok;
+
+		while (*p != STIO_MT('\0')) 
+		{
+			o = p;
+			while (IS_MSPACE(*p)) p++;
+			if (o != p) { stio_mbscpy (o, p); p = o; }
+
+			if (lquote != STIO_MT('\0') && *p == lquote) 
+			{
+				stio_mbscpy (p, p + 1);
+
+				for (;;) 
+				{
+					if (*p == STIO_MT('\0')) return -1;
+
+					if (escape != STIO_MT('\0') && *p == escape) 
+					{
+						if (trset != STIO_NULL && p[1] != STIO_MT('\0'))
+						{
+							const stio_mchar_t* ep = trset;
+							while (*ep != STIO_MT('\0'))
+							{
+								if (p[1] == *ep++) 
+								{
+									p[1] = *ep;
+									break;
+								}
+							}
+						}
+
+						stio_mbscpy (p, p + 1);
+					}
+					else 
+					{
+						if (*p == rquote) 
+						{
+							*p++ = STIO_MT('\0');
+							cnt++;
+							break;
+						}
+					}
+					p++;
+				}
+
+				ok = 0;
+				while (IS_MSPACE(*p)) p++;
+				if (*p == STIO_MT('\0')) ok = 1;
+				for (d = (stio_mchar_t*)delim; *d != STIO_MT('\0'); d++) 
+				{
+					if (*p == *d) 
+					{
+						ok = 1;
+						stio_mbscpy (p, p + 1);
+						break;
+					}
+				}
+				if (ok == 0) return -1;
+			}
+			else 
+			{
+				o = p; sp = ep = 0;
+
+				for (;;) 
+				{
+					if (*p == STIO_MT('\0')) 
+					{
+						if (ep) 
+						{
+							ep[1] = STIO_MT('\0');
+							p = &ep[1];
+						}
+						cnt++;
+						break;
+					}
+					for (d = (stio_mchar_t*)delim; *d != STIO_MT('\0'); d++) 
+					{
+						if (*p == *d)  
+						{
+							if (sp == STIO_NULL) 
+							{
+								stio_mbscpy (o, p); p = o;
+								*p++ = STIO_MT('\0');
+							}
+							else 
+							{
+								stio_mbscpy (&ep[1], p);
+								stio_mbscpy (o, sp);
+								o[ep - sp + 1] = STIO_MT('\0');
+								p = &o[ep - sp + 2];
+							}
+							cnt++;
+							/* last empty field after delim */
+							if (*p == STIO_MT('\0')) cnt++;
+							goto exit_point;
+						}
+					}
+
+					if (!IS_MSPACE (*p)) 
+					{
+						if (sp == STIO_NULL) sp = p;
+						ep = p;
+					}
+					p++;
+				}
+exit_point:
+				;
+			}
+		}
+	}
+
+	return cnt;
+}
+
+int stio_mbsspl (
+	stio_mchar_t* s, const stio_mchar_t* delim,
+	stio_mchar_t lquote, stio_mchar_t rquote, stio_mchar_t escape)
+{
+	return stio_mbsspltrn (s, delim, lquote, rquote, escape, STIO_NULL);
 }
