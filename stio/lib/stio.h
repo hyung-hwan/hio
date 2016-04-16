@@ -101,10 +101,12 @@ enum stio_errnum_t
 	STIO_ENOSUP,     /* not supported */
 	STIO_EMFILE,     /* too many open files */
 	STIO_ENFILE,
+	STIO_EAGAIN,
 	STIO_ECONRF,     /* connection refused */
 	STIO_ECONRS,     /* connection reset */
 	STIO_ENOCAPA,    /* no capability */
 	STIO_ETMOUT,     /* timed out */
+	
 
 	STIO_EDEVMAKE,
 	STIO_EDEVERR,
@@ -135,7 +137,17 @@ struct stio_dev_mth_t
 	int           (*make)         (stio_dev_t* dev, void* ctx); /* mandatory. called in stio_makedev() */
 
 	/* ------------------------------------------------------------------ */
-	void          (*kill)         (stio_dev_t* dev); /* mandatory. called in stio_killdev(). called in stio_makedev() upon failure after make() success */
+	/* mandatory. called in stio_killdev(). also called in stio_makedev() upon
+	 * failure after make() success.
+	 * 
+	 * when 'force' is 0, the return value of -1 causes the device to be a
+	 * zombie. the kill method is called periodically on a zombie device
+	 * until the method returns 0.
+	 *
+	 * when 'force' is 1, the called should not return -1. If it does, the
+	 * method is not called again.
+	 */
+	int           (*kill)         (stio_dev_t* dev, int force); 
 
 	/* ------------------------------------------------------------------ */
 	stio_syshnd_t (*getsyshnd)    (stio_dev_t* dev); /* mandatory. called in stio_makedev() after successful make() */
@@ -262,7 +274,7 @@ enum stio_dev_capa_t
 	STIO_DEV_CAPA_PRI_WATCHED  = (1 << 14), /**< can be set only if STIO_DEV_CAPA_IN_WATCHED is set */
 
 	STIO_DEV_CAPA_HALTED       = (1 << 15),
-	STIO_DEV_CAPA_KILLED       = (1 << 16)
+	STIO_DEV_CAPA_ZOMBIE       = (1 << 16)
 };
 typedef enum stio_dev_capa_t stio_dev_capa_t;
 

@@ -74,7 +74,7 @@ struct stio_t
 	{
 		stio_dev_t* head;
 		stio_dev_t* tail;
-	} kdev; /* killed devices */
+	} zmbdev; /* zombie devices */
 
 	stio_uint8_t bigbuf[65535]; /* TODO: make this dynamic depending on devices added. device may indicate a buffer size required??? */
 

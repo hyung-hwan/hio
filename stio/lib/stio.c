@@ -35,6 +35,9 @@
 
 #define IS_MSPACE(x) ((x) == STIO_MT(' ') || (x) == STIO_MT('\t'))
 
+static int schedule_kill_zombie_job (stio_dev_t* dev);
+static int kill_and_free_device (stio_dev_t* dev, int force);
+
 stio_t* stio_open (stio_mmgr_t* mmgr, stio_size_t xtnsize, stio_size_t tmrcapa, stio_errnum_t* errnum)
 {
 	stio_t* stio;
@@ -93,15 +96,38 @@ int stio_init (stio_t* stio, stio_mmgr_t* mmgr, stio_size_t tmrcapa)
 
 void stio_fini (stio_t* stio)
 {
-	/* kill all registered devices */
-	while (stio->dev.tail)
-	{
-		stio_killdev (stio, stio->dev.tail);
-	}
+	stio_dev_t* dev;
 
 	/* purge scheduled timer jobs and kill the timer */
 	stio_cleartmrjobs (stio);
 	STIO_MMGR_FREE (stio->mmgr, stio->tmr.jobs);
+
+	/* kill all registered devices */
+	while (stio->dev.head)
+	{
+		stio_killdev (stio, stio->dev.head);
+	}
+
+	while (stio->hdev.head)
+	{
+		stio_killdev (stio, stio->hdev.head);
+	}
+
+	/* clean up all zombie devices */
+	for (dev = stio->zmbdev.head; dev; )
+	{
+		kill_and_free_device (dev, 1);
+		if (stio->zmbdev.head == dev) dev = dev->dev_next;
+		else dev = stio->zmbdev.head;
+	}
+
+	while (stio->zmbdev.tail)
+	{
+		/* if the kill method returns failure, it can leak some resource
+		 * because the device is freed regardless of the failure when 2 
+		 * is given to kill_and_free_device(). */
+		kill_and_free_device (stio->zmbdev.tail, 2);
+	}
 
 	/* close the multiplexer */
 	close (stio->mux);
@@ -434,7 +460,11 @@ static STIO_INLINE int __exec (stio_t* stio)
 	}
 
 	/* kill all halted devices */
-	while (stio->hdev.head) stio_killdev (stio, stio->hdev.head);
+	while (stio->hdev.head) 
+	{
+printf ("KILLING HALTED DEVICE %p\n", stio->hdev.head);
+		stio_killdev (stio, stio->hdev.head);
+	}
 	STIO_ASSERT (stio->hdev.tail == STIO_NULL);
 
 #endif
@@ -542,17 +572,129 @@ stio_dev_t* stio_makedev (stio_t* stio, stio_size_t dev_size, stio_dev_mth_t* de
 	return dev;
 
 oops_after_make:
-	dev->dev_mth->kill (dev);
+	if (kill_and_free_device (dev, 0) <= -1)
+	{
+		/* schedule a timer job that reattempts to destroy the device */
+		if (schedule_kill_zombie_job (dev) <= -1) 
+		{
+			/* job scheduling failed. i have no choice but to
+			 * destroy the device now.
+			 * 
+			 * NOTE: this while loop can block the process
+			 *       if the kill method keep returning failure */
+			while (kill_and_free_device (dev, 1) <= -1)
+			{
+				if (stio->stopreq) 
+				{
+					/* i can't wait until destruction attempt gets
+					 * fully successful. there is a chance that some
+					 * resources can leak inside the device */
+					kill_and_free_device (dev, 2);
+					break;
+				}
+			}
+		}
+
+		return STIO_NULL;
+	}
+
 oops:
 	STIO_MMGR_FREE (stio->mmgr, dev);
 	return STIO_NULL;
+}
+
+static int kill_and_free_device (stio_dev_t* dev, int force)
+{
+	stio_t* stio;
+
+	stio = dev->stio;
+
+	if (dev->dev_mth->kill(dev, force) <= -1) 
+	{
+		if (force >= 2) goto free_device;
+
+		if (!(dev->dev_capa & STIO_DEV_CAPA_ZOMBIE))
+		{
+			dev->dev_capa |= STIO_DEV_CAPA_ZOMBIE;
+
+			/* place it at the back of the zombie device list */
+			if (stio->hdev.tail) stio->hdev.tail->dev_next = dev;
+			else stio->zmbdev.head = dev;
+			dev->dev_prev = stio->hdev.tail;
+			dev->dev_next = STIO_NULL;
+			stio->zmbdev.tail = dev;
+		}
+
+		return -1;
+	}
+
+free_device:
+	if (dev->dev_capa & STIO_DEV_CAPA_ZOMBIE)
+	{
+		/* detach it from the zombie device list */
+		if (dev->dev_prev)
+			dev->dev_prev->dev_next = dev->dev_next;
+		else
+			stio->zmbdev.head = dev->dev_next;
+
+		if (dev->dev_next)
+			dev->dev_next->dev_prev = dev->dev_prev;
+		else
+			stio->zmbdev.tail = dev->dev_prev;
+	}
+
+	STIO_MMGR_FREE (stio->mmgr, dev);
+	return 0;
+}
+
+static void kill_zombie_job_handler (stio_t* stio, const stio_ntime_t* now, stio_tmrjob_t* job)
+{
+	stio_dev_t* dev = (stio_dev_t*)job->ctx;
+
+	STIO_ASSERT (dev->dev_capa & STIO_DEV_CAPA_ZOMBIE);
+
+	if (kill_and_free_device (dev, 0) <= -1)
+	{
+		if (schedule_kill_zombie_job (dev) <= -1)
+		{
+			/* i have to choice but to free up the devide by force */
+			while (kill_and_free_device (dev, 1) <= -1)
+			{
+				if (stio->stopreq) 
+				{
+					/* i can't wait until destruction attempt gets
+					 * fully successful. there is a chance that some
+					 * resources can leak inside the device */
+					kill_and_free_device (dev, 2);
+					break;
+				}
+			}
+		}
+	}
+}
+
+static int schedule_kill_zombie_job (stio_dev_t* dev)
+{
+	stio_tmrjob_t kill_zombie_job;
+	stio_ntime_t tmout;
+
+	stio_inittime (&tmout, 3, 0); /* TODO: take it from configuration */
+
+	STIO_MEMSET (&kill_zombie_job, 0, STIO_SIZEOF(kill_zombie_job));
+	kill_zombie_job.ctx = dev;
+	stio_gettime (&kill_zombie_job.when);
+	stio_addtime (&kill_zombie_job.when, &tmout, &kill_zombie_job.when);
+	kill_zombie_job.handler = kill_zombie_job_handler;
+	/*kill_zombie_job.idxptr = &rdev->tmridx_kill_zombie;*/
+
+	return stio_instmrjob (dev->stio, &kill_zombie_job) == STIO_TMRIDX_INVALID? -1: 0;
 }
 
 void stio_killdev (stio_t* stio, stio_dev_t* dev)
 {
 	STIO_ASSERT (stio == dev->stio);
 
-	if (dev->dev_capa & STIO_DEV_CAPA_KILLED)
+	if (dev->dev_capa & STIO_DEV_CAPA_ZOMBIE)
 	{
 		STIO_ASSERT (STIO_WQ_ISEMPTY(&dev->wq));
 		goto kill_device;
@@ -570,6 +712,8 @@ void stio_killdev (stio_t* stio, stio_dev_t* dev)
 	/* delink the dev object */
 	if (dev->dev_capa & STIO_DEV_CAPA_HALTED)
 	{
+		/* this device is in the halted state.
+		 * unlink it from the halted device list */
 		if (dev->dev_prev)
 			dev->dev_prev->dev_next = dev->dev_next;
 		else
@@ -582,6 +726,8 @@ void stio_killdev (stio_t* stio, stio_dev_t* dev)
 	}
 	else
 	{
+		/* this device has not been halted.
+		 * unlink it from the normal active device list */
 		if (dev->dev_prev)
 			dev->dev_prev->dev_next = dev->dev_next;
 		else
@@ -596,56 +742,30 @@ void stio_killdev (stio_t* stio, stio_dev_t* dev)
 	stio_dev_watch (dev, STIO_DEV_WATCH_STOP, 0);
 
 kill_device:
-	/* call the kill callback function */
-	if (dev->dev_mth->kill(dev) <= -1)
+	if (kill_and_free_device(dev, 0) <= -1)
 	{
-		stio_tmrjob_t kill_job;
-
-		if (!(dev->dev_capa & STIO_DEV_CAPA_KILLED))
+		STIO_ASSERT (dev->dev_capa & STIO_DEV_CAPA_ZOMBIE);
+		if (schedule_kill_zombie_job (dev) <= -1)
 		{
-			dev->dev_capa &= STIO_DEV_CAPA_KILLED;
-
-			/* place it at the back of the killed device list */
-			if (stio->hdev.tail) stio->hdev.tail->dev_next = dev;
-			else stio->hdev.head = dev;
-			dev->dev_prev = stio->hdev.tail;
-			dev->dev_next = STIO_NULL;
-			stio->hdev.tail = dev;
+			/* i have to choice but to free up the devide by force */
+			while (kill_and_free_device (dev, 1) <= -1)
+			{
+				if (stio->stopreq) 
+				{
+					/* i can't wait until destruction attempt gets
+					 * fully successful. there is a chance that some
+					 * resources can leak inside the device */
+					kill_and_free_device (dev, 2);
+					break;
+				}
+			}
 		}
-
-		/* TODO: schedule a timer job for delayed kills */
-		STIO_MEMSET (&kill_job, 0, STIO_SIZEOF(kill_job));
-		kill_job.ctx = rdev;
-		stio_gettime (&kill_job.when);
-		stio_addtime (&kill_job.when, &conn->tmout, &kill_job.when);
-		kill_job.handler = tmr_connect_handle;
-		kill_job.idxptr = &rdev->tmridx_connect;
-
-		stio_instmrjob (dev->stio, &kill_job);
-	}
-	else
-	{
-		if (dev->dev_capa & STIO_DEV_CAPA_KILLED)
-		{
-			/* detach it from the killed device list */
-			if (dev->dev_prev)
-				dev->dev_prev->dev_next = dev->dev_next;
-			else
-				stio->kdev.head = dev->dev_next;
-
-			if (dev->dev_next)
-				dev->dev_next->dev_prev = dev->dev_prev;
-			else
-				stio->kdev.tail = dev->dev_prev;
-		}
-
-		STIO_MMGR_FREE (stio->mmgr, dev);
 	}
 }
 
 void stio_dev_halt (stio_dev_t* dev)
 {
-	if (!(dev->dev_capa & STIO_DEV_CAPA_HALTED))
+	if (!(dev->dev_capa & (STIO_DEV_CAPA_HALTED | STIO_DEV_CAPA_ZOMBIE)))
 	{
 		stio_t* stio;
 
@@ -1013,6 +1133,11 @@ stio_errnum_t stio_syserrtoerrnum (int no)
 	#if defined(ENFILE)
 		case ENFILE:
 			return STIO_ENFILE;
+	#endif
+
+	#if defined(EAGAIN)
+		case EAGAIN:
+			return STIO_EAGAIN;
 	#endif
 
 	#if defined(ECONNREFUSED)
