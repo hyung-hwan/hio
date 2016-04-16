@@ -45,13 +45,13 @@ stio_LDFLAGS = $(LDFLAGS_LIB_COMMON)
 stio_LDADD = $(LIBADD_LIB_COMMON) -lstio 
 
 install-data-hook:
-	@echo "#ifndef _STIO_CFG_H_" > "$(DESTDIR)$(pkgincludedir)/stio-cfg.h"
-	@echo "#define _STIO_CFG_H_" >> "$(DESTDIR)$(pkgincludedir)/stio-cfg.h"
-	@$(EGREP) "#define[ ]+STIO_" "$(abs_builddir)/stio-cfg.h" >> "$(DESTDIR)$(pkgincludedir)/stio-cfg.h" 
-	@echo "#endif" >> "$(DESTDIR)$(pkgincludedir)/stio-cfg.h"
-	@$(RM) "$(DESTDIR)$(pkgincludedir)/stio-cfg.h.in"
-	@$(SED) 's|/\*#define STIO_HAVE_CFG_H\*/|#define STIO_HAVE_CFG_H|' "$(srcdir)/stio-cmn.h" > "$(DESTDIR)$(pkgincludedir)/stio-cmn.h"
+	@echo "#ifndef _STIO_CFG_H_" > "$(DESTDIR)$(includedir)/stio-cfg.h"
+	@echo "#define _STIO_CFG_H_" >> "$(DESTDIR)$(includedir)/stio-cfg.h"
+	@$(EGREP) "#define[ ]+STIO_" "$(abs_builddir)/stio-cfg.h" >> "$(DESTDIR)$(includedir)/stio-cfg.h" 
+	@echo "#endif" >> "$(DESTDIR)$(includedir)/stio-cfg.h"
+	@$(RM) "$(DESTDIR)$(includedir)/stio-cfg.h.in"
+	@$(SED) 's|/\*#define STIO_HAVE_CFG_H\*/|#define STIO_HAVE_CFG_H|' "$(srcdir)/stio-cmn.h" > "$(DESTDIR)$(includedir)/stio-cmn.h"
 
 uninstall-hook:
-	@$(RM) "$(DESTDIR)$(pkgincludedir)/stio-cfg.h"
+	@$(RM) "$(DESTDIR)$(includedir)/stio-cfg.h"
 

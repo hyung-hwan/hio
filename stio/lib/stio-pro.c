@@ -39,7 +39,7 @@ struct slave_info_t
 	stio_dev_pro_make_t* mi;
 	stio_syshnd_t pfd;
 	int dev_capa;
-	int id;
+	stio_dev_pro_sid_t id;
 };
 
 typedef struct slave_info_t slave_info_t;
@@ -221,7 +221,7 @@ static pid_t standard_fork_and_exec (stio_t* stio, int pfds[], int flags, param_
 	return pid;
 }
 
-static int dev_pro_make (stio_dev_t* dev, void* ctx)
+static int dev_pro_make_master (stio_dev_t* dev, void* ctx)
 {
 	stio_dev_pro_t* rdev = (stio_dev_pro_t*)dev;
 	stio_dev_pro_make_t* info = (stio_dev_pro_make_t*)ctx;
@@ -332,12 +332,13 @@ static int dev_pro_make (stio_dev_t* dev, void* ctx)
 		si.mi = info;
 		si.pfd = pfds[1];
 		si.dev_capa = STIO_DEV_CAPA_OUT | STIO_DEV_CAPA_OUT_QUEUED | STIO_DEV_CAPA_STREAM;
-		si.id = 0;
+		si.id = STIO_DEV_PRO_IN;
 
-		rdev->slave[0] = make_slave (dev->stio, &si);
-		if (!rdev->slave[0]) goto oops;
+		rdev->slave[STIO_DEV_PRO_IN] = make_slave (dev->stio, &si);
+		if (!rdev->slave[STIO_DEV_PRO_IN]) goto oops;
 
 		pfds[1] = STIO_SYSHND_INVALID;
+		rdev->slave_count++;
 	}
 
 	if (pfds[2] != STIO_SYSHND_INVALID)
@@ -348,12 +349,13 @@ static int dev_pro_make (stio_dev_t* dev, void* ctx)
 		si.mi = info;
 		si.pfd = pfds[2];
 		si.dev_capa = STIO_DEV_CAPA_IN | STIO_DEV_CAPA_STREAM;
-		si.id = 1;
+		si.id = STIO_DEV_PRO_OUT;
 
-		rdev->slave[1] = make_slave (dev->stio, &si);
-		if (!rdev->slave[1]) goto oops;
+		rdev->slave[STIO_DEV_PRO_OUT] = make_slave (dev->stio, &si);
+		if (!rdev->slave[STIO_DEV_PRO_OUT]) goto oops;
 
 		pfds[2] = STIO_SYSHND_INVALID;
+		rdev->slave_count++;
 	}
 
 	if (pfds[4] != STIO_SYSHND_INVALID)
@@ -364,22 +366,25 @@ static int dev_pro_make (stio_dev_t* dev, void* ctx)
 		si.mi = info;
 		si.pfd = pfds[4];
 		si.dev_capa = STIO_DEV_CAPA_IN | STIO_DEV_CAPA_STREAM;
-		si.id = 2;
+		si.id = STIO_DEV_PRO_ERR;
 
-		rdev->slave[2] = make_slave (dev->stio, &si);
-		if (!rdev->slave[2]) goto oops;
+		rdev->slave[STIO_DEV_PRO_ERR] = make_slave (dev->stio, &si);
+		if (!rdev->slave[STIO_DEV_PRO_ERR]) goto oops;
 
 		pfds[4] = STIO_SYSHND_INVALID;
+		rdev->slave_count++;
 	}
 
-	for (i = 0; i < 3; i++) 
+	for (i = 0; i < STIO_COUNTOF(rdev->slave); i++) 
 	{
 		if (rdev->slave[i]) rdev->slave[i]->master = rdev;
 	}
 
-	rdev->dev_capa = STIO_DEV_CAPA_VIRTUAL;
+	rdev->dev_capa = STIO_DEV_CAPA_VIRTUAL; /* the master device doesn't perform I/O */
+	rdev->flags = info->flags;
 	rdev->on_read = info->on_read;
 	rdev->on_write = info->on_write;
+	rdev->on_close = info->on_close;
 	return 0;
 
 oops:
@@ -394,7 +399,7 @@ oops:
 		free_param (rdev->stio, &param);
 	}
 
-	for (i = 3; i > 0; )
+	for (i = STIO_COUNTOF(rdev->slave); i > 0; )
 	{
 		i--;
 		if (rdev->slave[i])
@@ -403,6 +408,7 @@ oops:
 			rdev->slave[i] = STIO_NULL;
 		}
 	}
+	rdev->slave_count = 0;
 
 	return -1;
 }
@@ -421,44 +427,109 @@ static int dev_pro_make_slave (stio_dev_t* dev, void* ctx)
 	return 0;
 }
 
-static void dev_pro_kill (stio_dev_t* dev)
+static int dev_pro_kill_master (stio_dev_t* dev, int force)
 {
 	stio_dev_pro_t* rdev = (stio_dev_pro_t*)dev;
 	int i, status;
+	pid_t wpid;
 
-	for (i = 0; i < 3; i++)
+	if (rdev->slave_count > 0)
 	{
-		if (rdev->slave[i])
+		for (i = 0; i < STIO_COUNTOF(rdev->slave); i++)
 		{
-			stio_dev_pro_slave_t* sdev = rdev->slave[i];
-			rdev->slave[i] = STIO_NULL;
-			stio_killdev (rdev->stio, (stio_dev_t*)sdev);
+			if (rdev->slave[i])
+			{
+				stio_dev_pro_slave_t* sdev = rdev->slave[i];
+
+				/* nullify the pointer to the slave device
+				 * before calling stio_killdev() on the slave device.
+				 * the slave device can check this pointer to tell from
+				 * self-initiated termination or master-driven termination */
+				rdev->slave[i] = STIO_NULL;
+
+				stio_killdev (rdev->stio, (stio_dev_t*)sdev);
+			}
 		}
 	}
 
-#if 0
-	x = waitpid (rdev->child_pid, &status, WNOHANG);
-	if (x == rdev->child_pid)
+	if (rdev->child_pid >= 0)
 	{
-		/* child process reclaimed successfully */
+		if (!(rdev->flags & STIO_DEV_PRO_FORGET_CHILD))
+		{
+			int killed = 0;
+
+		await_child:
+			wpid = waitpid (rdev->child_pid, &status, WNOHANG);
+			if (wpid == 0)
+			{
+				if (force && !killed)
+				{
+					if (!(rdev->flags & STIO_DEV_PRO_FORGET_DIEHARD_CHILD))
+					{
+						kill (rdev->child_pid, SIGKILL);
+						killed = 1;
+						goto await_child;
+					}
+				}
+				else
+				{
+					/* child process is still alive */
+					rdev->stio->errnum = STIO_EAGAIN;
+					return -1;  /* call me again */
+				}
+			}
+
+			/* wpid == rdev->child_pid => full success
+			 * wpid == -1 && errno == ECHILD => no such process. it's waitpid()'ed by some other part of the program?
+			 * other cases ==> can't really handle properly. forget it by returning success
+			 * no need not worry about EINTR because errno can't have the value when WNOHANG is set.
+			 */
+		}
+
+printf (">>>>>>>>>>>>>>>>>>> REAPED CHILD %d\n", (int)rdev->child_pid);
+		rdev->child_pid = -1;
 	}
-	else if (x == 0)
-	{
-		/* child still alive */
-		/* TODO: schedule a timer job... */
-	}
-	else
-	{
-		kill (rdev->child_pid, SIGKILL);
-		x = waitpid (rdev->child_pid, &i, WNOHANG);
-		if (x == -1)
-	}
-#endif
+
+	if (rdev->on_close) rdev->on_close (rdev, STIO_DEV_PRO_MASTER);
+	return 0;
 }
 
-static void dev_pro_kill_slave (stio_dev_t* dev)
+static int dev_pro_kill_slave (stio_dev_t* dev, int force)
 {
 	stio_dev_pro_slave_t* rdev = (stio_dev_pro_slave_t*)dev;
+
+	if (rdev->master)
+	{
+		stio_dev_pro_t* master;
+
+		master = rdev->master;
+		rdev->master = STIO_NULL;
+
+		/* indicate EOF */
+		if (master->on_close) master->on_close (master, rdev->id);
+
+		STIO_ASSERT (master->slave_count > 0);
+		master->slave_count--;
+
+		if (master->slave[rdev->id])
+		{
+			/* this call is started by the slave device itself.
+			 * if this is the last slave, kill the master also */
+			if (master->slave_count <= 0) 
+			{
+				stio_killdev (rdev->stio, (stio_dev_t*)master);
+				/* the master pointer is not valid from this point onwards
+				 * as the actual master device object is freed in stio_killdev() */
+			}
+		}
+		else
+		{
+			/* this call is initiated by this slave device itself.
+			 * if it were by the master device, it would be STIO_NULL as
+			 * nullified by the dev_pro_kill() */
+			master->slave[rdev->id] = STIO_NULL;
+		}
+	}
 
 	if (rdev->pfd != STIO_SYSHND_INVALID)
 	{
@@ -466,12 +537,7 @@ static void dev_pro_kill_slave (stio_dev_t* dev)
 		rdev->pfd = STIO_SYSHND_INVALID;
 	}
 
-	if (rdev->master)
-	{
-		/* let the master know that this slave device has been killed */
-		rdev->master->slave[rdev->id] = STIO_NULL;
-		rdev->master = STIO_NULL; 
-	}
+	return 0;
 }
 
 static int dev_pro_read_slave (stio_dev_t* dev, void* buf, stio_iolen_t* len, stio_devadr_t* srcadr)
@@ -523,25 +589,38 @@ static stio_syshnd_t dev_pro_getsyshnd_slave (stio_dev_t* dev)
 
 static int dev_pro_ioctl (stio_dev_t* dev, int cmd, void* arg)
 {
+	stio_dev_pro_t* rdev = (stio_dev_pro_t*)dev;
 
-/*
 	switch (cmd)
 	{
-		case STIO_DEV_PRO_KILL
-		case STIO_DEV_PRO_CLOSEIN:
-		case STIO_DEV_PRO_CLOSEOUT:
-		case STIO_DEV_PRO_CLOSEERR:
-		case STIO_DEV_PRO_WAIT:
+		case STIO_DEV_PRO_CLOSE:
+		{
+			stio_dev_pro_sid_t sid = *(stio_dev_pro_sid_t*)arg;
+
+			if (sid < STIO_DEV_PRO_IN || sid > STIO_DEV_PRO_ERR)
+			{
+				rdev->stio->errnum = STIO_EINVAL;
+				return -1;
+			}
+
+			if (rdev->slave[sid])
+			{
+				/* unlike dev_pro_kill_master(), i don't nullify rdev->slave[sid].
+				 * so i treat the closing ioctl as if it's a kill request 
+				 * initiated by the slave device itself. */
+				stio_killdev (rdev->stio, (stio_dev_t*)rdev->slave[sid]);
+			}
+			break;
+		}
 	}
-*/
 
 	return 0;
 }
 
 static stio_dev_mth_t dev_pro_methods = 
 {
-	dev_pro_make,
-	dev_pro_kill,
+	dev_pro_make_master,
+	dev_pro_kill_master,
 	dev_pro_getsyshnd,
 
 	STIO_NULL,
@@ -617,10 +696,17 @@ static int pro_ready_slave (stio_dev_t* dev, int events)
 	return 1; /* the device is ok. carry on reading or writing */
 }
 
-static int pro_on_read_slave (stio_dev_t* dev, const void* data, stio_iolen_t len, const stio_devadr_t* srcadr)
+
+static int pro_on_read_slave_out (stio_dev_t* dev, const void* data, stio_iolen_t len, const stio_devadr_t* srcadr)
 {
 	stio_dev_pro_slave_t* pro = (stio_dev_pro_slave_t*)dev;
-	return pro->master->on_read (pro->master, data, len);
+	return pro->master->on_read (pro->master, data, len, STIO_DEV_PRO_OUT);
+}
+
+static int pro_on_read_slave_err (stio_dev_t* dev, const void* data, stio_iolen_t len, const stio_devadr_t* srcadr)
+{
+	stio_dev_pro_slave_t* pro = (stio_dev_pro_slave_t*)dev;
+	return pro->master->on_read (pro->master, data, len, STIO_DEV_PRO_ERR);
 }
 
 static int pro_on_write_slave (stio_dev_t* dev, stio_iolen_t wrlen, void* wrctx, const stio_devadr_t* dstadr)
@@ -629,21 +715,52 @@ static int pro_on_write_slave (stio_dev_t* dev, stio_iolen_t wrlen, void* wrctx,
 	return pro->master->on_write (pro->master, wrlen, wrctx);
 }
 
-static stio_dev_evcb_t dev_pro_event_callbacks_slave =
+static stio_dev_evcb_t dev_pro_event_callbacks_slave_in =
 {
 	pro_ready_slave,
-	pro_on_read_slave,
+	STIO_NULL,
 	pro_on_write_slave
+};
+
+static stio_dev_evcb_t dev_pro_event_callbacks_slave_out =
+{
+	pro_ready_slave,
+	pro_on_read_slave_out,
+	STIO_NULL
+};
+
+static stio_dev_evcb_t dev_pro_event_callbacks_slave_err =
+{
+	pro_ready_slave,
+	pro_on_read_slave_err,
+	STIO_NULL
 };
 
 /* ========================================================================= */
 
 static stio_dev_pro_slave_t* make_slave (stio_t* stio, slave_info_t* si)
 {
-	return (stio_dev_pro_slave_t*)stio_makedev (
-		stio, STIO_SIZEOF(stio_dev_pro_t), 
-		&dev_pro_methods_slave, &dev_pro_event_callbacks_slave, si);
+	switch (si->id)
+	{
+		case STIO_DEV_PRO_IN:
+			return (stio_dev_pro_slave_t*)stio_makedev (
+				stio, STIO_SIZEOF(stio_dev_pro_t), 
+				&dev_pro_methods_slave, &dev_pro_event_callbacks_slave_in, si);
 
+		case STIO_DEV_PRO_OUT:
+			return (stio_dev_pro_slave_t*)stio_makedev (
+				stio, STIO_SIZEOF(stio_dev_pro_t), 
+				&dev_pro_methods_slave, &dev_pro_event_callbacks_slave_out, si);
+
+		case STIO_DEV_PRO_ERR:
+			return (stio_dev_pro_slave_t*)stio_makedev (
+				stio, STIO_SIZEOF(stio_dev_pro_t), 
+				&dev_pro_methods_slave, &dev_pro_event_callbacks_slave_err, si);
+
+		default:
+			stio->errnum = STIO_EINVAL;
+			return STIO_NULL;
+	}
 }
 
 stio_dev_pro_t* stio_dev_pro_make (stio_t* stio, stio_size_t xtnsize, const stio_dev_pro_make_t* info)
@@ -684,8 +801,14 @@ int stio_dev_pro_timedwrite (stio_dev_pro_t* dev, const void* data, stio_iolen_t
 	}
 }
 
+
+int stio_dev_pro_close (stio_dev_pro_t* dev, stio_dev_pro_sid_t sid)
+{
+	return stio_dev_ioctl ((stio_dev_t*)dev, STIO_DEV_PRO_CLOSE, &sid);
+}
+
 #if 0
-stio_dev_pro_t* stio_dev_pro_getdev (stio_dev_pro_t* pro, stio_dev_pro_type_t type)
+stio_dev_pro_t* stio_dev_pro_getdev (stio_dev_pro_t* pro, stio_dev_pro_sid_t sid)
 {
 	switch (type)
 	{

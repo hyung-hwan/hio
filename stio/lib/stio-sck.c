@@ -269,7 +269,7 @@ static int dev_sck_make_client (stio_dev_t* dev, void* ctx)
 	return 0;
 }
 
-static void dev_sck_kill (stio_dev_t* dev)
+static int dev_sck_kill (stio_dev_t* dev, int force)
 {
 	stio_dev_sck_t* rdev = (stio_dev_sck_t*)dev;
 
@@ -297,6 +297,8 @@ static void dev_sck_kill (stio_dev_t* dev)
 		stio_closeasyncsck (rdev->stio, rdev->sck);
 		rdev->sck = STIO_SCKHND_INVALID;
 	}
+
+	return 0;
 }
 
 static stio_syshnd_t dev_sck_getsyshnd (stio_dev_t* dev)

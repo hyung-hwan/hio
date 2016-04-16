@@ -29,42 +29,44 @@
 
 #include <stio.h>
 
-enum stio_dev_pro_type_t
+enum stio_dev_pro_sid_t
 {
-	STIO_DEV_PRO_IN,
-	STIO_DEV_PRO_OUT,
-	STIO_DEV_PRO_ERR,
+	STIO_DEV_PRO_MASTER = -1,
+	STIO_DEV_PRO_IN     =  0,
+	STIO_DEV_PRO_OUT    =  1,
+	STIO_DEV_PRO_ERR    =  2
 };
-typedef enum stio_dev_pro_type_t stio_dev_pro_type_t;
+typedef enum stio_dev_pro_sid_t stio_dev_pro_sid_t;
 
 typedef struct stio_dev_pro_t stio_dev_pro_t;
 typedef struct stio_dev_pro_slave_t stio_dev_pro_slave_t;
 
-typedef int (*stio_dev_pro_on_read_t) (stio_dev_pro_t* dev, const void* data, stio_iolen_t len);
+typedef int (*stio_dev_pro_on_read_t) (stio_dev_pro_t* dev, const void* data, stio_iolen_t len, stio_dev_pro_sid_t sid);
 typedef int (*stio_dev_pro_on_write_t) (stio_dev_pro_t* dev, stio_iolen_t wrlen, void* wrctx);
+typedef void (*stio_dev_pro_on_close_t) (stio_dev_pro_t* dev, stio_dev_pro_sid_t sid);
 
 struct stio_dev_pro_t
 {
 	STIO_DEV_HEADERS;
 
-	stio_dev_pro_type_t type;
-
+	int flags;
 	stio_intptr_t child_pid;
 	stio_dev_pro_slave_t* slave[3];
+	int slave_count;
 
 	stio_dev_pro_on_read_t on_read;
 	stio_dev_pro_on_write_t on_write;
+	stio_dev_pro_on_close_t on_close;
 
 	stio_tmridx_t tmridx_connect;
 
 	stio_mchar_t* mcmd;
-	int flags;
 };
 
 struct stio_dev_pro_slave_t
 {
 	STIO_DEV_HEADERS;
-	int id;
+	stio_dev_pro_sid_t id;
 	stio_syshnd_t pfd;
 	stio_dev_pro_t* master; /* parent device */
 };
@@ -87,7 +89,16 @@ enum stio_dev_pro_make_flag_t
 	STUO_DEV_PRO_DROPERR  = (1 << 10),
 
 
-	STIO_DEV_PRO_SHELL    = (1 << 13),
+	STIO_DEV_PRO_SHELL                = (1 << 13),
+
+	/* perform no waitpid() on a child process upon device destruction.
+	 * you should set this flag if your application has automatic child 
+	 * process reaping enabled. for instance, SIGCHLD is set to SIG_IGN
+	 * on POSIX.1-2001 compliant systems */
+	STIO_DEV_PRO_FORGET_CHILD         = (1 << 14),
+
+
+	STIO_DEV_PRO_FORGET_DIEHARD_CHILD = (1 << 15)
 };
 typedef enum stio_dev_pro_make_flag_t stio_dev_pro_make_flag_t;
 
@@ -96,9 +107,17 @@ struct stio_dev_pro_make_t
 {
 	int flags; /**< bitwise-ORed of stio_dev_pro_make_flag_t enumerators */
 	const void* cmd;
-	stio_dev_pro_on_write_t on_write;
-	stio_dev_pro_on_read_t on_read;
+	stio_dev_pro_on_write_t on_write; /* mandatory */
+	stio_dev_pro_on_read_t on_read; /* mandatory */
+	stio_dev_pro_on_close_t on_close; /* optional */
 };
+
+
+enum stio_dev_pro_ioctl_cmd_t
+{
+	STIO_DEV_PRO_CLOSE
+};
+typedef enum stio_dev_pro_ioctl_cmd_t stio_dev_pro_ioctl_cmd_t;
 
 #ifdef __cplusplus
 extern "C" {
@@ -127,6 +146,11 @@ STIO_EXPORT int stio_dev_pro_timedwrite (
 	stio_iolen_t        len,
 	const stio_ntime_t* tmout,
 	void*               wrctx
+);
+
+STIO_EXPORT int stio_dev_pro_close (
+	stio_dev_pro_t*     pro,
+	stio_dev_pro_sid_t  sid
 );
 
 #ifdef __cplusplus

@@ -214,9 +214,14 @@ static int arp_sck_on_write (stio_dev_sck_t* dev, stio_iolen_t wrlen, void* wrct
 
 /* ========================================================================= */
 
-static int pro_on_read (stio_dev_pro_t* dev, const void* data, stio_iolen_t dlen)
+static void pro_on_close (stio_dev_pro_t* dev, stio_dev_pro_sid_t sid)
 {
-printf ("PROCESS READ DATA... [%.*s]\n", (int)dlen, (char*)data);
+printf (">>>>>>>>>>>>> ON CLOSE OF SLAVE %d.\n", sid);
+}
+
+static int pro_on_read (stio_dev_pro_t* dev, const void* data, stio_iolen_t dlen, stio_dev_pro_sid_t sid)
+{
+printf ("PROCESS READ DATA on SLAVE[%d]... [%.*s]\n", (int)sid, (int)dlen, (char*)data);
 	return 0;
 }
 
@@ -269,6 +274,12 @@ int main ()
 	memset (&sigact, 0, STIO_SIZEOF(sigact));
 	sigact.sa_handler = SIG_IGN;
 	sigaction (SIGPIPE, &sigact, STIO_NULL);
+
+/*
+	memset (&sigact, 0, STIO_SIZEOF(sigact));
+	sigact.sa_handler = SIG_IGN;
+	sigaction (SIGCHLD, &sigact, STIO_NULL);
+*/
 
 	/*memset (&sin, 0, STIO_SIZEOF(sin));
 	sin.sin_family = AF_INET;
@@ -394,11 +405,13 @@ int main ()
 	stio_dev_pro_make_t pro_make;
 
 	memset (&pro_make, 0, STIO_SIZEOF(pro_make));
-	pro_make.flags = STIO_DEV_PRO_READOUT | STIO_DEV_PRO_READERR | STIO_DEV_PRO_WRITEIN;
+	pro_make.flags = STIO_DEV_PRO_READOUT | STIO_DEV_PRO_READERR | STIO_DEV_PRO_WRITEIN /*| STIO_DEV_PRO_FORGET_CHILD*/;
 	//pro_make.cmd = "/bin/ls -laF /usr/bin";
-	pro_make.cmd = "/bin/ls -laF";
+	//pro_make.cmd = "/bin/ls -laF";
+	pro_make.cmd = "./a";
 	pro_make.on_read = pro_on_read;
 	pro_make.on_write = pro_on_write;
+	pro_make.on_close = pro_on_close;
 
 	pro = stio_dev_pro_make (stio, 0, &pro_make);
 	if (!pro)
@@ -406,6 +419,11 @@ int main ()
 		printf ("CANNOT CREATE PROCESS PIPE\n");
 		goto oops;
 	}
+
+	stio_dev_pro_write (pro, "MY STIO LIBRARY\n", 16, STIO_NULL);
+//stio_dev_pro_close (pro, STIO_DEV_PRO_IN); 
+//stio_dev_pro_close (pro, STIO_DEV_PRO_OUT); 
+//stio_dev_pro_close (pro, STIO_DEV_PRO_ERR); 
 }
 
 	stio_loop (stio);
