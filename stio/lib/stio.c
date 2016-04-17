@@ -38,6 +38,21 @@
 static int schedule_kill_zombie_job (stio_dev_t* dev);
 static int kill_and_free_device (stio_dev_t* dev, int force);
 
+#define APPEND_DEVICE_TO_LIST(list,dev) do { \
+	if ((list)->tail) (list)->tail->dev_next = (dev); \
+	else (list)->head = (dev); \
+	(dev)->dev_prev = (list)->tail; \
+	(dev)->dev_next = STIO_NULL; \
+	(list)->tail = (dev); \
+} while(0)
+
+#define UNLINK_DEVICE_FROM_LIST(list,dev) do { \
+	if ((dev)->dev_prev) (dev)->dev_prev->dev_next = (dev)->dev_next; \
+	else (list)->head = (dev)->dev_next; \
+	if ((dev)->dev_next) (dev)->dev_next->dev_prev = (dev)->dev_prev; \
+	else (list)->tail = (dev)->dev_prev; \
+} while (0)
+
 stio_t* stio_open (stio_mmgr_t* mmgr, stio_size_t xtnsize, stio_size_t tmrcapa, stio_errnum_t* errnum)
 {
 	stio_t* stio;
@@ -96,38 +111,60 @@ int stio_init (stio_t* stio, stio_mmgr_t* mmgr, stio_size_t tmrcapa)
 
 void stio_fini (stio_t* stio)
 {
-	stio_dev_t* dev;
-
-	/* purge scheduled timer jobs and kill the timer */
-	stio_cleartmrjobs (stio);
-	STIO_MMGR_FREE (stio->mmgr, stio->tmr.jobs);
+	stio_dev_t* dev, * next_dev;
+	struct
+	{
+		stio_dev_t* head;
+		stio_dev_t* tail;
+	} diehard;
 
 	/* kill all registered devices */
-	while (stio->dev.head)
+	while (stio->actdev.head)
 	{
-		stio_killdev (stio, stio->dev.head);
+		stio_killdev (stio, stio->actdev.head);
 	}
 
-	while (stio->hdev.head)
+	while (stio->hltdev.head)
 	{
-		stio_killdev (stio, stio->hdev.head);
+		stio_killdev (stio, stio->hltdev.head);
 	}
 
 	/* clean up all zombie devices */
+	STIO_MEMSET (&diehard, 0, STIO_SIZEOF(diehard));
 	for (dev = stio->zmbdev.head; dev; )
 	{
 		kill_and_free_device (dev, 1);
-		if (stio->zmbdev.head == dev) dev = dev->dev_next;
+		if (stio->zmbdev.head == dev) 
+		{
+			/* the deive has not been freed. go on to the next one */
+			next_dev = dev->dev_next;
+
+			/* remove the device from the zombie device list */
+			UNLINK_DEVICE_FROM_LIST (&stio->zmbdev, dev);
+			dev->dev_capa &= ~STIO_DEV_CAPA_ZOMBIE;
+
+			/* put it to a private list for aborting */
+			APPEND_DEVICE_TO_LIST (&diehard, dev);
+
+			dev = next_dev;
+		}
 		else dev = stio->zmbdev.head;
 	}
 
-	while (stio->zmbdev.tail)
+	while (diehard.head)
 	{
 		/* if the kill method returns failure, it can leak some resource
 		 * because the device is freed regardless of the failure when 2 
 		 * is given to kill_and_free_device(). */
-		kill_and_free_device (stio->zmbdev.tail, 2);
+		dev = diehard.head;
+		STIO_ASSERT (!(dev->dev_capa & (STIO_DEV_CAPA_ACTIVE | STIO_DEV_CAPA_HALTED | STIO_DEV_CAPA_ZOMBIE)));
+		UNLINK_DEVICE_FROM_LIST (&diehard, dev);
+		kill_and_free_device (dev, 2);
 	}
+
+	/* purge scheduled timer jobs and kill the timer */
+	stio_cleartmrjobs (stio);
+	STIO_MMGR_FREE (stio->mmgr, stio->tmr.jobs);
 
 	/* close the multiplexer */
 	close (stio->mux);
@@ -416,7 +453,7 @@ static STIO_INLINE int __exec (stio_t* stio)
 	int nentries, i;
 #endif
 
-	/*if (!stio->dev.head) return 0;*/
+	/*if (!stio->actdev.head) return 0;*/
 
 	/* execute the scheduled jobs before checking devices with the 
 	 * multiplexer. the scheduled jobs can safely destroy the devices */
@@ -460,12 +497,12 @@ static STIO_INLINE int __exec (stio_t* stio)
 	}
 
 	/* kill all halted devices */
-	while (stio->hdev.head) 
+	while (stio->hltdev.head) 
 	{
-printf ("KILLING HALTED DEVICE %p\n", stio->hdev.head);
-		stio_killdev (stio, stio->hdev.head);
+printf (">>>>>>>>>>>>>> KILLING HALTED DEVICE %p\n", stio->hltdev.head);
+		stio_killdev (stio, stio->hltdev.head);
 	}
-	STIO_ASSERT (stio->hdev.tail == STIO_NULL);
+	STIO_ASSERT (stio->hltdev.tail == STIO_NULL);
 
 #endif
 
@@ -490,14 +527,14 @@ void stio_stop (stio_t* stio)
 
 int stio_loop (stio_t* stio)
 {
-	if (!stio->dev.head) return 0;
+	if (!stio->actdev.head) return 0;
 
 	stio->stopreq = 0;
 	stio->renew_watch = 0;
 
 	if (stio_prologue (stio) <= -1) return -1;
 
-	while (!stio->stopreq && stio->dev.head)
+	while (!stio->stopreq && stio->actdev.head)
 	{
 		if (stio_exec (stio) <= -1) break;
 		/* you can do other things here */
@@ -563,11 +600,9 @@ stio_dev_t* stio_makedev (stio_t* stio, stio_size_t dev_size, stio_dev_mth_t* de
 	if (stio_dev_watch (dev, STIO_DEV_WATCH_START, 0) <= -1) goto oops_after_make;
 #endif
 
-	/* and place the new dev at the back */
-	if (stio->dev.tail) stio->dev.tail->dev_next = dev;
-	else stio->dev.head = dev;
-	dev->dev_prev = stio->dev.tail;
-	stio->dev.tail = dev;
+	/* and place the new device object at the back of the active device list */
+	APPEND_DEVICE_TO_LIST (&stio->actdev, dev);
+	dev->dev_capa |= STIO_DEV_CAPA_ACTIVE;
 
 	return dev;
 
@@ -607,6 +642,9 @@ static int kill_and_free_device (stio_dev_t* dev, int force)
 {
 	stio_t* stio;
 
+	STIO_ASSERT (!(dev->dev_capa & STIO_DEV_CAPA_ACTIVE));
+	STIO_ASSERT (!(dev->dev_capa & STIO_DEV_CAPA_HALTED));
+
 	stio = dev->stio;
 
 	if (dev->dev_mth->kill(dev, force) <= -1) 
@@ -615,14 +653,8 @@ static int kill_and_free_device (stio_dev_t* dev, int force)
 
 		if (!(dev->dev_capa & STIO_DEV_CAPA_ZOMBIE))
 		{
+			APPEND_DEVICE_TO_LIST (&stio->zmbdev, dev);
 			dev->dev_capa |= STIO_DEV_CAPA_ZOMBIE;
-
-			/* place it at the back of the zombie device list */
-			if (stio->hdev.tail) stio->hdev.tail->dev_next = dev;
-			else stio->zmbdev.head = dev;
-			dev->dev_prev = stio->hdev.tail;
-			dev->dev_next = STIO_NULL;
-			stio->zmbdev.tail = dev;
 		}
 
 		return -1;
@@ -632,15 +664,8 @@ free_device:
 	if (dev->dev_capa & STIO_DEV_CAPA_ZOMBIE)
 	{
 		/* detach it from the zombie device list */
-		if (dev->dev_prev)
-			dev->dev_prev->dev_next = dev->dev_next;
-		else
-			stio->zmbdev.head = dev->dev_next;
-
-		if (dev->dev_next)
-			dev->dev_next->dev_prev = dev->dev_prev;
-		else
-			stio->zmbdev.tail = dev->dev_prev;
+		UNLINK_DEVICE_FROM_LIST (&stio->zmbdev, dev);
+		dev->dev_capa &= ~STIO_DEV_CAPA_ZOMBIE;
 	}
 
 	STIO_MMGR_FREE (stio->mmgr, dev);
@@ -709,34 +734,18 @@ void stio_killdev (stio_t* stio, stio_dev_t* dev)
 		STIO_MMGR_FREE (stio->mmgr, q);
 	}
 
-	/* delink the dev object */
 	if (dev->dev_capa & STIO_DEV_CAPA_HALTED)
 	{
 		/* this device is in the halted state.
 		 * unlink it from the halted device list */
-		if (dev->dev_prev)
-			dev->dev_prev->dev_next = dev->dev_next;
-		else
-			stio->hdev.head = dev->dev_next;
-
-		if (dev->dev_next)
-			dev->dev_next->dev_prev = dev->dev_prev;
-		else
-			stio->hdev.tail = dev->dev_prev;
+		UNLINK_DEVICE_FROM_LIST (&stio->hltdev, dev);
+		dev->dev_capa &= ~STIO_DEV_CAPA_HALTED;
 	}
 	else
 	{
-		/* this device has not been halted.
-		 * unlink it from the normal active device list */
-		if (dev->dev_prev)
-			dev->dev_prev->dev_next = dev->dev_next;
-		else
-			stio->dev.head = dev->dev_next;
-
-		if (dev->dev_next)
-			dev->dev_next->dev_prev = dev->dev_prev;
-		else
-			stio->dev.tail = dev->dev_prev;
+		STIO_ASSERT (dev->dev_capa & STIO_DEV_CAPA_ACTIVE);
+		UNLINK_DEVICE_FROM_LIST (&stio->actdev, dev);
+		dev->dev_capa &= ~STIO_DEV_CAPA_ACTIVE;
 	}
 
 	stio_dev_watch (dev, STIO_DEV_WATCH_STOP, 0);
@@ -765,29 +774,18 @@ kill_device:
 
 void stio_dev_halt (stio_dev_t* dev)
 {
-	if (!(dev->dev_capa & (STIO_DEV_CAPA_HALTED | STIO_DEV_CAPA_ZOMBIE)))
+	if (dev->dev_capa & STIO_DEV_CAPA_ACTIVE)
 	{
 		stio_t* stio;
 
 		stio = dev->stio;
 
-		/* delink the dev object from the device list */
-		if (dev->dev_prev)
-			dev->dev_prev->dev_next = dev->dev_next;
-		else
-			stio->dev.head = dev->dev_next;
-		if (dev->dev_next)
-			dev->dev_next->dev_prev = dev->dev_prev;
-		else
-			stio->dev.tail = dev->dev_prev;
+		/* delink the device object from the active device list */
+		UNLINK_DEVICE_FROM_LIST (&stio->actdev, dev);
+		dev->dev_capa &= ~STIO_DEV_CAPA_ACTIVE;
 
 		/* place it at the back of the halted device list */
-		if (stio->hdev.tail) stio->hdev.tail->dev_next = dev;
-		else stio->hdev.head = dev;
-		dev->dev_prev = stio->hdev.tail;
-		dev->dev_next = STIO_NULL;
-		stio->hdev.tail = dev;
-
+		APPEND_DEVICE_TO_LIST (&stio->hltdev, dev);
 		dev->dev_capa |= STIO_DEV_CAPA_HALTED;
 	}
 }
@@ -826,6 +824,7 @@ int stio_dev_watch (stio_dev_t* dev, stio_dev_watch_cmd_t cmd, int events)
 			 * data for writing. */
 			events = STIO_DEV_EVENT_IN;
 			if (!STIO_WQ_ISEMPTY(&dev->wq)) events |= STIO_DEV_EVENT_OUT;
+			/* fall through */
 		case STIO_DEV_WATCH_UPDATE:
 			/* honor event watching requests as given by the caller */
 			epoll_op = EPOLL_CTL_MOD;

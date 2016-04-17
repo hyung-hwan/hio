@@ -37,6 +37,22 @@
 #include <arpa/inet.h>
 #include <netpacket/packet.h>
 
+#if defined(HAVE_OPENSSL_SSL_H) && defined(HAVE_SSL)
+#	include <openssl/ssl.h>
+#	if defined(HAVE_OPENSSL_ERR_H)
+#		include <openssl/err.h>
+#	endif
+#	if defined(HAVE_OPENSSL_ENGINE_H)
+#		include <openssl/engine.h>
+#	endif
+#	define USE_SSL
+#endif
+
+#if defined(USE_SSL)
+#	define HANDLE_TO_SSL(x) ((SSL*)(x))
+#	define SSL_TO_HANDLE(x) ((qse_httpd_hnd_t)(x))
+#endif
+
 /* ========================================================================= */
 void stio_closeasyncsck (stio_t* stio, stio_sckhnd_t sck)
 {
@@ -298,6 +314,14 @@ static int dev_sck_kill (stio_dev_t* dev, int force)
 		rdev->sck = STIO_SCKHND_INVALID;
 	}
 
+#if defined(USE_SSL)
+	if (rdev->secure_ctx)
+	{
+		SSL_CTX_free ((SSL_CTX*)rdev->secure_ctx);
+		rdev->secure_ctx = STIO_NULL;
+	}
+#endif
+
 	return 0;
 }
 
@@ -416,6 +440,9 @@ static int dev_sck_ioctl (stio_dev_t* dev, int cmd, void* arg)
 			stio_scklen_t sl;
 			stio_sckfam_t fam;
 			int x;
+		#if defined(USE_SSL)
+			SSL_CTX* ssl = STIO_NULL;
+		#endif
 
 			if (bnd->options & STIO_DEV_SCK_BIND_BROADCAST)
 			{
@@ -437,16 +464,49 @@ static int dev_sck_ioctl (stio_dev_t* dev, int cmd, void* arg)
 				}
 			}
 
+			if (bnd->options & STIO_DEV_SCK_BIND_SECURE)
+			{
+		#if defined(USE_SSL)
+				SSL_CTX* ssl;
+
+				ssl = SSL_CTX_new (SSLv23_server_method());
+				if (!ssl)
+				{
+					rdev->stio->errnum = STIO_ESYSERR;
+					return -1;
+				}
+
+				if (SSL_CTX_use_certificate_file (ssl, bnd->certfile, SSL_FILETYPE_PEM) == 0 ||
+				    SSL_CTX_use_PrivateKey_file (ssl, bnd->keyfile, SSL_FILETYPE_PEM) == 0 ||
+				    SSL_CTX_check_private_key (ssl) == 0)
+				{
+					rdev->stio->errnum = STIO_ESYSERR;
+					SSL_CTX_free (ssl);
+					return -1;
+				}
+
+				SSL_CTX_set_read_ahead (ssl, 0);
+		#else
+				rdev->stio->errnum = STIO_ENOIMPL;
+				return -1;
+		#endif
+			}
+
 			if (stio_getsckadrinfo (dev->stio, &bnd->addr, &sl, &fam) <= -1) return -1;
 
-			/* the socket is already non-blocking */
 			x = bind (rdev->sck, sa, sl);
 			if (x == -1)
 			{
 				rdev->stio->errnum = stio_syserrtoerrnum(errno);
+		#if defined(USE_SSL)
+				if (ssl) SSL_CTX_free (ssl);
+		#endif
 				return -1;
 			}
 
+		#if defined(USE_SSL)
+			rdev->secure_ctx = ssl;
+		#endif
 			return 0;
 		}
 
@@ -651,11 +711,7 @@ static int dev_evcb_sck_ready_stateful (stio_dev_t* dev, int events)
 					STIO_ASSERT (rdev->tmridx_connect == STIO_TMRIDX_INVALID);
 				}
 
-				if (rdev->on_connect (rdev) <= -1) 
-				{
-					printf ("ON_CONNECTE HANDLER RETURNEF FAILURE...\n");
-					return -1;
-				}
+				if (rdev->on_connect (rdev) <= -1) return -1;
 			}
 			else if (errcode == EINPROGRESS || errcode == EWOULDBLOCK)
 			{

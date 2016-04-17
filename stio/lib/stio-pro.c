@@ -610,11 +610,25 @@ static int dev_pro_ioctl (stio_dev_t* dev, int cmd, void* arg)
 				 * initiated by the slave device itself. */
 				stio_killdev (rdev->stio, (stio_dev_t*)rdev->slave[sid]);
 			}
-			break;
+			return 0;
 		}
-	}
 
-	return 0;
+		case STIO_DEV_PRO_KILL_CHILD:
+			if (rdev->child_pid >= 0)
+			{
+				if (kill (rdev->child_pid, SIGKILL) == -1)
+				{
+					rdev->stio->errnum = stio_syserrtoerrnum(errno);
+					return -1;
+				}
+			}
+
+			return 0;
+
+		default:
+			dev->stio->errnum = STIO_EINVAL;
+			return -1;
+	}
 }
 
 static stio_dev_mth_t dev_pro_methods = 
@@ -801,10 +815,14 @@ int stio_dev_pro_timedwrite (stio_dev_pro_t* dev, const void* data, stio_iolen_t
 	}
 }
 
-
 int stio_dev_pro_close (stio_dev_pro_t* dev, stio_dev_pro_sid_t sid)
 {
 	return stio_dev_ioctl ((stio_dev_t*)dev, STIO_DEV_PRO_CLOSE, &sid);
+}
+
+int stio_dev_pro_killchild (stio_dev_pro_t* dev)
+{
+	return stio_dev_ioctl ((stio_dev_t*)dev, STIO_DEV_PRO_KILL_CHILD, STIO_NULL);
 }
 
 #if 0

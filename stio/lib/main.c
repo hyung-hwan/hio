@@ -40,6 +40,17 @@
 #include <netpacket/packet.h>
 #include <net/if.h>
 
+#if defined(HAVE_OPENSSL_SSL_H) && defined(HAVE_SSL)
+#	include <openssl/ssl.h>
+#	if defined(HAVE_OPENSSL_ERR_H)
+#		include <openssl/err.h>
+#	endif
+#	if defined(HAVE_OPENSSL_ENGINE_H)
+#		include <openssl/engine.h>
+#	endif
+#	define USE_SSL
+#endif
+
 /* ========================================================================= */
 
 struct mmgr_stat_t
@@ -85,6 +96,22 @@ static stio_mmgr_t mmgr =
 };
 
 /* ========================================================================= */
+
+#if defined(USE_SSL)
+static void cleanup_openssl ()
+{
+	/* ERR_remove_state() should be called for each thread if the application is thread */
+	ERR_remove_state (0);
+#if defined(HAVE_ENGINE_CLEANUP)
+	ENGINE_cleanup ();
+#endif
+	ERR_free_strings ();
+	EVP_cleanup ();
+#if defined(HAVE_CRYPTO_CLEANUP_ALL_EX_DATA)
+	CRYPTO_cleanup_all_ex_data ();
+#endif
+}
+#endif
 
 struct tcp_server_t
 {
@@ -243,10 +270,11 @@ static void handle_signal (int sig)
 
 int main ()
 {
+	int i;
 
 	stio_t* stio;
 	stio_dev_sck_t* sck;
-	stio_dev_sck_t* tcp[2];
+	stio_dev_sck_t* tcp[3];
 
 	struct sigaction sigact;
 	stio_dev_sck_connect_t tcp_conn;
@@ -256,6 +284,11 @@ int main ()
 	
 	stio_dev_sck_make_t sck_make;
 	tcp_server_t* ts;
+
+#if defined(USE_SSL)
+	SSL_load_error_strings ();
+	SSL_library_init ();
+#endif
 
 	stio = stio_open (&mmgr, 0, 512, STIO_NULL);
 	if (!stio)
@@ -322,9 +355,12 @@ int main ()
 		goto oops;
 	}
 
+	/* -------------------------------------------------------------- */
 	memset (&tcp_make, 0, STIO_SIZEOF(&tcp_make));
+	tcp_make.type = STIO_DEV_SCK_TCP4;
 	tcp_make.on_write = tcp_sck_on_write;
 	tcp_make.on_read = tcp_sck_on_read;
+
 
 	tcp[1] = stio_dev_sck_make (stio, STIO_SIZEOF(tcp_server_t), &tcp_make);
 	if (!tcp[1])
@@ -337,6 +373,45 @@ int main ()
 
 	memset (&tcp_bind, 0, STIO_SIZEOF(tcp_bind));
 	stio_sckadr_initforip4 (&tcp_bind.addr, 1234, STIO_NULL);
+	tcp_bind.options = STIO_DEV_SCK_BIND_REUSEADDR;
+
+	if (stio_dev_sck_bind (tcp[1],&tcp_bind) <= -1)
+	{
+		printf ("stio_dev_sck_bind() failed....\n");
+		goto oops;
+	}
+
+
+	tcp_lstn.backlogs = 100;
+	tcp_lstn.on_connect = tcp_sck_on_connect;
+	tcp_lstn.on_disconnect = tcp_sck_on_disconnect;
+	if (stio_dev_sck_listen (tcp[1], &tcp_lstn) <= -1)
+	{
+		printf ("stio_dev_sck_listen() failed....\n");
+		goto oops;
+	}
+
+
+	/* -------------------------------------------------------------- */
+	memset (&tcp_make, 0, STIO_SIZEOF(&tcp_make));
+	tcp_make.type = STIO_DEV_SCK_TCP4;
+	tcp_make.on_write = tcp_sck_on_write;
+	tcp_make.on_read = tcp_sck_on_read;
+
+	tcp[2] = stio_dev_sck_make (stio, STIO_SIZEOF(tcp_server_t), &tcp_make);
+	if (!tcp[2])
+	{
+		printf ("Cannot make tcp\n");
+		goto oops;
+	}
+	ts = (tcp_server_t*)(tcp[2] + 1);
+	ts->tally = 0;
+
+	memset (&tcp_bind, 0, STIO_SIZEOF(tcp_bind));
+	stio_sckadr_initforip4 (&tcp_bind.addr, 1235, STIO_NULL);
+	tcp_bind.options = STIO_DEV_SCK_BIND_REUSEADDR | STIO_DEV_SCK_BIND_SECURE;
+	tcp_bind.certfile = STIO_MT("stio.certfile");
+	tcp_bind.keyfile = STIO_MT("stio.keyfile");
 
 	if (stio_dev_sck_bind (tcp[1],&tcp_bind) <= -1)
 	{
@@ -400,6 +475,7 @@ int main ()
 #endif
 
 
+for (i = 0; i < 5; i++)
 {
 	stio_dev_pro_t* pro;
 	stio_dev_pro_make_t pro_make;
@@ -421,6 +497,7 @@ int main ()
 	}
 
 	stio_dev_pro_write (pro, "MY STIO LIBRARY\n", 16, STIO_NULL);
+//stio_dev_pro_killchild (pro); 
 //stio_dev_pro_close (pro, STIO_DEV_PRO_IN); 
 //stio_dev_pro_close (pro, STIO_DEV_PRO_OUT); 
 //stio_dev_pro_close (pro, STIO_DEV_PRO_ERR); 
@@ -430,11 +507,17 @@ int main ()
 
 	g_stio = STIO_NULL;
 	stio_close (stio);
+#if defined(USE_SSL)
+	cleanup_openssl ();
+#endif
 
 	return 0;
 
 oops:
 	g_stio = STIO_NULL;
 	stio_close (stio);
+#if defined(USE_SSL)
+	cleanup_openssl ();
+#endif
 	return -1;
 }
