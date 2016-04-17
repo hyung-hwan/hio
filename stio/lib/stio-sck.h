@@ -145,8 +145,10 @@ struct stio_dev_sck_make_t
 enum stio_dev_sck_bind_option_t
 {
 	STIO_DEV_SCK_BIND_BROADCAST = (1 << 0),
-	STIO_DEV_SCK_BIND_REUSEADDR = (1 << 1)
+	STIO_DEV_SCK_BIND_REUSEADDR = (1 << 1),
 /* TODO: more options --- TRANSPARENT...SO_RCVBUF, SO_SNDBUF, SO_RCVTIMEO, SO_SNDTIMEO, SO_KEEPALIVE */
+
+	STIO_DEV_SCK_BIND_SECURE    = (1 << 15)
 };
 typedef enum stio_dev_sck_bind_option_t stio_dev_sck_bind_option_t;
 
@@ -156,6 +158,9 @@ struct stio_dev_sck_bind_t
 	int options;
 	stio_sckadr_t addr;
 	/* TODO: add device name for BIND_TO_DEVICE */
+
+	const stio_mchar_t* certfile;
+	const stio_mchar_t* keyfile;
 };
 
 typedef struct stio_dev_sck_connect_t stio_dev_sck_connect_t;
@@ -189,6 +194,7 @@ struct stio_dev_sck_t
 
 	stio_dev_sck_type_t type;
 	stio_sckhnd_t sck;
+	void* secure_ctx;
 
 	stio_dev_sck_on_write_t on_write;
 	stio_dev_sck_on_read_t on_read;
@@ -239,7 +245,6 @@ STIO_EXPORT int stio_getsckadrinfo (
 	stio_scklen_t*       len,
 	stio_sckfam_t*       family
 );
-
 
 
 void stio_sckadr_initforip4 (

@@ -36,7 +36,7 @@ libstio_la_SOURCES = \
 	stio-tmr.c
 libstio_la_CPPFLAGS = $(CPPFLAGS_LIB_COMMON)
 libstio_la_LDFLAGS = $(LDFLAGS_LIB_COMMON)
-libstio_la_LIBADD = $(LIBADD_LIB_COMMON)
+libstio_la_LIBADD = $(LIBADD_LIB_COMMON) $(SSL_LIBS)
 
 bin_PROGRAMS = stio
 stio_SOURCES = main.c

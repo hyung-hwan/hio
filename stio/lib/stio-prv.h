@@ -62,13 +62,13 @@ struct stio_t
 	{
 		stio_dev_t* head;
 		stio_dev_t* tail;
-	} dev; /* normal devices */
+	} actdev; /* active devices */
 
 	struct
 	{
 		stio_dev_t* head;
 		stio_dev_t* tail;
-	} hdev; /* halted devices */
+	} hltdev; /* halted devices */
 
 	struct
 	{

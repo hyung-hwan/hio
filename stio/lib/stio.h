@@ -106,7 +106,6 @@ enum stio_errnum_t
 	STIO_ECONRS,     /* connection reset */
 	STIO_ENOCAPA,    /* no capability */
 	STIO_ETMOUT,     /* timed out */
-	
 
 	STIO_EDEVMAKE,
 	STIO_EDEVERR,
@@ -273,8 +272,9 @@ enum stio_dev_capa_t
 	STIO_DEV_CAPA_OUT_WATCHED  = (1 << 13),
 	STIO_DEV_CAPA_PRI_WATCHED  = (1 << 14), /**< can be set only if STIO_DEV_CAPA_IN_WATCHED is set */
 
-	STIO_DEV_CAPA_HALTED       = (1 << 15),
-	STIO_DEV_CAPA_ZOMBIE       = (1 << 16)
+	STIO_DEV_CAPA_ACTIVE       = (1 << 15),
+	STIO_DEV_CAPA_HALTED       = (1 << 16),
+	STIO_DEV_CAPA_ZOMBIE       = (1 << 17)
 };
 typedef enum stio_dev_capa_t stio_dev_capa_t;
 

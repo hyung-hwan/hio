@@ -58,8 +58,6 @@ struct stio_dev_pro_t
 	stio_dev_pro_on_write_t on_write;
 	stio_dev_pro_on_close_t on_close;
 
-	stio_tmridx_t tmridx_connect;
-
 	stio_mchar_t* mcmd;
 };
 
@@ -115,7 +113,8 @@ struct stio_dev_pro_make_t
 
 enum stio_dev_pro_ioctl_cmd_t
 {
-	STIO_DEV_PRO_CLOSE
+	STIO_DEV_PRO_CLOSE,
+	STIO_DEV_PRO_KILL_CHILD
 };
 typedef enum stio_dev_pro_ioctl_cmd_t stio_dev_pro_ioctl_cmd_t;
 
@@ -151,6 +150,11 @@ STIO_EXPORT int stio_dev_pro_timedwrite (
 STIO_EXPORT int stio_dev_pro_close (
 	stio_dev_pro_t*     pro,
 	stio_dev_pro_sid_t  sid
+);
+
+
+STIO_EXPORT int stio_dev_pro_killchild (
+	stio_dev_pro_t*     pro
 );
 
 #ifdef __cplusplus

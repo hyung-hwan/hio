@@ -102,7 +102,7 @@ am__installdirs = "$(DESTDIR)$(libdir)" "$(DESTDIR)$(bindir)" \
 LTLIBRARIES = $(lib_LTLIBRARIES)
 am__DEPENDENCIES_1 =
 am__DEPENDENCIES_2 = $(am__DEPENDENCIES_1)
-libstio_la_DEPENDENCIES = $(am__DEPENDENCIES_2)
+libstio_la_DEPENDENCIES = $(am__DEPENDENCIES_2) $(am__DEPENDENCIES_1)
 am_libstio_la_OBJECTS = libstio_la-stio.lo libstio_la-stio-pro.lo \
 	libstio_la-stio-sck.lo libstio_la-stio-tim.lo \
 	libstio_la-stio-tmr.lo
@@ -342,7 +342,7 @@ libstio_la_SOURCES = \
 
 libstio_la_CPPFLAGS = $(CPPFLAGS_LIB_COMMON)
 libstio_la_LDFLAGS = $(LDFLAGS_LIB_COMMON)
-libstio_la_LIBADD = $(LIBADD_LIB_COMMON)
+libstio_la_LIBADD = $(LIBADD_LIB_COMMON) $(SSL_LIBS)
 stio_SOURCES = main.c
 stio_CPPFLAGS = $(CPPFLAGS_LIB_COMMON)
 stio_LDFLAGS = $(LDFLAGS_LIB_COMMON)
