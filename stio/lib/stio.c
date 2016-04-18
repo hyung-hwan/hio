@@ -33,7 +33,6 @@
 
 #define DEV_CAPA_ALL_WATCHED (STIO_DEV_CAPA_IN_WATCHED | STIO_DEV_CAPA_OUT_WATCHED | STIO_DEV_CAPA_PRI_WATCHED)
 
-#define IS_MSPACE(x) ((x) == STIO_MT(' ') || (x) == STIO_MT('\t'))
 
 static int schedule_kill_zombie_job (stio_dev_t* dev);
 static int kill_and_free_device (stio_dev_t* dev, int force);
@@ -252,7 +251,8 @@ printf ("has urgent data...\n");
 
 		send_leftover:
 			ulen = urem;
-			x = dev->dev_mth->write (dev, uptr, &ulen, &q->dstadr);
+printf ("&&&&&&&&&&&&&&&&&&&&&&&&&&&&7WRITING..........................\n");
+			x = dev->dev_mth->write (dev, uptr, &ulen, &q->dstaddr);
 			if (x <= -1)
 			{
 				stio_dev_halt (dev);
@@ -286,7 +286,7 @@ printf ("has urgent data...\n");
 					}
 
 					unlink_wq (stio, q);
-					y = dev->dev_evcb->on_write (dev, q->olen, q->ctx, &q->dstadr);
+					y = dev->dev_evcb->on_write (dev, q->olen, q->ctx, &q->dstaddr);
 					STIO_MMGR_FREE (stio->mmgr, q);
 
 					if (y <= -1)
@@ -331,7 +331,7 @@ printf ("has urgent data...\n");
 
 	if (dev && stio->revs[i].events & EPOLLIN)
 	{
-		stio_devadr_t srcadr;
+		stio_devaddr_t srcaddr;
 		stio_iolen_t len;
 		int x;
 
@@ -341,7 +341,7 @@ printf ("has urgent data...\n");
 		while (1)
 		{
 			len = STIO_COUNTOF(stio->bigbuf);
-			x = dev->dev_mth->read (dev, stio->bigbuf, &len, &srcadr);
+			x = dev->dev_mth->read (dev, stio->bigbuf, &len, &srcaddr);
 			if (x <= -1)
 			{
 				stio_dev_halt (dev);
@@ -363,7 +363,7 @@ printf ("has urgent data...\n");
 					stio->renew_watch = 1;
 
 					/* call the on_read callback to report EOF */
-					if (dev->dev_evcb->on_read (dev, stio->bigbuf, len, &srcadr) <= -1 ||
+					if (dev->dev_evcb->on_read (dev, stio->bigbuf, len, &srcaddr) <= -1 ||
 					    (dev->dev_capa & STIO_DEV_CAPA_OUT_CLOSED))
 					{
 						/* 1. input ended and its reporting failed or 
@@ -382,7 +382,7 @@ printf ("has urgent data...\n");
 		 *        when x == 0 or <= -1. you can  */
 
 					/* data available */
-					y = dev->dev_evcb->on_read (dev, stio->bigbuf, len, &srcadr);
+					y = dev->dev_evcb->on_read (dev, stio->bigbuf, len, &srcaddr);
 					if (y <= -1)
 					{
 						stio_dev_halt (dev);
@@ -877,11 +877,10 @@ int stio_dev_watch (stio_dev_t* dev, stio_dev_watch_cmd_t cmd, int events)
 
 	if (epoll_op == EPOLL_CTL_MOD && (dev_capa & DEV_CAPA_ALL_WATCHED) == (dev->dev_capa & DEV_CAPA_ALL_WATCHED))
 	{
-		/* skip calling epoll_ctl */
+		/* no change in the device capacity. skip calling epoll_ctl */
 	}
 	else
 	{
-printf ("MODING cmd=%d %d\n", (int)cmd, (int)dev->dev_mth->getsyshnd(dev));
 		if (epoll_ctl (dev->stio->mux, epoll_op, dev->dev_mth->getsyshnd(dev), &ev) == -1)
 		{
 			dev->stio->errnum = stio_syserrtoerrnum(errno);
@@ -930,7 +929,7 @@ static void on_write_timeout (stio_t* stio, const stio_ntime_t* now, stio_tmrjob
 	dev = q->dev;
 
 	dev->stio->errnum = STIO_ETMOUT;
-	x = dev->dev_evcb->on_write (dev, -1, q->ctx, &q->dstadr); 
+	x = dev->dev_evcb->on_write (dev, -1, q->ctx, &q->dstaddr); 
 
 	STIO_ASSERT (q->tmridx == STIO_TMRIDX_INVALID);
 	STIO_WQ_UNLINK(q);
@@ -939,7 +938,7 @@ static void on_write_timeout (stio_t* stio, const stio_ntime_t* now, stio_tmrjob
 	if (x <= -1) stio_dev_halt (dev);
 }
 
-static int __dev_write (stio_dev_t* dev, const void* data, stio_iolen_t len, const stio_ntime_t* tmout, void* wrctx, const stio_devadr_t* dstadr)
+static int __dev_write (stio_dev_t* dev, const void* data, stio_iolen_t len, const stio_ntime_t* tmout, void* wrctx, const stio_devaddr_t* dstaddr)
 {
 	const stio_uint8_t* uptr;
 	stio_iolen_t urem, ulen;
@@ -968,7 +967,7 @@ static int __dev_write (stio_dev_t* dev, const void* data, stio_iolen_t len, con
 		do
 		{
 			ulen = urem;
-			x = dev->dev_mth->write (dev, data, &ulen, dstadr);
+			x = dev->dev_mth->write (dev, data, &ulen, dstaddr);
 			if (x <= -1) return -1;
 			else if (x == 0) 
 			{
@@ -994,18 +993,18 @@ static int __dev_write (stio_dev_t* dev, const void* data, stio_iolen_t len, con
 			dev->dev_capa |= STIO_DEV_CAPA_OUT_CLOSED;
 		}
 
-		if (dev->dev_evcb->on_write (dev, len, wrctx, dstadr) <= -1) return -1;
+		if (dev->dev_evcb->on_write (dev, len, wrctx, dstaddr) <= -1) return -1;
 	}
 	else
 	{
 		ulen = urem;
 
-		x = dev->dev_mth->write (dev, data, &ulen, dstadr);
+		x = dev->dev_mth->write (dev, data, &ulen, dstaddr);
 		if (x <= -1) return -1;
 		else if (x == 0) goto enqueue_data;
 
 		/* partial writing is still considered ok for a non-stream device */
-		if (dev->dev_evcb->on_write (dev, ulen, wrctx, dstadr) <= -1) return -1;
+		if (dev->dev_evcb->on_write (dev, ulen, wrctx, dstaddr) <= -1) return -1;
 	}
 
 	return 1; /* written immediately and called on_write callback */
@@ -1014,11 +1013,12 @@ enqueue_data:
 	if (!(dev->dev_capa & STIO_DEV_CAPA_OUT_QUEUED)) 
 	{
 		/* writing queuing is not requested. so return failure */
+		dev->stio->errnum = STIO_ENOCAPA;
 		return -1;
 	}
 
 	/* queue the remaining data*/
-	q = (stio_wq_t*)STIO_MMGR_ALLOC (dev->stio->mmgr, STIO_SIZEOF(*q) + (dstadr? dstadr->len: 0) + urem);
+	q = (stio_wq_t*)STIO_MMGR_ALLOC (dev->stio->mmgr, STIO_SIZEOF(*q) + (dstaddr? dstaddr->len: 0) + urem);
 	if (!q)
 	{
 		dev->stio->errnum = STIO_ENOMEM;
@@ -1029,22 +1029,21 @@ enqueue_data:
 	q->dev = dev;
 	q->ctx = wrctx;
 
-	if (dstadr)
+	if (dstaddr)
 	{
-		q->dstadr.ptr = (stio_uint8_t*)(q + 1);
-		q->dstadr.len = dstadr->len;
-		STIO_MEMCPY (q->dstadr.ptr, dstadr->ptr, dstadr->len);
+		q->dstaddr.ptr = (stio_uint8_t*)(q + 1);
+		q->dstaddr.len = dstaddr->len;
+		STIO_MEMCPY (q->dstaddr.ptr, dstaddr->ptr, dstaddr->len);
 	}
 	else
 	{
-		q->dstadr.len = 0;
+		q->dstaddr.len = 0;
 	}
 
-	q->ptr = (stio_uint8_t*)(q + 1) + q->dstadr.len;
+	q->ptr = (stio_uint8_t*)(q + 1) + q->dstaddr.len;
 	q->len = urem;
 	q->olen = len;
 	STIO_MEMCPY (q->ptr, uptr, urem);
-
 
 	if (tmout && !stio_isnegtime(tmout))
 	{
@@ -1061,6 +1060,7 @@ enqueue_data:
 		if (q->tmridx == STIO_TMRIDX_INVALID) 
 		{
 			STIO_MMGR_FREE (dev->stio->mmgr, q);
+printf ("ZZZZZZZZZZZZZZZZZZZZZZZZZZZZZZZZZZZZZZZZZZZZZZZZZZZZZZz222222\n");
 			return -1;
 		}
 	}
@@ -1073,6 +1073,7 @@ enqueue_data:
 		{
 			unlink_wq (dev->stio, q);
 			STIO_MMGR_FREE (dev->stio->mmgr, q);
+printf ("ZZZZZZZZZZZZZZZZZZZZZZZZZZZZZZZZZZZZZZZZZZZZZZZZZZZZZZz11111\n");
 			return -1;
 		}
 	}
@@ -1081,17 +1082,18 @@ enqueue_data:
 		dev->stio->renew_watch = 1;
 	}
 
+printf ("ZZZZZZZZZZZZZZZZZZZZZZZZZZZZZZZZZZZZZZZZZZZZZZZZZZZZZZz\n");
 	return 0; /* request pused to a write queue. */
 }
 
-int stio_dev_write (stio_dev_t* dev, const void* data, stio_iolen_t len, void* wrctx, const stio_devadr_t* dstadr)
+int stio_dev_write (stio_dev_t* dev, const void* data, stio_iolen_t len, void* wrctx, const stio_devaddr_t* dstaddr)
 {
-	return __dev_write (dev, data, len, STIO_NULL, wrctx, dstadr);
+	return __dev_write (dev, data, len, STIO_NULL, wrctx, dstaddr);
 }
 
-int stio_dev_timedwrite (stio_dev_t* dev, const void* data, stio_iolen_t len, const stio_ntime_t* tmout, void* wrctx, const stio_devadr_t* dstadr)
+int stio_dev_timedwrite (stio_dev_t* dev, const void* data, stio_iolen_t len, const stio_ntime_t* tmout, void* wrctx, const stio_devaddr_t* dstaddr)
 {
-	return __dev_write (dev, data, len, tmout, wrctx, dstadr);
+	return __dev_write (dev, data, len, tmout, wrctx, dstaddr);
 }
 
 int stio_makesyshndasync (stio_t* stio, stio_syshnd_t hnd)
@@ -1134,8 +1136,15 @@ stio_errnum_t stio_syserrtoerrnum (int no)
 			return STIO_ENFILE;
 	#endif
 
-	#if defined(EAGAIN)
+	#if defined(EWOULDBLOCK) && defined(EAGAIN) && (EWOULDBLOCK != EAGAIN)
 		case EAGAIN:
+		case EWOULDBLOCK:
+			return STIO_EAGAIN;
+	#elif defined(EAGAIN)
+		case EAGAIN:
+			return STIO_EAGAIN;
+	#elif defined(EWOULDBLOCK)
+		case EWOULDBLOCK:
 			return STIO_EAGAIN;
 	#endif
 
@@ -1152,317 +1161,4 @@ stio_errnum_t stio_syserrtoerrnum (int no)
 		default:
 			return STIO_ESYSERR;
 	}
-}
-
-stio_mchar_t* stio_mbsdup (stio_t* stio, const stio_mchar_t* src)
-{
-	stio_mchar_t* dst;
-	stio_size_t len;
-
-	dst = (stio_mchar_t*)src;
-	while (*dst != STIO_MT('\0')) dst++;
-	len = dst - src;
-
-	dst = STIO_MMGR_ALLOC (stio->mmgr, (len + 1) * STIO_SIZEOF(*src));
-	if (!dst)
-	{
-		stio->errnum = STIO_ENOMEM;
-		return STIO_NULL;
-	}
-
-	STIO_MEMCPY (dst, src, (len + 1) * STIO_SIZEOF(*src));
-	return dst;
-}
-
-stio_size_t stio_mbscpy (stio_mchar_t* buf, const stio_mchar_t* str)
-{
-	stio_mchar_t* org = buf;
-	while ((*buf++ = *str++) != STIO_MT('\0'));
-	return buf - org - 1;
-}
-
-int stio_mbsspltrn (
-	stio_mchar_t* s, const stio_mchar_t* delim,
-	stio_mchar_t lquote, stio_mchar_t rquote, 
-	stio_mchar_t escape, const stio_mchar_t* trset)
-{
-	stio_mchar_t* p = s, *d;
-	stio_mchar_t* sp = STIO_NULL, * ep = STIO_NULL;
-	int delim_mode;
-	int cnt = 0;
-
-	if (delim == STIO_NULL) delim_mode = 0;
-	else 
-	{
-		delim_mode = 1;
-		for (d = (stio_mchar_t*)delim; *d != STIO_MT('\0'); d++)
-			if (!IS_MSPACE(*d)) delim_mode = 2;
-	}
-
-	if (delim_mode == 0) 
-	{
-		/* skip preceding space characters */
-		while (IS_MSPACE(*p)) p++;
-
-		/* when 0 is given as "delim", it has an effect of cutting
-		   preceding and trailing space characters off "s". */
-		if (lquote != STIO_MT('\0') && *p == lquote) 
-		{
-			stio_mbscpy (p, p + 1);
-
-			for (;;) 
-			{
-				if (*p == STIO_MT('\0')) return -1;
-
-				if (escape != STIO_MT('\0') && *p == escape) 
-				{
-					if (trset != STIO_NULL && p[1] != STIO_MT('\0'))
-					{
-						const stio_mchar_t* ep = trset;
-						while (*ep != STIO_MT('\0'))
-						{
-							if (p[1] == *ep++) 
-							{
-								p[1] = *ep;
-								break;
-							}
-						}
-					}
-
-					stio_mbscpy (p, p + 1);
-				}
-				else 
-				{
-					if (*p == rquote) 
-					{
-						p++;
-						break;
-					}
-				}
-
-				if (sp == 0) sp = p;
-				ep = p;
-				p++;
-			}
-			while (IS_MSPACE(*p)) p++;
-			if (*p != STIO_MT('\0')) return -1;
-
-			if (sp == 0 && ep == 0) s[0] = STIO_MT('\0');
-			else 
-			{
-				ep[1] = STIO_MT('\0');
-				if (s != (stio_mchar_t*)sp) stio_mbscpy (s, sp);
-				cnt++;
-			}
-		}
-		else 
-		{
-			while (*p) 
-			{
-				if (!IS_MSPACE(*p)) 
-				{
-					if (sp == 0) sp = p;
-					ep = p;
-				}
-				p++;
-			}
-
-			if (sp == 0 && ep == 0) s[0] = STIO_MT('\0');
-			else 
-			{
-				ep[1] = STIO_MT('\0');
-				if (s != (stio_mchar_t*)sp) stio_mbscpy (s, sp);
-				cnt++;
-			}
-		}
-	}
-	else if (delim_mode == 1) 
-	{
-		stio_mchar_t* o;
-
-		while (*p) 
-		{
-			o = p;
-			while (IS_MSPACE(*p)) p++;
-			if (o != p) { stio_mbscpy (o, p); p = o; }
-
-			if (lquote != STIO_MT('\0') && *p == lquote) 
-			{
-				stio_mbscpy (p, p + 1);
-
-				for (;;) 
-				{
-					if (*p == STIO_MT('\0')) return -1;
-
-					if (escape != STIO_MT('\0') && *p == escape) 
-					{
-						if (trset != STIO_NULL && p[1] != STIO_MT('\0'))
-						{
-							const stio_mchar_t* ep = trset;
-							while (*ep != STIO_MT('\0'))
-							{
-								if (p[1] == *ep++) 
-								{
-									p[1] = *ep;
-									break;
-								}
-							}
-						}
-						stio_mbscpy (p, p + 1);
-					}
-					else 
-					{
-						if (*p == rquote) 
-						{
-							*p++ = STIO_MT('\0');
-							cnt++;
-							break;
-						}
-					}
-					p++;
-				}
-			}
-			else 
-			{
-				o = p;
-				for (;;) 
-				{
-					if (*p == STIO_MT('\0')) 
-					{
-						if (o != p) cnt++;
-						break;
-					}
-					if (IS_MSPACE (*p)) 
-					{
-						*p++ = STIO_MT('\0');
-						cnt++;
-						break;
-					}
-					p++;
-				}
-			}
-		}
-	}
-	else /* if (delim_mode == 2) */
-	{
-		stio_mchar_t* o;
-		int ok;
-
-		while (*p != STIO_MT('\0')) 
-		{
-			o = p;
-			while (IS_MSPACE(*p)) p++;
-			if (o != p) { stio_mbscpy (o, p); p = o; }
-
-			if (lquote != STIO_MT('\0') && *p == lquote) 
-			{
-				stio_mbscpy (p, p + 1);
-
-				for (;;) 
-				{
-					if (*p == STIO_MT('\0')) return -1;
-
-					if (escape != STIO_MT('\0') && *p == escape) 
-					{
-						if (trset != STIO_NULL && p[1] != STIO_MT('\0'))
-						{
-							const stio_mchar_t* ep = trset;
-							while (*ep != STIO_MT('\0'))
-							{
-								if (p[1] == *ep++) 
-								{
-									p[1] = *ep;
-									break;
-								}
-							}
-						}
-
-						stio_mbscpy (p, p + 1);
-					}
-					else 
-					{
-						if (*p == rquote) 
-						{
-							*p++ = STIO_MT('\0');
-							cnt++;
-							break;
-						}
-					}
-					p++;
-				}
-
-				ok = 0;
-				while (IS_MSPACE(*p)) p++;
-				if (*p == STIO_MT('\0')) ok = 1;
-				for (d = (stio_mchar_t*)delim; *d != STIO_MT('\0'); d++) 
-				{
-					if (*p == *d) 
-					{
-						ok = 1;
-						stio_mbscpy (p, p + 1);
-						break;
-					}
-				}
-				if (ok == 0) return -1;
-			}
-			else 
-			{
-				o = p; sp = ep = 0;
-
-				for (;;) 
-				{
-					if (*p == STIO_MT('\0')) 
-					{
-						if (ep) 
-						{
-							ep[1] = STIO_MT('\0');
-							p = &ep[1];
-						}
-						cnt++;
-						break;
-					}
-					for (d = (stio_mchar_t*)delim; *d != STIO_MT('\0'); d++) 
-					{
-						if (*p == *d)  
-						{
-							if (sp == STIO_NULL) 
-							{
-								stio_mbscpy (o, p); p = o;
-								*p++ = STIO_MT('\0');
-							}
-							else 
-							{
-								stio_mbscpy (&ep[1], p);
-								stio_mbscpy (o, sp);
-								o[ep - sp + 1] = STIO_MT('\0');
-								p = &o[ep - sp + 2];
-							}
-							cnt++;
-							/* last empty field after delim */
-							if (*p == STIO_MT('\0')) cnt++;
-							goto exit_point;
-						}
-					}
-
-					if (!IS_MSPACE (*p)) 
-					{
-						if (sp == STIO_NULL) sp = p;
-						ep = p;
-					}
-					p++;
-				}
-exit_point:
-				;
-			}
-		}
-	}
-
-	return cnt;
-}
-
-int stio_mbsspl (
-	stio_mchar_t* s, const stio_mchar_t* delim,
-	stio_mchar_t lquote, stio_mchar_t rquote, stio_mchar_t escape)
-{
-	return stio_mbsspltrn (s, delim, lquote, rquote, escape, STIO_NULL);
 }

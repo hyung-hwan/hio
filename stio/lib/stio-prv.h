@@ -39,6 +39,7 @@
 #define STIO_MEMSET(dst,byte,count) memset(dst,byte,count)
 #define STIO_MEMCPY(dst,src,count) memcpy(dst,src,count)
 #define STIO_MEMMOVE(dst,src,count) memmove(dst,src,count)
+#define STIO_MEMCMP(dst,src,count) memcmp(dst,src,count)
 #define STIO_ASSERT assert
 
 

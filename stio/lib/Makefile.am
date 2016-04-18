@@ -33,7 +33,8 @@ libstio_la_SOURCES = \
 	stio-pro.c \
 	stio-sck.c \
 	stio-tim.c \
-	stio-tmr.c
+	stio-tmr.c \
+	stio-utl.c
 libstio_la_CPPFLAGS = $(CPPFLAGS_LIB_COMMON)
 libstio_la_LDFLAGS = $(LDFLAGS_LIB_COMMON)
 libstio_la_LIBADD = $(LIBADD_LIB_COMMON) $(SSL_LIBS)

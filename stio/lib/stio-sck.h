@@ -29,13 +29,14 @@
 
 #include <stio.h>
 
-struct stio_sckadr_t
+typedef int stio_sckfam_t;
+
+struct stio_sckaddr_t
 {
-	int family;
+	stio_sckfam_t family;
 	stio_uint8_t data[128]; /* TODO: use the actual sockaddr size */
 };
-
-typedef struct stio_sckadr_t stio_sckadr_t;
+typedef struct stio_sckaddr_t stio_sckaddr_t;
 
 #if (STIO_SIZEOF_SOCKLEN_T == STIO_SIZEOF_INT)
 	#if defined(STIO_SOCKLEN_T_IS_SIGNED)
@@ -70,8 +71,6 @@ typedef struct stio_sckadr_t stio_sckadr_t;
 	
 #endif
 
-typedef int stio_sckfam_t;
-
 
 #define STIO_SCK_ETH_PROTO_IP4   0x0800 
 #define STIO_SCK_ETH_PROTO_ARP   0x0806
@@ -91,26 +90,28 @@ typedef enum stio_dev_sck_ioctl_cmd_t stio_dev_sck_ioctl_cmd_t;
 
 enum stio_dev_sck_state_t
 {
-	STIO_DEV_SCK_CONNECTING = (1 << 0),
-	STIO_DEV_SCK_CONNECTED  = (1 << 1),
-	STIO_DEV_SCK_LISTENING  = (1 << 2),
-	STIO_DEV_SCK_ACCEPTED   = (1 << 3)
+	STIO_DEV_SCK_CONNECTING    = (1 << 0),
+	STIO_DEV_SCK_CONNECTED     = (1 << 1),
+	STIO_DEV_SCK_LISTENING     = (1 << 2),
+	STIO_DEV_SCK_ACCEPTING_SSL = (1 << 3),
+	STIO_DEV_SCK_ACCEPTED      = (1 << 4),
+	STIO_DEV_SCK_INTERCEPTED   = (1 << 5)
 };
 typedef enum stio_dev_sck_state_t stio_dev_sck_state_t;
 
 typedef struct stio_dev_sck_t stio_dev_sck_t;
 
 typedef int (*stio_dev_sck_on_read_t) (
-	stio_dev_sck_t*      dev,
-	const void*          data,
-	stio_iolen_t           dlen,
-	const stio_sckadr_t* srcadr
+	stio_dev_sck_t*       dev,
+	const void*           data,
+	stio_iolen_t          dlen,
+	const stio_sckaddr_t* srcaddr
 );
 typedef int (*stio_dev_sck_on_write_t) (
-	stio_dev_sck_t*      dev,
-	stio_iolen_t           wrlen,
-	void*                wrctx,
-	const stio_sckadr_t* dstadr
+	stio_dev_sck_t*       dev,
+	stio_iolen_t          wrlen,
+	void*                 wrctx,
+	const stio_sckaddr_t* dstaddr
 );
 
 typedef int (*stio_dev_sck_on_connect_t) (stio_dev_sck_t* dev);
@@ -144,11 +145,15 @@ struct stio_dev_sck_make_t
 
 enum stio_dev_sck_bind_option_t
 {
-	STIO_DEV_SCK_BIND_BROADCAST = (1 << 0),
-	STIO_DEV_SCK_BIND_REUSEADDR = (1 << 1),
-/* TODO: more options --- TRANSPARENT...SO_RCVBUF, SO_SNDBUF, SO_RCVTIMEO, SO_SNDTIMEO, SO_KEEPALIVE */
+	STIO_DEV_SCK_BIND_BROADCAST   = (1 << 0),
+	STIO_DEV_SCK_BIND_REUSEADDR   = (1 << 1),
+	STIO_DEV_SCK_BIND_REUSEPORT   = (1 << 2),
+	STIO_DEV_SCK_BIND_TRANSPARENT = (1 << 3),
 
-	STIO_DEV_SCK_BIND_SECURE    = (1 << 15)
+/* TODO: more options --- SO_RCVBUF, SO_SNDBUF, SO_RCVTIMEO, SO_SNDTIMEO, SO_KEEPALIVE */
+/*   BINDTODEVICE??? */
+
+	STIO_DEV_SCK_BIND_SSL         = (1 << 15)
 };
 typedef enum stio_dev_sck_bind_option_t stio_dev_sck_bind_option_t;
 
@@ -156,7 +161,7 @@ typedef struct stio_dev_sck_bind_t stio_dev_sck_bind_t;
 struct stio_dev_sck_bind_t
 {
 	int options;
-	stio_sckadr_t addr;
+	stio_sckaddr_t localaddr;
 	/* TODO: add device name for BIND_TO_DEVICE */
 
 	const stio_mchar_t* certfile;
@@ -166,7 +171,7 @@ struct stio_dev_sck_bind_t
 typedef struct stio_dev_sck_connect_t stio_dev_sck_connect_t;
 struct stio_dev_sck_connect_t
 {
-	stio_sckadr_t addr;
+	stio_sckaddr_t remoteaddr;
 	stio_ntime_t tmout; /* connect timeout */
 	stio_dev_sck_on_connect_t on_connect;
 	stio_dev_sck_on_disconnect_t on_disconnect;
@@ -185,7 +190,7 @@ struct stio_dev_sck_accept_t
 {
 	stio_syshnd_t   sck;
 /* TODO: add timeout */
-	stio_sckadr_t   peeradr;
+	stio_sckaddr_t   remoteaddr;
 };
 
 struct stio_dev_sck_t
@@ -194,15 +199,18 @@ struct stio_dev_sck_t
 
 	stio_dev_sck_type_t type;
 	stio_sckhnd_t sck;
-	void* secure_ctx;
+
+	void* sslctx;
+	void* ssl;
 
 	stio_dev_sck_on_write_t on_write;
 	stio_dev_sck_on_read_t on_read;
 
 	int state;
-	/** return 0 on succes, -1 on failure/
-	 *  called on a new tcp device for an accepted client or
-	 *         on a tcp device conntected to a remote server */
+
+	/* return 0 on succes, -1 on failure.
+	 * called on a new tcp device for an accepted client or
+	 *        on a tcp device conntected to a remote server */
 	stio_dev_sck_on_connect_t on_connect;
 	stio_dev_sck_on_disconnect_t on_disconnect;
 	stio_tmridx_t tmridx_connect;
@@ -215,7 +223,10 @@ struct stio_dev_sck_t
 	 *
 	 * also used as a placeholder to store source address for
 	 * a stateless socket */
-	stio_sckadr_t peeradr; 
+	stio_sckaddr_t remoteaddr; 
+
+	stio_sckaddr_t localaddr;
+	stio_sckaddr_t orgdstaddr;
 };
 
 #ifdef __cplusplus
@@ -239,30 +250,38 @@ STIO_EXPORT int stio_makesckasync (
 	stio_sckhnd_t sck
 );
 
-STIO_EXPORT int stio_getsckadrinfo (
+STIO_EXPORT int stio_getsckaddrinfo (
 	stio_t*              stio,
-	const stio_sckadr_t* addr,
+	const stio_sckaddr_t* addr,
 	stio_scklen_t*       len,
 	stio_sckfam_t*       family
 );
 
-
-void stio_sckadr_initforip4 (
-	stio_sckadr_t* sckadr,
-	stio_uint16_t  port,
-	stio_ip4adr_t* ip4adr
+/*
+ * The stio_getsckaddrport() function returns the port number of a socket
+ * address in the host byte order. If the address doesn't support the port
+ * number, it returns 0.
+ */
+STIO_EXPORT stio_uint16_t stio_getsckaddrport (
+	const stio_sckaddr_t* addr
 );
 
-void stio_sckadr_initforip6 (
-	stio_sckadr_t* sckadr,
+STIO_EXPORT void stio_sckaddr_initforip4 (
+	stio_sckaddr_t* sckaddr,
 	stio_uint16_t  port,
-	stio_ip6adr_t* ip6adr
+	stio_ip4addr_t* ip4addr
 );
 
-void stio_sckadr_initforeth (
-	stio_sckadr_t* sckadr,
+STIO_EXPORT void stio_sckaddr_initforip6 (
+	stio_sckaddr_t* sckaddr,
+	stio_uint16_t  port,
+	stio_ip6addr_t* ip6addr
+);
+
+STIO_EXPORT void stio_sckaddr_initforeth (
+	stio_sckaddr_t* sckaddr,
 	int            ifindex,
-	stio_ethadr_t* ethadr
+	stio_ethaddr_t* ethaddr
 );
 
 /* ========================================================================= */
@@ -293,7 +312,7 @@ STIO_EXPORT int stio_dev_sck_write (
 	const void*           data,
 	stio_iolen_t          len,
 	void*                 wrctx,
-	const stio_sckadr_t*  dstadr
+	const stio_sckaddr_t*  dstaddr
 );
 
 STIO_EXPORT int stio_dev_sck_timedwrite (
@@ -302,7 +321,7 @@ STIO_EXPORT int stio_dev_sck_timedwrite (
 	stio_iolen_t          len,
 	const stio_ntime_t*   tmout,
 	void*                 wrctx,
-	const stio_sckadr_t*  dstadr
+	const stio_sckaddr_t*  dstaddr
 );
 
 #if defined(STIO_HAVE_INLINE)

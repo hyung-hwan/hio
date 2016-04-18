@@ -48,8 +48,8 @@ struct stio_ntime_t
 	#define STIO_SYSHND_INVALID (-1)
 #endif
 
-typedef struct stio_devadr_t stio_devadr_t;
-struct stio_devadr_t
+typedef struct stio_devaddr_t stio_devaddr_t;
+struct stio_devaddr_t
 {
 	int len;
 	void* ptr;
@@ -79,7 +79,8 @@ struct stio_devadr_t
 #	error UNKNOWN ENDIAN
 #endif
 
-/* ------------------------------------------------------------------------- */
+/* ========================================================================= */
+
 typedef struct stio_t stio_t;
 typedef struct stio_dev_t stio_dev_t;
 typedef struct stio_dev_mth_t stio_dev_mth_t;
@@ -133,7 +134,8 @@ typedef void (*stio_tmrjob_updater_t) (
 struct stio_dev_mth_t
 {
 	/* ------------------------------------------------------------------ */
-	int           (*make)         (stio_dev_t* dev, void* ctx); /* mandatory. called in stio_makedev() */
+	/* mandatory. called in stio_makedev() */
+	int           (*make)         (stio_dev_t* dev, void* ctx); 
 
 	/* ------------------------------------------------------------------ */
 	/* mandatory. called in stio_killdev(). also called in stio_makedev() upon
@@ -144,7 +146,9 @@ struct stio_dev_mth_t
 	 * until the method returns 0.
 	 *
 	 * when 'force' is 1, the called should not return -1. If it does, the
-	 * method is not called again.
+	 * method is called once more only with the 'force' value of 2.
+	 * 
+	 * when 'force' is 2, the device is destroyed regardless of the return value.
 	 */
 	int           (*kill)         (stio_dev_t* dev, int force); 
 
@@ -156,10 +160,10 @@ struct stio_dev_mth_t
 	/* return -1 on failure, 0 if no data is availble, 1 otherwise.
 	 * when returning 1, *len must be sent to the length of data read.
 	 * if *len is set to 0, it's treated as EOF. */
-	int           (*read)         (stio_dev_t* dev, void* data, stio_iolen_t* len, stio_devadr_t* srcadr);
+	int           (*read)         (stio_dev_t* dev, void* data, stio_iolen_t* len, stio_devaddr_t* srcaddr);
 
 	/* ------------------------------------------------------------------ */
-	int           (*write)        (stio_dev_t* dev, const void* data, stio_iolen_t* len, const stio_devadr_t* dstadr);
+	int           (*write)        (stio_dev_t* dev, const void* data, stio_iolen_t* len, const stio_devaddr_t* dstaddr);
 
 	/* ------------------------------------------------------------------ */
 	int           (*ioctl)        (stio_dev_t* dev, int cmd, void* arg);
@@ -176,28 +180,28 @@ struct stio_dev_evcb_t
 	/* return -1 on failure, 0 or 1 on success.
 	 * when 0 is returned, the main loop stops the attempt to read more data.
 	 * when 1 is returned, the main loop attempts to read more data without*/
-	int           (*on_read)      (stio_dev_t* dev, const void* data, stio_iolen_t len, const stio_devadr_t* srcadr);
+	int           (*on_read)      (stio_dev_t* dev, const void* data, stio_iolen_t len, const stio_devaddr_t* srcaddr);
 
 	/* return -1 on failure, 0 on success. 
 	 * wrlen is the length of data written. it is the length of the originally
 	 * posted writing request for a stream device. For a non stream device, it
 	 * may be shorter than the originally posted length. */
-	int           (*on_write)      (stio_dev_t* dev, stio_iolen_t wrlen, void* wrctx, const stio_devadr_t* dstadr);
+	int           (*on_write)     (stio_dev_t* dev, stio_iolen_t wrlen, void* wrctx, const stio_devaddr_t* dstaddr);
 };
 
 struct stio_wq_t
 {
-	stio_wq_t*     next;
-	stio_wq_t*     prev;
+	stio_wq_t*       next;
+	stio_wq_t*       prev;
 
 	stio_iolen_t     olen; /* original data length */
-	stio_uint8_t*  ptr;  /* pointer to data */
+	stio_uint8_t*    ptr;  /* pointer to data */
 	stio_iolen_t     len;  /* remaining data length */
-	void*          ctx;
-	stio_dev_t*    dev; /* back-pointer to the device */
+	void*            ctx;
+	stio_dev_t*      dev; /* back-pointer to the device */
 
-	stio_tmridx_t  tmridx;
-	stio_devadr_t     dstadr;
+	stio_tmridx_t    tmridx;
+	stio_devaddr_t   dstaddr;
 };
 
 #define STIO_WQ_INIT(wq) ((wq)->next = (wq)->prev = (wq))
@@ -311,9 +315,9 @@ typedef enum stio_dev_event_t stio_dev_event_t;
 #define STIO_ARPHDR_HTYPE_ETH 0x0001
 #define STIO_ARPHDR_PTYPE_IP4 0x0800
 
-#define STIO_ETHADR_LEN 6
-#define STIO_IP4ADR_LEN 4
-#define STIO_IP6ADR_LEN 16 
+#define STIO_ETHADDR_LEN 6
+#define STIO_IP4ADDR_LEN 4
+#define STIO_IP6ADDR_LEN 16 
 
 
 #if defined(__GNUC__)
@@ -333,29 +337,29 @@ typedef enum stio_dev_event_t stio_dev_event_t;
 	#pragma pack(push)
 	#pragma pack(1)
 #endif
-struct STIO_PACKED stio_ethadr_t
+struct STIO_PACKED stio_ethaddr_t
 {
-	stio_uint8_t v[STIO_ETHADR_LEN]; 
+	stio_uint8_t v[STIO_ETHADDR_LEN]; 
 };
-typedef struct stio_ethadr_t stio_ethadr_t;
+typedef struct stio_ethaddr_t stio_ethaddr_t;
 
-struct STIO_PACKED stio_ip4adr_t
+struct STIO_PACKED stio_ip4addr_t
 {
-	stio_uint8_t v[STIO_IP4ADR_LEN];
+	stio_uint8_t v[STIO_IP4ADDR_LEN];
 };
-typedef struct stio_ip4adr_t stio_ip4adr_t;
+typedef struct stio_ip4addr_t stio_ip4addr_t;
 
-struct STIO_PACKED stio_ip6adr_t
+struct STIO_PACKED stio_ip6addr_t
 {
-	stio_uint8_t v[STIO_IP6ADR_LEN]; 
+	stio_uint8_t v[STIO_IP6ADDR_LEN]; 
 };
-typedef struct stio_ip6adr_t stio_ip6adr_t;
+typedef struct stio_ip6addr_t stio_ip6addr_t;
 
 
 struct STIO_PACKED stio_ethhdr_t
 {
-	stio_uint8_t  dest[STIO_ETHADR_LEN];
-	stio_uint8_t  source[STIO_ETHADR_LEN];
+	stio_uint8_t  dest[STIO_ETHADDR_LEN];
+	stio_uint8_t  source[STIO_ETHADDR_LEN];
 	stio_uint16_t proto;
 };
 typedef struct stio_ethhdr_t stio_ethhdr_t;
@@ -373,10 +377,10 @@ typedef struct stio_arphdr_t stio_arphdr_t;
 /* arp payload for ipv4 over ethernet */
 struct STIO_PACKED stio_etharp_t
 {
-	stio_uint8_t sha[STIO_ETHADR_LEN];   /* source hardware address */
-	stio_uint8_t spa[STIO_IP4ADR_LEN];   /* source protocol address */
-	stio_uint8_t tha[STIO_ETHADR_LEN];   /* target hardware address */
-	stio_uint8_t tpa[STIO_IP4ADR_LEN];   /* target protocol address */
+	stio_uint8_t sha[STIO_ETHADDR_LEN];   /* source hardware address */
+	stio_uint8_t spa[STIO_IP4ADDR_LEN];   /* source protocol address */
+	stio_uint8_t tha[STIO_ETHADDR_LEN];   /* target hardware address */
+	stio_uint8_t tpa[STIO_IP4ADDR_LEN];   /* target protocol address */
 };
 typedef struct stio_etharp_t stio_etharp_t;
 
@@ -475,21 +479,21 @@ STIO_EXPORT int stio_dev_read (
  * it returns 0. otherwise it returns -1.
  */ 
 STIO_EXPORT int stio_dev_write (
-	stio_dev_t*           dev,
-	const void*           data,
-	stio_iolen_t          len,
-	void*                 wrctx,
-	const stio_devadr_t*  dstadr
+	stio_dev_t*            dev,
+	const void*            data,
+	stio_iolen_t           len,
+	void*                  wrctx,
+	const stio_devaddr_t*  dstaddr
 );
 
 
 STIO_EXPORT int stio_dev_timedwrite (
-	stio_dev_t*          dev,
-	const void*          data,
-	stio_iolen_t         len,
-	const stio_ntime_t*  tmout,
-	void*                wrctx,
-	const stio_devadr_t* dstadr
+	stio_dev_t*           dev,
+	const void*           data,
+	stio_iolen_t          len,
+	const stio_ntime_t*   tmout,
+	void*                 wrctx,
+	const stio_devaddr_t* dstaddr
 );
 
 STIO_EXPORT void stio_dev_halt (
@@ -497,7 +501,7 @@ STIO_EXPORT void stio_dev_halt (
 );
 
 
-/* ------------------------------------------------ */
+/* ========================================================================= */
 
 #define stio_inittime(x,s,ns) (((x)->sec = (s)), ((x)->nsec = (ns)))
 #define stio_cleartime(x) stio_inittime(x,0,0)
@@ -564,6 +568,53 @@ STIO_EXPORT stio_tmrjob_t* stio_gettmrjob (
 	stio_t*            stio,
 	stio_tmridx_t      index
 );
+
+
+/* ========================================================================= */
+
+
+#if defined(STIO_HAVE_UINT16_T)
+STIO_EXPORT stio_uint16_t stio_ntoh16 (
+	stio_uint16_t x
+);
+
+STIO_EXPORT stio_uint16_t stio_hton16 (
+	stio_uint16_t x
+);
+#endif
+
+#if defined(STIO_HAVE_UINT32_T)
+STIO_EXPORT stio_uint32_t stio_ntoh32 (
+	stio_uint32_t x
+);
+
+STIO_EXPORT stio_uint32_t stio_hton32 (
+	stio_uint32_t x
+);
+#endif
+
+#if defined(STIO_HAVE_UINT64_T)
+STIO_EXPORT stio_uint64_t stio_ntoh64 (
+	stio_uint64_t x
+);
+
+STIO_EXPORT stio_uint64_t stio_hton64 (
+	stio_uint64_t x
+);
+#endif
+
+#if defined(STIO_HAVE_UINT128_T)
+STIO_EXPORT stio_uint128_t stio_ntoh128 (
+	stio_uint128_t x
+);
+
+STIO_EXPORT stio_uint128_t stio_hton128 (
+	stio_uint128_t x
+);
+#endif
+
+/* ========================================================================= */
+
 
 #ifdef __cplusplus
 }

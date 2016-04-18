@@ -540,7 +540,7 @@ static int dev_pro_kill_slave (stio_dev_t* dev, int force)
 	return 0;
 }
 
-static int dev_pro_read_slave (stio_dev_t* dev, void* buf, stio_iolen_t* len, stio_devadr_t* srcadr)
+static int dev_pro_read_slave (stio_dev_t* dev, void* buf, stio_iolen_t* len, stio_devaddr_t* srcaddr)
 {
 	stio_dev_pro_slave_t* pro = (stio_dev_pro_slave_t*)dev;
 	ssize_t x;
@@ -548,7 +548,7 @@ static int dev_pro_read_slave (stio_dev_t* dev, void* buf, stio_iolen_t* len, st
 	x = read (pro->pfd, buf, *len);
 	if (x <= -1)
 	{
-		if (errno == EINPROGRESS || errno == EWOULDBLOCK) return 0;  /* no data available */
+		if (errno == EINPROGRESS || errno == EWOULDBLOCK || errno == EAGAIN) return 0;  /* no data available */
 		if (errno == EINTR) return 0;
 		pro->stio->errnum = stio_syserrtoerrnum(errno);
 		return -1;
@@ -558,7 +558,7 @@ static int dev_pro_read_slave (stio_dev_t* dev, void* buf, stio_iolen_t* len, st
 	return 1;
 }
 
-static int dev_pro_write_slave (stio_dev_t* dev, const void* data, stio_iolen_t* len, const stio_devadr_t* dstadr)
+static int dev_pro_write_slave (stio_dev_t* dev, const void* data, stio_iolen_t* len, const stio_devaddr_t* dstaddr)
 {
 	stio_dev_pro_slave_t* pro = (stio_dev_pro_slave_t*)dev;
 	ssize_t x;
@@ -566,7 +566,7 @@ static int dev_pro_write_slave (stio_dev_t* dev, const void* data, stio_iolen_t*
 	x = write (pro->pfd, data, *len);
 	if (x <= -1)
 	{
-		if (errno == EINPROGRESS || errno == EWOULDBLOCK) return 0;  /* no data can be written */
+		if (errno == EINPROGRESS || errno == EWOULDBLOCK || errno == EAGAIN) return 0;  /* no data can be written */
 		if (errno == EINTR) return 0;
 		pro->stio->errnum = stio_syserrtoerrnum(errno);
 		return -1;
@@ -662,14 +662,14 @@ static int pro_ready (stio_dev_t* dev, int events)
 	return -1;
 }
 
-static int pro_on_read (stio_dev_t* dev, const void* data, stio_iolen_t len, const stio_devadr_t* srcadr)
+static int pro_on_read (stio_dev_t* dev, const void* data, stio_iolen_t len, const stio_devaddr_t* srcaddr)
 {
 	/* virtual device. no I/O */
 	dev->stio->errnum = STIO_EINTERN;
 	return -1;
 }
 
-static int pro_on_write (stio_dev_t* dev, stio_iolen_t wrlen, void* wrctx, const stio_devadr_t* dstadr)
+static int pro_on_write (stio_dev_t* dev, stio_iolen_t wrlen, void* wrctx, const stio_devaddr_t* dstaddr)
 {
 	/* virtual device. no I/O */
 	dev->stio->errnum = STIO_EINTERN;
@@ -711,19 +711,19 @@ static int pro_ready_slave (stio_dev_t* dev, int events)
 }
 
 
-static int pro_on_read_slave_out (stio_dev_t* dev, const void* data, stio_iolen_t len, const stio_devadr_t* srcadr)
+static int pro_on_read_slave_out (stio_dev_t* dev, const void* data, stio_iolen_t len, const stio_devaddr_t* srcaddr)
 {
 	stio_dev_pro_slave_t* pro = (stio_dev_pro_slave_t*)dev;
 	return pro->master->on_read (pro->master, data, len, STIO_DEV_PRO_OUT);
 }
 
-static int pro_on_read_slave_err (stio_dev_t* dev, const void* data, stio_iolen_t len, const stio_devadr_t* srcadr)
+static int pro_on_read_slave_err (stio_dev_t* dev, const void* data, stio_iolen_t len, const stio_devaddr_t* srcaddr)
 {
 	stio_dev_pro_slave_t* pro = (stio_dev_pro_slave_t*)dev;
 	return pro->master->on_read (pro->master, data, len, STIO_DEV_PRO_ERR);
 }
 
-static int pro_on_write_slave (stio_dev_t* dev, stio_iolen_t wrlen, void* wrctx, const stio_devadr_t* dstadr)
+static int pro_on_write_slave (stio_dev_t* dev, stio_iolen_t wrlen, void* wrctx, const stio_devaddr_t* dstaddr)
 {
 	stio_dev_pro_slave_t* pro = (stio_dev_pro_slave_t*)dev;
 	return pro->master->on_write (pro->master, wrlen, wrctx);

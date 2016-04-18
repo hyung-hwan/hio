@@ -37,6 +37,22 @@
 #include <arpa/inet.h>
 #include <netpacket/packet.h>
 
+#if defined(__linux__)
+#	include <limits.h>
+#	if defined(HAVE_LINUX_NETFILTER_IPV4_H)
+#		include <linux/netfilter_ipv4.h> /* SO_ORIGINAL_DST */
+#	endif
+#	if !defined(SO_ORIGINAL_DST)
+#		define SO_ORIGINAL_DST 80
+#	endif
+#	if !defined(IP_TRANSPARENT)
+#		define IP_TRANSPARENT 19
+#	endif
+#	if !defined(SO_REUSEPORT)
+#		define SO_REUSEPORT 15
+#	endif
+#endif
+
 #if defined(HAVE_OPENSSL_SSL_H) && defined(HAVE_SSL)
 #	include <openssl/ssl.h>
 #	if defined(HAVE_OPENSSL_ERR_H)
@@ -46,11 +62,6 @@
 #		include <openssl/engine.h>
 #	endif
 #	define USE_SSL
-#endif
-
-#if defined(USE_SSL)
-#	define HANDLE_TO_SSL(x) ((SSL*)(x))
-#	define SSL_TO_HANDLE(x) ((qse_httpd_hnd_t)(x))
 #endif
 
 /* ========================================================================= */
@@ -117,7 +128,7 @@ stio_sckhnd_t stio_openasyncsck (stio_t* stio, int domain, int type, int proto)
 	return sck;
 }
 
-int stio_getsckadrinfo (stio_t* stio, const stio_sckadr_t* addr, stio_scklen_t* len, stio_sckfam_t* family)
+int stio_getsckaddrinfo (stio_t* stio, const stio_sckaddr_t* addr, stio_scklen_t* len, stio_sckfam_t* family)
 {
 	struct sockaddr* saddr = (struct sockaddr*)addr;
 
@@ -135,70 +146,99 @@ int stio_getsckadrinfo (stio_t* stio, const stio_sckadr_t* addr, stio_scklen_t* 
 
 		case AF_PACKET:
 			if (len) *len =  STIO_SIZEOF(struct sockaddr_ll);
-			if (family) *family = AF_INET6;
+			if (family) *family = AF_PACKET;
 			return 0;
+
+		/* TODO: more address type */
 	}
 
 	stio->errnum = STIO_EINVAL;
 	return -1;
 }
 
+stio_uint16_t stio_getsckaddrport (const stio_sckaddr_t* addr)
+{
+	struct sockaddr* saddr = (struct sockaddr*)addr;
+
+	switch (saddr->sa_family)
+	{
+		case AF_INET:
+			return stio_ntoh16(((struct sockaddr_in*)addr)->sin_port);
+
+		case AF_INET6:
+			return stio_ntoh16(((struct sockaddr_in6*)addr)->sin6_port);
+	}
+
+	return 0;
+}
+
+
+int stio_equalsckaddrs (stio_t* stio, const stio_sckaddr_t* addr1, const stio_sckaddr_t* addr2)
+{
+	stio_sckfam_t fam1, fam2;
+	stio_scklen_t len1, len2;
+
+	stio_getsckaddrinfo (stio, addr1, &len1, &fam1);
+	stio_getsckaddrinfo (stio, addr2, &len2, &fam2);
+	return fam1 == fam2 && len1 == len2 && STIO_MEMCMP (addr1, addr2, len1) == 0;
+}
+
 /* ========================================================================= */
 
-void stio_sckadr_initforip4 (stio_sckadr_t* sckadr, stio_uint16_t port, stio_ip4adr_t* ip4adr)
+void stio_sckaddr_initforip4 (stio_sckaddr_t* sckaddr, stio_uint16_t port, stio_ip4addr_t* ip4addr)
 {
-	struct sockaddr_in* sin = (struct sockaddr_in*)sckadr;
+	struct sockaddr_in* sin = (struct sockaddr_in*)sckaddr;
 
 	STIO_MEMSET (sin, 0, STIO_SIZEOF(*sin));
 	sin->sin_family = AF_INET;
 	sin->sin_port = htons(port);
-	if (ip4adr) STIO_MEMCPY (&sin->sin_addr, ip4adr, STIO_IP4ADR_LEN);
+	if (ip4addr) STIO_MEMCPY (&sin->sin_addr, ip4addr, STIO_IP4ADDR_LEN);
 }
 
-void stio_sckadr_initforip6 (stio_sckadr_t* sckadr, stio_uint16_t port, stio_ip6adr_t* ip6adr)
+void stio_sckaddr_initforip6 (stio_sckaddr_t* sckaddr, stio_uint16_t port, stio_ip6addr_t* ip6addr)
 {
-	struct sockaddr_in6* sin = (struct sockaddr_in6*)sckadr;
+	struct sockaddr_in6* sin = (struct sockaddr_in6*)sckaddr;
 
 /* TODO: include sin6_scope_id */
 	STIO_MEMSET (sin, 0, STIO_SIZEOF(*sin));
 	sin->sin6_family = AF_INET;
 	sin->sin6_port = htons(port);
-	if (ip6adr) STIO_MEMCPY (&sin->sin6_addr, ip6adr, STIO_IP6ADR_LEN);
+	if (ip6addr) STIO_MEMCPY (&sin->sin6_addr, ip6addr, STIO_IP6ADDR_LEN);
 }
 
-void stio_sckadr_initforeth (stio_sckadr_t* sckadr, int ifindex, stio_ethadr_t* ethadr)
+void stio_sckaddr_initforeth (stio_sckaddr_t* sckaddr, int ifindex, stio_ethaddr_t* ethaddr)
 {
-	struct sockaddr_ll* sll = (struct sockaddr_ll*)sckadr;
+	struct sockaddr_ll* sll = (struct sockaddr_ll*)sckaddr;
 	STIO_MEMSET (sll, 0, STIO_SIZEOF(*sll));
 	sll->sll_family = AF_PACKET;
 	sll->sll_ifindex = ifindex;
-	if (ethadr)
+	if (ethaddr)
 	{
-		sll->sll_halen = STIO_ETHADR_LEN;
-		STIO_MEMCPY (sll->sll_addr, ethadr, STIO_ETHADR_LEN);
+		sll->sll_halen = STIO_ETHADDR_LEN;
+		STIO_MEMCPY (sll->sll_addr, ethaddr, STIO_ETHADDR_LEN);
 	}
 }
 
 /* ========================================================================= */
 
-static stio_devadr_t* sckadr_to_devadr (stio_dev_sck_t* dev, const stio_sckadr_t* sckadr, stio_devadr_t* devadr)
+static stio_devaddr_t* sckaddr_to_devaddr (stio_dev_sck_t* dev, const stio_sckaddr_t* sckaddr, stio_devaddr_t* devaddr)
 {
-	if (sckadr)
+	if (sckaddr)
 	{
 		stio_scklen_t len;
 
-		stio_getsckadrinfo (dev->stio, sckadr, &len, STIO_NULL);
-		devadr->ptr = (void*)sckadr;
-		devadr->len = len;
-		return devadr;
+		stio_getsckaddrinfo (dev->stio, sckaddr, &len, STIO_NULL);
+		devaddr->ptr = (void*)sckaddr;
+		devaddr->len = len;
+		return devaddr;
 	}
 
 	return STIO_NULL;
 }
 
-static STIO_INLINE stio_sckadr_t* devadr_to_sckadr (stio_dev_sck_t* dev, const stio_devadr_t* devadr, stio_sckadr_t* sckadr)
+static STIO_INLINE stio_sckaddr_t* devaddr_to_sckaddr (stio_dev_sck_t* dev, const stio_devaddr_t* devaddr, stio_sckaddr_t* sckaddr)
 {
-	return (stio_sckadr_t*)devadr->ptr;
+	return (stio_sckaddr_t*)devaddr->ptr;
 }
 
 /* ========================================================================= */
@@ -279,8 +319,22 @@ static int dev_sck_make_client (stio_dev_t* dev, void* ctx)
 	stio_dev_sck_t* rdev = (stio_dev_sck_t*)dev;
 	stio_syshnd_t* sck = (stio_syshnd_t*)ctx;
 
+	/* nothing special is done here except setting the socket handle.
+	 * most of the initialization is done by the listening socket device
+	 * after a client socket has been created. */
+
 	rdev->sck = *sck;
 	if (stio_makesckasync (rdev->stio, rdev->sck) <= -1) return -1;
+#if defined(FD_CLOEXEC)
+	{
+		int flags = fcntl (rdev->sck, F_GETFD, 0);
+		if (fcntl (rdev->sck, F_SETFD, flags | FD_CLOEXEC) == -1)
+		{
+			rdev->stio->errnum = stio_syserrtoerrnum(errno);
+			return -1;
+		}
+	}
+#endif
 
 	return 0;
 }
@@ -308,19 +362,25 @@ static int dev_sck_kill (stio_dev_t* dev, int force)
 		STIO_ASSERT (rdev->tmridx_connect == STIO_TMRIDX_INVALID);
 	}
 
+#if defined(USE_SSL)
+	if (rdev->ssl)
+	{
+		SSL_shutdown ((SSL*)rdev->ssl); /* is this needed? */
+		SSL_free ((SSL*)rdev->ssl);
+		rdev->ssl = STIO_NULL;
+	}
+	if (!(rdev->state & (STIO_DEV_SCK_ACCEPTED | STIO_DEV_SCK_ACCEPTING_SSL)) && rdev->sslctx)
+	{
+		SSL_CTX_free ((SSL_CTX*)rdev->sslctx);
+		rdev->sslctx = STIO_NULL;
+	}
+#endif
+
 	if (rdev->sck != STIO_SCKHND_INVALID) 
 	{
 		stio_closeasyncsck (rdev->stio, rdev->sck);
 		rdev->sck = STIO_SCKHND_INVALID;
 	}
-
-#if defined(USE_SSL)
-	if (rdev->secure_ctx)
-	{
-		SSL_CTX_free ((SSL_CTX*)rdev->secure_ctx);
-		rdev->secure_ctx = STIO_NULL;
-	}
-#endif
 
 	return 0;
 }
@@ -331,93 +391,153 @@ static stio_syshnd_t dev_sck_getsyshnd (stio_dev_t* dev)
 	return (stio_syshnd_t)rdev->sck;
 }
 
-static int dev_sck_read_stateful (stio_dev_t* dev, void* buf, stio_iolen_t* len, stio_devadr_t* srcadr)
-{
-	stio_dev_sck_t* tcp = (stio_dev_sck_t*)dev;
-	ssize_t x;
-
-	x = recv (tcp->sck, buf, *len, 0);
-	if (x == -1)
-	{
-		if (errno == EINPROGRESS || errno == EWOULDBLOCK) return 0;  /* no data available */
-		if (errno == EINTR) return 0;
-		tcp->stio->errnum = stio_syserrtoerrnum(errno);
-		return -1;
-	}
-
-	*len = x;
-	return 1;
-}
-
-static int dev_sck_read_stateless (stio_dev_t* dev, void* buf, stio_iolen_t* len, stio_devadr_t* srcadr)
+static int dev_sck_read_stateful (stio_dev_t* dev, void* buf, stio_iolen_t* len, stio_devaddr_t* srcaddr)
 {
 	stio_dev_sck_t* rdev = (stio_dev_sck_t*)dev;
-	stio_scklen_t srcadrlen;
-	ssize_t x;
 
-	srcadrlen = STIO_SIZEOF(rdev->peeradr);
-	x = recvfrom (rdev->sck, buf, *len, 0, (struct sockaddr*)&rdev->peeradr, &srcadrlen);
-	if (x <= -1)
+#if defined(USE_SSL)
+	if (rdev->ssl)
 	{
-		if (errno == EINPROGRESS || errno == EWOULDBLOCK) return 0;  /* no data available */
-		if (errno == EINTR) return 0;
-		rdev->stio->errnum = stio_syserrtoerrnum(errno);
-		return -1;
-	}
+		int x;
 
-	srcadr->ptr = &rdev->peeradr;
-	srcadr->len = srcadrlen;
-
-	*len = x;
-	return 1;
-}
-
-
-static int dev_sck_write_stateful (stio_dev_t* dev, const void* data, stio_iolen_t* len, const stio_devadr_t* dstadr)
-{
-	stio_dev_sck_t* rdev = (stio_dev_sck_t*)dev;
-	ssize_t x;
-	int flags = 0;
-
-	if (*len <= 0)
-	{
-		/* it's a writing finish indicator. close the writing end of
-		 * the socket, probably leaving it in the half-closed state */
-		if (shutdown (rdev->sck, SHUT_WR) == -1)
+		x = SSL_read ((SSL*)rdev->ssl, buf, *len);
+		if (x <= -1)
 		{
+			int err = SSL_get_error ((SSL*)rdev->ssl, x);
+			if (err == SSL_ERROR_WANT_READ || err == SSL_ERROR_WANT_WRITE) return 0;
+			rdev->stio->errnum = STIO_ESYSERR;
+			return -1;
+		}
+
+		*len = x;
+	}
+	else
+	{
+#endif
+		ssize_t x;
+
+		x = recv (rdev->sck, buf, *len, 0);
+		if (x == -1)
+		{
+			if (errno == EINPROGRESS || errno == EWOULDBLOCK || errno == EAGAIN) return 0;  /* no data available */
+			if (errno == EINTR) return 0;
 			rdev->stio->errnum = stio_syserrtoerrnum(errno);
 			return -1;
 		}
 
-		return 1;
+		*len = x;
+#if defined(USE_SSL)
 	}
-
-	/* TODO: flags MSG_DONTROUTE, MSG_DONTWAIT, MSG_MORE, MSG_OOB, MSG_NOSIGNAL */
-#if defined(MSG_NOSIGNAL)
-	flags |= MSG_NOSIGNAL;
 #endif
-	x = send (rdev->sck, data, *len, flags);
-	if (x == -1) 
+	return 1;
+}
+
+static int dev_sck_read_stateless (stio_dev_t* dev, void* buf, stio_iolen_t* len, stio_devaddr_t* srcaddr)
+{
+	stio_dev_sck_t* rdev = (stio_dev_sck_t*)dev;
+	stio_scklen_t srcaddrlen;
+	ssize_t x;
+
+	srcaddrlen = STIO_SIZEOF(rdev->remoteaddr);
+	x = recvfrom (rdev->sck, buf, *len, 0, (struct sockaddr*)&rdev->remoteaddr, &srcaddrlen);
+	if (x <= -1)
 	{
-		if (errno == EINPROGRESS || errno == EWOULDBLOCK) return 0;  /* no data can be written */
+		if (errno == EINPROGRESS || errno == EWOULDBLOCK || errno == EAGAIN) return 0;  /* no data available */
 		if (errno == EINTR) return 0;
 		rdev->stio->errnum = stio_syserrtoerrnum(errno);
 		return -1;
 	}
 
+	srcaddr->ptr = &rdev->remoteaddr;
+	srcaddr->len = srcaddrlen;
+
 	*len = x;
 	return 1;
 }
 
-static int dev_sck_write_stateless (stio_dev_t* dev, const void* data, stio_iolen_t* len, const stio_devadr_t* dstadr)
+
+static int dev_sck_write_stateful (stio_dev_t* dev, const void* data, stio_iolen_t* len, const stio_devaddr_t* dstaddr)
+{
+	stio_dev_sck_t* rdev = (stio_dev_sck_t*)dev;
+	
+
+#if defined(USE_SSL)
+	if (rdev->ssl)
+	{
+		int x;
+
+		if (*len <= 0)
+		{
+			/* it's a writing finish indicator. close the writing end of
+			 * the socket, probably leaving it in the half-closed state */
+			if (SSL_shutdown ((SSL*)rdev->ssl) == -1)
+			{
+				rdev->stio->errnum = STIO_ESYSERR;
+				return -1;
+			}
+
+			return 1;
+		}
+
+		x = SSL_write ((SSL*)rdev->ssl, data, *len);
+		if (x <= -1)
+		{
+			int err = SSL_get_error ((SSL*)rdev->ssl, x);
+			if (err == SSL_ERROR_WANT_READ || err == SSL_ERROR_WANT_WRITE) return 0;
+			rdev->stio->errnum = STIO_ESYSERR;
+			return -1;
+		}
+
+		*len = x;
+	}
+	else
+	{
+#endif
+		ssize_t x;
+		int flags = 0;
+
+		if (*len <= 0)
+		{
+			/* it's a writing finish indicator. close the writing end of
+			 * the socket, probably leaving it in the half-closed state */
+			if (shutdown (rdev->sck, SHUT_WR) == -1)
+			{
+				rdev->stio->errnum = stio_syserrtoerrnum(errno);
+				return -1;
+			}
+
+			return 1;
+		}
+
+		/* TODO: flags MSG_DONTROUTE, MSG_DONTWAIT, MSG_MORE, MSG_OOB, MSG_NOSIGNAL */
+	#if defined(MSG_NOSIGNAL)
+		flags |= MSG_NOSIGNAL;
+	#endif
+		x = send (rdev->sck, data, *len, flags);
+		if (x == -1) 
+		{
+			if (errno == EINPROGRESS || errno == EWOULDBLOCK || errno == EAGAIN) return 0;  /* no data can be written */
+			if (errno == EINTR) return 0;
+			rdev->stio->errnum = stio_syserrtoerrnum(errno);
+			return -1;
+		}
+
+		*len = x;
+#if defined(USE_SSL)
+	}
+#endif
+	return 1;
+}
+
+static int dev_sck_write_stateless (stio_dev_t* dev, const void* data, stio_iolen_t* len, const stio_devaddr_t* dstaddr)
 {
 	stio_dev_sck_t* rdev = (stio_dev_sck_t*)dev;
 	ssize_t x;
 
-	x = sendto (rdev->sck, data, *len, 0, dstadr->ptr, dstadr->len);
+	x = sendto (rdev->sck, data, *len, 0, dstaddr->ptr, dstaddr->len);
 	if (x <= -1) 
 	{
-		if (errno == EINPROGRESS || errno == EWOULDBLOCK) return 0;  /* no data can be written */
+		if (errno == EINPROGRESS || errno == EWOULDBLOCK || errno == EAGAIN) return 0;  /* no data can be written */
 		if (errno == EINTR) return 0;
 		rdev->stio->errnum = stio_syserrtoerrnum(errno);
 		return -1;
@@ -436,12 +556,12 @@ static int dev_sck_ioctl (stio_dev_t* dev, int cmd, void* arg)
 		case STIO_DEV_SCK_BIND:
 		{
 			stio_dev_sck_bind_t* bnd = (stio_dev_sck_bind_t*)arg;
-			struct sockaddr* sa = (struct sockaddr*)&bnd->addr;
+			struct sockaddr* sa = (struct sockaddr*)&bnd->localaddr;
 			stio_scklen_t sl;
 			stio_sckfam_t fam;
 			int x;
 		#if defined(USE_SSL)
-			SSL_CTX* ssl = STIO_NULL;
+			SSL_CTX* ssl_ctx = STIO_NULL;
 		#endif
 
 			if (bnd->options & STIO_DEV_SCK_BIND_BROADCAST)
@@ -456,65 +576,109 @@ static int dev_sck_ioctl (stio_dev_t* dev, int cmd, void* arg)
 
 			if (bnd->options & STIO_DEV_SCK_BIND_REUSEADDR)
 			{
+			#if defined(SO_REUSEADDR)
 				int v = 1;
 				if (setsockopt (rdev->sck, SOL_SOCKET, SO_REUSEADDR, &v, STIO_SIZEOF(v)) == -1)
 				{
 					rdev->stio->errnum = stio_syserrtoerrnum(errno);
 					return -1;
 				}
-			}
-
-			if (bnd->options & STIO_DEV_SCK_BIND_SECURE)
-			{
-		#if defined(USE_SSL)
-				SSL_CTX* ssl;
-
-				ssl = SSL_CTX_new (SSLv23_server_method());
-				if (!ssl)
-				{
-					rdev->stio->errnum = STIO_ESYSERR;
-					return -1;
-				}
-
-				if (SSL_CTX_use_certificate_file (ssl, bnd->certfile, SSL_FILETYPE_PEM) == 0 ||
-				    SSL_CTX_use_PrivateKey_file (ssl, bnd->keyfile, SSL_FILETYPE_PEM) == 0 ||
-				    SSL_CTX_check_private_key (ssl) == 0)
-				{
-					rdev->stio->errnum = STIO_ESYSERR;
-					SSL_CTX_free (ssl);
-					return -1;
-				}
-
-				SSL_CTX_set_read_ahead (ssl, 0);
-		#else
+			#else
 				rdev->stio->errnum = STIO_ENOIMPL;
 				return -1;
-		#endif
+			#endif
 			}
 
-			if (stio_getsckadrinfo (dev->stio, &bnd->addr, &sl, &fam) <= -1) return -1;
+			if (bnd->options & STIO_DEV_SCK_BIND_REUSEPORT)
+			{
+			#if defined(SO_REUSEPORT)
+				int v = 1;
+				if (setsockopt (rdev->sck, SOL_SOCKET, SO_REUSEPORT, &v, STIO_SIZEOF(v)) == -1)
+				{
+					rdev->stio->errnum = stio_syserrtoerrnum(errno);
+					return -1;
+				}
+			#else
+				rdev->stio->errnum = STIO_ENOIMPL;
+				return -1;
+			#endif
+			}
+
+			if (bnd->options & STIO_DEV_SCK_BIND_TRANSPARENT)
+			{
+			#if defined(IP_TRANSPARENT)
+				int v = 1;
+				if (setsockopt (rdev->sck, SOL_IP, IP_TRANSPARENT, &v, STIO_SIZEOF(v)) == -1)
+				{
+					rdev->stio->errnum = stio_syserrtoerrnum(errno);
+					return -1;
+				}
+			#else
+				rdev->stio->errnum = STIO_ENOIMPL;
+				return -1;
+			#endif
+			}
+
+			if (bnd->options & STIO_DEV_SCK_BIND_SSL)
+			{
+			#if defined(USE_SSL)
+				if (!bnd->certfile || !bnd->keyfile)
+				{
+					rdev->stio->errnum = STIO_EINVAL;
+					return -1;
+				}
+
+				ssl_ctx = SSL_CTX_new (SSLv23_server_method());
+				if (!ssl_ctx)
+				{
+					rdev->stio->errnum = STIO_ESYSERR;
+					return -1;
+				}
+
+				if (SSL_CTX_use_certificate_file (ssl_ctx, bnd->certfile, SSL_FILETYPE_PEM) == 0 ||
+				    SSL_CTX_use_PrivateKey_file (ssl_ctx, bnd->keyfile, SSL_FILETYPE_PEM) == 0 ||
+				    SSL_CTX_check_private_key (ssl_ctx) == 0  /*||
+				    SSL_CTX_use_certificate_chain_file (ssl_ctx, bnd->chainfile) == 0*/)
+				{
+					rdev->stio->errnum = STIO_ESYSERR;
+					SSL_CTX_free (ssl_ctx);
+					return -1;
+				}
+
+				SSL_CTX_set_read_ahead (ssl_ctx, 0);
+			#else
+				rdev->stio->errnum = STIO_ENOIMPL;
+				return -1;
+			#endif
+			}
+
+			if (stio_getsckaddrinfo (dev->stio, &bnd->localaddr, &sl, &fam) <= -1) return -1;
 
 			x = bind (rdev->sck, sa, sl);
 			if (x == -1)
 			{
 				rdev->stio->errnum = stio_syserrtoerrnum(errno);
-		#if defined(USE_SSL)
-				if (ssl) SSL_CTX_free (ssl);
-		#endif
+			#if defined(USE_SSL)
+				if (ssl_ctx) SSL_CTX_free (ssl_ctx);
+			#endif
 				return -1;
 			}
 
+			rdev->localaddr = bnd->localaddr;
+
 		#if defined(USE_SSL)
-			rdev->secure_ctx = ssl;
+			rdev->sslctx = ssl_ctx;
 		#endif
+
 			return 0;
 		}
 
 		case STIO_DEV_SCK_CONNECT:
 		{
 			stio_dev_sck_connect_t* conn = (stio_dev_sck_connect_t*)arg;
-			struct sockaddr* sa = (struct sockaddr*)&conn->addr;
+			struct sockaddr* sa = (struct sockaddr*)&conn->remoteaddr;
 			stio_scklen_t sl;
+			stio_sckaddr_t localaddr;
 			int x;
 
 			if (!IS_STATEFUL(rdev)) 
@@ -535,7 +699,7 @@ static int dev_sck_ioctl (stio_dev_t* dev, int cmd, void* arg)
 			x = connect (rdev->sck, sa, sl);
 			if (x == -1)
 			{
-				if (errno == EINPROGRESS || errno == EWOULDBLOCK)
+				if (errno == EINPROGRESS || errno == EWOULDBLOCK || errno == EAGAIN)
 				{
 					if (stio_dev_watch ((stio_dev_t*)rdev, STIO_DEV_WATCH_UPDATE, STIO_DEV_EVENT_IN | STIO_DEV_EVENT_OUT) >= 0)
 					{
@@ -562,7 +726,7 @@ static int dev_sck_ioctl (stio_dev_t* dev, int cmd, void* arg)
 						}
 
 						rdev->state |= STIO_DEV_SCK_CONNECTING;
-						rdev->peeradr = conn->addr;
+						rdev->remoteaddr = conn->remoteaddr;
 						rdev->on_connect = conn->on_connect;
 						rdev->on_disconnect = conn->on_disconnect;
 						return 0;
@@ -575,9 +739,12 @@ static int dev_sck_ioctl (stio_dev_t* dev, int cmd, void* arg)
 
 			/* connected immediately */
 			rdev->state |= STIO_DEV_SCK_CONNECTED;
-			rdev->peeradr = conn->addr;
+			rdev->remoteaddr = conn->remoteaddr;
 			rdev->on_connect = conn->on_connect;
 			rdev->on_disconnect = conn->on_disconnect;
+
+			sl = STIO_SIZEOF(localaddr);
+			if (getsockname (rdev->sck, (struct sockaddr*)&localaddr, &sl) == 0) rdev->localaddr = localaddr;
 			return 0;
 		}
 
@@ -700,6 +867,9 @@ static int dev_evcb_sck_ready_stateful (stio_dev_t* dev, int events)
 			}
 			else if (errcode == 0)
 			{
+				stio_sckaddr_t localaddr;
+				stio_scklen_t addrlen;
+
 				rdev->state &= ~STIO_DEV_SCK_CONNECTING;
 				rdev->state |= STIO_DEV_SCK_CONNECTED;
 
@@ -710,6 +880,9 @@ static int dev_evcb_sck_ready_stateful (stio_dev_t* dev, int events)
 					stio_deltmrjob (rdev->stio, rdev->tmridx_connect);
 					STIO_ASSERT (rdev->tmridx_connect == STIO_TMRIDX_INVALID);
 				}
+
+				addrlen = STIO_SIZEOF(localaddr);
+				if (getsockname (rdev->sck, (struct sockaddr*)&localaddr, &addrlen) == 0) rdev->localaddr = localaddr;
 
 				if (rdev->on_connect (rdev) <= -1) return -1;
 			}
@@ -742,17 +915,17 @@ static int dev_evcb_sck_ready_stateful (stio_dev_t* dev, int events)
 		else if (events & STIO_DEV_EVENT_IN)
 		{
 			stio_sckhnd_t clisck;
-			stio_sckadr_t peer;
+			stio_sckaddr_t remoteaddr;
 			stio_scklen_t addrlen;
 			stio_dev_sck_t* clidev;
 
 			/* this is a server(lisening) socket */
 
-			addrlen = STIO_SIZEOF(peer);
-			clisck = accept (rdev->sck, (struct sockaddr*)&peer, &addrlen);
+			addrlen = STIO_SIZEOF(remoteaddr);
+			clisck = accept (rdev->sck, (struct sockaddr*)&remoteaddr, &addrlen);
 			if (clisck == STIO_SCKHND_INVALID)
 			{
-				if (errno == EINPROGRESS || errno == EWOULDBLOCK) return 0;
+				if (errno == EINPROGRESS || errno == EWOULDBLOCK || errno == EAGAIN) return 0;
 				if (errno == EINTR) return 0; /* if interrupted by a signal, treat it as if it's EINPROGRESS */
 
 				rdev->stio->errnum = stio_syserrtoerrnum(errno);
@@ -770,10 +943,55 @@ static int dev_evcb_sck_ready_stateful (stio_dev_t* dev, int events)
 				return -1;
 			}
 
-			clidev->dev_capa |= STIO_DEV_CAPA_IN | STIO_DEV_CAPA_OUT | STIO_DEV_CAPA_STREAM;
-			clidev->state |= STIO_DEV_SCK_ACCEPTED;
-			clidev->peeradr = peer;
+			STIO_ASSERT (clidev->sck == clisck);
+
+			clidev->dev_capa |= STIO_DEV_CAPA_IN | STIO_DEV_CAPA_OUT | STIO_DEV_CAPA_STREAM | STIO_DEV_CAPA_OUT_QUEUED;
+			if (rdev->sslctx)
+				clidev->state |= STIO_DEV_SCK_ACCEPTING_SSL;
+			else
+				clidev->state |= STIO_DEV_SCK_ACCEPTED;
 			/*clidev->parent = sck;*/
+			clidev->remoteaddr = remoteaddr;
+
+			addrlen = STIO_SIZEOF(clidev->localaddr);
+			if (getsockname(clisck, (struct sockaddr*)&clidev->localaddr, &addrlen) == -1) clidev->localaddr = rdev->localaddr;
+
+		#if defined(SO_ORIGINAL_DST)
+			/* if REDIRECT is used, SO_ORIGINAL_DST returns the original
+			 * destination address. When REDIRECT is not used, it returnes
+			 * the address of the local socket. In this case, it should
+			 * be same as the result of getsockname(). */
+			addrlen = STIO_SIZEOF(clidev->orgdstaddr);
+			if (getsockopt (clisck, SOL_IP, SO_ORIGINAL_DST, &clidev->orgdstaddr, &addrlen) == -1) clidev->orgdstaddr = rdev->localaddr;
+		#else
+			clidev->orgdstaddr = rdev->localaddr;
+		#endif
+
+			if (!stio_equalsckaddrs (rdev->stio, &clidev->orgdstaddr, &clidev->localaddr))
+			{
+				clidev->state |= STIO_DEV_SCK_INTERCEPTED;
+			}
+			else if (stio_getsckaddrport (&clidev->localaddr) != stio_getsckaddrport(&rdev->localaddr))
+			{
+				/* When TPROXY is used, getsockname() and SO_ORIGNAL_DST return
+				 * the same addresses. however, the port number may be different
+				 * as a typical TPROXY rule is set to change the port number.
+				 * However, this check is fragile if the server port number is
+				 * set to 0.
+				 *
+				 * Take note that the above assumption gets wrong if the TPROXY
+				 * rule doesn't change the port number. so it won't be able
+				 * to handle such a TPROXYed packet without port transformation. */
+				clidev->state |= STIO_DEV_SCK_INTERCEPTED;
+			}
+			#if 0
+			else if ((clidev->initial_ifindex = resolve_ifindex (fd, clidev->localaddr)) <= -1)
+			{
+				/* the local_address is not one of a local address.
+				 * it's probably proxied. */
+				clidev->state |= STIO_DEV_SCK_INTERCEPTED;
+			}
+			#endif
 
 			/* inherit some event handlers from the parent.
 			 * you can still change them inside the on_connect handler */
@@ -782,11 +1000,86 @@ static int dev_evcb_sck_ready_stateful (stio_dev_t* dev, int events)
 			clidev->on_write = rdev->on_write;
 			clidev->on_read = rdev->on_read;
 
-			clidev->tmridx_connect = STIO_TMRIDX_INVALID;
-			if (clidev->on_connect(clidev) <= -1) stio_dev_sck_halt (clidev);
+			if (clidev->state & STIO_DEV_SCK_ACCEPTED)
+			{
+				STIO_ASSERT (!(clidev->state & STIO_DEV_SCK_ACCEPTING_SSL));
+				clidev->tmridx_connect = STIO_TMRIDX_INVALID;
+				if (clidev->on_connect(clidev) <= -1) stio_dev_sck_halt (clidev);
+			}
+			else
+			{
+				STIO_ASSERT (clidev->state & STIO_DEV_SCK_ACCEPTING_SSL);
+				/* actual SSL acceptance must be completed in the client device */
+
+				/* let the client device know the SSL context to use */
+				clidev->sslctx = rdev->sslctx;
+
+/* TODO: secure accept timeout handling */
+				/* clidev->tmridx_connect??? */
+				clidev->tmridx_connect = STIO_TMRIDX_INVALID;
+printf ("TO DO SSL ...............................\n");
+			}
 
 			return 0; /* success but don't invoke on_read() */ 
 		}
+	}
+	else if (rdev->state & STIO_DEV_SCK_ACCEPTING_SSL)
+	{
+	#if defined(USE_SSL)
+		int ret;
+
+printf ("SSL IN ACCPEING>.. %p.......................\n", rdev);
+		/* client socket has been accepted. SSL accpetance is needed here */
+		if (!rdev->ssl)
+		{
+			SSL* ssl;
+
+printf ("SSL CREATED.....................\n");
+			ssl = SSL_new (rdev->sslctx);
+			if (!ssl)
+			{
+printf ("SSL ERROR 1>..................... %s\n", ERR_reason_error_string(ERR_get_error()));
+				rdev->stio->errnum = STIO_ESYSERR;
+				return -1;
+			}
+
+			if (SSL_set_fd (ssl, rdev->sck) == 0)
+			{
+printf ("SSL ERROR 2>..................... %s\n", ERR_reason_error_string(ERR_get_error()));
+				rdev->stio->errnum = STIO_ESYSERR;
+				return -1;
+			}
+			SSL_set_read_ahead (ssl, 0);
+
+			rdev->ssl = ssl;
+		}
+
+		ret = SSL_accept ((SSL*)rdev->ssl);
+		if (ret <= 0)
+		{
+			int err = SSL_get_error (rdev->ssl, ret);
+			if (err == SSL_ERROR_WANT_READ || err == SSL_ERROR_WANT_WRITE)
+			{
+				/* handshaking isn't complete */
+				return 0;
+			}
+
+printf ("SSL ERROR 3>..................... %s\n", ERR_reason_error_string(err));
+			rdev->stio->errnum = STIO_ESYSERR;
+			return -1;
+		}
+
+printf ("SSL ACCEPTED.....................\n");
+		rdev->state &= ~STIO_DEV_SCK_ACCEPTING_SSL;
+		rdev->state |= STIO_DEV_SCK_ACCEPTED;
+		if (rdev->on_connect(rdev) <= -1) stio_dev_sck_halt (rdev);
+
+		return 0; /* no reading or writing yet */
+
+	#else
+		rdev->stio->errnum = STIO_EINTERN;
+		return -1;
+	#endif
 	}
 	else if (events & STIO_DEV_EVENT_HUP)
 	{
@@ -836,28 +1129,28 @@ static int dev_evcb_sck_ready_stateless (stio_dev_t* dev, int events)
 	return 1; /* the device is ok. carry on reading or writing */
 }
 
-static int dev_evcb_sck_on_read_stateful (stio_dev_t* dev, const void* data, stio_iolen_t dlen, const stio_devadr_t* srcadr)
+static int dev_evcb_sck_on_read_stateful (stio_dev_t* dev, const void* data, stio_iolen_t dlen, const stio_devaddr_t* srcaddr)
 {
 	stio_dev_sck_t* rdev = (stio_dev_sck_t*)dev;
 	return rdev->on_read (rdev, data, dlen, STIO_NULL);
 }
 
-static int dev_evcb_sck_on_write_stateful (stio_dev_t* dev, stio_iolen_t wrlen, void* wrctx, const stio_devadr_t* dstadr)
+static int dev_evcb_sck_on_write_stateful (stio_dev_t* dev, stio_iolen_t wrlen, void* wrctx, const stio_devaddr_t* dstaddr)
 {
 	stio_dev_sck_t* rdev = (stio_dev_sck_t*)dev;
 	return rdev->on_write (rdev, wrlen, wrctx, STIO_NULL);
 }
 
-static int dev_evcb_sck_on_read_stateless (stio_dev_t* dev, const void* data, stio_iolen_t dlen, const stio_devadr_t* srcadr)
+static int dev_evcb_sck_on_read_stateless (stio_dev_t* dev, const void* data, stio_iolen_t dlen, const stio_devaddr_t* srcaddr)
 {
 	stio_dev_sck_t* rdev = (stio_dev_sck_t*)dev;
-	return rdev->on_read (rdev, data, dlen, srcadr->ptr);
+	return rdev->on_read (rdev, data, dlen, srcaddr->ptr);
 }
 
-static int dev_evcb_sck_on_write_stateless (stio_dev_t* dev, stio_iolen_t wrlen, void* wrctx, const stio_devadr_t* dstadr)
+static int dev_evcb_sck_on_write_stateless (stio_dev_t* dev, stio_iolen_t wrlen, void* wrctx, const stio_devaddr_t* dstaddr)
 {
 	stio_dev_sck_t* rdev = (stio_dev_sck_t*)dev;
-	return rdev->on_write (rdev, wrlen, wrctx, dstadr->ptr);
+	return rdev->on_write (rdev, wrlen, wrctx, dstaddr->ptr);
 }
 
 static stio_dev_evcb_t dev_sck_event_callbacks_stateful =
@@ -917,14 +1210,14 @@ int stio_dev_sck_listen (stio_dev_sck_t* dev, stio_dev_sck_listen_t* info)
 	return stio_dev_ioctl ((stio_dev_t*)dev, STIO_DEV_SCK_LISTEN, info);
 }
 
-int stio_dev_sck_write (stio_dev_sck_t* dev, const void* data, stio_iolen_t dlen, void* wrctx, const stio_sckadr_t* dstadr)
+int stio_dev_sck_write (stio_dev_sck_t* dev, const void* data, stio_iolen_t dlen, void* wrctx, const stio_sckaddr_t* dstaddr)
 {
-	stio_devadr_t devadr;
-	return stio_dev_write ((stio_dev_t*)dev, data, dlen, wrctx, sckadr_to_devadr(dev, dstadr, &devadr));
+	stio_devaddr_t devaddr;
+	return stio_dev_write ((stio_dev_t*)dev, data, dlen, wrctx, sckaddr_to_devaddr(dev, dstaddr, &devaddr));
 }
 
-int stio_dev_sck_timedwrite (stio_dev_sck_t* dev, const void* data, stio_iolen_t dlen, const stio_ntime_t* tmout, void* wrctx, const stio_sckadr_t* dstadr)
+int stio_dev_sck_timedwrite (stio_dev_sck_t* dev, const void* data, stio_iolen_t dlen, const stio_ntime_t* tmout, void* wrctx, const stio_sckaddr_t* dstaddr)
 {
-	stio_devadr_t devadr;
-	return stio_dev_timedwrite ((stio_dev_t*)dev, data, dlen, tmout, wrctx, sckadr_to_devadr(dev, dstadr, &devadr));
+	stio_devaddr_t devaddr;
+	return stio_dev_timedwrite ((stio_dev_t*)dev, data, dlen, tmout, wrctx, sckaddr_to_devaddr(dev, dstaddr, &devaddr));
 }
