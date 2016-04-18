@@ -145,19 +145,34 @@ static void tcp_sck_on_disconnect (stio_dev_sck_t* tcp)
 static int tcp_sck_on_connect (stio_dev_sck_t* tcp)
 {
 
+	stio_sckfam_t fam;
+	stio_scklen_t len;
+	stio_mchar_t buf1[128], buf2[128];
+
+	memset (buf1, 0, STIO_SIZEOF(buf1));
+	memset (buf2, 0, STIO_SIZEOF(buf2));
+
+	stio_getsckaddrinfo (tcp->stio, &tcp->localaddr, &len, &fam);
+	inet_ntop (fam, tcp->localaddr.data, buf1, STIO_COUNTOF(buf1));
+
+	stio_getsckaddrinfo (tcp->stio, &tcp->remoteaddr, &len, &fam);
+	inet_ntop (fam, tcp->remoteaddr.data, buf2, STIO_COUNTOF(buf2));
+
 	if (tcp->state & STIO_DEV_SCK_CONNECTED)
 	{
-printf ("device connected to a remote server... .asdfjkasdfkljasdlfkjasdj...\n");
+
+printf ("device connected to a remote server... LOCAL %s:%d REMOTE %s:%d.", buf1, stio_getsckaddrport(&tcp->localaddr), buf2, stio_getsckaddrport(&tcp->remoteaddr));
+
 	}
 	else if (tcp->state & STIO_DEV_SCK_ACCEPTED)
 	{
-printf ("device accepted client device... .asdfjkasdfkljasdlfkjasdj...\n");
+printf ("device accepted client device... .LOCAL %s:%d REMOTE %s:%d\n", buf1, stio_getsckaddrport(&tcp->localaddr), buf2, stio_getsckaddrport(&tcp->remoteaddr));
 	}
 
 	return stio_dev_sck_write  (tcp, "hello", 5, STIO_NULL, STIO_NULL);
 }
 
-static int tcp_sck_on_write (stio_dev_sck_t* tcp, stio_iolen_t wrlen, void* wrctx, const stio_sckadr_t* dstadr)
+static int tcp_sck_on_write (stio_dev_sck_t* tcp, stio_iolen_t wrlen, void* wrctx, const stio_sckaddr_t* dstaddr)
 {
 	tcp_server_t* ts;
 
@@ -180,7 +195,7 @@ printf ("ENABLING READING..............................\n");
 	return 0;
 }
 
-static int tcp_sck_on_read (stio_dev_sck_t* tcp, const void* buf, stio_iolen_t len, const stio_sckadr_t* srcadr)
+static int tcp_sck_on_read (stio_dev_sck_t* tcp, const void* buf, stio_iolen_t len, const stio_sckaddr_t* srcaddr)
 {
 	if (len <= 0)
 	{
@@ -217,10 +232,10 @@ printf ("DISABLING READING..............................\n");
 
 /* ========================================================================= */
 
-static int arp_sck_on_read (stio_dev_sck_t* dev, const void* data, stio_iolen_t dlen, const stio_sckadr_t* srcadr)
+static int arp_sck_on_read (stio_dev_sck_t* dev, const void* data, stio_iolen_t dlen, const stio_sckaddr_t* srcaddr)
 {
 	stio_etharp_pkt_t* eap;
-	struct sockaddr_ll* sll = (struct sockaddr_ll*)srcadr; 
+	struct sockaddr_ll* sll = (struct sockaddr_ll*)srcaddr; 
 
 	if (dlen < STIO_SIZEOF(*eap)) return 0; /* drop */
 
@@ -234,7 +249,7 @@ static int arp_sck_on_read (stio_dev_sck_t* dev, const void* data, stio_iolen_t 
 	return 0;
 }
 
-static int arp_sck_on_write (stio_dev_sck_t* dev, stio_iolen_t wrlen, void* wrctx, const stio_sckadr_t* dstadr)
+static int arp_sck_on_write (stio_dev_sck_t* dev, stio_iolen_t wrlen, void* wrctx, const stio_sckaddr_t* dstaddr)
 {
 	return 0;
 }
@@ -344,7 +359,7 @@ int main ()
 	memset (&tcp_conn, 0, STIO_SIZEOF(tcp_conn));
 {
 	in_addr_t ia = inet_addr("192.168.1.119");
-	stio_sckadr_initforip4 (&tcp_conn.addr, 9999, (stio_ip4adr_t*)&ia);
+	stio_sckaddr_initforip4 (&tcp_conn.remoteaddr, 9999, (stio_ip4addr_t*)&ia);
 }
 	tcp_conn.tmout.sec = 5;
 	tcp_conn.on_connect = tcp_sck_on_connect;
@@ -372,7 +387,7 @@ int main ()
 	ts->tally = 0;
 
 	memset (&tcp_bind, 0, STIO_SIZEOF(tcp_bind));
-	stio_sckadr_initforip4 (&tcp_bind.addr, 1234, STIO_NULL);
+	stio_sckaddr_initforip4 (&tcp_bind.localaddr, 1234, STIO_NULL);
 	tcp_bind.options = STIO_DEV_SCK_BIND_REUSEADDR;
 
 	if (stio_dev_sck_bind (tcp[1],&tcp_bind) <= -1)
@@ -408,32 +423,31 @@ int main ()
 	ts->tally = 0;
 
 	memset (&tcp_bind, 0, STIO_SIZEOF(tcp_bind));
-	stio_sckadr_initforip4 (&tcp_bind.addr, 1235, STIO_NULL);
-	tcp_bind.options = STIO_DEV_SCK_BIND_REUSEADDR | STIO_DEV_SCK_BIND_SECURE;
-	tcp_bind.certfile = STIO_MT("stio.certfile");
-	tcp_bind.keyfile = STIO_MT("stio.keyfile");
+	stio_sckaddr_initforip4 (&tcp_bind.localaddr, 1235, STIO_NULL);
+	tcp_bind.options = STIO_DEV_SCK_BIND_REUSEADDR | /*STIO_DEV_SCK_BIND_REUSEPORT |*/ STIO_DEV_SCK_BIND_SSL; 
+	tcp_bind.certfile = STIO_MT("localhost.crt");
+	tcp_bind.keyfile = STIO_MT("localhost.key");
 
-	if (stio_dev_sck_bind (tcp[1],&tcp_bind) <= -1)
+	if (stio_dev_sck_bind (tcp[2],&tcp_bind) <= -1)
 	{
 		printf ("stio_dev_sck_bind() failed....\n");
 		goto oops;
 	}
 
-
 	tcp_lstn.backlogs = 100;
 	tcp_lstn.on_connect = tcp_sck_on_connect;
 	tcp_lstn.on_disconnect = tcp_sck_on_disconnect;
-	if (stio_dev_sck_listen (tcp[1], &tcp_lstn) <= -1)
+	if (stio_dev_sck_listen (tcp[2], &tcp_lstn) <= -1)
 	{
 		printf ("stio_dev_sck_listen() failed....\n");
 		goto oops;
 	}
 
-
+	//stio_dev_sck_sendfile (tcp[2], fd, offset, count);
 #if 1
 {
 
-	stio_sckadr_t ethdst;
+	stio_sckaddr_t ethdst;
 	stio_etharp_pkt_t etharp;
 
 	memset (&sck_make, 0, STIO_SIZEOF(sck_make));
@@ -448,26 +462,26 @@ int main ()
 		goto oops;
 	}
 
-	//stio_sckadr_initforeth (&ethdst, if_nametoindex("enp0s25.3"), (stio_ethadr_t*)"\xFF\xFF\xFF\xFF\xFF\xFF");
-	stio_sckadr_initforeth (&ethdst, if_nametoindex("enp0s25.3"), (stio_ethadr_t*)"\xAA\xBB\xFF\xCC\xDD\xFF");
+	//stio_sckaddr_initforeth (&ethdst, if_nametoindex("enp0s25.3"), (stio_ethaddr_t*)"\xFF\xFF\xFF\xFF\xFF\xFF");
+	stio_sckaddr_initforeth (&ethdst, if_nametoindex("enp0s25.3"), (stio_ethaddr_t*)"\xAA\xBB\xFF\xCC\xDD\xFF");
 
 	memset (&etharp, 0, sizeof(etharp));
 
-	memcpy (etharp.ethhdr.source, "\xB8\x6B\x23\x9C\x10\x76", STIO_ETHADR_LEN);
-	//memcpy (etharp.ethhdr.dest, "\xFF\xFF\xFF\xFF\xFF\xFF", STIO_ETHADR_LEN);
-	memcpy (etharp.ethhdr.dest, "\xAA\xBB\xFF\xCC\xDD\xFF", STIO_ETHADR_LEN);
+	memcpy (etharp.ethhdr.source, "\xB8\x6B\x23\x9C\x10\x76", STIO_ETHADDR_LEN);
+	//memcpy (etharp.ethhdr.dest, "\xFF\xFF\xFF\xFF\xFF\xFF", STIO_ETHADDR_LEN);
+	memcpy (etharp.ethhdr.dest, "\xAA\xBB\xFF\xCC\xDD\xFF", STIO_ETHADDR_LEN);
 	etharp.ethhdr.proto = STIO_CONST_HTON16(STIO_ETHHDR_PROTO_ARP);
 
 	etharp.arphdr.htype = STIO_CONST_HTON16(STIO_ARPHDR_HTYPE_ETH);
 	etharp.arphdr.ptype = STIO_CONST_HTON16(STIO_ARPHDR_PTYPE_IP4);
-	etharp.arphdr.hlen = STIO_ETHADR_LEN;
-	etharp.arphdr.plen = STIO_IP4ADR_LEN;
+	etharp.arphdr.hlen = STIO_ETHADDR_LEN;
+	etharp.arphdr.plen = STIO_IP4ADDR_LEN;
 	etharp.arphdr.opcode = STIO_CONST_HTON16(STIO_ARPHDR_OPCODE_REQUEST);
 
-	memcpy (etharp.arppld.sha, "\xB8\x6B\x23\x9C\x10\x76", STIO_ETHADR_LEN);
+	memcpy (etharp.arppld.sha, "\xB8\x6B\x23\x9C\x10\x76", STIO_ETHADDR_LEN);
 
 	if (stio_dev_sck_write (sck, &etharp, sizeof(etharp), NULL, &ethdst) <= -1)
-	//if (stio_dev_sck_write (sck, &etharp.arphdr, sizeof(etharp) - sizeof(etharp.ethhdr), NULL, &ethadr) <= -1)
+	//if (stio_dev_sck_write (sck, &etharp.arphdr, sizeof(etharp) - sizeof(etharp.ethhdr), NULL, &ethaddr) <= -1)
 	{
 		printf ("CANNOT WRITE ARP...\n");
 	}
