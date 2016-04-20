@@ -512,6 +512,9 @@ STIO_EXPORT void stio_dev_halt (
 /* if time has been normalized properly, nsec must be equal to or
  * greater than 0. */
 #define stio_isnegtime(x) ((x)->sec < 0)
+#define stio_ispostime(x) ((x)->sec > 0 || ((x)->sec == 0 && (x)->nsec > 0))
+#define stio_iszerotime(x) ((x)->sec == 0 && (x)->nsec == 0)
+
 
 /**
  * The stio_gettime() function gets the current time.

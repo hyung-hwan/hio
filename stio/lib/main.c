@@ -425,8 +425,9 @@ int main ()
 	memset (&tcp_bind, 0, STIO_SIZEOF(tcp_bind));
 	stio_sckaddr_initforip4 (&tcp_bind.localaddr, 1235, STIO_NULL);
 	tcp_bind.options = STIO_DEV_SCK_BIND_REUSEADDR | /*STIO_DEV_SCK_BIND_REUSEPORT |*/ STIO_DEV_SCK_BIND_SSL; 
-	tcp_bind.certfile = STIO_MT("localhost.crt");
-	tcp_bind.keyfile = STIO_MT("localhost.key");
+	tcp_bind.ssl_certfile = STIO_MT("localhost.crt");
+	tcp_bind.ssl_keyfile = STIO_MT("localhost.key");
+	//stio_inittime (&tcp_bind.ssl_accept_tmout, 0, 1);
 
 	if (stio_dev_sck_bind (tcp[2],&tcp_bind) <= -1)
 	{

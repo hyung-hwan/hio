@@ -164,13 +164,22 @@ struct stio_dev_sck_bind_t
 	stio_sckaddr_t localaddr;
 	/* TODO: add device name for BIND_TO_DEVICE */
 
-	const stio_mchar_t* certfile;
-	const stio_mchar_t* keyfile;
+	const stio_mchar_t* ssl_certfile;
+	const stio_mchar_t* ssl_keyfile;
+	stio_ntime_t ssl_accept_tmout;
 };
+
+enum stio_def_sck_connect_option_t
+{
+	STIO_DEV_SCK_CONNECT_SSL = (1 << 15)
+};
+typedef enum stio_dev_sck_connect_option_t stio_dev_sck_connect_option_t;
+
 
 typedef struct stio_dev_sck_connect_t stio_dev_sck_connect_t;
 struct stio_dev_sck_connect_t
 {
+	int options;
 	stio_sckaddr_t remoteaddr;
 	stio_ntime_t tmout; /* connect timeout */
 	stio_dev_sck_on_connect_t on_connect;
@@ -188,9 +197,9 @@ struct stio_dev_sck_listen_t
 typedef struct stio_dev_sck_accept_t stio_dev_sck_accept_t;
 struct stio_dev_sck_accept_t
 {
-	stio_syshnd_t   sck;
+	stio_syshnd_t  sck;
 /* TODO: add timeout */
-	stio_sckaddr_t   remoteaddr;
+	stio_sckaddr_t remoteaddr;
 };
 
 struct stio_dev_sck_t
@@ -200,23 +209,15 @@ struct stio_dev_sck_t
 	stio_dev_sck_type_t type;
 	stio_sckhnd_t sck;
 
-	void* sslctx;
+	void* ssl_ctx;
 	void* ssl;
-
-	stio_dev_sck_on_write_t on_write;
-	stio_dev_sck_on_read_t on_read;
+	stio_ntime_t ssl_accept_tmout;
 
 	int state;
 
-	/* return 0 on succes, -1 on failure.
-	 * called on a new tcp device for an accepted client or
-	 *        on a tcp device conntected to a remote server */
-	stio_dev_sck_on_connect_t on_connect;
-	stio_dev_sck_on_disconnect_t on_disconnect;
-	stio_tmridx_t tmridx_connect;
-
-	/* peer address for a stateful stream socket. valid if one of the 
+	/* remote peer address for a stateful stream socket. valid if one of the 
 	 * followings is set in state:
+	 *   STIO_DEV_TCP_ACCEPTING_SSL
 	 *   STIO_DEV_TCP_ACCEPTED
 	 *   STIO_DEV_TCP_CONNECTED
 	 *   STIO_DEV_TCP_CONNECTING
@@ -225,8 +226,25 @@ struct stio_dev_sck_t
 	 * a stateless socket */
 	stio_sckaddr_t remoteaddr; 
 
+	/* local socket address */
 	stio_sckaddr_t localaddr;
+
+	/* original destination address */
 	stio_sckaddr_t orgdstaddr;
+
+	stio_dev_sck_on_write_t on_write;
+	stio_dev_sck_on_read_t on_read;
+
+	/* return 0 on succes, -1 on failure.
+	 * called on a new tcp device for an accepted client or
+	 *        on a tcp device conntected to a remote server */
+	stio_dev_sck_on_connect_t on_connect;
+	stio_dev_sck_on_disconnect_t on_disconnect;
+
+	/* timer job index for handling
+	 *  - connect() timeout for a connecting socket.
+	 *  - SSL_accept() timeout for a socket accepting SSL */
+	stio_tmridx_t tmrjob_index;
 };
 
 #ifdef __cplusplus
