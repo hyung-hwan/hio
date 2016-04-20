@@ -1045,7 +1045,7 @@ enqueue_data:
 	q->olen = len;
 	STIO_MEMCPY (q->ptr, uptr, urem);
 
-	if (tmout && !stio_isnegtime(tmout))
+	if (tmout && stio_ispostime(tmout))
 	{
 		stio_tmrjob_t tmrjob;
 
@@ -1060,7 +1060,6 @@ enqueue_data:
 		if (q->tmridx == STIO_TMRIDX_INVALID) 
 		{
 			STIO_MMGR_FREE (dev->stio->mmgr, q);
-printf ("ZZZZZZZZZZZZZZZZZZZZZZZZZZZZZZZZZZZZZZZZZZZZZZZZZZZZZZz222222\n");
 			return -1;
 		}
 	}
@@ -1073,7 +1072,6 @@ printf ("ZZZZZZZZZZZZZZZZZZZZZZZZZZZZZZZZZZZZZZZZZZZZZZZZZZZZZZz222222\n");
 		{
 			unlink_wq (dev->stio, q);
 			STIO_MMGR_FREE (dev->stio->mmgr, q);
-printf ("ZZZZZZZZZZZZZZZZZZZZZZZZZZZZZZZZZZZZZZZZZZZZZZZZZZZZZZz11111\n");
 			return -1;
 		}
 	}
@@ -1082,7 +1080,6 @@ printf ("ZZZZZZZZZZZZZZZZZZZZZZZZZZZZZZZZZZZZZZZZZZZZZZZZZZZZZZz11111\n");
 		dev->stio->renew_watch = 1;
 	}
 
-printf ("ZZZZZZZZZZZZZZZZZZZZZZZZZZZZZZZZZZZZZZZZZZZZZZZZZZZZZZz\n");
 	return 0; /* request pused to a write queue. */
 }
 
