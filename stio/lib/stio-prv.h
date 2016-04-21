@@ -57,7 +57,7 @@ struct stio_t
 {
 	stio_mmgr_t* mmgr;
 	stio_errnum_t errnum;
-	int stopreq;  /* stop request to abort stio_loop() */
+	stio_stopreq_t stopreq;  /* stop request to abort stio_loop() */
 
 	struct
 	{

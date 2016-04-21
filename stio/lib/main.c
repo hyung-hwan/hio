@@ -121,25 +121,35 @@ typedef struct tcp_server_t tcp_server_t;
 
 static void tcp_sck_on_disconnect (stio_dev_sck_t* tcp)
 {
-	if (tcp->state & STIO_DEV_SCK_CONNECTING)
+	switch (STIO_DEV_SCK_GET_PROGRESS(tcp))
 	{
-		printf ("TCP DISCONNECTED - FAILED TO CONNECT (%d) TO REMOTE SERVER\n", (int)tcp->sck);
-	}
-	else if (tcp->state & STIO_DEV_SCK_LISTENING)
-	{
-		printf ("SHUTTING DOWN THE SERVER SOCKET(%d)...\n", (int)tcp->sck);
-	}
-	else if (tcp->state & STIO_DEV_SCK_CONNECTED)
-	{
-		printf ("CLIENT ORIGINATING FROM HERE GOT DISCONNECTED(%d).......\n", (int)tcp->sck);
-	}
-	else if (tcp->state & STIO_DEV_SCK_ACCEPTED)
-	{
-		printf ("CLIENT BEING SERVED GOT DISCONNECTED(%d).......\n", (int)tcp->sck);
-	}
-	else
-	{
-		printf ("TCP DISCONNECTED - THIS MUST NOT HAPPEN (%d - %x)\n", (int)tcp->sck, (unsigned int)tcp->state);
+		case STIO_DEV_SCK_CONNECTING:
+			printf ("OUTGOING TCP DISCONNECTED - FAILED TO CONNECT (%d) TO REMOTE SERVER\n", (int)tcp->sck);
+			break;
+
+		case STIO_DEV_SCK_CONNECTING_SSL:
+			printf ("OUTGOING TCP DISCONNECTED - FAILED TO SSL-CONNECT (%d) TO REMOTE SERVER\n", (int)tcp->sck);
+			break;
+
+		case STIO_DEV_SCK_LISTENING:
+			printf ("SHUTTING DOWN THE SERVER SOCKET(%d)...\n", (int)tcp->sck);
+			break;
+
+		case STIO_DEV_SCK_CONNECTED:
+			printf ("OUTGOING CLIENT CONNECTION GOT TORN DOWN(%d).......\n", (int)tcp->sck);
+			break;
+
+		case STIO_DEV_SCK_ACCEPTING_SSL:
+			printf ("INCOMING SSL-ACCEPT GOT DISCONNECTED(%d) ....\n", (int)tcp->sck);
+			break;
+
+		case STIO_DEV_SCK_ACCEPTED:
+			printf ("INCOMING CLIENT BEING SERVED GOT DISCONNECTED(%d).......\n", (int)tcp->sck);
+			break;
+
+		default:
+			printf ("TCP DISCONNECTED - THIS MUST NOT HAPPEN (%d - %x)\n", (int)tcp->sck, (unsigned int)tcp->state);
+			break;
 	}
 }
 static int tcp_sck_on_connect (stio_dev_sck_t* tcp)
@@ -280,7 +290,7 @@ static stio_t* g_stio;
 
 static void handle_signal (int sig)
 {
-	if (g_stio) stio_stop (g_stio);
+	if (g_stio) stio_stop (g_stio, STIO_STOPREQ_TERMINATION);
 }
 
 int main ()
@@ -361,9 +371,11 @@ int main ()
 	in_addr_t ia = inet_addr("192.168.1.119");
 	stio_sckaddr_initforip4 (&tcp_conn.remoteaddr, 9999, (stio_ip4addr_t*)&ia);
 }
-	tcp_conn.tmout.sec = 5;
+
+	stio_inittime (&tcp_conn.tmout, 5, 0);
 	tcp_conn.on_connect = tcp_sck_on_connect;
 	tcp_conn.on_disconnect = tcp_sck_on_disconnect;
+	tcp_conn.options = STIO_DEV_SCK_CONNECT_SSL;
 	if (stio_dev_sck_connect (tcp[0], &tcp_conn) <= -1)
 	{
 		printf ("stio_dev_sck_connect() failed....\n");
@@ -427,7 +439,7 @@ int main ()
 	tcp_bind.options = STIO_DEV_SCK_BIND_REUSEADDR | /*STIO_DEV_SCK_BIND_REUSEPORT |*/ STIO_DEV_SCK_BIND_SSL; 
 	tcp_bind.ssl_certfile = STIO_MT("localhost.crt");
 	tcp_bind.ssl_keyfile = STIO_MT("localhost.key");
-	//stio_inittime (&tcp_bind.ssl_accept_tmout, 0, 1);
+	stio_inittime (&tcp_bind.ssl_accept_tmout, 5, 1);
 
 	if (stio_dev_sck_bind (tcp[2],&tcp_bind) <= -1)
 	{
