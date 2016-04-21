@@ -186,7 +186,7 @@ struct stio_dev_sck_bind_t
 
 	const stio_mchar_t* ssl_certfile;
 	const stio_mchar_t* ssl_keyfile;
-	stio_ntime_t ssl_accept_tmout;
+	stio_ntime_t accept_tmout;
 };
 
 enum stio_def_sck_connect_option_t
@@ -201,7 +201,7 @@ struct stio_dev_sck_connect_t
 {
 	int options;
 	stio_sckaddr_t remoteaddr;
-	stio_ntime_t tmout; /* connect timeout */
+	stio_ntime_t connect_tmout;
 	stio_dev_sck_on_connect_t on_connect;
 	stio_dev_sck_on_disconnect_t on_disconnect;
 };
@@ -229,9 +229,11 @@ struct stio_dev_sck_t
 	stio_dev_sck_type_t type;
 	stio_sckhnd_t sck;
 
+	/* connect timeout, ssl-connect timeout, ssl-accept timeout */
+	stio_ntime_t tmout;
+
 	void* ssl_ctx;
 	void* ssl;
-	stio_ntime_t ssl_accept_tmout;
 
 	int state;
 
@@ -289,10 +291,10 @@ STIO_EXPORT int stio_makesckasync (
 );
 
 STIO_EXPORT int stio_getsckaddrinfo (
-	stio_t*              stio,
-	const stio_sckaddr_t* addr,
-	stio_scklen_t*       len,
-	stio_sckfam_t*       family
+	stio_t*                stio,
+	const stio_sckaddr_t*  addr,
+	stio_scklen_t*         len,
+	stio_sckfam_t*         family
 );
 
 /*
@@ -306,19 +308,19 @@ STIO_EXPORT stio_uint16_t stio_getsckaddrport (
 
 STIO_EXPORT void stio_sckaddr_initforip4 (
 	stio_sckaddr_t* sckaddr,
-	stio_uint16_t  port,
+	stio_uint16_t   port,
 	stio_ip4addr_t* ip4addr
 );
 
 STIO_EXPORT void stio_sckaddr_initforip6 (
 	stio_sckaddr_t* sckaddr,
-	stio_uint16_t  port,
+	stio_uint16_t   port,
 	stio_ip6addr_t* ip6addr
 );
 
 STIO_EXPORT void stio_sckaddr_initforeth (
 	stio_sckaddr_t* sckaddr,
-	int            ifindex,
+	int             ifindex,
 	stio_ethaddr_t* ethaddr
 );
 
@@ -354,11 +356,11 @@ STIO_EXPORT int stio_dev_sck_write (
 );
 
 STIO_EXPORT int stio_dev_sck_timedwrite (
-	stio_dev_sck_t*       dev,
-	const void*           data,
-	stio_iolen_t          len,
-	const stio_ntime_t*   tmout,
-	void*                 wrctx,
+	stio_dev_sck_t*        dev,
+	const void*            data,
+	stio_iolen_t           len,
+	const stio_ntime_t*    tmout,
+	void*                  wrctx,
 	const stio_sckaddr_t*  dstaddr
 );
 

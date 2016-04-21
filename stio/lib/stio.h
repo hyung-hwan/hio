@@ -107,6 +107,7 @@ enum stio_errnum_t
 	STIO_ECONRS,     /* connection reset */
 	STIO_ENOCAPA,    /* no capability */
 	STIO_ETMOUT,     /* timed out */
+	STIO_EPERM,      /* operation not permitted */
 
 	STIO_EDEVMAKE,
 	STIO_EDEVERR,
@@ -131,13 +132,6 @@ typedef void (*stio_tmrjob_handler_t) (
 	stio_t*             stio,
 	const stio_ntime_t* now, 
 	stio_tmrjob_t*      tmrjob
-);
-
-typedef void (*stio_tmrjob_updater_t) (
-	stio_t*         stio,
-	stio_tmridx_t   old_index,
-	stio_tmridx_t   new_index,
-	stio_tmrjob_t*  tmrjob
 );
 
 struct stio_dev_mth_t

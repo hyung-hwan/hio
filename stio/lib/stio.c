@@ -1155,6 +1155,11 @@ stio_errnum_t stio_syserrtoerrnum (int no)
 			return STIO_ECONRS;
 	#endif
 
+	#if defined(EPERM)
+		case EPERM:
+			return STIO_EPERM;
+	#endif
+
 		default:
 			return STIO_ESYSERR;
 	}

@@ -372,14 +372,14 @@ int main ()
 	stio_sckaddr_initforip4 (&tcp_conn.remoteaddr, 9999, (stio_ip4addr_t*)&ia);
 }
 
-	stio_inittime (&tcp_conn.tmout, 5, 0);
+	stio_inittime (&tcp_conn.connect_tmout, 5, 0);
 	tcp_conn.on_connect = tcp_sck_on_connect;
 	tcp_conn.on_disconnect = tcp_sck_on_disconnect;
 	tcp_conn.options = STIO_DEV_SCK_CONNECT_SSL;
 	if (stio_dev_sck_connect (tcp[0], &tcp_conn) <= -1)
 	{
 		printf ("stio_dev_sck_connect() failed....\n");
-		goto oops;
+		/* carry on regardless of failure */
 	}
 
 	/* -------------------------------------------------------------- */
@@ -418,7 +418,6 @@ int main ()
 		goto oops;
 	}
 
-
 	/* -------------------------------------------------------------- */
 	memset (&tcp_make, 0, STIO_SIZEOF(&tcp_make));
 	tcp_make.type = STIO_DEV_SCK_TCP4;
@@ -439,7 +438,7 @@ int main ()
 	tcp_bind.options = STIO_DEV_SCK_BIND_REUSEADDR | /*STIO_DEV_SCK_BIND_REUSEPORT |*/ STIO_DEV_SCK_BIND_SSL; 
 	tcp_bind.ssl_certfile = STIO_MT("localhost.crt");
 	tcp_bind.ssl_keyfile = STIO_MT("localhost.key");
-	stio_inittime (&tcp_bind.ssl_accept_tmout, 5, 1);
+	stio_inittime (&tcp_bind.accept_tmout, 5, 1);
 
 	if (stio_dev_sck_bind (tcp[2],&tcp_bind) <= -1)
 	{
