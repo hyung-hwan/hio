@@ -88,14 +88,34 @@ enum stio_dev_sck_ioctl_cmd_t
 typedef enum stio_dev_sck_ioctl_cmd_t stio_dev_sck_ioctl_cmd_t;
 
 
+#define STIO_DEV_SCK_SET_PROGRESS(dev,bit) do { \
+	(dev)->state &= ~STIO_DEV_SCK_ALL_PROGRESS_BITS; \
+	(dev)->state |= (bit); \
+} while(0)
+
+#define STIO_DEV_SCK_GET_PROGRESS(dev) ((dev)->state & STIO_DEV_SCK_ALL_PROGRESS_BITS)
+
 enum stio_dev_sck_state_t
 {
-	STIO_DEV_SCK_CONNECTING    = (1 << 0),
-	STIO_DEV_SCK_CONNECTED     = (1 << 1),
-	STIO_DEV_SCK_LISTENING     = (1 << 2),
-	STIO_DEV_SCK_ACCEPTING_SSL = (1 << 3),
-	STIO_DEV_SCK_ACCEPTED      = (1 << 4),
-	STIO_DEV_SCK_INTERCEPTED   = (1 << 5)
+	/* the following items(progress bits) are mutually exclusive */
+	STIO_DEV_SCK_CONNECTING     = (1 << 0),
+	STIO_DEV_SCK_CONNECTING_SSL = (1 << 1),
+	STIO_DEV_SCK_CONNECTED      = (1 << 2),
+	STIO_DEV_SCK_LISTENING      = (1 << 3),
+	STIO_DEV_SCK_ACCEPTING_SSL  = (1 << 4),
+	STIO_DEV_SCK_ACCEPTED       = (1 << 5),
+
+	/* the following items can be bitwise-ORed with an exclusive item above */
+	STIO_DEV_SCK_INTERCEPTED    = (1 << 15),
+
+
+	/* convenience bit masks */
+	STIO_DEV_SCK_ALL_PROGRESS_BITS = (STIO_DEV_SCK_CONNECTING |
+	                                  STIO_DEV_SCK_CONNECTING_SSL |
+	                                  STIO_DEV_SCK_CONNECTED |
+	                                  STIO_DEV_SCK_LISTENING |
+	                                  STIO_DEV_SCK_ACCEPTING_SSL |
+	                                  STIO_DEV_SCK_ACCEPTED)
 };
 typedef enum stio_dev_sck_state_t stio_dev_sck_state_t;
 

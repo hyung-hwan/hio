@@ -520,21 +520,21 @@ int stio_exec (stio_t* stio)
 	return n;
 }
 
-void stio_stop (stio_t* stio)
+void stio_stop (stio_t* stio, stio_stopreq_t stopreq)
 {
-	stio->stopreq = 1;
+	stio->stopreq = stopreq;
 }
 
 int stio_loop (stio_t* stio)
 {
 	if (!stio->actdev.head) return 0;
 
-	stio->stopreq = 0;
+	stio->stopreq = STIO_STOPREQ_NONE;
 	stio->renew_watch = 0;
 
 	if (stio_prologue (stio) <= -1) return -1;
 
-	while (!stio->stopreq && stio->actdev.head)
+	while (stio->stopreq == STIO_STOPREQ_NONE && stio->actdev.head)
 	{
 		if (stio_exec (stio) <= -1) break;
 		/* you can do other things here */
@@ -619,7 +619,7 @@ oops_after_make:
 			 *       if the kill method keep returning failure */
 			while (kill_and_free_device (dev, 1) <= -1)
 			{
-				if (stio->stopreq) 
+				if (stio->stopreq != STIO_STOPREQ_NONE) 
 				{
 					/* i can't wait until destruction attempt gets
 					 * fully successful. there is a chance that some
@@ -685,7 +685,7 @@ static void kill_zombie_job_handler (stio_t* stio, const stio_ntime_t* now, stio
 			/* i have to choice but to free up the devide by force */
 			while (kill_and_free_device (dev, 1) <= -1)
 			{
-				if (stio->stopreq) 
+				if (stio->stopreq  != STIO_STOPREQ_NONE) 
 				{
 					/* i can't wait until destruction attempt gets
 					 * fully successful. there is a chance that some
@@ -759,7 +759,7 @@ kill_device:
 			/* i have to choice but to free up the devide by force */
 			while (kill_and_free_device (dev, 1) <= -1)
 			{
-				if (stio->stopreq) 
+				if (stio->stopreq  != STIO_STOPREQ_NONE) 
 				{
 					/* i can't wait until destruction attempt gets
 					 * fully successful. there is a chance that some

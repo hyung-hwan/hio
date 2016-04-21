@@ -115,6 +115,15 @@ enum stio_errnum_t
 
 typedef enum stio_errnum_t stio_errnum_t;
 
+enum stio_stopreq_t
+{
+	STIO_STOPREQ_NONE = 0,
+	STIO_STOPREQ_TERMINATION,
+	STIO_STOPREQ_WATCHER_UPDATE_ERROR,
+	STIO_STOPREQ_WATCHER_RENEW_ERROR
+};
+typedef enum stio_stopreq_t stio_stopreq_t;
+
 typedef struct stio_tmrjob_t stio_tmrjob_t;
 typedef stio_size_t stio_tmridx_t;
 
@@ -303,6 +312,7 @@ enum stio_dev_event_t
 typedef enum stio_dev_event_t stio_dev_event_t;
 
 
+
 /* ========================================================================= */
 /* TOOD: move these to a separte file */
 
@@ -435,7 +445,8 @@ STIO_EXPORT int stio_loop (
 );
 
 STIO_EXPORT void stio_stop (
-	stio_t* stio
+	stio_t*        stio,
+	stio_stopreq_t stopreq
 );
 
 STIO_EXPORT stio_dev_t* stio_makedev (

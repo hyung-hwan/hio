@@ -64,6 +64,7 @@
 #	define USE_SSL
 #endif
 
+
 /* ========================================================================= */
 void stio_closeasyncsck (stio_t* stio, stio_sckhnd_t sck)
 {
@@ -359,8 +360,10 @@ static int dev_sck_kill (stio_dev_t* dev, int force)
 
 	if (IS_STATEFUL(rdev))
 	{
-		if (rdev->state & (STIO_DEV_SCK_ACCEPTED | STIO_DEV_SCK_CONNECTED | STIO_DEV_SCK_CONNECTING | STIO_DEV_SCK_LISTENING))
+		if (STIO_DEV_SCK_GET_PROGRESS(rdev))
 		{
+			/* for STIO_DEV_SCK_CONNECTING, STIO_DEV_SCK_CONNECTING_SSL, and STIO_DEV_ACCEPTING_SSL
+			 * on_disconnect() is called without corresponding on_connect() */
 			if (rdev->on_disconnect) rdev->on_disconnect (rdev);
 		}
 
@@ -473,7 +476,6 @@ static int dev_sck_read_stateless (stio_dev_t* dev, void* buf, stio_iolen_t* len
 static int dev_sck_write_stateful (stio_dev_t* dev, const void* data, stio_iolen_t* len, const stio_devaddr_t* dstaddr)
 {
 	stio_dev_sck_t* rdev = (stio_dev_sck_t*)dev;
-	
 
 #if defined(USE_SSL)
 	if (rdev->ssl)
@@ -560,6 +562,98 @@ static int dev_sck_write_stateless (stio_dev_t* dev, const void* data, stio_iole
 	*len = x;
 	return 1;
 }
+
+#if defined(USE_SSL)
+static int connect_ssl (stio_dev_sck_t* dev)
+{
+	int ret;
+
+	STIO_ASSERT (dev->ssl_ctx);
+
+	if (!dev->ssl)
+	{
+		SSL* ssl;
+
+		ssl = SSL_new (dev->ssl_ctx);
+		if (!ssl)
+		{
+			dev->stio->errnum = STIO_ESYSERR;
+			return -1;
+		}
+
+		if (SSL_set_fd (ssl, dev->sck) == 0)
+		{
+			SSL_free (ssl);
+			dev->stio->errnum = STIO_ESYSERR;
+			return -1;
+		}
+
+		SSL_set_read_ahead (ssl, 0);
+		dev->ssl = ssl;
+	}
+
+	ret = SSL_connect (dev->ssl);
+	if (ret <= 0)
+	{
+		int err = SSL_get_error (dev->ssl, ret);
+		if (err == SSL_ERROR_WANT_READ || err == SSL_ERROR_WANT_WRITE)
+		{
+			/* handshaking isn't complete */
+			return 0;
+		}
+
+		dev->stio->errnum = STIO_ESYSERR;
+		return -1;
+	}
+
+	return 1; /* connected */
+}
+
+
+static int accept_ssl (stio_dev_sck_t* dev)
+{
+	int ret;
+
+	STIO_ASSERT (dev->ssl_ctx);
+
+	if (!dev->ssl)
+	{
+		SSL* ssl;
+
+		ssl = SSL_new (dev->ssl_ctx);
+		if (!ssl)
+		{
+			dev->stio->errnum = STIO_ESYSERR;
+			return -1;
+		}
+
+		if (SSL_set_fd (ssl, dev->sck) == 0)
+		{
+			dev->stio->errnum = STIO_ESYSERR;
+			return -1;
+		}
+		SSL_set_read_ahead (ssl, 0);
+
+		dev->ssl = ssl;
+	}
+
+	ret = SSL_accept ((SSL*)dev->ssl);
+	if (ret <= 0)
+	{
+		int err = SSL_get_error (dev->ssl, ret);
+		if (err == SSL_ERROR_WANT_READ || err == SSL_ERROR_WANT_WRITE)
+		{
+			/* handshaking isn't complete */
+			return 0;
+		}
+
+		dev->stio->errnum = STIO_ESYSERR;
+		return -1;
+	}
+
+	return 1; /* accepted */
+}
+#endif
 
 static int dev_sck_ioctl (stio_dev_t* dev, int cmd, void* arg)
 {
@@ -654,8 +748,8 @@ static int dev_sck_ioctl (stio_dev_t* dev, int cmd, void* arg)
 				    SSL_CTX_check_private_key (ssl_ctx) == 0  /*||
 				    SSL_CTX_use_certificate_chain_file (ssl_ctx, bnd->chainfile) == 0*/)
 				{
-					rdev->stio->errnum = STIO_ESYSERR;
 					SSL_CTX_free (ssl_ctx);
+					rdev->stio->errnum = STIO_ESYSERR;
 					return -1;
 				}
 
@@ -699,7 +793,6 @@ static int dev_sck_ioctl (stio_dev_t* dev, int cmd, void* arg)
 			int x;
 		#if defined(USE_SSL)
 			SSL_CTX* ssl_ctx = STIO_NULL;
-			SSL* ssl = STIO_NULL;
 		#endif
 			if (!IS_STATEFUL(rdev)) 
 			{
@@ -715,25 +808,41 @@ static int dev_sck_ioctl (stio_dev_t* dev, int cmd, void* arg)
 				return -1;
 			}
 
+		#if defined(USE_SSL)
 			if (conn->options & STIO_DEV_SCK_CONNECT_SSL)
 			{
-			#if defined(USE_SSL)
 				ssl_ctx = SSL_CTX_new(SSLv23_client_method());
 				if (!ssl_ctx)
 				{
 					rdev->stio->errnum = STIO_ESYSERR;
 					return -1;
 				}
-			#endif
 			}
+		#endif
+
+/*{
+int flags = fcntl (rdev->sck, F_GETFL);
+fcntl (rdev->sck, F_SETFL, flags & ~O_NONBLOCK);
+}*/
 
 			/* the socket is already non-blocking */
 			x = connect (rdev->sck, sa, sl);
+/*{
+int flags = fcntl (rdev->sck, F_GETFL);
+fcntl (rdev->sck, F_SETFL, flags | O_NONBLOCK);
+}*/
+
 			if (x == -1)
 			{
 				if (errno == EINPROGRESS || errno == EWOULDBLOCK || errno == EAGAIN)
 				{
-					if (stio_dev_watch ((stio_dev_t*)rdev, STIO_DEV_WATCH_UPDATE, STIO_DEV_EVENT_IN | STIO_DEV_EVENT_OUT) >= 0)
+					if (stio_dev_watch ((stio_dev_t*)rdev, STIO_DEV_WATCH_UPDATE, STIO_DEV_EVENT_IN | STIO_DEV_EVENT_OUT) <= -1)
+					{
+						/* watcher update failure. it's critical */
+						stio_stop (rdev->stio, STIO_STOPREQ_WATCHER_UPDATE_ERROR);
+						goto oops_connect;
+					}
+					else
 					{
 						stio_tmrjob_t tmrjob;
 
@@ -748,58 +857,72 @@ static int dev_sck_ioctl (stio_dev_t* dev, int cmd, void* arg)
 
 							STIO_ASSERT (rdev->tmrjob_index == STIO_TMRIDX_INVALID);
 							rdev->tmrjob_index = stio_instmrjob (rdev->stio, &tmrjob);
-							if (rdev->tmrjob_index == STIO_TMRIDX_INVALID)
-							{
-								stio_dev_watch ((stio_dev_t*)rdev, STIO_DEV_WATCH_UPDATE, STIO_DEV_EVENT_IN);
-								/* event manipulation failure can't be handled properly. so ignore it. 
-								 * anyway, it's already in a failure condition */
-								return -1;
-							}
+							if (rdev->tmrjob_index == STIO_TMRIDX_INVALID) goto oops_connect;
 						}
 
-						rdev->state |= STIO_DEV_SCK_CONNECTING;
 						rdev->remoteaddr = conn->remoteaddr;
 						rdev->on_connect = conn->on_connect;
 						rdev->on_disconnect = conn->on_disconnect;
 					#if defined(USE_SSL)
 						rdev->ssl_ctx = ssl_ctx;
 					#endif
-
-						ssl = SSL_new (ssl_ctx);
-						if (!ssl)
-						{
-						}
-
-						SSL_set_fd (ssl, rdev->sck);
-
-						if (SSL_connect(ssl) <= 0)
-						{
-						}
-
+						STIO_DEV_SCK_SET_PROGRESS (rdev, STIO_DEV_SCK_CONNECTING);
 						return 0;
 					}
 				}
 
 				rdev->stio->errnum = stio_syserrtoerrnum(errno);
+
+			oops_connect:
+				if (stio_dev_watch ((stio_dev_t*)rdev, STIO_DEV_WATCH_UPDATE, STIO_DEV_EVENT_IN) <= -1)
+				{
+					/* watcher update failure. it's critical */
+					stio_stop (rdev->stio, STIO_STOPREQ_WATCHER_UPDATE_ERROR);
+				}
+
 			#if defined(USE_SSL)
 				if (ssl_ctx) SSL_CTX_free (ssl_ctx);
 			#endif
 				return -1;
 			}
+			else
+			{
+				/* connected immediately */
+				
+				rdev->remoteaddr = conn->remoteaddr;
+				rdev->on_connect = conn->on_connect;
+				rdev->on_disconnect = conn->on_disconnect;
+			#if defined(USE_SSL)
+				rdev->ssl_ctx = ssl_ctx;
+			#endif
 
-			/* connected immediately */
-			rdev->state |= STIO_DEV_SCK_CONNECTED;
-			rdev->remoteaddr = conn->remoteaddr;
-			rdev->on_connect = conn->on_connect;
-			rdev->on_disconnect = conn->on_disconnect;
-		#if defined(USE_SSL)
-			rdev->ssl_ctx = ssl_ctx;
-		#endif
+				sl = STIO_SIZEOF(localaddr);
+				if (getsockname (rdev->sck, (struct sockaddr*)&localaddr, &sl) == 0) rdev->localaddr = localaddr;
 
-			sl = STIO_SIZEOF(localaddr);
-			if (getsockname (rdev->sck, (struct sockaddr*)&localaddr, &sl) == 0) rdev->localaddr = localaddr;
-
-			return 0;
+			#if defined(USE_SSL)
+				if (ssl_ctx)
+				{
+					int x;
+					x = connect_ssl (rdev);
+					if (x <= -1) return -1;
+					if (x == 0) 
+					{
+						STIO_DEV_SCK_SET_PROGRESS (rdev, STIO_DEV_SCK_CONNECTING_SSL);
+/* TODO: schedule a ssl-connecting timeout job */
+					}
+					else goto connect_ok;
+				}
+				else
+				{
+				connect_ok:
+			#endif
+					STIO_DEV_SCK_SET_PROGRESS (rdev, STIO_DEV_SCK_CONNECTED);
+					if (rdev->on_connect (rdev) <= -1) return -1;
+			#if defined(USE_SSL)
+				}
+			#endif
+				return 0;
+			}
 		}
 
 		case STIO_DEV_SCK_LISTEN:
@@ -820,7 +943,7 @@ static int dev_sck_ioctl (stio_dev_t* dev, int cmd, void* arg)
 				return -1;
 			}
 
-			rdev->state |= STIO_DEV_SCK_LISTENING;
+			STIO_DEV_SCK_SET_PROGRESS (rdev, STIO_DEV_SCK_LISTENING);
 			rdev->on_connect = lstn->on_connect;
 			rdev->on_disconnect = lstn->on_disconnect;
 			return 0;
@@ -866,6 +989,210 @@ static stio_dev_mth_t dev_mth_clisck =
 };
 /* ========================================================================= */
 
+static int harvest_outgoing_connection (stio_dev_sck_t* rdev)
+{
+	int errcode;
+	stio_scklen_t len;
+
+	STIO_ASSERT (!(rdev->state & STIO_DEV_SCK_CONNECTED));
+
+	len = STIO_SIZEOF(errcode);
+	if (getsockopt (rdev->sck, SOL_SOCKET, SO_ERROR, (char*)&errcode, &len) == -1)
+	{
+		rdev->stio->errnum = stio_syserrtoerrnum(errno);
+		return -1;
+	}
+	else if (errcode == 0)
+	{
+		stio_sckaddr_t localaddr;
+		stio_scklen_t addrlen;
+
+		/* connected */
+
+		if (rdev->tmrjob_index != STIO_TMRIDX_INVALID)
+		{
+			stio_deltmrjob (rdev->stio, rdev->tmrjob_index);
+			STIO_ASSERT (rdev->tmrjob_index == STIO_TMRIDX_INVALID);
+		}
+
+		addrlen = STIO_SIZEOF(localaddr);
+		if (getsockname (rdev->sck, (struct sockaddr*)&localaddr, &addrlen) == 0) rdev->localaddr = localaddr;
+
+		if (stio_dev_watch ((stio_dev_t*)rdev, STIO_DEV_WATCH_RENEW, 0) <= -1) 
+		{
+			/* watcher update failure. it's critical */
+			stio_stop (rdev->stio, STIO_STOPREQ_WATCHER_RENEW_ERROR);
+			return -1;
+		}
+
+	#if defined(USE_SSL)
+		if (rdev->ssl_ctx)
+		{
+			int x;
+			STIO_ASSERT (!rdev->ssl); /* must not be SSL-connected yet */
+
+			x = connect_ssl (rdev);
+			if (x <= -1) return -1;
+			if (x == 0)
+			{
+				/* not SSL-connected */
+				STIO_DEV_SCK_SET_PROGRESS (rdev, STIO_DEV_SCK_CONNECTING_SSL);
+/* TODO: schedule ssl_connect timeout job */
+				return 0;
+			}
+			else
+			{
+				goto ssl_connected;
+			}
+		}
+		else
+		{
+		ssl_connected:
+	#endif
+			STIO_DEV_SCK_SET_PROGRESS (rdev, STIO_DEV_SCK_CONNECTED);
+			if (rdev->on_connect (rdev) <= -1) return -1;
+	#if defined(USE_SSL)
+		}
+	#endif
+
+		return 0;
+	}
+	else if (errcode == EINPROGRESS || errcode == EWOULDBLOCK)
+	{
+		/* still in progress */
+		return 0;
+	}
+	else
+	{
+		rdev->stio->errnum = stio_syserrtoerrnum(errcode);
+		return -1;
+	}
+}
+
+static int accept_incoming_connection (stio_dev_sck_t* rdev)
+{
+	stio_sckhnd_t clisck;
+	stio_sckaddr_t remoteaddr;
+	stio_scklen_t addrlen;
+	stio_dev_sck_t* clidev;
+
+	/* this is a server(lisening) socket */
+
+	addrlen = STIO_SIZEOF(remoteaddr);
+	clisck = accept (rdev->sck, (struct sockaddr*)&remoteaddr, &addrlen);
+	if (clisck == STIO_SCKHND_INVALID)
+	{
+		if (errno == EINPROGRESS || errno == EWOULDBLOCK || errno == EAGAIN) return 0;
+		if (errno == EINTR) return 0; /* if interrupted by a signal, treat it as if it's EINPROGRESS */
+
+		rdev->stio->errnum = stio_syserrtoerrnum(errno);
+		return -1;
+	}
+
+	/* use rdev->dev_size when instantiating a client sck device
+	 * instead of STIO_SIZEOF(stio_dev_sck_t). therefore, the 
+	 * extension area as big as that of the master sck device
+	 * is created in the client sck device */
+	clidev = (stio_dev_sck_t*)stio_makedev (rdev->stio, rdev->dev_size, &dev_mth_clisck, rdev->dev_evcb, &clisck); 
+	if (!clidev) 
+	{
+		close (clisck);
+		return -1;
+	}
+
+	STIO_ASSERT (clidev->sck == clisck);
+
+	clidev->dev_capa |= STIO_DEV_CAPA_IN | STIO_DEV_CAPA_OUT | STIO_DEV_CAPA_STREAM | STIO_DEV_CAPA_OUT_QUEUED;
+	clidev->remoteaddr = remoteaddr;
+
+	addrlen = STIO_SIZEOF(clidev->localaddr);
+	if (getsockname(clisck, (struct sockaddr*)&clidev->localaddr, &addrlen) == -1) clidev->localaddr = rdev->localaddr;
+
+#if defined(SO_ORIGINAL_DST)
+	/* if REDIRECT is used, SO_ORIGINAL_DST returns the original
+	 * destination address. When REDIRECT is not used, it returnes
+	 * the address of the local socket. In this case, it should
+	 * be same as the result of getsockname(). */
+	addrlen = STIO_SIZEOF(clidev->orgdstaddr);
+	if (getsockopt (clisck, SOL_IP, SO_ORIGINAL_DST, &clidev->orgdstaddr, &addrlen) == -1) clidev->orgdstaddr = rdev->localaddr;
+#else
+	clidev->orgdstaddr = rdev->localaddr;
+#endif
+
+	if (!stio_equalsckaddrs (rdev->stio, &clidev->orgdstaddr, &clidev->localaddr))
+	{
+		clidev->state |= STIO_DEV_SCK_INTERCEPTED;
+	}
+	else if (stio_getsckaddrport (&clidev->localaddr) != stio_getsckaddrport(&rdev->localaddr))
+	{
+		/* When TPROXY is used, getsockname() and SO_ORIGNAL_DST return
+		 * the same addresses. however, the port number may be different
+		 * as a typical TPROXY rule is set to change the port number.
+		 * However, this check is fragile if the server port number is
+		 * set to 0.
+		 *
+		 * Take note that the above assumption gets wrong if the TPROXY
+		 * rule doesn't change the port number. so it won't be able
+		 * to handle such a TPROXYed packet without port transformation. */
+		clidev->state |= STIO_DEV_SCK_INTERCEPTED;
+	}
+	#if 0
+	else if ((clidev->initial_ifindex = resolve_ifindex (fd, clidev->localaddr)) <= -1)
+	{
+		/* the local_address is not one of a local address.
+		 * it's probably proxied. */
+		clidev->state |= STIO_DEV_SCK_INTERCEPTED;
+	}
+	#endif
+
+	/* inherit some event handlers from the parent.
+	 * you can still change them inside the on_connect handler */
+	clidev->on_connect = rdev->on_connect;
+	clidev->on_disconnect = rdev->on_disconnect; 
+	clidev->on_write = rdev->on_write;
+	clidev->on_read = rdev->on_read;
+
+	STIO_ASSERT (clidev->tmrjob_index == STIO_TMRIDX_INVALID);
+
+	if (rdev->ssl_ctx)
+	{
+		STIO_DEV_SCK_SET_PROGRESS (clidev, STIO_DEV_SCK_ACCEPTING_SSL);
+		STIO_ASSERT (clidev->state & STIO_DEV_SCK_ACCEPTING_SSL);
+		/* actual SSL acceptance must be completed in the client device */
+
+		/* let the client device know the SSL context to use */
+		clidev->ssl_ctx = rdev->ssl_ctx;
+
+		if (stio_ispostime(&rdev->ssl_accept_tmout))
+		{
+			stio_tmrjob_t tmrjob;
+
+			STIO_MEMSET (&tmrjob, 0, STIO_SIZEOF(tmrjob));
+			tmrjob.ctx = clidev;
+			stio_gettime (&tmrjob.when);
+			stio_addtime (&tmrjob.when, &rdev->ssl_accept_tmout, &tmrjob.when);
+
+			tmrjob.handler = ssl_accept_timedout;
+			tmrjob.idxptr = &clidev->tmrjob_index;
+
+			clidev->tmrjob_index = stio_instmrjob (clidev->stio, &tmrjob);
+			if (clidev->tmrjob_index == STIO_TMRIDX_INVALID)
+			{
+				/* TODO: call a warning/error callback */
+				/* timer job scheduling failed. halt the device */
+				stio_dev_halt ((stio_dev_t*)clidev);
+			}
+		}
+	}
+	else
+	{
+		STIO_DEV_SCK_SET_PROGRESS (clidev, STIO_DEV_SCK_ACCEPTED);
+		if (clidev->on_connect(clidev) <= -1) stio_dev_sck_halt (clidev);
+	}
+
+	return 0;
+}
+
 static int dev_evcb_sck_ready_stateful (stio_dev_t* dev, int events)
 {
 	stio_dev_sck_t* rdev = (stio_dev_sck_t*)dev;
@@ -892,286 +1219,151 @@ static int dev_evcb_sck_ready_stateful (stio_dev_t* dev, int events)
 	}
 
 	/* this socket can connect */
-	if (rdev->state & STIO_DEV_SCK_CONNECTING)
+	switch (STIO_DEV_SCK_GET_PROGRESS(rdev))
 	{
-		if (events & STIO_DEV_EVENT_HUP)
-		{
-			/* device hang-up */
-			rdev->stio->errnum = STIO_EDEVHUP;
-			return -1;
-		}
-		else if (events & (STIO_DEV_EVENT_PRI | STIO_DEV_EVENT_IN))
-		{
-			/* invalid event masks. generic device error */
-			rdev->stio->errnum = STIO_EDEVERR;
-			return -1;
-		}
-		else if (events & STIO_DEV_EVENT_OUT)
-		{
-			int errcode;
-			stio_scklen_t len;
-
-			STIO_ASSERT (!(rdev->state & STIO_DEV_SCK_CONNECTED));
-
-			len = STIO_SIZEOF(errcode);
-			if (getsockopt (rdev->sck, SOL_SOCKET, SO_ERROR, (char*)&errcode, &len) == -1)
+		case STIO_DEV_SCK_CONNECTING:
+			if (events & STIO_DEV_EVENT_HUP)
 			{
-				rdev->stio->errnum = stio_syserrtoerrnum(errno);
+				/* device hang-up */
+				rdev->stio->errnum = STIO_EDEVHUP;
 				return -1;
 			}
-			else if (errcode == 0)
+			else if (events & (STIO_DEV_EVENT_PRI | STIO_DEV_EVENT_IN))
 			{
-				stio_sckaddr_t localaddr;
-				stio_scklen_t addrlen;
+				/* invalid event masks. generic device error */
+				rdev->stio->errnum = STIO_EDEVERR;
+				return -1;
+			}
+			else if (events & STIO_DEV_EVENT_OUT)
+			{
+				/* when connected, the socket becomes writable */
+				return harvest_outgoing_connection (rdev);
+			}
+			else
+			{
+				return 0; /* success but don't invoke on_read() */ 
+			}
 
-				rdev->state &= ~STIO_DEV_SCK_CONNECTING;
-				rdev->state |= STIO_DEV_SCK_CONNECTED;
+		case STIO_DEV_SCK_CONNECTING_SSL:
+		#if defined(USE_SSL)
+			if (events & STIO_DEV_EVENT_HUP)
+			{
+				/* device hang-up */
+				rdev->stio->errnum = STIO_EDEVHUP;
+				return -1;
+			}
+			else if (events & STIO_DEV_EVENT_PRI)
+			{
+				/* invalid event masks. generic device error */
+				rdev->stio->errnum = STIO_EDEVERR;
+				return -1;
+			}
+			else if (events & (STIO_DEV_EVENT_IN | STIO_DEV_EVENT_OUT))
+			{
+				int x;
 
-				if (stio_dev_watch ((stio_dev_t*)rdev, STIO_DEV_WATCH_RENEW, 0) <= -1) return -1;
+				x = connect_ssl (rdev);
+				if (x <= -1) return -1;
+				if (x == 0) return 0; /* not SSL-Connected */
 
 				if (rdev->tmrjob_index != STIO_TMRIDX_INVALID)
 				{
 					stio_deltmrjob (rdev->stio, rdev->tmrjob_index);
-					STIO_ASSERT (rdev->tmrjob_index == STIO_TMRIDX_INVALID);
+					rdev->tmrjob_index = STIO_TMRIDX_INVALID;
 				}
 
-				addrlen = STIO_SIZEOF(localaddr);
-				if (getsockname (rdev->sck, (struct sockaddr*)&localaddr, &addrlen) == 0) rdev->localaddr = localaddr;
-
+				STIO_DEV_SCK_SET_PROGRESS (rdev, STIO_DEV_SCK_CONNECTED);
 				if (rdev->on_connect (rdev) <= -1) return -1;
-			}
-			else if (errcode == EINPROGRESS || errcode == EWOULDBLOCK)
-			{
-				/* still in progress */
-			}
-			else
-			{
-				rdev->stio->errnum = stio_syserrtoerrnum(errcode);
-				return -1;
-			}
-		}
-
-		return 0; /* success but don't invoke on_read() */ 
-	}
-	else if (rdev->state & STIO_DEV_SCK_LISTENING)
-	{
-		if (events & STIO_DEV_EVENT_HUP)
-		{
-			/* device hang-up */
-			rdev->stio->errnum = STIO_EDEVHUP;
-			return -1;
-		}
-		else if (events & (STIO_DEV_EVENT_PRI | STIO_DEV_EVENT_OUT))
-		{
-			rdev->stio->errnum = STIO_EDEVERR;
-			return -1;
-		}
-		else if (events & STIO_DEV_EVENT_IN)
-		{
-			stio_sckhnd_t clisck;
-			stio_sckaddr_t remoteaddr;
-			stio_scklen_t addrlen;
-			stio_dev_sck_t* clidev;
-
-			/* this is a server(lisening) socket */
-
-			addrlen = STIO_SIZEOF(remoteaddr);
-			clisck = accept (rdev->sck, (struct sockaddr*)&remoteaddr, &addrlen);
-			if (clisck == STIO_SCKHND_INVALID)
-			{
-				if (errno == EINPROGRESS || errno == EWOULDBLOCK || errno == EAGAIN) return 0;
-				if (errno == EINTR) return 0; /* if interrupted by a signal, treat it as if it's EINPROGRESS */
-
-				rdev->stio->errnum = stio_syserrtoerrnum(errno);
-				return -1;
-			}
-
-			/* use rdev->dev_size when instantiating a client sck device
-			 * instead of STIO_SIZEOF(stio_dev_sck_t). therefore, the 
-			 * extension area as big as that of the master sck device
-			 * is created in the client sck device */
-			clidev = (stio_dev_sck_t*)stio_makedev (rdev->stio, rdev->dev_size, &dev_mth_clisck, rdev->dev_evcb, &clisck); 
-			if (!clidev) 
-			{
-				close (clisck);
-				return -1;
-			}
-
-			STIO_ASSERT (clidev->sck == clisck);
-
-			clidev->dev_capa |= STIO_DEV_CAPA_IN | STIO_DEV_CAPA_OUT | STIO_DEV_CAPA_STREAM | STIO_DEV_CAPA_OUT_QUEUED;
-			if (rdev->ssl_ctx)
-				clidev->state |= STIO_DEV_SCK_ACCEPTING_SSL;
-			else
-				clidev->state |= STIO_DEV_SCK_ACCEPTED;
-			/*clidev->parent = sck;*/
-			clidev->remoteaddr = remoteaddr;
-
-			addrlen = STIO_SIZEOF(clidev->localaddr);
-			if (getsockname(clisck, (struct sockaddr*)&clidev->localaddr, &addrlen) == -1) clidev->localaddr = rdev->localaddr;
-
-		#if defined(SO_ORIGINAL_DST)
-			/* if REDIRECT is used, SO_ORIGINAL_DST returns the original
-			 * destination address. When REDIRECT is not used, it returnes
-			 * the address of the local socket. In this case, it should
-			 * be same as the result of getsockname(). */
-			addrlen = STIO_SIZEOF(clidev->orgdstaddr);
-			if (getsockopt (clisck, SOL_IP, SO_ORIGINAL_DST, &clidev->orgdstaddr, &addrlen) == -1) clidev->orgdstaddr = rdev->localaddr;
-		#else
-			clidev->orgdstaddr = rdev->localaddr;
-		#endif
-
-			if (!stio_equalsckaddrs (rdev->stio, &clidev->orgdstaddr, &clidev->localaddr))
-			{
-				clidev->state |= STIO_DEV_SCK_INTERCEPTED;
-			}
-			else if (stio_getsckaddrport (&clidev->localaddr) != stio_getsckaddrport(&rdev->localaddr))
-			{
-				/* When TPROXY is used, getsockname() and SO_ORIGNAL_DST return
-				 * the same addresses. however, the port number may be different
-				 * as a typical TPROXY rule is set to change the port number.
-				 * However, this check is fragile if the server port number is
-				 * set to 0.
-				 *
-				 * Take note that the above assumption gets wrong if the TPROXY
-				 * rule doesn't change the port number. so it won't be able
-				 * to handle such a TPROXYed packet without port transformation. */
-				clidev->state |= STIO_DEV_SCK_INTERCEPTED;
-			}
-			#if 0
-			else if ((clidev->initial_ifindex = resolve_ifindex (fd, clidev->localaddr)) <= -1)
-			{
-				/* the local_address is not one of a local address.
-				 * it's probably proxied. */
-				clidev->state |= STIO_DEV_SCK_INTERCEPTED;
-			}
-			#endif
-
-			/* inherit some event handlers from the parent.
-			 * you can still change them inside the on_connect handler */
-			clidev->on_connect = rdev->on_connect;
-			clidev->on_disconnect = rdev->on_disconnect; 
-			clidev->on_write = rdev->on_write;
-			clidev->on_read = rdev->on_read;
-
-			STIO_ASSERT (clidev->tmrjob_index == STIO_TMRIDX_INVALID);
-
-			if (clidev->state & STIO_DEV_SCK_ACCEPTED)
-			{
-				STIO_ASSERT (!(clidev->state & STIO_DEV_SCK_ACCEPTING_SSL));
-				if (clidev->on_connect(clidev) <= -1) stio_dev_sck_halt (clidev);
-			}
-			else
-			{
-
-
-				STIO_ASSERT (clidev->state & STIO_DEV_SCK_ACCEPTING_SSL);
-				/* actual SSL acceptance must be completed in the client device */
-
-				/* let the client device know the SSL context to use */
-				clidev->ssl_ctx = rdev->ssl_ctx;
-
-				if (stio_ispostime(&rdev->ssl_accept_tmout))
-				{
-					stio_tmrjob_t tmrjob;
-
-					STIO_MEMSET (&tmrjob, 0, STIO_SIZEOF(tmrjob));
-					tmrjob.ctx = clidev;
-					stio_gettime (&tmrjob.when);
-					stio_addtime (&tmrjob.when, &rdev->ssl_accept_tmout, &tmrjob.when);
-
-					tmrjob.handler = ssl_accept_timedout;
-					tmrjob.idxptr = &clidev->tmrjob_index;
-
-					clidev->tmrjob_index = stio_instmrjob (clidev->stio, &tmrjob);
-					if (clidev->tmrjob_index == STIO_TMRIDX_INVALID)
-					{
-						/* TODO: call a warning callback */
-	printf ("SSL ACCEPT TIMEOUT CAN't BE HONORED....\n");
-					}
-				}
-			}
-
-			return 0; /* success but don't invoke on_read() */ 
-		}
-	}
-	else if (rdev->state & STIO_DEV_SCK_ACCEPTING_SSL)
-	{
-	#if defined(USE_SSL)
-		int ret;
-
-printf ("SSL IN ACCPEING>.. %p.......................\n", rdev);
-		/* client socket has been accepted. SSL accpetance is needed here */
-		if (!rdev->ssl)
-		{
-			SSL* ssl;
-
-printf ("SSL CREATED.....................\n");
-			ssl = SSL_new (rdev->ssl_ctx);
-			if (!ssl)
-			{
-printf ("SSL ERROR 1>..................... %s\n", ERR_reason_error_string(ERR_get_error()));
-				rdev->stio->errnum = STIO_ESYSERR;
-				return -1;
-			}
-
-			if (SSL_set_fd (ssl, rdev->sck) == 0)
-			{
-printf ("SSL ERROR 2>..................... %s\n", ERR_reason_error_string(ERR_get_error()));
-				rdev->stio->errnum = STIO_ESYSERR;
-				return -1;
-			}
-			SSL_set_read_ahead (ssl, 0);
-
-			rdev->ssl = ssl;
-		}
-
-		ret = SSL_accept ((SSL*)rdev->ssl);
-		if (ret <= 0)
-		{
-			int err = SSL_get_error (rdev->ssl, ret);
-			if (err == SSL_ERROR_WANT_READ || err == SSL_ERROR_WANT_WRITE)
-			{
-				/* handshaking isn't complete */
 				return 0;
 			}
-
-printf ("SSL ERROR 3>..................... %s\n", ERR_reason_error_string(err));
-			rdev->stio->errnum = STIO_ESYSERR;
+			else
+			{
+				return 0; /* success. no actual I/O yet */
+			}
+		#else
+			rdev->stio->errnum = STIO_EINTERN;
 			return -1;
-		}
+		#endif
 
-printf ("SSL ACCEPTED.....................\n");
-		if (rdev->tmrjob_index != STIO_TMRIDX_INVALID)
-		{
-			stio_deltmrjob (rdev->stio, rdev->tmrjob_index);
-			rdev->tmrjob_index = STIO_TMRIDX_INVALID;
-		}
+		case STIO_DEV_SCK_LISTENING:
 
-		rdev->state &= ~STIO_DEV_SCK_ACCEPTING_SSL;
-		rdev->state |= STIO_DEV_SCK_ACCEPTED;
-		if (rdev->on_connect(rdev) <= -1) stio_dev_sck_halt (rdev);
+			if (events & STIO_DEV_EVENT_HUP)
+			{
+				/* device hang-up */
+				rdev->stio->errnum = STIO_EDEVHUP;
+				return -1;
+			}
+			else if (events & (STIO_DEV_EVENT_PRI | STIO_DEV_EVENT_OUT))
+			{
+				rdev->stio->errnum = STIO_EDEVERR;
+				return -1;
+			}
+			else if (events & STIO_DEV_EVENT_IN)
+			{
+				return accept_incoming_connection (rdev);
+			}
+			else
+			{
+				return 0; /* success but don't invoke on_read() */ 
+			}
 
-		return 0; /* no reading or writing yet */
+		case STIO_DEV_SCK_ACCEPTING_SSL:
+		#if defined(USE_SSL)
+			if (events & STIO_DEV_EVENT_HUP)
+			{
+				/* device hang-up */
+				rdev->stio->errnum = STIO_EDEVHUP;
+				return -1;
+			}
+			else if (events & STIO_DEV_EVENT_PRI)
+			{
+				/* invalid event masks. generic device error */
+				rdev->stio->errnum = STIO_EDEVERR;
+				return -1;
+			}
+			else if (events & (STIO_DEV_EVENT_IN | STIO_DEV_EVENT_OUT))
+			{
+				int x;
+				x = accept_ssl (rdev);
+				if (x <= -1) return -1;
+				if (x <= 0) return 0; /* not SSL-accepted yet */
 
-	#else
-		rdev->stio->errnum = STIO_EINTERN;
-		return -1;
-	#endif
+				if (rdev->tmrjob_index != STIO_TMRIDX_INVALID)
+				{
+					stio_deltmrjob (rdev->stio, rdev->tmrjob_index);
+					rdev->tmrjob_index = STIO_TMRIDX_INVALID;
+				}
+
+				STIO_DEV_SCK_SET_PROGRESS (rdev, STIO_DEV_SCK_ACCEPTED);
+				if (rdev->on_connect(rdev) <= -1) stio_dev_sck_halt (rdev);
+
+				return 0;
+			}
+			else
+			{
+				return 0; /* no reading or writing yet */
+			}
+		#else
+			rdev->stio->errnum = STIO_EINTERN;
+			return -1;
+		#endif
+
+
+		default:
+			if (events & STIO_DEV_EVENT_HUP)
+			{
+				if (events & (STIO_DEV_EVENT_PRI | STIO_DEV_EVENT_IN | STIO_DEV_EVENT_OUT)) 
+				{
+					/* probably half-open? */
+					return 1;
+				}
+
+				rdev->stio->errnum = STIO_EDEVHUP;
+				return -1;
+			}
+
+			return 1; /* the device is ok. carry on reading or writing */
 	}
-	else if (events & STIO_DEV_EVENT_HUP)
-	{
-		if (events & (STIO_DEV_EVENT_PRI | STIO_DEV_EVENT_IN | STIO_DEV_EVENT_OUT)) 
-		{
-			/* probably half-open? */
-			return 1;
-		}
-
-		rdev->stio->errnum = STIO_EDEVHUP;
-		return -1;
-	}
-
-	return 1; /* the device is ok. carry on reading or writing */
 }
 
 static int dev_evcb_sck_ready_stateless (stio_dev_t* dev, int events)
