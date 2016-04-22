@@ -212,5 +212,23 @@ int stio_gettmrtmout (stio_t* stio, const stio_ntime_t* tm, stio_ntime_t* tmout)
 
 stio_tmrjob_t* stio_gettmrjob (stio_t* stio, stio_tmridx_t index)
 {
-	return (index < 0 || index >= stio->tmr.size)? STIO_NULL: &stio->tmr.jobs[index];
+	if (index < 0 || index >= stio->tmr.size)
+	{
+		stio->errnum = STIO_ENOENT;
+		return STIO_NULL;
+	}
+
+	return &stio->tmr.jobs[index];
+}
+
+int stio_gettmrjobdeadline (stio_t* stio, stio_tmridx_t index, stio_ntime_t* deadline)
+{
+	if (index < 0 || index >= stio->tmr.size)
+	{
+		stio->errnum = STIO_ENOENT;
+		return -1;
+	}
+
+	*deadline = stio->tmr.jobs[index].when;
+	return 0;
 }

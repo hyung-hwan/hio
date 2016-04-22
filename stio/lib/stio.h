@@ -120,8 +120,7 @@ enum stio_stopreq_t
 {
 	STIO_STOPREQ_NONE = 0,
 	STIO_STOPREQ_TERMINATION,
-	STIO_STOPREQ_WATCHER_UPDATE_ERROR,
-	STIO_STOPREQ_WATCHER_RENEW_ERROR
+	STIO_STOPREQ_WATCHER_ERROR
 };
 typedef enum stio_stopreq_t stio_stopreq_t;
 
@@ -577,6 +576,11 @@ STIO_EXPORT stio_tmrjob_t* stio_gettmrjob (
 	stio_tmridx_t      index
 );
 
+STIO_EXPORT int stio_gettmrjobdeadline (
+	stio_t*            stio,
+	stio_tmridx_t      index,
+	stio_ntime_t*      deadline
+);
 
 /* ========================================================================= */
 

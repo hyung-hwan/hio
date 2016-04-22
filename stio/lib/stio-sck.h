@@ -229,12 +229,6 @@ struct stio_dev_sck_t
 	stio_dev_sck_type_t type;
 	stio_sckhnd_t sck;
 
-	/* connect timeout, ssl-connect timeout, ssl-accept timeout */
-	stio_ntime_t tmout;
-
-	void* ssl_ctx;
-	void* ssl;
-
 	int state;
 
 	/* remote peer address for a stateful stream socket. valid if one of the 
@@ -243,6 +237,7 @@ struct stio_dev_sck_t
 	 *   STIO_DEV_TCP_ACCEPTED
 	 *   STIO_DEV_TCP_CONNECTED
 	 *   STIO_DEV_TCP_CONNECTING
+	 *   STIO_DEV_TCP_CONNECTING_SSL
 	 *
 	 * also used as a placeholder to store source address for
 	 * a stateless socket */
@@ -267,6 +262,15 @@ struct stio_dev_sck_t
 	 *  - connect() timeout for a connecting socket.
 	 *  - SSL_accept() timeout for a socket accepting SSL */
 	stio_tmridx_t tmrjob_index;
+
+	/* connect timeout, ssl-connect timeout, ssl-accept timeout.
+	 * it denotes timeout duration under some circumstances
+	 * or an absolute expiry time under some other circumstances. */
+	stio_ntime_t tmout;
+
+	void* ssl_ctx;
+	void* ssl;
+
 };
 
 #ifdef __cplusplus

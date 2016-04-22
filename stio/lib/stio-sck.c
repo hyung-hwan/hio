@@ -262,7 +262,7 @@ static struct sck_type_map_t sck_type_map[] =
 
 /* ======================================================================== */
 
-static void tmr_connect_handle (stio_t* stio, const stio_ntime_t* now, stio_tmrjob_t* job)
+static void connect_timedout (stio_t* stio, const stio_ntime_t* now, stio_tmrjob_t* job)
 {
 	stio_dev_sck_t* rdev = (stio_dev_sck_t*)job->ctx;
 
@@ -303,16 +303,13 @@ static void ssl_connect_timedout (stio_t* stio, const stio_ntime_t* now, stio_tm
 	}
 }
 
-static int schedule_timer_job (stio_dev_sck_t* dev, const stio_ntime_t* tmout, stio_tmrjob_handler_t handler)
+static int schedule_timer_job_at (stio_dev_sck_t* dev, const stio_ntime_t* fire_at, stio_tmrjob_handler_t handler)
 {
 	stio_tmrjob_t tmrjob;
 
-	STIO_ASSERT (stio_ispostime(tmout));
-
 	STIO_MEMSET (&tmrjob, 0, STIO_SIZEOF(tmrjob));
 	tmrjob.ctx = dev;
-	stio_gettime (&tmrjob.when);
-	stio_addtime (&tmrjob.when, tmout, &tmrjob.when);
+	tmrjob.when = *fire_at;
 
 	tmrjob.handler = handler;
 	tmrjob.idxptr = &dev->tmrjob_index;
@@ -321,6 +318,19 @@ static int schedule_timer_job (stio_dev_sck_t* dev, const stio_ntime_t* tmout, s
 	dev->tmrjob_index = stio_instmrjob (dev->stio, &tmrjob);
 	return dev->tmrjob_index == STIO_TMRIDX_INVALID? -1: 0;
 }
+
+static int schedule_timer_job_after (stio_dev_sck_t* dev, const stio_ntime_t* fire_after, stio_tmrjob_handler_t handler)
+{
+	stio_ntime_t fire_at;
+
+	STIO_ASSERT (stio_ispostime(fire_after));
+
+	stio_gettime (&fire_at);
+	stio_addtime (&fire_at, fire_after, &fire_at);
+
+	return schedule_timer_job_at (dev, &fire_at, handler);
+}
+
 /* ======================================================================== */
 
 static int dev_sck_make (stio_dev_t* dev, void* ctx)
@@ -587,9 +597,12 @@ static int dev_sck_write_stateless (stio_dev_t* dev, const void* data, stio_iole
 }
 
 #if defined(USE_SSL)
-static int connect_ssl (stio_dev_sck_t* dev)
+
+static int do_ssl (stio_dev_sck_t* dev, int (*ssl_func)(SSL*))
 {
 	int ret;
+	int watcher_cmd;
+	int watcher_events;
 
 	STIO_ASSERT (dev->ssl_ctx);
 
@@ -606,75 +619,61 @@ static int connect_ssl (stio_dev_sck_t* dev)
 
 		if (SSL_set_fd (ssl, dev->sck) == 0)
 		{
-			SSL_free (ssl);
 			dev->stio->errnum = STIO_ESYSERR;
 			return -1;
 		}
 
 		SSL_set_read_ahead (ssl, 0);
+
 		dev->ssl = ssl;
 	}
 
-	ret = SSL_connect (dev->ssl);
+	watcher_cmd = STIO_DEV_WATCH_RENEW;
+	watcher_events = 0;
+
+	ret = ssl_func ((SSL*)dev->ssl);
 	if (ret <= 0)
 	{
 		int err = SSL_get_error (dev->ssl, ret);
-		if (err == SSL_ERROR_WANT_READ || err == SSL_ERROR_WANT_WRITE)
+		if (err == SSL_ERROR_WANT_READ)
 		{
 			/* handshaking isn't complete */
-			return 0;
+			ret = 0;
 		}
-
-		dev->stio->errnum = STIO_ESYSERR;
-		return -1;
+		else if (err == SSL_ERROR_WANT_WRITE)
+		{
+			/* handshaking isn't complete */
+			watcher_cmd = STIO_DEV_WATCH_UPDATE;
+			watcher_events = STIO_DEV_EVENT_IN | STIO_DEV_EVENT_OUT;
+			ret = 0;
+		}
+		else
+		{
+			dev->stio->errnum = STIO_ESYSERR;
+			ret = -1;
+		}
+	}
+	else
+	{
+		ret = 1; /* accepted */
 	}
 
-	return 1; /* connected */
+	if (stio_dev_watch ((stio_dev_t*)dev, watcher_cmd, watcher_events) <= -1)
+	{
+		stio_stop (dev->stio, STIO_STOPREQ_WATCHER_ERROR);
+		ret = -1;
+	}
+	return ret;
 }
 
-
-static int accept_ssl (stio_dev_sck_t* dev)
+static STIO_INLINE int connect_ssl (stio_dev_sck_t* dev)
 {
-	int ret;
+	return do_ssl (dev, SSL_connect);
+}
 
-	STIO_ASSERT (dev->ssl_ctx);
-
-	if (!dev->ssl)
-	{
-		SSL* ssl;
-
-		ssl = SSL_new (dev->ssl_ctx);
-		if (!ssl)
-		{
-			dev->stio->errnum = STIO_ESYSERR;
-			return -1;
-		}
-
-		if (SSL_set_fd (ssl, dev->sck) == 0)
-		{
-			dev->stio->errnum = STIO_ESYSERR;
-			return -1;
-		}
-		SSL_set_read_ahead (ssl, 0);
-
-		dev->ssl = ssl;
-	}
-
-	ret = SSL_accept ((SSL*)dev->ssl);
-	if (ret <= 0)
-	{
-		int err = SSL_get_error (dev->ssl, ret);
-		if (err == SSL_ERROR_WANT_READ || err == SSL_ERROR_WANT_WRITE)
-		{
-			/* handshaking isn't complete */
-			return 0;
-		}
-
-		dev->stio->errnum = STIO_ESYSERR;
-		return -1;
-	}
-
-	return 1; /* accepted */
+static STIO_INLINE int accept_ssl (stio_dev_sck_t* dev)
+{
+	return do_ssl (dev, SSL_accept);
 }
 #endif
 
@@ -794,8 +793,8 @@ static int dev_sck_ioctl (stio_dev_t* dev, int cmd, void* arg)
 					return -1;
 				}
 
-				SSL_CTX_set_options(ssl_ctx, SSL_OP_NO_SSLv2); /* no outdated SSLv2 by default */
 				SSL_CTX_set_read_ahead (ssl_ctx, 0);
+				SSL_CTX_set_options(ssl_ctx, SSL_OP_NO_SSLv2); /* no outdated SSLv2 by default */
 
 				rdev->tmout = bnd->accept_tmout;
 			#else
@@ -878,6 +877,8 @@ static int dev_sck_ioctl (stio_dev_t* dev, int cmd, void* arg)
 					rdev->stio->errnum = STIO_ESYSERR;
 					return -1;
 				}
+
+				SSL_CTX_set_read_ahead (ssl_ctx, 0);
 			}
 		#endif
 /*{
@@ -898,18 +899,26 @@ fcntl (rdev->sck, F_SETFL, flags | O_NONBLOCK);
 					if (stio_dev_watch ((stio_dev_t*)rdev, STIO_DEV_WATCH_UPDATE, STIO_DEV_EVENT_IN | STIO_DEV_EVENT_OUT) <= -1)
 					{
 						/* watcher update failure. it's critical */
-						stio_stop (rdev->stio, STIO_STOPREQ_WATCHER_UPDATE_ERROR);
+						stio_stop (rdev->stio, STIO_STOPREQ_WATCHER_ERROR);
 						goto oops_connect;
 					}
 					else
 					{
-						if (stio_ispostime(&conn->connect_tmout) &&
-						    schedule_timer_job (rdev, &conn->connect_tmout, tmr_connect_handle) <= -1) 
+						stio_inittime (&rdev->tmout, 0, 0); /* just in case */
+
+						if (stio_ispostime(&conn->connect_tmout))
 						{
-							goto oops_connect;
+							if (schedule_timer_job_after (rdev, &conn->connect_tmout, connect_timedout) <= -1) 
+							{
+								goto oops_connect;
+							}
+							else
+							{
+								/* update rdev->tmout to the deadline of the connect timeout job */
+								stio_gettmrjobdeadline (rdev->stio, rdev->tmrjob_index, &rdev->tmout);
+							}
 						}
 
-						rdev->tmout = conn->connect_tmout;
 						rdev->remoteaddr = conn->remoteaddr;
 						rdev->on_connect = conn->on_connect;
 						rdev->on_disconnect = conn->on_disconnect;
@@ -927,7 +936,7 @@ fcntl (rdev->sck, F_SETFL, flags | O_NONBLOCK);
 				if (stio_dev_watch ((stio_dev_t*)rdev, STIO_DEV_WATCH_UPDATE, STIO_DEV_EVENT_IN) <= -1)
 				{
 					/* watcher update failure. it's critical */
-					stio_stop (rdev->stio, STIO_STOPREQ_WATCHER_UPDATE_ERROR);
+					stio_stop (rdev->stio, STIO_STOPREQ_WATCHER_ERROR);
 				}
 
 			#if defined(USE_SSL)
@@ -963,8 +972,11 @@ fcntl (rdev->sck, F_SETFL, flags | O_NONBLOCK);
 					if (x == 0) 
 					{
 						STIO_ASSERT (rdev->tmrjob_index == STIO_TMRIDX_INVALID);
+
+						/* it's ok to use conn->connect_tmout for ssl-connect as
+						 * the underlying socket connection has been established immediately */
 						if (stio_ispostime(&conn->connect_tmout) &&
-						    schedule_timer_job (rdev, &conn->connect_tmout, ssl_connect_timedout) <= -1) 
+						    schedule_timer_job_after (rdev, &conn->connect_tmout, ssl_connect_timedout) <= -1) 
 						{
 							/* no device halting in spite of failure.
 							 * let the caller handle this after having 
@@ -1055,7 +1067,6 @@ static stio_dev_mth_t dev_sck_methods_stateful =
 	dev_sck_ioctl,     /* ioctl */
 };
 
-
 static stio_dev_mth_t dev_mth_clisck =
 {
 	dev_sck_make_client,
@@ -1100,7 +1111,7 @@ static int harvest_outgoing_connection (stio_dev_sck_t* rdev)
 		if (stio_dev_watch ((stio_dev_t*)rdev, STIO_DEV_WATCH_RENEW, 0) <= -1) 
 		{
 			/* watcher update failure. it's critical */
-			stio_stop (rdev->stio, STIO_STOPREQ_WATCHER_RENEW_ERROR);
+			stio_stop (rdev->stio, STIO_STOPREQ_WATCHER_ERROR);
 			return -1;
 		}
 
@@ -1119,10 +1130,11 @@ static int harvest_outgoing_connection (stio_dev_sck_t* rdev)
 
 				STIO_ASSERT (rdev->tmrjob_index == STIO_TMRIDX_INVALID);
 
-				/* TODO: calculate the timeout again... it should be (rdev->tmout - (now - socket-creation-time)) 
-				 *       without the fix, timeout gets doubled. it's used for connect() once and for ssl-connect().*/
+				/* rdev->tmout has been set to the deadline of the connect task
+				 * when the CONNECT IOCTL command has been executed. use the 
+				 * same dead line here */
 				if (stio_ispostime(&rdev->tmout) &&
-				    schedule_timer_job (rdev, &rdev->tmout, ssl_connect_timedout) <= -1)
+				    schedule_timer_job_at (rdev, &rdev->tmout, ssl_connect_timedout) <= -1)
 				{
 					stio_dev_halt ((stio_dev_t*)rdev);
 				}
@@ -1253,7 +1265,7 @@ static int accept_incoming_connection (stio_dev_sck_t* rdev)
 		clidev->ssl_ctx = rdev->ssl_ctx;
 
 		if (stio_ispostime(&rdev->tmout) &&
-		    schedule_timer_job (clidev, &rdev->tmout, ssl_accept_timedout) <= -1)
+		    schedule_timer_job_after (clidev, &rdev->tmout, ssl_accept_timedout) <= -1)
 		{
 			/* TODO: call a warning/error callback */
 			/* timer job scheduling failed. halt the device */
