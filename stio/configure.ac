@@ -130,7 +130,7 @@ AC_HEADER_STDC
 AC_CHECK_HEADERS([stddef.h wchar.h wctype.h errno.h signal.h fcntl.h dirent.h])
 AC_CHECK_HEADERS([time.h sys/time.h utime.h spawn.h execinfo.h ucontext.h])
 AC_CHECK_HEADERS([sys/resource.h sys/wait.h sys/syscall.h sys/ioctl.h])
-AC_CHECK_HEADERS([sys/sendfile.h sys/epoll.h sys/event.h])
+AC_CHECK_HEADERS([sys/sendfile.h sys/epoll.h sys/event.h sys/poll.h])
 AC_CHECK_HEADERS([sys/sysctl.h sys/socket.h sys/sockio.h sys/un.h])
 AC_CHECK_HEADERS([ifaddrs.h tiuser.h linux/netfilter_ipv4.h netinet/sctp.h])
 AC_CHECK_HEADERS([net/if.h net/if_dl.h], [], [], [
@@ -168,6 +168,8 @@ AC_CHECK_FUNCS([powl fmodl sinl cosl tanl sinhl coshl tanhl asinl acosl atanl at
 AC_CHECK_FUNCS([pow fmod sin cos tan sinh cosh tanh asin acos atan atan2 log log10 exp sqrt ceil floor round])
 AC_CHECK_FUNCS([powf fmodf sinf cosf tanf sinhf coshf tanhf asinf acosf atanf atan2f logf log10f expf sqrtf ceilf floorf roundf])
 LIBS="$OLDLIBS"
+ 
+AC_CHECK_LIB([rt], [clock_gettime], [LIBS="$LIBS -lrt"])
 
 dnl OLDLIBS="$LIBS"
 dnl AC_SEARCH_LIBS([connect], [socket])

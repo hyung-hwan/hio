@@ -304,6 +304,24 @@ typedef int stio_mcint_t;
 #define STIO_ALIGNOF(type) STIO_OFFSETOF(struct { stio_uint8_t d1; type d2; }, d2)
         /*(sizeof(struct { stio_uint8_t d1; type d2; }) - sizeof(type))*/
 
+/**
+ * Round up a positive integer to the nearest multiple of 'align' 
+ */
+#define STIO_ALIGNTO(num,align) ((((num) + (align) - 1) / (align)) * (align))
+
+#if 0
+/**
+ * Round up a number, both positive and negative, to the nearest multiple of 'align' 
+ */
+#define STIO_ALIGNTO(num,align) ((((num) + (num >= 0? 1: -1) * (align) - 1) / (align)) * (align))
+#endif
+
+/**
+ * Round up a positive integer to to the nearest multiple of 'align' which
+ * should be a multiple of a power of 2
+ */
+#define STIO_ALIGNTO_POW2(num,align) ((((num) + (align) - 1)) & ~((align) - 1))
+
 #if defined(__cplusplus)
 #	if (__cplusplus >= 201103L) /* C++11 */
 #		define STIO_NULL nullptr

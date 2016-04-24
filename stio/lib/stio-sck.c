@@ -533,6 +533,8 @@ static int dev_sck_write_stateful (stio_dev_t* dev, const void* data, stio_iolen
 		{
 			int err = SSL_get_error ((SSL*)rdev->ssl, x);
 			if (err == SSL_ERROR_WANT_READ || err == SSL_ERROR_WANT_WRITE) return 0;
+			/*else if (err == SSL_ERROR_SYSCALL)
+				rdev->stio->errnum = stio_syserrtoerrnum(errno); */
 			rdev->stio->errnum = STIO_ESYSERR;
 			return -1;
 		}
@@ -663,6 +665,7 @@ static int do_ssl (stio_dev_sck_t* dev, int (*ssl_func)(SSL*))
 		stio_stop (dev->stio, STIO_STOPREQ_WATCHER_ERROR);
 		ret = -1;
 	}
+
 	return ret;
 }
 
@@ -794,6 +797,10 @@ static int dev_sck_ioctl (stio_dev_t* dev, int cmd, void* arg)
 				}
 
 				SSL_CTX_set_read_ahead (ssl_ctx, 0);
+				SSL_CTX_set_mode (ssl_ctx, SSL_CTX_get_mode(ssl_ctx) | 
+				                           /*SSL_MODE_ENABLE_PARTIAL_WRITE |*/
+				                           SSL_MODE_ACCEPT_MOVING_WRITE_BUFFER);
+
 				SSL_CTX_set_options(ssl_ctx, SSL_OP_NO_SSLv2); /* no outdated SSLv2 by default */
 
 				rdev->tmout = bnd->accept_tmout;
@@ -879,6 +886,9 @@ static int dev_sck_ioctl (stio_dev_t* dev, int cmd, void* arg)
 				}
 
 				SSL_CTX_set_read_ahead (ssl_ctx, 0);
+				SSL_CTX_set_mode (ssl_ctx, SSL_CTX_get_mode(ssl_ctx) | 
+				                           /* SSL_MODE_ENABLE_PARTIAL_WRITE | */
+				                           SSL_MODE_ACCEPT_MOVING_WRITE_BUFFER);
 			}
 		#endif
 /*{
@@ -915,6 +925,7 @@ fcntl (rdev->sck, F_SETFL, flags | O_NONBLOCK);
 							else
 							{
 								/* update rdev->tmout to the deadline of the connect timeout job */
+								STIO_ASSERT (rdev->tmrjob_index != STIO_TMRIDX_INVALID);
 								stio_gettmrjobdeadline (rdev->stio, rdev->tmrjob_index, &rdev->tmout);
 							}
 						}
@@ -972,23 +983,31 @@ fcntl (rdev->sck, F_SETFL, flags | O_NONBLOCK);
 					if (x == 0) 
 					{
 						STIO_ASSERT (rdev->tmrjob_index == STIO_TMRIDX_INVALID);
+						stio_inittime (&rdev->tmout, 0, 0); /* just in case */
 
 						/* it's ok to use conn->connect_tmout for ssl-connect as
 						 * the underlying socket connection has been established immediately */
-						if (stio_ispostime(&conn->connect_tmout) &&
-						    schedule_timer_job_after (rdev, &conn->connect_tmout, ssl_connect_timedout) <= -1) 
+						if (stio_ispostime(&conn->connect_tmout))
 						{
-							/* no device halting in spite of failure.
-							 * let the caller handle this after having 
-							 * checked the return code as it is an IOCTL call. */
-							SSL_CTX_free (rdev->ssl_ctx);
-							rdev->ssl_ctx = STIO_NULL;
+							if (schedule_timer_job_after (rdev, &conn->connect_tmout, ssl_connect_timedout) <= -1) 
+							{
+								/* no device halting in spite of failure.
+								 * let the caller handle this after having 
+								 * checked the return code as it is an IOCTL call. */
+								SSL_CTX_free (rdev->ssl_ctx);
+								rdev->ssl_ctx = STIO_NULL;
 
-							STIO_ASSERT (rdev->ssl == STIO_NULL);
-							return -1;
+								STIO_ASSERT (rdev->ssl == STIO_NULL);
+								return -1;
+							}
+							else
+							{
+								/* update rdev->tmout to the deadline of the connect timeout job */
+								STIO_ASSERT (rdev->tmrjob_index != STIO_TMRIDX_INVALID);
+								stio_gettmrjobdeadline (rdev->stio, rdev->tmrjob_index, &rdev->tmout);
+							}
 						}
 
-						rdev->tmout = conn->connect_tmout;
 						STIO_DEV_SCK_SET_PROGRESS (rdev, STIO_DEV_SCK_CONNECTING_SSL);
 					}
 					else 
@@ -1132,7 +1151,7 @@ static int harvest_outgoing_connection (stio_dev_sck_t* rdev)
 
 				/* rdev->tmout has been set to the deadline of the connect task
 				 * when the CONNECT IOCTL command has been executed. use the 
-				 * same dead line here */
+				 * same deadline here */
 				if (stio_ispostime(&rdev->tmout) &&
 				    schedule_timer_job_at (rdev, &rdev->tmout, ssl_connect_timedout) <= -1)
 				{

@@ -29,8 +29,6 @@
 
 #include "stio.h"
 
-#include <sys/epoll.h>
-
 /*TODO: redefine and remove these */
 #include <assert.h>
 #include <string.h>
@@ -52,6 +50,8 @@ struct stio_tmrjob_t
 };
 
 #define STIO_TMRIDX_INVALID ((stio_tmridx_t)-1)
+
+typedef struct stio_mux_t stio_mux_t;
 
 struct stio_t
 {
@@ -93,8 +93,7 @@ struct stio_t
 #if defined(_WIN32)
 	HANDLE iocp;
 #else
-	int mux;
-	struct epoll_event revs[100];
+	stio_mux_t* mux;
 #endif
 };
 
