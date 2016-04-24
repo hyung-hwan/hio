@@ -98,6 +98,7 @@ enum stio_errnum_t
 
 	STIO_ENOMEM,
 	STIO_EINVAL,
+	STIO_EEXIST,
 	STIO_ENOENT,
 	STIO_ENOSUP,     /* not supported */
 	STIO_EMFILE,     /* too many open files */
@@ -402,7 +403,6 @@ typedef struct stio_etharp_pkt_t stio_etharp_pkt_t;
 #endif
 
 /* ========================================================================= */
-
 
 #ifdef __cplusplus
 extern "C" {

@@ -64,13 +64,15 @@ static mmgr_stat_t mmgr_stat;
 
 static void* mmgr_alloc (stio_mmgr_t* mmgr, stio_size_t size)
 {
+	void* x;
+
 	if (((mmgr_stat_t*)mmgr->ctx)->total_count > 100)
 	{
 printf ("CRITICAL ERROR ---> too many heap chunks...\n");
 		return STIO_NULL;
 	}
 
-	void* x = malloc (size);
+	x = malloc (size);
 	if (x) ((mmgr_stat_t*)mmgr->ctx)->total_count++;
 	return x;
 }
@@ -207,6 +209,8 @@ printf ("ENABLING READING..............................\n");
 
 static int tcp_sck_on_read (stio_dev_sck_t* tcp, const void* buf, stio_iolen_t len, const stio_sckaddr_t* srcaddr)
 {
+	int n;
+
 	if (len <= 0)
 	{
 		printf ("STREAM DEVICE: EOF RECEIVED...\n");
@@ -217,17 +221,21 @@ static int tcp_sck_on_read (stio_dev_sck_t* tcp, const void* buf, stio_iolen_t l
 
 printf ("on read %d\n", (int)len);
 
+{
 stio_ntime_t tmout;
-int n;
+
 static char a ='A';
 char* xxx = malloc (1000000);
 memset (xxx, a++ ,1000000);
+
 	//return stio_dev_sck_write  (tcp, "HELLO", 5, STIO_NULL);
-	stio_inittime (&tmout, 1, 0);
+	stio_inittime (&tmout, 5, 0);
 	n = stio_dev_sck_timedwrite  (tcp, xxx, 1000000, &tmout, STIO_NULL, STIO_NULL);
 free (xxx);
 
+
 	if (n <= -1) return -1;
+}
 
 	/* post the write finisher */
 	n = stio_dev_sck_write  (tcp, STIO_NULL, 0, STIO_NULL, STIO_NULL);
