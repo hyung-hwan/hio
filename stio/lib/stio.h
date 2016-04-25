@@ -125,14 +125,29 @@ enum stio_stopreq_t
 };
 typedef enum stio_stopreq_t stio_stopreq_t;
 
-typedef struct stio_tmrjob_t stio_tmrjob_t;
+/* ========================================================================= */
+
+#define STIO_TMRIDX_INVALID ((stio_tmridx_t)-1)
+
 typedef stio_size_t stio_tmridx_t;
+
+typedef struct stio_tmrjob_t stio_tmrjob_t;
 
 typedef void (*stio_tmrjob_handler_t) (
 	stio_t*             stio,
 	const stio_ntime_t* now, 
 	stio_tmrjob_t*      tmrjob
 );
+
+struct stio_tmrjob_t
+{
+	void*                  ctx;
+	stio_ntime_t           when;
+	stio_tmrjob_handler_t  handler;
+	stio_tmridx_t*         idxptr; /* pointer to the index holder */
+};
+
+/* ========================================================================= */
 
 struct stio_dev_mth_t
 {
@@ -306,102 +321,6 @@ enum stio_dev_event_t
 typedef enum stio_dev_event_t stio_dev_event_t;
 
 
-
-/* ========================================================================= */
-/* TOOD: move these to a separte file */
-
-#define STIO_ETHHDR_PROTO_IP4 0x0800
-#define STIO_ETHHDR_PROTO_ARP 0x0806
-
-#define STIO_ARPHDR_OPCODE_REQUEST 1
-#define STIO_ARPHDR_OPCODE_REPLY   2
-
-#define STIO_ARPHDR_HTYPE_ETH 0x0001
-#define STIO_ARPHDR_PTYPE_IP4 0x0800
-
-#define STIO_ETHADDR_LEN 6
-#define STIO_IP4ADDR_LEN 4
-#define STIO_IP6ADDR_LEN 16 
-
-
-#if defined(__GNUC__)
-#	define STIO_PACKED __attribute__((__packed__))
-
-#else
-#	define STIO_PACKED 
-#	STIO_PACK_PUSH pack(push)
-#	STIO_PACK_PUSH pack(push)
-#	STIO_PACK(x) pack(x)
-#endif
-
-
-#if defined(__GNUC__)
-	/* nothing */
-#else
-	#pragma pack(push)
-	#pragma pack(1)
-#endif
-struct STIO_PACKED stio_ethaddr_t
-{
-	stio_uint8_t v[STIO_ETHADDR_LEN]; 
-};
-typedef struct stio_ethaddr_t stio_ethaddr_t;
-
-struct STIO_PACKED stio_ip4addr_t
-{
-	stio_uint8_t v[STIO_IP4ADDR_LEN];
-};
-typedef struct stio_ip4addr_t stio_ip4addr_t;
-
-struct STIO_PACKED stio_ip6addr_t
-{
-	stio_uint8_t v[STIO_IP6ADDR_LEN]; 
-};
-typedef struct stio_ip6addr_t stio_ip6addr_t;
-
-
-struct STIO_PACKED stio_ethhdr_t
-{
-	stio_uint8_t  dest[STIO_ETHADDR_LEN];
-	stio_uint8_t  source[STIO_ETHADDR_LEN];
-	stio_uint16_t proto;
-};
-typedef struct stio_ethhdr_t stio_ethhdr_t;
-
-struct STIO_PACKED stio_arphdr_t
-{
-	stio_uint16_t htype;   /* hardware type (ethernet: 0x0001) */
-	stio_uint16_t ptype;   /* protocol type (ipv4: 0x0800) */
-	stio_uint8_t  hlen;    /* hardware address length (ethernet: 6) */
-	stio_uint8_t  plen;    /* protocol address length (ipv4 :4) */
-	stio_uint16_t opcode;  /* operation code */
-};
-typedef struct stio_arphdr_t stio_arphdr_t;
-
-/* arp payload for ipv4 over ethernet */
-struct STIO_PACKED stio_etharp_t
-{
-	stio_uint8_t sha[STIO_ETHADDR_LEN];   /* source hardware address */
-	stio_uint8_t spa[STIO_IP4ADDR_LEN];   /* source protocol address */
-	stio_uint8_t tha[STIO_ETHADDR_LEN];   /* target hardware address */
-	stio_uint8_t tpa[STIO_IP4ADDR_LEN];   /* target protocol address */
-};
-typedef struct stio_etharp_t stio_etharp_t;
-
-struct STIO_PACKED stio_etharp_pkt_t
-{
-	stio_ethhdr_t ethhdr;
-	stio_arphdr_t arphdr;
-	stio_etharp_t arppld;
-};
-typedef struct stio_etharp_pkt_t stio_etharp_pkt_t;
-
-#if defined(__GNUC__)
-	/* nothing */
-#else
-	#pragma pack(pop)
-#endif
-
 /* ========================================================================= */
 
 #ifdef __cplusplus
@@ -469,8 +388,8 @@ STIO_EXPORT int stio_dev_watch (
 );
 
 STIO_EXPORT int stio_dev_read (
-	stio_dev_t*   dev,
-	int           enabled
+	stio_dev_t*         dev,
+	int                 enabled
 );
 
 /**
@@ -503,7 +422,6 @@ STIO_EXPORT int stio_dev_timedwrite (
 STIO_EXPORT void stio_dev_halt (
 	stio_dev_t* dev
 );
-
 
 /* ========================================================================= */
 
