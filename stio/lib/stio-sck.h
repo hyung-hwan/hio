@@ -496,6 +496,14 @@ STIO_EXPORT stio_uint16_t stio_getsckaddrport (
 	const stio_sckaddr_t* addr
 );
 
+/*
+ * The stio_getsckaddrifindex() function returns an interface number.
+ * If the address doesn't support the interface number, it returns 0. */
+STIO_EXPORT int stio_getsckaddrifindex (
+	const stio_sckaddr_t* addr
+);
+
+
 STIO_EXPORT void stio_sckaddr_initforip4 (
 	stio_sckaddr_t* sckaddr,
 	stio_uint16_t   port,

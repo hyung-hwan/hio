@@ -37,7 +37,6 @@
 #include <arpa/inet.h>
 #include <signal.h>
 
-#include <netpacket/packet.h>
 #include <net/if.h>
 
 #include <assert.h>
@@ -279,12 +278,14 @@ printf ("PROCESS WROTE DATA...\n");
 static int arp_sck_on_read (stio_dev_sck_t* dev, const void* data, stio_iolen_t dlen, const stio_sckaddr_t* srcaddr)
 {
 	stio_etharp_pkt_t* eap;
-	struct sockaddr_ll* sll = (struct sockaddr_ll*)srcaddr; 
+
 
 	if (dlen < STIO_SIZEOF(*eap)) return 0; /* drop */
 
 	eap = (stio_etharp_pkt_t*)data;
-	printf ("ARP ON IFINDEX %d OPCODE: %d", sll->sll_ifindex, ntohs(eap->arphdr.opcode));
+
+	printf ("ARP ON IFINDEX %d OPCODE: %d", stio_getsckaddrifindex(srcaddr), ntohs(eap->arphdr.opcode));
+
 	printf (" SHA: %02X:%02X:%02X:%02X:%02X:%02X", eap->arppld.sha[0], eap->arppld.sha[1], eap->arppld.sha[2], eap->arppld.sha[3], eap->arppld.sha[4], eap->arppld.sha[5]);
 	printf (" SPA: %d.%d.%d.%d", eap->arppld.spa[0], eap->arppld.spa[1], eap->arppld.spa[2], eap->arppld.spa[3]);
 	printf (" THA: %02X:%02X:%02X:%02X:%02X:%02X", eap->arppld.tha[0], eap->arppld.tha[1], eap->arppld.tha[2], eap->arppld.tha[3], eap->arppld.tha[4], eap->arppld.tha[5]);
@@ -452,7 +453,7 @@ static int icmp_sck_on_read (stio_dev_sck_t* dev, const void* data, stio_iolen_t
 		iphdr = (stio_iphdr_t*)data;
 		icmphdr = (stio_icmphdr_t*)((stio_uint8_t*)data + (iphdr->ihl * 4));
 
-		/* TODO": check srcaddr against target */
+		/* TODO: check srcaddr against target */
 
 		if (icmphdr->type == STIO_ICMP_ECHO_REPLY && 
 		    stio_ntoh16(icmphdr->u.echo.seq) == icmpxtn->icmp_seq) /* TODO: more check.. echo.id.. */

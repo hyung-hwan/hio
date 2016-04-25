@@ -264,7 +264,7 @@ static int mux_control (stio_dev_t* dev, int cmd, stio_syshnd_t hnd, int dev_cap
 struct stio_mux_t
 {
 	int hnd;
-	struct epoll_event revs[100];
+	struct epoll_event revs[100]; /* TODO: is it a good size? */
 };
 
 static int mux_open (stio_t* stio)
@@ -500,9 +500,8 @@ static STIO_INLINE void handle_event (stio_dev_t* dev, int events, int rdhup)
 	if (dev && (events & STIO_DEV_EVENT_PRI))
 	{
 		/* urgent data */
-/* TODO: urgent data.... */
+		/* TODO: implement urgent data handling */
 		/*x = dev->dev_mth->urgread (dev, stio->bugbuf, &len);*/
-printf ("has urgent data...\n");
 	}
 
 	if (dev && (events & STIO_DEV_EVENT_OUT))
@@ -1118,7 +1117,6 @@ int stio_dev_ioctl (stio_dev_t* dev, int cmd, void* arg)
 
 int stio_dev_watch (stio_dev_t* dev, stio_dev_watch_cmd_t cmd, int events)
 {
-	/*struct epoll_event ev;*/
 	int mux_cmd;
 	int dev_capa;
 
@@ -1165,33 +1163,19 @@ int stio_dev_watch (stio_dev_t* dev, stio_dev_watch_cmd_t cmd, int events)
 	/* this function honors STIO_DEV_EVENT_IN and STIO_DEV_EVENT_OUT only
 	 * as valid input event bits. it intends to provide simple abstraction
 	 * by reducing the variety of event bits that the caller has to handle. */
-	/*ev.events = EPOLLHUP | EPOLLERR; */
 
 	if ((events & STIO_DEV_EVENT_IN) && !(dev->dev_capa & (STIO_DEV_CAPA_IN_CLOSED | STIO_DEV_CAPA_IN_DISABLED)))
 	{
 		if (dev->dev_capa & STIO_DEV_CAPA_IN) 
 		{
-			/*ev.events |= EPOLLIN;
-		#if defined(EPOLLRDHUP)
-			ev.events |= EPOLLRDHUP;
-		#endif*/
-			if (dev->dev_capa & STIO_DEV_CAPA_PRI) 
-			{
-				/*ev.events |= EPOLLPRI;*/
-				dev_capa |= STIO_DEV_CAPA_PRI_WATCHED;
-			}
-
+			if (dev->dev_capa & STIO_DEV_CAPA_PRI) dev_capa |= STIO_DEV_CAPA_PRI_WATCHED;
 			dev_capa |= STIO_DEV_CAPA_IN_WATCHED;
 		}
 	}
 
 	if ((events & STIO_DEV_EVENT_OUT) && !(dev->dev_capa & STIO_DEV_CAPA_OUT_CLOSED))
 	{
-		if (dev->dev_capa & STIO_DEV_CAPA_OUT) 
-		{
-			/*ev.events |= EPOLLOUT;*/
-			dev_capa |= STIO_DEV_CAPA_OUT_WATCHED;
-		}
+		if (dev->dev_capa & STIO_DEV_CAPA_OUT) dev_capa |= STIO_DEV_CAPA_OUT_WATCHED;
 	}
 
 	if (mux_cmd == MUX_CMD_UPDATE && (dev_capa & DEV_CAPA_ALL_WATCHED) == (dev->dev_capa & DEV_CAPA_ALL_WATCHED))
