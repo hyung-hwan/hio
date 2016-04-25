@@ -340,6 +340,9 @@
 /* Define to 1 if you have the <netinet/sctp.h> header file. */
 #undef HAVE_NETINET_SCTP_H
 
+/* Define to 1 if you have the <netpacket/packet.h> header file. */
+#undef HAVE_NETPACKET_PACKET_H
+
 /* Define to 1 if you have the <net/if_dl.h> header file. */
 #undef HAVE_NET_IF_DL_H
 
@@ -639,9 +642,6 @@
 /* Define to 1 if you have the `t_connect' function. */
 #undef HAVE_T_CONNECT
 
-/* Define to 1 if you have the <uci.h> header file. */
-#undef HAVE_UCI_H
-
 /* Define to 1 if you have the <ucontext.h> header file. */
 #undef HAVE_UCONTEXT_H
 
@@ -772,11 +772,17 @@
 /* The size of `socklen_t', as computed by sizeof. */
 #undef SIZEOF_SOCKLEN_T
 
+/* The size of `struct sockaddr_dl', as computed by sizeof. */
+#undef SIZEOF_STRUCT_SOCKADDR_DL
+
 /* The size of `struct sockaddr_in', as computed by sizeof. */
 #undef SIZEOF_STRUCT_SOCKADDR_IN
 
 /* The size of `struct sockaddr_in6', as computed by sizeof. */
 #undef SIZEOF_STRUCT_SOCKADDR_IN6
+
+/* The size of `struct sockaddr_ll', as computed by sizeof. */
+#undef SIZEOF_STRUCT_SOCKADDR_LL
 
 /* The size of `struct sockaddr_un', as computed by sizeof. */
 #undef SIZEOF_STRUCT_SOCKADDR_UN
@@ -892,11 +898,17 @@
 /* sizeof(socklen_t) */
 #undef STIO_SIZEOF_SOCKLEN_T
 
+/* sizeof(struct sockaddr_dl) */
+#undef STIO_SIZEOF_STRUCT_SOCKADDR_DL
+
 /* sizeof(struct sockaddr_in) */
 #undef STIO_SIZEOF_STRUCT_SOCKADDR_IN
 
 /* sizeof(struct sockaddr_in6) */
 #undef STIO_SIZEOF_STRUCT_SOCKADDR_IN6
+
+/* sizeof(struct sockaddr_ll) */
+#undef STIO_SIZEOF_STRUCT_SOCKADDR_LL
 
 /* sizeof(struct sockaddr_un) */
 #undef STIO_SIZEOF_STRUCT_SOCKADDR_UN

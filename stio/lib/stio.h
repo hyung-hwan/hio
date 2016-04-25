@@ -71,10 +71,10 @@ struct stio_devaddr_t
 #	define STIO_CONST_NTOH32(x) STIO_CONST_SWAP32(x)
 #	define STIO_CONST_HTON32(x) STIO_CONST_SWAP32(x)
 #elif defined(STIO_ENDIAN_BIG)
-#	define STIO_CONST_NTOH16(x)
-#	define STIO_CONST_HTON16(x)
-#	define STIO_CONST_NTOH32(x)
-#	define STIO_CONST_HTON32(x)
+#	define STIO_CONST_NTOH16(x) (x)
+#	define STIO_CONST_HTON16(x) (x)
+#	define STIO_CONST_NTOH32(x) (x)
+#	define STIO_CONST_HTON32(x) (x)
 #else
 #	error UNKNOWN ENDIAN
 #endif

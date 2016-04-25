@@ -35,7 +35,15 @@
 
 #include <netinet/in.h>
 #include <arpa/inet.h>
-#include <netpacket/packet.h>
+
+#if defined(HAVE_NETPACKET_PACKET_H)
+#	include <netpacket/packet.h>
+#endif
+
+#if defined(HAVE_NET_IF_DL_H)
+#	include <net/if_dl.h>
+#endif
+
 
 #if defined(__linux__)
 #	include <limits.h>
@@ -137,10 +145,17 @@ int stio_getsckaddrinfo (stio_t* stio, const stio_sckaddr_t* addr, stio_scklen_t
 			if (family) *family = AF_INET6;
 			return 0;
 
+	#if defined(AF_PACKET) && (STIO_SIZEOF_STRUCT_SOCKADDR_LL > 0)
 		case AF_PACKET:
 			if (len) *len =  STIO_SIZEOF(struct sockaddr_ll);
 			if (family) *family = AF_PACKET;
 			return 0;
+	#elif defined(AF_LINK) && (STIO_SIZEOF_STRUCT_SOCKADDR_DL > 0)
+		case AF_LINK:
+			if (len) *len =  STIO_SIZEOF(struct sockaddr_dl);
+			if (family) *family = AF_LINK;
+			return 0;
+	#endif
 
 		/* TODO: more address type */
 	}
@@ -165,6 +180,25 @@ stio_uint16_t stio_getsckaddrport (const stio_sckaddr_t* addr)
 	return 0;
 }
 
+int stio_getsckaddrifindex (const stio_sckaddr_t* addr)
+{
+	struct sockaddr* saddr = (struct sockaddr*)addr;
+
+#if defined(AF_PACKET) && (STIO_SIZEOF_STRUCT_SOCKADDR_LL > 0)
+	if (saddr->sa_family == AF_PACKET)
+	{
+		return ((struct sockaddr_ll*)addr)->sll_ifindex;
+	}
+
+#elif defined(AF_LINK) && (STIO_SIZEOF_STRUCT_SOCKADDR_DL > 0)
+	if (saddr->sa_family == AF_LINK)
+	{
+		return ((struct sockaddr_dl*)addr)->sdl_index;
+	}
+#endif
+
+	return 0;
+}
 
 int stio_equalsckaddrs (stio_t* stio, const stio_sckaddr_t* addr1, const stio_sckaddr_t* addr2)
 {
@@ -201,6 +235,7 @@ void stio_sckaddr_initforip6 (stio_sckaddr_t* sckaddr, stio_uint16_t port, stio_
 
 void stio_sckaddr_initforeth (stio_sckaddr_t* sckaddr, int ifindex, stio_ethaddr_t* ethaddr)
 {
+#if defined(AF_PACKET) && (STIO_SIZEOF_STRUCT_SOCKADDR_LL > 0)
 	struct sockaddr_ll* sll = (struct sockaddr_ll*)sckaddr;
 	STIO_MEMSET (sll, 0, STIO_SIZEOF(*sll));
 	sll->sll_family = AF_PACKET;
@@ -210,6 +245,20 @@ void stio_sckaddr_initforeth (stio_sckaddr_t* sckaddr, int ifindex, stio_ethaddr
 		sll->sll_halen = STIO_ETHADDR_LEN;
 		STIO_MEMCPY (sll->sll_addr, ethaddr, STIO_ETHADDR_LEN);
 	}
+
+#elif defined(AF_LINK) && (STIO_SIZEOF_STRUCT_SOCKADDR_DL > 0)
+	struct sockaddr_dl* sll = (struct sockaddr_dl*)sckaddr;
+	STIO_MEMSET (sll, 0, STIO_SIZEOF(*sll));
+	sll->sdl_family = AF_LINK;
+	sll->sdl_index = ifindex;
+	if (ethaddr)
+	{
+		sll->sdl_alen = STIO_ETHADDR_LEN;
+		STIO_MEMCPY (sll->sdl_data, ethaddr, STIO_ETHADDR_LEN);
+	}
+#else
+#	error UNSUPPORTED DATALINK SOCKET ADDRESS
+#endif
 }
 
 /* ========================================================================= */
@@ -260,11 +309,23 @@ static struct sck_type_map_t sck_type_map[] =
 	/* STIO_DEV_SCK_UDP6 */
 	{ AF_INET6,   SOCK_DGRAM,     0,                         0                                                },
 
+
+#if defined(AF_PACKET) && (STIO_SIZEOF_STRUCT_SOCKADDR_LL > 0)
 	/* STIO_DEV_SCK_ARP - Ethernet type is 2 bytes long. Protocol must be specified in the network byte order */
 	{ AF_PACKET,  SOCK_RAW,       STIO_CONST_HTON16(STIO_ETHHDR_PROTO_ARP), 0                                 },
 
 	/* STIO_DEV_SCK_DGRAM */
 	{ AF_PACKET,  SOCK_DGRAM,     STIO_CONST_HTON16(STIO_ETHHDR_PROTO_ARP), 0                                 },
+
+#elif defined(AF_LINK) && (STIO_SIZEOF_STRUCT_SOCKADDR_DL > 0)
+	/* STIO_DEV_SCK_ARP */
+	{ AF_LINK,  SOCK_RAW,         STIO_CONST_HTON16(STIO_ETHHDR_PROTO_ARP), 0                                 },
+
+	/* STIO_DEV_SCK_DGRAM */
+	{ AF_LINK,  SOCK_DGRAM,       STIO_CONST_HTON16(STIO_ETHHDR_PROTO_ARP), 0                                 },
+#else
+#	error UNSUPPORTED DATA LINK ADDRESS
+#endif
 
 	/* STIO_DEV_SCK_ICMP4 - IP protocol field is 1 byte only. no byte order conversion is needed */
 	{ AF_INET,    SOCK_RAW,       IPPROTO_ICMP,              0,                                               },
