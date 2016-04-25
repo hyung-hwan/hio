@@ -40,17 +40,6 @@
 #define STIO_MEMCMP(dst,src,count) memcmp(dst,src,count)
 #define STIO_ASSERT assert
 
-
-struct stio_tmrjob_t
-{
-	void*                  ctx;
-	stio_ntime_t           when;
-	stio_tmrjob_handler_t  handler;
-	stio_tmridx_t*         idxptr; /* pointer to the index holder */
-};
-
-#define STIO_TMRIDX_INVALID ((stio_tmridx_t)-1)
-
 typedef struct stio_mux_t stio_mux_t;
 
 struct stio_t

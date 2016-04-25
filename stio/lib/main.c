@@ -40,6 +40,8 @@
 #include <netpacket/packet.h>
 #include <net/if.h>
 
+#include <assert.h>
+
 #if defined(HAVE_OPENSSL_SSL_H) && defined(HAVE_SSL)
 #	include <openssl/ssl.h>
 #	if defined(HAVE_OPENSSL_ERR_H)
@@ -126,11 +128,11 @@ static void tcp_sck_on_disconnect (stio_dev_sck_t* tcp)
 	switch (STIO_DEV_SCK_GET_PROGRESS(tcp))
 	{
 		case STIO_DEV_SCK_CONNECTING:
-			printf ("OUTGOING TCP DISCONNECTED - FAILED TO CONNECT (%d) TO REMOTE SERVER\n", (int)tcp->sck);
+			printf ("OUTGOING SESSION DISCONNECTED - FAILED TO CONNECT (%d) TO REMOTE SERVER\n", (int)tcp->sck);
 			break;
 
 		case STIO_DEV_SCK_CONNECTING_SSL:
-			printf ("OUTGOING TCP DISCONNECTED - FAILED TO SSL-CONNECT (%d) TO REMOTE SERVER\n", (int)tcp->sck);
+			printf ("OUTGOING SESSION DISCONNECTED - FAILED TO SSL-CONNECT (%d) TO REMOTE SERVER\n", (int)tcp->sck);
 			break;
 
 		case STIO_DEV_SCK_LISTENING:
@@ -150,7 +152,7 @@ static void tcp_sck_on_disconnect (stio_dev_sck_t* tcp)
 			break;
 
 		default:
-			printf ("TCP DISCONNECTED - THIS MUST NOT HAPPEN (%d - %x)\n", (int)tcp->sck, (unsigned int)tcp->state);
+			printf ("SOCKET DEVICE DISCONNECTED (%d - %x)\n", (int)tcp->sck, (unsigned int)tcp->state);
 			break;
 	}
 }
@@ -203,6 +205,8 @@ else
 
 printf ("ENABLING READING..............................\n");
 	stio_dev_sck_read (tcp, 1);
+
+	//stio_dev_sck_timedread (tcp, 1, 1000);
 }
 	return 0;
 }
@@ -237,15 +241,37 @@ free (xxx);
 	if (n <= -1) return -1;
 }
 
+
+printf ("DISABLING READING..............................\n");
+	stio_dev_sck_read (tcp, 0);
+
 	/* post the write finisher */
 	n = stio_dev_sck_write  (tcp, STIO_NULL, 0, STIO_NULL, STIO_NULL);
 	if (n <= -1) return -1;
 
-printf ("DISABLING READING..............................\n");
-	stio_dev_sck_read (tcp, 0);
 	return 0;
 
 /* return 1; let the main loop to read more greedily without consulting the multiplexer */
+}
+
+/* ========================================================================= */
+
+static void pro_on_close (stio_dev_pro_t* dev, stio_dev_pro_sid_t sid)
+{
+printf (">>>>>>>>>>>>> ON CLOSE OF SLAVE %d.\n", sid);
+}
+
+static int pro_on_read (stio_dev_pro_t* dev, const void* data, stio_iolen_t dlen, stio_dev_pro_sid_t sid)
+{
+printf ("PROCESS READ DATA on SLAVE[%d]... [%.*s]\n", (int)sid, (int)dlen, (char*)data);
+	return 0;
+}
+
+
+static int pro_on_write (stio_dev_pro_t* dev, stio_iolen_t wrlen, void* wrctx)
+{
+printf ("PROCESS WROTE DATA...\n");
+	return 0;
 }
 
 /* ========================================================================= */
@@ -272,25 +298,231 @@ static int arp_sck_on_write (stio_dev_sck_t* dev, stio_iolen_t wrlen, void* wrct
 	return 0;
 }
 
+static void arp_sck_on_disconnect (stio_dev_sck_t* dev)
+{
+printf ("SHUTTING DOWN ARP SOCKET %d...\n", dev->sck);
+}
+
+static int setup_arp_tester (stio_t* stio)
+{
+	stio_sckaddr_t ethdst;
+	stio_etharp_pkt_t etharp;
+	stio_dev_sck_make_t sck_make;
+	stio_dev_sck_t* sck;
+
+	memset (&sck_make, 0, STIO_SIZEOF(sck_make));
+	sck_make.type = STIO_DEV_SCK_ARP;
+	//sck_make.type = STIO_DEV_SCK_ARP_DGRAM;
+	sck_make.on_write = arp_sck_on_write;
+	sck_make.on_read = arp_sck_on_read;
+	sck_make.on_disconnect = arp_sck_on_disconnect;
+	sck = stio_dev_sck_make (stio, 0, &sck_make);
+	if (!sck)
+	{
+		printf ("Cannot make socket device\n");
+		return -1;
+	}
+
+	//stio_sckaddr_initforeth (&ethdst, if_nametoindex("enp0s25.3"), (stio_ethaddr_t*)"\xFF\xFF\xFF\xFF\xFF\xFF");
+	stio_sckaddr_initforeth (&ethdst, if_nametoindex("enp0s25.3"), (stio_ethaddr_t*)"\xAA\xBB\xFF\xCC\xDD\xFF");
+
+	memset (&etharp, 0, sizeof(etharp));
+
+	memcpy (etharp.ethhdr.source, "\xB8\x6B\x23\x9C\x10\x76", STIO_ETHADDR_LEN);
+	//memcpy (etharp.ethhdr.dest, "\xFF\xFF\xFF\xFF\xFF\xFF", STIO_ETHADDR_LEN);
+	memcpy (etharp.ethhdr.dest, "\xAA\xBB\xFF\xCC\xDD\xFF", STIO_ETHADDR_LEN);
+	etharp.ethhdr.proto = STIO_CONST_HTON16(STIO_ETHHDR_PROTO_ARP);
+
+	etharp.arphdr.htype = STIO_CONST_HTON16(STIO_ARPHDR_HTYPE_ETH);
+	etharp.arphdr.ptype = STIO_CONST_HTON16(STIO_ARPHDR_PTYPE_IP4);
+	etharp.arphdr.hlen = STIO_ETHADDR_LEN;
+	etharp.arphdr.plen = STIO_IP4ADDR_LEN;
+	etharp.arphdr.opcode = STIO_CONST_HTON16(STIO_ARPHDR_OPCODE_REQUEST);
+
+	memcpy (etharp.arppld.sha, "\xB8\x6B\x23\x9C\x10\x76", STIO_ETHADDR_LEN);
+
+	if (stio_dev_sck_write (sck, &etharp, sizeof(etharp), NULL, &ethdst) <= -1)
+	//if (stio_dev_sck_write (sck, &etharp.arphdr, sizeof(etharp) - sizeof(etharp.ethhdr), NULL, &ethaddr) <= -1)
+	{
+		printf ("CANNOT WRITE ARP...\n");
+	}
+
+
+	return 0;
+}
+
 /* ========================================================================= */
 
-static void pro_on_close (stio_dev_pro_t* dev, stio_dev_pro_sid_t sid)
+struct icmpxtn_t
 {
-printf (">>>>>>>>>>>>> ON CLOSE OF SLAVE %d.\n", sid);
+	stio_uint16_t icmp_seq;
+	stio_tmridx_t tmout_jobidx;
+	int reply_received;
+};
+
+typedef struct icmpxtn_t icmpxtn_t;
+
+static int schedule_icmp_wait (stio_dev_sck_t* dev);
+
+static void send_icmp (stio_dev_sck_t* dev, stio_uint16_t seq)
+{
+	stio_sckaddr_t dstaddr;
+	stio_ip4addr_t ia;
+	stio_icmphdr_t* icmphdr;
+	stio_uint8_t buf[512];
+
+	inet_pton (AF_INET, "192.168.1.131", &ia);
+	stio_sckaddr_initforip4 (&dstaddr, 0, &ia);
+
+	memset(buf, 0, STIO_SIZEOF(buf));
+	icmphdr = (stio_icmphdr_t*)buf;
+	icmphdr->type = STIO_ICMP_ECHO_REQUEST;
+	icmphdr->u.echo.id = STIO_CONST_HTON16(100);
+	icmphdr->u.echo.seq = stio_hton16(seq);
+
+	memset (&buf[STIO_SIZEOF(*icmphdr)], 'A', STIO_SIZEOF(buf) - STIO_SIZEOF(*icmphdr));
+	icmphdr->checksum = stio_checksumip (icmphdr, STIO_SIZEOF(buf));
+
+	if (stio_dev_sck_write (dev, buf, STIO_SIZEOF(buf), NULL, &dstaddr) <= -1)
+	{
+		printf ("CANNOT WRITE ICMP...\n");
+		stio_dev_sck_halt (dev);
+	}
+
+	if (schedule_icmp_wait (dev) <= -1)
+	{
+		printf ("CANNOT SCHEDULE ICMP WAIT...\n");
+		stio_dev_sck_halt (dev);
+	}
 }
 
-static int pro_on_read (stio_dev_pro_t* dev, const void* data, stio_iolen_t dlen, stio_dev_pro_sid_t sid)
+static void on_icmp_due (stio_t* stio, const stio_ntime_t* now, stio_tmrjob_t* tmrjob)
 {
-printf ("PROCESS READ DATA on SLAVE[%d]... [%.*s]\n", (int)sid, (int)dlen, (char*)data);
+	stio_dev_sck_t* dev;
+	icmpxtn_t* icmpxtn;
+
+	dev = tmrjob->ctx;
+	icmpxtn = (icmpxtn_t*)(dev + 1);
+
+	if (icmpxtn->reply_received)
+		icmpxtn->reply_received = 0;
+	else
+		printf ("NO ICMP REPLY RECEIVED....\n");
+
+	send_icmp (dev, ++icmpxtn->icmp_seq);
+}
+
+static int schedule_icmp_wait (stio_dev_sck_t* dev)
+{
+	icmpxtn_t* icmpxtn;
+	stio_tmrjob_t tmrjob;
+	stio_ntime_t fire_after;
+
+	icmpxtn = (icmpxtn_t*)(dev + 1);
+	stio_inittime (&fire_after, 2, 0);
+
+	memset (&tmrjob, 0, STIO_SIZEOF(tmrjob));
+	tmrjob.ctx = dev;
+	stio_gettime (&tmrjob.when);
+	stio_addtime (&tmrjob.when, &fire_after, &tmrjob.when);
+	tmrjob.handler = on_icmp_due;
+	tmrjob.idxptr = &icmpxtn->tmout_jobidx;
+
+	assert (icmpxtn->tmout_jobidx == STIO_TMRIDX_INVALID);
+
+	return (stio_instmrjob (dev->stio, &tmrjob) == STIO_TMRIDX_INVALID)? -1: 0;
+}
+
+static int icmp_sck_on_read (stio_dev_sck_t* dev, const void* data, stio_iolen_t dlen, const stio_sckaddr_t* srcaddr)
+{
+	icmpxtn_t* icmpxtn;
+	stio_iphdr_t* iphdr;
+	stio_icmphdr_t* icmphdr;
+
+	/* when received, the data contains the IP header.. */
+	icmpxtn = (icmpxtn_t*)(dev + 1);
+
+	if (dlen < STIO_SIZEOF(*iphdr) + STIO_SIZEOF(*icmphdr))
+	{
+		printf ("INVALID ICMP PACKET.. TOO SHORT...%d\n", (int)dlen);
+	}
+	else
+	{
+		/* TODO: consider IP options... */
+		iphdr = (stio_iphdr_t*)data;
+		icmphdr = (stio_icmphdr_t*)((stio_uint8_t*)data + (iphdr->ihl * 4));
+
+		/* TODO": check srcaddr against target */
+
+		if (icmphdr->type == STIO_ICMP_ECHO_REPLY && 
+		    stio_ntoh16(icmphdr->u.echo.seq) == icmpxtn->icmp_seq) /* TODO: more check.. echo.id.. */
+		{
+			icmpxtn->reply_received = 1;
+			printf ("ICMP REPLY RECEIVED...ID %d SEQ %d\n", (int)stio_ntoh16(icmphdr->u.echo.id), (int)stio_ntoh16(icmphdr->u.echo.seq));
+		}
+		else
+		{
+			printf ("GARBAGE ICMP PACKET...LEN %d SEQ %d,%d\n", (int)dlen, (int)icmpxtn->icmp_seq, (int)stio_ntoh16(icmphdr->u.echo.seq));
+		}
+	}
 	return 0;
 }
 
 
-static int pro_on_write (stio_dev_pro_t* dev, stio_iolen_t wrlen, void* wrctx)
+static int icmp_sck_on_write (stio_dev_sck_t* dev, stio_iolen_t wrlen, void* wrctx, const stio_sckaddr_t* dstaddr)
 {
-printf ("PROCESS WROTE DATA...\n");
+	/*icmpxtn_t* icmpxtn;
+
+	icmpxtn = (icmpxtn_t*)(dev + 1); */
+
 	return 0;
 }
+
+static void icmp_sck_on_disconnect (stio_dev_sck_t* dev)
+{
+	icmpxtn_t* icmpxtn;
+
+	icmpxtn = (icmpxtn_t*)(dev + 1);
+
+printf ("SHUTTING DOWN ICMP SOCKET %d...\n", dev->sck);
+	if (icmpxtn->tmout_jobidx != STIO_TMRIDX_INVALID)
+	{
+
+		stio_deltmrjob (dev->stio, icmpxtn->tmout_jobidx);
+		icmpxtn->tmout_jobidx = STIO_TMRIDX_INVALID;
+	}
+}
+
+static int setup_ping4_tester (stio_t* stio)
+{
+	stio_dev_sck_make_t sck_make;
+	stio_dev_sck_t* sck;
+	icmpxtn_t* icmpxtn;
+
+	memset (&sck_make, 0, STIO_SIZEOF(sck_make));
+	sck_make.type = STIO_DEV_SCK_ICMP4;
+	sck_make.on_write = icmp_sck_on_write;
+	sck_make.on_read = icmp_sck_on_read;
+	sck_make.on_disconnect = icmp_sck_on_disconnect;
+
+	sck = stio_dev_sck_make (stio, STIO_SIZEOF(icmpxtn_t), &sck_make);
+	if (!sck)
+	{
+		printf ("Cannot make ICMP4 socket device\n");
+		return -1;
+	}
+
+	icmpxtn = (icmpxtn_t*)(sck + 1);
+	icmpxtn->tmout_jobidx = STIO_TMRIDX_INVALID;
+	icmpxtn->icmp_seq = 0;
+
+	/*TODO: stio_dev_sck_setbroadcast (sck, 1);*/
+
+	send_icmp (sck, ++icmpxtn->icmp_seq);
+
+	return 0;
+}
+
 
 /* ========================================================================= */
 
@@ -306,7 +538,6 @@ int main ()
 	int i;
 
 	stio_t* stio;
-	stio_dev_sck_t* sck;
 	stio_dev_sck_t* tcp[3];
 
 	struct sigaction sigact;
@@ -314,8 +545,7 @@ int main ()
 	stio_dev_sck_listen_t tcp_lstn;
 	stio_dev_sck_bind_t tcp_bind;
 	stio_dev_sck_make_t tcp_make;
-	
-	stio_dev_sck_make_t sck_make;
+
 	tcp_server_t* ts;
 
 #if defined(USE_SSL)
@@ -363,6 +593,7 @@ int main ()
 	tcp_make.type = STIO_DEV_SCK_TCP4;
 	tcp_make.on_write = tcp_sck_on_write;
 	tcp_make.on_read = tcp_sck_on_read;
+	tcp_make.on_disconnect = tcp_sck_on_disconnect;
 	tcp[0] = stio_dev_sck_make (stio, STIO_SIZEOF(tcp_server_t), &tcp_make);
 	if (!tcp[0])
 	{
@@ -382,7 +613,6 @@ int main ()
 
 	stio_inittime (&tcp_conn.connect_tmout, 5, 0);
 	tcp_conn.on_connect = tcp_sck_on_connect;
-	tcp_conn.on_disconnect = tcp_sck_on_disconnect;
 	tcp_conn.options = STIO_DEV_SCK_CONNECT_SSL;
 	if (stio_dev_sck_connect (tcp[0], &tcp_conn) <= -1)
 	{
@@ -395,7 +625,7 @@ int main ()
 	tcp_make.type = STIO_DEV_SCK_TCP4;
 	tcp_make.on_write = tcp_sck_on_write;
 	tcp_make.on_read = tcp_sck_on_read;
-
+	tcp_make.on_disconnect = tcp_sck_on_disconnect;
 
 	tcp[1] = stio_dev_sck_make (stio, STIO_SIZEOF(tcp_server_t), &tcp_make);
 	if (!tcp[1])
@@ -419,7 +649,6 @@ int main ()
 
 	tcp_lstn.backlogs = 100;
 	tcp_lstn.on_connect = tcp_sck_on_connect;
-	tcp_lstn.on_disconnect = tcp_sck_on_disconnect;
 	if (stio_dev_sck_listen (tcp[1], &tcp_lstn) <= -1)
 	{
 		printf ("stio_dev_sck_listen() failed....\n");
@@ -431,6 +660,7 @@ int main ()
 	tcp_make.type = STIO_DEV_SCK_TCP4;
 	tcp_make.on_write = tcp_sck_on_write;
 	tcp_make.on_read = tcp_sck_on_read;
+	tcp_make.on_disconnect = tcp_sck_on_disconnect;
 
 	tcp[2] = stio_dev_sck_make (stio, STIO_SIZEOF(tcp_server_t), &tcp_make);
 	if (!tcp[2])
@@ -456,7 +686,6 @@ int main ()
 
 	tcp_lstn.backlogs = 100;
 	tcp_lstn.on_connect = tcp_sck_on_connect;
-	tcp_lstn.on_disconnect = tcp_sck_on_disconnect;
 	if (stio_dev_sck_listen (tcp[2], &tcp_lstn) <= -1)
 	{
 		printf ("stio_dev_sck_listen() failed....\n");
@@ -464,49 +693,9 @@ int main ()
 	}
 
 	//stio_dev_sck_sendfile (tcp[2], fd, offset, count);
-#if 1
-{
 
-	stio_sckaddr_t ethdst;
-	stio_etharp_pkt_t etharp;
-
-	memset (&sck_make, 0, STIO_SIZEOF(sck_make));
-	sck_make.type = STIO_DEV_SCK_ARP;
-	//sck_make.type = STIO_DEV_SCK_ARP_DGRAM;
-	sck_make.on_write = arp_sck_on_write;
-	sck_make.on_read = arp_sck_on_read;
-	sck = stio_dev_sck_make (stio, 0, &sck_make);
-	if (!sck)
-	{
-		printf ("Cannot make socket device\n");
-		goto oops;
-	}
-
-	//stio_sckaddr_initforeth (&ethdst, if_nametoindex("enp0s25.3"), (stio_ethaddr_t*)"\xFF\xFF\xFF\xFF\xFF\xFF");
-	stio_sckaddr_initforeth (&ethdst, if_nametoindex("enp0s25.3"), (stio_ethaddr_t*)"\xAA\xBB\xFF\xCC\xDD\xFF");
-
-	memset (&etharp, 0, sizeof(etharp));
-
-	memcpy (etharp.ethhdr.source, "\xB8\x6B\x23\x9C\x10\x76", STIO_ETHADDR_LEN);
-	//memcpy (etharp.ethhdr.dest, "\xFF\xFF\xFF\xFF\xFF\xFF", STIO_ETHADDR_LEN);
-	memcpy (etharp.ethhdr.dest, "\xAA\xBB\xFF\xCC\xDD\xFF", STIO_ETHADDR_LEN);
-	etharp.ethhdr.proto = STIO_CONST_HTON16(STIO_ETHHDR_PROTO_ARP);
-
-	etharp.arphdr.htype = STIO_CONST_HTON16(STIO_ARPHDR_HTYPE_ETH);
-	etharp.arphdr.ptype = STIO_CONST_HTON16(STIO_ARPHDR_PTYPE_IP4);
-	etharp.arphdr.hlen = STIO_ETHADDR_LEN;
-	etharp.arphdr.plen = STIO_IP4ADDR_LEN;
-	etharp.arphdr.opcode = STIO_CONST_HTON16(STIO_ARPHDR_OPCODE_REQUEST);
-
-	memcpy (etharp.arppld.sha, "\xB8\x6B\x23\x9C\x10\x76", STIO_ETHADDR_LEN);
-
-	if (stio_dev_sck_write (sck, &etharp, sizeof(etharp), NULL, &ethdst) <= -1)
-	//if (stio_dev_sck_write (sck, &etharp.arphdr, sizeof(etharp) - sizeof(etharp.ethhdr), NULL, &ethaddr) <= -1)
-	{
-		printf ("CANNOT WRITE ARP...\n");
-	}
-}
-#endif
+	if (setup_arp_tester(stio) <= -1) goto oops;
+	if (setup_ping4_tester(stio) <= -1) goto oops;
 
 
 for (i = 0; i < 5; i++)

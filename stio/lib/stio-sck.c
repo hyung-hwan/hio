@@ -116,7 +116,6 @@ stio_sckhnd_t stio_openasyncsck (stio_t* stio, int domain, int type, int proto)
 		return STIO_SCKHND_INVALID;
 	}
 
-
 #endif
 
 	return sck;
@@ -249,15 +248,29 @@ struct sck_type_map_t
 
 static struct sck_type_map_t sck_type_map[] =
 {
+	/* STIO_DEV_SCK_TCP4 */
 	{ AF_INET,    SOCK_STREAM,    0,                         STIO_DEV_CAPA_STREAM  | STIO_DEV_CAPA_OUT_QUEUED },
+
+	/* STIO_DEV_SCK_TCP6 */
 	{ AF_INET6,   SOCK_STREAM,    0,                         STIO_DEV_CAPA_STREAM  | STIO_DEV_CAPA_OUT_QUEUED },
+
+	/* STIO_DEV_SCK_UPD4 */
 	{ AF_INET,    SOCK_DGRAM,     0,                         0                                                },
+
+	/* STIO_DEV_SCK_UDP6 */
 	{ AF_INET6,   SOCK_DGRAM,     0,                         0                                                },
 
-	{ AF_PACKET,  SOCK_RAW,       STIO_CONST_HTON16(0x0806), 0                                                },
-	{ AF_PACKET,  SOCK_DGRAM,     STIO_CONST_HTON16(0x0806), 0                                                },
+	/* STIO_DEV_SCK_ARP - Ethernet type is 2 bytes long. Protocol must be specified in the network byte order */
+	{ AF_PACKET,  SOCK_RAW,       STIO_CONST_HTON16(STIO_ETHHDR_PROTO_ARP), 0                                 },
 
-	{ AF_INET,    SOCK_RAW,       IPPROTO_ICMP,              0,                                               }
+	/* STIO_DEV_SCK_DGRAM */
+	{ AF_PACKET,  SOCK_DGRAM,     STIO_CONST_HTON16(STIO_ETHHDR_PROTO_ARP), 0                                 },
+
+	/* STIO_DEV_SCK_ICMP4 - IP protocol field is 1 byte only. no byte order conversion is needed */
+	{ AF_INET,    SOCK_RAW,       IPPROTO_ICMP,              0,                                               },
+
+	/* STIO_DEV_SCK_ICMP6 - IP protocol field is 1 byte only. no byte order conversion is needed */
+	{ AF_INET6,   SOCK_RAW,       IPPROTO_ICMP,              0,                                               }
 };
 
 /* ======================================================================== */
@@ -346,6 +359,7 @@ static int dev_sck_make (stio_dev_t* dev, void* ctx)
 	rdev->dev_capa = STIO_DEV_CAPA_IN | STIO_DEV_CAPA_OUT | sck_type_map[arg->type].extra_dev_capa;
 	rdev->on_write = arg->on_write;
 	rdev->on_read = arg->on_read;
+	rdev->on_disconnect = arg->on_disconnect;
 	rdev->type = arg->type;
 	rdev->tmrjob_index = STIO_TMRIDX_INVALID;
 
@@ -365,7 +379,7 @@ static int dev_sck_make_client (stio_dev_t* dev, void* ctx)
 	stio_dev_sck_t* rdev = (stio_dev_sck_t*)dev;
 	stio_syshnd_t* sck = (stio_syshnd_t*)ctx;
 
-	/* nothing special is done here except setting the socket handle.
+	/* nothing special is done here except setting the sock et handle.
 	 * most of the initialization is done by the listening socket device
 	 * after a client socket has been created. */
 
@@ -393,12 +407,12 @@ static int dev_sck_kill (stio_dev_t* dev, int force)
 
 	if (IS_STATEFUL(rdev))
 	{
-		if (STIO_DEV_SCK_GET_PROGRESS(rdev))
-		{
+		/*if (STIO_DEV_SCK_GET_PROGRESS(rdev))
+		{*/
 			/* for STIO_DEV_SCK_CONNECTING, STIO_DEV_SCK_CONNECTING_SSL, and STIO_DEV_ACCEPTING_SSL
 			 * on_disconnect() is called without corresponding on_connect() */
 			if (rdev->on_disconnect) rdev->on_disconnect (rdev);
-		}
+		/*}*/
 
 		if (rdev->tmrjob_index != STIO_TMRIDX_INVALID)
 		{
@@ -410,6 +424,8 @@ static int dev_sck_kill (stio_dev_t* dev, int force)
 	{
 		STIO_ASSERT (rdev->state == 0);
 		STIO_ASSERT (rdev->tmrjob_index == STIO_TMRIDX_INVALID);
+
+		if (rdev->on_disconnect) rdev->on_disconnect (rdev);
 	}
 
 #if defined(USE_SSL)
@@ -533,8 +549,6 @@ static int dev_sck_write_stateful (stio_dev_t* dev, const void* data, stio_iolen
 		{
 			int err = SSL_get_error ((SSL*)rdev->ssl, x);
 			if (err == SSL_ERROR_WANT_READ || err == SSL_ERROR_WANT_WRITE) return 0;
-			/*else if (err == SSL_ERROR_SYSCALL)
-				rdev->stio->errnum = stio_syserrtoerrnum(errno); */
 			rdev->stio->errnum = STIO_ESYSERR;
 			return -1;
 		}
@@ -932,7 +946,6 @@ fcntl (rdev->sck, F_SETFL, flags | O_NONBLOCK);
 
 						rdev->remoteaddr = conn->remoteaddr;
 						rdev->on_connect = conn->on_connect;
-						rdev->on_disconnect = conn->on_disconnect;
 					#if defined(USE_SSL)
 						rdev->ssl_ctx = ssl_ctx;
 					#endif
@@ -960,7 +973,6 @@ fcntl (rdev->sck, F_SETFL, flags | O_NONBLOCK);
 				/* connected immediately */
 				rdev->remoteaddr = conn->remoteaddr;
 				rdev->on_connect = conn->on_connect;
-				rdev->on_disconnect = conn->on_disconnect;
 
 				sl = STIO_SIZEOF(localaddr);
 				if (getsockname (rdev->sck, (struct sockaddr*)&localaddr, &sl) == 0) rdev->localaddr = localaddr;
@@ -1055,7 +1067,6 @@ fcntl (rdev->sck, F_SETFL, flags | O_NONBLOCK);
 
 			STIO_DEV_SCK_SET_PROGRESS (rdev, STIO_DEV_SCK_LISTENING);
 			rdev->on_connect = lstn->on_connect;
-			rdev->on_disconnect = lstn->on_disconnect;
 			return 0;
 		}
 	}
@@ -1597,4 +1608,30 @@ int stio_dev_sck_timedwrite (stio_dev_sck_t* dev, const void* data, stio_iolen_t
 {
 	stio_devaddr_t devaddr;
 	return stio_dev_timedwrite ((stio_dev_t*)dev, data, dlen, tmout, wrctx, sckaddr_to_devaddr(dev, dstaddr, &devaddr));
+}
+
+
+
+
+
+
+/* ========================================================================= */
+
+stio_uint16_t stio_checksumip (const void* hdr, stio_size_t len)
+{
+	stio_uint32_t sum = 0;
+	stio_uint16_t *ptr = (stio_uint16_t*)hdr;
+
+	
+	while (len > 1)
+	{
+		sum += *ptr++;
+		if (sum & 0x80000000)
+		sum = (sum & 0xFFFF) + (sum >> 16);
+		len -= 2;
+	}
+ 
+	while (sum >> 16) sum = (sum & 0xFFFF) + (sum >> 16);
+
+	return (stio_uint16_t)~sum;
 }
