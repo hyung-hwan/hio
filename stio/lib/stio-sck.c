@@ -324,7 +324,8 @@ static struct sck_type_map_t sck_type_map[] =
 	/* STIO_DEV_SCK_DGRAM */
 	{ AF_LINK,  SOCK_DGRAM,       STIO_CONST_HTON16(STIO_ETHHDR_PROTO_ARP), 0                                 },
 #else
-#	error UNSUPPORTED DATA LINK ADDRESS
+	{ -1,       0,                0,                            0                                             },
+	{ -1,       0,                0,                            0                                             },
 #endif
 
 	/* STIO_DEV_SCK_ICMP4 - IP protocol field is 1 byte only. no byte order conversion is needed */
@@ -413,6 +414,12 @@ static int dev_sck_make (stio_dev_t* dev, void* ctx)
 	stio_dev_sck_make_t* arg = (stio_dev_sck_make_t*)ctx;
 
 	STIO_ASSERT (arg->type >= 0 && arg->type < STIO_COUNTOF(sck_type_map));
+
+	if (sck_type_map[arg->type].domain <= -1)
+	{
+		dev->stio->errnum = STIO_ENOIMPL;
+		return -1;
+	}
 
 	rdev->sck = stio_openasyncsck (dev->stio, sck_type_map[arg->type].domain, sck_type_map[arg->type].type, sck_type_map[arg->type].proto);
 	if (rdev->sck == STIO_SCKHND_INVALID) goto oops;

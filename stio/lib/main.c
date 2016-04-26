@@ -67,7 +67,7 @@ static void* mmgr_alloc (stio_mmgr_t* mmgr, stio_size_t size)
 {
 	void* x;
 
-	if (((mmgr_stat_t*)mmgr->ctx)->total_count > 100)
+	if (((mmgr_stat_t*)mmgr->ctx)->total_count > 300)
 	{
 printf ("CRITICAL ERROR ---> too many heap chunks...\n");
 		return STIO_NULL;
@@ -451,19 +451,27 @@ static int icmp_sck_on_read (stio_dev_sck_t* dev, const void* data, stio_iolen_t
 	{
 		/* TODO: consider IP options... */
 		iphdr = (stio_iphdr_t*)data;
-		icmphdr = (stio_icmphdr_t*)((stio_uint8_t*)data + (iphdr->ihl * 4));
 
-		/* TODO: check srcaddr against target */
-
-		if (icmphdr->type == STIO_ICMP_ECHO_REPLY && 
-		    stio_ntoh16(icmphdr->u.echo.seq) == icmpxtn->icmp_seq) /* TODO: more check.. echo.id.. */
+		if (iphdr->ihl * 4 + STIO_SIZEOF(*icmphdr) > dlen)
 		{
-			icmpxtn->reply_received = 1;
-			printf ("ICMP REPLY RECEIVED...ID %d SEQ %d\n", (int)stio_ntoh16(icmphdr->u.echo.id), (int)stio_ntoh16(icmphdr->u.echo.seq));
+			printf ("INVALID ICMP PACKET.. WRONG IHL...%d\n", (int)iphdr->ihl * 4);
 		}
 		else
 		{
-			printf ("GARBAGE ICMP PACKET...LEN %d SEQ %d,%d\n", (int)dlen, (int)icmpxtn->icmp_seq, (int)stio_ntoh16(icmphdr->u.echo.seq));
+			icmphdr = (stio_icmphdr_t*)((stio_uint8_t*)data + (iphdr->ihl * 4));
+
+			/* TODO: check srcaddr against target */
+
+			if (icmphdr->type == STIO_ICMP_ECHO_REPLY && 
+			    stio_ntoh16(icmphdr->u.echo.seq) == icmpxtn->icmp_seq) /* TODO: more check.. echo.id.. */
+			{
+				icmpxtn->reply_received = 1;
+				printf ("ICMP REPLY RECEIVED...ID %d SEQ %d\n", (int)stio_ntoh16(icmphdr->u.echo.id), (int)stio_ntoh16(icmphdr->u.echo.seq));
+			}
+			else
+			{
+				printf ("GARBAGE ICMP PACKET...LEN %d SEQ %d,%d\n", (int)dlen, (int)icmpxtn->icmp_seq, (int)stio_ntoh16(icmphdr->u.echo.seq));
+			}
 		}
 	}
 	return 0;
