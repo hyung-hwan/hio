@@ -34,7 +34,8 @@ libmio_la_SOURCES = \
 	mio-sck.c \
 	mio-tim.c \
 	mio-tmr.c \
-	mio-utl.c
+	mio-utl.c \
+	utf8.c
 libmio_la_CPPFLAGS = $(CPPFLAGS_LIB_COMMON)
 libmio_la_LDFLAGS = $(LDFLAGS_LIB_COMMON)
 libmio_la_LIBADD = $(LIBADD_LIB_COMMON) $(SSL_LIBS)
