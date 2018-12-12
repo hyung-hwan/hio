@@ -803,6 +803,7 @@ with_sysroot
 enable_libtool_lock
 enable_ssl
 enable_debug
+enable_unicode
 enable_cxx
 '
       ac_precious_vars='build_alias
@@ -1461,6 +1462,9 @@ Optional Features:
   --disable-libtool-lock  avoid locking (might break parallel builds)
   --enable-ssl            build the library in the ssl mode (default. yes)
   --enable-debug          build the library in the debug mode (default. no)
+  --enable-unicode        Use the unicode character type as the default
+                          character type. one of yes, no, yes:2, yes:4, no:2,
+                          no:4 (default. yes)
   --enable-cxx            build the library for C++ if a C++ compiler is
                           available (default. yes)
 
@@ -17452,7 +17456,7 @@ __builtin_memset ((void*)1, ' ', 10);
   return 0;
 }
 _ACEOF
-if ac_fn_c_try_compile "$LINENO"; then :
+if ac_fn_c_try_link "$LINENO"; then :
   { $as_echo "$as_me:${as_lineno-$LINENO}: result: yes" >&5
 $as_echo "yes" >&6; }
 
@@ -17463,7 +17467,8 @@ else
 $as_echo "no" >&6; }
 
 fi
-rm -f core conftest.err conftest.$ac_objext conftest.$ac_ext
+rm -f core conftest.err conftest.$ac_objext \
+    conftest$ac_exeext conftest.$ac_ext
 
 { $as_echo "$as_me:${as_lineno-$LINENO}: checking __builtin_memcpy" >&5
 $as_echo_n "checking __builtin_memcpy... " >&6; }
@@ -17478,7 +17483,7 @@ __builtin_memcpy ((void*)1, (void*)2, 10);
   return 0;
 }
 _ACEOF
-if ac_fn_c_try_compile "$LINENO"; then :
+if ac_fn_c_try_link "$LINENO"; then :
   { $as_echo "$as_me:${as_lineno-$LINENO}: result: yes" >&5
 $as_echo "yes" >&6; }
 
@@ -17489,7 +17494,8 @@ else
 $as_echo "no" >&6; }
 
 fi
-rm -f core conftest.err conftest.$ac_objext conftest.$ac_ext
+rm -f core conftest.err conftest.$ac_objext \
+    conftest$ac_exeext conftest.$ac_ext
 
 { $as_echo "$as_me:${as_lineno-$LINENO}: checking __builtin_memmove" >&5
 $as_echo_n "checking __builtin_memmove... " >&6; }
@@ -17504,7 +17510,7 @@ __builtin_memmove ((void*)1, (void*)2, 10);
   return 0;
 }
 _ACEOF
-if ac_fn_c_try_compile "$LINENO"; then :
+if ac_fn_c_try_link "$LINENO"; then :
   { $as_echo "$as_me:${as_lineno-$LINENO}: result: yes" >&5
 $as_echo "yes" >&6; }
 
@@ -17515,7 +17521,8 @@ else
 $as_echo "no" >&6; }
 
 fi
-rm -f core conftest.err conftest.$ac_objext conftest.$ac_ext
+rm -f core conftest.err conftest.$ac_objext \
+    conftest$ac_exeext conftest.$ac_ext
 
 { $as_echo "$as_me:${as_lineno-$LINENO}: checking __builtin_memcmp" >&5
 $as_echo_n "checking __builtin_memcmp... " >&6; }
@@ -17530,7 +17537,7 @@ int a = __builtin_memcmp ((void*)1, (void*)2, 10);
   return 0;
 }
 _ACEOF
-if ac_fn_c_try_compile "$LINENO"; then :
+if ac_fn_c_try_link "$LINENO"; then :
   { $as_echo "$as_me:${as_lineno-$LINENO}: result: yes" >&5
 $as_echo "yes" >&6; }
 
@@ -17541,7 +17548,8 @@ else
 $as_echo "no" >&6; }
 
 fi
-rm -f core conftest.err conftest.$ac_objext conftest.$ac_ext
+rm -f core conftest.err conftest.$ac_objext \
+    conftest$ac_exeext conftest.$ac_ext
 
 { $as_echo "$as_me:${as_lineno-$LINENO}: checking for ANSI C header files" >&5
 $as_echo_n "checking for ANSI C header files... " >&6; }
@@ -19583,6 +19591,40 @@ _ACEOF
 # version HP92453-01 B.11.11.23709.GP, which incorrectly rejects
 # declarations like `int a3[[(sizeof (unsigned char)) >= 0]];'.
 # This bug is HP SR number 8606223364.
+{ $as_echo "$as_me:${as_lineno-$LINENO}: checking size of __uint128_t" >&5
+$as_echo_n "checking size of __uint128_t... " >&6; }
+if ${ac_cv_sizeof___uint128_t+:} false; then :
+  $as_echo_n "(cached) " >&6
+else
+  if ac_fn_c_compute_int "$LINENO" "(long int) (sizeof (__uint128_t))" "ac_cv_sizeof___uint128_t"        "
+"; then :
+
+else
+  if test "$ac_cv_type___uint128_t" = yes; then
+     { { $as_echo "$as_me:${as_lineno-$LINENO}: error: in \`$ac_pwd':" >&5
+$as_echo "$as_me: error: in \`$ac_pwd':" >&2;}
+as_fn_error 77 "cannot compute sizeof (__uint128_t)
+See \`config.log' for more details" "$LINENO" 5; }
+   else
+     ac_cv_sizeof___uint128_t=0
+   fi
+fi
+
+fi
+{ $as_echo "$as_me:${as_lineno-$LINENO}: result: $ac_cv_sizeof___uint128_t" >&5
+$as_echo "$ac_cv_sizeof___uint128_t" >&6; }
+
+
+
+cat >>confdefs.h <<_ACEOF
+#define SIZEOF___UINT128_T $ac_cv_sizeof___uint128_t
+_ACEOF
+
+
+# The cast to long int works around a bug in the HP C Compiler
+# version HP92453-01 B.11.11.23709.GP, which incorrectly rejects
+# declarations like `int a3[[(sizeof (unsigned char)) >= 0]];'.
+# This bug is HP SR number 8606223364.
 { $as_echo "$as_me:${as_lineno-$LINENO}: checking size of void *" >&5
 $as_echo_n "checking size of void *... " >&6; }
 if ${ac_cv_sizeof_void_p+:} false; then :
@@ -20438,16 +20480,18 @@ fi
 
 if test ${ac_cv_sizeof___int128_t} -gt 0
 then
-	{ $as_echo "$as_me:${as_lineno-$LINENO}: checking __int128_t with %" >&5
-$as_echo_n "checking __int128_t with %... " >&6; }
+	{ $as_echo "$as_me:${as_lineno-$LINENO}: checking __int128_t with % and va_arg" >&5
+$as_echo_n "checking __int128_t with % and va_arg... " >&6; }
 	cat confdefs.h - <<_ACEOF >conftest.$ac_ext
 /* end confdefs.h.  */
-
+#include <stdarg.h>
 int
 main ()
 {
 
 			volatile __int128_t x, base;
+			va_list ap;
+			va_arg(ap, __int128_t);
 			x = (__int128_t)&base;
 			base = (__int128_t)&x;
 			x = x % base;
@@ -20467,6 +20511,7 @@ else
 			{ $as_echo "$as_me:${as_lineno-$LINENO}: result: no" >&5
 $as_echo "no" >&6; }
 			ac_cv_sizeof___int128_t=0
+			ac_cv_sizeof___uint128_t=0
 
 
 fi
@@ -21063,6 +21108,69 @@ else
 	CFLAGS="$CFLAGS -DNDEBUG -U_DEBUG -DMIO_BUILD_RELEASE -U_FORTIFY_SOURCE"
 	CXXFLAGS="$CXXFLAGS -DNDEBUG -U_DEBUG -DMIO_BUILD_RELEASE -U_FORTIFY_SOURCE"
 	BUILD_MODE="release"
+
+fi
+
+# Check whether --enable-unicode was given.
+if test "${enable_unicode+set}" = set; then :
+  enableval=$enable_unicode; enable_unicode=$enableval
+else
+  enable_unicode=yes
+
+fi
+
+if test "${enable_unicode}" = "yes:4"
+then
+
+$as_echo "#define MIO_UNICODE_SIZE 4" >>confdefs.h
+
+
+$as_echo "#define MIO_ENABLE_UNICODE 1" >>confdefs.h
+
+	if test "${platform_win32}" = "yes"
+	then
+		CFLAGS="$CFLAGS -DUNICODE -D_UNICODE"
+		CXXFLAGS="$CXXFLAGS -DUNICODE -D_UNICODE"
+	fi
+elif test "${enable_unicode}" = "yes:2"
+then
+
+$as_echo "#define MIO_UNICODE_SIZE 2" >>confdefs.h
+
+
+$as_echo "#define MIO_ENABLE_UNICODE 1" >>confdefs.h
+
+	if test "${platform_win32}" = "yes"
+	then
+		CFLAGS="$CFLAGS -DUNICODE -D_UNICODE"
+		CXXFLAGS="$CXXFLAGS -DUNICODE -D_UNICODE"
+	fi
+elif test "${enable_unicode}" = "yes"
+then
+
+$as_echo "#define MIO_UNICODE_SIZE 1" >>confdefs.h
+
+
+$as_echo "#define MIO_ENABLE_UNICODE 1" >>confdefs.h
+
+	if test "${platform_win32}" = "yes"
+	then
+		CFLAGS="$CFLAGS -DUNICODE -D_UNICODE"
+		CXXFLAGS="$CXXFLAGS -DUNICODE -D_UNICODE"
+	fi
+elif test "${enable_unicode}" = "no:4"
+then
+
+$as_echo "#define MIO_UNICODE_SIZE 4" >>confdefs.h
+
+elif test "${enable_unicode}" = "no:2"
+then
+
+$as_echo "#define MIO_UNICODE_SIZE 2" >>confdefs.h
+
+else
+
+$as_echo "#define MIO_UNICODE_SIZE 1" >>confdefs.h
 
 fi
 
