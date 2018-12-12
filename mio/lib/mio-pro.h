@@ -58,7 +58,7 @@ struct mio_dev_pro_t
 	mio_dev_pro_on_write_t on_write;
 	mio_dev_pro_on_close_t on_close;
 
-	mio_mchar_t* mcmd;
+	mio_bch_t* mcmd;
 };
 
 struct mio_dev_pro_slave_t
@@ -124,7 +124,7 @@ extern "C" {
 
 MIO_EXPORT  mio_dev_pro_t* mio_dev_pro_make (
 	mio_t*                    mio,
-	mio_size_t                xtnsize,
+	mio_oow_t                xtnsize,
 	const mio_dev_pro_make_t* data
 );
 

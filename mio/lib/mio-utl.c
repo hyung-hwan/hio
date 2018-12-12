@@ -210,12 +210,12 @@ mio_uint128_t mio_hton128 (mio_uint128_t x)
 
 #define IS_MSPACE(x) ((x) == MIO_MT(' ') || (x) == MIO_MT('\t') || (x) == MIO_MT('\n') || (x) == MIO_MT('\r'))
 
-mio_mchar_t* mio_mbsdup (mio_t* mio, const mio_mchar_t* src)
+mio_bch_t* mio_mbsdup (mio_t* mio, const mio_bch_t* src)
 {
-	mio_mchar_t* dst;
-	mio_size_t len;
+	mio_bch_t* dst;
+	mio_oow_t len;
 
-	dst = (mio_mchar_t*)src;
+	dst = (mio_bch_t*)src;
 	while (*dst != MIO_MT('\0')) dst++;
 	len = dst - src;
 
@@ -230,20 +230,20 @@ mio_mchar_t* mio_mbsdup (mio_t* mio, const mio_mchar_t* src)
 	return dst;
 }
 
-mio_size_t mio_mbscpy (mio_mchar_t* buf, const mio_mchar_t* str)
+mio_oow_t mio_mbscpy (mio_bch_t* buf, const mio_bch_t* str)
 {
-	mio_mchar_t* org = buf;
+	mio_bch_t* org = buf;
 	while ((*buf++ = *str++) != MIO_MT('\0'));
 	return buf - org - 1;
 }
 
 int mio_mbsspltrn (
-	mio_mchar_t* s, const mio_mchar_t* delim,
-	mio_mchar_t lquote, mio_mchar_t rquote, 
-	mio_mchar_t escape, const mio_mchar_t* trset)
+	mio_bch_t* s, const mio_bch_t* delim,
+	mio_bch_t lquote, mio_bch_t rquote, 
+	mio_bch_t escape, const mio_bch_t* trset)
 {
-	mio_mchar_t* p = s, *d;
-	mio_mchar_t* sp = MIO_NULL, * ep = MIO_NULL;
+	mio_bch_t* p = s, *d;
+	mio_bch_t* sp = MIO_NULL, * ep = MIO_NULL;
 	int delim_mode;
 	int cnt = 0;
 
@@ -251,7 +251,7 @@ int mio_mbsspltrn (
 	else 
 	{
 		delim_mode = 1;
-		for (d = (mio_mchar_t*)delim; *d != MIO_MT('\0'); d++)
+		for (d = (mio_bch_t*)delim; *d != MIO_MT('\0'); d++)
 			if (!IS_MSPACE(*d)) delim_mode = 2;
 	}
 
@@ -274,7 +274,7 @@ int mio_mbsspltrn (
 				{
 					if (trset != MIO_NULL && p[1] != MIO_MT('\0'))
 					{
-						const mio_mchar_t* ep = trset;
+						const mio_bch_t* ep = trset;
 						while (*ep != MIO_MT('\0'))
 						{
 							if (p[1] == *ep++) 
@@ -307,7 +307,7 @@ int mio_mbsspltrn (
 			else 
 			{
 				ep[1] = MIO_MT('\0');
-				if (s != (mio_mchar_t*)sp) mio_mbscpy (s, sp);
+				if (s != (mio_bch_t*)sp) mio_mbscpy (s, sp);
 				cnt++;
 			}
 		}
@@ -327,14 +327,14 @@ int mio_mbsspltrn (
 			else 
 			{
 				ep[1] = MIO_MT('\0');
-				if (s != (mio_mchar_t*)sp) mio_mbscpy (s, sp);
+				if (s != (mio_bch_t*)sp) mio_mbscpy (s, sp);
 				cnt++;
 			}
 		}
 	}
 	else if (delim_mode == 1) 
 	{
-		mio_mchar_t* o;
+		mio_bch_t* o;
 
 		while (*p) 
 		{
@@ -354,7 +354,7 @@ int mio_mbsspltrn (
 					{
 						if (trset != MIO_NULL && p[1] != MIO_MT('\0'))
 						{
-							const mio_mchar_t* ep = trset;
+							const mio_bch_t* ep = trset;
 							while (*ep != MIO_MT('\0'))
 							{
 								if (p[1] == *ep++) 
@@ -401,7 +401,7 @@ int mio_mbsspltrn (
 	}
 	else /* if (delim_mode == 2) */
 	{
-		mio_mchar_t* o;
+		mio_bch_t* o;
 		int ok;
 
 		while (*p != MIO_MT('\0')) 
@@ -422,7 +422,7 @@ int mio_mbsspltrn (
 					{
 						if (trset != MIO_NULL && p[1] != MIO_MT('\0'))
 						{
-							const mio_mchar_t* ep = trset;
+							const mio_bch_t* ep = trset;
 							while (*ep != MIO_MT('\0'))
 							{
 								if (p[1] == *ep++) 
@@ -450,7 +450,7 @@ int mio_mbsspltrn (
 				ok = 0;
 				while (IS_MSPACE(*p)) p++;
 				if (*p == MIO_MT('\0')) ok = 1;
-				for (d = (mio_mchar_t*)delim; *d != MIO_MT('\0'); d++) 
+				for (d = (mio_bch_t*)delim; *d != MIO_MT('\0'); d++) 
 				{
 					if (*p == *d) 
 					{
@@ -477,7 +477,7 @@ int mio_mbsspltrn (
 						cnt++;
 						break;
 					}
-					for (d = (mio_mchar_t*)delim; *d != MIO_MT('\0'); d++) 
+					for (d = (mio_bch_t*)delim; *d != MIO_MT('\0'); d++) 
 					{
 						if (*p == *d)  
 						{
@@ -517,8 +517,8 @@ exit_point:
 }
 
 int mio_mbsspl (
-	mio_mchar_t* s, const mio_mchar_t* delim,
-	mio_mchar_t lquote, mio_mchar_t rquote, mio_mchar_t escape)
+	mio_bch_t* s, const mio_bch_t* delim,
+	mio_bch_t lquote, mio_bch_t rquote, mio_bch_t escape)
 {
 	return mio_mbsspltrn (s, delim, lquote, rquote, escape, MIO_NULL);
 }

@@ -373,8 +373,8 @@ struct mio_dev_sck_bind_t
 	mio_sckaddr_t localaddr;
 	/* TODO: add device name for BIND_TO_DEVICE */
 
-	const mio_mchar_t* ssl_certfile;
-	const mio_mchar_t* ssl_keyfile;
+	const mio_bch_t* ssl_certfile;
+	const mio_bch_t* ssl_keyfile;
 	mio_ntime_t accept_tmout;
 };
 
@@ -526,7 +526,7 @@ MIO_EXPORT void mio_sckaddr_initforeth (
 
 MIO_EXPORT mio_dev_sck_t* mio_dev_sck_make (
 	mio_t*                    mio,
-	mio_size_t                xtnsize,
+	mio_oow_t                xtnsize,
 	const mio_dev_sck_make_t* info
 );
 
@@ -586,7 +586,7 @@ static MIO_INLINE int mio_dev_sck_read (mio_dev_sck_t* sck, int enabled)
 
 MIO_EXPORT mio_uint16_t mio_checksumip (
 	const void* hdr,
-	mio_size_t len
+	mio_oow_t len
 );
 
 

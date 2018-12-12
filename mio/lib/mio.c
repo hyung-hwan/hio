@@ -69,23 +69,23 @@ static int kill_and_free_device (mio_dev_t* dev, int force);
 #define MUX_CMD_UPDATE 2
 #define MUX_CMD_DELETE 3
 
-#define MUX_INDEX_INVALID MIO_TYPE_MAX(mio_size_t)
+#define MUX_INDEX_INVALID MIO_TYPE_MAX(mio_oow_t)
 
 struct mio_mux_t
 {
 	struct
 	{
-		mio_size_t* ptr;
-		mio_size_t  size;
-		mio_size_t  capa;
+		mio_oow_t* ptr;
+		mio_oow_t  size;
+		mio_oow_t  capa;
 	} map; /* handle to index */
 
 	struct
 	{
 		struct pollfd* pfd;
 		mio_dev_t** dptr;
-		mio_size_t size;
-		mio_size_t capa;
+		mio_oow_t size;
+		mio_oow_t capa;
 	} pd; /* poll data */
 };
 
@@ -120,15 +120,15 @@ static int mux_control (mio_dev_t* dev, int cmd, mio_syshnd_t hnd, int dev_capa)
 {
 	mio_t* mio;
 	mio_mux_t* mux;
-	mio_size_t idx;
+	mio_oow_t idx;
 
 	mio = dev->mio;
 	mux = (mio_mux_t*)mio->mux;
 
 	if (hnd >= mux->map.capa)
 	{
-		mio_size_t new_capa;
-		mio_size_t* tmp;
+		mio_oow_t new_capa;
+		mio_oow_t* tmp;
 
 		if (cmd != MUX_CMD_INSERT)
 		{
@@ -136,9 +136,9 @@ static int mux_control (mio_dev_t* dev, int cmd, mio_syshnd_t hnd, int dev_capa)
 			return -1;
 		}
 
-		new_capa = MIO_ALIGNTO_POW2((hnd + 1), 256);
+		new_capa = MIO_ALIGN_POW2((hnd + 1), 256);
 
-		tmp = MIO_MMGR_REALLOC (mio->mmgr, mux->map.ptr, new_capa * MIO_SIZEOF(*tmp));
+		tmp = MIO_MMGR_REALLOC(mio->mmgr, mux->map.ptr, new_capa * MIO_SIZEOF(*tmp));
 		if (!tmp)
 		{
 			mio->errnum = MIO_ENOMEM;
@@ -176,13 +176,13 @@ static int mux_control (mio_dev_t* dev, int cmd, mio_syshnd_t hnd, int dev_capa)
 
 			if (mux->pd.size >= mux->pd.capa)
 			{
-				mio_size_t new_capa;
+				mio_oow_t new_capa;
 				struct pollfd* tmp1;
 				mio_dev_t** tmp2;
 
-				new_capa = MIO_ALIGNTO_POW2(mux->pd.size + 1, 256);
+				new_capa = MIO_ALIGN_POW2(mux->pd.size + 1, 256);
 
-				tmp1 = MIO_MMGR_REALLOC (mio->mmgr, mux->pd.pfd, new_capa * MIO_SIZEOF(*tmp1));
+				tmp1 = MIO_MMGR_REALLOC(mio->mmgr, mux->pd.pfd, new_capa * MIO_SIZEOF(*tmp1));
 				if (!tmp1)
 				{
 					mio->errnum = MIO_ENOMEM;
@@ -333,7 +333,7 @@ static MIO_INLINE int mux_control (mio_dev_t* dev, int cmd, mio_syshnd_t hnd, in
 
 /* ========================================================================= */
 
-mio_t* mio_open (mio_mmgr_t* mmgr, mio_size_t xtnsize, mio_size_t tmrcapa, mio_errnum_t* errnum)
+mio_t* mio_open (mio_mmgr_t* mmgr, mio_oow_t xtnsize, mio_oow_t tmrcapa, mio_errnum_t* errnum)
 {
 	mio_t* mio;
 
@@ -362,7 +362,7 @@ void mio_close (mio_t* mio)
 	MIO_MMGR_FREE (mio->mmgr, mio);
 }
 
-int mio_init (mio_t* mio, mio_mmgr_t* mmgr, mio_size_t tmrcapa)
+int mio_init (mio_t* mio, mio_mmgr_t* mmgr, mio_oow_t tmrcapa)
 {
 	MIO_MEMSET (mio, 0, MIO_SIZEOF(*mio));
 	mio->mmgr = mmgr;
@@ -862,7 +862,7 @@ int mio_loop (mio_t* mio)
 	return 0;
 }
 
-mio_dev_t* mio_makedev (mio_t* mio, mio_size_t dev_size, mio_dev_mth_t* dev_mth, mio_dev_evcb_t* dev_evcb, void* make_ctx)
+mio_dev_t* mio_makedev (mio_t* mio, mio_oow_t dev_size, mio_dev_mth_t* dev_mth, mio_dev_evcb_t* dev_evcb, void* make_ctx)
 {
 	mio_dev_t* dev;
 

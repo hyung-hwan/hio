@@ -50,9 +50,9 @@ static mio_dev_pro_slave_t* make_slave (mio_t* mio, slave_info_t* si);
 
 struct param_t
 {
-	mio_mchar_t* mcmd;
-	mio_mchar_t* fixed_argv[4];
-	mio_mchar_t** argv;
+	mio_bch_t* mcmd;
+	mio_bch_t* fixed_argv[4];
+	mio_bch_t** argv;
 };
 typedef struct param_t param_t;
 
@@ -64,16 +64,16 @@ static void free_param (mio_t* mio, param_t* param)
 	MIO_MEMSET (param, 0, MIO_SIZEOF(*param));
 }
 
-static int make_param (mio_t* mio, const mio_mchar_t* cmd, int flags, param_t* param)
+static int make_param (mio_t* mio, const mio_bch_t* cmd, int flags, param_t* param)
 {
 	int fcnt = 0;
-	mio_mchar_t* mcmd = MIO_NULL;
+	mio_bch_t* mcmd = MIO_NULL;
 
 	MIO_MEMSET (param, 0, MIO_SIZEOF(*param));
 
 	if (flags & MIO_DEV_PRO_SHELL)
 	{
-		mcmd = (mio_mchar_t*)cmd;
+		mcmd = (mio_bch_t*)cmd;
 
 		param->argv = param->fixed_argv;
 		param->argv[0] = MIO_MT("/bin/sh");
@@ -84,8 +84,8 @@ static int make_param (mio_t* mio, const mio_mchar_t* cmd, int flags, param_t* p
 	else
 	{
 		int i;
-		mio_mchar_t** argv;
-		mio_mchar_t* mcmdptr;
+		mio_bch_t** argv;
+		mio_bch_t* mcmdptr;
 
 		mcmd = mio_mbsdup (mio, cmd);
 		if (!mcmd) goto oops;
@@ -122,7 +122,7 @@ static int make_param (mio_t* mio, const mio_mchar_t* cmd, int flags, param_t* p
 		param->argv[i] = MIO_NULL;
 	}
 
-	if (mcmd && mcmd != (mio_mchar_t*)cmd) param->mcmd = mcmd;
+	if (mcmd && mcmd != (mio_bch_t*)cmd) param->mcmd = mcmd;
 	return 0;
 
 oops:
@@ -777,7 +777,7 @@ static mio_dev_pro_slave_t* make_slave (mio_t* mio, slave_info_t* si)
 	}
 }
 
-mio_dev_pro_t* mio_dev_pro_make (mio_t* mio, mio_size_t xtnsize, const mio_dev_pro_make_t* info)
+mio_dev_pro_t* mio_dev_pro_make (mio_t* mio, mio_oow_t xtnsize, const mio_dev_pro_make_t* info)
 {
 	return (mio_dev_pro_t*)mio_makedev (
 		mio, MIO_SIZEOF(mio_dev_pro_t) + xtnsize, 

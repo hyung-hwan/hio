@@ -57,7 +57,6 @@
 #	endif
 #endif
 
-
 /* =========================================================================
  * PRIMITIVE TYPE DEFINTIONS
  * ========================================================================= */
@@ -84,7 +83,6 @@
 	typedef unsigned char      mio_uint8_t;
 	typedef signed char        mio_int8_t;
 #endif
-
 
 /* mio_int16_t */
 #if defined(MIO_SIZEOF_SHORT) && (MIO_SIZEOF_SHORT == 2)
@@ -202,7 +200,10 @@
 #elif defined(MIO_SIZEOF___INT128_T) && (MIO_SIZEOF___INT128_T == 16)
 #	define MIO_HAVE_UINT128_T
 #	define MIO_HAVE_INT128_T
-	#if defined(__clang__)
+	#if defined(MIO_SIZEOF___UINT128_T) && (MIO_SIZEOF___UINT128_T == MIO_SIZEOF___INT128_T)
+	typedef __uint128_t  mio_uint128_t;
+	typedef __int128_t   mio_int128_t;
+	#elif defined(__clang__)
 	typedef __uint128_t  mio_uint128_t;
 	typedef __int128_t   mio_int128_t;
 	#else
@@ -276,18 +277,169 @@
 /* =========================================================================
  * BASIC MIO TYPES
  * =========================================================================*/
+typedef char                    mio_bch_t;
+typedef int                     mio_bci_t;
+typedef unsigned char           mio_bchu_t; /* unsigned version of mio_bch_t for inner working */
+#define MIO_SIZEOF_BCH_T MIO_SIZEOF_CHAR
+#define MIO_SIZEOF_BCI_T MIO_SIZEOF_INT
 
-typedef mio_uint8_t mio_byte_t;
-typedef mio_uintptr_t mio_size_t;
+#if defined(MIO_UNICODE_SIZE) && (MIO_UNICODE_SIZE >= 4)
+#	if defined(__GNUC__) && defined(__CHAR32_TYPE__)
+	typedef __CHAR32_TYPE__    mio_uch_t;
+#	else
+	typedef mio_uint32_t       mio_uch_t;
+#	endif
+	typedef mio_uint32_t       mio_uchu_t; /* same as mio_uch_t as it is already unsigned */
+#	define MIO_SIZEOF_UCH_T 4
+
+#elif defined(__GNUC__) && defined(__CHAR16_TYPE__)
+	typedef __CHAR16_TYPE__    mio_uch_t; 
+	typedef mio_uint16_t       mio_uchu_t; /* same as mio_uch_t as it is already unsigned */
+#	define MIO_SIZEOF_UCH_T 2
+#else
+	typedef mio_uint16_t       mio_uch_t;
+	typedef mio_uint16_t       mio_uchu_t; /* same as mio_uch_t as it is already unsigned */
+#	define MIO_SIZEOF_UCH_T 2
+#endif
+
+typedef mio_int32_t             mio_uci_t;
+#define MIO_SIZEOF_UCI_T 4
+
+typedef mio_uint8_t             mio_oob_t;
+
+/* NOTE: sizeof(mio_oop_t) must be equal to sizeof(mio_oow_t) */
+typedef mio_uintptr_t           mio_oow_t;
+typedef mio_intptr_t            mio_ooi_t;
+#define MIO_SIZEOF_OOW_T MIO_SIZEOF_UINTPTR_T
+#define MIO_SIZEOF_OOI_T MIO_SIZEOF_INTPTR_T
+
+typedef mio_ushortptr_t         mio_oohw_t; /* half word - half word */
+typedef mio_shortptr_t          mio_oohi_t; /* signed half word */
+#define MIO_SIZEOF_OOHW_T MIO_SIZEOF_USHORTPTR_T
+#define MIO_SIZEOF_OOHI_T MIO_SIZEOF_SHORTPTR_T
+
+struct mio_ucs_t
+{
+	mio_uch_t* ptr;
+	mio_oow_t  len;
+};
+typedef struct mio_ucs_t mio_ucs_t;
+
+struct mio_bcs_t
+{
+	mio_bch_t* ptr;
+	mio_oow_t  len;
+};
+typedef struct mio_bcs_t mio_bcs_t;
+
+#if defined(MIO_ENABLE_UNICODE)
+	typedef mio_uch_t               mio_ooch_t;
+	typedef mio_uchu_t              mio_oochu_t;
+	typedef mio_uci_t               mio_ooci_t;
+	typedef mio_ucs_t               mio_oocs_t;
+#	define MIO_OOCH_IS_UCH
+#	define MIO_SIZEOF_OOCH_T MIO_SIZEOF_UCH_T
+#else
+	typedef mio_bch_t               mio_ooch_t;
+	typedef mio_bchu_t              mio_oochu_t;
+	typedef mio_bci_t               mio_ooci_t;
+	typedef mio_bcs_t               mio_oocs_t;
+#	define MIO_OOCH_IS_BCH
+#	define MIO_SIZEOF_OOCH_T MIO_SIZEOF_BCH_T
+#endif
+
+/* the maximum number of bch charaters to represent a single uch character */
+#define MIO_BCSIZE_MAX 6
+
+/* =========================================================================
+ * TIME-RELATED TYPES
+ * =========================================================================*/
+#define MIO_MSECS_PER_SEC  (1000)
+#define MIO_MSECS_PER_MIN  (MIO_MSECS_PER_SEC * MIO_SECS_PER_MIN)
+#define MIO_MSECS_PER_HOUR (MIO_MSECS_PER_SEC * MIO_SECS_PER_HOUR)
+#define MIO_MSECS_PER_DAY  (MIO_MSECS_PER_SEC * MIO_SECS_PER_DAY)
+
+#define MIO_USECS_PER_MSEC (1000)
+#define MIO_NSECS_PER_USEC (1000)
+#define MIO_NSECS_PER_MSEC (MIO_NSECS_PER_USEC * MIO_USECS_PER_MSEC)
+#define MIO_USECS_PER_SEC  (MIO_USECS_PER_MSEC * MIO_MSECS_PER_SEC)
+#define MIO_NSECS_PER_SEC  (MIO_NSECS_PER_USEC * MIO_USECS_PER_MSEC * MIO_MSECS_PER_SEC)
+
+#define MIO_SECNSEC_TO_MSEC(sec,nsec) \
+        (((mio_intptr_t)(sec) * MIO_MSECS_PER_SEC) + ((mio_intptr_t)(nsec) / MIO_NSECS_PER_MSEC))
+
+#define MIO_SECNSEC_TO_USEC(sec,nsec) \
+        (((mio_intptr_t)(sec) * MIO_USECS_PER_SEC) + ((mio_intptr_t)(nsec) / MIO_NSECS_PER_USEC))
+
+#define MIO_SECNSEC_TO_NSEC(sec,nsec) \
+        (((mio_intptr_t)(sec) * MIO_NSECS_PER_SEC) + (mio_intptr_t)(nsec))
+
+#define MIO_SEC_TO_MSEC(sec) ((sec) * MIO_MSECS_PER_SEC)
+#define MIO_MSEC_TO_SEC(sec) ((sec) / MIO_MSECS_PER_SEC)
+
+#define MIO_USEC_TO_NSEC(usec) ((usec) * MIO_NSECS_PER_USEC)
+#define MIO_NSEC_TO_USEC(nsec) ((nsec) / MIO_NSECS_PER_USEC)
+
+#define MIO_MSEC_TO_NSEC(msec) ((msec) * MIO_NSECS_PER_MSEC)
+#define MIO_NSEC_TO_MSEC(nsec) ((nsec) / MIO_NSECS_PER_MSEC)
+
+#define MIO_MSEC_TO_USEC(msec) ((msec) * MIO_USECS_PER_MSEC)
+#define MIO_USEC_TO_MSEC(usec) ((usec) / MIO_USECS_PER_MSEC)
+
+#define MIO_SEC_TO_NSEC(sec) ((sec) * MIO_NSECS_PER_SEC)
+#define MIO_NSEC_TO_SEC(nsec) ((nsec) / MIO_NSECS_PER_SEC)
+
+#define MIO_SEC_TO_USEC(sec) ((sec) * MIO_USECS_PER_SEC)
+#define MIO_USEC_TO_SEC(usec) ((usec) / MIO_USECS_PER_SEC)
+
+typedef struct mio_ntime_t mio_ntime_t;
+struct mio_ntime_t
+{
+	mio_intptr_t  sec;
+	mio_int32_t   nsec; /* nanoseconds */
+};
+
+#define MIO_INIT_NTIME(c,s,ns) (((c)->sec = (s)), ((c)->nsec = (ns)))
+#define MIO_CLEAR_NTIME(c) MIO_INIT_NTIME(c, 0, 0)
+
+#define MIO_ADD_NTIME(c,a,b) \
+	do { \
+		(c)->sec = (a)->sec + (b)->sec; \
+		(c)->nsec = (a)->nsec + (b)->nsec; \
+		while ((c)->nsec >= MIO_NSECS_PER_SEC) { (c)->sec++; (c)->nsec -= MIO_NSECS_PER_SEC; } \
+	} while(0)
+
+#define MIO_ADD_NTIME_SNS(c,a,s,ns) \
+	do { \
+		(c)->sec = (a)->sec + (s); \
+		(c)->nsec = (a)->nsec + (ns); \
+		while ((c)->nsec >= MIO_NSECS_PER_SEC) { (c)->sec++; (c)->nsec -= MIO_NSECS_PER_SEC; } \
+	} while(0)
+
+#define MIO_SUB_NTIME(c,a,b) \
+	do { \
+		(c)->sec = (a)->sec - (b)->sec; \
+		(c)->nsec = (a)->nsec - (b)->nsec; \
+		while ((c)->nsec < 0) { (c)->sec--; (c)->nsec += MIO_NSECS_PER_SEC; } \
+	} while(0)
+
+#define MIO_SUB_NTIME_SNS(c,a,s,ns) \
+	do { \
+		(c)->sec = (a)->sec - s; \
+		(c)->nsec = (a)->nsec - ns; \
+		while ((c)->nsec < 0) { (c)->sec--; (c)->nsec += MIO_NSECS_PER_SEC; } \
+	} while(0)
 
 
-typedef char mio_mchar_t;
-typedef int mio_mcint_t;
+#define MIO_CMP_NTIME(a,b) (((a)->sec == (b)->sec)? ((a)->nsec - (b)->nsec): ((a)->sec - (b)->sec))
 
-#define MIO_MT(x) (x)
 /* =========================================================================
  * PRIMITIVE MACROS
  * ========================================================================= */
+#define MIO_UCI_EOF ((mio_uci_t)-1)
+#define MIO_BCI_EOF ((mio_bci_t)-1)
+#define MIO_OOCI_EOF ((mio_ooci_t)-1)
+
 #define MIO_SIZEOF(x) (sizeof(x))
 #define MIO_COUNTOF(x) (sizeof(x) / sizeof(x[0]))
 
@@ -303,24 +455,6 @@ typedef int mio_mcint_t;
  */
 #define MIO_ALIGNOF(type) MIO_OFFSETOF(struct { mio_uint8_t d1; type d2; }, d2)
         /*(sizeof(struct { mio_uint8_t d1; type d2; }) - sizeof(type))*/
-
-/**
- * Round up a positive integer to the nearest multiple of 'align' 
- */
-#define MIO_ALIGNTO(num,align) ((((num) + (align) - 1) / (align)) * (align))
-
-#if 0
-/**
- * Round up a number, both positive and negative, to the nearest multiple of 'align' 
- */
-#define MIO_ALIGNTO(num,align) ((((num) + (num >= 0? 1: -1) * (align) - 1) / (align)) * (align))
-#endif
-
-/**
- * Round up a positive integer to to the nearest multiple of 'align' which
- * should be a multiple of a power of 2
- */
-#define MIO_ALIGNTO_POW2(num,align) ((((num) + (align) - 1)) & ~((align) - 1))
 
 #if defined(__cplusplus)
 #	if (__cplusplus >= 201103L) /* C++11 */
@@ -344,7 +478,16 @@ typedef int mio_mcint_t;
 #define MIO_GETBITS(type,value,offset,length) \
 	((((type)(value)) >> (offset)) & MIO_LBMASK(type,length))
 
+#define MIO_CLEARBITS(type,value,offset,length) \
+	(((type)(value)) & ~(MIO_LBMASK(type,length) << (offset)))
+
 #define MIO_SETBITS(type,value,offset,length,bits) \
+	(value = (MIO_CLEARBITS(type,value,offset,length) | (((bits) & MIO_LBMASK(type,length)) << (offset))))
+
+#define MIO_FLIPBITS(type,value,offset,length) \
+	(((type)(value)) ^ (MIO_LBMASK(type,length) << (offset)))
+
+#define MIO_ORBITS(type,value,offset,length,bits) \
 	(value = (((type)(value)) | (((bits) & MIO_LBMASK(type,length)) << (offset))))
 
 
@@ -367,12 +510,12 @@ typedef struct mio_mmgr_t mio_mmgr_t;
  * allocate a memory chunk of the size \a n.
  * \return pointer to a memory chunk on success, #MIO_NULL on failure.
  */
-typedef void* (*mio_mmgr_alloc_t)   (mio_mmgr_t* mmgr, mio_size_t n);
+typedef void* (*mio_mmgr_alloc_t)   (mio_mmgr_t* mmgr, mio_oow_t n);
 /** 
  * resize a memory chunk pointed to by \a ptr to the size \a n.
  * \return pointer to a memory chunk on success, #MIO_NULL on failure.
  */
-typedef void* (*mio_mmgr_realloc_t) (mio_mmgr_t* mmgr, void* ptr, mio_size_t n);
+typedef void* (*mio_mmgr_realloc_t) (mio_mmgr_t* mmgr, void* ptr, mio_oow_t n);
 /**
  * free a memory chunk pointed to by \a ptr.
  */
@@ -414,6 +557,36 @@ struct mio_mmgr_t
  */
 #define MIO_MMGR_FREE(mmgr,ptr) ((mmgr)->free(mmgr,ptr))
 
+/* =========================================================================
+ * CMGR
+ * =========================================================================*/
+
+typedef struct mio_cmgr_t mio_cmgr_t;
+
+typedef mio_oow_t (*mio_cmgr_bctouc_t) (
+	const mio_bch_t*   mb, 
+	mio_oow_t         size,
+	mio_uch_t*         wc
+);
+
+typedef mio_oow_t (*mio_cmgr_uctobc_t) (
+	mio_uch_t    wc,
+	mio_bch_t*   mb,
+	mio_oow_t   size
+);
+
+/**
+ * The mio_cmgr_t type defines the character-level interface to 
+ * multibyte/wide-character conversion. This interface doesn't 
+ * provide any facility to store conversion state in a context
+ * independent manner. This leads to the limitation that it can
+ * handle a stateless multibyte encoding only.
+ */
+struct mio_cmgr_t
+{
+	mio_cmgr_bctouc_t bctouc;
+	mio_cmgr_uctobc_t uctobc;
+};
 
 /* =========================================================================
  * MACROS THAT CHANGES THE BEHAVIORS OF THE C COMPILER/LINKER
@@ -447,7 +620,6 @@ struct mio_mmgr_t
 #	undef MIO_HAVE_INLINE
 #endif
 
-
 /**
  * The MIO_TYPE_IS_SIGNED() macro determines if a type is signed.
  * \code
@@ -479,13 +651,44 @@ struct mio_mmgr_t
 #define MIO_TYPE_MIN(type) \
 	((MIO_TYPE_IS_SIGNED(type)? MIO_TYPE_SIGNED_MIN(type): MIO_TYPE_UNSIGNED_MIN(type)))
 
+/* round up a positive integer x to the nearst multiple of y */
+#define MIO_ALIGN(x,y) ((((x) + (y) - 1) / (y)) * (y))
+
+/* round up a positive integer x to the nearst multiple of y where
+ * y must be a multiple of a power of 2*/
+#define MIO_ALIGN_POW2(x,y) ((((x) + (y) - 1)) & ~((y) - 1))
+
+#define MIO_IS_UNALIGNED_POW2(x,y) ((x) & ((y) - 1))
+#define MIO_IS_ALIGNED_POW2(x,y) (!MIO_IS_UNALIGNED_POW2(x,y))
 
 /* =========================================================================
  * COMPILER FEATURE TEST MACROS
  * =========================================================================*/
-#if defined(__has_builtin)
+#if !defined(__has_builtin) && defined(_INTELC32_)
+	/* intel c code builder 1.0 ended up with an error without this override */
+	#define __has_builtin(x) 0
+#endif
+
+/*
+#if !defined(__is_identifier)
+	#define __is_identifier(x) 0
+#endif
+
+#if !defined(__has_attribute)
+	#define __has_attribute(x) 0
+#endif
+*/
+
+
+#if defined(__has_builtin) 
 	#if __has_builtin(__builtin_ctz)
 		#define MIO_HAVE_BUILTIN_CTZ
+	#endif
+	#if __has_builtin(__builtin_ctzl)
+		#define MIO_HAVE_BUILTIN_CTZL
+	#endif
+	#if __has_builtin(__builtin_ctzll)
+		#define MIO_HAVE_BUILTIN_CTZLL
 	#endif
 
 	#if __has_builtin(__builtin_uadd_overflow)
@@ -525,10 +728,43 @@ struct mio_mmgr_t
 	#if __has_builtin(__builtin_smulll_overflow)
 		#define MIO_HAVE_BUILTIN_SMULLL_OVERFLOW 
 	#endif
+
+	#if __has_builtin(__builtin_expect)
+		#define MIO_HAVE_BUILTIN_EXPECT
+	#endif
+
+
+	#if __has_builtin(__sync_lock_test_and_set)
+		#define MIO_HAVE_SYNC_LOCK_TEST_AND_SET
+	#endif
+	#if __has_builtin(__sync_lock_release)
+		#define MIO_HAVE_SYNC_LOCK_RELEASE
+	#endif
+
+	#if __has_builtin(__sync_synchronize)
+		#define MIO_HAVE_SYNC_SYNCHRONIZE
+	#endif
+	#if __has_builtin(__sync_bool_compare_and_swap)
+		#define MIO_HAVE_SYNC_BOOL_COMPARE_AND_SWAP
+	#endif
+	#if __has_builtin(__sync_val_compare_and_swap)
+		#define MIO_HAVE_SYNC_VAL_COMPARE_AND_SWAP
+	#endif
+
 #elif defined(__GNUC__) && defined(__GNUC_MINOR__)
+
+	#if (__GNUC__ >= 4) 
+		#define MIO_HAVE_SYNC_LOCK_TEST_AND_SET
+		#define MIO_HAVE_SYNC_LOCK_RELEASE
+
+		#define MIO_HAVE_SYNC_SYNCHRONIZE
+		#define MIO_HAVE_SYNC_BOOL_COMPARE_AND_SWAP
+		#define MIO_HAVE_SYNC_VAL_COMPARE_AND_SWAP
+	#endif
 
 	#if (__GNUC__ >= 4) || (__GNUC__ == 3 && __GNUC_MINOR__ >= 4)
 		#define MIO_HAVE_BUILTIN_CTZ
+		#define MIO_HAVE_BUILTIN_EXPECT
 	#endif
 
 	#if (__GNUC__ >= 5)
@@ -549,21 +785,13 @@ struct mio_mmgr_t
 
 #endif
 
-/*
-#if !defined(__has_builtin)
-	#define __has_builtin(x) 0
+#if defined(MIO_HAVE_BUILTIN_EXPECT)
+#	define MIO_LIKELY(x) (__builtin_expect(!!(x),1))
+#	define MIO_UNLIKELY(x) (__builtin_expect(!!(x),0))
+#else
+#	define MIO_LIKELY(x) (x)
+#	define MIO_UNLIKELY(x) (x)
 #endif
-
-
-#if !defined(__is_identifier)
-	#define __is_identifier(x) 0
-#endif
-
-#if !defined(__has_attribute)
-	#define __has_attribute(x) 0
-#endif
-*/
-
 
 
 #endif
