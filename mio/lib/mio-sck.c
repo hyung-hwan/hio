@@ -1625,7 +1625,7 @@ static mio_dev_evcb_t dev_sck_event_callbacks_stateless =
 
 /* ========================================================================= */
 
-mio_dev_sck_t* mio_dev_sck_make (mio_t* mio, mio_size_t xtnsize, const mio_dev_sck_make_t* info)
+mio_dev_sck_t* mio_dev_sck_make (mio_t* mio, mio_oow_t xtnsize, const mio_dev_sck_make_t* info)
 {
 	mio_dev_sck_t* rdev;
 
@@ -1685,7 +1685,7 @@ int mio_dev_sck_timedwrite (mio_dev_sck_t* dev, const void* data, mio_iolen_t dl
 
 /* ========================================================================= */
 
-mio_uint16_t mio_checksumip (const void* hdr, mio_size_t len)
+mio_uint16_t mio_checksumip (const void* hdr, mio_oow_t len)
 {
 	mio_uint32_t sum = 0;
 	mio_uint16_t *ptr = (mio_uint16_t*)hdr;

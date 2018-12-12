@@ -73,8 +73,8 @@ struct mio_t
 
 	struct
 	{
-		mio_size_t     capa;
-		mio_size_t     size;
+		mio_oow_t     capa;
+		mio_oow_t     size;
 		mio_tmrjob_t*  jobs;
 	} tmr;
 
@@ -105,38 +105,6 @@ struct mio_t
 #define MIO_SECS_PER_MIN   (60)
 #define MIO_SECS_PER_HOUR  (MIO_SECS_PER_MIN*MIO_MINS_PER_HOUR)
 #define MIO_SECS_PER_DAY   (MIO_SECS_PER_MIN*MIO_MINS_PER_DAY)
-#define MIO_MSECS_PER_SEC  (1000)
-#define MIO_MSECS_PER_MIN  (MIO_MSECS_PER_SEC*MIO_SECS_PER_MIN)
-#define MIO_MSECS_PER_HOUR (MIO_MSECS_PER_SEC*MIO_SECS_PER_HOUR)
-#define MIO_MSECS_PER_DAY  (MIO_MSECS_PER_SEC*MIO_SECS_PER_DAY)
-
-#define MIO_USECS_PER_MSEC (1000)
-#define MIO_NSECS_PER_USEC (1000)
-#define MIO_NSECS_PER_MSEC (MIO_NSECS_PER_USEC*MIO_USECS_PER_MSEC)
-#define MIO_USECS_PER_SEC  (MIO_USECS_PER_MSEC*MIO_MSECS_PER_SEC)
-#define MIO_NSECS_PER_SEC  (MIO_NSECS_PER_USEC*MIO_USECS_PER_MSEC*MIO_MSECS_PER_SEC)
-
-#define MIO_SECNSEC_TO_MSEC(sec,nsec) \
-	(((mio_intptr_t)(sec) * MIO_MSECS_PER_SEC) + ((mio_intptr_t)(nsec) / MIO_NSECS_PER_MSEC))
-
-#define MIO_SECNSEC_TO_USEC(sec,nsec) \
-	(((mio_intptr_t)(sec) * MIO_USECS_PER_SEC) + ((mio_intptr_t)(nsec) / MIO_NSECS_PER_USEC))
-
-#define MIO_SEC_TO_MSEC(sec) ((sec) * MIO_MSECS_PER_SEC)
-#define MIO_MSEC_TO_SEC(sec) ((sec) / MIO_MSECS_PER_SEC)
-
-#define MIO_USEC_TO_NSEC(usec) ((usec) * MIO_NSECS_PER_USEC)
-#define MIO_NSEC_TO_USEC(nsec) ((nsec) / MIO_NSECS_PER_USEC)
-
-#define MIO_MSEC_TO_NSEC(msec) ((msec) * MIO_NSECS_PER_MSEC)
-#define MIO_NSEC_TO_MSEC(nsec) ((nsec) / MIO_NSECS_PER_MSEC)
-
-#define MIO_SEC_TO_NSEC(sec) ((sec) * MIO_NSECS_PER_SEC)
-#define MIO_NSEC_TO_SEC(nsec) ((nsec) / MIO_NSECS_PER_SEC)
-
-#define MIO_SEC_TO_USEC(sec) ((sec) * MIO_USECS_PER_SEC)
-#define MIO_USEC_TO_SEC(usec) ((usec) / MIO_USECS_PER_SEC)
-
 
 #ifdef __cplusplus
 extern "C" {
@@ -152,31 +120,31 @@ mio_errnum_t mio_syserrtoerrnum (
 );
 
 
-mio_mchar_t* mio_mbsdup (
+mio_bch_t* mio_mbsdup (
 	mio_t*             mio,
-	const mio_mchar_t* src
+	const mio_bch_t* src
 );
 
-mio_size_t mio_mbscpy (
-	mio_mchar_t*       buf,
-	const mio_mchar_t* str
+mio_oow_t mio_mbscpy (
+	mio_bch_t*       buf,
+	const mio_bch_t* str
 );
 
 int mio_mbsspltrn (
-	mio_mchar_t*       s,
-	const mio_mchar_t* delim,
-	mio_mchar_t        lquote,
-	mio_mchar_t        rquote, 
-	mio_mchar_t        escape,
-	const mio_mchar_t* trset
+	mio_bch_t*       s,
+	const mio_bch_t* delim,
+	mio_bch_t        lquote,
+	mio_bch_t        rquote, 
+	mio_bch_t        escape,
+	const mio_bch_t* trset
 );
 
 int mio_mbsspl (
-	mio_mchar_t*       s,
-	const mio_mchar_t* delim,
-	mio_mchar_t        lquote,
-	mio_mchar_t        rquote,
-	mio_mchar_t        escape
+	mio_bch_t*       s,
+	const mio_bch_t* delim,
+	mio_bch_t        lquote,
+	mio_bch_t        rquote,
+	mio_bch_t        escape
 );
 
 void mio_cleartmrjobs (
@@ -186,7 +154,7 @@ void mio_cleartmrjobs (
 void mio_firetmrjobs (
 	mio_t*             mio,
 	const mio_ntime_t* tmbase,
-	mio_size_t*        firecnt
+	mio_oow_t*        firecnt
 );
 
 

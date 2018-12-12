@@ -56,14 +56,14 @@
 
 struct mmgr_stat_t
 {
-	mio_size_t total_count;
+	mio_oow_t total_count;
 };
 
 typedef struct mmgr_stat_t mmgr_stat_t;
 
 static mmgr_stat_t mmgr_stat;
 
-static void* mmgr_alloc (mio_mmgr_t* mmgr, mio_size_t size)
+static void* mmgr_alloc (mio_mmgr_t* mmgr, mio_oow_t size)
 {
 	void* x;
 
@@ -78,7 +78,7 @@ printf ("CRITICAL ERROR ---> too many heap chunks...\n");
 	return x;
 }
 
-static void* mmgr_realloc (mio_mmgr_t* mmgr, void* ptr, mio_size_t size)
+static void* mmgr_realloc (mio_mmgr_t* mmgr, void* ptr, mio_oow_t size)
 {
 	return realloc (ptr, size);
 }
@@ -160,7 +160,7 @@ static int tcp_sck_on_connect (mio_dev_sck_t* tcp)
 
 	mio_sckfam_t fam;
 	mio_scklen_t len;
-	mio_mchar_t buf1[128], buf2[128];
+	mio_bch_t buf1[128], buf2[128];
 
 	memset (buf1, 0, MIO_SIZEOF(buf1));
 	memset (buf2, 0, MIO_SIZEOF(buf2));

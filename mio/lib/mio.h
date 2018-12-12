@@ -29,17 +29,6 @@
 
 #include <mio-cmn.h>
 
-/**
- * The mio_ntime_t type defines a numeric time type expressed in the 
- *  number of milliseconds since the Epoch (00:00:00 UTC, Jan 1, 1970).
- */
-typedef struct mio_ntime_t mio_ntime_t;
-struct mio_ntime_t
-{
-	mio_intptr_t  sec;
-	mio_int32_t   nsec; /* nanoseconds */
-};
-
 #if defined(_WIN32)
 	typedef mio_uintptr_t qse_syshnd_t;
 	#define MIO_SYSHND_INVALID (~(mio_uintptr_t)0)
@@ -129,7 +118,7 @@ typedef enum mio_stopreq_t mio_stopreq_t;
 
 #define MIO_TMRIDX_INVALID ((mio_tmridx_t)-1)
 
-typedef mio_size_t mio_tmridx_t;
+typedef mio_oow_t mio_tmridx_t;
 
 typedef struct mio_tmrjob_t mio_tmrjob_t;
 
@@ -263,7 +252,7 @@ struct mio_wq_t
 
 #define MIO_DEV_HEADERS \
 	mio_t*          mio; \
-	mio_size_t      dev_size; \
+	mio_oow_t      dev_size; \
 	int              dev_capa; \
 	mio_dev_mth_t*  dev_mth; \
 	mio_dev_evcb_t* dev_evcb; \
@@ -329,8 +318,8 @@ extern "C" {
 
 MIO_EXPORT mio_t* mio_open (
 	mio_mmgr_t*   mmgr,
-	mio_size_t    xtnsize,
-	mio_size_t    tmrcapa,  /**< initial timer capacity */
+	mio_oow_t    xtnsize,
+	mio_oow_t    tmrcapa,  /**< initial timer capacity */
 	mio_errnum_t* errnum
 );
 
@@ -341,7 +330,7 @@ MIO_EXPORT void mio_close (
 MIO_EXPORT int mio_init (
 	mio_t*      mio,
 	mio_mmgr_t* mmgr,
-	mio_size_t  tmrcapa
+	mio_oow_t  tmrcapa
 );
 
 MIO_EXPORT void mio_fini (
@@ -363,7 +352,7 @@ MIO_EXPORT void mio_stop (
 
 MIO_EXPORT mio_dev_t* mio_makedev (
 	mio_t*          mio,
-	mio_size_t      dev_size,
+	mio_oow_t      dev_size,
 	mio_dev_mth_t*  dev_mth,
 	mio_dev_evcb_t* dev_evcb,
 	void*            make_ctx

@@ -70,7 +70,7 @@ static mio_tmridx_t sift_up (mio_t* mio, mio_tmridx_t index, int notify)
 
 static mio_tmridx_t sift_down (mio_t* mio, mio_tmridx_t index, int notify)
 {
-	mio_size_t base = mio->tmr.size / 2;
+	mio_oow_t base = mio->tmr.size / 2;
 
 	if (index < base) /* at least 1 child is under the 'index' position */
 	{
@@ -135,7 +135,7 @@ mio_tmridx_t mio_instmrjob (mio_t* mio, const mio_tmrjob_t* job)
 	if (index >= mio->tmr.capa)
 	{
 		mio_tmrjob_t* tmp;
-		mio_size_t new_capa;
+		mio_oow_t new_capa;
 
 		MIO_ASSERT (mio->tmr.capa >= 1);
 		new_capa = mio->tmr.capa * 2;
@@ -165,11 +165,11 @@ mio_tmridx_t mio_updtmrjob (mio_t* mio, mio_tmridx_t index, const mio_tmrjob_t* 
 	return YOUNGER_THAN(job, &item)? sift_up (mio, index, 0): sift_down (mio, index, 0);
 }
 
-void mio_firetmrjobs (mio_t* mio, const mio_ntime_t* tm, mio_size_t* firecnt)
+void mio_firetmrjobs (mio_t* mio, const mio_ntime_t* tm, mio_oow_t* firecnt)
 {
 	mio_ntime_t now;
 	mio_tmrjob_t tmrjob;
-	mio_size_t count = 0;
+	mio_oow_t count = 0;
 
 	/* if the current time is not specified, get it from the system */
 	if (tm) now = *tm;
