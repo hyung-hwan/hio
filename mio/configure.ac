@@ -93,7 +93,7 @@ AC_SUBST(LIBM, $LIBM)
 
 check some compiler builtins
 AC_MSG_CHECKING([__builtin_memset])
-AC_COMPILE_IFELSE(
+AC_LINK_IFELSE(
 	[AC_LANG_PROGRAM([], [__builtin_memset ((void*)1, ' ', 10);])],
 	[AC_MSG_RESULT(yes)
 	 AC_DEFINE([HAVE___BUILTIN_MEMSET], [1], [__builtin_memset])],
@@ -101,7 +101,7 @@ AC_COMPILE_IFELSE(
 )
 
 AC_MSG_CHECKING([__builtin_memcpy])
-AC_COMPILE_IFELSE(
+AC_LINK_IFELSE(
 	[AC_LANG_PROGRAM([], [__builtin_memcpy ((void*)1, (void*)2, 10);])],
 	[AC_MSG_RESULT(yes)
 	 AC_DEFINE([HAVE___BUILTIN_MEMCPY], [1], [__builtin_memcpy])],
@@ -109,7 +109,7 @@ AC_COMPILE_IFELSE(
 )
 
 AC_MSG_CHECKING([__builtin_memmove])
-AC_COMPILE_IFELSE(
+AC_LINK_IFELSE(
 	[AC_LANG_PROGRAM([], [__builtin_memmove ((void*)1, (void*)2, 10);])],
 	[AC_MSG_RESULT(yes)
 	 AC_DEFINE([HAVE___BUILTIN_MEMMOVE], [1], [__builtin_memmove])],
@@ -117,7 +117,7 @@ AC_COMPILE_IFELSE(
 )
 
 AC_MSG_CHECKING([__builtin_memcmp])
-AC_COMPILE_IFELSE(
+AC_LINK_IFELSE(
 	[AC_LANG_PROGRAM([], [int a = __builtin_memcmp ((void*)1, (void*)2, 10);])],
 	[AC_MSG_RESULT(yes)
 	 AC_DEFINE([HAVE___BUILTIN_MEMCMP], [1], [__builtin_memcmp])],
@@ -383,6 +383,7 @@ AC_CHECK_SIZEOF(__int16_t,,[[]])
 AC_CHECK_SIZEOF(__int32_t,,[[]])
 AC_CHECK_SIZEOF(__int64_t,,[[]])
 AC_CHECK_SIZEOF(__int128_t,,[[]])
+AC_CHECK_SIZEOF(__uint128_t,,[[]])
 dnl AC_CHECK_SIZEOF doesn't work without white-space between void and *
 AC_CHECK_SIZEOF(void *,,[[]])
 AC_CHECK_SIZEOF(float,,[[]])
@@ -469,10 +470,12 @@ dnl Changing ac_cv_sizeof___int128_t here doesn't corret SIZEOF___INT128_T
 dnl since it's already generated. It only affects MIO_SIZEOF___INT128_T below.
 if test ${ac_cv_sizeof___int128_t} -gt 0
 then
-	AC_MSG_CHECKING([__int128_t with %])
+	AC_MSG_CHECKING([__int128_t with % and va_arg])
 	AC_COMPILE_IFELSE(
-		[AC_LANG_PROGRAM([], [
+		[AC_LANG_PROGRAM([#include <stdarg.h>], [
 			volatile __int128_t x, base;
+			va_list ap;
+			va_arg(ap, __int128_t);
 			x = (__int128_t)&base;
 			base = (__int128_t)&x;
 			x = x % base;
@@ -485,6 +488,7 @@ then
 		[
 			AC_MSG_RESULT(no)
 			ac_cv_sizeof___int128_t=0
+			ac_cv_sizeof___uint128_t=0
 		]
 	)
 fi
@@ -625,6 +629,48 @@ else
 	[CFLAGS="$CFLAGS -DNDEBUG -U_DEBUG -DMIO_BUILD_RELEASE -U_FORTIFY_SOURCE"]
 	[CXXFLAGS="$CXXFLAGS -DNDEBUG -U_DEBUG -DMIO_BUILD_RELEASE -U_FORTIFY_SOURCE"]
 	AC_SUBST(BUILD_MODE, "release")
+fi
+
+AC_ARG_ENABLE([unicode], 
+	[AS_HELP_STRING([--enable-unicode],[Use the unicode character type as the default character type. one of yes, no, yes:2, yes:4, no:2, no:4 (default. yes)])],
+	enable_unicode=$enableval,
+	enable_unicode=yes
+)
+if test "${enable_unicode}" = "yes:4"
+then
+	AC_DEFINE([MIO_UNICODE_SIZE],[4],[Unicode character type size])
+	AC_DEFINE([MIO_ENABLE_UNICODE],[1],[Use the unicode character type as the default character type])
+	if test "${platform_win32}" = "yes"
+	then
+		[CFLAGS="$CFLAGS -DUNICODE -D_UNICODE"]
+		[CXXFLAGS="$CXXFLAGS -DUNICODE -D_UNICODE"]
+	fi 
+elif test "${enable_unicode}" = "yes:2"
+then
+	AC_DEFINE([MIO_UNICODE_SIZE],[2],[Unicode character type size])
+	AC_DEFINE([MIO_ENABLE_UNICODE],[1],[Use the unicode character type as the default character type])
+	if test "${platform_win32}" = "yes"
+	then
+		[CFLAGS="$CFLAGS -DUNICODE -D_UNICODE"]
+		[CXXFLAGS="$CXXFLAGS -DUNICODE -D_UNICODE"]
+	fi
+elif test "${enable_unicode}" = "yes"
+then
+	AC_DEFINE([MIO_UNICODE_SIZE],[1],[Unicode character type size])
+	AC_DEFINE([MIO_ENABLE_UNICODE],[1],[Use the unicode character type as the default character type])
+	if test "${platform_win32}" = "yes"
+	then
+		[CFLAGS="$CFLAGS -DUNICODE -D_UNICODE"]
+		[CXXFLAGS="$CXXFLAGS -DUNICODE -D_UNICODE"]
+	fi
+elif test "${enable_unicode}" = "no:4"
+then
+	AC_DEFINE([MIO_UNICODE_SIZE],[4],[Unicode character type size])
+elif test "${enable_unicode}" = "no:2"
+then
+	AC_DEFINE([MIO_UNICODE_SIZE],[2],[Unicode character type size])
+else
+	AC_DEFINE([MIO_UNICODE_SIZE],[1],[Unicode character type size])
 fi
 
 AC_ARG_ENABLE([cxx], 
