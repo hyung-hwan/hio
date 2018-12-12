@@ -1,12 +1,12 @@
 dnl AC_PREREQ([2.67])
 
 dnl Make sure you change the version information
-dnl in include/stio/conf_*.h whenever you change the version 
+dnl in include/mio/conf_*.h whenever you change the version 
 dnl here. Those files don't depend on autoconf, thus requiring
 dnl manual change.
-AC_INIT([stio],[0.1.0],[Chung, Hyung-Hwan (hyunghwan.chung@gmail.com)],[],[http://code.abiyo.net/@stio])
+AC_INIT([mio],[0.1.0],[Chung, Hyung-Hwan (hyunghwan.chung@gmail.com)],[],[http://code.abiyo.net/@mio])
 
-AC_CONFIG_HEADER([lib/stio-cfg.h])
+AC_CONFIG_HEADER([lib/mio-cfg.h])
 AC_CONFIG_AUX_DIR([ac])
 AC_CONFIG_MACRO_DIR([m4])
 
@@ -14,7 +14,7 @@ dnl use CC and CPP for compilation tests with .c test programs.
 AC_LANG(C)
 
 dnl initialize automake
-AM_INIT_AUTOMAKE([-Wall -Werror foreign])
+AM_INIT_AUTOMAKE([-Wall -Werror subdir-objects foreign])
 AM_PROG_AR
 
 dnl enable silent rules if automake supports them.
@@ -37,15 +37,7 @@ dnl determine some key programs
 AC_PROG_INSTALL
 AC_PROG_EGREP
 AC_PROG_LN_S
-
-dnl check other tools
-AC_CHECK_TOOL(RM, rm)
-AC_CHECK_TOOL(RMDIR, rmdir)
-AC_CHECK_TOOL(TRUE, true)
-AC_CHECK_TOOL(ECHO, echo)
-
-dnl avoid "'/bin/rm: cannot remove `libtoolT': No such file or directory"
-RM="$RM -f"
+AC_PROG_SED
 
 dnl initialize libtool
 LT_INIT
@@ -69,8 +61,8 @@ then
 fi
 
 dnl indicate the existence of config.h
-CFLAGS="$CFLAGS -DSTIO_HAVE_CFG_H"
-CXXFLAGS="$CXXFLAGS -DSTIO_HAVE_CFG_H"
+CFLAGS="$CFLAGS -DMIO_HAVE_CFG_H"
+CXXFLAGS="$CXXFLAGS -DMIO_HAVE_CFG_H"
 
 dnl make visible the 64-bit interface to the file system
 CFLAGS="$CFLAGS -D_LARGEFILE64_SOURCE"
@@ -81,12 +73,19 @@ case "$host" in
 *-*-mingw*|*-*-cygwin*)
 	#CFLAGS="$CFLAGS -D_WIN32_WINNT=0x0400"
 	platform_win32=yes
+	platform_macosx=no
+	;;
+*-*-darwin*)
+	platform_win32=no
+	platform_macosx=yes
 	;;
 *)
 	platform_win32=no
+	platform_macosx=no
 	;;
 esac
 AM_CONDITIONAL(WIN32, test "x${platform_win32}" = "xyes" )
+AM_CONDITIONAL(MACOSX, test "x${platform_macosx}" = "xyes" )
 
 dnl check the math library (check if -lm is needed)
 LT_LIB_M
@@ -422,7 +421,7 @@ then
 	if test ${ac_cv_sizeof_socklen_t} -gt 0
 	then
 		AX_CHECK_SIGN([socklen_t],
-			[ AC_DEFINE(STIO_SOCKLEN_T_IS_SIGNED, 1, [Define if socklen_t is signed]) ],
+			[ AC_DEFINE(MIO_SOCKLEN_T_IS_SIGNED, 1, [Define if socklen_t is signed]) ],
 			[ AS_ECHO_N("") ],
 			[#include <winsock2.h>
 			 #include <ws2tcpip.h>])
@@ -451,7 +450,7 @@ else
 	if test ${ac_cv_sizeof_socklen_t} -gt 0
 	then
 		AX_CHECK_SIGN([socklen_t],
-			[ AC_DEFINE(STIO_SOCKLEN_T_IS_SIGNED, 1, [Define if socklen_t is signed]) ],
+			[ AC_DEFINE(MIO_SOCKLEN_T_IS_SIGNED, 1, [Define if socklen_t is signed]) ],
 			[ AS_ECHO_N("") ],
 			[#include <sys/socket.h>])
 	fi
@@ -467,7 +466,7 @@ dnl so i've added this check to determine if the compiler has
 dnl proper support for __int128_t.
 dnl 
 dnl Changing ac_cv_sizeof___int128_t here doesn't corret SIZEOF___INT128_T
-dnl since it's already generated. It only affects STIO_SIZEOF___INT128_T below.
+dnl since it's already generated. It only affects MIO_SIZEOF___INT128_T below.
 if test ${ac_cv_sizeof___int128_t} -gt 0
 then
 	AC_MSG_CHECKING([__int128_t with %])
@@ -559,72 +558,72 @@ fi
 AC_SUBST(QUADMATH_LIBS)
 
 
-AC_DEFINE_UNQUOTED(STIO_SIZEOF_CHAR, ${ac_cv_sizeof_char}, [sizeof(char)])
-AC_DEFINE_UNQUOTED(STIO_SIZEOF_SHORT, ${ac_cv_sizeof_short}, [sizeof(short)])
-AC_DEFINE_UNQUOTED(STIO_SIZEOF_INT, ${ac_cv_sizeof_int}, [sizeof(int)])
-AC_DEFINE_UNQUOTED(STIO_SIZEOF_LONG, ${ac_cv_sizeof_long}, [sizeof(long)])
-AC_DEFINE_UNQUOTED(STIO_SIZEOF_LONG_LONG, ${ac_cv_sizeof_long_long}, [sizeof(long long)])
-AC_DEFINE_UNQUOTED(STIO_SIZEOF___INT8, ${ac_cv_sizeof___int8}, [sizeof(__int8)])
-AC_DEFINE_UNQUOTED(STIO_SIZEOF___INT16, ${ac_cv_sizeof___int16}, [sizeof(__int16)])
-AC_DEFINE_UNQUOTED(STIO_SIZEOF___INT32, ${ac_cv_sizeof___int32}, [sizeof(__int32)])
-AC_DEFINE_UNQUOTED(STIO_SIZEOF___INT64, ${ac_cv_sizeof___int64}, [sizeof(__int64)])
-AC_DEFINE_UNQUOTED(STIO_SIZEOF___INT128, ${ac_cv_sizeof___int128}, [sizeof(__int128)])
-AC_DEFINE_UNQUOTED(STIO_SIZEOF___INT128_T, ${ac_cv_sizeof___int128_t}, [sizeof(__int128_t)])
-AC_DEFINE_UNQUOTED(STIO_SIZEOF_VOID_P, ${ac_cv_sizeof_void_p}, [sizeof(void*)])
-AC_DEFINE_UNQUOTED(STIO_SIZEOF_FLOAT, ${ac_cv_sizeof_float}, [sizeof(float)])
-AC_DEFINE_UNQUOTED(STIO_SIZEOF_DOUBLE, ${ac_cv_sizeof_double}, [sizeof(double)])
-AC_DEFINE_UNQUOTED(STIO_SIZEOF_LONG_DOUBLE, ${ac_cv_sizeof_long_double}, [sizeof(long double)])
-AC_DEFINE_UNQUOTED(STIO_SIZEOF___FLOAT128, ${ac_cv_sizeof___float128}, [sizeof(__float128)])
+AC_DEFINE_UNQUOTED(MIO_SIZEOF_CHAR, ${ac_cv_sizeof_char}, [sizeof(char)])
+AC_DEFINE_UNQUOTED(MIO_SIZEOF_SHORT, ${ac_cv_sizeof_short}, [sizeof(short)])
+AC_DEFINE_UNQUOTED(MIO_SIZEOF_INT, ${ac_cv_sizeof_int}, [sizeof(int)])
+AC_DEFINE_UNQUOTED(MIO_SIZEOF_LONG, ${ac_cv_sizeof_long}, [sizeof(long)])
+AC_DEFINE_UNQUOTED(MIO_SIZEOF_LONG_LONG, ${ac_cv_sizeof_long_long}, [sizeof(long long)])
+AC_DEFINE_UNQUOTED(MIO_SIZEOF___INT8, ${ac_cv_sizeof___int8}, [sizeof(__int8)])
+AC_DEFINE_UNQUOTED(MIO_SIZEOF___INT16, ${ac_cv_sizeof___int16}, [sizeof(__int16)])
+AC_DEFINE_UNQUOTED(MIO_SIZEOF___INT32, ${ac_cv_sizeof___int32}, [sizeof(__int32)])
+AC_DEFINE_UNQUOTED(MIO_SIZEOF___INT64, ${ac_cv_sizeof___int64}, [sizeof(__int64)])
+AC_DEFINE_UNQUOTED(MIO_SIZEOF___INT128, ${ac_cv_sizeof___int128}, [sizeof(__int128)])
+AC_DEFINE_UNQUOTED(MIO_SIZEOF___INT128_T, ${ac_cv_sizeof___int128_t}, [sizeof(__int128_t)])
+AC_DEFINE_UNQUOTED(MIO_SIZEOF_VOID_P, ${ac_cv_sizeof_void_p}, [sizeof(void*)])
+AC_DEFINE_UNQUOTED(MIO_SIZEOF_FLOAT, ${ac_cv_sizeof_float}, [sizeof(float)])
+AC_DEFINE_UNQUOTED(MIO_SIZEOF_DOUBLE, ${ac_cv_sizeof_double}, [sizeof(double)])
+AC_DEFINE_UNQUOTED(MIO_SIZEOF_LONG_DOUBLE, ${ac_cv_sizeof_long_double}, [sizeof(long double)])
+AC_DEFINE_UNQUOTED(MIO_SIZEOF___FLOAT128, ${ac_cv_sizeof___float128}, [sizeof(__float128)])
 
-AC_DEFINE_UNQUOTED(STIO_SIZEOF_WCHAR_T, ${ac_cv_sizeof_wchar_t}, [sizeof(wchar_t)])
-AC_DEFINE_UNQUOTED(STIO_SIZEOF_OFF_T, ${ac_cv_sizeof_off_t}, [sizeof(off_t)])
-AC_DEFINE_UNQUOTED(STIO_SIZEOF_OFF64_T, ${ac_cv_sizeof_off64_t}, [sizeof(off64_t)])
+AC_DEFINE_UNQUOTED(MIO_SIZEOF_WCHAR_T, ${ac_cv_sizeof_wchar_t}, [sizeof(wchar_t)])
+AC_DEFINE_UNQUOTED(MIO_SIZEOF_OFF_T, ${ac_cv_sizeof_off_t}, [sizeof(off_t)])
+AC_DEFINE_UNQUOTED(MIO_SIZEOF_OFF64_T, ${ac_cv_sizeof_off64_t}, [sizeof(off64_t)])
 
-AC_DEFINE_UNQUOTED(STIO_SIZEOF_MBSTATE_T, ${ac_cv_sizeof_mbstate_t}, [sizeof(mbstate_t)])
-AC_DEFINE_UNQUOTED(STIO_MBLEN_MAX, ${ax_cv_numvalof_MB_LEN_MAX}, [MB_LEN_MAX])
+AC_DEFINE_UNQUOTED(MIO_SIZEOF_MBSTATE_T, ${ac_cv_sizeof_mbstate_t}, [sizeof(mbstate_t)])
+AC_DEFINE_UNQUOTED(MIO_MBLEN_MAX, ${ax_cv_numvalof_MB_LEN_MAX}, [MB_LEN_MAX])
 
-AC_DEFINE_UNQUOTED(STIO_SIZEOF_STRUCT_SOCKADDR_IN, ${ac_cv_sizeof_struct_sockaddr_in}, [sizeof(struct sockaddr_in)])
-AC_DEFINE_UNQUOTED(STIO_SIZEOF_STRUCT_SOCKADDR_IN6, ${ac_cv_sizeof_struct_sockaddr_in6}, [sizeof(struct sockaddr_in6)])
-AC_DEFINE_UNQUOTED(STIO_SIZEOF_STRUCT_SOCKADDR_UN, ${ac_cv_sizeof_struct_sockaddr_un}, [sizeof(struct sockaddr_un)])
-AC_DEFINE_UNQUOTED(STIO_SIZEOF_STRUCT_SOCKADDR_LL, ${ac_cv_sizeof_struct_sockaddr_ll}, [sizeof(struct sockaddr_ll)])
-AC_DEFINE_UNQUOTED(STIO_SIZEOF_STRUCT_SOCKADDR_DL, ${ac_cv_sizeof_struct_sockaddr_dl}, [sizeof(struct sockaddr_dl)])
-AC_DEFINE_UNQUOTED(STIO_SIZEOF_SOCKLEN_T, ${ac_cv_sizeof_socklen_t}, [sizeof(socklen_t)])
+AC_DEFINE_UNQUOTED(MIO_SIZEOF_STRUCT_SOCKADDR_IN, ${ac_cv_sizeof_struct_sockaddr_in}, [sizeof(struct sockaddr_in)])
+AC_DEFINE_UNQUOTED(MIO_SIZEOF_STRUCT_SOCKADDR_IN6, ${ac_cv_sizeof_struct_sockaddr_in6}, [sizeof(struct sockaddr_in6)])
+AC_DEFINE_UNQUOTED(MIO_SIZEOF_STRUCT_SOCKADDR_UN, ${ac_cv_sizeof_struct_sockaddr_un}, [sizeof(struct sockaddr_un)])
+AC_DEFINE_UNQUOTED(MIO_SIZEOF_STRUCT_SOCKADDR_LL, ${ac_cv_sizeof_struct_sockaddr_ll}, [sizeof(struct sockaddr_ll)])
+AC_DEFINE_UNQUOTED(MIO_SIZEOF_STRUCT_SOCKADDR_DL, ${ac_cv_sizeof_struct_sockaddr_dl}, [sizeof(struct sockaddr_dl)])
+AC_DEFINE_UNQUOTED(MIO_SIZEOF_SOCKLEN_T, ${ac_cv_sizeof_socklen_t}, [sizeof(socklen_t)])
 
 
-stio_package_version_major="`echo ${PACKAGE_VERSION} | cut -d. -f1`"
-stio_package_version_minor="`echo ${PACKAGE_VERSION} | cut -d. -f2`"
-stio_package_version_patch="`echo ${PACKAGE_VERSION} | cut -d. -f3`"
-AC_SUBST(PACKAGE_VERSION_MAJOR, ${stio_package_version_major})
-AC_SUBST(PACKAGE_VERSION_MINOR, ${stio_package_version_minor})
-AC_SUBST(PACKAGE_VERSION_PATCH, ${stio_package_version_patch})
+mio_package_version_major="`echo ${PACKAGE_VERSION} | cut -d. -f1`"
+mio_package_version_minor="`echo ${PACKAGE_VERSION} | cut -d. -f2`"
+mio_package_version_patch="`echo ${PACKAGE_VERSION} | cut -d. -f3`"
+AC_SUBST(PACKAGE_VERSION_MAJOR, ${mio_package_version_major})
+AC_SUBST(PACKAGE_VERSION_MINOR, ${mio_package_version_minor})
+AC_SUBST(PACKAGE_VERSION_PATCH, ${mio_package_version_patch})
 
-AC_DEFINE_UNQUOTED(STIO_PACKAGE_VERSION, "${PACKAGE_VERSION}", [Package version])
-dnl AC_DEFINE_UNQUOTED(STIO_PACKAGE_VERSION_MAJOR, $(echo ${VERSION} | cut -d. -f1), [Major version number])
-dnl AC_DEFINE_UNQUOTED(STIO_PACKAGE_VERSION_MINOR, $(echo ${VERSION} | cut -d. -f2), [Minor version number])
-dnl AC_DEFINE_UNQUOTED(STIO_PACKAGE_VERSION_PATCH, $(echo ${VERSION} | cut -d. -f3), [Patch level])
-AC_DEFINE_UNQUOTED(STIO_PACKAGE_VERSION_MAJOR, ${stio_package_version_major}, [Major version number])
-AC_DEFINE_UNQUOTED(STIO_PACKAGE_VERSION_MINOR, ${stio_package_version_minor}, [Minor version number])
-AC_DEFINE_UNQUOTED(STIO_PACKAGE_VERSION_PATCH, ${stio_package_version_patch}, [Patch level])
+AC_DEFINE_UNQUOTED(MIO_PACKAGE_VERSION, "${PACKAGE_VERSION}", [Package version])
+dnl AC_DEFINE_UNQUOTED(MIO_PACKAGE_VERSION_MAJOR, $(echo ${VERSION} | cut -d. -f1), [Major version number])
+dnl AC_DEFINE_UNQUOTED(MIO_PACKAGE_VERSION_MINOR, $(echo ${VERSION} | cut -d. -f2), [Minor version number])
+dnl AC_DEFINE_UNQUOTED(MIO_PACKAGE_VERSION_PATCH, $(echo ${VERSION} | cut -d. -f3), [Patch level])
+AC_DEFINE_UNQUOTED(MIO_PACKAGE_VERSION_MAJOR, ${mio_package_version_major}, [Major version number])
+AC_DEFINE_UNQUOTED(MIO_PACKAGE_VERSION_MINOR, ${mio_package_version_minor}, [Minor version number])
+AC_DEFINE_UNQUOTED(MIO_PACKAGE_VERSION_PATCH, ${mio_package_version_patch}, [Patch level])
 
-AC_DEFINE_UNQUOTED(STIO_PACKAGE_AUTHOR,"${PACKAGE_BUGREPORT}", [Author])
-AC_DEFINE_UNQUOTED(STIO_PACKAGE_NAME,"${PACKAGE_NAME}", [package name])
-AC_DEFINE_UNQUOTED(STIO_PACKAGE_URL, "${PACKAGE_URL}", [Project URL])
+AC_DEFINE_UNQUOTED(MIO_PACKAGE_AUTHOR,"${PACKAGE_BUGREPORT}", [Author])
+AC_DEFINE_UNQUOTED(MIO_PACKAGE_NAME,"${PACKAGE_NAME}", [package name])
+AC_DEFINE_UNQUOTED(MIO_PACKAGE_URL, "${PACKAGE_URL}", [Project URL])
 
 AC_C_BIGENDIAN(
-	[AC_DEFINE([STIO_ENDIAN_BIG],[],[Big Endian])],
-	[AC_DEFINE([STIO_ENDIAN_LITTLE],[],[Little Endian])],
-	[AC_DEFINE([STIO_ENDIAN_UNKNOWN],[],[Unknown Endian])])
+	[AC_DEFINE([MIO_ENDIAN_BIG],[],[Big Endian])],
+	[AC_DEFINE([MIO_ENDIAN_LITTLE],[],[Little Endian])],
+	[AC_DEFINE([MIO_ENDIAN_UNKNOWN],[],[Unknown Endian])])
 
 AC_ARG_ENABLE([debug], [AS_HELP_STRING([--enable-debug],[build the library in the debug mode (default. no)])],
 	enable_debug_is=$enableval,enable_debug_is=no)
 if test "$enable_debug_is" = "yes"
 then
-	[CFLAGS="$CFLAGS -g -D_DEBUG -UNDEBUG -DSTIO_BUILD_DEBUG -U_FORTIFY_SOURCE"]
-	[CXXFLAGS="$CXXFLAGS -g -D_DEBUG -UNDEBUG -DSTIO_BUILD_DEBUG -U_FORTIFY_SOURCE"]
+	[CFLAGS="$CFLAGS -g -D_DEBUG -UNDEBUG -DMIO_BUILD_DEBUG -U_FORTIFY_SOURCE"]
+	[CXXFLAGS="$CXXFLAGS -g -D_DEBUG -UNDEBUG -DMIO_BUILD_DEBUG -U_FORTIFY_SOURCE"]
 	AC_SUBST(BUILD_MODE, "debug")
 else
-	[CFLAGS="$CFLAGS -DNDEBUG -U_DEBUG -DSTIO_BUILD_RELEASE -U_FORTIFY_SOURCE"]
-	[CXXFLAGS="$CXXFLAGS -DNDEBUG -U_DEBUG -DSTIO_BUILD_RELEASE -U_FORTIFY_SOURCE"]
+	[CFLAGS="$CFLAGS -DNDEBUG -U_DEBUG -DMIO_BUILD_RELEASE -U_FORTIFY_SOURCE"]
+	[CXXFLAGS="$CXXFLAGS -DNDEBUG -U_DEBUG -DMIO_BUILD_RELEASE -U_FORTIFY_SOURCE"]
 	AC_SUBST(BUILD_MODE, "release")
 fi
 
@@ -641,21 +640,21 @@ test "${ax_cv_cxx_have_std_namespace}" = "yes" || enable_cxx_is="no"
 
 AM_CONDITIONAL(ENABLE_CXX, test "${enable_cxx_is}" = "yes" )
 
-AC_SUBST(STIO_SIZEOF_WCHAR_T, $ac_cv_sizeof_wchar_t)
-AC_SUBST(STIO_SIZEOF_LONG_LONG, $ac_cv_sizeof_long_long)
-AC_SUBST(STIO_SIZEOF_LONG, $ac_cv_sizeof_long)
-AC_SUBST(STIO_SIZEOF_INT, $ac_cv_sizeof_int)
-AC_SUBST(STIO_SIZEOF_SHORT, $ac_cv_sizeof_short)
-AC_SUBST(STIO_SIZEOF_CHAR, $ac_cv_sizeof_char)
-AC_SUBST(STIO_SIZEOF_VOID_P, $ac_cv_sizeof_void_p)
-AC_SUBST(STIO_SIZEOF_FLOAT, $ac_cv_sizeof_float)
-AC_SUBST(STIO_SIZEOF_DOUBLE, $ac_cv_sizeof_double)
-AC_SUBST(STIO_SIZEOF_LONG_DOUBLE, $ac_cv_sizeof_long_double)
-AC_SUBST(STIO_SIZEOF_OFF_T, $ac_cv_sizeof_off_t)
-AC_SUBST(STIO_SIZEOF_OFF64_T, $ac_cv_sizeof_off64_t)
+AC_SUBST(MIO_SIZEOF_WCHAR_T, $ac_cv_sizeof_wchar_t)
+AC_SUBST(MIO_SIZEOF_LONG_LONG, $ac_cv_sizeof_long_long)
+AC_SUBST(MIO_SIZEOF_LONG, $ac_cv_sizeof_long)
+AC_SUBST(MIO_SIZEOF_INT, $ac_cv_sizeof_int)
+AC_SUBST(MIO_SIZEOF_SHORT, $ac_cv_sizeof_short)
+AC_SUBST(MIO_SIZEOF_CHAR, $ac_cv_sizeof_char)
+AC_SUBST(MIO_SIZEOF_VOID_P, $ac_cv_sizeof_void_p)
+AC_SUBST(MIO_SIZEOF_FLOAT, $ac_cv_sizeof_float)
+AC_SUBST(MIO_SIZEOF_DOUBLE, $ac_cv_sizeof_double)
+AC_SUBST(MIO_SIZEOF_LONG_DOUBLE, $ac_cv_sizeof_long_double)
+AC_SUBST(MIO_SIZEOF_OFF_T, $ac_cv_sizeof_off_t)
+AC_SUBST(MIO_SIZEOF_OFF64_T, $ac_cv_sizeof_off64_t)
 
-AC_SUBST(STIO_PROJECT_AUTHOR, "${PACKAGE_BUGREPORT}")
-AC_SUBST(STIO_PROJECT_URL, "${PACKAGE_URL}")
+AC_SUBST(MIO_PROJECT_AUTHOR, "${PACKAGE_BUGREPORT}")
+AC_SUBST(MIO_PROJECT_URL, "${PACKAGE_URL}")
 
 AC_CONFIG_FILES([
 	Makefile 

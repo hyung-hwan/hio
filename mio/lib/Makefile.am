@@ -20,39 +20,39 @@ LIBADD_LIB_COMMON = $(LIBM) $(LIBLTDL)
 #pkgbindir = $(bindir)
 
 include_HEADERS = \
-	stio-cfg.h \
-	stio-cmn.h \
-	stio-pro.h \
-	stio-sck.h \
-	stio.h
+	mio-cfg.h \
+	mio-cmn.h \
+	mio-pro.h \
+	mio-sck.h \
+	mio.h
 
-lib_LTLIBRARIES = libstio.la
-libstio_la_SOURCES = \
-	stio-prv.h \
-	stio.c \
-	stio-pro.c \
-	stio-sck.c \
-	stio-tim.c \
-	stio-tmr.c \
-	stio-utl.c
-libstio_la_CPPFLAGS = $(CPPFLAGS_LIB_COMMON)
-libstio_la_LDFLAGS = $(LDFLAGS_LIB_COMMON)
-libstio_la_LIBADD = $(LIBADD_LIB_COMMON) $(SSL_LIBS)
+lib_LTLIBRARIES = libmio.la
+libmio_la_SOURCES = \
+	mio-prv.h \
+	mio.c \
+	mio-pro.c \
+	mio-sck.c \
+	mio-tim.c \
+	mio-tmr.c \
+	mio-utl.c
+libmio_la_CPPFLAGS = $(CPPFLAGS_LIB_COMMON)
+libmio_la_LDFLAGS = $(LDFLAGS_LIB_COMMON)
+libmio_la_LIBADD = $(LIBADD_LIB_COMMON) $(SSL_LIBS)
 
-bin_PROGRAMS = stio
-stio_SOURCES = main.c
-stio_CPPFLAGS = $(CPPFLAGS_LIB_COMMON)
-stio_LDFLAGS = $(LDFLAGS_LIB_COMMON)
-stio_LDADD = $(LIBADD_LIB_COMMON) -lstio 
+bin_PROGRAMS = mio
+mio_SOURCES = main.c
+mio_CPPFLAGS = $(CPPFLAGS_LIB_COMMON)
+mio_LDFLAGS = $(LDFLAGS_LIB_COMMON)
+mio_LDADD = $(LIBADD_LIB_COMMON) -lmio 
 
 install-data-hook:
-	@echo "#ifndef _STIO_CFG_H_" > "$(DESTDIR)$(includedir)/stio-cfg.h"
-	@echo "#define _STIO_CFG_H_" >> "$(DESTDIR)$(includedir)/stio-cfg.h"
-	@$(EGREP) "#define[ ]+STIO_" "$(abs_builddir)/stio-cfg.h" >> "$(DESTDIR)$(includedir)/stio-cfg.h" 
-	@echo "#endif" >> "$(DESTDIR)$(includedir)/stio-cfg.h"
-	@$(RM) "$(DESTDIR)$(includedir)/stio-cfg.h.in"
-	@$(SED) 's|/\*#define STIO_HAVE_CFG_H\*/|#define STIO_HAVE_CFG_H|' "$(srcdir)/stio-cmn.h" > "$(DESTDIR)$(includedir)/stio-cmn.h"
+	@echo "#ifndef _MIO_CFG_H_" > "$(DESTDIR)$(includedir)/mio-cfg.h"
+	@echo "#define _MIO_CFG_H_" >> "$(DESTDIR)$(includedir)/mio-cfg.h"
+	@$(EGREP) "#define[ ]+MIO_" "$(abs_builddir)/mio-cfg.h" >> "$(DESTDIR)$(includedir)/mio-cfg.h" 
+	@echo "#endif" >> "$(DESTDIR)$(includedir)/mio-cfg.h"
+	@$(RM) "$(DESTDIR)$(includedir)/mio-cfg.h.in"
+	@$(SED) 's|/\*#define MIO_HAVE_CFG_H\*/|#define MIO_HAVE_CFG_H|' "$(srcdir)/mio-cmn.h" > "$(DESTDIR)$(includedir)/mio-cmn.h"
 
 uninstall-hook:
-	@$(RM) "$(DESTDIR)$(includedir)/stio-cfg.h"
+	@$(RM) "$(DESTDIR)$(includedir)/mio-cfg.h"
 

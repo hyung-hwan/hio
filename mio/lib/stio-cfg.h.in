@@ -1,4 +1,4 @@
-/* lib/stio-cfg.h.in.  Generated from configure.ac by autoheader.  */
+/* lib/mio-cfg.h.in.  Generated from configure.ac by autoheader.  */
 
 /* Define if building universal (internal helper macro) */
 #undef AC_APPLE_UNIVERSAL_BUILD
@@ -830,118 +830,118 @@
 #undef STDC_HEADERS
 
 /* Big Endian */
-#undef STIO_ENDIAN_BIG
+#undef MIO_ENDIAN_BIG
 
 /* Little Endian */
-#undef STIO_ENDIAN_LITTLE
+#undef MIO_ENDIAN_LITTLE
 
 /* Unknown Endian */
-#undef STIO_ENDIAN_UNKNOWN
+#undef MIO_ENDIAN_UNKNOWN
 
 /* MB_LEN_MAX */
-#undef STIO_MBLEN_MAX
+#undef MIO_MBLEN_MAX
 
 /* Author */
-#undef STIO_PACKAGE_AUTHOR
+#undef MIO_PACKAGE_AUTHOR
 
 /* package name */
-#undef STIO_PACKAGE_NAME
+#undef MIO_PACKAGE_NAME
 
 /* Project URL */
-#undef STIO_PACKAGE_URL
+#undef MIO_PACKAGE_URL
 
 /* Package version */
-#undef STIO_PACKAGE_VERSION
+#undef MIO_PACKAGE_VERSION
 
 /* Major version number */
-#undef STIO_PACKAGE_VERSION_MAJOR
+#undef MIO_PACKAGE_VERSION_MAJOR
 
 /* Minor version number */
-#undef STIO_PACKAGE_VERSION_MINOR
+#undef MIO_PACKAGE_VERSION_MINOR
 
 /* Patch level */
-#undef STIO_PACKAGE_VERSION_PATCH
+#undef MIO_PACKAGE_VERSION_PATCH
 
 /* sizeof(char) */
-#undef STIO_SIZEOF_CHAR
+#undef MIO_SIZEOF_CHAR
 
 /* sizeof(double) */
-#undef STIO_SIZEOF_DOUBLE
+#undef MIO_SIZEOF_DOUBLE
 
 /* sizeof(float) */
-#undef STIO_SIZEOF_FLOAT
+#undef MIO_SIZEOF_FLOAT
 
 /* sizeof(int) */
-#undef STIO_SIZEOF_INT
+#undef MIO_SIZEOF_INT
 
 /* sizeof(long) */
-#undef STIO_SIZEOF_LONG
+#undef MIO_SIZEOF_LONG
 
 /* sizeof(long double) */
-#undef STIO_SIZEOF_LONG_DOUBLE
+#undef MIO_SIZEOF_LONG_DOUBLE
 
 /* sizeof(long long) */
-#undef STIO_SIZEOF_LONG_LONG
+#undef MIO_SIZEOF_LONG_LONG
 
 /* sizeof(mbstate_t) */
-#undef STIO_SIZEOF_MBSTATE_T
+#undef MIO_SIZEOF_MBSTATE_T
 
 /* sizeof(off64_t) */
-#undef STIO_SIZEOF_OFF64_T
+#undef MIO_SIZEOF_OFF64_T
 
 /* sizeof(off_t) */
-#undef STIO_SIZEOF_OFF_T
+#undef MIO_SIZEOF_OFF_T
 
 /* sizeof(short) */
-#undef STIO_SIZEOF_SHORT
+#undef MIO_SIZEOF_SHORT
 
 /* sizeof(socklen_t) */
-#undef STIO_SIZEOF_SOCKLEN_T
+#undef MIO_SIZEOF_SOCKLEN_T
 
 /* sizeof(struct sockaddr_dl) */
-#undef STIO_SIZEOF_STRUCT_SOCKADDR_DL
+#undef MIO_SIZEOF_STRUCT_SOCKADDR_DL
 
 /* sizeof(struct sockaddr_in) */
-#undef STIO_SIZEOF_STRUCT_SOCKADDR_IN
+#undef MIO_SIZEOF_STRUCT_SOCKADDR_IN
 
 /* sizeof(struct sockaddr_in6) */
-#undef STIO_SIZEOF_STRUCT_SOCKADDR_IN6
+#undef MIO_SIZEOF_STRUCT_SOCKADDR_IN6
 
 /* sizeof(struct sockaddr_ll) */
-#undef STIO_SIZEOF_STRUCT_SOCKADDR_LL
+#undef MIO_SIZEOF_STRUCT_SOCKADDR_LL
 
 /* sizeof(struct sockaddr_un) */
-#undef STIO_SIZEOF_STRUCT_SOCKADDR_UN
+#undef MIO_SIZEOF_STRUCT_SOCKADDR_UN
 
 /* sizeof(void*) */
-#undef STIO_SIZEOF_VOID_P
+#undef MIO_SIZEOF_VOID_P
 
 /* sizeof(wchar_t) */
-#undef STIO_SIZEOF_WCHAR_T
+#undef MIO_SIZEOF_WCHAR_T
 
 /* sizeof(__float128) */
-#undef STIO_SIZEOF___FLOAT128
+#undef MIO_SIZEOF___FLOAT128
 
 /* sizeof(__int128) */
-#undef STIO_SIZEOF___INT128
+#undef MIO_SIZEOF___INT128
 
 /* sizeof(__int128_t) */
-#undef STIO_SIZEOF___INT128_T
+#undef MIO_SIZEOF___INT128_T
 
 /* sizeof(__int16) */
-#undef STIO_SIZEOF___INT16
+#undef MIO_SIZEOF___INT16
 
 /* sizeof(__int32) */
-#undef STIO_SIZEOF___INT32
+#undef MIO_SIZEOF___INT32
 
 /* sizeof(__int64) */
-#undef STIO_SIZEOF___INT64
+#undef MIO_SIZEOF___INT64
 
 /* sizeof(__int8) */
-#undef STIO_SIZEOF___INT8
+#undef MIO_SIZEOF___INT8
 
 /* Define if socklen_t is signed */
-#undef STIO_SOCKLEN_T_IS_SIGNED
+#undef MIO_SOCKLEN_T_IS_SIGNED
 
 /* Version number of package */
 #undef VERSION
