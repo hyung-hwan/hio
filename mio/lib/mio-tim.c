@@ -24,7 +24,7 @@
     THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  */
 
-#include "stio-prv.h"
+#include "mio-prv.h"
 
 #if defined(_WIN32)
 #	include <windows.h>
@@ -48,12 +48,12 @@
 #endif
 
 #if defined(_WIN32)
-	#define EPOCH_DIFF_YEARS (STIO_EPOCH_YEAR-STIO_EPOCH_YEAR_WIN)
-	#define EPOCH_DIFF_DAYS  ((stio_intptr_t)EPOCH_DIFF_YEARS*365+EPOCH_DIFF_YEARS/4-3)
-	#define EPOCH_DIFF_SECS  ((stio_intptr_t)EPOCH_DIFF_DAYS*24*60*60)
+	#define EPOCH_DIFF_YEARS (MIO_EPOCH_YEAR-MIO_EPOCH_YEAR_WIN)
+	#define EPOCH_DIFF_DAYS  ((mio_intptr_t)EPOCH_DIFF_YEARS*365+EPOCH_DIFF_YEARS/4-3)
+	#define EPOCH_DIFF_SECS  ((mio_intptr_t)EPOCH_DIFF_DAYS*24*60*60)
 #endif
 
-void stio_gettime (stio_ntime_t* t)
+void mio_gettime (mio_ntime_t* t)
 {
 #if defined(_WIN32)
 	SYSTEMTIME st;
@@ -72,13 +72,13 @@ void stio_gettime (stio_ntime_t* t)
 	li.HighPart = ft.dwHighDateTime;
 
      /* li.QuadPart is in the 100-nanosecond intervals */
-	t->sec = (li.QuadPart / (STIO_NSECS_PER_SEC / 100)) - EPOCH_DIFF_SECS;
-	t->nsec = (li.QuadPart % (STIO_NSECS_PER_SEC / 100)) * 100;
+	t->sec = (li.QuadPart / (MIO_NSECS_PER_SEC / 100)) - EPOCH_DIFF_SECS;
+	t->nsec = (li.QuadPart % (MIO_NSECS_PER_SEC / 100)) * 100;
 
 #elif defined(__OS2__)
 
 	DATETIME dt;
-	stio_btime_t bt;
+	mio_btime_t bt;
 
 	/* Can I use DosQuerySysInfo(QSV_TIME_LOW) and 
 	 * DosQuerySysInfo(QSV_TIME_HIGH) for this instead? 
@@ -88,7 +88,7 @@ void stio_gettime (stio_ntime_t* t)
 	DosGetDateTime (&dt);
 	/* DosGetDateTime() never fails. it always returns NO_ERROR */
 
-	bt.year = dt.year - STIO_BTIME_YEAR_BASE;
+	bt.year = dt.year - MIO_BTIME_YEAR_BASE;
 	bt.mon = dt.month - 1;
 	bt.mday = dt.day;
 	bt.hour = dt.hours;
@@ -97,14 +97,14 @@ void stio_gettime (stio_ntime_t* t)
 	/*bt.msec = dt.hundredths * 10;*/
 	bt.isdst = -1; /* determine dst for me */
 
-	if (stio_timelocal (&bt, t) <= -1) 
+	if (mio_timelocal (&bt, t) <= -1) 
 	{
-		t->sec = time (STIO_NULL);
+		t->sec = time (MIO_NULL);
 		t->nsec = 0;
 	}
 	else
 	{
-		t->nsec = STIO_MSEC_TO_NSEC(dt.hundredths * 10);
+		t->nsec = MIO_MSEC_TO_NSEC(dt.hundredths * 10);
 	}
 	return 0;
 
@@ -112,12 +112,12 @@ void stio_gettime (stio_ntime_t* t)
 
 	struct dostime_t dt;
 	struct dosdate_t dd;
-	stio_btime_t bt;
+	mio_btime_t bt;
 
 	_dos_gettime (&dt);
 	_dos_getdate (&dd);
 
-	bt.year = dd.year - STIO_BTIME_YEAR_BASE;
+	bt.year = dd.year - MIO_BTIME_YEAR_BASE;
 	bt.mon = dd.month - 1;
 	bt.mday = dd.day;
 	bt.hour = dt.hour;
@@ -126,14 +126,14 @@ void stio_gettime (stio_ntime_t* t)
 	/*bt.msec = dt.hsecond * 10; */
 	bt.isdst = -1; /* determine dst for me */
 
-	if (stio_timelocal (&bt, t) <= -1) 
+	if (mio_timelocal (&bt, t) <= -1) 
 	{
-		t->sec = time (STIO_NULL);
+		t->sec = time (MIO_NULL);
 		t->nsec = 0;
 	}
 	else
 	{
-		t->nsec = STIO_MSEC_TO_NSEC(dt.hsecond * 10);
+		t->nsec = MIO_MSEC_TO_NSEC(dt.hsecond * 10);
 	}
 
 #elif defined(macintosh)
@@ -150,11 +150,11 @@ void stio_gettime (stio_ntime_t* t)
 	{
 	#if defined(HAVE_GETTIMEOFDAY)
 		struct timeval tv;
-		gettimeofday (&tv, STIO_NULL);
+		gettimeofday (&tv, MIO_NULL);
 		t->sec = tv.tv_sec;
-		t->nsec = STIO_USEC_TO_NSEC(tv.tv_usec);
+		t->nsec = MIO_USEC_TO_NSEC(tv.tv_usec);
 	#else
-		t->sec = time (STIO_NULL);
+		t->sec = time (MIO_NULL);
 		t->nsec = 0;
 	#endif
 	}
@@ -164,35 +164,35 @@ void stio_gettime (stio_ntime_t* t)
 
 #elif defined(HAVE_GETTIMEOFDAY)
 	struct timeval tv;
-	gettimeofday (&tv, STIO_NULL);
+	gettimeofday (&tv, MIO_NULL);
 	t->sec = tv.tv_sec;
-	t->nsec = STIO_USEC_TO_NSEC(tv.tv_usec);
+	t->nsec = MIO_USEC_TO_NSEC(tv.tv_usec);
 
 #else
-	t->sec = time (STIO_NULL);
+	t->sec = time (MIO_NULL);
 	t->nsec = 0;
 #endif
 }
 
-void stio_addtime (const stio_ntime_t* x, const stio_ntime_t* y, stio_ntime_t* z)
+void mio_addtime (const mio_ntime_t* x, const mio_ntime_t* y, mio_ntime_t* z)
 {
-	STIO_ASSERT (x->nsec >= 0 && x->nsec < STIO_NSECS_PER_SEC);
-	STIO_ASSERT (y->nsec >= 0 && y->nsec < STIO_NSECS_PER_SEC);
+	MIO_ASSERT (x->nsec >= 0 && x->nsec < MIO_NSECS_PER_SEC);
+	MIO_ASSERT (y->nsec >= 0 && y->nsec < MIO_NSECS_PER_SEC);
 
 	z->sec = x->sec + y->sec;
 	z->nsec = x->nsec + y->nsec;
 
-	if (z->nsec >= STIO_NSECS_PER_SEC)
+	if (z->nsec >= MIO_NSECS_PER_SEC)
 	{
 		z->sec = z->sec + 1;
-		z->nsec = z->nsec - STIO_NSECS_PER_SEC;
+		z->nsec = z->nsec - MIO_NSECS_PER_SEC;
 	}
 }
 
-void stio_subtime (const stio_ntime_t* x, const stio_ntime_t* y, stio_ntime_t* z)
+void mio_subtime (const mio_ntime_t* x, const mio_ntime_t* y, mio_ntime_t* z)
 {
-	STIO_ASSERT (x->nsec >= 0 && x->nsec < STIO_NSECS_PER_SEC);
-	STIO_ASSERT (y->nsec >= 0 && y->nsec < STIO_NSECS_PER_SEC);
+	MIO_ASSERT (x->nsec >= 0 && x->nsec < MIO_NSECS_PER_SEC);
+	MIO_ASSERT (y->nsec >= 0 && y->nsec < MIO_NSECS_PER_SEC);
 
 	z->sec = x->sec - y->sec;
 	z->nsec = x->nsec - y->nsec;
@@ -200,6 +200,6 @@ void stio_subtime (const stio_ntime_t* x, const stio_ntime_t* y, stio_ntime_t* z
 	if (z->nsec < 0)
 	{
 		z->sec = z->sec - 1;
-		z->nsec = z->nsec + STIO_NSECS_PER_SEC;
+		z->nsec = z->nsec + MIO_NSECS_PER_SEC;
 	}
 }
