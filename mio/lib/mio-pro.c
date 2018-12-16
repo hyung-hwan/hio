@@ -76,8 +76,8 @@ static int make_param (mio_t* mio, const mio_bch_t* cmd, int flags, param_t* par
 		mcmd = (mio_bch_t*)cmd;
 
 		param->argv = param->fixed_argv;
-		param->argv[0] = MIO_MT("/bin/sh");
-		param->argv[1] = MIO_MT("-c");
+		param->argv[0] = "/bin/sh";
+		param->argv[1] = "-c";
 		param->argv[2] = mcmd;
 		param->argv[3] = MIO_NULL;
 	}
@@ -90,7 +90,7 @@ static int make_param (mio_t* mio, const mio_bch_t* cmd, int flags, param_t* par
 		mcmd = mio_mbsdup (mio, cmd);
 		if (!mcmd) goto oops;
 		
-		fcnt = mio_mbsspl (mcmd, MIO_MT(""), MIO_MT('\"'), MIO_MT('\"'), MIO_MT('\\')); 
+		fcnt = mio_mbsspl(mcmd, "", '\"', '\"', '\\'); 
 		if (fcnt <= 0) 
 		{
 			/* no field or an error */
@@ -116,7 +116,7 @@ static int make_param (mio_t* mio, const mio_bch_t* cmd, int flags, param_t* par
 		for (i = 0; i < fcnt; i++)
 		{
 			param->argv[i] = mcmdptr;
-			while (*mcmdptr != MIO_MT('\0')) mcmdptr++;
+			while (*mcmdptr != '\0') mcmdptr++;
 			mcmdptr++;
 		}
 		param->argv[i] = MIO_NULL;
@@ -200,9 +200,9 @@ static pid_t standard_fork_and_exec (mio_t* mio, int pfds[], int flags, param_t*
 		    (flags & MIO_DEV_PRO_ERRTONUL))
 		{
 		#if defined(O_LARGEFILE)
-			devnull = open (MIO_MT("/dev/null"), O_RDWR | O_LARGEFILE, 0);
+			devnull = open ("/dev/null", O_RDWR | O_LARGEFILE, 0);
 		#else
-			devnull = open (MIO_MT("/dev/null"), O_RDWR, 0);
+			devnull = open ("/dev/null", O_RDWR, 0);
 		#endif
 			if (devnull == MIO_SYSHND_INVALID) goto slave_oops;
 		}
