@@ -708,9 +708,128 @@
 /* __va_copy is available */
 #undef HAVE___VA_COPY
 
-/* Define to the sub-directory in which libtool stores uninstalled libraries.
-   */
+/* Define to the sub-directory where libtool stores uninstalled libraries. */
 #undef LT_OBJDIR
+
+/* Use the unicode character type as the default character type */
+#undef MIO_ENABLE_UNICODE
+
+/* Big Endian */
+#undef MIO_ENDIAN_BIG
+
+/* Little Endian */
+#undef MIO_ENDIAN_LITTLE
+
+/* Unknown Endian */
+#undef MIO_ENDIAN_UNKNOWN
+
+/* MB_LEN_MAX */
+#undef MIO_MBLEN_MAX
+
+/* Author */
+#undef MIO_PACKAGE_AUTHOR
+
+/* package name */
+#undef MIO_PACKAGE_NAME
+
+/* Project URL */
+#undef MIO_PACKAGE_URL
+
+/* Package version */
+#undef MIO_PACKAGE_VERSION
+
+/* Major version number */
+#undef MIO_PACKAGE_VERSION_MAJOR
+
+/* Minor version number */
+#undef MIO_PACKAGE_VERSION_MINOR
+
+/* Patch level */
+#undef MIO_PACKAGE_VERSION_PATCH
+
+/* sizeof(char) */
+#undef MIO_SIZEOF_CHAR
+
+/* sizeof(double) */
+#undef MIO_SIZEOF_DOUBLE
+
+/* sizeof(float) */
+#undef MIO_SIZEOF_FLOAT
+
+/* sizeof(int) */
+#undef MIO_SIZEOF_INT
+
+/* sizeof(long) */
+#undef MIO_SIZEOF_LONG
+
+/* sizeof(long double) */
+#undef MIO_SIZEOF_LONG_DOUBLE
+
+/* sizeof(long long) */
+#undef MIO_SIZEOF_LONG_LONG
+
+/* sizeof(mbstate_t) */
+#undef MIO_SIZEOF_MBSTATE_T
+
+/* sizeof(off64_t) */
+#undef MIO_SIZEOF_OFF64_T
+
+/* sizeof(off_t) */
+#undef MIO_SIZEOF_OFF_T
+
+/* sizeof(short) */
+#undef MIO_SIZEOF_SHORT
+
+/* sizeof(socklen_t) */
+#undef MIO_SIZEOF_SOCKLEN_T
+
+/* sizeof(struct sockaddr_dl) */
+#undef MIO_SIZEOF_STRUCT_SOCKADDR_DL
+
+/* sizeof(struct sockaddr_in) */
+#undef MIO_SIZEOF_STRUCT_SOCKADDR_IN
+
+/* sizeof(struct sockaddr_in6) */
+#undef MIO_SIZEOF_STRUCT_SOCKADDR_IN6
+
+/* sizeof(struct sockaddr_ll) */
+#undef MIO_SIZEOF_STRUCT_SOCKADDR_LL
+
+/* sizeof(struct sockaddr_un) */
+#undef MIO_SIZEOF_STRUCT_SOCKADDR_UN
+
+/* sizeof(void*) */
+#undef MIO_SIZEOF_VOID_P
+
+/* sizeof(wchar_t) */
+#undef MIO_SIZEOF_WCHAR_T
+
+/* sizeof(__float128) */
+#undef MIO_SIZEOF___FLOAT128
+
+/* sizeof(__int128) */
+#undef MIO_SIZEOF___INT128
+
+/* sizeof(__int128_t) */
+#undef MIO_SIZEOF___INT128_T
+
+/* sizeof(__int16) */
+#undef MIO_SIZEOF___INT16
+
+/* sizeof(__int32) */
+#undef MIO_SIZEOF___INT32
+
+/* sizeof(__int64) */
+#undef MIO_SIZEOF___INT64
+
+/* sizeof(__int8) */
+#undef MIO_SIZEOF___INT8
+
+/* Define if socklen_t is signed */
+#undef MIO_SOCKLEN_T_IS_SIGNED
+
+/* Unicode character type size */
+#undef MIO_UNICODE_SIZE
 
 /* The size of `MB_LEN_MAX', as computed by valueof. */
 #undef NUMVALOF_MB_LEN_MAX
@@ -826,122 +945,11 @@
 /* The size of `__int8_t', as computed by sizeof. */
 #undef SIZEOF___INT8_T
 
+/* The size of `__uint128_t', as computed by sizeof. */
+#undef SIZEOF___UINT128_T
+
 /* Define to 1 if you have the ANSI C header files. */
 #undef STDC_HEADERS
-
-/* Big Endian */
-#undef MIO_ENDIAN_BIG
-
-/* Little Endian */
-#undef MIO_ENDIAN_LITTLE
-
-/* Unknown Endian */
-#undef MIO_ENDIAN_UNKNOWN
-
-/* MB_LEN_MAX */
-#undef MIO_MBLEN_MAX
-
-/* Author */
-#undef MIO_PACKAGE_AUTHOR
-
-/* package name */
-#undef MIO_PACKAGE_NAME
-
-/* Project URL */
-#undef MIO_PACKAGE_URL
-
-/* Package version */
-#undef MIO_PACKAGE_VERSION
-
-/* Major version number */
-#undef MIO_PACKAGE_VERSION_MAJOR
-
-/* Minor version number */
-#undef MIO_PACKAGE_VERSION_MINOR
-
-/* Patch level */
-#undef MIO_PACKAGE_VERSION_PATCH
-
-/* sizeof(char) */
-#undef MIO_SIZEOF_CHAR
-
-/* sizeof(double) */
-#undef MIO_SIZEOF_DOUBLE
-
-/* sizeof(float) */
-#undef MIO_SIZEOF_FLOAT
-
-/* sizeof(int) */
-#undef MIO_SIZEOF_INT
-
-/* sizeof(long) */
-#undef MIO_SIZEOF_LONG
-
-/* sizeof(long double) */
-#undef MIO_SIZEOF_LONG_DOUBLE
-
-/* sizeof(long long) */
-#undef MIO_SIZEOF_LONG_LONG
-
-/* sizeof(mbstate_t) */
-#undef MIO_SIZEOF_MBSTATE_T
-
-/* sizeof(off64_t) */
-#undef MIO_SIZEOF_OFF64_T
-
-/* sizeof(off_t) */
-#undef MIO_SIZEOF_OFF_T
-
-/* sizeof(short) */
-#undef MIO_SIZEOF_SHORT
-
-/* sizeof(socklen_t) */
-#undef MIO_SIZEOF_SOCKLEN_T
-
-/* sizeof(struct sockaddr_dl) */
-#undef MIO_SIZEOF_STRUCT_SOCKADDR_DL
-
-/* sizeof(struct sockaddr_in) */
-#undef MIO_SIZEOF_STRUCT_SOCKADDR_IN
-
-/* sizeof(struct sockaddr_in6) */
-#undef MIO_SIZEOF_STRUCT_SOCKADDR_IN6
-
-/* sizeof(struct sockaddr_ll) */
-#undef MIO_SIZEOF_STRUCT_SOCKADDR_LL
-
-/* sizeof(struct sockaddr_un) */
-#undef MIO_SIZEOF_STRUCT_SOCKADDR_UN
-
-/* sizeof(void*) */
-#undef MIO_SIZEOF_VOID_P
-
-/* sizeof(wchar_t) */
-#undef MIO_SIZEOF_WCHAR_T
-
-/* sizeof(__float128) */
-#undef MIO_SIZEOF___FLOAT128
-
-/* sizeof(__int128) */
-#undef MIO_SIZEOF___INT128
-
-/* sizeof(__int128_t) */
-#undef MIO_SIZEOF___INT128_T
-
-/* sizeof(__int16) */
-#undef MIO_SIZEOF___INT16
-
-/* sizeof(__int32) */
-#undef MIO_SIZEOF___INT32
-
-/* sizeof(__int64) */
-#undef MIO_SIZEOF___INT64
-
-/* sizeof(__int8) */
-#undef MIO_SIZEOF___INT8
-
-/* Define if socklen_t is signed */
-#undef MIO_SOCKLEN_T_IS_SIGNED
 
 /* Version number of package */
 #undef VERSION
