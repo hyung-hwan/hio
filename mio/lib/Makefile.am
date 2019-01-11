@@ -44,7 +44,7 @@ bin_PROGRAMS = mio
 mio_SOURCES = main.c
 mio_CPPFLAGS = $(CPPFLAGS_LIB_COMMON)
 mio_LDFLAGS = $(LDFLAGS_LIB_COMMON)
-mio_LDADD = $(LIBADD_LIB_COMMON) -lmio 
+mio_LDADD = $(LIBADD_LIB_COMMON) -lmio  $(SSL_LIBS)
 
 install-data-hook:
 	@echo "#ifndef _MIO_CFG_H_" > "$(DESTDIR)$(includedir)/mio-cfg.h"

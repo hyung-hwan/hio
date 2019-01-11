@@ -208,6 +208,7 @@ mio_uint128_t mio_hton128 (mio_uint128_t x)
 
 /* ========================================================================= */
 
+#define MIO_MT(x) (x)
 #define IS_MSPACE(x) ((x) == MIO_MT(' ') || (x) == MIO_MT('\t') || (x) == MIO_MT('\n') || (x) == MIO_MT('\r'))
 
 mio_bch_t* mio_mbsdup (mio_t* mio, const mio_bch_t* src)
@@ -522,3 +523,4 @@ int mio_mbsspl (
 {
 	return mio_mbsspltrn (s, delim, lquote, rquote, escape, MIO_NULL);
 }
+
