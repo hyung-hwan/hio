@@ -850,15 +850,15 @@ int mio_loop (mio_t* mio)
 	mio->stopreq = MIO_STOPREQ_NONE;
 	mio->renew_watch = 0;
 
-	if (mio_prologue (mio) <= -1) return -1;
+	if (mio_prologue(mio) <= -1) return -1;
 
 	while (mio->stopreq == MIO_STOPREQ_NONE && mio->actdev.head)
 	{
-		if (mio_exec (mio) <= -1) break;
+		if (mio_exec(mio) <= -1) break;
 		/* you can do other things here */
 	}
 
-	mio_epilogue (mio);
+	mio_epilogue(mio);
 	return 0;
 }
 
@@ -872,7 +872,7 @@ mio_dev_t* mio_makedev (mio_t* mio, mio_oow_t dev_size, mio_dev_mth_t* dev_mth, 
 		return MIO_NULL;
 	}
 
-	dev = MIO_MMGR_ALLOC (mio->mmgr, dev_size);
+	dev = MIO_MMGR_ALLOC(mio->mmgr, dev_size);
 	if (!dev)
 	{
 		mio->errnum = MIO_ENOMEM;
@@ -891,7 +891,7 @@ mio_dev_t* mio_makedev (mio_t* mio, mio_oow_t dev_size, mio_dev_mth_t* dev_mth, 
 
 	/* call the callback function first */
 	mio->errnum = MIO_ENOERR;
-	if (dev->dev_mth->make (dev, make_ctx) <= -1)
+	if (dev->dev_mth->make(dev, make_ctx) <= -1)
 	{
 		if (mio->errnum == MIO_ENOERR) mio->errnum = MIO_EDEVMAKE;
 		goto oops;
@@ -915,7 +915,7 @@ mio_dev_t* mio_makedev (mio_t* mio, mio_oow_t dev_size, mio_dev_mth_t* dev_mth, 
 		goto oops_after_make;
 	}
 #else
-	if (mio_dev_watch (dev, MIO_DEV_WATCH_START, 0) <= -1) goto oops_after_make;
+	if (mio_dev_watch(dev, MIO_DEV_WATCH_START, 0) <= -1) goto oops_after_make;
 #endif
 
 	/* and place the new device object at the back of the active device list */
@@ -925,17 +925,17 @@ mio_dev_t* mio_makedev (mio_t* mio, mio_oow_t dev_size, mio_dev_mth_t* dev_mth, 
 	return dev;
 
 oops_after_make:
-	if (kill_and_free_device (dev, 0) <= -1)
+	if (kill_and_free_device(dev, 0) <= -1)
 	{
 		/* schedule a timer job that reattempts to destroy the device */
-		if (schedule_kill_zombie_job (dev) <= -1) 
+		if (schedule_kill_zombie_job(dev) <= -1) 
 		{
 			/* job scheduling failed. i have no choice but to
 			 * destroy the device now.
 			 * 
 			 * NOTE: this while loop can block the process
 			 *       if the kill method keep returning failure */
-			while (kill_and_free_device (dev, 1) <= -1)
+			while (kill_and_free_device(dev, 1) <= -1)
 			{
 				if (mio->stopreq != MIO_STOPREQ_NONE) 
 				{
@@ -996,14 +996,14 @@ static void kill_zombie_job_handler (mio_t* mio, const mio_ntime_t* now, mio_tmr
 
 	MIO_ASSERT (dev->dev_capa & MIO_DEV_CAPA_ZOMBIE);
 
-	if (kill_and_free_device (dev, 0) <= -1)
+	if (kill_and_free_device(dev, 0) <= -1)
 	{
-		if (schedule_kill_zombie_job (dev) <= -1)
+		if (schedule_kill_zombie_job(dev) <= -1)
 		{
 			/* i have to choice but to free up the devide by force */
-			while (kill_and_free_device (dev, 1) <= -1)
+			while (kill_and_free_device(dev, 1) <= -1)
 			{
-				if (mio->stopreq  != MIO_STOPREQ_NONE) 
+				if (mio->stopreq != MIO_STOPREQ_NONE) 
 				{
 					/* i can't wait until destruction attempt gets
 					 * fully successful. there is a chance that some
@@ -1272,7 +1272,7 @@ static int __dev_write (mio_dev_t* dev, const void* data, mio_iolen_t len, const
 			{
 				/* [NOTE] 
 				 * the write queue is empty at this moment. a zero-length 
-				 * request for a stream device can still get enqueued  if the
+				 * request for a stream device can still get enqueued if the
 				 * write callback returns 0 though i can't figure out if there
 				 * is a compelling reason to do so 
 				 */
@@ -1292,7 +1292,7 @@ static int __dev_write (mio_dev_t* dev, const void* data, mio_iolen_t len, const
 			dev->dev_capa |= MIO_DEV_CAPA_OUT_CLOSED;
 		}
 
-		if (dev->dev_evcb->on_write (dev, len, wrctx, dstaddr) <= -1) return -1;
+		if (dev->dev_evcb->on_write(dev, len, wrctx, dstaddr) <= -1) return -1;
 	}
 	else
 	{
@@ -1355,7 +1355,7 @@ enqueue_data:
 		tmrjob.handler = on_write_timeout;
 		tmrjob.idxptr = &q->tmridx;
 
-		q->tmridx = mio_instmrjob (dev->mio, &tmrjob);
+		q->tmridx = mio_instmrjob(dev->mio, &tmrjob);
 		if (q->tmridx == MIO_TMRIDX_INVALID) 
 		{
 			MIO_MMGR_FREE (dev->mio->mmgr, q);
@@ -1367,7 +1367,7 @@ enqueue_data:
 	if (!dev->mio->in_exec && !(dev->dev_capa & MIO_DEV_CAPA_OUT_WATCHED))
 	{
 		/* if output is not being watched, arrange to do so */
-		if (mio_dev_watch (dev, MIO_DEV_WATCH_RENEW, 0) <= -1)
+		if (mio_dev_watch(dev, MIO_DEV_WATCH_RENEW, 0) <= -1)
 		{
 			unlink_wq (dev->mio, q);
 			MIO_MMGR_FREE (dev->mio->mmgr, q);
@@ -1384,12 +1384,12 @@ enqueue_data:
 
 int mio_dev_write (mio_dev_t* dev, const void* data, mio_iolen_t len, void* wrctx, const mio_devaddr_t* dstaddr)
 {
-	return __dev_write (dev, data, len, MIO_NULL, wrctx, dstaddr);
+	return __dev_write(dev, data, len, MIO_NULL, wrctx, dstaddr);
 }
 
 int mio_dev_timedwrite (mio_dev_t* dev, const void* data, mio_iolen_t len, const mio_ntime_t* tmout, void* wrctx, const mio_devaddr_t* dstaddr)
 {
-	return __dev_write (dev, data, len, tmout, wrctx, dstaddr);
+	return __dev_write(dev, data, len, tmout, wrctx, dstaddr);
 }
 
 int mio_makesyshndasync (mio_t* mio, mio_syshnd_t hnd)
@@ -1397,8 +1397,8 @@ int mio_makesyshndasync (mio_t* mio, mio_syshnd_t hnd)
 #if defined(F_GETFL) && defined(F_SETFL) && defined(O_NONBLOCK)
 	int flags;
 
-	if ((flags = fcntl (hnd, F_GETFL)) <= -1 ||
-	    (flags = fcntl (hnd, F_SETFL, flags | O_NONBLOCK)) <= -1)
+	if ((flags = fcntl(hnd, F_GETFL)) <= -1 ||
+	    (flags = fcntl(hnd, F_SETFL, flags | O_NONBLOCK)) <= -1)
 	{
 		mio->errnum = mio_syserrtoerrnum (errno);
 		return -1;

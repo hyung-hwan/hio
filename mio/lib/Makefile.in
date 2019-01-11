@@ -154,7 +154,7 @@ libmio_la_LINK = $(LIBTOOL) $(AM_V_lt) --tag=CC $(AM_LIBTOOLFLAGS) \
 PROGRAMS = $(bin_PROGRAMS)
 am_mio_OBJECTS = mio-main.$(OBJEXT)
 mio_OBJECTS = $(am_mio_OBJECTS)
-mio_DEPENDENCIES = $(am__DEPENDENCIES_2)
+mio_DEPENDENCIES = $(am__DEPENDENCIES_2) $(am__DEPENDENCIES_1)
 mio_LINK = $(LIBTOOL) $(AM_V_lt) --tag=CC $(AM_LIBTOOLFLAGS) \
 	$(LIBTOOLFLAGS) --mode=link $(CCLD) $(AM_CFLAGS) $(CFLAGS) \
 	$(mio_LDFLAGS) $(LDFLAGS) -o $@
@@ -411,7 +411,7 @@ libmio_la_LIBADD = $(LIBADD_LIB_COMMON) $(SSL_LIBS)
 mio_SOURCES = main.c
 mio_CPPFLAGS = $(CPPFLAGS_LIB_COMMON)
 mio_LDFLAGS = $(LDFLAGS_LIB_COMMON)
-mio_LDADD = $(LIBADD_LIB_COMMON) -lmio 
+mio_LDADD = $(LIBADD_LIB_COMMON) -lmio  $(SSL_LIBS)
 all: mio-cfg.h
 	$(MAKE) $(AM_MAKEFLAGS) all-am
 

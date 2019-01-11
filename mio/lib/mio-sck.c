@@ -74,59 +74,63 @@
 
 
 /* ========================================================================= */
-void mio_closeasyncsck (mio_t* mio, mio_sckhnd_t sck)
-{
-#if defined(_WIN32)
-	closesocket (sck);
-#else
-	close (sck);
-#endif
-}
 
 int mio_makesckasync (mio_t* mio, mio_sckhnd_t sck)
 {
 	return mio_makesyshndasync (mio, (mio_syshnd_t)sck);
 }
 
-mio_sckhnd_t mio_openasyncsck (mio_t* mio, int domain, int type, int proto)
+static void close_async_socket (mio_t* mio, mio_sckhnd_t sck)
 {
-	mio_sckhnd_t sck;
+	close (sck);
+}
 
-#if defined(_WIN32)
-	sck = WSASocket (domain, type, proto, NULL, 0, WSA_FLAG_OVERLAPPED | WSA_FLAG_NO_HANDLE_INHERIT);
+static mio_sckhnd_t open_async_socket (mio_t* mio, int domain, int type, int proto)
+{
+	mio_sckhnd_t sck = MIO_SCKHND_INVALID;
+	int flags;
+
+#if defined(SOCK_NONBLOCK) && defined(SOCK_CLOEXEC)
+	type |= SOCK_NONBLOCK;
+	type |= SOCK_CLOEXEC;
+open_socket:
+#endif
+	sck = socket(domain, type, proto); 
 	if (sck == MIO_SCKHND_INVALID) 
 	{
-		/* mio_seterrnum (dev->mio, MIO_ESYSERR); or translate errno to mio errnum */
-		return MIO_SCKHND_INVALID;
-	}
-#else
-	sck = socket (domain, type, proto); 
-	if (sck == MIO_SCKHND_INVALID) 
-	{
-		mio->errnum = mio_syserrtoerrnum(errno);
-		return MIO_SCKHND_INVALID;
-	}
-
-#if defined(FD_CLOEXEC)
-	{
-		int flags = fcntl (sck, F_GETFD, 0);
-		if (fcntl (sck, F_SETFD, flags | FD_CLOEXEC) == -1)
+	#if defined(SOCK_NONBLOCK) && defined(SOCK_CLOEXEC)
+		if (errno == EINVAL && (type & (SOCK_NONBLOCK | SOCK_CLOEXEC)))
 		{
-			mio->errnum = mio_syserrtoerrnum(errno);
-			return MIO_SCKHND_INVALID;
+			type &= ~(SOCK_NONBLOCK | SOCK_CLOEXEC);
+			goto open_socket;
 		}
+	#endif
+		goto oops;
 	}
-#endif
-
-	if (mio_makesckasync (mio, sck) <= -1)
+	else
 	{
-		close (sck);
-		return MIO_SCKHND_INVALID;
+	#if defined(SOCK_NONBLOCK) && defined(SOCK_CLOEXEC)
+		if (type & (SOCK_NONBLOCK | SOCK_CLOEXEC)) goto done;
+	#endif
 	}
 
+	flags = fcntl(sck, F_GETFD, 0);
+	if (flags == -1) goto oops;
+#if defined(FD_CLOEXEC)
+	flags |= FD_CLOEXEC;
 #endif
+#if defined(O_NONBLOCK)
+	flags |= O_NONBLOCK;
+#endif
+	if (fcntl(sck, F_SETFD, flags) == -1) goto oops;
 
+done:
 	return sck;
+
+oops:
+	if (sck != MIO_SCKHND_INVALID) close (sck);
+	mio->errnum = mio_syserrtoerrnum(errno);
+	return MIO_SCKHND_INVALID;
 }
 
 int mio_getsckaddrinfo (mio_t* mio, const mio_sckaddr_t* addr, mio_scklen_t* len, mio_sckfam_t* family)
@@ -421,12 +425,13 @@ static int dev_sck_make (mio_dev_t* dev, void* ctx)
 		return -1;
 	}
 
-	rdev->sck = mio_openasyncsck (dev->mio, sck_type_map[arg->type].domain, sck_type_map[arg->type].type, sck_type_map[arg->type].proto);
+	rdev->sck = open_async_socket(dev->mio, sck_type_map[arg->type].domain, sck_type_map[arg->type].type, sck_type_map[arg->type].proto);
 	if (rdev->sck == MIO_SCKHND_INVALID) goto oops;
 
 	rdev->dev_capa = MIO_DEV_CAPA_IN | MIO_DEV_CAPA_OUT | sck_type_map[arg->type].extra_dev_capa;
 	rdev->on_write = arg->on_write;
 	rdev->on_read = arg->on_read;
+	rdev->on_connect = arg->on_connect;
 	rdev->on_disconnect = arg->on_disconnect;
 	rdev->type = arg->type;
 	rdev->tmrjob_index = MIO_TMRIDX_INVALID;
@@ -436,7 +441,7 @@ static int dev_sck_make (mio_dev_t* dev, void* ctx)
 oops:
 	if (rdev->sck != MIO_SCKHND_INVALID)
 	{
-		mio_closeasyncsck (rdev->mio, rdev->sck);
+		close_async_socket (rdev->mio, rdev->sck);
 		rdev->sck = MIO_SCKHND_INVALID;
 	}
 	return -1;
@@ -447,18 +452,20 @@ static int dev_sck_make_client (mio_dev_t* dev, void* ctx)
 	mio_dev_sck_t* rdev = (mio_dev_sck_t*)dev;
 	mio_syshnd_t* sck = (mio_syshnd_t*)ctx;
 
-	/* nothing special is done here except setting the sock et handle.
+	/* create a socket device that is made of a socket connection
+	 * on a listening socket.
+	 * nothing special is done here except setting the socket handle.
 	 * most of the initialization is done by the listening socket device
 	 * after a client socket has been created. */
 
 	rdev->sck = *sck;
 	rdev->tmrjob_index = MIO_TMRIDX_INVALID;
 
-	if (mio_makesckasync (rdev->mio, rdev->sck) <= -1) return -1;
+	if (mio_makesckasync(rdev->mio, rdev->sck) <= -1) return -1;
 #if defined(FD_CLOEXEC)
 	{
-		int flags = fcntl (rdev->sck, F_GETFD, 0);
-		if (fcntl (rdev->sck, F_SETFD, flags | FD_CLOEXEC) == -1)
+		int flags = fcntl(rdev->sck, F_GETFD, 0);
+		if (fcntl(rdev->sck, F_SETFD, flags | FD_CLOEXEC) == -1)
 		{
 			rdev->mio->errnum = mio_syserrtoerrnum(errno);
 			return -1;
@@ -512,7 +519,7 @@ static int dev_sck_kill (mio_dev_t* dev, int force)
 
 	if (rdev->sck != MIO_SCKHND_INVALID) 
 	{
-		mio_closeasyncsck (rdev->mio, rdev->sck);
+		close_async_socket (rdev->mio, rdev->sck);
 		rdev->sck = MIO_SCKHND_INVALID;
 	}
 
@@ -979,7 +986,7 @@ fcntl (rdev->sck, F_SETFL, flags & ~O_NONBLOCK);
 }*/
 
 			/* the socket is already non-blocking */
-			x = connect (rdev->sck, sa, sl);
+			x = connect(rdev->sck, sa, sl);
 /*{
 int flags = fcntl (rdev->sck, F_GETFL);
 fcntl (rdev->sck, F_SETFL, flags | O_NONBLOCK);
@@ -1013,7 +1020,6 @@ fcntl (rdev->sck, F_SETFL, flags | O_NONBLOCK);
 						}
 
 						rdev->remoteaddr = conn->remoteaddr;
-						rdev->on_connect = conn->on_connect;
 					#if defined(USE_SSL)
 						rdev->ssl_ctx = ssl_ctx;
 					#endif
@@ -1040,10 +1046,9 @@ fcntl (rdev->sck, F_SETFL, flags | O_NONBLOCK);
 			{
 				/* connected immediately */
 				rdev->remoteaddr = conn->remoteaddr;
-				rdev->on_connect = conn->on_connect;
 
 				sl = MIO_SIZEOF(localaddr);
-				if (getsockname (rdev->sck, (struct sockaddr*)&localaddr, &sl) == 0) rdev->localaddr = localaddr;
+				if (getsockname(rdev->sck, (struct sockaddr*)&localaddr, &sl) == 0) rdev->localaddr = localaddr;
 
 			#if defined(USE_SSL)
 				if (ssl_ctx)
@@ -1051,7 +1056,7 @@ fcntl (rdev->sck, F_SETFL, flags | O_NONBLOCK);
 					int x;
 					rdev->ssl_ctx = ssl_ctx;
 
-					x = connect_ssl (rdev);
+					x = connect_ssl(rdev);
 					if (x <= -1) 
 					{
 						SSL_CTX_free (rdev->ssl_ctx);
@@ -1100,7 +1105,7 @@ fcntl (rdev->sck, F_SETFL, flags | O_NONBLOCK);
 				ssl_connected:
 			#endif
 					MIO_DEV_SCK_SET_PROGRESS (rdev, MIO_DEV_SCK_CONNECTED);
-					if (rdev->on_connect (rdev) <= -1) return -1;
+					if (rdev->on_connect(rdev) <= -1) return -1;
 			#if defined(USE_SSL)
 				}
 			#endif
@@ -1134,7 +1139,6 @@ fcntl (rdev->sck, F_SETFL, flags | O_NONBLOCK);
 			}
 
 			MIO_DEV_SCK_SET_PROGRESS (rdev, MIO_DEV_SCK_LISTENING);
-			rdev->on_connect = lstn->on_connect;
 			return 0;
 		}
 	}
@@ -1274,11 +1278,36 @@ static int accept_incoming_connection (mio_dev_sck_t* rdev)
 	mio_sckaddr_t remoteaddr;
 	mio_scklen_t addrlen;
 	mio_dev_sck_t* clidev;
+	int flags;
 
 	/* this is a server(lisening) socket */
 
+#if defined(SOCK_NONBLOCK) && defined(SOCK_CLOEXEC) && defined(HAVE_ACCEPT4)
+	flags = SOCK_NONBLOCK | SOCK_CLOEXEC;
+
 	addrlen = MIO_SIZEOF(remoteaddr);
-	clisck = accept (rdev->sck, (struct sockaddr*)&remoteaddr, &addrlen);
+	clisck = accept4(rdev->sck, (struct sockaddr*)&remoteaddr, &addrlen, flags);
+	if (clisck == MIO_SCKHND_INVALID)
+	{
+		 if (errno != ENOSYS)
+		 {
+			if (errno == EINPROGRESS || errno == EWOULDBLOCK || errno == EAGAIN) return 0;
+			if (errno == EINTR) return 0; /* if interrupted by a signal, treat it as if it's EINPROGRESS */
+
+			rdev->mio->errnum = mio_syserrtoerrnum(errno);
+			return -1;
+		 }
+
+		 // go on for the normal 3-parameter accept
+	}
+	else
+	{
+		 goto accept_done;
+	}
+
+#endif
+	addrlen = MIO_SIZEOF(remoteaddr);
+	clisck = accept(rdev->sck, (struct sockaddr*)&remoteaddr, &addrlen);
 	if (clisck == MIO_SCKHND_INVALID)
 	{
 		if (errno == EINPROGRESS || errno == EWOULDBLOCK || errno == EAGAIN) return 0;
@@ -1288,11 +1317,13 @@ static int accept_incoming_connection (mio_dev_sck_t* rdev)
 		return -1;
 	}
 
+
+accept_done:
 	/* use rdev->dev_size when instantiating a client sck device
 	 * instead of MIO_SIZEOF(mio_dev_sck_t). therefore, the 
 	 * extension area as big as that of the master sck device
 	 * is created in the client sck device */
-	clidev = (mio_dev_sck_t*)mio_makedev (rdev->mio, rdev->dev_size, &dev_mth_clisck, rdev->dev_evcb, &clisck); 
+	clidev = (mio_dev_sck_t*)mio_makedev(rdev->mio, rdev->dev_size, &dev_mth_clisck, rdev->dev_evcb, &clisck); 
 	if (!clidev) 
 	{
 		close (clisck);
@@ -1336,7 +1367,7 @@ static int accept_incoming_connection (mio_dev_sck_t* rdev)
 		clidev->state |= MIO_DEV_SCK_INTERCEPTED;
 	}
 	#if 0
-	else if ((clidev->initial_ifindex = resolve_ifindex (fd, clidev->localaddr)) <= -1)
+	else if ((clidev->initial_ifindex = resolve_ifindex(fd, clidev->localaddr)) <= -1)
 	{
 		/* the local_address is not one of a local address.
 		 * it's probably proxied. */
@@ -1637,13 +1668,13 @@ mio_dev_sck_t* mio_dev_sck_make (mio_t* mio, mio_oow_t xtnsize, const mio_dev_sc
 
 	if (sck_type_map[info->type].extra_dev_capa & MIO_DEV_CAPA_STREAM) /* can't use the IS_STATEFUL() macro yet */
 	{
-		rdev = (mio_dev_sck_t*)mio_makedev (
+		rdev = (mio_dev_sck_t*)mio_makedev(
 			mio, MIO_SIZEOF(mio_dev_sck_t) + xtnsize, 
 			&dev_sck_methods_stateful, &dev_sck_event_callbacks_stateful, (void*)info);
 	}
 	else
 	{
-		rdev = (mio_dev_sck_t*)mio_makedev (
+		rdev = (mio_dev_sck_t*)mio_makedev(
 			mio, MIO_SIZEOF(mio_dev_sck_t) + xtnsize,
 			&dev_sck_methods_stateless, &dev_sck_event_callbacks_stateless, (void*)info);
 	}
@@ -1653,29 +1684,29 @@ mio_dev_sck_t* mio_dev_sck_make (mio_t* mio, mio_oow_t xtnsize, const mio_dev_sc
 
 int mio_dev_sck_bind (mio_dev_sck_t* dev, mio_dev_sck_bind_t* info)
 {
-	return mio_dev_ioctl ((mio_dev_t*)dev, MIO_DEV_SCK_BIND, info);
+	return mio_dev_ioctl((mio_dev_t*)dev, MIO_DEV_SCK_BIND, info);
 }
 
 int mio_dev_sck_connect (mio_dev_sck_t* dev, mio_dev_sck_connect_t* info)
 {
-	return mio_dev_ioctl ((mio_dev_t*)dev, MIO_DEV_SCK_CONNECT, info);
+	return mio_dev_ioctl((mio_dev_t*)dev, MIO_DEV_SCK_CONNECT, info);
 }
 
 int mio_dev_sck_listen (mio_dev_sck_t* dev, mio_dev_sck_listen_t* info)
 {
-	return mio_dev_ioctl ((mio_dev_t*)dev, MIO_DEV_SCK_LISTEN, info);
+	return mio_dev_ioctl((mio_dev_t*)dev, MIO_DEV_SCK_LISTEN, info);
 }
 
 int mio_dev_sck_write (mio_dev_sck_t* dev, const void* data, mio_iolen_t dlen, void* wrctx, const mio_sckaddr_t* dstaddr)
 {
 	mio_devaddr_t devaddr;
-	return mio_dev_write ((mio_dev_t*)dev, data, dlen, wrctx, sckaddr_to_devaddr(dev, dstaddr, &devaddr));
+	return mio_dev_write((mio_dev_t*)dev, data, dlen, wrctx, sckaddr_to_devaddr(dev, dstaddr, &devaddr));
 }
 
 int mio_dev_sck_timedwrite (mio_dev_sck_t* dev, const void* data, mio_iolen_t dlen, const mio_ntime_t* tmout, void* wrctx, const mio_sckaddr_t* dstaddr)
 {
 	mio_devaddr_t devaddr;
-	return mio_dev_timedwrite ((mio_dev_t*)dev, data, dlen, tmout, wrctx, sckaddr_to_devaddr(dev, dstaddr, &devaddr));
+	return mio_dev_timedwrite((mio_dev_t*)dev, data, dlen, tmout, wrctx, sckaddr_to_devaddr(dev, dstaddr, &devaddr));
 }
 
 

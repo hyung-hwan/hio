@@ -299,6 +299,11 @@ static int arp_sck_on_write (mio_dev_sck_t* dev, mio_iolen_t wrlen, void* wrctx,
 	return 0;
 }
 
+static void arp_sck_on_connect (mio_dev_sck_t* dev)
+{
+printf ("STARTING UP ARP SOCKET %d...\n", dev->sck);
+}
+
 static void arp_sck_on_disconnect (mio_dev_sck_t* dev)
 {
 printf ("SHUTTING DOWN ARP SOCKET %d...\n", dev->sck);
@@ -316,6 +321,7 @@ static int setup_arp_tester (mio_t* mio)
 	//sck_make.type = MIO_DEV_SCK_ARP_DGRAM;
 	sck_make.on_write = arp_sck_on_write;
 	sck_make.on_read = arp_sck_on_read;
+	sck_make.on_connect = arp_sck_on_connect;
 	sck_make.on_disconnect = arp_sck_on_disconnect;
 	sck = mio_dev_sck_make (mio, 0, &sck_make);
 	if (!sck)
@@ -325,7 +331,9 @@ static int setup_arp_tester (mio_t* mio)
 	}
 
 	//mio_sckaddr_initforeth (&ethdst, if_nametoindex("enp0s25.3"), (mio_ethaddr_t*)"\xFF\xFF\xFF\xFF\xFF\xFF");
-	mio_sckaddr_initforeth (&ethdst, if_nametoindex("enp0s25.3"), (mio_ethaddr_t*)"\xAA\xBB\xFF\xCC\xDD\xFF");
+	//mio_sckaddr_initforeth (&ethdst, if_nametoindex("enp0s25.3"), (mio_ethaddr_t*)"\xAA\xBB\xFF\xCC\xDD\xFF");
+
+	mio_sckaddr_initforeth (&ethdst, if_nametoindex("wlan0"), (mio_ethaddr_t*)"\xAA\xBB\xFF\xCC\xDD\xFF");
 
 	memset (&etharp, 0, sizeof(etharp));
 
@@ -342,7 +350,7 @@ static int setup_arp_tester (mio_t* mio)
 
 	memcpy (etharp.arppld.sha, "\xB8\x6B\x23\x9C\x10\x76", MIO_ETHADDR_LEN);
 
-	if (mio_dev_sck_write (sck, &etharp, sizeof(etharp), NULL, &ethdst) <= -1)
+	if (mio_dev_sck_write(sck, &etharp, sizeof(etharp), NULL, &ethdst) <= -1)
 	//if (mio_dev_sck_write (sck, &etharp.arphdr, sizeof(etharp) - sizeof(etharp.ethhdr), NULL, &ethaddr) <= -1)
 	{
 		printf ("CANNOT WRITE ARP...\n");
@@ -542,7 +550,7 @@ static void handle_signal (int sig)
 	if (g_mio) mio_stop (g_mio, MIO_STOPREQ_TERMINATION);
 }
 
-int main ()
+int main (int argc, char* argv[])
 {
 	int i;
 
@@ -590,7 +598,7 @@ int main ()
 	sin.sin_family = AF_INET;
 	sin.sin_port = htons(1234); */
 /*
-	udp = (mio_dev_udp_t*)mio_makedev (mio, MIO_SIZEOF(*udp), &udp_mth, &udp_evcb, &sin);
+	udp = (mio_dev_udp_t*)mio_makedev(mio, MIO_SIZEOF(*udp), &udp_mth, &udp_evcb, &sin);
 	if (!udp)
 	{
 		printf ("Cannot make udp\n");
@@ -602,8 +610,9 @@ int main ()
 	tcp_make.type = MIO_DEV_SCK_TCP4;
 	tcp_make.on_write = tcp_sck_on_write;
 	tcp_make.on_read = tcp_sck_on_read;
+	tcp_make.on_connect = tcp_sck_on_connect;
 	tcp_make.on_disconnect = tcp_sck_on_disconnect;
-	tcp[0] = mio_dev_sck_make (mio, MIO_SIZEOF(tcp_server_t), &tcp_make);
+	tcp[0] = mio_dev_sck_make(mio, MIO_SIZEOF(tcp_server_t), &tcp_make);
 	if (!tcp[0])
 	{
 		printf ("Cannot make tcp\n");
@@ -621,7 +630,6 @@ int main ()
 }
 
 	mio_inittime (&tcp_conn.connect_tmout, 5, 0);
-	tcp_conn.on_connect = tcp_sck_on_connect;
 	tcp_conn.options = MIO_DEV_SCK_CONNECT_SSL;
 	if (mio_dev_sck_connect (tcp[0], &tcp_conn) <= -1)
 	{
@@ -634,9 +642,10 @@ int main ()
 	tcp_make.type = MIO_DEV_SCK_TCP4;
 	tcp_make.on_write = tcp_sck_on_write;
 	tcp_make.on_read = tcp_sck_on_read;
+	tcp_make.on_connect = tcp_sck_on_connect;
 	tcp_make.on_disconnect = tcp_sck_on_disconnect;
 
-	tcp[1] = mio_dev_sck_make (mio, MIO_SIZEOF(tcp_server_t), &tcp_make);
+	tcp[1] = mio_dev_sck_make(mio, MIO_SIZEOF(tcp_server_t), &tcp_make);
 	if (!tcp[1])
 	{
 		printf ("Cannot make tcp\n");
@@ -651,16 +660,15 @@ int main ()
 
 	if (mio_dev_sck_bind (tcp[1],&tcp_bind) <= -1)
 	{
-		printf ("mio_dev_sck_bind() failed....\n");
+		printf ("tcp[1] mio_dev_sck_bind() failed....\n");
 		goto oops;
 	}
 
 
 	tcp_lstn.backlogs = 100;
-	tcp_lstn.on_connect = tcp_sck_on_connect;
 	if (mio_dev_sck_listen (tcp[1], &tcp_lstn) <= -1)
 	{
-		printf ("mio_dev_sck_listen() failed....\n");
+		printf ("tcp[1] mio_dev_sck_listen() failed....\n");
 		goto oops;
 	}
 
@@ -669,6 +677,7 @@ int main ()
 	tcp_make.type = MIO_DEV_SCK_TCP4;
 	tcp_make.on_write = tcp_sck_on_write;
 	tcp_make.on_read = tcp_sck_on_read;
+	tcp_make.on_connect = tcp_sck_on_connect;
 	tcp_make.on_disconnect = tcp_sck_on_disconnect;
 
 	tcp[2] = mio_dev_sck_make (mio, MIO_SIZEOF(tcp_server_t), &tcp_make);
@@ -687,17 +696,16 @@ int main ()
 	tcp_bind.ssl_keyfile = "localhost.key";
 	mio_inittime (&tcp_bind.accept_tmout, 5, 1);
 
-	if (mio_dev_sck_bind (tcp[2],&tcp_bind) <= -1)
+	if (mio_dev_sck_bind(tcp[2], &tcp_bind) <= -1)
 	{
-		printf ("mio_dev_sck_bind() failed....\n");
+		printf ("tcp[2] mio_dev_sck_bind() failed....\n");
 		goto oops;
 	}
 
 	tcp_lstn.backlogs = 100;
-	tcp_lstn.on_connect = tcp_sck_on_connect;
-	if (mio_dev_sck_listen (tcp[2], &tcp_lstn) <= -1)
+	if (mio_dev_sck_listen(tcp[2], &tcp_lstn) <= -1)
 	{
-		printf ("mio_dev_sck_listen() failed....\n");
+		printf ("tcp[2] mio_dev_sck_listen() failed....\n");
 		goto oops;
 	}
 
@@ -705,7 +713,6 @@ int main ()
 
 	if (setup_arp_tester(mio) <= -1) goto oops;
 	if (setup_ping4_tester(mio) <= -1) goto oops;
-
 
 for (i = 0; i < 5; i++)
 {
@@ -753,3 +760,47 @@ oops:
 #endif
 	return -1;
 }
+
+#if 0
+int main (int argc, char* argv[])
+{
+	mio_t* mio = MIO_NULL;
+	mio_dev_sck_t* tcpsvr;
+
+	mio = mio_open (&mmgr, 0, 512, MIO_NULL);
+	if (!mio)
+	{
+		printf ("Cannot open mio\n");
+		goto oops;
+	}
+
+	memset (&tcp_make, 0, MIO_SIZEOF(&tcp_make));
+	tcp_make.type = MIO_DEV_SCK_TCP4;
+	tcp_make.on_write = tcp_sck_on_write;
+	tcp_make.on_read = tcp_sck_on_read;
+	tcp_make.on_connect = tcp_sck_on_connect;
+	tcp_make.on_disconnect = tcp_sck_on_disconnect;
+	tcpsvr = mio_dev_sck_make(mio, MIO_SIZEOF(tcp_server_t), &tcp_make);
+	if (!tcpsvr)
+	{
+		printf ("Cannot make a tcp server\n");
+		goto oops;
+	}
+
+	ts = (tcp_server_t*)(tcpsvr + 1);
+	ts->tally = 0;
+	
+#if 0
+	while (1)
+	{
+		mio_exec (mio);
+	}
+#endif	
+	mio_loop (mio);
+
+oops:
+	if (mio) mio_close (mio);
+	return 0;
+}
+
+#endif

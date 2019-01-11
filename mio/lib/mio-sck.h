@@ -300,7 +300,7 @@ typedef struct mio_dev_sck_t mio_dev_sck_t;
 
 typedef int (*mio_dev_sck_on_read_t) (
 	mio_dev_sck_t*       dev,
-	const void*           data,
+	const void*          data,
 	mio_iolen_t          dlen,
 	const mio_sckaddr_t* srcaddr
 );
@@ -308,7 +308,7 @@ typedef int (*mio_dev_sck_on_read_t) (
 typedef int (*mio_dev_sck_on_write_t) (
 	mio_dev_sck_t*       dev,
 	mio_iolen_t          wrlen,
-	void*                 wrctx,
+	void*                wrctx,
 	const mio_sckaddr_t* dstaddr
 );
 
@@ -349,6 +349,7 @@ struct mio_dev_sck_make_t
 	mio_dev_sck_type_t type;
 	mio_dev_sck_on_write_t on_write;
 	mio_dev_sck_on_read_t on_read;
+	mio_dev_sck_on_connect_t on_connect;
 	mio_dev_sck_on_disconnect_t on_disconnect;
 };
 
@@ -390,14 +391,12 @@ struct mio_dev_sck_connect_t
 	int options;
 	mio_sckaddr_t remoteaddr;
 	mio_ntime_t connect_tmout;
-	mio_dev_sck_on_connect_t on_connect;
 };
 
 typedef struct mio_dev_sck_listen_t mio_dev_sck_listen_t;
 struct mio_dev_sck_listen_t
 {
 	int backlogs;
-	mio_dev_sck_on_connect_t on_connect; /* optional, but new connections are dropped immediately without this */
 };
 
 typedef struct mio_dev_sck_accept_t mio_dev_sck_accept_t;
@@ -463,18 +462,6 @@ struct mio_dev_sck_t
 extern "C" {
 #endif
 
-MIO_EXPORT mio_sckhnd_t mio_openasyncsck (
-	mio_t* mio,
-	int     domain, 
-	int     type,
-	int     proto
-);
-
-MIO_EXPORT void mio_closeasyncsck (
-	mio_t*       mio,
-	mio_sckhnd_t sck
-);
-
 MIO_EXPORT int mio_makesckasync (
 	mio_t*       mio,
 	mio_sckhnd_t sck
@@ -518,7 +505,7 @@ MIO_EXPORT void mio_sckaddr_initforip6 (
 
 MIO_EXPORT void mio_sckaddr_initforeth (
 	mio_sckaddr_t* sckaddr,
-	int             ifindex,
+	int            ifindex,
 	mio_ethaddr_t* ethaddr
 );
 

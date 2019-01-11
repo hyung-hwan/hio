@@ -3,6 +3,9 @@
 /* Define if building universal (internal helper macro) */
 #undef AC_APPLE_UNIVERSAL_BUILD
 
+/* Define to 1 if you have the `accept4' function. */
+#undef HAVE_ACCEPT4
+
 /* Define to 1 if you have the `acos' function. */
 #undef HAVE_ACOS
 
@@ -385,6 +388,12 @@
 /* Define to 1 if you have the `readdir64' function. */
 #undef HAVE_READDIR64
 
+/* Define to 1 if you have the `readv' function. */
+#undef HAVE_READV
+
+/* Define to 1 if you have the `recvmsg' function. */
+#undef HAVE_RECVMSG
+
 /* Define to 1 if you have the `round' function. */
 #undef HAVE_ROUND
 
@@ -411,6 +420,9 @@
 
 /* Define to 1 if you have the `sendfilev64' function. */
 #undef HAVE_SENDFILEV64
+
+/* Define to 1 if you have the `sendmsg' function. */
+#undef HAVE_SENDMSG
 
 /* Define to 1 if you have the `setcontext' function. */
 #undef HAVE_SETCONTEXT
@@ -686,6 +698,9 @@
 
 /* Define to 1 if you have the <wctype.h> header file. */
 #undef HAVE_WCTYPE_H
+
+/* Define to 1 if you have the `writev' function. */
+#undef HAVE_WRITEV
 
 /* Define to 1 if you have the `_vsnprintf' function. */
 #undef HAVE__VSNPRINTF
