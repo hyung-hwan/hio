@@ -79,6 +79,7 @@ struct mio_t
 	} tmr;
 
 	mio_cwq_t cwq;
+	mio_cwq_t* cwq_zdf; /* list of free cwq objects with 0-sized dstaddr */
 
 	/* platform specific fields below */
 #if defined(_WIN32)

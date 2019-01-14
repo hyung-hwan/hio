@@ -395,6 +395,13 @@ void mio_fini (mio_t* mio)
 		mio_dev_t* tail;
 	} diehard;
 
+	while (mio->cwq_zdf)
+	{
+		mio_cwq_t* cwq = mio->cwq_zdf;
+		mio->cwq_zdf = cwq->next;
+		MIO_MMGR_FREE (mio->mmgr, cwq);
+	}
+
 	/* kill all registered devices */
 	while (mio->actdev.head)
 	{
@@ -732,7 +739,18 @@ static MIO_INLINE int __exec (mio_t* mio)
 		if (cwq->dev->dev_evcb->on_write(cwq->dev, cwq->olen, cwq->ctx, &cwq->dstaddr) <= -1) return -1;
 		cwq->dev->cw_count--;
 		MIO_CWQ_UNLINK (cwq);
-		MIO_MMGR_FREE (mio->mmgr, cwq);
+
+		if (cwq->dstaddr.len == 0)
+		{
+			/* reuse the cwq object if dstaddr is 0 in size. chain it to the free list */
+			cwq->next = mio->cwq_zdf;
+			mio->cwq_zdf = cwq;
+		}
+		else
+		{
+			/* TODO: more reuse of objects of different size? */
+			MIO_MMGR_FREE (mio->mmgr, cwq);
+		}
 	}
 
 	/* execute the scheduled jobs before checking devices with the 
@@ -1416,13 +1434,22 @@ enqueue_data:
 
 enqueue_completed_write:
 	/* queue the remaining data*/
-	cwq = (mio_cwq_t*)MIO_MMGR_ALLOC(dev->mio->mmgr, MIO_SIZEOF(*cwq) + (dstaddr? dstaddr->len: 0));
-	if (!cwq)
+	if (!dstaddr && dev->mio->cwq_zdf)
 	{
-		dev->mio->errnum = MIO_ENOMEM;
-		return -1;
+		cwq = dev->mio->cwq_zdf;
+		dev->mio->cwq_zdf = cwq->next;
+	}
+	else
+	{
+		cwq = (mio_cwq_t*)MIO_MMGR_ALLOC(dev->mio->mmgr, MIO_SIZEOF(*cwq) + (dstaddr? dstaddr->len: 0));
+		if (!cwq)
+		{
+			dev->mio->errnum = MIO_ENOMEM;
+			return -1;
+		}
 	}
 
+	MIO_MEMSET (cwq, 0, MIO_SIZEOF(*cwq));
 	cwq->dev = dev;
 	cwq->ctx = wrctx;
 	if (dstaddr)
