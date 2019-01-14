@@ -995,7 +995,7 @@ fcntl (rdev->sck, F_SETFL, flags | O_NONBLOCK);
 			{
 				if (errno == EINPROGRESS || errno == EWOULDBLOCK || errno == EAGAIN)
 				{
-					if (mio_dev_watch ((mio_dev_t*)rdev, MIO_DEV_WATCH_UPDATE, MIO_DEV_EVENT_IN | MIO_DEV_EVENT_OUT) <= -1)
+					if (mio_dev_watch((mio_dev_t*)rdev, MIO_DEV_WATCH_UPDATE, MIO_DEV_EVENT_IN | MIO_DEV_EVENT_OUT) <= -1)
 					{
 						/* watcher update failure. it's critical */
 						mio_stop (rdev->mio, MIO_STOPREQ_WATCHER_ERROR);
@@ -1031,7 +1031,7 @@ fcntl (rdev->sck, F_SETFL, flags | O_NONBLOCK);
 				rdev->mio->errnum = mio_syserrtoerrnum(errno);
 
 			oops_connect:
-				if (mio_dev_watch ((mio_dev_t*)rdev, MIO_DEV_WATCH_UPDATE, MIO_DEV_EVENT_IN) <= -1)
+				if (mio_dev_watch((mio_dev_t*)rdev, MIO_DEV_WATCH_UPDATE, MIO_DEV_EVENT_IN) <= -1)
 				{
 					/* watcher update failure. it's critical */
 					mio_stop (rdev->mio, MIO_STOPREQ_WATCHER_ERROR);

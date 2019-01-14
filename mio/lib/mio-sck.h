@@ -558,7 +558,7 @@ static MIO_INLINE void mio_dev_sck_halt (mio_dev_sck_t* sck)
 
 static MIO_INLINE int mio_dev_sck_read (mio_dev_sck_t* sck, int enabled)
 {
-	return mio_dev_read ((mio_dev_t*)sck, enabled);
+	return mio_dev_read((mio_dev_t*)sck, enabled);
 }
 
 #else
