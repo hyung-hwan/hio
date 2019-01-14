@@ -308,6 +308,7 @@ struct mio_wq_t
 	mio_dev_mth_t*  dev_mth; \
 	mio_dev_evcb_t* dev_evcb; \
 	mio_wq_t        wq; \
+	mio_oow_t       cw_count; \
 	mio_dev_t*      dev_prev; \
 	mio_dev_t*      dev_next 
 
