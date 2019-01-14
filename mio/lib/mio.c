@@ -395,16 +395,6 @@ void mio_fini (mio_t* mio)
 		mio_dev_t* tail;
 	} diehard;
 
-	/* clear completed write event queues - TODO: do i need to fire these? */
-	while (!MIO_CWQ_ISEMPTY(&mio->cwq))
-	{
-		mio_cwq_t* cwq;
-		cwq = MIO_CWQ_HEAD(&mio->cwq);
-		MIO_CWQ_UNLINK (cwq);
-		MIO_MMGR_FREE (mio->mmgr, cwq);
-	}
-
-
 	/* kill all registered devices */
 	while (mio->actdev.head)
 	{
@@ -740,6 +730,7 @@ static MIO_INLINE int __exec (mio_t* mio)
 		mio_cwq_t* cwq;
 		cwq = MIO_CWQ_HEAD(&mio->cwq);
 		if (cwq->dev->dev_evcb->on_write(cwq->dev, cwq->olen, cwq->ctx, &cwq->dstaddr) <= -1) return -1;
+		cwq->dev->cw_count--;
 		MIO_CWQ_UNLINK (cwq);
 		MIO_MMGR_FREE (mio->mmgr, cwq);
 	}
@@ -909,6 +900,7 @@ mio_dev_t* mio_makedev (mio_t* mio, mio_oow_t dev_size, mio_dev_mth_t* dev_mth, 
 	dev->dev_mth = dev_mth;
 	dev->dev_evcb = dev_evcb;
 	MIO_WQ_INIT (&dev->wq);
+	dev->cw_count = 0;
 
 	/* call the callback function first */
 	mio->errnum = MIO_ENOERR;
@@ -1064,16 +1056,22 @@ void mio_killdev (mio_t* mio, mio_dev_t* dev)
 		goto kill_device;
 	}
 
-#if 0
 	/* clear completed write event queues - TODO: do i need to fire these? */
-	while (!MIO_CWQ_ISEMPTY(&dev->cwq))
+	if (dev->cw_count > 0)
 	{
-		mio_cwq_t* q;
-		q = MIO_CWQ_HEAD(&dev->cwq);
-		MIO_CWQ_UNLINK (q);
-		MIO_MMGR_FREE (mio->mmgr, q);
+		mio_cwq_t* cwq, * next;
+		cwq = MIO_CWQ_HEAD(&mio->cwq);
+		while (cwq != &mio->cwq)
+		{
+			next = MIO_CWQ_NEXT(cwq);
+			if (cwq->dev == dev)
+			{
+				MIO_CWQ_UNLINK (cwq);
+				MIO_MMGR_FREE (mio->mmgr, cwq);
+			}
+			cwq = next;
+		}
 	}
-#endif
 
 	/* clear pending send requests */
 	while (!MIO_WQ_ISEMPTY(&dev->wq))
@@ -1441,6 +1439,7 @@ enqueue_completed_write:
 	cwq->olen = len;
 
 	MIO_CWQ_ENQ (&dev->mio->cwq, cwq);
+	dev->cw_count++; /* increment the number of complete write operations */
 	return 0;
 }
 
