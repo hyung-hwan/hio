@@ -174,15 +174,15 @@ static int tcp_sck_on_connect (mio_dev_sck_t* tcp)
 	if (tcp->state & MIO_DEV_SCK_CONNECTED)
 	{
 
-printf ("device connected to a remote server... LOCAL %s:%d REMOTE %s:%d.", buf1, mio_getsckaddrport(&tcp->localaddr), buf2, mio_getsckaddrport(&tcp->remoteaddr));
+printf ("DEVICE connected to a remote server... LOCAL %s:%d REMOTE %s:%d.", buf1, mio_getsckaddrport(&tcp->localaddr), buf2, mio_getsckaddrport(&tcp->remoteaddr));
 
 	}
 	else if (tcp->state & MIO_DEV_SCK_ACCEPTED)
 	{
-printf ("device accepted client device... .LOCAL %s:%d REMOTE %s:%d\n", buf1, mio_getsckaddrport(&tcp->localaddr), buf2, mio_getsckaddrport(&tcp->remoteaddr));
+printf ("DEVICE accepted client device... .LOCAL %s:%d REMOTE %s:%d\n", buf1, mio_getsckaddrport(&tcp->localaddr), buf2, mio_getsckaddrport(&tcp->remoteaddr));
 	}
 
-	return mio_dev_sck_write  (tcp, "hello", 5, MIO_NULL, MIO_NULL);
+	return mio_dev_sck_write(tcp, "hello", 5, MIO_NULL, MIO_NULL);
 }
 
 static int tcp_sck_on_write (mio_dev_sck_t* tcp, mio_iolen_t wrlen, void* wrctx, const mio_sckaddr_t* dstaddr)
@@ -191,18 +191,18 @@ static int tcp_sck_on_write (mio_dev_sck_t* tcp, mio_iolen_t wrlen, void* wrctx,
 
 if (wrlen <= -1)
 {
-printf ("SEDING TIMED OUT...........\n");
+printf ("TCP_SCK_ON_WRITE SEDING TIMED OUT...........\n");
 	mio_dev_sck_halt(tcp);
 }
 else
 {
 	ts = (tcp_server_t*)(tcp + 1);
-	printf (">>> SENT MESSAGE %d of length %ld\n", ts->tally, (long int)wrlen);
+	printf ("TCP_SCK_ON_WRITE >>> SENT MESSAGE %d of length %ld\n", ts->tally, (long int)wrlen);
 
 	ts->tally++;
 //	if (ts->tally >= 2) mio_dev_sck_halt (tcp);
 
-printf ("ENABLING READING..............................\n");
+printf ("TCP_SCK_ON_WRITE ENABLING READING..............................\n");
 	mio_dev_sck_read (tcp, 1);
 
 	//mio_dev_sck_timedread (tcp, 1, 1000);
@@ -210,19 +210,20 @@ printf ("ENABLING READING..............................\n");
 	return 0;
 }
 
+/* TODO: serialize callbacks... */
 static int tcp_sck_on_read (mio_dev_sck_t* tcp, const void* buf, mio_iolen_t len, const mio_sckaddr_t* srcaddr)
 {
 	int n;
 
 	if (len <= 0)
 	{
-		printf ("STREAM DEVICE: EOF RECEIVED...\n");
+		printf ("TCP_SCK_ON_READ STREAM DEVICE: EOF RECEIVED...\n");
 		/* no outstanding request. but EOF */
 		mio_dev_sck_halt (tcp);
 		return 0;
 	}
 
-printf ("on read %d\n", (int)len);
+printf ("TCP_SCK_ON_READ read %d\n", (int)len);
 
 {
 mio_ntime_t tmout;
@@ -231,6 +232,7 @@ static char a ='A';
 char* xxx = malloc (1000000);
 memset (xxx, a++ ,1000000);
 
+printf ("TCP_SCK_ON_READ initiating write... of %d\n", 1000000);
 	//return mio_dev_sck_write  (tcp, "HELLO", 5, MIO_NULL);
 	mio_inittime (&tmout, 5, 0);
 	n = mio_dev_sck_timedwrite  (tcp, xxx, 1000000, &tmout, MIO_NULL, MIO_NULL);
@@ -240,12 +242,12 @@ free (xxx);
 	if (n <= -1) return -1;
 }
 
-
-printf ("DISABLING READING..............................\n");
+printf ("TCP_SCK_ON_READ DISABLING READING..............................\n");
 	mio_dev_sck_read (tcp, 0);
 
-	/* post the write finisher */
-	n = mio_dev_sck_write  (tcp, MIO_NULL, 0, MIO_NULL, MIO_NULL);
+printf ("TCP_SCK_ON_READ WRITING 0.............................\n");
+	/* post the write finisher - close the writing end */
+	n = mio_dev_sck_write(tcp, MIO_NULL, 0, MIO_NULL, MIO_NULL);
 	if (n <= -1) return -1;
 
 	return 0;
@@ -299,9 +301,10 @@ static int arp_sck_on_write (mio_dev_sck_t* dev, mio_iolen_t wrlen, void* wrctx,
 	return 0;
 }
 
-static void arp_sck_on_connect (mio_dev_sck_t* dev)
+static int arp_sck_on_connect (mio_dev_sck_t* dev)
 {
 printf ("STARTING UP ARP SOCKET %d...\n", dev->sck);
+	return 0;
 }
 
 static void arp_sck_on_disconnect (mio_dev_sck_t* dev)
@@ -335,7 +338,7 @@ static int setup_arp_tester (mio_t* mio)
 
 	mio_sckaddr_initforeth (&ethdst, if_nametoindex("wlan0"), (mio_ethaddr_t*)"\xAA\xBB\xFF\xCC\xDD\xFF");
 
-	memset (&etharp, 0, sizeof(etharp));
+	memset (&etharp, 0, MIO_SIZEOF(etharp));
 
 	memcpy (etharp.ethhdr.source, "\xB8\x6B\x23\x9C\x10\x76", MIO_ETHADDR_LEN);
 	//memcpy (etharp.ethhdr.dest, "\xFF\xFF\xFF\xFF\xFF\xFF", MIO_ETHADDR_LEN);
@@ -350,8 +353,8 @@ static int setup_arp_tester (mio_t* mio)
 
 	memcpy (etharp.arppld.sha, "\xB8\x6B\x23\x9C\x10\x76", MIO_ETHADDR_LEN);
 
-	if (mio_dev_sck_write(sck, &etharp, sizeof(etharp), NULL, &ethdst) <= -1)
-	//if (mio_dev_sck_write (sck, &etharp.arphdr, sizeof(etharp) - sizeof(etharp.ethhdr), NULL, &ethaddr) <= -1)
+	if (mio_dev_sck_write(sck, &etharp, MIO_SIZEOF(etharp), MIO_NULL, &ethdst) <= -1)
+	//if (mio_dev_sck_write (sck, &etharp.arphdr, MIO_SIZEOF(etharp) - MIO_SIZEOF(etharp.ethhdr), MIO_NULL, &ethaddr) <= -1)
 	{
 		printf ("CANNOT WRITE ARP...\n");
 	}
@@ -392,7 +395,7 @@ static void send_icmp (mio_dev_sck_t* dev, mio_uint16_t seq)
 	memset (&buf[MIO_SIZEOF(*icmphdr)], 'A', MIO_SIZEOF(buf) - MIO_SIZEOF(*icmphdr));
 	icmphdr->checksum = mio_checksumip (icmphdr, MIO_SIZEOF(buf));
 
-	if (mio_dev_sck_write (dev, buf, MIO_SIZEOF(buf), NULL, &dstaddr) <= -1)
+	if (mio_dev_sck_write (dev, buf, MIO_SIZEOF(buf), MIO_NULL, &dstaddr) <= -1)
 	{
 		printf ("CANNOT WRITE ICMP...\n");
 		mio_dev_sck_halt (dev);
@@ -543,6 +546,7 @@ static int setup_ping4_tester (mio_t* mio)
 
 /* ========================================================================= */
 
+#if 0
 static mio_t* g_mio;
 
 static void handle_signal (int sig)
@@ -761,11 +765,15 @@ oops:
 	return -1;
 }
 
-#if 0
+#endif
+#if 1
 int main (int argc, char* argv[])
 {
 	mio_t* mio = MIO_NULL;
 	mio_dev_sck_t* tcpsvr;
+	mio_dev_sck_make_t tcp_make;
+	mio_dev_sck_connect_t tcp_conn;
+	tcp_server_t* ts;
 
 	mio = mio_open (&mmgr, 0, 512, MIO_NULL);
 	if (!mio)
@@ -789,7 +797,18 @@ int main (int argc, char* argv[])
 
 	ts = (tcp_server_t*)(tcpsvr + 1);
 	ts->tally = 0;
-	
+
+	memset (&tcp_conn, 0, MIO_SIZEOF(tcp_conn));
+{
+	in_addr_t ia = inet_addr("127.0.0.1");
+	mio_sckaddr_initforip4 (&tcp_conn.remoteaddr, 9999, (mio_ip4addr_t*)&ia);
+}
+	mio_inittime (&tcp_conn.connect_tmout, 5, 0);
+	tcp_conn.options = 0;
+	if (mio_dev_sck_connect(tcpsvr, &tcp_conn) <= -1)
+	{
+	}
+
 #if 0
 	while (1)
 	{

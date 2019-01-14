@@ -78,6 +78,8 @@ struct mio_t
 		mio_tmrjob_t*  jobs;
 	} tmr;
 
+	mio_cwq_t cwq;
+
 	/* platform specific fields below */
 #if defined(_WIN32)
 	HANDLE iocp;
