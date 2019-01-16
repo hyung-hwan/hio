@@ -741,6 +741,9 @@
 /* MB_LEN_MAX */
 #undef MIO_MBLEN_MAX
 
+/* offsetof(struct sockaddr, sa_family) */
+#undef MIO_OFFSETOF_SA_FAMILY
+
 /* Author */
 #undef MIO_PACKAGE_AUTHOR
 
@@ -761,6 +764,9 @@
 
 /* Patch level */
 #undef MIO_PACKAGE_VERSION_PATCH
+
+/* Define if sa_family_t is signed */
+#undef MIO_SA_FAMILY_T_IS_SIGNED
 
 /* sizeof(char) */
 #undef MIO_SIZEOF_CHAR
@@ -899,6 +905,9 @@
 
 /* The size of `off_t', as computed by sizeof. */
 #undef SIZEOF_OFF_T
+
+/* The size of `sa_family_t', as computed by sizeof. */
+#undef SIZEOF_SA_FAMILY_T
 
 /* The size of `short', as computed by sizeof. */
 #undef SIZEOF_SHORT

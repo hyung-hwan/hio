@@ -394,12 +394,17 @@ void mio_fini (mio_t* mio)
 		mio_dev_t* head;
 		mio_dev_t* tail;
 	} diehard;
+	mio_oow_t i;
 
-	while (mio->cwq_zdf)
+	/* clean up free cwq list */
+	for (i = 0; i < MIO_COUNTOF(mio->cwqfl); i++)
 	{
-		mio_cwq_t* cwq = mio->cwq_zdf;
-		mio->cwq_zdf = cwq->next;
-		MIO_MMGR_FREE (mio->mmgr, cwq);
+		mio_cwq_t* cwq;
+		while ((cwq = mio->cwqfl[i]))
+		{
+			mio->cwqfl[i] = cwq->next;
+			MIO_MMGR_FREE (mio->mmgr, cwq);
+		}
 	}
 
 	/* kill all registered devices */
@@ -408,6 +413,7 @@ void mio_fini (mio_t* mio)
 		mio_killdev (mio, mio->actdev.head);
 	}
 
+	/* kill all halted devices */
 	while (mio->hltdev.head)
 	{
 		mio_killdev (mio, mio->hltdev.head);
@@ -735,16 +741,19 @@ static MIO_INLINE int __exec (mio_t* mio)
 	while (!MIO_CWQ_ISEMPTY(&mio->cwq))
 	{
 		mio_cwq_t* cwq;
+		mio_oow_t cwqfl_index;
+
 		cwq = MIO_CWQ_HEAD(&mio->cwq);
 		if (cwq->dev->dev_evcb->on_write(cwq->dev, cwq->olen, cwq->ctx, &cwq->dstaddr) <= -1) return -1;
 		cwq->dev->cw_count--;
 		MIO_CWQ_UNLINK (cwq);
 
-		if (cwq->dstaddr.len == 0)
+		cwqfl_index = MIO_ALIGN_POW2(cwq->dstaddr.len, MIO_CWQFL_ALIGN) / MIO_CWQFL_SIZE;
+		if (cwqfl_index < MIO_COUNTOF(mio->cwqfl))
 		{
 			/* reuse the cwq object if dstaddr is 0 in size. chain it to the free list */
-			cwq->next = mio->cwq_zdf;
-			mio->cwq_zdf = cwq;
+			cwq->next = mio->cwqfl[cwqfl_index];
+			mio->cwqfl[cwqfl_index] = cwq;
 		}
 		else
 		{
@@ -1291,6 +1300,7 @@ static int __dev_write (mio_dev_t* dev, const void* data, mio_iolen_t len, const
 	mio_iolen_t urem, ulen;
 	mio_wq_t* q;
 	mio_cwq_t* cwq;
+	mio_oow_t cwq_extra_aligned, cwqfl_index;
 	int x;
 
 	if (dev->dev_capa & MIO_DEV_CAPA_OUT_CLOSED)
@@ -1341,7 +1351,11 @@ static int __dev_write (mio_dev_t* dev, const void* data, mio_iolen_t len, const
 			dev->dev_capa |= MIO_DEV_CAPA_OUT_CLOSED;
 		}
 
-		//if (dev->dev_evcb->on_write(dev, len, wrctx, dstaddr) <= -1) return -1;
+		/* if i trigger the write completion callback here, the performance
+		 * may increase, but there can be annoying recursion issues if the 
+		 * callback requests another writing operation. it's imperative to
+		 * delay the callback until this write function is finished.
+		 * ---> if (dev->dev_evcb->on_write(dev, len, wrctx, dstaddr) <= -1) return -1; */
 		goto enqueue_completed_write;
 	}
 	else
@@ -1352,8 +1366,11 @@ static int __dev_write (mio_dev_t* dev, const void* data, mio_iolen_t len, const
 		if (x <= -1) return -1;
 		else if (x == 0) goto enqueue_data;
 
-		/* partial writing is still considered ok for a non-stream device */
-		//if (dev->dev_evcb->on_write(dev, ulen, wrctx, dstaddr) <= -1) return -1;
+		/* partial writing is still considered ok for a non-stream device. */
+
+		/* read the comment in the 'if' block above for why i enqueue the write completion event 
+		 * instead of calling the event callback here...
+		 * --> if (dev->dev_evcb->on_write(dev, ulen, wrctx, dstaddr) <= -1) return -1; */
 		goto enqueue_completed_write;
 	}
 
@@ -1434,14 +1451,19 @@ enqueue_data:
 
 enqueue_completed_write:
 	/* queue the remaining data*/
-	if (!dstaddr && dev->mio->cwq_zdf)
+	cwq_extra_aligned = (dstaddr? dstaddr->len: 0);
+	cwq_extra_aligned = MIO_ALIGN_POW2(cwq_extra_aligned, MIO_CWQFL_ALIGN);
+	cwqfl_index = cwq_extra_aligned / MIO_CWQFL_SIZE;
+
+	if (cwqfl_index < MIO_COUNTOF(dev->mio->cwqfl) && dev->mio->cwqfl[cwqfl_index])
 	{
-		cwq = dev->mio->cwq_zdf;
-		dev->mio->cwq_zdf = cwq->next;
+		/* take an available cwq object from the free cwq list */
+		cwq = dev->mio->cwqfl[cwqfl_index];
+		dev->mio->cwqfl[cwqfl_index] = cwq->next;
 	}
 	else
 	{
-		cwq = (mio_cwq_t*)MIO_MMGR_ALLOC(dev->mio->mmgr, MIO_SIZEOF(*cwq) + (dstaddr? dstaddr->len: 0));
+		cwq = (mio_cwq_t*)MIO_MMGR_ALLOC(dev->mio->mmgr, MIO_SIZEOF(*cwq) + cwq_extra_aligned);
 		if (!cwq)
 		{
 			dev->mio->errnum = MIO_ENOMEM;

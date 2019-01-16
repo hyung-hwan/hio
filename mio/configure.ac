@@ -416,10 +416,10 @@ then
 	AC_CHECK_SIZEOF(struct sockaddr_dl,,[
 		#include <winsock2.h>
 		#include <ws2tcpip.h>])
+
 	AC_CHECK_SIZEOF(socklen_t,, [
 		#include <winsock2.h>
 		#include <ws2tcpip.h>])
-
 	if test ${ac_cv_sizeof_socklen_t} -gt 0
 	then
 		AX_CHECK_SIGN([socklen_t],
@@ -428,35 +428,189 @@ then
 			[#include <winsock2.h>
 			 #include <ws2tcpip.h>])
 	fi
+
+	AC_CHECK_SIZEOF(sa_family_t,, [
+		#include <winsock2.h>
+		#include <ws2tcpip.h>])
+	if test ${ac_cv_sizeof_sa_family_t} -gt 0
+	then
+		AX_CHECK_SIGN([sa_family_t],
+			[ AC_DEFINE(MIO_SA_FAMILY_T_IS_SIGNED, 1, [Define if sa_family_t is signed]) ],
+			[ AS_ECHO_N("") ],
+			[#include <winsock2.h>
+			 #include <ws2tcpip.h>])
+	fi
+
+	AC_MSG_CHECKING([offset of sa_family in struct sockaddr])
+	AC_COMPUTE_INT([ac_cv_offsetof_sa_family],
+		[[offsetof(struct sockaddr, sa_family)]],
+		[#include <stddef.h>
+		 #include <winsock2.h>
+		 #include <ws2tcpip.h>], [ac_cv_offsteof_sa_family=0])
+	AC_MSG_RESULT([$ac_cv_offsetof_sa_family])
+	AC_DEFINE_UNQUOTED(MIO_OFFSETOF_SA_FAMILY, ${ac_cv_offsetof_sa_family}, [offsetof(struct sockaddr, sa_family)])
+
 else
 	AC_CHECK_SIZEOF(struct sockaddr_in,,[
+		#include <sys/types.h>
 		#include <sys/socket.h>
 		#include <netinet/in.h>])
 	AC_CHECK_SIZEOF(struct sockaddr_in6,,[
+		#include <sys/types.h>
 		#include <sys/socket.h>
 		#include <netinet/in.h>])
 	AC_CHECK_SIZEOF(struct sockaddr_un,,[
+		#include <sys/types.h>
 		#include <sys/socket.h>
 		#include <sys/un.h>])
 	AC_CHECK_SIZEOF(struct sockaddr_ll,,[
+		#include <sys/types.h>
 		#include <sys/socket.h>
 		#include <netpacket/packet.h>])
 	AC_CHECK_SIZEOF(struct sockaddr_dl,,[
-		#include <sys/socket.h>
 		#include <sys/types.h>
-		#include <net/if_dl.h>])
-	AC_CHECK_SIZEOF(socklen_t,, [
 		#include <sys/socket.h>
-		#include <netinet/in.h>])
+		#include <net/if_dl.h>])
 
+
+	AC_CHECK_SIZEOF(socklen_t,, [
+		#include <sys/types.h>
+		#include <sys/socket.h>])
 	if test ${ac_cv_sizeof_socklen_t} -gt 0
 	then
 		AX_CHECK_SIGN([socklen_t],
 			[ AC_DEFINE(MIO_SOCKLEN_T_IS_SIGNED, 1, [Define if socklen_t is signed]) ],
 			[ AS_ECHO_N("") ],
-			[#include <sys/socket.h>])
+			[#include <sys/types.h>
+			 #include <sys/socket.h>])
+	fi
+
+	AC_CHECK_SIZEOF(sa_family_t,, [
+		#include <sys/types.h>
+		#include <sys/socket.h>
+		#include <netinet/in.h>])
+	if test ${ac_cv_sizeof_sa_family_t} -gt 0
+	then
+		AX_CHECK_SIGN([sa_family_t],
+			[ AC_DEFINE(MIO_SA_FAMILY_T_IS_SIGNED, 1, [Define if sa_family_t is signed]) ],
+			[ AS_ECHO_N("") ],
+			[#include <sys/types.h>
+			 #include <sys/socket.h>
+			 #include <netinet/in.h>])
+	fi
+
+	AC_MSG_CHECKING([offset of sa_family in struct sockaddr])
+	AC_COMPUTE_INT([ac_cv_offsetof_sa_family],
+		[[offsetof(struct sockaddr, sa_family)]],
+		[#include <stddef.h>
+		 #include <sys/types.h>
+		 #include <sys/socket.h>], [ac_cv_offsteof_sa_family=0])
+	AC_MSG_RESULT([$ac_cv_offsetof_sa_family])
+	AC_DEFINE_UNQUOTED(MIO_OFFSETOF_SA_FAMILY, ${ac_cv_offsetof_sa_family}, [offsetof(struct sockaddr, sa_family)])
+fi
+
+dnl gcc 3.4.3 on opensolaris x86 gave this warning without -msse or 
+dnl something similar.
+dnl    SSE vector argument without SSE enabled changes the ABI
+dnl it also ended with an internal compiler error while compiling 
+dnl some expressions like 'v % base' where v is of the __int128_t type.
+dnl so i've added this check to determine if the compiler has
+dnl proper support for __int128_t.
+dnl 
+dnl Changing ac_cv_sizeof___int128_t here doesn't corret SIZEOF___INT128_T
+dnl since it's already generated. It only affects MIO_SIZEOF___INT128_T below.
+if test ${ac_cv_sizeof___int128_t} -gt 0
+then
+	AC_MSG_CHECKING([__int128_t with % and va_arg])
+	AC_COMPILE_IFELSE(
+		[AC_LANG_PROGRAM([#include <stdarg.h>], [
+			volatile __int128_t x, base;
+			va_list ap;
+			va_arg(ap, __int128_t);
+			x = (__int128_t)&base;
+			base = (__int128_t)&x;
+			x = x % base;
+			return (int)x;
+		])],
+
+		[
+			AC_MSG_RESULT(yes)
+		],
+		[
+			AC_MSG_RESULT(no)
+			ac_cv_sizeof___int128_t=0
+			ac_cv_sizeof___uint128_t=0
+		]
+	)
+fi
+
+dnl Some compilers doesn't seem to have full support for __float128 
+dnl even if the type is available.
+if test ${ac_cv_sizeof___float128} -gt 0
+then
+	AC_MSG_CHECKING([__float128 with linking])
+	AC_TRY_LINK(
+		[#include <stdio.h>],
+		[
+			__float128 x, y, z;
+			z = x * y + x;
+			printf ("%p", (char*)(int)z);
+		],
+		[AC_MSG_RESULT(yes)],
+		[
+			AC_MSG_RESULT(no)
+			ac_cv_sizeof___float128=0
+		]
+	)
+fi
+
+dnl Quadmath functions may not be in the default c library.
+dnl Find a library containing them. Disable the float128 type
+dnl if they are not available.
+if test ${ac_cv_sizeof___float128} -gt 0
+then
+	AC_CHECK_FUNCS([quadmath_snprintf])
+	if test "$ac_cv_func_quadmath_snprintf" = "no"
+	then
+		OLDLIBS="$LIBS"
+		LIBS="$LIBM $LIBS"
+		AC_CHECK_FUNCS([quadmath_snprintf])
+		LIBS="$OLDLIBS"
+	
+		if test "$ac_cv_func_quadmath_snprintf" = "no"
+		then
+			dnl quadmath_snprintf not avalable in the 
+			dnl standard math lib.
+
+			AC_CHECK_LIB([quadmath], [quadmath_snprintf], [
+				QUADMATH_LIBS="-lquadmath"
+				LIBM="$LIBM -lquadmath"
+				AC_DEFINE(HAVE_QUADMATH_SNPRINTF, 1)
+			])
+
+			if test "$ac_cv_lib_quadmath_quadmath_snprintf" = "no"
+			then
+				dnl quadmath_snprintf not avalable in the 
+				dnl quadmath lib.
+
+				ac_cv_sizeof___float128=0
+			fi
+
+		else
+			QUADMATH_LIBS="$LIBM"
+		fi
+	fi
+
+	if test ${ac_cv_sizeof___float128} -gt 0
+	then
+		OLDLIBS="$LIBS"
+		LIBS="$LIBM $LIBS"
+		AC_CHECK_FUNCS([powq fmodq sinq cosq tanq sinhq coshq tanhq asinq acosq atanq atan2q logq log10q expq sqrtq ceilq floorq roundq])
+		AC_CHECK_FUNCS([strtoflt128])
+		LIBS="$OLDLIBS"
 	fi
 fi
+AC_SUBST(QUADMATH_LIBS)
 
 
 dnl gcc 3.4.3 on opensolaris x86 gave this warning without -msse or 

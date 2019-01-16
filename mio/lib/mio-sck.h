@@ -215,6 +215,9 @@ typedef int mio_sckfam_t;
 
 struct mio_sckaddr_t
 {
+#if defined(MIO_OFFSETOF_SA_FAMILY) && (MIO_OFFSETOF_SA_FAMILY > 0)
+	mio_uint8_t filler[MIO_OFFSETOF_SA_FAMILY];
+#endif
 	mio_sckfam_t family;
 	mio_uint8_t data[128]; /* TODO: use the actual sockaddr size */
 };
