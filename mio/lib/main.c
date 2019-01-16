@@ -155,9 +155,9 @@ static void tcp_sck_on_disconnect (mio_dev_sck_t* tcp)
 			break;
 	}
 }
-static int tcp_sck_on_connect (mio_dev_sck_t* tcp)
-{
 
+static void tcp_sck_on_connect (mio_dev_sck_t* tcp)
+{
 	mio_sckfam_t fam;
 	mio_scklen_t len;
 	mio_bch_t buf1[128], buf2[128];
@@ -173,16 +173,17 @@ static int tcp_sck_on_connect (mio_dev_sck_t* tcp)
 
 	if (tcp->state & MIO_DEV_SCK_CONNECTED)
 	{
-
 printf ("DEVICE connected to a remote server... LOCAL %s:%d REMOTE %s:%d.", buf1, mio_getsckaddrport(&tcp->localaddr), buf2, mio_getsckaddrport(&tcp->remoteaddr));
-
 	}
 	else if (tcp->state & MIO_DEV_SCK_ACCEPTED)
 	{
 printf ("DEVICE accepted client device... .LOCAL %s:%d REMOTE %s:%d\n", buf1, mio_getsckaddrport(&tcp->localaddr), buf2, mio_getsckaddrport(&tcp->remoteaddr));
 	}
 
-	return mio_dev_sck_write(tcp, "hello", 5, MIO_NULL, MIO_NULL);
+	if (mio_dev_sck_write(tcp, "hello", 5, MIO_NULL, MIO_NULL) <= -1)
+	{
+		mio_dev_sck_halt (tcp);
+	}
 }
 
 static int tcp_sck_on_write (mio_dev_sck_t* tcp, mio_iolen_t wrlen, void* wrctx, const mio_sckaddr_t* dstaddr)
@@ -301,10 +302,9 @@ static int arp_sck_on_write (mio_dev_sck_t* dev, mio_iolen_t wrlen, void* wrctx,
 	return 0;
 }
 
-static int arp_sck_on_connect (mio_dev_sck_t* dev)
+static void arp_sck_on_connect (mio_dev_sck_t* dev)
 {
 printf ("STARTING UP ARP SOCKET %d...\n", dev->sck);
-	return 0;
 }
 
 static void arp_sck_on_disconnect (mio_dev_sck_t* dev)
@@ -814,7 +814,7 @@ int main (int argc, char* argv[])
 	{
 		mio_exec (mio);
 	}
-#endif	
+#endif
 	mio_loop (mio);
 
 oops:
