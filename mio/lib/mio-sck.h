@@ -319,7 +319,7 @@ typedef void (*mio_dev_sck_on_disconnect_t) (
 	mio_dev_sck_t* dev
 );
 
-typedef int (*mio_dev_sck_on_connect_t) (
+typedef void (*mio_dev_sck_on_connect_t) (
 	mio_dev_sck_t* dev
 );
 

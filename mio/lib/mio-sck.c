@@ -1074,7 +1074,7 @@ fcntl (rdev->sck, F_SETFL, flags | O_NONBLOCK);
 						 * the underlying socket connection has been established immediately */
 						if (mio_ispostime(&conn->connect_tmout))
 						{
-							if (schedule_timer_job_after (rdev, &conn->connect_tmout, ssl_connect_timedout) <= -1) 
+							if (schedule_timer_job_after(rdev, &conn->connect_tmout, ssl_connect_timedout) <= -1) 
 							{
 								/* no device halting in spite of failure.
 								 * let the caller handle this after having 
@@ -1105,7 +1105,7 @@ fcntl (rdev->sck, F_SETFL, flags | O_NONBLOCK);
 				ssl_connected:
 			#endif
 					MIO_DEV_SCK_SET_PROGRESS (rdev, MIO_DEV_SCK_CONNECTED);
-					if (rdev->on_connect(rdev) <= -1) return -1;
+					if (rdev->on_connect) rdev->on_connect (rdev);
 			#if defined(USE_SSL)
 				}
 			#endif
@@ -1208,9 +1208,9 @@ static int harvest_outgoing_connection (mio_dev_sck_t* rdev)
 		}
 
 		addrlen = MIO_SIZEOF(localaddr);
-		if (getsockname (rdev->sck, (struct sockaddr*)&localaddr, &addrlen) == 0) rdev->localaddr = localaddr;
+		if (getsockname(rdev->sck, (struct sockaddr*)&localaddr, &addrlen) == 0) rdev->localaddr = localaddr;
 
-		if (mio_dev_watch ((mio_dev_t*)rdev, MIO_DEV_WATCH_RENEW, 0) <= -1) 
+		if (mio_dev_watch((mio_dev_t*)rdev, MIO_DEV_WATCH_RENEW, 0) <= -1) 
 		{
 			/* watcher update failure. it's critical */
 			mio_stop (rdev->mio, MIO_STOPREQ_WATCHER_ERROR);
@@ -1236,7 +1236,7 @@ static int harvest_outgoing_connection (mio_dev_sck_t* rdev)
 				 * when the CONNECT IOCTL command has been executed. use the 
 				 * same deadline here */
 				if (mio_ispostime(&rdev->tmout) &&
-				    schedule_timer_job_at (rdev, &rdev->tmout, ssl_connect_timedout) <= -1)
+				    schedule_timer_job_at(rdev, &rdev->tmout, ssl_connect_timedout) <= -1)
 				{
 					mio_dev_halt ((mio_dev_t*)rdev);
 				}
@@ -1253,7 +1253,7 @@ static int harvest_outgoing_connection (mio_dev_sck_t* rdev)
 		ssl_connected:
 	#endif
 			MIO_DEV_SCK_SET_PROGRESS (rdev, MIO_DEV_SCK_CONNECTED);
-			if (rdev->on_connect (rdev) <= -1) return -1;
+			if (rdev->on_connect) rdev->on_connect (rdev);
 	#if defined(USE_SSL)
 		}
 	#endif
@@ -1404,7 +1404,8 @@ accept_done:
 	else
 	{
 		MIO_DEV_SCK_SET_PROGRESS (clidev, MIO_DEV_SCK_ACCEPTED);
-		if (clidev->on_connect(clidev) <= -1) mio_dev_sck_halt (clidev);
+		/*if (clidev->on_connect(clidev) <= -1) mio_dev_sck_halt (clidev);*/
+		if (clidev->on_connect) clidev->on_connect (clidev);
 	}
 
 	return 0;
@@ -1490,7 +1491,7 @@ static int dev_evcb_sck_ready_stateful (mio_dev_t* dev, int events)
 				}
 
 				MIO_DEV_SCK_SET_PROGRESS (rdev, MIO_DEV_SCK_CONNECTED);
-				if (rdev->on_connect (rdev) <= -1) return -1;
+				if (rdev->on_connect) rdev->on_connect (rdev);
 				return 0;
 			}
 			else
@@ -1552,7 +1553,8 @@ static int dev_evcb_sck_ready_stateful (mio_dev_t* dev, int events)
 				}
 
 				MIO_DEV_SCK_SET_PROGRESS (rdev, MIO_DEV_SCK_ACCEPTED);
-				if (rdev->on_connect(rdev) <= -1) mio_dev_sck_halt (rdev);
+				/*if (rdev->on_connect(rdev) <= -1) mio_dev_sck_halt (rdev);*/
+				if (rdev->on_connect) rdev->on_connect (rdev);
 
 				return 0;
 			}
