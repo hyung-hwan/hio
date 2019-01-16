@@ -20136,6 +20136,7 @@ cat >>confdefs.h <<_ACEOF
 _ACEOF
 
 
+
 	# The cast to long int works around a bug in the HP C Compiler
 # version HP92453-01 B.11.11.23709.GP, which incorrectly rejects
 # declarations like `int a3[[(sizeof (unsigned char)) >= 0]];'.
@@ -20170,7 +20171,6 @@ $as_echo "$ac_cv_sizeof_socklen_t" >&6; }
 cat >>confdefs.h <<_ACEOF
 #define SIZEOF_SOCKLEN_T $ac_cv_sizeof_socklen_t
 _ACEOF
-
 
 
 	if test ${ac_cv_sizeof_socklen_t} -gt 0
@@ -20215,6 +20215,104 @@ $as_echo "#define MIO_SOCKLEN_T_IS_SIGNED 1" >>confdefs.h
  fi
 
 	fi
+
+	# The cast to long int works around a bug in the HP C Compiler
+# version HP92453-01 B.11.11.23709.GP, which incorrectly rejects
+# declarations like `int a3[[(sizeof (unsigned char)) >= 0]];'.
+# This bug is HP SR number 8606223364.
+{ $as_echo "$as_me:${as_lineno-$LINENO}: checking size of sa_family_t" >&5
+$as_echo_n "checking size of sa_family_t... " >&6; }
+if ${ac_cv_sizeof_sa_family_t+:} false; then :
+  $as_echo_n "(cached) " >&6
+else
+  if ac_fn_c_compute_int "$LINENO" "(long int) (sizeof (sa_family_t))" "ac_cv_sizeof_sa_family_t"        "
+		#include <winsock2.h>
+		#include <ws2tcpip.h>
+"; then :
+
+else
+  if test "$ac_cv_type_sa_family_t" = yes; then
+     { { $as_echo "$as_me:${as_lineno-$LINENO}: error: in \`$ac_pwd':" >&5
+$as_echo "$as_me: error: in \`$ac_pwd':" >&2;}
+as_fn_error 77 "cannot compute sizeof (sa_family_t)
+See \`config.log' for more details" "$LINENO" 5; }
+   else
+     ac_cv_sizeof_sa_family_t=0
+   fi
+fi
+
+fi
+{ $as_echo "$as_me:${as_lineno-$LINENO}: result: $ac_cv_sizeof_sa_family_t" >&5
+$as_echo "$ac_cv_sizeof_sa_family_t" >&6; }
+
+
+
+cat >>confdefs.h <<_ACEOF
+#define SIZEOF_SA_FAMILY_T $ac_cv_sizeof_sa_family_t
+_ACEOF
+
+
+	if test ${ac_cv_sizeof_sa_family_t} -gt 0
+	then
+
+ typename=`echo sa_family_t | sed "s/[^a-zA-Z0-9_]/_/g"`
+ { $as_echo "$as_me:${as_lineno-$LINENO}: checking whether sa_family_t is signed" >&5
+$as_echo_n "checking whether sa_family_t is signed... " >&6; }
+if eval \${ax_cv_decl_${typename}_signed+:} false; then :
+  $as_echo_n "(cached) " >&6
+else
+
+   cat confdefs.h - <<_ACEOF >conftest.$ac_ext
+/* end confdefs.h.  */
+#include <winsock2.h>
+			 #include <ws2tcpip.h>
+int
+main ()
+{
+ int foo [ 1 - 2 * !(((sa_family_t) -1) < 0) ]
+  ;
+  return 0;
+}
+_ACEOF
+if ac_fn_c_try_compile "$LINENO"; then :
+   eval "ax_cv_decl_${typename}_signed=\"yes\""
+else
+   eval "ax_cv_decl_${typename}_signed=\"no\""
+fi
+rm -f core conftest.err conftest.$ac_objext conftest.$ac_ext
+fi
+eval ac_res=\$ax_cv_decl_${typename}_signed
+	       { $as_echo "$as_me:${as_lineno-$LINENO}: result: $ac_res" >&5
+$as_echo "$ac_res" >&6; }
+ symbolname=`echo sa_family_t | sed "s/[^a-zA-Z0-9_]/_/g" | tr "a-z" "A-Z"`
+ if eval "test \"\${ax_cv_decl_${typename}_signed}\" = \"yes\""; then
+
+$as_echo "#define MIO_SA_FAMILY_T_IS_SIGNED 1" >>confdefs.h
+
+ elif eval "test \"\${ax_cv_decl_${typename}_signed}\" = \"no\""; then
+    $as_echo_n ""
+ fi
+
+	fi
+
+	{ $as_echo "$as_me:${as_lineno-$LINENO}: checking offset of sa_family in struct sockaddr" >&5
+$as_echo_n "checking offset of sa_family in struct sockaddr... " >&6; }
+	if ac_fn_c_compute_int "$LINENO" "offsetof(struct sockaddr, sa_family)" "ac_cv_offsetof_sa_family"        "#include <stddef.h>
+		 #include <winsock2.h>
+		 #include <ws2tcpip.h>"; then :
+
+else
+  ac_cv_offsteof_sa_family=0
+fi
+
+	{ $as_echo "$as_me:${as_lineno-$LINENO}: result: $ac_cv_offsetof_sa_family" >&5
+$as_echo "$ac_cv_offsetof_sa_family" >&6; }
+
+cat >>confdefs.h <<_ACEOF
+#define MIO_OFFSETOF_SA_FAMILY ${ac_cv_offsetof_sa_family}
+_ACEOF
+
+
 else
 	# The cast to long int works around a bug in the HP C Compiler
 # version HP92453-01 B.11.11.23709.GP, which incorrectly rejects
@@ -20226,6 +20324,7 @@ if ${ac_cv_sizeof_struct_sockaddr_in+:} false; then :
   $as_echo_n "(cached) " >&6
 else
   if ac_fn_c_compute_int "$LINENO" "(long int) (sizeof (struct sockaddr_in))" "ac_cv_sizeof_struct_sockaddr_in"        "
+		#include <sys/types.h>
 		#include <sys/socket.h>
 		#include <netinet/in.h>
 "; then :
@@ -20262,6 +20361,7 @@ if ${ac_cv_sizeof_struct_sockaddr_in6+:} false; then :
   $as_echo_n "(cached) " >&6
 else
   if ac_fn_c_compute_int "$LINENO" "(long int) (sizeof (struct sockaddr_in6))" "ac_cv_sizeof_struct_sockaddr_in6"        "
+		#include <sys/types.h>
 		#include <sys/socket.h>
 		#include <netinet/in.h>
 "; then :
@@ -20298,6 +20398,7 @@ if ${ac_cv_sizeof_struct_sockaddr_un+:} false; then :
   $as_echo_n "(cached) " >&6
 else
   if ac_fn_c_compute_int "$LINENO" "(long int) (sizeof (struct sockaddr_un))" "ac_cv_sizeof_struct_sockaddr_un"        "
+		#include <sys/types.h>
 		#include <sys/socket.h>
 		#include <sys/un.h>
 "; then :
@@ -20334,6 +20435,7 @@ if ${ac_cv_sizeof_struct_sockaddr_ll+:} false; then :
   $as_echo_n "(cached) " >&6
 else
   if ac_fn_c_compute_int "$LINENO" "(long int) (sizeof (struct sockaddr_ll))" "ac_cv_sizeof_struct_sockaddr_ll"        "
+		#include <sys/types.h>
 		#include <sys/socket.h>
 		#include <netpacket/packet.h>
 "; then :
@@ -20370,8 +20472,8 @@ if ${ac_cv_sizeof_struct_sockaddr_dl+:} false; then :
   $as_echo_n "(cached) " >&6
 else
   if ac_fn_c_compute_int "$LINENO" "(long int) (sizeof (struct sockaddr_dl))" "ac_cv_sizeof_struct_sockaddr_dl"        "
-		#include <sys/socket.h>
 		#include <sys/types.h>
+		#include <sys/socket.h>
 		#include <net/if_dl.h>
 "; then :
 
@@ -20397,6 +20499,8 @@ cat >>confdefs.h <<_ACEOF
 _ACEOF
 
 
+
+
 	# The cast to long int works around a bug in the HP C Compiler
 # version HP92453-01 B.11.11.23709.GP, which incorrectly rejects
 # declarations like `int a3[[(sizeof (unsigned char)) >= 0]];'.
@@ -20407,8 +20511,8 @@ if ${ac_cv_sizeof_socklen_t+:} false; then :
   $as_echo_n "(cached) " >&6
 else
   if ac_fn_c_compute_int "$LINENO" "(long int) (sizeof (socklen_t))" "ac_cv_sizeof_socklen_t"        "
+		#include <sys/types.h>
 		#include <sys/socket.h>
-		#include <netinet/in.h>
 "; then :
 
 else
@@ -20433,7 +20537,6 @@ cat >>confdefs.h <<_ACEOF
 _ACEOF
 
 
-
 	if test ${ac_cv_sizeof_socklen_t} -gt 0
 	then
 
@@ -20446,7 +20549,8 @@ else
 
    cat confdefs.h - <<_ACEOF >conftest.$ac_ext
 /* end confdefs.h.  */
-#include <sys/socket.h>
+#include <sys/types.h>
+			 #include <sys/socket.h>
 int
 main ()
 {
@@ -20475,7 +20579,302 @@ $as_echo "#define MIO_SOCKLEN_T_IS_SIGNED 1" >>confdefs.h
  fi
 
 	fi
+
+	# The cast to long int works around a bug in the HP C Compiler
+# version HP92453-01 B.11.11.23709.GP, which incorrectly rejects
+# declarations like `int a3[[(sizeof (unsigned char)) >= 0]];'.
+# This bug is HP SR number 8606223364.
+{ $as_echo "$as_me:${as_lineno-$LINENO}: checking size of sa_family_t" >&5
+$as_echo_n "checking size of sa_family_t... " >&6; }
+if ${ac_cv_sizeof_sa_family_t+:} false; then :
+  $as_echo_n "(cached) " >&6
+else
+  if ac_fn_c_compute_int "$LINENO" "(long int) (sizeof (sa_family_t))" "ac_cv_sizeof_sa_family_t"        "
+		#include <sys/types.h>
+		#include <sys/socket.h>
+		#include <netinet/in.h>
+"; then :
+
+else
+  if test "$ac_cv_type_sa_family_t" = yes; then
+     { { $as_echo "$as_me:${as_lineno-$LINENO}: error: in \`$ac_pwd':" >&5
+$as_echo "$as_me: error: in \`$ac_pwd':" >&2;}
+as_fn_error 77 "cannot compute sizeof (sa_family_t)
+See \`config.log' for more details" "$LINENO" 5; }
+   else
+     ac_cv_sizeof_sa_family_t=0
+   fi
 fi
+
+fi
+{ $as_echo "$as_me:${as_lineno-$LINENO}: result: $ac_cv_sizeof_sa_family_t" >&5
+$as_echo "$ac_cv_sizeof_sa_family_t" >&6; }
+
+
+
+cat >>confdefs.h <<_ACEOF
+#define SIZEOF_SA_FAMILY_T $ac_cv_sizeof_sa_family_t
+_ACEOF
+
+
+	if test ${ac_cv_sizeof_sa_family_t} -gt 0
+	then
+
+ typename=`echo sa_family_t | sed "s/[^a-zA-Z0-9_]/_/g"`
+ { $as_echo "$as_me:${as_lineno-$LINENO}: checking whether sa_family_t is signed" >&5
+$as_echo_n "checking whether sa_family_t is signed... " >&6; }
+if eval \${ax_cv_decl_${typename}_signed+:} false; then :
+  $as_echo_n "(cached) " >&6
+else
+
+   cat confdefs.h - <<_ACEOF >conftest.$ac_ext
+/* end confdefs.h.  */
+#include <sys/types.h>
+			 #include <sys/socket.h>
+			 #include <netinet/in.h>
+int
+main ()
+{
+ int foo [ 1 - 2 * !(((sa_family_t) -1) < 0) ]
+  ;
+  return 0;
+}
+_ACEOF
+if ac_fn_c_try_compile "$LINENO"; then :
+   eval "ax_cv_decl_${typename}_signed=\"yes\""
+else
+   eval "ax_cv_decl_${typename}_signed=\"no\""
+fi
+rm -f core conftest.err conftest.$ac_objext conftest.$ac_ext
+fi
+eval ac_res=\$ax_cv_decl_${typename}_signed
+	       { $as_echo "$as_me:${as_lineno-$LINENO}: result: $ac_res" >&5
+$as_echo "$ac_res" >&6; }
+ symbolname=`echo sa_family_t | sed "s/[^a-zA-Z0-9_]/_/g" | tr "a-z" "A-Z"`
+ if eval "test \"\${ax_cv_decl_${typename}_signed}\" = \"yes\""; then
+
+$as_echo "#define MIO_SA_FAMILY_T_IS_SIGNED 1" >>confdefs.h
+
+ elif eval "test \"\${ax_cv_decl_${typename}_signed}\" = \"no\""; then
+    $as_echo_n ""
+ fi
+
+	fi
+
+	{ $as_echo "$as_me:${as_lineno-$LINENO}: checking offset of sa_family in struct sockaddr" >&5
+$as_echo_n "checking offset of sa_family in struct sockaddr... " >&6; }
+	if ac_fn_c_compute_int "$LINENO" "offsetof(struct sockaddr, sa_family)" "ac_cv_offsetof_sa_family"        "#include <stddef.h>
+		 #include <sys/types.h>
+		 #include <sys/socket.h>"; then :
+
+else
+  ac_cv_offsteof_sa_family=0
+fi
+
+	{ $as_echo "$as_me:${as_lineno-$LINENO}: result: $ac_cv_offsetof_sa_family" >&5
+$as_echo "$ac_cv_offsetof_sa_family" >&6; }
+
+cat >>confdefs.h <<_ACEOF
+#define MIO_OFFSETOF_SA_FAMILY ${ac_cv_offsetof_sa_family}
+_ACEOF
+
+fi
+
+if test ${ac_cv_sizeof___int128_t} -gt 0
+then
+	{ $as_echo "$as_me:${as_lineno-$LINENO}: checking __int128_t with % and va_arg" >&5
+$as_echo_n "checking __int128_t with % and va_arg... " >&6; }
+	cat confdefs.h - <<_ACEOF >conftest.$ac_ext
+/* end confdefs.h.  */
+#include <stdarg.h>
+int
+main ()
+{
+
+			volatile __int128_t x, base;
+			va_list ap;
+			va_arg(ap, __int128_t);
+			x = (__int128_t)&base;
+			base = (__int128_t)&x;
+			x = x % base;
+			return (int)x;
+
+  ;
+  return 0;
+}
+_ACEOF
+if ac_fn_c_try_compile "$LINENO"; then :
+
+			{ $as_echo "$as_me:${as_lineno-$LINENO}: result: yes" >&5
+$as_echo "yes" >&6; }
+
+else
+
+			{ $as_echo "$as_me:${as_lineno-$LINENO}: result: no" >&5
+$as_echo "no" >&6; }
+			ac_cv_sizeof___int128_t=0
+			ac_cv_sizeof___uint128_t=0
+
+
+fi
+rm -f core conftest.err conftest.$ac_objext conftest.$ac_ext
+fi
+
+if test ${ac_cv_sizeof___float128} -gt 0
+then
+	{ $as_echo "$as_me:${as_lineno-$LINENO}: checking __float128 with linking" >&5
+$as_echo_n "checking __float128 with linking... " >&6; }
+	cat confdefs.h - <<_ACEOF >conftest.$ac_ext
+/* end confdefs.h.  */
+#include <stdio.h>
+int
+main ()
+{
+
+			__float128 x, y, z;
+			z = x * y + x;
+			printf ("%p", (char*)(int)z);
+
+  ;
+  return 0;
+}
+_ACEOF
+if ac_fn_c_try_link "$LINENO"; then :
+  { $as_echo "$as_me:${as_lineno-$LINENO}: result: yes" >&5
+$as_echo "yes" >&6; }
+else
+
+			{ $as_echo "$as_me:${as_lineno-$LINENO}: result: no" >&5
+$as_echo "no" >&6; }
+			ac_cv_sizeof___float128=0
+
+
+fi
+rm -f core conftest.err conftest.$ac_objext \
+    conftest$ac_exeext conftest.$ac_ext
+fi
+
+if test ${ac_cv_sizeof___float128} -gt 0
+then
+	for ac_func in quadmath_snprintf
+do :
+  ac_fn_c_check_func "$LINENO" "quadmath_snprintf" "ac_cv_func_quadmath_snprintf"
+if test "x$ac_cv_func_quadmath_snprintf" = xyes; then :
+  cat >>confdefs.h <<_ACEOF
+#define HAVE_QUADMATH_SNPRINTF 1
+_ACEOF
+
+fi
+done
+
+	if test "$ac_cv_func_quadmath_snprintf" = "no"
+	then
+		OLDLIBS="$LIBS"
+		LIBS="$LIBM $LIBS"
+		for ac_func in quadmath_snprintf
+do :
+  ac_fn_c_check_func "$LINENO" "quadmath_snprintf" "ac_cv_func_quadmath_snprintf"
+if test "x$ac_cv_func_quadmath_snprintf" = xyes; then :
+  cat >>confdefs.h <<_ACEOF
+#define HAVE_QUADMATH_SNPRINTF 1
+_ACEOF
+
+fi
+done
+
+		LIBS="$OLDLIBS"
+
+		if test "$ac_cv_func_quadmath_snprintf" = "no"
+		then
+
+			{ $as_echo "$as_me:${as_lineno-$LINENO}: checking for quadmath_snprintf in -lquadmath" >&5
+$as_echo_n "checking for quadmath_snprintf in -lquadmath... " >&6; }
+if ${ac_cv_lib_quadmath_quadmath_snprintf+:} false; then :
+  $as_echo_n "(cached) " >&6
+else
+  ac_check_lib_save_LIBS=$LIBS
+LIBS="-lquadmath  $LIBS"
+cat confdefs.h - <<_ACEOF >conftest.$ac_ext
+/* end confdefs.h.  */
+
+/* Override any GCC internal prototype to avoid an error.
+   Use char because int might match the return type of a GCC
+   builtin and then its argument prototype would still apply.  */
+#ifdef __cplusplus
+extern "C"
+#endif
+char quadmath_snprintf ();
+int
+main ()
+{
+return quadmath_snprintf ();
+  ;
+  return 0;
+}
+_ACEOF
+if ac_fn_c_try_link "$LINENO"; then :
+  ac_cv_lib_quadmath_quadmath_snprintf=yes
+else
+  ac_cv_lib_quadmath_quadmath_snprintf=no
+fi
+rm -f core conftest.err conftest.$ac_objext \
+    conftest$ac_exeext conftest.$ac_ext
+LIBS=$ac_check_lib_save_LIBS
+fi
+{ $as_echo "$as_me:${as_lineno-$LINENO}: result: $ac_cv_lib_quadmath_quadmath_snprintf" >&5
+$as_echo "$ac_cv_lib_quadmath_quadmath_snprintf" >&6; }
+if test "x$ac_cv_lib_quadmath_quadmath_snprintf" = xyes; then :
+
+				QUADMATH_LIBS="-lquadmath"
+				LIBM="$LIBM -lquadmath"
+				$as_echo "#define HAVE_QUADMATH_SNPRINTF 1" >>confdefs.h
+
+
+fi
+
+
+			if test "$ac_cv_lib_quadmath_quadmath_snprintf" = "no"
+			then
+
+				ac_cv_sizeof___float128=0
+			fi
+
+		else
+			QUADMATH_LIBS="$LIBM"
+		fi
+	fi
+
+	if test ${ac_cv_sizeof___float128} -gt 0
+	then
+		OLDLIBS="$LIBS"
+		LIBS="$LIBM $LIBS"
+		for ac_func in powq fmodq sinq cosq tanq sinhq coshq tanhq asinq acosq atanq atan2q logq log10q expq sqrtq ceilq floorq roundq
+do :
+  as_ac_var=`$as_echo "ac_cv_func_$ac_func" | $as_tr_sh`
+ac_fn_c_check_func "$LINENO" "$ac_func" "$as_ac_var"
+if eval test \"x\$"$as_ac_var"\" = x"yes"; then :
+  cat >>confdefs.h <<_ACEOF
+#define `$as_echo "HAVE_$ac_func" | $as_tr_cpp` 1
+_ACEOF
+
+fi
+done
+
+		for ac_func in strtoflt128
+do :
+  ac_fn_c_check_func "$LINENO" "strtoflt128" "ac_cv_func_strtoflt128"
+if test "x$ac_cv_func_strtoflt128" = xyes; then :
+  cat >>confdefs.h <<_ACEOF
+#define HAVE_STRTOFLT128 1
+_ACEOF
+
+fi
+done
+
+		LIBS="$OLDLIBS"
+	fi
+fi
+
 
 
 if test ${ac_cv_sizeof___int128_t} -gt 0

@@ -40,6 +40,9 @@
 #define MIO_MEMCMP(dst,src,count) memcmp(dst,src,count)
 #define MIO_ASSERT assert
 
+#define MIO_CWQFL_SIZE 16
+#define MIO_CWQFL_ALIGN 16
+
 typedef struct mio_mux_t mio_mux_t;
 
 struct mio_t
@@ -79,7 +82,7 @@ struct mio_t
 	} tmr;
 
 	mio_cwq_t cwq;
-	mio_cwq_t* cwq_zdf; /* list of free cwq objects with 0-sized dstaddr */
+	mio_cwq_t* cwqfl[MIO_CWQFL_SIZE]; /* list of free cwq objects */
 
 	/* platform specific fields below */
 #if defined(_WIN32)
