@@ -61,6 +61,8 @@ static int kill_and_free_device (mio_dev_t* dev, int force);
 } while (0)
 
 
+static void on_read_timeout (mio_t* mio, const mio_ntime_t* now, mio_tmrjob_t* job);
+static void on_write_timeout (mio_t* mio, const mio_ntime_t* now, mio_tmrjob_t* job);
 
 /* ========================================================================= */
 #if defined(USE_POLL)
@@ -631,19 +633,41 @@ static MIO_INLINE void handle_event (mio_dev_t* dev, int events, int rdhup)
 				dev = MIO_NULL;
 				break;
 			}
-			else if (x == 0)
+
+			if (dev->rtmridx != MIO_TMRIDX_INVALID)
+			{
+				/* delete the read timeout job on the device as the
+				 * read operation will be reported below. */
+				mio_tmrjob_t tmrjob;
+
+				MIO_MEMSET (&tmrjob, 0, MIO_SIZEOF(tmrjob));
+				tmrjob.ctx = dev;
+				mio_gettime (&tmrjob.when);
+				mio_addtime (&tmrjob.when, &dev->rtmout, &tmrjob.when);
+				tmrjob.handler = on_read_timeout;
+				tmrjob.idxptr = &dev->rtmridx;
+
+				mio_updtmrjob (mio, dev->rtmridx, &tmrjob);
+
+				/*mio_deltmrjob (mio, dev->rtmridx);
+				dev->rtmridx = MIO_TMRIDX_INVALID;*/
+			}
+
+			if (x == 0)
 			{
 				/* no data is available - EWOULDBLOCK or something similar */
 				break;
 			}
-			else if (x >= 1)
+			else /*if (x >= 1) */
 			{
+			
 				if (len <= 0 && (dev->dev_capa & MIO_DEV_CAPA_STREAM)) 
 				{
 					/* EOF received. for a stream device, a zero-length 
 					 * read is interpreted as EOF. */
 					dev->dev_capa |= MIO_DEV_CAPA_IN_CLOSED;
 					mio->renew_watch = 1;
+
 
 					/* call the on_read callback to report EOF */
 					if (dev->dev_evcb->on_read(dev, mio->bigbuf, len, &srcaddr) <= -1 ||
@@ -926,6 +950,7 @@ mio_dev_t* mio_makedev (mio_t* mio, mio_oow_t dev_size, mio_dev_mth_t* dev_mth, 
 	dev->dev_capa = MIO_DEV_CAPA_IN | MIO_DEV_CAPA_OUT;
 	dev->dev_mth = dev_mth;
 	dev->dev_evcb = dev_evcb;
+	mio_inittime (&dev->rtmout, 0, 0); 
 	dev->rtmridx = MIO_TMRIDX_INVALID;
 	MIO_WQ_INIT (&dev->wq);
 	dev->cw_count = 0;
@@ -1088,7 +1113,6 @@ void mio_killdev (mio_t* mio, mio_dev_t* dev)
 
 	if (dev->rtmridx != MIO_TMRIDX_INVALID)
 	{
-printf ("REMOVING.... TIMER FOR DEV\n");
 		mio_deltmrjob (mio, dev->rtmridx);
 		dev->rtmridx = MIO_TMRIDX_INVALID;
 	}
@@ -1324,6 +1348,7 @@ update_timer:
 			/* if timer registration fails, timeout will never be triggered */
 			return -1;
 		}
+		dev->rtmout = *tmout;
 	}
 	return 0;
 }
