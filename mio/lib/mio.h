@@ -307,6 +307,7 @@ struct mio_wq_t
 	int             dev_capa; \
 	mio_dev_mth_t*  dev_mth; \
 	mio_dev_evcb_t* dev_evcb; \
+	mio_ntime_t     rtmout; \
 	mio_tmridx_t    rtmridx; \
 	mio_wq_t        wq; \
 	mio_oow_t       cw_count; \
@@ -431,7 +432,13 @@ MIO_EXPORT int mio_dev_watch (
 
 MIO_EXPORT int mio_dev_read (
 	mio_dev_t*         dev,
-	int                 enabled
+	int                enabled
+);
+
+MIO_EXPORT int mio_dev_timedread (
+	mio_dev_t*         dev,
+	int                enabled,
+	const mio_ntime_t* tmout
 );
 
 /**

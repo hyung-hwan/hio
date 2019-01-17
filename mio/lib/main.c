@@ -215,6 +215,7 @@ printf ("TCP_SCK_ON_WRITE ENABLING READING..............................\n");
 static int tcp_sck_on_read (mio_dev_sck_t* tcp, const void* buf, mio_iolen_t len, const mio_sckaddr_t* srcaddr)
 {
 	int n;
+static int x = 0;
 
 	if (len <= -1)
 	{
@@ -448,7 +449,7 @@ static int schedule_icmp_wait (mio_dev_sck_t* dev)
 
 	assert (icmpxtn->tmout_jobidx == MIO_TMRIDX_INVALID);
 
-	return (mio_instmrjob (dev->mio, &tmrjob) == MIO_TMRIDX_INVALID)? -1: 0;
+	return (mio_instmrjob(dev->mio, &tmrjob) == MIO_TMRIDX_INVALID)? -1: 0;
 }
 
 static int icmp_sck_on_read (mio_dev_sck_t* dev, const void* data, mio_iolen_t dlen, const mio_sckaddr_t* srcaddr)
@@ -552,7 +553,7 @@ static int setup_ping4_tester (mio_t* mio)
 
 /* ========================================================================= */
 
-#if 0
+#if 1
 static mio_t* g_mio;
 
 static void handle_signal (int sig)
@@ -771,8 +772,7 @@ oops:
 	return -1;
 }
 
-#endif
-#if 1
+#else
 int main (int argc, char* argv[])
 {
 	mio_t* mio = MIO_NULL;
