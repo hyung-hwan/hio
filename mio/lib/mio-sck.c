@@ -1712,10 +1712,6 @@ int mio_dev_sck_timedwrite (mio_dev_sck_t* dev, const void* data, mio_iolen_t dl
 }
 
 
-
-
-
-
 /* ========================================================================= */
 
 mio_uint16_t mio_checksumip (const void* hdr, mio_oow_t len)

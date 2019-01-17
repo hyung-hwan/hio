@@ -806,7 +806,7 @@ int mio_dev_pro_timedwrite (mio_dev_pro_t* dev, const void* data, mio_iolen_t dl
 {
 	if (dev->slave[0])
 	{
-		return mio_dev_timedwrite ((mio_dev_t*)dev->slave[0], data, dlen, tmout, wrctx, MIO_NULL);
+		return mio_dev_timedwrite((mio_dev_t*)dev->slave[0], data, dlen, tmout, wrctx, MIO_NULL);
 	}
 	else
 	{
