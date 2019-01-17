@@ -132,7 +132,7 @@ typedef void (*mio_tmrjob_handler_t) (
 
 struct mio_tmrjob_t
 {
-	void*                  ctx;
+	void*                 ctx;
 	mio_ntime_t           when;
 	mio_tmrjob_handler_t  handler;
 	mio_tmridx_t*         idxptr; /* pointer to the index holder */
@@ -307,6 +307,7 @@ struct mio_wq_t
 	int             dev_capa; \
 	mio_dev_mth_t*  dev_mth; \
 	mio_dev_evcb_t* dev_evcb; \
+	mio_tmridx_t    rtmridx; \
 	mio_wq_t        wq; \
 	mio_oow_t       cw_count; \
 	mio_dev_t*      dev_prev; \

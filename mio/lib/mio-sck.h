@@ -516,7 +516,7 @@ MIO_EXPORT void mio_sckaddr_initforeth (
 
 MIO_EXPORT mio_dev_sck_t* mio_dev_sck_make (
 	mio_t*                    mio,
-	mio_oow_t                xtnsize,
+	mio_oow_t                 xtnsize,
 	const mio_dev_sck_make_t* info
 );
 
@@ -537,18 +537,18 @@ MIO_EXPORT int mio_dev_sck_listen (
 
 MIO_EXPORT int mio_dev_sck_write (
 	mio_dev_sck_t*        dev,
-	const void*            data,
+	const void*           data,
 	mio_iolen_t           len,
-	void*                  wrctx,
+	void*                 wrctx,
 	const mio_sckaddr_t*  dstaddr
 );
 
 MIO_EXPORT int mio_dev_sck_timedwrite (
 	mio_dev_sck_t*        dev,
-	const void*            data,
+	const void*           data,
 	mio_iolen_t           len,
 	const mio_ntime_t*    tmout,
-	void*                  wrctx,
+	void*                 wrctx,
 	const mio_sckaddr_t*  dstaddr
 );
 
@@ -564,10 +564,15 @@ static MIO_INLINE int mio_dev_sck_read (mio_dev_sck_t* sck, int enabled)
 	return mio_dev_read((mio_dev_t*)sck, enabled);
 }
 
+static MIO_INLINE int mio_dev_sck_timedread (mio_dev_sck_t* sck, int enabled, mio_ntime_t* tmout)
+{
+	return mio_dev_timedread((mio_dev_t*)sck, enabled, tmout);
+}
 #else
 
 #define mio_dev_sck_halt(sck) mio_dev_halt((mio_dev_t*)sck)
 #define mio_dev_sck_read(sck,enabled) mio_dev_read((mio_dev_t*)sck, enabled)
+#define mio_dev_sck_timedread(sck,enabled,tmout) mio_dev_timedread((mio_dev_t*)sck, enabled, tmout)
 
 #endif
 

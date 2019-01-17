@@ -189,11 +189,12 @@ printf ("DEVICE accepted client device... .LOCAL %s:%d REMOTE %s:%d\n", buf1, mi
 static int tcp_sck_on_write (mio_dev_sck_t* tcp, mio_iolen_t wrlen, void* wrctx, const mio_sckaddr_t* dstaddr)
 {
 	tcp_server_t* ts;
+	mio_ntime_t tmout;
 
 if (wrlen <= -1)
 {
 printf ("TCP_SCK_ON_WRITE SEDING TIMED OUT...........\n");
-	mio_dev_sck_halt(tcp);
+	mio_dev_sck_halt (tcp);
 }
 else
 {
@@ -204,19 +205,24 @@ else
 //	if (ts->tally >= 2) mio_dev_sck_halt (tcp);
 
 printf ("TCP_SCK_ON_WRITE ENABLING READING..............................\n");
-	mio_dev_sck_read (tcp, 1);
-
-	//mio_dev_sck_timedread (tcp, 1, 1000);
+	mio_inittime (&tmout, 5, 0);
+	//mio_dev_sck_read (tcp, 1);
+	mio_dev_sck_timedread (tcp, 1, &tmout);
 }
 	return 0;
 }
 
-/* TODO: serialize callbacks... */
 static int tcp_sck_on_read (mio_dev_sck_t* tcp, const void* buf, mio_iolen_t len, const mio_sckaddr_t* srcaddr)
 {
 	int n;
 
-	if (len <= 0)
+	if (len <= -1)
+	{
+		printf ("TCP_SCK_ON_READ STREAM DEVICE: TIMED OUT...\n");
+		mio_dev_sck_halt (tcp);
+		return 0;
+	}
+	else if (len <= 0)
 	{
 		printf ("TCP_SCK_ON_READ STREAM DEVICE: EOF RECEIVED...\n");
 		/* no outstanding request. but EOF */
@@ -574,7 +580,7 @@ int main (int argc, char* argv[])
 	SSL_library_init ();
 #endif
 
-	mio = mio_open (&mmgr, 0, 512, MIO_NULL);
+	mio = mio_open(&mmgr, 0, 512, MIO_NULL);
 	if (!mio)
 	{
 		printf ("Cannot open mio\n");
@@ -635,7 +641,7 @@ int main (int argc, char* argv[])
 
 	mio_inittime (&tcp_conn.connect_tmout, 5, 0);
 	tcp_conn.options = MIO_DEV_SCK_CONNECT_SSL;
-	if (mio_dev_sck_connect (tcp[0], &tcp_conn) <= -1)
+	if (mio_dev_sck_connect(tcp[0], &tcp_conn) <= -1)
 	{
 		printf ("mio_dev_sck_connect() failed....\n");
 		/* carry on regardless of failure */
@@ -662,7 +668,7 @@ int main (int argc, char* argv[])
 	mio_sckaddr_initforip4 (&tcp_bind.localaddr, 1234, MIO_NULL);
 	tcp_bind.options = MIO_DEV_SCK_BIND_REUSEADDR;
 
-	if (mio_dev_sck_bind (tcp[1],&tcp_bind) <= -1)
+	if (mio_dev_sck_bind(tcp[1],&tcp_bind) <= -1)
 	{
 		printf ("tcp[1] mio_dev_sck_bind() failed....\n");
 		goto oops;
@@ -670,7 +676,7 @@ int main (int argc, char* argv[])
 
 
 	tcp_lstn.backlogs = 100;
-	if (mio_dev_sck_listen (tcp[1], &tcp_lstn) <= -1)
+	if (mio_dev_sck_listen(tcp[1], &tcp_lstn) <= -1)
 	{
 		printf ("tcp[1] mio_dev_sck_listen() failed....\n");
 		goto oops;
@@ -684,7 +690,7 @@ int main (int argc, char* argv[])
 	tcp_make.on_connect = tcp_sck_on_connect;
 	tcp_make.on_disconnect = tcp_sck_on_disconnect;
 
-	tcp[2] = mio_dev_sck_make (mio, MIO_SIZEOF(tcp_server_t), &tcp_make);
+	tcp[2] = mio_dev_sck_make(mio, MIO_SIZEOF(tcp_server_t), &tcp_make);
 	if (!tcp[2])
 	{
 		printf ("Cannot make tcp\n");
@@ -732,7 +738,7 @@ for (i = 0; i < 5; i++)
 	pro_make.on_write = pro_on_write;
 	pro_make.on_close = pro_on_close;
 
-	pro = mio_dev_pro_make (mio, 0, &pro_make);
+	pro = mio_dev_pro_make(mio, 0, &pro_make);
 	if (!pro)
 	{
 		printf ("CANNOT CREATE PROCESS PIPE\n");
@@ -775,7 +781,7 @@ int main (int argc, char* argv[])
 	mio_dev_sck_connect_t tcp_conn;
 	tcp_server_t* ts;
 
-	mio = mio_open (&mmgr, 0, 512, MIO_NULL);
+	mio = mio_open(&mmgr, 0, 512, MIO_NULL);
 	if (!mio)
 	{
 		printf ("Cannot open mio\n");
