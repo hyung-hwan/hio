@@ -211,7 +211,7 @@ int mio_equalsckaddrs (mio_t* mio, const mio_sckaddr_t* addr1, const mio_sckaddr
 
 	mio_getsckaddrinfo (mio, addr1, &len1, &fam1);
 	mio_getsckaddrinfo (mio, addr2, &len2, &fam2);
-	return fam1 == fam2 && len1 == len2 && MIO_MEMCMP (addr1, addr2, len1) == 0;
+	return fam1 == fam2 && len1 == len2 && MIO_MEMCMP(addr1, addr2, len1) == 0;
 }
 
 /* ========================================================================= */
@@ -544,7 +544,7 @@ static int dev_sck_read_stateful (mio_dev_t* dev, void* buf, mio_iolen_t* len, m
 		x = SSL_read ((SSL*)rdev->ssl, buf, *len);
 		if (x <= -1)
 		{
-			int err = SSL_get_error ((SSL*)rdev->ssl, x);
+			int err = SSL_get_error((SSL*)rdev->ssl, x);
 			if (err == SSL_ERROR_WANT_READ || err == SSL_ERROR_WANT_WRITE) return 0;
 			rdev->mio->errnum = MIO_ESYSERR;
 			return -1;
@@ -640,7 +640,7 @@ static int dev_sck_write_stateful (mio_dev_t* dev, const void* data, mio_iolen_t
 		{
 			/* it's a writing finish indicator. close the writing end of
 			 * the socket, probably leaving it in the half-closed state */
-			if (shutdown (rdev->sck, SHUT_WR) == -1)
+			if (shutdown(rdev->sck, SHUT_WR) == -1)
 			{
 				rdev->mio->errnum = mio_syserrtoerrnum(errno);
 				return -1;
@@ -653,7 +653,7 @@ static int dev_sck_write_stateful (mio_dev_t* dev, const void* data, mio_iolen_t
 	#if defined(MSG_NOSIGNAL)
 		flags |= MSG_NOSIGNAL;
 	#endif
-		x = send (rdev->sck, data, *len, flags);
+		x = send(rdev->sck, data, *len, flags);
 		if (x == -1) 
 		{
 			if (errno == EINPROGRESS || errno == EWOULDBLOCK || errno == EAGAIN) return 0;  /* no data can be written */
@@ -674,7 +674,7 @@ static int dev_sck_write_stateless (mio_dev_t* dev, const void* data, mio_iolen_
 	mio_dev_sck_t* rdev = (mio_dev_sck_t*)dev;
 	ssize_t x;
 
-	x = sendto (rdev->sck, data, *len, 0, dstaddr->ptr, dstaddr->len);
+	x = sendto(rdev->sck, data, *len, 0, dstaddr->ptr, dstaddr->len);
 	if (x <= -1) 
 	{
 		if (errno == EINPROGRESS || errno == EWOULDBLOCK || errno == EAGAIN) return 0;  /* no data can be written */
@@ -836,7 +836,7 @@ static int dev_sck_ioctl (mio_dev_t* dev, int cmd, void* arg)
 			{
 			#if defined(IP_TRANSPARENT)
 				int v = 1;
-				if (setsockopt (rdev->sck, SOL_IP, IP_TRANSPARENT, &v, MIO_SIZEOF(v)) == -1)
+				if (setsockopt(rdev->sck, SOL_IP, IP_TRANSPARENT, &v, MIO_SIZEOF(v)) == -1)
 				{
 					rdev->mio->errnum = mio_syserrtoerrnum(errno);
 					return -1;
@@ -868,16 +868,16 @@ static int dev_sck_ioctl (mio_dev_t* dev, int cmd, void* arg)
 					return -1;
 				}
 
-				ssl_ctx = SSL_CTX_new (SSLv23_server_method());
+				ssl_ctx = SSL_CTX_new(SSLv23_server_method());
 				if (!ssl_ctx)
 				{
 					rdev->mio->errnum = MIO_ESYSERR;
 					return -1;
 				}
 
-				if (SSL_CTX_use_certificate_file (ssl_ctx, bnd->ssl_certfile, SSL_FILETYPE_PEM) == 0 ||
-				    SSL_CTX_use_PrivateKey_file (ssl_ctx, bnd->ssl_keyfile, SSL_FILETYPE_PEM) == 0 ||
-				    SSL_CTX_check_private_key (ssl_ctx) == 0  /*||
+				if (SSL_CTX_use_certificate_file(ssl_ctx, bnd->ssl_certfile, SSL_FILETYPE_PEM) == 0 ||
+				    SSL_CTX_use_PrivateKey_file(ssl_ctx, bnd->ssl_keyfile, SSL_FILETYPE_PEM) == 0 ||
+				    SSL_CTX_check_private_key(ssl_ctx) == 0  /*||
 				    SSL_CTX_use_certificate_chain_file (ssl_ctx, bnd->chainfile) == 0*/)
 				{
 					SSL_CTX_free (ssl_ctx);
@@ -899,9 +899,9 @@ static int dev_sck_ioctl (mio_dev_t* dev, int cmd, void* arg)
 			#endif
 			}
 
-			if (mio_getsckaddrinfo (dev->mio, &bnd->localaddr, &sl, &fam) <= -1) return -1;
+			if (mio_getsckaddrinfo(dev->mio, &bnd->localaddr, &sl, &fam) <= -1) return -1;
 
-			x = bind (rdev->sck, sa, sl);
+			x = bind(rdev->sck, sa, sl);
 			if (x == -1)
 			{
 				rdev->mio->errnum = mio_syserrtoerrnum(errno);
@@ -1007,7 +1007,7 @@ fcntl (rdev->sck, F_SETFL, flags | O_NONBLOCK);
 
 						if (mio_ispostime(&conn->connect_tmout))
 						{
-							if (schedule_timer_job_after (rdev, &conn->connect_tmout, connect_timedout) <= -1) 
+							if (schedule_timer_job_after(rdev, &conn->connect_tmout, connect_timedout) <= -1) 
 							{
 								goto oops_connect;
 							}
@@ -1189,7 +1189,7 @@ static int harvest_outgoing_connection (mio_dev_sck_t* rdev)
 	MIO_ASSERT (!(rdev->state & MIO_DEV_SCK_CONNECTED));
 
 	len = MIO_SIZEOF(errcode);
-	if (getsockopt (rdev->sck, SOL_SOCKET, SO_ERROR, (char*)&errcode, &len) == -1)
+	if (getsockopt(rdev->sck, SOL_SOCKET, SO_ERROR, (char*)&errcode, &len) == -1)
 	{
 		rdev->mio->errnum = mio_syserrtoerrnum(errno);
 		return -1;

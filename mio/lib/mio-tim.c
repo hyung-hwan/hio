@@ -169,7 +169,7 @@ void mio_gettime (mio_ntime_t* t)
 	t->nsec = MIO_USEC_TO_NSEC(tv.tv_usec);
 
 #else
-	t->sec = time (MIO_NULL);
+	t->sec = time(MIO_NULL);
 	t->nsec = 0;
 #endif
 }

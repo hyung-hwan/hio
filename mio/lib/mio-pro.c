@@ -545,7 +545,7 @@ static int dev_pro_read_slave (mio_dev_t* dev, void* buf, mio_iolen_t* len, mio_
 	mio_dev_pro_slave_t* pro = (mio_dev_pro_slave_t*)dev;
 	ssize_t x;
 
-	x = read (pro->pfd, buf, *len);
+	x = read(pro->pfd, buf, *len);
 	if (x <= -1)
 	{
 		if (errno == EINPROGRESS || errno == EWOULDBLOCK || errno == EAGAIN) return 0;  /* no data available */
@@ -757,17 +757,17 @@ static mio_dev_pro_slave_t* make_slave (mio_t* mio, slave_info_t* si)
 	switch (si->id)
 	{
 		case MIO_DEV_PRO_IN:
-			return (mio_dev_pro_slave_t*)mio_makedev (
+			return (mio_dev_pro_slave_t*)mio_makedev(
 				mio, MIO_SIZEOF(mio_dev_pro_t), 
 				&dev_pro_methods_slave, &dev_pro_event_callbacks_slave_in, si);
 
 		case MIO_DEV_PRO_OUT:
-			return (mio_dev_pro_slave_t*)mio_makedev (
+			return (mio_dev_pro_slave_t*)mio_makedev(
 				mio, MIO_SIZEOF(mio_dev_pro_t), 
 				&dev_pro_methods_slave, &dev_pro_event_callbacks_slave_out, si);
 
 		case MIO_DEV_PRO_ERR:
-			return (mio_dev_pro_slave_t*)mio_makedev (
+			return (mio_dev_pro_slave_t*)mio_makedev(
 				mio, MIO_SIZEOF(mio_dev_pro_t), 
 				&dev_pro_methods_slave, &dev_pro_event_callbacks_slave_err, si);
 
@@ -779,7 +779,7 @@ static mio_dev_pro_slave_t* make_slave (mio_t* mio, slave_info_t* si)
 
 mio_dev_pro_t* mio_dev_pro_make (mio_t* mio, mio_oow_t xtnsize, const mio_dev_pro_make_t* info)
 {
-	return (mio_dev_pro_t*)mio_makedev (
+	return (mio_dev_pro_t*)mio_makedev(
 		mio, MIO_SIZEOF(mio_dev_pro_t) + xtnsize, 
 		&dev_pro_methods, &dev_pro_event_callbacks, (void*)info);
 }
@@ -793,7 +793,7 @@ int mio_dev_pro_write (mio_dev_pro_t* dev, const void* data, mio_iolen_t dlen, v
 {
 	if (dev->slave[0])
 	{
-		return mio_dev_write ((mio_dev_t*)dev->slave[0], data, dlen, wrctx, MIO_NULL);
+		return mio_dev_write((mio_dev_t*)dev->slave[0], data, dlen, wrctx, MIO_NULL);
 	}
 	else
 	{
