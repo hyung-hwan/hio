@@ -24,18 +24,24 @@ include_HEADERS = \
 	mio-cmn.h \
 	mio-pro.h \
 	mio-sck.h \
+	mio-utl.h \
 	mio.h
 
 lib_LTLIBRARIES = libmio.la
 libmio_la_SOURCES = \
+	err.c \
+	logfmt.c \
+	logfmtv.h \
 	mio-prv.h \
 	mio.c \
 	mio-pro.c \
 	mio-sck.c \
 	mio-tim.c \
 	mio-tmr.c \
-	mio-utl.c \
-	utf8.c
+	sck-addr.c \
+	sck-addr.h \
+	utf8.c \
+	utl.c
 libmio_la_CPPFLAGS = $(CPPFLAGS_LIB_COMMON)
 libmio_la_LDFLAGS = $(LDFLAGS_LIB_COMMON)
 libmio_la_LIBADD = $(LIBADD_LIB_COMMON) $(SSL_LIBS)

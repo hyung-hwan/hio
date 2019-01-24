@@ -142,7 +142,7 @@ mio_tmridx_t mio_instmrjob (mio_t* mio, const mio_tmrjob_t* job)
 		tmp = (mio_tmrjob_t*)MIO_MMGR_REALLOC (mio->mmgr, mio->tmr.jobs, new_capa * MIO_SIZEOF(*tmp));
 		if (tmp == MIO_NULL) 
 		{
-			mio->errnum = MIO_ENOMEM;
+			mio->errnum = MIO_ESYSMEM;
 			return MIO_TMRIDX_INVALID;
 		}
 

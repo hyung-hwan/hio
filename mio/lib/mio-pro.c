@@ -107,7 +107,7 @@ static int make_param (mio_t* mio, const mio_bch_t* cmd, int flags, param_t* par
 			param->argv = MIO_MMGR_ALLOC (mio->mmgr, (fcnt + 1) * MIO_SIZEOF(argv[0]));
 			if (param->argv == MIO_NULL) 
 			{
-				mio->errnum = MIO_ENOMEM;
+				mio->errnum = MIO_ESYSMEM;
 				goto oops;
 			}
 		}

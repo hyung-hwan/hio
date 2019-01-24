@@ -26,6 +26,7 @@
 
 
 #include <mio.h>
+#include <mio-utl.h>
 #include <mio-sck.h>
 #include <mio-pro.h>
 
