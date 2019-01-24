@@ -44,29 +44,10 @@ struct mio_devaddr_t
 	void* ptr;
 };
 
-#define MIO_CONST_SWAP16(x) \
-	((mio_uint16_t)((((mio_uint16_t)(x) & (mio_uint16_t)0x00ffU) << 8) | \
-	                 (((mio_uint16_t)(x) & (mio_uint16_t)0xff00U) >> 8) ))
+#define MIO_ERRMSG_CAPA (2048)
 
-#define MIO_CONST_SWAP32(x) \
-	((mio_uint32_t)((((mio_uint32_t)(x) & (mio_uint32_t)0x000000ffUL) << 24) | \
-	                 (((mio_uint32_t)(x) & (mio_uint32_t)0x0000ff00UL) <<  8) | \
-	                 (((mio_uint32_t)(x) & (mio_uint32_t)0x00ff0000UL) >>  8) | \
-	                 (((mio_uint32_t)(x) & (mio_uint32_t)0xff000000UL) >> 24) ))
-
-#if defined(MIO_ENDIAN_LITTLE)
-#	define MIO_CONST_NTOH16(x) MIO_CONST_SWAP16(x)
-#	define MIO_CONST_HTON16(x) MIO_CONST_SWAP16(x)
-#	define MIO_CONST_NTOH32(x) MIO_CONST_SWAP32(x)
-#	define MIO_CONST_HTON32(x) MIO_CONST_SWAP32(x)
-#elif defined(MIO_ENDIAN_BIG)
-#	define MIO_CONST_NTOH16(x) (x)
-#	define MIO_CONST_HTON16(x) (x)
-#	define MIO_CONST_NTOH32(x) (x)
-#	define MIO_CONST_HTON32(x) (x)
-#else
-#	error UNKNOWN ENDIAN
-#endif
+/* [NOTE] ensure that it is a power of 2 */
+#define MIO_LOG_CAPA_ALIGN 512
 
 /* ========================================================================= */
 
@@ -124,8 +105,6 @@ enum mio_errnum_t
 	MIO_EDEVHUP
 };
 typedef enum mio_errnum_t mio_errnum_t;
-
-#define MIO_ERRMSG_CAPA (2048)
 
 struct mio_errinf_t
 {
@@ -417,6 +396,25 @@ struct mio_t
 	int shuterr;
 
 	mio_stopreq_t stopreq;  /* stop request to abort mio_loop() */
+
+	struct
+	{
+		mio_ooch_t* ptr;
+		mio_oow_t len;
+		mio_oow_t capa;
+		mio_bitmask_t last_mask;
+		mio_bitmask_t default_type_mask;
+	} log;
+
+	struct
+	{
+		struct
+		{
+			mio_ooch_t* ptr;
+			mio_oow_t capa;
+			mio_oow_t len;
+		} xbuf; /* buffer to support sprintf */
+	} sprintf;
 
 	struct
 	{
