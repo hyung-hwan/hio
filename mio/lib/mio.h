@@ -368,12 +368,12 @@ enum mio_dev_event_t
 };
 typedef enum mio_dev_event_t mio_dev_event_t;
 
-
-
-
-
 #define MIO_CWQFL_SIZE 16
 #define MIO_CWQFL_ALIGN 16
+
+/* ========================================================================= */
+
+/* ========================================================================= */
 
 typedef struct mio_mux_t mio_mux_t;
 

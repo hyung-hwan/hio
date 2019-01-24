@@ -202,7 +202,7 @@ static int put_ooch (mio_t* mio, mio_bitmask_t mask, mio_ooch_t ch, mio_oow_t le
 			/* no line ending - append a line terminator */
 			mio->log.ptr[mio->log.len++] = '\n';
 		}
-		vmprim_log_write (mio, mio->log.last_mask, mio->log.ptr, mio->log.len);
+		prim_write_log (mio, mio->log.last_mask, mio->log.ptr, mio->log.len);
 		mio->log.len = 0;
 	}
 
@@ -246,7 +246,7 @@ redo:
 					/* no line ending - append a line terminator */
 					mio->log.ptr[mio->log.len++] = '\n';
 				}
-				vmprim_log_write (mio, mio->log.last_mask, mio->log.ptr, mio->log.len);
+				prim_write_log (mio, mio->log.last_mask, mio->log.ptr, mio->log.len);
 				mio->log.len = 0;
 			}
 
@@ -297,7 +297,7 @@ static int put_oocs (mio_t* mio, mio_bitmask_t mask, const mio_ooch_t* ptr, mio_
 			mio->log.ptr[mio->log.len++] = '\n';
 		}
 
-		vmprim_log_write (mio, mio->log.last_mask, mio->log.ptr, mio->log.len);
+		prim_write_log (mio, mio->log.last_mask, mio->log.ptr, mio->log.len);
 		mio->log.len = 0;
 	}
 
@@ -341,7 +341,7 @@ redo:
 					/* no line ending - append a line terminator */
 					mio->log.ptr[mio->log.len++] = '\n';
 				}
-				vmprim_log_write (mio, mio->log.last_mask, mio->log.ptr, mio->log.len);
+				prim_write_log (mio, mio->log.last_mask, mio->log.ptr, mio->log.len);
 				mio->log.len = 0;
 			}
 
@@ -441,7 +441,7 @@ mio_ooi_t mio_logbfmt (mio_t* mio, mio_bitmask_t mask, const mio_bch_t* fmt, ...
 
 	if (mio->log.len > 0 && mio->log.ptr[mio->log.len - 1] == '\n')
 	{
-		vmprim_log_write (mio, mio->log.last_mask, mio->log.ptr, mio->log.len);
+		prim_write_log (mio, mio->log.last_mask, mio->log.ptr, mio->log.len);
 		mio->log.len = 0;
 	}
 	return (x <= -1)? -1: fo.count;
@@ -469,7 +469,7 @@ mio_ooi_t mio_logufmt (mio_t* mio, mio_bitmask_t mask, const mio_uch_t* fmt, ...
 
 	if (mio->log.len > 0 && mio->log.ptr[mio->log.len - 1] == '\n')
 	{
-		vmprim_log_write (mio, mio->log.last_mask, mio->log.ptr, mio->log.len);
+		prim_write_log (mio, mio->log.last_mask, mio->log.ptr, mio->log.len);
 		mio->log.len = 0;
 	}
 
