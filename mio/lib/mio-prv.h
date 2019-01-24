@@ -28,6 +28,9 @@
 #define _MIO_PRV_H_
 
 #include "mio.h"
+#include "mio-utl.h"
+#include <stdarg.h>
+
 
 /*TODO: redefine and remove these */
 #include <assert.h>
@@ -39,58 +42,6 @@
 #define MIO_MEMMOVE(dst,src,count) memmove(dst,src,count)
 #define MIO_MEMCMP(dst,src,count) memcmp(dst,src,count)
 #define MIO_ASSERT assert
-
-#define MIO_CWQFL_SIZE 16
-#define MIO_CWQFL_ALIGN 16
-
-typedef struct mio_mux_t mio_mux_t;
-
-struct mio_t
-{
-	mio_mmgr_t* mmgr;
-	mio_errnum_t errnum;
-	mio_stopreq_t stopreq;  /* stop request to abort mio_loop() */
-
-	struct
-	{
-		mio_dev_t* head;
-		mio_dev_t* tail;
-	} actdev; /* active devices */
-
-	struct
-	{
-		mio_dev_t* head;
-		mio_dev_t* tail;
-	} hltdev; /* halted devices */
-
-	struct
-	{
-		mio_dev_t* head;
-		mio_dev_t* tail;
-	} zmbdev; /* zombie devices */
-
-	mio_uint8_t bigbuf[65535]; /* TODO: make this dynamic depending on devices added. device may indicate a buffer size required??? */
-
-	unsigned int renew_watch: 1;
-	unsigned int in_exec: 1;
-
-	struct
-	{
-		mio_oow_t     capa;
-		mio_oow_t     size;
-		mio_tmrjob_t*  jobs;
-	} tmr;
-
-	mio_cwq_t cwq;
-	mio_cwq_t* cwqfl[MIO_CWQFL_SIZE]; /* list of free cwq objects */
-
-	/* platform specific fields below */
-#if defined(_WIN32)
-	HANDLE iocp;
-#else
-	mio_mux_t* mux;
-#endif
-};
 
 
 #define MIO_EPOCH_YEAR  (1970)

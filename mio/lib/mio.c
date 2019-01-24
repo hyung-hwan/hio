@@ -99,7 +99,7 @@ static int mux_open (mio_t* mio)
 	mux = MIO_MMGR_ALLOC (mio->mmgr, MIO_SIZEOF(*mux));
 	if (!mux)
 	{
-		mio->errnum = MIO_ENOMEM;
+		mio->errnum = MIO_ESYSMEM;
 		return -1;
 	}
 
@@ -143,7 +143,7 @@ static int mux_control (mio_dev_t* dev, int cmd, mio_syshnd_t hnd, int dev_capa)
 		tmp = MIO_MMGR_REALLOC(mio->mmgr, mux->map.ptr, new_capa * MIO_SIZEOF(*tmp));
 		if (!tmp)
 		{
-			mio->errnum = MIO_ENOMEM;
+			mio->errnum = MIO_ESYSMEM;
 			return -1;
 		}
 
@@ -187,7 +187,7 @@ static int mux_control (mio_dev_t* dev, int cmd, mio_syshnd_t hnd, int dev_capa)
 				tmp1 = MIO_MMGR_REALLOC(mio->mmgr, mux->pd.pfd, new_capa * MIO_SIZEOF(*tmp1));
 				if (!tmp1)
 				{
-					mio->errnum = MIO_ENOMEM;
+					mio->errnum = MIO_ESYSMEM;
 					return -1;
 				}
 
@@ -195,7 +195,7 @@ static int mux_control (mio_dev_t* dev, int cmd, mio_syshnd_t hnd, int dev_capa)
 				if (!tmp2)
 				{
 					MIO_MMGR_FREE (mio->mmgr, tmp1);
-					mio->errnum = MIO_ENOMEM;
+					mio->errnum = MIO_ESYSMEM;
 					return -1;
 				}
 
@@ -276,7 +276,7 @@ static int mux_open (mio_t* mio)
 	mux = MIO_MMGR_ALLOC (mio->mmgr, MIO_SIZEOF(*mux));
 	if (!mux)
 	{
-		mio->errnum = MIO_ENOMEM;
+		mio->errnum = MIO_ESYSMEM;
 		return -1;
 	}
 
@@ -352,7 +352,7 @@ mio_t* mio_open (mio_mmgr_t* mmgr, mio_oow_t xtnsize, mio_oow_t tmrcapa, mio_err
 	}
 	else
 	{
-		if (errnum) *errnum = MIO_ENOMEM;
+		if (errnum) *errnum = MIO_ESYSMEM;
 	}
 
 	return mio;
@@ -378,7 +378,7 @@ int mio_init (mio_t* mio, mio_mmgr_t* mmgr, mio_oow_t tmrcapa)
 	mio->tmr.jobs = MIO_MMGR_ALLOC (mio->mmgr, tmrcapa * MIO_SIZEOF(mio_tmrjob_t));
 	if (!mio->tmr.jobs) 
 	{
-		mio->errnum = MIO_ENOMEM;
+		mio->errnum = MIO_ESYSMEM;
 		mux_close (mio);
 		return -1;
 	}
@@ -938,7 +938,7 @@ mio_dev_t* mio_makedev (mio_t* mio, mio_oow_t dev_size, mio_dev_mth_t* dev_mth, 
 	dev = MIO_MMGR_ALLOC(mio->mmgr, dev_size);
 	if (!dev)
 	{
-		mio->errnum = MIO_ENOMEM;
+		mio->errnum = MIO_ESYSMEM;
 		return MIO_NULL;
 	}
 
@@ -1202,7 +1202,7 @@ void mio_dev_halt (mio_dev_t* dev)
 int mio_dev_ioctl (mio_dev_t* dev, int cmd, void* arg)
 {
 	if (dev->dev_mth->ioctl) return dev->dev_mth->ioctl (dev, cmd, arg);
-	dev->mio->errnum = MIO_ENOSUP; /* TODO: different error code ? */
+	dev->mio->errnum = MIO_ENOIMPL; /* TODO: different error code ? */
 	return -1;
 }
 
@@ -1502,7 +1502,7 @@ enqueue_data:
 	q = (mio_wq_t*)MIO_MMGR_ALLOC(dev->mio->mmgr, MIO_SIZEOF(*q) + (dstaddr? dstaddr->len: 0) + urem);
 	if (!q)
 	{
-		dev->mio->errnum = MIO_ENOMEM;
+		dev->mio->errnum = MIO_ESYSMEM;
 		return -1;
 	}
 
@@ -1580,7 +1580,7 @@ enqueue_completed_write:
 		cwq = (mio_cwq_t*)MIO_MMGR_ALLOC(dev->mio->mmgr, MIO_SIZEOF(*cwq) + cwq_extra_aligned);
 		if (!cwq)
 		{
-			dev->mio->errnum = MIO_ENOMEM;
+			dev->mio->errnum = MIO_ESYSMEM;
 			return -1;
 		}
 	}
@@ -1640,7 +1640,7 @@ mio_errnum_t mio_syserrtoerrnum (int no)
 	switch (no)
 	{
 		case ENOMEM:
-			return MIO_ENOMEM;
+			return MIO_ESYSMEM;
 
 		case EINVAL:
 			return MIO_EINVAL;
@@ -1689,4 +1689,38 @@ mio_errnum_t mio_syserrtoerrnum (int no)
 		default:
 			return MIO_ESYSERR;
 	}
+}
+
+
+/* -------------------------------------------------------------------------- */
+
+void* mio_allocmem (mio_t* mio, mio_oow_t size)
+{
+	void* ptr;
+
+	ptr = MIO_MMGR_ALLOC (mio->mmgr, size);
+	if (!ptr) mio_seterrnum (mio, MIO_ESYSMEM);
+	return ptr;
+}
+
+void* mio_callocmem (mio_t* mio, mio_oow_t size)
+{
+	void* ptr;
+
+	ptr = MIO_MMGR_ALLOC (mio->mmgr, size);
+	if (!ptr) mio_seterrnum (mio, MIO_ESYSMEM);
+	else MIO_MEMSET (ptr, 0, size);
+	return ptr;
+}
+
+void* mio_reallocmem (mio_t* mio, void* ptr, mio_oow_t size)
+{
+	ptr = MIO_MMGR_REALLOC (mio->mmgr, ptr, size);
+	if (!ptr) mio_seterrnum (mio, MIO_ESYSMEM);
+	return ptr;
+}
+
+void mio_freemem (mio_t* mio, void* ptr)
+{
+	MIO_MMGR_FREE (mio->mmgr, ptr);
 }

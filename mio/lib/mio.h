@@ -80,33 +80,59 @@ typedef struct mio_wq_t mio_wq_t;
 typedef struct mio_cwq_t mio_cwq_t;
 typedef mio_intptr_t mio_iolen_t; /* NOTE: this is a signed type */
 
+typedef unsigned int mio_bitmask_t;
+
 enum mio_errnum_t
 {
-	MIO_ENOERR,
-	MIO_ENOIMPL,
-	MIO_ESYSERR,
-	MIO_EINTERN,
+	MIO_ENOERR,   /**< no error */
+	MIO_EGENERIC, /**< generic error */
 
-	MIO_ENOMEM,
-	MIO_EINVAL,
-	MIO_EEXIST,
-	MIO_ENOENT,
-	MIO_ENOSUP,     /* not supported */
+	MIO_ENOIMPL,  /**< not implemented */
+	MIO_ESYSERR,  /**< system error */
+	MIO_EINTERN,  /**< internal error */
+	MIO_ESYSMEM,  /**< insufficient system memory */
+	MIO_EOOMEM,   /**< insufficient object memory */
+	MIO_ETYPE,    /**< invalid class/type */
+
+	MIO_EINVAL,   /**< invalid parameter or data */
+	MIO_ENOENT,   /**< data not found */
+	MIO_EEXIST,   /**< existing/duplicate data */
+	MIO_EBUSY, 
+	MIO_EACCES,
+	MIO_EPERM,    /**< operation not permitted */
+	MIO_ENOTDIR,
+	MIO_EINTR,
+	MIO_EPIPE,
+	MIO_EAGAIN,
+	MIO_EBADHND,
+
 	MIO_EMFILE,     /* too many open files */
 	MIO_ENFILE,
-	MIO_EAGAIN,
+
+	MIO_EIOERR,   /**< I/O error */
+	MIO_EECERR,   /**< encoding conversion error */
+	MIO_EECMORE,  /**< insufficient data for encoding conversion */
+	MIO_EBUFFULL, /**< buffer full */
+
 	MIO_ECONRF,     /* connection refused */
 	MIO_ECONRS,     /* connection reset */
 	MIO_ENOCAPA,    /* no capability */
 	MIO_ETMOUT,     /* timed out */
-	MIO_EPERM,      /* operation not permitted */
 
 	MIO_EDEVMAKE,
 	MIO_EDEVERR,
 	MIO_EDEVHUP
 };
-
 typedef enum mio_errnum_t mio_errnum_t;
+
+#define MIO_ERRMSG_CAPA (2048)
+
+struct mio_errinf_t
+{
+	mio_errnum_t num;
+	mio_ooch_t msg[MIO_ERRMSG_CAPA];
+};
+typedef struct mio_errinf_t mio_errinf_t;
 
 enum mio_stopreq_t
 {
@@ -364,6 +390,71 @@ enum mio_dev_event_t
 typedef enum mio_dev_event_t mio_dev_event_t;
 
 
+
+
+
+#define MIO_CWQFL_SIZE 16
+#define MIO_CWQFL_ALIGN 16
+
+typedef struct mio_mux_t mio_mux_t;
+
+struct mio_t
+{
+	mio_mmgr_t*  mmgr;
+	mio_cmgr_t*  cmgr;
+	mio_errnum_t errnum;
+	struct
+	{
+		union
+		{
+			mio_ooch_t ooch[MIO_ERRMSG_CAPA];
+			mio_bch_t bch[MIO_ERRMSG_CAPA];
+			mio_uch_t uch[MIO_ERRMSG_CAPA];
+		} tmpbuf;
+		mio_ooch_t buf[MIO_ERRMSG_CAPA];
+		mio_oow_t len;
+	} errmsg;
+	int shuterr;
+
+	mio_stopreq_t stopreq;  /* stop request to abort mio_loop() */
+
+	struct
+	{
+		mio_dev_t* head;
+		mio_dev_t* tail;
+	} actdev; /* active devices */
+
+	struct
+	{
+		mio_dev_t* head;
+		mio_dev_t* tail;
+	} hltdev; /* halted devices */
+
+	struct
+	{
+		mio_dev_t* head;
+		mio_dev_t* tail;
+	} zmbdev; /* zombie devices */
+
+	mio_uint8_t bigbuf[65535]; /* TODO: make this dynamic depending on devices added. device may indicate a buffer size required??? */
+
+	unsigned int renew_watch: 1;
+	unsigned int in_exec: 1;
+
+	struct
+	{
+		mio_oow_t     capa;
+		mio_oow_t     size;
+		mio_tmrjob_t*  jobs;
+	} tmr;
+
+	mio_cwq_t cwq;
+	mio_cwq_t* cwqfl[MIO_CWQFL_SIZE]; /* list of free cwq objects */
+
+	/* platform specific fields below */
+	mio_mux_t* mux;
+};
+
 /* ========================================================================= */
 
 #ifdef __cplusplus
@@ -390,6 +481,84 @@ MIO_EXPORT int mio_init (
 MIO_EXPORT void mio_fini (
 	mio_t*      mio
 );
+
+
+#if defined(MIO_HAVE_INLINE)
+	static MIO_INLINE mio_mmgr_t* mio_getmmgr (mio_t* mio) { return mio->mmgr; }
+	static MIO_INLINE void* mio_getxtn (mio_t* mio) { return (void*)(mio + 1); }
+
+	static MIO_INLINE mio_cmgr_t* mio_getcmgr (mio_t* mio) { return mio->cmgr; }
+	static MIO_INLINE void mio_setcmgr (mio_t* mio, mio_cmgr_t* cmgr) { mio->cmgr = cmgr; }
+
+	static MIO_INLINE mio_errnum_t mio_geterrnum (mio_t* mio) { return mio->errnum; }
+#else
+#	define mio_getmmgr(mio) ((mio)->mmgr)
+#	define mio_getxtn(mio) ((void*)((mio) + 1))
+
+#	define mio_getcmgr(mio) ((mio)->cmgr)
+#	define mio_setcmgr(mio,mgr) ((mio)->cmgr = (mgr))
+
+#	define mio_geterrnum(mio) ((mio)->errnum)
+#endif
+
+MIO_EXPORT void mio_seterrnum (
+	mio_t*       mio, 
+	mio_errnum_t errnum
+);
+
+MIO_EXPORT void mio_seterrwithsyserr (
+	mio_t* mio,
+	int    syserr_type,
+	int    syserr_code
+);
+
+MIO_EXPORT void mio_seterrbfmt (
+	mio_t*           mio,
+	mio_errnum_t     errnum,
+	const mio_bch_t* fmt,
+	...
+);
+
+MIO_EXPORT void mio_seterrufmt (
+	mio_t*           mio,
+	mio_errnum_t     errnum,
+	const mio_uch_t* fmt,
+	...
+);
+
+MIO_EXPORT void mio_seterrbfmtwithsyserr (
+	mio_t*           mio,
+	int              syserr_type,
+	int              syserr_code,
+	const mio_bch_t* fmt,
+	...
+);
+
+MIO_EXPORT void mio_seterrufmtwithsyserr (
+	mio_t*           mio,
+	int              syserr_type,
+	int              syserr_code,
+	const mio_uch_t* fmt,
+	...
+);
+
+MIO_EXPORT const mio_ooch_t* mio_geterrstr (
+	mio_t* mio
+);
+
+MIO_EXPORT const mio_ooch_t* mio_geterrmsg (
+	mio_t* mio
+);
+
+MIO_EXPORT void mio_geterrinf (
+	mio_t*        mio,
+	mio_errinf_t* info
+);
+
+MIO_EXPORT const mio_ooch_t* mio_backuperrmsg (
+	mio_t* mio
+);
+
 
 MIO_EXPORT int mio_exec (
 	mio_t* mio
@@ -549,50 +718,186 @@ MIO_EXPORT int mio_gettmrjobdeadline (
 	mio_ntime_t*      deadline
 );
 
-/* ========================================================================= */
-
-
-#if defined(MIO_HAVE_UINT16_T)
-MIO_EXPORT mio_uint16_t mio_ntoh16 (
-	mio_uint16_t x
+/* =========================================================================
+ * SYSTEM MEMORY MANAGEMENT FUCNTIONS VIA MMGR
+ * ========================================================================= */
+MIO_EXPORT void* mio_allocmem (
+	mio_t*     mio,
+	mio_oow_t  size
 );
 
-MIO_EXPORT mio_uint16_t mio_hton16 (
-	mio_uint16_t x
+MIO_EXPORT void* mio_callocmem (
+	mio_t*     mio,
+	mio_oow_t  size
 );
+
+MIO_EXPORT void* mio_reallocmem (
+	mio_t*      mio,
+	void*       ptr,
+	mio_oow_t   size
+);
+
+MIO_EXPORT void mio_freemem (
+	mio_t*  mio,
+	void*   ptr
+);
+
+/* =========================================================================
+ * STRING ENCODING CONVERSION
+ * ========================================================================= */
+
+#if defined(MIO_OOCH_IS_UCH)
+#	define mio_convootobchars(mio,oocs,oocslen,bcs,bcslen) mio_convutobchars(mio,oocs,oocslen,bcs,bcslen)
+#	define mio_convbtooochars(mio,bcs,bcslen,oocs,oocslen) mio_convbtouchars(mio,bcs,bcslen,oocs,oocslen)
+#	define mio_convootobcstr(mio,oocs,oocslen,bcs,bcslen) mio_convutobcstr(mio,oocs,oocslen,bcs,bcslen)
+#	define mio_convbtooocstr(mio,bcs,bcslen,oocs,oocslen) mio_convbtoucstr(mio,bcs,bcslen,oocs,oocslen)
+#else
+#	define mio_convootouchars(mio,oocs,oocslen,bcs,bcslen) mio_convbtouchars(mio,oocs,oocslen,bcs,bcslen)
+#	define mio_convutooochars(mio,bcs,bcslen,oocs,oocslen) mio_convutobchars(mio,bcs,bcslen,oocs,oocslen)
+#	define mio_convootoucstr(mio,oocs,oocslen,bcs,bcslen) mio_convbtoucstr(mio,oocs,oocslen,bcs,bcslen)
+#	define mio_convutooocstr(mio,bcs,bcslen,oocs,oocslen) mio_convutobcstr(mio,bcs,bcslen,oocs,oocslen)
 #endif
 
-#if defined(MIO_HAVE_UINT32_T)
-MIO_EXPORT mio_uint32_t mio_ntoh32 (
-	mio_uint32_t x
+MIO_EXPORT int mio_convbtouchars (
+	mio_t*           mio,
+	const mio_bch_t* bcs,
+	mio_oow_t*       bcslen,
+	mio_uch_t*       ucs,
+	mio_oow_t*       ucslen
 );
 
-MIO_EXPORT mio_uint32_t mio_hton32 (
-	mio_uint32_t x
+MIO_EXPORT int mio_convutobchars (
+	mio_t*           mio,
+	const mio_uch_t* ucs,
+	mio_oow_t*       ucslen,
+	mio_bch_t*       bcs,
+	mio_oow_t*       bcslen
 );
+
+/**
+ * The mio_convbtoucstr() function converts a null-terminated byte string 
+ * to a wide string.
+ */
+MIO_EXPORT int mio_convbtoucstr (
+	mio_t*           mio,
+	const mio_bch_t* bcs,
+	mio_oow_t*       bcslen,
+	mio_uch_t*       ucs,
+	mio_oow_t*       ucslen
+);
+
+
+/**
+ * The mio_convutobcstr() function converts a null-terminated wide string
+ * to a byte string.
+ */
+MIO_EXPORT int mio_convutobcstr (
+	mio_t*           mio,
+	const mio_uch_t* ucs,
+	mio_oow_t*       ucslen,
+	mio_bch_t*       bcs,
+	mio_oow_t*       bcslen
+);
+
+
+#if defined(MIO_OOCH_IS_UCH)
+#	define mio_dupootobcharswithheadroom(mio,hrb,oocs,oocslen,bcslen) mio_duputobcharswithheadroom(mio,hrb,oocs,oocslen,bcslen)
+#	define mio_dupbtooocharswithheadroom(mio,hrb,bcs,bcslen,oocslen) mio_dupbtoucharswithheadroom(mio,hrb,bcs,bcslen,oocslen)
+#	define mio_dupootobchars(mio,oocs,oocslen,bcslen) mio_duputobchars(mio,oocs,oocslen,bcslen)
+#	define mio_dupbtooochars(mio,bcs,bcslen,oocslen) mio_dupbtouchars(mio,bcs,bcslen,oocslen)
+
+#	define mio_dupootobcstrwithheadroom(mio,hrb,oocs,bcslen) mio_duputobcstrwithheadroom(mio,hrb,oocs,bcslen)
+#	define mio_dupbtooocstrwithheadroom(mio,hrb,bcs,oocslen) mio_dupbtoucstrwithheadroom(mio,hrb,bcs,oocslen)
+#	define mio_dupootobcstr(mio,oocs,bcslen) mio_duputobcstr(mio,oocs,bcslen)
+#	define mio_dupbtooocstr(mio,bcs,oocslen) mio_dupbtoucstr(mio,bcs,oocslen)
+#else
+#	define mio_dupootoucharswithheadroom(mio,hrb,oocs,oocslen,ucslen) mio_dupbtoucharswithheadroom(mio,hrb,oocs,oocslen,ucslen)
+#	define mio_duputooocharswithheadroom(mio,hrb,ucs,ucslen,oocslen) mio_duputobcharswithheadroom(mio,hrb,ucs,ucslen,oocslen)
+#	define mio_dupootouchars(mio,oocs,oocslen,ucslen) mio_dupbtouchars(mio,oocs,oocslen,ucslen)
+#	define mio_duputooochars(mio,ucs,ucslen,oocslen) mio_duputobchars(mio,ucs,ucslen,oocslen)
+
+#	define mio_dupootoucstrwithheadroom(mio,hrb,oocs,ucslen) mio_dupbtoucstrwithheadroom(mio,hrb,oocs,ucslen)
+#	define mio_duputooocstrwithheadroom(mio,hrb,ucs,oocslen) mio_duputobcstrwithheadroom(mio,hrb,ucs,oocslen)
+#	define mio_dupootoucstr(mio,oocs,ucslen) mio_dupbtoucstr(mio,oocs,ucslen)
+#	define mio_duputooocstr(mio,ucs,oocslen) mio_duputobcstr(mio,ucs,oocslen)
 #endif
 
-#if defined(MIO_HAVE_UINT64_T)
-MIO_EXPORT mio_uint64_t mio_ntoh64 (
-	mio_uint64_t x
+
+MIO_EXPORT mio_uch_t* mio_dupbtoucharswithheadroom (
+	mio_t*           mio,
+	mio_oow_t        headroom_bytes,
+	const mio_bch_t* bcs,
+	mio_oow_t        bcslen,
+	mio_oow_t*       ucslen
 );
 
-MIO_EXPORT mio_uint64_t mio_hton64 (
-	mio_uint64_t x
+MIO_EXPORT mio_bch_t* mio_duputobcharswithheadroom (
+	mio_t*           mio,
+	mio_oow_t        headroom_bytes,
+	const mio_uch_t* ucs,
+	mio_oow_t        ucslen,
+	mio_oow_t*       bcslen
 );
+
+MIO_EXPORT mio_uch_t* mio_dupbtouchars (
+	mio_t*           mio,
+	const mio_bch_t* bcs,
+	mio_oow_t        bcslen,
+	mio_oow_t*       ucslen
+);
+
+MIO_EXPORT mio_bch_t* mio_duputobchars (
+	mio_t*           mio,
+	const mio_uch_t* ucs,
+	mio_oow_t        ucslen,
+	mio_oow_t*       bcslen
+);
+
+
+MIO_EXPORT mio_uch_t* mio_dupbtoucstrwithheadroom (
+	mio_t*           mio,
+	mio_oow_t        headroom_bytes,
+	const mio_bch_t* bcs,
+	mio_oow_t*       ucslen
+);
+
+MIO_EXPORT mio_bch_t* mio_duputobcstrwithheadroom (
+	mio_t*           mio,
+	mio_oow_t        headroom_bytes,
+	const mio_uch_t* ucs,
+	mio_oow_t* bcslen
+);
+
+MIO_EXPORT mio_uch_t* mio_dupbtoucstr (
+	mio_t*           mio,
+	const mio_bch_t* bcs,
+	mio_oow_t*       ucslen /* optional: length of returned string */
+);
+
+MIO_EXPORT mio_bch_t* mio_duputobcstr (
+	mio_t*           mio,
+	const mio_uch_t* ucs,
+	mio_oow_t*       bcslen /* optional: length of returned string */
+);
+
+
+#if defined(MIO_OOCH_IS_UCH)
+#	define mio_dupoochars(mio,oocs,oocslen) mio_dupuchars(mio,oocs,oocslen)
+#else
+#	define mio_dupoochars(mio,oocs,oocslen) mio_dupbchars(mio,oocs,oocslen)
 #endif
 
-#if defined(MIO_HAVE_UINT128_T)
-MIO_EXPORT mio_uint128_t mio_ntoh128 (
-	mio_uint128_t x
+MIO_EXPORT mio_uch_t* mio_dupuchars (
+	mio_t*           mio,
+	const mio_uch_t* ucs,
+	mio_oow_t        ucslen
 );
 
-MIO_EXPORT mio_uint128_t mio_hton128 (
-	mio_uint128_t x
+MIO_EXPORT mio_bch_t* mio_dupbchars (
+	mio_t*           mio,
+	const mio_bch_t* bcs,
+	mio_oow_t        bcslen
 );
-#endif
-
-/* ========================================================================= */
 
 
 #ifdef __cplusplus
