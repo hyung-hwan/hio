@@ -303,6 +303,17 @@ then
 fi
 AC_SUBST(SSL_LIBS)
 
+if test "x${ac_cv_header_libunwind_h}" = "xyes"
+then
+	AC_CHECK_LIB([unwind], [unw_backtrace],
+		[
+			UNWIND_LIBS="-lunwind"
+			AC_DEFINE([HAVE_UNWIND_LIB], [1], [libunwind is available])
+		]
+	)
+	AC_SUBST(UNWIND_LIBS)
+fi
+
 AC_STRUCT_DIRENT_D_TYPE
 AC_CHECK_MEMBERS([DIR.d_fd, DIR.dd_fd],,,[[#include <dirent.h>]])
 AC_CHECK_MEMBERS([struct stat.st_birthtime])
@@ -833,13 +844,28 @@ AC_ARG_ENABLE([cxx],
 	enable_cxx_is=$enableval,
 	enable_cxx_is=yes
 )
-
 dnl disable c++ if no c++ compiler was found
 test "${HAVE_CXX}" = "yes" || enable_cxx_is="no"
 dnl disable c++ if the compiler is too old.
 test "${ax_cv_cxx_have_std_namespace}" = "yes" || enable_cxx_is="no"
-
 AM_CONDITIONAL(ENABLE_CXX, test "${enable_cxx_is}" = "yes" )
+
+
+AC_ARG_ENABLE([libunwind],
+        [AS_HELP_STRING([--enable-libunwind],[use libunwind(default. no)])],
+        enable_libunwind_is=$enableval,
+        enable_libunwind_is=no
+)
+if test "x${enable_libunwind_is}" = "xyes"
+then
+        if test "x${ac_cv_header_libunwind_h}" = "xyes"  -a "${UNWIND_LIBS}" != ""
+        then
+                AC_DEFINE([MIO_ENABLE_LIBUNWIND],[],[use libunwind for backtracing stack frames])
+        else
+                enable_libunwind_is="no"
+        fi
+fi
+AM_CONDITIONAL(ENABLE_LIBUNWIND, test "x${enable_libunwind_is}" = "xyes")
 
 AC_SUBST(MIO_SIZEOF_WCHAR_T, $ac_cv_sizeof_wchar_t)
 AC_SUBST(MIO_SIZEOF_LONG_LONG, $ac_cv_sizeof_long_long)

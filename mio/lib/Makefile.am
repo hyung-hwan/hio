@@ -40,6 +40,9 @@ libmio_la_SOURCES = \
 	mio-tmr.c \
 	sck-addr.c \
 	sck-addr.h \
+	sys-ass.c \
+	sys-err.c \
+	sys-log.c \
 	utf8.c \
 	utl.c
 libmio_la_CPPFLAGS = $(CPPFLAGS_LIB_COMMON)

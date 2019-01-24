@@ -33,7 +33,6 @@
 
 
 /*TODO: redefine and remove these */
-#include <assert.h>
 #include <string.h>
 #include <stdio.h>
 /*TODO: redefine these */
@@ -41,7 +40,15 @@
 #define MIO_MEMCPY(dst,src,count) memcpy(dst,src,count)
 #define MIO_MEMMOVE(dst,src,count) memmove(dst,src,count)
 #define MIO_MEMCMP(dst,src,count) memcmp(dst,src,count)
-#define MIO_ASSERT assert
+
+/* =========================================================================
+ * MIO ASSERTION
+ * ========================================================================= */
+#if defined(MIO_BUILD_RELEASE)
+#	define MIO_ASSERT(mio,expr) ((void)0)
+#else
+#	define MIO_ASSERT(mio,expr) ((void)((expr) || mio_sys_assertfail(mio, #expr, __FILE__, __LINE__), 0)))
+#endif
 
 
 #define MIO_EPOCH_YEAR  (1970)
@@ -62,6 +69,15 @@
 #define MIO_SECS_PER_MIN   (60)
 #define MIO_SECS_PER_HOUR  (MIO_SECS_PER_MIN*MIO_MINS_PER_HOUR)
 #define MIO_SECS_PER_DAY   (MIO_SECS_PER_MIN*MIO_MINS_PER_DAY)
+
+/* i don't want an error raised inside the callback to override 
+ * the existing error number and message. */
+#define prim_write_log(mio,mask,ptr,len) do { \
+		int shuterr = (mio)->shuterr; \
+		(mio)->shuterr = 1; \
+		mio_sys_writelog (mio, mask, ptr, len); \
+		(mio)->shuterr = shuterr; \
+	} while(0)
 
 #ifdef __cplusplus
 extern "C" {
@@ -119,6 +135,29 @@ int mio_gettmrtmout (
 	mio_t*             mio,
 	const mio_ntime_t* tmbase,
 	mio_ntime_t*       tmout
+);
+
+/* ========================================================================== */
+void mio_sys_assertfail (
+	mio_t*           mio, 
+	const mio_bch_t* expr,
+	const mio_bch_t* file,
+	mio_oow_t        line
+);
+
+mio_errnum_t mio_sys_syserrstrb (
+	mio_t*            mio,
+	int               syserr_type,
+	int               syserr_code,
+	mio_bch_t*        buf,
+	mio_oow_t         len
+);
+
+void mio_sys_writelog (
+	mio_t*            mio,
+	mio_bitmask_t     mask,
+	const mio_ooch_t* msg,
+	mio_oow_t         len
 );
 
 #ifdef __cplusplus

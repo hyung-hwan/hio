@@ -649,6 +649,8 @@ MIO_SIZEOF_INT
 MIO_SIZEOF_LONG
 MIO_SIZEOF_LONG_LONG
 MIO_SIZEOF_WCHAR_T
+ENABLE_LIBUNWIND_FALSE
+ENABLE_LIBUNWIND_TRUE
 ENABLE_CXX_FALSE
 ENABLE_CXX_TRUE
 BUILD_MODE
@@ -656,6 +658,7 @@ PACKAGE_VERSION_PATCH
 PACKAGE_VERSION_MINOR
 PACKAGE_VERSION_MAJOR
 QUADMATH_LIBS
+UNWIND_LIBS
 SSL_LIBS
 UNICOWS_LIBS
 SENDFILE_LIBS
@@ -768,6 +771,7 @@ infodir
 docdir
 oldincludedir
 includedir
+runstatedir
 localstatedir
 sharedstatedir
 sysconfdir
@@ -804,6 +808,7 @@ enable_ssl
 enable_debug
 enable_unicode
 enable_cxx
+enable_libunwind
 '
       ac_precious_vars='build_alias
 host_alias
@@ -857,6 +862,7 @@ datadir='${datarootdir}'
 sysconfdir='${prefix}/etc'
 sharedstatedir='${prefix}/com'
 localstatedir='${prefix}/var'
+runstatedir='${localstatedir}/run'
 includedir='${prefix}/include'
 oldincludedir='/usr/include'
 docdir='${datarootdir}/doc/${PACKAGE_TARNAME}'
@@ -1109,6 +1115,15 @@ do
   | -silent | --silent | --silen | --sile | --sil)
     silent=yes ;;
 
+  -runstatedir | --runstatedir | --runstatedi | --runstated \
+  | --runstate | --runstat | --runsta | --runst | --runs \
+  | --run | --ru | --r)
+    ac_prev=runstatedir ;;
+  -runstatedir=* | --runstatedir=* | --runstatedi=* | --runstated=* \
+  | --runstate=* | --runstat=* | --runsta=* | --runst=* | --runs=* \
+  | --run=* | --ru=* | --r=*)
+    runstatedir=$ac_optarg ;;
+
   -sbindir | --sbindir | --sbindi | --sbind | --sbin | --sbi | --sb)
     ac_prev=sbindir ;;
   -sbindir=* | --sbindir=* | --sbindi=* | --sbind=* | --sbin=* \
@@ -1246,7 +1261,7 @@ fi
 for ac_var in	exec_prefix prefix bindir sbindir libexecdir datarootdir \
 		datadir sysconfdir sharedstatedir localstatedir includedir \
 		oldincludedir docdir infodir htmldir dvidir pdfdir psdir \
-		libdir localedir mandir
+		libdir localedir mandir runstatedir
 do
   eval ac_val=\$$ac_var
   # Remove trailing slashes.
@@ -1399,6 +1414,7 @@ Fine tuning of the installation directories:
   --sysconfdir=DIR        read-only single-machine data [PREFIX/etc]
   --sharedstatedir=DIR    modifiable architecture-independent data [PREFIX/com]
   --localstatedir=DIR     modifiable single-machine data [PREFIX/var]
+  --runstatedir=DIR       modifiable per-process data [LOCALSTATEDIR/run]
   --libdir=DIR            object code libraries [EPREFIX/lib]
   --includedir=DIR        C header files [PREFIX/include]
   --oldincludedir=DIR     C header files for non-gcc [/usr/include]
@@ -1455,6 +1471,7 @@ Optional Features:
                           no:4 (default. yes)
   --enable-cxx            build the library for C++ if a C++ compiler is
                           available (default. yes)
+  --enable-libunwind      use libunwind(default. no)
 
 Optional Packages:
   --with-PACKAGE[=ARG]    use PACKAGE [ARG=yes]
@@ -18646,6 +18663,57 @@ done
 fi
 
 
+if test "x${ac_cv_header_libunwind_h}" = "xyes"
+then
+	{ $as_echo "$as_me:${as_lineno-$LINENO}: checking for unw_backtrace in -lunwind" >&5
+$as_echo_n "checking for unw_backtrace in -lunwind... " >&6; }
+if ${ac_cv_lib_unwind_unw_backtrace+:} false; then :
+  $as_echo_n "(cached) " >&6
+else
+  ac_check_lib_save_LIBS=$LIBS
+LIBS="-lunwind  $LIBS"
+cat confdefs.h - <<_ACEOF >conftest.$ac_ext
+/* end confdefs.h.  */
+
+/* Override any GCC internal prototype to avoid an error.
+   Use char because int might match the return type of a GCC
+   builtin and then its argument prototype would still apply.  */
+#ifdef __cplusplus
+extern "C"
+#endif
+char unw_backtrace ();
+int
+main ()
+{
+return unw_backtrace ();
+  ;
+  return 0;
+}
+_ACEOF
+if ac_fn_c_try_link "$LINENO"; then :
+  ac_cv_lib_unwind_unw_backtrace=yes
+else
+  ac_cv_lib_unwind_unw_backtrace=no
+fi
+rm -f core conftest.err conftest.$ac_objext \
+    conftest$ac_exeext conftest.$ac_ext
+LIBS=$ac_check_lib_save_LIBS
+fi
+{ $as_echo "$as_me:${as_lineno-$LINENO}: result: $ac_cv_lib_unwind_unw_backtrace" >&5
+$as_echo "$ac_cv_lib_unwind_unw_backtrace" >&6; }
+if test "x$ac_cv_lib_unwind_unw_backtrace" = xyes; then :
+
+			UNWIND_LIBS="-lunwind"
+
+$as_echo "#define HAVE_UNWIND_LIB 1" >>confdefs.h
+
+
+
+fi
+
+
+fi
+
 ac_header_dirent=no
 for ac_hdr in dirent.h sys/ndir.h sys/dir.h ndir.h; do
   as_ac_Header=`$as_echo "ac_cv_header_dirent_$ac_hdr" | $as_tr_sh`
@@ -21581,16 +21649,43 @@ else
 
 fi
 
-
 test "${HAVE_CXX}" = "yes" || enable_cxx_is="no"
 test "${ax_cv_cxx_have_std_namespace}" = "yes" || enable_cxx_is="no"
-
  if test "${enable_cxx_is}" = "yes" ; then
   ENABLE_CXX_TRUE=
   ENABLE_CXX_FALSE='#'
 else
   ENABLE_CXX_TRUE='#'
   ENABLE_CXX_FALSE=
+fi
+
+
+
+# Check whether --enable-libunwind was given.
+if test "${enable_libunwind+set}" = set; then :
+  enableval=$enable_libunwind; enable_libunwind_is=$enableval
+else
+  enable_libunwind_is=no
+
+fi
+
+if test "x${enable_libunwind_is}" = "xyes"
+then
+        if test "x${ac_cv_header_libunwind_h}" = "xyes"  -a "${UNWIND_LIBS}" != ""
+        then
+
+$as_echo "#define MIO_ENABLE_LIBUNWIND /**/" >>confdefs.h
+
+        else
+                enable_libunwind_is="no"
+        fi
+fi
+ if test "x${enable_libunwind_is}" = "xyes"; then
+  ENABLE_LIBUNWIND_TRUE=
+  ENABLE_LIBUNWIND_FALSE='#'
+else
+  ENABLE_LIBUNWIND_TRUE='#'
+  ENABLE_LIBUNWIND_FALSE=
 fi
 
 
@@ -21778,6 +21873,10 @@ fi
 
 if test -z "${ENABLE_CXX_TRUE}" && test -z "${ENABLE_CXX_FALSE}"; then
   as_fn_error $? "conditional \"ENABLE_CXX\" was never defined.
+Usually this means the macro was only invoked conditionally." "$LINENO" 5
+fi
+if test -z "${ENABLE_LIBUNWIND_TRUE}" && test -z "${ENABLE_LIBUNWIND_FALSE}"; then
+  as_fn_error $? "conditional \"ENABLE_LIBUNWIND\" was never defined.
 Usually this means the macro was only invoked conditionally." "$LINENO" 5
 fi
 

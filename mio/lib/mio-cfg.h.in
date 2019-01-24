@@ -663,6 +663,9 @@
 /* Define to 1 if you have the <unistd.h> header file. */
 #undef HAVE_UNISTD_H
 
+/* libunwind is available */
+#undef HAVE_UNWIND_LIB
+
 /* Define to 1 if you have the `uselocale' function. */
 #undef HAVE_USELOCALE
 
@@ -728,6 +731,9 @@
 
 /* Define to the sub-directory where libtool stores uninstalled libraries. */
 #undef LT_OBJDIR
+
+/* use libunwind for backtracing stack frames */
+#undef MIO_ENABLE_LIBUNWIND
 
 /* Use the unicode character type as the default character type */
 #undef MIO_ENABLE_UNICODE
