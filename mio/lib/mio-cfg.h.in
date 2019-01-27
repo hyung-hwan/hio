@@ -250,6 +250,9 @@
 /* Define to 1 if you have the <inttypes.h> header file. */
 #undef HAVE_INTTYPES_H
 
+/* Define to 1 if you have the `isatty' function. */
+#undef HAVE_ISATTY
+
 /* Define to 1 if you have the `isblank' function. */
 #undef HAVE_ISBLANK
 
@@ -333,6 +336,12 @@
 
 /* Define to 1 if you have the <memory.h> header file. */
 #undef HAVE_MEMORY_H
+
+/* Define to 1 if you have the `mmap' function. */
+#undef HAVE_MMAP
+
+/* Define to 1 if you have the `munmap' function. */
+#undef HAVE_MUNMAP
 
 /* Define to 1 if you have the `nanosleep' function. */
 #undef HAVE_NANOSLEEP

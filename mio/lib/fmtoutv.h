@@ -74,7 +74,7 @@
 #define PUT_OOCH(c,n) do { \
 	if (n > 0) { \
 		int xx; \
-		if ((xx = data->putch (mio, data->mask, c, n)) <= -1) goto oops; \
+		if ((xx = data->putch(mio, data->mask, c, n)) <= -1) goto oops; \
 		if (xx == 0) goto done; \
 		data->count += n; \
 	} \
@@ -83,13 +83,13 @@
 #define PUT_OOCS(ptr,len) do { \
 	if (len > 0) { \
 		int xx; \
-		if ((xx = data->putcs (mio, data->mask, ptr, len)) <= -1) goto oops; \
+		if ((xx = data->putcs(mio, data->mask, ptr, len)) <= -1) goto oops; \
 		if (xx == 0) goto done; \
 		data->count += len; \
 	} \
 } while (0)
 
-static int logfmtv (mio_t* mio, const fmtchar_t* fmt, mio_fmtout_t* data, va_list ap, outbfmt_t outbfmt)
+static int fmtoutv (mio_t* mio, const fmtchar_t* fmt, mio_fmtout_data_t* data, va_list ap)
 {
 	const fmtchar_t* percent;
 	const fmtchar_t* checkpoint;
@@ -583,10 +583,6 @@ static int logfmtv (mio_t* mio, const fmtchar_t* fmt, mio_fmtout_t* data, va_lis
 		#endif
 			break;
 		}
-
-		case 'O': /* object - ignore precision, width, adjustment */
-			if (print_object(mio, data->mask, va_arg(ap, mio_oop_t), outbfmt) <= -1) goto oops;
-			break;
 
 #if 0
 		case 'e':

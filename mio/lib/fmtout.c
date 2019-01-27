@@ -142,8 +142,8 @@ typedef int (*mio_fmtout_putcs_t) (
 	mio_oow_t         len
 );
 
-typedef struct mio_fmtout_t mio_fmtout_t;
-struct mio_fmtout_t
+typedef struct mio_fmtout_data_t mio_fmtout_data_t;
+struct mio_fmtout_data_t
 {
 	mio_oow_t            count; /* out */
 	mio_bitmask_t        mask;  /* in */
@@ -381,44 +381,44 @@ redo:
 #undef FMTCHAR_IS_UCH
 #undef FMTCHAR_IS_OOCH
 #undef fmtchar_t
-#undef logfmtv
+#undef fmtoutv
 #define fmtchar_t mio_bch_t
-#define logfmtv __logbfmtv
+#define fmtoutv __logbfmtv
 #define FMTCHAR_IS_BCH
 #if defined(MIO_OOCH_IS_BCH)
 #	define FMTCHAR_IS_OOCH
 #endif
-#include "logfmtv.h"
+#include "fmtoutv.h"
 
 #undef FMTCHAR_IS_BCH
 #undef FMTCHAR_IS_UCH
 #undef FMTCHAR_IS_OOCH
 #undef fmtchar_t
-#undef logfmtv
+#undef fmtoutv
 #define fmtchar_t mio_uch_t
-#define logfmtv __logufmtv
+#define fmtoutv __logufmtv
 #define FMTCHAR_IS_UCH
 #if defined(MIO_OOCH_IS_UCH)
 #	define FMTCHAR_IS_OOCH
 #endif
-#include "logfmtv.h" 
+#include "fmtoutv.h" 
 
 
-static int _logbfmtv (mio_t* mio, const mio_bch_t* fmt, mio_fmtout_t* data, va_list ap)
+static int _logbfmtv (mio_t* mio, const mio_bch_t* fmt, mio_fmtout_data_t* data, va_list ap)
 {
-	return __logbfmtv (mio, fmt, data, ap, mio_logbfmt);
+	return __logbfmtv(mio, fmt, data, ap);
 }
 
-static int _logufmtv (mio_t* mio, const mio_uch_t* fmt, mio_fmtout_t* data, va_list ap)
+static int _logufmtv (mio_t* mio, const mio_uch_t* fmt, mio_fmtout_data_t* data, va_list ap)
 {
-	return __logufmtv (mio, fmt, data, ap, mio_logbfmt);
+	return __logufmtv(mio, fmt, data, ap);
 }
 
 mio_ooi_t mio_logbfmt (mio_t* mio, mio_bitmask_t mask, const mio_bch_t* fmt, ...)
 {
 	int x;
 	va_list ap;
-	mio_fmtout_t fo;
+	mio_fmtout_data_t fo;
 
 	if (mio->log.default_type_mask & MIO_LOG_ALL_TYPES) 
 	{
@@ -451,7 +451,7 @@ mio_ooi_t mio_logufmt (mio_t* mio, mio_bitmask_t mask, const mio_uch_t* fmt, ...
 {
 	int x;
 	va_list ap;
-	mio_fmtout_t fo;
+	mio_fmtout_data_t fo;
 
 	if (mio->log.default_type_mask & MIO_LOG_ALL_TYPES) 
 	{
@@ -519,36 +519,20 @@ static int put_errcs (mio_t* mio, mio_bitmask_t mask, const mio_ooch_t* ptr, mio
 
 static mio_ooi_t __errbfmtv (mio_t* mio, mio_bitmask_t mask, const mio_bch_t* fmt, ...);
 
-static int _errbfmtv (mio_t* mio, const mio_bch_t* fmt, mio_fmtout_t* data, va_list ap)
+static int _errbfmtv (mio_t* mio, const mio_bch_t* fmt, mio_fmtout_data_t* data, va_list ap)
 {
-	return __logbfmtv (mio, fmt, data, ap, __errbfmtv);
+	return __logbfmtv (mio, fmt, data, ap);
 }
 
-static int _errufmtv (mio_t* mio, const mio_uch_t* fmt, mio_fmtout_t* data, va_list ap)
+static int _errufmtv (mio_t* mio, const mio_uch_t* fmt, mio_fmtout_data_t* data, va_list ap)
 {
-	return __logufmtv (mio, fmt, data, ap, __errbfmtv);
-}
-
-static mio_ooi_t __errbfmtv (mio_t* mio, mio_bitmask_t mask, const mio_bch_t* fmt, ...)
-{
-	va_list ap;
-	mio_fmtout_t fo;
-
-	fo.mask = 0; /* not used */
-	fo.putch = put_errch;
-	fo.putcs = put_errcs;
-
-	va_start (ap, fmt);
-	_errbfmtv (mio, fmt, &fo, ap);
-	va_end (ap);
-
-	return fo.count;
+	return __logufmtv (mio, fmt, data, ap);
 }
 
 void mio_seterrbfmt (mio_t* mio, mio_errnum_t errnum, const mio_bch_t* fmt, ...)
 {
 	va_list ap;
-	mio_fmtout_t fo;
+	mio_fmtout_data_t fo;
 
 	if (mio->shuterr) return;
 	mio->errmsg.len = 0;
@@ -567,7 +551,7 @@ void mio_seterrbfmt (mio_t* mio, mio_errnum_t errnum, const mio_bch_t* fmt, ...)
 void mio_seterrufmt (mio_t* mio, mio_errnum_t errnum, const mio_uch_t* fmt, ...)
 {
 	va_list ap;
-	mio_fmtout_t fo;
+	mio_fmtout_data_t fo;
 
 	if (mio->shuterr) return;
 	mio->errmsg.len = 0;
@@ -586,7 +570,7 @@ void mio_seterrufmt (mio_t* mio, mio_errnum_t errnum, const mio_uch_t* fmt, ...)
 
 void mio_seterrbfmtv (mio_t* mio, mio_errnum_t errnum, const mio_bch_t* fmt, va_list ap)
 {
-	mio_fmtout_t fo;
+	mio_fmtout_data_t fo;
 
 	if (mio->shuterr) return;
 
@@ -602,7 +586,7 @@ void mio_seterrbfmtv (mio_t* mio, mio_errnum_t errnum, const mio_bch_t* fmt, va_
 
 void mio_seterrufmtv (mio_t* mio, mio_errnum_t errnum, const mio_uch_t* fmt, va_list ap)
 {
-	mio_fmtout_t fo;
+	mio_fmtout_data_t fo;
 
 	if (mio->shuterr) return;
 
@@ -669,38 +653,22 @@ static int put_sprch (mio_t* mio, mio_bitmask_t mask, mio_ooch_t ch, mio_oow_t l
 
 static mio_ooi_t __sprbfmtv (mio_t* mio, mio_bitmask_t mask, const mio_bch_t* fmt, ...);
 
-static int _sprbfmtv (mio_t* mio, const mio_bch_t* fmt, mio_fmtout_t* data, va_list ap)
+static int _sprbfmtv (mio_t* mio, const mio_bch_t* fmt, mio_fmtout_data_t* data, va_list ap)
 {
-	return __logbfmtv (mio, fmt, data, ap, __sprbfmtv);
+	return __logbfmtv (mio, fmt, data, ap);
 }
 
 /*
-static int _sprufmtv (mio_t* mio, const mio_uch_t* fmt, mio_fmtout_t* data, va_list ap)
+static int _sprufmtv (mio_t* mio, const mio_uch_t* fmt, mio_fmtout_data_t* data, va_list ap)
 {
 	return __logufmtv (mio, fmt, data, ap, __sprbfmtv);
 }*/
-
-static mio_ooi_t __sprbfmtv (mio_t* mio, mio_bitmask_t mask, const mio_bch_t* fmt, ...)
-{
-	va_list ap;
-	mio_fmtout_t fo;
-
-	fo.mask = mask; /* not used */
-	fo.putch = put_sprch;
-	fo.putcs = put_sprcs;
-
-	va_start (ap, fmt);
-	_sprbfmtv (mio, fmt, &fo, ap);
-	va_end (ap);
-
-	return fo.count;
-}
 
 mio_ooi_t mio_sproutbfmt (mio_t* mio, mio_bitmask_t mask, const mio_bch_t* fmt, ...)
 {
 	int x;
 	va_list ap;
-	mio_fmtout_t fo;
+	mio_fmtout_data_t fo;
 
 	fo.mask = mask;
 	fo.putch = put_sprch;
@@ -718,7 +686,7 @@ mio_ooi_t mio_sproutufmt (mio_t* mio, mio_bitmask_t mask, const mio_uch_t* fmt, 
 {
 	int x;
 	va_list ap;
-	mio_fmtout_t fo;
+	mio_fmtout_data_t fo;
 
 	fo.mask = mask;
 	fo.putch = put_sprch;

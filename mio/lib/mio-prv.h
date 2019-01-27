@@ -51,25 +51,6 @@
 #endif
 
 
-#define MIO_EPOCH_YEAR  (1970)
-#define MIO_EPOCH_MON   (1)
-#define MIO_EPOCH_DAY   (1)
-#define MIO_EPOCH_WDAY  (4)
-
-/* windows specific epoch time */
-#define MIO_EPOCH_YEAR_WIN   (1601)
-#define MIO_EPOCH_MON_WIN    (1)
-#define MIO_EPOCH_DAY_WIN    (1)
-
-#define MIO_DAYS_PER_WEEK  (7)
-#define MIO_MONS_PER_YEAR  (12)
-#define MIO_HOURS_PER_DAY  (24)
-#define MIO_MINS_PER_HOUR  (60)
-#define MIO_MINS_PER_DAY   (MIO_MINS_PER_HOUR*MIO_HOURS_PER_DAY)
-#define MIO_SECS_PER_MIN   (60)
-#define MIO_SECS_PER_HOUR  (MIO_SECS_PER_MIN*MIO_MINS_PER_HOUR)
-#define MIO_SECS_PER_DAY   (MIO_SECS_PER_MIN*MIO_MINS_PER_DAY)
-
 /* i don't want an error raised inside the callback to override 
  * the existing error number and message. */
 #define prim_write_log(mio,mask,ptr,len) do { \
@@ -86,10 +67,6 @@ extern "C" {
 int mio_makesyshndasync (
 	mio_t*       mio,
 	mio_syshnd_t hnd
-);
-
-mio_errnum_t mio_syserrtoerrnum (
-	int no
 );
 
 
@@ -137,6 +114,26 @@ int mio_gettmrtmout (
 	mio_ntime_t*       tmout
 );
 
+/* ========================================================================= */
+/* err.c                                                                     */
+/* ========================================================================= */
+
+void mio_seterrbfmtv (
+	mio_t*           mio,
+	mio_errnum_t     errnum,
+	const mio_bch_t* fmt,
+	va_list          ap
+);
+
+void mio_seterrufmtv (
+	mio_t*           mio,
+	mio_errnum_t     errnum,
+	const mio_uch_t* fmt,
+	va_list          ap
+);
+
+/* ========================================================================== */
+/* system intefaces                                                           */
 /* ========================================================================== */
 void mio_sys_assertfail (
 	mio_t*           mio, 
@@ -153,11 +150,44 @@ mio_errnum_t mio_sys_syserrstrb (
 	mio_oow_t         len
 );
 
+
+
+void mio_sys_initlog (
+	mio_t*            mio
+);
+
+void mio_sys_finilog (
+	mio_t*            mio
+);
+
 void mio_sys_writelog (
 	mio_t*            mio,
 	mio_bitmask_t     mask,
 	const mio_ooch_t* msg,
 	mio_oow_t         len
+);
+
+
+int mio_sys_initmux (
+	mio_t* mio
+);
+
+void mio_sys_finimux (
+	mio_t* mio
+);
+
+int mio_sys_ctrlmux (
+	mio_t*            mio,
+	mio_sys_mux_cmd_t cmd,
+	mio_dev_t*        dev,
+	int               dev_capa
+);
+
+/**
+ * The mio_sys_gettime() function gets the current time.
+ */
+void mio_sys_gettime (
+	mio_ntime_t* nt
 );
 
 #ifdef __cplusplus

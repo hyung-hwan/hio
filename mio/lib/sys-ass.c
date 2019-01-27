@@ -24,6 +24,8 @@
     THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  */
 
+#include "mio-prv.h"
+
 #if defined(_WIN32)
 #	include <windows.h>
 #	include <errno.h>

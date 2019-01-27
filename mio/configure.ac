@@ -161,6 +161,7 @@ AC_CHECK_FUNCS([fork vfork posix_spawn gettid nanosleep select])
 AC_CHECK_FUNCS([makecontext swapcontext getcontext setcontext])
 AC_CHECK_FUNCS([snprintf _vsnprintf _vsnwprintf])
 AC_CHECK_FUNCS([accept4 sendmsg recvmsg writev readv])
+AC_CHECK_FUNCS([isatty mmap munmap])
 
 OLDLIBS="$LIBS"
 LIBS="$LIBM $LIBS"
