@@ -467,7 +467,7 @@ static int dev_sck_make_client (mio_dev_t* dev, void* ctx)
 		int flags = fcntl(rdev->sck, F_GETFD, 0);
 		if (fcntl(rdev->sck, F_SETFD, flags | FD_CLOEXEC) == -1)
 		{
-			rdev->mio_seterrwithsyserr (mio, 0, errno);
+			mio_seterrwithsyserr (rdev->mio, 0, errno);
 			return -1;
 		}
 	}
@@ -562,7 +562,7 @@ static int dev_sck_read_stateful (mio_dev_t* dev, void* buf, mio_iolen_t* len, m
 		{
 			if (errno == EINPROGRESS || errno == EWOULDBLOCK || errno == EAGAIN) return 0;  /* no data available */
 			if (errno == EINTR) return 0;
-			rdev->mio_seterrwithsyserr (mio, 0, errno);
+			mio_seterrwithsyserr (rdev->mio, 0, errno);
 			return -1;
 		}
 
@@ -585,7 +585,7 @@ static int dev_sck_read_stateless (mio_dev_t* dev, void* buf, mio_iolen_t* len, 
 	{
 		if (errno == EINPROGRESS || errno == EWOULDBLOCK || errno == EAGAIN) return 0;  /* no data available */
 		if (errno == EINTR) return 0;
-		rdev->mio_seterrwithsyserr (mio, 0, errno);
+		mio_seterrwithsyserr (rdev->mio, 0, errno);
 		return -1;
 	}
 
@@ -642,7 +642,7 @@ static int dev_sck_write_stateful (mio_dev_t* dev, const void* data, mio_iolen_t
 			 * the socket, probably leaving it in the half-closed state */
 			if (shutdown(rdev->sck, SHUT_WR) == -1)
 			{
-				rdev->mio_seterrwithsyserr (mio, 0, errno);
+				mio_seterrwithsyserr (rdev->mio, 0, errno);
 				return -1;
 			}
 
@@ -658,7 +658,7 @@ static int dev_sck_write_stateful (mio_dev_t* dev, const void* data, mio_iolen_t
 		{
 			if (errno == EINPROGRESS || errno == EWOULDBLOCK || errno == EAGAIN) return 0;  /* no data can be written */
 			if (errno == EINTR) return 0;
-			rdev->mio_seterrwithsyserr (mio, 0, errno);
+			mio_seterrwithsyserr (rdev->mio, 0, errno);
 			return -1;
 		}
 
@@ -679,7 +679,7 @@ static int dev_sck_write_stateless (mio_dev_t* dev, const void* data, mio_iolen_
 	{
 		if (errno == EINPROGRESS || errno == EWOULDBLOCK || errno == EAGAIN) return 0;  /* no data can be written */
 		if (errno == EINTR) return 0;
-		rdev->mio_seterrwithsyserr (mio, 0, errno);
+		mio_seterrwithsyserr (rdev->mio, 0, errno);
 		return -1;
 	}
 
@@ -798,7 +798,7 @@ static int dev_sck_ioctl (mio_dev_t* dev, int cmd, void* arg)
 				int v = 1;
 				if (setsockopt (rdev->sck, SOL_SOCKET, SO_BROADCAST, &v, MIO_SIZEOF(v)) == -1)
 				{
-					rdev->mio_seterrwithsyserr (mio, 0, errno);
+					mio_seterrwithsyserr (rdev->mio, 0, errno);
 					return -1;
 				}
 			}
@@ -809,7 +809,7 @@ static int dev_sck_ioctl (mio_dev_t* dev, int cmd, void* arg)
 				int v = 1;
 				if (setsockopt (rdev->sck, SOL_SOCKET, SO_REUSEADDR, &v, MIO_SIZEOF(v)) == -1)
 				{
-					rdev->mio_seterrwithsyserr (mio, 0, errno);
+					mio_seterrwithsyserr (rdev->mio, 0, errno);
 					return -1;
 				}
 			#else
@@ -824,7 +824,7 @@ static int dev_sck_ioctl (mio_dev_t* dev, int cmd, void* arg)
 				int v = 1;
 				if (setsockopt (rdev->sck, SOL_SOCKET, SO_REUSEPORT, &v, MIO_SIZEOF(v)) == -1)
 				{
-					rdev->mio_seterrwithsyserr (mio, 0, errno);
+					mio_seterrwithsyserr (rdev->mio, 0, errno);
 					return -1;
 				}
 			#else
@@ -839,7 +839,7 @@ static int dev_sck_ioctl (mio_dev_t* dev, int cmd, void* arg)
 				int v = 1;
 				if (setsockopt(rdev->sck, SOL_IP, IP_TRANSPARENT, &v, MIO_SIZEOF(v)) == -1)
 				{
-					rdev->mio_seterrwithsyserr (mio, 0, errno);
+					mio_seterrwithsyserr (rdev->mio, 0, errno);
 					return -1;
 				}
 			#else
@@ -909,7 +909,7 @@ static int dev_sck_ioctl (mio_dev_t* dev, int cmd, void* arg)
 			x = bind(rdev->sck, sa, sl);
 			if (x == -1)
 			{
-				rdev->mio_seterrwithsyserr (mio, 0, errno);
+				mio_seterrwithsyserr (rdev->mio, 0, errno);
 			#if defined(USE_SSL)
 				if (ssl_ctx) SSL_CTX_free (ssl_ctx);
 			#endif
@@ -1033,7 +1033,7 @@ fcntl (rdev->sck, F_SETFL, flags | O_NONBLOCK);
 					}
 				}
 
-				rdev->mio_seterrwithsyserr (mio, 0, errno);
+				mio_seterrwithsyserr (rdev->mio, 0, errno);
 
 			oops_connect:
 				if (mio_dev_watch((mio_dev_t*)rdev, MIO_DEV_WATCH_UPDATE, MIO_DEV_EVENT_IN) <= -1)
@@ -1139,7 +1139,7 @@ fcntl (rdev->sck, F_SETFL, flags | O_NONBLOCK);
 			x = listen (rdev->sck, lstn->backlogs);
 			if (x == -1) 
 			{
-				rdev->mio_seterrwithsyserr (mio, 0, errno);
+				mio_seterrwithsyserr (rdev->mio, 0, errno);
 				return -1;
 			}
 
@@ -1196,7 +1196,7 @@ static int harvest_outgoing_connection (mio_dev_sck_t* rdev)
 	len = MIO_SIZEOF(errcode);
 	if (getsockopt(rdev->sck, SOL_SOCKET, SO_ERROR, (char*)&errcode, &len) == -1)
 	{
-		rdev->mio_seterrwithsyserr (mio, 0, errno);
+		mio_seterrwithsyserr (rdev->mio, 0, errno);
 		return -1;
 	}
 	else if (errcode == 0)
@@ -1300,7 +1300,7 @@ static int accept_incoming_connection (mio_dev_sck_t* rdev)
 			if (errno == EINPROGRESS || errno == EWOULDBLOCK || errno == EAGAIN) return 0;
 			if (errno == EINTR) return 0; /* if interrupted by a signal, treat it as if it's EINPROGRESS */
 
-			rdev->mio_seterrwithsyserr (mio, 0, errno);
+			mio_seterrwithsyserr (rdev->mio, 0, errno);
 			return -1;
 		 }
 
@@ -1319,7 +1319,7 @@ static int accept_incoming_connection (mio_dev_sck_t* rdev)
 		if (errno == EINPROGRESS || errno == EWOULDBLOCK || errno == EAGAIN) return 0;
 		if (errno == EINTR) return 0; /* if interrupted by a signal, treat it as if it's EINPROGRESS */
 
-		rdev->mio_seterrwithsyserr (mio, 0, errno);
+		mio_seterrwithsyserr (rdev->mio, 0, errno);
 		return -1;
 	}
 
