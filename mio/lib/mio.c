@@ -271,11 +271,10 @@ static MIO_INLINE void unlink_wq (mio_t* mio, mio_wq_t* q)
 	MIO_WQ_UNLINK (q);
 }
 
-static MIO_INLINE void handle_event (mio_dev_t* dev, int events, int rdhup)
+static MIO_INLINE void handle_event (mio_t* mio, mio_dev_t* dev, int events, int rdhup)
 {
-	mio_t* mio;
+	MIO_ASSERT (mio, mio == dev->mio);
 
-	mio = dev->mio;
 	mio->renew_watch = 0;
 
 	MIO_ASSERT (mio, mio == dev->mio);
@@ -538,9 +537,8 @@ skip_evcb:
 static MIO_INLINE int __exec (mio_t* mio)
 {
 	mio_ntime_t tmout;
-
-	int nentries, i;
 	mio_sys_mux_t* mux;
+	int ret = 0;
 
 	/*if (!mio->actdev.head) return 0;*/
 
@@ -580,87 +578,11 @@ static MIO_INLINE int __exec (mio_t* mio)
 		tmout.nsec = 0;
 	}
 
-#if defined(_WIN32)
-/*
-	if (GetQueuedCompletionStatusEx (mio->iocp, mio->ovls, MIO_COUNTOF(mio->ovls), &nentries, timeout, FALSE) == FALSE)
+	if (mio_sys_waitmux(mio, &tmout, handle_event) <= -1) 
 	{
-		// TODO: set errnum 
-		return -1;
+		MIO_DEBUG0 (mio, "WARNING - Failed to wait on mutiplexer\n");
+		ret = -1;
 	}
-
-	for (i = 0; i < nentries; i++)
-	{
-	}
-*/
-#elif defined(USE_POLL)
-
-	mux = (mio_sys_mux_t*)mio->sys.mux;
-
-	nentries = poll(mux->pd.pfd, mux->pd.size, MIO_SECNSEC_TO_MSEC(tmout.sec, tmout.nsec));
-	if (nentries == -1)
-	{
-		if (errno == EINTR) return 0;
-		mio_seterrwithsyserr (mio, 0, errno);
-		return -1;
-	}
-
-	for (i = 0; i < mux->pd.size; i++)
-	{
-		if (mux->pd.pfd[i].fd >= 0 && mux->pd.pfd[i].revents)
-		{
-			int events = 0;
-			mio_dev_t* dev;
-
-			dev = mux->pd.dptr[i];
-
-			MIO_ASSERT (mio, !(mux->pd.pfd[i].revents & POLLNVAL));
-			if (mux->pd.pfd[i].revents & POLLIN) events |= MIO_DEV_EVENT_IN;
-			if (mux->pd.pfd[i].revents & POLLOUT) events |= MIO_DEV_EVENT_OUT;
-			if (mux->pd.pfd[i].revents & POLLPRI) events |= MIO_DEV_EVENT_PRI;
-			if (mux->pd.pfd[i].revents & POLLERR) events |= MIO_DEV_EVENT_ERR;
-			if (mux->pd.pfd[i].revents & POLLHUP) events |= MIO_DEV_EVENT_HUP;
-
-			handle_event (dev, events, 0);
-		}
-	}
-
-#elif defined(USE_EPOLL)
-
-	mux = (mio_sys_mux_t*)mio->sys.mux;
-
-	nentries = epoll_wait(mux->hnd, mux->revs, MIO_COUNTOF(mux->revs), MIO_SECNSEC_TO_MSEC(tmout.sec, tmout.nsec));
-	if (nentries == -1)
-	{
-		if (errno == EINTR) return 0; /* it's actually ok */
-		/* other errors are critical - EBADF, EFAULT, EINVAL */
-		mio_seterrwithsyserr (mio, 0, errno);
-		return -1;
-	}
-
-	/* TODO: merge events??? for the same descriptor */
-	
-	for (i = 0; i < nentries; i++)
-	{
-		int events = 0, rdhup = 0;
-		mio_dev_t* dev;
-
-		dev = mux->revs[i].data.ptr;
-
-		if (mux->revs[i].events & EPOLLIN) events |= MIO_DEV_EVENT_IN;
-		if (mux->revs[i].events & EPOLLOUT) events |= MIO_DEV_EVENT_OUT;
-		if (mux->revs[i].events & EPOLLPRI) events |= MIO_DEV_EVENT_PRI;
-		if (mux->revs[i].events & EPOLLERR) events |= MIO_DEV_EVENT_ERR;
-		if (mux->revs[i].events & EPOLLHUP) events |= MIO_DEV_EVENT_HUP;
-	#if defined(EPOLLRDHUP)
-		else if (mux->revs[i].events & EPOLLRDHUP) rdhup = 1;
-	#endif
-		handle_event (dev, events, rdhup);
-	}
-
-#else
-
-#	error NO SUPPORTED MULTIPLEXER
-#endif
 
 	/* kill all halted devices */
 	while (mio->hltdev.head) 
@@ -668,9 +590,9 @@ static MIO_INLINE int __exec (mio_t* mio)
 		MIO_DEBUG1 (mio, "Killing HALTED device %p\n", mio->hltdev.head);
 		mio_killdev (mio, mio->hltdev.head);
 	}
-	MIO_ASSERT (mio, mio->hltdev.tail == MIO_NULL);
 
-	return 0;
+	MIO_ASSERT (mio, mio->hltdev.tail == MIO_NULL);
+	return ret;
 }
 
 int mio_exec (mio_t* mio)

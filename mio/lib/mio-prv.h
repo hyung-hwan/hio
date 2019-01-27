@@ -183,6 +183,12 @@ int mio_sys_ctrlmux (
 	int               dev_capa
 );
 
+int mio_sys_waitmux (
+	mio_t*              mio,
+	const mio_ntime_t*  tmout,
+	mio_sys_mux_evtcb_t event_handler
+);
+
 /**
  * The mio_sys_gettime() function gets the current time.
  */

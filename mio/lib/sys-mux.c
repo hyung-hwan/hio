@@ -255,12 +255,12 @@ void mio_sys_finimux (mio_t* mio)
 	if (mio->sys.mux)
 	{
 		close (mio->sys.mux->hnd);
-		mio_Freemem (mio, mio->sys.mux);
+		mio_freemem (mio, mio->sys.mux);
 		mio->sys.mux = MIO_NULL;
 	}
 }
 
-int mio_sys_ctrlmux (mio_t* mio, int cmd, mio_dev_t* dev, int dev_capa)
+int mio_sys_ctrlmux (mio_t* mio, mio_sys_mux_cmd_t cmd, mio_dev_t* dev, int dev_capa)
 {
 	static int epoll_cmd[] = { EPOLL_CTL_ADD, EPOLL_CTL_MOD, EPOLL_CTL_DEL };
 	struct epoll_event ev;
@@ -291,7 +291,7 @@ int mio_sys_ctrlmux (mio_t* mio, int cmd, mio_dev_t* dev, int dev_capa)
 }
 #endif
 
-static void mio_sys_waitmux (mio_t* mio)
+int mio_sys_waitmux (mio_t* mio, const mio_ntime_t* tmout, mio_sys_mux_evtcb_t event_handler)
 {
 #if defined(_WIN32)
 /*
@@ -306,6 +306,7 @@ static void mio_sys_waitmux (mio_t* mio)
 	}
 */
 #elif defined(USE_POLL)
+	int nentries;
 
 	mux = (mio_sys_mux_t*)mio->sys.mux;
 
@@ -339,9 +340,10 @@ static void mio_sys_waitmux (mio_t* mio)
 
 #elif defined(USE_EPOLL)
 
-	mux = (mio_sys_mux_t*)mio->sys.mux;
+	mio_sys_mux_t* mux = mio->sys.mux;
+	int nentries, i;
 
-	nentries = epoll_wait(mux->hnd, mux->revs, MIO_COUNTOF(mux->revs), MIO_SECNSEC_TO_MSEC(tmout.sec, tmout.nsec));
+	nentries = epoll_wait(mux->hnd, mux->revs, MIO_COUNTOF(mux->revs), MIO_SECNSEC_TO_MSEC(tmout->sec, tmout->nsec));
 	if (nentries == -1)
 	{
 		if (errno == EINTR) return 0; /* it's actually ok */
@@ -367,7 +369,8 @@ static void mio_sys_waitmux (mio_t* mio)
 	#if defined(EPOLLRDHUP)
 		else if (mux->revs[i].events & EPOLLRDHUP) rdhup = 1;
 	#endif
-		handle_event (dev, events, rdhup);
+
+		event_handler (mio, dev, events, rdhup);
 	}
 
 #else

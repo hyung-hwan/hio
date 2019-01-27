@@ -456,6 +456,14 @@ enum mio_sys_mux_cmd_t
 };
 typedef enum mio_sys_mux_cmd_t mio_sys_mux_cmd_t;
 
+
+typedef void (*mio_sys_mux_evtcb_t) (
+	mio_t*                  mio,
+	mio_dev_t*              dev,
+	int                     events,
+	int                     rdhup
+);
+
 typedef struct mio_sys_mux_t mio_sys_mux_t;
 typedef struct mio_sys_log_t mio_sys_log_t;
 
