@@ -30,19 +30,20 @@ include_HEADERS = \
 lib_LTLIBRARIES = libmio.la
 libmio_la_SOURCES = \
 	err.c \
-	logfmt.c \
-	logfmtv.h \
+	fmtout.c \
+	fmtoutv.h \
 	mio-prv.h \
 	mio.c \
 	mio-pro.c \
 	mio-sck.c \
-	mio-tim.c \
-	mio-tmr.c \
 	sck-addr.c \
 	sck-addr.h \
 	sys-ass.c \
 	sys-err.c \
 	sys-log.c \
+	sys-mux.c \
+	sys-tim.c \
+	tmr.c \
 	utf8.c \
 	utl.c
 libmio_la_CPPFLAGS = $(CPPFLAGS_LIB_COMMON)

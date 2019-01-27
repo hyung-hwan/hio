@@ -113,6 +113,15 @@ struct mio_errinf_t
 };
 typedef struct mio_errinf_t mio_errinf_t;
 
+enum mio_option_t
+{
+	MIO_TRAIT,
+	MIO_LOG_MASK,
+	MIO_LOG_MAXCAPA
+};
+typedef enum mio_option_t mio_option_t;
+
+
 enum mio_stopreq_t
 {
 	MIO_STOPREQ_NONE = 0,
@@ -371,11 +380,84 @@ typedef enum mio_dev_event_t mio_dev_event_t;
 #define MIO_CWQFL_SIZE 16
 #define MIO_CWQFL_ALIGN 16
 
-/* ========================================================================= */
+/* =========================================================================
+ * MIO LOGGING
+ * ========================================================================= */
+
+enum mio_log_mask_t
+{
+	MIO_LOG_DEBUG      = (1u << 0),
+	MIO_LOG_INFO       = (1u << 1),
+	MIO_LOG_WARN       = (1u << 2),
+	MIO_LOG_ERROR      = (1u << 3),
+	MIO_LOG_FATAL      = (1u << 4),
+
+	MIO_LOG_UNTYPED    = (1u << 6), /* only to be used by MIO_DEBUGx() and MIO_INFOx() */
+	MIO_LOG_CORE       = (1u << 7),
+	MIO_LOG_DEV        = (1u << 8),
+	MIO_LOG_TIMER      = (1u << 9),
+
+	MIO_LOG_ALL_LEVELS = (MIO_LOG_DEBUG  | MIO_LOG_INFO | MIO_LOG_WARN | MIO_LOG_ERROR | MIO_LOG_FATAL),
+	MIO_LOG_ALL_TYPES  = (MIO_LOG_UNTYPED | MIO_LOG_CORE | MIO_LOG_DEV | MIO_LOG_TIMER),
+
+	MIO_LOG_STDOUT     = (1u << 14), /* write log messages to stdout without timestamp. MIO_LOG_STDOUT wins over MIO_LOG_STDERR. */
+	MIO_LOG_STDERR     = (1u << 15)  /* write log messages to stderr without timestamp. */
+};
+typedef enum mio_log_mask_t mio_log_mask_t;
+
+/* all bits must be set to get enabled */
+#define MIO_LOG_ENABLED(mio,mask) (((mio)->option.log_mask & (mask)) == (mask))
+
+#define MIO_LOG0(mio,mask,fmt) do { if (MIO_LOG_ENABLED(mio,mask)) mio_logbfmt(mio, mask, fmt); } while(0)
+#define MIO_LOG1(mio,mask,fmt,a1) do { if (MIO_LOG_ENABLED(mio,mask)) mio_logbfmt(mio, mask, fmt, a1); } while(0)
+#define MIO_LOG2(mio,mask,fmt,a1,a2) do { if (MIO_LOG_ENABLED(mio,mask)) mio_logbfmt(mio, mask, fmt, a1, a2); } while(0)
+#define MIO_LOG3(mio,mask,fmt,a1,a2,a3) do { if (MIO_LOG_ENABLED(mio,mask)) mio_logbfmt(mio, mask, fmt, a1, a2, a3); } while(0)
+#define MIO_LOG4(mio,mask,fmt,a1,a2,a3,a4) do { if (MIO_LOG_ENABLED(mio,mask)) mio_logbfmt(mio, mask, fmt, a1, a2, a3, a4); } while(0)
+#define MIO_LOG5(mio,mask,fmt,a1,a2,a3,a4,a5) do { if (MIO_LOG_ENABLED(mio,mask)) mio_logbfmt(mio, mask, fmt, a1, a2, a3, a4, a5); } while(0)
+#define MIO_LOG6(mio,mask,fmt,a1,a2,a3,a4,a5,a6) do { if (MIO_LOG_ENABLED(mio,mask)) mio_logbfmt(mio, mask, fmt, a1, a2, a3, a4, a5, a6); } while(0)
+
+#if defined(MIO_BUILD_RELEASE)
+	/* [NOTE]
+	 *  get rid of debugging message totally regardless of
+	 *  the log mask in the release build.
+	 */
+#	define MIO_DEBUG0(mio,fmt)
+#	define MIO_DEBUG1(mio,fmt,a1)
+#	define MIO_DEBUG2(mio,fmt,a1,a2)
+#	define MIO_DEBUG3(mio,fmt,a1,a2,a3)
+#	define MIO_DEBUG4(mio,fmt,a1,a2,a3,a4)
+#	define MIO_DEBUG5(mio,fmt,a1,a2,a3,a4,a5)
+#	define MIO_DEBUG6(mio,fmt,a1,a2,a3,a4,a5,a6)
+#else
+#	define MIO_DEBUG0(mio,fmt) MIO_LOG0(mio, MIO_LOG_DEBUG | MIO_LOG_UNTYPED, fmt)
+#	define MIO_DEBUG1(mio,fmt,a1) MIO_LOG1(mio, MIO_LOG_DEBUG | MIO_LOG_UNTYPED, fmt, a1)
+#	define MIO_DEBUG2(mio,fmt,a1,a2) MIO_LOG2(mio, MIO_LOG_DEBUG | MIO_LOG_UNTYPED, fmt, a1, a2)
+#	define MIO_DEBUG3(mio,fmt,a1,a2,a3) MIO_LOG3(mio, MIO_LOG_DEBUG | MIO_LOG_UNTYPED, fmt, a1, a2, a3)
+#	define MIO_DEBUG4(mio,fmt,a1,a2,a3,a4) MIO_LOG4(mio, MIO_LOG_DEBUG | MIO_LOG_UNTYPED, fmt, a1, a2, a3, a4)
+#	define MIO_DEBUG5(mio,fmt,a1,a2,a3,a4,a5) MIO_LOG5(mio, MIO_LOG_DEBUG | MIO_LOG_UNTYPED, fmt, a1, a2, a3, a4, a5)
+#	define MIO_DEBUG6(mio,fmt,a1,a2,a3,a4,a5,a6) MIO_LOG6(mio, MIO_LOG_DEBUG | MIO_LOG_UNTYPED, fmt, a1, a2, a3, a4, a5, a6)
+#endif
+
+#define MIO_INFO0(mio,fmt) MIO_LOG0(mio, MIO_LOG_INFO | MIO_LOG_UNTYPED, fmt)
+#define MIO_INFO1(mio,fmt,a1) MIO_LOG1(mio, MIO_LOG_INFO | MIO_LOG_UNTYPED, fmt, a1)
+#define MIO_INFO2(mio,fmt,a1,a2) MIO_LOG2(mio, MIO_LOG_INFO | MIO_LOG_UNTYPED, fmt, a1, a2)
+#define MIO_INFO3(mio,fmt,a1,a2,a3) MIO_LOG3(mio, MIO_LOG_INFO | MIO_LOG_UNTYPED, fmt, a1, a2, a3)
+#define MIO_INFO4(mio,fmt,a1,a2,a3,a4) MIO_LOG4(mio, MIO_LOG_INFO | MIO_LOG_UNTYPED, fmt, a1, a2, a3, a4)
+#define MIO_INFO5(mio,fmt,a1,a2,a3,a4,a5) MIO_LOG5(mio, MIO_LOG_INFO | MIO_LOG_UNTYPED, fmt, a1, a2, a3, a4, a5)
+#define MIO_INFO6(mio,fmt,a1,a2,a3,a4,a5,a6) MIO_LOG6(mio, MIO_LOG_INFO | MIO_LOG_UNTYPED, fmt, a1, a2, a3, a4, a5, a6)
 
 /* ========================================================================= */
 
-typedef struct mio_mux_t mio_mux_t;
+enum mio_sys_mux_cmd_t
+{
+	MIO_SYS_MUX_CMD_INSERT = 0,
+	MIO_SYS_MUX_CMD_UPDATE = 1,
+	MIO_SYS_MUX_CMD_DELETE = 2
+};
+typedef enum mio_sys_mux_cmd_t mio_sys_mux_cmd_t;
+
+typedef struct mio_sys_mux_t mio_sys_mux_t;
+typedef struct mio_sys_log_t mio_sys_log_t;
 
 struct mio_t
 {
@@ -393,9 +475,15 @@ struct mio_t
 		mio_ooch_t buf[MIO_ERRMSG_CAPA];
 		mio_oow_t len;
 	} errmsg;
+
 	int shuterr;
 
-	mio_stopreq_t stopreq;  /* stop request to abort mio_loop() */
+	struct
+	{
+		mio_bitmask_t trait;
+		mio_bitmask_t log_mask;
+		mio_oow_t log_maxcapa;
+	} option;
 
 	struct
 	{
@@ -415,6 +503,8 @@ struct mio_t
 			mio_oow_t len;
 		} xbuf; /* buffer to support sprintf */
 	} sprintf;
+
+	mio_stopreq_t stopreq;  /* stop request to abort mio_loop() */
 
 	struct
 	{
@@ -450,7 +540,11 @@ struct mio_t
 	mio_cwq_t* cwqfl[MIO_CWQFL_SIZE]; /* list of free cwq objects */
 
 	/* platform specific fields below */
-	mio_mux_t* mux;
+	struct
+	{
+		mio_sys_mux_t* mux;
+		mio_sys_log_t* log;
+	} sys;
 };
 
 /* ========================================================================= */
@@ -461,25 +555,38 @@ extern "C" {
 
 MIO_EXPORT mio_t* mio_open (
 	mio_mmgr_t*   mmgr,
-	mio_oow_t    xtnsize,
-	mio_oow_t    tmrcapa,  /**< initial timer capacity */
-	mio_errnum_t* errnum
+	mio_oow_t     xtnsize,
+	mio_cmgr_t*   cmgr,
+	mio_oow_t     tmrcapa,  /**< initial timer capacity */
+	mio_errinf_t* errinf
 );
 
 MIO_EXPORT void mio_close (
-	mio_t* mio
+	mio_t*        mio
 );
 
 MIO_EXPORT int mio_init (
-	mio_t*      mio,
-	mio_mmgr_t* mmgr,
-	mio_oow_t  tmrcapa
+	mio_t*       mio,
+	mio_mmgr_t*  mmgr,
+	mio_cmgr_t*  cmgr,
+	mio_oow_t    tmrcapa
 );
 
 MIO_EXPORT void mio_fini (
-	mio_t*      mio
+	mio_t*       mio
 );
 
+MIO_EXPORT int mio_getoption (
+	mio_t*        mio,
+	mio_option_t  id,
+	void*         value
+);
+
+MIO_EXPORT int mio_setoption (
+	mio_t*       mio,
+	mio_option_t id,
+	const void*  value
+);
 
 #if defined(MIO_HAVE_INLINE)
 	static MIO_INLINE mio_mmgr_t* mio_getmmgr (mio_t* mio) { return mio->mmgr; }
@@ -572,10 +679,10 @@ MIO_EXPORT void mio_stop (
 );
 
 MIO_EXPORT mio_dev_t* mio_makedev (
-	mio_t*          mio,
-	mio_oow_t      dev_size,
-	mio_dev_mth_t*  dev_mth,
-	mio_dev_evcb_t* dev_evcb,
+	mio_t*           mio,
+	mio_oow_t        dev_size,
+	mio_dev_mth_t*   dev_mth,
+	mio_dev_evcb_t*  dev_evcb,
 	void*            make_ctx
 );
 
@@ -585,7 +692,7 @@ MIO_EXPORT void mio_killdev (
 );
 
 MIO_EXPORT int mio_dev_ioctl (
-	mio_dev_t* dev,
+	mio_dev_t*  dev,
 	int         cmd,
 	void*       arg
 );
@@ -594,7 +701,7 @@ MIO_EXPORT int mio_dev_watch (
 	mio_dev_t*          dev,
 	mio_dev_watch_cmd_t cmd,
 	/** 0 or bitwise-ORed of #MIO_DEV_EVENT_IN and #MIO_DEV_EVENT_OUT */
-	int                  events
+	int                 events
 );
 
 MIO_EXPORT int mio_dev_read (
@@ -619,19 +726,19 @@ MIO_EXPORT int mio_dev_timedread (
  */ 
 MIO_EXPORT int mio_dev_write (
 	mio_dev_t*            dev,
-	const void*            data,
+	const void*           data,
 	mio_iolen_t           len,
-	void*                  wrctx,
+	void*                 wrctx,
 	const mio_devaddr_t*  dstaddr
 );
 
 
 MIO_EXPORT int mio_dev_timedwrite (
 	mio_dev_t*           dev,
-	const void*           data,
+	const void*          data,
 	mio_iolen_t          len,
 	const mio_ntime_t*   tmout,
-	void*                 wrctx,
+	void*                wrctx,
 	const mio_devaddr_t* dstaddr
 );
 
@@ -639,45 +746,9 @@ MIO_EXPORT void mio_dev_halt (
 	mio_dev_t* dev
 );
 
-/* ========================================================================= */
-
-#define mio_inittime(x,s,ns) (((x)->sec = (s)), ((x)->nsec = (ns)))
-#define mio_cleartime(x) mio_inittime(x,0,0)
-#define mio_cmptime(x,y) \
-	(((x)->sec == (y)->sec)? ((x)->nsec - (y)->nsec): \
-	                         ((x)->sec -  (y)->sec))
-
-/* if time has been normalized properly, nsec must be equal to or
- * greater than 0. */
-#define mio_isnegtime(x) ((x)->sec < 0)
-#define mio_ispostime(x) ((x)->sec > 0 || ((x)->sec == 0 && (x)->nsec > 0))
-#define mio_iszerotime(x) ((x)->sec == 0 && (x)->nsec == 0)
-
-
-/**
- * The mio_gettime() function gets the current time.
- */
-MIO_EXPORT void mio_gettime (
-	mio_ntime_t* nt
-);
-
-/**
- * The mio_addtime() function adds x and y and stores the result in z 
- */
-MIO_EXPORT void mio_addtime (
-	const mio_ntime_t* x,
-	const mio_ntime_t* y,
-	mio_ntime_t*       z
-);
-
-/**
- * The mio_subtime() function subtract y from x and stores the result in z.
- */
-MIO_EXPORT void mio_subtime (
-	const mio_ntime_t* x,
-	const mio_ntime_t* y,
-	mio_ntime_t*       z
-);
+/* =========================================================================
+ * TIMER MANAGEMENT
+ * ========================================================================= */
 
 /**
  * The mio_instmrjob() function schedules a new event.
@@ -895,6 +966,14 @@ MIO_EXPORT mio_bch_t* mio_dupbchars (
 	mio_t*           mio,
 	const mio_bch_t* bcs,
 	mio_oow_t        bcslen
+);
+
+/* =========================================================================
+ * MISCELLANEOUS HELPER FUNCTIONS
+ * ========================================================================= */
+
+MIO_EXPORT const mio_ooch_t* mio_errnum_to_errstr (
+	mio_errnum_t errnum
 );
 
 

@@ -31,7 +31,7 @@
 #define HEAP_LEFT(x)   ((x) * 2 + 1)
 #define HEAP_RIGHT(x)  ((x) * 2 + 2)
 
-#define YOUNGER_THAN(x,y) (mio_cmptime(&(x)->when, &(y)->when) < 0)
+#define YOUNGER_THAN(x,y) (MIO_CMP_NTIME(&(x)->when, &(y)->when) < 0)
 
 void mio_cleartmrjobs (mio_t* mio)
 {
@@ -114,7 +114,7 @@ void mio_deltmrjob (mio_t* mio, mio_tmridx_t index)
 {
 	mio_tmrjob_t item;
 
-	MIO_ASSERT (index < mio->tmr.size);
+	MIO_ASSERT (mio, index < mio->tmr.size);
 
 	item = mio->tmr.jobs[index];
 	if (mio->tmr.jobs[index].idxptr) *mio->tmr.jobs[index].idxptr = MIO_TMRIDX_INVALID;
@@ -137,7 +137,7 @@ mio_tmridx_t mio_instmrjob (mio_t* mio, const mio_tmrjob_t* job)
 		mio_tmrjob_t* tmp;
 		mio_oow_t new_capa;
 
-		MIO_ASSERT (mio->tmr.capa >= 1);
+		MIO_ASSERT (mio, mio->tmr.capa >= 1);
 		new_capa = mio->tmr.capa * 2;
 		tmp = (mio_tmrjob_t*)MIO_MMGR_REALLOC (mio->mmgr, mio->tmr.jobs, new_capa * MIO_SIZEOF(*tmp));
 		if (tmp == MIO_NULL) 
@@ -173,11 +173,11 @@ void mio_firetmrjobs (mio_t* mio, const mio_ntime_t* tm, mio_oow_t* firecnt)
 
 	/* if the current time is not specified, get it from the system */
 	if (tm) now = *tm;
-	else mio_gettime (&now);
+	else mio_sys_gettime (&now);
 
 	while (mio->tmr.size > 0)
 	{
-		if (mio_cmptime(&mio->tmr.jobs[0].when, &now) > 0) break;
+		if (MIO_CMP_NTIME(&mio->tmr.jobs[0].when, &now) > 0) break;
 
 		tmrjob = mio->tmr.jobs[0]; /* copy the scheduled job */
 		mio_deltmrjob (mio, 0); /* deschedule the job */
@@ -202,10 +202,10 @@ int mio_gettmrtmout (mio_t* mio, const mio_ntime_t* tm, mio_ntime_t* tmout)
 
 	/* if the current time is not specified, get it from the system */
 	if (tm) now = *tm;
-	else mio_gettime (&now);
+	else mio_sys_gettime (&now);
 
-	mio_subtime (&mio->tmr.jobs[0].when, &now, tmout);
-	if (tmout->sec < 0) mio_cleartime (tmout);
+	MIO_SUB_NTIME (tmout, &mio->tmr.jobs[0].when, &now);
+	if (tmout->sec < 0) MIO_CLEAR_NTIME (tmout);
 
 	return 0;
 }

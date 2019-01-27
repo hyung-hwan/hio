@@ -26,6 +26,84 @@
 
 #include "mio-prv.h"
 
+#if defined(_WIN32)
+#	include <windows.h>
+#	include <time.h>
+#	include <errno.h>
+#	include <io.h>
+#	include <fcntl.h>
+
+#elif defined(__OS2__)
+#	define INCL_DOSDATETIME
+#	include <os2.h>
+#	include <time.h>
+#	include <errno.h>
+#	include <io.h>
+#	include <fcntl.h>
+
+#elif defined(__DOS__)
+#	include <dos.h>
+#	include <time.h>
+#	include <errno.h>
+#	include <io.h>
+#	include <fcntl.h>
+
+#elif defined(macintosh)
+#	include <Types.h>
+#	include <OSUtils.h>
+#	include <Timer.h>
+#	include <MacErrors.h>
+
+	/* TODO: a lot to do */
+
+#elif defined(vms) || defined(__vms)
+#	define __NEW_STARLET 1
+#	include <starlet.h> /* (SYS$...) */
+#	include <ssdef.h> /* (SS$...) */
+#	include <lib$routines.h> /* (lib$...) */
+
+	/* TODO: a lot to do */
+
+#else
+#	include <sys/types.h>
+#	include <unistd.h>
+#	include <fcntl.h>
+#	include <errno.h>
+
+#	if defined(HAVE_TIME_H)
+#		include <time.h>
+#	endif
+#	if defined(HAVE_SYS_TIME_H)
+#		include <sys/time.h>
+#	endif
+
+#endif
+
+struct mio_sys_log_t
+{
+	struct
+	{
+		int fd;
+		int fd_flag; /* bitwise OR'ed fo logfd_flag_t bits */
+
+		struct
+		{
+			mio_bch_t buf[4096];
+			mio_oow_t len;
+		} out;
+	} log;
+};
+
+typedef mio_sys_log_t xtn_t;
+#define GET_XTN(mio) (&(mio)->sys.log)
+
+
+enum logfd_flag_t
+{
+	LOGFD_TTY = (1 << 0),
+	LOGFD_OPENED_HERE = (1 << 1)
+};
+
 static int write_all (int fd, const mio_bch_t* ptr, mio_oow_t len)
 {
 	while (len > 0)
@@ -258,4 +336,53 @@ void mio_sys_writelog (mio_t* mio, mio_bitmask_t mask, const mio_ooch_t* msg, mi
 	}
 
 	flush_log (mio, logfd);
+}
+
+static MIO_INLINE void reset_log_to_default (xtn_t* xtn)
+{
+#if defined(ENABLE_LOG_INITIALLY)
+	xtn->log.fd = 2;
+	xtn->log.fd_flag = 0;
+	#if defined(HAVE_ISATTY)
+	if (isatty(xtn->log.fd)) xtn->log.fd_flag |= LOGFD_TTY;
+	#endif
+#else
+	xtn->log.fd = -1;
+	xtn->log.fd_flag = 0;
+#endif
+}
+
+void mio_sys_initlog (mio_t* mio)
+{
+	xtn_t* xtn = GET_XTN(mio);
+	mio_bitmask_t logmask;
+	mio_oow_t pathlen;
+
+/* TODO: */
+#define LOG_FILE "/dev/stderr"
+	xtn->log.fd = open(LOG_FILE, O_CREAT | O_WRONLY | O_APPEND , 0644);
+	if (xtn->log.fd == -1)
+	{
+		/*mio_seterrbfmtwithsyserr (mio, 0, errno, "cannot open log file %hs", LOG_FILE);*/
+		xtn->log.fd = 2;
+		xtn->log.fd_flag = 0;
+	}
+	else
+	{
+		xtn->log.fd_flag |= LOGFD_OPENED_HERE;
+	}
+
+#if defined(HAVE_ISATTY)
+	if (isatty(xtn->log.fd)) xtn->log.fd_flag |= LOGFD_TTY;
+#endif
+
+	logmask = MIO_LOG_ALL_TYPES | MIO_LOG_ALL_LEVELS;
+	mio_setoption (mio, MIO_LOG_MASK, &logmask);
+}
+
+void mio_sys_finilog (mio_t* mio)
+{
+	xtn_t* xtn = GET_XTN(mio);
+	if ((xtn->log.fd_flag & LOGFD_OPENED_HERE) && xtn->log.fd >= 0) close (xtn->log.fd);
+	reset_log_to_default (xtn);
 }

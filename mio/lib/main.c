@@ -206,7 +206,7 @@ else
 //	if (ts->tally >= 2) mio_dev_sck_halt (tcp);
 
 printf ("TCP_SCK_ON_WRITE ENABLING READING..............................\n");
-	mio_inittime (&tmout, 5, 0);
+	MIO_INIT_NTIME (&tmout, 5, 0);
 	//mio_dev_sck_read (tcp, 1);
 	mio_dev_sck_timedread (tcp, 1, &tmout);
 }
@@ -243,7 +243,7 @@ memset (xxx, a++ ,1000000);
 
 printf ("TCP_SCK_ON_READ initiating write... of %d\n", 1000000);
 	//return mio_dev_sck_write  (tcp, "HELLO", 5, MIO_NULL);
-	mio_inittime (&tmout, 5, 0);
+	MIO_INIT_NTIME (&tmout, 5, 0);
 	n = mio_dev_sck_timedwrite  (tcp, xxx, 1000000, &tmout, MIO_NULL, MIO_NULL);
 free (xxx);
 
@@ -439,12 +439,12 @@ static int schedule_icmp_wait (mio_dev_sck_t* dev)
 	mio_ntime_t fire_after;
 
 	icmpxtn = (icmpxtn_t*)(dev + 1);
-	mio_inittime (&fire_after, 2, 0);
+	MIO_INIT_NTIME (&fire_after, 2, 0);
 
 	memset (&tmrjob, 0, MIO_SIZEOF(tmrjob));
 	tmrjob.ctx = dev;
-	mio_gettime (&tmrjob.when);
-	mio_addtime (&tmrjob.when, &fire_after, &tmrjob.when);
+	mio_sys_gettime (&tmrjob.when);
+	MIO_ADD_NTIME (&tmrjob.when, &tmrjob.when, &fire_after);
 	tmrjob.handler = on_icmp_due;
 	tmrjob.idxptr = &icmpxtn->tmout_jobidx;
 
@@ -554,7 +554,7 @@ static int setup_ping4_tester (mio_t* mio)
 
 /* ========================================================================= */
 
-#if 1
+#if 0
 static mio_t* g_mio;
 
 static void handle_signal (int sig)
@@ -641,7 +641,7 @@ int main (int argc, char* argv[])
 	mio_sckaddr_initforip4 (&tcp_conn.remoteaddr, 9999, (mio_ip4addr_t*)&ia);
 }
 
-	mio_inittime (&tcp_conn.connect_tmout, 5, 0);
+	MIO_INIT_NTIME (&tcp_conn.connect_tmout, 5, 0);
 	tcp_conn.options = MIO_DEV_SCK_CONNECT_SSL;
 	if (mio_dev_sck_connect(tcp[0], &tcp_conn) <= -1)
 	{
@@ -706,7 +706,7 @@ int main (int argc, char* argv[])
 	tcp_bind.options = MIO_DEV_SCK_BIND_REUSEADDR | /*MIO_DEV_SCK_BIND_REUSEPORT |*/ MIO_DEV_SCK_BIND_SSL; 
 	tcp_bind.ssl_certfile = "localhost.crt";
 	tcp_bind.ssl_keyfile = "localhost.key";
-	mio_inittime (&tcp_bind.accept_tmout, 5, 1);
+	MIO_INIT_NTIME (&tcp_bind.accept_tmout, 5, 1);
 
 	if (mio_dev_sck_bind(tcp[2], &tcp_bind) <= -1)
 	{
@@ -782,7 +782,7 @@ int main (int argc, char* argv[])
 	mio_dev_sck_connect_t tcp_conn;
 	tcp_server_t* ts;
 
-	mio = mio_open(&mmgr, 0, 512, MIO_NULL);
+	mio = mio_open(&mmgr, 0, MIO_NULL, 512, MIO_NULL);
 	if (!mio)
 	{
 		printf ("Cannot open mio\n");
@@ -810,7 +810,7 @@ int main (int argc, char* argv[])
 	in_addr_t ia = inet_addr("127.0.0.1");
 	mio_sckaddr_initforip4 (&tcp_conn.remoteaddr, 9999, (mio_ip4addr_t*)&ia);
 }
-	mio_inittime (&tcp_conn.connect_tmout, 5, 0);
+	MIO_INIT_NTIME (&tcp_conn.connect_tmout, 5, 0);
 	tcp_conn.options = 0;
 	if (mio_dev_sck_connect(tcpsvr, &tcp_conn) <= -1)
 	{

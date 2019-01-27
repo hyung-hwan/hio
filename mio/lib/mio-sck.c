@@ -129,7 +129,7 @@ done:
 
 oops:
 	if (sck != MIO_SCKHND_INVALID) close (sck);
-	mio->errnum = mio_syserrtoerrnum(errno);
+	mio_seterrwithsyserr (mio, 0, errno);
 	return MIO_SCKHND_INVALID;
 }
 
@@ -345,7 +345,7 @@ static void connect_timedout (mio_t* mio, const mio_ntime_t* now, mio_tmrjob_t* 
 {
 	mio_dev_sck_t* rdev = (mio_dev_sck_t*)job->ctx;
 
-	MIO_ASSERT (IS_STATEFUL(rdev));
+	MIO_ASSERT (mio, IS_STATEFUL(rdev));
 
 	if (rdev->state & MIO_DEV_SCK_CONNECTING)
 	{
@@ -362,7 +362,7 @@ static void ssl_accept_timedout (mio_t* mio, const mio_ntime_t* now, mio_tmrjob_
 {
 	mio_dev_sck_t* rdev = (mio_dev_sck_t*)job->ctx;
 
-	MIO_ASSERT (IS_STATEFUL(rdev));
+	MIO_ASSERT (mio, IS_STATEFUL(rdev));
 
 	if (rdev->state & MIO_DEV_SCK_ACCEPTING_SSL)
 	{
@@ -374,7 +374,7 @@ static void ssl_connect_timedout (mio_t* mio, const mio_ntime_t* now, mio_tmrjob
 {
 	mio_dev_sck_t* rdev = (mio_dev_sck_t*)job->ctx;
 
-	MIO_ASSERT (IS_STATEFUL(rdev));
+	MIO_ASSERT (mio, IS_STATEFUL(rdev));
 
 	if (rdev->state & MIO_DEV_SCK_CONNECTING_SSL)
 	{
@@ -393,7 +393,7 @@ static int schedule_timer_job_at (mio_dev_sck_t* dev, const mio_ntime_t* fire_at
 	tmrjob.handler = handler;
 	tmrjob.idxptr = &dev->tmrjob_index;
 
-	MIO_ASSERT (dev->tmrjob_index == MIO_TMRIDX_INVALID);
+	MIO_ASSERT (dev->mio, dev->tmrjob_index == MIO_TMRIDX_INVALID);
 	dev->tmrjob_index = mio_instmrjob (dev->mio, &tmrjob);
 	return dev->tmrjob_index == MIO_TMRIDX_INVALID? -1: 0;
 }
@@ -402,10 +402,10 @@ static int schedule_timer_job_after (mio_dev_sck_t* dev, const mio_ntime_t* fire
 {
 	mio_ntime_t fire_at;
 
-	MIO_ASSERT (mio_ispostime(fire_after));
+	MIO_ASSERT (dev->mio, MIO_IS_POS_NTIME(fire_after));
 
-	mio_gettime (&fire_at);
-	mio_addtime (&fire_at, fire_after, &fire_at);
+	mio_sys_gettime (&fire_at);
+	MIO_ADD_NTIME (&fire_at, &fire_at, fire_after);
 
 	return schedule_timer_job_at (dev, &fire_at, handler);
 }
@@ -417,7 +417,7 @@ static int dev_sck_make (mio_dev_t* dev, void* ctx)
 	mio_dev_sck_t* rdev = (mio_dev_sck_t*)dev;
 	mio_dev_sck_make_t* arg = (mio_dev_sck_make_t*)ctx;
 
-	MIO_ASSERT (arg->type >= 0 && arg->type < MIO_COUNTOF(sck_type_map));
+	MIO_ASSERT (dev->mio, arg->type >= 0 && arg->type < MIO_COUNTOF(sck_type_map));
 
 	if (sck_type_map[arg->type].domain <= -1)
 	{
@@ -467,7 +467,7 @@ static int dev_sck_make_client (mio_dev_t* dev, void* ctx)
 		int flags = fcntl(rdev->sck, F_GETFD, 0);
 		if (fcntl(rdev->sck, F_SETFD, flags | FD_CLOEXEC) == -1)
 		{
-			rdev->mio->errnum = mio_syserrtoerrnum(errno);
+			rdev->mio_seterrwithsyserr (mio, 0, errno);
 			return -1;
 		}
 	}
@@ -492,13 +492,13 @@ static int dev_sck_kill (mio_dev_t* dev, int force)
 		if (rdev->tmrjob_index != MIO_TMRIDX_INVALID)
 		{
 			mio_deltmrjob (dev->mio, rdev->tmrjob_index);
-			MIO_ASSERT (rdev->tmrjob_index == MIO_TMRIDX_INVALID);
+			MIO_ASSERT (dev->mio, rdev->tmrjob_index == MIO_TMRIDX_INVALID);
 		}
 	}
 	else
 	{
-		MIO_ASSERT (rdev->state == 0);
-		MIO_ASSERT (rdev->tmrjob_index == MIO_TMRIDX_INVALID);
+		MIO_ASSERT (dev->mio, rdev->state == 0);
+		MIO_ASSERT (dev->mio, rdev->tmrjob_index == MIO_TMRIDX_INVALID);
 
 		if (rdev->on_disconnect) rdev->on_disconnect (rdev);
 	}
@@ -562,7 +562,7 @@ static int dev_sck_read_stateful (mio_dev_t* dev, void* buf, mio_iolen_t* len, m
 		{
 			if (errno == EINPROGRESS || errno == EWOULDBLOCK || errno == EAGAIN) return 0;  /* no data available */
 			if (errno == EINTR) return 0;
-			rdev->mio->errnum = mio_syserrtoerrnum(errno);
+			rdev->mio_seterrwithsyserr (mio, 0, errno);
 			return -1;
 		}
 
@@ -585,7 +585,7 @@ static int dev_sck_read_stateless (mio_dev_t* dev, void* buf, mio_iolen_t* len, 
 	{
 		if (errno == EINPROGRESS || errno == EWOULDBLOCK || errno == EAGAIN) return 0;  /* no data available */
 		if (errno == EINTR) return 0;
-		rdev->mio->errnum = mio_syserrtoerrnum(errno);
+		rdev->mio_seterrwithsyserr (mio, 0, errno);
 		return -1;
 	}
 
@@ -642,7 +642,7 @@ static int dev_sck_write_stateful (mio_dev_t* dev, const void* data, mio_iolen_t
 			 * the socket, probably leaving it in the half-closed state */
 			if (shutdown(rdev->sck, SHUT_WR) == -1)
 			{
-				rdev->mio->errnum = mio_syserrtoerrnum(errno);
+				rdev->mio_seterrwithsyserr (mio, 0, errno);
 				return -1;
 			}
 
@@ -658,7 +658,7 @@ static int dev_sck_write_stateful (mio_dev_t* dev, const void* data, mio_iolen_t
 		{
 			if (errno == EINPROGRESS || errno == EWOULDBLOCK || errno == EAGAIN) return 0;  /* no data can be written */
 			if (errno == EINTR) return 0;
-			rdev->mio->errnum = mio_syserrtoerrnum(errno);
+			rdev->mio_seterrwithsyserr (mio, 0, errno);
 			return -1;
 		}
 
@@ -679,7 +679,7 @@ static int dev_sck_write_stateless (mio_dev_t* dev, const void* data, mio_iolen_
 	{
 		if (errno == EINPROGRESS || errno == EWOULDBLOCK || errno == EAGAIN) return 0;  /* no data can be written */
 		if (errno == EINTR) return 0;
-		rdev->mio->errnum = mio_syserrtoerrnum(errno);
+		rdev->mio_seterrwithsyserr (mio, 0, errno);
 		return -1;
 	}
 
@@ -772,6 +772,7 @@ static MIO_INLINE int accept_ssl (mio_dev_sck_t* dev)
 static int dev_sck_ioctl (mio_dev_t* dev, int cmd, void* arg)
 {
 	mio_dev_sck_t* rdev = (mio_dev_sck_t*)dev;
+	mio_t* mio = dev->mio;
 
 	switch (cmd)
 	{
@@ -797,7 +798,7 @@ static int dev_sck_ioctl (mio_dev_t* dev, int cmd, void* arg)
 				int v = 1;
 				if (setsockopt (rdev->sck, SOL_SOCKET, SO_BROADCAST, &v, MIO_SIZEOF(v)) == -1)
 				{
-					rdev->mio->errnum = mio_syserrtoerrnum(errno);
+					rdev->mio_seterrwithsyserr (mio, 0, errno);
 					return -1;
 				}
 			}
@@ -808,7 +809,7 @@ static int dev_sck_ioctl (mio_dev_t* dev, int cmd, void* arg)
 				int v = 1;
 				if (setsockopt (rdev->sck, SOL_SOCKET, SO_REUSEADDR, &v, MIO_SIZEOF(v)) == -1)
 				{
-					rdev->mio->errnum = mio_syserrtoerrnum(errno);
+					rdev->mio_seterrwithsyserr (mio, 0, errno);
 					return -1;
 				}
 			#else
@@ -823,7 +824,7 @@ static int dev_sck_ioctl (mio_dev_t* dev, int cmd, void* arg)
 				int v = 1;
 				if (setsockopt (rdev->sck, SOL_SOCKET, SO_REUSEPORT, &v, MIO_SIZEOF(v)) == -1)
 				{
-					rdev->mio->errnum = mio_syserrtoerrnum(errno);
+					rdev->mio_seterrwithsyserr (mio, 0, errno);
 					return -1;
 				}
 			#else
@@ -838,7 +839,7 @@ static int dev_sck_ioctl (mio_dev_t* dev, int cmd, void* arg)
 				int v = 1;
 				if (setsockopt(rdev->sck, SOL_IP, IP_TRANSPARENT, &v, MIO_SIZEOF(v)) == -1)
 				{
-					rdev->mio->errnum = mio_syserrtoerrnum(errno);
+					rdev->mio_seterrwithsyserr (mio, 0, errno);
 					return -1;
 				}
 			#else
@@ -849,12 +850,16 @@ static int dev_sck_ioctl (mio_dev_t* dev, int cmd, void* arg)
 
 			if (rdev->ssl_ctx)
 			{
+			#if defined(USE_SSL)
 				SSL_CTX_free (rdev->ssl_ctx);
+			#endif
 				rdev->ssl_ctx = MIO_NULL;
 
 				if (rdev->ssl)
 				{
+				#if defined(USE_SSL)
 					SSL_free (rdev->ssl);
+				#endif
 					rdev->ssl = MIO_NULL;
 				}
 			}
@@ -904,7 +909,7 @@ static int dev_sck_ioctl (mio_dev_t* dev, int cmd, void* arg)
 			x = bind(rdev->sck, sa, sl);
 			if (x == -1)
 			{
-				rdev->mio->errnum = mio_syserrtoerrnum(errno);
+				rdev->mio_seterrwithsyserr (mio, 0, errno);
 			#if defined(USE_SSL)
 				if (ssl_ctx) SSL_CTX_free (ssl_ctx);
 			#endif
@@ -1003,9 +1008,9 @@ fcntl (rdev->sck, F_SETFL, flags | O_NONBLOCK);
 					}
 					else
 					{
-						mio_inittime (&rdev->tmout, 0, 0); /* just in case */
+						MIO_INIT_NTIME (&rdev->tmout, 0, 0); /* just in case */
 
-						if (mio_ispostime(&conn->connect_tmout))
+						if (MIO_IS_POS_NTIME(&conn->connect_tmout))
 						{
 							if (schedule_timer_job_after(rdev, &conn->connect_tmout, connect_timedout) <= -1) 
 							{
@@ -1014,7 +1019,7 @@ fcntl (rdev->sck, F_SETFL, flags | O_NONBLOCK);
 							else
 							{
 								/* update rdev->tmout to the deadline of the connect timeout job */
-								MIO_ASSERT (rdev->tmrjob_index != MIO_TMRIDX_INVALID);
+								MIO_ASSERT (mio, rdev->tmrjob_index != MIO_TMRIDX_INVALID);
 								mio_gettmrjobdeadline (rdev->mio, rdev->tmrjob_index, &rdev->tmout);
 							}
 						}
@@ -1028,7 +1033,7 @@ fcntl (rdev->sck, F_SETFL, flags | O_NONBLOCK);
 					}
 				}
 
-				rdev->mio->errnum = mio_syserrtoerrnum(errno);
+				rdev->mio_seterrwithsyserr (mio, 0, errno);
 
 			oops_connect:
 				if (mio_dev_watch((mio_dev_t*)rdev, MIO_DEV_WATCH_UPDATE, MIO_DEV_EVENT_IN) <= -1)
@@ -1068,11 +1073,11 @@ fcntl (rdev->sck, F_SETFL, flags | O_NONBLOCK);
 					if (x == 0) 
 					{
 						MIO_ASSERT (rdev->tmrjob_index == MIO_TMRIDX_INVALID);
-						mio_inittime (&rdev->tmout, 0, 0); /* just in case */
+						MIO_INIT_NTIME (&rdev->tmout, 0, 0); /* just in case */
 
 						/* it's ok to use conn->connect_tmout for ssl-connect as
 						 * the underlying socket connection has been established immediately */
-						if (mio_ispostime(&conn->connect_tmout))
+						if (MIO_IS_POS_NTIME(&conn->connect_tmout))
 						{
 							if (schedule_timer_job_after(rdev, &conn->connect_tmout, ssl_connect_timedout) <= -1) 
 							{
@@ -1134,7 +1139,7 @@ fcntl (rdev->sck, F_SETFL, flags | O_NONBLOCK);
 			x = listen (rdev->sck, lstn->backlogs);
 			if (x == -1) 
 			{
-				rdev->mio->errnum = mio_syserrtoerrnum(errno);
+				rdev->mio_seterrwithsyserr (mio, 0, errno);
 				return -1;
 			}
 
@@ -1186,12 +1191,12 @@ static int harvest_outgoing_connection (mio_dev_sck_t* rdev)
 	int errcode;
 	mio_scklen_t len;
 
-	MIO_ASSERT (!(rdev->state & MIO_DEV_SCK_CONNECTED));
+	MIO_ASSERT (rdev->mio, !(rdev->state & MIO_DEV_SCK_CONNECTED));
 
 	len = MIO_SIZEOF(errcode);
 	if (getsockopt(rdev->sck, SOL_SOCKET, SO_ERROR, (char*)&errcode, &len) == -1)
 	{
-		rdev->mio->errnum = mio_syserrtoerrnum(errno);
+		rdev->mio_seterrwithsyserr (mio, 0, errno);
 		return -1;
 	}
 	else if (errcode == 0)
@@ -1204,7 +1209,7 @@ static int harvest_outgoing_connection (mio_dev_sck_t* rdev)
 		if (rdev->tmrjob_index != MIO_TMRIDX_INVALID)
 		{
 			mio_deltmrjob (rdev->mio, rdev->tmrjob_index);
-			MIO_ASSERT (rdev->tmrjob_index == MIO_TMRIDX_INVALID);
+			MIO_ASSERT (rdev->mio, rdev->tmrjob_index == MIO_TMRIDX_INVALID);
 		}
 
 		addrlen = MIO_SIZEOF(localaddr);
@@ -1235,7 +1240,7 @@ static int harvest_outgoing_connection (mio_dev_sck_t* rdev)
 				/* rdev->tmout has been set to the deadline of the connect task
 				 * when the CONNECT IOCTL command has been executed. use the 
 				 * same deadline here */
-				if (mio_ispostime(&rdev->tmout) &&
+				if (MIO_IS_POS_NTIME(&rdev->tmout) &&
 				    schedule_timer_job_at(rdev, &rdev->tmout, ssl_connect_timedout) <= -1)
 				{
 					mio_dev_halt ((mio_dev_t*)rdev);
@@ -1267,13 +1272,14 @@ static int harvest_outgoing_connection (mio_dev_sck_t* rdev)
 	}
 	else
 	{
-		rdev->mio->errnum = mio_syserrtoerrnum(errcode);
+		mio_seterrwithsyserr (rdev->mio, 0, errcode);
 		return -1;
 	}
 }
 
 static int accept_incoming_connection (mio_dev_sck_t* rdev)
 {
+	mio_t* mio = rdev->mio;
 	mio_sckhnd_t clisck;
 	mio_sckaddr_t remoteaddr;
 	mio_scklen_t addrlen;
@@ -1294,7 +1300,7 @@ static int accept_incoming_connection (mio_dev_sck_t* rdev)
 			if (errno == EINPROGRESS || errno == EWOULDBLOCK || errno == EAGAIN) return 0;
 			if (errno == EINTR) return 0; /* if interrupted by a signal, treat it as if it's EINPROGRESS */
 
-			rdev->mio->errnum = mio_syserrtoerrnum(errno);
+			rdev->mio_seterrwithsyserr (mio, 0, errno);
 			return -1;
 		 }
 
@@ -1313,7 +1319,7 @@ static int accept_incoming_connection (mio_dev_sck_t* rdev)
 		if (errno == EINPROGRESS || errno == EWOULDBLOCK || errno == EAGAIN) return 0;
 		if (errno == EINTR) return 0; /* if interrupted by a signal, treat it as if it's EINPROGRESS */
 
-		rdev->mio->errnum = mio_syserrtoerrnum(errno);
+		rdev->mio_seterrwithsyserr (mio, 0, errno);
 		return -1;
 	}
 
@@ -1330,7 +1336,7 @@ accept_done:
 		return -1;
 	}
 
-	MIO_ASSERT (clidev->sck == clisck);
+	MIO_ASSERT (mio, clidev->sck == clisck);
 
 	clidev->dev_capa |= MIO_DEV_CAPA_IN | MIO_DEV_CAPA_OUT | MIO_DEV_CAPA_STREAM | MIO_DEV_CAPA_OUT_QUEUED;
 	clidev->remoteaddr = remoteaddr;
@@ -1382,18 +1388,18 @@ accept_done:
 	clidev->on_write = rdev->on_write;
 	clidev->on_read = rdev->on_read;
 
-	MIO_ASSERT (clidev->tmrjob_index == MIO_TMRIDX_INVALID);
+	MIO_ASSERT (mio, clidev->tmrjob_index == MIO_TMRIDX_INVALID);
 
 	if (rdev->ssl_ctx)
 	{
 		MIO_DEV_SCK_SET_PROGRESS (clidev, MIO_DEV_SCK_ACCEPTING_SSL);
-		MIO_ASSERT (clidev->state & MIO_DEV_SCK_ACCEPTING_SSL);
+		MIO_ASSERT (mio, clidev->state & MIO_DEV_SCK_ACCEPTING_SSL);
 		/* actual SSL acceptance must be completed in the client device */
 
 		/* let the client device know the SSL context to use */
 		clidev->ssl_ctx = rdev->ssl_ctx;
 
-		if (mio_ispostime(&rdev->tmout) &&
+		if (MIO_IS_POS_NTIME(&rdev->tmout) &&
 		    schedule_timer_job_after (clidev, &rdev->tmout, ssl_accept_timedout) <= -1)
 		{
 			/* TODO: call a warning/error callback */
@@ -1431,7 +1437,7 @@ static int dev_evcb_sck_ready_stateful (mio_dev_t* dev, int events)
 		}
 		else
 		{
-			rdev->mio->errnum = mio_syserrtoerrnum (errcode);
+			mio_seterrwithsyserr (rdev->mio, 0, errcode);
 		}
 		return -1;
 	}
@@ -1605,7 +1611,7 @@ static int dev_evcb_sck_ready_stateless (mio_dev_t* dev, int events)
 		}
 		else
 		{
-			rdev->mio->errnum = mio_syserrtoerrnum (errcode);
+			mio_seterrwithsyserr (rdev->mio, 0, errcode);
 		}
 		return -1;
 	}

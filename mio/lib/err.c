@@ -26,6 +26,7 @@
 
 #include "mio-prv.h"
 
+/* TODO: this table is wrong. the messages are wrong as of now. fix these... */
 static mio_ooch_t errstr_0[] = {'n','o',' ','e','r','r','o','r','\0'};
 static mio_ooch_t errstr_1[] = {'g','e','n','e','r','i','c',' ','e','r','r','o','r','\0'};
 static mio_ooch_t errstr_2[] = {'n','o','t',' ','i','m','p','l','e','m','e','n','t','e','d','\0'};

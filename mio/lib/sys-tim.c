@@ -47,13 +47,23 @@
 #	include <errno.h>
 #endif
 
+#define MIO_EPOCH_YEAR  (1970)
+#define MIO_EPOCH_MON   (1)
+#define MIO_EPOCH_DAY   (1)
+#define MIO_EPOCH_WDAY  (4)
+
+/* windows specific epoch time */
+#define MIO_EPOCH_YEAR_WIN   (1601)
+#define MIO_EPOCH_MON_WIN    (1)
+#define MIO_EPOCH_DAY_WIN    (1)
+
 #if defined(_WIN32)
 	#define EPOCH_DIFF_YEARS (MIO_EPOCH_YEAR-MIO_EPOCH_YEAR_WIN)
 	#define EPOCH_DIFF_DAYS  ((mio_intptr_t)EPOCH_DIFF_YEARS*365+EPOCH_DIFF_YEARS/4-3)
 	#define EPOCH_DIFF_SECS  ((mio_intptr_t)EPOCH_DIFF_DAYS*24*60*60)
 #endif
 
-void mio_gettime (mio_ntime_t* t)
+void mio_sys_gettime (mio_ntime_t* t)
 {
 #if defined(_WIN32)
 	SYSTEMTIME st;
@@ -97,7 +107,7 @@ void mio_gettime (mio_ntime_t* t)
 	/*bt.msec = dt.hundredths * 10;*/
 	bt.isdst = -1; /* determine dst for me */
 
-	if (mio_timelocal (&bt, t) <= -1) 
+	if (mio_timelocal(&bt, t) <= -1) 
 	{
 		t->sec = time (MIO_NULL);
 		t->nsec = 0;
@@ -126,7 +136,7 @@ void mio_gettime (mio_ntime_t* t)
 	/*bt.msec = dt.hsecond * 10; */
 	bt.isdst = -1; /* determine dst for me */
 
-	if (mio_timelocal (&bt, t) <= -1) 
+	if (mio_timelocal(&bt, t) <= -1) 
 	{
 		t->sec = time (MIO_NULL);
 		t->nsec = 0;
@@ -146,7 +156,7 @@ void mio_gettime (mio_ntime_t* t)
 #elif defined(HAVE_CLOCK_GETTIME) && defined(CLOCK_REALTIME)
 	struct timespec ts;
 
-	if (clock_gettime (CLOCK_REALTIME, &ts) == -1 && errno == EINVAL)
+	if (clock_gettime(CLOCK_REALTIME, &ts) == -1 && errno == EINVAL)
 	{
 	#if defined(HAVE_GETTIMEOFDAY)
 		struct timeval tv;
@@ -172,34 +182,4 @@ void mio_gettime (mio_ntime_t* t)
 	t->sec = time(MIO_NULL);
 	t->nsec = 0;
 #endif
-}
-
-void mio_addtime (const mio_ntime_t* x, const mio_ntime_t* y, mio_ntime_t* z)
-{
-	MIO_ASSERT (x->nsec >= 0 && x->nsec < MIO_NSECS_PER_SEC);
-	MIO_ASSERT (y->nsec >= 0 && y->nsec < MIO_NSECS_PER_SEC);
-
-	z->sec = x->sec + y->sec;
-	z->nsec = x->nsec + y->nsec;
-
-	if (z->nsec >= MIO_NSECS_PER_SEC)
-	{
-		z->sec = z->sec + 1;
-		z->nsec = z->nsec - MIO_NSECS_PER_SEC;
-	}
-}
-
-void mio_subtime (const mio_ntime_t* x, const mio_ntime_t* y, mio_ntime_t* z)
-{
-	MIO_ASSERT (x->nsec >= 0 && x->nsec < MIO_NSECS_PER_SEC);
-	MIO_ASSERT (y->nsec >= 0 && y->nsec < MIO_NSECS_PER_SEC);
-
-	z->sec = x->sec - y->sec;
-	z->nsec = x->nsec - y->nsec;
-
-	if (z->nsec < 0)
-	{
-		z->sec = z->sec - 1;
-		z->nsec = z->nsec + MIO_NSECS_PER_SEC;
-	}
 }

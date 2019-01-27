@@ -74,6 +74,26 @@ static mio_errnum_t errno_to_errnum (int errcode)
 		case EIO: return MIO_EIOERR;
 	#endif
 
+	#if defined(EMFILE)
+		case EMFILE:
+			return MIO_EMFILE;
+	#endif
+
+	#if defined(ENFILE)
+		case ENFILE:
+			return MIO_ENFILE;
+	#endif
+
+	#if defined(ECONNREFUSED)
+		case ECONNREFUSED:
+			return MIO_ECONRF;
+	#endif
+
+	#if defined(ECONNRESETD)
+		case ECONNRESET:
+			return MIO_ECONRS;
+	#endif
+
 		default: return MIO_ESYSERR;
 	}
 }

@@ -137,7 +137,7 @@ static pid_t standard_fork_and_exec (mio_t* mio, int pfds[], int flags, param_t*
 	pid = fork ();
 	if (pid == -1) 
 	{
-		mio->errnum = mio_syserrtoerrnum(errno);
+		mio_seterrwithsyserr (mio, 0, errno);
 		return -1;
 	}
 
@@ -234,7 +234,7 @@ static int dev_pro_make_master (mio_dev_t* dev, void* ctx)
 	{
 		if (pipe(&pfds[0]) == -1)
 		{
-			dev->mio->errnum = mio_syserrtoerrnum(errno);
+			dev->mio_seterrwithsyserr (mio, 0, errno);
 			goto oops;
 		}
 		minidx = 0; maxidx = 1;
@@ -244,7 +244,7 @@ static int dev_pro_make_master (mio_dev_t* dev, void* ctx)
 	{
 		if (pipe(&pfds[2]) == -1)
 		{
-			dev->mio->errnum = mio_syserrtoerrnum(errno);
+			dev->mio_seterrwithsyserr (mio, 0, errno);
 			goto oops;
 		}
 		if (minidx == -1) minidx = 2;
@@ -255,7 +255,7 @@ static int dev_pro_make_master (mio_dev_t* dev, void* ctx)
 	{
 		if (pipe(&pfds[4]) == -1)
 		{
-			dev->mio->errnum = mio_syserrtoerrnum(errno);
+			dev->mio_seterrwithsyserr (mio, 0, errno);
 			goto oops;
 		}
 		if (minidx == -1) minidx = 4;
@@ -508,7 +508,7 @@ static int dev_pro_kill_slave (mio_dev_t* dev, int force)
 		/* indicate EOF */
 		if (master->on_close) master->on_close (master, rdev->id);
 
-		MIO_ASSERT (master->slave_count > 0);
+		MIO_ASSERT (dev->mio, master->slave_count > 0);
 		master->slave_count--;
 
 		if (master->slave[rdev->id])
@@ -550,7 +550,7 @@ static int dev_pro_read_slave (mio_dev_t* dev, void* buf, mio_iolen_t* len, mio_
 	{
 		if (errno == EINPROGRESS || errno == EWOULDBLOCK || errno == EAGAIN) return 0;  /* no data available */
 		if (errno == EINTR) return 0;
-		pro->mio->errnum = mio_syserrtoerrnum(errno);
+		pro->mio_seterrwithsyserr (mio, 0, errno);
 		return -1;
 	}
 
@@ -568,7 +568,7 @@ static int dev_pro_write_slave (mio_dev_t* dev, const void* data, mio_iolen_t* l
 	{
 		if (errno == EINPROGRESS || errno == EWOULDBLOCK || errno == EAGAIN) return 0;  /* no data can be written */
 		if (errno == EINTR) return 0;
-		pro->mio->errnum = mio_syserrtoerrnum(errno);
+		pro->mio_seterrwithsyserr (mio, 0, errno);
 		return -1;
 	}
 
@@ -618,7 +618,7 @@ static int dev_pro_ioctl (mio_dev_t* dev, int cmd, void* arg)
 			{
 				if (kill (rdev->child_pid, SIGKILL) == -1)
 				{
-					rdev->mio->errnum = mio_syserrtoerrnum(errno);
+					rdev->mio_seterrwithsyserr (mio, 0, errno);
 					return -1;
 				}
 			}
