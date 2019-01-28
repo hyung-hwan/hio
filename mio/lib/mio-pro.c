@@ -714,19 +714,19 @@ static int pro_ready_slave (mio_dev_t* dev, int events)
 static int pro_on_read_slave_out (mio_dev_t* dev, const void* data, mio_iolen_t len, const mio_devaddr_t* srcaddr)
 {
 	mio_dev_pro_slave_t* pro = (mio_dev_pro_slave_t*)dev;
-	return pro->master->on_read (pro->master, data, len, MIO_DEV_PRO_OUT);
+	return pro->master->on_read(pro->master, data, len, MIO_DEV_PRO_OUT);
 }
 
 static int pro_on_read_slave_err (mio_dev_t* dev, const void* data, mio_iolen_t len, const mio_devaddr_t* srcaddr)
 {
 	mio_dev_pro_slave_t* pro = (mio_dev_pro_slave_t*)dev;
-	return pro->master->on_read (pro->master, data, len, MIO_DEV_PRO_ERR);
+	return pro->master->on_read(pro->master, data, len, MIO_DEV_PRO_ERR);
 }
 
 static int pro_on_write_slave (mio_dev_t* dev, mio_iolen_t wrlen, void* wrctx, const mio_devaddr_t* dstaddr)
 {
 	mio_dev_pro_slave_t* pro = (mio_dev_pro_slave_t*)dev;
-	return pro->master->on_write (pro->master, wrlen, wrctx);
+	return pro->master->on_write(pro->master, wrlen, wrctx);
 }
 
 static mio_dev_evcb_t dev_pro_event_callbacks_slave_in =
@@ -772,7 +772,7 @@ static mio_dev_pro_slave_t* make_slave (mio_t* mio, slave_info_t* si)
 				&dev_pro_methods_slave, &dev_pro_event_callbacks_slave_err, si);
 
 		default:
-			mio->errnum = MIO_EINVAL;
+			mio_seterrnum (mio, MIO_EINVAL);
 			return MIO_NULL;
 	}
 }
@@ -797,7 +797,7 @@ int mio_dev_pro_write (mio_dev_pro_t* dev, const void* data, mio_iolen_t dlen, v
 	}
 	else
 	{
-		dev->mio->errnum = MIO_ENOCAPA; /* TODO: is it the right error number? */
+		mio_seterrnum (dev->mio, MIO_ENOCAPA); /* TODO: is it the right error number? */
 		return -1;
 	}
 }
@@ -810,19 +810,19 @@ int mio_dev_pro_timedwrite (mio_dev_pro_t* dev, const void* data, mio_iolen_t dl
 	}
 	else
 	{
-		dev->mio->errnum = MIO_ENOCAPA; /* TODO: is it the right error number? */
+		mio_seterrnum (dev->mio, MIO_ENOCAPA); /* TODO: is it the right error number? */
 		return -1;
 	}
 }
 
 int mio_dev_pro_close (mio_dev_pro_t* dev, mio_dev_pro_sid_t sid)
 {
-	return mio_dev_ioctl ((mio_dev_t*)dev, MIO_DEV_PRO_CLOSE, &sid);
+	return mio_dev_ioctl((mio_dev_t*)dev, MIO_DEV_PRO_CLOSE, &sid);
 }
 
 int mio_dev_pro_killchild (mio_dev_pro_t* dev)
 {
-	return mio_dev_ioctl ((mio_dev_t*)dev, MIO_DEV_PRO_KILL_CHILD, MIO_NULL);
+	return mio_dev_ioctl((mio_dev_t*)dev, MIO_DEV_PRO_KILL_CHILD, MIO_NULL);
 }
 
 #if 0

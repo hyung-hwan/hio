@@ -47,7 +47,7 @@
 #if defined(MIO_BUILD_RELEASE)
 #	define MIO_ASSERT(mio,expr) ((void)0)
 #else
-#	define MIO_ASSERT(mio,expr) ((void)((expr) || mio_sys_assertfail(mio, #expr, __FILE__, __LINE__), 0)))
+#	define MIO_ASSERT(mio,expr) ((void)((expr) || (mio_sys_assertfail(mio, #expr, __FILE__, __LINE__), 0)))
 #endif
 
 
@@ -152,7 +152,7 @@ mio_errnum_t mio_sys_syserrstrb (
 
 
 
-void mio_sys_initlog (
+int mio_sys_initlog (
 	mio_t*            mio
 );
 

@@ -71,6 +71,8 @@
 #	include <sys/types.h>
 #	include <unistd.h>
 #	include <errno.h>
+#	include <signal.h>
+#	include <stdlib.h>
 #endif
 
 #if defined(MIO_BUILD_RELEASE)

@@ -517,16 +517,14 @@ static int put_errcs (mio_t* mio, mio_bitmask_t mask, const mio_ooch_t* ptr, mio
 }
 
 
-static mio_ooi_t __errbfmtv (mio_t* mio, mio_bitmask_t mask, const mio_bch_t* fmt, ...);
-
 static int _errbfmtv (mio_t* mio, const mio_bch_t* fmt, mio_fmtout_data_t* data, va_list ap)
 {
-	return __logbfmtv (mio, fmt, data, ap);
+	return __logbfmtv(mio, fmt, data, ap);
 }
 
 static int _errufmtv (mio_t* mio, const mio_uch_t* fmt, mio_fmtout_data_t* data, va_list ap)
 {
-	return __logufmtv (mio, fmt, data, ap);
+	return __logufmtv(mio, fmt, data, ap);
 }
 
 void mio_seterrbfmt (mio_t* mio, mio_errnum_t errnum, const mio_bch_t* fmt, ...)
@@ -650,8 +648,6 @@ static int put_sprch (mio_t* mio, mio_bitmask_t mask, mio_ooch_t ch, mio_oow_t l
 
 	return 1; /* success */
 }
-
-static mio_ooi_t __sprbfmtv (mio_t* mio, mio_bitmask_t mask, const mio_bch_t* fmt, ...);
 
 static int _sprbfmtv (mio_t* mio, const mio_bch_t* fmt, mio_fmtout_data_t* data, va_list ap)
 {

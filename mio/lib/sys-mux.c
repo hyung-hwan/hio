@@ -86,11 +86,10 @@ void mio_sys_finimux (mio_t* mio)
 
 int mio_sys_ctrlmux (mio_t* mio, mio_sys_mux_cmd_t cmd, mio_dev_t* dev, int dev_capa)
 {
-	mio_t* mio;
+	mio_t* mio = dev->mio;
 	mio_sys_mux_t* mux;
 	mio_oow_t idx;
 
-	mio = dev->mio;
 	mux = (mio_sys_mux_t*)mio->sys.mux;
 
 	if (hnd >= mux->map.capa)
@@ -372,9 +371,10 @@ int mio_sys_waitmux (mio_t* mio, const mio_ntime_t* tmout, mio_sys_mux_evtcb_t e
 
 		event_handler (mio, dev, events, rdhup);
 	}
-
 #else
 
 #	error NO SUPPORTED MULTIPLEXER
 #endif
+
+	return 0;
 }

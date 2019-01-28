@@ -976,6 +976,31 @@ MIO_EXPORT mio_bch_t* mio_dupbchars (
 	mio_oow_t        bcslen
 );
 
+
+/* =========================================================================
+ * MIO VM LOGGING
+ * ========================================================================= */
+
+MIO_EXPORT mio_ooi_t mio_logbfmt (
+	mio_t*           mio,
+	mio_bitmask_t    mask,
+	const mio_bch_t* fmt,
+	...
+);
+
+MIO_EXPORT mio_ooi_t mio_logufmt (
+	mio_t*            mio,
+	mio_bitmask_t     mask,
+	const mio_uch_t*  fmt,
+	...
+);
+ 
+#if defined(MIO_OOCH_IS_UCH)
+#	define mio_logoofmt mio_logufmt
+#else
+#	define mio_logoofmt mio_logbfmt
+#endif
+
 /* =========================================================================
  * MISCELLANEOUS HELPER FUNCTIONS
  * ========================================================================= */
