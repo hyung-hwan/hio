@@ -81,21 +81,18 @@
 
 struct mio_sys_log_t
 {
+	int fd;
+	int fd_flag; /* bitwise OR'ed fo logfd_flag_t bits */
+
 	struct
 	{
-		int fd;
-		int fd_flag; /* bitwise OR'ed fo logfd_flag_t bits */
-
-		struct
-		{
-			mio_bch_t buf[4096];
-			mio_oow_t len;
-		} out;
-	} log;
+		mio_bch_t buf[4096];
+		mio_oow_t len;
+	} out;
 };
 
 typedef mio_sys_log_t xtn_t;
-#define GET_XTN(mio) (&(mio)->sys.log)
+#define GET_XTN(mio) ((mio)->sys.log)
 
 
 enum logfd_flag_t
@@ -140,27 +137,27 @@ static int write_all (int fd, const mio_bch_t* ptr, mio_oow_t len)
 
 static int write_log (mio_t* mio, int fd, const mio_bch_t* ptr, mio_oow_t len)
 {
-	xtn_t* xtn = GET_XTN(mio);
+	mio_sys_log_t* log = mio->sys.log;
 
 	while (len > 0)
 	{
-		if (xtn->log.out.len > 0)
+		if (log->out.len > 0)
 		{
 			mio_oow_t rcapa, cplen;
 
-			rcapa = MIO_COUNTOF(xtn->log.out.buf) - xtn->log.out.len;
+			rcapa = MIO_COUNTOF(log->out.buf) - log->out.len;
 			cplen = (len >= rcapa)? rcapa: len;
 
-			MIO_MEMCPY (&xtn->log.out.buf[xtn->log.out.len], ptr, cplen);
-			xtn->log.out.len += cplen;
+			MIO_MEMCPY (&log->out.buf[log->out.len], ptr, cplen);
+			log->out.len += cplen;
 			ptr += cplen;
 			len -= cplen;
 
-			if (xtn->log.out.len >= MIO_COUNTOF(xtn->log.out.buf))
+			if (log->out.len >= MIO_COUNTOF(log->out.buf))
 			{
 				int n;
-				n = write_all(fd, xtn->log.out.buf, xtn->log.out.len);
-				xtn->log.out.len = 0;
+				n = write_all(fd, log->out.buf, log->out.len);
+				log->out.len = 0;
 				if (n <= -1) return -1;
 			}
 		}
@@ -168,7 +165,7 @@ static int write_log (mio_t* mio, int fd, const mio_bch_t* ptr, mio_oow_t len)
 		{
 			mio_oow_t rcapa;
 
-			rcapa = MIO_COUNTOF(xtn->log.out.buf);
+			rcapa = MIO_COUNTOF(log->out.buf);
 			if (len >= rcapa)
 			{
 				if (write_all(fd, ptr, rcapa) <= -1) return -1;
@@ -177,8 +174,8 @@ static int write_log (mio_t* mio, int fd, const mio_bch_t* ptr, mio_oow_t len)
 			}
 			else
 			{
-				MIO_MEMCPY (xtn->log.out.buf, ptr, len);
-				xtn->log.out.len += len;
+				MIO_MEMCPY (log->out.buf, ptr, len);
+				log->out.len += len;
 				ptr += len;
 				len -= len;
 				
@@ -191,37 +188,31 @@ static int write_log (mio_t* mio, int fd, const mio_bch_t* ptr, mio_oow_t len)
 
 static void flush_log (mio_t* mio, int fd)
 {
-	xtn_t* xtn = GET_XTN(mio);
-	if (xtn->log.out.len > 0)
+	mio_sys_log_t* log = mio->sys.log;
+	if (log->out.len > 0)
 	{
-		write_all (fd, xtn->log.out.buf, xtn->log.out.len);
-		xtn->log.out.len = 0;
+		write_all (fd, log->out.buf, log->out.len);
+		log->out.len = 0;
 	}
 }
 
 void mio_sys_writelog (mio_t* mio, mio_bitmask_t mask, const mio_ooch_t* msg, mio_oow_t len)
 {
-	xtn_t* xtn = GET_XTN(mio);
+	mio_sys_log_t* log = mio->sys.log;
 	mio_bch_t buf[256];
 	mio_oow_t ucslen, bcslen, msgidx;
 	int n, logfd;
 
 	if (mask & MIO_LOG_STDERR)
 	{
-		/* the messages that go to STDERR don't get masked out */
 		logfd = 2;
 	}
 	else
 	{
-#if 0
-		if (!(xtn->log.mask & mask & ~MIO_LOG_ALL_LEVELS)) return;  /* check log types */
-		if (!(xtn->log.mask & mask & ~MIO_LOG_ALL_TYPES)) return;  /* check log levels */
-#endif
-
 		if (mask & MIO_LOG_STDOUT) logfd = 1;
 		else
 		{
-			logfd = xtn->log.fd;
+			logfd = log->fd;
 			if (logfd <= -1) return;
 		}
 	}
@@ -285,7 +276,7 @@ void mio_sys_writelog (mio_t* mio, mio_bitmask_t mask, const mio_ooch_t* msg, mi
 		write_log (mio, logfd, ts, tslen);
 	}
 
-	if (logfd == xtn->log.fd && (xtn->log.fd_flag & LOGFD_TTY))
+	if (logfd == log->fd && (log->fd_flag & LOGFD_TTY))
 	{
 		if (mask & MIO_LOG_FATAL) write_log (mio, logfd, "\x1B[1;31m", 7);
 		else if (mask & MIO_LOG_ERROR) write_log (mio, logfd, "\x1B[1;32m", 7);
@@ -330,7 +321,7 @@ void mio_sys_writelog (mio_t* mio, mio_bitmask_t mask, const mio_ooch_t* msg, mi
 	write_log (mio, logfd, msg, len);
 #endif
 
-	if (logfd == xtn->log.fd && (xtn->log.fd_flag & LOGFD_TTY))
+	if (logfd == log->fd && (log->fd_flag & LOGFD_TTY))
 	{
 		if (mask & (MIO_LOG_FATAL | MIO_LOG_ERROR | MIO_LOG_WARN)) write_log (mio, logfd, "\x1B[0m", 4);
 	}
@@ -338,51 +329,51 @@ void mio_sys_writelog (mio_t* mio, mio_bitmask_t mask, const mio_ooch_t* msg, mi
 	flush_log (mio, logfd);
 }
 
-static MIO_INLINE void reset_log_to_default (xtn_t* xtn)
+int mio_sys_initlog (mio_t* mio)
 {
-#if defined(ENABLE_LOG_INITIALLY)
-	xtn->log.fd = 2;
-	xtn->log.fd_flag = 0;
-	#if defined(HAVE_ISATTY)
-	if (isatty(xtn->log.fd)) xtn->log.fd_flag |= LOGFD_TTY;
-	#endif
-#else
-	xtn->log.fd = -1;
-	xtn->log.fd_flag = 0;
-#endif
-}
-
-void mio_sys_initlog (mio_t* mio)
-{
-	xtn_t* xtn = GET_XTN(mio);
+	mio_sys_log_t* log;
 	mio_bitmask_t logmask;
-	mio_oow_t pathlen;
+	/*mio_oow_t pathlen;*/
+
+	log = (mio_sys_log_t*)mio_callocmem(mio, MIO_SIZEOF(*log));
+	if (!log) return -1;
 
 /* TODO: */
 #define LOG_FILE "/dev/stderr"
-	xtn->log.fd = open(LOG_FILE, O_CREAT | O_WRONLY | O_APPEND , 0644);
-	if (xtn->log.fd == -1)
+	log->fd = open(LOG_FILE, O_CREAT | O_WRONLY | O_APPEND , 0644);
+	if (log->fd == -1)
 	{
 		/*mio_seterrbfmtwithsyserr (mio, 0, errno, "cannot open log file %hs", LOG_FILE);*/
-		xtn->log.fd = 2;
-		xtn->log.fd_flag = 0;
+		log->fd = 2;
+		log->fd_flag = 0;
 	}
 	else
 	{
-		xtn->log.fd_flag |= LOGFD_OPENED_HERE;
+		log->fd_flag |= LOGFD_OPENED_HERE;
 	}
 
 #if defined(HAVE_ISATTY)
-	if (isatty(xtn->log.fd)) xtn->log.fd_flag |= LOGFD_TTY;
+	if (isatty(log->fd)) log->fd_flag |= LOGFD_TTY;
 #endif
 
 	logmask = MIO_LOG_ALL_TYPES | MIO_LOG_ALL_LEVELS;
 	mio_setoption (mio, MIO_LOG_MASK, &logmask);
+
+	mio->sys.log = log;
+	return 0;
 }
 
 void mio_sys_finilog (mio_t* mio)
 {
-	xtn_t* xtn = GET_XTN(mio);
-	if ((xtn->log.fd_flag & LOGFD_OPENED_HERE) && xtn->log.fd >= 0) close (xtn->log.fd);
-	reset_log_to_default (xtn);
+	mio_sys_log_t* log = mio->sys.log;
+
+	if ((log->fd_flag & LOGFD_OPENED_HERE) && log->fd >= 0) 
+	{
+		close (log->fd);
+		log->fd = -1;
+		log->fd_flag = 0;
+	}
+
+	mio_freemem (mio, log);
+	mio->sys.log = MIO_NULL;
 }

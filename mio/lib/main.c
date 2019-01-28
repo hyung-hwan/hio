@@ -174,7 +174,10 @@ static void tcp_sck_on_connect (mio_dev_sck_t* tcp)
 
 	if (tcp->state & MIO_DEV_SCK_CONNECTED)
 	{
-printf ("DEVICE connected to a remote server... LOCAL %s:%d REMOTE %s:%d.", buf1, mio_getsckaddrport(&tcp->localaddr), buf2, mio_getsckaddrport(&tcp->remoteaddr));
+		mio_logbfmt (tcp->mio, MIO_LOG_UNTYPED | MIO_LOG_INFO, "DEVICE connected to a remote server... LOCAL %hs:%d REMOTE %hs:%d.", 
+			buf1, mio_getsckaddrport(&tcp->localaddr), buf2, mio_getsckaddrport(&tcp->remoteaddr));
+printf ("DEVICE connected to a remote server... LOCAL %s:%d REMOTE %s:%d.", 
+			buf1, mio_getsckaddrport(&tcp->localaddr), buf2, mio_getsckaddrport(&tcp->remoteaddr));
 	}
 	else if (tcp->state & MIO_DEV_SCK_ACCEPTED)
 	{

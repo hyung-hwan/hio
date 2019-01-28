@@ -105,12 +105,12 @@ int mio_init (mio_t* mio, mio_mmgr_t* mmgr, mio_cmgr_t* cmgr, mio_oow_t tmrcapa)
 	if (!mio->log.ptr) goto oops;
 
 	/* inititalize the system-side logging */
-	mio_sys_initlog (mio);
+	if (mio_sys_initlog (mio) <= -1) goto oops;
 	sys_log_inited = 1;
 
 	/* intialize the multiplexer object */
 	if (mio_sys_initmux(mio) <= -1) goto oops;
-	sys_mux_inited = 0;
+	sys_mux_inited = 1;
 
 	/* initialize the timer object */
 	if (tmrcapa <= 0) tmrcapa = 1;
@@ -150,7 +150,7 @@ void mio_fini (mio_t* mio)
 		while ((cwq = mio->cwqfl[i]))
 		{
 			mio->cwqfl[i] = cwq->next;
-			MIO_MMGR_FREE (mio->mmgr, cwq);
+			mio_freemem (mio, cwq);
 		}
 	}
 
@@ -201,10 +201,12 @@ void mio_fini (mio_t* mio)
 
 	/* purge scheduled timer jobs and kill the timer */
 	mio_cleartmrjobs (mio);
-	MIO_MMGR_FREE (mio->mmgr, mio->tmr.jobs);
+	mio_freemem (mio, mio->tmr.jobs);
 
 	mio_sys_finimux (mio); /* close the multiplexer */
 	mio_sys_finilog (mio); /* close the system logger */
+
+	mio_freemem (mio, mio->log.ptr);
 }
 
 int mio_setoption (mio_t* mio, mio_option_t id, const void* value)
@@ -224,7 +226,6 @@ int mio_setoption (mio_t* mio, mio_option_t id, const void* value)
 			return 0;
 	}
 
-einval:
 	mio_seterrnum (mio, MIO_EINVAL);
 	return -1;
 }
@@ -358,7 +359,7 @@ static MIO_INLINE void handle_event (mio_t* mio, mio_dev_t* dev, int events, int
 
 					unlink_wq (mio, q);
 					y = dev->dev_evcb->on_write(dev, q->olen, q->ctx, &q->dstaddr);
-					MIO_MMGR_FREE (mio->mmgr, q);
+					mio_freemem (mio, q);
 
 					if (y <= -1)
 					{
@@ -375,7 +376,7 @@ static MIO_INLINE void handle_event (mio_t* mio, mio_dev_t* dev, int events, int
 						{
 							q = MIO_WQ_HEAD(&dev->wq);
 							unlink_wq (mio, q);
-							MIO_MMGR_FREE (dev->mio->mmgr, q);
+							mio_freemem (mio, q);
 						}
 						break;
 					}
@@ -563,7 +564,7 @@ static MIO_INLINE int __exec (mio_t* mio)
 		else
 		{
 			/* TODO: more reuse of objects of different size? */
-			MIO_MMGR_FREE (mio->mmgr, cwq);
+			mio_freemem (mio, cwq);
 		}
 	}
 
@@ -640,14 +641,9 @@ mio_dev_t* mio_makedev (mio_t* mio, mio_oow_t dev_size, mio_dev_mth_t* dev_mth, 
 		return MIO_NULL;
 	}
 
-	dev = MIO_MMGR_ALLOC(mio->mmgr, dev_size);
-	if (!dev)
-	{
-		mio->errnum = MIO_ESYSMEM;
-		return MIO_NULL;
-	}
+	dev = mio_callocmem(mio, dev_size);
+	if (!dev) return MIO_NULL;
 
-	MIO_MEMSET (dev, 0, dev_size);
 	dev->mio = mio;
 	dev->dev_size = dev_size;
 	/* default capability. dev->dev_mth->make() can change this.
@@ -661,10 +657,10 @@ mio_dev_t* mio_makedev (mio_t* mio, mio_oow_t dev_size, mio_dev_mth_t* dev_mth, 
 	dev->cw_count = 0;
 
 	/* call the callback function first */
-	mio->errnum = MIO_ENOERR;
+	mio_seterrnum (mio, MIO_ENOERR);
 	if (dev->dev_mth->make(dev, make_ctx) <= -1)
 	{
-		if (mio->errnum == MIO_ENOERR) mio->errnum = MIO_EDEVMAKE;
+		if (mio->errnum == MIO_ENOERR) mio_seterrnum (mio, MIO_EDEVMAKE);
 		goto oops;
 	}
 
@@ -723,18 +719,17 @@ oops_after_make:
 	}
 
 oops:
-	MIO_MMGR_FREE (mio->mmgr, dev);
+	mio_freemem (mio, dev);
 	return MIO_NULL;
 }
 
 static int kill_and_free_device (mio_dev_t* dev, int force)
 {
-	mio_t* mio;
+	mio_t* mio = dev->mio;
 
 	MIO_ASSERT (mio, !(dev->dev_capa & MIO_DEV_CAPA_ACTIVE));
 	MIO_ASSERT (mio, !(dev->dev_capa & MIO_DEV_CAPA_HALTED));
 
-	mio = dev->mio;
 
 	if (dev->dev_mth->kill(dev, force) <= -1) 
 	{
@@ -757,7 +752,7 @@ free_device:
 		dev->dev_capa &= ~MIO_DEV_CAPA_ZOMBIE;
 	}
 
-	MIO_MMGR_FREE (mio->mmgr, dev);
+	mio_freemem (mio, dev);
 	return 0;
 }
 
@@ -833,7 +828,7 @@ void mio_killdev (mio_t* mio, mio_dev_t* dev)
 			if (cwq->dev == dev)
 			{
 				MIO_CWQ_UNLINK (cwq);
-				MIO_MMGR_FREE (mio->mmgr, cwq);
+				mio_freemem (mio, cwq);
 			}
 			cwq = next;
 		}
@@ -845,7 +840,7 @@ void mio_killdev (mio_t* mio, mio_dev_t* dev)
 		mio_wq_t* q;
 		q = MIO_WQ_HEAD(&dev->wq);
 		unlink_wq (mio, q);
-		MIO_MMGR_FREE (mio->mmgr, q);
+		mio_freemem (mio, q);
 	}
 
 	if (dev->dev_capa & MIO_DEV_CAPA_HALTED)
@@ -888,12 +883,10 @@ kill_device:
 
 void mio_dev_halt (mio_dev_t* dev)
 {
+	mio_t* mio = dev->mio;
+
 	if (dev->dev_capa & MIO_DEV_CAPA_ACTIVE)
 	{
-		mio_t* mio;
-
-		mio = dev->mio;
-
 		/* delink the device object from the active device list */
 		UNLINK_DEVICE_FROM_LIST (&mio->actdev, dev);
 		dev->dev_capa &= ~MIO_DEV_CAPA_ACTIVE;
@@ -906,9 +899,15 @@ void mio_dev_halt (mio_dev_t* dev)
 
 int mio_dev_ioctl (mio_dev_t* dev, int cmd, void* arg)
 {
-	if (dev->dev_mth->ioctl) return dev->dev_mth->ioctl (dev, cmd, arg);
-	dev->mio->errnum = MIO_ENOIMPL; /* TODO: different error code ? */
-	return -1;
+	mio_t* mio = dev->mio;
+
+	if (MIO_UNLIKELY(!dev->dev_mth->ioctl))
+	{
+		mio_seterrnum (mio, MIO_ENOIMPL);  /* TODO: different error code ? */
+		return -1;
+	}
+
+	return dev->dev_mth->ioctl(dev, cmd, arg);
 }
 
 int mio_dev_watch (mio_dev_t* dev, mio_dev_watch_cmd_t cmd, int events)
@@ -1108,13 +1107,14 @@ static void on_write_timeout (mio_t* mio, const mio_ntime_t* now, mio_tmrjob_t* 
 
 	MIO_ASSERT (mio, q->tmridx == MIO_TMRIDX_INVALID);
 	MIO_WQ_UNLINK(q);
-	MIO_MMGR_FREE (mio->mmgr, q);
+	mio_freemem (mio, q);
 
 	if (x <= -1) mio_dev_halt (dev);
 }
 
 static int __dev_write (mio_dev_t* dev, const void* data, mio_iolen_t len, const mio_ntime_t* tmout, void* wrctx, const mio_devaddr_t* dstaddr)
 {
+	mio_t* mio = dev->mio;
 	const mio_uint8_t* uptr;
 	mio_iolen_t urem, ulen;
 	mio_wq_t* q;
@@ -1124,7 +1124,7 @@ static int __dev_write (mio_dev_t* dev, const void* data, mio_iolen_t len, const
 
 	if (dev->dev_capa & MIO_DEV_CAPA_OUT_CLOSED)
 	{
-		dev->mio->errnum = MIO_ENOCAPA;
+		mio_seterrbfmt (mio, MIO_ENOCAPA, "unable to write to closed device");
 		return -1;
 	}
 
@@ -1181,7 +1181,7 @@ static int __dev_write (mio_dev_t* dev, const void* data, mio_iolen_t len, const
 	{
 		ulen = urem;
 
-		x = dev->dev_mth->write (dev, data, &ulen, dstaddr);
+		x = dev->dev_mth->write(dev, data, &ulen, dstaddr);
 		if (x <= -1) return -1;
 		else if (x == 0) goto enqueue_data;
 
@@ -1204,12 +1204,8 @@ enqueue_data:
 	}
 
 	/* queue the remaining data*/
-	q = (mio_wq_t*)MIO_MMGR_ALLOC(dev->mio->mmgr, MIO_SIZEOF(*q) + (dstaddr? dstaddr->len: 0) + urem);
-	if (!q)
-	{
-		dev->mio->errnum = MIO_ESYSMEM;
-		return -1;
-	}
+	q = (mio_wq_t*)mio_allocmem(mio, MIO_SIZEOF(*q) + (dstaddr? dstaddr->len: 0) + urem);
+	if (!q) return -1;
 
 	q->tmridx = MIO_TMRIDX_INVALID;
 	q->dev = dev;
@@ -1242,10 +1238,10 @@ enqueue_data:
 		tmrjob.handler = on_write_timeout;
 		tmrjob.idxptr = &q->tmridx;
 
-		q->tmridx = mio_instmrjob(dev->mio, &tmrjob);
+		q->tmridx = mio_instmrjob(mio, &tmrjob);
 		if (q->tmridx == MIO_TMRIDX_INVALID) 
 		{
-			MIO_MMGR_FREE (dev->mio->mmgr, q);
+			mio_freemem (mio, q);
 			return -1;
 		}
 	}
@@ -1256,8 +1252,8 @@ enqueue_data:
 		/* if output is not being watched, arrange to do so */
 		if (mio_dev_watch(dev, MIO_DEV_WATCH_RENEW, 0) <= -1)
 		{
-			unlink_wq (dev->mio, q);
-			MIO_MMGR_FREE (dev->mio->mmgr, q);
+			unlink_wq (mio, q);
+			mio_freemem (mio, q);
 			return -1;
 		}
 	}
@@ -1274,7 +1270,7 @@ enqueue_completed_write:
 	cwq_extra_aligned = MIO_ALIGN_POW2(cwq_extra_aligned, MIO_CWQFL_ALIGN);
 	cwqfl_index = cwq_extra_aligned / MIO_CWQFL_SIZE;
 
-	if (cwqfl_index < MIO_COUNTOF(dev->mio->cwqfl) && dev->mio->cwqfl[cwqfl_index])
+	if (cwqfl_index < MIO_COUNTOF(mio->cwqfl) && mio->cwqfl[cwqfl_index])
 	{
 		/* take an available cwq object from the free cwq list */
 		cwq = dev->mio->cwqfl[cwqfl_index];
@@ -1282,12 +1278,8 @@ enqueue_completed_write:
 	}
 	else
 	{
-		cwq = (mio_cwq_t*)MIO_MMGR_ALLOC(dev->mio->mmgr, MIO_SIZEOF(*cwq) + cwq_extra_aligned);
-		if (!cwq)
-		{
-			dev->mio->errnum = MIO_ESYSMEM;
-			return -1;
-		}
+		cwq = (mio_cwq_t*)mio_allocmem(mio, MIO_SIZEOF(*cwq) + cwq_extra_aligned);
+		if (!cwq) return -1;
 	}
 
 	MIO_MEMSET (cwq, 0, MIO_SIZEOF(*cwq));
@@ -1335,7 +1327,7 @@ int mio_makesyshndasync (mio_t* mio, mio_syshnd_t hnd)
 
 	return 0;
 #else
-	mio->errnum = MIO_ENOIMPL;
+	mio_seterrnum (mio, MIO_ENOIMPL);
 	return -1;
 #endif
 }

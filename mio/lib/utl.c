@@ -39,12 +39,8 @@ mio_bch_t* mio_mbsdup (mio_t* mio, const mio_bch_t* src)
 	while (*dst != MIO_MT('\0')) dst++;
 	len = dst - src;
 
-	dst = MIO_MMGR_ALLOC (mio->mmgr, (len + 1) * MIO_SIZEOF(*src));
-	if (!dst)
-	{
-		mio->errnum = MIO_ESYSMEM;
-		return MIO_NULL;
-	}
+	dst = mio_allocmem(mio, (len + 1) * MIO_SIZEOF(*src));
+	if (!dst) return MIO_NULL;
 
 	MIO_MEMCPY (dst, src, (len + 1) * MIO_SIZEOF(*src));
 	return dst;

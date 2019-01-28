@@ -139,12 +139,8 @@ mio_tmridx_t mio_instmrjob (mio_t* mio, const mio_tmrjob_t* job)
 
 		MIO_ASSERT (mio, mio->tmr.capa >= 1);
 		new_capa = mio->tmr.capa * 2;
-		tmp = (mio_tmrjob_t*)MIO_MMGR_REALLOC (mio->mmgr, mio->tmr.jobs, new_capa * MIO_SIZEOF(*tmp));
-		if (tmp == MIO_NULL) 
-		{
-			mio->errnum = MIO_ESYSMEM;
-			return MIO_TMRIDX_INVALID;
-		}
+		tmp = (mio_tmrjob_t*)mio_reallocmem(mio, mio->tmr.jobs, new_capa * MIO_SIZEOF(*tmp));
+		if (!tmp) return MIO_TMRIDX_INVALID;
 
 		mio->tmr.jobs = tmp;
 		mio->tmr.capa = new_capa;
@@ -153,7 +149,7 @@ mio_tmridx_t mio_instmrjob (mio_t* mio, const mio_tmrjob_t* job)
 	mio->tmr.size = mio->tmr.size + 1;
 	mio->tmr.jobs[index] = *job;
 	if (mio->tmr.jobs[index].idxptr) *mio->tmr.jobs[index].idxptr = index;
-	return sift_up (mio, index, 0);
+	return sift_up(mio, index, 0);
 }
 
 mio_tmridx_t mio_updtmrjob (mio_t* mio, mio_tmridx_t index, const mio_tmrjob_t* job)
@@ -196,7 +192,7 @@ int mio_gettmrtmout (mio_t* mio, const mio_ntime_t* tm, mio_ntime_t* tmout)
 	/* time-out can't be calculated when there's no job scheduled */
 	if (mio->tmr.size <= 0) 
 	{
-		mio->errnum = MIO_ENOENT;
+		mio_seterrbfmt (mio, MIO_ENOENT, "unable to compute timeout as no job is scheduled");
 		return -1;
 	}
 
@@ -214,7 +210,7 @@ mio_tmrjob_t* mio_gettmrjob (mio_t* mio, mio_tmridx_t index)
 {
 	if (index < 0 || index >= mio->tmr.size)
 	{
-		mio->errnum = MIO_ENOENT;
+		mio_seterrbfmt (mio, MIO_ENOENT, "unable to get timer job as the given index is out of range");
 		return MIO_NULL;
 	}
 
@@ -225,7 +221,7 @@ int mio_gettmrjobdeadline (mio_t* mio, mio_tmridx_t index, mio_ntime_t* deadline
 {
 	if (index < 0 || index >= mio->tmr.size)
 	{
-		mio->errnum = MIO_ENOENT;
+		mio_seterrbfmt (mio, MIO_ENOENT, "unable to get timer job deadline as the given index is out of range");
 		return -1;
 	}
 

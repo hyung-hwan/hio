@@ -344,7 +344,7 @@ TODO
 					const char_t* stmp = p;
 					unsigned int index;
 					do p++; while (p < end);
-					if (mio_nwifwcsntoindex (stmp, p - stmp, &index) <= -1) return -1;
+					if (mio_nwifwcsntoindex(stmp, p - stmp, &index) <= -1) return -1;
 					nwad->in6.sin6_scope_id = index;
 #endif
 				}
