@@ -912,6 +912,7 @@ int mio_dev_ioctl (mio_dev_t* dev, int cmd, void* arg)
 
 int mio_dev_watch (mio_dev_t* dev, mio_dev_watch_cmd_t cmd, int events)
 {
+	mio_t* mio = dev->mio;
 	int mux_cmd;
 	int dev_capa;
 
@@ -1003,24 +1004,26 @@ static void on_read_timeout (mio_t* mio, const mio_ntime_t* now, mio_tmrjob_t* j
 
 static int __dev_read (mio_dev_t* dev, int enabled, const mio_ntime_t* tmout, void* rdctx)
 {
+	mio_t* mio = dev->mio;
+
 	if (dev->dev_capa & MIO_DEV_CAPA_IN_CLOSED)
 	{
-		dev->mio->errnum = MIO_ENOCAPA;
+		mio_seterrbfmt (mio, MIO_ENOCAPA, "unable to read closed device");
 		return -1;
 	}
 
 	if (enabled)
 	{
 		dev->dev_capa &= ~MIO_DEV_CAPA_IN_DISABLED;
-		if (!dev->mio->in_exec && (dev->dev_capa & MIO_DEV_CAPA_IN_WATCHED)) goto renew_watch_now;
+		if (/*!mio->in_exec && */!(dev->dev_capa & MIO_DEV_CAPA_IN_WATCHED)) goto renew_watch_now;
 	}
 	else
 	{
 		dev->dev_capa |= MIO_DEV_CAPA_IN_DISABLED;
-		if (!dev->mio->in_exec && !(dev->dev_capa & MIO_DEV_CAPA_IN_WATCHED)) goto renew_watch_now;
+		if (/*!mio->in_exec && */(dev->dev_capa & MIO_DEV_CAPA_IN_WATCHED)) goto renew_watch_now;
 	}
 
-	dev->mio->renew_watch = 1;
+	mio->renew_watch = 1;
 	goto update_timer;
 
 renew_watch_now:
@@ -1031,7 +1034,7 @@ update_timer:
 	if (dev->rtmridx != MIO_TMRIDX_INVALID)
 	{
 		/* read timeout already on the socket. remove it first */
-		mio_deltmrjob (dev->mio, dev->rtmridx);
+		mio_deltmrjob (mio, dev->rtmridx);
 		dev->rtmridx = MIO_TMRIDX_INVALID;
 	}
 
@@ -1046,7 +1049,7 @@ update_timer:
 		tmrjob.handler = on_read_timeout;
 		tmrjob.idxptr = &dev->rtmridx;
 
-		dev->rtmridx = mio_instmrjob(dev->mio, &tmrjob);
+		dev->rtmridx = mio_instmrjob(mio, &tmrjob);
 		if (dev->rtmridx == MIO_TMRIDX_INVALID) 
 		{
 			/* if timer registration fails, timeout will never be triggered */
@@ -1060,32 +1063,6 @@ update_timer:
 int mio_dev_read (mio_dev_t* dev, int enabled)
 {
 	return __dev_read(dev, enabled, MIO_NULL, MIO_NULL);
-
-#if 0
-	if (dev->dev_capa & MIO_DEV_CAPA_IN_CLOSED)
-	{
-		dev->mio->errnum = MIO_ENOCAPA;
-		return -1;
-	}
-
-	if (enabled)
-	{
-		dev->dev_capa &= ~MIO_DEV_CAPA_IN_DISABLED;
-		if (!dev->mio->in_exec && (dev->dev_capa & MIO_DEV_CAPA_IN_WATCHED)) goto renew_watch_now;
-	}
-	else
-	{
-		dev->dev_capa |= MIO_DEV_CAPA_IN_DISABLED;
-		if (!dev->mio->in_exec && !(dev->dev_capa & MIO_DEV_CAPA_IN_WATCHED)) goto renew_watch_now;
-	}
-
-	dev->mio->renew_watch = 1;
-	return 0;
-
-renew_watch_now:
-	if (mio_dev_watch(dev, MIO_DEV_WATCH_RENEW, 0) <= -1) return -1;
-	return 0;
-#endif
 }
 
 int mio_dev_timedread (mio_dev_t* dev, int enabled, const mio_ntime_t* tmout)
@@ -1247,7 +1224,7 @@ enqueue_data:
 	}
 
 	MIO_WQ_ENQ (&dev->wq, q);
-	if (!dev->mio->in_exec && !(dev->dev_capa & MIO_DEV_CAPA_OUT_WATCHED))
+	if (!mio->in_exec && !(dev->dev_capa & MIO_DEV_CAPA_OUT_WATCHED))
 	{
 		/* if output is not being watched, arrange to do so */
 		if (mio_dev_watch(dev, MIO_DEV_WATCH_RENEW, 0) <= -1)
@@ -1259,7 +1236,7 @@ enqueue_data:
 	}
 	else
 	{
-		dev->mio->renew_watch = 1;
+		mio->renew_watch = 1;
 	}
 
 	return 0; /* request pused to a write queue. */

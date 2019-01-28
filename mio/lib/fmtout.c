@@ -430,6 +430,12 @@ mio_ooi_t mio_logbfmt (mio_t* mio, mio_bitmask_t mask, const mio_bch_t* fmt, ...
 		 * it'll get turned back on */
 		mask |= (mio->log.default_type_mask & MIO_LOG_ALL_TYPES);
 	}
+	else if (!(mask & MIO_LOG_ALL_TYPES)) 
+	{
+		/* no type is set in the given mask and no default type is set.
+		 * make it UNTYPED. */
+		mask |= MIO_LOG_UNTYPED;
+	}
 
 	fo.mask = mask;
 	fo.putch = put_ooch;
@@ -457,6 +463,10 @@ mio_ooi_t mio_logufmt (mio_t* mio, mio_bitmask_t mask, const mio_uch_t* fmt, ...
 	{
 		mask &= ~MIO_LOG_UNTYPED;
 		mask |= (mio->log.default_type_mask & MIO_LOG_ALL_TYPES);
+	}
+	else if (!(mask & MIO_LOG_ALL_TYPES)) 
+	{
+		mask |= MIO_LOG_UNTYPED;
 	}
 
 	fo.mask = mask;
