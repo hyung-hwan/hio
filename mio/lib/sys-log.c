@@ -91,10 +91,6 @@ struct mio_sys_log_t
 	} out;
 };
 
-typedef mio_sys_log_t xtn_t;
-#define GET_XTN(mio) ((mio)->sys.log)
-
-
 enum logfd_flag_t
 {
 	LOGFD_TTY = (1 << 0),

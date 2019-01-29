@@ -63,6 +63,15 @@ struct mio_sys_mux_t
 	} pd; /* poll data */
 };
 
+#elif defined(USE_EPOLL)
+
+struct mio_sys_mux_t
+{
+	int hnd;
+	struct epoll_event revs[100]; /* TODO: is it a good size? */
+};
+
+#endif
 
 int mio_sys_initmux (mio_t* mio)
 {
@@ -70,6 +79,16 @@ int mio_sys_initmux (mio_t* mio)
 
 	mux = (mio_sys_mux_t*)mio_callocmem(mio, MIO_SIZEOF(*mux));
 	if (!mux) return -1;
+
+#if defined(USE_EPOLL)
+	mux->hnd = epoll_create(1000); /* TODO: choose proper initial size? */
+	if (mux->hnd == -1)
+	{
+		mio_seterrwithsyserr (mio, 0, errno);
+		mio_freemem (mio, mux);
+		return -1;
+	}
+#endif
 
 	mio->sys.mux = mux;
 	return 0;
@@ -79,6 +98,9 @@ void mio_sys_finimux (mio_t* mio)
 {
 	if (mio->sys.mux)
 	{
+#if defined(USE_EPOLL)
+		close (mio->sys.mux->hnd);
+#endif
 		mio_freemem (mio, mio->sys.mux);
 		mio->sys.mux = MIO_NULL;
 	}
@@ -86,31 +108,28 @@ void mio_sys_finimux (mio_t* mio)
 
 int mio_sys_ctrlmux (mio_t* mio, mio_sys_mux_cmd_t cmd, mio_dev_t* dev, int dev_capa)
 {
+#if defined(USE_POLL)
 	mio_t* mio = dev->mio;
 	mio_sys_mux_t* mux;
 	mio_oow_t idx;
 
 	mux = (mio_sys_mux_t*)mio->sys.mux;
 
-	if (hnd >= mux->map.capa)
+	if (dev->hnd >= mux->map.capa)
 	{
 		mio_oow_t new_capa;
 		mio_oow_t* tmp;
 
 		if (cmd != MIO_SYS_MUX_CMD_INSERT)
 		{
-			mio->errnum = MIO_ENOENT;
+			mio_seterrnum (moo, MIO_ENOENT);
 			return -1;
 		}
 
 		new_capa = MIO_ALIGN_POW2((hnd + 1), 256);
 
-		tmp = MIO_MMGR_REALLOC(mio->mmgr, mux->map.ptr, new_capa * MIO_SIZEOF(*tmp));
-		if (!tmp)
-		{
-			mio->errnum = MIO_ESYSMEM;
-			return -1;
-		}
+		tmp = mio_reallocmem(mio, mux->map.ptr, new_capa * MIO_SIZEOF(*tmp));
+		if (!tmp) return -1;
 
 		for (idx = mux->map.capa; idx < new_capa; idx++) 
 			tmp[idx] = MUX_INDEX_INVALID;
@@ -124,7 +143,7 @@ int mio_sys_ctrlmux (mio_t* mio, mio_sys_mux_cmd_t cmd, mio_dev_t* dev, int dev_
 	{
 		if (cmd == MIO_SYS_MUX_CMD_INSERT)
 		{
-			mio->errnum = MIO_EEXIST;
+			mio_seterrnum (mio, MIO_EEXIST);
 			return -1;
 		}
 	}
@@ -132,7 +151,7 @@ int mio_sys_ctrlmux (mio_t* mio, mio_sys_mux_cmd_t cmd, mio_dev_t* dev, int dev_
 	{
 		if (cmd != MIO_SYS_MUX_CMD_INSERT)
 		{
-			mio->errnum = MIO_ENOENT;
+			mio_seterrnum (mio, MIO_ENOENT);
 			return -1;
 		}
 	}
@@ -149,18 +168,13 @@ int mio_sys_ctrlmux (mio_t* mio, mio_sys_mux_cmd_t cmd, mio_dev_t* dev, int dev_
 
 				new_capa = MIO_ALIGN_POW2(mux->pd.size + 1, 256);
 
-				tmp1 = MIO_MMGR_REALLOC(mio->mmgr, mux->pd.pfd, new_capa * MIO_SIZEOF(*tmp1));
-				if (!tmp1)
-				{
-					mio->errnum = MIO_ESYSMEM;
-					return -1;
-				}
+				tmp1 = mio_reallocmem(mio, mux->pd.pfd, new_capa * MIO_SIZEOF(*tmp1));
+				if (!tmp1) return -1;
 
-				tmp2 = MIO_MMGR_REALLOC (mio->mmgr, mux->pd.dptr, new_capa * MIO_SIZEOF(*tmp2));
+				tmp2 = mio_reallocmem(mio, mux->pd.dptr, new_capa * MIO_SIZEOF(*tmp2));
 				if (!tmp2)
 				{
-					MIO_MMGR_FREE (mio->mmgr, tmp1);
-					mio->errnum = MIO_ESYSMEM;
+					mio_freemem (mio, tmp1);
 					return -1;
 				}
 
@@ -217,50 +231,10 @@ int mio_sys_ctrlmux (mio_t* mio, mio_sys_mux_cmd_t cmd, mio_dev_t* dev, int dev_
 			return 0;
 
 		default:
-			mio->errnum = MIO_EINVAL;
+			mio_seterrnum (mio, MIO_EINVAL);
 			return -1;
 	}
-}
-
 #elif defined(USE_EPOLL)
-
-struct mio_sys_mux_t
-{
-	int hnd;
-	struct epoll_event revs[100]; /* TODO: is it a good size? */
-};
-
-int mio_sys_initmux (mio_t* mio)
-{
-	mio_sys_mux_t* mux;
-
-	mux = (mio_sys_mux_t*)mio_callocmem(mio, MIO_SIZEOF(*mux));
-	if (!mux) return -1;
-	
-	mux->hnd = epoll_create (1000);
-	if (mux->hnd == -1)
-	{
-		mio_seterrwithsyserr (mio, 0, errno);
-		mio_freemem (mio, mux);
-		return -1;
-	}
-
-	mio->sys.mux = mux;
-	return 0;
-}
-
-void mio_sys_finimux (mio_t* mio)
-{
-	if (mio->sys.mux)
-	{
-		close (mio->sys.mux->hnd);
-		mio_freemem (mio, mio->sys.mux);
-		mio->sys.mux = MIO_NULL;
-	}
-}
-
-int mio_sys_ctrlmux (mio_t* mio, mio_sys_mux_cmd_t cmd, mio_dev_t* dev, int dev_capa)
-{
 	static int epoll_cmd[] = { EPOLL_CTL_ADD, EPOLL_CTL_MOD, EPOLL_CTL_DEL };
 	struct epoll_event ev;
 
@@ -287,24 +261,14 @@ int mio_sys_ctrlmux (mio_t* mio, mio_sys_mux_cmd_t cmd, mio_dev_t* dev, int dev_
 	}
 
 	return 0;
-}
+#else
+#	error NO SUPPORTED MULTIPLEXER
 #endif
+}
 
 int mio_sys_waitmux (mio_t* mio, const mio_ntime_t* tmout, mio_sys_mux_evtcb_t event_handler)
 {
-#if defined(_WIN32)
-/*
-	if (GetQueuedCompletionStatusEx (mio->iocp, mio->ovls, MIO_COUNTOF(mio->ovls), &nentries, timeout, FALSE) == FALSE)
-	{
-		// TODO: set errnum 
-		return -1;
-	}
-
-	for (i = 0; i < nentries; i++)
-	{
-	}
-*/
-#elif defined(USE_POLL)
+#if defined(USE_POLL)
 	int nentries;
 
 	mux = (mio_sys_mux_t*)mio->sys.mux;
