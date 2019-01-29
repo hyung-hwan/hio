@@ -249,19 +249,18 @@ static int x = 0;
 		mio_ntime_t tmout;
 
 		static char a ='A';
-		char* xxx = malloc (1000000);
-		memset (xxx, a++ ,1000000);
+		static char xxx[1000000];
+		memset (xxx, a++ , MIO_SIZEOF(xxx));
 
-		MIO_INFO2 (tcp->mio, "TCP_SCK_ON_READ(%d) >>> REQUESTING to write data of %d bytes\n", (int)tcp->sck, 1000000);
+		MIO_INFO2 (tcp->mio, "TCP_SCK_ON_READ(%d) >>> REQUESTING to write data of %d bytes\n", (int)tcp->sck, MIO_SIZEOF(xxx));
 		//return mio_dev_sck_write  (tcp, "HELLO", 5, MIO_NULL);
 		MIO_INIT_NTIME (&tmout, 5, 0);
-		n = mio_dev_sck_timedwrite(tcp, xxx, 1000000, &tmout, MIO_NULL, MIO_NULL);
-		free (xxx);
+		n = mio_dev_sck_timedwrite(tcp, xxx, MIO_SIZEOF(xxx), &tmout, MIO_NULL, MIO_NULL);
 
 		if (n <= -1) return -1;
 	}
 
-	MIO_INFO1 (tcp->mio, "TCP_SCK_ON_READ(%d) - DISABLING READ\n", (int)tcp->sck);
+	MIO_INFO1 (tcp->mio, "TCP_SCK_ON_READ(%d) - REQUESTING TO STOP READ\n", (int)tcp->sck);
 	mio_dev_sck_read (tcp, 0);
 
 #if 0

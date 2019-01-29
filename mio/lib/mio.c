@@ -276,7 +276,7 @@ static MIO_INLINE void handle_event (mio_t* mio, mio_dev_t* dev, int events, int
 {
 	MIO_ASSERT (mio, mio == dev->mio);
 
-	mio->renew_watch = 0;
+	dev->dev_capa &= ~MIO_DEV_RENEW_REQUIRED;
 
 	MIO_ASSERT (mio, mio == dev->mio);
 
@@ -353,7 +353,7 @@ static MIO_INLINE void handle_event (mio_t* mio, mio_dev_t* dev, int events, int
 						/* it was a zero-length write request. 
 						 * for a stream, it is to close the output. */
 						dev->dev_capa |= MIO_DEV_CAPA_OUT_CLOSED;
-						mio->renew_watch = 1;
+						dev->dev_capa |= MIO_DEV_RENEW_REQUIRED;
 						out_closed = 1;
 					}
 
@@ -396,7 +396,7 @@ static MIO_INLINE void handle_event (mio_t* mio, mio_dev_t* dev, int events, int
 			}
 			else
 			{
-				mio->renew_watch = 1;
+				dev->dev_capa |= MIO_DEV_RENEW_REQUIRED;
 			}
 		}
 	}
@@ -447,14 +447,12 @@ static MIO_INLINE void handle_event (mio_t* mio, mio_dev_t* dev, int events, int
 			}
 			else /*if (x >= 1) */
 			{
-			
 				if (len <= 0 && (dev->dev_capa & MIO_DEV_CAPA_STREAM)) 
 				{
 					/* EOF received. for a stream device, a zero-length 
 					 * read is interpreted as EOF. */
 					dev->dev_capa |= MIO_DEV_CAPA_IN_CLOSED;
-					mio->renew_watch = 1;
-
+					dev->dev_capa |= MIO_DEV_RENEW_REQUIRED;
 
 					/* call the on_read callback to report EOF */
 					if (dev->dev_evcb->on_read(dev, mio->bigbuf, len, &srcaddr) <= -1 ||
@@ -503,7 +501,7 @@ static MIO_INLINE void handle_event (mio_t* mio, mio_dev_t* dev, int events, int
 			 * EPOLLIN or EPOLLOUT check because EPOLLERR or EPOLLHUP
 			 * can be set together with EPOLLIN or EPOLLOUT. */
 			dev->dev_capa |= MIO_DEV_CAPA_IN_CLOSED | MIO_DEV_CAPA_OUT_CLOSED;
-			mio->renew_watch = 1;
+			dev->dev_capa |= MIO_DEV_RENEW_REQUIRED;
 		}
 		else if (dev && rdhup) 
 		{
@@ -515,7 +513,7 @@ static MIO_INLINE void handle_event (mio_t* mio, mio_dev_t* dev, int events, int
 			else
 			{
 				dev->dev_capa |= MIO_DEV_CAPA_IN_CLOSED | MIO_DEV_CAPA_OUT_CLOSED;
-				mio->renew_watch = 1;
+				dev->dev_capa |= MIO_DEV_RENEW_REQUIRED;
 			}
 		}
 
@@ -528,20 +526,16 @@ static MIO_INLINE void handle_event (mio_t* mio, mio_dev_t* dev, int events, int
 	}
 
 skip_evcb:
-	if (dev && mio->renew_watch && mio_dev_watch(dev, MIO_DEV_WATCH_RENEW, 0) <= -1)
+	if (dev && (dev->dev_capa & MIO_DEV_RENEW_REQUIRED) && mio_dev_watch(dev, MIO_DEV_WATCH_RENEW, 0) <= -1)
 	{
 		mio_dev_halt (dev);
 		dev = MIO_NULL;
 	}
 }
 
-static MIO_INLINE int __exec (mio_t* mio)
+int mio_exec (mio_t* mio)
 {
-	mio_ntime_t tmout;
-	mio_sys_mux_t* mux;
 	int ret = 0;
-
-	/*if (!mio->actdev.head) return 0;*/
 
 	/* execute callbacks for completed write operations */
 	while (!MIO_CWQ_ISEMPTY(&mio->cwq))
@@ -572,17 +566,23 @@ static MIO_INLINE int __exec (mio_t* mio)
 	 * multiplexer. the scheduled jobs can safely destroy the devices */
 	mio_firetmrjobs (mio, MIO_NULL, MIO_NULL);
 
-	if (mio_gettmrtmout(mio, MIO_NULL, &tmout) <= -1)
+	if (mio->actdev.head)
 	{
-		/* defaults to 1 second if timeout can't be acquired */
-		tmout.sec = 1; /* TODO: make the default timeout configurable */
-		tmout.nsec = 0;
-	}
+		/* wait on the multiplexer only if there is at least 1 active device */
+		mio_ntime_t tmout;
 
-	if (mio_sys_waitmux(mio, &tmout, handle_event) <= -1) 
-	{
-		MIO_DEBUG0 (mio, "WARNING - Failed to wait on mutiplexer\n");
-		ret = -1;
+		if (mio_gettmrtmout(mio, MIO_NULL, &tmout) <= -1)
+		{
+			/* defaults to 1 second if timeout can't be acquired */
+			tmout.sec = 1; /* TODO: make the default timeout configurable */
+			tmout.nsec = 0;
+		}
+
+		if (mio_sys_waitmux(mio, &tmout, handle_event) <= -1) 
+		{
+			MIO_DEBUG0 (mio, "WARNING - Failed to wait on mutiplexer\n");
+			ret = -1;
+		}
 	}
 
 	/* kill all halted devices */
@@ -596,17 +596,6 @@ static MIO_INLINE int __exec (mio_t* mio)
 	return ret;
 }
 
-int mio_exec (mio_t* mio)
-{
-	int n;
-
-	mio->in_exec = 1;
-	n = __exec (mio);
-	mio->in_exec = 0;
-
-	return n;
-}
-
 void mio_stop (mio_t* mio, mio_stopreq_t stopreq)
 {
 	mio->stopreq = stopreq;
@@ -617,7 +606,6 @@ int mio_loop (mio_t* mio)
 	if (!mio->actdev.head) return 0;
 
 	mio->stopreq = MIO_STOPREQ_NONE;
-	mio->renew_watch = 0;
 
 	if (mio_prologue(mio) <= -1) return -1;
 
@@ -637,7 +625,7 @@ mio_dev_t* mio_makedev (mio_t* mio, mio_oow_t dev_size, mio_dev_mth_t* dev_mth, 
 
 	if (dev_size < MIO_SIZEOF(mio_dev_t)) 
 	{
-		mio->errnum = MIO_EINVAL;
+		mio_seterrnum (mio, MIO_EINVAL);
 		return MIO_NULL;
 	}
 
@@ -675,15 +663,7 @@ mio_dev_t* mio_makedev (mio_t* mio, mio_oow_t dev_size, mio_dev_mth_t* dev_mth, 
 	if (!(dev->dev_capa & MIO_DEV_CAPA_IN)) dev->dev_capa |= MIO_DEV_CAPA_IN_CLOSED;
 	if (!(dev->dev_capa & MIO_DEV_CAPA_OUT)) dev->dev_capa |= MIO_DEV_CAPA_OUT_CLOSED;
 
-#if defined(_WIN32)
-	if (CreateIoCompletionPort((HANDLE)dev->dev_mth->getsyshnd(dev), mio->iocp, MIO_IOCP_KEY, 0) == NULL)
-	{
-		/* TODO: set errnum from GetLastError()... */
-		goto oops_after_make;
-	}
-#else
 	if (mio_dev_watch(dev, MIO_DEV_WATCH_START, 0) <= -1) goto oops_after_make;
-#endif
 
 	/* and place the new device object at the back of the active device list */
 	APPEND_DEVICE_TO_LIST (&mio->actdev, dev);
@@ -926,8 +906,7 @@ int mio_dev_watch (mio_dev_t* dev, mio_dev_watch_cmd_t cmd, int events)
 	switch (cmd)
 	{
 		case MIO_DEV_WATCH_START:
-			/* upon start, only input watching is requested */
-			events = MIO_DEV_EVENT_IN; 
+			events = 0; /* MIO_DEV_EVENT_IN if you want input watching to be enabled upon device creation */
 			mux_cmd = MIO_SYS_MUX_CMD_INSERT;
 			break;
 
@@ -949,7 +928,7 @@ int mio_dev_watch (mio_dev_t* dev, mio_dev_watch_cmd_t cmd, int events)
 			break;
 
 		default:
-			dev->mio->errnum = MIO_EINVAL;
+			mio_seterrnum (dev->mio, MIO_EINVAL);
 			return -1;
 	}
 
@@ -980,7 +959,7 @@ int mio_dev_watch (mio_dev_t* dev, mio_dev_watch_cmd_t cmd, int events)
 	}
 	else
 	{
-		if (mio_sys_ctrlmux(dev->mio, mux_cmd, dev, dev_capa) <= -1) return -1;
+		if (mio_sys_ctrlmux(mio, mux_cmd, dev, dev_capa) <= -1) return -1;
 	}
 
 	dev->dev_capa = dev_capa;
@@ -994,7 +973,7 @@ static void on_read_timeout (mio_t* mio, const mio_ntime_t* now, mio_tmrjob_t* j
 
 	dev = (mio_dev_t*)job->ctx;
 
-	dev->mio->errnum = MIO_ETMOUT;
+	mio_seterrnum (mio, MIO_ETMOUT);
 	x = dev->dev_evcb->on_read(dev, MIO_NULL, -1, MIO_NULL); 
 
 	MIO_ASSERT (mio, dev->rtmridx == MIO_TMRIDX_INVALID);
@@ -1015,15 +994,15 @@ static int __dev_read (mio_dev_t* dev, int enabled, const mio_ntime_t* tmout, vo
 	if (enabled)
 	{
 		dev->dev_capa &= ~MIO_DEV_CAPA_IN_DISABLED;
-		if (/*!mio->in_exec && */!(dev->dev_capa & MIO_DEV_CAPA_IN_WATCHED)) goto renew_watch_now;
+		if (!(dev->dev_capa & MIO_DEV_CAPA_IN_WATCHED)) goto renew_watch_now;
 	}
 	else
 	{
 		dev->dev_capa |= MIO_DEV_CAPA_IN_DISABLED;
-		if (/*!mio->in_exec && */(dev->dev_capa & MIO_DEV_CAPA_IN_WATCHED)) goto renew_watch_now;
+		if ((dev->dev_capa & MIO_DEV_CAPA_IN_WATCHED)) goto renew_watch_now;
 	}
 
-	mio->renew_watch = 1;
+	dev->dev_capa |= MIO_DEV_RENEW_REQUIRED;
 	goto update_timer;
 
 renew_watch_now:
@@ -1079,7 +1058,7 @@ static void on_write_timeout (mio_t* mio, const mio_ntime_t* now, mio_tmrjob_t* 
 	q = (mio_wq_t*)job->ctx;
 	dev = q->dev;
 
-	dev->mio->errnum = MIO_ETMOUT;
+	mio_seterrnum (mio, MIO_ETMOUT);
 	x = dev->dev_evcb->on_write(dev, -1, q->ctx, &q->dstaddr); 
 
 	MIO_ASSERT (mio, q->tmridx == MIO_TMRIDX_INVALID);
@@ -1176,7 +1155,7 @@ enqueue_data:
 	if (!(dev->dev_capa & MIO_DEV_CAPA_OUT_QUEUED)) 
 	{
 		/* writing queuing is not requested. so return failure */
-		dev->mio->errnum = MIO_ENOCAPA;
+		mio_seterrbfmt (mio, MIO_ENOCAPA, "device incapable of queuing");
 		return -1;
 	}
 
@@ -1224,7 +1203,7 @@ enqueue_data:
 	}
 
 	MIO_WQ_ENQ (&dev->wq, q);
-	if (!mio->in_exec && !(dev->dev_capa & MIO_DEV_CAPA_OUT_WATCHED))
+	if (!(dev->dev_capa & MIO_DEV_CAPA_OUT_WATCHED))
 	{
 		/* if output is not being watched, arrange to do so */
 		if (mio_dev_watch(dev, MIO_DEV_WATCH_RENEW, 0) <= -1)
@@ -1233,10 +1212,6 @@ enqueue_data:
 			mio_freemem (mio, q);
 			return -1;
 		}
-	}
-	else
-	{
-		mio->renew_watch = 1;
 	}
 
 	return 0; /* request pused to a write queue. */

@@ -59,8 +59,8 @@ typedef struct param_t param_t;
 static void free_param (mio_t* mio, param_t* param)
 {
 	if (param->argv && param->argv != param->fixed_argv) 
-		MIO_MMGR_FREE (mio->mmgr, param->argv);
-	if (param->mcmd) MIO_MMGR_FREE (mio->mmgr, param->mcmd);
+		mio_freemem (mio, param->argv);
+	if (param->mcmd) mio_freemem (mio, param->mcmd);
 	MIO_MEMSET (param, 0, MIO_SIZEOF(*param));
 }
 
@@ -94,7 +94,7 @@ static int make_param (mio_t* mio, const mio_bch_t* cmd, int flags, param_t* par
 		if (fcnt <= 0) 
 		{
 			/* no field or an error */
-			mio->errnum = MIO_EINVAL;
+			mio_seterrnum (mio, MIO_EINVAL);
 			goto oops;
 		}
 
@@ -104,12 +104,8 @@ static int make_param (mio_t* mio, const mio_bch_t* cmd, int flags, param_t* par
 		}
 		else
 		{
-			param->argv = MIO_MMGR_ALLOC (mio->mmgr, (fcnt + 1) * MIO_SIZEOF(argv[0]));
-			if (param->argv == MIO_NULL) 
-			{
-				mio->errnum = MIO_ESYSMEM;
-				goto oops;
-			}
+			param->argv = mio_allocmem(mio, (fcnt + 1) * MIO_SIZEOF(argv[0]));
+			if (!param->argv) goto oops;
 		}
 
 		mcmdptr = mcmd;
@@ -126,7 +122,7 @@ static int make_param (mio_t* mio, const mio_bch_t* cmd, int flags, param_t* par
 	return 0;
 
 oops:
-	if (mcmd && mcmd != cmd) MIO_MMGR_FREE (mio->mmgr, mcmd);
+	if (mcmd && mcmd != cmd) mio_freemem (mio, mcmd);
 	return -1;
 }
 
@@ -223,6 +219,7 @@ static pid_t standard_fork_and_exec (mio_t* mio, int pfds[], int flags, param_t*
 
 static int dev_pro_make_master (mio_dev_t* dev, void* ctx)
 {
+	mio_t* mio = dev->mio;
 	mio_dev_pro_t* rdev = (mio_dev_pro_t*)dev;
 	mio_dev_pro_make_t* info = (mio_dev_pro_make_t*)ctx;
 	mio_syshnd_t pfds[6];
@@ -234,7 +231,7 @@ static int dev_pro_make_master (mio_dev_t* dev, void* ctx)
 	{
 		if (pipe(&pfds[0]) == -1)
 		{
-			mio_seterrwithsyserr (dev->mio, 0, errno);
+			mio_seterrwithsyserr (mio, 0, errno);
 			goto oops;
 		}
 		minidx = 0; maxidx = 1;
@@ -244,7 +241,7 @@ static int dev_pro_make_master (mio_dev_t* dev, void* ctx)
 	{
 		if (pipe(&pfds[2]) == -1)
 		{
-			mio_seterrwithsyserr (dev->mio, 0, errno);
+			mio_seterrwithsyserr (mio, 0, errno);
 			goto oops;
 		}
 		if (minidx == -1) minidx = 2;
@@ -255,7 +252,7 @@ static int dev_pro_make_master (mio_dev_t* dev, void* ctx)
 	{
 		if (pipe(&pfds[4]) == -1)
 		{
-			mio_seterrwithsyserr (dev->mio, 0, errno);
+			mio_seterrwithsyserr (mio, 0, errno);
 			goto oops;
 		}
 		if (minidx == -1) minidx = 4;
@@ -264,21 +261,21 @@ static int dev_pro_make_master (mio_dev_t* dev, void* ctx)
 
 	if (maxidx == -1)
 	{
-		mio_seterrnum (dev->mio, MIO_EINVAL);
+		mio_seterrnum (mio, MIO_EINVAL);
 		goto oops;
 	}
 
-	if (make_param (rdev->mio, info->cmd, info->flags, &param) <= -1) goto oops;
+	if (make_param(mio, info->cmd, info->flags, &param) <= -1) goto oops;
 
 /* TODO: more advanced fork and exec .. */
-	pid = standard_fork_and_exec (rdev->mio, pfds, info->flags, &param);
+	pid = standard_fork_and_exec(mio, pfds, info->flags, &param);
 	if (pid <= -1) 
 	{
-		free_param (rdev->mio, &param);
+		free_param (mio, &param);
 		goto oops;
 	}
 
-	free_param (rdev->mio, &param);
+	free_param (mio, &param);
 	rdev->child_pid = pid;
 
 	/* this is the parent process */
@@ -293,7 +290,7 @@ static int dev_pro_make_master (mio_dev_t* dev, void* ctx)
 		close (pfds[0]);
 		pfds[0] = MIO_SYSHND_INVALID;
 
-		if (mio_makesyshndasync (dev->mio, pfds[1]) <= -1) goto oops;
+		if (mio_makesyshndasync(mio, pfds[1]) <= -1) goto oops;
 	}
 
 	if (info->flags & MIO_DEV_PRO_READOUT)
@@ -307,7 +304,7 @@ static int dev_pro_make_master (mio_dev_t* dev, void* ctx)
 		close (pfds[3]);
 		pfds[3] = MIO_SYSHND_INVALID;
 
-		if (mio_makesyshndasync (dev->mio, pfds[2]) <= -1) goto oops;
+		if (mio_makesyshndasync(mio, pfds[2]) <= -1) goto oops;
 	}
 
 	if (info->flags & MIO_DEV_PRO_READERR)
@@ -321,7 +318,7 @@ static int dev_pro_make_master (mio_dev_t* dev, void* ctx)
 		close (pfds[5]);
 		pfds[5] = MIO_SYSHND_INVALID;
 
-		if (mio_makesyshndasync (dev->mio, pfds[4]) <= -1) goto oops;
+		if (mio_makesyshndasync(mio, pfds[4]) <= -1) goto oops;
 	}
 
 	if (pfds[1] != MIO_SYSHND_INVALID)
@@ -334,7 +331,7 @@ static int dev_pro_make_master (mio_dev_t* dev, void* ctx)
 		si.dev_capa = MIO_DEV_CAPA_OUT | MIO_DEV_CAPA_OUT_QUEUED | MIO_DEV_CAPA_STREAM;
 		si.id = MIO_DEV_PRO_IN;
 
-		rdev->slave[MIO_DEV_PRO_IN] = make_slave (dev->mio, &si);
+		rdev->slave[MIO_DEV_PRO_IN] = make_slave(mio, &si);
 		if (!rdev->slave[MIO_DEV_PRO_IN]) goto oops;
 
 		pfds[1] = MIO_SYSHND_INVALID;
@@ -351,7 +348,7 @@ static int dev_pro_make_master (mio_dev_t* dev, void* ctx)
 		si.dev_capa = MIO_DEV_CAPA_IN | MIO_DEV_CAPA_STREAM;
 		si.id = MIO_DEV_PRO_OUT;
 
-		rdev->slave[MIO_DEV_PRO_OUT] = make_slave (dev->mio, &si);
+		rdev->slave[MIO_DEV_PRO_OUT] = make_slave(mio, &si);
 		if (!rdev->slave[MIO_DEV_PRO_OUT]) goto oops;
 
 		pfds[2] = MIO_SYSHND_INVALID;
@@ -368,7 +365,7 @@ static int dev_pro_make_master (mio_dev_t* dev, void* ctx)
 		si.dev_capa = MIO_DEV_CAPA_IN | MIO_DEV_CAPA_STREAM;
 		si.id = MIO_DEV_PRO_ERR;
 
-		rdev->slave[MIO_DEV_PRO_ERR] = make_slave (dev->mio, &si);
+		rdev->slave[MIO_DEV_PRO_ERR] = make_slave(mio, &si);
 		if (!rdev->slave[MIO_DEV_PRO_ERR]) goto oops;
 
 		pfds[4] = MIO_SYSHND_INVALID;
@@ -395,8 +392,8 @@ oops:
 
 	if (rdev->mcmd) 
 	{
-		MIO_MMGR_FREE (rdev->mio->mmgr, rdev->mcmd);
-		free_param (rdev->mio, &param);
+		mio_freemem (mio, rdev->mcmd);
+		free_param (mio, &param);
 	}
 
 	for (i = MIO_COUNTOF(rdev->slave); i > 0; )
@@ -404,7 +401,7 @@ oops:
 		i--;
 		if (rdev->slave[i])
 		{
-			mio_killdev (rdev->mio, (mio_dev_t*)rdev->slave[i]);
+			mio_killdev (mio, (mio_dev_t*)rdev->slave[i]);
 			rdev->slave[i] = MIO_NULL;
 		}
 	}
@@ -429,6 +426,7 @@ static int dev_pro_make_slave (mio_dev_t* dev, void* ctx)
 
 static int dev_pro_kill_master (mio_dev_t* dev, int force)
 {
+	mio_t* mio = dev->mio;
 	mio_dev_pro_t* rdev = (mio_dev_pro_t*)dev;
 	int i, status;
 	pid_t wpid;
@@ -447,7 +445,7 @@ static int dev_pro_kill_master (mio_dev_t* dev, int force)
 				 * self-initiated termination or master-driven termination */
 				rdev->slave[i] = MIO_NULL;
 
-				mio_killdev (rdev->mio, (mio_dev_t*)sdev);
+				mio_killdev (mio, (mio_dev_t*)sdev);
 			}
 		}
 	}
@@ -474,7 +472,7 @@ static int dev_pro_kill_master (mio_dev_t* dev, int force)
 				else
 				{
 					/* child process is still alive */
-					rdev->mio->errnum = MIO_EAGAIN;
+					mio_seterrnum (mio, MIO_EAGAIN);
 					return -1;  /* call me again */
 				}
 			}
@@ -486,7 +484,7 @@ static int dev_pro_kill_master (mio_dev_t* dev, int force)
 			 */
 		}
 
-printf (">>>>>>>>>>>>>>>>>>> REAPED CHILD %d\n", (int)rdev->child_pid);
+		MIO_DEBUG1 (mio, ">>>>>>>>>>>>>>>>>>> REAPED CHILD %d\n", (int)rdev->child_pid);
 		rdev->child_pid = -1;
 	}
 
@@ -496,6 +494,7 @@ printf (">>>>>>>>>>>>>>>>>>> REAPED CHILD %d\n", (int)rdev->child_pid);
 
 static int dev_pro_kill_slave (mio_dev_t* dev, int force)
 {
+	mio_t* mio = dev->mio;
 	mio_dev_pro_slave_t* rdev = (mio_dev_pro_slave_t*)dev;
 
 	if (rdev->master)
@@ -508,7 +507,7 @@ static int dev_pro_kill_slave (mio_dev_t* dev, int force)
 		/* indicate EOF */
 		if (master->on_close) master->on_close (master, rdev->id);
 
-		MIO_ASSERT (dev->mio, master->slave_count > 0);
+		MIO_ASSERT (mio, master->slave_count > 0);
 		master->slave_count--;
 
 		if (master->slave[rdev->id])
@@ -517,7 +516,7 @@ static int dev_pro_kill_slave (mio_dev_t* dev, int force)
 			 * if this is the last slave, kill the master also */
 			if (master->slave_count <= 0) 
 			{
-				mio_killdev (rdev->mio, (mio_dev_t*)master);
+				mio_killdev (mio, (mio_dev_t*)master);
 				/* the master pointer is not valid from this point onwards
 				 * as the actual master device object is freed in mio_killdev() */
 			}
@@ -589,6 +588,7 @@ static mio_syshnd_t dev_pro_getsyshnd_slave (mio_dev_t* dev)
 
 static int dev_pro_ioctl (mio_dev_t* dev, int cmd, void* arg)
 {
+	mio_t* mio = dev->mio;
 	mio_dev_pro_t* rdev = (mio_dev_pro_t*)dev;
 
 	switch (cmd)
@@ -599,7 +599,7 @@ static int dev_pro_ioctl (mio_dev_t* dev, int cmd, void* arg)
 
 			if (sid < MIO_DEV_PRO_IN || sid > MIO_DEV_PRO_ERR)
 			{
-				rdev->mio->errnum = MIO_EINVAL;
+				mio_seterrnum (mio, MIO_EINVAL);
 				return -1;
 			}
 
@@ -608,7 +608,7 @@ static int dev_pro_ioctl (mio_dev_t* dev, int cmd, void* arg)
 				/* unlike dev_pro_kill_master(), i don't nullify rdev->slave[sid].
 				 * so i treat the closing ioctl as if it's a kill request 
 				 * initiated by the slave device itself. */
-				mio_killdev (rdev->mio, (mio_dev_t*)rdev->slave[sid]);
+				mio_killdev (mio, (mio_dev_t*)rdev->slave[sid]);
 			}
 			return 0;
 		}
@@ -618,7 +618,7 @@ static int dev_pro_ioctl (mio_dev_t* dev, int cmd, void* arg)
 			{
 				if (kill (rdev->child_pid, SIGKILL) == -1)
 				{
-					mio_seterrwithsyserr (rdev->mio, 0, errno);
+					mio_seterrwithsyserr (mio, 0, errno);
 					return -1;
 				}
 			}
@@ -626,7 +626,7 @@ static int dev_pro_ioctl (mio_dev_t* dev, int cmd, void* arg)
 			return 0;
 
 		default:
-			dev->mio->errnum = MIO_EINVAL;
+			mio_seterrnum (mio, MIO_EINVAL);
 			return -1;
 	}
 }
@@ -658,21 +658,21 @@ static mio_dev_mth_t dev_pro_methods_slave =
 static int pro_ready (mio_dev_t* dev, int events)
 {
 	/* virtual device. no I/O */
-	dev->mio->errnum = MIO_EINTERN;
+	mio_seterrnum (dev->mio, MIO_EINTERN);
 	return -1;
 }
 
 static int pro_on_read (mio_dev_t* dev, const void* data, mio_iolen_t len, const mio_devaddr_t* srcaddr)
 {
 	/* virtual device. no I/O */
-	dev->mio->errnum = MIO_EINTERN;
+	mio_seterrnum (dev->mio, MIO_EINTERN);
 	return -1;
 }
 
 static int pro_on_write (mio_dev_t* dev, mio_iolen_t wrlen, void* wrctx, const mio_devaddr_t* dstaddr)
 {
 	/* virtual device. no I/O */
-	dev->mio->errnum = MIO_EINTERN;
+	mio_seterrnum (dev->mio, MIO_EINTERN);
 	return -1;
 }
 
@@ -687,11 +687,12 @@ static mio_dev_evcb_t dev_pro_event_callbacks =
 
 static int pro_ready_slave (mio_dev_t* dev, int events)
 {
+	mio_t* mio = dev->mio;
 	mio_dev_pro_t* pro = (mio_dev_pro_t*)dev;
 
 	if (events & MIO_DEV_EVENT_ERR)
 	{
-		pro->mio->errnum = MIO_EDEVERR;
+		mio_seterrnum (mio, MIO_EDEVERR);
 		return -1;
 	}
 
@@ -703,7 +704,7 @@ static int pro_ready_slave (mio_dev_t* dev, int events)
 			return 1;
 		}
 
-		pro->mio->errnum = MIO_EDEVHUP;
+		mio_seterrnum (mio, MIO_EDEVHUP);
 		return -1;
 	}
 

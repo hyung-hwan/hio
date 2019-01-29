@@ -353,7 +353,10 @@ enum mio_dev_capa_t
 
 	MIO_DEV_CAPA_ACTIVE       = (1 << 15),
 	MIO_DEV_CAPA_HALTED       = (1 << 16),
-	MIO_DEV_CAPA_ZOMBIE       = (1 << 17)
+	MIO_DEV_CAPA_ZOMBIE       = (1 << 17),
+
+	/* internal use only */
+	MIO_DEV_RENEW_REQUIRED    = (1 << 20)
 };
 typedef enum mio_dev_capa_t mio_dev_capa_t;
 
@@ -533,9 +536,6 @@ struct mio_t
 	} zmbdev; /* zombie devices */
 
 	mio_uint8_t bigbuf[65535]; /* TODO: make this dynamic depending on devices added. device may indicate a buffer size required??? */
-
-	unsigned int renew_watch: 1;
-	unsigned int in_exec: 1;
 
 	struct
 	{
