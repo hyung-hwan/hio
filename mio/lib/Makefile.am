@@ -33,11 +33,13 @@ libmio_la_SOURCES = \
 	fmtout.c \
 	fmtoutv.h \
 	mio-prv.h \
+	mio-sys.h \
 	mio.c \
 	mio-pro.c \
 	mio-sck.c \
 	sck-addr.c \
 	sck-addr.h \
+	sys.c \
 	sys-ass.c \
 	sys-err.c \
 	sys-log.c \

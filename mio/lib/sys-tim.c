@@ -63,7 +63,8 @@
 	#define EPOCH_DIFF_SECS  ((mio_intptr_t)EPOCH_DIFF_DAYS*24*60*60)
 #endif
 
-void mio_sys_gettime (mio_ntime_t* t)
+#if 0
+void mio_sys_gettime (mio_ntime_t* now)
 {
 #if defined(_WIN32)
 	SYSTEMTIME st;
@@ -82,8 +83,8 @@ void mio_sys_gettime (mio_ntime_t* t)
 	li.HighPart = ft.dwHighDateTime;
 
      /* li.QuadPart is in the 100-nanosecond intervals */
-	t->sec = (li.QuadPart / (MIO_NSECS_PER_SEC / 100)) - EPOCH_DIFF_SECS;
-	t->nsec = (li.QuadPart % (MIO_NSECS_PER_SEC / 100)) * 100;
+	now->sec = (li.QuadPart / (MIO_NSECS_PER_SEC / 100)) - EPOCH_DIFF_SECS;
+	now->nsec = (li.QuadPart % (MIO_NSECS_PER_SEC / 100)) * 100;
 
 #elif defined(__OS2__)
 
@@ -109,12 +110,12 @@ void mio_sys_gettime (mio_ntime_t* t)
 
 	if (mio_timelocal(&bt, t) <= -1) 
 	{
-		t->sec = time (MIO_NULL);
-		t->nsec = 0;
+		now->sec = time (MIO_NULL);
+		now->nsec = 0;
 	}
 	else
 	{
-		t->nsec = MIO_MSEC_TO_NSEC(dt.hundredths * 10);
+		now->nsec = MIO_MSEC_TO_NSEC(dt.hundredths * 10);
 	}
 	return 0;
 
@@ -138,19 +139,19 @@ void mio_sys_gettime (mio_ntime_t* t)
 
 	if (mio_timelocal(&bt, t) <= -1) 
 	{
-		t->sec = time (MIO_NULL);
-		t->nsec = 0;
+		now->sec = time (MIO_NULL);
+		now->nsec = 0;
 	}
 	else
 	{
-		t->nsec = MIO_MSEC_TO_NSEC(dt.hsecond * 10);
+		now->nsec = MIO_MSEC_TO_NSEC(dt.hsecond * 10);
 	}
 
 #elif defined(macintosh)
 	unsigned long tv;
 
 	GetDateTime (&tv);
-	t->sec = tv;
+	now->sec = tv;
 	tv->nsec = 0;
 
 #elif defined(HAVE_CLOCK_GETTIME) && defined(CLOCK_REALTIME)
@@ -161,25 +162,121 @@ void mio_sys_gettime (mio_ntime_t* t)
 	#if defined(HAVE_GETTIMEOFDAY)
 		struct timeval tv;
 		gettimeofday (&tv, MIO_NULL);
-		t->sec = tv.tv_sec;
-		t->nsec = MIO_USEC_TO_NSEC(tv.tv_usec);
+		now->sec = tv.tv_sec;
+		now->nsec = MIO_USEC_TO_NSEC(tv.tv_usec);
 	#else
-		t->sec = time (MIO_NULL);
-		t->nsec = 0;
+		now->sec = time (MIO_NULL);
+		now->nsec = 0;
 	#endif
 	}
 
-	t->sec = ts.tv_sec;
-	t->nsec = ts.tv_nsec;
+	now->sec = ts.tv_sec;
+	now->nsec = ts.tv_nsec;
 
 #elif defined(HAVE_GETTIMEOFDAY)
 	struct timeval tv;
 	gettimeofday (&tv, MIO_NULL);
-	t->sec = tv.tv_sec;
-	t->nsec = MIO_USEC_TO_NSEC(tv.tv_usec);
+	now->sec = tv.tv_sec;
+	now->nsec = MIO_USEC_TO_NSEC(tv.tv_usec);
 
 #else
-	t->sec = time(MIO_NULL);
-	t->nsec = 0;
+	now->sec = time(MIO_NULL);
+	now->nsec = 0;
 #endif
 }
+
+#else
+
+void mio_sys_gettime (mio_ntime_t* now)
+{
+#if defined(_WIN32)
+
+	#if defined(_WIN64) || (defined(_WIN32_WINNT) && (_WIN32_WINNT >= 0x0600))
+	mio_uint64_t bigsec, bigmsec;
+	bigmsec = GetTickCount64();
+	#else
+	xtn_t* xtn = GET_XTN(mio);
+	mio_uint64_t bigsec, bigmsec;
+	DWORD msec;
+
+	msec = GetTickCount(); /* this can sustain for 49.7 days */
+	if (msec < xtn->tc_last)
+	{
+		/* i assume the difference is never bigger than 49.7 days */
+		/*diff = (MIO_TYPE_MAX(DWORD) - xtn->tc_last) + 1 + msec;*/
+		xtn->tc_overflow++;
+		bigmsec = ((mio_uint64_t)MIO_TYPE_MAX(DWORD) * xtn->tc_overflow) + msec;
+	}
+	else bigmsec = msec;
+	xtn->tc_last = msec;
+	#endif
+
+	bigsec = MIO_MSEC_TO_SEC(bigmsec);
+	bigmsec -= MIO_SEC_TO_MSEC(bigsec);
+	MIO_INIT_NTIME(now, bigsec, MIO_MSEC_TO_NSEC(bigmsec));
+
+#elif defined(__OS2__)
+	xtn_t* xtn = GET_XTN(mio);
+	ULONG msec, elapsed;
+	mio_ntime_t et;
+
+/* TODO: use DosTmrQueryTime() and DosTmrQueryFreq()? */
+	DosQuerySysInfo (QSV_MS_COUNT, QSV_MS_COUNT, &msec, MIO_SIZEOF(msec)); /* milliseconds */
+
+	elapsed = (msec < xtn->tc_last)? (MIO_TYPE_MAX(ULONG) - xtn->tc_last + msec + 1): (msec - xtn->tc_last);
+	xtn->tc_last = msec;
+
+	et.sec = MIO_MSEC_TO_SEC(elapsed);
+	msec = elapsed - MIO_SEC_TO_MSEC(et.sec);
+	et.nsec = MIO_MSEC_TO_NSEC(msec);
+
+	MIO_ADD_NTIME (&xtn->tc_last_ret , &xtn->tc_last_ret, &et);
+	*now = xtn->tc_last_ret;
+
+#elif defined(__DOS__) && (defined(_INTELC32_) || defined(__WATCOMC__))
+	xtn_t* xtn = GET_XTN(mio);
+	clock_t c, elapsed;
+	mio_ntime_t et;
+
+	c = clock();
+	elapsed = (c < xtn->tc_last)? (MIO_TYPE_MAX(clock_t) - xtn->tc_last + c + 1): (c - xtn->tc_last);
+	xtn->tc_last = c;
+
+	et.sec = elapsed / CLOCKS_PER_SEC;
+	#if (CLOCKS_PER_SEC == 100)
+		et.nsec = MIO_MSEC_TO_NSEC((elapsed % CLOCKS_PER_SEC) * 10);
+	#elif (CLOCKS_PER_SEC == 1000)
+		et.nsec = MIO_MSEC_TO_NSEC(elapsed % CLOCKS_PER_SEC);
+	#elif (CLOCKS_PER_SEC == 1000000L)
+		et.nsec = MIO_USEC_TO_NSEC(elapsed % CLOCKS_PER_SEC);
+	#elif (CLOCKS_PER_SEC == 1000000000L)
+		et.nsec = (elapsed % CLOCKS_PER_SEC);
+	#else
+	#	error UNSUPPORTED CLOCKS_PER_SEC
+	#endif
+
+	MIO_ADD_NTIME (&xtn->tc_last_ret , &xtn->tc_last_ret, &et);
+	*now = xtn->tc_last_ret;
+
+#elif defined(macintosh)
+	UnsignedWide tick;
+	mio_uint64_t tick64;
+	Microseconds (&tick);
+	tick64 = *(mio_uint64_t*)&tick;
+	MIO_INIT_NTIME (now, MIO_USEC_TO_SEC(tick64), MIO_USEC_TO_NSEC(tick64));
+#elif defined(HAVE_CLOCK_GETTIME) && defined(CLOCK_MONOTONIC)
+	struct timespec ts;
+	clock_gettime (CLOCK_MONOTONIC, &ts);
+	MIO_INIT_NTIME(now, ts.tv_sec, ts.tv_nsec);
+#elif defined(HAVE_CLOCK_GETTIME) && defined(CLOCK_REALTIME)
+	struct timespec ts;
+	clock_gettime (CLOCK_REALTIME, &ts);
+	MIO_INIT_NTIME(now, ts.tv_sec, ts.tv_nsec);
+#else
+	struct timeval tv;
+	gettimeofday (&tv, MIO_NULL);
+	MIO_INIT_NTIME(now, tv.tv_sec, MIO_USEC_TO_NSEC(tv.tv_usec));
+#endif
+}
+
+#endif

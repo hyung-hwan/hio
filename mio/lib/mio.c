@@ -86,8 +86,7 @@ void mio_close (mio_t* mio)
 
 int mio_init (mio_t* mio, mio_mmgr_t* mmgr, mio_cmgr_t* cmgr, mio_oow_t tmrcapa)
 {
-	int sys_log_inited = 0;
-	int sys_mux_inited = 0;
+	int sys_inited = 0;
 
 	MIO_MEMSET (mio, 0, MIO_SIZEOF(*mio));
 	mio->mmgr = mmgr;
@@ -105,12 +104,8 @@ int mio_init (mio_t* mio, mio_mmgr_t* mmgr, mio_cmgr_t* cmgr, mio_oow_t tmrcapa)
 	if (!mio->log.ptr) goto oops;
 
 	/* inititalize the system-side logging */
-	if (mio_sys_initlog (mio) <= -1) goto oops;
-	sys_log_inited = 1;
-
-	/* intialize the multiplexer object */
-	if (mio_sys_initmux(mio) <= -1) goto oops;
-	sys_mux_inited = 1;
+	if (mio_sys_init(mio) <= -1) goto oops;
+	sys_inited = 1;
 
 	/* initialize the timer object */
 	if (tmrcapa <= 0) tmrcapa = 1;
@@ -125,8 +120,7 @@ int mio_init (mio_t* mio, mio_mmgr_t* mmgr, mio_cmgr_t* cmgr, mio_oow_t tmrcapa)
 oops:
 	if (mio->tmr.jobs) mio_freemem (mio, mio->tmr.jobs);
 
-	if (sys_mux_inited) mio_sys_finimux (mio);
-	if (sys_log_inited) mio_sys_finilog (mio);
+	if (sys_inited) mio_sys_fini (mio);
 
 	if (mio->log.ptr) mio_freemem (mio, mio->log.ptr);
 	mio->log.capa = 0;
@@ -203,8 +197,7 @@ void mio_fini (mio_t* mio)
 	mio_cleartmrjobs (mio);
 	mio_freemem (mio, mio->tmr.jobs);
 
-	mio_sys_finimux (mio); /* close the multiplexer */
-	mio_sys_finilog (mio); /* close the system logger */
+	mio_sys_fini (mio); /* finalize the system dependent data */
 
 	mio_freemem (mio, mio->log.ptr);
 }
@@ -276,7 +269,7 @@ static MIO_INLINE void handle_event (mio_t* mio, mio_dev_t* dev, int events, int
 {
 	MIO_ASSERT (mio, mio == dev->mio);
 
-	dev->dev_capa &= ~MIO_DEV_RENEW_REQUIRED;
+	dev->dev_capa &= ~MIO_DEV_CAPA_RENEW_REQUIRED;
 
 	MIO_ASSERT (mio, mio == dev->mio);
 
@@ -353,7 +346,7 @@ static MIO_INLINE void handle_event (mio_t* mio, mio_dev_t* dev, int events, int
 						/* it was a zero-length write request. 
 						 * for a stream, it is to close the output. */
 						dev->dev_capa |= MIO_DEV_CAPA_OUT_CLOSED;
-						dev->dev_capa |= MIO_DEV_RENEW_REQUIRED;
+						dev->dev_capa |= MIO_DEV_CAPA_RENEW_REQUIRED;
 						out_closed = 1;
 					}
 
@@ -396,7 +389,7 @@ static MIO_INLINE void handle_event (mio_t* mio, mio_dev_t* dev, int events, int
 			}
 			else
 			{
-				dev->dev_capa |= MIO_DEV_RENEW_REQUIRED;
+				dev->dev_capa |= MIO_DEV_CAPA_RENEW_REQUIRED;
 			}
 		}
 	}
@@ -452,7 +445,7 @@ static MIO_INLINE void handle_event (mio_t* mio, mio_dev_t* dev, int events, int
 					/* EOF received. for a stream device, a zero-length 
 					 * read is interpreted as EOF. */
 					dev->dev_capa |= MIO_DEV_CAPA_IN_CLOSED;
-					dev->dev_capa |= MIO_DEV_RENEW_REQUIRED;
+					dev->dev_capa |= MIO_DEV_CAPA_RENEW_REQUIRED;
 
 					/* call the on_read callback to report EOF */
 					if (dev->dev_evcb->on_read(dev, mio->bigbuf, len, &srcaddr) <= -1 ||
@@ -501,7 +494,7 @@ static MIO_INLINE void handle_event (mio_t* mio, mio_dev_t* dev, int events, int
 			 * EPOLLIN or EPOLLOUT check because EPOLLERR or EPOLLHUP
 			 * can be set together with EPOLLIN or EPOLLOUT. */
 			dev->dev_capa |= MIO_DEV_CAPA_IN_CLOSED | MIO_DEV_CAPA_OUT_CLOSED;
-			dev->dev_capa |= MIO_DEV_RENEW_REQUIRED;
+			dev->dev_capa |= MIO_DEV_CAPA_RENEW_REQUIRED;
 		}
 		else if (dev && rdhup) 
 		{
@@ -513,7 +506,7 @@ static MIO_INLINE void handle_event (mio_t* mio, mio_dev_t* dev, int events, int
 			else
 			{
 				dev->dev_capa |= MIO_DEV_CAPA_IN_CLOSED | MIO_DEV_CAPA_OUT_CLOSED;
-				dev->dev_capa |= MIO_DEV_RENEW_REQUIRED;
+				dev->dev_capa |= MIO_DEV_CAPA_RENEW_REQUIRED;
 			}
 		}
 
@@ -526,7 +519,7 @@ static MIO_INLINE void handle_event (mio_t* mio, mio_dev_t* dev, int events, int
 	}
 
 skip_evcb:
-	if (dev && (dev->dev_capa & MIO_DEV_RENEW_REQUIRED) && mio_dev_watch(dev, MIO_DEV_WATCH_RENEW, 0) <= -1)
+	if (dev && (dev->dev_capa & MIO_DEV_CAPA_RENEW_REQUIRED) && mio_dev_watch(dev, MIO_DEV_WATCH_RENEW, 0) <= -1)
 	{
 		mio_dev_halt (dev);
 		dev = MIO_NULL;
@@ -660,6 +653,7 @@ mio_dev_t* mio_makedev (mio_t* mio, mio_oow_t dev_size, mio_dev_mth_t* dev_mth, 
 
 	/* set some internal capability bits according to the capabilities 
 	 * removed by the device making callback for convenience sake. */
+	dev->dev_capa &= MIO_DEV_CAPA_ALL_MASK; /* keep valid capability bits only. drop all internal-use bits */
 	if (!(dev->dev_capa & MIO_DEV_CAPA_IN)) dev->dev_capa |= MIO_DEV_CAPA_IN_CLOSED;
 	if (!(dev->dev_capa & MIO_DEV_CAPA_OUT)) dev->dev_capa |= MIO_DEV_CAPA_OUT_CLOSED;
 
@@ -906,7 +900,11 @@ int mio_dev_watch (mio_dev_t* dev, mio_dev_watch_cmd_t cmd, int events)
 	switch (cmd)
 	{
 		case MIO_DEV_WATCH_START:
-			events = 0; /* MIO_DEV_EVENT_IN if you want input watching to be enabled upon device creation */
+			/* request input watching when a device is started.
+			 * if the device is set with MIO_DEV_CAPA_IN_DISABLED and/or 
+			 * is not set with MIO_DEV_CAPA_IN, input wathcing is excluded 
+			 * after this 'switch' block */
+			events = MIO_DEV_EVENT_IN;
 			mux_cmd = MIO_SYS_MUX_CMD_INSERT;
 			break;
 
@@ -1002,7 +1000,7 @@ static int __dev_read (mio_dev_t* dev, int enabled, const mio_ntime_t* tmout, vo
 		if ((dev->dev_capa & MIO_DEV_CAPA_IN_WATCHED)) goto renew_watch_now;
 	}
 
-	dev->dev_capa |= MIO_DEV_RENEW_REQUIRED;
+	dev->dev_capa |= MIO_DEV_CAPA_RENEW_REQUIRED;
 	goto update_timer;
 
 renew_watch_now:
@@ -1152,12 +1150,15 @@ static int __dev_write (mio_dev_t* dev, const void* data, mio_iolen_t len, const
 	return 1; /* written immediately and called on_write callback */
 
 enqueue_data:
+#if 0
+	/* TODO: DO WE REALLY NEED THIS CAPABILITY CHECK?  If not, undefine MIO_DEV_CAPA_OUT_QUEUED */
 	if (!(dev->dev_capa & MIO_DEV_CAPA_OUT_QUEUED)) 
 	{
 		/* writing queuing is not requested. so return failure */
 		mio_seterrbfmt (mio, MIO_ENOCAPA, "device incapable of queuing");
 		return -1;
 	}
+#endif
 
 	/* queue the remaining data*/
 	q = (mio_wq_t*)mio_allocmem(mio, MIO_SIZEOF(*q) + (dstaddr? dstaddr->len: 0) + urem);

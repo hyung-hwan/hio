@@ -24,7 +24,7 @@
     THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  */
 
-#include "mio-prv.h"
+#include "mio-sys.h"
 
 #if defined(_WIN32)
 #	include <windows.h>
@@ -79,18 +79,6 @@
 
 #endif
 
-struct mio_sys_log_t
-{
-	int fd;
-	int fd_flag; /* bitwise OR'ed fo logfd_flag_t bits */
-
-	struct
-	{
-		mio_bch_t buf[4096];
-		mio_oow_t len;
-	} out;
-};
-
 enum logfd_flag_t
 {
 	LOGFD_TTY = (1 << 0),
@@ -133,7 +121,7 @@ static int write_all (int fd, const mio_bch_t* ptr, mio_oow_t len)
 
 static int write_log (mio_t* mio, int fd, const mio_bch_t* ptr, mio_oow_t len)
 {
-	mio_sys_log_t* log = mio->sys.log;
+	mio_sys_log_t* log = &mio->sysdep->log;
 
 	while (len > 0)
 	{
@@ -184,7 +172,7 @@ static int write_log (mio_t* mio, int fd, const mio_bch_t* ptr, mio_oow_t len)
 
 static void flush_log (mio_t* mio, int fd)
 {
-	mio_sys_log_t* log = mio->sys.log;
+	mio_sys_log_t* log = &mio->sysdep->log;
 	if (log->out.len > 0)
 	{
 		write_all (fd, log->out.buf, log->out.len);
@@ -194,7 +182,7 @@ static void flush_log (mio_t* mio, int fd)
 
 void mio_sys_writelog (mio_t* mio, mio_bitmask_t mask, const mio_ooch_t* msg, mio_oow_t len)
 {
-	mio_sys_log_t* log = mio->sys.log;
+	mio_sys_log_t* log = &mio->sysdep->log;
 	mio_bch_t buf[256];
 	mio_oow_t ucslen, bcslen, msgidx;
 	int n, logfd;
@@ -327,12 +315,9 @@ void mio_sys_writelog (mio_t* mio, mio_bitmask_t mask, const mio_ooch_t* msg, mi
 
 int mio_sys_initlog (mio_t* mio)
 {
-	mio_sys_log_t* log;
+	mio_sys_log_t* log = &mio->sysdep->log;
 	mio_bitmask_t logmask;
 	/*mio_oow_t pathlen;*/
-
-	log = (mio_sys_log_t*)mio_callocmem(mio, MIO_SIZEOF(*log));
-	if (!log) return -1;
 
 /* TODO: */
 #define LOG_FILE "/dev/stderr"
@@ -355,13 +340,12 @@ int mio_sys_initlog (mio_t* mio)
 	logmask = MIO_LOG_ALL_TYPES | MIO_LOG_ALL_LEVELS;
 	mio_setoption (mio, MIO_LOG_MASK, &logmask);
 
-	mio->sys.log = log;
 	return 0;
 }
 
 void mio_sys_finilog (mio_t* mio)
 {
-	mio_sys_log_t* log = mio->sys.log;
+	mio_sys_log_t* log = &mio->sysdep->log;
 
 	if ((log->fd_flag & LOGFD_OPENED_HERE) && log->fd >= 0) 
 	{
@@ -369,7 +353,4 @@ void mio_sys_finilog (mio_t* mio)
 		log->fd = -1;
 		log->fd_flag = 0;
 	}
-
-	mio_freemem (mio, log);
-	mio->sys.log = MIO_NULL;
 }

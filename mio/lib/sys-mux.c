@@ -24,17 +24,7 @@
     THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  */
 
-#include "mio-prv.h"
-
-#if defined(HAVE_SYS_EPOLL_H)
-#	include <sys/epoll.h>
-#	define USE_EPOLL
-#elif defined(HAVE_SYS_POLL_H)
-#	include <sys/poll.h>
-#	define USE_POLL
-#else
-#	error NO SUPPORTED MULTIPLEXER
-#endif
+#include "mio-sys.h"
 
 #include <fcntl.h>
 #include <unistd.h>
@@ -42,78 +32,38 @@
 
 /* ========================================================================= */
 #if defined(USE_POLL)
-
-#define MUX_INDEX_INVALID MIO_TYPE_MAX(mio_oow_t)
-
-struct mio_sys_mux_t
-{
-	struct
-	{
-		mio_oow_t* ptr;
-		mio_oow_t  size;
-		mio_oow_t  capa;
-	} map; /* handle to index */
-
-	struct
-	{
-		struct pollfd* pfd;
-		mio_dev_t** dptr;
-		mio_oow_t size;
-		mio_oow_t capa;
-	} pd; /* poll data */
-};
-
-#elif defined(USE_EPOLL)
-
-struct mio_sys_mux_t
-{
-	int hnd;
-	struct epoll_event revs[100]; /* TODO: is it a good size? */
-};
-
+#	define MUX_INDEX_INVALID MIO_TYPE_MAX(mio_oow_t)
 #endif
 
 int mio_sys_initmux (mio_t* mio)
 {
-	mio_sys_mux_t* mux;
-
-	mux = (mio_sys_mux_t*)mio_callocmem(mio, MIO_SIZEOF(*mux));
-	if (!mux) return -1;
+	mio_sys_mux_t* mux = &mio->sysdep->mux;
 
 #if defined(USE_EPOLL)
 	mux->hnd = epoll_create(1000); /* TODO: choose proper initial size? */
 	if (mux->hnd == -1)
 	{
 		mio_seterrwithsyserr (mio, 0, errno);
-		mio_freemem (mio, mux);
 		return -1;
 	}
 #endif
 
-	mio->sys.mux = mux;
 	return 0;
 }
 
 void mio_sys_finimux (mio_t* mio)
 {
-	if (mio->sys.mux)
-	{
+	mio_sys_mux_t* mux = &mio->sysdep->mux;
 #if defined(USE_EPOLL)
-		close (mio->sys.mux->hnd);
+	close (mux->hnd);
 #endif
-		mio_freemem (mio, mio->sys.mux);
-		mio->sys.mux = MIO_NULL;
-	}
 }
 
 int mio_sys_ctrlmux (mio_t* mio, mio_sys_mux_cmd_t cmd, mio_dev_t* dev, int dev_capa)
 {
 #if defined(USE_POLL)
-	mio_t* mio = dev->mio;
-	mio_sys_mux_t* mux;
+	mio_sys_mux_t* mux = &mio->sysdep->mux;
 	mio_oow_t idx;
-
-	mux = (mio_sys_mux_t*)mio->sys.mux;
 
 	if (dev->hnd >= mux->map.capa)
 	{
@@ -235,6 +185,7 @@ int mio_sys_ctrlmux (mio_t* mio, mio_sys_mux_cmd_t cmd, mio_dev_t* dev, int dev_
 			return -1;
 	}
 #elif defined(USE_EPOLL)
+	mio_sys_mux_t* mux = &mio->sysdep->mux;
 	static int epoll_cmd[] = { EPOLL_CTL_ADD, EPOLL_CTL_MOD, EPOLL_CTL_DEL };
 	struct epoll_event ev;
 
@@ -254,7 +205,7 @@ int mio_sys_ctrlmux (mio_t* mio, mio_sys_mux_cmd_t cmd, mio_dev_t* dev, int dev_
 
 	if (dev_capa & MIO_DEV_CAPA_OUT_WATCHED) ev.events |= EPOLLOUT;
 
-	if (epoll_ctl(mio->sys.mux->hnd, epoll_cmd[cmd], dev->dev_mth->getsyshnd(dev), &ev) == -1)
+	if (epoll_ctl(mux->hnd, epoll_cmd[cmd], dev->dev_mth->getsyshnd(dev), &ev) == -1)
 	{
 		mio_seterrwithsyserr (mio, 0, errno);
 		return -1;
@@ -271,7 +222,7 @@ int mio_sys_waitmux (mio_t* mio, const mio_ntime_t* tmout, mio_sys_mux_evtcb_t e
 #if defined(USE_POLL)
 	int nentries;
 
-	mux = (mio_sys_mux_t*)mio->sys.mux;
+	mux = (mio_sys_mux_t*)mio->sysdep->mux;
 
 	nentries = poll(mux->pd.pfd, mux->pd.size, MIO_SECNSEC_TO_MSEC(tmout.sec, tmout.nsec));
 	if (nentries == -1)
@@ -303,7 +254,7 @@ int mio_sys_waitmux (mio_t* mio, const mio_ntime_t* tmout, mio_sys_mux_evtcb_t e
 
 #elif defined(USE_EPOLL)
 
-	mio_sys_mux_t* mux = mio->sys.mux;
+	mio_sys_mux_t* mux = &mio->sysdep->mux;
 	int nentries, i;
 
 	nentries = epoll_wait(mux->hnd, mux->revs, MIO_COUNTOF(mux->revs), MIO_SECNSEC_TO_MSEC(tmout->sec, tmout->nsec));
