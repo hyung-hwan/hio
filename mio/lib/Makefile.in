@@ -142,7 +142,7 @@ am__DEPENDENCIES_2 = $(am__DEPENDENCIES_1)
 libmio_la_DEPENDENCIES = $(am__DEPENDENCIES_2) $(am__DEPENDENCIES_1)
 am_libmio_la_OBJECTS = libmio_la-err.lo libmio_la-fmtout.lo \
 	libmio_la-mio.lo libmio_la-mio-pro.lo libmio_la-mio-sck.lo \
-	libmio_la-sck-addr.lo libmio_la-sys-ass.lo \
+	libmio_la-sck-addr.lo libmio_la-sys.lo libmio_la-sys-ass.lo \
 	libmio_la-sys-err.lo libmio_la-sys-log.lo libmio_la-sys-mux.lo \
 	libmio_la-sys-tim.lo libmio_la-tmr.lo libmio_la-utf8.lo \
 	libmio_la-utl.lo
@@ -365,6 +365,7 @@ pdfdir = @pdfdir@
 prefix = @prefix@
 program_transform_name = @program_transform_name@
 psdir = @psdir@
+runstatedir = @runstatedir@
 sbindir = @sbindir@
 sharedstatedir = @sharedstatedir@
 srcdir = @srcdir@
@@ -405,11 +406,13 @@ libmio_la_SOURCES = \
 	fmtout.c \
 	fmtoutv.h \
 	mio-prv.h \
+	mio-sys.h \
 	mio.c \
 	mio-pro.c \
 	mio-sck.c \
 	sck-addr.c \
 	sck-addr.h \
+	sys.c \
 	sys-ass.c \
 	sys-err.c \
 	sys-log.c \
@@ -584,6 +587,7 @@ distclean-compile:
 @AMDEP_TRUE@@am__include@ @am__quote@./$(DEPDIR)/libmio_la-sys-log.Plo@am__quote@
 @AMDEP_TRUE@@am__include@ @am__quote@./$(DEPDIR)/libmio_la-sys-mux.Plo@am__quote@
 @AMDEP_TRUE@@am__include@ @am__quote@./$(DEPDIR)/libmio_la-sys-tim.Plo@am__quote@
+@AMDEP_TRUE@@am__include@ @am__quote@./$(DEPDIR)/libmio_la-sys.Plo@am__quote@
 @AMDEP_TRUE@@am__include@ @am__quote@./$(DEPDIR)/libmio_la-tmr.Plo@am__quote@
 @AMDEP_TRUE@@am__include@ @am__quote@./$(DEPDIR)/libmio_la-utf8.Plo@am__quote@
 @AMDEP_TRUE@@am__include@ @am__quote@./$(DEPDIR)/libmio_la-utl.Plo@am__quote@
@@ -654,6 +658,13 @@ libmio_la-sck-addr.lo: sck-addr.c
 @AMDEP_TRUE@@am__fastdepCC_FALSE@	$(AM_V_CC)source='sck-addr.c' object='libmio_la-sck-addr.lo' libtool=yes @AMDEPBACKSLASH@
 @AMDEP_TRUE@@am__fastdepCC_FALSE@	DEPDIR=$(DEPDIR) $(CCDEPMODE) $(depcomp) @AMDEPBACKSLASH@
 @am__fastdepCC_FALSE@	$(AM_V_CC@am__nodep@)$(LIBTOOL) $(AM_V_lt) --tag=CC $(AM_LIBTOOLFLAGS) $(LIBTOOLFLAGS) --mode=compile $(CC) $(DEFS) $(DEFAULT_INCLUDES) $(INCLUDES) $(libmio_la_CPPFLAGS) $(CPPFLAGS) $(AM_CFLAGS) $(CFLAGS) -c -o libmio_la-sck-addr.lo `test -f 'sck-addr.c' || echo '$(srcdir)/'`sck-addr.c
+
+libmio_la-sys.lo: sys.c
+@am__fastdepCC_TRUE@	$(AM_V_CC)$(LIBTOOL) $(AM_V_lt) --tag=CC $(AM_LIBTOOLFLAGS) $(LIBTOOLFLAGS) --mode=compile $(CC) $(DEFS) $(DEFAULT_INCLUDES) $(INCLUDES) $(libmio_la_CPPFLAGS) $(CPPFLAGS) $(AM_CFLAGS) $(CFLAGS) -MT libmio_la-sys.lo -MD -MP -MF $(DEPDIR)/libmio_la-sys.Tpo -c -o libmio_la-sys.lo `test -f 'sys.c' || echo '$(srcdir)/'`sys.c
+@am__fastdepCC_TRUE@	$(AM_V_at)$(am__mv) $(DEPDIR)/libmio_la-sys.Tpo $(DEPDIR)/libmio_la-sys.Plo
+@AMDEP_TRUE@@am__fastdepCC_FALSE@	$(AM_V_CC)source='sys.c' object='libmio_la-sys.lo' libtool=yes @AMDEPBACKSLASH@
+@AMDEP_TRUE@@am__fastdepCC_FALSE@	DEPDIR=$(DEPDIR) $(CCDEPMODE) $(depcomp) @AMDEPBACKSLASH@
+@am__fastdepCC_FALSE@	$(AM_V_CC@am__nodep@)$(LIBTOOL) $(AM_V_lt) --tag=CC $(AM_LIBTOOLFLAGS) $(LIBTOOLFLAGS) --mode=compile $(CC) $(DEFS) $(DEFAULT_INCLUDES) $(INCLUDES) $(libmio_la_CPPFLAGS) $(CPPFLAGS) $(AM_CFLAGS) $(CFLAGS) -c -o libmio_la-sys.lo `test -f 'sys.c' || echo '$(srcdir)/'`sys.c
 
 libmio_la-sys-ass.lo: sys-ass.c
 @am__fastdepCC_TRUE@	$(AM_V_CC)$(LIBTOOL) $(AM_V_lt) --tag=CC $(AM_LIBTOOLFLAGS) $(LIBTOOLFLAGS) --mode=compile $(CC) $(DEFS) $(DEFAULT_INCLUDES) $(INCLUDES) $(libmio_la_CPPFLAGS) $(CPPFLAGS) $(AM_CFLAGS) $(CFLAGS) -MT libmio_la-sys-ass.lo -MD -MP -MF $(DEPDIR)/libmio_la-sys-ass.Tpo -c -o libmio_la-sys-ass.lo `test -f 'sys-ass.c' || echo '$(srcdir)/'`sys-ass.c

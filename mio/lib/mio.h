@@ -338,25 +338,25 @@ enum mio_dev_capa_t
 	MIO_DEV_CAPA_VIRTUAL      = (1 << 0),
 	MIO_DEV_CAPA_IN           = (1 << 1),
 	MIO_DEV_CAPA_OUT          = (1 << 2),
-	/* #MIO_DEV_CAPA_PRI is meaningful only if #MIO_DEV_CAPA_IN is set */
-	MIO_DEV_CAPA_PRI          = (1 << 3), 
+	MIO_DEV_CAPA_PRI          = (1 << 3),  /* meaningful only if #MIO_DEV_CAPA_IN is set */
 	MIO_DEV_CAPA_STREAM       = (1 << 4),
-	MIO_DEV_CAPA_OUT_QUEUED   = (1 << 5),
+	MIO_DEV_CAPA_IN_DISABLED  = (1 << 5),
+	MIO_DEV_CAPA_OUT_QUEUED   = (1 << 6),
+	MIO_DEV_CAPA_ALL_MASK     = (MIO_DEV_CAPA_VIRTUAL | MIO_DEV_CAPA_IN | MIO_DEV_CAPA_OUT | MIO_DEV_CAPA_PRI | MIO_DEV_CAPA_STREAM | MIO_DEV_CAPA_IN_DISABLED | MIO_DEV_CAPA_OUT_QUEUED),
 
-	/* internal use only. never set this bit to the dev_capa field */
-	MIO_DEV_CAPA_IN_DISABLED  = (1 << 9),
-	MIO_DEV_CAPA_IN_CLOSED    = (1 << 10),
-	MIO_DEV_CAPA_OUT_CLOSED   = (1 << 11),
-	MIO_DEV_CAPA_IN_WATCHED   = (1 << 12),
-	MIO_DEV_CAPA_OUT_WATCHED  = (1 << 13),
-	MIO_DEV_CAPA_PRI_WATCHED  = (1 << 14), /**< can be set only if MIO_DEV_CAPA_IN_WATCHED is set */
-
-	MIO_DEV_CAPA_ACTIVE       = (1 << 15),
-	MIO_DEV_CAPA_HALTED       = (1 << 16),
-	MIO_DEV_CAPA_ZOMBIE       = (1 << 17),
-
-	/* internal use only */
-	MIO_DEV_RENEW_REQUIRED    = (1 << 20)
+	/* -------------------------------------------------------------------
+	 * the followings bits are for internal use only. 
+	 * never set these bits to the dev_capa field.
+	 * ------------------------------------------------------------------- */
+	MIO_DEV_CAPA_IN_CLOSED      = (1 << 10),
+	MIO_DEV_CAPA_OUT_CLOSED     = (1 << 11),
+	MIO_DEV_CAPA_IN_WATCHED     = (1 << 12),
+	MIO_DEV_CAPA_OUT_WATCHED    = (1 << 13),
+	MIO_DEV_CAPA_PRI_WATCHED    = (1 << 14), /**< can be set only if MIO_DEV_CAPA_IN_WATCHED is set */
+	MIO_DEV_CAPA_ACTIVE         = (1 << 15),
+	MIO_DEV_CAPA_HALTED         = (1 << 16),
+	MIO_DEV_CAPA_ZOMBIE         = (1 << 17),
+	MIO_DEV_CAPA_RENEW_REQUIRED = (1 << 18)
 };
 typedef enum mio_dev_capa_t mio_dev_capa_t;
 
@@ -459,7 +459,6 @@ enum mio_sys_mux_cmd_t
 };
 typedef enum mio_sys_mux_cmd_t mio_sys_mux_cmd_t;
 
-
 typedef void (*mio_sys_mux_evtcb_t) (
 	mio_t*                  mio,
 	mio_dev_t*              dev,
@@ -467,8 +466,7 @@ typedef void (*mio_sys_mux_evtcb_t) (
 	int                     rdhup
 );
 
-typedef struct mio_sys_mux_t mio_sys_mux_t;
-typedef struct mio_sys_log_t mio_sys_log_t;
+typedef struct mio_sys_t mio_sys_t;
 
 struct mio_t
 {
@@ -548,11 +546,7 @@ struct mio_t
 	mio_cwq_t* cwqfl[MIO_CWQFL_SIZE]; /* list of free cwq objects */
 
 	/* platform specific fields below */
-	struct
-	{
-		mio_sys_mux_t* mux;
-		mio_sys_log_t* log;
-	} sys;
+	mio_sys_t* sysdep;
 };
 
 /* ========================================================================= */
@@ -1009,6 +1003,12 @@ MIO_EXPORT const mio_ooch_t* mio_errnum_to_errstr (
 	mio_errnum_t errnum
 );
 
+/**
+ * The mio_sys_gettime() function gets the current time.
+ */
+MIO_EXPORT void mio_sys_gettime (
+	mio_ntime_t* now
+);
 
 #ifdef __cplusplus
 }

@@ -135,6 +135,15 @@ void mio_seterrufmtv (
 /* ========================================================================== */
 /* system intefaces                                                           */
 /* ========================================================================== */
+
+int mio_sys_init (
+	mio_t* mio
+);
+
+void mio_sys_fini (
+	mio_t* mio
+);
+
 void mio_sys_assertfail (
 	mio_t*           mio, 
 	const mio_bch_t* expr,
@@ -150,30 +159,11 @@ mio_errnum_t mio_sys_syserrstrb (
 	mio_oow_t         len
 );
 
-
-
-int mio_sys_initlog (
-	mio_t*            mio
-);
-
-void mio_sys_finilog (
-	mio_t*            mio
-);
-
 void mio_sys_writelog (
 	mio_t*            mio,
 	mio_bitmask_t     mask,
 	const mio_ooch_t* msg,
 	mio_oow_t         len
-);
-
-
-int mio_sys_initmux (
-	mio_t* mio
-);
-
-void mio_sys_finimux (
-	mio_t* mio
 );
 
 int mio_sys_ctrlmux (
@@ -187,13 +177,6 @@ int mio_sys_waitmux (
 	mio_t*              mio,
 	const mio_ntime_t*  tmout,
 	mio_sys_mux_evtcb_t event_handler
-);
-
-/**
- * The mio_sys_gettime() function gets the current time.
- */
-void mio_sys_gettime (
-	mio_ntime_t* nt
 );
 
 #ifdef __cplusplus
