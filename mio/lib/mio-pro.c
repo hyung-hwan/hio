@@ -152,7 +152,7 @@ static pid_t standard_fork_and_exec (mio_t* mio, int pfds[], int flags, param_t*
 			pfds[1] = MIO_SYSHND_INVALID;
 
 			/* let the pipe be standard input */
-			if (dup2 (pfds[0], 0) <= -1) goto slave_oops;
+			if (dup2(pfds[0], 0) <= -1) goto slave_oops;
 
 			close (pfds[0]);
 			pfds[0] = MIO_SYSHND_INVALID;

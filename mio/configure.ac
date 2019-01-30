@@ -279,7 +279,11 @@ then
 	dnl check for an SSL library
 	AC_CHECK_FUNCS([SSL_library_init])
 
-	if test "x$ac_cv_func_SSL_library_init" = "xyes"
+	dnl SSL_library_init is a macro aliasing OPENSSL_init_ssl in openssl 1.1.0 or later
+	dnl   #define SSL_library_init() OPENSSL_init_ssl(0, NULL)
+	AC_CHECK_FUNCS([OPENSSL_init_ssl])
+
+	if test "x$ac_cv_func_SSL_library_init" = "xyes" -o "x$ac_cv_func_OPENSSL_init_ssl" = "xyes"
 	then
 		AC_DEFINE(HAVE_SSL, 1, [ssl support])
 	else
@@ -294,6 +298,19 @@ then
 
 			dnl only for consistency with AC_CHECK_FUNCS
 			AC_DEFINE(HAVE_SSL_LIBRARY_INIT, 1)
+		])
+
+		AC_CHECK_LIB([ssl], [OPENSSL_init_ssl], [
+			SSL_LIBS="-lssl"
+			AC_DEFINE(HAVE_SSL, 1, [ssl support])
+
+			dnl additional check
+			AC_CHECK_LIB([crypto], [ERR_get_error], [
+				SSL_LIBS="${SSL_LIBS} -lcrypto"
+			])
+
+			dnl only for consistency with AC_CHECK_FUNCS
+			AC_DEFINE(HAVE_OPENSSL_INIT_SSL, 1)
 		])
 	fi
 

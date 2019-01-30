@@ -1268,25 +1268,6 @@ int mio_dev_timedwrite (mio_dev_t* dev, const void* data, mio_iolen_t len, const
 	return __dev_write(dev, data, len, tmout, wrctx, dstaddr);
 }
 
-int mio_makesyshndasync (mio_t* mio, mio_syshnd_t hnd)
-{
-#if defined(F_GETFL) && defined(F_SETFL) && defined(O_NONBLOCK)
-	int flags;
-
-	if ((flags = fcntl(hnd, F_GETFL)) <= -1 ||
-	    (flags = fcntl(hnd, F_SETFL, flags | O_NONBLOCK)) <= -1)
-	{
-		mio_seterrwithsyserr (mio, 0, errno);
-		return -1;
-	}
-
-	return 0;
-#else
-	mio_seterrnum (mio, MIO_ENOIMPL);
-	return -1;
-#endif
-}
-
 /* -------------------------------------------------------------------------- */
 
 void mio_gettime (mio_t* mio, mio_ntime_t* now)
