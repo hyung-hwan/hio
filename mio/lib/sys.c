@@ -30,6 +30,7 @@ int mio_sys_init (mio_t* mio)
 {
 	int log_inited = 0;
 	int mux_inited = 0;
+	int time_inited = 0;
 
 	mio->sysdep = (mio_sys_t*)mio_callocmem(mio, MIO_SIZEOF(*mio->sysdep));
 	if (!mio->sysdep) return -1;
@@ -40,9 +41,13 @@ int mio_sys_init (mio_t* mio)
 	if (mio_sys_initmux(mio) <= -1) goto oops;
 	mux_inited = 1;
 
+	if (mio_sys_inittime(mio) <= -1) goto oops;
+	time_inited = 1;
+
 	return 0;
 
 oops:
+	if (time_inited) mio_sys_finitime (mio);
 	if (mux_inited) mio_sys_finimux (mio);
 	if (log_inited) mio_sys_finilog (mio);
 	if (mio->sysdep) 
@@ -55,6 +60,7 @@ oops:
 
 void mio_sys_fini (mio_t* mio)
 {
+	mio_sys_finitime (mio);
 	mio_sys_finimux (mio);
 	mio_sys_finilog (mio);
 

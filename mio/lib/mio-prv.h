@@ -31,11 +31,8 @@
 #include "mio-utl.h"
 #include <stdarg.h>
 
-
 /*TODO: redefine and remove these */
 #include <string.h>
-#include <stdio.h>
-/*TODO: redefine these */
 #define MIO_MEMSET(dst,byte,count) memset(dst,byte,count)
 #define MIO_MEMCPY(dst,src,count) memcpy(dst,src,count)
 #define MIO_MEMMOVE(dst,src,count) memmove(dst,src,count)
@@ -177,6 +174,11 @@ int mio_sys_waitmux (
 	mio_t*              mio,
 	const mio_ntime_t*  tmout,
 	mio_sys_mux_evtcb_t event_handler
+);
+
+void mio_sys_gettime (
+	mio_t*       mio,
+	mio_ntime_t* now
 );
 
 #ifdef __cplusplus

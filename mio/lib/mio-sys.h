@@ -27,6 +27,8 @@
 #ifndef _MIO_SYS_H_
 #define _MIO_SYS_H_
 
+/* this is a private header file used by sys-XXX files */
+
 #include "mio-prv.h"
 
 #if defined(HAVE_SYS_EPOLL_H)
@@ -89,11 +91,32 @@ struct mio_sys_log_t
 typedef struct mio_sys_log_t mio_sys_log_t;
 
 /* -------------------------------------------------------------------------- */
+
+struct mio_sys_time_t
+{
+#if defined(_WIN32)
+	HANDLE waitable_timer;
+	DWORD tc_last;
+	DWORD tc_overflow;
+#elif defined(__OS2__)
+	ULONG tc_last;
+	moo_ntime_t tc_last_ret;
+#elif defined(__DOS__)
+	clock_t tc_last;
+	moo_ntime_t tc_last_ret;
+#else
+	/* nothing */
+#endif
+};
+
+typedef struct mio_sys_time_t mio_sys_time_t;
+
+/* -------------------------------------------------------------------------- */
 struct mio_sys_t
 {
 	mio_sys_log_t log;
 	mio_sys_mux_t mux;
-	/*mio_sys_time_t time;*/
+	mio_sys_time_t time;
 };
 
 /* -------------------------------------------------------------------------- */
@@ -118,6 +141,13 @@ void mio_sys_finimux (
 	mio_t* mio
 );
 
+int mio_sys_inittime (
+	mio_t* mio
+);
+
+void mio_sys_finitime (
+	mio_t* mio
+);
 
 #if defined(__cplusplus)
 }
