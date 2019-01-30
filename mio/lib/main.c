@@ -657,7 +657,7 @@ int main (int argc, char* argv[])
 	tcp_conn.options = MIO_DEV_SCK_CONNECT_SSL;
 	if (mio_dev_sck_connect(tcp[0], &tcp_conn) <= -1)
 	{
-		printf ("mio_dev_sck_connect() failed....\n");
+		MIO_INFO0 (mio, "tcp[0] mio_dev_sck_connect() failed....\n");
 		/* carry on regardless of failure */
 	}
 
@@ -672,7 +672,7 @@ int main (int argc, char* argv[])
 	tcp[1] = mio_dev_sck_make(mio, MIO_SIZEOF(tcp_server_t), &tcp_make);
 	if (!tcp[1])
 	{
-		printf ("Cannot make tcp\n");
+		MIO_INFO0 (mio, "cannot make tcp[1]....\n");
 		goto oops;
 	}
 	ts = (tcp_server_t*)(tcp[1] + 1);
@@ -684,7 +684,7 @@ int main (int argc, char* argv[])
 
 	if (mio_dev_sck_bind(tcp[1],&tcp_bind) <= -1)
 	{
-		printf ("tcp[1] mio_dev_sck_bind() failed....\n");
+		MIO_INFO0 (mio, "tcp[1] mio_dev_sck_bind() failed....\n");
 		goto oops;
 	}
 
@@ -692,7 +692,7 @@ int main (int argc, char* argv[])
 	tcp_lstn.backlogs = 100;
 	if (mio_dev_sck_listen(tcp[1], &tcp_lstn) <= -1)
 	{
-		printf ("tcp[1] mio_dev_sck_listen() failed....\n");
+		MIO_INFO0 (mio, "tcp[1] mio_dev_sck_listen() failed....\n");
 		goto oops;
 	}
 
@@ -722,14 +722,14 @@ int main (int argc, char* argv[])
 
 	if (mio_dev_sck_bind(tcp[2], &tcp_bind) <= -1)
 	{
-		printf ("tcp[2] mio_dev_sck_bind() failed....\n");
+		MIO_INFO0 (mio, "tcp[2] mio_dev_sck_bind() failed....\n");
 		goto oops;
 	}
 
 	tcp_lstn.backlogs = 100;
 	if (mio_dev_sck_listen(tcp[2], &tcp_lstn) <= -1)
 	{
-		printf ("tcp[2] mio_dev_sck_listen() failed....\n");
+		MIO_INFO0 (mio, "tcp[2] mio_dev_sck_listen() failed....\n");
 		goto oops;
 	}
 

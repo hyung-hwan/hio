@@ -67,3 +67,26 @@ void mio_sys_fini (mio_t* mio)
 	mio_freemem (mio, mio->sysdep);
 	mio->sysdep = MIO_NULL;
 }
+
+
+/* TODO: migrate this function */
+#include <fcntl.h>
+#include <errno.h>
+int mio_makesyshndasync (mio_t* mio, mio_syshnd_t hnd)
+{
+#if defined(F_GETFL) && defined(F_SETFL) && defined(O_NONBLOCK)
+	int flags;
+
+	if ((flags = fcntl(hnd, F_GETFL)) <= -1 ||
+	    (flags = fcntl(hnd, F_SETFL, flags | O_NONBLOCK)) <= -1)
+	{
+		mio_seterrwithsyserr (mio, 0, errno);
+		return -1;
+	}
+
+	return 0;
+#else
+	mio_seterrnum (mio, MIO_ENOIMPL);
+	return -1;
+#endif
+}
