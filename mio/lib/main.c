@@ -445,6 +445,7 @@ static void on_icmp_due (mio_t* mio, const mio_ntime_t* now, mio_tmrjob_t* tmrjo
 
 static int schedule_icmp_wait (mio_dev_sck_t* dev)
 {
+	mio_t* mio = dev->mio;
 	icmpxtn_t* icmpxtn;
 	mio_tmrjob_t tmrjob;
 	mio_ntime_t fire_after;
@@ -454,7 +455,7 @@ static int schedule_icmp_wait (mio_dev_sck_t* dev)
 
 	memset (&tmrjob, 0, MIO_SIZEOF(tmrjob));
 	tmrjob.ctx = dev;
-	mio_sys_gettime (&tmrjob.when);
+	mio_gettime (mio, &tmrjob.when);
 	MIO_ADD_NTIME (&tmrjob.when, &tmrjob.when, &fire_after);
 	tmrjob.handler = on_icmp_due;
 	tmrjob.idxptr = &icmpxtn->tmout_jobidx;
@@ -565,7 +566,7 @@ static int setup_ping4_tester (mio_t* mio)
 
 /* ========================================================================= */
 
-#if 0
+#if 1
 static mio_t* g_mio;
 
 static void handle_signal (int sig)
@@ -593,7 +594,7 @@ int main (int argc, char* argv[])
 	SSL_library_init ();
 #endif
 
-	mio = mio_open(&mmgr, 0, 512, MIO_NULL);
+	mio = mio_open(&mmgr, 0, MIO_NULL, 512, MIO_NULL);
 	if (!mio)
 	{
 		printf ("Cannot open mio\n");
@@ -645,10 +646,10 @@ int main (int argc, char* argv[])
 	ts = (tcp_server_t*)(tcp[0] + 1);
 	ts->tally = 0;
 
-
 	memset (&tcp_conn, 0, MIO_SIZEOF(tcp_conn));
 {
-	in_addr_t ia = inet_addr("192.168.1.119");
+	/* openssl s_server -accept 9999 -key localhost.key  -cert localhost.crt */
+	in_addr_t ia = inet_addr("127.0.0.1");
 	mio_sckaddr_initforip4 (&tcp_conn.remoteaddr, 9999, (mio_ip4addr_t*)&ia);
 }
 
@@ -737,6 +738,7 @@ int main (int argc, char* argv[])
 	if (setup_arp_tester(mio) <= -1) goto oops;
 	if (setup_ping4_tester(mio) <= -1) goto oops;
 
+#if 1
 for (i = 0; i < 5; i++)
 {
 	mio_dev_pro_t* pro;
@@ -745,8 +747,8 @@ for (i = 0; i < 5; i++)
 	memset (&pro_make, 0, MIO_SIZEOF(pro_make));
 	pro_make.flags = MIO_DEV_PRO_READOUT | MIO_DEV_PRO_READERR | MIO_DEV_PRO_WRITEIN /*| MIO_DEV_PRO_FORGET_CHILD*/;
 	//pro_make.cmd = "/bin/ls -laF /usr/bin";
-	//pro_make.cmd = "/bin/ls -laF";
-	pro_make.cmd = "./a";
+	pro_make.cmd = "/bin/ls -laF";
+	//pro_make.cmd = "./a";
 	pro_make.on_read = pro_on_read;
 	pro_make.on_write = pro_on_write;
 	pro_make.on_close = pro_on_close;
@@ -754,7 +756,7 @@ for (i = 0; i < 5; i++)
 	pro = mio_dev_pro_make(mio, 0, &pro_make);
 	if (!pro)
 	{
-		printf ("CANNOT CREATE PROCESS PIPE\n");
+		MIO_INFO1 (mio, "CANNOT CREATE PROCESS PIPE - %js\n", mio_geterrmsg(mio));
 		goto oops;
 	}
 
@@ -764,7 +766,7 @@ for (i = 0; i < 5; i++)
 //mio_dev_pro_close (pro, MIO_DEV_PRO_OUT); 
 //mio_dev_pro_close (pro, MIO_DEV_PRO_ERR); 
 }
-
+#endif
 	mio_loop (mio);
 
 	g_mio = MIO_NULL;

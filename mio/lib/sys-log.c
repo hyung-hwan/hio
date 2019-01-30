@@ -79,6 +79,9 @@
 
 #endif
 
+#include <stdio.h> /* for sprintf */
+
+
 enum logfd_flag_t
 {
 	LOGFD_TTY = (1 << 0),

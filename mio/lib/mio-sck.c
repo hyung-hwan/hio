@@ -399,14 +399,15 @@ static int schedule_timer_job_at (mio_dev_sck_t* dev, const mio_ntime_t* fire_at
 
 static int schedule_timer_job_after (mio_dev_sck_t* dev, const mio_ntime_t* fire_after, mio_tmrjob_handler_t handler)
 {
+	mio_t* mio = dev->mio;
 	mio_ntime_t fire_at;
 
-	MIO_ASSERT (dev->mio, MIO_IS_POS_NTIME(fire_after));
+	MIO_ASSERT (mio, MIO_IS_POS_NTIME(fire_after));
 
-	mio_sys_gettime (&fire_at);
+	mio_gettime (mio, &fire_at);
 	MIO_ADD_NTIME (&fire_at, &fire_at, fire_after);
 
-	return schedule_timer_job_at (dev, &fire_at, handler);
+	return schedule_timer_job_at(dev, &fire_at, handler);
 }
 
 /* ======================================================================== */

@@ -24,7 +24,7 @@
     THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  */
 
-#include "mio-prv.h"
+#include "mio-sys.h"
 
 #if defined(_WIN32)
 #	include <windows.h>
@@ -47,147 +47,20 @@
 #	include <errno.h>
 #endif
 
-#define MIO_EPOCH_YEAR  (1970)
-#define MIO_EPOCH_MON   (1)
-#define MIO_EPOCH_DAY   (1)
-#define MIO_EPOCH_WDAY  (4)
-
-/* windows specific epoch time */
-#define MIO_EPOCH_YEAR_WIN   (1601)
-#define MIO_EPOCH_MON_WIN    (1)
-#define MIO_EPOCH_DAY_WIN    (1)
-
-#if defined(_WIN32)
-	#define EPOCH_DIFF_YEARS (MIO_EPOCH_YEAR-MIO_EPOCH_YEAR_WIN)
-	#define EPOCH_DIFF_DAYS  ((mio_intptr_t)EPOCH_DIFF_YEARS*365+EPOCH_DIFF_YEARS/4-3)
-	#define EPOCH_DIFF_SECS  ((mio_intptr_t)EPOCH_DIFF_DAYS*24*60*60)
-#endif
-
-#if 0
-void mio_sys_gettime (mio_ntime_t* now)
+int mio_sys_inittime (mio_t* mio)
 {
-#if defined(_WIN32)
-	SYSTEMTIME st;
-	FILETIME ft;
-	ULARGE_INTEGER li;
-
-	/* 
-	 * MSDN: The FILETIME structure is a 64-bit value representing the 
-	 *       number of 100-nanosecond intervals since January 1, 1601 (UTC).
-	 */
-
-	GetSystemTime (&st);
-	SystemTimeToFileTime (&st, &ft); /* this must not fail */
-
-	li.LowPart = ft.dwLowDateTime;
-	li.HighPart = ft.dwHighDateTime;
-
-     /* li.QuadPart is in the 100-nanosecond intervals */
-	now->sec = (li.QuadPart / (MIO_NSECS_PER_SEC / 100)) - EPOCH_DIFF_SECS;
-	now->nsec = (li.QuadPart % (MIO_NSECS_PER_SEC / 100)) * 100;
-
-#elif defined(__OS2__)
-
-	DATETIME dt;
-	mio_btime_t bt;
-
-	/* Can I use DosQuerySysInfo(QSV_TIME_LOW) and 
-	 * DosQuerySysInfo(QSV_TIME_HIGH) for this instead? 
-	 * Maybe, resolution too low as it returns values 
-	 * in seconds. */
-
-	DosGetDateTime (&dt);
-	/* DosGetDateTime() never fails. it always returns NO_ERROR */
-
-	bt.year = dt.year - MIO_BTIME_YEAR_BASE;
-	bt.mon = dt.month - 1;
-	bt.mday = dt.day;
-	bt.hour = dt.hours;
-	bt.min = dt.minutes;
-	bt.sec = dt.seconds;
-	/*bt.msec = dt.hundredths * 10;*/
-	bt.isdst = -1; /* determine dst for me */
-
-	if (mio_timelocal(&bt, t) <= -1) 
-	{
-		now->sec = time (MIO_NULL);
-		now->nsec = 0;
-	}
-	else
-	{
-		now->nsec = MIO_MSEC_TO_NSEC(dt.hundredths * 10);
-	}
+	/*mio_sys_time_t* tim = &mio->sysdep->time;*/
+	/* nothing to do */
 	return 0;
-
-#elif defined(__DOS__)
-
-	struct dostime_t dt;
-	struct dosdate_t dd;
-	mio_btime_t bt;
-
-	_dos_gettime (&dt);
-	_dos_getdate (&dd);
-
-	bt.year = dd.year - MIO_BTIME_YEAR_BASE;
-	bt.mon = dd.month - 1;
-	bt.mday = dd.day;
-	bt.hour = dt.hour;
-	bt.min = dt.minute;
-	bt.sec = dt.second;
-	/*bt.msec = dt.hsecond * 10; */
-	bt.isdst = -1; /* determine dst for me */
-
-	if (mio_timelocal(&bt, t) <= -1) 
-	{
-		now->sec = time (MIO_NULL);
-		now->nsec = 0;
-	}
-	else
-	{
-		now->nsec = MIO_MSEC_TO_NSEC(dt.hsecond * 10);
-	}
-
-#elif defined(macintosh)
-	unsigned long tv;
-
-	GetDateTime (&tv);
-	now->sec = tv;
-	tv->nsec = 0;
-
-#elif defined(HAVE_CLOCK_GETTIME) && defined(CLOCK_REALTIME)
-	struct timespec ts;
-
-	if (clock_gettime(CLOCK_REALTIME, &ts) == -1 && errno == EINVAL)
-	{
-	#if defined(HAVE_GETTIMEOFDAY)
-		struct timeval tv;
-		gettimeofday (&tv, MIO_NULL);
-		now->sec = tv.tv_sec;
-		now->nsec = MIO_USEC_TO_NSEC(tv.tv_usec);
-	#else
-		now->sec = time (MIO_NULL);
-		now->nsec = 0;
-	#endif
-	}
-
-	now->sec = ts.tv_sec;
-	now->nsec = ts.tv_nsec;
-
-#elif defined(HAVE_GETTIMEOFDAY)
-	struct timeval tv;
-	gettimeofday (&tv, MIO_NULL);
-	now->sec = tv.tv_sec;
-	now->nsec = MIO_USEC_TO_NSEC(tv.tv_usec);
-
-#else
-	now->sec = time(MIO_NULL);
-	now->nsec = 0;
-#endif
 }
 
-#else
+void mio_sys_finitime (mio_t* mio)
+{
+	/*mio_sys_time_t* tim = &mio->sysdep->tim;*/
+	/* nothing to do */
+}
 
-void mio_sys_gettime (mio_ntime_t* now)
+void mio_sys_gettime (mio_t* mio, mio_ntime_t* now)
 {
 #if defined(_WIN32)
 
@@ -195,7 +68,7 @@ void mio_sys_gettime (mio_ntime_t* now)
 	mio_uint64_t bigsec, bigmsec;
 	bigmsec = GetTickCount64();
 	#else
-	xtn_t* xtn = GET_XTN(mio);
+	mio_sys_time_t* tim = &mio->sysdep->tim;
 	mio_uint64_t bigsec, bigmsec;
 	DWORD msec;
 
@@ -216,7 +89,7 @@ void mio_sys_gettime (mio_ntime_t* now)
 	MIO_INIT_NTIME(now, bigsec, MIO_MSEC_TO_NSEC(bigmsec));
 
 #elif defined(__OS2__)
-	xtn_t* xtn = GET_XTN(mio);
+	mio_sys_time_t* tim = &mio->sysdep->tim;
 	ULONG msec, elapsed;
 	mio_ntime_t et;
 
@@ -234,7 +107,7 @@ void mio_sys_gettime (mio_ntime_t* now)
 	*now = xtn->tc_last_ret;
 
 #elif defined(__DOS__) && (defined(_INTELC32_) || defined(__WATCOMC__))
-	xtn_t* xtn = GET_XTN(mio);
+	mio_sys_time_t* tim = &mio->sysdep->tim;
 	clock_t c, elapsed;
 	mio_ntime_t et;
 
@@ -278,5 +151,3 @@ void mio_sys_gettime (mio_ntime_t* now)
 	MIO_INIT_NTIME(now, tv.tv_sec, MIO_USEC_TO_NSEC(tv.tv_usec));
 #endif
 }
-
-#endif

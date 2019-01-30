@@ -115,6 +115,7 @@ int mio_init (mio_t* mio, mio_mmgr_t* mmgr, mio_cmgr_t* cmgr, mio_oow_t tmrcapa)
 	mio->tmr.capa = tmrcapa;
 
 	MIO_CWQ_INIT (&mio->cwq);
+	mio_sys_gettime (mio, &mio->init_time);
 	return 0;
 
 oops:
@@ -422,7 +423,7 @@ static MIO_INLINE void handle_event (mio_t* mio, mio_dev_t* dev, int events, int
 
 				MIO_MEMSET (&tmrjob, 0, MIO_SIZEOF(tmrjob));
 				tmrjob.ctx = dev;
-				mio_sys_gettime (&tmrjob.when);
+				mio_gettime (mio, &tmrjob.when);
 				MIO_ADD_NTIME (&tmrjob.when, &tmrjob.when, &dev->rtmout);
 				tmrjob.handler = on_read_timeout;
 				tmrjob.idxptr = &dev->rtmridx;
@@ -758,6 +759,7 @@ static void kill_zombie_job_handler (mio_t* mio, const mio_ntime_t* now, mio_tmr
 
 static int schedule_kill_zombie_job (mio_dev_t* dev)
 {
+	mio_t* mio = dev->mio;
 	mio_tmrjob_t kill_zombie_job;
 	mio_ntime_t tmout;
 
@@ -765,12 +767,12 @@ static int schedule_kill_zombie_job (mio_dev_t* dev)
 
 	MIO_MEMSET (&kill_zombie_job, 0, MIO_SIZEOF(kill_zombie_job));
 	kill_zombie_job.ctx = dev;
-	mio_sys_gettime (&kill_zombie_job.when);
+	mio_gettime (mio, &kill_zombie_job.when);
 	MIO_ADD_NTIME (&kill_zombie_job.when, &kill_zombie_job.when, &tmout);
 	kill_zombie_job.handler = kill_zombie_job_handler;
 	/*kill_zombie_job.idxptr = &rdev->tmridx_kill_zombie;*/
 
-	return mio_instmrjob (dev->mio, &kill_zombie_job) == MIO_TMRIDX_INVALID? -1: 0;
+	return mio_instmrjob (mio, &kill_zombie_job) == MIO_TMRIDX_INVALID? -1: 0;
 }
 
 void mio_killdev (mio_t* mio, mio_dev_t* dev)
@@ -1021,7 +1023,7 @@ update_timer:
 
 		MIO_MEMSET (&tmrjob, 0, MIO_SIZEOF(tmrjob));
 		tmrjob.ctx = dev;
-		mio_sys_gettime (&tmrjob.when);
+		mio_gettime (mio, &tmrjob.when);
 		MIO_ADD_NTIME (&tmrjob.when, &tmrjob.when, tmout);
 		tmrjob.handler = on_read_timeout;
 		tmrjob.idxptr = &dev->rtmridx;
@@ -1190,7 +1192,7 @@ enqueue_data:
 
 		MIO_MEMSET (&tmrjob, 0, MIO_SIZEOF(tmrjob));
 		tmrjob.ctx = q;
-		mio_sys_gettime (&tmrjob.when);
+		mio_gettime (mio, &tmrjob.when);
 		MIO_ADD_NTIME (&tmrjob.when, &tmrjob.when, tmout);
 		tmrjob.handler = on_write_timeout;
 		tmrjob.idxptr = &q->tmridx;
@@ -1287,10 +1289,21 @@ int mio_makesyshndasync (mio_t* mio, mio_syshnd_t hnd)
 
 /* -------------------------------------------------------------------------- */
 
+void mio_gettime (mio_t* mio, mio_ntime_t* now)
+{
+	mio_sys_gettime (mio, now);
+	/* in mio_init(), mio->init_time has been set to the initialization time. 
+	 * the time returned here gets offset by moo->init_time and 
+	 * thus becomes relative to it. this way, it is kept small such that it
+	 * can be represented in a small integer with leaving almost zero chance
+	 * of overflow. */
+	MIO_SUB_NTIME (now, now, &mio->init_time);  /* now = now - init_time */
+}
+
+/* -------------------------------------------------------------------------- */
 void* mio_allocmem (mio_t* mio, mio_oow_t size)
 {
 	void* ptr;
-
 	ptr = MIO_MMGR_ALLOC (mio->mmgr, size);
 	if (!ptr) mio_seterrnum (mio, MIO_ESYSMEM);
 	return ptr;
@@ -1299,7 +1312,6 @@ void* mio_allocmem (mio_t* mio, mio_oow_t size)
 void* mio_callocmem (mio_t* mio, mio_oow_t size)
 {
 	void* ptr;
-
 	ptr = MIO_MMGR_ALLOC (mio->mmgr, size);
 	if (!ptr) mio_seterrnum (mio, MIO_ESYSMEM);
 	else MIO_MEMSET (ptr, 0, size);

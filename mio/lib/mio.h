@@ -73,36 +73,35 @@ enum mio_errnum_t
 	MIO_EINTERN,  /**< internal error */
 	MIO_ESYSMEM,  /**< insufficient system memory */
 	MIO_EOOMEM,   /**< insufficient object memory */
-	MIO_ETYPE,    /**< invalid class/type */
 
 	MIO_EINVAL,   /**< invalid parameter or data */
 	MIO_ENOENT,   /**< data not found */
 	MIO_EEXIST,   /**< existing/duplicate data */
-	MIO_EBUSY, 
-	MIO_EACCES,
+	MIO_EBUSY,    /**< system busy */
+	MIO_EACCES,   /**< access denied */
 	MIO_EPERM,    /**< operation not permitted */
-	MIO_ENOTDIR,
-	MIO_EINTR,
-	MIO_EPIPE,
-	MIO_EAGAIN,
-	MIO_EBADHND,
+	MIO_ENOTDIR,  /**< not directory */
+	MIO_EINTR,    /**< interrupted */
+	MIO_EPIPE,    /**< pipe error */
+	MIO_EAGAIN,   /**< resource temporarily unavailable */
+	MIO_EBADHND,  /**< bad system handle */
 
-	MIO_EMFILE,     /* too many open files */
-	MIO_ENFILE,
+	MIO_EMFILE,   /**< too many open files */
+	MIO_ENFILE,   /**< too many open files */
 
 	MIO_EIOERR,   /**< I/O error */
 	MIO_EECERR,   /**< encoding conversion error */
 	MIO_EECMORE,  /**< insufficient data for encoding conversion */
 	MIO_EBUFFULL, /**< buffer full */
 
-	MIO_ECONRF,     /* connection refused */
-	MIO_ECONRS,     /* connection reset */
-	MIO_ENOCAPA,    /* no capability */
-	MIO_ETMOUT,     /* timed out */
+	MIO_ECONRF,   /**< connection refused */
+	MIO_ECONRS,   /**< connection reset */
+	MIO_ENOCAPA,  /**< no capability */
+	MIO_ETMOUT,   /**< timed out */
 
-	MIO_EDEVMAKE,
-	MIO_EDEVERR,
-	MIO_EDEVHUP
+	MIO_EDEVMAKE, /**< unable to make device */
+	MIO_EDEVERR,  /**< device error */
+	MIO_EDEVHUP   /**< device hang-up */
 };
 typedef enum mio_errnum_t mio_errnum_t;
 
@@ -535,11 +534,12 @@ struct mio_t
 
 	mio_uint8_t bigbuf[65535]; /* TODO: make this dynamic depending on devices added. device may indicate a buffer size required??? */
 
+	mio_ntime_t init_time;
 	struct
 	{
 		mio_oow_t     capa;
 		mio_oow_t     size;
-		mio_tmrjob_t*  jobs;
+		mio_tmrjob_t* jobs;
 	} tmr;
 
 	mio_cwq_t cwq;
@@ -790,6 +790,18 @@ MIO_EXPORT int mio_gettmrjobdeadline (
 );
 
 /* =========================================================================
+ * TIME
+ * ========================================================================= */
+
+/**
+ * the mio_gettime() function returns the elapsed time since mio initialization.
+ */
+MIO_EXPORT void mio_gettime (
+	mio_t*            mio,
+	mio_ntime_t*      now
+);
+
+/* =========================================================================
  * SYSTEM MEMORY MANAGEMENT FUCNTIONS VIA MMGR
  * ========================================================================= */
 MIO_EXPORT void* mio_allocmem (
@@ -1001,13 +1013,6 @@ MIO_EXPORT mio_ooi_t mio_logufmt (
 
 MIO_EXPORT const mio_ooch_t* mio_errnum_to_errstr (
 	mio_errnum_t errnum
-);
-
-/**
- * The mio_sys_gettime() function gets the current time.
- */
-MIO_EXPORT void mio_sys_gettime (
-	mio_ntime_t* now
 );
 
 #ifdef __cplusplus

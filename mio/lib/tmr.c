@@ -169,7 +169,7 @@ void mio_firetmrjobs (mio_t* mio, const mio_ntime_t* tm, mio_oow_t* firecnt)
 
 	/* if the current time is not specified, get it from the system */
 	if (tm) now = *tm;
-	else mio_sys_gettime (&now);
+	else mio_gettime (mio, &now);
 
 	while (mio->tmr.size > 0)
 	{
@@ -198,7 +198,7 @@ int mio_gettmrtmout (mio_t* mio, const mio_ntime_t* tm, mio_ntime_t* tmout)
 
 	/* if the current time is not specified, get it from the system */
 	if (tm) now = *tm;
-	else mio_sys_gettime (&now);
+	else mio_gettime (mio, &now);
 
 	MIO_SUB_NTIME (tmout, &mio->tmr.jobs[0].when, &now);
 	if (tmout->sec < 0) MIO_CLEAR_NTIME (tmout);
