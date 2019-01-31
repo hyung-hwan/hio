@@ -59,7 +59,7 @@ void mio_sys_finimux (mio_t* mio)
 #endif
 }
 
-int mio_sys_ctrlmux (mio_t* mio, mio_sys_mux_cmd_t cmd, mio_dev_t* dev, int dev_capa)
+int mio_sys_ctrlmux (mio_t* mio, mio_sys_mux_cmd_t cmd, mio_dev_t* dev, int dev_cap)
 {
 #if defined(USE_POLL)
 	mio_sys_mux_t* mux = &mio->sysdep->mux;
@@ -137,8 +137,8 @@ int mio_sys_ctrlmux (mio_t* mio, mio_sys_mux_cmd_t cmd, mio_dev_t* dev, int dev_
 
 			mux->pd.pfd[idx].fd = hnd;
 			mux->pd.pfd[idx].events = 0;
-			if (dev_capa & MIO_DEV_CAPA_IN_WATCHED) mux->pd.pfd[idx].events |= POLLIN;
-			if (dev_capa & MIO_DEV_CAPA_OUT_WATCHED) mux->pd.pfd[idx].events |= POLLOUT;
+			if (dev_cap & MIO_DEV_CAP_IN_WATCHED) mux->pd.pfd[idx].events |= POLLIN;
+			if (dev_cap & MIO_DEV_CAP_OUT_WATCHED) mux->pd.pfd[idx].events |= POLLOUT;
 			mux->pd.pfd[idx].revents = 0;
 			mux->pd.dptr[idx] = dev;
 
@@ -149,8 +149,8 @@ int mio_sys_ctrlmux (mio_t* mio, mio_sys_mux_cmd_t cmd, mio_dev_t* dev, int dev_
 		case MIO_SYS_MUX_CMD_UPDATE:
 			MIO_ASSERT (mio, mux->pd.dptr[idx] == dev);
 			mux->pd.pfd[idx].events = 0;
-			if (dev_capa & MIO_DEV_CAPA_IN_WATCHED) mux->pd.pfd[idx].events |= POLLIN;
-			if (dev_capa & MIO_DEV_CAPA_OUT_WATCHED) mux->pd.pfd[idx].events |= POLLOUT;
+			if (dev_cap & MIO_DEV_CAP_IN_WATCHED) mux->pd.pfd[idx].events |= POLLIN;
+			if (dev_cap & MIO_DEV_CAP_OUT_WATCHED) mux->pd.pfd[idx].events |= POLLOUT;
 			return 0;
 
 		case MIO_SYS_MUX_CMD_DELETE:
@@ -194,16 +194,16 @@ int mio_sys_ctrlmux (mio_t* mio, mio_sys_mux_cmd_t cmd, mio_dev_t* dev, int dev_
 	ev.data.ptr = dev;
 	ev.events = EPOLLHUP | EPOLLERR /*| EPOLLET*/;
 
-	if (dev_capa & MIO_DEV_CAPA_IN_WATCHED) 
+	if (dev_cap & MIO_DEV_CAP_IN_WATCHED) 
 	{
 		ev.events |= EPOLLIN;
 	#if defined(EPOLLRDHUP)
 		ev.events |= EPOLLRDHUP;
 	#endif
-		if (dev_capa & MIO_DEV_CAPA_PRI_WATCHED) ev.events |= EPOLLPRI;
+		if (dev_cap & MIO_DEV_CAP_PRI_WATCHED) ev.events |= EPOLLPRI;
 	}
 
-	if (dev_capa & MIO_DEV_CAPA_OUT_WATCHED) ev.events |= EPOLLOUT;
+	if (dev_cap & MIO_DEV_CAP_OUT_WATCHED) ev.events |= EPOLLOUT;
 
 	if (epoll_ctl(mux->hnd, epoll_cmd[cmd], dev->dev_mth->getsyshnd(dev), &ev) == -1)
 	{

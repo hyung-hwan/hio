@@ -179,7 +179,7 @@ static void tcp_sck_on_connect (mio_dev_sck_t* tcp)
 	}
 	else if (tcp->state & MIO_DEV_SCK_ACCEPTED)
 	{
-		MIO_INFO5 (tcp->mio, "DEVICE accepted client device... .LOCAL %s:%d REMOTE %s:%d\n",
+		MIO_INFO5 (tcp->mio, "DEVICE accepted client device... .LOCAL %hs:%d REMOTE %hs:%d\n",
 			buf1, mio_getsckaddrport(&tcp->localaddr), buf2, mio_getsckaddrport(&tcp->remoteaddr), tcp->sck);
 	}
 
@@ -227,7 +227,6 @@ static int tcp_sck_on_write (mio_dev_sck_t* tcp, mio_iolen_t wrlen, void* wrctx,
 static int tcp_sck_on_read (mio_dev_sck_t* tcp, const void* buf, mio_iolen_t len, const mio_sckaddr_t* srcaddr)
 {
 	int n;
-static int x = 0;
 
 	if (len <= -1)
 	{
@@ -277,21 +276,54 @@ static int x = 0;
 
 /* ========================================================================= */
 
-static void pro_on_close (mio_dev_pro_t* dev, mio_dev_pro_sid_t sid)
+static void pro_on_close (mio_dev_pro_t* pro, mio_dev_pro_sid_t sid)
 {
-printf (">>>>>>>>>>>>> ON CLOSE OF SLAVE %d.\n", sid);
+	mio_t* mio = pro->mio;
+	if (sid == MIO_DEV_PRO_MASTER)
+		MIO_INFO1 (mio, "PROCESS(%d) CLOSE MASTER\n", (int)pro->child_pid);
+	else
+		MIO_INFO2 (mio, "PROCESS(%d) CLOSE SLAVE[%d]\n", (int)pro->child_pid, sid);
 }
 
-static int pro_on_read (mio_dev_pro_t* dev, const void* data, mio_iolen_t dlen, mio_dev_pro_sid_t sid)
+static int pro_on_read (mio_dev_pro_t* pro, mio_dev_pro_sid_t sid, const void* data, mio_iolen_t dlen)
 {
-printf ("PROCESS READ DATA on SLAVE[%d]... [%.*s]\n", (int)sid, (int)dlen, (char*)data);
+	mio_t* mio = pro->mio;
+
+	if (dlen <= -1)
+	{
+		MIO_INFO1 (mio, "PROCESS(%d): READ TIMED OUT...\n", (int)pro->child_pid);
+		mio_dev_pro_halt (pro);
+		return 0;
+	}
+	else if (dlen <= 0)
+	{
+		MIO_INFO1 (mio, "PROCESS(%d): EOF RECEIVED...\n", (int)pro->child_pid);
+		/* no outstanding request. but EOF */
+		mio_dev_pro_halt (pro);
+		return 0;
+	}
+
+	MIO_INFO5 (mio, "PROCESS(%d) READ DATA ON SLAVE[%d] len=%d [%.*hs]\n", (int)pro->child_pid, (int)sid, (int)dlen, dlen, (char*)data);
+	if (sid == MIO_DEV_PRO_OUT)
+	{
+		mio_dev_pro_read (pro, sid, 0);
+		mio_dev_pro_write (pro, "HELLO\n", 6, MIO_NULL);
+	}
 	return 0;
 }
 
-
-static int pro_on_write (mio_dev_pro_t* dev, mio_iolen_t wrlen, void* wrctx)
+static int pro_on_write (mio_dev_pro_t* pro, mio_iolen_t wrlen, void* wrctx)
 {
-printf ("PROCESS WROTE DATA...\n");
+	mio_t* mio = pro->mio;
+	if (wrlen <= -1)
+	{
+		MIO_INFO1 (mio, "PROCESS(%d): WRITE TIMED OUT...\n", (int)pro->child_pid);
+		mio_dev_pro_halt (pro);
+		return 0;
+	}
+
+	MIO_DEBUG2 (mio, "PROCESS(%d) wrote data of %d bytes\n", (int)pro->child_pid, (int)wrlen);
+	mio_dev_pro_read (pro, MIO_DEV_PRO_OUT, 1);
 	return 0;
 }
 
@@ -747,8 +779,8 @@ for (i = 0; i < 5; i++)
 	memset (&pro_make, 0, MIO_SIZEOF(pro_make));
 	pro_make.flags = MIO_DEV_PRO_READOUT | MIO_DEV_PRO_READERR | MIO_DEV_PRO_WRITEIN /*| MIO_DEV_PRO_FORGET_CHILD*/;
 	//pro_make.cmd = "/bin/ls -laF /usr/bin";
-	pro_make.cmd = "/bin/ls -laF";
-	//pro_make.cmd = "./a";
+	//pro_make.cmd = "/bin/ls -laF";
+	pro_make.cmd = "./a";
 	pro_make.on_read = pro_on_read;
 	pro_make.on_write = pro_on_write;
 	pro_make.on_close = pro_on_close;
@@ -759,6 +791,8 @@ for (i = 0; i < 5; i++)
 		MIO_INFO1 (mio, "CANNOT CREATE PROCESS PIPE - %js\n", mio_geterrmsg(mio));
 		goto oops;
 	}
+	mio_dev_pro_read (pro, MIO_DEV_PRO_OUT, 0);
+	//mio_dev_pro_read (pro, MIO_DEV_PRO_ERR, 0);
 
 	mio_dev_pro_write (pro, "MY MIO LIBRARY\n", 16, MIO_NULL);
 //mio_dev_pro_killchild (pro); 

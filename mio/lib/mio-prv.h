@@ -167,7 +167,7 @@ int mio_sys_ctrlmux (
 	mio_t*            mio,
 	mio_sys_mux_cmd_t cmd,
 	mio_dev_t*        dev,
-	int               dev_capa
+	int               dev_cap
 );
 
 int mio_sys_waitmux (

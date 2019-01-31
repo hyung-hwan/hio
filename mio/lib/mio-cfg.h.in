@@ -370,9 +370,6 @@
 /* Define to 1 if you have the <openssl/err.h> header file. */
 #undef HAVE_OPENSSL_ERR_H
 
-/* Define to 1 if you have the `OPENSSL_init_ssl' function. */
-#undef HAVE_OPENSSL_INIT_SSL
-
 /* Define to 1 if you have the <openssl/ssl.h> header file. */
 #undef HAVE_OPENSSL_SSL_H
 
@@ -496,8 +493,8 @@
 /* ssl support */
 #undef HAVE_SSL
 
-/* Define to 1 if you have the `SSL_library_init' function. */
-#undef HAVE_SSL_LIBRARY_INIT
+/* Define to 1 if you have the `SSL_new' function. */
+#undef HAVE_SSL_NEW
 
 /* Define to 1 if you have the `stat64' function. */
 #undef HAVE_STAT64

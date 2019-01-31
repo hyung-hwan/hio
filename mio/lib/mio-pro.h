@@ -32,16 +32,16 @@
 enum mio_dev_pro_sid_t
 {
 	MIO_DEV_PRO_MASTER = -1,
-	MIO_DEV_PRO_IN     =  0,
-	MIO_DEV_PRO_OUT    =  1,
-	MIO_DEV_PRO_ERR    =  2
+	MIO_DEV_PRO_IN     =  0, /* input of the child process */
+	MIO_DEV_PRO_OUT    =  1, /* output of the child process */
+	MIO_DEV_PRO_ERR    =  2  /* error output of the child process */
 };
 typedef enum mio_dev_pro_sid_t mio_dev_pro_sid_t;
 
 typedef struct mio_dev_pro_t mio_dev_pro_t;
 typedef struct mio_dev_pro_slave_t mio_dev_pro_slave_t;
 
-typedef int (*mio_dev_pro_on_read_t) (mio_dev_pro_t* dev, const void* data, mio_iolen_t len, mio_dev_pro_sid_t sid);
+typedef int (*mio_dev_pro_on_read_t) (mio_dev_pro_t* dev, mio_dev_pro_sid_t sid, const void* data, mio_iolen_t len);
 typedef int (*mio_dev_pro_on_write_t) (mio_dev_pro_t* dev, mio_iolen_t wrlen, void* wrctx);
 typedef void (*mio_dev_pro_on_close_t) (mio_dev_pro_t* dev, mio_dev_pro_sid_t sid);
 
@@ -124,27 +124,40 @@ extern "C" {
 
 MIO_EXPORT  mio_dev_pro_t* mio_dev_pro_make (
 	mio_t*                    mio,
-	mio_oow_t                xtnsize,
+	mio_oow_t                 xtnsize,
 	const mio_dev_pro_make_t* data
 );
 
-MIO_EXPORT void mio_dev_pro_kill (
+MIO_EXPORT void mio_dev_pro_halt (
 	mio_dev_pro_t* pro
+);
+
+MIO_EXPORT int mio_dev_pro_read (
+	mio_dev_pro_t*     pro,
+	mio_dev_pro_sid_t  sid, /**< either #MIO_DEV_PRO_OUT or #MIO_DEV_PRO_ERR */
+	int                enabled
+);
+
+MIO_EXPORT int mio_dev_pro_timedread (
+	mio_dev_pro_t*     pro,
+	mio_dev_pro_sid_t  sid, /**< either #MIO_DEV_PRO_OUT or #MIO_DEV_PRO_ERR */
+	int                enabled,
+	const mio_ntime_t* tmout
 );
 
 MIO_EXPORT int mio_dev_pro_write (
 	mio_dev_pro_t*     pro,
-	const void*         data,
+	const void*        data,
 	mio_iolen_t        len,
-	void*               wrctx
+	void*              wrctx
 );
 
 MIO_EXPORT int mio_dev_pro_timedwrite (
 	mio_dev_pro_t*     pro,
-	const void*         data,
+	const void*        data,
 	mio_iolen_t        len,
 	const mio_ntime_t* tmout,
-	void*               wrctx
+	void*              wrctx
 );
 
 MIO_EXPORT int mio_dev_pro_close (
