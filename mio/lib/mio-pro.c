@@ -38,7 +38,7 @@ struct slave_info_t
 {
 	mio_dev_pro_make_t* mi;
 	mio_syshnd_t pfd;
-	int dev_capa;
+	int dev_cap;
 	mio_dev_pro_sid_t id;
 };
 
@@ -328,7 +328,7 @@ static int dev_pro_make_master (mio_dev_t* dev, void* ctx)
 
 		si.mi = info;
 		si.pfd = pfds[1];
-		si.dev_capa = MIO_DEV_CAPA_OUT | MIO_DEV_CAPA_OUT_QUEUED | MIO_DEV_CAPA_STREAM;
+		si.dev_cap = MIO_DEV_CAP_OUT | MIO_DEV_CAP_STREAM;
 		si.id = MIO_DEV_PRO_IN;
 
 		rdev->slave[MIO_DEV_PRO_IN] = make_slave(mio, &si);
@@ -345,7 +345,7 @@ static int dev_pro_make_master (mio_dev_t* dev, void* ctx)
 
 		si.mi = info;
 		si.pfd = pfds[2];
-		si.dev_capa = MIO_DEV_CAPA_IN | MIO_DEV_CAPA_STREAM;
+		si.dev_cap = MIO_DEV_CAP_IN | MIO_DEV_CAP_STREAM;
 		si.id = MIO_DEV_PRO_OUT;
 
 		rdev->slave[MIO_DEV_PRO_OUT] = make_slave(mio, &si);
@@ -362,7 +362,7 @@ static int dev_pro_make_master (mio_dev_t* dev, void* ctx)
 
 		si.mi = info;
 		si.pfd = pfds[4];
-		si.dev_capa = MIO_DEV_CAPA_IN | MIO_DEV_CAPA_STREAM;
+		si.dev_cap = MIO_DEV_CAP_IN | MIO_DEV_CAP_STREAM;
 		si.id = MIO_DEV_PRO_ERR;
 
 		rdev->slave[MIO_DEV_PRO_ERR] = make_slave(mio, &si);
@@ -377,7 +377,7 @@ static int dev_pro_make_master (mio_dev_t* dev, void* ctx)
 		if (rdev->slave[i]) rdev->slave[i]->master = rdev;
 	}
 
-	rdev->dev_capa = MIO_DEV_CAPA_VIRTUAL; /* the master device doesn't perform I/O */
+	rdev->dev_cap = MIO_DEV_CAP_VIRTUAL; /* the master device doesn't perform I/O */
 	rdev->flags = info->flags;
 	rdev->on_read = info->on_read;
 	rdev->on_write = info->on_write;
@@ -415,7 +415,7 @@ static int dev_pro_make_slave (mio_dev_t* dev, void* ctx)
 	mio_dev_pro_slave_t* rdev = (mio_dev_pro_slave_t*)dev;
 	slave_info_t* si = (slave_info_t*)ctx;
 
-	rdev->dev_capa = si->dev_capa;
+	rdev->dev_cap = si->dev_cap;
 	rdev->id = si->id;
 	rdev->pfd = si->pfd;
 	/* keep rdev->master to MIO_NULL. it's set to the right master
@@ -715,13 +715,13 @@ static int pro_ready_slave (mio_dev_t* dev, int events)
 static int pro_on_read_slave_out (mio_dev_t* dev, const void* data, mio_iolen_t len, const mio_devaddr_t* srcaddr)
 {
 	mio_dev_pro_slave_t* pro = (mio_dev_pro_slave_t*)dev;
-	return pro->master->on_read(pro->master, data, len, MIO_DEV_PRO_OUT);
+	return pro->master->on_read(pro->master, MIO_DEV_PRO_OUT, data, len);
 }
 
 static int pro_on_read_slave_err (mio_dev_t* dev, const void* data, mio_iolen_t len, const mio_devaddr_t* srcaddr)
 {
 	mio_dev_pro_slave_t* pro = (mio_dev_pro_slave_t*)dev;
-	return pro->master->on_read(pro->master, data, len, MIO_DEV_PRO_ERR);
+	return pro->master->on_read(pro->master, MIO_DEV_PRO_ERR, data, len);
 }
 
 static int pro_on_write_slave (mio_dev_t* dev, mio_iolen_t wrlen, void* wrctx, const mio_devaddr_t* dstaddr)
@@ -785,16 +785,49 @@ mio_dev_pro_t* mio_dev_pro_make (mio_t* mio, mio_oow_t xtnsize, const mio_dev_pr
 		&dev_pro_methods, &dev_pro_event_callbacks, (void*)info);
 }
 
-void mio_dev_pro_kill (mio_dev_pro_t* dev)
+void mio_dev_pro_halt (mio_dev_pro_t* dev)
 {
-	mio_killdev (dev->mio, (mio_dev_t*)dev);
+	mio_dev_halt ((mio_dev_t*)dev);
 }
 
+int mio_dev_pro_read (mio_dev_pro_t* dev, mio_dev_pro_sid_t sid, int enabled)
+{
+	mio_t* mio = dev->mio;
+
+	MIO_ASSERT (mio, sid == MIO_DEV_PRO_OUT || sid == MIO_DEV_PRO_ERR);
+
+	if (dev->slave[sid])
+	{
+		return mio_dev_read((mio_dev_t*)dev->slave[sid], enabled);
+	}
+	else
+	{
+		mio_seterrnum (dev->mio, MIO_ENOCAPA); /* TODO: is it the right error number? */
+		return -1;
+	}
+}
+
+int mio_dev_pro_timedread (mio_dev_pro_t* dev, mio_dev_pro_sid_t sid, int enabled, const mio_ntime_t* tmout)
+{
+	mio_t* mio = dev->mio;
+
+	MIO_ASSERT (mio, sid == MIO_DEV_PRO_OUT || sid == MIO_DEV_PRO_ERR);
+
+	if (dev->slave[sid])
+	{
+		return mio_dev_timedread((mio_dev_t*)dev->slave[sid], enabled, tmout);
+	}
+	else
+	{
+		mio_seterrnum (mio, MIO_ENOCAPA); /* TODO: is it the right error number? */
+		return -1;
+	}
+}
 int mio_dev_pro_write (mio_dev_pro_t* dev, const void* data, mio_iolen_t dlen, void* wrctx)
 {
-	if (dev->slave[0])
+	if (dev->slave[MIO_DEV_PRO_IN])
 	{
-		return mio_dev_write((mio_dev_t*)dev->slave[0], data, dlen, wrctx, MIO_NULL);
+		return mio_dev_write((mio_dev_t*)dev->slave[MIO_DEV_PRO_IN], data, dlen, wrctx, MIO_NULL);
 	}
 	else
 	{
@@ -805,9 +838,9 @@ int mio_dev_pro_write (mio_dev_pro_t* dev, const void* data, mio_iolen_t dlen, v
 
 int mio_dev_pro_timedwrite (mio_dev_pro_t* dev, const void* data, mio_iolen_t dlen, const mio_ntime_t* tmout, void* wrctx)
 {
-	if (dev->slave[0])
+	if (dev->slave[MIO_DEV_PRO_IN])
 	{
-		return mio_dev_timedwrite((mio_dev_t*)dev->slave[0], data, dlen, tmout, wrctx, MIO_NULL);
+		return mio_dev_timedwrite((mio_dev_t*)dev->slave[MIO_DEV_PRO_IN], data, dlen, tmout, wrctx, MIO_NULL);
 	}
 	else
 	{

@@ -26,7 +26,7 @@
 
 #include "mio-prv.h"
   
-#define DEV_CAPA_ALL_WATCHED (MIO_DEV_CAPA_IN_WATCHED | MIO_DEV_CAPA_OUT_WATCHED | MIO_DEV_CAPA_PRI_WATCHED)
+#define DEV_CAP_ALL_WATCHED (MIO_DEV_CAP_IN_WATCHED | MIO_DEV_CAP_OUT_WATCHED | MIO_DEV_CAP_PRI_WATCHED)
 
 static int schedule_kill_zombie_job (mio_dev_t* dev);
 static int kill_and_free_device (mio_dev_t* dev, int force);
@@ -173,7 +173,7 @@ void mio_fini (mio_t* mio)
 
 			/* remove the device from the zombie device list */
 			UNLINK_DEVICE_FROM_LIST (&mio->zmbdev, dev);
-			dev->dev_capa &= ~MIO_DEV_CAPA_ZOMBIE;
+			dev->dev_cap &= ~MIO_DEV_CAP_ZOMBIE;
 
 			/* put it to a private list for aborting */
 			APPEND_DEVICE_TO_LIST (&diehard, dev);
@@ -189,7 +189,7 @@ void mio_fini (mio_t* mio)
 		 * because the device is freed regardless of the failure when 2 
 		 * is given to kill_and_free_device(). */
 		dev = diehard.head;
-		MIO_ASSERT (mio, !(dev->dev_capa & (MIO_DEV_CAPA_ACTIVE | MIO_DEV_CAPA_HALTED | MIO_DEV_CAPA_ZOMBIE)));
+		MIO_ASSERT (mio, !(dev->dev_cap & (MIO_DEV_CAP_ACTIVE | MIO_DEV_CAP_HALTED | MIO_DEV_CAP_ZOMBIE)));
 		UNLINK_DEVICE_FROM_LIST (&diehard, dev);
 		kill_and_free_device (dev, 2);
 	}
@@ -270,7 +270,7 @@ static MIO_INLINE void handle_event (mio_t* mio, mio_dev_t* dev, int events, int
 {
 	MIO_ASSERT (mio, mio == dev->mio);
 
-	dev->dev_capa &= ~MIO_DEV_CAPA_RENEW_REQUIRED;
+	dev->dev_cap &= ~MIO_DEV_CAP_RENEW_REQUIRED;
 
 	MIO_ASSERT (mio, mio == dev->mio);
 
@@ -342,12 +342,12 @@ static MIO_INLINE void handle_event (mio_t* mio, mio_dev_t* dev, int events, int
 					/* finished writing a single write request */
 					int y, out_closed = 0;
 
-					if (q->len <= 0 && (dev->dev_capa & MIO_DEV_CAPA_STREAM)) 
+					if (q->len <= 0 && (dev->dev_cap & MIO_DEV_CAP_STREAM)) 
 					{
 						/* it was a zero-length write request. 
 						 * for a stream, it is to close the output. */
-						dev->dev_capa |= MIO_DEV_CAPA_OUT_CLOSED;
-						dev->dev_capa |= MIO_DEV_CAPA_RENEW_REQUIRED;
+						dev->dev_cap |= MIO_DEV_CAP_OUT_CLOSED;
+						dev->dev_cap |= MIO_DEV_CAP_RENEW_REQUIRED;
 						out_closed = 1;
 					}
 
@@ -382,15 +382,15 @@ static MIO_INLINE void handle_event (mio_t* mio, mio_dev_t* dev, int events, int
 		if (dev && MIO_WQ_ISEMPTY(&dev->wq))
 		{
 			/* no pending request to write */
-			if ((dev->dev_capa & MIO_DEV_CAPA_IN_CLOSED) &&
-			    (dev->dev_capa & MIO_DEV_CAPA_OUT_CLOSED))
+			if ((dev->dev_cap & MIO_DEV_CAP_IN_CLOSED) &&
+			    (dev->dev_cap & MIO_DEV_CAP_OUT_CLOSED))
 			{
 				mio_dev_halt (dev);
 				dev = MIO_NULL;
 			}
 			else
 			{
-				dev->dev_capa |= MIO_DEV_CAPA_RENEW_REQUIRED;
+				dev->dev_cap |= MIO_DEV_CAP_RENEW_REQUIRED;
 			}
 		}
 	}
@@ -441,16 +441,16 @@ static MIO_INLINE void handle_event (mio_t* mio, mio_dev_t* dev, int events, int
 			}
 			else /*if (x >= 1) */
 			{
-				if (len <= 0 && (dev->dev_capa & MIO_DEV_CAPA_STREAM)) 
+				if (len <= 0 && (dev->dev_cap & MIO_DEV_CAP_STREAM)) 
 				{
 					/* EOF received. for a stream device, a zero-length 
 					 * read is interpreted as EOF. */
-					dev->dev_capa |= MIO_DEV_CAPA_IN_CLOSED;
-					dev->dev_capa |= MIO_DEV_CAPA_RENEW_REQUIRED;
+					dev->dev_cap |= MIO_DEV_CAP_IN_CLOSED;
+					dev->dev_cap |= MIO_DEV_CAP_RENEW_REQUIRED;
 
 					/* call the on_read callback to report EOF */
 					if (dev->dev_evcb->on_read(dev, mio->bigbuf, len, &srcaddr) <= -1 ||
-					    (dev->dev_capa & MIO_DEV_CAPA_OUT_CLOSED))
+					    (dev->dev_cap & MIO_DEV_CAP_OUT_CLOSED))
 					{
 						/* 1. input ended and its reporting failed or 
 						 * 2. input ended and no writing is possible */
@@ -494,8 +494,8 @@ static MIO_INLINE void handle_event (mio_t* mio, mio_dev_t* dev, int events, int
 			 * halt the device. this check is performed after
 			 * EPOLLIN or EPOLLOUT check because EPOLLERR or EPOLLHUP
 			 * can be set together with EPOLLIN or EPOLLOUT. */
-			dev->dev_capa |= MIO_DEV_CAPA_IN_CLOSED | MIO_DEV_CAPA_OUT_CLOSED;
-			dev->dev_capa |= MIO_DEV_CAPA_RENEW_REQUIRED;
+			dev->dev_cap |= MIO_DEV_CAP_IN_CLOSED | MIO_DEV_CAP_OUT_CLOSED;
+			dev->dev_cap |= MIO_DEV_CAP_RENEW_REQUIRED;
 		}
 		else if (dev && rdhup) 
 		{
@@ -506,13 +506,13 @@ static MIO_INLINE void handle_event (mio_t* mio, mio_dev_t* dev, int events, int
 			}
 			else
 			{
-				dev->dev_capa |= MIO_DEV_CAPA_IN_CLOSED | MIO_DEV_CAPA_OUT_CLOSED;
-				dev->dev_capa |= MIO_DEV_CAPA_RENEW_REQUIRED;
+				dev->dev_cap |= MIO_DEV_CAP_IN_CLOSED | MIO_DEV_CAP_OUT_CLOSED;
+				dev->dev_cap |= MIO_DEV_CAP_RENEW_REQUIRED;
 			}
 		}
 
-		if ((dev->dev_capa & MIO_DEV_CAPA_IN_CLOSED) &&
-		    (dev->dev_capa & MIO_DEV_CAPA_OUT_CLOSED))
+		if ((dev->dev_cap & MIO_DEV_CAP_IN_CLOSED) &&
+		    (dev->dev_cap & MIO_DEV_CAP_OUT_CLOSED))
 		{
 			mio_dev_halt (dev);
 			dev = MIO_NULL;
@@ -520,7 +520,7 @@ static MIO_INLINE void handle_event (mio_t* mio, mio_dev_t* dev, int events, int
 	}
 
 skip_evcb:
-	if (dev && (dev->dev_capa & MIO_DEV_CAPA_RENEW_REQUIRED) && mio_dev_watch(dev, MIO_DEV_WATCH_RENEW, 0) <= -1)
+	if (dev && (dev->dev_cap & MIO_DEV_CAP_RENEW_REQUIRED) && mio_dev_watch(dev, MIO_DEV_WATCH_RENEW, 0) <= -1)
 	{
 		mio_dev_halt (dev);
 		dev = MIO_NULL;
@@ -630,7 +630,7 @@ mio_dev_t* mio_makedev (mio_t* mio, mio_oow_t dev_size, mio_dev_mth_t* dev_mth, 
 	dev->dev_size = dev_size;
 	/* default capability. dev->dev_mth->make() can change this.
 	 * mio_dev_watch() is affected by the capability change. */
-	dev->dev_capa = MIO_DEV_CAPA_IN | MIO_DEV_CAPA_OUT;
+	dev->dev_cap = MIO_DEV_CAP_IN | MIO_DEV_CAP_OUT;
 	dev->dev_mth = dev_mth;
 	dev->dev_evcb = dev_evcb;
 	MIO_INIT_NTIME (&dev->rtmout, 0, 0); 
@@ -654,15 +654,15 @@ mio_dev_t* mio_makedev (mio_t* mio, mio_oow_t dev_size, mio_dev_mth_t* dev_mth, 
 
 	/* set some internal capability bits according to the capabilities 
 	 * removed by the device making callback for convenience sake. */
-	dev->dev_capa &= MIO_DEV_CAPA_ALL_MASK; /* keep valid capability bits only. drop all internal-use bits */
-	if (!(dev->dev_capa & MIO_DEV_CAPA_IN)) dev->dev_capa |= MIO_DEV_CAPA_IN_CLOSED;
-	if (!(dev->dev_capa & MIO_DEV_CAPA_OUT)) dev->dev_capa |= MIO_DEV_CAPA_OUT_CLOSED;
+	dev->dev_cap &= MIO_DEV_CAP_ALL_MASK; /* keep valid capability bits only. drop all internal-use bits */
+	if (!(dev->dev_cap & MIO_DEV_CAP_IN)) dev->dev_cap |= MIO_DEV_CAP_IN_CLOSED;
+	if (!(dev->dev_cap & MIO_DEV_CAP_OUT)) dev->dev_cap |= MIO_DEV_CAP_OUT_CLOSED;
 
 	if (mio_dev_watch(dev, MIO_DEV_WATCH_START, 0) <= -1) goto oops_after_make;
 
 	/* and place the new device object at the back of the active device list */
 	APPEND_DEVICE_TO_LIST (&mio->actdev, dev);
-	dev->dev_capa |= MIO_DEV_CAPA_ACTIVE;
+	dev->dev_cap |= MIO_DEV_CAP_ACTIVE;
 
 	return dev;
 
@@ -702,29 +702,29 @@ static int kill_and_free_device (mio_dev_t* dev, int force)
 {
 	mio_t* mio = dev->mio;
 
-	MIO_ASSERT (mio, !(dev->dev_capa & MIO_DEV_CAPA_ACTIVE));
-	MIO_ASSERT (mio, !(dev->dev_capa & MIO_DEV_CAPA_HALTED));
+	MIO_ASSERT (mio, !(dev->dev_cap & MIO_DEV_CAP_ACTIVE));
+	MIO_ASSERT (mio, !(dev->dev_cap & MIO_DEV_CAP_HALTED));
 
 
 	if (dev->dev_mth->kill(dev, force) <= -1) 
 	{
 		if (force >= 2) goto free_device;
 
-		if (!(dev->dev_capa & MIO_DEV_CAPA_ZOMBIE))
+		if (!(dev->dev_cap & MIO_DEV_CAP_ZOMBIE))
 		{
 			APPEND_DEVICE_TO_LIST (&mio->zmbdev, dev);
-			dev->dev_capa |= MIO_DEV_CAPA_ZOMBIE;
+			dev->dev_cap |= MIO_DEV_CAP_ZOMBIE;
 		}
 
 		return -1;
 	}
 
 free_device:
-	if (dev->dev_capa & MIO_DEV_CAPA_ZOMBIE)
+	if (dev->dev_cap & MIO_DEV_CAP_ZOMBIE)
 	{
 		/* detach it from the zombie device list */
 		UNLINK_DEVICE_FROM_LIST (&mio->zmbdev, dev);
-		dev->dev_capa &= ~MIO_DEV_CAPA_ZOMBIE;
+		dev->dev_cap &= ~MIO_DEV_CAP_ZOMBIE;
 	}
 
 	mio_freemem (mio, dev);
@@ -735,7 +735,7 @@ static void kill_zombie_job_handler (mio_t* mio, const mio_ntime_t* now, mio_tmr
 {
 	mio_dev_t* dev = (mio_dev_t*)job->ctx;
 
-	MIO_ASSERT (mio, dev->dev_capa & MIO_DEV_CAPA_ZOMBIE);
+	MIO_ASSERT (mio, dev->dev_cap & MIO_DEV_CAP_ZOMBIE);
 
 	if (kill_and_free_device(dev, 0) <= -1)
 	{
@@ -779,7 +779,7 @@ void mio_killdev (mio_t* mio, mio_dev_t* dev)
 {
 	MIO_ASSERT (mio, mio == dev->mio);
 
-	if (dev->dev_capa & MIO_DEV_CAPA_ZOMBIE)
+	if (dev->dev_cap & MIO_DEV_CAP_ZOMBIE)
 	{
 		MIO_ASSERT (mio, MIO_WQ_ISEMPTY(&dev->wq));
 		MIO_ASSERT (mio, dev->cw_count == 0);
@@ -819,18 +819,18 @@ void mio_killdev (mio_t* mio, mio_dev_t* dev)
 		mio_freemem (mio, q);
 	}
 
-	if (dev->dev_capa & MIO_DEV_CAPA_HALTED)
+	if (dev->dev_cap & MIO_DEV_CAP_HALTED)
 	{
 		/* this device is in the halted state.
 		 * unlink it from the halted device list */
 		UNLINK_DEVICE_FROM_LIST (&mio->hltdev, dev);
-		dev->dev_capa &= ~MIO_DEV_CAPA_HALTED;
+		dev->dev_cap &= ~MIO_DEV_CAP_HALTED;
 	}
 	else
 	{
-		MIO_ASSERT (mio, dev->dev_capa & MIO_DEV_CAPA_ACTIVE);
+		MIO_ASSERT (mio, dev->dev_cap & MIO_DEV_CAP_ACTIVE);
 		UNLINK_DEVICE_FROM_LIST (&mio->actdev, dev);
-		dev->dev_capa &= ~MIO_DEV_CAPA_ACTIVE;
+		dev->dev_cap &= ~MIO_DEV_CAP_ACTIVE;
 	}
 
 	mio_dev_watch (dev, MIO_DEV_WATCH_STOP, 0);
@@ -838,7 +838,7 @@ void mio_killdev (mio_t* mio, mio_dev_t* dev)
 kill_device:
 	if (kill_and_free_device(dev, 0) <= -1)
 	{
-		MIO_ASSERT (mio, dev->dev_capa & MIO_DEV_CAPA_ZOMBIE);
+		MIO_ASSERT (mio, dev->dev_cap & MIO_DEV_CAP_ZOMBIE);
 		if (schedule_kill_zombie_job (dev) <= -1)
 		{
 			/* i have to choice but to free up the devide by force */
@@ -861,15 +861,15 @@ void mio_dev_halt (mio_dev_t* dev)
 {
 	mio_t* mio = dev->mio;
 
-	if (dev->dev_capa & MIO_DEV_CAPA_ACTIVE)
+	if (dev->dev_cap & MIO_DEV_CAP_ACTIVE)
 	{
 		/* delink the device object from the active device list */
 		UNLINK_DEVICE_FROM_LIST (&mio->actdev, dev);
-		dev->dev_capa &= ~MIO_DEV_CAPA_ACTIVE;
+		dev->dev_cap &= ~MIO_DEV_CAP_ACTIVE;
 
 		/* place it at the back of the halted device list */
 		APPEND_DEVICE_TO_LIST (&mio->hltdev, dev);
-		dev->dev_capa |= MIO_DEV_CAPA_HALTED;
+		dev->dev_cap |= MIO_DEV_CAP_HALTED;
 	}
 }
 
@@ -890,21 +890,21 @@ int mio_dev_watch (mio_dev_t* dev, mio_dev_watch_cmd_t cmd, int events)
 {
 	mio_t* mio = dev->mio;
 	int mux_cmd;
-	int dev_capa;
+	int dev_cap;
 
 	/* the virtual device doesn't perform actual I/O.
-	 * it's different from not hanving MIO_DEV_CAPA_IN and MIO_DEV_CAPA_OUT.
+	 * it's different from not hanving MIO_DEV_CAP_IN and MIO_DEV_CAP_OUT.
 	 * a non-virtual device without the capabilities still gets attention
 	 * of the system multiplexer for hangup and error. */
-	if (dev->dev_capa & MIO_DEV_CAPA_VIRTUAL) return 0;
+	if (dev->dev_cap & MIO_DEV_CAP_VIRTUAL) return 0;
 
 	/*ev.data.ptr = dev;*/
 	switch (cmd)
 	{
 		case MIO_DEV_WATCH_START:
 			/* request input watching when a device is started.
-			 * if the device is set with MIO_DEV_CAPA_IN_DISABLED and/or 
-			 * is not set with MIO_DEV_CAPA_IN, input wathcing is excluded 
+			 * if the device is set with MIO_DEV_CAP_IN_DISABLED and/or 
+			 * is not set with MIO_DEV_CAP_IN, input wathcing is excluded 
 			 * after this 'switch' block */
 			events = MIO_DEV_EVENT_IN;
 			mux_cmd = MIO_SYS_MUX_CMD_INSERT;
@@ -932,37 +932,37 @@ int mio_dev_watch (mio_dev_t* dev, mio_dev_watch_cmd_t cmd, int events)
 			return -1;
 	}
 
-	dev_capa = dev->dev_capa;
-	dev_capa &= ~(DEV_CAPA_ALL_WATCHED);
+	dev_cap = dev->dev_cap;
+	dev_cap &= ~(DEV_CAP_ALL_WATCHED);
 
 	/* this function honors MIO_DEV_EVENT_IN and MIO_DEV_EVENT_OUT only
 	 * as valid input event bits. it intends to provide simple abstraction
 	 * by reducing the variety of event bits that the caller has to handle. */
 
-	if ((events & MIO_DEV_EVENT_IN) && !(dev->dev_capa & (MIO_DEV_CAPA_IN_CLOSED | MIO_DEV_CAPA_IN_DISABLED)))
+	if ((events & MIO_DEV_EVENT_IN) && !(dev->dev_cap & (MIO_DEV_CAP_IN_CLOSED | MIO_DEV_CAP_IN_DISABLED)))
 	{
-		if (dev->dev_capa & MIO_DEV_CAPA_IN) 
+		if (dev->dev_cap & MIO_DEV_CAP_IN) 
 		{
-			if (dev->dev_capa & MIO_DEV_CAPA_PRI) dev_capa |= MIO_DEV_CAPA_PRI_WATCHED;
-			dev_capa |= MIO_DEV_CAPA_IN_WATCHED;
+			if (dev->dev_cap & MIO_DEV_CAP_PRI) dev_cap |= MIO_DEV_CAP_PRI_WATCHED;
+			dev_cap |= MIO_DEV_CAP_IN_WATCHED;
 		}
 	}
 
-	if ((events & MIO_DEV_EVENT_OUT) && !(dev->dev_capa & MIO_DEV_CAPA_OUT_CLOSED))
+	if ((events & MIO_DEV_EVENT_OUT) && !(dev->dev_cap & MIO_DEV_CAP_OUT_CLOSED))
 	{
-		if (dev->dev_capa & MIO_DEV_CAPA_OUT) dev_capa |= MIO_DEV_CAPA_OUT_WATCHED;
+		if (dev->dev_cap & MIO_DEV_CAP_OUT) dev_cap |= MIO_DEV_CAP_OUT_WATCHED;
 	}
 
-	if (mux_cmd == MIO_SYS_MUX_CMD_UPDATE && (dev_capa & DEV_CAPA_ALL_WATCHED) == (dev->dev_capa & DEV_CAPA_ALL_WATCHED))
+	if (mux_cmd == MIO_SYS_MUX_CMD_UPDATE && (dev_cap & DEV_CAP_ALL_WATCHED) == (dev->dev_cap & DEV_CAP_ALL_WATCHED))
 	{
 		/* no change in the device capacity. skip calling epoll_ctl */
 	}
 	else
 	{
-		if (mio_sys_ctrlmux(mio, mux_cmd, dev, dev_capa) <= -1) return -1;
+		if (mio_sys_ctrlmux(mio, mux_cmd, dev, dev_cap) <= -1) return -1;
 	}
 
-	dev->dev_capa = dev_capa;
+	dev->dev_cap = dev_cap;
 	return 0;
 }
 
@@ -985,7 +985,7 @@ static int __dev_read (mio_dev_t* dev, int enabled, const mio_ntime_t* tmout, vo
 {
 	mio_t* mio = dev->mio;
 
-	if (dev->dev_capa & MIO_DEV_CAPA_IN_CLOSED)
+	if (dev->dev_cap & MIO_DEV_CAP_IN_CLOSED)
 	{
 		mio_seterrbfmt (mio, MIO_ENOCAPA, "unable to read closed device");
 		return -1;
@@ -993,16 +993,16 @@ static int __dev_read (mio_dev_t* dev, int enabled, const mio_ntime_t* tmout, vo
 
 	if (enabled)
 	{
-		dev->dev_capa &= ~MIO_DEV_CAPA_IN_DISABLED;
-		if (!(dev->dev_capa & MIO_DEV_CAPA_IN_WATCHED)) goto renew_watch_now;
+		dev->dev_cap &= ~MIO_DEV_CAP_IN_DISABLED;
+		if (!(dev->dev_cap & MIO_DEV_CAP_IN_WATCHED)) goto renew_watch_now;
 	}
 	else
 	{
-		dev->dev_capa |= MIO_DEV_CAPA_IN_DISABLED;
-		if ((dev->dev_capa & MIO_DEV_CAPA_IN_WATCHED)) goto renew_watch_now;
+		dev->dev_cap |= MIO_DEV_CAP_IN_DISABLED;
+		if ((dev->dev_cap & MIO_DEV_CAP_IN_WATCHED)) goto renew_watch_now;
 	}
 
-	dev->dev_capa |= MIO_DEV_CAPA_RENEW_REQUIRED;
+	dev->dev_cap |= MIO_DEV_CAP_RENEW_REQUIRED;
 	goto update_timer;
 
 renew_watch_now:
@@ -1078,7 +1078,7 @@ static int __dev_write (mio_dev_t* dev, const void* data, mio_iolen_t len, const
 	mio_oow_t cwq_extra_aligned, cwqfl_index;
 	int x;
 
-	if (dev->dev_capa & MIO_DEV_CAPA_OUT_CLOSED)
+	if (dev->dev_cap & MIO_DEV_CAP_OUT_CLOSED)
 	{
 		mio_seterrbfmt (mio, MIO_ENOCAPA, "unable to write to closed device");
 		return -1;
@@ -1094,7 +1094,7 @@ static int __dev_write (mio_dev_t* dev, const void* data, mio_iolen_t len, const
 		goto enqueue_data;
 	}
 
-	if (dev->dev_capa & MIO_DEV_CAPA_STREAM)
+	if (dev->dev_cap & MIO_DEV_CAP_STREAM)
 	{
 		/* use the do..while() loop to be able to send a zero-length data */
 		do
@@ -1123,7 +1123,7 @@ static int __dev_write (mio_dev_t* dev, const void* data, mio_iolen_t len, const
 		if (len <= 0) /* original length */
 		{
 			/* a zero-length writing request is to close the writing end */
-			dev->dev_capa |= MIO_DEV_CAPA_OUT_CLOSED;
+			dev->dev_cap |= MIO_DEV_CAP_OUT_CLOSED;
 		}
 
 		/* if i trigger the write completion callback here, the performance
@@ -1152,15 +1152,12 @@ static int __dev_write (mio_dev_t* dev, const void* data, mio_iolen_t len, const
 	return 1; /* written immediately and called on_write callback */
 
 enqueue_data:
-#if 0
-	/* TODO: DO WE REALLY NEED THIS CAPABILITY CHECK?  If not, undefine MIO_DEV_CAPA_OUT_QUEUED */
-	if (!(dev->dev_capa & MIO_DEV_CAPA_OUT_QUEUED)) 
+	if (dev->dev_cap & MIO_DEV_CAP_OUT_UNQUEUEABLE)
 	{
 		/* writing queuing is not requested. so return failure */
 		mio_seterrbfmt (mio, MIO_ENOCAPA, "device incapable of queuing");
 		return -1;
 	}
-#endif
 
 	/* queue the remaining data*/
 	q = (mio_wq_t*)mio_allocmem(mio, MIO_SIZEOF(*q) + (dstaddr? dstaddr->len: 0) + urem);
@@ -1206,7 +1203,7 @@ enqueue_data:
 	}
 
 	MIO_WQ_ENQ (&dev->wq, q);
-	if (!(dev->dev_capa & MIO_DEV_CAPA_OUT_WATCHED))
+	if (!(dev->dev_cap & MIO_DEV_CAP_OUT_WATCHED))
 	{
 		/* if output is not being watched, arrange to do so */
 		if (mio_dev_watch(dev, MIO_DEV_WATCH_RENEW, 0) <= -1)

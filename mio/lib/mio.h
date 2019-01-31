@@ -317,7 +317,7 @@ struct mio_wq_t
 #define MIO_DEV_HEADERS \
 	mio_t*          mio; \
 	mio_oow_t       dev_size; \
-	int             dev_capa; \
+	int             dev_cap; \
 	mio_dev_mth_t*  dev_mth; \
 	mio_dev_evcb_t* dev_evcb; \
 	mio_ntime_t     rtmout; \
@@ -332,32 +332,32 @@ struct mio_dev_t
 	MIO_DEV_HEADERS;
 };
 
-enum mio_dev_capa_t
+enum mio_dev_cap_t
 {
-	MIO_DEV_CAPA_VIRTUAL      = (1 << 0),
-	MIO_DEV_CAPA_IN           = (1 << 1),
-	MIO_DEV_CAPA_OUT          = (1 << 2),
-	MIO_DEV_CAPA_PRI          = (1 << 3),  /* meaningful only if #MIO_DEV_CAPA_IN is set */
-	MIO_DEV_CAPA_STREAM       = (1 << 4),
-	MIO_DEV_CAPA_IN_DISABLED  = (1 << 5),
-	MIO_DEV_CAPA_OUT_QUEUED   = (1 << 6),
-	MIO_DEV_CAPA_ALL_MASK     = (MIO_DEV_CAPA_VIRTUAL | MIO_DEV_CAPA_IN | MIO_DEV_CAPA_OUT | MIO_DEV_CAPA_PRI | MIO_DEV_CAPA_STREAM | MIO_DEV_CAPA_IN_DISABLED | MIO_DEV_CAPA_OUT_QUEUED),
+	MIO_DEV_CAP_VIRTUAL         = (1 << 0),
+	MIO_DEV_CAP_IN              = (1 << 1),
+	MIO_DEV_CAP_OUT             = (1 << 2),
+	MIO_DEV_CAP_PRI             = (1 << 3),  /* meaningful only if #MIO_DEV_CAP_IN is set */
+	MIO_DEV_CAP_STREAM          = (1 << 4),
+	MIO_DEV_CAP_IN_DISABLED     = (1 << 5),
+	MIO_DEV_CAP_OUT_UNQUEUEABLE = (1 << 6),
+	MIO_DEV_CAP_ALL_MASK        = (MIO_DEV_CAP_VIRTUAL | MIO_DEV_CAP_IN | MIO_DEV_CAP_OUT | MIO_DEV_CAP_PRI | MIO_DEV_CAP_STREAM | MIO_DEV_CAP_IN_DISABLED | MIO_DEV_CAP_OUT_UNQUEUEABLE),
 
 	/* -------------------------------------------------------------------
 	 * the followings bits are for internal use only. 
-	 * never set these bits to the dev_capa field.
+	 * never set these bits to the dev_cap field.
 	 * ------------------------------------------------------------------- */
-	MIO_DEV_CAPA_IN_CLOSED      = (1 << 10),
-	MIO_DEV_CAPA_OUT_CLOSED     = (1 << 11),
-	MIO_DEV_CAPA_IN_WATCHED     = (1 << 12),
-	MIO_DEV_CAPA_OUT_WATCHED    = (1 << 13),
-	MIO_DEV_CAPA_PRI_WATCHED    = (1 << 14), /**< can be set only if MIO_DEV_CAPA_IN_WATCHED is set */
-	MIO_DEV_CAPA_ACTIVE         = (1 << 15),
-	MIO_DEV_CAPA_HALTED         = (1 << 16),
-	MIO_DEV_CAPA_ZOMBIE         = (1 << 17),
-	MIO_DEV_CAPA_RENEW_REQUIRED = (1 << 18)
+	MIO_DEV_CAP_IN_CLOSED       = (1 << 10),
+	MIO_DEV_CAP_OUT_CLOSED      = (1 << 11),
+	MIO_DEV_CAP_IN_WATCHED      = (1 << 12),
+	MIO_DEV_CAP_OUT_WATCHED     = (1 << 13),
+	MIO_DEV_CAP_PRI_WATCHED     = (1 << 14), /**< can be set only if MIO_DEV_CAP_IN_WATCHED is set */
+	MIO_DEV_CAP_ACTIVE          = (1 << 15),
+	MIO_DEV_CAP_HALTED          = (1 << 16),
+	MIO_DEV_CAP_ZOMBIE          = (1 << 17),
+	MIO_DEV_CAP_RENEW_REQUIRED  = (1 << 18)
 };
-typedef enum mio_dev_capa_t mio_dev_capa_t;
+typedef enum mio_dev_cap_t mio_dev_cap_t;
 
 enum mio_dev_watch_cmd_t
 {
@@ -693,6 +693,10 @@ MIO_EXPORT void mio_killdev (
 	mio_dev_t* dev
 );
 
+MIO_EXPORT void mio_dev_halt (
+	mio_dev_t* dev
+);
+
 MIO_EXPORT int mio_dev_ioctl (
 	mio_dev_t*  dev,
 	int         cmd,
@@ -744,9 +748,6 @@ MIO_EXPORT int mio_dev_timedwrite (
 	const mio_devaddr_t* dstaddr
 );
 
-MIO_EXPORT void mio_dev_halt (
-	mio_dev_t* dev
-);
 
 /* =========================================================================
  * TIMER MANAGEMENT

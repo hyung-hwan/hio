@@ -288,23 +288,23 @@ static MIO_INLINE mio_sckaddr_t* devaddr_to_sckaddr (mio_dev_sck_t* dev, const m
 
 /* ========================================================================= */
 
-#define IS_STATEFUL(sck) ((sck)->dev_capa & MIO_DEV_CAPA_STREAM)
+#define IS_STATEFUL(sck) ((sck)->dev_cap & MIO_DEV_CAP_STREAM)
 
 struct sck_type_map_t
 {
 	int domain;
 	int type;
 	int proto;
-	int extra_dev_capa;
+	int extra_dev_cap;
 };
 
 static struct sck_type_map_t sck_type_map[] =
 {
 	/* MIO_DEV_SCK_TCP4 */
-	{ AF_INET,    SOCK_STREAM,    0,                         MIO_DEV_CAPA_STREAM  | MIO_DEV_CAPA_OUT_QUEUED },
+	{ AF_INET,    SOCK_STREAM,    0,                         MIO_DEV_CAP_STREAM },
 
 	/* MIO_DEV_SCK_TCP6 */
-	{ AF_INET6,   SOCK_STREAM,    0,                         MIO_DEV_CAPA_STREAM  | MIO_DEV_CAPA_OUT_QUEUED },
+	{ AF_INET6,   SOCK_STREAM,    0,                         MIO_DEV_CAP_STREAM },
 
 	/* MIO_DEV_SCK_UPD4 */
 	{ AF_INET,    SOCK_DGRAM,     0,                         0                                                },
@@ -437,7 +437,7 @@ static int dev_sck_make (mio_dev_t* dev, void* ctx)
 	rdev->sck = open_async_socket(mio, sck_type_map[arg->type].domain, sck_type_map[arg->type].type, sck_type_map[arg->type].proto);
 	if (rdev->sck == MIO_SCKHND_INVALID) goto oops;
 
-	rdev->dev_capa = MIO_DEV_CAPA_IN | MIO_DEV_CAPA_OUT | sck_type_map[arg->type].extra_dev_capa;
+	rdev->dev_cap = MIO_DEV_CAP_IN | MIO_DEV_CAP_OUT | sck_type_map[arg->type].extra_dev_cap;
 	rdev->on_write = arg->on_write;
 	rdev->on_read = arg->on_read;
 	rdev->on_connect = arg->on_connect;
@@ -1359,7 +1359,7 @@ accept_done:
 
 	MIO_ASSERT (mio, clidev->sck == clisck);
 
-	clidev->dev_capa |= MIO_DEV_CAPA_IN | MIO_DEV_CAPA_OUT | MIO_DEV_CAPA_STREAM | MIO_DEV_CAPA_OUT_QUEUED;
+	clidev->dev_cap |= MIO_DEV_CAP_IN | MIO_DEV_CAP_OUT | MIO_DEV_CAP_STREAM;
 	clidev->remoteaddr = remoteaddr;
 
 	addrlen = MIO_SIZEOF(clidev->localaddr);
@@ -1697,7 +1697,7 @@ mio_dev_sck_t* mio_dev_sck_make (mio_t* mio, mio_oow_t xtnsize, const mio_dev_sc
 		return MIO_NULL;
 	}
 
-	if (sck_type_map[info->type].extra_dev_capa & MIO_DEV_CAPA_STREAM) /* can't use the IS_STATEFUL() macro yet */
+	if (sck_type_map[info->type].extra_dev_cap & MIO_DEV_CAP_STREAM) /* can't use the IS_STATEFUL() macro yet */
 	{
 		rdev = (mio_dev_sck_t*)mio_makedev(
 			mio, MIO_SIZEOF(mio_dev_sck_t) + xtnsize, 

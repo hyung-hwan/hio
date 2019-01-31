@@ -460,12 +460,19 @@ static int fmtoutv (mio_t* mio, const fmtchar_t* fmt, mio_fmtout_data_t* data, v
 		#endif
 		lowercase_s:
 
-			bsp = va_arg (ap, mio_bch_t*);
+			bsp = va_arg(ap, mio_bch_t*);
 			if (bsp == MIO_NULL) bsp = bch_nullstr;
 
 		#if defined(MIO_OOCH_IS_UCH)
 			/* get the length */
-			for (bslen = 0; bsp[bslen]; bslen++);
+			if (flagc & FLAGC_DOT)
+			{
+				for (bslen = 0; bslen < precision && bsp[bslen]; bslen++);
+			}
+			else
+			{
+				for (bslen = 0; bsp[bslen]; bslen++);
+			}
 
 			if (mio_conv_bchars_to_uchars_with_cmgr(bsp, &bslen, MIO_NULL, &slen, mio->cmgr, 0) <= -1) goto oops;
 
@@ -534,7 +541,14 @@ static int fmtoutv (mio_t* mio, const fmtchar_t* fmt, mio_fmtout_data_t* data, v
 
 		#if defined(MIO_OOCH_IS_BCH)
 			/* get the length */
-			for (uslen = 0; usp[uslen]; uslen++);
+			if (flagc & FLAGC_DOT)
+			{
+				for (uslen = 0; uslen < precision && usp[uslen]; uslen++);
+			}
+			else
+			{
+				for (uslen = 0; usp[uslen]; uslen++);
+			}
 
 			if (mio_conv_uchars_to_bchars_with_cmgr(usp, &uslen, MIO_NULL, &slen, mio->cmgr) <= -1) goto oops;
 
