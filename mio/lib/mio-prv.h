@@ -31,12 +31,61 @@
 #include "mio-utl.h"
 #include <stdarg.h>
 
-/*TODO: redefine and remove these */
-#include <string.h>
-#define MIO_MEMSET(dst,byte,count) memset(dst,byte,count)
-#define MIO_MEMCPY(dst,src,count) memcpy(dst,src,count)
-#define MIO_MEMMOVE(dst,src,count) memmove(dst,src,count)
-#define MIO_MEMCMP(dst,src,count) memcmp(dst,src,count)
+#if defined(__has_builtin)
+
+#	if (!__has_builtin(__builtin_memset) || !__has_builtin(__builtin_memcpy) || !__has_builtin(__builtin_memmove) || !__has_builtin(__builtin_memcmp))
+#	include <string.h>
+#	endif
+
+#	if __has_builtin(__builtin_memset)
+#		define MIO_MEMSET(dst,src,size)  __builtin_memset(dst,src,size)
+#	else
+#		define MIO_MEMSET(dst,src,size)  memset(dst,src,size)
+#	endif
+#	if __has_builtin(__builtin_memcpy)
+#		define MIO_MEMCPY(dst,src,size)  __builtin_memcpy(dst,src,size)
+#	else
+#		define MIO_MEMCPY(dst,src,size)  memcpy(dst,src,size)
+#	endif
+#	if __has_builtin(__builtin_memmove)
+#		define MIO_MEMMOVE(dst,src,size)  __builtin_memmove(dst,src,size)
+#	else
+#		define MIO_MEMMOVE(dst,src,size)  memmove(dst,src,size)
+#	endif
+#	if __has_builtin(__builtin_memcmp)
+#		define MIO_MEMCMP(dst,src,size)  __builtin_memcmp(dst,src,size)
+#	else
+#		define MIO_MEMCMP(dst,src,size)  memcmp(dst,src,size)
+#	endif
+
+#else
+
+#	if defined(HAVE___BUILTIN_MEMSET) || !defined(HAVE___BUILTIN_MEMCPY) || !defined(HAVE___BUILTIN_MEMMOVE) || !defined(HAVE___BUILTIN_MEMCMP)
+#	include <string.h>
+#	endif
+
+#	if defined(HAVE___BUILTIN_MEMSET)
+#		define MIO_MEMSET(dst,src,size)  __builtin_memset(dst,src,size)
+#	else
+#		define MIO_MEMSET(dst,src,size)  memset(dst,src,size)
+#	endif
+#	if defined(HAVE___BUILTIN_MEMCPY)
+#		define MIO_MEMCPY(dst,src,size)  __builtin_memcpy(dst,src,size)
+#	else
+#		define MIO_MEMCPY(dst,src,size)  memcpy(dst,src,size)
+#	endif
+#	if defined(HAVE___BUILTIN_MEMMOVE)
+#		define MIO_MEMMOVE(dst,src,size)  __builtin_memmove(dst,src,size)
+#	else
+#		define MIO_MEMMOVE(dst,src,size)  memmove(dst,src,size)
+#	endif
+#	if defined(HAVE___BUILTIN_MEMCMP)
+#		define MIO_MEMCMP(dst,src,size)  __builtin_memcmp(dst,src,size)
+#	else
+#		define MIO_MEMCMP(dst,src,size)  memcmp(dst,src,size)
+#	endif
+
+#endif
 
 /* =========================================================================
  * MIO ASSERTION

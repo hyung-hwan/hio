@@ -315,6 +315,7 @@ static int pro_on_read (mio_dev_pro_t* pro, mio_dev_pro_sid_t sid, const void* d
 static int pro_on_write (mio_dev_pro_t* pro, mio_iolen_t wrlen, void* wrctx)
 {
 	mio_t* mio = pro->mio;
+	mio_ntime_t tmout;
 	if (wrlen <= -1)
 	{
 		MIO_INFO1 (mio, "PROCESS(%d): WRITE TIMED OUT...\n", (int)pro->child_pid);
@@ -323,7 +324,9 @@ static int pro_on_write (mio_dev_pro_t* pro, mio_iolen_t wrlen, void* wrctx)
 	}
 
 	MIO_DEBUG2 (mio, "PROCESS(%d) wrote data of %d bytes\n", (int)pro->child_pid, (int)wrlen);
-	mio_dev_pro_read (pro, MIO_DEV_PRO_OUT, 1);
+	/*mio_dev_pro_read (pro, MIO_DEV_PRO_OUT, 1);*/
+	MIO_INIT_NTIME (&tmout, 5, 0);
+	mio_dev_pro_timedread (pro, MIO_DEV_PRO_OUT, 1, &tmout);
 	return 0;
 }
 
