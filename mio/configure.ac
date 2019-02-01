@@ -4,7 +4,7 @@ dnl Make sure you change the version information
 dnl in include/mio/conf_*.h whenever you change the version 
 dnl here. Those files don't depend on autoconf, thus requiring
 dnl manual change.
-AC_INIT([mio],[0.1.0],[Chung, Hyung-Hwan (hyunghwan.chung@gmail.com)],[],[http://code.abiyo.net/@mio])
+AC_INIT([mio],[0.1.0],[Chung, Hyung-Hwan (hyunghwan.chung@gmail.com)],[],[http://code.miflux.com/@mio])
 
 AC_CONFIG_HEADER([lib/mio-cfg.h])
 AC_CONFIG_AUX_DIR([ac])
