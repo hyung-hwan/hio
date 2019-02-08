@@ -365,7 +365,6 @@ pdfdir = @pdfdir@
 prefix = @prefix@
 program_transform_name = @program_transform_name@
 psdir = @psdir@
-runstatedir = @runstatedir@
 sbindir = @sbindir@
 sharedstatedir = @sharedstatedir@
 srcdir = @srcdir@
@@ -395,6 +394,7 @@ LIBADD_LIB_COMMON = $(LIBM) $(LIBLTDL)
 include_HEADERS = \
 	mio-cfg.h \
 	mio-cmn.h \
+	mio-dns.h \
 	mio-pro.h \
 	mio-sck.h \
 	mio-utl.h \
