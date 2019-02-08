@@ -22,6 +22,7 @@ LIBADD_LIB_COMMON = $(LIBM) $(LIBLTDL)
 include_HEADERS = \
 	mio-cfg.h \
 	mio-cmn.h \
+	mio-dns.h \
 	mio-pro.h \
 	mio-sck.h \
 	mio-utl.h \
