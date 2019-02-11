@@ -66,25 +66,85 @@ enum mio_dns_rcode_t
 };
 typedef enum mio_dns_rcode_t mio_dns_rcode_t;
 
+enum mio_dns_qtype_t
+{
+	MIO_DNS_QTYPE_A = 1,
+	MIO_DNS_QTYPE_NS = 2,
+	MIO_DNS_QTYPE_CNAME = 5,
+	MIO_DNS_QTYPE_SOA = 6,
+	MIO_DNS_QTYPE_PTR = 12,
+	MIO_DNS_QTYPE_MX = 15,
+	MIO_DNS_QTYPE_TXT = 16,
+	MIO_DNS_QTYPE_AAAA = 28,
+	MIO_DNS_QTYPE_OPT = 41,
+	MIO_DNS_QTYPE_ANY = 255
+};
+typedef enum mio_dns_qtype_t mio_dns_qtype_t;
+
+enum mio_dns_qclass_t
+{
+	MIO_DNS_QCLASS_IN = 1, /* internet */
+	MIO_DNS_QCLASS_CH = 3, /* chaos */
+	MIO_DNS_QCLASS_HS = 4, /* hesiod */
+	MIO_DNS_QCLASS_NONE = 254,
+	MIO_DNS_QCLASS_ANY = 255
+};
+typedef enum mio_dns_qclass_t mio_dns_qclass_t;
+
+#include <mio-pac1.h>
 struct mio_dns_msg_t
 {
 	mio_uint16_t id;
+
+#if defined(MIO_ENDIAN_BIG)
 	mio_uint16_t qr: 1; /* query(0), answer(1) */
 	mio_uint16_t opcode: 4; /* operation type */
 	mio_uint16_t aa: 1; /* authoritative answer */
 	mio_uint16_t tc: 1; /* truncated. response too large for UDP */
 	mio_uint16_t rd: 1; /* recursion desired */
+
 	mio_uint16_t ra: 1; /* recursion available */
 	mio_uint16_t unused_1: 1;
 	mio_uint16_t ad: 1; /* authentication data - dnssec */
 	mio_uint16_t cd: 1; /* checking disabled - dnssec */
 	mio_uint16_t rcode: 4;
-	mio_uint16_t qdcount;
-	mio_uint16_t ancount;
-	mio_uint16_t nscount;
-	mio_uint16_t arcount;
-};
+#else
+	mio_uint16_t rd: 1;
+	mio_uint16_t tc: 1;
+	mio_uint16_t aa: 1;
+	mio_uint16_t opcode: 4;
+	mio_uint16_t qr: 1;
 
-typedef struct mio_dns_msg_t mio-dns
+	mio_uint16_t rcode: 4;
+	mio_uint16_t cd: 1;
+	mio_uint16_t ad: 1;
+	mio_uint16_t unused_1: 1;
+	mio_uint16_t ra: 1;
+#endif
+
+	mio_uint16_t qdcount; /* number of questions */
+	mio_uint16_t ancount; /* number of answers */
+	mio_uint16_t nscount; /* number of name servers */
+	mio_uint16_t arcount; /* number of additional resource */
+};
+typedef struct mio_dns_msg_t mio_dns_msg_t;
+
+struct mio_dns_qdrechdr_t
+{
+	mio_uint16_t qtype;
+	mio_uint16_t qclass;
+};
+typedef struct moo_dns_qdrechdr_t moo_dns_qdrechdr_t;
+
+struct mio_dns_anrechdr_t
+{
+	mio_uint16_t qtype;
+	mio_uint16_t qclass;
+	mio_uint32_t ttl;
+	mio_uint16_t dlen; /* data length */
+};
+typedef struct moo_dns_ansrechdr_t moo_dns_ansrechdr_t;
+
+#include <mio-upac.h>
 
 #endif

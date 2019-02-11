@@ -23,13 +23,16 @@ include_HEADERS = \
 	mio-cfg.h \
 	mio-cmn.h \
 	mio-dns.h \
+	mio-pac1.h \
 	mio-pro.h \
 	mio-sck.h \
+	mio-upac.h \
 	mio-utl.h \
 	mio.h
 
 lib_LTLIBRARIES = libmio.la
 libmio_la_SOURCES = \
+	dns.c \
 	err.c \
 	fmtout.c \
 	fmtoutv.h \

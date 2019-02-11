@@ -380,7 +380,7 @@ static int setup_arp_tester (mio_t* mio)
 	sck_make.on_read = arp_sck_on_read;
 	sck_make.on_connect = arp_sck_on_connect;
 	sck_make.on_disconnect = arp_sck_on_disconnect;
-	sck = mio_dev_sck_make (mio, 0, &sck_make);
+	sck = mio_dev_sck_make(mio, 0, &sck_make);
 	if (!sck)
 	{
 		printf ("Cannot make socket device\n");
