@@ -72,11 +72,15 @@ enum mio_dns_qtype_t
 	MIO_DNS_QTYPE_NS = 2,
 	MIO_DNS_QTYPE_CNAME = 5,
 	MIO_DNS_QTYPE_SOA = 6,
+	MIO_DNS_QTYPE_NULL = 10,
 	MIO_DNS_QTYPE_PTR = 12,
 	MIO_DNS_QTYPE_MX = 15,
 	MIO_DNS_QTYPE_TXT = 16,
 	MIO_DNS_QTYPE_AAAA = 28,
+	MIO_DNS_QTYPE_EID = 31,
+	MIO_DNS_QTYPE_SRV = 33,
 	MIO_DNS_QTYPE_OPT = 41,
+	MIO_DNS_QTYPE_RRSIG = 46,
 	MIO_DNS_QTYPE_ANY = 255
 };
 typedef enum mio_dns_qtype_t mio_dns_qtype_t;
@@ -123,28 +127,73 @@ struct mio_dns_msg_t
 #endif
 
 	mio_uint16_t qdcount; /* number of questions */
-	mio_uint16_t ancount; /* number of answers */
-	mio_uint16_t nscount; /* number of name servers */
-	mio_uint16_t arcount; /* number of additional resource */
+	mio_uint16_t ancount; /* number of answers (answer section) */
+	mio_uint16_t nscount; /* number of name servers (authority section. only NS types) */
+	mio_uint16_t arcount; /* number of additional resource (additional section) */
 };
 typedef struct mio_dns_msg_t mio_dns_msg_t;
 
-struct mio_dns_qdrechdr_t
+/* question
+ *   name, qtype, qclass
+ * answer
+ *   name, qtype, qclass, ttl, rlength, rdata
+ */
+
+/* trailing part after the domain name in a resource record in a question */
+struct mio_dns_qrrtr_t
 {
+	/* qname upto 64 bytes */
 	mio_uint16_t qtype;
 	mio_uint16_t qclass;
 };
-typedef struct moo_dns_qdrechdr_t moo_dns_qdrechdr_t;
+typedef struct mio_dns_qrrtr_t mio_dns_qrrtr_t;
 
-struct mio_dns_anrechdr_t
+/* trailing part after the domain name in a resource record in an answer */
+struct mio_dns_arrtr_t
 {
+	/* qname upto 64 bytes */
 	mio_uint16_t qtype;
 	mio_uint16_t qclass;
 	mio_uint32_t ttl;
 	mio_uint16_t dlen; /* data length */
+	/* actual data if if dlen > 0 */
 };
-typedef struct moo_dns_ansrechdr_t moo_dns_ansrechdr_t;
+typedef struct mio_dns_arrtr_t mio_dns_arrtr_t;
+
 
 #include <mio-upac.h>
+
+typedef struct mio_dnss_t mio_dnss_t;
+typedef struct mio_dnsc_t mio_dnsc_t;
+
+struct mio_dns_bqrr_t
+{
+	mio_bch_t*   name;
+	mio_uint16_t qtype;
+	mio_uint16_t qclass;
+};
+typedef struct mio_dns_bqrr_t mio_dns_bqrr_t;
+
+#if defined(__cplusplus)
+extern "C" {
+#endif
+
+MIO_EXPORT mio_dnsc_t* mio_dnsc_start (
+	mio_t* mio
+);
+
+MIO_EXPORT void mio_dnsc_stop (
+	mio_dnsc_t* dnsc
+);
+
+MIO_EXPORT int mio_dnsc_sendreq (
+	mio_dnsc_t*     dnsc,
+	mio_dns_bqrr_t* qrr,
+	mio_oow_t       count
+);
+
+#if defined(__cplusplus)
+}
+#endif
 
 #endif

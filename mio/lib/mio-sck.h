@@ -327,7 +327,7 @@ enum mio_dev_sck_type_t
 {
 	MIO_DEV_SCK_TCP4,
 	MIO_DEV_SCK_TCP6,
-	MIO_DEV_SCK_UPD4,
+	MIO_DEV_SCK_UDP4,
 	MIO_DEV_SCK_UDP6,
 
 	/* ARP at the ethernet layer */
@@ -554,6 +554,11 @@ MIO_EXPORT int mio_dev_sck_timedwrite (
 
 #if defined(MIO_HAVE_INLINE)
 
+static MIO_INLINE void mio_dev_sck_kill (mio_dev_sck_t* sck)
+{
+	mio_dev_kill ((mio_dev_t*)sck);
+}
+
 static MIO_INLINE void mio_dev_sck_halt (mio_dev_sck_t* sck)
 {
 	mio_dev_halt ((mio_dev_t*)sck);
@@ -570,6 +575,7 @@ static MIO_INLINE int mio_dev_sck_timedread (mio_dev_sck_t* sck, int enabled, mi
 }
 #else
 
+#define mio_dev_sck_kill(sck) mio_dev_kill((mio_dev_t*)sck)
 #define mio_dev_sck_halt(sck) mio_dev_halt((mio_dev_t*)sck)
 #define mio_dev_sck_read(sck,enabled) mio_dev_read((mio_dev_t*)sck, enabled)
 #define mio_dev_sck_timedread(sck,enabled,tmout) mio_dev_timedread((mio_dev_t*)sck, enabled, tmout)

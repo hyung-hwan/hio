@@ -152,13 +152,13 @@ void mio_fini (mio_t* mio)
 	/* kill all registered devices */
 	while (mio->actdev.head)
 	{
-		mio_killdev (mio, mio->actdev.head);
+		mio_dev_kill (mio->actdev.head);
 	}
 
 	/* kill all halted devices */
 	while (mio->hltdev.head)
 	{
-		mio_killdev (mio, mio->hltdev.head);
+		mio_dev_kill (mio->hltdev.head);
 	}
 
 	/* clean up all zombie devices */
@@ -583,7 +583,7 @@ int mio_exec (mio_t* mio)
 	while (mio->hltdev.head) 
 	{
 		MIO_DEBUG1 (mio, "Killing HALTED device %p\n", mio->hltdev.head);
-		mio_killdev (mio, mio->hltdev.head);
+		mio_dev_kill (mio->hltdev.head);
 	}
 
 	MIO_ASSERT (mio, mio->hltdev.tail == MIO_NULL);
@@ -775,9 +775,9 @@ static int schedule_kill_zombie_job (mio_dev_t* dev)
 	return mio_instmrjob (mio, &kill_zombie_job) == MIO_TMRIDX_INVALID? -1: 0;
 }
 
-void mio_killdev (mio_t* mio, mio_dev_t* dev)
+void mio_dev_kill (mio_dev_t* dev)
 {
-	MIO_ASSERT (mio, mio == dev->mio);
+	mio_t* mio = dev->mio;
 
 	if (dev->dev_cap & MIO_DEV_CAP_ZOMBIE)
 	{
@@ -841,7 +841,7 @@ kill_device:
 		MIO_ASSERT (mio, dev->dev_cap & MIO_DEV_CAP_ZOMBIE);
 		if (schedule_kill_zombie_job (dev) <= -1)
 		{
-			/* i have to choice but to free up the devide by force */
+			/* i have no choice but to free up the devide by force */
 			while (kill_and_free_device (dev, 1) <= -1)
 			{
 				if (mio->stopreq  != MIO_STOPREQ_NONE) 
