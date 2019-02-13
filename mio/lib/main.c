@@ -29,6 +29,7 @@
 #include <mio-utl.h>
 #include <mio-sck.h>
 #include <mio-pro.h>
+#include <mio-dns.h>
 
 #include <stdlib.h>
 #include <string.h>
@@ -804,7 +805,24 @@ for (i = 0; i < 5; i++)
 //mio_dev_pro_close (pro, MIO_DEV_PRO_ERR); 
 }
 #endif
+
+
+{
+	mio_dnsc_t* dnsc;
+	dnsc = mio_dnsc_start (mio/*, "8.8.8.8:53,1.1.1.1:53"*/); /* option - send to all, send one by one */
+	{
+	mio_dns_bqrr_t qrr;
+	qrr.name = "code.miflux.com";
+	qrr.qclass = MIO_DNS_QCLASS_IN;
+	qrr.qtype = MIO_DNS_QTYPE_A;
+		mio_dnsc_sendreq (dnsc, &qrr, 1);
+	}
+
 	mio_loop (mio);
+
+	/* TODO: let mio close it ... dnsc is svc. sck is dev. */
+	mio_dnsc_stop (dnsc);
+}
 
 	g_mio = MIO_NULL;
 	mio_close (mio);
@@ -831,6 +849,7 @@ int main (int argc, char* argv[])
 	mio_dev_sck_make_t tcp_make;
 	mio_dev_sck_connect_t tcp_conn;
 	tcp_server_t* ts;
+	mio_dnsc_t dnsc = MIO_NULL;
 
 	mio = mio_open(&mmgr, 0, MIO_NULL, 512, MIO_NULL);
 	if (!mio)

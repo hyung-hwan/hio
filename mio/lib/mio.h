@@ -160,7 +160,7 @@ struct mio_dev_mth_t
 	int           (*make)         (mio_dev_t* dev, void* ctx); 
 
 	/* ------------------------------------------------------------------ */
-	/* mandatory. called in mio_killdev(). also called in mio_makedev() upon
+	/* mandatory. called in mio_dev_kill(). also called in mio_makedev() upon
 	 * failure after make() success.
 	 * 
 	 * when 'force' is 0, the return value of -1 causes the device to be a
@@ -688,8 +688,7 @@ MIO_EXPORT mio_dev_t* mio_makedev (
 	void*            make_ctx
 );
 
-MIO_EXPORT void mio_killdev (
-	mio_t*     mio,
+MIO_EXPORT void mio_dev_kill (
 	mio_dev_t* dev
 );
 

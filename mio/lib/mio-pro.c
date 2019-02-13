@@ -401,7 +401,7 @@ oops:
 		i--;
 		if (rdev->slave[i])
 		{
-			mio_killdev (mio, (mio_dev_t*)rdev->slave[i]);
+			mio_dev_kill ((mio_dev_t*)rdev->slave[i]);
 			rdev->slave[i] = MIO_NULL;
 		}
 	}
@@ -440,12 +440,12 @@ static int dev_pro_kill_master (mio_dev_t* dev, int force)
 				mio_dev_pro_slave_t* sdev = rdev->slave[i];
 
 				/* nullify the pointer to the slave device
-				 * before calling mio_killdev() on the slave device.
+				 * before calling mio_dev_kill() on the slave device.
 				 * the slave device can check this pointer to tell from
 				 * self-initiated termination or master-driven termination */
 				rdev->slave[i] = MIO_NULL;
 
-				mio_killdev (mio, (mio_dev_t*)sdev);
+				mio_dev_kill ((mio_dev_t*)sdev);
 			}
 		}
 	}
@@ -516,9 +516,9 @@ static int dev_pro_kill_slave (mio_dev_t* dev, int force)
 			 * if this is the last slave, kill the master also */
 			if (master->slave_count <= 0) 
 			{
-				mio_killdev (mio, (mio_dev_t*)master);
+				mio_dev_kill ((mio_dev_t*)master);
 				/* the master pointer is not valid from this point onwards
-				 * as the actual master device object is freed in mio_killdev() */
+				 * as the actual master device object is freed in mio_dev_kill() */
 			}
 		}
 		else
@@ -608,7 +608,7 @@ static int dev_pro_ioctl (mio_dev_t* dev, int cmd, void* arg)
 				/* unlike dev_pro_kill_master(), i don't nullify rdev->slave[sid].
 				 * so i treat the closing ioctl as if it's a kill request 
 				 * initiated by the slave device itself. */
-				mio_killdev (mio, (mio_dev_t*)rdev->slave[sid]);
+				mio_dev_kill ((mio_dev_t*)rdev->slave[sid]);
 			}
 			return 0;
 		}
@@ -688,7 +688,7 @@ static mio_dev_evcb_t dev_pro_event_callbacks =
 static int pro_ready_slave (mio_dev_t* dev, int events)
 {
 	mio_t* mio = dev->mio;
-	mio_dev_pro_t* pro = (mio_dev_pro_t*)dev;
+	/*mio_dev_pro_t* pro = (mio_dev_pro_t*)dev;*/
 
 	if (events & MIO_DEV_EVENT_ERR)
 	{
@@ -783,6 +783,11 @@ mio_dev_pro_t* mio_dev_pro_make (mio_t* mio, mio_oow_t xtnsize, const mio_dev_pr
 	return (mio_dev_pro_t*)mio_makedev(
 		mio, MIO_SIZEOF(mio_dev_pro_t) + xtnsize, 
 		&dev_pro_methods, &dev_pro_event_callbacks, (void*)info);
+}
+
+void mio_dev_pro_kill (mio_dev_pro_t* dev)
+{
+	mio_dev_kill ((mio_dev_t*)dev);
 }
 
 void mio_dev_pro_halt (mio_dev_pro_t* dev)

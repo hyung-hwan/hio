@@ -128,6 +128,11 @@ MIO_EXPORT  mio_dev_pro_t* mio_dev_pro_make (
 	const mio_dev_pro_make_t* data
 );
 
+
+MIO_EXPORT void mio_dev_pro_kill (
+	mio_dev_pro_t* pro
+);
+
 MIO_EXPORT void mio_dev_pro_halt (
 	mio_dev_pro_t* pro
 );
