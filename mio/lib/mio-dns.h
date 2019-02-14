@@ -127,12 +127,19 @@ struct mio_dns_msg_t
 #endif
 
 	mio_uint16_t qdcount; /* number of questions */
-	mio_uint16_t ancount; /* number of answers (answer section) */
-	mio_uint16_t nscount; /* number of name servers (authority section. only NS types) */
-	mio_uint16_t arcount; /* number of additional resource (additional section) */
+	mio_uint16_t ancount; /* number of answers (answer part) */
+	mio_uint16_t nscount; /* number of name servers (authority part. only NS types) */
+	mio_uint16_t arcount; /* number of additional resource (additional part) */
 };
 typedef struct mio_dns_msg_t mio_dns_msg_t;
 
+struct mio_dns_msg_alt_t
+{
+	mio_uint16_t id;
+	mio_uint16_t flags;
+	mio_uint16_t rrcount[4];
+};
+typedef struct mio_dns_msg_alt_t mio_dns_msg_alt_t;
 /* question
  *   name, qtype, qclass
  * answer
@@ -149,7 +156,7 @@ struct mio_dns_qrrtr_t
 typedef struct mio_dns_qrrtr_t mio_dns_qrrtr_t;
 
 /* trailing part after the domain name in a resource record in an answer */
-struct mio_dns_arrtr_t
+struct mio_dns_rrrtr_t
 {
 	/* qname upto 64 bytes */
 	mio_uint16_t qtype;
@@ -158,7 +165,7 @@ struct mio_dns_arrtr_t
 	mio_uint16_t dlen; /* data length */
 	/* actual data if if dlen > 0 */
 };
-typedef struct mio_dns_arrtr_t mio_dns_arrtr_t;
+typedef struct mio_dns_rrrtr_t mio_dns_rrrtr_t;
 
 
 #include <mio-upac.h>
@@ -168,11 +175,31 @@ typedef struct mio_dnsc_t mio_dnsc_t;
 
 struct mio_dns_bqrr_t
 {
-	mio_bch_t*   name;
+	mio_bch_t*   qname;
 	mio_uint16_t qtype;
 	mio_uint16_t qclass;
 };
 typedef struct mio_dns_bqrr_t mio_dns_bqrr_t;
+
+enum mio_dns_rrr_part_t
+{
+	MIO_DNS_RRR_PART_ANSWER,
+	MIO_DNS_RRR_PART_AUTHORITY,
+	MIO_DNS_RRR_PART_ADDITIONAL
+};
+typedef enum mio_dns_rrr_part_t mio_dns_rrr_part_t;
+
+struct mio_dns_brrr_t
+{
+	mio_dns_rrr_part_t part;
+	mio_bch_t*         qname;
+	mio_uint16_t       qtype;
+	mio_uint16_t       qclass;
+	mio_uint32_t       ttl;
+	mio_uint16_t       dlen;
+	void*              dptr;
+};
+typedef struct mio_dns_brrr_t mio_dns_brrr_t;
 
 #if defined(__cplusplus)
 extern "C" {
@@ -189,7 +216,15 @@ MIO_EXPORT void mio_dnsc_stop (
 MIO_EXPORT int mio_dnsc_sendreq (
 	mio_dnsc_t*     dnsc,
 	mio_dns_bqrr_t* qrr,
-	mio_oow_t       count
+	mio_oow_t       qrr_count
+);
+
+MIO_EXPORT int mio_dnsc_sendrep (
+	mio_dnsc_t*     dnsc,
+	mio_dns_bqrr_t* qrr,
+	mio_oow_t       qrr_count,
+	mio_dns_brrr_t* rrr,
+	mio_oow_t       rrr_count
 );
 
 #if defined(__cplusplus)
