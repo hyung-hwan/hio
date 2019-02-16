@@ -811,7 +811,7 @@ for (i = 0; i < 5; i++)
 	mio_dnsc_t* dnsc;
 	dnsc = mio_dnsc_start (mio/*, "8.8.8.8:53,1.1.1.1:53"*/); /* option - send to all, send one by one */
 	{
-		mio_dns_bqrr_t qrrs[] = 
+		mio_dns_bqr_t qrs[] = 
 		{
 			{ "code.miflux.com",  MIO_DNS_QTYPE_A,    MIO_DNS_QCLASS_IN },
 			{ "code.miflux.com",  MIO_DNS_QTYPE_AAAA, MIO_DNS_QCLASS_IN },
@@ -819,15 +819,15 @@ for (i = 0; i < 5; i++)
 			{ "code6.abiyo.net",  MIO_DNS_QTYPE_AAAA, MIO_DNS_QCLASS_IN },
 			{ "abiyo.net",        MIO_DNS_QTYPE_MX,   MIO_DNS_QCLASS_IN }
 		};
-		mio_dns_brrr_t rrrs[] = 
+		mio_dns_brr_t rrs[] = 
 		{
 			{ MIO_DNS_RRR_PART_ANSWER,    "code.miflux.com",  MIO_DNS_QTYPE_A,    MIO_DNS_QCLASS_IN, 86400, 0, MIO_NULL },
 			{ MIO_DNS_RRR_PART_ANSWER,    "code.miflux.com",  MIO_DNS_QTYPE_AAAA, MIO_DNS_QCLASS_IN, 86400, 0, MIO_NULL },
 			{ MIO_DNS_RRR_PART_AUTHORITY, "dns.miflux.com",   MIO_DNS_QTYPE_NS,   MIO_DNS_QCLASS_IN, 86400, 0, MIO_NULL }
 		};
 
-		mio_dnsc_sendreq (dnsc, qrrs, MIO_COUNTOF(qrrs));
-		mio_dnsc_sendrep (dnsc, qrrs, MIO_COUNTOF(qrrs), rrrs, MIO_COUNTOF(rrrs));
+		mio_dnsc_sendreq (dnsc, qrs, MIO_COUNTOF(qrs));
+		mio_dnsc_sendrep (dnsc, qrs, MIO_COUNTOF(qrs), rrs, MIO_COUNTOF(rrs));
 	}
 
 	mio_loop (mio);
