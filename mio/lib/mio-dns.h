@@ -81,6 +81,7 @@ enum mio_dns_qtype_t
 	MIO_DNS_QTYPE_SRV = 33,
 	MIO_DNS_QTYPE_OPT = 41,
 	MIO_DNS_QTYPE_RRSIG = 46,
+	MIO_DNS_QTYPE_AFXR = 252, /* entire zone transfer */
 	MIO_DNS_QTYPE_ANY = 255
 };
 typedef enum mio_dns_qtype_t mio_dns_qtype_t;
@@ -147,16 +148,16 @@ typedef struct mio_dns_msg_alt_t mio_dns_msg_alt_t;
  */
 
 /* trailing part after the domain name in a resource record in a question */
-struct mio_dns_qrrtr_t
+struct mio_dns_qrtr_t
 {
 	/* qname upto 64 bytes */
 	mio_uint16_t qtype;
 	mio_uint16_t qclass;
 };
-typedef struct mio_dns_qrrtr_t mio_dns_qrrtr_t;
+typedef struct mio_dns_qrtr_t mio_dns_qrtr_t;
 
 /* trailing part after the domain name in a resource record in an answer */
-struct mio_dns_rrrtr_t
+struct mio_dns_rrtr_t
 {
 	/* qname upto 64 bytes */
 	mio_uint16_t qtype;
@@ -165,33 +166,32 @@ struct mio_dns_rrrtr_t
 	mio_uint16_t dlen; /* data length */
 	/* actual data if if dlen > 0 */
 };
-typedef struct mio_dns_rrrtr_t mio_dns_rrrtr_t;
-
+typedef struct mio_dns_rrtr_t mio_dns_rrtr_t;
 
 #include <mio-upac.h>
 
 typedef struct mio_dnss_t mio_dnss_t;
 typedef struct mio_dnsc_t mio_dnsc_t;
 
-struct mio_dns_bqrr_t
+struct mio_dns_bqr_t
 {
 	mio_bch_t*   qname;
 	mio_uint16_t qtype;
 	mio_uint16_t qclass;
 };
-typedef struct mio_dns_bqrr_t mio_dns_bqrr_t;
+typedef struct mio_dns_bqr_t mio_dns_bqr_t;
 
-enum mio_dns_rrr_part_t
+enum mio_dns_rr_part_t
 {
 	MIO_DNS_RRR_PART_ANSWER,
 	MIO_DNS_RRR_PART_AUTHORITY,
 	MIO_DNS_RRR_PART_ADDITIONAL
 };
-typedef enum mio_dns_rrr_part_t mio_dns_rrr_part_t;
+typedef enum mio_dns_rr_part_t mio_dns_rr_part_t;
 
-struct mio_dns_brrr_t
+struct mio_dns_brr_t
 {
-	mio_dns_rrr_part_t part;
+	mio_dns_rr_part_t part;
 	mio_bch_t*         qname;
 	mio_uint16_t       qtype;
 	mio_uint16_t       qclass;
@@ -199,7 +199,7 @@ struct mio_dns_brrr_t
 	mio_uint16_t       dlen;
 	void*              dptr;
 };
-typedef struct mio_dns_brrr_t mio_dns_brrr_t;
+typedef struct mio_dns_brr_t mio_dns_brr_t;
 
 #if defined(__cplusplus)
 extern "C" {
@@ -215,16 +215,16 @@ MIO_EXPORT void mio_dnsc_stop (
 
 MIO_EXPORT int mio_dnsc_sendreq (
 	mio_dnsc_t*     dnsc,
-	mio_dns_bqrr_t* qrr,
-	mio_oow_t       qrr_count
+	mio_dns_bqr_t* qr,
+	mio_oow_t       qr_count
 );
 
 MIO_EXPORT int mio_dnsc_sendrep (
 	mio_dnsc_t*     dnsc,
-	mio_dns_bqrr_t* qrr,
-	mio_oow_t       qrr_count,
-	mio_dns_brrr_t* rrr,
-	mio_oow_t       rrr_count
+	mio_dns_bqr_t* qr,
+	mio_oow_t       qr_count,
+	mio_dns_brr_t* rr,
+	mio_oow_t       rr_count
 );
 
 #if defined(__cplusplus)
