@@ -156,6 +156,18 @@ MIO_EXPORT mio_oow_t mio_copy_bcstr (
 	const mio_bch_t* src
 );
 
+MIO_EXPORT void mio_fill_uchars (
+	mio_uch_t*       dst,
+	const mio_uch_t  ch,
+	mio_oow_t        len
+);
+
+MIO_EXPORT void mio_fill_bchars (
+	mio_bch_t*       dst,
+	const mio_bch_t  ch,
+	mio_oow_t        len
+);
+
 MIO_EXPORT mio_uch_t* mio_find_uchar (
 	const mio_uch_t* ptr,
 	mio_oow_t        len,
@@ -209,6 +221,7 @@ MIO_EXPORT mio_oow_t mio_count_bcstr (
 #	define mio_copy_oochars(dst,src,len) mio_copy_uchars(dst,src,len)
 #	define mio_copy_bchars_to_oochars(dst,src,len) mio_copy_bchars_to_uchars(dst,src,len)
 #	define mio_copy_oocstr(dst,len,src) mio_copy_ucstr(dst,len,src)
+#	define mio_fill_oochars(dst,ch,len) mio_fill_uchars(dst,ch,len)
 #	define mio_find_oochar(ptr,len,c) mio_find_uchar(ptr,len,c)
 #	define mio_rfind_oochar(ptr,len,c) mio_rfind_uchar(ptr,len,c)
 #	define mio_find_oochar_in_oocstr(ptr,c) mio_find_uchar_in_ucstr(ptr,c)
@@ -224,6 +237,7 @@ MIO_EXPORT mio_oow_t mio_count_bcstr (
 #	define mio_copy_oochars(dst,src,len) mio_copy_bchars(dst,src,len)
 #	define mio_copy_bchars_to_oochars(dst,src,len) mio_copy_bchars(dst,src,len)
 #	define mio_copy_oocstr(dst,len,src) mio_copy_bcstr(dst,len,src)
+#	define mio_fill_oochars(dst,ch,len) mio_fill_bchars(dst,ch,len)
 #	define mio_find_oochar(ptr,len,c) mio_find_bchar(ptr,len,c)
 #	define mio_rfind_oochar(ptr,len,c) mio_rfind_bchar(ptr,len,c)
 #	define mio_find_oochar_in_oocstr(ptr,c) mio_find_bchar_in_bcstr(ptr,c)

@@ -100,10 +100,10 @@ struct mio_sys_time_t
 	DWORD tc_overflow;
 #elif defined(__OS2__)
 	ULONG tc_last;
-	moo_ntime_t tc_last_ret;
+	mio_ntime_t tc_last_ret;
 #elif defined(__DOS__)
 	clock_t tc_last;
-	moo_ntime_t tc_last_ret;
+	mio_ntime_t tc_last_ret;
 #else
 	/* nothing */
 #endif
