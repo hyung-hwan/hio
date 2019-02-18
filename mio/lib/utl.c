@@ -550,6 +550,18 @@ mio_oow_t mio_copy_bcstr (mio_bch_t* dst, mio_oow_t len, const mio_bch_t* src)
 	return p - dst;
 }
 
+void mio_fill_uchars (mio_uch_t* dst, mio_uch_t ch, mio_oow_t len)
+{
+	mio_oow_t i;
+	for (i = 0; i < len; i++) dst[i] = ch;
+}
+
+void mio_fill_bchars (mio_bch_t* dst, mio_bch_t ch, mio_oow_t len)
+{
+	mio_oow_t i;
+	for (i = 0; i < len; i++) dst[i] = ch;
+}
+
 mio_oow_t mio_count_ucstr (const mio_uch_t* str)
 {
 	const mio_uch_t* ptr = str;

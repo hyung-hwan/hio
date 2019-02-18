@@ -1271,7 +1271,7 @@ void mio_gettime (mio_t* mio, mio_ntime_t* now)
 {
 	mio_sys_gettime (mio, now);
 	/* in mio_init(), mio->init_time has been set to the initialization time. 
-	 * the time returned here gets offset by moo->init_time and 
+	 * the time returned here gets offset by mio->init_time and 
 	 * thus becomes relative to it. this way, it is kept small such that it
 	 * can be represented in a small integer with leaving almost zero chance
 	 * of overflow. */

@@ -72,7 +72,7 @@ int mio_sys_ctrlmux (mio_t* mio, mio_sys_mux_cmd_t cmd, mio_dev_t* dev, int dev_
 
 		if (cmd != MIO_SYS_MUX_CMD_INSERT)
 		{
-			mio_seterrnum (moo, MIO_ENOENT);
+			mio_seterrnum (mio, MIO_ENOENT);
 			return -1;
 		}
 
