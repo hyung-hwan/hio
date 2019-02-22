@@ -55,6 +55,7 @@ typedef struct mio_t mio_t;
 typedef struct mio_dev_t mio_dev_t;
 typedef struct mio_dev_mth_t mio_dev_mth_t;
 typedef struct mio_dev_evcb_t mio_dev_evcb_t;
+typedef struct mio_svc_t mio_svc_t;
 
 typedef struct mio_q_t mio_q_t;
 typedef struct mio_wq_t mio_wq_t;
@@ -156,11 +157,11 @@ struct mio_tmrjob_t
 struct mio_dev_mth_t
 {
 	/* ------------------------------------------------------------------ */
-	/* mandatory. called in mio_makedev() */
+	/* mandatory. called in mio_dev_make() */
 	int           (*make)         (mio_dev_t* dev, void* ctx); 
 
 	/* ------------------------------------------------------------------ */
-	/* mandatory. called in mio_dev_kill(). also called in mio_makedev() upon
+	/* mandatory. called in mio_dev_kill(). also called in mio_dev_make() upon
 	 * failure after make() success.
 	 * 
 	 * when 'force' is 0, the return value of -1 causes the device to be a
@@ -175,7 +176,7 @@ struct mio_dev_mth_t
 	int           (*kill)         (mio_dev_t* dev, int force); 
 
 	/* ------------------------------------------------------------------ */
-	mio_syshnd_t (*getsyshnd)    (mio_dev_t* dev); /* mandatory. called in mio_makedev() after successful make() */
+	mio_syshnd_t (*getsyshnd)    (mio_dev_t* dev); /* mandatory. called in mio_dev_make() after successful make() */
 
 
 	/* ------------------------------------------------------------------ */
@@ -382,6 +383,45 @@ typedef enum mio_dev_event_t mio_dev_event_t;
 #define MIO_CWQFL_SIZE 16
 #define MIO_CWQFL_ALIGN 16
 
+
+/* =========================================================================
+ * SERVICE 
+ * ========================================================================= */
+
+typedef void (*mio_svc_stop_t) (mio_svc_t* svc);
+
+#define MIO_SVC_HEADERS \
+	mio_t*          mio; \
+	mio_svc_stop_t  stop; \
+	mio_svc_t*      svc_prev; \
+	mio_svc_t*      svc_next 
+
+/* the stop callback is called if it's not NULL and the service is still 
+ * alive when mio_close() is reached. it still calls MIO_SVC_UNREGISTER()
+ * if the stop callback is NULL. The stop callback, if specified, must
+ * call MIO_SVC_UNREGISTER(). */ 
+
+struct mio_svc_t
+{
+	MIO_SVC_HEADERS;
+};
+
+#define MIO_SVC_REGISTER(mio,svc) do { \
+	if ((mio)->actsvc.tail) (mio)->actsvc.tail->svc_next = (svc); \
+	else (mio)->actsvc.head = (svc); \
+	(svc)->svc_prev = (mio)->actsvc.tail; \
+	(svc)->svc_next = MIO_NULL; \
+	(mio)->actsvc.tail = (svc); \
+} while(0)
+
+#define MIO_SVC_UNREGISTER(mio,svc) do { \
+	if ((svc)->svc_prev) (svc)->svc_prev->svc_next = (svc)->svc_next; \
+	else (mio)->actsvc.head = (svc)->svc_next; \
+	if ((svc)->svc_next) (svc)->svc_next->svc_prev = (svc)->svc_prev; \
+	else (mio)->actsvc.tail = (svc)->svc_prev; \
+} while (0)
+
+
 /* =========================================================================
  * MIO LOGGING
  * ========================================================================= */
@@ -545,6 +585,12 @@ struct mio_t
 	mio_cwq_t cwq;
 	mio_cwq_t* cwqfl[MIO_CWQFL_SIZE]; /* list of free cwq objects */
 
+	struct
+	{
+		mio_svc_t* head;
+		mio_svc_t* tail;
+	} actsvc; /* active services */
+
 	/* platform specific fields below */
 	mio_sys_t* sysdep;
 };
@@ -680,7 +726,9 @@ MIO_EXPORT void mio_stop (
 	mio_stopreq_t stopreq
 );
 
-MIO_EXPORT mio_dev_t* mio_makedev (
+
+
+MIO_EXPORT mio_dev_t* mio_dev_make (
 	mio_t*           mio,
 	mio_oow_t        dev_size,
 	mio_dev_mth_t*   dev_mth,

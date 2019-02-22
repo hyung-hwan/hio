@@ -47,6 +47,9 @@ static int kill_and_free_device (mio_dev_t* dev, int force);
 } while (0)
 
 
+
+
+
 static void on_read_timeout (mio_t* mio, const mio_ntime_t* now, mio_tmrjob_t* job);
 static void on_write_timeout (mio_t* mio, const mio_ntime_t* now, mio_tmrjob_t* job);
 
@@ -146,6 +149,20 @@ void mio_fini (mio_t* mio)
 		{
 			mio->cwqfl[i] = cwq->next;
 			mio_freemem (mio, cwq);
+		}
+	}
+
+	while (mio->actsvc.head)
+	{
+		if (mio->actsvc.head->stop) 
+		{
+			/* the stop callback must unregister itself */
+			mio->actsvc.head->stop (mio->actsvc.head);
+		}
+		else
+		{
+			/* unregistration only if no stop callback is designated */
+			MIO_SVC_UNREGISTER (mio, mio->actsvc.head);
 		}
 	}
 
@@ -613,7 +630,7 @@ int mio_loop (mio_t* mio)
 	return 0;
 }
 
-mio_dev_t* mio_makedev (mio_t* mio, mio_oow_t dev_size, mio_dev_mth_t* dev_mth, mio_dev_evcb_t* dev_evcb, void* make_ctx)
+mio_dev_t* mio_dev_make (mio_t* mio, mio_oow_t dev_size, mio_dev_mth_t* dev_mth, mio_dev_evcb_t* dev_evcb, void* make_ctx)
 {
 	mio_dev_t* dev;
 

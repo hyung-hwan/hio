@@ -99,12 +99,13 @@ static mio_oow_t dn_length (mio_uint8_t* ptr, mio_oow_t len)
 
 struct mio_dnss_t
 {
-	mio_t* mio;
+	MIO_SVC_HEADERS;
 };
 
 struct mio_dnsc_t
 {
-	mio_t* mio;
+	MIO_SVC_HEADERS;
+
 	mio_dev_sck_t* sck;
 	mio_sckaddr_t serveraddr;
 	mio_oow_t seq;
@@ -158,7 +159,6 @@ static void dns_on_disconnect (mio_dev_sck_t* dev)
 {
 }
 
-
 mio_dnsc_t* mio_dnsc_start (mio_t* mio)
 {
 	mio_dnsc_t* dnsc = MIO_NULL;
@@ -168,6 +168,7 @@ mio_dnsc_t* mio_dnsc_start (mio_t* mio)
 	if (!dnsc) goto oops;
 
 	dnsc->mio = mio;
+	dnsc->stop = mio_dnsc_stop;
 
 	MIO_MEMSET (&minfo, 0, MIO_SIZEOF(minfo));
 	minfo.type = MIO_DEV_SCK_UDP4; /* or UDP6 depending on the binding address */
@@ -185,12 +186,14 @@ mio_uint32_t ia = 0x01010101; /* 1.1.1.1 */
 	mio_sckaddr_initforip4 (&dnsc->serveraddr, 53, (mio_ip4addr_t*)&ia);
 }
 
+	MIO_SVC_REGISTER (mio, (mio_svc_t*)dnsc);
 	return dnsc;
 
 oops:
 	if (dnsc)
 	{
 		if (dnsc->sck) mio_dev_sck_kill (dnsc->sck);
+		mio_freemem (mio, dnsc);
 	}
 	return MIO_NULL;
 }
@@ -198,6 +201,8 @@ oops:
 void mio_dnsc_stop (mio_dnsc_t* dnsc)
 {
 	mio_t* mio = dnsc->mio;
+	if (dnsc->sck) mio_dev_sck_kill (dnsc->sck);
+	MIO_SVC_UNREGISTER (mio, dnsc);
 	mio_freemem (mio, dnsc);
 }
 
