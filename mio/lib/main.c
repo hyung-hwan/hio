@@ -758,14 +758,14 @@ int main (int argc, char* argv[])
 
 	if (mio_dev_sck_bind(tcp[2], &tcp_bind) <= -1)
 	{
-		MIO_INFO0 (mio, "tcp[2] mio_dev_sck_bind() failed....\n");
+		MIO_INFO1 (mio, "tcp[2] mio_dev_sck_bind() failed - %js\n", mio_geterrmsg(mio));
 		goto oops;
 	}
 
 	tcp_lstn.backlogs = 100;
 	if (mio_dev_sck_listen(tcp[2], &tcp_lstn) <= -1)
 	{
-		MIO_INFO0 (mio, "tcp[2] mio_dev_sck_listen() failed....\n");
+		MIO_INFO1 (mio, "tcp[2] mio_dev_sck_listen() failed - %js\n", mio_geterrmsg(mio));
 		goto oops;
 	}
 
@@ -805,7 +805,6 @@ for (i = 0; i < 5; i++)
 //mio_dev_pro_close (pro, MIO_DEV_PRO_ERR); 
 }
 #endif
-
 
 {
 	mio_dnsc_t* dnsc;

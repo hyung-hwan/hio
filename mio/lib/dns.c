@@ -304,6 +304,8 @@ static mio_dns_msg_t* build_req_msg (mio_dnsc_t* dnsc, mio_dns_bqr_t* qr, mio_oo
 		((mio_dns_msg_alt_t*)msg)->rrcount[rr_sect] = mio_hton16(match_count);
 	}
 
+/* TODO: add EDNS0 to request if requested ...
+ *       add EDNS0 to response if request contains it */
 	/* add EDNS0 OPT RR */
 	*dn = 0; /* root domain. as if to_dn("") is called */
 	rrtr = (mio_dns_rrtr_t*)(dn + 1);
