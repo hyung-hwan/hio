@@ -658,7 +658,7 @@ int main (int argc, char* argv[])
 	sin.sin_family = AF_INET;
 	sin.sin_port = htons(1234); */
 /*
-	udp = (mio_dev_udp_t*)mio_makedev(mio, MIO_SIZEOF(*udp), &udp_mth, &udp_evcb, &sin);
+	udp = (mio_dev_udp_t*)mio_dev_make(mio, MIO_SIZEOF(*udp), &udp_mth, &udp_evcb, &sin);
 	if (!udp)
 	{
 		printf ("Cannot make udp\n");

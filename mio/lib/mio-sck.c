@@ -1350,7 +1350,7 @@ accept_done:
 	 * instead of MIO_SIZEOF(mio_dev_sck_t). therefore, the 
 	 * extension area as big as that of the master sck device
 	 * is created in the client sck device */
-	clidev = (mio_dev_sck_t*)mio_makedev(mio, rdev->dev_size, &dev_mth_clisck, rdev->dev_evcb, &clisck); 
+	clidev = (mio_dev_sck_t*)mio_dev_make(mio, rdev->dev_size, &dev_mth_clisck, rdev->dev_evcb, &clisck); 
 	if (!clidev) 
 	{
 		close (clisck);
@@ -1699,13 +1699,13 @@ mio_dev_sck_t* mio_dev_sck_make (mio_t* mio, mio_oow_t xtnsize, const mio_dev_sc
 
 	if (sck_type_map[info->type].extra_dev_cap & MIO_DEV_CAP_STREAM) /* can't use the IS_STATEFUL() macro yet */
 	{
-		rdev = (mio_dev_sck_t*)mio_makedev(
+		rdev = (mio_dev_sck_t*)mio_dev_make(
 			mio, MIO_SIZEOF(mio_dev_sck_t) + xtnsize, 
 			&dev_sck_methods_stateful, &dev_sck_event_callbacks_stateful, (void*)info);
 	}
 	else
 	{
-		rdev = (mio_dev_sck_t*)mio_makedev(
+		rdev = (mio_dev_sck_t*)mio_dev_make(
 			mio, MIO_SIZEOF(mio_dev_sck_t) + xtnsize,
 			&dev_sck_methods_stateless, &dev_sck_event_callbacks_stateless, (void*)info);
 	}
