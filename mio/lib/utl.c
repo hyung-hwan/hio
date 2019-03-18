@@ -656,6 +656,42 @@ mio_bch_t* mio_find_bchar_in_bcstr (const mio_bch_t* ptr, mio_bch_t c)
 
 /* ========================================================================= */
 
+mio_oow_t mio_byte_to_bcstr (mio_uint8_t byte, mio_bch_t* buf, mio_oow_t size, int flagged_radix, mio_bch_t fill)
+{
+	mio_bch_t tmp[(MIO_SIZEOF(mio_uint8_t) * 8)];
+	mio_bch_t* p = tmp, * bp = buf, * be = buf + size - 1;
+	int radix;
+	mio_bch_t radix_char;
+ 
+	radix = (flagged_radix & MIO_BYTE_TO_BCSTR_RADIXMASK);
+	radix_char = (flagged_radix & MIO_BYTE_TO_BCSTR_LOWERCASE)? 'a': 'A';
+	if (radix < 2 || radix > 36 || size <= 0) return 0;
+ 
+	do 
+	{
+		mio_uint8_t digit = byte % radix;	
+		if (digit < 10) *p++ = digit + '0';
+		else *p++ = digit + radix_char - 10;
+		byte /= radix;
+	}
+	while (byte > 0);
+ 
+	if (fill != '\0') 
+	{
+		while (size - 1 > p - tmp) 
+		{
+			*bp++ = fill;
+			size--;
+		}
+	}
+ 
+	while (p > tmp && bp < be) *bp++ = *--p;
+	*bp = '\0';
+	return bp - buf;
+}
+ 
+/* ========================================================================= */
+
 MIO_INLINE int mio_conv_bchars_to_uchars_with_cmgr (
 	const mio_bch_t* bcs, mio_oow_t* bcslen,
 	mio_uch_t* ucs, mio_oow_t* ucslen, mio_cmgr_t* cmgr, int all)

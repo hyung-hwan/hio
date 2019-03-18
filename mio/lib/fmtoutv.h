@@ -89,6 +89,16 @@
 	} \
 } while (0)
 
+#define PUT_BYTE_IN_HEX(byte) do { \
+	mio_bch_t __xbuf[3]; \
+	mio_byte_to_bcstr (byte, __xbuf, MIO_COUNTOF(__xbuf), (16 | (ch == 'w'? MIO_BYTE_TO_BCSTR_LOWERCASE: 0)), '0'); \
+	PUT_OOCH(__xbuf[0], 1); \
+	PUT_OOCH(__xbuf[1], 1); \
+} while (0)
+ 
+/* TODO: redefine this */
+#define BYTE_PRINTABLE(x) ((x >= 'a' && x <= 'z') || (x >= 'A' &&  x <= 'Z') || (x == ' '))
+ 
 static int fmtoutv (mio_t* mio, const fmtchar_t* fmt, mio_fmtout_data_t* data, va_list ap)
 {
 	const fmtchar_t* percent;
@@ -598,6 +608,172 @@ static int fmtoutv (mio_t* mio, const fmtchar_t* fmt, mio_fmtout_data_t* data, v
 			break;
 		}
 
+		case 'k':
+		case 'K':
+		{
+			/* byte or multibyte character string in escape sequence */
+ 
+			const mio_uint8_t* bsp;
+			mio_oow_t k_hex_width;
+ 
+			/* zeropad must not take effect for 'k' and 'K' 
+			 * 
+ 			 * 'h' & 'l' is not used to differentiate qse_mchar_t and qse_wchar_t
+			 * because 'k' means qse_byte_t. 
+			 * 'l', results in uppercase hexadecimal letters. 
+			 * 'h' drops the leading \x in the output 
+			 * --------------------------------------------------------
+			 * hk -> \x + non-printable in lowercase hex
+			 * k -> all in lowercase hex
+			 * lk -> \x +  all in lowercase hex
+			 * --------------------------------------------------------
+			 * hK -> \x + non-printable in uppercase hex
+			 * K -> all in uppercase hex
+			 * lK -> \x +  all in uppercase hex
+			 * --------------------------------------------------------
+			 * with 'k' or 'K', i don't substitute "(null)" for the NULL pointer
+			 */
+			if (flagc & FLAGC_ZEROPAD) padc = ' ';
+ 
+			bsp = va_arg(ap, mio_uint8_t*);
+			k_hex_width = (lm_flag & (LF_H | LF_L))? 4: 2;
+ 
+			if (lm_flag& LF_H)
+			{
+				if (flagc & FLAGC_DOT)
+				{
+					/* if precision is specifed, it doesn't stop at the value of zero unlike 's' or 'S' */
+					for (n = 0; n < precision; n++) width -= BYTE_PRINTABLE(bsp[n])? 1: k_hex_width;
+				}
+				else
+				{
+					for (n = 0; bsp[n]; n++) width -= BYTE_PRINTABLE(bsp[n])? 1: k_hex_width;
+				}
+			}
+			else
+			{
+				if (flagc & FLAGC_DOT)
+				{
+					/* if precision is specifed, it doesn't stop at the value of zero unlike 's' or 'S' */
+					for (n = 0; n < precision; n++) /* nothing */;
+				}
+				else
+				{
+					for (n = 0; bsp[n]; n++) /* nothing */;
+				}
+				width -= (n * k_hex_width);
+			}
+ 
+			if (!(flagc & FLAGC_LEFTADJ) && width > 0) PUT_OOCH (padc, width);
+ 
+			while (n--) 
+			{
+				if ((lm_flag & LF_H) && BYTE_PRINTABLE(*bsp)) 
+				{
+					PUT_OOCH(*bsp, 1);
+				}
+				else
+				{
+					mio_bch_t xbuf[3];
+					mio_byte_to_bcstr (*bsp, xbuf, MIO_COUNTOF(xbuf), (16 | (ch == 'k'? MIO_BYTE_TO_BCSTR_LOWERCASE: 0)), '0');
+					if (lm_flag & (LF_H | LF_L))
+					{
+						PUT_OOCH('\\', 1);
+						PUT_OOCH('x', 1);
+					}
+					PUT_OOCH(xbuf[0], 1);
+					PUT_OOCH(xbuf[1], 1);
+				}
+				bsp++;
+			}
+ 
+			if ((flagc & FLAGC_LEFTADJ) && width > 0) PUT_OOCH (padc, width);
+			break;
+		}
+ 
+		case 'w':
+		case 'W':
+		{
+			/* unicode string in unicode escape sequence.
+			 * 
+			 * hw -> \uXXXX, \UXXXXXXXX, printable-byte(only in ascii range)
+			 * w -> \uXXXX, \UXXXXXXXX
+			 * lw -> all in \UXXXXXXXX
+			 */
+			const mio_uch_t* usp;
+			mio_oow_t uwid;
+ 
+			if (flagc & FLAGC_ZEROPAD) padc = ' ';
+			usp = va_arg(ap, mio_uch_t*);
+ 
+			if (flagc & FLAGC_DOT)
+			{
+				/* if precision is specifed, it doesn't stop at the value of zero unlike 's' or 'S' */
+				for (n = 0; n < precision; n++) 
+				{
+					if ((lm_flag & LF_H) && BYTE_PRINTABLE(usp[n])) uwid = 1;
+					else if (!(lm_flag & LF_L) && usp[n] <= 0xFFFF) uwid = 6;
+					else uwid = 10;
+					width -= uwid;
+				}
+			}
+			else
+			{
+				for (n = 0; usp[n]; n++)
+				{
+					if ((lm_flag & LF_H) && BYTE_PRINTABLE(usp[n])) uwid = 1;
+					else if (!(lm_flag & LF_L) && usp[n] <= 0xFFFF) uwid = 6;
+					else uwid = 10;
+					width -= uwid;
+				}
+			}
+ 
+			if (!(flagc & FLAGC_LEFTADJ) && width > 0) PUT_OOCH (padc, width);
+ 
+			while (n--) 
+			{
+				if ((lm_flag & LF_H) && BYTE_PRINTABLE(*usp)) 
+				{
+					PUT_OOCH(*usp, 1);
+				}
+				else if (!(lm_flag & LF_L) && *usp <= 0xFFFF) 
+				{
+					mio_uint16_t u16 = *usp;
+					mio_uint8_t* bsp = (mio_uint8_t*)&u16;
+					PUT_OOCH('\\', 1);
+					PUT_OOCH('u', 1);
+				#if defined(MIO_ENDIAN_BIG)
+					PUT_BYTE_IN_HEX(bsp[0]);
+					PUT_BYTE_IN_HEX(bsp[1]);
+				#else
+					PUT_BYTE_IN_HEX(bsp[1]);
+					PUT_BYTE_IN_HEX(bsp[0]);
+				#endif
+				}
+				else
+				{
+					mio_uint32_t u32 = *usp;
+					mio_uint8_t* bsp = (mio_uint8_t*)&u32;
+					PUT_OOCH('\\', 1);
+					PUT_OOCH('U', 1);
+				#if defined(MIO_ENDIAN_BIG)
+					PUT_BYTE_IN_HEX(bsp[0]);
+					PUT_BYTE_IN_HEX(bsp[1]);
+					PUT_BYTE_IN_HEX(bsp[2]);
+					PUT_BYTE_IN_HEX(bsp[3]);
+				#else
+					PUT_BYTE_IN_HEX(bsp[3]);
+					PUT_BYTE_IN_HEX(bsp[2]);
+					PUT_BYTE_IN_HEX(bsp[1]);
+					PUT_BYTE_IN_HEX(bsp[0]);
+				#endif
+				}
+				usp++;
+			}
+ 
+			if ((flagc & FLAGC_LEFTADJ) && width > 0) PUT_OOCH (padc, width);
+			break;
+		}
 #if 0
 		case 'e':
 		case 'E':

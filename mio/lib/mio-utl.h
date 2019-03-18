@@ -243,8 +243,18 @@ MIO_EXPORT mio_oow_t mio_count_bcstr (
 #	define mio_find_oochar_in_oocstr(ptr,c) mio_find_bchar_in_bcstr(ptr,c)
 #	define mio_count_oocstr(str) mio_count_bcstr(str)
 #endif
+/* ------------------------------------------------------------------------- */
 
-
+#define MIO_BYTE_TO_BCSTR_RADIXMASK (0xFF)
+#define MIO_BYTE_TO_BCSTR_LOWERCASE (1 << 8)
+ 
+mio_oow_t mio_byte_to_bcstr (
+	mio_uint8_t   byte,  
+	mio_bch_t*    buf,
+	mio_oow_t     size,
+	int           flagged_radix,
+	mio_bch_t     fill
+);
 
 /* ------------------------------------------------------------------------- */
 
