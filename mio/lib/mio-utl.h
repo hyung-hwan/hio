@@ -265,15 +265,15 @@ MIO_EXPORT int mio_ucwidth (
 /* ------------------------------------------------------------------------- */
 
 #if defined(MIO_OOCH_IS_UCH)
-#	define mio_conv_oocs_to_bcs_with_cmgr(oocs,oocslen,bcs,bcslen,cmgr) mio_conv_ucs_to_bcs_with_cmgr(oocs,oocslen,bcs,bcslen,cmgr)
+#	define mio_conv_oocstr_to_bcstr_with_cmgr(oocs,oocslen,bcs,bcslen,cmgr) mio_conv_ucstr_to_bcstr_with_cmgr(oocs,oocslen,bcs,bcslen,cmgr)
 #	define mio_conv_oochars_to_bchars_with_cmgr(oocs,oocslen,bcs,bcslen,cmgr) mio_conv_uchars_to_bchars_with_cmgr(oocs,oocslen,bcs,bcslen,cmgr)
 #else
-#	define mio_conv_oocs_to_ucs_with_cmgr(oocs,oocslen,ucs,ucslen,cmgr) mio_conv_bcs_to_ucs_with_cmgr(oocs,oocslen,ucs,ucslen,cmgr,0)
+#	define mio_conv_oocstr_to_ucstr_with_cmgr(oocs,oocslen,ucs,ucslen,cmgr) mio_conv_bcstr_to_ucstr_with_cmgr(oocs,oocslen,ucs,ucslen,cmgr,0)
 #	define mio_conv_oochars_to_uchars_with_cmgr(oocs,oocslen,ucs,ucslen,cmgr) mio_conv_bchars_to_uchars_with_cmgr(oocs,oocslen,ucs,ucslen,cmgr,0)
 #endif
 
 
-MIO_EXPORT int mio_conv_bcs_to_ucs_with_cmgr (
+MIO_EXPORT int mio_conv_bcstr_to_ucstr_with_cmgr (
 	const mio_bch_t* bcs,
 	mio_oow_t*       bcslen,
 	mio_uch_t*       ucs,
@@ -291,7 +291,7 @@ MIO_EXPORT int mio_conv_bchars_to_uchars_with_cmgr (
 	int              all
 );
 
-MIO_EXPORT int mio_conv_ucs_to_bcs_with_cmgr (
+MIO_EXPORT int mio_conv_ucstr_to_bcstr_with_cmgr (
 	const mio_uch_t* ucs,
 	mio_oow_t*       ucslen,
 	mio_bch_t*       bcs,
