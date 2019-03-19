@@ -813,7 +813,7 @@ MIO_INLINE int mio_conv_bchars_to_uchars_with_cmgr (
 	return ret;
 }
 
-MIO_INLINE int mio_conv_bcs_to_ucs_with_cmgr (
+MIO_INLINE int mio_conv_bcstr_to_ucstr_with_cmgr (
 	const mio_bch_t* bcs, mio_oow_t* bcslen,
 	mio_uch_t* ucs, mio_oow_t* ucslen, mio_cmgr_t* cmgr, int all)
 {
@@ -905,7 +905,7 @@ MIO_INLINE int mio_conv_uchars_to_bchars_with_cmgr (
 	return ret;
 }
 
-MIO_INLINE int mio_conv_ucs_to_bcs_with_cmgr (
+MIO_INLINE int mio_conv_ucstr_to_bcstr_with_cmgr (
 	const mio_uch_t* ucs, mio_oow_t* ucslen,
 	mio_bch_t* bcs, mio_oow_t* bcslen, mio_cmgr_t* cmgr)
 {
@@ -1014,13 +1014,13 @@ int mio_conv_uchars_to_utf8 (const mio_uch_t* ucs, mio_oow_t* ucslen, mio_bch_t*
 int mio_conv_utf8_to_ucstr (const mio_bch_t* bcs, mio_oow_t* bcslen, mio_uch_t* ucs, mio_oow_t* ucslen)
 {
 	/* null-terminated. */
-	return mio_conv_bcs_to_ucs_with_cmgr(bcs, bcslen, ucs, ucslen, &utf8_cmgr, 0);
+	return mio_conv_bcstr_to_ucstr_with_cmgr(bcs, bcslen, ucs, ucslen, &utf8_cmgr, 0);
 }
 
 int mio_conv_ucstr_to_utf8 (const mio_uch_t* ucs, mio_oow_t* ucslen, mio_bch_t* bcs, mio_oow_t* bcslen)
 {
 	/* null-terminated */
-	return mio_conv_ucs_to_bcs_with_cmgr(ucs, ucslen, bcs, bcslen, &utf8_cmgr);
+	return mio_conv_ucstr_to_bcstr_with_cmgr(ucs, ucslen, bcs, bcslen, &utf8_cmgr);
 }
 
 /* ----------------------------------------------------------------------- */
@@ -1061,7 +1061,7 @@ int mio_convbtoucstr (mio_t* mio, const mio_bch_t* bcs, mio_oow_t* bcslen, mio_u
 	/* null-terminated. */
 	int n;
 
-	n = mio_conv_bcs_to_ucs_with_cmgr(bcs, bcslen, ucs, ucslen, mio->cmgr, 0);
+	n = mio_conv_bcstr_to_ucstr_with_cmgr(bcs, bcslen, ucs, ucslen, mio->cmgr, 0);
 
 	if (n <= -1)
 	{
@@ -1076,7 +1076,7 @@ int mio_convutobcstr (mio_t* mio, const mio_uch_t* ucs, mio_oow_t* ucslen, mio_b
 	/* null-terminated */
 	int n;
 
-	n = mio_conv_ucs_to_bcs_with_cmgr(ucs, ucslen, bcs, bcslen, mio->cmgr);
+	n = mio_conv_ucstr_to_bcstr_with_cmgr(ucs, ucslen, bcs, bcslen, mio->cmgr);
 
 	if (n <= -1)
 	{

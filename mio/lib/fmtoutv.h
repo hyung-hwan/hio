@@ -70,6 +70,8 @@
 
 #undef PUT_OOCH
 #undef PUT_OOCS
+#undef PUT_BYTE_IN_HEX
+#undef BYTE_PRINTABLE
 
 #define PUT_OOCH(c,n) do { \
 	if (n > 0) { \
@@ -97,7 +99,7 @@
 } while (0)
  
 /* TODO: redefine this */
-#define BYTE_PRINTABLE(x) ((x >= 'a' && x <= 'z') || (x >= 'A' &&  x <= 'Z') || (x == ' '))
+#define BYTE_PRINTABLE(x) ((x >= 'a' && x <= 'z') || (x >= 'A' &&  x <= 'Z') || (x >= '0' && x <= '9') || (x == ' '))
  
 static int fmtoutv (mio_t* mio, const fmtchar_t* fmt, mio_fmtout_data_t* data, va_list ap)
 {
@@ -739,34 +741,20 @@ static int fmtoutv (mio_t* mio, const fmtchar_t* fmt, mio_fmtout_data_t* data, v
 				else if (!(lm_flag & LF_L) && *usp <= 0xFFFF) 
 				{
 					mio_uint16_t u16 = *usp;
-					mio_uint8_t* bsp = (mio_uint8_t*)&u16;
 					PUT_OOCH('\\', 1);
 					PUT_OOCH('u', 1);
-				#if defined(MIO_ENDIAN_BIG)
-					PUT_BYTE_IN_HEX(bsp[0]);
-					PUT_BYTE_IN_HEX(bsp[1]);
-				#else
-					PUT_BYTE_IN_HEX(bsp[1]);
-					PUT_BYTE_IN_HEX(bsp[0]);
-				#endif
+					PUT_BYTE_IN_HEX((u16 >> 8) & 0xFF);
+					PUT_BYTE_IN_HEX(u16 & 0xFF);
 				}
 				else
 				{
 					mio_uint32_t u32 = *usp;
-					mio_uint8_t* bsp = (mio_uint8_t*)&u32;
 					PUT_OOCH('\\', 1);
 					PUT_OOCH('U', 1);
-				#if defined(MIO_ENDIAN_BIG)
-					PUT_BYTE_IN_HEX(bsp[0]);
-					PUT_BYTE_IN_HEX(bsp[1]);
-					PUT_BYTE_IN_HEX(bsp[2]);
-					PUT_BYTE_IN_HEX(bsp[3]);
-				#else
-					PUT_BYTE_IN_HEX(bsp[3]);
-					PUT_BYTE_IN_HEX(bsp[2]);
-					PUT_BYTE_IN_HEX(bsp[1]);
-					PUT_BYTE_IN_HEX(bsp[0]);
-				#endif
+					PUT_BYTE_IN_HEX((u32 >> 24) & 0xFF);
+					PUT_BYTE_IN_HEX((u32 >> 16) & 0xFF);
+					PUT_BYTE_IN_HEX((u32 >> 8) & 0xFF);
+					PUT_BYTE_IN_HEX(u32 & 0xFF);
 				}
 				usp++;
 			}
