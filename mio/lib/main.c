@@ -820,9 +820,9 @@ for (i = 0; i < 5; i++)
 		};
 		mio_dns_brr_t rrs[] = 
 		{
-			{ MIO_DNS_RRR_PART_ANSWER,    "code.miflux.com",  MIO_DNS_QTYPE_A,    MIO_DNS_QCLASS_IN, 86400, 0, MIO_NULL },
-			{ MIO_DNS_RRR_PART_ANSWER,    "code.miflux.com",  MIO_DNS_QTYPE_AAAA, MIO_DNS_QCLASS_IN, 86400, 0, MIO_NULL },
-			{ MIO_DNS_RRR_PART_AUTHORITY, "dns.miflux.com",   MIO_DNS_QTYPE_NS,   MIO_DNS_QCLASS_IN, 86400, 0, MIO_NULL }
+			{ MIO_DNS_RR_PART_ANSWER,    "code.miflux.com",  MIO_DNS_QTYPE_A,    MIO_DNS_QCLASS_IN, 86400, 0, MIO_NULL },
+			{ MIO_DNS_RR_PART_ANSWER,    "code.miflux.com",  MIO_DNS_QTYPE_AAAA, MIO_DNS_QCLASS_IN, 86400, 0, MIO_NULL },
+			{ MIO_DNS_RR_PART_AUTHORITY, "dns.miflux.com",   MIO_DNS_QTYPE_NS,   MIO_DNS_QCLASS_IN, 86400, 0, MIO_NULL }
 		};
 
 		mio_dnsc_sendreq (dnsc, qrs, MIO_COUNTOF(qrs));

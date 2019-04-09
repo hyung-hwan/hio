@@ -28,11 +28,13 @@
 #include <mio-sck.h>
 #include "mio-prv.h"
 
+typedef struct mio_dns_t mio_dns_t;
+
 /* ----------------------------------------------------------------------- */
 
 #define DN_AT_END(ptr) (ptr[0] == '\0' || (ptr[0] == '.' && ptr[1] == '\0'))
 
-static mio_oow_t to_dn (const mio_bch_t* str, mio_uint8_t* buf, mio_oow_t bufsz)
+static mio_oow_t to_dn (mio_dns_t* dns, const mio_bch_t* str, mio_uint8_t* buf, mio_oow_t bufsz)
 {
 	mio_uint8_t* bp = buf, * be = buf + bufsz;
 
@@ -97,14 +99,25 @@ static mio_oow_t dn_length (mio_uint8_t* ptr, mio_oow_t len)
 
 /* ----------------------------------------------------------------------- */
 
+/*#define MIO_DNS_HEADERS mio_htl_t* dncache;*/
+#define MIO_DNS_HEADERS void* dncache;
+
+struct mio_dns_t
+{
+	MIO_SVC_HEADERS;
+	MIO_DNS_HEADERS;
+};
+
 struct mio_dnss_t
 {
 	MIO_SVC_HEADERS;
+	MIO_DNS_HEADERS;
 };
 
 struct mio_dnsc_t
 {
 	MIO_SVC_HEADERS;
+	MIO_DNS_HEADERS;
 
 	mio_dev_sck_t* sck;
 	mio_sckaddr_t serveraddr;
@@ -216,7 +229,7 @@ static void release_req_msg (mio_dnsc_t* dnsc, mio_dns_msg_t* msg)
 	mio_freemem (mio, msgbuf);
 }
 
-static mio_dns_msg_t* build_req_msg (mio_dnsc_t* dnsc, mio_dns_bqr_t* qr, mio_oow_t qr_count, mio_dns_brr_t* rr, mio_oow_t rr_count, mio_oow_t* xmsglen)
+static mio_dns_msg_t* build_req_msg (mio_dnsc_t* dnsc, mio_dns_bqr_t* qr, mio_oow_t qr_count, mio_dns_brr_t* rr, mio_oow_t rr_count, mio_dns_bedns_t* edns, mio_oow_t* xmsglen)
 {
 	mio_t* mio = dnsc->mio;
 	mio_oow_t dnlen, msgbufsz, i;
@@ -257,7 +270,7 @@ static mio_dns_msg_t* build_req_msg (mio_dnsc_t* dnsc, mio_dns_bqr_t* qr, mio_oo
 	for (i = 0; i < qr_count; i++)
 	{
 		/* dnlen includes the ending <zero> */
-		dnlen = to_dn(qr[i].qname, dn, mio_count_bcstr(qr[i].qname) + 2);
+		dnlen = to_dn((mio_dns_t*)dnsc, qr[i].qname, dn, mio_count_bcstr(qr[i].qname) + 2);
 		if (dnlen <= 0)
 		{
 			release_req_msg (dnsc, msg);
@@ -272,14 +285,14 @@ static mio_dns_msg_t* build_req_msg (mio_dnsc_t* dnsc, mio_dns_bqr_t* qr, mio_oo
 		dn = (mio_uint8_t*)(qrtr + 1);
 	}
 
-	for (rr_sect = MIO_DNS_RRR_PART_ANSWER; rr_sect <= MIO_DNS_RRR_PART_ADDITIONAL;)
+	for (rr_sect = MIO_DNS_RR_PART_ANSWER; rr_sect <= MIO_DNS_RR_PART_ADDITIONAL;)
 	{
 		mio_oow_t match_count = 0;
 		for (i = 0; i < rr_count; i++)
 		{
 			if (rr[i].part == rr_sect)
 			{
-				dnlen = to_dn(rr[i].qname, dn, mio_count_bcstr(rr[i].qname) + 2);
+				dnlen = to_dn((mio_dns_t*)dnsc, rr[i].qname, dn, mio_count_bcstr(rr[i].qname) + 2);
 				if (dnlen <= 0)
 				{
 					release_req_msg (dnsc, msg);
@@ -330,7 +343,7 @@ static MIO_INLINE int send_req_with_single_rr (mio_dnsc_t* dnsc, mio_dns_bqr_t* 
 	mio_dns_msg_t* msg;
 	mio_oow_t msglen;
 
-	msg = build_req_msg(dnsc, qr, 1, MIO_NULL, 0, &msglen);
+	msg = build_req_msg(dnsc, qr, 1, MIO_NULL, 0, MIO_NULL, &msglen);
 	if (!msg) return -1;
 
 	msg->rd = 1;
@@ -359,7 +372,7 @@ int mio_dnsc_sendreq (mio_dnsc_t* dnsc, mio_dns_bqr_t* qr, mio_oow_t count)
 	mio_dns_msg_t* msg;
 	mio_oow_t msglen;
 
-	msg = build_req_msg(dnsc, qr, count, &msglen);
+	msg = build_req_msg(dnsc, qr, count, MIO_NULL, &msglen);
 	if (!msg) return -1;
 
 	msg->rd = 1;
@@ -379,7 +392,7 @@ int mio_dnsc_sendrep (mio_dnsc_t* dnsc, mio_dns_bqr_t* qr, mio_oow_t qr_count, m
 	mio_dns_msg_t* msg;
 	mio_oow_t msglen;
 
-	msg = build_req_msg(dnsc, qr, qr_count, rr, rr_count, &msglen);
+	msg = build_req_msg(dnsc, qr, qr_count, rr, rr_count, MIO_NULL, &msglen);
 	if (!msg) return -1;
 
 	msg->rd = 1;

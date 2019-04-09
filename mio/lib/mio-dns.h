@@ -173,6 +173,7 @@ typedef struct mio_dns_rrtr_t mio_dns_rrtr_t;
 typedef struct mio_dnss_t mio_dnss_t;
 typedef struct mio_dnsc_t mio_dnsc_t;
 
+/* breakdown of question record */
 struct mio_dns_bqr_t
 {
 	mio_bch_t*   qname;
@@ -181,17 +182,19 @@ struct mio_dns_bqr_t
 };
 typedef struct mio_dns_bqr_t mio_dns_bqr_t;
 
+
 enum mio_dns_rr_part_t
 {
-	MIO_DNS_RRR_PART_ANSWER,
-	MIO_DNS_RRR_PART_AUTHORITY,
-	MIO_DNS_RRR_PART_ADDITIONAL
+	MIO_DNS_RR_PART_ANSWER,
+	MIO_DNS_RR_PART_AUTHORITY,
+	MIO_DNS_RR_PART_ADDITIONAL
 };
 typedef enum mio_dns_rr_part_t mio_dns_rr_part_t;
 
+/* breakdown of resource record */
 struct mio_dns_brr_t
 {
-	mio_dns_rr_part_t part;
+	mio_dns_rr_part_t  part;
 	mio_bch_t*         qname;
 	mio_uint16_t       qtype;
 	mio_uint16_t       qclass;
@@ -200,6 +203,24 @@ struct mio_dns_brr_t
 	void*              dptr;
 };
 typedef struct mio_dns_brr_t mio_dns_brr_t;
+
+struct mio_dns_bedns_opt_t
+{
+	mio_uint16_t dlen;
+	void*        dptr;
+};
+typedef struct mio_dns_bedns_opt_t mio_dns_bedns_opt_t;
+
+struct mio_dns_bedns_t
+{
+	mio_uint16_t uplen; /* udp payload len */
+	mio_uint8_t  version;
+
+	mio_oow_t            olen;
+	mio_dns_bedns_opt_t* optr;
+};
+typedef struct mio_dns_bedns_t mio_dns_bedns_t;
+
 
 #if defined(__cplusplus)
 extern "C" {
@@ -215,15 +236,15 @@ MIO_EXPORT void mio_dnsc_stop (
 
 MIO_EXPORT int mio_dnsc_sendreq (
 	mio_dnsc_t*     dnsc,
-	mio_dns_bqr_t* qr,
+	mio_dns_bqr_t*  qr,
 	mio_oow_t       qr_count
 );
 
 MIO_EXPORT int mio_dnsc_sendrep (
 	mio_dnsc_t*     dnsc,
-	mio_dns_bqr_t* qr,
+	mio_dns_bqr_t*  qr,
 	mio_oow_t       qr_count,
-	mio_dns_brr_t* rr,
+	mio_dns_brr_t*  rr,
 	mio_oow_t       rr_count
 );
 
