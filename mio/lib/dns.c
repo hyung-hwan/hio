@@ -239,6 +239,7 @@ static mio_dns_msg_t* build_req_msg (mio_dnsc_t* dnsc, mio_dns_bqr_t* qr, mio_oo
 	mio_dns_qrtr_t* qrtr;
 	mio_dns_rrtr_t* rrtr;
 	int rr_sect;
+	mio_uint16_t edns_dlen;
 
 	msgbufsz = MIO_SIZEOF(msgbufsz) + MIO_SIZEOF(*msg);
 
@@ -255,7 +256,18 @@ static mio_dns_msg_t* build_req_msg (mio_dnsc_t* dnsc, mio_dns_bqr_t* qr, mio_oo
 		msgbufsz += mio_count_bcstr(rr[i].qname) + 2 + MIO_SIZEOF(*rrtr) + rr[i].dlen;
 	}
 
-	msgbufsz += 1 + MIO_SIZEOF(*rrtr); /* edns0 OPT RR */
+	edns_dlen = 0;
+	if (edns)
+	{
+		msgbufsz += 1 + MIO_SIZEOF(*rrtr); /* edns0 OPT RR - 1 for the root name  */
+
+		for (i = 0; i < edns->olen; i++)
+		{
+			edns_dlen += 2 + edns->optr->dlen;
+			
+		}
+		msgbufsz += edns_dlen;
+	}
 
 	msgbufsz = MIO_ALIGN_POW2(msgbufsz, 64);
 
@@ -264,7 +276,7 @@ static mio_dns_msg_t* build_req_msg (mio_dnsc_t* dnsc, mio_dns_bqr_t* qr, mio_oo
 	if (!msgbuf) return MIO_NULL;
 
 	*(mio_oow_t*)msgbuf = msgbufsz; /* record the buffer size in the first word */
-	msg = (mio_dns_msg_t*)(msgbuf + MIO_SIZEOF(mio_oow_t)); /* actual message begins the after the size word */
+	msg = (mio_dns_msg_t*)(msgbuf + MIO_SIZEOF(mio_oow_t)); /* actual message begins after the size word */
 
 	dn = (mio_uint8_t*)(msg + 1);
 	for (i = 0; i < qr_count; i++)
@@ -319,15 +331,24 @@ static mio_dns_msg_t* build_req_msg (mio_dnsc_t* dnsc, mio_dns_bqr_t* qr, mio_oo
 
 /* TODO: add EDNS0 to request if requested ...
  *       add EDNS0 to response if request contains it */
-	/* add EDNS0 OPT RR */
-	*dn = 0; /* root domain. as if to_dn("") is called */
-	rrtr = (mio_dns_rrtr_t*)(dn + 1);
-	rrtr->qtype = MIO_CONST_HTON16(MIO_DNS_QTYPE_OPT);
-	rrtr->qclass = MIO_CONST_HTON16(4096); /* udp payload size - TODO: if answer, copy from request, if not, get it from mio settings???? */
-	rrtr->ttl = MIO_CONST_HTON32(0); /* extended rcode, version, flags */
-	rrtr->dlen = MIO_CONST_HTON16(0);
-	msg->arcount = mio_hton16((mio_ntoh16(msg->arcount) + 1));
-	dn = (mio_uint8_t*)(rrtr + 1) + 0;
+	if (edns)
+	{
+		/* add EDNS0 OPT RR */
+		*dn = 0; /* root domain. as if to_dn("") is called */
+		rrtr = (mio_dns_rrtr_t*)(dn + 1);
+		rrtr->qtype = MIO_CONST_HTON16(MIO_DNS_QTYPE_OPT);
+		rrtr->qclass = mio_hton16(edns->uplen);
+		rrtr->ttl = MIO_CONST_HTON32(0); /* extended rcode, version, flags TODO: take edns->version */
+		rrtr->dlen = mio_hton16(edns_dlen);
+		dn = (mio_uint8_t*)(rrtr + 1) + 0;
+
+		for (i = 0; i < edns->olen; i++)
+		{
+		}
+
+		msg->arcount = mio_hton16((mio_ntoh16(msg->arcount) + 1));
+		
+	}
 
 	msg->qr = (rr_count > 0);
 	msg->opcode = MIO_DNS_OPCODE_QUERY;

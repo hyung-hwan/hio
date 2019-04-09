@@ -206,6 +206,7 @@ typedef struct mio_dns_brr_t mio_dns_brr_t;
 
 struct mio_dns_bedns_opt_t
 {
+	mio_uint16_t dtype;
 	mio_uint16_t dlen;
 	void*        dptr;
 };
@@ -216,7 +217,7 @@ struct mio_dns_bedns_t
 	mio_uint16_t uplen; /* udp payload len */
 	mio_uint8_t  version;
 
-	mio_oow_t            olen;
+	mio_oow_t            olen; /* option count*/
 	mio_dns_bedns_opt_t* optr;
 };
 typedef struct mio_dns_bedns_t mio_dns_bedns_t;
