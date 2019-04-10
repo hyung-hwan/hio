@@ -825,8 +825,54 @@ for (i = 0; i < 5; i++)
 			{ MIO_DNS_RR_PART_AUTHORITY, "dns.miflux.com",   MIO_DNS_QTYPE_NS,   MIO_DNS_QCLASS_IN, 86400, 0, MIO_NULL }
 		};
 
-		mio_dnsc_sendreq (dnsc, qrs, MIO_COUNTOF(qrs));
-		mio_dnsc_sendrep (dnsc, qrs, MIO_COUNTOF(qrs), rrs, MIO_COUNTOF(rrs));
+		mio_dns_beopt_t beopt[] =
+		{
+			{ MIO_DNS_EOPT_COOKIE, 8, "\x01\x02\x03\x04\0x05\x06\0x07\0x08" },
+			{ MIO_DNS_EOPT_NSID,   0, MIO_NULL                              }
+		};
+
+		mio_dns_bedns_t qedns =
+		{
+			4096, /* uplen */
+
+			0,    /* edns version */
+			0,    /* dnssec ok */
+
+			MIO_COUNTOF(beopt),    /* number of edns options */
+			beopt
+		};
+
+		mio_dns_bdns_t qhdr =
+		{
+			-1,              /* id */
+			0,                  /* qr */
+			MIO_DNS_OPCODE_QUERY, /* opcode */
+			0, /* aa */
+			0, /* tc */
+			1, /* rd */
+			0, /* ra */
+			0, /* ad */
+			0, /* cd */
+			MIO_DNS_RCODE_NOERROR /* rcode */
+		};
+
+		mio_dns_bdns_t rhdr =
+		{
+			0x1234,               /* id */
+			1,                    /* qr */
+			MIO_DNS_OPCODE_QUERY, /* opcode */
+
+			0, /* aa */
+			0, /* tc */
+			0, /* rd */
+			1, /* ra */
+			0, /* ad */
+			0, /* cd */
+			MIO_DNS_RCODE_BADCOOKIE /* rcode */
+		}; 
+
+		mio_dnsc_sendreq (dnsc, &qhdr, qrs, MIO_COUNTOF(qrs), &qedns);
+		mio_dnsc_sendmsg (dnsc, &rhdr, qrs, MIO_COUNTOF(qrs), rrs, MIO_COUNTOF(rrs), &qedns);
 	}
 
 	mio_loop (mio);
