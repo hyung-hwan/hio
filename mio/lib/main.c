@@ -666,7 +666,7 @@ int main (int argc, char* argv[])
 	}
 */
 
-	memset (&tcp_make, 0, MIO_SIZEOF(&tcp_make));
+	memset (&tcp_make, 0, MIO_SIZEOF(tcp_make));
 	tcp_make.type = MIO_DEV_SCK_TCP4;
 	tcp_make.on_write = tcp_sck_on_write;
 	tcp_make.on_read = tcp_sck_on_read;
@@ -698,7 +698,7 @@ int main (int argc, char* argv[])
 	}
 
 	/* -------------------------------------------------------------- */
-	memset (&tcp_make, 0, MIO_SIZEOF(&tcp_make));
+	memset (&tcp_make, 0, MIO_SIZEOF(tcp_make));
 	tcp_make.type = MIO_DEV_SCK_TCP4;
 	tcp_make.on_write = tcp_sck_on_write;
 	tcp_make.on_read = tcp_sck_on_read;
@@ -733,7 +733,7 @@ int main (int argc, char* argv[])
 	}
 
 	/* -------------------------------------------------------------- */
-	memset (&tcp_make, 0, MIO_SIZEOF(&tcp_make));
+	memset (&tcp_make, 0, MIO_SIZEOF(tcp_make));
 	tcp_make.type = MIO_DEV_SCK_TCP4;
 	tcp_make.on_write = tcp_sck_on_write;
 	tcp_make.on_read = tcp_sck_on_read;
@@ -915,7 +915,7 @@ int main (int argc, char* argv[])
 		goto oops;
 	}
 
-	memset (&tcp_make, 0, MIO_SIZEOF(&tcp_make));
+	memset (&tcp_make, 0, MIO_SIZEOF(tcp_make));
 	tcp_make.type = MIO_DEV_SCK_TCP4;
 	tcp_make.on_write = tcp_sck_on_write;
 	tcp_make.on_read = tcp_sck_on_read;

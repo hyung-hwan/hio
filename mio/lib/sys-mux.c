@@ -64,8 +64,11 @@ int mio_sys_ctrlmux (mio_t* mio, mio_sys_mux_cmd_t cmd, mio_dev_t* dev, int dev_
 #if defined(USE_POLL)
 	mio_sys_mux_t* mux = &mio->sysdep->mux;
 	mio_oow_t idx;
+	mio_syshnd_t hnd;
 
-	if (dev->hnd >= mux->map.capa)
+	hnd = dev->dev_mth->getsyshnd(dev);
+
+	if (hnd >= mux->map.capa)
 	{
 		mio_oow_t new_capa;
 		mio_oow_t* tmp;
@@ -220,11 +223,10 @@ int mio_sys_ctrlmux (mio_t* mio, mio_sys_mux_cmd_t cmd, mio_dev_t* dev, int dev_
 int mio_sys_waitmux (mio_t* mio, const mio_ntime_t* tmout, mio_sys_mux_evtcb_t event_handler)
 {
 #if defined(USE_POLL)
-	int nentries;
+	mio_sys_mux_t* mux = &mio->sysdep->mux;
+	int nentries, i;
 
-	mux = (mio_sys_mux_t*)mio->sysdep->mux;
-
-	nentries = poll(mux->pd.pfd, mux->pd.size, MIO_SECNSEC_TO_MSEC(tmout.sec, tmout.nsec));
+	nentries = poll(mux->pd.pfd, mux->pd.size, MIO_SECNSEC_TO_MSEC(tmout->sec, tmout->nsec));
 	if (nentries == -1)
 	{
 		if (errno == EINTR) return 0;
@@ -248,7 +250,7 @@ int mio_sys_waitmux (mio_t* mio, const mio_ntime_t* tmout, mio_sys_mux_evtcb_t e
 			if (mux->pd.pfd[i].revents & POLLERR) events |= MIO_DEV_EVENT_ERR;
 			if (mux->pd.pfd[i].revents & POLLHUP) events |= MIO_DEV_EVENT_HUP;
 
-			handle_event (dev, events, 0);
+			event_handler (mio, dev, events, 0);
 		}
 	}
 

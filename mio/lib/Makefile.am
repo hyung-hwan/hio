@@ -67,9 +67,9 @@ install-data-hook:
 	@echo "#define _MIO_CFG_H_" >> "$(DESTDIR)$(includedir)/mio-cfg.h"
 	@$(EGREP) "#define[ ]+MIO_" "$(abs_builddir)/mio-cfg.h" >> "$(DESTDIR)$(includedir)/mio-cfg.h" 
 	@echo "#endif" >> "$(DESTDIR)$(includedir)/mio-cfg.h"
-	@$(RM) "$(DESTDIR)$(includedir)/mio-cfg.h.in"
+	@rm -f "$(DESTDIR)$(includedir)/mio-cfg.h.in"
 	@$(SED) 's|/\*#define MIO_HAVE_CFG_H\*/|#define MIO_HAVE_CFG_H|' "$(srcdir)/mio-cmn.h" > "$(DESTDIR)$(includedir)/mio-cmn.h"
 
 uninstall-hook:
-	@$(RM) "$(DESTDIR)$(includedir)/mio-cfg.h"
+	@rm -f "$(DESTDIR)$(includedir)/mio-cfg.h"
 
