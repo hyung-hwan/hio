@@ -96,11 +96,26 @@ enum mio_dns_qclass_t
 };
 typedef enum mio_dns_qclass_t mio_dns_qclass_t;
 
+enum mio_dns_eopt_code_t
+{
+	MIO_DNS_EOPT_NSID         = 3,
+	MIO_DNS_EOPT_DAU          = 5,
+	MIO_DNS_EOPT_DHU          = 6,
+	MIO_DNS_EOPT_N3U          = 7,
+	MIO_DNS_EOPT_ECS          = 8,
+	MIO_DNS_EOPT_EXPIRE       = 9,
+	MIO_DNS_EOPT_COOKIE       = 10,
+	MIO_DNS_EOPT_TCPKEEPALIVE = 11,
+	MIO_DNS_EOPT_PADDING      = 12,
+	MIO_DNS_EOPT_CHAIN        = 13,
+	MIO_DNS_EOPT_KEYTAG       = 14,
+};
+typedef enum mio_dns_eopt_code_t mio_dns_eopt_code_t;
+
 #include <mio-pac1.h>
-struct mio_dns_msg_t
+struct mio_dns_hdr_t
 {
 	mio_uint16_t id;
-
 #if defined(MIO_ENDIAN_BIG)
 	mio_uint16_t qr: 1; /* query(0), answer(1) */
 	mio_uint16_t opcode: 4; /* operation type */
@@ -112,7 +127,7 @@ struct mio_dns_msg_t
 	mio_uint16_t unused_1: 1;
 	mio_uint16_t ad: 1; /* authentication data - dnssec */
 	mio_uint16_t cd: 1; /* checking disabled - dnssec */
-	mio_uint16_t rcode: 4;
+	mio_uint16_t rcode: 4; /* reply code - for reply only */
 #else
 	mio_uint16_t rd: 1;
 	mio_uint16_t tc: 1;
@@ -132,15 +147,15 @@ struct mio_dns_msg_t
 	mio_uint16_t nscount; /* number of name servers (authority part. only NS types) */
 	mio_uint16_t arcount; /* number of additional resource (additional part) */
 };
-typedef struct mio_dns_msg_t mio_dns_msg_t;
+typedef struct mio_dns_hdr_t mio_dns_hdr_t;
 
-struct mio_dns_msg_alt_t
+struct mio_dns_hdr_alt_t
 {
 	mio_uint16_t id;
 	mio_uint16_t flags;
 	mio_uint16_t rrcount[4];
 };
-typedef struct mio_dns_msg_alt_t mio_dns_msg_alt_t;
+typedef struct mio_dns_hdr_alt_t mio_dns_hdr_alt_t;
 /* question
  *   name, qtype, qclass
  * answer
@@ -168,10 +183,42 @@ struct mio_dns_rrtr_t
 };
 typedef struct mio_dns_rrtr_t mio_dns_rrtr_t;
 
+struct mio_dns_eopt_t
+{
+	mio_uint16_t code;
+	mio_uint16_t dlen;
+	/* actual data if if dlen > 0 */
+};
+typedef struct mio_dns_eopt_t mio_dns_eopt_t;
+
 #include <mio-upac.h>
 
 typedef struct mio_dnss_t mio_dnss_t;
 typedef struct mio_dnsc_t mio_dnsc_t;
+
+/*
+#define MIO_DNS_HDR_MAKE_FLAGS(qr,opcode,aa,tc,rd,ra,ad,cd,rcode) \
+	((((qr) & 0x01) << 15) | (((opcode) & 0x0F) << 14) | (((aa) & 0x01) << 10) | (((tc) & 0x01) << 9) | \
+	(((rd) & 0x01) << 8) | (((ra) & 0x01) << 7) | (((ad) & 0x01) << 5) | (((cd) & 0x01) << 4) | ((rcode) & 0x0F))
+*/
+
+/* breakdown of the dns message id and flags */
+struct mio_dns_bdns_t
+{
+	int id; /* auto-assign if negative. */
+
+	mio_uint8_t qr; /* query(0), answer(1) */
+	mio_uint8_t opcode; /* operation type */
+	mio_uint8_t aa; /* authoritative answer */
+	mio_uint8_t tc; /* truncated. response too large for UDP */
+	mio_uint8_t rd; /* recursion desired */
+
+	mio_uint8_t ra; /* recursion available */
+	mio_uint8_t ad; /* authentication data - dnssec */
+	mio_uint8_t cd; /* checking disabled - dnssec */
+	mio_uint8_t rcode; /* reply code - for reply only */
+};
+typedef struct mio_dns_bdns_t mio_dns_bdns_t;
 
 /* breakdown of question record */
 struct mio_dns_bqr_t
@@ -204,24 +251,29 @@ struct mio_dns_brr_t
 };
 typedef struct mio_dns_brr_t mio_dns_brr_t;
 
-struct mio_dns_bedns_opt_t
+struct mio_dns_beopt_t
 {
-	mio_uint16_t dtype;
+	mio_uint16_t code;
 	mio_uint16_t dlen;
 	void*        dptr;
 };
-typedef struct mio_dns_bedns_opt_t mio_dns_bedns_opt_t;
+typedef struct mio_dns_beopt_t mio_dns_beopt_t;
+
+/* the full rcode must be given. the macro takes the upper 8 bits */
+#define MIO_DNS_EDNS_MAKE_TTL(rcode,version,dnssecok) ((((((mio_uint32_t)rcode) >> 4) & 0xFF) << 24) | (((mio_uint32_t)version & 0xFF) << 16) | (((mio_uint32_t)dnssecok & 0x1) << 15))
 
 struct mio_dns_bedns_t
 {
-	mio_uint16_t uplen; /* udp payload len */
-	mio_uint8_t  version;
+	mio_uint16_t     uplen; /* udp payload len - will be placed in the qclass field of RR. */
 
-	mio_oow_t            olen; /* option count*/
-	mio_dns_bedns_opt_t* optr;
+	/* the ttl field(32 bits) of RR holds extended rcode, version, dnssecok */
+	mio_uint8_t      version; 
+	mio_uint8_t      dnssecok;
+
+	mio_oow_t        beonum; /* option count */
+	mio_dns_beopt_t* beoptr;
 };
 typedef struct mio_dns_bedns_t mio_dns_bedns_t;
-
 
 #if defined(__cplusplus)
 extern "C" {
@@ -236,17 +288,21 @@ MIO_EXPORT void mio_dnsc_stop (
 );
 
 MIO_EXPORT int mio_dnsc_sendreq (
-	mio_dnsc_t*     dnsc,
-	mio_dns_bqr_t*  qr,
-	mio_oow_t       qr_count
+	mio_dnsc_t*      dnsc,
+	mio_dns_bdns_t*  bdns,
+	mio_dns_bqr_t*   qr,
+	mio_oow_t        qr_count,
+	mio_dns_bedns_t* edns
 );
 
-MIO_EXPORT int mio_dnsc_sendrep (
-	mio_dnsc_t*     dnsc,
-	mio_dns_bqr_t*  qr,
-	mio_oow_t       qr_count,
-	mio_dns_brr_t*  rr,
-	mio_oow_t       rr_count
+MIO_EXPORT int mio_dnsc_sendmsg (
+	mio_dnsc_t*      dnsc,
+	mio_dns_bdns_t*  bdns,
+	mio_dns_bqr_t*   qr,
+	mio_oow_t        qr_count,
+	mio_dns_brr_t*   rr,
+	mio_oow_t        rr_count,
+	mio_dns_bedns_t* edns
 );
 
 #if defined(__cplusplus)
