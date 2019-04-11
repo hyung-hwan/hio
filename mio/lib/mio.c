@@ -789,7 +789,7 @@ static int schedule_kill_zombie_job (mio_dev_t* dev)
 	kill_zombie_job.handler = kill_zombie_job_handler;
 	/*kill_zombie_job.idxptr = &rdev->tmridx_kill_zombie;*/
 
-	return mio_instmrjob (mio, &kill_zombie_job) == MIO_TMRIDX_INVALID? -1: 0;
+	return mio_instmrjob(mio, &kill_zombie_job) == MIO_TMRIDX_INVALID? -1: 0;
 }
 
 void mio_dev_kill (mio_dev_t* dev)

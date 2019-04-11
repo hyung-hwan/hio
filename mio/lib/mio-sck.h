@@ -520,6 +520,12 @@ MIO_EXPORT mio_dev_sck_t* mio_dev_sck_make (
 	const mio_dev_sck_make_t* info
 );
 
+#if defined(MIO_HAVE_INLINE)
+static MIO_INLINE void* mio_dev_sck_getxtn (mio_dev_sck_t* sck) { return (void*)(sck + 1); }
+#else
+#	define mio_dev_sck_getxtn(sck) ((void*)(sck) + 1)
+#endif
+
 MIO_EXPORT int mio_dev_sck_bind (
 	mio_dev_sck_t*         dev,
 	mio_dev_sck_bind_t*    info

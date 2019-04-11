@@ -112,8 +112,20 @@ enum mio_dns_eopt_code_t
 };
 typedef enum mio_dns_eopt_code_t mio_dns_eopt_code_t;
 
+/* dns message preamble */
+typedef struct mio_dns_msg_t mio_dns_msg_t;
+struct mio_dns_msg_t
+{
+	mio_oow_t buflen;
+	mio_oow_t pktlen;
+	mio_tmridx_t rtmridx;
+	mio_dev_t* dev;
+	mio_dns_msg_t* prev;
+	mio_dns_msg_t* next;
+};
+
 #include <mio-pac1.h>
-struct mio_dns_hdr_t
+struct mio_dns_pkt_t
 {
 	mio_uint16_t id;
 #if defined(MIO_ENDIAN_BIG)
@@ -147,15 +159,15 @@ struct mio_dns_hdr_t
 	mio_uint16_t nscount; /* number of name servers (authority part. only NS types) */
 	mio_uint16_t arcount; /* number of additional resource (additional part) */
 };
-typedef struct mio_dns_hdr_t mio_dns_hdr_t;
+typedef struct mio_dns_pkt_t mio_dns_pkt_t;
 
-struct mio_dns_hdr_alt_t
+struct mio_dns_pkt_alt_t
 {
 	mio_uint16_t id;
 	mio_uint16_t flags;
 	mio_uint16_t rrcount[4];
 };
-typedef struct mio_dns_hdr_alt_t mio_dns_hdr_alt_t;
+typedef struct mio_dns_pkt_alt_t mio_dns_pkt_alt_t;
 /* question
  *   name, qtype, qclass
  * answer
