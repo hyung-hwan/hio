@@ -30,6 +30,35 @@
 
 typedef struct mio_dns_t mio_dns_t;
 
+struct mio_dns_t
+{
+	MIO_SVC_HEADERS;
+	/*MIO_DNS_SVC_HEADERS;*/
+};
+
+struct mio_dnss_t
+{
+	MIO_SVC_HEADERS;
+	/*MIO_DNS_SVC_HEADERS;*/
+};
+
+struct mio_dnsc_t
+{
+	MIO_SVC_HEADERS;
+	/*MIO_DNS_SVC_HEADERS;*/
+
+	mio_dev_sck_t* sck;
+	mio_sckaddr_t serveraddr;
+	mio_oow_t seq;
+	mio_dns_msg_t* pending_req;
+};
+
+struct dnsc_sck_xtn_t
+{
+	mio_dnsc_t* dnsc;
+};
+typedef struct dnsc_sck_xtn_t dnsc_sck_xtn_t;
+
 /* ----------------------------------------------------------------------- */
 
 #define DN_AT_END(ptr) (ptr[0] == '\0' || (ptr[0] == '.' && ptr[1] == '\0'))
@@ -99,149 +128,44 @@ static mio_oow_t dn_length (mio_uint8_t* ptr, mio_oow_t len)
 
 /* ----------------------------------------------------------------------- */
 
-/*#define MIO_DNS_HEADERS mio_htl_t* dncache;*/
-#define MIO_DNS_HEADERS void* dncache;
 
-struct mio_dns_t
-{
-	MIO_SVC_HEADERS;
-	MIO_DNS_HEADERS;
-};
-
-struct mio_dnss_t
-{
-	MIO_SVC_HEADERS;
-	MIO_DNS_HEADERS;
-};
-
-struct mio_dnsc_t
-{
-	MIO_SVC_HEADERS;
-	MIO_DNS_HEADERS;
-
-	mio_dev_sck_t* sck;
-	mio_sckaddr_t serveraddr;
-	mio_oow_t seq;
-};
-
-struct mio_dns_req_t 
-{
-	mio_dns_hdr_t* msg;
-	/* source address */
-
-	/*mio_dns_req_t* prev;
-	mio_dns_req_t* next;*/
-};
-typedef struct mio_dns_req_t mio_dns_req_t;
-
-
-static int dns_on_read (mio_dev_sck_t* dev, const void* data, mio_iolen_t dlen, const mio_sckaddr_t* srcaddr)
-{
-	mio_t* mio = dev->mio;
-	mio_dns_hdr_t* msg;
-	mio_uint16_t id;
-
-	if (dlen < MIO_SIZEOF(*msg)) 
-	{
-		MIO_DEBUG0 (mio, "dns packet too small from ....\n"); /* TODO: add source packet */
-		return 0; /* drop */
-	}
-	msg = (mio_dns_hdr_t*)data;
-	if (!msg->qr) return 0; /* drop request */
-
-	id = mio_ntoh16(msg->id);
-	/* if id doesn't matche one of the pending requests sent,  drop */
-
-MIO_DEBUG1 (mio, "received dns response...id %d\n", id);
-	return 0;
-}
-
-static int dns_on_write (mio_dev_sck_t* dev, mio_iolen_t wrlen, void* wrctx, const mio_sckaddr_t* dstaddr)
-{
-	mio_t* mio = dev->mio;
-
-MIO_DEBUG0 (mio, "sent dns request...\n");
-	return 0;
-}
-
-static void dns_on_connect (mio_dev_sck_t* dev)
-{
-}
-
-static void dns_on_disconnect (mio_dev_sck_t* dev)
-{
-}
-
-mio_dnsc_t* mio_dnsc_start (mio_t* mio)
-{
-	mio_dnsc_t* dnsc = MIO_NULL;
-	mio_dev_sck_make_t minfo;
-
-	dnsc = (mio_dnsc_t*)mio_callocmem(mio, MIO_SIZEOF(*dnsc));
-	if (!dnsc) goto oops;
-
-	dnsc->mio = mio;
-	dnsc->stop = mio_dnsc_stop;
-
-	MIO_MEMSET (&minfo, 0, MIO_SIZEOF(minfo));
-	minfo.type = MIO_DEV_SCK_UDP4; /* or UDP6 depending on the binding address */
-	minfo.on_write = dns_on_write;
-	minfo.on_read = dns_on_read;
-	minfo.on_connect = dns_on_connect;
-	minfo.on_disconnect = dns_on_disconnect;
-	dnsc->sck = mio_dev_sck_make(mio, 0, &minfo);
-	if (!dnsc->sck) goto oops;
-
-	/* bind if requested */
-	/*if (mio_dev_sck_bind(dev, ....) <= -1) goto oops;*/
-{
-mio_uint32_t ia = 0x01010101; /* 1.1.1.1 */
-	mio_sckaddr_initforip4 (&dnsc->serveraddr, 53, (mio_ip4addr_t*)&ia);
-}
-
-	MIO_SVC_REGISTER (mio, (mio_svc_t*)dnsc);
-	return dnsc;
-
-oops:
-	if (dnsc)
-	{
-		if (dnsc->sck) mio_dev_sck_kill (dnsc->sck);
-		mio_freemem (mio, dnsc);
-	}
-	return MIO_NULL;
-}
-
-void mio_dnsc_stop (mio_dnsc_t* dnsc)
+static void release_dns_msg (mio_dnsc_t* dnsc, mio_dns_msg_t* msg)
 {
 	mio_t* mio = dnsc->mio;
-	if (dnsc->sck) mio_dev_sck_kill (dnsc->sck);
-	MIO_SVC_UNREGISTER (mio, dnsc);
-	mio_freemem (mio, dnsc);
-}
 
-static void release_dns_msg (mio_dnsc_t* dnsc, mio_dns_hdr_t* msg)
-{
-	mio_t* mio = dnsc->mio;
-	void* msgbuf;
+MIO_DEBUG1 (mio, "releasing dns msg %d\n", (int)mio_ntoh16(((mio_dns_pkt_t*)(msg + 1))->id));
+
+	if (msg == dnsc->pending_req || msg->next || msg->prev)
+	{
+		/* it's chained in the pending request. unchain it */
+		if (msg->next) msg->next->prev = msg->prev;
+		if (msg->prev) msg->prev->next = msg->next;
+		else dnsc->pending_req = msg->next;
+	}
 
 /* TODO:  add it to the free msg list instead of just freeing it. */
-	msgbuf = ((mio_uint8_t*)msg - MIO_SIZEOF(mio_oow_t));
-	mio_freemem (mio, msgbuf);
+	if (msg->rtmridx != MIO_TMRIDX_INVALID)
+	{
+		mio_deltmrjob (mio, msg->rtmridx);
+		MIO_ASSERT (mio, msg->rtmridx == MIO_TMRIDX_INVALID);
+	}
+
+	mio_freemem (mio, msg);
 }
 
-static mio_dns_hdr_t* build_dns_msg (mio_dnsc_t* dnsc, mio_dns_bdns_t* bdns, mio_dns_bqr_t* qr, mio_oow_t qr_count, mio_dns_brr_t* rr, mio_oow_t rr_count, mio_dns_bedns_t* edns, mio_oow_t* xmsglen)
+static mio_dns_msg_t* build_dns_msg (mio_dnsc_t* dnsc, mio_dns_bdns_t* bdns, mio_dns_bqr_t* qr, mio_oow_t qr_count, mio_dns_brr_t* rr, mio_oow_t rr_count, mio_dns_bedns_t* edns)
 {
 	mio_t* mio = dnsc->mio;
 	mio_oow_t dnlen, msgbufsz, i;
-	void* msgbuf;
-	mio_dns_hdr_t* msg;
+	mio_dns_msg_t* msg;
+	mio_dns_pkt_t* pkt;
 	mio_uint8_t* dn;
 	mio_dns_qrtr_t* qrtr;
 	mio_dns_rrtr_t* rrtr;
 	int rr_sect;
 	mio_uint32_t edns_dlen;
 
-	msgbufsz = MIO_SIZEOF(msgbufsz) + MIO_SIZEOF(*msg);
+	msgbufsz = MIO_SIZEOF(*msg) + MIO_SIZEOF(*pkt);
 
 	for (i = 0; i < qr_count; i++)
 	{
@@ -290,13 +214,16 @@ static mio_dns_hdr_t* build_dns_msg (mio_dnsc_t* dnsc, mio_dns_bdns_t* bdns, mio
 	msgbufsz = MIO_ALIGN_POW2(msgbufsz, 64);
 
 /* TODO: msg buffer reuse */
-	msgbuf = mio_callocmem(mio, msgbufsz);
-	if (!msgbuf) return MIO_NULL;
+	msg = mio_callocmem(mio, msgbufsz);
+	if (!msg) return MIO_NULL;
 
-	*(mio_oow_t*)msgbuf = msgbufsz; /* record the buffer size in the first word */
-	msg = (mio_dns_hdr_t*)(msgbuf + MIO_SIZEOF(mio_oow_t)); /* actual message begins after the size word */
+	msg->buflen = msgbufsz; /* record the buffer size in the preamble */
+	msg->rtmridx = MIO_TMRIDX_INVALID;
+	msg->dev = (mio_dev_t*)dnsc->sck;
 
-	dn = (mio_uint8_t*)(msg + 1);
+	pkt = (mio_dns_pkt_t*)(msg + 1); /* actual message begins after the size word */
+
+	dn = (mio_uint8_t*)(pkt + 1);
 	for (i = 0; i < qr_count; i++)
 	{
 		/* dnlen includes the ending <zero> */
@@ -306,7 +233,6 @@ static mio_dns_hdr_t* build_dns_msg (mio_dnsc_t* dnsc, mio_dns_bdns_t* bdns, mio
 			release_dns_msg (dnsc, msg);
 			mio_seterrbfmt (mio, MIO_EINVAL, "invalid domain name - %hs", qr[i].qname);
 			return MIO_NULL;
-
 		}
 		qrtr = (mio_dns_qrtr_t*)(dn + dnlen);
 		qrtr->qtype = mio_hton16(qr[i].qtype);
@@ -344,7 +270,7 @@ static mio_dns_hdr_t* build_dns_msg (mio_dnsc_t* dnsc, mio_dns_bdns_t* bdns, mio
 		}
 
 		rr_sect = rr_sect + 1;
-		((mio_dns_hdr_alt_t*)msg)->rrcount[rr_sect] = mio_hton16(match_count);
+		((mio_dns_pkt_alt_t*)pkt)->rrcount[rr_sect] = mio_hton16(match_count);
 	}
 
 	if (edns)
@@ -373,52 +299,215 @@ static mio_dns_hdr_t* build_dns_msg (mio_dnsc_t* dnsc, mio_dns_bdns_t* bdns, mio
 			beopt++;
 		}
 
-		msg->arcount = mio_hton16((mio_ntoh16(msg->arcount) + 1));
+		pkt->arcount = mio_hton16((mio_ntoh16(pkt->arcount) + 1));
 		dn += edns_dlen;
 	}
 
-	msg->qdcount = mio_hton16(qr_count);
+	pkt->qdcount = mio_hton16(qr_count);
 
 	if (bdns->id < 0)
 	{
-		msg->id = mio_hton16(dnsc->seq);
+		pkt->id = mio_hton16(dnsc->seq);
 		dnsc->seq++;
 	}
 	else
 	{
-		msg->id = mio_hton16((mio_uint16_t)bdns->id);
+		pkt->id = mio_hton16((mio_uint16_t)bdns->id);
 	}
 
-	/*msg->qr = (rr_count > 0);
-	msg->opcode = MIO_DNS_OPCODE_QUERY;*/
-	msg->qr = bdns->qr & 0x01;
-	msg->opcode = bdns->opcode & 0x0F;
-	msg->aa = bdns->aa & 0x01;
-	msg->tc = bdns->tc & 0x01; 
-	msg->rd = bdns->rd & 0x01; 
-	msg->ra = bdns->ra & 0x01;
-	msg->ad = bdns->ad & 0x01;
-	msg->cd = bdns->cd & 0x01;
-	msg->rcode = bdns->rcode & 0x0F;
+	/*pkt->qr = (rr_count > 0);
+	pkt->opcode = MIO_DNS_OPCODE_QUERY;*/
+	pkt->qr = bdns->qr & 0x01;
+	pkt->opcode = bdns->opcode & 0x0F;
+	pkt->aa = bdns->aa & 0x01;
+	pkt->tc = bdns->tc & 0x01; 
+	pkt->rd = bdns->rd & 0x01; 
+	pkt->ra = bdns->ra & 0x01;
+	pkt->ad = bdns->ad & 0x01;
+	pkt->cd = bdns->cd & 0x01;
+	pkt->rcode = bdns->rcode & 0x0F;
 
-	*xmsglen = dn - (mio_uint8_t*)msg;
-	return msg; /* return the pointer to the beginning of the actual message */
+	msg->pktlen = dn - (mio_uint8_t*)pkt;
+	return msg;
 }
+
+/* ----------------------------------------------------------------------- */
+
+static int dnsc_on_read (mio_dev_sck_t* dev, const void* data, mio_iolen_t dlen, const mio_sckaddr_t* srcaddr)
+{
+	mio_t* mio = dev->mio;
+	mio_dnsc_t* dnsc = ((dnsc_sck_xtn_t*)mio_dev_sck_getxtn(dev))->dnsc;
+	mio_dns_pkt_t* pkt;
+	mio_dns_msg_t* reqmsg;
+	mio_uint16_t id;
+
+	if (dlen < MIO_SIZEOF(*pkt)) 
+	{
+		MIO_DEBUG0 (mio, "dns packet too small from ....\n"); /* TODO: add source packet */
+		return 0; /* drop */
+	}
+	pkt = (mio_dns_pkt_t*)data;
+	if (!pkt->qr) 
+	{
+		MIO_DEBUG0 (mio, "dropping dns request received ...\n"); /* TODO: add source info */
+		return 0; /* drop request */
+	}
+
+	id = mio_ntoh16(pkt->id);
+
+	/* if id doesn't matche one of the pending requests sent,  drop */
+
+/* TODO: improve performance */
+	reqmsg = dnsc->pending_req;
+	while (reqmsg)
+	{
+		mio_dns_pkt_t* reqpkt = (mio_dns_pkt_t*)(reqmsg + 1);
+		if (dev == (mio_dev_sck_t*)reqmsg->dev && pkt->id == reqpkt->id) /* TODO: check the source address against the target address */
+		{
+MIO_DEBUG1 (mio, "received dns response...id %d\n", id);
+			/* TODO: parse the response... perform actual work. pass the result back?? */
+			release_dns_msg (dnsc, reqmsg);
+			return 0;
+		}
+		reqmsg = reqmsg->next;
+	}
+
+	/* the response id didn't match the ID of pending requests */
+	MIO_DEBUG0 (mio, "unknown dns response... \n"); /* TODO: add source info */
+	return 0;
+}
+
+static void dnsc_on_read_timeout (mio_t* mio, const mio_ntime_t* now, mio_tmrjob_t* job)
+{
+	mio_dns_msg_t* msg = (mio_dns_msg_t*)job->ctx;
+	mio_dev_sck_t* dev = (mio_dev_sck_t*)msg->dev;
+	mio_dnsc_t* dnsc = ((dnsc_sck_xtn_t*)mio_dev_sck_getxtn(dev))->dnsc;
+
+	MIO_ASSERT (mio, msg->rtmridx == MIO_TMRIDX_INVALID);
+
+MIO_DEBUG0 (mio, "unable to receive dns response in time...\n");
+	release_dns_msg (dnsc, msg);
+}
+
+
+static int dnsc_on_write (mio_dev_sck_t* dev, mio_iolen_t wrlen, void* wrctx, const mio_sckaddr_t* dstaddr)
+{
+	mio_t* mio = dev->mio;
+	mio_dns_msg_t* msg = (mio_dns_msg_t*)wrctx;
+	mio_dnsc_t* dnsc = ((dnsc_sck_xtn_t*)mio_dev_sck_getxtn(dev))->dnsc;
+	mio_tmrjob_t tmrjob;
+	mio_ntime_t tmout;
+
+MIO_DEBUG0 (mio, "sent dns request...\n");
+
+	MIO_ASSERT (mio, dev == (mio_dev_sck_t*)msg->dev);
+
+	/* TODO: make this configurable. or accept dnsc->config.read_timeout... */
+	tmout.sec = 3;
+	tmout.nsec = 0;
+
+	MIO_MEMSET (&tmrjob, 0, MIO_SIZEOF(tmrjob));
+	tmrjob.ctx = msg;
+	mio_gettime (mio, &tmrjob.when);
+	MIO_ADD_NTIME (&tmrjob.when, &tmrjob.when, &tmout);
+	tmrjob.handler = dnsc_on_read_timeout;
+	tmrjob.idxptr = &msg->rtmridx;
+	msg->rtmridx = mio_instmrjob(mio, &tmrjob);
+	if (msg->rtmridx == MIO_TMRIDX_INVALID)
+	{
+		MIO_DEBUG0 (mio, "unable to schedule timeout...\n");
+		release_dns_msg (dnsc, msg);
+		return 0;
+	}
+
+/* TODO: improve performance */
+	if (dnsc->pending_req)
+	{
+		dnsc->pending_req->prev = msg;
+		msg->next = dnsc->pending_req;
+	}
+	dnsc->pending_req = msg;
+
+	return 0;
+}
+
+static void dnsc_on_connect (mio_dev_sck_t* dev)
+{
+}
+
+static void dnsc_on_disconnect (mio_dev_sck_t* dev)
+{
+}
+
+mio_dnsc_t* mio_dnsc_start (mio_t* mio)
+{
+	mio_dnsc_t* dnsc = MIO_NULL;
+	mio_dev_sck_make_t mkinfo;
+	dnsc_sck_xtn_t* xtn;
+
+	dnsc = (mio_dnsc_t*)mio_callocmem(mio, MIO_SIZEOF(*dnsc));
+	if (!dnsc) goto oops;
+
+	dnsc->mio = mio;
+	dnsc->stop = mio_dnsc_stop;
+
+	MIO_MEMSET (&mkinfo, 0, MIO_SIZEOF(mkinfo));
+	mkinfo.type = MIO_DEV_SCK_UDP4; /* or UDP6 depending on the binding address */
+	mkinfo.on_write = dnsc_on_write;
+	mkinfo.on_read = dnsc_on_read;
+	mkinfo.on_connect = dnsc_on_connect;
+	mkinfo.on_disconnect = dnsc_on_disconnect;
+	dnsc->sck = mio_dev_sck_make(mio, MIO_SIZEOF(*xtn), &mkinfo);
+	if (!dnsc->sck) goto oops;
+
+	xtn = (dnsc_sck_xtn_t*)mio_dev_sck_getxtn(dnsc->sck);
+	xtn->dnsc = dnsc;
+
+	/* bind if requested */
+	/*if (mio_dev_sck_bind(dev, ....) <= -1) goto oops;*/
+{
+mio_uint32_t ia = 0x01010101; /* 1.1.1.1 */
+	mio_sckaddr_initforip4 (&dnsc->serveraddr, 53, (mio_ip4addr_t*)&ia);
+}
+
+	MIO_SVC_REGISTER (mio, (mio_svc_t*)dnsc);
+	return dnsc;
+
+oops:
+	if (dnsc)
+	{
+		if (dnsc->sck) mio_dev_sck_kill (dnsc->sck);
+		mio_freemem (mio, dnsc);
+	}
+	return MIO_NULL;
+}
+
+void mio_dnsc_stop (mio_dnsc_t* dnsc)
+{
+	mio_t* mio = dnsc->mio;
+	if (dnsc->sck) mio_dev_sck_kill (dnsc->sck);
+	MIO_SVC_UNREGISTER (mio, dnsc);
+	while (dnsc->pending_req) release_dns_msg (dnsc, dnsc->pending_req);
+	mio_freemem (mio, dnsc);
+}
+
 
 int mio_dnsc_sendmsg (mio_dnsc_t* dnsc, mio_dns_bdns_t* bdns, mio_dns_bqr_t* qr, mio_oow_t qr_count, mio_dns_brr_t* rr, mio_oow_t rr_count, mio_dns_bedns_t* edns)
 {
 	/* send a request or a response */
-	mio_dns_hdr_t* msg;
-	mio_oow_t msglen;
-	int n;
+	mio_dns_msg_t* msg;
 
-	msg = build_dns_msg(dnsc, bdns, qr, qr_count, rr, rr_count, edns, &msglen);
+	msg = build_dns_msg(dnsc, bdns, qr, qr_count, rr, rr_count, edns);
 	if (!msg) return -1;
 
-	n = mio_dev_sck_write(dnsc->sck, msg, msglen, MIO_NULL, &dnsc->serveraddr); /* TODO: optionally, override dnsc->serveraddr */
+	/* TODO: optionally, override dnsc->serveraddr and use the target address passed as a parameter */
+	if (mio_dev_sck_write(dnsc->sck, msg + 1, msg->pktlen, msg, &dnsc->serveraddr) <= -1)
+	{
+		release_dns_msg (dnsc, msg);
+		return -1;
+	}
 
-	release_dns_msg (dnsc, msg);
-	return n;
+	return 0;
 }
 
 int mio_dnsc_sendreq (mio_dnsc_t* dnsc, mio_dns_bdns_t* bdns, mio_dns_bqr_t* qr, mio_oow_t qr_count, mio_dns_bedns_t* edns)
