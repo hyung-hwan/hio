@@ -116,16 +116,16 @@ typedef enum mio_dns_eopt_code_t mio_dns_eopt_code_t;
 typedef struct mio_dns_msg_t mio_dns_msg_t;
 struct mio_dns_msg_t
 {
-	mio_oow_t buflen;
-	mio_oow_t pktlen;
-	mio_tmridx_t rtmridx;
-	mio_dev_t* dev;
+	mio_oow_t      buflen;
+	mio_oow_t      pktlen;
+	mio_tmridx_t   rtmridx;
+	mio_dev_t*     dev;
 	mio_dns_msg_t* prev;
 	mio_dns_msg_t* next;
 };
 
 #include <mio-pac1.h>
-struct mio_dns_pkt_t
+struct mio_dns_pkt_t /* dns packet header */
 {
 	mio_uint16_t id;
 #if defined(MIO_ENDIAN_BIG)
