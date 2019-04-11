@@ -331,6 +331,65 @@ static mio_dns_msg_t* build_dns_msg (mio_dnsc_t* dnsc, mio_dns_bdns_t* bdns, mio
 	return msg;
 }
 
+static void parse_dns_pkt (mio_dnsc_t* dnsc, mio_dns_pkt_t* pkt, mio_oow_t len)
+{
+
+	mio_t* mio = dnsc->mio;
+	mio_dns_bdns_t* bdns;
+	mio_uint16_t i;
+	mio_uint8_t* dn;
+
+	MIO_ASSERT (mio, len >= MIO_SIZEOF(*pkt));
+
+/* TODO: */
+	bdns->id = mio_ntoh16(pkt->id);
+
+	bdns->qr = pkt->qr & 0x01;
+	bdns->opcode = pkt->opcode & 0x0F;
+	bdns->aa = pkt->aa & 0x01;
+	bdns->tc = pkt->tc & 0x01; 
+	bdns->rd = pkt->rd & 0x01; 
+	bdns->ra = pkt->ra & 0x01;
+	bdns->ad = pkt->ad & 0x01;
+	bdns->cd = pkt->cd & 0x01;
+	bdns->rcode = pkt->rcode & 0x0F;
+
+	/*
+	bdns->qdcount = mio_ntoh16(pkt->qdcount);
+	bdns->ancount = mio_ntoh16(pkt->ancount);
+	bdns->nscount = mio_ntoh16(pkt->nscount);
+	bdns->arcount = mio_ntoh16(pkt->arcount);
+	*/
+	dn = (mio_uint8_t*)(pkt + 1);
+#if 0
+	for (i = 0; i < bdns->qrcount; i++)
+	{
+	}
+
+	for (i = 0; i < bdns->ancount; i++)
+	{
+	}
+
+	for (i = 0; i < bdns->nscount; i++)
+	{
+	}
+
+	for (i = 0; i < bdns->arcount; i++)
+	{
+	#if 0
+		if (*dn == 0)
+		{
+			rrtr = (mio_dns_rrtr_t*)(dn + 1);
+			if (rrtr->qtype == MIO_CONST_HTON16(MIO_DNS_QTYPE_OPT)
+			{
+				/* edns */
+			}
+		}
+	#endif
+	}
+#endif
+}
+
 /* ----------------------------------------------------------------------- */
 
 static int dnsc_on_read (mio_dev_sck_t* dev, const void* data, mio_iolen_t dlen, const mio_sckaddr_t* srcaddr)
@@ -366,6 +425,8 @@ static int dnsc_on_read (mio_dev_sck_t* dev, const void* data, mio_iolen_t dlen,
 		{
 MIO_DEBUG1 (mio, "received dns response...id %d\n", id);
 			/* TODO: parse the response... perform actual work. pass the result back?? */
+			parse_dns_pkt (dnsc, pkt, dlen);
+
 			release_dns_msg (dnsc, reqmsg);
 			return 0;
 		}
