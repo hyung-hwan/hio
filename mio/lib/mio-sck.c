@@ -825,9 +825,11 @@ static int dev_sck_ioctl (mio_dev_t* dev, int cmd, void* arg)
 					mio_seterrbfmtwithsyserr (mio, 0, errno, "unable to set SO_REUSEADDR");
 					return -1;
 				}
+			/* ignore it if not available
 			#else
 				mio_seterrnum (mio, MIO_ENOIMPL);
 				return -1;
+			*/
 			#endif
 			}
 
@@ -840,9 +842,11 @@ static int dev_sck_ioctl (mio_dev_t* dev, int cmd, void* arg)
 					mio_seterrbfmtwithsyserr (mio, 0, errno, "unable to set SO_REUSEPORT");
 					return -1;
 				}
+			/* ignore it if not available
 			#else
 				mio_seterrnum (mio, MIO_ENOIMPL);
 				return -1;
+			*/
 			#endif
 			}
 
@@ -855,9 +859,11 @@ static int dev_sck_ioctl (mio_dev_t* dev, int cmd, void* arg)
 					mio_seterrbfmtwithsyserr (mio, 0, errno, "unable to set IP_TRANSPARENT");
 					return -1;
 				}
+			/* ignore it if not available
 			#else
 				mio_seterrnum (mio, MIO_ENOIMPL);
 				return -1;
+			*/
 			#endif
 			}
 

@@ -139,7 +139,8 @@ am__installdirs = "$(DESTDIR)$(libdir)" "$(DESTDIR)$(bindir)" \
 LTLIBRARIES = $(lib_LTLIBRARIES)
 am__DEPENDENCIES_1 =
 am__DEPENDENCIES_2 = $(am__DEPENDENCIES_1)
-libmio_la_DEPENDENCIES = $(am__DEPENDENCIES_2) $(am__DEPENDENCIES_1)
+libmio_la_DEPENDENCIES = $(am__DEPENDENCIES_2) $(am__DEPENDENCIES_1) \
+	$(am__DEPENDENCIES_1) $(am__DEPENDENCIES_1)
 am_libmio_la_OBJECTS = libmio_la-dns.lo libmio_la-err.lo \
 	libmio_la-fmtout.lo libmio_la-mio.lo libmio_la-mio-pro.lo \
 	libmio_la-mio-sck.lo libmio_la-sck-addr.lo libmio_la-sys.lo \
@@ -157,7 +158,8 @@ libmio_la_LINK = $(LIBTOOL) $(AM_V_lt) --tag=CC $(AM_LIBTOOLFLAGS) \
 PROGRAMS = $(bin_PROGRAMS)
 am_mio_OBJECTS = mio-main.$(OBJEXT)
 mio_OBJECTS = $(am_mio_OBJECTS)
-mio_DEPENDENCIES = $(am__DEPENDENCIES_2) $(am__DEPENDENCIES_1)
+mio_DEPENDENCIES = $(am__DEPENDENCIES_2) $(am__DEPENDENCIES_1) \
+	$(am__DEPENDENCIES_1) $(am__DEPENDENCIES_1)
 mio_LINK = $(LIBTOOL) $(AM_V_lt) --tag=CC $(AM_LIBTOOLFLAGS) \
 	$(LIBTOOLFLAGS) --mode=link $(CCLD) $(AM_CFLAGS) $(CFLAGS) \
 	$(mio_LDFLAGS) $(LDFLAGS) -o $@
@@ -427,11 +429,11 @@ libmio_la_SOURCES = \
 
 libmio_la_CPPFLAGS = $(CPPFLAGS_LIB_COMMON)
 libmio_la_LDFLAGS = $(LDFLAGS_LIB_COMMON)
-libmio_la_LIBADD = $(LIBADD_LIB_COMMON) $(SSL_LIBS)
+libmio_la_LIBADD = $(LIBADD_LIB_COMMON) $(SSL_LIBS) $(SOCKET_LIBS) $(SENDFILE_LIBS)
 mio_SOURCES = main.c
 mio_CPPFLAGS = $(CPPFLAGS_LIB_COMMON)
 mio_LDFLAGS = $(LDFLAGS_LIB_COMMON)
-mio_LDADD = $(LIBADD_LIB_COMMON) -lmio  $(SSL_LIBS)
+mio_LDADD = $(LIBADD_LIB_COMMON) -lmio  $(SSL_LIBS) $(SOCKET_LIBS) $(SENDFILE_LIBS)
 all: mio-cfg.h
 	$(MAKE) $(AM_MAKEFLAGS) all-am
 

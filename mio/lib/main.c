@@ -675,7 +675,7 @@ int main (int argc, char* argv[])
 	tcp[0] = mio_dev_sck_make(mio, MIO_SIZEOF(tcp_server_t), &tcp_make);
 	if (!tcp[0])
 	{
-		printf ("Cannot make tcp\n");
+		MIO_INFO1 (mio, "Cannot make tcp - %js\n", mio_geterrmsg(mio));
 		goto oops;
 	}
 
@@ -693,7 +693,7 @@ int main (int argc, char* argv[])
 	tcp_conn.options = MIO_DEV_SCK_CONNECT_SSL;
 	if (mio_dev_sck_connect(tcp[0], &tcp_conn) <= -1)
 	{
-		MIO_INFO0 (mio, "tcp[0] mio_dev_sck_connect() failed....\n");
+		MIO_INFO1 (mio, "tcp[0] mio_dev_sck_connect() failed - %js\n", mio_geterrmsg(mio));
 		/* carry on regardless of failure */
 	}
 
@@ -708,7 +708,7 @@ int main (int argc, char* argv[])
 	tcp[1] = mio_dev_sck_make(mio, MIO_SIZEOF(tcp_server_t), &tcp_make);
 	if (!tcp[1])
 	{
-		MIO_INFO0 (mio, "cannot make tcp[1]....\n");
+		MIO_INFO1 (mio, "Cannot make tcp[1] - %js\n", mio_geterrmsg(mio));
 		goto oops;
 	}
 	ts = (tcp_server_t*)(tcp[1] + 1);
@@ -720,7 +720,7 @@ int main (int argc, char* argv[])
 
 	if (mio_dev_sck_bind(tcp[1],&tcp_bind) <= -1)
 	{
-		MIO_INFO0 (mio, "tcp[1] mio_dev_sck_bind() failed....\n");
+		MIO_INFO1 (mio, "tcp[1] mio_dev_sck_bind() failed - %js\n", mio_geterrmsg(mio));
 		goto oops;
 	}
 
@@ -728,7 +728,7 @@ int main (int argc, char* argv[])
 	tcp_lstn.backlogs = 100;
 	if (mio_dev_sck_listen(tcp[1], &tcp_lstn) <= -1)
 	{
-		MIO_INFO0 (mio, "tcp[1] mio_dev_sck_listen() failed....\n");
+		MIO_INFO1 (mio, "tcp[1] mio_dev_sck_listen() failed - %js\n", mio_geterrmsg(mio));
 		goto oops;
 	}
 
@@ -743,7 +743,7 @@ int main (int argc, char* argv[])
 	tcp[2] = mio_dev_sck_make(mio, MIO_SIZEOF(tcp_server_t), &tcp_make);
 	if (!tcp[2])
 	{
-		printf ("Cannot make tcp\n");
+		MIO_INFO1 (mio, "Cannot make tcp[2] - %js\n", mio_geterrmsg(mio));
 		goto oops;
 	}
 	ts = (tcp_server_t*)(tcp[2] + 1);

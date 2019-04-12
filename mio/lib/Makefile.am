@@ -54,13 +54,13 @@ libmio_la_SOURCES = \
 	utl.c
 libmio_la_CPPFLAGS = $(CPPFLAGS_LIB_COMMON)
 libmio_la_LDFLAGS = $(LDFLAGS_LIB_COMMON)
-libmio_la_LIBADD = $(LIBADD_LIB_COMMON) $(SSL_LIBS)
+libmio_la_LIBADD = $(LIBADD_LIB_COMMON) $(SSL_LIBS) $(SOCKET_LIBS) $(SENDFILE_LIBS)
 
 bin_PROGRAMS = mio
 mio_SOURCES = main.c
 mio_CPPFLAGS = $(CPPFLAGS_LIB_COMMON)
 mio_LDFLAGS = $(LDFLAGS_LIB_COMMON)
-mio_LDADD = $(LIBADD_LIB_COMMON) -lmio  $(SSL_LIBS)
+mio_LDADD = $(LIBADD_LIB_COMMON) -lmio  $(SSL_LIBS) $(SOCKET_LIBS) $(SENDFILE_LIBS)
 
 install-data-hook:
 	@echo "#ifndef _MIO_CFG_H_" > "$(DESTDIR)$(includedir)/mio-cfg.h"
