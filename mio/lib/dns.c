@@ -127,13 +127,17 @@ static mio_oow_t dn_length (mio_uint8_t* ptr, mio_oow_t len)
 }
 
 /* ----------------------------------------------------------------------- */
-
+#if defined(MIO_HAVE_INLINE)
+#	static MIO_INLINE mio_dns_pkt_t* dns_msg_to_pkt (mio_dns_msg_t* msg) { return (mio_dns_pkt_t*)(msg + 1); }
+#else
+#	define dns_msg_to_pkt(msg) ((mio_dns_pkt_t*)((mio_dns_msg_t*)(msg) + 1))
+#endif
 
 static void release_dns_msg (mio_dnsc_t* dnsc, mio_dns_msg_t* msg)
 {
 	mio_t* mio = dnsc->mio;
 
-MIO_DEBUG1 (mio, "releasing dns msg %d\n", (int)mio_ntoh16(((mio_dns_pkt_t*)(msg + 1))->id));
+MIO_DEBUG1 (mio, "releasing dns msg %d\n", (int)mio_ntoh16(dns_msg_to_pkt(msg)->id));
 
 	if (msg == dnsc->pending_req || msg->next || msg->prev)
 	{
@@ -221,7 +225,7 @@ static mio_dns_msg_t* build_dns_msg (mio_dnsc_t* dnsc, mio_dns_bdns_t* bdns, mio
 	msg->rtmridx = MIO_TMRIDX_INVALID;
 	msg->dev = (mio_dev_t*)dnsc->sck;
 
-	pkt = (mio_dns_pkt_t*)(msg + 1); /* actual message begins after the size word */
+	pkt = dns_msg_to_pkt(msg); /* actual message begins after the size word */
 
 	dn = (mio_uint8_t*)(pkt + 1);
 	for (i = 0; i < qr_count; i++)
@@ -420,7 +424,7 @@ static int dnsc_on_read (mio_dev_sck_t* dev, const void* data, mio_iolen_t dlen,
 	reqmsg = dnsc->pending_req;
 	while (reqmsg)
 	{
-		mio_dns_pkt_t* reqpkt = (mio_dns_pkt_t*)(reqmsg + 1);
+		mio_dns_pkt_t* reqpkt = dns_msg_to_pkt(reqmsg);
 		if (dev == (mio_dev_sck_t*)reqmsg->dev && pkt->id == reqpkt->id) /* TODO: check the source address against the target address */
 		{
 MIO_DEBUG1 (mio, "received dns response...id %d\n", id);
@@ -456,38 +460,44 @@ static int dnsc_on_write (mio_dev_sck_t* dev, mio_iolen_t wrlen, void* wrctx, co
 	mio_t* mio = dev->mio;
 	mio_dns_msg_t* msg = (mio_dns_msg_t*)wrctx;
 	mio_dnsc_t* dnsc = ((dnsc_sck_xtn_t*)mio_dev_sck_getxtn(dev))->dnsc;
-	mio_tmrjob_t tmrjob;
-	mio_ntime_t tmout;
+	
 
-MIO_DEBUG0 (mio, "sent dns request...\n");
+MIO_DEBUG1 (mio, "sent dns message %d\n", (int)mio_ntoh16(dns_msg_to_pkt(msg)->id));
 
 	MIO_ASSERT (mio, dev == (mio_dev_sck_t*)msg->dev);
 
-	/* TODO: make this configurable. or accept dnsc->config.read_timeout... */
-	tmout.sec = 3;
-	tmout.nsec = 0;
-
-	MIO_MEMSET (&tmrjob, 0, MIO_SIZEOF(tmrjob));
-	tmrjob.ctx = msg;
-	mio_gettime (mio, &tmrjob.when);
-	MIO_ADD_NTIME (&tmrjob.when, &tmrjob.when, &tmout);
-	tmrjob.handler = dnsc_on_read_timeout;
-	tmrjob.idxptr = &msg->rtmridx;
-	msg->rtmridx = mio_instmrjob(mio, &tmrjob);
-	if (msg->rtmridx == MIO_TMRIDX_INVALID)
+	if (dns_msg_to_pkt(msg)->qr == 0)
 	{
-		MIO_DEBUG0 (mio, "unable to schedule timeout...\n");
-		release_dns_msg (dnsc, msg);
-		return 0;
-	}
+		/* question. schedule to wait for response */
+		mio_tmrjob_t tmrjob;
+		mio_ntime_t tmout;
 
-/* TODO: improve performance */
-	if (dnsc->pending_req)
-	{
-		dnsc->pending_req->prev = msg;
-		msg->next = dnsc->pending_req;
+		/* TODO: make this configurable. or accept dnsc->config.read_timeout... */
+		tmout.sec = 3;
+		tmout.nsec = 0;
+
+		MIO_MEMSET (&tmrjob, 0, MIO_SIZEOF(tmrjob));
+		tmrjob.ctx = msg;
+		mio_gettime (mio, &tmrjob.when);
+		MIO_ADD_NTIME (&tmrjob.when, &tmrjob.when, &tmout);
+		tmrjob.handler = dnsc_on_read_timeout;
+		tmrjob.idxptr = &msg->rtmridx;
+		msg->rtmridx = mio_instmrjob(mio, &tmrjob);
+		if (msg->rtmridx == MIO_TMRIDX_INVALID)
+		{
+			MIO_DEBUG0 (mio, "unable to schedule timeout...\n");
+			release_dns_msg (dnsc, msg);
+			return 0;
+		}
+
+		/* TODO: improve performance. hashing by id? */
+		if (dnsc->pending_req)
+		{
+			dnsc->pending_req->prev = msg;
+			msg->next = dnsc->pending_req;
+		}
+		dnsc->pending_req = msg;
 	}
-	dnsc->pending_req = msg;
 
 	return 0;
 }
@@ -562,7 +572,7 @@ int mio_dnsc_sendmsg (mio_dnsc_t* dnsc, mio_dns_bdns_t* bdns, mio_dns_bqr_t* qr,
 	if (!msg) return -1;
 
 	/* TODO: optionally, override dnsc->serveraddr and use the target address passed as a parameter */
-	if (mio_dev_sck_write(dnsc->sck, msg + 1, msg->pktlen, msg, &dnsc->serveraddr) <= -1)
+	if (mio_dev_sck_write(dnsc->sck, dns_msg_to_pkt(msg), msg->pktlen, msg, &dnsc->serveraddr) <= -1)
 	{
 		release_dns_msg (dnsc, msg);
 		return -1;
