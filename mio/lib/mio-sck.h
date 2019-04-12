@@ -596,7 +596,6 @@ MIO_EXPORT mio_uint16_t mio_checksumip (
 	mio_oow_t len
 );
 
-
 #ifdef __cplusplus
 }
 #endif

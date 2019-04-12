@@ -751,9 +751,12 @@ int main (int argc, char* argv[])
 
 	memset (&tcp_bind, 0, MIO_SIZEOF(tcp_bind));
 	mio_sckaddr_initforip4 (&tcp_bind.localaddr, 1235, MIO_NULL);
-	tcp_bind.options = MIO_DEV_SCK_BIND_REUSEADDR | /*MIO_DEV_SCK_BIND_REUSEPORT |*/ MIO_DEV_SCK_BIND_SSL; 
+	tcp_bind.options = MIO_DEV_SCK_BIND_REUSEADDR /*| MIO_DEV_SCK_BIND_REUSEPORT |*/;
+#if defined(USE_SSL)
+	tcp_bind.options |= MIO_DEV_SCK_BIND_SSL; 
 	tcp_bind.ssl_certfile = "localhost.crt";
 	tcp_bind.ssl_keyfile = "localhost.key";
+#endif
 	MIO_INIT_NTIME (&tcp_bind.accept_tmout, 5, 1);
 
 	if (mio_dev_sck_bind(tcp[2], &tcp_bind) <= -1)
