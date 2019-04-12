@@ -39,8 +39,8 @@ libmio_la_SOURCES = \
 	mio-prv.h \
 	mio-sys.h \
 	mio.c \
-	mio-pro.c \
-	mio-sck.c \
+	pro.c \
+	sck.c \
 	sck-addr.c \
 	sck-addr.h \
 	sys.c \
