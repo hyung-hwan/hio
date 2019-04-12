@@ -128,7 +128,7 @@ static mio_oow_t dn_length (mio_uint8_t* ptr, mio_oow_t len)
 
 /* ----------------------------------------------------------------------- */
 #if defined(MIO_HAVE_INLINE)
-#	static MIO_INLINE mio_dns_pkt_t* dns_msg_to_pkt (mio_dns_msg_t* msg) { return (mio_dns_pkt_t*)(msg + 1); }
+	static MIO_INLINE mio_dns_pkt_t* dns_msg_to_pkt (mio_dns_msg_t* msg) { return (mio_dns_pkt_t*)(msg + 1); }
 #else
 #	define dns_msg_to_pkt(msg) ((mio_dns_pkt_t*)((mio_dns_msg_t*)(msg) + 1))
 #endif
