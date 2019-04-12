@@ -524,7 +524,7 @@ mio_dnsc_t* mio_dnsc_start (mio_t* mio)
 	xtn = (dnsc_sck_xtn_t*)mio_dev_sck_getxtn(dnsc->sck);
 	xtn->dnsc = dnsc;
 
-	/* bind if requested */
+	/* TODO: bind if requested */
 	/*if (mio_dev_sck_bind(dev, ....) <= -1) goto oops;*/
 {
 mio_uint32_t ia = 0x01010101; /* 1.1.1.1 */
