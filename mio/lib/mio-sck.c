@@ -317,14 +317,14 @@ static struct sck_type_map_t sck_type_map[] =
 	/* MIO_DEV_SCK_ARP - Ethernet type is 2 bytes long. Protocol must be specified in the network byte order */
 	{ AF_PACKET,  SOCK_RAW,       MIO_CONST_HTON16(MIO_ETHHDR_PROTO_ARP), 0                                 },
 
-	/* MIO_DEV_SCK_DGRAM */
+	/* MIO_DEV_SCK_ARP_DGRAM */
 	{ AF_PACKET,  SOCK_DGRAM,     MIO_CONST_HTON16(MIO_ETHHDR_PROTO_ARP), 0                                 },
 
 #elif defined(AF_LINK) && (MIO_SIZEOF_STRUCT_SOCKADDR_DL > 0)
 	/* MIO_DEV_SCK_ARP */
 	{ AF_LINK,  SOCK_RAW,         MIO_CONST_HTON16(MIO_ETHHDR_PROTO_ARP), 0                                 },
 
-	/* MIO_DEV_SCK_DGRAM */
+	/* MIO_DEV_SCK_ARP_DGRAM */
 	{ AF_LINK,  SOCK_DGRAM,       MIO_CONST_HTON16(MIO_ETHHDR_PROTO_ARP), 0                                 },
 #else
 	{ -1,       0,                0,                            0                                             },

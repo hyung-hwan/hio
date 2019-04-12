@@ -384,7 +384,7 @@ static int setup_arp_tester (mio_t* mio)
 	sck = mio_dev_sck_make(mio, 0, &sck_make);
 	if (!sck)
 	{
-		printf ("Cannot make socket device\n");
+		MIO_INFO1 (mio, "Cannot make arp socket device - %js\n", mio_geterrmsg(mio));
 		return -1;
 	}
 
@@ -411,7 +411,7 @@ static int setup_arp_tester (mio_t* mio)
 	if (mio_dev_sck_write(sck, &etharp, MIO_SIZEOF(etharp), MIO_NULL, &ethdst) <= -1)
 	//if (mio_dev_sck_write (sck, &etharp.arphdr, MIO_SIZEOF(etharp) - MIO_SIZEOF(etharp.ethhdr), MIO_NULL, &ethaddr) <= -1)
 	{
-		printf ("CANNOT WRITE ARP...\n");
+		MIO_INFO1 (mio, "Cannot write arp - %js\n", mio_geterrmsg(mio));
 	}
 
 
@@ -433,6 +433,7 @@ static int schedule_icmp_wait (mio_dev_sck_t* dev);
 
 static void send_icmp (mio_dev_sck_t* dev, mio_uint16_t seq)
 {
+	mio_t* mio = dev->mio;
 	mio_sckaddr_t dstaddr;
 	mio_ip4addr_t ia;
 	mio_icmphdr_t* icmphdr;
@@ -452,13 +453,13 @@ static void send_icmp (mio_dev_sck_t* dev, mio_uint16_t seq)
 
 	if (mio_dev_sck_write(dev, buf, MIO_SIZEOF(buf), MIO_NULL, &dstaddr) <= -1)
 	{
-		printf ("CANNOT WRITE ICMP...\n");
+		MIO_INFO1 (mio, "Cannot write icmp - %js\n", mio_geterrmsg(mio));
 		mio_dev_sck_halt (dev);
 	}
 
 	if (schedule_icmp_wait (dev) <= -1)
 	{
-		printf ("CANNOT SCHEDULE ICMP WAIT...\n");
+		MIO_INFO1 (mio, "Cannot schedule icmp wait - %js\n", mio_geterrmsg(mio));
 		mio_dev_sck_halt (dev);
 	}
 }
@@ -474,7 +475,7 @@ static void on_icmp_due (mio_t* mio, const mio_ntime_t* now, mio_tmrjob_t* tmrjo
 	if (icmpxtn->reply_received)
 		icmpxtn->reply_received = 0;
 	else
-		printf ("NO ICMP REPLY RECEIVED....\n");
+		MIO_INFO0 (mio, "NO IMCP reply received in time\n");
 
 	send_icmp (dev, ++icmpxtn->icmp_seq);
 }
@@ -584,7 +585,7 @@ static int setup_ping4_tester (mio_t* mio)
 	sck = mio_dev_sck_make (mio, MIO_SIZEOF(icmpxtn_t), &sck_make);
 	if (!sck)
 	{
-		printf ("Cannot make ICMP4 socket device\n");
+		MIO_INFO1 (mio, "Cannot make ICMP4 socket device - %js\n", mio_geterrmsg(mio));
 		return -1;
 	}
 
@@ -774,8 +775,8 @@ int main (int argc, char* argv[])
 
 	//mio_dev_sck_sendfile (tcp[2], fd, offset, count);
 
-	if (setup_arp_tester(mio) <= -1) goto oops;
-	if (setup_ping4_tester(mio) <= -1) goto oops;
+	setup_arp_tester(mio);
+	setup_ping4_tester(mio);
 
 #if 1
 for (i = 0; i < 5; i++)
