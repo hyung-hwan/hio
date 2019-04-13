@@ -157,6 +157,62 @@ MIO_DEBUG1 (mio, "releasing dns msg %d\n", (int)mio_ntoh16(dns_msg_to_pkt(msg)->
 	mio_freemem (mio, msg);
 }
 
+static mio_oow_t encode_rdata_in_dns_msg (mio_dnsc_t* dnsc, const mio_dns_brr_t* rr, mio_dns_rrtr_t* rrtr)
+{
+	switch (rr->qtype)
+	{
+		case MIO_DNS_QTYPE_A:
+			break;
+		case MIO_DNS_QTYPE_AAAA:
+		
+			break;
+
+		/*
+		case MIO_DNS_QTYPE_WKS:
+			break; */
+
+		case MIO_DNS_QTYPE_MX:
+			/* preference, exchange */
+			break;
+
+		case MIO_DNS_QTYPE_CNAME: 
+		/*case MIO_DNS_QTYPE_MB:
+		case MIO_DNS_QTYPE_MD:
+		case MIO_DNS_QTYPE_MF:
+		case MIO_DNS_QTYPE_MG:
+		case MIO_DNS_QTYPE_MR:*/
+		case MIO_DNS_QTYPE_NS:
+		case MIO_DNS_QTYPE_PTR:
+			/* just a normal domain name */
+			break;
+
+	#if 0
+		case MIO_DNS_QTYPE_HINFO:
+			/* cpu, os */
+			break;
+	#endif
+
+	#if 0
+		case MIO_DNS_QTYPE_MINFO:
+			/* rmailbx, emailbx */
+	#endif
+			break;
+		
+		case MIO_DNS_QTYPE_SOA:
+			/* soa */
+			break;
+
+		case MIO_DNS_QTYPE_TXT:
+		case MIO_DNS_QTYPE_NULL:
+		default:
+			/* TODO: custom transformator? */
+			rrtr->dlen = mio_hton16(rr->dlen);
+			if (rr->dlen > 0) MIO_MEMCPY (rrtr + 1, rr->dptr, rr->dlen);
+	}
+
+	return rr->dlen;
+}
+
 static mio_dns_msg_t* build_dns_msg (mio_dnsc_t* dnsc, mio_dns_bdns_t* bdns, mio_dns_bqr_t* qr, mio_oow_t qr_count, mio_dns_brr_t* rr, mio_oow_t rr_count, mio_dns_bedns_t* edns)
 {
 	mio_t* mio = dnsc->mio;
@@ -252,6 +308,8 @@ static mio_dns_msg_t* build_dns_msg (mio_dnsc_t* dnsc, mio_dns_bdns_t* bdns, mio
 		{
 			if (rr[i].part == rr_sect)
 			{
+				mio_oow_t rdata_len;
+
 				dnlen = to_dn((mio_dns_t*)dnsc, rr[i].qname, dn, mio_count_bcstr(rr[i].qname) + 2);
 				if (dnlen <= 0)
 				{
@@ -265,53 +323,8 @@ static mio_dns_msg_t* build_dns_msg (mio_dnsc_t* dnsc, mio_dns_bdns_t* bdns, mio
 				rrtr->qclass = mio_hton16(rr[i].qclass);
 				rrtr->ttl = mio_hton32(rr[i].ttl);
 
-				switch (rr[i].qtype)
-				{
-					case MIO_DNS_QTYPE_A:
-						break;
-					case MIO_DNS_QTYPE_AAAA:
-					
-						break;
-
-					case MIO_DNS_QTYPE_WKS:
-						break;
-
-					case MIO_DNS_QTYPE_MX:
-						/* preference, exchange */
-						break;
-
-					case MIO_DNS_QTYPE_CNAME: 
-					/*case MIO_DNS_QTYPE_MB:
-					case MIO_DNS_QTYPE_MD:
-					case MIO_DNS_QTYPE_MF:
-					case MIO_DNS_QTYPE_MG:
-					case MIO_DNS_QTYPE_MR:*/
-					case MIO_DNS_QTYPE_NS:
-					case MIO_DNS_QTYPE_PTR:
-						/* just a normal domain name */
-						break;
-
-					case MIO_DNS_QTYPE_HINFO:
-						/* cpu, os */
-						break;
-
-					case MIO_DNS_QTYPE_MINFO:
-						/* rmailbx, emailbx */
-						break;
-					
-					case MIO_DNS_QTYPE_SOA:
-						/* soa */
-						break;
-
-					case MIO_DNS_QTYPE_TXT:
-					case MIO_DNS_QTYPE_NULL:
-					default:
-						/* TODO: custom transformator? */
-						rrtr->dlen = mio_hton16(rr[i].dlen);
-						if (rr[i].dlen > 0) MIO_MEMCPY (rrtr + 1, rr[i].dptr, rr[i].dlen);
-				}
-
-				dn = (mio_uint8_t*)(rrtr + 1) + rr[i].dlen;
+				rdata_len = encode_rdata_in_dns_msg(dnsc, &rr[i], rrtr);
+				dn = (mio_uint8_t*)(rrtr + 1) + rdata_len;
 
 				match_count++;
 			}
