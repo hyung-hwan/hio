@@ -824,9 +824,10 @@ for (i = 0; i < 5; i++)
 		};
 		mio_dns_brr_t rrs[] = 
 		{
-			{ MIO_DNS_RR_PART_ANSWER,    "code.miflux.com",  MIO_DNS_QTYPE_A,    MIO_DNS_QCLASS_IN, 86400, 0, MIO_NULL },
-			{ MIO_DNS_RR_PART_ANSWER,    "code.miflux.com",  MIO_DNS_QTYPE_AAAA, MIO_DNS_QCLASS_IN, 86400, 0, MIO_NULL },
-			{ MIO_DNS_RR_PART_AUTHORITY, "dns.miflux.com",   MIO_DNS_QTYPE_NS,   MIO_DNS_QCLASS_IN, 86400, 0, MIO_NULL }
+			{ MIO_DNS_RR_PART_ANSWER,    "code.miflux.com",  MIO_DNS_QTYPE_A,     MIO_DNS_QCLASS_IN, 86400, 0,  MIO_NULL },
+			{ MIO_DNS_RR_PART_ANSWER,    "code.miflux.com",  MIO_DNS_QTYPE_AAAA,  MIO_DNS_QCLASS_IN, 86400, 0,  MIO_NULL },
+			{ MIO_DNS_RR_PART_AUTHORITY, "dns.miflux.com",   MIO_DNS_QTYPE_NS,    MIO_DNS_QCLASS_IN, 86400, 0,  MIO_NULL }//, 
+			//{ MIO_DNS_RR_PART_ANSERT,    "www.miflux.com",   MIO_DNS_QTYPE_CNAME, MIO_DNS_QCLASS_IN, 60,    15, "code.miflux.com" }  
 		};
 
 		mio_dns_beopt_t beopt[] =

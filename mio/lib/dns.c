@@ -264,8 +264,52 @@ static mio_dns_msg_t* build_dns_msg (mio_dnsc_t* dnsc, mio_dns_bdns_t* bdns, mio
 				rrtr->qtype = mio_hton16(rr[i].qtype);
 				rrtr->qclass = mio_hton16(rr[i].qclass);
 				rrtr->ttl = mio_hton32(rr[i].ttl);
-				rrtr->dlen = mio_hton16(rr[i].dlen);
-				if (rr[i].dlen > 0) MIO_MEMCPY (rrtr + 1, rr[i].dptr, rr[i].dlen);
+
+				switch (rr[i].qtype)
+				{
+					case MIO_DNS_QTYPE_A:
+						break;
+					case MIO_DNS_QTYPE_AAAA:
+					
+						break;
+
+					case MIO_DNS_QTYPE_WKS:
+						break;
+
+					case MIO_DNS_QTYPE_MX:
+						/* preference, exchange */
+						break;
+
+					case MIO_DNS_QTYPE_CNAME: 
+					/*case MIO_DNS_QTYPE_MB:
+					case MIO_DNS_QTYPE_MD:
+					case MIO_DNS_QTYPE_MF:
+					case MIO_DNS_QTYPE_MG:
+					case MIO_DNS_QTYPE_MR:*/
+					case MIO_DNS_QTYPE_NS:
+					case MIO_DNS_QTYPE_PTR:
+						/* just a normal domain name */
+						break;
+
+					case MIO_DNS_QTYPE_HINFO:
+						/* cpu, os */
+						break;
+
+					case MIO_DNS_QTYPE_MINFO:
+						/* rmailbx, emailbx */
+						break;
+					
+					case MIO_DNS_QTYPE_SOA:
+						/* soa */
+						break;
+
+					case MIO_DNS_QTYPE_TXT:
+					case MIO_DNS_QTYPE_NULL:
+					default:
+						/* TODO: custom transformator? */
+						rrtr->dlen = mio_hton16(rr[i].dlen);
+						if (rr[i].dlen > 0) MIO_MEMCPY (rrtr + 1, rr[i].dptr, rr[i].dlen);
+				}
 
 				dn = (mio_uint8_t*)(rrtr + 1) + rr[i].dlen;
 
@@ -335,16 +379,17 @@ static mio_dns_msg_t* build_dns_msg (mio_dnsc_t* dnsc, mio_dns_bdns_t* bdns, mio
 	return msg;
 }
 
-static void parse_dns_pkt (mio_dnsc_t* dnsc, mio_dns_pkt_t* pkt, mio_oow_t len)
+static int parse_dns_pkt (mio_dnsc_t* dnsc, mio_dns_pkt_t* pkt, mio_oow_t len)
 {
 
 	mio_t* mio = dnsc->mio;
 	mio_dns_bdns_t* bdns;
-	mio_uint16_t i;
+	mio_uint16_t i, rrc;
 	mio_uint8_t* dn;
+	mio_uint8_t* pktend = (mio_uint8_t*)pkt + len;
 
 	MIO_ASSERT (mio, len >= MIO_SIZEOF(*pkt));
-
+return 0;
 /* TODO: */
 	bdns->id = mio_ntoh16(pkt->id);
 
@@ -365,15 +410,60 @@ static void parse_dns_pkt (mio_dnsc_t* dnsc, mio_dns_pkt_t* pkt, mio_oow_t len)
 	bdns->arcount = mio_ntoh16(pkt->arcount);
 	*/
 	dn = (mio_uint8_t*)(pkt + 1);
+
+	rrc = mio_ntoh16(pkt->qdcount);
+	for (i = 0; i < rrc; i++)
+	{
+		mio_oow_t totlen, seglen;
+		mio_dns_qrtr_t* qrtr;
+
+		if (dn >= pktend)
+		{
+			mio_seterrbfmt (mio, MIO_EINVAL, "invalid packet");
+			return -1;
+		}
+
+		totlen = 0;
+		while ((seglen = *dn++) > 0)
+		{
+			if (seglen > 64)
+			{
+				/* compressed. pointer to somewhere else */
+/* TODO: */
+			}
+
+			totlen += seglen;
+			dn += seglen;
+		}
+
+		qrtr = (mio_dns_qrtr_t*)dn;
+		dn += MIO_SIZEOF(*qrtr);
+	}
+
+	rrc = mio_ntoh16(pkt->ancount);
+	for (i = 0; i < rrc; i++)
+	{
+		mio_oow_t totlen, seglen;
+		mio_dns_rrtr_t* rrtr;
+
+		if (dn >= pktend)
+		{
+			mio_seterrbfmt (mio, MIO_EINVAL, "invalid packet");
+			return -1;
+		}
+
+		totlen = 0;
+		while ((seglen = *dn++) > 0)
+		{
+			totlen += seglen;
+			dn += seglen;
+		}
+
+		rrtr = (mio_dns_rrtr_t*)dn;
+		dn += MIO_SIZEOF(*rrtr) + rrtr->dlen;
+	}
+
 #if 0
-	for (i = 0; i < bdns->qrcount; i++)
-	{
-	}
-
-	for (i = 0; i < bdns->ancount; i++)
-	{
-	}
-
 	for (i = 0; i < bdns->nscount; i++)
 	{
 	}
@@ -392,6 +482,8 @@ static void parse_dns_pkt (mio_dnsc_t* dnsc, mio_dns_pkt_t* pkt, mio_oow_t len)
 	#endif
 	}
 #endif
+
+	return 0;
 }
 
 /* ----------------------------------------------------------------------- */

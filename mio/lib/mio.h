@@ -645,13 +645,13 @@ MIO_EXPORT int mio_setoption (
 
 	static MIO_INLINE mio_errnum_t mio_geterrnum (mio_t* mio) { return mio->errnum; }
 #else
-#	define mio_getmmgr(mio) ((mio)->mmgr)
-#	define mio_getxtn(mio) ((void*)((mio) + 1))
+#	define mio_getmmgr(mio) (((mio_t*)(mio))->mmgr)
+#	define mio_getxtn(mio) ((void*)((mio_t*)(mio) + 1))
 
-#	define mio_getcmgr(mio) ((mio)->cmgr)
-#	define mio_setcmgr(mio,mgr) ((mio)->cmgr = (mgr))
+#	define mio_getcmgr(mio) (((mio_t*)(mio))->cmgr)
+#	define mio_setcmgr(mio,mgr) (((mio_t*)(mio))->cmgr = (mgr))
 
-#	define mio_geterrnum(mio) ((mio)->errnum)
+#	define mio_geterrnum(mio) (((mio_t*)(mio))->errnum)
 #endif
 
 MIO_EXPORT void mio_seterrnum (

@@ -263,6 +263,43 @@ struct mio_dns_brr_t
 };
 typedef struct mio_dns_brr_t mio_dns_brr_t;
 
+#if 0
+/* A RDATA */
+struct mio_dns_brd_a_t 
+{
+};
+typedef struct mio_dns_brd_a_t mio_dns_brd_a_t;
+
+/* 3.3.1 CNAME RDATA format */
+struct mio_dns_brd_cname_t
+{
+};
+typedef struct mio_dns_brd_cname_t mio_dns_brc_cname_t;
+
+
+/* 3.3.9 MX RDATA format */
+struct mio_dns_brd_mx_t
+{
+	mio_uint16_t preference;
+	mio_bch_t*   exchange;
+};
+typedef struct mio_dns_brd_mx_t mio_dns_brd_mx_t;
+
+
+
+struct mio_dns_brd_soa_t
+{
+	mio_bch_t*   mname;
+	mio_bch_t*   rname; 
+	mio_uint32_t serial
+	mio_uint32_t refresh;
+	mio_uint32_t retry;
+	mio_uint32_t expire;
+	mio_uint32_t minimum;
+};
+typedef struct mio_dns_brd_soa_t mio_dns_brd_soa_t;
+#endif
+
 struct mio_dns_beopt_t
 {
 	mio_uint16_t code;
