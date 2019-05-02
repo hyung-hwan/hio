@@ -29,29 +29,131 @@
 
 #include "mio-cmn.h"
 
-#define MIO_CONST_SWAP16(x) \
-	((mio_uint16_t)((((mio_uint16_t)(x) & (mio_uint16_t)0x00ffU) << 8) | \
-	                 (((mio_uint16_t)(x) & (mio_uint16_t)0xff00U) >> 8) ))
+/* =========================================================================
+ * ENDIAN CHANGE OF A CONSTANT
+ * ========================================================================= */
+#define MIO_CONST_BSWAP16(x) \
+	((mio_uint16_t)((((mio_uint16_t)(x) & ((mio_uint16_t)0xff << 0)) << 8) | \
+	                (((mio_uint16_t)(x) & ((mio_uint16_t)0xff << 8)) >> 8)))
 
-#define MIO_CONST_SWAP32(x) \
-	((mio_uint32_t)((((mio_uint32_t)(x) & (mio_uint32_t)0x000000ffUL) << 24) | \
-	                 (((mio_uint32_t)(x) & (mio_uint32_t)0x0000ff00UL) <<  8) | \
-	                 (((mio_uint32_t)(x) & (mio_uint32_t)0x00ff0000UL) >>  8) | \
-	                 (((mio_uint32_t)(x) & (mio_uint32_t)0xff000000UL) >> 24) ))
+#define MIO_CONST_BSWAP32(x) \
+	((mio_uint32_t)((((mio_uint32_t)(x) & ((mio_uint32_t)0xff <<  0)) << 24) | \
+	                (((mio_uint32_t)(x) & ((mio_uint32_t)0xff <<  8)) <<  8) | \
+	                (((mio_uint32_t)(x) & ((mio_uint32_t)0xff << 16)) >>  8) | \
+	                (((mio_uint32_t)(x) & ((mio_uint32_t)0xff << 24)) >> 24)))
+
+#if defined(MIO_HAVE_UINT64_T)
+#define MIO_CONST_BSWAP64(x) \
+	((mio_uint64_t)((((mio_uint64_t)(x) & ((mio_uint64_t)0xff <<  0)) << 56) | \
+	                (((mio_uint64_t)(x) & ((mio_uint64_t)0xff <<  8)) << 40) | \
+	                (((mio_uint64_t)(x) & ((mio_uint64_t)0xff << 16)) << 24) | \
+	                (((mio_uint64_t)(x) & ((mio_uint64_t)0xff << 24)) <<  8) | \
+	                (((mio_uint64_t)(x) & ((mio_uint64_t)0xff << 32)) >>  8) | \
+	                (((mio_uint64_t)(x) & ((mio_uint64_t)0xff << 40)) >> 24) | \
+	                (((mio_uint64_t)(x) & ((mio_uint64_t)0xff << 48)) >> 40) | \
+	                (((mio_uint64_t)(x) & ((mio_uint64_t)0xff << 56)) >> 56)))
+#endif
+
+#if defined(MIO_HAVE_UINT128_T)
+#define MIO_CONST_BSWAP128(x) \
+	((mio_uint128_t)((((mio_uint128_t)(x) & ((mio_uint128_t)0xff << 0)) << 120) | \
+	                 (((mio_uint128_t)(x) & ((mio_uint128_t)0xff << 8)) << 104) | \
+	                 (((mio_uint128_t)(x) & ((mio_uint128_t)0xff << 16)) << 88) | \
+	                 (((mio_uint128_t)(x) & ((mio_uint128_t)0xff << 24)) << 72) | \
+	                 (((mio_uint128_t)(x) & ((mio_uint128_t)0xff << 32)) << 56) | \
+	                 (((mio_uint128_t)(x) & ((mio_uint128_t)0xff << 40)) << 40) | \
+	                 (((mio_uint128_t)(x) & ((mio_uint128_t)0xff << 48)) << 24) | \
+	                 (((mio_uint128_t)(x) & ((mio_uint128_t)0xff << 56)) << 8) | \
+	                 (((mio_uint128_t)(x) & ((mio_uint128_t)0xff << 64)) >> 8) | \
+	                 (((mio_uint128_t)(x) & ((mio_uint128_t)0xff << 72)) >> 24) | \
+	                 (((mio_uint128_t)(x) & ((mio_uint128_t)0xff << 80)) >> 40) | \
+	                 (((mio_uint128_t)(x) & ((mio_uint128_t)0xff << 88)) >> 56) | \
+	                 (((mio_uint128_t)(x) & ((mio_uint128_t)0xff << 96)) >> 72) | \
+	                 (((mio_uint128_t)(x) & ((mio_uint128_t)0xff << 104)) >> 88) | \
+	                 (((mio_uint128_t)(x) & ((mio_uint128_t)0xff << 112)) >> 104) | \
+	                 (((mio_uint128_t)(x) & ((mio_uint128_t)0xff << 120)) >> 120)))
+#endif
 
 #if defined(MIO_ENDIAN_LITTLE)
-#	define MIO_CONST_NTOH16(x) MIO_CONST_SWAP16(x)
-#	define MIO_CONST_HTON16(x) MIO_CONST_SWAP16(x)
-#	define MIO_CONST_NTOH32(x) MIO_CONST_SWAP32(x)
-#	define MIO_CONST_HTON32(x) MIO_CONST_SWAP32(x)
+
+#	if defined(MIO_HAVE_UINT16_T)
+#	define MIO_CONST_NTOH16(x) MIO_CONST_BSWAP16(x)
+#	define MIO_CONST_HTON16(x) MIO_CONST_BSWAP16(x)
+#	define MIO_CONST_HTOBE16(x) MIO_CONST_BSWAP16(x)
+#	define MIO_CONST_HTOLE16(x) (x)
+#	define MIO_CONST_BE16TOH(x) MIO_CONST_BSWAP16(x)
+#	define MIO_CONST_LE16TOH(x) (x)
+#	endif
+
+#	if defined(MIO_HAVE_UINT32_T)
+#	define MIO_CONST_NTOH32(x) MIO_CONST_BSWAP32(x)
+#	define MIO_CONST_HTON32(x) MIO_CONST_BSWAP32(x)
+#	define MIO_CONST_HTOBE32(x) MIO_CONST_BSWAP32(x)
+#	define MIO_CONST_HTOLE32(x) (x)
+#	define MIO_CONST_BE32TOH(x) MIO_CONST_BSWAP32(x)
+#	define MIO_CONST_LE32TOH(x) (x)
+#	endif
+
+#	if defined(MIO_HAVE_UINT64_T)
+#	define MIO_CONST_NTOH64(x) MIO_CONST_BSWAP64(x)
+#	define MIO_CONST_HTON64(x) MIO_CONST_BSWAP64(x)
+#	define MIO_CONST_HTOBE64(x) MIO_CONST_BSWAP64(x)
+#	define MIO_CONST_HTOLE64(x) (x)
+#	define MIO_CONST_BE64TOH(x) MIO_CONST_BSWAP64(x)
+#	define MIO_CONST_LE64TOH(x) (x)
+#	endif
+
+#	if defined(MIO_HAVE_UINT128_T)
+#	define MIO_CONST_NTOH128(x) MIO_CONST_BSWAP128(x)
+#	define MIO_CONST_HTON128(x) MIO_CONST_BSWAP128(x)
+#	define MIO_CONST_HTOBE128(x) MIO_CONST_BSWAP128(x)
+#	define MIO_CONST_HTOLE128(x) (x)
+#	define MIO_CONST_BE128TOH(x) MIO_CONST_BSWAP128(x)
+#	define MIO_CONST_LE128TOH(x) (x)
+#endif
+
 #elif defined(MIO_ENDIAN_BIG)
+
+#	if defined(MIO_HAVE_UINT16_T)
 #	define MIO_CONST_NTOH16(x) (x)
 #	define MIO_CONST_HTON16(x) (x)
+#	define MIO_CONST_HTOBE16(x) (x)
+#	define MIO_CONST_HTOLE16(x) MIO_CONST_BSWAP16(x)
+#	define MIO_CONST_BE16TOH(x) (x)
+#	define MIO_CONST_LE16TOH(x) MIO_CONST_BSWAP16(x)
+#	endif
+
+#	if defined(MIO_HAVE_UINT32_T)
 #	define MIO_CONST_NTOH32(x) (x)
 #	define MIO_CONST_HTON32(x) (x)
+#	define MIO_CONST_HTOBE32(x) (x)
+#	define MIO_CONST_HTOLE32(x) MIO_CONST_BSWAP32(x)
+#	define MIO_CONST_BE32TOH(x) (x)
+#	define MIO_CONST_LE32TOH(x) MIO_CONST_BSWAP32(x)
+#	endif
+
+#	if defined(MIO_HAVE_UINT64_T)
+#	define MIO_CONST_NTOH64(x) (x)
+#	define MIO_CONST_HTON64(x) (x)
+#	define MIO_CONST_HTOBE64(x) (x)
+#	define MIO_CONST_HTOLE64(x) MIO_CONST_BSWAP64(x)
+#	define MIO_CONST_BE64TOH(x) (x)
+#	define MIO_CONST_LE64TOH(x) MIO_CONST_BSWAP64(x)
+#	endif
+
+#	if defined(MIO_HAVE_UINT128_T)
+#	define MIO_CONST_NTOH128(x) (x)
+#	define MIO_CONST_HTON128(x) (x)
+#	define MIO_CONST_HTOBE128(x) (x)
+#	define MIO_CONST_HTOLE128(x) MIO_CONST_BSWAP128(x)
+#	define MIO_CONST_BE128TOH(x) (x)
+#	define MIO_CONST_LE128TOH(x) MIO_CONST_BSWAP128(x)
+#	endif
+
 #else
 #	error UNKNOWN ENDIAN
 #endif
+
 
 #ifdef __cplusplus
 extern "C" {
@@ -410,45 +512,187 @@ MIO_EXPORT mio_oow_t mio_utf8_to_uc (
 
 /* ------------------------------------------------------------------------- */
 
-#if defined(MIO_HAVE_UINT16_T)
-MIO_EXPORT mio_uint16_t mio_ntoh16 (
-	mio_uint16_t x
-);
+#if defined(MIO_HAVE_INLINE)
 
-MIO_EXPORT mio_uint16_t mio_hton16 (
-	mio_uint16_t x
-);
+#if defined(MIO_HAVE_UINT16_T)
+static MIO_INLINE mio_uint16_t mio_bswap16 (mio_uint16_t x)
+{
+	return (x << 8) | (x >> 8);
+}
 #endif
 
 #if defined(MIO_HAVE_UINT32_T)
-MIO_EXPORT mio_uint32_t mio_ntoh32 (
-	mio_uint32_t x
-);
-
-MIO_EXPORT mio_uint32_t mio_hton32 (
-	mio_uint32_t x
-);
+static MIO_INLINE mio_uint32_t mio_bswap32 (mio_uint32_t x)
+{
+	return ((x >> 24)) | 
+	       ((x >>  8) & ((mio_uint32_t)0xff << 8)) | 
+	       ((x <<  8) & ((mio_uint32_t)0xff << 16)) | 
+	       ((x << 24));
+}
 #endif
 
 #if defined(MIO_HAVE_UINT64_T)
-MIO_EXPORT mio_uint64_t mio_ntoh64 (
-	mio_uint64_t x
-);
-
-MIO_EXPORT mio_uint64_t mio_hton64 (
-	mio_uint64_t x
-);
+static MIO_INLINE mio_uint64_t mio_bswap64 (mio_uint64_t x)
+{
+	return ((x >> 56)) | 
+	       ((x >> 40) & ((mio_uint64_t)0xff << 8)) | 
+	       ((x >> 24) & ((mio_uint64_t)0xff << 16)) | 
+	       ((x >>  8) & ((mio_uint64_t)0xff << 24)) | 
+	       ((x <<  8) & ((mio_uint64_t)0xff << 32)) | 
+	       ((x << 24) & ((mio_uint64_t)0xff << 40)) | 
+	       ((x << 40) & ((mio_uint64_t)0xff << 48)) | 
+	       ((x << 56));
+}
 #endif
 
 #if defined(MIO_HAVE_UINT128_T)
-MIO_EXPORT mio_uint128_t mio_ntoh128 (
-	mio_uint128_t x
-);
-
-MIO_EXPORT mio_uint128_t mio_hton128 (
-	mio_uint128_t x
-);
+static MIO_INLINE mio_uint128_t mio_bswap128 (mio_uint128_t x)
+{
+	return ((x >> 120)) | 
+	       ((x >> 104) & ((mio_uint128_t)0xff << 8)) |
+	       ((x >>  88) & ((mio_uint128_t)0xff << 16)) |
+	       ((x >>  72) & ((mio_uint128_t)0xff << 24)) |
+	       ((x >>  56) & ((mio_uint128_t)0xff << 32)) |
+	       ((x >>  40) & ((mio_uint128_t)0xff << 40)) |
+	       ((x >>  24) & ((mio_uint128_t)0xff << 48)) |
+	       ((x >>   8) & ((mio_uint128_t)0xff << 56)) |
+	       ((x <<   8) & ((mio_uint128_t)0xff << 64)) |
+	       ((x <<  24) & ((mio_uint128_t)0xff << 72)) |
+	       ((x <<  40) & ((mio_uint128_t)0xff << 80)) |
+	       ((x <<  56) & ((mio_uint128_t)0xff << 88)) |
+	       ((x <<  72) & ((mio_uint128_t)0xff << 96)) |
+	       ((x <<  88) & ((mio_uint128_t)0xff << 104)) |
+	       ((x << 104) & ((mio_uint128_t)0xff << 112)) |
+	       ((x << 120));
+}
 #endif
+
+#else
+
+#if defined(MIO_HAVE_UINT16_T)
+#	define mio_bswap16(x) ((mio_uint16_t)(((mio_uint16_t)(x)) << 8) | (((mio_uint16_t)(x)) >> 8))
+#endif
+
+#if defined(MIO_HAVE_UINT32_T)
+#	define mio_bswap32(x) ((mio_uint32_t)(((((mio_uint32_t)(x)) >> 24)) | \
+	                                      ((((mio_uint32_t)(x)) >>  8) & ((mio_uint32_t)0xff << 8)) | \
+	                                      ((((mio_uint32_t)(x)) <<  8) & ((mio_uint32_t)0xff << 16)) | \
+	                                      ((((mio_uint32_t)(x)) << 24))))
+#endif
+
+#if defined(MIO_HAVE_UINT64_T)
+#	define mio_bswap64(x) ((mio_uint64_t)(((((mio_uint64_t)(x)) >> 56)) | \
+	                                      ((((mio_uint64_t)(x)) >> 40) & ((mio_uint64_t)0xff << 8)) | \
+	                                      ((((mio_uint64_t)(x)) >> 24) & ((mio_uint64_t)0xff << 16)) | \
+	                                      ((((mio_uint64_t)(x)) >>  8) & ((mio_uint64_t)0xff << 24)) | \
+	                                      ((((mio_uint64_t)(x)) <<  8) & ((mio_uint64_t)0xff << 32)) | \
+	                                      ((((mio_uint64_t)(x)) << 24) & ((mio_uint64_t)0xff << 40)) | \
+	                                      ((((mio_uint64_t)(x)) << 40) & ((mio_uint64_t)0xff << 48)) | \
+	                                      ((((mio_uint64_t)(x)) << 56))))
+#endif
+
+#if defined(MIO_HAVE_UINT128_T)
+#	define mio_bswap128(x) ((mio_uint128_t)(((((mio_uint128_t)(x)) >> 120)) |  \
+	                                        ((((mio_uint128_t)(x)) >> 104) & ((mio_uint128_t)0xff << 8)) | \
+	                                        ((((mio_uint128_t)(x)) >>  88) & ((mio_uint128_t)0xff << 16)) | \
+	                                        ((((mio_uint128_t)(x)) >>  72) & ((mio_uint128_t)0xff << 24)) | \
+	                                        ((((mio_uint128_t)(x)) >>  56) & ((mio_uint128_t)0xff << 32)) | \
+	                                        ((((mio_uint128_t)(x)) >>  40) & ((mio_uint128_t)0xff << 40)) | \
+	                                        ((((mio_uint128_t)(x)) >>  24) & ((mio_uint128_t)0xff << 48)) | \
+	                                        ((((mio_uint128_t)(x)) >>   8) & ((mio_uint128_t)0xff << 56)) | \
+	                                        ((((mio_uint128_t)(x)) <<   8) & ((mio_uint128_t)0xff << 64)) | \
+	                                        ((((mio_uint128_t)(x)) <<  24) & ((mio_uint128_t)0xff << 72)) | \
+	                                        ((((mio_uint128_t)(x)) <<  40) & ((mio_uint128_t)0xff << 80)) | \
+	                                        ((((mio_uint128_t)(x)) <<  56) & ((mio_uint128_t)0xff << 88)) | \
+	                                        ((((mio_uint128_t)(x)) <<  72) & ((mio_uint128_t)0xff << 96)) | \
+	                                        ((((mio_uint128_t)(x)) <<  88) & ((mio_uint128_t)0xff << 104)) | \
+	                                        ((((mio_uint128_t)(x)) << 104) & ((mio_uint128_t)0xff << 112)) | \
+	                                        ((((mio_uint128_t)(x)) << 120))))
+#endif
+
+#endif /* MIO_HAVE_INLINE */
+
+
+#if defined(MIO_ENDIAN_LITTLE)
+
+#	if defined(MIO_HAVE_UINT16_T)
+#	define mio_ntoh16(x) mio_bswap16(x)
+#	define mio_hton16(x) mio_bswap16(x)
+#	define mio_htobe16(x) mio_bswap16(x)
+#	define mio_htole16(x) (x)
+#	define mio_be16toh(x) mio_bswap16(x)
+#	define mio_le16toh(x) (x)
+#	endif
+
+#	if defined(MIO_HAVE_UINT32_T)
+#	define mio_ntoh32(x) mio_bswap32(x)
+#	define mio_hton32(x) mio_bswap32(x)
+#	define mio_htobe32(x) mio_bswap32(x)
+#	define mio_htole32(x) (x)
+#	define mio_be32toh(x) mio_bswap32(x)
+#	define mio_le32toh(x) (x)
+#	endif
+
+#	if defined(MIO_HAVE_UINT64_T)
+#	define mio_ntoh64(x) mio_bswap64(x)
+#	define mio_hton64(x) mio_bswap64(x)
+#	define mio_htobe64(x) mio_bswap64(x)
+#	define mio_htole64(x) (x)
+#	define mio_be64toh(x) mio_bswap64(x)
+#	define mio_le64toh(x) (x)
+#	endif
+
+#	if defined(MIO_HAVE_UINT128_T)
+#	define mio_ntoh128(x) mio_bswap128(x)
+#	define mio_hton128(x) mio_bswap128(x)
+#	define mio_htobe128(x) mio_bswap128(x)
+#	define mio_htole128(x) (x)
+#	define mio_be128toh(x) mio_bswap128(x)
+#	define mio_le128toh(x) (x)
+#	endif
+
+#elif defined(MIO_ENDIAN_BIG)
+
+#	if defined(MIO_HAVE_UINT16_T)
+#	define mio_ntoh16(x) (x)
+#	define mio_hton16(x) (x)
+#	define mio_htobe16(x) (x)
+#	define mio_htole16(x) mio_bswap16(x)
+#	define mio_be16toh(x) (x)
+#	define mio_le16toh(x) mio_bswap16(x)
+#	endif
+
+#	if defined(MIO_HAVE_UINT32_T)
+#	define mio_ntoh32(x) (x)
+#	define mio_hton32(x) (x)
+#	define mio_htobe32(x) (x)
+#	define mio_htole32(x) mio_bswap32(x)
+#	define mio_be32toh(x) (x)
+#	define mio_le32toh(x) mio_bswap32(x)
+#	endif
+
+#	if defined(MIO_HAVE_UINT64_T)
+#	define mio_ntoh64(x) (x)
+#	define mio_hton64(x) (x)
+#	define mio_htobe64(x) (x)
+#	define mio_htole64(x) mio_bswap64(x)
+#	define mio_be64toh(x) (x)
+#	define mio_le64toh(x) mio_bswap64(x)
+#	endif
+
+#	if defined(MIO_HAVE_UINT128_T)
+#	define mio_ntoh128(x) (x)
+#	define mio_hton128(x) (x)
+#	define mio_htobe128(x) (x)
+#	define mio_htole128(x) mio_bswap128(x)
+#	define mio_be128toh(x) (x)
+#	define mio_le128toh(x) mio_bswap128(x)
+#	endif
+
+#else
+#	error UNKNOWN ENDIAN
+#endif
+
 
 
 
