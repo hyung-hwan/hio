@@ -616,84 +616,83 @@ static MIO_INLINE mio_uint128_t mio_bswap128 (mio_uint128_t x)
 #if defined(MIO_ENDIAN_LITTLE)
 
 #	if defined(MIO_HAVE_UINT16_T)
-#	define mio_ntoh16(x) mio_bswap16(x)
 #	define mio_hton16(x) mio_bswap16(x)
+#	define mio_ntoh16(x) mio_bswap16(x)
 #	define mio_htobe16(x) mio_bswap16(x)
-#	define mio_htole16(x) (x)
 #	define mio_be16toh(x) mio_bswap16(x)
-#	define mio_le16toh(x) (x)
+#	define mio_htole16(x) ((mio_uint16_t)(x))
+#	define mio_le16toh(x) ((mio_uint16_t)(x))
 #	endif
 
 #	if defined(MIO_HAVE_UINT32_T)
-#	define mio_ntoh32(x) mio_bswap32(x)
 #	define mio_hton32(x) mio_bswap32(x)
+#	define mio_ntoh32(x) mio_bswap32(x)
 #	define mio_htobe32(x) mio_bswap32(x)
-#	define mio_htole32(x) (x)
 #	define mio_be32toh(x) mio_bswap32(x)
-#	define mio_le32toh(x) (x)
+#	define mio_htole32(x) ((mio_uint32_t)(x))
+#	define mio_le32toh(x) ((mio_uint32_t)(x))
 #	endif
 
 #	if defined(MIO_HAVE_UINT64_T)
-#	define mio_ntoh64(x) mio_bswap64(x)
 #	define mio_hton64(x) mio_bswap64(x)
+#	define mio_ntoh64(x) mio_bswap64(x)
 #	define mio_htobe64(x) mio_bswap64(x)
-#	define mio_htole64(x) (x)
 #	define mio_be64toh(x) mio_bswap64(x)
-#	define mio_le64toh(x) (x)
+#	define mio_htole64(x) ((mio_uint64_t)(x))
+#	define mio_le64toh(x) ((mio_uint64_t)(x))
 #	endif
 
 #	if defined(MIO_HAVE_UINT128_T)
-#	define mio_ntoh128(x) mio_bswap128(x)
+
 #	define mio_hton128(x) mio_bswap128(x)
+#	define mio_ntoh128(x) mio_bswap128(x)
 #	define mio_htobe128(x) mio_bswap128(x)
-#	define mio_htole128(x) (x)
 #	define mio_be128toh(x) mio_bswap128(x)
-#	define mio_le128toh(x) (x)
+#	define mio_htole128(x) ((mio_uint128_t)(x))
+#	define mio_le128toh(x) ((mio_uint128_t)(x))
 #	endif
 
 #elif defined(MIO_ENDIAN_BIG)
 
 #	if defined(MIO_HAVE_UINT16_T)
-#	define mio_ntoh16(x) (x)
-#	define mio_hton16(x) (x)
-#	define mio_htobe16(x) (x)
+#	define mio_hton16(x) ((mio_uint16_t)(x))
+#	define mio_ntoh16(x) ((mio_uint16_t)(x))
+#	define mio_htobe16(x) ((mio_uint16_t)(x))
+#	define mio_be16toh(x) ((mio_uint16_t)(x))
 #	define mio_htole16(x) mio_bswap16(x)
-#	define mio_be16toh(x) (x)
 #	define mio_le16toh(x) mio_bswap16(x)
 #	endif
 
 #	if defined(MIO_HAVE_UINT32_T)
-#	define mio_ntoh32(x) (x)
-#	define mio_hton32(x) (x)
-#	define mio_htobe32(x) (x)
+#	define mio_hton32(x) ((mio_uint32_t)(x))
+#	define mio_ntoh32(x) ((mio_uint32_t)(x))
+#	define mio_htobe32(x) ((mio_uint32_t)(x))
+#	define mio_be32toh(x) ((mio_uint32_t)(x))
 #	define mio_htole32(x) mio_bswap32(x)
-#	define mio_be32toh(x) (x)
 #	define mio_le32toh(x) mio_bswap32(x)
 #	endif
 
 #	if defined(MIO_HAVE_UINT64_T)
-#	define mio_ntoh64(x) (x)
-#	define mio_hton64(x) (x)
-#	define mio_htobe64(x) (x)
+#	define mio_hton64(x) ((mio_uint64_t)(x))
+#	define mio_ntoh64(x) ((mio_uint64_t)(x))
+#	define mio_htobe64(x) ((mio_uint64_t)(x))
+#	define mio_be64toh(x) ((mio_uint64_t)(x))
 #	define mio_htole64(x) mio_bswap64(x)
-#	define mio_be64toh(x) (x)
 #	define mio_le64toh(x) mio_bswap64(x)
 #	endif
 
 #	if defined(MIO_HAVE_UINT128_T)
-#	define mio_ntoh128(x) (x)
-#	define mio_hton128(x) (x)
-#	define mio_htobe128(x) (x)
+#	define mio_hton128(x) ((mio_uint128_t)(x))
+#	define mio_ntoh128(x) ((mio_uint128_t)(x))
+#	define mio_htobe128(x) ((mio_uint128_t)(x))
+#	define mio_be128toh(x) ((mio_uint128_t)(x))
 #	define mio_htole128(x) mio_bswap128(x)
-#	define mio_be128toh(x) (x)
 #	define mio_le128toh(x) mio_bswap128(x)
 #	endif
 
 #else
 #	error UNKNOWN ENDIAN
 #endif
-
-
 
 
 #ifdef __cplusplus
