@@ -658,7 +658,8 @@ struct mio_cmgr_t
 #	define MIO_PRIVATE
 #endif
 
-#if defined(__STDC_VERSION__) && (__STDC_VERSION__>=199901L)
+#if defined(__cplusplus) || (defined(__STDC_VERSION__) && (__STDC_VERSION__>=199901L))
+	/* C++/C99 */
 #	define MIO_INLINE inline
 #	define MIO_HAVE_INLINE
 #elif defined(__GNUC__) && defined(__GNUC_GNU_INLINE__)
