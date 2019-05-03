@@ -517,23 +517,43 @@ MIO_EXPORT mio_oow_t mio_utf8_to_uc (
 #if defined(MIO_HAVE_UINT16_T)
 static MIO_INLINE mio_uint16_t mio_bswap16 (mio_uint16_t x)
 {
+#if defined(MIO_HAVE_BUILTIN_BSWAP16)
+	return __builtin_bswap16(x);
+#elif defined(__GNUC__) && (defined(__x86_64) || defined(__amd64) || defined(__i386) || defined(i386))
+	__asm__ volatile ("xchgb %b0, %h0" : "=Q"(x): "0"(x));
+	return x;
+#else
 	return (x << 8) | (x >> 8);
+#endif
 }
 #endif
 
 #if defined(MIO_HAVE_UINT32_T)
 static MIO_INLINE mio_uint32_t mio_bswap32 (mio_uint32_t x)
 {
+#if defined(MIO_HAVE_BUILTIN_BSWAP32)
+	return __builtin_bswap32(x);
+#elif defined(__GNUC__) && (defined(__x86_64) || defined(__amd64) || defined(__i386) || defined(i386))
+	__asm__ volatile ("bswapl %0" : "=r"(x) : "0"(x));
+	return x;
+#else
 	return ((x >> 24)) | 
 	       ((x >>  8) & ((mio_uint32_t)0xff << 8)) | 
 	       ((x <<  8) & ((mio_uint32_t)0xff << 16)) | 
 	       ((x << 24));
+#endif
 }
 #endif
 
 #if defined(MIO_HAVE_UINT64_T)
 static MIO_INLINE mio_uint64_t mio_bswap64 (mio_uint64_t x)
 {
+#if defined(MIO_HAVE_BUILTIN_BSWAP64)
+	return __builtin_bswap64(x);
+#elif defined(__GNUC__) && (defined(__x86_64) || defined(__amd64))
+	__asm__ volatile ("bswapq %0" : "=r"(x) : "0"(x));
+	return x;
+#else
 	return ((x >> 56)) | 
 	       ((x >> 40) & ((mio_uint64_t)0xff << 8)) | 
 	       ((x >> 24) & ((mio_uint64_t)0xff << 16)) | 
@@ -542,6 +562,7 @@ static MIO_INLINE mio_uint64_t mio_bswap64 (mio_uint64_t x)
 	       ((x << 24) & ((mio_uint64_t)0xff << 40)) | 
 	       ((x << 40) & ((mio_uint64_t)0xff << 48)) | 
 	       ((x << 56));
+#endif
 }
 #endif
 
