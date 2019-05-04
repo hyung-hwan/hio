@@ -45,6 +45,10 @@
 #	error UNSUPPORTED SYSTEM
 #endif
 
+/* =========================================================================
+ * ARCHITECTURE/COMPILER TWEAKS
+ * ========================================================================= */
+
 #if defined(EMSCRIPTEN)
 #	if defined(MIO_SIZEOF___INT128)
 #		undef MIO_SIZEOF___INT128 
@@ -54,6 +58,20 @@
 		/* autoconf doesn't seem to match actual emscripten */
 #		undef MIO_SIZEOF_LONG
 #		define MIO_SIZEOF_LONG MIO_SIZEOF_INT
+#	endif
+#endif
+
+#if defined(__GNUC__) && defined(__arm__)  && !defined(__ARM_ARCH)
+#	if defined(__ARM_ARCH_8__)
+#		define __ARM_ARCH 8
+#	elif defined(__ARM_ARCH_7__)
+#		define __ARM_ARCH 7
+#	elif defined(__ARM_ARCH_6__)
+#		define __ARM_ARCH 6
+#	elif defined(__ARM_ARCH_5__)
+#		define __ARM_ARCH 5
+#	elif defined(__ARM_ARCH_4__)
+#		define __ARM_ARCH 4
 #	endif
 #endif
 
@@ -319,6 +337,13 @@
 #endif
 
 /* =========================================================================
+ * BASIC HARD-CODED DEFINES
+ * ========================================================================= */
+#define MIO_BITS_PER_BYTE (8)
+/* the maximum number of bch charaters to represent a single uch character */
+#define MIO_BCSIZE_MAX 6
+
+/* =========================================================================
  * BASIC MIO TYPES
  * =========================================================================*/
 typedef char                    mio_bch_t;
@@ -356,11 +381,15 @@ typedef mio_uintptr_t           mio_oow_t;
 typedef mio_intptr_t            mio_ooi_t;
 #define MIO_SIZEOF_OOW_T MIO_SIZEOF_UINTPTR_T
 #define MIO_SIZEOF_OOI_T MIO_SIZEOF_INTPTR_T
+#define MIO_OOW_BITS  (MIO_SIZEOF_OOW_T * MIO_BITS_PER_BYTE)
+#define MIO_OOI_BITS  (MIO_SIZEOF_OOI_T * MIO_BITS_PER_BYTE)
 
 typedef mio_ushortptr_t         mio_oohw_t; /* half word - half word */
 typedef mio_shortptr_t          mio_oohi_t; /* signed half word */
 #define MIO_SIZEOF_OOHW_T MIO_SIZEOF_USHORTPTR_T
 #define MIO_SIZEOF_OOHI_T MIO_SIZEOF_SHORTPTR_T
+#define MIO_OOHW_BITS  (MIO_SIZEOF_OOHW_T * MIO_BITS_PER_BYTE)
+#define MIO_OOHI_BITS  (MIO_SIZEOF_OOHI_T * MIO_BITS_PER_BYTE)
 
 struct mio_ucs_t
 {
@@ -519,11 +548,11 @@ struct mio_ntime_t
 
 /* make a bit mask that can mask off low n bits */
 #define MIO_LBMASK(type,n) (~(~((type)0) << (n))) 
-#define MIO_LBMASK_SAFE(type,n) (((n) < MIO_SIZEOF(type) * 8)? MIO_LBMASK(type,n): ~(type)0)
+#define MIO_LBMASK_SAFE(type,n) (((n) < MIO_SIZEOF(type) * MIO_BITS_PER_BYTE)? MIO_LBMASK(type,n): ~(type)0)
 
 /* make a bit mask that can mask off hig n bits */
 #define MIO_HBMASK(type,n) (~(~((type)0) >> (n)))
-#define MIO_HBMASK_SAFE(type,n) (((n) < MIO_SIZEOF(type) * 8)? MIO_HBMASK(type,n): ~(type)0)
+#define MIO_HBMASK_SAFE(type,n) (((n) < MIO_SIZEOF(type) * MIO_BITS_PER_BYTE)? MIO_HBMASK(type,n): ~(type)0)
 
 /* get 'length' bits starting from the bit at the 'offset' */
 #define MIO_GETBITS(type,value,offset,length) \
@@ -550,7 +579,7 @@ struct mio_ntime_t
  * \endcode
  */
 /*#define MIO_BITS_MAX(type,nbits) ((((type)1) << (nbits)) - 1)*/
-#define MIO_BITS_MAX(type,nbits) ((~(type)0) >> (MIO_SIZEOF(type) * 8 - (nbits)))
+#define MIO_BITS_MAX(type,nbits) ((~(type)0) >> (MIO_SIZEOF(type) * MIO_BITS_PER_BYTE - (nbits)))
 
 /* =========================================================================
  * MMGR
@@ -691,11 +720,11 @@ struct mio_cmgr_t
 #define MIO_TYPE_IS_UNSIGNED(type) (((type)0) < ((type)-1))
 
 #define MIO_TYPE_SIGNED_MAX(type) \
-	((type)~((type)1 << ((type)MIO_SIZEOF(type) * 8 - 1)))
+	((type)~((type)1 << ((type)MIO_SIZEOF(type) * MIO_BITS_PER_BYTE - 1)))
 #define MIO_TYPE_UNSIGNED_MAX(type) ((type)(~(type)0))
 
 #define MIO_TYPE_SIGNED_MIN(type) \
-	((type)((type)1 << ((type)MIO_SIZEOF(type) * 8 - 1)))
+	((type)((type)1 << ((type)MIO_SIZEOF(type) * MIO_BITS_PER_BYTE - 1)))
 #define MIO_TYPE_UNSIGNED_MIN(type) ((type)0)
 
 #define MIO_TYPE_MAX(type) \

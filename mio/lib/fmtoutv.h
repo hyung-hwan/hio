@@ -994,7 +994,7 @@ static int fmtoutv (mio_t* mio, const fmtchar_t* fmt, mio_fmtout_data_t* data, v
 				#else
 					register int shift = i * MIO_SIZEOF(mio_oow_t);
 					mio_oow_t x = va_arg (ap, mio_oow_t);
-					num |= (mio_uintmax_t)x << (shift * 8);
+					num |= (mio_uintmax_t)x << (shift * MIO_BITS_PER_BYTE);
 				#endif
 				}
 			#else
@@ -1038,7 +1038,7 @@ static int fmtoutv (mio_t* mio, const fmtchar_t* fmt, mio_fmtout_data_t* data, v
 				#else
 					register int shift = i * MIO_SIZEOF(mio_oow_t);
 					mio_oow_t x = va_arg (ap, mio_oow_t);
-					num |= (mio_uintmax_t)x << (shift * 8);
+					num |= (mio_uintmax_t)x << (shift * MIO_BITS_PER_BYTE);
 				#endif
 				}
 			#else

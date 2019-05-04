@@ -658,7 +658,7 @@ mio_bch_t* mio_find_bchar_in_bcstr (const mio_bch_t* ptr, mio_bch_t c)
 
 mio_oow_t mio_byte_to_bcstr (mio_uint8_t byte, mio_bch_t* buf, mio_oow_t size, int flagged_radix, mio_bch_t fill)
 {
-	mio_bch_t tmp[(MIO_SIZEOF(mio_uint8_t) * 8)];
+	mio_bch_t tmp[(MIO_SIZEOF(mio_uint8_t) * MIO_BITS_PER_BYTE)];
 	mio_bch_t* p = tmp, * bp = buf, * be = buf + size - 1;
 	int radix;
 	mio_bch_t radix_char;
