@@ -11,9 +11,9 @@ LDFLAGS_ALL_COMMON = -L$(abs_builddir) -L$(libdir)
 # MAIN LIBRARY 
 ##################################################
 
-CPPFLAGS_LIB_COMMON = $(CPPFLAGS_ALL_COMMON) $(LTDLINCL)
+CPPFLAGS_LIB_COMMON = $(CPPFLAGS_ALL_COMMON)
 LDFLAGS_LIB_COMMON = $(LDFLAGS_ALL_COMMON) -version-info 1:0:0 -no-undefined
-LIBADD_LIB_COMMON = $(LIBM) $(LIBLTDL) 
+LIBADD_LIB_COMMON = $(LIBM)
 
 #pkgincludedir = $(includedir)
 #pkglibdir = $(libdir)
@@ -55,12 +55,6 @@ libmio_la_SOURCES = \
 libmio_la_CPPFLAGS = $(CPPFLAGS_LIB_COMMON)
 libmio_la_LDFLAGS = $(LDFLAGS_LIB_COMMON)
 libmio_la_LIBADD = $(LIBADD_LIB_COMMON) $(SSL_LIBS) $(SOCKET_LIBS) $(SENDFILE_LIBS)
-
-bin_PROGRAMS = mio
-mio_SOURCES = main.c
-mio_CPPFLAGS = $(CPPFLAGS_LIB_COMMON)
-mio_LDFLAGS = $(LDFLAGS_LIB_COMMON)
-mio_LDADD = $(LIBADD_LIB_COMMON) -lmio  $(SSL_LIBS) $(SOCKET_LIBS) $(SENDFILE_LIBS)
 
 install-data-hook:
 	@echo "#ifndef _MIO_CFG_H_" > "$(DESTDIR)$(includedir)/mio-cfg.h"
