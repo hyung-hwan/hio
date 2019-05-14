@@ -41,9 +41,23 @@ typedef enum mio_dev_pro_sid_t mio_dev_pro_sid_t;
 typedef struct mio_dev_pro_t mio_dev_pro_t;
 typedef struct mio_dev_pro_slave_t mio_dev_pro_slave_t;
 
-typedef int (*mio_dev_pro_on_read_t) (mio_dev_pro_t* dev, mio_dev_pro_sid_t sid, const void* data, mio_iolen_t len);
-typedef int (*mio_dev_pro_on_write_t) (mio_dev_pro_t* dev, mio_iolen_t wrlen, void* wrctx);
-typedef void (*mio_dev_pro_on_close_t) (mio_dev_pro_t* dev, mio_dev_pro_sid_t sid);
+typedef int (*mio_dev_pro_on_read_t) (
+	mio_dev_pro_t*    dev,
+	mio_dev_pro_sid_t sid,
+	const void*       data,
+	mio_iolen_t       len
+);
+
+typedef int (*mio_dev_pro_on_write_t) (
+	mio_dev_pro_t*    dev,
+	mio_iolen_t       wrlen,
+	void*             wrctx
+);
+
+typedef void (*mio_dev_pro_on_close_t) (
+	mio_dev_pro_t*    dev,
+	mio_dev_pro_sid_t sid
+);
 
 struct mio_dev_pro_t
 {
@@ -71,29 +85,28 @@ struct mio_dev_pro_slave_t
 
 enum mio_dev_pro_make_flag_t
 {
-	MIO_DEV_PRO_WRITEIN  = (1 << 0),
-	MIO_DEV_PRO_READOUT  = (1 << 1),
-	MIO_DEV_PRO_READERR  = (1 << 2),
+	MIO_DEV_PRO_WRITEIN = (1 << 0),
+	MIO_DEV_PRO_READOUT = (1 << 1),
+	MIO_DEV_PRO_READERR = (1 << 2),
 
 	MIO_DEV_PRO_ERRTOOUT = (1 << 3),
 	MIO_DEV_PRO_OUTTOERR = (1 << 4),
 
-	MIO_DEV_PRO_INTONUL  = (1 << 5),
+	MIO_DEV_PRO_INTONUL = (1 << 5),
 	MIO_DEV_PRO_OUTTONUL = (1 << 6),
 	MIO_DEV_PRO_ERRTONUL = (1 << 7),
 
-	STUO_DEV_PRO_DROPIN   = (1 << 8),
-	STUO_DEV_PRO_DROPOUT  = (1 << 9),
-	STUO_DEV_PRO_DROPERR  = (1 << 10),
+	MIO_DEV_PRO_DROPIN  = (1 << 8),
+	MIO_DEV_PRO_DROPOUT = (1 << 9),
+	MIO_DEV_PRO_DROPERR = (1 << 10),
 
-
-	MIO_DEV_PRO_SHELL                = (1 << 13),
+	MIO_DEV_PRO_SHELL = (1 << 13),
 
 	/* perform no waitpid() on a child process upon device destruction.
 	 * you should set this flag if your application has automatic child 
 	 * process reaping enabled. for instance, SIGCHLD is set to SIG_IGN
 	 * on POSIX.1-2001 compliant systems */
-	MIO_DEV_PRO_FORGET_CHILD         = (1 << 14),
+	MIO_DEV_PRO_FORGET_CHILD = (1 << 14),
 
 
 	MIO_DEV_PRO_FORGET_DIEHARD_CHILD = (1 << 15)
@@ -127,7 +140,6 @@ MIO_EXPORT  mio_dev_pro_t* mio_dev_pro_make (
 	mio_oow_t                 xtnsize,
 	const mio_dev_pro_make_t* data
 );
-
 
 MIO_EXPORT void mio_dev_pro_kill (
 	mio_dev_pro_t* pro
@@ -169,7 +181,6 @@ MIO_EXPORT int mio_dev_pro_close (
 	mio_dev_pro_t*     pro,
 	mio_dev_pro_sid_t  sid
 );
-
 
 MIO_EXPORT int mio_dev_pro_killchild (
 	mio_dev_pro_t*     pro

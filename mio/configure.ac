@@ -920,6 +920,7 @@ AC_SUBST(MIO_PROJECT_URL, "${PACKAGE_URL}")
 AC_CONFIG_FILES([
 	Makefile 
 	lib/Makefile 
+	bin/Makefile
 ])
 AC_OUTPUT
 
