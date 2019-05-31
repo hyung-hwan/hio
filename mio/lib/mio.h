@@ -27,7 +27,8 @@
 #ifndef _MIO_H_
 #define _MIO_H_
 
-#include <mio-cmn.h>
+#include "mio-cmn.h"
+#include <stdarg.h>
 
 #if defined(_WIN32)
 	typedef mio_uintptr_t qse_syshnd_t;
@@ -677,6 +678,20 @@ MIO_EXPORT void mio_seterrufmt (
 	mio_errnum_t     errnum,
 	const mio_uch_t* fmt,
 	...
+);
+
+MIO_EXPORT void mio_seterrbfmtv (
+	mio_t*           mio,
+	mio_errnum_t     errnum,
+	const mio_bch_t* fmt,
+	va_list          ap
+);
+
+MIO_EXPORT void mio_seterrufmtv (
+	mio_t*           mio,
+	mio_errnum_t     errnum,
+	const mio_uch_t* fmt,
+	va_list          ap
 );
 
 MIO_EXPORT void mio_seterrbfmtwithsyserr (

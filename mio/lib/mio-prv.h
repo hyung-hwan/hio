@@ -29,7 +29,6 @@
 
 #include "mio.h"
 #include "mio-utl.h"
-#include <stdarg.h>
 
 #if defined(__has_builtin)
 
@@ -158,24 +157,6 @@ int mio_gettmrtmout (
 	mio_t*             mio,
 	const mio_ntime_t* tmbase,
 	mio_ntime_t*       tmout
-);
-
-/* ========================================================================= */
-/* err.c                                                                     */
-/* ========================================================================= */
-
-void mio_seterrbfmtv (
-	mio_t*           mio,
-	mio_errnum_t     errnum,
-	const mio_bch_t* fmt,
-	va_list          ap
-);
-
-void mio_seterrufmtv (
-	mio_t*           mio,
-	mio_errnum_t     errnum,
-	const mio_uch_t* fmt,
-	va_list          ap
 );
 
 /* ========================================================================== */
