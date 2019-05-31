@@ -108,6 +108,127 @@ void mio_seterrnum (mio_t* mio, mio_errnum_t errnum)
 	mio->errmsg.len = 0; 
 }
 
+static int err_bcs (mio_fmtout_t* fmtout, const mio_bch_t* ptr, mio_oow_t len)
+{
+	mio_t* mio = (mio_t*)fmtout->ctx;
+	mio_oow_t max;
+
+	max = MIO_COUNTOF(mio->errmsg.buf) - mio->errmsg.len - 1;
+
+#if defined(MIO_OOCH_IS_UCH)
+	if (max <= 0) return 1;
+	mio_conv_bchars_to_uchars_with_cmgr (ptr, &len, &mio->errmsg.buf[mio->errmsg.len], &max, mio->cmgr, 1);
+	mio->errmsg.len += max;
+#else
+	if (len > max) len = max;
+	if (len <= 0) return 1;
+	MIO_MEMCPY (&mio->errmsg.buf[mio->errmsg.len], ptr, len * MIO_SIZEOF(*ptr));
+	mio->errmsg.len += len;
+#endif
+
+	mio->errmsg.buf[mio->errmsg.len] = '\0';
+
+	return 1; /* success */
+}
+
+static int err_ucs (mio_fmtout_t* fmtout, const mio_uch_t* ptr, mio_oow_t len)
+{
+	mio_t* mio = (mio_t*)fmtout->ctx;
+	mio_oow_t max;
+
+	max = MIO_COUNTOF(mio->errmsg.buf) - mio->errmsg.len - 1;
+
+#if defined(MIO_OOCH_IS_UCH)
+	if (len > max) len = max;
+	if (len <= 0) return 1;
+	MIO_MEMCPY (&mio->errmsg.buf[mio->errmsg.len], ptr, len * MIO_SIZEOF(*ptr));
+	mio->errmsg.len += len;
+#else
+	if (max <= 0) return 1;
+	mio_conv_uchars_to_bchars_with_cmgr (ptr, &len, &mio->errmsg.buf[mio->errmsg.len], &max, mio->cmgr);
+	mio->errmsg.len += max;
+#endif
+	mio->errmsg.buf[mio->errmsg.len] = '\0';
+	return 1; /* success */
+}
+
+void mio_seterrbfmt (mio_t* mio, mio_errnum_t errnum, const mio_bch_t* fmt, ...)
+{
+	va_list ap;
+	mio_fmtout_t fo;
+
+	if (mio->shuterr) return;
+	mio->errmsg.len = 0;
+
+	MIO_MEMSET (&fo, 0, MIO_SIZEOF(fo));
+	fo.putbcs = err_bcs;
+	fo.putucs = err_ucs;
+	fo.ctx = mio;
+
+	va_start (ap, fmt);
+	mio_bfmt_outv (&fo, fmt, ap);
+	va_end (ap);
+
+	mio->errnum = errnum;
+}
+
+void mio_seterrufmt (mio_t* mio, mio_errnum_t errnum, const mio_uch_t* fmt, ...)
+{
+	va_list ap;
+	mio_fmtout_t fo;
+
+	if (mio->shuterr) return;
+	mio->errmsg.len = 0;
+
+	MIO_MEMSET (&fo, 0, MIO_SIZEOF(fo));
+	fo.putbcs = err_bcs;
+	fo.putucs = err_ucs;
+	fo.ctx = mio;
+
+	va_start (ap, fmt);
+	mio_ufmt_outv (&fo, fmt, ap);
+	va_end (ap);
+
+	mio->errnum = errnum;
+}
+
+
+void mio_seterrbfmtv (mio_t* mio, mio_errnum_t errnum, const mio_bch_t* fmt, va_list ap)
+{
+	mio_fmtout_t fo;
+
+	if (mio->shuterr) return;
+
+	mio->errmsg.len = 0;
+
+	MIO_MEMSET (&fo, 0, MIO_SIZEOF(fo));
+	fo.putbcs = err_bcs;
+	fo.putucs = err_ucs;
+	fo.ctx = mio;
+
+	mio_bfmt_outv (&fo, fmt, ap);
+	mio->errnum = errnum;
+}
+
+void mio_seterrufmtv (mio_t* mio, mio_errnum_t errnum, const mio_uch_t* fmt, va_list ap)
+{
+	mio_fmtout_t fo;
+
+	if (mio->shuterr) return;
+
+	mio->errmsg.len = 0;
+
+	MIO_MEMSET (&fo, 0, MIO_SIZEOF(fo));
+	fo.putbcs = err_bcs;
+	fo.putucs = err_ucs;
+	fo.ctx = mio;
+
+	mio_ufmt_outv (&fo, fmt, ap);
+	mio->errnum = errnum;
+}
+
+
+
 void mio_seterrwithsyserr (mio_t* mio, int syserr_type, int syserr_code)
 {
 	mio_errnum_t errnum;
@@ -242,3 +363,4 @@ void mio_seterrufmtwithsyserr (mio_t* mio, int syserr_type, int syserr_code, con
 		}
 	}*/
 }
+

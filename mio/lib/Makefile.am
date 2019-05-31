@@ -34,8 +34,7 @@ lib_LTLIBRARIES = libmio.la
 libmio_la_SOURCES = \
 	dns.c \
 	err.c \
-	fmtout.c \
-	fmtoutv.h \
+	fmt.c \
 	mio-prv.h \
 	mio-sys.h \
 	mio.c \
