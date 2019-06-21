@@ -1030,7 +1030,7 @@ int mio_convbtouchars (mio_t* mio, const mio_bch_t* bcs, mio_oow_t* bcslen, mio_
 	/* length bound */
 	int n;
 
-	n = mio_conv_bchars_to_uchars_with_cmgr(bcs, bcslen, ucs, ucslen, mio->cmgr, 0);
+	n = mio_conv_bchars_to_uchars_with_cmgr(bcs, bcslen, ucs, ucslen, mio_getcmgr(mio), 0);
 
 	if (n <= -1)
 	{
@@ -1046,7 +1046,7 @@ int mio_convutobchars (mio_t* mio, const mio_uch_t* ucs, mio_oow_t* ucslen, mio_
 	/* length bound */
 	int n;
 
-	n = mio_conv_uchars_to_bchars_with_cmgr(ucs, ucslen, bcs, bcslen, mio->cmgr);
+	n = mio_conv_uchars_to_bchars_with_cmgr(ucs, ucslen, bcs, bcslen, mio_getcmgr(mio));
 
 	if (n <= -1)
 	{
@@ -1061,7 +1061,7 @@ int mio_convbtoucstr (mio_t* mio, const mio_bch_t* bcs, mio_oow_t* bcslen, mio_u
 	/* null-terminated. */
 	int n;
 
-	n = mio_conv_bcstr_to_ucstr_with_cmgr(bcs, bcslen, ucs, ucslen, mio->cmgr, 0);
+	n = mio_conv_bcstr_to_ucstr_with_cmgr(bcs, bcslen, ucs, ucslen, mio_getcmgr(mio), 0);
 
 	if (n <= -1)
 	{
@@ -1076,7 +1076,7 @@ int mio_convutobcstr (mio_t* mio, const mio_uch_t* ucs, mio_oow_t* ucslen, mio_b
 	/* null-terminated */
 	int n;
 
-	n = mio_conv_ucstr_to_bcstr_with_cmgr(ucs, ucslen, bcs, bcslen, mio->cmgr);
+	n = mio_conv_ucstr_to_bcstr_with_cmgr(ucs, ucslen, bcs, bcslen, mio_getcmgr(mio));
 
 	if (n <= -1)
 	{

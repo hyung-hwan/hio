@@ -84,7 +84,7 @@ mio_t* mio_open (mio_mmgr_t* mmgr, mio_oow_t xtnsize, mio_cmgr_t* cmgr, mio_oow_
 void mio_close (mio_t* mio)
 {
 	mio_fini (mio);
-	MIO_MMGR_FREE (mio->mmgr, mio);
+	MIO_MMGR_FREE (mio->_mmgr, mio);
 }
 
 int mio_init (mio_t* mio, mio_mmgr_t* mmgr, mio_cmgr_t* cmgr, mio_oow_t tmrcapa)
@@ -92,8 +92,9 @@ int mio_init (mio_t* mio, mio_mmgr_t* mmgr, mio_cmgr_t* cmgr, mio_oow_t tmrcapa)
 	int sys_inited = 0;
 
 	MIO_MEMSET (mio, 0, MIO_SIZEOF(*mio));
-	mio->mmgr = mmgr;
-	mio->cmgr = cmgr;
+	mio->_instsize = MIO_SIZEOF(*mio);
+	mio->_mmgr = mmgr;
+	mio->_cmgr = cmgr;
 
 	/* initialize data for logging support */
 	mio->option.log_mask = MIO_LOG_ALL_LEVELS | MIO_LOG_ALL_TYPES;
@@ -1299,7 +1300,7 @@ void mio_gettime (mio_t* mio, mio_ntime_t* now)
 void* mio_allocmem (mio_t* mio, mio_oow_t size)
 {
 	void* ptr;
-	ptr = MIO_MMGR_ALLOC (mio->mmgr, size);
+	ptr = MIO_MMGR_ALLOC (mio->_mmgr, size);
 	if (!ptr) mio_seterrnum (mio, MIO_ESYSMEM);
 	return ptr;
 }
@@ -1307,7 +1308,7 @@ void* mio_allocmem (mio_t* mio, mio_oow_t size)
 void* mio_callocmem (mio_t* mio, mio_oow_t size)
 {
 	void* ptr;
-	ptr = MIO_MMGR_ALLOC (mio->mmgr, size);
+	ptr = MIO_MMGR_ALLOC (mio->_mmgr, size);
 	if (!ptr) mio_seterrnum (mio, MIO_ESYSMEM);
 	else MIO_MEMSET (ptr, 0, size);
 	return ptr;
@@ -1315,12 +1316,12 @@ void* mio_callocmem (mio_t* mio, mio_oow_t size)
 
 void* mio_reallocmem (mio_t* mio, void* ptr, mio_oow_t size)
 {
-	ptr = MIO_MMGR_REALLOC (mio->mmgr, ptr, size);
+	ptr = MIO_MMGR_REALLOC (mio->_mmgr, ptr, size);
 	if (!ptr) mio_seterrnum (mio, MIO_ESYSMEM);
 	return ptr;
 }
 
 void mio_freemem (mio_t* mio, void* ptr)
 {
-	MIO_MMGR_FREE (mio->mmgr, ptr);
+	MIO_MMGR_FREE (mio->_mmgr, ptr);
 }

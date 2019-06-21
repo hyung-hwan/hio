@@ -117,7 +117,7 @@ static int err_bcs (mio_fmtout_t* fmtout, const mio_bch_t* ptr, mio_oow_t len)
 
 #if defined(MIO_OOCH_IS_UCH)
 	if (max <= 0) return 1;
-	mio_conv_bchars_to_uchars_with_cmgr (ptr, &len, &mio->errmsg.buf[mio->errmsg.len], &max, mio->cmgr, 1);
+	mio_conv_bchars_to_uchars_with_cmgr (ptr, &len, &mio->errmsg.buf[mio->errmsg.len], &max, mio_getcmgr(mio), 1);
 	mio->errmsg.len += max;
 #else
 	if (len > max) len = max;
@@ -145,7 +145,7 @@ static int err_ucs (mio_fmtout_t* fmtout, const mio_uch_t* ptr, mio_oow_t len)
 	mio->errmsg.len += len;
 #else
 	if (max <= 0) return 1;
-	mio_conv_uchars_to_bchars_with_cmgr (ptr, &len, &mio->errmsg.buf[mio->errmsg.len], &max, mio->cmgr);
+	mio_conv_uchars_to_bchars_with_cmgr (ptr, &len, &mio->errmsg.buf[mio->errmsg.len], &max, mio_getcmgr(mio));
 	mio->errmsg.len += max;
 #endif
 	mio->errmsg.buf[mio->errmsg.len] = '\0';

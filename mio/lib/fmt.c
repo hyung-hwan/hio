@@ -1478,7 +1478,7 @@ static int log_ucs (mio_fmtout_t* fmtout, const mio_uch_t* ptr, mio_oow_t len)
 	{
 		len = rem;
 		bcslen = MIO_COUNTOF(bcs);
-		mio_conv_uchars_to_bchars_with_cmgr(ptr, &len, bcs, &bcslen, mio->cmgr);
+		mio_conv_uchars_to_bchars_with_cmgr(ptr, &len, bcs, &bcslen, mio_getcmgr(mio));
 		log_bcs(fmtout, bcs, bcslen);
 		rem -= len;
 		ptr += len;
@@ -1502,7 +1502,7 @@ static int log_bcs (mio_fmtout_t* fmtout, const mio_bch_t* ptr, mio_oow_t len)
 	{
 		len = rem;
 		ucslen = MIO_COUNTOF(ucs);
-		mio_conv_bchars_to_uchars_with_cmgr(ptr, &len, ucs, &ucslen, mio->cmgr, 1);
+		mio_conv_bchars_to_uchars_with_cmgr(ptr, &len, ucs, &ucslen, mio_getcmgr(mio), 1);
 		log_ucs(fmtout, ucs, ucslen);
 		rem -= len;
 		ptr += len;
