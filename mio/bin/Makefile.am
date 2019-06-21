@@ -1,0 +1,30 @@
+AUTOMAKE_OPTIONS = nostdinc
+
+CPPFLAGS_ALL_COMMON = \
+	-I$(abs_builddir) \
+	-I$(abs_builddir)/../lib  \
+	-I$(abs_srcdir) \
+	-I$(abs_srcdir)/../lib \
+	-I$(includedir)	
+
+LDFLAGS_ALL_COMMON = -L$(abs_builddir) -L$(abs_builddir)/../lib -L$(libdir)
+
+##################################################
+# MAIN LIBRARY 
+##################################################
+
+CPPFLAGS_LIB_COMMON = $(CPPFLAGS_ALL_COMMON)
+LDFLAGS_LIB_COMMON = $(LDFLAGS_ALL_COMMON) -version-info 1:0:0 -no-undefined
+LIBADD_LIB_COMMON = $(LIBM)
+
+bin_PROGRAMS = mio-execd
+mio_execd_SOURCES = execd.c
+mio_execd_CPPFLAGS = $(CPPFLAGS_LIB_COMMON)
+mio_execd_LDFLAGS = $(LDFLAGS_LIB_COMMON)
+mio_execd_LDADD = $(LIBADD_LIB_COMMON) -lmio $(SSL_LIBS) $(SOCKET_LIBS) $(SENDFILE_LIBS)
+
+bin_PROGRAMS += mio-t01
+mio_t01_SOURCES = t01.c
+mio_t01_CPPFLAGS = $(CPPFLAGS_LIB_COMMON)
+mio_t01_LDFLAGS = $(LDFLAGS_LIB_COMMON)
+mio_t01_LDADD = $(LIBADD_LIB_COMMON) -lmio $(SSL_LIBS) $(SOCKET_LIBS) $(SENDFILE_LIBS)
