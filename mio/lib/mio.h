@@ -639,20 +639,16 @@ MIO_EXPORT int mio_setoption (
 );
 
 #if defined(MIO_HAVE_INLINE)
-	static MIO_INLINE mio_mmgr_t* mio_getmmgr (mio_t* mio) { return mio->_mmgr; }
-	static MIO_INLINE void* mio_getxtn (mio_t* mio) { return (void*)((mio_uint8_t*)mio + mio->_instsize); }
-
-	static MIO_INLINE mio_cmgr_t* mio_getcmgr (mio_t* mio) { return mio->_cmgr; }
-	static MIO_INLINE void mio_setcmgr (mio_t* mio, mio_cmgr_t* cmgr) { mio->_cmgr = cmgr; }
-
-	static MIO_INLINE mio_errnum_t mio_geterrnum (mio_t* mio) { return mio->errnum; }
+static MIO_INLINE void* mio_getxtn (mio_t* mio) { return (void*)((mio_uint8_t*)mio + mio->_instsize); }
+static MIO_INLINE mio_mmgr_t* mio_getmmgr (mio_t* mio) { return mio->_mmgr; }
+static MIO_INLINE mio_cmgr_t* mio_getcmgr (mio_t* mio) { return mio->_cmgr; }
+static MIO_INLINE void mio_setcmgr (mio_t* mio, mio_cmgr_t* cmgr) { mio->_cmgr = cmgr; }
+static MIO_INLINE mio_errnum_t mio_geterrnum (mio_t* mio) { return mio->errnum; }
 #else
-#	define mio_getmmgr(mio) (((mio_t*)(mio))->_mmgr)
 #	define mio_getxtn(mio) ((void*)((mio_uint8_t*)mio + ((mio_t*)mio)->_instsize))
-
+#	define mio_getmmgr(mio) (((mio_t*)(mio))->_mmgr)
 #	define mio_getcmgr(mio) (((mio_t*)(mio))->_cmgr)
 #	define mio_setcmgr(mio,cmgr) (((mio_t*)(mio))->_cmgr = (cmgr))
-
 #	define mio_geterrnum(mio) (((mio_t*)(mio))->errnum)
 #endif
 
