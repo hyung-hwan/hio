@@ -701,6 +701,12 @@ struct mio_cmgr_t
 #	undef MIO_HAVE_INLINE
 #endif
 
+#if defined(__GNUC__) && (__GNUC__ > 2 || (__GNUC__ == 2 && __GNUC_MINOR__ > 4))
+#	define MIO_UNUSED __attribute__((__unused__))
+#else
+#	define MIO_UNUSED
+#endif
+
 /**
  * The MIO_TYPE_IS_SIGNED() macro determines if a type is signed.
  * \code
@@ -899,5 +905,20 @@ struct mio_cmgr_t
 #	define MIO_UNLIKELY(x) (x)
 #endif
 
+/* =========================================================================
+ * STATIC ASSERTION
+ * =========================================================================*/
+#define MIO_STATIC_JOIN_INNER(x, y) x ## y
+#define MIO_STATIC_JOIN(x, y) MIO_STATIC_JOIN_INNER(x, y)
+
+#if defined(__STDC_VERSION__) && (__STDC_VERSION__ >= 201112L)
+#	define MIO_STATIC_ASSERT(expr)  _Static_assert (expr, "invalid assertion")
+#elif defined(__cplusplus) && (__cplusplus >= 201103L)
+#	define MIO_STATIC_ASSERT(expr) static_assert (expr, "invalid assertion")
+#else
+#	define MIO_STATIC_ASSERT(expr) typedef char MIO_STATIC_JOIN(MIO_STATIC_ASSERT_T_, __LINE__)[(expr)? 1: -1] MIO_UNUSED
+#endif
+
+#define MIO_STATIC_ASSERT_EXPR(expr) ((void)MIO_SIZEOF(char[(expr)? 1: -1]))
 
 #endif
