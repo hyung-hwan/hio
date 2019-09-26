@@ -522,6 +522,7 @@ struct mio_ntime_t
 
 #define MIO_SIZEOF(x) (sizeof(x))
 #define MIO_COUNTOF(x) (sizeof(x) / sizeof(x[0]))
+#define MIO_BITSOF(x) (sizeof(x) * MIO_BITS_PER_BYTE)
 
 /**
  * The MIO_OFFSETOF() macro returns the offset of a field from the beginning
@@ -548,11 +549,11 @@ struct mio_ntime_t
 
 /* make a bit mask that can mask off low n bits */
 #define MIO_LBMASK(type,n) (~(~((type)0) << (n))) 
-#define MIO_LBMASK_SAFE(type,n) (((n) < MIO_SIZEOF(type) * MIO_BITS_PER_BYTE)? MIO_LBMASK(type,n): ~(type)0)
+#define MIO_LBMASK_SAFE(type,n) (((n) < MIO_BITSOF(type))? MIO_LBMASK(type,n): ~(type)0)
 
 /* make a bit mask that can mask off hig n bits */
 #define MIO_HBMASK(type,n) (~(~((type)0) >> (n)))
-#define MIO_HBMASK_SAFE(type,n) (((n) < MIO_SIZEOF(type) * MIO_BITS_PER_BYTE)? MIO_HBMASK(type,n): ~(type)0)
+#define MIO_HBMASK_SAFE(type,n) (((n) < MIO_BITSOF(type))? MIO_HBMASK(type,n): ~(type)0)
 
 /* get 'length' bits starting from the bit at the 'offset' */
 #define MIO_GETBITS(type,value,offset,length) \
@@ -579,7 +580,7 @@ struct mio_ntime_t
  * \endcode
  */
 /*#define MIO_BITS_MAX(type,nbits) ((((type)1) << (nbits)) - 1)*/
-#define MIO_BITS_MAX(type,nbits) ((~(type)0) >> (MIO_SIZEOF(type) * MIO_BITS_PER_BYTE - (nbits)))
+#define MIO_BITS_MAX(type,nbits) ((~(type)0) >> (MIO_BITSOF(type) - (nbits)))
 
 /* =========================================================================
  * MMGR
@@ -726,11 +727,11 @@ struct mio_cmgr_t
 #define MIO_TYPE_IS_UNSIGNED(type) (((type)0) < ((type)-1))
 
 #define MIO_TYPE_SIGNED_MAX(type) \
-	((type)~((type)1 << ((type)MIO_SIZEOF(type) * MIO_BITS_PER_BYTE - 1)))
+	((type)~((type)1 << ((type)MIO_BITSOF(type) - 1)))
 #define MIO_TYPE_UNSIGNED_MAX(type) ((type)(~(type)0))
 
 #define MIO_TYPE_SIGNED_MIN(type) \
-	((type)((type)1 << ((type)MIO_SIZEOF(type) * MIO_BITS_PER_BYTE - 1)))
+	((type)((type)1 << ((type)MIO_BITSOF(type) - 1)))
 #define MIO_TYPE_UNSIGNED_MIN(type) ((type)0)
 
 #define MIO_TYPE_MAX(type) \
