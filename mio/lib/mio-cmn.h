@@ -348,6 +348,7 @@
  * =========================================================================*/
 typedef char                    mio_bch_t;
 typedef int                     mio_bci_t;
+typedef unsigned int            mio_bcu_t;
 typedef unsigned char           mio_bchu_t; /* unsigned version of mio_bch_t for inner working */
 #define MIO_SIZEOF_BCH_T MIO_SIZEOF_CHAR
 #define MIO_SIZEOF_BCI_T MIO_SIZEOF_INT
@@ -372,6 +373,7 @@ typedef unsigned char           mio_bchu_t; /* unsigned version of mio_bch_t for
 #endif
 
 typedef mio_int32_t             mio_uci_t;
+typedef mio_uint32_t            mio_ucu_t;
 #define MIO_SIZEOF_UCI_T 4
 
 typedef mio_uint8_t             mio_oob_t;
@@ -409,6 +411,7 @@ typedef struct mio_bcs_t mio_bcs_t;
 	typedef mio_uch_t               mio_ooch_t;
 	typedef mio_uchu_t              mio_oochu_t;
 	typedef mio_uci_t               mio_ooci_t;
+	typedef mio_ucu_t               mio_oocu_t;
 	typedef mio_ucs_t               mio_oocs_t;
 #	define MIO_OOCH_IS_UCH
 #	define MIO_SIZEOF_OOCH_T MIO_SIZEOF_UCH_T
@@ -416,6 +419,7 @@ typedef struct mio_bcs_t mio_bcs_t;
 	typedef mio_bch_t               mio_ooch_t;
 	typedef mio_bchu_t              mio_oochu_t;
 	typedef mio_bci_t               mio_ooci_t;
+	typedef mio_bcu_t               mio_oocu_t;
 	typedef mio_bcs_t               mio_oocs_t;
 #	define MIO_OOCH_IS_BCH
 #	define MIO_SIZEOF_OOCH_T MIO_SIZEOF_BCH_T
