@@ -1183,8 +1183,8 @@ static int fmt_outv (mio_fmtout_t* fmtout, va_list ap)
 			nbufp = sprintn(nbuf, num, base, &tmp);
 			if ((flagc & FLAGC_SHARP) && num != 0) 
 			{
-				if (base == 2 || base == 8) tmp += 2;
-				else if (base == 16) tmp += 3;
+				if (base == 2 || base == 16) tmp += 2;
+				else if (base == 8) tmp += 1;
 			}
 			if (neg) tmp++;
 			else if (flagc & FLAGC_SIGN) tmp++;
@@ -1211,19 +1211,17 @@ static int fmt_outv (mio_fmtout_t* fmtout, va_list ap)
 			{
 				if (base == 2) 
 				{
-					PUT_OOCH (fmtout, '2', 1);
-					PUT_OOCH (fmtout, 'r', 1);
+					PUT_OOCH (fmtout, '0', 1);
+					PUT_OOCH (fmtout, 'b', 1);
 				}
 				if (base == 8) 
 				{
-					PUT_OOCH (fmtout, '8', 1);
-					PUT_OOCH (fmtout, 'r', 1);
+					PUT_OOCH (fmtout, '0', 1);
 				} 
 				else if (base == 16) 
 				{
-					PUT_OOCH (fmtout, '1', 1);
-					PUT_OOCH (fmtout, '6', 1);
-					PUT_OOCH (fmtout, 'r', 1);
+					PUT_OOCH (fmtout, '0', 1);
+					PUT_OOCH (fmtout, 'x', 1);
 				}
 			}
 
