@@ -27,6 +27,7 @@
 #include "mio-prv.h"
 
 #include <errno.h>
+#include <string.h>
 
 static mio_errnum_t errno_to_errnum (int errcode)
 {
@@ -239,6 +240,7 @@ mio_errnum_t mio_sys_syserrstrb (mio_t* mio, int syserr_type, int syserr_code, m
 		#endif
 			return errno_to_errnum(syserr_code);
 	}
+
 
 	if (buf) mio_copy_bcstr (buf, len, "system error");
 	return MIO_ESYSERR;

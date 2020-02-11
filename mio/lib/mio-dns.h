@@ -120,6 +120,7 @@ struct mio_dns_msg_t
 	mio_oow_t      pktlen;
 	mio_tmridx_t   rtmridx;
 	mio_dev_t*     dev;
+	void*          ctx;
 	mio_dns_msg_t* prev;
 	mio_dns_msg_t* next;
 };
@@ -205,8 +206,7 @@ typedef struct mio_dns_eopt_t mio_dns_eopt_t;
 
 #include <mio-upac.h>
 
-typedef struct mio_dnss_t mio_dnss_t;
-typedef struct mio_dnsc_t mio_dnsc_t;
+/* ---------------------------------------------------------------- */
 
 /*
 #define MIO_DNS_HDR_MAKE_FLAGS(qr,opcode,aa,tc,rd,ra,ad,cd,rcode) \
@@ -324,34 +324,56 @@ struct mio_dns_bedns_t
 };
 typedef struct mio_dns_bedns_t mio_dns_bedns_t;
 
+/* ---------------------------------------------------------------- */
+
+typedef struct mio_svc_dns_t mio_svc_dns_t;
+typedef struct mio_svc_dnc_t mio_svc_dnc_t;
+
+typedef void (*mio_svc_dnc_on_reply_t) (
+	mio_svc_dnc_t* dnc,
+	mio_dns_msg_t* reqmsg,
+	mio_errnum_t   status,
+	const void*    data,
+	mio_oow_t      len
+);
+
 #if defined(__cplusplus)
 extern "C" {
 #endif
 
-MIO_EXPORT mio_dnsc_t* mio_dnsc_start (
+MIO_EXPORT mio_svc_dnc_t* mio_svc_dnc_start (
 	mio_t* mio
 );
 
-MIO_EXPORT void mio_dnsc_stop (
-	mio_dnsc_t* dnsc
+MIO_EXPORT void mio_svc_dnc_stop (
+	mio_svc_dnc_t* dnc
 );
 
-MIO_EXPORT int mio_dnsc_sendreq (
-	mio_dnsc_t*      dnsc,
-	mio_dns_bdns_t*  bdns,
-	mio_dns_bqr_t*   qr,
-	mio_oow_t        qr_count,
-	mio_dns_bedns_t* edns
+MIO_EXPORT int mio_svc_dnc_sendreq (
+	mio_svc_dnc_t*         dnc,
+	mio_dns_bdns_t*        bdns,
+	mio_dns_bqr_t*         qr,
+	mio_oow_t              qr_count,
+	mio_dns_bedns_t*       edns,
+	mio_svc_dnc_on_reply_t on_reply
 );
 
-MIO_EXPORT int mio_dnsc_sendmsg (
-	mio_dnsc_t*      dnsc,
-	mio_dns_bdns_t*  bdns,
-	mio_dns_bqr_t*   qr,
-	mio_oow_t        qr_count,
-	mio_dns_brr_t*   rr,
-	mio_oow_t        rr_count,
-	mio_dns_bedns_t* edns
+MIO_EXPORT int mio_svc_dnc_sendmsg (
+	mio_svc_dnc_t*         dnc,
+	mio_dns_bdns_t*        bdns,
+	mio_dns_bqr_t*         qr,
+	mio_oow_t              qr_count,
+	mio_dns_brr_t*         rr,
+	mio_oow_t              rr_count,
+	mio_dns_bedns_t*       edns,
+	mio_svc_dnc_on_reply_t on_reply
+);
+
+MIO_EXPORT int mio_svc_dnc_resolve (
+	mio_svc_dnc_t*         dnc,
+	const mio_bch_t*       qname,
+	mio_dns_qtype_t        qtype,
+	mio_svc_dnc_on_reply_t on_reply
 );
 
 #if defined(__cplusplus)

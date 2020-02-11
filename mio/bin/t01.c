@@ -374,6 +374,7 @@ static int setup_arp_tester (mio_t* mio)
 	mio_dev_sck_make_t sck_make;
 	mio_dev_sck_t* sck;
 
+
 	memset (&sck_make, 0, MIO_SIZEOF(sck_make));
 	sck_make.type = MIO_DEV_SCK_ARP;
 	//sck_make.type = MIO_DEV_SCK_ARP_DGRAM;
@@ -387,6 +388,7 @@ static int setup_arp_tester (mio_t* mio)
 		MIO_INFO1 (mio, "Cannot make arp socket device - %js\n", mio_geterrmsg(mio));
 		return -1;
 	}
+
 
 	//mio_sckaddr_initforeth (&ethdst, if_nametoindex("enp0s25.3"), (mio_ethaddr_t*)"\xFF\xFF\xFF\xFF\xFF\xFF");
 	//mio_sckaddr_initforeth (&ethdst, if_nametoindex("enp0s25.3"), (mio_ethaddr_t*)"\xAA\xBB\xFF\xCC\xDD\xFF");
@@ -600,6 +602,19 @@ static int setup_ping4_tester (mio_t* mio)
 	return 0;
 }
 
+/* ========================================================================= */
+
+static void on_dnc_resolve(mio_svc_dnc_t* dnc, mio_dns_msg_t* reqmsg, mio_errnum_t status, const void* data, mio_oow_t dlen)
+{
+	if (status == MIO_ENOERR)
+	{
+		printf ("XXXXXXXXXXXXXXXXx RECEIVED XXXXXXXXXXXXXXXXXXXXXXXXX\n");
+	}
+	else
+	{
+		printf ("XXXXXXXXXXXXXXXXx NO REPLY XXXXXXXXXXXXXXXXXXXXXXXXX\n");
+	}
+}
 
 /* ========================================================================= */
 
@@ -733,6 +748,7 @@ int main (int argc, char* argv[])
 		goto oops;
 	}
 
+
 	/* -------------------------------------------------------------- */
 	memset (&tcp_make, 0, MIO_SIZEOF(tcp_make));
 	tcp_make.type = MIO_DEV_SCK_TCP4;
@@ -749,6 +765,7 @@ int main (int argc, char* argv[])
 	}
 	ts = (tcp_server_t*)(tcp[2] + 1);
 	ts->tally = 0;
+
 
 	memset (&tcp_bind, 0, MIO_SIZEOF(tcp_bind));
 	mio_sckaddr_initforip4 (&tcp_bind.localaddr, 1235, MIO_NULL);
@@ -772,6 +789,7 @@ int main (int argc, char* argv[])
 		MIO_INFO1 (mio, "tcp[2] mio_dev_sck_listen() failed - %js\n", mio_geterrmsg(mio));
 		goto oops;
 	}
+
 
 	//mio_dev_sck_sendfile (tcp[2], fd, offset, count);
 
@@ -811,8 +829,8 @@ for (i = 0; i < 5; i++)
 #endif
 
 {
-	mio_dnsc_t* dnsc;
-	dnsc = mio_dnsc_start (mio/*, "8.8.8.8:53,1.1.1.1:53"*/); /* option - send to all, send one by one */
+	mio_svc_dnc_t* dnc;
+	dnc = mio_svc_dnc_start (mio/*, "8.8.8.8:53,1.1.1.1:53"*/); /* option - send to all, send one by one */
 	{
 		mio_dns_bqr_t qrs[] = 
 		{
@@ -876,14 +894,19 @@ for (i = 0; i < 5; i++)
 			MIO_DNS_RCODE_BADCOOKIE /* rcode */
 		}; 
 
-		mio_dnsc_sendreq (dnsc, &qhdr, qrs, MIO_COUNTOF(qrs), &qedns);
-		mio_dnsc_sendmsg (dnsc, &rhdr, qrs, MIO_COUNTOF(qrs), rrs, MIO_COUNTOF(rrs), &qedns);
+		//mio_svc_dnc_sendreq (dnc, &qhdr, qrs, MIO_COUNTOF(qrs), &qedns, MIO_NULL);
+		mio_svc_dnc_sendmsg (dnc, &rhdr, qrs, MIO_COUNTOF(qrs), rrs, MIO_COUNTOF(rrs), &qedns, MIO_NULL);
 	}
+
+if (mio_svc_dnc_resolve(dnc, "code.miflux.com", MIO_DNS_QTYPE_A, on_dnc_resolve) <= -1)
+{
+	printf ("resolve attempt failure ---> code.miflux.com\n");
+}
 
 	mio_loop (mio);
 
-	/* TODO: let mio close it ... dnsc is svc. sck is dev. */
-	mio_dnsc_stop (dnsc);
+	/* TODO: let mio close it ... dnc is svc. sck is dev. */
+	mio_svc_dnc_stop (dnc);
 }
 
 	g_mio = MIO_NULL;
@@ -911,7 +934,7 @@ int main (int argc, char* argv[])
 	mio_dev_sck_make_t tcp_make;
 	mio_dev_sck_connect_t tcp_conn;
 	tcp_server_t* ts;
-	mio_dnsc_t dnsc = MIO_NULL;
+	mio_svc_dnc_t dnc = MIO_NULL;
 
 	mio = mio_open(&mmgr, 0, MIO_NULL, 512, MIO_NULL);
 	if (!mio)
