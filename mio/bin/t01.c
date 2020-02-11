@@ -894,7 +894,7 @@ for (i = 0; i < 5; i++)
 			MIO_DNS_RCODE_BADCOOKIE /* rcode */
 		}; 
 
-		//mio_svc_dnc_sendreq (dnc, &qhdr, qrs, MIO_COUNTOF(qrs), &qedns, MIO_NULL);
+		mio_svc_dnc_sendreq (dnc, &qhdr, qrs, MIO_COUNTOF(qrs), &qedns, MIO_NULL);
 		mio_svc_dnc_sendmsg (dnc, &rhdr, qrs, MIO_COUNTOF(qrs), rrs, MIO_COUNTOF(rrs), &qedns, MIO_NULL);
 	}
 

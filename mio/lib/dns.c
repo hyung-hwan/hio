@@ -387,113 +387,6 @@ static mio_dns_msg_t* build_dns_msg (mio_svc_dnc_t* dnc, mio_dns_bdns_t* bdns, m
 	return msg;
 }
 
-static int parse_dns_pkt (mio_svc_dnc_t* dnc, mio_dns_pkt_t* pkt, mio_oow_t len)
-{
-
-	mio_t* mio = dnc->mio;
-	mio_dns_bdns_t* bdns;
-	mio_uint16_t i, rrc;
-	mio_uint8_t* dn;
-	mio_uint8_t* pktend = (mio_uint8_t*)pkt + len;
-
-	MIO_ASSERT (mio, len >= MIO_SIZEOF(*pkt));
-return 0;
-/* TODO: */
-	bdns->id = mio_ntoh16(pkt->id);
-
-	bdns->qr = pkt->qr & 0x01;
-	bdns->opcode = pkt->opcode & 0x0F;
-	bdns->aa = pkt->aa & 0x01;
-	bdns->tc = pkt->tc & 0x01; 
-	bdns->rd = pkt->rd & 0x01; 
-	bdns->ra = pkt->ra & 0x01;
-	bdns->ad = pkt->ad & 0x01;
-	bdns->cd = pkt->cd & 0x01;
-	bdns->rcode = pkt->rcode & 0x0F;
-
-	/*
-	bdns->qdcount = mio_ntoh16(pkt->qdcount);
-	bdns->ancount = mio_ntoh16(pkt->ancount);
-	bdns->nscount = mio_ntoh16(pkt->nscount);
-	bdns->arcount = mio_ntoh16(pkt->arcount);
-	*/
-	dn = (mio_uint8_t*)(pkt + 1);
-
-	rrc = mio_ntoh16(pkt->qdcount);
-	for (i = 0; i < rrc; i++)
-	{
-		mio_oow_t totlen, seglen;
-		mio_dns_qrtr_t* qrtr;
-
-		if (dn >= pktend)
-		{
-			mio_seterrbfmt (mio, MIO_EINVAL, "invalid packet");
-			return -1;
-		}
-
-		totlen = 0;
-		while ((seglen = *dn++) > 0)
-		{
-			if (seglen > 64)
-			{
-				/* compressed. pointer to somewhere else */
-/* TODO: */
-			}
-
-			totlen += seglen;
-			dn += seglen;
-		}
-
-		qrtr = (mio_dns_qrtr_t*)dn;
-		dn += MIO_SIZEOF(*qrtr);
-	}
-
-	rrc = mio_ntoh16(pkt->ancount);
-	for (i = 0; i < rrc; i++)
-	{
-		mio_oow_t totlen, seglen;
-		mio_dns_rrtr_t* rrtr;
-
-		if (dn >= pktend)
-		{
-			mio_seterrbfmt (mio, MIO_EINVAL, "invalid packet");
-			return -1;
-		}
-
-		totlen = 0;
-		while ((seglen = *dn++) > 0)
-		{
-			totlen += seglen;
-			dn += seglen;
-		}
-
-		rrtr = (mio_dns_rrtr_t*)dn;
-		dn += MIO_SIZEOF(*rrtr) + rrtr->dlen;
-	}
-
-#if 0
-	for (i = 0; i < bdns->nscount; i++)
-	{
-	}
-
-	for (i = 0; i < bdns->arcount; i++)
-	{
-	#if 0
-		if (*dn == 0)
-		{
-			rrtr = (mio_dns_rrtr_t*)(dn + 1);
-			if (rrtr->qtype == MIO_CONST_HTON16(MIO_DNS_QTYPE_OPT)
-			{
-				/* edns */
-			}
-		}
-	#endif
-	}
-#endif
-
-	return 0;
-}
-
 /* ----------------------------------------------------------------------- */
 
 static int dnc_on_read (mio_dev_sck_t* dev, const void* data, mio_iolen_t dlen, const mio_sckaddr_t* srcaddr)
@@ -528,8 +421,6 @@ static int dnc_on_read (mio_dev_sck_t* dev, const void* data, mio_iolen_t dlen, 
 		if (dev == (mio_dev_sck_t*)reqmsg->dev && pkt->id == reqpkt->id) /* TODO: check the source address against the target address */
 		{
 MIO_DEBUG1 (mio, "received dns response...id %d\n", id);
-			/* TODO: parse the response... perform actual work. pass the result back?? */
-			/*parse_dns_pkt (dnc, pkt, dlen);*/
 
 			if (MIO_LIKELY(reqmsg->ctx))
 				((mio_svc_dnc_on_reply_t)reqmsg->ctx) (dnc, reqmsg, MIO_ENOERR, data, dlen);
@@ -709,10 +600,6 @@ int mio_svc_dnc_sendreq (mio_svc_dnc_t* dnc, mio_dns_bdns_t* bdns, mio_dns_bqr_t
 	return 0;
 }
 
-static void on_dnc_resolve_reply (mio_svc_dnc_t* dnc, mio_dns_msg_t* reqmsg, mio_errnum_t status, const void* data, mio_oow_t dlen)
-{
-}
-
 int mio_svc_dnc_resolve (mio_svc_dnc_t* dnc, const mio_bch_t* qname, mio_dns_qtype_t qtype, mio_svc_dnc_on_reply_t on_reply)
 {
 	static mio_dns_bdns_t qhdr =
@@ -749,3 +636,136 @@ int mio_svc_dnc_resolve (mio_svc_dnc_t* dnc, const mio_bch_t* qname, mio_dns_qty
 	return mio_svc_dnc_sendreq(dnc, &qhdr, &qr, 1, &qedns, on_reply);
 }
 
+
+/* ----------------------------------------------------------------------- */
+
+static mio_uint8_t* parse_question (mio_t* mio, mio_uint8_t* dn, mio_uint8_t* pktend)
+{
+	mio_oow_t totlen, seglen;
+	mio_dns_qrtr_t* qrtr;
+
+	if (dn >= pktend)
+	{
+		mio_seterrbfmt (mio, MIO_EINVAL, "invalid packet");
+		return MIO_NULL;
+	}
+
+	totlen = 0;
+	while ((seglen = *dn++) > 0)
+	{
+		if (seglen > 64)
+		{
+			/* compressed. pointer to somewhere else */
+/* TODO: */
+		}
+
+		totlen += seglen;
+		dn += seglen;
+	}
+
+	qrtr = (mio_dns_qrtr_t*)dn;
+	dn += MIO_SIZEOF(*qrtr);
+
+	return dn;
+}
+
+static mio_uint8_t* parse_answer (mio_t* mio, mio_uint8_t* dn, mio_uint8_t* pktend)
+{
+	mio_oow_t totlen, seglen;
+	mio_dns_rrtr_t* rrtr;
+
+	if (dn >= pktend)
+	{
+		mio_seterrbfmt (mio, MIO_EINVAL, "invalid packet");
+		return MIO_NULL;
+	}
+
+	totlen = 0;
+	while ((seglen = *dn++) > 0)
+	{
+		totlen += seglen;
+		dn += seglen;
+	}
+
+	rrtr = (mio_dns_rrtr_t*)dn;
+	dn += MIO_SIZEOF(*rrtr) + rrtr->dlen;
+
+	return dn;
+}
+
+int mio_dns_parse_packet (mio_svc_dnc_t* dnc, mio_dns_pkt_t* pkt, mio_oow_t len, mio_dns_bdns_t* bdns)
+{
+	mio_t* mio = dnc->mio;
+	mio_uint16_t i, rrc;
+	mio_uint8_t* dn;
+	mio_uint8_t* pktend = (mio_uint8_t*)pkt + len;
+
+	MIO_ASSERT (mio, len >= MIO_SIZEOF(*pkt));
+
+	bdns->id = mio_ntoh16(pkt->id);
+
+	bdns->qr = pkt->qr & 0x01;
+	bdns->opcode = pkt->opcode & 0x0F;
+	bdns->aa = pkt->aa & 0x01;
+	bdns->tc = pkt->tc & 0x01; 
+	bdns->rd = pkt->rd & 0x01; 
+	bdns->ra = pkt->ra & 0x01;
+	bdns->ad = pkt->ad & 0x01;
+	bdns->cd = pkt->cd & 0x01;
+	bdns->rcode = pkt->rcode & 0x0F;
+
+	/*
+	bdns->qdcount = mio_ntoh16(pkt->qdcount);
+	bdns->ancount = mio_ntoh16(pkt->ancount);
+	bdns->nscount = mio_ntoh16(pkt->nscount);
+	bdns->arcount = mio_ntoh16(pkt->arcount);
+	*/
+
+	dn = (mio_uint8_t*)(pkt + 1);
+
+	rrc = mio_ntoh16(pkt->qdcount);
+	for (i = 0; i < rrc; i++)
+	{
+		dn = parse_question(mio, dn, pktend);
+		if (!dn) return -1;
+	}
+
+	rrc = mio_ntoh16(pkt->ancount);
+	for (i = 0; i < rrc; i++)
+	{
+		dn = parse_answer(mio, dn, pktend);
+		if (!dn) return -1;
+	}
+
+	rrc = mio_ntoh16(pkt->nscount);
+	for (i = 0; i < rrc; i++)
+	{
+		dn = parse_answer(mio, dn, pktend);
+		if (!dn) return -1;
+	}
+
+	rrc = mio_ntoh16(pkt->arcount);
+	for (i = 0; i < rrc; i++)
+	{
+		dn = parse_answer(mio, dn, pktend);
+		if (!dn) return -1;
+	}
+
+#if 0
+	for (i = 0; i < bdns->arcount; i++)
+	{
+	#if 0
+		if (*dn == 0)
+		{
+			rrtr = (mio_dns_rrtr_t*)(dn + 1);
+			if (rrtr->qtype == MIO_CONST_HTON16(MIO_DNS_QTYPE_OPT)
+			{
+				/* edns */
+			}
+		}
+	#endif
+	}
+#endif
+
+	return 0;
+}
