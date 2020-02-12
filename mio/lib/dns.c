@@ -639,65 +639,109 @@ int mio_svc_dnc_resolve (mio_svc_dnc_t* dnc, const mio_bch_t* qname, mio_dns_qty
 
 /* ----------------------------------------------------------------------- */
 
-static mio_uint8_t* parse_question (mio_t* mio, mio_uint8_t* dn, mio_uint8_t* pktend)
+static mio_uint8_t* parse_domain_name (mio_t* mio, mio_uint8_t* ptr, mio_uint8_t* pktstart, mio_uint8_t* pktend)
 {
 	mio_oow_t totlen, seglen;
-	mio_dns_qrtr_t* qrtr;
+	mio_uint8_t* xptr;
 
-	if (dn >= pktend)
-	{
-		mio_seterrbfmt (mio, MIO_EINVAL, "invalid packet");
-		return MIO_NULL;
-	}
+	if (ptr >= pktend) goto oops;
 
+	xptr = MIO_NULL;
 	totlen = 0;
-	while ((seglen = *dn++) > 0)
-	{
-		if (seglen > 64)
-		{
-			/* compressed. pointer to somewhere else */
-/* TODO: */
-		}
 
-		totlen += seglen;
-		dn += seglen;
+printf ("\t");
+	while ((seglen = *ptr++) > 0)
+	{
+		if (MIO_LIKELY(seglen < 64))
+		{
+			/* normal. 00XXXXXXXX */
+		normal:
+printf ("[%.*s]", (int)seglen, ptr);
+			totlen += seglen;
+			ptr += seglen;
+			if (MIO_UNLIKELY(ptr >= pktend)) goto oops;
+		}
+		else if (seglen >= 192)
+		{
+			/* compressed. 11XXXXXXXX XXXXXXXX */
+			mio_oow_t offset;
+
+			if (MIO_UNLIKELY(ptr >= pktend)) goto oops; /* check before ptr++ in the next line */
+			offset = ((seglen & 0x3F) << 8) | *ptr++;
+
+			if (MIO_UNLIKELY(&pktstart[offset] >= pktend)) goto oops;
+			seglen = pktstart[offset];
+			if (seglen >= 64) goto oops; /* the pointed position must not contain another pointer */
+
+			if (!xptr) xptr = ptr; /* some later parts can also be a poitner again. so xptr, once set, must not be set again */
+			ptr = &pktstart[offset + 1];
+			if (MIO_UNLIKELY(ptr >= pktend)) goto oops;
+
+			goto normal;
+		}
+		else if (seglen >= 128)
+		{
+			/* 128 to 191. 10XXXXXXXX */
+			goto oops;
+		}
+		else
+		{
+			/* 64 to 127. 01XXXXXXXX */
+			goto oops;
+		}
 	}
 
-	qrtr = (mio_dns_qrtr_t*)dn;
-	dn += MIO_SIZEOF(*qrtr);
+printf ("\n");
+	return xptr? xptr: ptr;
 
-	return dn;
+oops:
+	mio_seterrbfmt (mio, MIO_EINVAL, "invalid packet");
+	return MIO_NULL;
 }
 
-static mio_uint8_t* parse_answer (mio_t* mio, mio_uint8_t* dn, mio_uint8_t* pktend)
+static mio_uint8_t* parse_question (mio_t* mio, mio_uint8_t* ptr, mio_uint8_t* pktstart, mio_uint8_t* pktend)
 {
-	mio_oow_t totlen, seglen;
+	mio_dns_qrtr_t* qrtr;
+
+	ptr = parse_domain_name(mio, ptr, pktstart, pktend);
+	if (!ptr) return MIO_NULL;
+
+	qrtr = (mio_dns_qrtr_t*)ptr;
+	ptr += MIO_SIZEOF(*qrtr);
+	if (MIO_UNLIKELY(ptr >= pktend)) goto oops;
+
+	return ptr;
+
+oops:
+	mio_seterrbfmt (mio, MIO_EINVAL, "invalid packet");
+	return MIO_NULL;
+}
+
+static mio_uint8_t* parse_answer (mio_t* mio, mio_uint8_t* ptr, mio_uint8_t* pktstart, mio_uint8_t* pktend)
+{
 	mio_dns_rrtr_t* rrtr;
 
-	if (dn >= pktend)
-	{
-		mio_seterrbfmt (mio, MIO_EINVAL, "invalid packet");
-		return MIO_NULL;
-	}
+//printf ("pktstart = %p pktend = %p, ptr = %p\n", pktstart, pktend, ptr);
+	ptr = parse_domain_name(mio, ptr, pktstart, pktend);
+	if (!ptr) return MIO_NULL;
 
-	totlen = 0;
-	while ((seglen = *dn++) > 0)
-	{
-		totlen += seglen;
-		dn += seglen;
-	}
+	rrtr = (mio_dns_rrtr_t*)ptr;
+	ptr += MIO_SIZEOF(*rrtr) + mio_ntoh16(rrtr->dlen);
+	if (MIO_UNLIKELY(ptr >= pktend)) goto oops;
+//printf ("rrtr->dlen => %d\n", mio_ntoh16(rrtr->dlen));
 
-	rrtr = (mio_dns_rrtr_t*)dn;
-	dn += MIO_SIZEOF(*rrtr) + rrtr->dlen;
+	return ptr;
 
-	return dn;
+oops:
+	mio_seterrbfmt (mio, MIO_EINVAL, "invalid packet");
+	return MIO_NULL;
 }
 
 int mio_dns_parse_packet (mio_svc_dnc_t* dnc, mio_dns_pkt_t* pkt, mio_oow_t len, mio_dns_bdns_t* bdns)
 {
 	mio_t* mio = dnc->mio;
 	mio_uint16_t i, rrc;
-	mio_uint8_t* dn;
+	mio_uint8_t* ptr;
 	mio_uint8_t* pktend = (mio_uint8_t*)pkt + len;
 
 	MIO_ASSERT (mio, len >= MIO_SIZEOF(*pkt));
@@ -714,50 +758,48 @@ int mio_dns_parse_packet (mio_svc_dnc_t* dnc, mio_dns_pkt_t* pkt, mio_oow_t len,
 	bdns->cd = pkt->cd & 0x01;
 	bdns->rcode = pkt->rcode & 0x0F;
 
-	/*
-	bdns->qdcount = mio_ntoh16(pkt->qdcount);
-	bdns->ancount = mio_ntoh16(pkt->ancount);
-	bdns->nscount = mio_ntoh16(pkt->nscount);
-	bdns->arcount = mio_ntoh16(pkt->arcount);
-	*/
-
-	dn = (mio_uint8_t*)(pkt + 1);
+	ptr = (mio_uint8_t*)(pkt + 1);
 
 	rrc = mio_ntoh16(pkt->qdcount);
+printf ("question %d\n", rrc);
 	for (i = 0; i < rrc; i++)
 	{
-		dn = parse_question(mio, dn, pktend);
-		if (!dn) return -1;
+		ptr = parse_question(mio, ptr, (mio_uint8_t*)pkt, pktend);
+		if (!ptr) return -1;
 	}
 
 	rrc = mio_ntoh16(pkt->ancount);
+printf ("answer %d\n", rrc);
 	for (i = 0; i < rrc; i++)
 	{
-		dn = parse_answer(mio, dn, pktend);
-		if (!dn) return -1;
+		ptr = parse_answer(mio, ptr, (mio_uint8_t*)pkt, pktend);
+		if (!ptr) return -1;
 	}
 
 	rrc = mio_ntoh16(pkt->nscount);
+printf ("authority %d\n", rrc);
 	for (i = 0; i < rrc; i++)
 	{
-		dn = parse_answer(mio, dn, pktend);
-		if (!dn) return -1;
+		ptr = parse_answer(mio, ptr, (mio_uint8_t*)pkt, pktend);
+		if (!ptr) return -1;
 	}
 
 	rrc = mio_ntoh16(pkt->arcount);
+printf ("additional %d\n", rrc);
 	for (i = 0; i < rrc; i++)
 	{
-		dn = parse_answer(mio, dn, pktend);
-		if (!dn) return -1;
+		ptr = parse_answer(mio, ptr, (mio_uint8_t*)pkt, pktend);
+		if (!ptr) return -1;
 	}
 
+printf ("packet ok...\n");
 #if 0
 	for (i = 0; i < bdns->arcount; i++)
 	{
 	#if 0
-		if (*dn == 0)
+		if (*ptr == 0)
 		{
-			rrtr = (mio_dns_rrtr_t*)(dn + 1);
+			rrtr = (mio_ptrs_rrtr_t*)(ptr + 1);
 			if (rrtr->qtype == MIO_CONST_HTON16(MIO_DNS_QTYPE_OPT)
 			{
 				/* edns */

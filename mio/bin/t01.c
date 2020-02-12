@@ -609,6 +609,11 @@ static void on_dnc_resolve(mio_svc_dnc_t* dnc, mio_dns_msg_t* reqmsg, mio_errnum
 	if (status == MIO_ENOERR)
 	{
 		printf ("XXXXXXXXXXXXXXXXx RECEIVED XXXXXXXXXXXXXXXXXXXXXXXXX\n");
+
+		//mio_dns_parse_packet (dnc, mio_dns_msg_to_pkt(reqmsg), 
+		mio_dns_bdns_t bdns;
+		mio_dns_parse_packet (dnc, data, dlen, &bdns);
+
 	}
 	else
 	{
@@ -898,7 +903,7 @@ for (i = 0; i < 5; i++)
 		mio_svc_dnc_sendmsg (dnc, &rhdr, qrs, MIO_COUNTOF(qrs), rrs, MIO_COUNTOF(rrs), &qedns, MIO_NULL);
 	}
 
-if (mio_svc_dnc_resolve(dnc, "code.miflux.com", MIO_DNS_QTYPE_A, on_dnc_resolve) <= -1)
+if (mio_svc_dnc_resolve(dnc, "www.microsoft.com", MIO_DNS_QTYPE_A, on_dnc_resolve) <= -1)
 {
 	printf ("resolve attempt failure ---> code.miflux.com\n");
 }
