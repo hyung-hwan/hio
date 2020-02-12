@@ -720,16 +720,75 @@ oops:
 static mio_uint8_t* parse_answer (mio_t* mio, mio_uint8_t* ptr, mio_uint8_t* pktstart, mio_uint8_t* pktend)
 {
 	mio_dns_rrtr_t* rrtr;
+	mio_uint16_t qtype, dlen;
+	mio_oow_t remsize;
 
 //printf ("pktstart = %p pktend = %p, ptr = %p\n", pktstart, pktend, ptr);
 	ptr = parse_domain_name(mio, ptr, pktstart, pktend);
 	if (!ptr) return MIO_NULL;
 
 	rrtr = (mio_dns_rrtr_t*)ptr;
-	ptr += MIO_SIZEOF(*rrtr) + mio_ntoh16(rrtr->dlen);
-	if (MIO_UNLIKELY(ptr >= pktend)) goto oops;
-//printf ("rrtr->dlen => %d\n", mio_ntoh16(rrtr->dlen));
+	if (MIO_UNLIKELY(pktend - ptr < MIO_SIZEOF(*rrtr))) goto oops;
+	ptr += MIO_SIZEOF(*rrtr);
+	dlen = mio_ntoh16(rrtr->dlen);
 
+	if (MIO_UNLIKELY(pktend - ptr < dlen)) goto oops;
+//printf ("rrtr->dlen => %d\n", dlen);
+
+	qtype = mio_ntoh16(rrtr->qtype);
+	remsize = pktend - ptr;
+
+	switch (qtype)
+	{
+		case MIO_DNS_QTYPE_OPT:
+		{
+			/* RFC 6891
+			The extended RCODE and flags, which OPT stores in the RR Time to Live
+			(TTL) field, are structured as follows:
+
+						  +0 (MSB)                            +1 (LSB)
+			   +---+---+---+---+---+---+---+---+---+---+---+---+---+---+---+---+
+			0: |         EXTENDED-RCODE        |            VERSION            |
+			   +---+---+---+---+---+---+---+---+---+---+---+---+---+---+---+---+
+			2: | DO|                           Z                               |
+			   +---+---+---+---+---+---+---+---+---+---+---+---+---+---+---+---+
+			   * 
+			EXTENDED-RCODE
+			 Forms the upper 8 bits of extended 12-bit RCODE (together with the
+			 4 bits defined in [RFC1035].  Note that EXTENDED-RCODE value 0
+			 indicates that an unextended RCODE is in use (values 0 through
+			 15).
+			*/
+
+printf ("OPT RR included....>>>>>>>>>>>>>>>>>>>>>>>>%d\n", (rrtr->ttl >> 24));
+			/*rcode |= (rrtr->ttl >> 24);*/
+			if (((rrtr->ttl >> 16) & 0xFF) != 0) goto oops; /* version not 0 */
+			/* dnsok -> ((rrtr->ttl & 0x8000) >> 15) */
+			/*if ((rrtr->ttl & 0x7FFF) != 0) goto oops;*/ /* Z not 0 - ignore this for now */
+			break;
+		}
+
+		case MIO_DNS_QTYPE_A:
+			if (MIO_UNLIKELY(remsize < 4)) goto oops;
+			break;
+
+		case MIO_DNS_QTYPE_AAAA:
+			if (MIO_UNLIKELY(remsize < 16)) goto oops;
+			break;
+			
+		case MIO_DNS_QTYPE_CNAME:
+		{
+			mio_uint8_t* xptr;
+printf ("\t");
+			xptr = parse_domain_name(mio, ptr, pktstart, pktend);
+			if (!xptr) return MIO_NULL;
+
+			MIO_ASSERT (mio, xptr == ptr + dlen);
+			break;
+		}
+	}
+
+	ptr += dlen;
 	return ptr;
 
 oops:
@@ -791,23 +850,6 @@ printf ("additional %d\n", rrc);
 		ptr = parse_answer(mio, ptr, (mio_uint8_t*)pkt, pktend);
 		if (!ptr) return -1;
 	}
-
-printf ("packet ok...\n");
-#if 0
-	for (i = 0; i < bdns->arcount; i++)
-	{
-	#if 0
-		if (*ptr == 0)
-		{
-			rrtr = (mio_ptrs_rrtr_t*)(ptr + 1);
-			if (rrtr->qtype == MIO_CONST_HTON16(MIO_DNS_QTYPE_OPT)
-			{
-				/* edns */
-			}
-		}
-	#endif
-	}
-#endif
 
 	return 0;
 }

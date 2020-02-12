@@ -265,29 +265,29 @@ typedef struct mio_dns_brr_t mio_dns_brr_t;
 
 #if 0
 /* A RDATA */
-struct mio_dns_brd_a_t 
+struct mio_dns_brrd_a_t 
 {
 };
-typedef struct mio_dns_brd_a_t mio_dns_brd_a_t;
+typedef struct mio_dns_brrd_a_t mio_dns_brrd_a_t;
 
 /* 3.3.1 CNAME RDATA format */
-struct mio_dns_brd_cname_t
+struct mio_dns_brrd_cname_t
 {
 };
-typedef struct mio_dns_brd_cname_t mio_dns_brc_cname_t;
+typedef struct mio_dns_brrd_cname_t mio_dns_brc_cname_t;
 
 
 /* 3.3.9 MX RDATA format */
-struct mio_dns_brd_mx_t
+struct mio_dns_brrd_mx_t
 {
 	mio_uint16_t preference;
 	mio_bch_t*   exchange;
 };
-typedef struct mio_dns_brd_mx_t mio_dns_brd_mx_t;
+typedef struct mio_dns_brrd_mx_t mio_dns_brrd_mx_t;
 
 
 
-struct mio_dns_brd_soa_t
+struct mio_dns_brrd_soa_t
 {
 	mio_bch_t*   mname;
 	mio_bch_t*   rname; 
@@ -297,7 +297,7 @@ struct mio_dns_brd_soa_t
 	mio_uint32_t expire;
 	mio_uint32_t minimum;
 };
-typedef struct mio_dns_brd_soa_t mio_dns_brd_soa_t;
+typedef struct mio_dns_brrd_soa_t mio_dns_brrd_soa_t;
 #endif
 
 struct mio_dns_beopt_t
@@ -376,6 +376,13 @@ MIO_EXPORT int mio_svc_dnc_resolve (
 	mio_svc_dnc_on_reply_t on_reply
 );
 
+
+MIO_EXPORT int mio_dns_parse_packet (
+	mio_svc_dnc_t*  dnc,
+	mio_dns_pkt_t*  pkt,
+	mio_oow_t       len,
+	mio_dns_bdns_t* bdns
+);
 #if defined(__cplusplus)
 }
 #endif
