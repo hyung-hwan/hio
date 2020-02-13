@@ -55,6 +55,10 @@ enum mio_dns_rcode_t
 	MIO_DNS_RCODE_NXRRSET   = 8,  /* RR set exists when it should not */
 	MIO_DNS_RCODE_NOTAUTH   = 9,  /* not authorized or server not authoritative for zone*/
 	MIO_DNS_RCODE_NOTZONE   = 10, /* name not contained in zone */
+
+	/* the standard rcode field is 4 bit long. so the max is 15. */
+	/* items belows require EDNS0 */
+
 	MIO_DNS_RCODE_BADVERS   = 16,
 	MIO_DNS_RCODE_BADSIG    = 17,
 	MIO_DNS_RCODE_BADTIME   = 18,
@@ -66,35 +70,64 @@ enum mio_dns_rcode_t
 };
 typedef enum mio_dns_rcode_t mio_dns_rcode_t;
 
-enum mio_dns_qtype_t
-{
-	MIO_DNS_QTYPE_A = 1,
-	MIO_DNS_QTYPE_NS = 2,
-	MIO_DNS_QTYPE_CNAME = 5,
-	MIO_DNS_QTYPE_SOA = 6,
-	MIO_DNS_QTYPE_NULL = 10,
-	MIO_DNS_QTYPE_PTR = 12,
-	MIO_DNS_QTYPE_MX = 15,
-	MIO_DNS_QTYPE_TXT = 16,
-	MIO_DNS_QTYPE_AAAA = 28,
-	MIO_DNS_QTYPE_EID = 31,
-	MIO_DNS_QTYPE_SRV = 33,
-	MIO_DNS_QTYPE_OPT = 41,
-	MIO_DNS_QTYPE_RRSIG = 46,
-	MIO_DNS_QTYPE_AFXR = 252, /* entire zone transfer */
-	MIO_DNS_QTYPE_ANY = 255
-};
-typedef enum mio_dns_qtype_t mio_dns_qtype_t;
 
-enum mio_dns_qclass_t
+enum mio_dns_rrt_t
 {
-	MIO_DNS_QCLASS_IN = 1, /* internet */
-	MIO_DNS_QCLASS_CH = 3, /* chaos */
-	MIO_DNS_QCLASS_HS = 4, /* hesiod */
-	MIO_DNS_QCLASS_NONE = 254,
-	MIO_DNS_QCLASS_ANY = 255
+/*
+ * [RFC1035]
+ *  TYPE fields are used in resource records.  Note that these types are a
+ *  subset of QTYPEs.
+ */
+	MIO_DNS_RRT_A = 1,
+	MIO_DNS_RRT_NS = 2,
+	MIO_DNS_RRT_CNAME = 5,
+	MIO_DNS_RRT_SOA = 6,
+	MIO_DNS_RRT_NULL = 10,
+	MIO_DNS_RRT_PTR = 12,
+	MIO_DNS_RRT_MX = 15,
+	MIO_DNS_RRT_TXT = 16,
+	MIO_DNS_RRT_AAAA = 28,
+	MIO_DNS_RRT_EID = 31,
+	MIO_DNS_RRT_SRV = 33,
+	MIO_DNS_RRT_OPT = 41,
+	MIO_DNS_RRT_RRSIG = 46,
+
+/*
+ * [RFC1035] 
+ *  QTYPE fields appear in the question part of a query.  QTYPES are a
+ *  superset of TYPEs, hence all TYPEs are valid QTYPEs.  In addition, the
+ *  following QTYPEs are defined:
+ */
+	MIO_DNS_RRT_Q_AFXR = 252, /* A request for a transfer of an entire zone */
+	MIO_DNS_RRT_Q_MAILB = 253, /*  A request for mailbox-related records (MB, MG or MR) */
+	MIO_DNS_RRT_Q_MAILA = 254, /* A request for mail agent RRs (Obsolete - see MX) */
+	MIO_DNS_RRT_Q_ANY = 255 /*  A request for all records */
 };
-typedef enum mio_dns_qclass_t mio_dns_qclass_t;
+typedef enum mio_dns_rrt_t mio_dns_rrt_t;
+
+/*
+ * CLASS fields appear in resource records.  The following CLASS mnemonics
+ * and values are defined:
+ */
+enum mio_dns_rrc_t
+{
+	MIO_DNS_RRC_IN = 1, /* internet */
+	MIO_DNS_RRC_CH = 3, /* chaos */
+	MIO_DNS_RRC_HS = 4, /* Hesiod [Dyer 87] */
+	MIO_DNS_RRC_NONE = 254,
+
+/*
+ * 
+ * QCLASS fields appear in the question section of a query.  QCLASS values
+ * are a superset of CLASS values; every CLASS is a valid QCLASS.  In
+ * addition to CLASS values, the following QCLASSes are defined:
+ */
+
+	MIO_DNS_RRC_Q_ANY = 255
+};
+typedef enum mio_dns_rrc_t mio_dns_rrc_t;
+
+
 
 enum mio_dns_eopt_code_t
 {
@@ -188,8 +221,8 @@ typedef struct mio_dns_qrtr_t mio_dns_qrtr_t;
 struct mio_dns_rrtr_t
 {
 	/* qname upto 64 bytes */
-	mio_uint16_t qtype;
-	mio_uint16_t qclass;
+	mio_uint16_t rrtype;
+	mio_uint16_t rrclass;
 	mio_uint32_t ttl;
 	mio_uint16_t dlen; /* data length */
 	/* actual data if if dlen > 0 */
@@ -214,8 +247,8 @@ typedef struct mio_dns_eopt_t mio_dns_eopt_t;
 	(((rd) & 0x01) << 8) | (((ra) & 0x01) << 7) | (((ad) & 0x01) << 5) | (((cd) & 0x01) << 4) | ((rcode) & 0x0F))
 */
 
-/* breakdown of the dns message id and flags */
-struct mio_dns_bdns_t
+/* breakdown of the dns message id and flags. it excludes rr count fields.*/
+struct mio_dns_bhdr_t
 {
 	int id; /* auto-assign if negative. */
 
@@ -230,7 +263,7 @@ struct mio_dns_bdns_t
 	mio_uint8_t cd; /* checking disabled - dnssec */
 	mio_uint8_t rcode; /* reply code - for reply only */
 };
-typedef struct mio_dns_bdns_t mio_dns_bdns_t;
+typedef struct mio_dns_bhdr_t mio_dns_bhdr_t;
 
 /* breakdown of question record */
 struct mio_dns_bqr_t
@@ -254,9 +287,9 @@ typedef enum mio_dns_rr_part_t mio_dns_rr_part_t;
 struct mio_dns_brr_t
 {
 	mio_dns_rr_part_t  part;
-	mio_bch_t*         qname;
-	mio_uint16_t       qtype;
-	mio_uint16_t       qclass;
+	mio_bch_t*         rrname;
+	mio_uint16_t       rrtype;
+	mio_uint16_t       rrclass;
 	mio_uint32_t       ttl;
 	mio_uint16_t       dlen;
 	void*              dptr;
@@ -326,8 +359,9 @@ typedef struct mio_dns_bedns_t mio_dns_bedns_t;
 
 /* ---------------------------------------------------------------- */
 
-typedef struct mio_svc_dns_t mio_svc_dns_t;
-typedef struct mio_svc_dnc_t mio_svc_dnc_t;
+typedef struct mio_svc_dns_t mio_svc_dns_t; /* server service */
+typedef struct mio_svc_dnc_t mio_svc_dnc_t; /* client service */
+typedef struct mio_svc_dnr_t mio_svc_dnr_t; /* recursor service */
 
 typedef void (*mio_svc_dnc_on_reply_t) (
 	mio_svc_dnc_t* dnc,
@@ -336,6 +370,53 @@ typedef void (*mio_svc_dnc_on_reply_t) (
 	const void*    data,
 	mio_oow_t      len
 );
+
+
+#define mio_svc_dns_getmio(svc) mio_svc_getmio(svc)
+#define mio_svc_dnc_getmio(svc) mio_svc_getmio(svc)
+#define mio_svc_dnr_getmio(svc) mio_svc_getmio(svc)
+
+/* ---------------------------------------------------------------- */
+
+
+struct mio_dns_pkt_info_t
+{
+	mio_uint8_t* start;
+	mio_uint8_t* end;
+	mio_uint8_t* ptr;
+
+	mio_oow_t rrdlen; /* length needed to store RRs decoded */
+	mio_uint8_t* rrdptr;
+
+
+	/* data information composed */
+	mio_dns_bhdr_t hdr;
+
+	struct
+	{
+		int exist;
+		mio_uint16_t uplen; /* udp payload len - will be placed in the qclass field of RR. */
+		mio_uint8_t  version; 
+		mio_uint8_t  dnssecok;
+	} edns;
+
+	mio_uint16_t qdcount; /* number of questions */
+	mio_uint16_t ancount; /* number of answers (answer part) */
+	mio_uint16_t nscount; /* number of name servers (authority part. only NS types) */
+	mio_uint16_t arcount; /* number of additional resource (additional part) */
+
+	struct
+	{
+		mio_dns_bqr_t* qd;
+		mio_dns_brr_t* an;
+		mio_dns_brr_t* ns;
+		mio_dns_brr_t* ar;
+	} rr;
+};
+typedef struct mio_dns_pkt_info_t mio_dns_pkt_info_t;
+
+
+/* ---------------------------------------------------------------- */
 
 #if defined(__cplusplus)
 extern "C" {
@@ -351,7 +432,7 @@ MIO_EXPORT void mio_svc_dnc_stop (
 
 MIO_EXPORT int mio_svc_dnc_sendreq (
 	mio_svc_dnc_t*         dnc,
-	mio_dns_bdns_t*        bdns,
+	mio_dns_bhdr_t*        bdns,
 	mio_dns_bqr_t*         qr,
 	mio_oow_t              qr_count,
 	mio_dns_bedns_t*       edns,
@@ -360,7 +441,7 @@ MIO_EXPORT int mio_svc_dnc_sendreq (
 
 MIO_EXPORT int mio_svc_dnc_sendmsg (
 	mio_svc_dnc_t*         dnc,
-	mio_dns_bdns_t*        bdns,
+	mio_dns_bhdr_t*        bdns,
 	mio_dns_bqr_t*         qr,
 	mio_oow_t              qr_count,
 	mio_dns_brr_t*         rr,
@@ -372,17 +453,25 @@ MIO_EXPORT int mio_svc_dnc_sendmsg (
 MIO_EXPORT int mio_svc_dnc_resolve (
 	mio_svc_dnc_t*         dnc,
 	const mio_bch_t*       qname,
-	mio_dns_qtype_t        qtype,
+	mio_dns_rrt_t          qtype,
 	mio_svc_dnc_on_reply_t on_reply
 );
 
 
-MIO_EXPORT int mio_dns_parse_packet (
-	mio_svc_dnc_t*  dnc,
-	mio_dns_pkt_t*  pkt,
-	mio_oow_t       len,
-	mio_dns_bdns_t* bdns
+/* ---------------------------------------------------------------- */
+
+MIO_EXPORT mio_dns_pkt_info_t* mio_dns_make_packet_info (
+	mio_t*                mio,
+	const mio_dns_pkt_t*  pkt,
+	mio_oow_t             len
 );
+
+MIO_EXPORT void mio_dns_free_packet_info (
+	mio_t*                mio,
+	mio_dns_pkt_info_t*   pi
+);
+
+
 #if defined(__cplusplus)
 }
 #endif

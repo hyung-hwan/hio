@@ -606,19 +606,37 @@ static int setup_ping4_tester (mio_t* mio)
 
 static void on_dnc_resolve(mio_svc_dnc_t* dnc, mio_dns_msg_t* reqmsg, mio_errnum_t status, const void* data, mio_oow_t dlen)
 {
+	mio_dns_pkt_info_t* pi = MIO_NULL;
+
 	if (status == MIO_ENOERR)
 	{
+		mio_uint32_t i;
+
 		printf ("XXXXXXXXXXXXXXXXx RECEIVED XXXXXXXXXXXXXXXXXXXXXXXXX\n");
+		pi = mio_dns_make_packet_info(mio_svc_dnc_getmio(dnc), data, dlen);
+		if (!pi) goto no_valid_reply;
 
-		//mio_dns_parse_packet (dnc, mio_dns_msg_to_pkt(reqmsg), 
-		mio_dns_bdns_t bdns;
-		mio_dns_parse_packet (dnc, data, dlen, &bdns);
+		if (pi->hdr.rcode != MIO_DNS_RCODE_NOERROR) goto no_valid_reply;
 
+		if (pi->ancount < 0) goto no_valid_reply;
+		for (i = 0; i < pi->ancount; i++)
+		{
+			if (pi->rr.an[i].rrtype == MIO_DNS_RRT_A)
+			{
+				printf ("GOT THE RIGHT ANSSER .... \n");
+				goto done;
+			}
+		}
+		goto no_valid_reply;
 	}
 	else
 	{
+	no_valid_reply:
 		printf ("XXXXXXXXXXXXXXXXx NO REPLY XXXXXXXXXXXXXXXXXXXXXXXXX\n");
 	}
+
+done:
+	if (pi) mio_dns_free_packet_info(mio_svc_dnc_getmio(dnc), pi);
 }
 
 /* ========================================================================= */
@@ -839,18 +857,18 @@ for (i = 0; i < 5; i++)
 	{
 		mio_dns_bqr_t qrs[] = 
 		{
-			{ "code.miflux.com",  MIO_DNS_QTYPE_A,    MIO_DNS_QCLASS_IN },
-			{ "code.miflux.com",  MIO_DNS_QTYPE_AAAA, MIO_DNS_QCLASS_IN },
-			{ "code.abiyo.net",   MIO_DNS_QTYPE_A,    MIO_DNS_QCLASS_IN },
-			{ "code6.abiyo.net",  MIO_DNS_QTYPE_AAAA, MIO_DNS_QCLASS_IN },
-			{ "abiyo.net",        MIO_DNS_QTYPE_MX,   MIO_DNS_QCLASS_IN }
+			{ "code.miflux.com",  MIO_DNS_RRT_A,    MIO_DNS_RRC_IN },
+			{ "code.miflux.com",  MIO_DNS_RRT_AAAA, MIO_DNS_RRC_IN },
+			{ "code.abiyo.net",   MIO_DNS_RRT_A,    MIO_DNS_RRC_IN },
+			{ "code6.abiyo.net",  MIO_DNS_RRT_AAAA, MIO_DNS_RRC_IN },
+			{ "abiyo.net",        MIO_DNS_RRT_MX,   MIO_DNS_RRC_IN }
 		};
 		mio_dns_brr_t rrs[] = 
 		{
-			{ MIO_DNS_RR_PART_ANSWER,    "code.miflux.com",  MIO_DNS_QTYPE_A,     MIO_DNS_QCLASS_IN, 86400, 0,  MIO_NULL },
-			{ MIO_DNS_RR_PART_ANSWER,    "code.miflux.com",  MIO_DNS_QTYPE_AAAA,  MIO_DNS_QCLASS_IN, 86400, 0,  MIO_NULL },
-			{ MIO_DNS_RR_PART_AUTHORITY, "dns.miflux.com",   MIO_DNS_QTYPE_NS,    MIO_DNS_QCLASS_IN, 86400, 0,  MIO_NULL }//, 
-			//{ MIO_DNS_RR_PART_ANSERT,    "www.miflux.com",   MIO_DNS_QTYPE_CNAME, MIO_DNS_QCLASS_IN, 60,    15, "code.miflux.com" }  
+			{ MIO_DNS_RR_PART_ANSWER,    "code.miflux.com",  MIO_DNS_RRT_A,     MIO_DNS_RRC_IN, 86400, 0,  MIO_NULL },
+			{ MIO_DNS_RR_PART_ANSWER,    "code.miflux.com",  MIO_DNS_RRT_AAAA,  MIO_DNS_RRC_IN, 86400, 0,  MIO_NULL },
+			{ MIO_DNS_RR_PART_AUTHORITY, "dns.miflux.com",   MIO_DNS_RRT_NS,    MIO_DNS_RRC_IN, 86400, 0,  MIO_NULL }//, 
+			//{ MIO_DNS_RR_PART_ANSERT,    "www.miflux.com",   MIO_DNS_RRT_CNAME, MIO_DNS_RRC_IN, 60,    15, "code.miflux.com" }  
 		};
 
 		mio_dns_beopt_t beopt[] =
@@ -870,7 +888,7 @@ for (i = 0; i < 5; i++)
 			beopt
 		};
 
-		mio_dns_bdns_t qhdr =
+		mio_dns_bhdr_t qhdr =
 		{
 			-1,              /* id */
 			0,                  /* qr */
@@ -884,7 +902,7 @@ for (i = 0; i < 5; i++)
 			MIO_DNS_RCODE_NOERROR /* rcode */
 		};
 
-		mio_dns_bdns_t rhdr =
+		mio_dns_bhdr_t rhdr =
 		{
 			0x1234,               /* id */
 			1,                    /* qr */
@@ -903,7 +921,7 @@ for (i = 0; i < 5; i++)
 		mio_svc_dnc_sendmsg (dnc, &rhdr, qrs, MIO_COUNTOF(qrs), rrs, MIO_COUNTOF(rrs), &qedns, MIO_NULL);
 	}
 
-if (mio_svc_dnc_resolve(dnc, "www.microsoft.com", MIO_DNS_QTYPE_A, on_dnc_resolve) <= -1)
+if (mio_svc_dnc_resolve(dnc, "www.microsoft.com", MIO_DNS_RRT_A, on_dnc_resolve) <= -1)
 {
 	printf ("resolve attempt failure ---> code.miflux.com\n");
 }

@@ -422,6 +422,7 @@ struct mio_svc_t
 	else (mio)->actsvc.tail = (svc)->svc_prev; \
 } while (0)
 
+#define mio_svc_getmio(svc) (((mio_svc_t*)(svc))->mio)
 
 /* =========================================================================
  * MIO LOGGING
