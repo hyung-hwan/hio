@@ -153,7 +153,6 @@ struct mio_dns_msg_t
 	mio_oow_t      pktlen;
 	mio_tmridx_t   rtmridx;
 	mio_dev_t*     dev;
-	void*          ctx;
 	mio_dns_msg_t* prev;
 	mio_dns_msg_t* next;
 };
@@ -381,15 +380,14 @@ typedef void (*mio_svc_dnc_on_reply_t) (
 
 struct mio_dns_pkt_info_t
 {
-	mio_uint8_t* start;
-	mio_uint8_t* end;
-	mio_uint8_t* ptr;
+	/* the following 5 fields are internal use only */
+	mio_uint8_t* _start;
+	mio_uint8_t* _end;
+	mio_uint8_t* _ptr;
+	mio_oow_t _rrdlen; /* length needed to store RRs decoded */
+	mio_uint8_t* _rrdptr; /* 
 
-	mio_oow_t rrdlen; /* length needed to store RRs decoded */
-	mio_uint8_t* rrdptr;
-
-
-	/* data information composed */
+	/* you may access the following fields */
 	mio_dns_bhdr_t hdr;
 
 	struct
