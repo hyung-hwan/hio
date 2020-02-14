@@ -446,7 +446,9 @@ extern "C" {
 #endif
 
 MIO_EXPORT mio_svc_dnc_t* mio_svc_dnc_start (
-	mio_t* mio
+	mio_t*             mio,
+	const mio_ntime_t* reply_tmout,
+	mio_oow_t          reply_tmout_retries
 );
 
 MIO_EXPORT void mio_svc_dnc_stop (
@@ -463,6 +465,11 @@ MIO_EXPORT mio_dns_msg_t* mio_svc_dnc_sendmsg (
 	mio_dns_bedns_t*       edns,
 	mio_svc_dnc_on_reply_t on_reply,
 	mio_oow_t              xtnsize
+);
+
+MIO_EXPORT mio_dns_msg_t* mio_svc_dnc_resendmsg (
+	mio_svc_dnc_t*         dnc,
+	mio_dns_msg_t*         msg
 );
 
 MIO_EXPORT mio_dns_msg_t* mio_svc_dnc_sendreq (

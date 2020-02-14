@@ -44,6 +44,10 @@ struct mio_svc_dnc_t
 
 	mio_dev_sck_t* sck;
 	mio_sckaddr_t serveraddr;
+
+	mio_ntime_t reply_tmout; /* default reply timeout */
+	mio_oow_t reply_tmout_retries;
+
 	mio_oow_t seq;
 	mio_dns_msg_t* pending_req;
 };
@@ -450,7 +454,7 @@ MIO_DEBUG0 (mio, "unknown dns response... \n"); /* TODO: add source info */
 	return 0;
 }
 
-static void dnc_on_read_timeout (mio_t* mio, const mio_ntime_t* now, mio_tmrjob_t* job)
+static void dnc_on_reply_timeout (mio_t* mio, const mio_ntime_t* now, mio_tmrjob_t* job)
 {
 	mio_dns_msg_t* reqmsg = (mio_dns_msg_t*)job->ctx;
 	dnc_dns_msg_xtn_t* msgxtn = dnc_dns_msg_getxtn(reqmsg);
@@ -479,21 +483,23 @@ MIO_DEBUG1 (mio, "sent dns message %d\n", (int)mio_ntoh16(dns_msg_to_pkt(msg)->i
 
 	MIO_ASSERT (mio, dev == (mio_dev_sck_t*)msg->dev);
 
-	if (dns_msg_to_pkt(msg)->qr == 0)
+	if (wrlen <= -1)
+	{
+		/* write has timed out or an error has occurred */
+		if (MIO_LIKELY(msgxtn->on_reply))
+			msgxtn->on_reply (dnc, msg, mio_geterrnum(mio), MIO_NULL, 0);
+		release_dns_msg (dnc, msg);
+	}
+	else if (dns_msg_to_pkt(msg)->qr == 0)
 	{
 		/* question. schedule to wait for response */
 		mio_tmrjob_t tmrjob;
-		mio_ntime_t tmout;
-
-		/* TODO: make this configurable. or accept dnc->config.read_timeout... */
-		tmout.sec = 3;
-		tmout.nsec = 0;
 
 		MIO_MEMSET (&tmrjob, 0, MIO_SIZEOF(tmrjob));
 		tmrjob.ctx = msg;
 		mio_gettime (mio, &tmrjob.when);
-		MIO_ADD_NTIME (&tmrjob.when, &tmrjob.when, &tmout);
-		tmrjob.handler = dnc_on_read_timeout;
+		MIO_ADD_NTIME (&tmrjob.when, &tmrjob.when, &dnc->reply_tmout);
+		tmrjob.handler = dnc_on_reply_timeout;
 		tmrjob.idxptr = &msg->rtmridx;
 		msg->rtmridx = mio_instmrjob(mio, &tmrjob);
 		if (msg->rtmridx == MIO_TMRIDX_INVALID)
@@ -504,18 +510,18 @@ MIO_DEBUG1 (mio, "sent dns message %d\n", (int)mio_ntoh16(dns_msg_to_pkt(msg)->i
 			release_dns_msg (dnc, msg);
 
 			MIO_DEBUG0 (mio, "unable to schedule timeout...\n");
-			return 0;
 		}
-
-		/* TODO: improve performance. hashing by id? */
-
-		/* chain it to the peing request list */
-		if (dnc->pending_req)
+		else
 		{
-			dnc->pending_req->prev = msg;
-			msg->next = dnc->pending_req;
+			/* TODO: improve performance. hashing by id? */
+			/* chain it to the peing request list */
+			if (dnc->pending_req)
+			{
+				dnc->pending_req->prev = msg;
+				msg->next = dnc->pending_req;
+			}
+			dnc->pending_req = msg;
 		}
-		dnc->pending_req = msg;
 	}
 	else
 	{
@@ -535,7 +541,7 @@ static void dnc_on_disconnect (mio_dev_sck_t* dev)
 {
 }
 
-mio_svc_dnc_t* mio_svc_dnc_start (mio_t* mio)
+mio_svc_dnc_t* mio_svc_dnc_start (mio_t* mio, const mio_ntime_t* reply_tmout, mio_oow_t reply_tmout_retries)
 {
 	mio_svc_dnc_t* dnc = MIO_NULL;
 	mio_dev_sck_make_t mkinfo;
@@ -546,6 +552,8 @@ mio_svc_dnc_t* mio_svc_dnc_start (mio_t* mio)
 
 	dnc->mio = mio;
 	dnc->stop = mio_svc_dnc_stop;
+	dnc->reply_tmout = *reply_tmout;
+	dnc->reply_tmout_retries = reply_tmout_retries;
 
 	MIO_MEMSET (&mkinfo, 0, MIO_SIZEOF(mkinfo));
 	mkinfo.type = MIO_DEV_SCK_UDP4; /* or UDP6 depending on the binding address */
@@ -593,6 +601,7 @@ mio_dns_msg_t* mio_svc_dnc_sendmsg (mio_svc_dnc_t* dnc, mio_dns_bhdr_t* bdns, mi
 	/* send a request or a response */
 	mio_dns_msg_t* msg;
 	dnc_dns_msg_xtn_t* msgxtn;
+	mio_ntime_t* tmout;
 
 	msg = make_dns_msg(dnc, bdns, qr, qr_count, rr, rr_count, edns, MIO_SIZEOF(*msgxtn) + xtnsize);
 	if (!msg) return MIO_NULL;
@@ -601,6 +610,18 @@ mio_dns_msg_t* mio_svc_dnc_sendmsg (mio_svc_dnc_t* dnc, mio_dns_bhdr_t* bdns, mi
 	msgxtn->on_reply = on_reply;
 
 /* TODO: optionally, override dnc->serveraddr and use the target address passed as a parameter */
+	tmout = MIO_IS_POS_NTIME(&dnc->reply_tmout)? &dnc->reply_tmout: MIO_NULL;
+	if (mio_dev_sck_timedwrite(dnc->sck, dns_msg_to_pkt(msg), msg->pktlen, tmout, msg, &dnc->serveraddr) <= -1)
+	{
+		release_dns_msg (dnc, msg);
+		return MIO_NULL;
+	}
+	
+	return msg;
+}
+
+mio_dns_msg_t* mio_svc_dnc_resendmsg (mio_svc_dnc_t* dnc, mio_dns_msg_t* msg)
+{
 	if (mio_dev_sck_write(dnc->sck, dns_msg_to_pkt(msg), msg->pktlen, msg, &dnc->serveraddr) <= -1)
 	{
 		release_dns_msg (dnc, msg);
@@ -653,9 +674,11 @@ static void on_dnc_resolve (mio_svc_dnc_t* dnc, mio_dns_msg_t* reqmsg, mio_errnu
 		return;
 	}
 
-	if (status == MIO_ENOERR)
+	if (data)
 	{
 		mio_uint32_t i;
+
+		MIO_ASSERT (mio, status == MIO_ENOERR);
 
 		pi = mio_dns_make_packet_info(mio, data, dlen);
 		if (!pi)
