@@ -673,6 +673,20 @@ static void on_dnc_resolve (mio_svc_dnc_t* dnc, mio_dns_msg_t* reqmsg, mio_errnu
 		if (pi->ancount < 0) goto no_valid_reply;
 
 		/* in the brief mode, we inspect the answer section only */
+		if (reqmsgxtn->qtype == MIO_DNS_RRT_Q_ANY)
+		{
+			/* return A or AAAA for ANY in the brief mode */
+			for (i = 0; i < pi->ancount; i++)
+			{
+				if (pi->rr.an[i].rrtype == MIO_DNS_RRT_A || pi->rr.an[i].rrtype == MIO_DNS_RRT_AAAA)
+				{
+				match_found:
+					if (reqmsgxtn->on_resolve) reqmsgxtn->on_resolve (dnc, reqmsg, status, &pi->rr.an[i], MIO_SIZEOF(pi->rr.an[i]));
+					goto done;
+				}
+			}
+		}
+
 		for (i = 0; i < pi->ancount; i++)
 		{
 			/* it is a bit time taking to retreive the query type from the packet
@@ -680,10 +694,10 @@ static void on_dnc_resolve (mio_svc_dnc_t* dnc, mio_dns_msg_t* reqmsg, mio_errnu
 			 * the query type i stored in the extension space. */
 			switch (reqmsgxtn->qtype)
 			{
-				case MIO_DNS_RRT_Q_ANY:
-					/* if you want to get the full RRs, don't use the brief mode. */
-					if (pi->rr.an[i].rrtype == MIO_DNS_RRT_A || pi->rr.an[i].rrtype == MIO_DNS_RRT_AAAA) goto match_found;
-					break;
+				case MIO_DNS_RRT_Q_ANY: 
+				case MIO_DNS_RRT_Q_AFXR: /* AFXR doesn't make sense in the brief mode. just treat it like ANY */
+					/* no A or AAAA found. so give the first entry in the answer */
+					goto match_found;
 
 				case MIO_DNS_RRT_Q_MAILA:
 					/* if you want to get the full RRs, don't use the brief mode. */
@@ -696,17 +710,10 @@ static void on_dnc_resolve (mio_svc_dnc_t* dnc, mio_dns_msg_t* reqmsg, mio_errnu
 					    pi->rr.an[i].rrtype == MIO_DNS_RRT_MR || pi->rr.an[i].rrtype == MIO_DNS_RRT_MINFO) goto match_found;
 					break;
 
-				case MIO_DNS_RRT_Q_AFXR:
 				default:
-					if (pi->rr.an[i].rrtype == reqmsgxtn->qtype)
-					{
-					match_found:
-						if (reqmsgxtn->on_resolve) reqmsgxtn->on_resolve (dnc, reqmsg, status, &pi->rr.an[i], MIO_SIZEOF(pi->rr.an[i]));
-						goto done;
-					}
+					if (pi->rr.an[i].rrtype == reqmsgxtn->qtype) goto match_found;
 					break;
 			}
-			
 		}
 		goto no_valid_reply;
 	}
