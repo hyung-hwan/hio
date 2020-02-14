@@ -609,7 +609,7 @@ static void on_dnc_resolve(mio_svc_dnc_t* dnc, mio_dns_msg_t* reqmsg, mio_errnum
 	mio_dns_pkt_info_t* pi = MIO_NULL;
 
 
-	if (status == MIO_ENOERR)
+	if (data) // status == MIO_ENOERR
 	{
 		mio_uint32_t i;
 
@@ -659,7 +659,8 @@ static void on_dnc_resolve(mio_svc_dnc_t* dnc, mio_dns_msg_t* reqmsg, mio_errnum
 	else
 	{
 	no_valid_reply:
-		printf ("XXXXXXXXXXXXXXXXx NO REPLY XXXXXXXXXXXXXXXXXXXXXXXXX\n");
+		if (status == MIO_ETMOUT) printf ("XXXXXXXXXXXXXXXX TIMED OUT XXXXXXXXXXXXXXXXX\n");
+		else printf ("XXXXXXXXXXXXXXXXx NO REPLY XXXXXXXXXXXXXXXXXXXXXXXXX\n");
 	}
 
 done:
@@ -668,7 +669,7 @@ done:
 
 static void on_dnc_resolve_brief (mio_svc_dnc_t* dnc, mio_dns_msg_t* reqmsg, mio_errnum_t status, const void* data, mio_oow_t dlen)
 {
-	if (status == MIO_ENOERR)
+	if (data) /* status must be HAWK_ENOERR */
 	{
 		mio_dns_brr_t* brr = (mio_dns_brr_t*)data;
 
@@ -700,7 +701,8 @@ static void on_dnc_resolve_brief (mio_svc_dnc_t* dnc, mio_dns_msg_t* reqmsg, mio
 	}
 	else
 	{
-		printf ("QQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQ NO REPLY QQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQq\n");
+		if (status == MIO_ETMOUT) printf ("QQQQQQQQQQQQQQQQQQQ TIMED OUT QQQQQQQQQQQQQQQQQ\n");
+		else printf ("QQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQ NO REPLY QQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQq\n");
 	}
 }
 
@@ -918,7 +920,12 @@ for (i = 0; i < 5; i++)
 
 {
 	mio_svc_dnc_t* dnc;
-	dnc = mio_svc_dnc_start (mio/*, "8.8.8.8:53,1.1.1.1:53"*/); /* option - send to all, send one by one */
+	mio_ntime_t reply_tmout;
+
+	reply_tmout.sec = 1;
+	reply_tmout.nsec = 0;
+
+	dnc = mio_svc_dnc_start (mio/*, "8.8.8.8:53,1.1.1.1:53"*/, &reply_tmout, 3); /* option - send to all, send one by one */
 	{
 		mio_dns_bqr_t qrs[] = 
 		{
