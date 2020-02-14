@@ -80,10 +80,21 @@ enum mio_dns_rrt_t
  */
 	MIO_DNS_RRT_A = 1,
 	MIO_DNS_RRT_NS = 2,
+	MIO_DNS_RRT_MD = 3, /* mail destination. RFC973 replaced this with MX*/
+	MIO_DNS_RRT_MF = 4, /* mail forwarder. RFC973 replaced this with MX */
+	
 	MIO_DNS_RRT_CNAME = 5,
 	MIO_DNS_RRT_SOA = 6,
+
+	MIO_DNS_RRT_MB = 7, /* kind of obsoleted. RFC1035, RFC2505 */
+	MIO_DNS_RRT_MG = 8, /* kind of obsoleted. RFC1035, RFC2505 */
+	MIO_DNS_RRT_MR = 9, /* kind of obsoleted. RFC1035, RFC2505 */
+
 	MIO_DNS_RRT_NULL = 10,
 	MIO_DNS_RRT_PTR = 12,
+
+	MIO_DNS_RRT_MINFO = 15, /* kind of obsoleted. RFC1035, RFC2505 */
+
 	MIO_DNS_RRT_MX = 15,
 	MIO_DNS_RRT_TXT = 16,
 	MIO_DNS_RRT_AAAA = 28,
@@ -149,7 +160,7 @@ typedef enum mio_dns_eopt_code_t mio_dns_eopt_code_t;
 typedef struct mio_dns_msg_t mio_dns_msg_t;
 struct mio_dns_msg_t
 {
-	mio_oow_t      buflen;
+	mio_oow_t      msglen;
 	mio_oow_t      pktlen;
 	mio_tmridx_t   rtmridx;
 	mio_dev_t*     dev;
@@ -371,9 +382,23 @@ typedef void (*mio_svc_dnc_on_reply_t) (
 );
 
 
+typedef void (*mio_svc_dnc_on_resolve_t) (
+	mio_svc_dnc_t* dnc,
+	mio_dns_msg_t* reqmsg,
+	mio_errnum_t   status,
+	const void*    data,
+	mio_oow_t      len
+);
+
 #define mio_svc_dns_getmio(svc) mio_svc_getmio(svc)
 #define mio_svc_dnc_getmio(svc) mio_svc_getmio(svc)
 #define mio_svc_dnr_getmio(svc) mio_svc_getmio(svc)
+
+enum mio_svc_dnc_resolve_flag_t
+{
+	MIO_SVC_DNC_RESOLVE_FLAG_BRIEF = (1 << 0)
+};
+typedef enum mio_svc_dnc_resolve_flag_t  mio_svc_dnc_resolve_flag_t;
 
 /* ---------------------------------------------------------------- */
 
@@ -385,7 +410,7 @@ struct mio_dns_pkt_info_t
 	mio_uint8_t* _end;
 	mio_uint8_t* _ptr;
 	mio_oow_t _rrdlen; /* length needed to store RRs decoded */
-	mio_uint8_t* _rrdptr; /* 
+	mio_uint8_t* _rrdptr;
 
 	/* you may access the following fields */
 	mio_dns_bhdr_t hdr;
@@ -428,16 +453,7 @@ MIO_EXPORT void mio_svc_dnc_stop (
 	mio_svc_dnc_t* dnc
 );
 
-MIO_EXPORT int mio_svc_dnc_sendreq (
-	mio_svc_dnc_t*         dnc,
-	mio_dns_bhdr_t*        bdns,
-	mio_dns_bqr_t*         qr,
-	mio_oow_t              qr_count,
-	mio_dns_bedns_t*       edns,
-	mio_svc_dnc_on_reply_t on_reply
-);
-
-MIO_EXPORT int mio_svc_dnc_sendmsg (
+MIO_EXPORT mio_dns_msg_t* mio_svc_dnc_sendmsg (
 	mio_svc_dnc_t*         dnc,
 	mio_dns_bhdr_t*        bdns,
 	mio_dns_bqr_t*         qr,
@@ -445,16 +461,28 @@ MIO_EXPORT int mio_svc_dnc_sendmsg (
 	mio_dns_brr_t*         rr,
 	mio_oow_t              rr_count,
 	mio_dns_bedns_t*       edns,
-	mio_svc_dnc_on_reply_t on_reply
+	mio_svc_dnc_on_reply_t on_reply,
+	mio_oow_t              xtnsize
 );
 
-MIO_EXPORT int mio_svc_dnc_resolve (
+MIO_EXPORT mio_dns_msg_t* mio_svc_dnc_sendreq (
 	mio_svc_dnc_t*         dnc,
-	const mio_bch_t*       qname,
-	mio_dns_rrt_t          qtype,
-	mio_svc_dnc_on_reply_t on_reply
+	mio_dns_bhdr_t*        bdns,
+	mio_dns_bqr_t*         qr,
+	mio_dns_bedns_t*       edns,
+	mio_svc_dnc_on_reply_t on_reply,
+	mio_oow_t              xtnsize
 );
 
+
+MIO_EXPORT mio_dns_msg_t* mio_svc_dnc_resolve (
+	mio_svc_dnc_t*           dnc,
+	const mio_bch_t*         qname,
+	mio_dns_rrt_t            qtype,
+	int                      flags,
+	mio_svc_dnc_on_resolve_t on_resolve,
+	mio_oow_t                xtnsize
+);
 
 /* ---------------------------------------------------------------- */
 
