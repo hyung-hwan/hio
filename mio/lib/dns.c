@@ -28,6 +28,7 @@
 #include <mio-sck.h>
 #include "mio-prv.h"
 
+#include <netinet/in.h>
 typedef struct mio_svc_dns_t mio_svc_dns_t;
 
 struct mio_svc_dns_t
@@ -123,10 +124,8 @@ static mio_oow_t dn_length (mio_uint8_t* ptr, mio_oow_t len)
 /* ----------------------------------------------------------------------- */
 #if defined(MIO_HAVE_INLINE)
 	static MIO_INLINE mio_dns_pkt_t* dns_msg_to_pkt (mio_dns_msg_t* msg) { return (mio_dns_pkt_t*)(msg + 1); }
-	static MIO_INLINE void* dns_msg_getxtn(mio_dns_msg_t* msg) { return (mio_uint8_t*)dns_msg_to_pkt(msg) + msg->pktlen; }
 #else
 #	define dns_msg_to_pkt(msg) ((mio_dns_pkt_t*)((mio_dns_msg_t*)(msg) + 1))
-#	define dns_msg_getxtn(msg) ((mio_uint8_t*)dns_msg_to_pkt(msg) + msg->pktlen)
 #endif
 
 static void release_dns_msg (mio_svc_dnc_t* dnc, mio_dns_msg_t* msg)
@@ -212,7 +211,7 @@ static mio_oow_t encode_rdata_in_dns_msg (mio_svc_dnc_t* dnc, const mio_dns_brr_
 static mio_dns_msg_t* make_dns_msg (mio_svc_dnc_t* dnc, mio_dns_bhdr_t* bdns, mio_dns_bqr_t* qr, mio_oow_t qr_count, mio_dns_brr_t* rr, mio_oow_t rr_count, mio_dns_bedns_t* edns, mio_oow_t xtnsize)
 {
 	mio_t* mio = dnc->mio;
-	mio_oow_t dnlen, msgbufsz, i;
+	mio_oow_t dnlen, msgbufsz, pktlen, i;
 	mio_dns_msg_t* msg;
 	mio_dns_pkt_t* pkt;
 	mio_uint8_t* dn;
@@ -221,19 +220,19 @@ static mio_dns_msg_t* make_dns_msg (mio_svc_dnc_t* dnc, mio_dns_bhdr_t* bdns, mi
 	int rr_sect;
 	mio_uint32_t edns_dlen;
 
-	msgbufsz = MIO_SIZEOF(*msg) + MIO_SIZEOF(*pkt);
+	pktlen = MIO_SIZEOF(*pkt);
 
 	for (i = 0; i < qr_count; i++)
 	{
 		/* <length>segmnet<length>segment<zero>.
 		 * if the input has the ending period(e.g. mio.lib.), the dn length is namelen + 1. 
 		 * if the input doesn't have the ending period(e.g. mio.lib) . the dn length is namelen + 2. */
-		msgbufsz += mio_count_bcstr(qr[i].qname) + 2 + MIO_SIZEOF(*qrtr);
+		pktlen += mio_count_bcstr(qr[i].qname) + 2 + MIO_SIZEOF(*qrtr);
 	}
 
 	for (i = 0; i < rr_count; i++)
 	{
-		msgbufsz += mio_count_bcstr(rr[i].rrname) + 2 + MIO_SIZEOF(*rrtr) + rr[i].dlen;
+		pktlen += mio_count_bcstr(rr[i].rrname) + 2 + MIO_SIZEOF(*rrtr) + rr[i].dlen;
 	}
 
 	edns_dlen = 0;
@@ -241,7 +240,7 @@ static mio_dns_msg_t* make_dns_msg (mio_svc_dnc_t* dnc, mio_dns_bhdr_t* bdns, mi
 	{
 		mio_dns_beopt_t* beopt;
 
-		msgbufsz += 1 + MIO_SIZEOF(*rrtr); /* edns0 OPT RR - 1 for the root name  */
+		pktlen += 1 + MIO_SIZEOF(*rrtr); /* edns0 OPT RR - 1 for the root name  */
 
 		beopt = edns->beoptr;
 		for (i = 0; i < edns->beonum; i++)
@@ -255,7 +254,7 @@ static mio_dns_msg_t* make_dns_msg (mio_svc_dnc_t* dnc, mio_dns_bhdr_t* bdns, mi
 			beopt++;
 		}
 
-		msgbufsz += edns_dlen;
+		pktlen += edns_dlen;
 	}
 	else 
 	{
@@ -267,14 +266,13 @@ static mio_dns_msg_t* make_dns_msg (mio_svc_dnc_t* dnc, mio_dns_bhdr_t* bdns, mi
 		}
 	}
 
-	msgbufsz += xtnsize;
-	msgbufsz = MIO_ALIGN_POW2(msgbufsz, 64);
+	msgbufsz = MIO_SIZEOF(*msg) + MIO_ALIGN_POW2(pktlen, MIO_SIZEOF_VOID_P) + xtnsize;
 
 /* TODO: msg buffer reuse */
 	msg = mio_callocmem(mio, msgbufsz);
 	if (!msg) return MIO_NULL;
 
-	msg->buflen = msgbufsz; /* record the buffer size in the preamble */
+	msg->msglen = msgbufsz; /* record the instance size */
 	msg->rtmridx = MIO_TMRIDX_INVALID;
 	msg->dev = (mio_dev_t*)dnc->sck;
 
@@ -386,6 +384,8 @@ static mio_dns_msg_t* make_dns_msg (mio_svc_dnc_t* dnc, mio_dns_bhdr_t* bdns, mi
 	pkt->rcode = bdns->rcode & 0x0F;
 
 	msg->pktlen = dn - (mio_uint8_t*)pkt;
+	MIO_ASSERT (mio, msg->pktlen == pktlen);
+
 	return msg;
 }
 
@@ -396,6 +396,12 @@ struct dnc_dns_msg_xtn_t
 	mio_svc_dnc_on_reply_t on_reply;
 };
 typedef struct dnc_dns_msg_xtn_t dnc_dns_msg_xtn_t;
+
+#if defined(MIO_HAVE_INLINE)
+	static MIO_INLINE dnc_dns_msg_xtn_t* dnc_dns_msg_getxtn(mio_dns_msg_t* msg) { return (dnc_dns_msg_xtn_t*)((mio_uint8_t*)dns_msg_to_pkt(msg) + MIO_ALIGN_POW2(msg->pktlen, MIO_SIZEOF_VOID_P)); }
+#else
+#	define dnc_dns_msg_getxtn(msg) ((dnc_dns_msg_xtn_t*)((mio_uint8_t*)dns_msg_to_pkt(msg) + MIO_ALIGN_POW2(msg->pktlen, MIO_SIZEOF_VOID_P)))
+#endif
 
 static int dnc_on_read (mio_dev_sck_t* dev, const void* data, mio_iolen_t dlen, const mio_sckaddr_t* srcaddr)
 {
@@ -426,11 +432,10 @@ static int dnc_on_read (mio_dev_sck_t* dev, const void* data, mio_iolen_t dlen, 
 	while (reqmsg)
 	{
 		mio_dns_pkt_t* reqpkt = dns_msg_to_pkt(reqmsg);
-		dnc_dns_msg_xtn_t* msgxtn = dns_msg_getxtn(reqmsg);
+		dnc_dns_msg_xtn_t* msgxtn = dnc_dns_msg_getxtn(reqmsg);
 		if (dev == (mio_dev_sck_t*)reqmsg->dev && pkt->id == reqpkt->id) /* TODO: check the source address against the target address */
 		{
 MIO_DEBUG1 (mio, "received dns response...id %d\n", id);
-
 			if (MIO_LIKELY(msgxtn->on_reply))
 				msgxtn->on_reply (dnc, reqmsg, MIO_ENOERR, data, dlen);
 
@@ -440,15 +445,15 @@ MIO_DEBUG1 (mio, "received dns response...id %d\n", id);
 		reqmsg = reqmsg->next;
 	}
 
-	/* the response id didn't match the ID of pending requests */
-	MIO_DEBUG0 (mio, "unknown dns response... \n"); /* TODO: add source info */
+	/* the response id didn't match the ID of pending requests - need to wait longer? */
+MIO_DEBUG0 (mio, "unknown dns response... \n"); /* TODO: add source info */
 	return 0;
 }
 
 static void dnc_on_read_timeout (mio_t* mio, const mio_ntime_t* now, mio_tmrjob_t* job)
 {
 	mio_dns_msg_t* reqmsg = (mio_dns_msg_t*)job->ctx;
-	dnc_dns_msg_xtn_t* msgxtn = dns_msg_getxtn(reqmsg);
+	dnc_dns_msg_xtn_t* msgxtn = dnc_dns_msg_getxtn(reqmsg);
 	mio_dev_sck_t* dev = (mio_dev_sck_t*)reqmsg->dev;
 	mio_svc_dnc_t* dnc = ((dnc_sck_xtn_t*)mio_dev_sck_getxtn(dev))->dnc;
 
@@ -467,7 +472,7 @@ static int dnc_on_write (mio_dev_sck_t* dev, mio_iolen_t wrlen, void* wrctx, con
 {
 	mio_t* mio = dev->mio;
 	mio_dns_msg_t* msg = (mio_dns_msg_t*)wrctx;
-	dnc_dns_msg_xtn_t* msgxtn = dns_msg_getxtn(msg);
+	dnc_dns_msg_xtn_t* msgxtn = dnc_dns_msg_getxtn(msg);
 	mio_svc_dnc_t* dnc = ((dnc_sck_xtn_t*)mio_dev_sck_getxtn(dev))->dnc;
 
 MIO_DEBUG1 (mio, "sent dns message %d\n", (int)mio_ntoh16(dns_msg_to_pkt(msg)->id));
@@ -583,47 +588,139 @@ void mio_svc_dnc_stop (mio_svc_dnc_t* dnc)
 }
 
 
-int mio_svc_dnc_sendmsg (mio_svc_dnc_t* dnc, mio_dns_bhdr_t* bdns, mio_dns_bqr_t* qr, mio_oow_t qr_count, mio_dns_brr_t* rr, mio_oow_t rr_count, mio_dns_bedns_t* edns, mio_svc_dnc_on_reply_t on_reply)
+mio_dns_msg_t* mio_svc_dnc_sendmsg (mio_svc_dnc_t* dnc, mio_dns_bhdr_t* bdns, mio_dns_bqr_t* qr, mio_oow_t qr_count, mio_dns_brr_t* rr, mio_oow_t rr_count, mio_dns_bedns_t* edns, mio_svc_dnc_on_reply_t on_reply, mio_oow_t xtnsize)
 {
 	/* send a request or a response */
 	mio_dns_msg_t* msg;
 	dnc_dns_msg_xtn_t* msgxtn;
 
-	msg = make_dns_msg(dnc, bdns, qr, qr_count, rr, rr_count, edns, MIO_SIZEOF(*msgxtn));
-	if (!msg) return -1;
+	msg = make_dns_msg(dnc, bdns, qr, qr_count, rr, rr_count, edns, MIO_SIZEOF(*msgxtn) + xtnsize);
+	if (!msg) return MIO_NULL;
 
-	msgxtn = dns_msg_getxtn(msg);
+	msgxtn = dnc_dns_msg_getxtn(msg);
 	msgxtn->on_reply = on_reply;
 
-	/* TODO: optionally, override dnc->serveraddr and use the target address passed as a parameter */
+/* TODO: optionally, override dnc->serveraddr and use the target address passed as a parameter */
 	if (mio_dev_sck_write(dnc->sck, dns_msg_to_pkt(msg), msg->pktlen, msg, &dnc->serveraddr) <= -1)
 	{
 		release_dns_msg (dnc, msg);
-		return -1;
+		return MIO_NULL;
 	}
 
-	return 0;
+	return msg;
 }
 
-int mio_svc_dnc_sendreq (mio_svc_dnc_t* dnc, mio_dns_bhdr_t* bdns, mio_dns_bqr_t* qr, mio_oow_t qr_count, mio_dns_bedns_t* edns, mio_svc_dnc_on_reply_t on_reply)
-{
-	/* send requests without resource record */
-	mio_oow_t i;
 
+mio_dns_msg_t* mio_svc_dnc_sendreq (mio_svc_dnc_t* dnc, mio_dns_bhdr_t* bdns, mio_dns_bqr_t* qr, mio_dns_bedns_t* edns, mio_svc_dnc_on_reply_t on_reply, mio_oow_t xtnsize)
+{
+	/* send a request without resource records */
 	if (bdns->rcode != MIO_DNS_RCODE_NOERROR)
 	{
 		mio_seterrnum (dnc->mio, MIO_EINVAL);
-		return -1;
+		return MIO_NULL;
 	}
 
-	for (i = 0; i < qr_count; i++)
-	{
-		if (mio_svc_dnc_sendmsg(dnc, bdns, &qr[i], 1, MIO_NULL, 0, edns, on_reply) <= -1) return -1;
-	}
-	return 0;
+	return mio_svc_dnc_sendmsg(dnc, bdns, qr, 1, MIO_NULL, 0, edns, on_reply, xtnsize);
 }
 
-int mio_svc_dnc_resolve (mio_svc_dnc_t* dnc, const mio_bch_t* qname, mio_dns_rrt_t qtype, mio_svc_dnc_on_reply_t on_reply)
+/* ----------------------------------------------------------------------- */
+
+
+struct dnc_dns_msg_resolve_xtn_t
+{
+	mio_dns_rrt_t qtype;
+	int flags;
+	mio_svc_dnc_on_resolve_t on_resolve;
+};
+typedef struct dnc_dns_msg_resolve_xtn_t dnc_dns_msg_resolve_xtn_t;
+
+#if defined(MIO_HAVE_INLINE)
+	static MIO_INLINE dnc_dns_msg_resolve_xtn_t* dnc_dns_msg_resolve_getxtn(mio_dns_msg_t* msg) { return ((dnc_dns_msg_resolve_xtn_t*)((mio_uint8_t*)dnc_dns_msg_getxtn(msg) + MIO_SIZEOF(dnc_dns_msg_xtn_t))); }
+#else
+#	define dnc_dns_msg_resolve_getxtn(msg) ((dnc_dns_msg_resolve_xtn_t*)((mio_uint8_t*)dnc_dns_msg_getxtn(msg) + MIO_SIZEOF(dnc_dns_msg_xtn_t)))
+#endif
+
+static void on_dnc_resolve (mio_svc_dnc_t* dnc, mio_dns_msg_t* reqmsg, mio_errnum_t status, const void* data, mio_oow_t dlen)
+{
+	mio_t* mio = mio_svc_dnc_getmio(dnc);
+	mio_dns_pkt_info_t* pi = MIO_NULL;
+	dnc_dns_msg_resolve_xtn_t* reqmsgxtn = dnc_dns_msg_resolve_getxtn(reqmsg);
+
+	if (!(reqmsgxtn->flags & MIO_SVC_DNC_RESOLVE_FLAG_BRIEF))
+	{
+		/* the full reply packet is requested. no transformation is required */
+		if (reqmsgxtn->on_resolve) reqmsgxtn->on_resolve(dnc, reqmsg, status, data, dlen);
+		return;
+	}
+
+	if (status == MIO_ENOERR)
+	{
+		mio_uint32_t i;
+
+		pi = mio_dns_make_packet_info(mio, data, dlen);
+		if (!pi)
+		{
+			status = mio_geterrnum(mio);
+			goto no_valid_reply;
+		}
+
+		if (pi->hdr.rcode != MIO_DNS_RCODE_NOERROR) 
+		{
+			status = MIO_EINVAL;
+			goto no_valid_reply;
+		}
+
+		if (pi->ancount < 0) goto no_valid_reply;
+
+		/* in the brief mode, we inspect the answer section only */
+		for (i = 0; i < pi->ancount; i++)
+		{
+			/* it is a bit time taking to retreive the query type from the packet
+			 * bundled in reqmsg as it requires parsing of the packet. let me use
+			 * the query type i stored in the extension space. */
+			switch (reqmsgxtn->qtype)
+			{
+				case MIO_DNS_RRT_Q_ANY:
+					/* if you want to get the full RRs, don't use the brief mode. */
+					if (pi->rr.an[i].rrtype == MIO_DNS_RRT_A || pi->rr.an[i].rrtype == MIO_DNS_RRT_AAAA) goto match_found;
+					break;
+
+				case MIO_DNS_RRT_Q_MAILA:
+					/* if you want to get the full RRs, don't use the brief mode. */
+					if (pi->rr.an[i].rrtype == MIO_DNS_RRT_MD || pi->rr.an[i].rrtype == MIO_DNS_RRT_MF) goto match_found;
+					break;
+
+				case MIO_DNS_RRT_Q_MAILB:
+					/* if you want to get the full RRs, don't use the brief mode. */
+					if (pi->rr.an[i].rrtype == MIO_DNS_RRT_MB || pi->rr.an[i].rrtype == MIO_DNS_RRT_MG ||
+					    pi->rr.an[i].rrtype == MIO_DNS_RRT_MR || pi->rr.an[i].rrtype == MIO_DNS_RRT_MINFO) goto match_found;
+					break;
+
+				case MIO_DNS_RRT_Q_AFXR:
+				default:
+					if (pi->rr.an[i].rrtype == reqmsgxtn->qtype)
+					{
+					match_found:
+						if (reqmsgxtn->on_resolve) reqmsgxtn->on_resolve (dnc, reqmsg, status, &pi->rr.an[i], MIO_SIZEOF(pi->rr.an[i]));
+						goto done;
+					}
+					break;
+			}
+			
+		}
+		goto no_valid_reply;
+	}
+	else
+	{
+	no_valid_reply:
+		if (reqmsgxtn->on_resolve) reqmsgxtn->on_resolve (dnc, reqmsg, status, MIO_NULL, 0);
+	}
+
+done:
+	if (pi) mio_dns_free_packet_info(mio_svc_dnc_getmio(dnc), pi);
+}
+
+mio_dns_msg_t* mio_svc_dnc_resolve (mio_svc_dnc_t* dnc, const mio_bch_t* qname, mio_dns_rrt_t qtype, int flags, mio_svc_dnc_on_resolve_t on_resolve, mio_oow_t xtnsize)
 {
 	static mio_dns_bhdr_t qhdr =
 	{
@@ -651,66 +748,25 @@ int mio_svc_dnc_resolve (mio_svc_dnc_t* dnc, const mio_bch_t* qname, mio_dns_rrt
 	};
 
 	mio_dns_bqr_t qr;
+	mio_dns_msg_t* reqmsg;
+	dnc_dns_msg_resolve_xtn_t* reqmsgxtn;
 
 	qr.qname = (mio_bch_t*)qname;
 	qr.qtype = qtype;
 	qr.qclass = MIO_DNS_RRC_IN;
 
-	return mio_svc_dnc_sendreq(dnc, &qhdr, &qr, 1, &qedns, on_reply);
-}
-
-
-/* TODO:
-static void on_dnc_resolve(mio_svc_dnc_t* dnc, mio_dns_msg_t* reqmsg, mio_errnum_t status, const void* data, mio_oow_t dlen)
-{
-	mio_t* mio = mio_svc_dnc_getmio(dnc);
-	mio_dns_pkt_info_t* pi = MIO_NULL;
-	if (status == MIO_ENOERR)
+	reqmsg = mio_svc_dnc_sendmsg(dnc, &qhdr, &qr, 1, MIO_NULL, 0, &qedns, on_dnc_resolve, MIO_SIZEOF(*reqmsgxtn) + xtnsize);
+	if (reqmsg)
 	{
-		mio_uint32_t i;
-
-		pi = mio_dns_make_packet_info(mio, data, dlen);
-		if (!pi)
-		{
-			status = mio_geterrnum(mio);
-			goto no_valid_reply;
-		}
-
-		if (pi->hdr.rcode != MIO_DNS_RCODE_NOERROR) 
-		{
-			status = MIO_EINVAL;
-			goto no_valid_reply;
-		}
-
-		if (pi->ancount < 0) goto no_valid_reply;
-		for (i = 0; i < pi->ancount; i++)
-		{
-			if (pi->rr.an[i].rrtype == query-ctx.qtype)
-			{
-				printf ("GOT THE RIGHT ANSSER .... \n");
-				
-				query-ctx.on_reply (dnc, status, pi->rr.an[i].dptr, pi->rr.an[i].dlen);
-				goto done;
-			}
-		}
-		goto no_valid_reply;
-	}
-	else
-	{
-	no_valid_reply:
-		query-ctx.on_reply (dnc, status, MIO_NULL, 0);
+		reqmsgxtn = dnc_dns_msg_resolve_getxtn(reqmsg);
+		reqmsgxtn->on_resolve = on_resolve;
+		reqmsgxtn->qtype = qtype;
+		reqmsgxtn->flags = flags;
 	}
 
-done:
-	if (pi) mio_dns_free_packet_info(mio_svc_dnc_getmio(dnc), pi);
+	return reqmsg;
 }
 
-
-int mio_svc_dnc_resolve_simple (mio_svc_dnc_t* dnc, const mio_bch_t* qname, mio_dns_rrt_t qtype, mio_svc_dnc_on_reply_t on_reply)
-{
-	return mio_svc_dnc_resolve(dnc, qname, qtype, on_dnc_reply);
-}
-*/
 
 /* ----------------------------------------------------------------------- */
 
@@ -787,7 +843,7 @@ oops:
 	return -1;
 }
 
-static int parse_question (mio_t* mio, mio_oow_t pos, mio_dns_pkt_info_t* pi)
+static int parse_question_rr (mio_t* mio, mio_oow_t pos, mio_dns_pkt_info_t* pi)
 {
 	mio_dns_qrtr_t* qrtr;
 	mio_uint8_t* xrrdptr;
@@ -816,7 +872,7 @@ oops:
 	return -1;
 }
 
-static int parse_answer (mio_t* mio, mio_dns_rr_part_t rr_part, mio_oow_t pos, mio_dns_pkt_info_t* pi)
+static int parse_answer_rr (mio_t* mio, mio_dns_rr_part_t rr_part, mio_oow_t pos, mio_dns_pkt_info_t* pi)
 {
 	mio_dns_rrtr_t* rrtr;
 	mio_uint16_t qtype, dlen;
@@ -835,6 +891,7 @@ static int parse_answer (mio_t* mio, mio_dns_rr_part_t rr_part, mio_oow_t pos, m
 
 	qtype = mio_ntoh16(rrtr->rrtype);
 	remsize = pi->_end - pi->_ptr;
+	if (MIO_UNLIKELY(remsize < dlen)) goto oops;
 
 	if (pi->_rrdptr)
 	{
@@ -889,11 +946,11 @@ static int parse_answer (mio_t* mio, mio_dns_rr_part_t rr_part, mio_oow_t pos, m
 		}
 
 		case MIO_DNS_RRT_A:
-			if (MIO_UNLIKELY(remsize < 4)) goto oops;
+			if (MIO_UNLIKELY(dlen != 4)) goto oops;
 			break;
 
 		case MIO_DNS_RRT_AAAA:
-			if (MIO_UNLIKELY(remsize < 16)) goto oops;
+			if (MIO_UNLIKELY(dlen != 16)) goto oops;
 			break;
 
 		case MIO_DNS_RRT_CNAME:
@@ -912,7 +969,11 @@ static int parse_answer (mio_t* mio, mio_dns_rr_part_t rr_part, mio_oow_t pos, m
 	{
 		pi->_ptr += dlen;
 		pi->_rrdlen += dlen;
-		if (pi->_rrdptr) MIO_MEMCPY (pi->_rrdptr, rrtr + 1, dlen); /* copy actual data */
+		if (pi->_rrdptr) 
+		{
+			MIO_MEMCPY (pi->_rrdptr, rrtr + 1, dlen); /* copy actual data */
+			pi->_rrdptr += dlen;
+		}
 	}
 
 	return 0;
@@ -954,22 +1015,22 @@ redo:
 
 	for (i = 0; i < pii->qdcount; i++)
 	{
-		if (parse_question(mio, i, pii) <= -1) goto oops;
+		if (parse_question_rr(mio, i, pii) <= -1) goto oops;
 	}
 
 	for (i = 0; i < pii->ancount; i++)
 	{
-		if (parse_answer(mio, MIO_DNS_RR_PART_ANSWER, i, pii) <= -1) goto oops;
+		if (parse_answer_rr(mio, MIO_DNS_RR_PART_ANSWER, i, pii) <= -1) goto oops;
 	}
 
 	for (i = 0; i < pii->nscount; i++)
 	{
-		if (parse_answer(mio, MIO_DNS_RR_PART_AUTHORITY, i, pii) <= -1) goto oops;
+		if (parse_answer_rr(mio, MIO_DNS_RR_PART_AUTHORITY, i, pii) <= -1) goto oops;
 	}
 
 	for (i = 0; i < pii->arcount; i++)
 	{
-		if (parse_answer(mio, MIO_DNS_RR_PART_ADDITIONAL, i, pii) <= -1) goto oops;
+		if (parse_answer_rr(mio, MIO_DNS_RR_PART_ADDITIONAL, i, pii) <= -1) goto oops;
 	}
 
 	if (pii == &pib)
@@ -984,28 +1045,6 @@ redo:
 		pii->rr.ar = (mio_dns_brr_t*)&pii->rr.ns[pib.nscount];
 		pii->_rrdptr = (mio_uint8_t*)&pii->rr.ar[pib.arcount];
 		goto redo;
-	}
-
-printf (">>>>>>>> RRDLEN = %d\n", (int)pii->_rrdlen);
-printf (">>>>>>>> RCODE %d EDNS exist %d uplen %d version %d dnssecok %d\n", pii->hdr.rcode, pii->edns.exist, pii->edns.uplen, pii->edns.version, pii->edns.dnssecok);
-	for (i = 0; i < pii->qdcount; i++)
-	{
-		printf ("qd %d -> %s %d\n", i, pii->rr.qd[i].qname, pii->rr.qd[i].qtype);
-	}
-
-	for (i = 0; i < pii->ancount; i++)
-	{
-		printf ("an %d -> %s %d\n", i, pii->rr.an[i].rrname, pii->rr.an[i].rrtype);
-	}
-
-	for (i = 0; i < pii->nscount; i++)
-	{
-		printf ("ns %d -> %s %d\n", i, pii->rr.ns[i].rrname, pii->rr.ns[i].rrtype);
-	}
-
-	for (i = 0; i < pii->arcount; i++)
-	{
-		printf ("ar %d -> %s %d\n", i, pii->rr.ar[i].rrname, pii->rr.ar[i].rrtype);
 	}
 
 	return pii;

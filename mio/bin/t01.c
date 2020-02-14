@@ -608,23 +608,50 @@ static void on_dnc_resolve(mio_svc_dnc_t* dnc, mio_dns_msg_t* reqmsg, mio_errnum
 {
 	mio_dns_pkt_info_t* pi = MIO_NULL;
 
+
 	if (status == MIO_ENOERR)
 	{
 		mio_uint32_t i;
 
-		printf ("XXXXXXXXXXXXXXXXx RECEIVED XXXXXXXXXXXXXXXXXXXXXXXXX\n");
 		pi = mio_dns_make_packet_info(mio_svc_dnc_getmio(dnc), data, dlen);
 		if (!pi) goto no_valid_reply;
 
 		if (pi->hdr.rcode != MIO_DNS_RCODE_NOERROR) goto no_valid_reply;
 
 		if (pi->ancount < 0) goto no_valid_reply;
+
+		printf (">>>>>>>> RRDLEN = %d\n", (int)pi->_rrdlen);
+		printf (">>>>>>>> RCODE %d EDNS exist %d uplen %d version %d dnssecok %d\n", pi->hdr.rcode, pi->edns.exist, pi->edns.uplen, pi->edns.version, pi->edns.dnssecok);
+
 		for (i = 0; i < pi->ancount; i++)
 		{
-			if (pi->rr.an[i].rrtype == MIO_DNS_RRT_A)
+			mio_dns_brr_t* brr = &pi->rr.an[i];
+			switch (pi->rr.an[i].rrtype)
 			{
-				printf ("GOT THE RIGHT ANSSER .... \n");
-				goto done;
+				case MIO_DNS_RRT_A:
+				{
+					struct in6_addr ia;
+					char buf[128];
+					memcpy (&ia.s6_addr, brr->dptr, brr->dlen);
+					printf ("^^^  GOT REPLY........................   %d ", brr->dlen);
+					printf ("[%s]", inet_ntop(AF_INET6, &ia, buf, MIO_COUNTOF(buf)));
+					printf ("\n");
+					goto done;
+				}
+				case MIO_DNS_RRT_AAAA:
+				{
+					struct in_addr ia;
+					memcpy (&ia.s_addr, brr->dptr, brr->dlen);
+					printf ("^^^  GOT REPLY........................   %d ", brr->dlen);
+					printf ("[%s]", inet_ntoa(ia));
+					printf ("\n");
+					goto done;
+				}
+				case MIO_DNS_RRT_CNAME:
+					printf ("^^^  GOT REPLY.... CNAME [%s] %d\n", brr->dptr, (int)brr->dlen);
+					goto done;
+				default:
+					goto no_valid_reply;
 			}
 		}
 		goto no_valid_reply;
@@ -637,6 +664,44 @@ static void on_dnc_resolve(mio_svc_dnc_t* dnc, mio_dns_msg_t* reqmsg, mio_errnum
 
 done:
 	if (pi) mio_dns_free_packet_info(mio_svc_dnc_getmio(dnc), pi);
+}
+
+static void on_dnc_resolve_brief (mio_svc_dnc_t* dnc, mio_dns_msg_t* reqmsg, mio_errnum_t status, const void* data, mio_oow_t dlen)
+{
+	if (status == MIO_ENOERR)
+	{
+		mio_dns_brr_t* brr = (mio_dns_brr_t*)data;
+
+		if (brr->rrtype == MIO_DNS_RRT_AAAA)
+		{
+			struct in6_addr ia;
+			char buf[128];
+			memcpy (&ia.s6_addr, brr->dptr, brr->dlen);
+			printf ("^^^ SIMPLE -> GOT REPLY........................   %d ", brr->dlen);
+			printf ("[%s]", inet_ntop(AF_INET6, &ia, buf, MIO_COUNTOF(buf)));
+			printf ("\n");
+		}
+		else if (brr->rrtype == MIO_DNS_RRT_A)
+		{
+			struct in_addr ia;
+			memcpy (&ia.s_addr, brr->dptr, brr->dlen);
+			printf ("^^^ SIMPLE -> GOT REPLY........................   %d ", brr->dlen);
+			printf ("[%s]", inet_ntoa(ia));
+			printf ("\n");
+		}
+		else if (brr->rrtype == MIO_DNS_RRT_CNAME)
+		{
+			printf ("^^^ SIMPLE -> CNAME [%s] %d\n", brr->dptr, (int)brr->dlen);
+		}
+		else
+		{
+			printf ("^^^ SIMPLE -> UNEXPECTED DATA...\n");
+		}
+	}
+	else
+	{
+		printf ("QQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQ NO REPLY QQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQq\n");
+	}
 }
 
 /* ========================================================================= */
@@ -917,11 +982,21 @@ for (i = 0; i < 5; i++)
 			MIO_DNS_RCODE_BADCOOKIE /* rcode */
 		}; 
 
-		mio_svc_dnc_sendreq (dnc, &qhdr, qrs, MIO_COUNTOF(qrs), &qedns, MIO_NULL);
-		mio_svc_dnc_sendmsg (dnc, &rhdr, qrs, MIO_COUNTOF(qrs), rrs, MIO_COUNTOF(rrs), &qedns, MIO_NULL);
+		mio_svc_dnc_sendreq (dnc, &qhdr, &qrs[0], &qedns, MIO_NULL, 0);
+		mio_svc_dnc_sendmsg (dnc, &rhdr, qrs, MIO_COUNTOF(qrs), rrs, MIO_COUNTOF(rrs), &qedns, MIO_NULL, 0);
 	}
 
-if (mio_svc_dnc_resolve(dnc, "www.microsoft.com", MIO_DNS_RRT_A, on_dnc_resolve) <= -1)
+if (!mio_svc_dnc_resolve(dnc, "www.microsoft.com", MIO_DNS_RRT_CNAME, 0, on_dnc_resolve, 0))
+{
+	printf ("resolve attempt failure ---> code.miflux.com\n");
+}
+//if (!mio_svc_dnc_resolve(dnc, "www.microsoft.com", MIO_DNS_RRT_A, MIO_SVC_DNC_RESOLVE_FLAG_BRIEF, on_dnc_resolve_brief, 0))
+if (!mio_svc_dnc_resolve(dnc, "code.miflux.com", MIO_DNS_RRT_A, MIO_SVC_DNC_RESOLVE_FLAG_BRIEF, on_dnc_resolve_brief, 0))
+{
+	printf ("resolve attempt failure ---> code.miflux.com\n");
+}
+
+if (!mio_svc_dnc_resolve(dnc, "ipv6.google.com", MIO_DNS_RRT_AAAA, MIO_SVC_DNC_RESOLVE_FLAG_BRIEF, on_dnc_resolve_brief, 0))
 {
 	printf ("resolve attempt failure ---> code.miflux.com\n");
 }
