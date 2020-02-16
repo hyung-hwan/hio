@@ -20043,6 +20043,207 @@ _ACEOF
 
 
 
+
+
+
+		{ $as_echo "$as_me:${as_lineno-$LINENO}: checking numeric value of PATH_MAX" >&5
+$as_echo_n "checking numeric value of PATH_MAX... " >&6; }
+if ${ax_cv_numvalof_PATH_MAX+:} false; then :
+  $as_echo_n "(cached) " >&6
+else
+  if ac_fn_c_compute_int "$LINENO" "(PATH_MAX)" "ax_cv_numvalof_PATH_MAX"        "#include <limits.h>
+"; then :
+
+else
+  ax_cv_numvalof_PATH_MAX=0
+fi
+
+fi
+{ $as_echo "$as_me:${as_lineno-$LINENO}: result: $ax_cv_numvalof_PATH_MAX" >&5
+$as_echo "$ax_cv_numvalof_PATH_MAX" >&6; }
+
+
+
+cat >>confdefs.h <<_ACEOF
+#define NUMVALOF_PATH_MAX $ax_cv_numvalof_PATH_MAX
+_ACEOF
+
+
+
+
+
+
+		{ $as_echo "$as_me:${as_lineno-$LINENO}: checking numeric value of NSIG" >&5
+$as_echo_n "checking numeric value of NSIG... " >&6; }
+if ${ax_cv_numvalof_NSIG+:} false; then :
+  $as_echo_n "(cached) " >&6
+else
+  if ac_fn_c_compute_int "$LINENO" "(NSIG)" "ax_cv_numvalof_NSIG"        "#include <signal.h>
+"; then :
+
+else
+  ax_cv_numvalof_NSIG=32
+fi
+
+fi
+{ $as_echo "$as_me:${as_lineno-$LINENO}: result: $ax_cv_numvalof_NSIG" >&5
+$as_echo "$ax_cv_numvalof_NSIG" >&6; }
+
+
+
+cat >>confdefs.h <<_ACEOF
+#define NUMVALOF_NSIG $ax_cv_numvalof_NSIG
+_ACEOF
+
+
+
+
+
+
+
+		{ $as_echo "$as_me:${as_lineno-$LINENO}: checking numeric value of AF_UNSPEC" >&5
+$as_echo_n "checking numeric value of AF_UNSPEC... " >&6; }
+if ${ax_cv_numvalof_AF_UNSPEC+:} false; then :
+  $as_echo_n "(cached) " >&6
+else
+  if ac_fn_c_compute_int "$LINENO" "(AF_UNSPEC)" "ax_cv_numvalof_AF_UNSPEC"        "#include <sys/types.h>
+                                        #include <sys/socket.h>
+                                        #include <netinet/in.h>
+"; then :
+
+else
+  ax_cv_numvalof_AF_UNSPEC=0
+fi
+
+fi
+{ $as_echo "$as_me:${as_lineno-$LINENO}: result: $ax_cv_numvalof_AF_UNSPEC" >&5
+$as_echo "$ax_cv_numvalof_AF_UNSPEC" >&6; }
+
+
+
+cat >>confdefs.h <<_ACEOF
+#define NUMVALOF_AF_UNSPEC $ax_cv_numvalof_AF_UNSPEC
+_ACEOF
+
+
+
+
+
+
+		{ $as_echo "$as_me:${as_lineno-$LINENO}: checking numeric value of AF_INET" >&5
+$as_echo_n "checking numeric value of AF_INET... " >&6; }
+if ${ax_cv_numvalof_AF_INET+:} false; then :
+  $as_echo_n "(cached) " >&6
+else
+  if ac_fn_c_compute_int "$LINENO" "(AF_INET)" "ax_cv_numvalof_AF_INET"        "#include <sys/types.h>
+                                        #include <sys/socket.h>
+                                        #include <netinet/in.h>
+"; then :
+
+else
+  ax_cv_numvalof_AF_INET=-1
+fi
+
+fi
+{ $as_echo "$as_me:${as_lineno-$LINENO}: result: $ax_cv_numvalof_AF_INET" >&5
+$as_echo "$ax_cv_numvalof_AF_INET" >&6; }
+
+
+
+cat >>confdefs.h <<_ACEOF
+#define NUMVALOF_AF_INET $ax_cv_numvalof_AF_INET
+_ACEOF
+
+
+
+
+
+
+		{ $as_echo "$as_me:${as_lineno-$LINENO}: checking numeric value of AF_INET6" >&5
+$as_echo_n "checking numeric value of AF_INET6... " >&6; }
+if ${ax_cv_numvalof_AF_INET6+:} false; then :
+  $as_echo_n "(cached) " >&6
+else
+  if ac_fn_c_compute_int "$LINENO" "(AF_INET6)" "ax_cv_numvalof_AF_INET6"        "#include <sys/types.h>
+                                        #include <sys/socket.h>
+                                        #include <netinet/in.h>
+"; then :
+
+else
+  ax_cv_numvalof_AF_INET6=-2
+fi
+
+fi
+{ $as_echo "$as_me:${as_lineno-$LINENO}: result: $ax_cv_numvalof_AF_INET6" >&5
+$as_echo "$ax_cv_numvalof_AF_INET6" >&6; }
+
+
+
+cat >>confdefs.h <<_ACEOF
+#define NUMVALOF_AF_INET6 $ax_cv_numvalof_AF_INET6
+_ACEOF
+
+
+
+
+
+
+		{ $as_echo "$as_me:${as_lineno-$LINENO}: checking numeric value of AF_PACKET" >&5
+$as_echo_n "checking numeric value of AF_PACKET... " >&6; }
+if ${ax_cv_numvalof_AF_PACKET+:} false; then :
+  $as_echo_n "(cached) " >&6
+else
+  if ac_fn_c_compute_int "$LINENO" "(AF_PACKET)" "ax_cv_numvalof_AF_PACKET"        "#include <sys/types.h>
+                                        #include <sys/socket.h>
+                                        #include <netinet/in.h>
+"; then :
+
+else
+  ax_cv_numvalof_AF_PACKET=-3
+fi
+
+fi
+{ $as_echo "$as_me:${as_lineno-$LINENO}: result: $ax_cv_numvalof_AF_PACKET" >&5
+$as_echo "$ax_cv_numvalof_AF_PACKET" >&6; }
+
+
+
+cat >>confdefs.h <<_ACEOF
+#define NUMVALOF_AF_PACKET $ax_cv_numvalof_AF_PACKET
+_ACEOF
+
+
+
+
+
+
+		{ $as_echo "$as_me:${as_lineno-$LINENO}: checking numeric value of AF_UNIX" >&5
+$as_echo_n "checking numeric value of AF_UNIX... " >&6; }
+if ${ax_cv_numvalof_AF_UNIX+:} false; then :
+  $as_echo_n "(cached) " >&6
+else
+  if ac_fn_c_compute_int "$LINENO" "(AF_UNIX)" "ax_cv_numvalof_AF_UNIX"        "#include <sys/types.h>
+                                        #include <sys/socket.h>
+                                        #include <sys/un.h>
+"; then :
+
+else
+  ax_cv_numvalof_AF_UNIX=-4
+fi
+
+fi
+{ $as_echo "$as_me:${as_lineno-$LINENO}: result: $ax_cv_numvalof_AF_UNIX" >&5
+$as_echo "$ax_cv_numvalof_AF_UNIX" >&6; }
+
+
+
+cat >>confdefs.h <<_ACEOF
+#define NUMVALOF_AF_UNIX $ax_cv_numvalof_AF_UNIX
+_ACEOF
+
+
+
+
 if test "x${platform_win32}" = "xyes"
 then
 	# The cast to long int works around a bug in the HP C Compiler
@@ -21268,6 +21469,37 @@ _ACEOF
 
 cat >>confdefs.h <<_ACEOF
 #define MIO_MBLEN_MAX ${ax_cv_numvalof_MB_LEN_MAX}
+_ACEOF
+
+
+cat >>confdefs.h <<_ACEOF
+#define MIO_NSIG ${ax_cv_numvalof_NSIG}
+_ACEOF
+
+
+
+cat >>confdefs.h <<_ACEOF
+#define MIO_AF_UNSPEC (${ax_cv_numvalof_AF_UNSPEC})
+_ACEOF
+
+
+cat >>confdefs.h <<_ACEOF
+#define MIO_AF_INET (${ax_cv_numvalof_AF_INET})
+_ACEOF
+
+
+cat >>confdefs.h <<_ACEOF
+#define MIO_AF_INET6 (${ax_cv_numvalof_AF_INET6})
+_ACEOF
+
+
+cat >>confdefs.h <<_ACEOF
+#define MIO_AF_PACKET (${ax_cv_numvalof_AF_PACKET})
+_ACEOF
+
+
+cat >>confdefs.h <<_ACEOF
+#define MIO_AF_UNIX (${ax_cv_numvalof_AF_UNIX})
 _ACEOF
 
 

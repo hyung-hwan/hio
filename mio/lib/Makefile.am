@@ -26,6 +26,7 @@ include_HEADERS = \
 	mio-pac1.h \
 	mio-pro.h \
 	mio-sck.h \
+	mio-skad.h \
 	mio-upac.h \
 	mio-utl.h \
 	mio.h
@@ -40,8 +41,7 @@ libmio_la_SOURCES = \
 	mio.c \
 	pro.c \
 	sck.c \
-	sck-addr.c \
-	sck-addr.h \
+	skad.c \
 	sys.c \
 	sys-ass.c \
 	sys-err.c \

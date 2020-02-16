@@ -1025,12 +1025,12 @@ int mio_conv_ucstr_to_utf8 (const mio_uch_t* ucs, mio_oow_t* ucslen, mio_bch_t* 
 
 /* ----------------------------------------------------------------------- */
 
-int mio_convbtouchars (mio_t* mio, const mio_bch_t* bcs, mio_oow_t* bcslen, mio_uch_t* ucs, mio_oow_t* ucslen)
+int mio_convbtouchars (mio_t* mio, const mio_bch_t* bcs, mio_oow_t* bcslen, mio_uch_t* ucs, mio_oow_t* ucslen, int all)
 {
 	/* length bound */
 	int n;
 
-	n = mio_conv_bchars_to_uchars_with_cmgr(bcs, bcslen, ucs, ucslen, mio_getcmgr(mio), 0);
+	n = mio_conv_bchars_to_uchars_with_cmgr(bcs, bcslen, ucs, ucslen, mio_getcmgr(mio), all);
 
 	if (n <= -1)
 	{
@@ -1056,12 +1056,12 @@ int mio_convutobchars (mio_t* mio, const mio_uch_t* ucs, mio_oow_t* ucslen, mio_
 	return n;
 }
 
-int mio_convbtoucstr (mio_t* mio, const mio_bch_t* bcs, mio_oow_t* bcslen, mio_uch_t* ucs, mio_oow_t* ucslen)
+int mio_convbtoucstr (mio_t* mio, const mio_bch_t* bcs, mio_oow_t* bcslen, mio_uch_t* ucs, mio_oow_t* ucslen, int all)
 {
 	/* null-terminated. */
 	int n;
 
-	n = mio_conv_bcstr_to_ucstr_with_cmgr(bcs, bcslen, ucs, ucslen, mio_getcmgr(mio), 0);
+	n = mio_conv_bcstr_to_ucstr_with_cmgr(bcs, bcslen, ucs, ucslen, mio_getcmgr(mio), all);
 
 	if (n <= -1)
 	{
@@ -1088,13 +1088,13 @@ int mio_convutobcstr (mio_t* mio, const mio_uch_t* ucs, mio_oow_t* ucslen, mio_b
 
 /* ----------------------------------------------------------------------- */
 
-MIO_INLINE mio_uch_t* mio_dupbtoucharswithheadroom (mio_t* mio, mio_oow_t headroom_bytes, const mio_bch_t* bcs, mio_oow_t bcslen, mio_oow_t* ucslen)
+MIO_INLINE mio_uch_t* mio_dupbtoucharswithheadroom (mio_t* mio, mio_oow_t headroom_bytes, const mio_bch_t* bcs, mio_oow_t bcslen, mio_oow_t* ucslen, int all)
 {
 	mio_oow_t inlen, outlen;
 	mio_uch_t* ptr;
 
 	inlen = bcslen;
-	if (mio_convbtouchars(mio, bcs, &inlen, MIO_NULL, &outlen) <= -1) 
+	if (mio_convbtouchars(mio, bcs, &inlen, MIO_NULL, &outlen, all) <= -1) 
 	{
 		/* note it's also an error if no full conversion is made in this function */
 		return MIO_NULL;
@@ -1106,7 +1106,7 @@ MIO_INLINE mio_uch_t* mio_dupbtoucharswithheadroom (mio_t* mio, mio_oow_t headro
 	inlen = bcslen;
 
 	ptr = (mio_uch_t*)((mio_oob_t*)ptr + headroom_bytes);
-	mio_convbtouchars (mio, bcs, &inlen, ptr, &outlen);
+	mio_convbtouchars (mio, bcs, &inlen, ptr, &outlen, all);
 
 	/* mio_convbtouchars() doesn't null-terminate the target. 
 	 * but in mio_dupbtouchars(), i allocate space. so i don't mind
@@ -1116,9 +1116,9 @@ MIO_INLINE mio_uch_t* mio_dupbtoucharswithheadroom (mio_t* mio, mio_oow_t headro
 	return ptr;
 }
 
-mio_uch_t* mio_dupbtouchars (mio_t* mio, const mio_bch_t* bcs, mio_oow_t bcslen, mio_oow_t* ucslen)
+mio_uch_t* mio_dupbtouchars (mio_t* mio, const mio_bch_t* bcs, mio_oow_t bcslen, mio_oow_t* ucslen, int all)
 {
-	return mio_dupbtoucharswithheadroom (mio, 0, bcs, bcslen, ucslen);
+	return mio_dupbtoucharswithheadroom (mio, 0, bcs, bcslen, ucslen, all);
 }
 
 MIO_INLINE mio_bch_t* mio_duputobcharswithheadroom (mio_t* mio, mio_oow_t headroom_bytes, const mio_uch_t* ucs, mio_oow_t ucslen, mio_oow_t* bcslen)
@@ -1153,12 +1153,12 @@ mio_bch_t* mio_duputobchars (mio_t* mio, const mio_uch_t* ucs, mio_oow_t ucslen,
 
 /* ----------------------------------------------------------------------- */
 
-MIO_INLINE mio_uch_t* mio_dupbtoucstrwithheadroom (mio_t* mio, mio_oow_t headroom_bytes, const mio_bch_t* bcs, mio_oow_t* ucslen)
+MIO_INLINE mio_uch_t* mio_dupbtoucstrwithheadroom (mio_t* mio, mio_oow_t headroom_bytes, const mio_bch_t* bcs, mio_oow_t* ucslen, int all)
 {
 	mio_oow_t inlen, outlen;
 	mio_uch_t* ptr;
 
-	if (mio_convbtoucstr(mio, bcs, &inlen, MIO_NULL, &outlen) <= -1) 
+	if (mio_convbtoucstr(mio, bcs, &inlen, MIO_NULL, &outlen, all) <= -1) 
 	{
 		/* note it's also an error if no full conversion is made in this function */
 		return MIO_NULL;
@@ -1168,14 +1168,14 @@ MIO_INLINE mio_uch_t* mio_dupbtoucstrwithheadroom (mio_t* mio, mio_oow_t headroo
 	ptr = (mio_uch_t*)mio_allocmem(mio, headroom_bytes + (outlen * MIO_SIZEOF(mio_uch_t)));
 	if (!ptr) return MIO_NULL;
 
-	mio_convbtoucstr (mio, bcs, &inlen, ptr, &outlen);
+	mio_convbtoucstr (mio, bcs, &inlen, ptr, &outlen, all);
 	if (ucslen) *ucslen = outlen;
 	return ptr;
 }
 
-mio_uch_t* mio_dupbtoucstr (mio_t* mio, const mio_bch_t* bcs, mio_oow_t* ucslen)
+mio_uch_t* mio_dupbtoucstr (mio_t* mio, const mio_bch_t* bcs, mio_oow_t* ucslen, int all)
 {
-	return mio_dupbtoucstrwithheadroom (mio, 0, bcs, ucslen);
+	return mio_dupbtoucstrwithheadroom (mio, 0, bcs, ucslen, all);
 }
 
 MIO_INLINE mio_bch_t* mio_duputobcstrwithheadroom (mio_t* mio, mio_oow_t headroom_bytes, const mio_uch_t* ucs, mio_oow_t* bcslen)

@@ -669,7 +669,7 @@ done:
 
 static void on_dnc_resolve_brief (mio_svc_dnc_t* dnc, mio_dns_msg_t* reqmsg, mio_errnum_t status, const void* data, mio_oow_t dlen)
 {
-	if (data) /* status must be HAWK_ENOERR */
+	if (data) /* status must be MIO_ENOERR */
 	{
 		mio_dns_brr_t* brr = (mio_dns_brr_t*)data;
 

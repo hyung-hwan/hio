@@ -907,7 +907,8 @@ MIO_EXPORT int mio_convbtouchars (
 	const mio_bch_t* bcs,
 	mio_oow_t*       bcslen,
 	mio_uch_t*       ucs,
-	mio_oow_t*       ucslen
+	mio_oow_t*       ucslen,
+	int              all
 );
 
 MIO_EXPORT int mio_convutobchars (
@@ -927,7 +928,8 @@ MIO_EXPORT int mio_convbtoucstr (
 	const mio_bch_t* bcs,
 	mio_oow_t*       bcslen,
 	mio_uch_t*       ucs,
-	mio_oow_t*       ucslen
+	mio_oow_t*       ucslen,
+	int              all
 );
 
 
@@ -946,23 +948,23 @@ MIO_EXPORT int mio_convutobcstr (
 
 #if defined(MIO_OOCH_IS_UCH)
 #	define mio_dupootobcharswithheadroom(mio,hrb,oocs,oocslen,bcslen) mio_duputobcharswithheadroom(mio,hrb,oocs,oocslen,bcslen)
-#	define mio_dupbtooocharswithheadroom(mio,hrb,bcs,bcslen,oocslen) mio_dupbtoucharswithheadroom(mio,hrb,bcs,bcslen,oocslen)
+#	define mio_dupbtooocharswithheadroom(mio,hrb,bcs,bcslen,oocslen,all) mio_dupbtoucharswithheadroom(mio,hrb,bcs,bcslen,oocslen,all)
 #	define mio_dupootobchars(mio,oocs,oocslen,bcslen) mio_duputobchars(mio,oocs,oocslen,bcslen)
-#	define mio_dupbtooochars(mio,bcs,bcslen,oocslen) mio_dupbtouchars(mio,bcs,bcslen,oocslen)
+#	define mio_dupbtooochars(mio,bcs,bcslen,oocslen,all) mio_dupbtouchars(mio,bcs,bcslen,oocslen,all)
 
 #	define mio_dupootobcstrwithheadroom(mio,hrb,oocs,bcslen) mio_duputobcstrwithheadroom(mio,hrb,oocs,bcslen)
-#	define mio_dupbtooocstrwithheadroom(mio,hrb,bcs,oocslen) mio_dupbtoucstrwithheadroom(mio,hrb,bcs,oocslen)
+#	define mio_dupbtooocstrwithheadroom(mio,hrb,bcs,oocslen,all) mio_dupbtoucstrwithheadroom(mio,hrb,bcs,oocslen,all)
 #	define mio_dupootobcstr(mio,oocs,bcslen) mio_duputobcstr(mio,oocs,bcslen)
-#	define mio_dupbtooocstr(mio,bcs,oocslen) mio_dupbtoucstr(mio,bcs,oocslen)
+#	define mio_dupbtooocstr(mio,bcs,oocslen,all) mio_dupbtoucstr(mio,bcs,oocslen,all)
 #else
-#	define mio_dupootoucharswithheadroom(mio,hrb,oocs,oocslen,ucslen) mio_dupbtoucharswithheadroom(mio,hrb,oocs,oocslen,ucslen)
+#	define mio_dupootoucharswithheadroom(mio,hrb,oocs,oocslen,ucslen,all) mio_dupbtoucharswithheadroom(mio,hrb,oocs,oocslen,ucslen,all)
 #	define mio_duputooocharswithheadroom(mio,hrb,ucs,ucslen,oocslen) mio_duputobcharswithheadroom(mio,hrb,ucs,ucslen,oocslen)
-#	define mio_dupootouchars(mio,oocs,oocslen,ucslen) mio_dupbtouchars(mio,oocs,oocslen,ucslen)
+#	define mio_dupootouchars(mio,oocs,oocslen,ucslen,all) mio_dupbtouchars(mio,oocs,oocslen,ucslen,all)
 #	define mio_duputooochars(mio,ucs,ucslen,oocslen) mio_duputobchars(mio,ucs,ucslen,oocslen)
 
-#	define mio_dupootoucstrwithheadroom(mio,hrb,oocs,ucslen) mio_dupbtoucstrwithheadroom(mio,hrb,oocs,ucslen)
+#	define mio_dupootoucstrwithheadroom(mio,hrb,oocs,ucslen,all) mio_dupbtoucstrwithheadroom(mio,hrb,oocs,ucslen,all)
 #	define mio_duputooocstrwithheadroom(mio,hrb,ucs,oocslen) mio_duputobcstrwithheadroom(mio,hrb,ucs,oocslen)
-#	define mio_dupootoucstr(mio,oocs,ucslen) mio_dupbtoucstr(mio,oocs,ucslen)
+#	define mio_dupootoucstr(mio,oocs,ucslen,all) mio_dupbtoucstr(mio,oocs,ucslen,all)
 #	define mio_duputooocstr(mio,ucs,oocslen) mio_duputobcstr(mio,ucs,oocslen)
 #endif
 
@@ -972,7 +974,8 @@ MIO_EXPORT mio_uch_t* mio_dupbtoucharswithheadroom (
 	mio_oow_t        headroom_bytes,
 	const mio_bch_t* bcs,
 	mio_oow_t        bcslen,
-	mio_oow_t*       ucslen
+	mio_oow_t*       ucslen,
+	int              all
 );
 
 MIO_EXPORT mio_bch_t* mio_duputobcharswithheadroom (
@@ -987,7 +990,8 @@ MIO_EXPORT mio_uch_t* mio_dupbtouchars (
 	mio_t*           mio,
 	const mio_bch_t* bcs,
 	mio_oow_t        bcslen,
-	mio_oow_t*       ucslen
+	mio_oow_t*       ucslen,
+	int              all
 );
 
 MIO_EXPORT mio_bch_t* mio_duputobchars (
@@ -1002,7 +1006,8 @@ MIO_EXPORT mio_uch_t* mio_dupbtoucstrwithheadroom (
 	mio_t*           mio,
 	mio_oow_t        headroom_bytes,
 	const mio_bch_t* bcs,
-	mio_oow_t*       ucslen
+	mio_oow_t*       ucslen,
+	int              all
 );
 
 MIO_EXPORT mio_bch_t* mio_duputobcstrwithheadroom (
@@ -1015,7 +1020,8 @@ MIO_EXPORT mio_bch_t* mio_duputobcstrwithheadroom (
 MIO_EXPORT mio_uch_t* mio_dupbtoucstr (
 	mio_t*           mio,
 	const mio_bch_t* bcs,
-	mio_oow_t*       ucslen /* optional: length of returned string */
+	mio_oow_t*       ucslen, /* optional: length of returned string */
+	int              all
 );
 
 MIO_EXPORT mio_bch_t* mio_duputobcstr (
