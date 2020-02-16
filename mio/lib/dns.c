@@ -45,8 +45,9 @@ struct mio_svc_dnc_t
 	mio_dev_sck_t* sck;
 	mio_sckaddr_t serveraddr;
 
+	mio_ntime_t send_tmout; 
 	mio_ntime_t reply_tmout; /* default reply timeout */
-	mio_oow_t reply_tmout_retries;
+	mio_oow_t reply_tmout_max_tries;
 
 	mio_oow_t seq;
 	mio_dns_msg_t* pending_req;
@@ -62,7 +63,7 @@ typedef struct dnc_sck_xtn_t dnc_sck_xtn_t;
 
 #define DN_AT_END(ptr) (ptr[0] == '\0' || (ptr[0] == '.' && ptr[1] == '\0'))
 
-static mio_oow_t to_dn (mio_svc_dns_t* dns, const mio_bch_t* str, mio_uint8_t* buf, mio_oow_t bufsz)
+static mio_oow_t to_dn (const mio_bch_t* str, mio_uint8_t* buf, mio_oow_t bufsz)
 {
 	mio_uint8_t* bp = buf, * be = buf + bufsz;
 
@@ -126,286 +127,92 @@ static mio_oow_t dn_length (mio_uint8_t* ptr, mio_oow_t len)
 }
 
 /* ----------------------------------------------------------------------- */
-#if defined(MIO_HAVE_INLINE)
-	static MIO_INLINE mio_dns_pkt_t* dns_msg_to_pkt (mio_dns_msg_t* msg) { return (mio_dns_pkt_t*)(msg + 1); }
-#else
-#	define dns_msg_to_pkt(msg) ((mio_dns_pkt_t*)((mio_dns_msg_t*)(msg) + 1))
-#endif
-
-static void release_dns_msg (mio_svc_dnc_t* dnc, mio_dns_msg_t* msg)
-{
-	mio_t* mio = dnc->mio;
-
-MIO_DEBUG1 (mio, "releasing dns msg %d\n", (int)mio_ntoh16(dns_msg_to_pkt(msg)->id));
-
-	if (msg == dnc->pending_req || msg->next || msg->prev)
-	{
-		/* it's chained in the pending request. unchain it */
-		if (msg->next) msg->next->prev = msg->prev;
-		if (msg->prev) msg->prev->next = msg->next;
-		else dnc->pending_req = msg->next;
-	}
-
-/* TODO:  add it to the free msg list instead of just freeing it. */
-	if (msg->rtmridx != MIO_TMRIDX_INVALID)
-	{
-		mio_deltmrjob (mio, msg->rtmridx);
-		MIO_ASSERT (mio, msg->rtmridx == MIO_TMRIDX_INVALID);
-	}
-
-	mio_freemem (mio, msg);
-}
-
-static mio_oow_t encode_rdata_in_dns_msg (mio_svc_dnc_t* dnc, const mio_dns_brr_t* rr, mio_dns_rrtr_t* rrtr)
-{
-	switch (rr->rrtype)
-	{
-		case MIO_DNS_RRT_A:
-			break;
-		case MIO_DNS_RRT_AAAA:
-		
-			break;
-
-		/*
-		case MIO_DNS_RRT_WKS:
-			break; */
-
-		case MIO_DNS_RRT_MX:
-			/* preference, exchange */
-			break;
-
-		case MIO_DNS_RRT_CNAME: 
-		/*case MIO_DNS_RRT_MB:
-		case MIO_DNS_RRT_MD:
-		case MIO_DNS_RRT_MF:
-		case MIO_DNS_RRT_MG:
-		case MIO_DNS_RRT_MR:*/
-		case MIO_DNS_RRT_NS:
-		case MIO_DNS_RRT_PTR:
-			/* just a normal domain name */
-			break;
-
-	#if 0
-		case MIO_DNS_RRT_HINFO:
-			/* cpu, os */
-			break;
-	#endif
-
-	#if 0
-		case MIO_DNS_RRT_MINFO:
-			/* rmailbx, emailbx */
-	#endif
-			break;
-		
-		case MIO_DNS_RRT_SOA:
-			/* soa */
-			break;
-
-		case MIO_DNS_RRT_TXT:
-		case MIO_DNS_RRT_NULL:
-		default:
-			/* TODO: custom transformator? */
-			rrtr->dlen = mio_hton16(rr->dlen);
-			if (rr->dlen > 0) MIO_MEMCPY (rrtr + 1, rr->dptr, rr->dlen);
-	}
-
-	return rr->dlen;
-}
-
-static mio_dns_msg_t* make_dns_msg (mio_svc_dnc_t* dnc, mio_dns_bhdr_t* bdns, mio_dns_bqr_t* qr, mio_oow_t qr_count, mio_dns_brr_t* rr, mio_oow_t rr_count, mio_dns_bedns_t* edns, mio_oow_t xtnsize)
-{
-	mio_t* mio = dnc->mio;
-	mio_oow_t dnlen, msgbufsz, pktlen, i;
-	mio_dns_msg_t* msg;
-	mio_dns_pkt_t* pkt;
-	mio_uint8_t* dn;
-	mio_dns_qrtr_t* qrtr;
-	mio_dns_rrtr_t* rrtr;
-	int rr_sect;
-	mio_uint32_t edns_dlen;
-
-	pktlen = MIO_SIZEOF(*pkt);
-
-	for (i = 0; i < qr_count; i++)
-	{
-		/* <length>segmnet<length>segment<zero>.
-		 * if the input has the ending period(e.g. mio.lib.), the dn length is namelen + 1. 
-		 * if the input doesn't have the ending period(e.g. mio.lib) . the dn length is namelen + 2. */
-		pktlen += mio_count_bcstr(qr[i].qname) + 2 + MIO_SIZEOF(*qrtr);
-	}
-
-	for (i = 0; i < rr_count; i++)
-	{
-		pktlen += mio_count_bcstr(rr[i].rrname) + 2 + MIO_SIZEOF(*rrtr) + rr[i].dlen;
-	}
-
-	edns_dlen = 0;
-	if (edns)
-	{
-		mio_dns_beopt_t* beopt;
-
-		pktlen += 1 + MIO_SIZEOF(*rrtr); /* edns0 OPT RR - 1 for the root name  */
-
-		beopt = edns->beoptr;
-		for (i = 0; i < edns->beonum; i++)
-		{
-			edns_dlen += MIO_SIZEOF(mio_dns_eopt_t) + beopt->dlen;
-			if (edns_dlen > MIO_TYPE_MAX(mio_uint16_t))
-			{
-				mio_seterrbfmt (mio, MIO_EINVAL, "edns options too large");
-				return MIO_NULL;
-			}
-			beopt++;
-		}
-
-		pktlen += edns_dlen;
-	}
-	else 
-	{
-		if (bdns->rcode > 0x0F)
-		{
-			/* rcode is larger than 4 bits. but edns info is not provided */
-			mio_seterrbfmt (mio, MIO_EINVAL, "rcode too large without edns - %d", bdns->rcode);
-			return MIO_NULL;
-		}
-	}
-
-	msgbufsz = MIO_SIZEOF(*msg) + MIO_ALIGN_POW2(pktlen, MIO_SIZEOF_VOID_P) + xtnsize;
-
-/* TODO: msg buffer reuse */
-	msg = mio_callocmem(mio, msgbufsz);
-	if (!msg) return MIO_NULL;
-
-	msg->msglen = msgbufsz; /* record the instance size */
-	msg->rtmridx = MIO_TMRIDX_INVALID;
-	msg->dev = (mio_dev_t*)dnc->sck;
-
-	pkt = dns_msg_to_pkt(msg); /* actual packet data begins after the message structure */
-
-	dn = (mio_uint8_t*)(pkt + 1); /* skip the dns packet header */
-	for (i = 0; i < qr_count; i++)
-	{
-		/* dnlen includes the ending <zero> */
-		dnlen = to_dn((mio_svc_dns_t*)dnc, qr[i].qname, dn, mio_count_bcstr(qr[i].qname) + 2);
-		if (dnlen <= 0)
-		{
-			release_dns_msg (dnc, msg);
-			mio_seterrbfmt (mio, MIO_EINVAL, "invalid domain name - %hs", qr[i].qname);
-			return MIO_NULL;
-		}
-		qrtr = (mio_dns_qrtr_t*)(dn + dnlen);
-		qrtr->qtype = mio_hton16(qr[i].qtype);
-		qrtr->qclass = mio_hton16(qr[i].qclass);
-
-		dn = (mio_uint8_t*)(qrtr + 1);
-	}
-
-	for (rr_sect = MIO_DNS_RR_PART_ANSWER; rr_sect <= MIO_DNS_RR_PART_ADDITIONAL;)
-	{
-		mio_oow_t match_count = 0;
-		for (i = 0; i < rr_count; i++)
-		{
-			if (rr[i].part == rr_sect)
-			{
-				mio_oow_t rdata_len;
-
-				dnlen = to_dn((mio_svc_dns_t*)dnc, rr[i].rrname, dn, mio_count_bcstr(rr[i].rrname) + 2);
-				if (dnlen <= 0)
-				{
-					release_dns_msg (dnc, msg);
-					mio_seterrbfmt (mio, MIO_EINVAL, "invalid domain name - %hs", rr[i].rrname);
-					return MIO_NULL;
-				}
-
-				rrtr = (mio_dns_rrtr_t*)(dn + dnlen);
-				rrtr->rrtype = mio_hton16(rr[i].rrtype);
-				rrtr->rrclass = mio_hton16(rr[i].rrclass);
-				rrtr->ttl = mio_hton32(rr[i].ttl);
-
-				rdata_len = encode_rdata_in_dns_msg(dnc, &rr[i], rrtr);
-				dn = (mio_uint8_t*)(rrtr + 1) + rdata_len;
-
-				match_count++;
-			}
-		}
-
-		rr_sect = rr_sect + 1;
-		((mio_dns_pkt_alt_t*)pkt)->rrcount[rr_sect] = mio_hton16(match_count);
-	}
-
-	if (edns)
-	{
-		mio_dns_eopt_t* eopt;
-		mio_dns_beopt_t* beopt;
-
-		/* add EDNS0 OPT RR */
-		*dn = 0; /* root domain. as if to_dn("") is called */
-		rrtr = (mio_dns_rrtr_t*)(dn + 1);
-		rrtr->rrtype = MIO_CONST_HTON16(MIO_DNS_RRT_OPT);
-		rrtr->rrclass = mio_hton16(edns->uplen);
-		rrtr->ttl = mio_hton32(MIO_DNS_EDNS_MAKE_TTL(bdns->rcode, edns->version, edns->dnssecok));
-		rrtr->dlen = mio_hton16((mio_uint16_t)edns_dlen);
-		dn = (mio_uint8_t*)(rrtr + 1);
-
-		beopt = edns->beoptr;
-		eopt = (mio_dns_eopt_t*)dn;
-
-		for (i = 0; i < edns->beonum; i++)
-		{
-			eopt->code = mio_hton16(beopt->code);
-			eopt->dlen = mio_hton16(beopt->dlen);
-			MIO_MEMCPY (++eopt, beopt->dptr, beopt->dlen);
-			eopt = (mio_dns_eopt_t*)((mio_uint8_t*)eopt + beopt->dlen);
-			beopt++;
-		}
-
-		pkt->arcount = mio_hton16((mio_ntoh16(pkt->arcount) + 1));
-		dn += edns_dlen;
-	}
-
-	pkt->qdcount = mio_hton16(qr_count);
-
-	if (bdns->id < 0)
-	{
-		pkt->id = mio_hton16(dnc->seq);
-		dnc->seq++;
-	}
-	else
-	{
-		pkt->id = mio_hton16((mio_uint16_t)bdns->id);
-	}
-
-	/*pkt->qr = (rr_count > 0);
-	pkt->opcode = MIO_DNS_OPCODE_QUERY;*/
-	pkt->qr = bdns->qr & 0x01;
-	pkt->opcode = bdns->opcode & 0x0F;
-	pkt->aa = bdns->aa & 0x01;
-	pkt->tc = bdns->tc & 0x01; 
-	pkt->rd = bdns->rd & 0x01; 
-	pkt->ra = bdns->ra & 0x01;
-	pkt->ad = bdns->ad & 0x01;
-	pkt->cd = bdns->cd & 0x01;
-	pkt->rcode = bdns->rcode & 0x0F;
-
-	msg->pktlen = dn - (mio_uint8_t*)pkt;
-	MIO_ASSERT (mio, msg->pktlen == pktlen);
-
-	return msg;
-}
-
-/* ----------------------------------------------------------------------- */
 
 struct dnc_dns_msg_xtn_t
 {
+	mio_dev_t*     dev;
+	mio_tmridx_t   rtmridx;
+	mio_dns_msg_t* prev;
+	mio_dns_msg_t* next;
 	mio_svc_dnc_on_reply_t on_reply;
+	mio_ntime_t    wtmout;
+	mio_ntime_t    rtmout;
+	int            rmaxtries; /* maximum number of tries to receive a reply */
+	int            rtries; /* number of tries made so far */
 };
 typedef struct dnc_dns_msg_xtn_t dnc_dns_msg_xtn_t;
 
 #if defined(MIO_HAVE_INLINE)
-	static MIO_INLINE dnc_dns_msg_xtn_t* dnc_dns_msg_getxtn(mio_dns_msg_t* msg) { return (dnc_dns_msg_xtn_t*)((mio_uint8_t*)dns_msg_to_pkt(msg) + MIO_ALIGN_POW2(msg->pktlen, MIO_SIZEOF_VOID_P)); }
+	static MIO_INLINE dnc_dns_msg_xtn_t* dnc_dns_msg_getxtn(mio_dns_msg_t* msg) { return (dnc_dns_msg_xtn_t*)((mio_uint8_t*)mio_dns_msg_to_pkt(msg) + msg->pktalilen); }
 #else
-#	define dnc_dns_msg_getxtn(msg) ((dnc_dns_msg_xtn_t*)((mio_uint8_t*)dns_msg_to_pkt(msg) + MIO_ALIGN_POW2(msg->pktlen, MIO_SIZEOF_VOID_P)))
+#	define dnc_dns_msg_getxtn(msg) ((dnc_dns_msg_xtn_t*)((mio_uint8_t*)mio_dns_msg_to_pkt(msg) + msg->pktalilen))
 #endif
+
+static mio_dns_msg_t* build_dns_msg (mio_svc_dnc_t* dnc, mio_dns_bhdr_t* bdns, mio_dns_bqr_t* qr, mio_oow_t qr_count, mio_dns_brr_t* rr, mio_oow_t rr_count, mio_dns_bedns_t* edns, mio_oow_t xtnsize)
+{
+	mio_dns_msg_t* msg;
+	dnc_dns_msg_xtn_t* msgxtn;
+
+	msg = mio_dns_make_msg(dnc->mio, bdns, qr, qr_count, rr, rr_count, edns, MIO_SIZEOF(*msgxtn) + xtnsize);
+	if (msg)
+	{
+		
+		if (bdns->id < 0)
+		{
+			mio_dns_pkt_t* pkt = mio_dns_msg_to_pkt(msg);
+			pkt->id = mio_hton16(dnc->seq);
+			dnc->seq++;
+		}
+
+		msgxtn = dnc_dns_msg_getxtn(msg);
+		msgxtn->dev = (mio_dev_t*)dnc->sck;
+		msgxtn->rtmridx = MIO_TMRIDX_INVALID;
+	}
+
+	return msg;
+}
+
+static MIO_INLINE void chain_pending_dns_reqmsg (mio_svc_dnc_t* dnc, mio_dns_msg_t* msg)
+{
+	if (dnc->pending_req)
+	{
+		dnc_dns_msg_getxtn(dnc->pending_req)->prev = msg;
+		dnc_dns_msg_getxtn(msg)->next = dnc->pending_req;
+	}
+	dnc->pending_req = msg;
+}
+
+static MIO_INLINE void unchain_pending_dns_reqmsg (mio_svc_dnc_t* dnc, mio_dns_msg_t* msg)
+{
+	dnc_dns_msg_xtn_t* msgxtn = dnc_dns_msg_getxtn(msg);
+	if (msgxtn->next) dnc_dns_msg_getxtn(msgxtn->next)->prev = msgxtn->prev;
+	if (msgxtn->prev) dnc_dns_msg_getxtn(msgxtn->prev)->next = msgxtn->next;
+	else dnc->pending_req = msgxtn->next;
+}
+
+static void release_dns_msg (mio_svc_dnc_t* dnc, mio_dns_msg_t* msg)
+{
+	mio_t* mio = dnc->mio;
+	dnc_dns_msg_xtn_t* msgxtn = dnc_dns_msg_getxtn(msg);
+
+MIO_DEBUG1 (mio, "releasing dns msg %d\n", (int)mio_ntoh16(mio_dns_msg_to_pkt(msg)->id));
+
+	if (msg == dnc->pending_req || msgxtn->next || msgxtn->prev)
+	{
+		/* it's chained in the pending request. unchain it */
+		unchain_pending_dns_reqmsg (dnc, msg);
+	}
+
+/* TODO:  add it to the free msg list instead of just freeing it. */
+	if (msgxtn->rtmridx != MIO_TMRIDX_INVALID)
+	{
+		mio_deltmrjob (mio, msgxtn->rtmridx);
+		MIO_ASSERT (mio, msgxtn->rtmridx == MIO_TMRIDX_INVALID);
+	}
+
+	mio_dns_free_msg (dnc->mio, msg);
+}
+
 
 static int dnc_on_read (mio_dev_sck_t* dev, const void* data, mio_iolen_t dlen, const mio_sckaddr_t* srcaddr)
 {
@@ -435,9 +242,9 @@ static int dnc_on_read (mio_dev_sck_t* dev, const void* data, mio_iolen_t dlen, 
 	reqmsg = dnc->pending_req;
 	while (reqmsg)
 	{
-		mio_dns_pkt_t* reqpkt = dns_msg_to_pkt(reqmsg);
+		mio_dns_pkt_t* reqpkt = mio_dns_msg_to_pkt(reqmsg);
 		dnc_dns_msg_xtn_t* msgxtn = dnc_dns_msg_getxtn(reqmsg);
-		if (dev == (mio_dev_sck_t*)reqmsg->dev && pkt->id == reqpkt->id) /* TODO: check the source address against the target address */
+		if (dev == (mio_dev_sck_t*)msgxtn->dev && pkt->id == reqpkt->id) /* TODO: check the source address against the target address */
 		{
 MIO_DEBUG1 (mio, "received dns response...id %d\n", id);
 			if (MIO_LIKELY(msgxtn->on_reply))
@@ -446,11 +253,11 @@ MIO_DEBUG1 (mio, "received dns response...id %d\n", id);
 			release_dns_msg (dnc, reqmsg);
 			return 0;
 		}
-		reqmsg = reqmsg->next;
+		reqmsg = msgxtn->next;
 	}
 
 	/* the response id didn't match the ID of pending requests - need to wait longer? */
-MIO_DEBUG0 (mio, "unknown dns response... \n"); /* TODO: add source info */
+MIO_DEBUG1 (mio, "unknown dns response... %d\n", pkt->id); /* TODO: add source info */
 	return 0;
 }
 
@@ -458,17 +265,34 @@ static void dnc_on_reply_timeout (mio_t* mio, const mio_ntime_t* now, mio_tmrjob
 {
 	mio_dns_msg_t* reqmsg = (mio_dns_msg_t*)job->ctx;
 	dnc_dns_msg_xtn_t* msgxtn = dnc_dns_msg_getxtn(reqmsg);
-	mio_dev_sck_t* dev = (mio_dev_sck_t*)reqmsg->dev;
+	mio_dev_sck_t* dev = (mio_dev_sck_t*)msgxtn->dev;
 	mio_svc_dnc_t* dnc = ((dnc_sck_xtn_t*)mio_dev_sck_getxtn(dev))->dnc;
 
-	MIO_ASSERT (mio, reqmsg->rtmridx == MIO_TMRIDX_INVALID);
+	MIO_ASSERT (mio, msgxtn->rtmridx == MIO_TMRIDX_INVALID);
 
 MIO_DEBUG0 (mio, "unable to receive dns response in time...\n");
+	if (msgxtn->rtries < msgxtn->rmaxtries)
+	{
+		mio_ntime_t* tmout;
 
-	if (MIO_LIKELY(msgxtn->on_reply))
-		msgxtn->on_reply (dnc, reqmsg, MIO_ETMOUT, MIO_NULL, 0);
+		tmout = MIO_IS_POS_NTIME(&msgxtn->wtmout)? &msgxtn->wtmout: MIO_NULL;
+		if (mio_dev_sck_timedwrite(dnc->sck, mio_dns_msg_to_pkt(reqmsg), reqmsg->pktlen, tmout, reqmsg, &dnc->serveraddr) <= -1)
+		{
+			if (MIO_LIKELY(msgxtn->on_reply))
+				msgxtn->on_reply (dnc, reqmsg, MIO_ETMOUT, MIO_NULL, 0);
 
-	release_dns_msg (dnc, reqmsg);
+			release_dns_msg (dnc, reqmsg);
+			return MIO_NULL;
+		}
+
+printf (">>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>> RESENT REQUEST >>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>> \n");
+	}
+	else
+	{
+		if (MIO_LIKELY(msgxtn->on_reply))
+			msgxtn->on_reply (dnc, reqmsg, MIO_ETMOUT, MIO_NULL, 0);
+		release_dns_msg (dnc, reqmsg);
+	}
 }
 
 
@@ -479,9 +303,9 @@ static int dnc_on_write (mio_dev_sck_t* dev, mio_iolen_t wrlen, void* wrctx, con
 	dnc_dns_msg_xtn_t* msgxtn = dnc_dns_msg_getxtn(msg);
 	mio_svc_dnc_t* dnc = ((dnc_sck_xtn_t*)mio_dev_sck_getxtn(dev))->dnc;
 
-MIO_DEBUG1 (mio, "sent dns message %d\n", (int)mio_ntoh16(dns_msg_to_pkt(msg)->id));
+MIO_DEBUG1 (mio, "sent dns message %d\n", (int)mio_ntoh16(mio_dns_msg_to_pkt(msg)->id));
 
-	MIO_ASSERT (mio, dev == (mio_dev_sck_t*)msg->dev);
+	MIO_ASSERT (mio, dev == (mio_dev_sck_t*)msgxtn->dev);
 
 	if (wrlen <= -1)
 	{
@@ -490,7 +314,7 @@ MIO_DEBUG1 (mio, "sent dns message %d\n", (int)mio_ntoh16(dns_msg_to_pkt(msg)->i
 			msgxtn->on_reply (dnc, msg, mio_geterrnum(mio), MIO_NULL, 0);
 		release_dns_msg (dnc, msg);
 	}
-	else if (dns_msg_to_pkt(msg)->qr == 0)
+	else if (mio_dns_msg_to_pkt(msg)->qr == 0 && msgxtn->rmaxtries > 0)
 	{
 		/* question. schedule to wait for response */
 		mio_tmrjob_t tmrjob;
@@ -498,11 +322,11 @@ MIO_DEBUG1 (mio, "sent dns message %d\n", (int)mio_ntoh16(dns_msg_to_pkt(msg)->i
 		MIO_MEMSET (&tmrjob, 0, MIO_SIZEOF(tmrjob));
 		tmrjob.ctx = msg;
 		mio_gettime (mio, &tmrjob.when);
-		MIO_ADD_NTIME (&tmrjob.when, &tmrjob.when, &dnc->reply_tmout);
+		MIO_ADD_NTIME (&tmrjob.when, &tmrjob.when, &msgxtn->rtmout);
 		tmrjob.handler = dnc_on_reply_timeout;
-		tmrjob.idxptr = &msg->rtmridx;
-		msg->rtmridx = mio_instmrjob(mio, &tmrjob);
-		if (msg->rtmridx == MIO_TMRIDX_INVALID)
+		tmrjob.idxptr = &msgxtn->rtmridx;
+		msgxtn->rtmridx = mio_instmrjob(mio, &tmrjob);
+		if (msgxtn->rtmridx == MIO_TMRIDX_INVALID)
 		{
 			/* call the callback to indicate this operation failure in the middle of transaction */
 			if (MIO_LIKELY(msgxtn->on_reply))
@@ -513,20 +337,22 @@ MIO_DEBUG1 (mio, "sent dns message %d\n", (int)mio_ntoh16(dns_msg_to_pkt(msg)->i
 		}
 		else
 		{
-			/* TODO: improve performance. hashing by id? */
-			/* chain it to the peing request list */
-			if (dnc->pending_req)
+			if (msgxtn->rtries == 0)
 			{
-				dnc->pending_req->prev = msg;
-				msg->next = dnc->pending_req;
+				/* this is the first wait */
+
+				/* TODO: improve performance. hashing by id? */
+				/* chain it to the peing request list */
+				chain_pending_dns_reqmsg (dnc, msg);
 			}
-			dnc->pending_req = msg;
+
+			msgxtn->rtries++;
 		}
 	}
 	else
 	{
 		/* sent an answer - we don't need this any more */
-		/* also we don't call the on_reply callback stored in msg->ctx as this is not a reply context */
+		/* we don't call the on_reply callback stored in msg->ctx as this is not a reply context */
 		release_dns_msg (dnc, msg);
 	}
 
@@ -541,7 +367,7 @@ static void dnc_on_disconnect (mio_dev_sck_t* dev)
 {
 }
 
-mio_svc_dnc_t* mio_svc_dnc_start (mio_t* mio, const mio_ntime_t* reply_tmout, mio_oow_t reply_tmout_retries)
+mio_svc_dnc_t* mio_svc_dnc_start (mio_t* mio, const mio_ntime_t* send_tmout, const mio_ntime_t* reply_tmout, mio_oow_t reply_tmout_max_tries)
 {
 	mio_svc_dnc_t* dnc = MIO_NULL;
 	mio_dev_sck_make_t mkinfo;
@@ -552,8 +378,9 @@ mio_svc_dnc_t* mio_svc_dnc_start (mio_t* mio, const mio_ntime_t* reply_tmout, mi
 
 	dnc->mio = mio;
 	dnc->stop = mio_svc_dnc_stop;
+	dnc->send_tmout = *send_tmout;
 	dnc->reply_tmout = *reply_tmout;
-	dnc->reply_tmout_retries = reply_tmout_retries;
+	dnc->reply_tmout_max_tries = reply_tmout_max_tries;
 
 	MIO_MEMSET (&mkinfo, 0, MIO_SIZEOF(mkinfo));
 	mkinfo.type = MIO_DEV_SCK_UDP4; /* or UDP6 depending on the binding address */
@@ -570,7 +397,7 @@ mio_svc_dnc_t* mio_svc_dnc_start (mio_t* mio, const mio_ntime_t* reply_tmout, mi
 	/* TODO: bind if requested */
 	/*if (mio_dev_sck_bind(dev, ....) <= -1) goto oops;*/
 {
-mio_uint32_t ia = 0x01010101; /* 1.1.1.1 */ /* TODO: accept as parameter ... */
+mio_uint32_t ia = 0x01010199; /* 1.1.1.1 */ /* TODO: accept as parameter ... */
 	mio_sckaddr_initforip4 (&dnc->serveraddr, 53, (mio_ip4addr_t*)&ia);
 }
 
@@ -603,15 +430,19 @@ mio_dns_msg_t* mio_svc_dnc_sendmsg (mio_svc_dnc_t* dnc, mio_dns_bhdr_t* bdns, mi
 	dnc_dns_msg_xtn_t* msgxtn;
 	mio_ntime_t* tmout;
 
-	msg = make_dns_msg(dnc, bdns, qr, qr_count, rr, rr_count, edns, MIO_SIZEOF(*msgxtn) + xtnsize);
+	msg = build_dns_msg(dnc, bdns, qr, qr_count, rr, rr_count, edns, MIO_SIZEOF(*msgxtn) + xtnsize);
 	if (!msg) return MIO_NULL;
 
 	msgxtn = dnc_dns_msg_getxtn(msg);
 	msgxtn->on_reply = on_reply;
+	msgxtn->wtmout = dnc->send_tmout;
+	msgxtn->rtmout = dnc->reply_tmout;
+	msgxtn->rmaxtries = dnc->reply_tmout_max_tries; 
+	msgxtn->rtries = 0;
 
 /* TODO: optionally, override dnc->serveraddr and use the target address passed as a parameter */
-	tmout = MIO_IS_POS_NTIME(&dnc->reply_tmout)? &dnc->reply_tmout: MIO_NULL;
-	if (mio_dev_sck_timedwrite(dnc->sck, dns_msg_to_pkt(msg), msg->pktlen, tmout, msg, &dnc->serveraddr) <= -1)
+	tmout = MIO_IS_POS_NTIME(&msgxtn->wtmout)? &msgxtn->wtmout: MIO_NULL;
+	if (mio_dev_sck_timedwrite(dnc->sck, mio_dns_msg_to_pkt(msg), msg->pktlen, tmout, msg, &dnc->serveraddr) <= -1)
 	{
 		release_dns_msg (dnc, msg);
 		return MIO_NULL;
@@ -620,16 +451,19 @@ mio_dns_msg_t* mio_svc_dnc_sendmsg (mio_svc_dnc_t* dnc, mio_dns_bhdr_t* bdns, mi
 	return msg;
 }
 
+#if 0
 mio_dns_msg_t* mio_svc_dnc_resendmsg (mio_svc_dnc_t* dnc, mio_dns_msg_t* msg)
 {
-	if (mio_dev_sck_write(dnc->sck, dns_msg_to_pkt(msg), msg->pktlen, msg, &dnc->serveraddr) <= -1)
+	if (mio_dev_sck_write(dnc->sck, mio_dns_msg_to_pkt(msg), msg->pktlen, msg, &dnc->serveraddr) <= -1)
 	{
 		release_dns_msg (dnc, msg);
 		return MIO_NULL;
 	}
 
+	msg->no_release = 1; ????
 	return msg;
 }
+#endif
 
 
 mio_dns_msg_t* mio_svc_dnc_sendreq (mio_svc_dnc_t* dnc, mio_dns_bhdr_t* bdns, mio_dns_bqr_t* qr, mio_dns_bedns_t* edns, mio_svc_dnc_on_reply_t on_reply, mio_oow_t xtnsize)
@@ -1087,5 +921,241 @@ oops:
 void mio_dns_free_packet_info (mio_t* mio, mio_dns_pkt_info_t* pi)
 {
 /* TODO: better management */
-	return mio_freemem (mio, pi);
+	mio_freemem (mio, pi);
+}
+
+
+/* ----------------------------------------------------------------------- */
+
+static mio_oow_t encode_rdata_in_dns_msg (mio_t* mio, const mio_dns_brr_t* rr, mio_dns_rrtr_t* rrtr)
+{
+	switch (rr->rrtype)
+	{
+		case MIO_DNS_RRT_A:
+			break;
+		case MIO_DNS_RRT_AAAA:
+		
+			break;
+
+		/*
+		case MIO_DNS_RRT_WKS:
+			break; */
+
+		case MIO_DNS_RRT_MX:
+			/* preference, exchange */
+			break;
+
+		case MIO_DNS_RRT_CNAME: 
+		/*case MIO_DNS_RRT_MB:
+		case MIO_DNS_RRT_MD:
+		case MIO_DNS_RRT_MF:
+		case MIO_DNS_RRT_MG:
+		case MIO_DNS_RRT_MR:*/
+		case MIO_DNS_RRT_NS:
+		case MIO_DNS_RRT_PTR:
+			/* just a normal domain name */
+			break;
+
+	#if 0
+		case MIO_DNS_RRT_HINFO:
+			/* cpu, os */
+			break;
+	#endif
+
+	#if 0
+		case MIO_DNS_RRT_MINFO:
+			/* rmailbx, emailbx */
+	#endif
+			break;
+		
+		case MIO_DNS_RRT_SOA:
+			/* soa */
+			break;
+
+		case MIO_DNS_RRT_TXT:
+		case MIO_DNS_RRT_NULL:
+		default:
+			/* TODO: custom transformator? */
+			rrtr->dlen = mio_hton16(rr->dlen);
+			if (rr->dlen > 0) MIO_MEMCPY (rrtr + 1, rr->dptr, rr->dlen);
+	}
+
+	return rr->dlen;
+}
+
+mio_dns_msg_t* mio_dns_make_msg (mio_t* mio, mio_dns_bhdr_t* bhdr, mio_dns_bqr_t* qr, mio_oow_t qr_count, mio_dns_brr_t* rr, mio_oow_t rr_count, mio_dns_bedns_t* edns, mio_oow_t xtnsize)
+{
+	mio_oow_t dnlen, msgbufsz, pktlen, i;
+	mio_dns_msg_t* msg;
+	mio_dns_pkt_t* pkt;
+	mio_uint8_t* dn;
+	mio_dns_qrtr_t* qrtr;
+	mio_dns_rrtr_t* rrtr;
+	int rr_sect;
+	mio_uint32_t edns_dlen;
+
+	pktlen = MIO_SIZEOF(*pkt);
+
+	for (i = 0; i < qr_count; i++)
+	{
+		/* <length>segmnet<length>segment<zero>.
+		 * if the input has the ending period(e.g. mio.lib.), the dn length is namelen + 1. 
+		 * if the input doesn't have the ending period(e.g. mio.lib) . the dn length is namelen + 2. */
+		pktlen += mio_count_bcstr(qr[i].qname) + 2 + MIO_SIZEOF(*qrtr);
+	}
+
+	for (i = 0; i < rr_count; i++)
+	{
+		pktlen += mio_count_bcstr(rr[i].rrname) + 2 + MIO_SIZEOF(*rrtr) + rr[i].dlen;
+	}
+
+	edns_dlen = 0;
+	if (edns)
+	{
+		mio_dns_beopt_t* beopt;
+
+		pktlen += 1 + MIO_SIZEOF(*rrtr); /* edns0 OPT RR - 1 for the root name  */
+
+		beopt = edns->beoptr;
+		for (i = 0; i < edns->beonum; i++)
+		{
+			edns_dlen += MIO_SIZEOF(mio_dns_eopt_t) + beopt->dlen;
+			if (edns_dlen > MIO_TYPE_MAX(mio_uint16_t))
+			{
+				mio_seterrbfmt (mio, MIO_EINVAL, "edns options too large");
+				return MIO_NULL;
+			}
+			beopt++;
+		}
+
+		pktlen += edns_dlen;
+	}
+	else 
+	{
+		if (bhdr->rcode > 0x0F)
+		{
+			/* rcode is larger than 4 bits. but edns info is not provided */
+			mio_seterrbfmt (mio, MIO_EINVAL, "rcode too large without edns - %d", bhdr->rcode);
+			return MIO_NULL;
+		}
+	}
+
+	msgbufsz = MIO_SIZEOF(*msg) + MIO_ALIGN_POW2(pktlen, MIO_SIZEOF_VOID_P) + xtnsize;
+
+/* TODO: msg buffer reuse */
+	msg = mio_callocmem(mio, msgbufsz);
+	if (!msg) return MIO_NULL;
+
+	msg->msglen = msgbufsz; /* record the instance size */
+	msg->pktalilen = MIO_ALIGN_POW2(pktlen, MIO_SIZEOF_VOID_P);
+
+	pkt = mio_dns_msg_to_pkt(msg); /* actual packet data begins after the message structure */
+
+	dn = (mio_uint8_t*)(pkt + 1); /* skip the dns packet header */
+	for (i = 0; i < qr_count; i++)
+	{
+		/* dnlen includes the ending <zero> */
+		dnlen = to_dn(qr[i].qname, dn, mio_count_bcstr(qr[i].qname) + 2);
+		if (dnlen <= 0)
+		{
+			mio_dns_free_msg (mio, msg);
+			mio_seterrbfmt (mio, MIO_EINVAL, "invalid domain name - %hs", qr[i].qname);
+			return MIO_NULL;
+		}
+		qrtr = (mio_dns_qrtr_t*)(dn + dnlen);
+		qrtr->qtype = mio_hton16(qr[i].qtype);
+		qrtr->qclass = mio_hton16(qr[i].qclass);
+
+		dn = (mio_uint8_t*)(qrtr + 1);
+	}
+
+	for (rr_sect = MIO_DNS_RR_PART_ANSWER; rr_sect <= MIO_DNS_RR_PART_ADDITIONAL;)
+	{
+		mio_oow_t match_count = 0;
+		for (i = 0; i < rr_count; i++)
+		{
+			if (rr[i].part == rr_sect)
+			{
+				mio_oow_t rdata_len;
+
+				dnlen = to_dn(rr[i].rrname, dn, mio_count_bcstr(rr[i].rrname) + 2);
+				if (dnlen <= 0)
+				{
+					mio_dns_free_msg (mio, msg);
+					mio_seterrbfmt (mio, MIO_EINVAL, "invalid domain name - %hs", rr[i].rrname);
+					return MIO_NULL;
+				}
+
+				rrtr = (mio_dns_rrtr_t*)(dn + dnlen);
+				rrtr->rrtype = mio_hton16(rr[i].rrtype);
+				rrtr->rrclass = mio_hton16(rr[i].rrclass);
+				rrtr->ttl = mio_hton32(rr[i].ttl);
+
+				rdata_len = encode_rdata_in_dns_msg(mio, &rr[i], rrtr);
+				dn = (mio_uint8_t*)(rrtr + 1) + rdata_len;
+
+				match_count++;
+			}
+		}
+
+		rr_sect = rr_sect + 1;
+		((mio_dns_pkt_alt_t*)pkt)->rrcount[rr_sect] = mio_hton16(match_count);
+	}
+
+	if (edns)
+	{
+		mio_dns_eopt_t* eopt;
+		mio_dns_beopt_t* beopt;
+
+		/* add EDNS0 OPT RR */
+		*dn = 0; /* root domain. as if to_dn("") is called */
+		rrtr = (mio_dns_rrtr_t*)(dn + 1);
+		rrtr->rrtype = MIO_CONST_HTON16(MIO_DNS_RRT_OPT);
+		rrtr->rrclass = mio_hton16(edns->uplen);
+		rrtr->ttl = mio_hton32(MIO_DNS_EDNS_MAKE_TTL(bhdr->rcode, edns->version, edns->dnssecok));
+		rrtr->dlen = mio_hton16((mio_uint16_t)edns_dlen);
+		dn = (mio_uint8_t*)(rrtr + 1);
+
+		beopt = edns->beoptr;
+		eopt = (mio_dns_eopt_t*)dn;
+
+		for (i = 0; i < edns->beonum; i++)
+		{
+			eopt->code = mio_hton16(beopt->code);
+			eopt->dlen = mio_hton16(beopt->dlen);
+			MIO_MEMCPY (++eopt, beopt->dptr, beopt->dlen);
+			eopt = (mio_dns_eopt_t*)((mio_uint8_t*)eopt + beopt->dlen);
+			beopt++;
+		}
+
+		pkt->arcount = mio_hton16((mio_ntoh16(pkt->arcount) + 1));
+		dn += edns_dlen;
+	}
+
+	pkt->qdcount = mio_hton16(qr_count);
+	pkt->id = mio_hton16((mio_uint16_t)bhdr->id);
+
+	/*pkt->qr = (rr_count > 0);
+	pkt->opcode = MIO_DNS_OPCODE_QUERY;*/
+	pkt->qr = bhdr->qr & 0x01;
+	pkt->opcode = bhdr->opcode & 0x0F;
+	pkt->aa = bhdr->aa & 0x01;
+	pkt->tc = bhdr->tc & 0x01; 
+	pkt->rd = bhdr->rd & 0x01; 
+	pkt->ra = bhdr->ra & 0x01;
+	pkt->ad = bhdr->ad & 0x01;
+	pkt->cd = bhdr->cd & 0x01;
+	pkt->rcode = bhdr->rcode & 0x0F;
+
+	msg->pktlen = dn - (mio_uint8_t*)pkt;
+	MIO_ASSERT (mio, msg->pktlen == pktlen);
+	MIO_ASSERT (mio, msg->pktalilen == MIO_ALIGN_POW2(pktlen, MIO_SIZEOF_VOID_P));
+
+	return msg;
+}
+
+void mio_dns_free_msg (mio_t* mio, mio_dns_msg_t* msg)
+{
+/* TODO: better management */
+	mio_freemem (mio, msg);
 }

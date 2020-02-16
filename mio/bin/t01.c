@@ -69,7 +69,7 @@ static void* mmgr_alloc (mio_mmgr_t* mmgr, mio_oow_t size)
 {
 	void* x;
 
-	if (((mmgr_stat_t*)mmgr->ctx)->total_count > 300)
+	if (((mmgr_stat_t*)mmgr->ctx)->total_count > 3000)
 	{
 printf ("CRITICAL ERROR ---> too many heap chunks...\n");
 		return MIO_NULL;
@@ -920,12 +920,14 @@ for (i = 0; i < 5; i++)
 
 {
 	mio_svc_dnc_t* dnc;
-	mio_ntime_t reply_tmout;
+	mio_ntime_t send_tmout, reply_tmout;
 
+	send_tmout.sec = 0;
+	send_tmout.nsec = 0;
 	reply_tmout.sec = 1;
 	reply_tmout.nsec = 0;
 
-	dnc = mio_svc_dnc_start (mio/*, "8.8.8.8:53,1.1.1.1:53"*/, &reply_tmout, 3); /* option - send to all, send one by one */
+	dnc = mio_svc_dnc_start (mio/*, "8.8.8.8:53,1.1.1.1:53"*/, &send_tmout, &reply_tmout, 2); /* option - send to all, send one by one */
 	{
 		mio_dns_bqr_t qrs[] = 
 		{

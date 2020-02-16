@@ -162,10 +162,7 @@ struct mio_dns_msg_t
 {
 	mio_oow_t      msglen;
 	mio_oow_t      pktlen;
-	mio_tmridx_t   rtmridx;
-	mio_dev_t*     dev;
-	mio_dns_msg_t* prev;
-	mio_dns_msg_t* next;
+	mio_oow_t      pktalilen;
 };
 
 #include <mio-pac1.h>
@@ -260,7 +257,7 @@ typedef struct mio_dns_eopt_t mio_dns_eopt_t;
 /* breakdown of the dns message id and flags. it excludes rr count fields.*/
 struct mio_dns_bhdr_t
 {
-	int id; /* auto-assign if negative. */
+	mio_int32_t id;
 
 	mio_uint8_t qr; /* query(0), answer(1) */
 	mio_uint8_t opcode; /* operation type */
@@ -447,8 +444,9 @@ extern "C" {
 
 MIO_EXPORT mio_svc_dnc_t* mio_svc_dnc_start (
 	mio_t*             mio,
+	const mio_ntime_t* send_tmout,
 	const mio_ntime_t* reply_tmout,
-	mio_oow_t          reply_tmout_retries
+	mio_oow_t          reply_tmout_max_tries
 );
 
 MIO_EXPORT void mio_svc_dnc_stop (
@@ -465,11 +463,6 @@ MIO_EXPORT mio_dns_msg_t* mio_svc_dnc_sendmsg (
 	mio_dns_bedns_t*       edns,
 	mio_svc_dnc_on_reply_t on_reply,
 	mio_oow_t              xtnsize
-);
-
-MIO_EXPORT mio_dns_msg_t* mio_svc_dnc_resendmsg (
-	mio_svc_dnc_t*         dnc,
-	mio_dns_msg_t*         msg
 );
 
 MIO_EXPORT mio_dns_msg_t* mio_svc_dnc_sendreq (
@@ -502,6 +495,30 @@ MIO_EXPORT mio_dns_pkt_info_t* mio_dns_make_packet_info (
 MIO_EXPORT void mio_dns_free_packet_info (
 	mio_t*                mio,
 	mio_dns_pkt_info_t*   pi
+);
+
+/* ---------------------------------------------------------------- */
+
+#if defined(MIO_HAVE_INLINE)
+	static MIO_INLINE mio_dns_pkt_t* mio_dns_msg_to_pkt (mio_dns_msg_t* msg) { return (mio_dns_pkt_t*)(msg + 1); }
+#else
+#	define mio_dns_msg_to_pkt(msg) ((mio_dns_pkt_t*)((mio_dns_msg_t*)(msg) + 1))
+#endif
+
+MIO_EXPORT mio_dns_msg_t* mio_dns_make_msg (
+	mio_t*                mio,
+	mio_dns_bhdr_t*       bhdr,
+	mio_dns_bqr_t*        qr,
+	mio_oow_t             qr_count,
+	mio_dns_brr_t*        rr,
+	mio_oow_t             rr_count,
+	mio_dns_bedns_t*      edns,
+	mio_oow_t             xtnsize
+);
+
+MIO_EXPORT void mio_dns_free_msg (
+	mio_t*                mio,
+	mio_dns_msg_t*        msg
 );
 
 
