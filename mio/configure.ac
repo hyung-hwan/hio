@@ -444,6 +444,25 @@ AC_CHECK_SIZEOF(off64_t)
 AC_CHECK_SIZEOF(mbstate_t,,[#include <wchar.h>])
 AX_CHECK_NUMVALOF(MB_LEN_MAX,[32],[#include <limits.h>])
 
+AX_CHECK_NUMVALOF(PATH_MAX,[0],[#include <limits.h>])
+AX_CHECK_NUMVALOF(NSIG,[32],[#include <signal.h>])
+
+AX_CHECK_NUMVALOF(AF_UNSPEC,   [0],    [#include <sys/types.h>
+                                        #include <sys/socket.h>
+                                        #include <netinet/in.h>])
+AX_CHECK_NUMVALOF(AF_INET,     [-1],   [#include <sys/types.h>
+                                        #include <sys/socket.h>
+                                        #include <netinet/in.h>])
+AX_CHECK_NUMVALOF(AF_INET6,    [-2],   [#include <sys/types.h>
+                                        #include <sys/socket.h>
+                                        #include <netinet/in.h>])
+AX_CHECK_NUMVALOF(AF_PACKET,   [-3],   [#include <sys/types.h>
+                                        #include <sys/socket.h>
+                                        #include <netinet/in.h>])
+AX_CHECK_NUMVALOF(AF_UNIX,     [-4],   [#include <sys/types.h>
+                                        #include <sys/socket.h>
+                                        #include <sys/un.h>])
+
 if test "x${platform_win32}" = "xyes"
 then
 	AC_CHECK_SIZEOF(struct sockaddr_in,,[
@@ -785,6 +804,13 @@ AC_DEFINE_UNQUOTED(MIO_SIZEOF_OFF64_T, ${ac_cv_sizeof_off64_t}, [sizeof(off64_t)
 
 AC_DEFINE_UNQUOTED(MIO_SIZEOF_MBSTATE_T, ${ac_cv_sizeof_mbstate_t}, [sizeof(mbstate_t)])
 AC_DEFINE_UNQUOTED(MIO_MBLEN_MAX, ${ax_cv_numvalof_MB_LEN_MAX}, [MB_LEN_MAX])
+AC_DEFINE_UNQUOTED(MIO_NSIG, ${ax_cv_numvalof_NSIG}, [NSIG])
+
+AC_DEFINE_UNQUOTED(MIO_AF_UNSPEC, (${ax_cv_numvalof_AF_UNSPEC}), [AF_UNSPEC])
+AC_DEFINE_UNQUOTED(MIO_AF_INET, (${ax_cv_numvalof_AF_INET}), [AF_INET])
+AC_DEFINE_UNQUOTED(MIO_AF_INET6, (${ax_cv_numvalof_AF_INET6}), [AF_INET6])
+AC_DEFINE_UNQUOTED(MIO_AF_PACKET, (${ax_cv_numvalof_AF_PACKET}), [AF_PACKET])
+AC_DEFINE_UNQUOTED(MIO_AF_UNIX, (${ax_cv_numvalof_AF_UNIX}), [AF_UNIX])
 
 AC_DEFINE_UNQUOTED(MIO_SIZEOF_STRUCT_SOCKADDR_IN, ${ac_cv_sizeof_struct_sockaddr_in}, [sizeof(struct sockaddr_in)])
 AC_DEFINE_UNQUOTED(MIO_SIZEOF_STRUCT_SOCKADDR_IN6, ${ac_cv_sizeof_struct_sockaddr_in6}, [sizeof(struct sockaddr_in6)])

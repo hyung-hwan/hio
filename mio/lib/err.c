@@ -276,7 +276,7 @@ void mio_seterrbfmtwithsyserr (mio_t* mio, int syserr_type, int syserr_code, con
 			mio->errmsg.len += mio_copy_bcstr(&mio->errmsg.buf[mio->errmsg.len], MIO_COUNTOF(mio->errmsg.buf) - mio->errmsg.len, mio->errmsg.tmpbuf.bch);
 		#else
 			ucslen = MIO_COUNTOF(mio->errmsg.buf) - mio->errmsg.len;
-			mio_convbtoucstr (mio, mio->errmsg.tmpbuf.bch, &bcslen, &mio->errmsg.buf[mio->errmsg.len], &ucslen);
+			mio_convbtoucstr (mio, mio->errmsg.tmpbuf.bch, &bcslen, &mio->errmsg.buf[mio->errmsg.len], &ucslen, 1);
 			mio->errmsg.len += ucslen;
 		#endif
 		}
@@ -333,7 +333,7 @@ void mio_seterrufmtwithsyserr (mio_t* mio, int syserr_type, int syserr_code, con
 			mio->errmsg.len += mio_copy_bcstr(&mio->errmsg.buf[mio->errmsg.len], MIO_COUNTOF(mio->errmsg.buf) - mio->errmsg.len, mio->errmsg.tmpbuf.bch);
 		#else
 			ucslen = MIO_COUNTOF(mio->errmsg.buf) - mio->errmsg.len;
-			mio_convbtoucstr (mio, mio->errmsg.tmpbuf.bch, &bcslen, &mio->errmsg.buf[mio->errmsg.len], &ucslen);
+			mio_convbtoucstr (mio, mio->errmsg.tmpbuf.bch, &bcslen, &mio->errmsg.buf[mio->errmsg.len], &ucslen, 1);
 			mio->errmsg.len += ucslen;
 		#endif
 		}

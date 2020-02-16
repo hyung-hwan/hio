@@ -397,7 +397,7 @@ mio_svc_dnc_t* mio_svc_dnc_start (mio_t* mio, const mio_ntime_t* send_tmout, con
 	/* TODO: bind if requested */
 	/*if (mio_dev_sck_bind(dev, ....) <= -1) goto oops;*/
 {
-mio_uint32_t ia = 0x01010199; /* 1.1.1.1 */ /* TODO: accept as parameter ... */
+mio_uint32_t ia = 0x01010101; /* 1.1.1.1 */ /* TODO: accept as parameter ... */
 	mio_sckaddr_initforip4 (&dnc->serveraddr, 53, (mio_ip4addr_t*)&ia);
 }
 

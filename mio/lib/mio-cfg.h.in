@@ -744,6 +744,21 @@
 /* Define to the sub-directory where libtool stores uninstalled libraries. */
 #undef LT_OBJDIR
 
+/* AF_INET */
+#undef MIO_AF_INET
+
+/* AF_INET6 */
+#undef MIO_AF_INET6
+
+/* AF_PACKET */
+#undef MIO_AF_PACKET
+
+/* AF_UNIX */
+#undef MIO_AF_UNIX
+
+/* AF_UNSPEC */
+#undef MIO_AF_UNSPEC
+
 /* use libunwind for backtracing stack frames */
 #undef MIO_ENABLE_LIBUNWIND
 
@@ -761,6 +776,9 @@
 
 /* MB_LEN_MAX */
 #undef MIO_MBLEN_MAX
+
+/* NSIG */
+#undef MIO_NSIG
 
 /* offsetof(struct sockaddr, sa_family) */
 #undef MIO_OFFSETOF_SA_FAMILY
@@ -873,8 +891,29 @@
 /* Unicode character type size */
 #undef MIO_UNICODE_SIZE
 
+/* The size of `AF_INET', as computed by valueof. */
+#undef NUMVALOF_AF_INET
+
+/* The size of `AF_INET6', as computed by valueof. */
+#undef NUMVALOF_AF_INET6
+
+/* The size of `AF_PACKET', as computed by valueof. */
+#undef NUMVALOF_AF_PACKET
+
+/* The size of `AF_UNIX', as computed by valueof. */
+#undef NUMVALOF_AF_UNIX
+
+/* The size of `AF_UNSPEC', as computed by valueof. */
+#undef NUMVALOF_AF_UNSPEC
+
 /* The size of `MB_LEN_MAX', as computed by valueof. */
 #undef NUMVALOF_MB_LEN_MAX
+
+/* The size of `NSIG', as computed by valueof. */
+#undef NUMVALOF_NSIG
+
+/* The size of `PATH_MAX', as computed by valueof. */
+#undef NUMVALOF_PATH_MAX
 
 /* Name of package */
 #undef PACKAGE
