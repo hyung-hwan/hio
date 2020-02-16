@@ -496,6 +496,8 @@ int mio_comp_bchars_ucstr (const mio_bch_t* str1, mio_oow_t len, const mio_uch_t
 	return (str1 < end)? 1: (*str2 == '\0'? 0: -1);
 }
 
+/* ========================================================================= */
+
 void mio_copy_uchars (mio_uch_t* dst, const mio_uch_t* src, mio_oow_t len)
 {
 	/* take note of no forced null termination */
@@ -513,9 +515,53 @@ void mio_copy_bchars (mio_bch_t* dst, const mio_bch_t* src, mio_oow_t len)
 void mio_copy_bchars_to_uchars (mio_uch_t* dst, const mio_bch_t* src, mio_oow_t len)
 {
 	/* copy without conversions.
-	 * use mio_bctouchars() for conversion encoding */
+	 * use mio_convbtouchars() for conversion encoding */
 	mio_oow_t i;
 	for (i = 0; i < len; i++) dst[i] = src[i];
+}
+
+void mio_copy_uchars_to_bchars (mio_bch_t* dst, const mio_uch_t* src, mio_oow_t len)
+{
+	/* copy without conversions.
+	 * use mio_convutobchars() for conversion encoding */
+	mio_oow_t i;
+	for (i = 0; i < len; i++) dst[i] = src[i];
+}
+
+mio_oow_t mio_copy_uchars_to_ucstr (mio_uch_t* dst, mio_uch_t dlen, const mio_uch_t* src, mio_oow_t slen)
+{
+	mio_oow_t i;
+	if (dlen <= 0) return 0;
+	if (dlen <= slen) slen = dlen - 1;
+	for (i = 0; i < slen; i++) dst[i] = src[i];
+	dst[i] = '\0';
+	return i;
+}
+
+mio_oow_t mio_copy_bchars_to_bcstr (mio_bch_t* dst, mio_bch_t dlen, const mio_bch_t* src, mio_oow_t slen)
+{
+	mio_oow_t i;
+	if (dlen <= 0) return 0;
+	if (dlen <= slen) slen = dlen - 1;
+	for (i = 0; i < slen; i++) dst[i] = src[i];
+	dst[i] = '\0';
+	return i;
+}
+
+mio_oow_t mio_copy_uchars_to_ucstr_unlimited (mio_uch_t* dst, const mio_uch_t* src, mio_oow_t len)
+{
+	mio_oow_t i;
+	for (i = 0; i < len; i++) dst[i] = src[i];
+	dst[i] = '\0';
+	return i;
+}
+
+mio_oow_t mio_copy_bchars_to_bcstr_unlimited (mio_bch_t* dst, const mio_bch_t* src, mio_oow_t len)
+{
+	mio_oow_t i;
+	for (i = 0; i < len; i++) dst[i] = src[i];
+	dst[i] = '\0';
+	return i;
 }
 
 mio_oow_t mio_copy_ucstr (mio_uch_t* dst, mio_oow_t len, const mio_uch_t* src)
@@ -550,6 +596,22 @@ mio_oow_t mio_copy_bcstr (mio_bch_t* dst, mio_oow_t len, const mio_bch_t* src)
 	return p - dst;
 }
 
+
+mio_oow_t mio_copy_ucstr_unlimited (mio_uch_t* dst, const mio_uch_t* src)
+{
+	mio_uch_t* org = dst;
+	while ((*dst++ = *src++) != '\0');
+	return dst - org - 1;
+}
+
+mio_oow_t mio_copy_bcstr_unlimited (mio_bch_t* dst, const mio_bch_t* src)
+{
+	mio_bch_t* org = dst;
+	while ((*dst++ = *src++) != '\0');
+	return dst - org - 1;
+}
+
+/* ========================================================================= */
 void mio_fill_uchars (mio_uch_t* dst, mio_uch_t ch, mio_oow_t len)
 {
 	mio_oow_t i;

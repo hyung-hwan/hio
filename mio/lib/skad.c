@@ -25,6 +25,7 @@
  */
 
 #include "mio-skad.h"
+#include "mio-nwif.h"
 #include "mio-prv.h"
 
 #include <sys/types.h>
@@ -296,7 +297,7 @@ int mio_oocharstoskad (mio_t* mio, const mio_ooch_t* str, mio_oow_t len, mio_ska
 				const mio_ooch_t* stmp = p;
 				unsigned int index;
 				do p++; while (p < end && *p != ']');
-/* TODO			if (mio_ucharstoifindex(mio, stmp, p - stmp, &index) <= -1) return -1; */
+				if (mio_ucharstoifindex(mio, stmp, p - stmp, &index) <= -1) return -1;
 				skad->in6.sin6_scope_id = index;
 			}
 
@@ -369,7 +370,7 @@ int mio_oocharstoskad (mio_t* mio, const mio_ooch_t* str, mio_oow_t len, mio_ska
 					const mio_ooch_t* stmp = p;
 					unsigned int index;
 					do p++; while (p < end);
-/* TODO					if (mio_ucharstoifindex(mio, stmp, p - stmp, &index) <= -1) return -1;*/
+					if (mio_ucharstoifindex(mio, stmp, p - stmp, &index) <= -1) return -1;
 					skad->in6.sin6_scope_id = index;
 				}
 			}
@@ -653,7 +654,7 @@ mio_oow_t mio_skadtoucstr (mio_t* mio, const mio_skad_t* _skad, mio_uch_t* buf, 
 
 					if (xlen + 1 >= len) goto done;
 
-/* TODO				tmp = mio_ifindextoucstr(mio, skad->in6.sin6_scope_id, &buf[xlen], len - xlen);*/
+					tmp = mio_ifindextoucstr(mio, skad->in6.sin6_scope_id, &buf[xlen], len - xlen);
 					if (tmp <= -1)
 					{
 /* TODO					xlen += mio_fmt_uintmax_to_ucstr(&buf[xlen], len - xlen, skad->in6.sin6_scope_id, 10, 0, '\0', MIO_NULL); */
@@ -900,7 +901,7 @@ mio_oow_t mio_skadtobcstr (mio_t* mio, const mio_skad_t* _skad, mio_bch_t* buf, 
 
 					if (xlen + 1 >= len) goto done;
 
-	/* TODO			tmp = mio_ifindextobcstr(mio, skad->in6.sin6_scope_id, &buf[xlen], len - xlen);*/
+					tmp = mio_ifindextobcstr(mio, skad->in6.sin6_scope_id, &buf[xlen], len - xlen);
 					if (tmp <= -1)
 					{
 /* TODO						xlen += mio_fmt_uintmax_to_bcstr(&buf[xlen], len - xlen, skad->in6.sin6_scope_id, 10, 0, '\0', MIO_NULL); */

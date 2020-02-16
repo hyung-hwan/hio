@@ -23,6 +23,7 @@ include_HEADERS = \
 	mio-cfg.h \
 	mio-cmn.h \
 	mio-dns.h \
+	mio-nwif.h \
 	mio-pac1.h \
 	mio-pro.h \
 	mio-sck.h \
@@ -39,6 +40,7 @@ libmio_la_SOURCES = \
 	mio-prv.h \
 	mio-sys.h \
 	mio.c \
+	nwif.c \
 	pro.c \
 	sck.c \
 	skad.c \
