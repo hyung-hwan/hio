@@ -694,9 +694,18 @@ static void on_dnc_resolve_brief (mio_svc_dnc_t* dnc, mio_dns_msg_t* reqmsg, mio
 		{
 			printf ("^^^ SIMPLE -> CNAME [%s] %d\n", brr->dptr, (int)brr->dlen);
 		}
+		else if (brr->rrtype == MIO_DNS_RRT_NS)
+		{
+			printf ("^^^ SIMPLE -> NS [%s] %d\n", brr->dptr, (int)brr->dlen);
+		}
+		else if (brr->rrtype == MIO_DNS_RRT_SOA)
+		{
+			mio_dns_brrd_soa_t* soa = brr->dptr;
+			printf ("^^^ SIMPLE -> SOA [%s] [%s] [%u %u %u %u %u] %d\n", soa->mname, soa->rname, (unsigned)soa->serial, (unsigned)soa->refresh, (unsigned)soa->retry, (unsigned)soa->expire, (unsigned)soa->minimum, (int)brr->dlen);
+		}
 		else
 		{
-			printf ("^^^ SIMPLE -> UNEXPECTED DATA...\n");
+			printf ("^^^ SIMPLE -> UNKNOWN DATA... [%.*s] %d\n", (int)brr->dlen, brr->dptr, (int)brr->dlen);
 		}
 	}
 	else
@@ -1005,7 +1014,9 @@ if (!mio_svc_dnc_resolve(dnc, "code.miflux.com", MIO_DNS_RRT_A, MIO_SVC_DNC_RESO
 	printf ("resolve attempt failure ---> code.miflux.com\n");
 }
 
-if (!mio_svc_dnc_resolve(dnc, "ipv6.google.com", MIO_DNS_RRT_AAAA, MIO_SVC_DNC_RESOLVE_FLAG_BRIEF, on_dnc_resolve_brief, 0))
+//if (!mio_svc_dnc_resolve(dnc, "ipv6.google.com", MIO_DNS_RRT_AAAA, MIO_SVC_DNC_RESOLVE_FLAG_BRIEF, on_dnc_resolve_brief, 0))
+if (!mio_svc_dnc_resolve(dnc, "google.com", MIO_DNS_RRT_SOA, MIO_SVC_DNC_RESOLVE_FLAG_BRIEF, on_dnc_resolve_brief, 0))
+//if (!mio_svc_dnc_resolve(dnc, "google.com", MIO_DNS_RRT_NS, MIO_SVC_DNC_RESOLVE_FLAG_BRIEF, on_dnc_resolve_brief, 0))
 {
 	printf ("resolve attempt failure ---> code.miflux.com\n");
 }
