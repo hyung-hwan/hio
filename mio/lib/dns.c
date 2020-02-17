@@ -741,7 +741,7 @@ static int parse_answer_rr (mio_t* mio, mio_dns_rr_part_t rr_part, mio_oow_t pos
 	mio_dns_rrtr_t* rrtr;
 	mio_uint16_t qtype, dlen;
 	mio_oow_t remsize;
-	mio_uint8_t* xrrdptr;
+	mio_uint8_t* xrrdptr, *xrrdptr2;
 
 	xrrdptr = pi->_rrdptr;
 	if (parse_domain_name(mio, pi) <= -1) return -1;
@@ -757,26 +757,7 @@ static int parse_answer_rr (mio_t* mio, mio_dns_rr_part_t rr_part, mio_oow_t pos
 	remsize = pi->_end - pi->_ptr;
 	if (MIO_UNLIKELY(remsize < dlen)) goto oops;
 
-	if (pi->_rrdptr)
-	{
-		/* store information about the actual record */
-		mio_dns_brr_t* brr;
-
-		switch (rr_part)
-		{
-			case MIO_DNS_RR_PART_ANSWER: brr = pi->rr.an; break;
-			case MIO_DNS_RR_PART_AUTHORITY: brr = pi->rr.ns; break;
-			case MIO_DNS_RR_PART_ADDITIONAL: brr = pi->rr.ar; break;
-		}
-
-		brr[pos].part = rr_part;
-		brr[pos].rrname = (mio_bch_t*)xrrdptr;
-		brr[pos].rrtype = mio_ntoh16(rrtr->rrtype);
-		brr[pos].rrclass = mio_ntoh16(rrtr->rrclass);
-		brr[pos].ttl = mio_ntoh32(rrtr->ttl);
-		brr[pos].dptr = pi->_rrdptr;
-		brr[pos].dlen = dlen;
-	}
+	xrrdptr2 = pi->_rrdptr;
 
 	switch (qtype)
 	{
@@ -806,38 +787,97 @@ static int parse_answer_rr (mio_t* mio, mio_dns_rr_part_t rr_part, mio_oow_t pos
 			pi->edns.version = (rrtr->ttl >> 16) & 0xFF;
 			pi->edns.dnssecok = ((rrtr->ttl & 0x8000) >> 15);
 			/*if ((rrtr->ttl & 0x7FFF) != 0) goto oops;*/ /* Z not 0 - ignore this for now */
-			break;
+			goto verbatim;
 		}
 
 		case MIO_DNS_RRT_A:
 			if (MIO_UNLIKELY(dlen != 4)) goto oops;
-			break;
+			goto verbatim;
 
 		case MIO_DNS_RRT_AAAA:
 			if (MIO_UNLIKELY(dlen != 16)) goto oops;
-			break;
+			goto verbatim;
 
 		case MIO_DNS_RRT_CNAME:
+		case MIO_DNS_RRT_NS:
 		{
 		#if !defined(MIO_BUILD_RELEASE)
 			mio_uint8_t* xptr = pi->_ptr;
 		#endif
 			if (parse_domain_name(mio, pi) <= -1) return -1;
 			MIO_ASSERT (mio, pi->_ptr == xptr + dlen);
-			dlen = 0; /* to skip additional update on pi->_ptr and data copy before return */
 			break;
 		}
+
+		case MIO_DNS_RRT_SOA:
+		{
+		#if !defined(MIO_BUILD_RELEASE)
+			mio_uint8_t* xptr = pi->_ptr;
+		#endif
+			mio_dns_brrd_soa_t* soa;
+
+			pi->_rrdlen += MIO_SIZEOF(*soa);
+			if (pi->_rrdptr)
+			{
+				soa = (mio_dns_brrd_soa_t*)pi->_rrdptr;
+				pi->_rrdptr += MIO_SIZEOF(*soa);
+
+				soa->mname = (mio_bch_t*)pi->_rrdptr;
+				if (parse_domain_name(mio, pi) <= -1) return -1;
+
+				soa->rname = (mio_bch_t*)pi->_rrdptr;
+				if (parse_domain_name(mio, pi) <= -1) return -1;
+
+				MIO_MEMCPY (&soa->serial, pi->_ptr, 20);
+				soa->serial = mio_ntoh32(soa->serial);
+				soa->refresh = mio_ntoh32(soa->refresh);
+				soa->retry = mio_ntoh32(soa->retry);
+				soa->expire = mio_ntoh32(soa->expire);
+				soa->minimum = mio_ntoh32(soa->minimum);
+			}
+			else
+			{
+				if (parse_domain_name(mio, pi) <= -1) return -1;
+				if (parse_domain_name(mio, pi) <= -1) return -1;
+			}
+ 			pi->_ptr += 20;
+
+			MIO_ASSERT (mio, pi->_ptr == xptr + dlen);
+			break;
+		}
+
+		default:
+		verbatim:
+			pi->_ptr += dlen;
+			pi->_rrdlen += dlen;
+			if (pi->_rrdptr) 
+			{
+				MIO_MEMCPY (pi->_rrdptr, rrtr + 1, dlen); /* copy actual data */
+				pi->_rrdptr += dlen;
+			}
 	}
 
-	if (dlen > 0)
+	if (pi->_rrdptr)
 	{
-		pi->_ptr += dlen;
-		pi->_rrdlen += dlen;
-		if (pi->_rrdptr) 
+		/* store information about the actual record */
+		mio_dns_brr_t* brr;
+
+		switch (rr_part)
 		{
-			MIO_MEMCPY (pi->_rrdptr, rrtr + 1, dlen); /* copy actual data */
-			pi->_rrdptr += dlen;
+			case MIO_DNS_RR_PART_ANSWER: brr = pi->rr.an; break;
+			case MIO_DNS_RR_PART_AUTHORITY: brr = pi->rr.ns; break;
+			case MIO_DNS_RR_PART_ADDITIONAL: brr = pi->rr.ar; break;
 		}
+
+		brr[pos].part = rr_part;
+		brr[pos].rrname = (mio_bch_t*)xrrdptr;
+		brr[pos].rrtype = mio_ntoh16(rrtr->rrtype);
+		brr[pos].rrclass = mio_ntoh16(rrtr->rrclass);
+		brr[pos].ttl = mio_ntoh32(rrtr->ttl);
+		brr[pos].dptr = xrrdptr2;
+		/* this length may be different from the length in the header as transformation is performed on some RR data.
+		 * for a domain name, it's inclusive of the termining null. */
+		brr[pos].dlen = pi->_rrdptr - xrrdptr2; 
 	}
 
 	return 0;

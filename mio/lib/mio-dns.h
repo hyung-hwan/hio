@@ -324,21 +324,19 @@ struct mio_dns_brrd_mx_t
 	mio_bch_t*   exchange;
 };
 typedef struct mio_dns_brrd_mx_t mio_dns_brrd_mx_t;
-
-
+#endif
 
 struct mio_dns_brrd_soa_t
 {
 	mio_bch_t*   mname;
 	mio_bch_t*   rname; 
-	mio_uint32_t serial
+	mio_uint32_t serial;
 	mio_uint32_t refresh;
 	mio_uint32_t retry;
 	mio_uint32_t expire;
 	mio_uint32_t minimum;
 };
 typedef struct mio_dns_brrd_soa_t mio_dns_brrd_soa_t;
-#endif
 
 struct mio_dns_beopt_t
 {
