@@ -21421,6 +21421,11 @@ _ACEOF
 
 
 cat >>confdefs.h <<_ACEOF
+#define MIO_SIZEOF___UINT128_T ${ac_cv_sizeof___uint128_t}
+_ACEOF
+
+
+cat >>confdefs.h <<_ACEOF
 #define MIO_SIZEOF_VOID_P ${ac_cv_sizeof_void_p}
 _ACEOF
 

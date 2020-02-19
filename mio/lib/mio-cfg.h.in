@@ -885,6 +885,9 @@
 /* sizeof(__int8) */
 #undef MIO_SIZEOF___INT8
 
+/* sizeof(__uint128_t) */
+#undef MIO_SIZEOF___UINT128_T
+
 /* Define if socklen_t is signed */
 #undef MIO_SOCKLEN_T_IS_SIGNED
 
