@@ -67,6 +67,44 @@ typedef struct mio_skad_t mio_skad_t;
 extern "C" {
 #endif
 
+MIO_EXPORT int mio_ucharstoskad (
+	mio_t*            mio,
+	const mio_uch_t*  str,
+	mio_oow_t         len,
+	mio_skad_t*       skad
+);
+
+MIO_EXPORT int mio_bcharstoskad (
+	mio_t*            mio,
+	const mio_bch_t*  str,
+	mio_oow_t         len,
+	mio_skad_t*       skad
+);
+
+MIO_EXPORT mio_oow_t mio_skadtoucstr (
+	mio_t*            mio,
+	const mio_skad_t* skad,
+	mio_uch_t*        buf,
+	mio_oow_t         len,
+	int               flags
+);
+
+MIO_EXPORT mio_oow_t mio_skadtobcstr (
+	mio_t*            mio,
+	const mio_skad_t* skad,
+	mio_bch_t*        buf,
+	mio_oow_t         len,
+	int               flags
+);
+
+#if defined(MIO_OOCH_IS_UCH)
+#       define mio_oocharstoskad mio_ucharstoskad
+#       define mio_skadtooocstr mio_skadtoucstr
+#else
+#       define mio_oocharstoskad mio_bcharstoskad
+#       define mio_skadtooocstr mio_skadtobcstr
+#endif
+
 MIO_EXPORT int mio_skad_family (
 	const mio_skad_t* skad
 );

@@ -221,7 +221,7 @@ static int dnc_on_read (mio_dev_sck_t* dev, const void* data, mio_iolen_t dlen, 
 	mio_dns_msg_t* reqmsg;
 	mio_uint16_t id;
 
-	if (dlen < MIO_SIZEOF(*pkt)) 
+	if (MIO_UNLIKELY(dlen < MIO_SIZEOF(*pkt))) 
 	{
 		MIO_DEBUG0 (mio, "dns packet too small from ....\n"); /* TODO: add source packet */
 		return 0; /* drop */
@@ -450,21 +450,6 @@ mio_dns_msg_t* mio_svc_dnc_sendmsg (mio_svc_dnc_t* dnc, mio_dns_bhdr_t* bdns, mi
 	return msg;
 }
 
-#if 0
-mio_dns_msg_t* mio_svc_dnc_resendmsg (mio_svc_dnc_t* dnc, mio_dns_msg_t* msg)
-{
-	if (mio_dev_sck_write(dnc->sck, mio_dns_msg_to_pkt(msg), msg->pktlen, msg, &dnc->serveraddr) <= -1)
-	{
-		release_dns_msg (dnc, msg);
-		return MIO_NULL;
-	}
-
-	msg->no_release = 1; ????
-	return msg;
-}
-#endif
-
-
 mio_dns_msg_t* mio_svc_dnc_sendreq (mio_svc_dnc_t* dnc, mio_dns_bhdr_t* bdns, mio_dns_bqr_t* qr, mio_dns_bedns_t* edns, mio_svc_dnc_on_reply_t on_reply, mio_oow_t xtnsize)
 {
 	/* send a request without resource records */
@@ -497,8 +482,16 @@ typedef struct dnc_dns_msg_resolve_xtn_t dnc_dns_msg_resolve_xtn_t;
 static void on_dnc_resolve (mio_svc_dnc_t* dnc, mio_dns_msg_t* reqmsg, mio_errnum_t status, const void* data, mio_oow_t dlen)
 {
 	mio_t* mio = mio_svc_dnc_getmio(dnc);
+	mio_dns_pkt_t* pkt;
 	mio_dns_pkt_info_t* pi = MIO_NULL;
 	dnc_dns_msg_resolve_xtn_t* reqmsgxtn = dnc_dns_msg_resolve_getxtn(reqmsg);
+
+	MIO_ASSERT (mio, dlen >= MIO_SIZEOF(*pkt)); /* this is guaranteed by the dnc_on_read() */
+	pkt = (mio_dns_pkt_t*)data;
+	if (pkt->tc && (reqmsgxtn->flags & MIO_SVC_DNC_RESOLVE_FLAG_TCP_IF_TC)) /* truncated */
+	{
+		/* TODO: */
+	}
 
 	if (!(reqmsgxtn->flags & MIO_SVC_DNC_RESOLVE_FLAG_BRIEF))
 	{
@@ -799,11 +792,12 @@ static int parse_answer_rr (mio_t* mio, mio_dns_rr_part_t rr_part, mio_oow_t pos
 
 		case MIO_DNS_RRT_CNAME:
 		case MIO_DNS_RRT_NS:
+		case MIO_DNS_RRT_PTR:
 		{
 		#if !defined(MIO_BUILD_RELEASE)
 			mio_uint8_t* xptr = pi->_ptr;
 		#endif
-			if (parse_domain_name(mio, pi) <= -1) return -1;
+			if (parse_domain_name(mio, pi) <= -1) goto oops;
 			MIO_ASSERT (mio, pi->_ptr == xptr + dlen);
 			break;
 		}
@@ -822,10 +816,10 @@ static int parse_answer_rr (mio_t* mio, mio_dns_rr_part_t rr_part, mio_oow_t pos
 				pi->_rrdptr += MIO_SIZEOF(*soa);
 
 				soa->mname = (mio_bch_t*)pi->_rrdptr;
-				if (parse_domain_name(mio, pi) <= -1) return -1;
+				if (parse_domain_name(mio, pi) <= -1) goto oops;
 
 				soa->rname = (mio_bch_t*)pi->_rrdptr;
-				if (parse_domain_name(mio, pi) <= -1) return -1;
+				if (parse_domain_name(mio, pi) <= -1) goto oops;
 
 				MIO_MEMCPY (&soa->serial, pi->_ptr, 20);
 				soa->serial = mio_ntoh32(soa->serial);
@@ -836,9 +830,10 @@ static int parse_answer_rr (mio_t* mio, mio_dns_rr_part_t rr_part, mio_oow_t pos
 			}
 			else
 			{
-				if (parse_domain_name(mio, pi) <= -1) return -1;
-				if (parse_domain_name(mio, pi) <= -1) return -1;
+				if (parse_domain_name(mio, pi) <= -1) goto oops;
+				if (parse_domain_name(mio, pi) <= -1) goto oops;
 			}
+			if (MIO_UNLIKELY(pi->_end - pi->_ptr) < 20) goto oops;
  			pi->_ptr += 20;
 
 			MIO_ASSERT (mio, pi->_ptr == xptr + dlen);
@@ -966,14 +961,13 @@ void mio_dns_free_packet_info (mio_t* mio, mio_dns_pkt_info_t* pi)
 
 /* ----------------------------------------------------------------------- */
 
-static mio_oow_t encode_rdata_in_dns_msg (mio_t* mio, const mio_dns_brr_t* rr, mio_dns_rrtr_t* rrtr)
+static mio_oow_t encode_rrdata_in_dns_msg (mio_t* mio, const mio_dns_brr_t* rr, mio_dns_rrtr_t* rrtr)
 {
 	switch (rr->rrtype)
 	{
 		case MIO_DNS_RRT_A:
 			break;
 		case MIO_DNS_RRT_AAAA:
-		
 			break;
 
 		/*
@@ -993,6 +987,7 @@ static mio_oow_t encode_rdata_in_dns_msg (mio_t* mio, const mio_dns_brr_t* rr, m
 		case MIO_DNS_RRT_NS:
 		case MIO_DNS_RRT_PTR:
 			/* just a normal domain name */
+			/* TODO: take a null-terminated string and encode it using to_dn() */
 			break;
 
 	#if 0
@@ -1130,7 +1125,7 @@ mio_dns_msg_t* mio_dns_make_msg (mio_t* mio, mio_dns_bhdr_t* bhdr, mio_dns_bqr_t
 				rrtr->rrclass = mio_hton16(rr[i].rrclass);
 				rrtr->ttl = mio_hton32(rr[i].ttl);
 
-				rdata_len = encode_rdata_in_dns_msg(mio, &rr[i], rrtr);
+				rdata_len = encode_rrdata_in_dns_msg(mio, &rr[i], rrtr);
 				dn = (mio_uint8_t*)(rrtr + 1) + rdata_len;
 
 				match_count++;
