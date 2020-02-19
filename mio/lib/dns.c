@@ -821,6 +821,7 @@ static int parse_answer_rr (mio_t* mio, mio_dns_rr_part_t rr_part, mio_oow_t pos
 				soa->rname = (mio_bch_t*)pi->_rrdptr;
 				if (parse_domain_name(mio, pi) <= -1) goto oops;
 
+				if (MIO_UNLIKELY(pi->_end - pi->_ptr) < 20) goto oops;
 				MIO_MEMCPY (&soa->serial, pi->_ptr, 20);
 				soa->serial = mio_ntoh32(soa->serial);
 				soa->refresh = mio_ntoh32(soa->refresh);
@@ -832,9 +833,9 @@ static int parse_answer_rr (mio_t* mio, mio_dns_rr_part_t rr_part, mio_oow_t pos
 			{
 				if (parse_domain_name(mio, pi) <= -1) goto oops;
 				if (parse_domain_name(mio, pi) <= -1) goto oops;
+				if (MIO_UNLIKELY(pi->_end - pi->_ptr) < 20) goto oops;
 			}
-			if (MIO_UNLIKELY(pi->_end - pi->_ptr) < 20) goto oops;
- 			pi->_ptr += 20;
+			pi->_ptr += 20;
 
 			MIO_ASSERT (mio, pi->_ptr == xptr + dlen);
 			break;
