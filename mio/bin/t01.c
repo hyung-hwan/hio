@@ -608,7 +608,6 @@ static void on_dnc_resolve(mio_svc_dnc_t* dnc, mio_dns_msg_t* reqmsg, mio_errnum
 {
 	mio_dns_pkt_info_t* pi = MIO_NULL;
 
-
 	if (data) // status == MIO_ENOERR
 	{
 		mio_uint32_t i;
@@ -660,7 +659,7 @@ static void on_dnc_resolve(mio_svc_dnc_t* dnc, mio_dns_msg_t* reqmsg, mio_errnum
 	{
 	no_valid_reply:
 		if (status == MIO_ETMOUT) printf ("XXXXXXXXXXXXXXXX TIMED OUT XXXXXXXXXXXXXXXXX\n");
-		else printf ("XXXXXXXXXXXXXXXXx NO REPLY XXXXXXXXXXXXXXXXXXXXXXXXX\n");
+		else printf ("XXXXXXXXXXXXXXXXx NO VALID REPLY XXXXXXXXXXXXXXXXXXXXXXXXX\n");
 	}
 
 done:
@@ -698,6 +697,10 @@ static void on_dnc_resolve_brief (mio_svc_dnc_t* dnc, mio_dns_msg_t* reqmsg, mio
 		{
 			printf ("^^^ SIMPLE -> NS [%s] %d\n", brr->dptr, (int)brr->dlen);
 		}
+		else if (brr->rrtype == MIO_DNS_RRT_PTR)
+		{
+			printf ("^^^ SIMPLE -> PTR [%s] %d\n", brr->dptr, (int)brr->dlen);
+		}
 		else if (brr->rrtype == MIO_DNS_RRT_SOA)
 		{
 			mio_dns_brrd_soa_t* soa = brr->dptr;
@@ -711,7 +714,7 @@ static void on_dnc_resolve_brief (mio_svc_dnc_t* dnc, mio_dns_msg_t* reqmsg, mio
 	else
 	{
 		if (status == MIO_ETMOUT) printf ("QQQQQQQQQQQQQQQQQQQ TIMED OUT QQQQQQQQQQQQQQQQQ\n");
-		else printf ("QQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQ NO REPLY QQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQq\n");
+		else printf ("QQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQ NO VALID REPLY QQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQq - %d\n", mio_geterrnum(mio_svc_dnc_getmio(dnc)));
 	}
 }
 
@@ -1012,6 +1015,11 @@ if (!mio_svc_dnc_resolve(dnc, "www.microsoft.com", MIO_DNS_RRT_CNAME, 0, on_dnc_
 if (!mio_svc_dnc_resolve(dnc, "code.miflux.com", MIO_DNS_RRT_A, MIO_SVC_DNC_RESOLVE_FLAG_BRIEF, on_dnc_resolve_brief, 0))
 {
 	printf ("resolve attempt failure ---> code.miflux.com\n");
+}
+
+if (!mio_svc_dnc_resolve(dnc, "1.1.1.1.in-addr.arpa", MIO_DNS_RRT_PTR, MIO_SVC_DNC_RESOLVE_FLAG_BRIEF, on_dnc_resolve_brief, 0))
+{
+	printf ("resolve attempt failure ---> 1.1.1.1.in-addr.arpa\n");
 }
 
 //if (!mio_svc_dnc_resolve(dnc, "ipv6.google.com", MIO_DNS_RRT_AAAA, MIO_SVC_DNC_RESOLVE_FLAG_BRIEF, on_dnc_resolve_brief, 0))

@@ -391,7 +391,8 @@ typedef void (*mio_svc_dnc_on_resolve_t) (
 
 enum mio_svc_dnc_resolve_flag_t
 {
-	MIO_SVC_DNC_RESOLVE_FLAG_BRIEF = (1 << 0)
+	MIO_SVC_DNC_RESOLVE_FLAG_BRIEF     = (1 << 0),
+	MIO_SVC_DNC_RESOLVE_FLAG_TCP_IF_TC = (1 << 1)
 };
 typedef enum mio_svc_dnc_resolve_flag_t  mio_svc_dnc_resolve_flag_t;
 
