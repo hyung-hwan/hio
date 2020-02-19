@@ -29,7 +29,6 @@
 #include "mio-prv.h"
 
 #include <netinet/in.h>
-typedef struct mio_svc_dns_t mio_svc_dns_t;
 
 struct mio_svc_dns_t
 {
