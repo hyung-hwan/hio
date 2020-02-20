@@ -345,6 +345,22 @@ MIO_EXPORT mio_bch_t* mio_find_bchar_in_bcstr (
 	mio_bch_t        c
 );
 
+MIO_EXPORT int mio_split_ucstr (
+	mio_uch_t*       s,
+	const mio_uch_t* delim,
+	mio_uch_t        lquote,
+	mio_uch_t        rquote,
+	mio_uch_t        escape
+);
+
+MIO_EXPORT int mio_split_bcstr (
+	mio_bch_t*       s,
+	const mio_bch_t* delim,
+	mio_bch_t        lquote,
+	mio_bch_t        rquote,
+	mio_bch_t        escape
+);
+
 MIO_EXPORT mio_oow_t mio_count_ucstr (
 	const mio_uch_t* str
 );
@@ -362,7 +378,6 @@ MIO_EXPORT mio_oow_t mio_count_bcstr (
 #	define mio_comp_oochars_oocstr(str1,len1,str2) mio_comp_uchars_ucstr(str1,len1,str2)
 #	define mio_comp_oocstr(str1,str2) mio_comp_ucstr(str1,str2)
 
-
 #	define mio_copy_oochars mio_copy_uchars
 #	define mio_copy_bchars_to_oochars mio_copy_bchars_to_uchars
 #	define mio_copy_oochars_to_bchars mio_copy_uchars_to_bchars
@@ -378,7 +393,9 @@ MIO_EXPORT mio_oow_t mio_count_bcstr (
 #	define mio_find_oochar(ptr,len,c) mio_find_uchar(ptr,len,c)
 #	define mio_rfind_oochar(ptr,len,c) mio_rfind_uchar(ptr,len,c)
 #	define mio_find_oochar_in_oocstr(ptr,c) mio_find_uchar_in_ucstr(ptr,c)
-#	define mio_count_oocstr(str) mio_count_ucstr(str)
+
+#	define mio_split_oocstr mio_split_ucstr
+#	define mio_count_oocstr mio_count_ucstr
 #else
 #	define mio_equal_oochars(str1,str2,len) mio_equal_bchars(str1,str2,len)
 #	define mio_comp_oochars(str1,len1,str2,len2) mio_comp_bchars(str1,len1,str2,len2)
@@ -403,7 +420,9 @@ MIO_EXPORT mio_oow_t mio_count_bcstr (
 #	define mio_find_oochar(ptr,len,c) mio_find_bchar(ptr,len,c)
 #	define mio_rfind_oochar(ptr,len,c) mio_rfind_bchar(ptr,len,c)
 #	define mio_find_oochar_in_oocstr(ptr,c) mio_find_bchar_in_bcstr(ptr,c)
-#	define mio_count_oocstr(str) mio_count_bcstr(str)
+
+#	define mio_split_oocstr mio_split_bcstr
+#	define mio_count_oocstr mio_count_bcstr
 #endif
 /* ------------------------------------------------------------------------- */
 
