@@ -444,9 +444,10 @@ extern "C" {
 
 MIO_EXPORT mio_svc_dnc_t* mio_svc_dnc_start (
 	mio_t*             mio,
-	const mio_skad_t*  serv_addr,
-	const mio_ntime_t* send_tmout,
-	const mio_ntime_t* reply_tmout,
+	const mio_skad_t*  serv_addr, /* required */
+	const mio_skad_t*  bind_addr, /* optional. can be MIO_NULL */
+	const mio_ntime_t* send_tmout, /* required */
+	const mio_ntime_t* reply_tmout, /* required */
 	mio_oow_t          reply_tmout_max_tries
 );
 

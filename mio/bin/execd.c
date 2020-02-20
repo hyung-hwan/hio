@@ -365,7 +365,7 @@ int main (int argc, char* argv[])
 	ts->tally = 0;
 
 	memset (&tcp_conn, 0, MIO_SIZEOF(tcp_conn));
-	mio_bcharstoskad(mio, "127.0.0.1:9999", 14, &tcp_conn.remoteaddr);
+	mio_bcstrtoskad(mio, "127.0.0.1:9999", &tcp_conn.remoteaddr);
 	MIO_INIT_NTIME (&tcp_conn.connect_tmout, 5, 0);
 	tcp_conn.options = 0;
 	if (mio_dev_sck_connect(tcpsvr, &tcp_conn) <= -1)
