@@ -1438,9 +1438,42 @@ void mio_clear_skad (mio_skad_t* _skad)
 	skad->sa.sa_family = MIO_AF_UNSPEC;
 }
 
-int mio_equal_skads (const mio_skad_t* addr1, const mio_skad_t* addr2)
+int mio_equal_skads (const mio_skad_t* addr1, const mio_skad_t* addr2, int strict)
 {
-	return mio_skad_family(addr1) == mio_skad_family(addr2) && 
-	       mio_skad_size(addr1) == mio_skad_size(addr2) &&
-	       MIO_MEMCMP(addr1, addr2, mio_skad_size(addr1)) == 0;
+	int f1;
+
+	if ((f1 = mio_skad_family(addr1)) != mio_skad_family(addr2) ||
+	    mio_skad_size(addr1) != mio_skad_size(addr2)) return 0;
+
+	switch (f1)
+	{
+		case AF_INET:
+			return ((struct sockaddr_in*)addr1)->sin_addr.s_addr == ((struct sockaddr_in*)addr2)->sin_addr.s_addr &&
+			       ((struct sockaddr_in*)addr1)->sin_port == ((struct sockaddr_in*)addr2)->sin_port;
+
+	#if defined(AF_INET6)
+		case AF_INET6:
+			
+			if (strict)
+			{
+				/* don't care about scope id */
+				return MIO_MEMCMP(&((struct sockaddr_in6*)addr1)->sin6_addr, &((struct sockaddr_in6*)addr2)->sin6_addr, MIO_SIZEOF(((struct sockaddr_in6*)addr2)->sin6_addr)) == 0 &&
+				       ((struct sockaddr_in6*)addr1)->sin6_port == ((struct sockaddr_in6*)addr2)->sin6_port &&
+				       ((struct sockaddr_in6*)addr1)->sin6_scope_id == ((struct sockaddr_in6*)addr2)->sin6_scope_id;
+			}
+			else
+			{
+				return MIO_MEMCMP(&((struct sockaddr_in6*)addr1)->sin6_addr, &((struct sockaddr_in6*)addr2)->sin6_addr, MIO_SIZEOF(((struct sockaddr_in6*)addr2)->sin6_addr)) == 0 &&
+				       ((struct sockaddr_in6*)addr1)->sin6_port == ((struct sockaddr_in6*)addr2)->sin6_port;
+			}
+	#endif
+
+	#if defined(AF_UNIX)
+		case AF_UNIX:
+			return mio_comp_bcstr(((struct sockaddr_un*)addr1)->sun_path, ((struct sockaddr_un*)addr2)->sun_path) == 0;
+	#endif
+
+		default:
+			return MIO_MEMCMP(addr1, addr2, mio_skad_size(addr1)) == 0;
+	}
 }

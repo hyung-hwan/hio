@@ -1237,7 +1237,7 @@ accept_done:
 	clidev->orgdstaddr = rdev->localaddr;
 #endif
 
-	if (!mio_equal_skads(&clidev->orgdstaddr, &clidev->localaddr))
+	if (!mio_equal_skads(&clidev->orgdstaddr, &clidev->localaddr, 0))
 	{
 		clidev->state |= MIO_DEV_SCK_INTERCEPTED;
 	}
