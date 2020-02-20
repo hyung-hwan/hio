@@ -1,7 +1,7 @@
 /*
  * $Id$
  *
-    Copyright (c) 2015-2016 Chung, Hyung-Hwan. All rights reserved.
+    Copyright (c) 2016-2020 Chung, Hyung-Hwan. All rights reserved.
 
     Redistribution and use in source and binary forms, with or without
     modification, are permitted provided that the following conditions
@@ -392,8 +392,7 @@ typedef void (*mio_svc_dnc_on_resolve_t) (
 
 enum mio_svc_dnc_resolve_flag_t
 {
-	MIO_SVC_DNC_RESOLVE_FLAG_BRIEF     = (1 << 0),
-	MIO_SVC_DNC_RESOLVE_FLAG_TCP_IF_TC = (1 << 1)
+	MIO_SVC_DNC_RESOLVE_FLAG_BRIEF     = (1 << 0)
 };
 typedef enum mio_svc_dnc_resolve_flag_t  mio_svc_dnc_resolve_flag_t;
 
