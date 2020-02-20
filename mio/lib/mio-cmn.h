@@ -428,6 +428,8 @@ typedef struct mio_bcs_t mio_bcs_t;
 /* the maximum number of bch charaters to represent a single uch character */
 #define MIO_BCSIZE_MAX 6
 
+typedef unsigned int mio_bitmask_t;
+
 /* =========================================================================
  * TIME-RELATED TYPES
  * =========================================================================*/

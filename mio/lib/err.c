@@ -25,6 +25,7 @@
  */
 
 #include "mio-prv.h"
+#include "mio-fmt.h"
 
 static mio_ooch_t errstr_0[] = {'n', 'o', ' ', 'e', 'r', 'r', 'o', 'r', '\0' };
 static mio_ooch_t errstr_1[] = {'g', 'e', 'n', 'e', 'r', 'i', 'c', ' ', 'e', 'r', 'r', 'o', 'r', '\0' };

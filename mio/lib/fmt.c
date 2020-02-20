@@ -64,7 +64,7 @@
  *
  */
 
-
+#include "mio-fmt.h"
 #include "mio-prv.h"
 
 
@@ -1613,5 +1613,138 @@ mio_ooi_t mio_logufmt (mio_t* mio, mio_bitmask_t mask, const mio_uch_t* fmt, ...
 	va_end (ap);
 
 	return x;
+}
+
+
+/* ------------------------------------------------------------------------------------- */
+
+/*define static int fmt_uintmax_to_bcstr(...)*/
+#undef char_t
+#undef fmt_uintmax
+#define char_t mio_bch_t
+#define fmt_uintmax fmt_uintmax_to_bcstr
+#include "fmt-imp.h"
+
+/*define static int fmt_uintmax_to_ucstr(...)*/
+#undef char_t
+#undef fmt_uintmax
+#define char_t mio_uch_t
+#define fmt_uintmax fmt_uintmax_to_ucstr
+#include "fmt-imp.h"
+
+/* ------------------------------------------------------------------------------------- */
+
+int mio_fmt_intmax_to_bcstr (
+	mio_bch_t* buf, int size, 
+	mio_intmax_t value, int base_and_flags, int prec,
+	mio_bch_t fillchar, const mio_bch_t* prefix)
+{
+	mio_bch_t signchar;
+	mio_uintmax_t absvalue;
+
+	if (value < 0)
+	{
+		signchar = '-';
+		absvalue = -value;
+	}
+	else if (base_and_flags & MIO_FMT_INTMAX_TO_BCSTR_PLUSSIGN)
+	{
+		signchar = '+';
+		absvalue = value;
+	}
+	else if (base_and_flags & MIO_FMT_INTMAX_TO_BCSTR_EMPTYSIGN)
+	{
+		signchar = ' ';
+		absvalue = value;
+	}
+	else
+	{
+		signchar = '\0';
+		absvalue = value;
+	}
+
+	return fmt_uintmax_to_bcstr(buf, size, absvalue, base_and_flags, prec, fillchar, signchar, prefix);
+}
+
+int mio_fmt_uintmax_to_bcstr (
+	mio_bch_t* buf, int size, 
+	mio_uintmax_t value, int base_and_flags, int prec,
+	mio_bch_t fillchar, const mio_bch_t* prefix)
+{
+	mio_bch_t signchar;
+
+	/* determine if a sign character is needed */
+	if (base_and_flags & MIO_FMT_INTMAX_TO_BCSTR_PLUSSIGN)
+	{
+		signchar = '+';
+	}
+	else if (base_and_flags & MIO_FMT_INTMAX_TO_BCSTR_EMPTYSIGN)
+	{
+		signchar = ' ';
+	}
+	else
+	{
+		signchar = '\0';
+	}
+
+	return fmt_uintmax_to_bcstr(buf, size, value, base_and_flags, prec, fillchar, signchar, prefix);
+}
+
+/* ------------------------------------------------------------------------------------- */
+
+int mio_fmt_intmax_to_ucstr (
+	mio_uch_t* buf, int size, 
+	mio_intmax_t value, int base_and_flags, int prec,
+	mio_uch_t fillchar, const mio_uch_t* prefix)
+{
+	mio_uch_t signchar;
+	mio_uintmax_t absvalue;
+
+	if (value < 0)
+	{
+		signchar = '-';
+		absvalue = -value;
+	}
+	else if (base_and_flags & MIO_FMT_INTMAX_TO_UCSTR_PLUSSIGN)
+	{
+		signchar = '+';
+		absvalue = value;
+	}
+	else if (base_and_flags & MIO_FMT_INTMAX_TO_UCSTR_EMPTYSIGN)
+	{
+		signchar = ' ';
+		absvalue = value;
+	}
+	else
+	{
+		signchar = '\0';
+		absvalue = value;
+	}
+
+	return fmt_uintmax_to_ucstr(buf, size, absvalue, base_and_flags, prec, fillchar, signchar, prefix);
+}
+
+int mio_fmt_uintmax_to_ucstr (
+	mio_uch_t* buf, int size, 
+	mio_uintmax_t value, int base_and_flags, int prec,
+	mio_uch_t fillchar, const mio_uch_t* prefix)
+{
+	mio_uch_t signchar;
+
+	/* determine if a sign character is needed */
+	if (base_and_flags & MIO_FMT_INTMAX_TO_UCSTR_PLUSSIGN)
+	{
+		signchar = '+';
+	}
+	else if (base_and_flags & MIO_FMT_INTMAX_TO_UCSTR_EMPTYSIGN)
+	{
+		signchar = ' ';
+	}
+	else
+	{
+		signchar = '\0';
+	}
+
+	return fmt_uintmax_to_ucstr(buf, size, value, base_and_flags, prec, fillchar, signchar, prefix);
 }
 
