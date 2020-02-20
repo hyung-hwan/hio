@@ -910,6 +910,13 @@ struct mio_cmgr_t
 #	define MIO_UNLIKELY(x) (x)
 #endif
 
+
+#if defined(__GNUC__)
+#	define MIO_PACKED __attribute__((__packed__))
+#else
+#	define MIO_PACKED 
+#endif
+
 /* =========================================================================
  * STATIC ASSERTION
  * =========================================================================*/

@@ -161,28 +161,18 @@ static void tcp_sck_on_disconnect (mio_dev_sck_t* tcp)
 
 static void tcp_sck_on_connect (mio_dev_sck_t* tcp)
 {
-	mio_sckfam_t fam;
-	mio_scklen_t len;
 	mio_bch_t buf1[128], buf2[128];
 
-	memset (buf1, 0, MIO_SIZEOF(buf1));
-	memset (buf2, 0, MIO_SIZEOF(buf2));
-
-	mio_getsckaddrinfo (tcp->mio, &tcp->localaddr, &len, &fam);
-	inet_ntop (fam, tcp->localaddr.data, buf1, MIO_COUNTOF(buf1));
-
-	mio_getsckaddrinfo (tcp->mio, &tcp->remoteaddr, &len, &fam);
-	inet_ntop (fam, tcp->remoteaddr.data, buf2, MIO_COUNTOF(buf2));
+	mio_skadtobcstr (tcp->mio, &tcp->localaddr, buf1, MIO_COUNTOF(buf1), MIO_SKAD_TO_BCSTR_ADDR | MIO_SKAD_TO_BCSTR_PORT);
+	mio_skadtobcstr (tcp->mio, &tcp->remoteaddr, buf2, MIO_COUNTOF(buf2), MIO_SKAD_TO_BCSTR_ADDR | MIO_SKAD_TO_BCSTR_PORT);
 
 	if (tcp->state & MIO_DEV_SCK_CONNECTED)
 	{
-		MIO_INFO5 (tcp->mio, "DEVICE connected to a remote server... LOCAL %hs:%d REMOTE %hs:%d SCK: %d\n", 
-			buf1, mio_getsckaddrport(&tcp->localaddr), buf2, mio_getsckaddrport(&tcp->remoteaddr), tcp->sck);
+		MIO_INFO3 (tcp->mio, "DEVICE connected to a remote server... LOCAL %hs REMOTE %hs SCK: %d\n", buf1, buf2, tcp->sck);
 	}
 	else if (tcp->state & MIO_DEV_SCK_ACCEPTED)
 	{
-		MIO_INFO5 (tcp->mio, "DEVICE accepted client device... .LOCAL %hs:%d REMOTE %hs:%d\n",
-			buf1, mio_getsckaddrport(&tcp->localaddr), buf2, mio_getsckaddrport(&tcp->remoteaddr), tcp->sck);
+		MIO_INFO3 (tcp->mio, "DEVICE accepted client device... .LOCAL %hs REMOTE %hs SCK: %d\n", buf1, buf2, tcp->sck);
 	}
 
 	if (mio_dev_sck_write(tcp, "hello", 5, MIO_NULL, MIO_NULL) <= -1)
@@ -191,7 +181,7 @@ static void tcp_sck_on_connect (mio_dev_sck_t* tcp)
 	}
 }
 
-static int tcp_sck_on_write (mio_dev_sck_t* tcp, mio_iolen_t wrlen, void* wrctx, const mio_sckaddr_t* dstaddr)
+static int tcp_sck_on_write (mio_dev_sck_t* tcp, mio_iolen_t wrlen, void* wrctx, const mio_skad_t* dstaddr)
 {
 	tcp_server_t* ts;
 	mio_ntime_t tmout;
@@ -226,7 +216,7 @@ static int tcp_sck_on_write (mio_dev_sck_t* tcp, mio_iolen_t wrlen, void* wrctx,
 	return 0;
 }
 
-static int tcp_sck_on_read (mio_dev_sck_t* tcp, const void* buf, mio_iolen_t len, const mio_sckaddr_t* srcaddr)
+static int tcp_sck_on_read (mio_dev_sck_t* tcp, const void* buf, mio_iolen_t len, const mio_skad_t* srcaddr)
 {
 	int n;
 
@@ -375,10 +365,7 @@ int main (int argc, char* argv[])
 	ts->tally = 0;
 
 	memset (&tcp_conn, 0, MIO_SIZEOF(tcp_conn));
-{
-	in_addr_t ia = inet_addr("127.0.0.1");
-	mio_sckaddr_initforip4 (&tcp_conn.remoteaddr, 9999, (mio_ip4addr_t*)&ia);
-}
+	mio_bcharstoskad(mio, "127.0.0.1:9999", 14, &tcp_conn.remoteaddr);
 	MIO_INIT_NTIME (&tcp_conn.connect_tmout, 5, 0);
 	tcp_conn.options = 0;
 	if (mio_dev_sck_connect(tcpsvr, &tcp_conn) <= -1)

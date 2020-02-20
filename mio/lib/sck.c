@@ -133,157 +133,23 @@ oops:
 	return MIO_SCKHND_INVALID;
 }
 
-int mio_getsckaddrinfo (mio_t* mio, const mio_sckaddr_t* addr, mio_scklen_t* len, mio_sckfam_t* family)
-{
-	struct sockaddr* saddr = (struct sockaddr*)addr;
-
-	switch (saddr->sa_family)
-	{
-		case AF_INET:
-			if (len) *len = MIO_SIZEOF(struct sockaddr_in);
-			if (family) *family = AF_INET;
-			return 0;
-
-		case AF_INET6:
-			if (len) *len =  MIO_SIZEOF(struct sockaddr_in6);
-			if (family) *family = AF_INET6;
-			return 0;
-
-	#if defined(AF_PACKET) && (MIO_SIZEOF_STRUCT_SOCKADDR_LL > 0)
-		case AF_PACKET:
-			if (len) *len =  MIO_SIZEOF(struct sockaddr_ll);
-			if (family) *family = AF_PACKET;
-			return 0;
-	#elif defined(AF_LINK) && (MIO_SIZEOF_STRUCT_SOCKADDR_DL > 0)
-		case AF_LINK:
-			if (len) *len =  MIO_SIZEOF(struct sockaddr_dl);
-			if (family) *family = AF_LINK;
-			return 0;
-	#endif
-
-		/* TODO: more address type */
-	}
-
-	mio_seterrnum (mio, MIO_EINVAL);
-	return -1;
-}
-
-mio_uint16_t mio_getsckaddrport (const mio_sckaddr_t* addr)
-{
-	struct sockaddr* saddr = (struct sockaddr*)addr;
-
-	switch (saddr->sa_family)
-	{
-		case AF_INET:
-			return mio_ntoh16(((struct sockaddr_in*)addr)->sin_port);
-
-		case AF_INET6:
-			return mio_ntoh16(((struct sockaddr_in6*)addr)->sin6_port);
-	}
-
-	return 0;
-}
-
-int mio_getsckaddrifindex (const mio_sckaddr_t* addr)
-{
-	struct sockaddr* saddr = (struct sockaddr*)addr;
-
-#if defined(AF_PACKET) && (MIO_SIZEOF_STRUCT_SOCKADDR_LL > 0)
-	if (saddr->sa_family == AF_PACKET)
-	{
-		return ((struct sockaddr_ll*)addr)->sll_ifindex;
-	}
-
-#elif defined(AF_LINK) && (MIO_SIZEOF_STRUCT_SOCKADDR_DL > 0)
-	if (saddr->sa_family == AF_LINK)
-	{
-		return ((struct sockaddr_dl*)addr)->sdl_index;
-	}
-#endif
-
-	return 0;
-}
-
-int mio_equalsckaddrs (mio_t* mio, const mio_sckaddr_t* addr1, const mio_sckaddr_t* addr2)
-{
-	mio_sckfam_t fam1, fam2;
-	mio_scklen_t len1, len2;
-
-	mio_getsckaddrinfo (mio, addr1, &len1, &fam1);
-	mio_getsckaddrinfo (mio, addr2, &len2, &fam2);
-	return fam1 == fam2 && len1 == len2 && MIO_MEMCMP(addr1, addr2, len1) == 0;
-}
-
 /* ========================================================================= */
 
-void mio_sckaddr_initforip4 (mio_sckaddr_t* sckaddr, mio_uint16_t port, mio_ip4addr_t* ip4addr)
-{
-	struct sockaddr_in* sin = (struct sockaddr_in*)sckaddr;
-
-	MIO_MEMSET (sin, 0, MIO_SIZEOF(*sin));
-	sin->sin_family = AF_INET;
-	sin->sin_port = htons(port);
-	if (ip4addr) MIO_MEMCPY (&sin->sin_addr, ip4addr, MIO_IP4ADDR_LEN);
-}
-
-void mio_sckaddr_initforip6 (mio_sckaddr_t* sckaddr, mio_uint16_t port, mio_ip6addr_t* ip6addr)
-{
-	struct sockaddr_in6* sin = (struct sockaddr_in6*)sckaddr;
-
-/* TODO: include sin6_scope_id */
-	MIO_MEMSET (sin, 0, MIO_SIZEOF(*sin));
-	sin->sin6_family = AF_INET;
-	sin->sin6_port = htons(port);
-	if (ip6addr) MIO_MEMCPY (&sin->sin6_addr, ip6addr, MIO_IP6ADDR_LEN);
-}
-
-void mio_sckaddr_initforeth (mio_sckaddr_t* sckaddr, int ifindex, mio_ethaddr_t* ethaddr)
-{
-#if defined(AF_PACKET) && (MIO_SIZEOF_STRUCT_SOCKADDR_LL > 0)
-	struct sockaddr_ll* sll = (struct sockaddr_ll*)sckaddr;
-	MIO_MEMSET (sll, 0, MIO_SIZEOF(*sll));
-	sll->sll_family = AF_PACKET;
-	sll->sll_ifindex = ifindex;
-	if (ethaddr)
-	{
-		sll->sll_halen = MIO_ETHADDR_LEN;
-		MIO_MEMCPY (sll->sll_addr, ethaddr, MIO_ETHADDR_LEN);
-	}
-
-#elif defined(AF_LINK) && (MIO_SIZEOF_STRUCT_SOCKADDR_DL > 0)
-	struct sockaddr_dl* sll = (struct sockaddr_dl*)sckaddr;
-	MIO_MEMSET (sll, 0, MIO_SIZEOF(*sll));
-	sll->sdl_family = AF_LINK;
-	sll->sdl_index = ifindex;
-	if (ethaddr)
-	{
-		sll->sdl_alen = MIO_ETHADDR_LEN;
-		MIO_MEMCPY (sll->sdl_data, ethaddr, MIO_ETHADDR_LEN);
-	}
-#else
-#	error UNSUPPORTED DATALINK SOCKET ADDRESS
-#endif
-}
-
-/* ========================================================================= */
-
-static mio_devaddr_t* sckaddr_to_devaddr (mio_dev_sck_t* dev, const mio_sckaddr_t* sckaddr, mio_devaddr_t* devaddr)
+static mio_devaddr_t* skad_to_devaddr (mio_dev_sck_t* dev, const mio_skad_t* sckaddr, mio_devaddr_t* devaddr)
 {
 	if (sckaddr)
 	{
-		mio_scklen_t len;
-		mio_getsckaddrinfo (dev->mio, sckaddr, &len, MIO_NULL);
 		devaddr->ptr = (void*)sckaddr;
-		devaddr->len = len;
+		devaddr->len = mio_skad_size(sckaddr);
 		return devaddr;
 	}
 
 	return MIO_NULL;
 }
 
-static MIO_INLINE mio_sckaddr_t* devaddr_to_sckaddr (mio_dev_sck_t* dev, const mio_devaddr_t* devaddr, mio_sckaddr_t* sckaddr)
+static MIO_INLINE mio_skad_t* devaddr_to_skad (mio_dev_sck_t* dev, const mio_devaddr_t* devaddr, mio_skad_t* sckaddr)
 {
-	return (mio_sckaddr_t*)devaddr->ptr;
+	return (mio_skad_t*)devaddr->ptr;
 }
 
 /* ========================================================================= */
@@ -792,9 +658,6 @@ static int dev_sck_ioctl (mio_dev_t* dev, int cmd, void* arg)
 		case MIO_DEV_SCK_BIND:
 		{
 			mio_dev_sck_bind_t* bnd = (mio_dev_sck_bind_t*)arg;
-			struct sockaddr* sa = (struct sockaddr*)&bnd->localaddr;
-			mio_scklen_t sl;
-			mio_sckfam_t fam;
 			int x;
 		#if defined(USE_SSL)
 			SSL_CTX* ssl_ctx = MIO_NULL;
@@ -923,15 +786,7 @@ static int dev_sck_ioctl (mio_dev_t* dev, int cmd, void* arg)
 			#endif
 			}
 
-			if (mio_getsckaddrinfo(mio, &bnd->localaddr, &sl, &fam) <= -1) 
-			{
-			#if defined(USE_SSL)
-				if (ssl_ctx) SSL_CTX_free (ssl_ctx);
-			#endif
-				return -1;
-			}
-
-			x = bind(rdev->sck, sa, sl);
+			x = bind(rdev->sck, (struct sockaddr*)&bnd->localaddr, mio_skad_size(&bnd->localaddr));
 			if (x == -1)
 			{
 				mio_seterrwithsyserr (mio, 0, errno);
@@ -955,7 +810,7 @@ static int dev_sck_ioctl (mio_dev_t* dev, int cmd, void* arg)
 			mio_dev_sck_connect_t* conn = (mio_dev_sck_connect_t*)arg;
 			struct sockaddr* sa = (struct sockaddr*)&conn->remoteaddr;
 			mio_scklen_t sl;
-			mio_sckaddr_t localaddr;
+			mio_skad_t localaddr;
 			int x;
 		#if defined(USE_SSL)
 			SSL_CTX* ssl_ctx = MIO_NULL;
@@ -1228,7 +1083,7 @@ static int harvest_outgoing_connection (mio_dev_sck_t* rdev)
 	}
 	else if (errcode == 0)
 	{
-		mio_sckaddr_t localaddr;
+		mio_skad_t localaddr;
 		mio_scklen_t addrlen;
 
 		/* connected */
@@ -1308,7 +1163,7 @@ static int accept_incoming_connection (mio_dev_sck_t* rdev)
 {
 	mio_t* mio = rdev->mio;
 	mio_sckhnd_t clisck;
-	mio_sckaddr_t remoteaddr;
+	mio_skad_t remoteaddr;
 	mio_scklen_t addrlen;
 	mio_dev_sck_t* clidev;
 	int flags;
@@ -1382,11 +1237,11 @@ accept_done:
 	clidev->orgdstaddr = rdev->localaddr;
 #endif
 
-	if (!mio_equalsckaddrs (mio, &clidev->orgdstaddr, &clidev->localaddr))
+	if (!mio_equal_skads(&clidev->orgdstaddr, &clidev->localaddr))
 	{
 		clidev->state |= MIO_DEV_SCK_INTERCEPTED;
 	}
-	else if (mio_getsckaddrport (&clidev->localaddr) != mio_getsckaddrport(&rdev->localaddr))
+	else if (mio_skad_port(&clidev->localaddr) != mio_skad_port(&rdev->localaddr))
 	{
 		/* When TPROXY is used, getsockname() and SO_ORIGNAL_DST return
 		 * the same addresses. however, the port number may be different
@@ -1734,16 +1589,16 @@ int mio_dev_sck_listen (mio_dev_sck_t* dev, mio_dev_sck_listen_t* info)
 	return mio_dev_ioctl((mio_dev_t*)dev, MIO_DEV_SCK_LISTEN, info);
 }
 
-int mio_dev_sck_write (mio_dev_sck_t* dev, const void* data, mio_iolen_t dlen, void* wrctx, const mio_sckaddr_t* dstaddr)
+int mio_dev_sck_write (mio_dev_sck_t* dev, const void* data, mio_iolen_t dlen, void* wrctx, const mio_skad_t* dstaddr)
 {
 	mio_devaddr_t devaddr;
-	return mio_dev_write((mio_dev_t*)dev, data, dlen, wrctx, sckaddr_to_devaddr(dev, dstaddr, &devaddr));
+	return mio_dev_write((mio_dev_t*)dev, data, dlen, wrctx, skad_to_devaddr(dev, dstaddr, &devaddr));
 }
 
-int mio_dev_sck_timedwrite (mio_dev_sck_t* dev, const void* data, mio_iolen_t dlen, const mio_ntime_t* tmout, void* wrctx, const mio_sckaddr_t* dstaddr)
+int mio_dev_sck_timedwrite (mio_dev_sck_t* dev, const void* data, mio_iolen_t dlen, const mio_ntime_t* tmout, void* wrctx, const mio_skad_t* dstaddr)
 {
 	mio_devaddr_t devaddr;
-	return mio_dev_timedwrite((mio_dev_t*)dev, data, dlen, tmout, wrctx, sckaddr_to_devaddr(dev, dstaddr, &devaddr));
+	return mio_dev_timedwrite((mio_dev_t*)dev, data, dlen, tmout, wrctx, skad_to_devaddr(dev, dstaddr, &devaddr));
 }
 
 

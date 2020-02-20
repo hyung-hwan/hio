@@ -41,7 +41,7 @@
 typedef struct mio_devaddr_t mio_devaddr_t;
 struct mio_devaddr_t
 {
-	int len;
+	int   len;
 	void* ptr;
 };
 

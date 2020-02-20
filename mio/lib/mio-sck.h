@@ -28,6 +28,7 @@
 #define _MIO_SCK_H_
 
 #include <mio.h>
+#include <mio-skad.h>
 
 /* ========================================================================= */
 /* TOOD: move these to a separte file */
@@ -44,46 +45,7 @@
 #define MIO_ARPHDR_HTYPE_ETH 0x0001
 #define MIO_ARPHDR_PTYPE_IP4 0x0800
 
-#define MIO_ETHADDR_LEN 6
-#define MIO_IP4ADDR_LEN 4
-#define MIO_IP6ADDR_LEN 16 
-
-
-#if defined(__GNUC__)
-#	define MIO_PACKED __attribute__((__packed__))
-
-#else
-#	define MIO_PACKED 
-#	MIO_PACK_PUSH pack(push)
-#	MIO_PACK_PUSH pack(push)
-#	MIO_PACK(x) pack(x)
-#endif
-
-
-#if defined(__GNUC__)
-	/* nothing */
-#else
-	#pragma pack(push)
-	#pragma pack(1)
-#endif
-struct MIO_PACKED mio_ethaddr_t
-{
-	mio_uint8_t v[MIO_ETHADDR_LEN]; 
-};
-typedef struct mio_ethaddr_t mio_ethaddr_t;
-
-struct MIO_PACKED mio_ip4addr_t
-{
-	mio_uint8_t v[MIO_IP4ADDR_LEN];
-};
-typedef struct mio_ip4addr_t mio_ip4addr_t;
-
-struct MIO_PACKED mio_ip6addr_t
-{
-	mio_uint8_t v[MIO_IP6ADDR_LEN]; 
-};
-typedef struct mio_ip6addr_t mio_ip6addr_t;
-
+#include <mio-pac1.h>
 
 struct MIO_PACKED mio_ethhdr_t
 {
@@ -171,11 +133,8 @@ struct MIO_PACKED mio_icmphdr_t
 };
 typedef struct mio_icmphdr_t mio_icmphdr_t;
 
-#if defined(__GNUC__)
-	/* nothing */
-#else
-	#pragma pack(pop)
-#endif
+#include <mio-upac.h>
+
 
 /* ICMP types */
 #define MIO_ICMP_ECHO_REPLY        0
@@ -210,18 +169,6 @@ typedef struct mio_icmphdr_t mio_icmphdr_t;
 #define MIO_ICMP_TIME_EXCEEDED_FRAGTIME  1
 
 /* ========================================================================= */
-
-typedef int mio_sckfam_t;
-
-struct mio_sckaddr_t
-{
-#if defined(MIO_OFFSETOF_SA_FAMILY) && (MIO_OFFSETOF_SA_FAMILY > 0)
-	mio_uint8_t filler[MIO_OFFSETOF_SA_FAMILY];
-#endif
-	mio_sckfam_t family;
-	mio_uint8_t data[128]; /* TODO: use the actual sockaddr size */
-};
-typedef struct mio_sckaddr_t mio_sckaddr_t;
 
 #if (MIO_SIZEOF_SOCKLEN_T == MIO_SIZEOF_INT)
 	#if defined(MIO_SOCKLEN_T_IS_SIGNED)
@@ -305,14 +252,14 @@ typedef int (*mio_dev_sck_on_read_t) (
 	mio_dev_sck_t*       dev,
 	const void*          data,
 	mio_iolen_t          dlen,
-	const mio_sckaddr_t* srcaddr
+	const mio_skad_t* srcaddr
 );
 
 typedef int (*mio_dev_sck_on_write_t) (
 	mio_dev_sck_t*       dev,
 	mio_iolen_t          wrlen,
 	void*                wrctx,
-	const mio_sckaddr_t* dstaddr
+	const mio_skad_t* dstaddr
 );
 
 typedef void (*mio_dev_sck_on_disconnect_t) (
@@ -374,7 +321,7 @@ typedef struct mio_dev_sck_bind_t mio_dev_sck_bind_t;
 struct mio_dev_sck_bind_t
 {
 	int options;
-	mio_sckaddr_t localaddr;
+	mio_skad_t localaddr;
 	/* TODO: add device name for BIND_TO_DEVICE */
 
 	const mio_bch_t* ssl_certfile;
@@ -392,7 +339,7 @@ typedef struct mio_dev_sck_connect_t mio_dev_sck_connect_t;
 struct mio_dev_sck_connect_t
 {
 	int options;
-	mio_sckaddr_t remoteaddr;
+	mio_skad_t remoteaddr;
 	mio_ntime_t connect_tmout;
 };
 
@@ -407,7 +354,7 @@ struct mio_dev_sck_accept_t
 {
 	mio_syshnd_t  sck;
 /* TODO: add timeout */
-	mio_sckaddr_t remoteaddr;
+	mio_skad_t remoteaddr;
 };
 
 struct mio_dev_sck_t
@@ -429,13 +376,13 @@ struct mio_dev_sck_t
 	 *
 	 * also used as a placeholder to store source address for
 	 * a stateless socket */
-	mio_sckaddr_t remoteaddr; 
+	mio_skad_t remoteaddr; 
 
 	/* local socket address */
-	mio_sckaddr_t localaddr;
+	mio_skad_t localaddr;
 
 	/* original destination address */
-	mio_sckaddr_t orgdstaddr;
+	mio_skad_t orgdstaddr;
 
 	mio_dev_sck_on_write_t on_write;
 	mio_dev_sck_on_read_t on_read;
@@ -468,48 +415,6 @@ extern "C" {
 MIO_EXPORT int mio_makesckasync (
 	mio_t*       mio,
 	mio_sckhnd_t sck
-);
-
-MIO_EXPORT int mio_getsckaddrinfo (
-	mio_t*                mio,
-	const mio_sckaddr_t*  addr,
-	mio_scklen_t*         len,
-	mio_sckfam_t*         family
-);
-
-/*
- * The mio_getsckaddrport() function returns the port number of a socket
- * address in the host byte order. If the address doesn't support the port
- * number, it returns 0.
- */
-MIO_EXPORT mio_uint16_t mio_getsckaddrport (
-	const mio_sckaddr_t* addr
-);
-
-/*
- * The mio_getsckaddrifindex() function returns an interface number.
- * If the address doesn't support the interface number, it returns 0. */
-MIO_EXPORT int mio_getsckaddrifindex (
-	const mio_sckaddr_t* addr
-);
-
-
-MIO_EXPORT void mio_sckaddr_initforip4 (
-	mio_sckaddr_t* sckaddr,
-	mio_uint16_t   port,
-	mio_ip4addr_t* ip4addr
-);
-
-MIO_EXPORT void mio_sckaddr_initforip6 (
-	mio_sckaddr_t* sckaddr,
-	mio_uint16_t   port,
-	mio_ip6addr_t* ip6addr
-);
-
-MIO_EXPORT void mio_sckaddr_initforeth (
-	mio_sckaddr_t* sckaddr,
-	int            ifindex,
-	mio_ethaddr_t* ethaddr
 );
 
 /* ========================================================================= */
@@ -546,7 +451,7 @@ MIO_EXPORT int mio_dev_sck_write (
 	const void*           data,
 	mio_iolen_t           len,
 	void*                 wrctx,
-	const mio_sckaddr_t*  dstaddr
+	const mio_skad_t*     dstaddr
 );
 
 MIO_EXPORT int mio_dev_sck_timedwrite (
@@ -555,7 +460,7 @@ MIO_EXPORT int mio_dev_sck_timedwrite (
 	mio_iolen_t           len,
 	const mio_ntime_t*    tmout,
 	void*                 wrctx,
-	const mio_sckaddr_t*  dstaddr
+	const mio_skad_t*     dstaddr
 );
 
 #if defined(MIO_HAVE_INLINE)
