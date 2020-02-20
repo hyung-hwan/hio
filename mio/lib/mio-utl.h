@@ -155,45 +155,6 @@
 #	error UNKNOWN ENDIAN
 #endif
 
-/* =========================================================================
- * FORMATTED OUTPUT
- * ========================================================================= */
-typedef struct mio_fmtout_t mio_fmtout_t;
-
-typedef int (*mio_fmtout_putbcs_t) (
-	mio_fmtout_t*     fmtout,
-	const mio_bch_t*  ptr,
-	mio_oow_t         len
-);
-
-typedef int (*mio_fmtout_putucs_t) (
-	mio_fmtout_t*     fmtout,
-	const mio_uch_t*  ptr,
-	mio_oow_t         len
-);
-
-enum mio_fmtout_fmt_type_t 
-{
-	MIO_FMTOUT_FMT_TYPE_BCH = 0,
-	MIO_FMTOUT_FMT_TYPE_UCH
-};
-typedef enum mio_fmtout_fmt_type_t mio_fmtout_fmt_type_t;
-
-
-struct mio_fmtout_t
-{
-	mio_oow_t             count; /* out */
-
-	mio_fmtout_putbcs_t   putbcs; /* in */
-	mio_fmtout_putucs_t   putucs; /* in */
-	mio_bitmask_t         mask;   /* in */
-	void*                 ctx;    /* in */
-
-	mio_fmtout_fmt_type_t fmt_type;
-	const void*           fmt_str;
-};
-
-
 #ifdef __cplusplus
 extern "C" {
 #endif
@@ -607,35 +568,6 @@ MIO_EXPORT mio_oow_t mio_utf8_to_uc (
 	const mio_bch_t* utf8,
 	mio_oow_t        size,
 	mio_uch_t*       uc
-);
-
-
-/* =========================================================================
- * FORMATTED OUTPUT
- * ========================================================================= */
-MIO_EXPORT int mio_bfmt_outv (
-	mio_fmtout_t*    fmtout,
-	const mio_bch_t* fmt,
-	va_list          ap
-);
-
-MIO_EXPORT int mio_ufmt_outv (
-	mio_fmtout_t*    fmtout,
-	const mio_uch_t* fmt,
-	va_list          ap
-);
-
-
-MIO_EXPORT int mio_bfmt_out (
-	mio_fmtout_t*    fmtout,
-	const mio_bch_t* fmt,
-	...
-);
-
-MIO_EXPORT int mio_ufmt_out (
-	mio_fmtout_t*    fmtout,
-	const mio_uch_t* fmt,
-	...
 );
 
 /* =========================================================================

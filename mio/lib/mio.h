@@ -63,8 +63,6 @@ typedef struct mio_wq_t mio_wq_t;
 typedef struct mio_cwq_t mio_cwq_t;
 typedef mio_intptr_t mio_iolen_t; /* NOTE: this is a signed type */
 
-typedef unsigned int mio_bitmask_t;
-
 enum mio_errnum_t
 {
 	MIO_ENOERR,   /**< no error */

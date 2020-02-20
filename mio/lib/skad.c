@@ -26,6 +26,7 @@
 
 #include "mio-skad.h"
 #include "mio-nwif.h"
+#include "mio-fmt.h"
 #include "mio-prv.h"
 
 #include <sys/types.h>
@@ -945,7 +946,7 @@ static mio_oow_t ip6addr_to_ucstr (const struct in6_addr* ipad, mio_uch_t* buf, 
 			break;
 		}
 
-/* TODO	tp += mio_fmt_uintmax_to_ucstr(tp, MIO_COUNTOF(tmp) - (tp - tmp), words[i], 16, 0, '\0', MIO_NULL); */
+		tp += mio_fmt_uintmax_to_ucstr(tp, MIO_COUNTOF(tmp) - (tp - tmp), words[i], 16, 0, '\0', MIO_NULL);
 	}
 
 	/* Was it a trailing run of 0x00's? */
@@ -985,7 +986,7 @@ mio_oow_t mio_skadtoucstr (mio_t* mio, const mio_skad_t* _skad, mio_uch_t* buf, 
 					}
 
 					if (xlen + 1 >= len) goto done;
-/* TODO					xlen += mio_fmt_uintmax_to_ucstr(&buf[xlen], len - xlen, mio_ntoh16(skad->in4.sin_port), 10, 0, '\0', MIO_NULL); */
+					xlen += mio_fmt_uintmax_to_ucstr(&buf[xlen], len - xlen, mio_ntoh16(skad->in4.sin_port), 10, 0, '\0', MIO_NULL);
 				}
 			}
 			break;
@@ -1020,7 +1021,7 @@ mio_oow_t mio_skadtoucstr (mio_t* mio, const mio_skad_t* _skad, mio_uch_t* buf, 
 					tmp = mio_ifindextoucstr(mio, skad->in6.sin6_scope_id, &buf[xlen], len - xlen);
 					if (tmp <= -1)
 					{
-/* TODO					xlen += mio_fmt_uintmax_to_ucstr(&buf[xlen], len - xlen, skad->in6.sin6_scope_id, 10, 0, '\0', MIO_NULL); */
+						xlen += mio_fmt_uintmax_to_ucstr(&buf[xlen], len - xlen, skad->in6.sin6_scope_id, 10, 0, '\0', MIO_NULL);
 					}
 					else xlen += tmp;
 				}
@@ -1040,7 +1041,7 @@ mio_oow_t mio_skadtoucstr (mio_t* mio, const mio_skad_t* _skad, mio_uch_t* buf, 
 					}
 
 					if (xlen + 1 >= len) goto done;
-/* TODO				xlen += mio_fmt_uintmax_to_ucstr(&buf[xlen], len - xlen, mio_ntoh16(skad->in6.sin6_port), 10, 0, '\0', MIO_NULL); */
+					xlen += mio_fmt_uintmax_to_ucstr(&buf[xlen], len - xlen, mio_ntoh16(skad->in6.sin6_port), 10, 0, '\0', MIO_NULL);
 				}
 			}
 
@@ -1191,7 +1192,7 @@ static mio_oow_t ip6addr_to_bcstr (const struct in6_addr* ipad, mio_bch_t* buf, 
 			break;
 		}
 
-/* TODO:		tp += mio_fmt_uintmax_to_bcstr(tp, MIO_COUNTOF(tmp) - (tp - tmp), words[i], 16, 0, '\0', MIO_NULL); */
+		tp += mio_fmt_uintmax_to_bcstr(tp, MIO_COUNTOF(tmp) - (tp - tmp), words[i], 16, 0, '\0', MIO_NULL);
 	}
 
 	/* Was it a trailing run of 0x00's? */
@@ -1231,7 +1232,7 @@ mio_oow_t mio_skadtobcstr (mio_t* mio, const mio_skad_t* _skad, mio_bch_t* buf, 
 					}
 
 					if (xlen + 1 >= len) goto done;
-/*					xlen += mio_fmt_uintmax_to_bcstr(&buf[xlen], len - xlen, mio_ntoh16(skad->in4.sin_port), 10, 0, '\0', MIO_NULL);*/
+					xlen += mio_fmt_uintmax_to_bcstr(&buf[xlen], len - xlen, mio_ntoh16(skad->in4.sin_port), 10, 0, '\0', MIO_NULL);
 				}
 			}
 			break;
@@ -1267,7 +1268,7 @@ mio_oow_t mio_skadtobcstr (mio_t* mio, const mio_skad_t* _skad, mio_bch_t* buf, 
 					tmp = mio_ifindextobcstr(mio, skad->in6.sin6_scope_id, &buf[xlen], len - xlen);
 					if (tmp <= -1)
 					{
-/* TODO						xlen += mio_fmt_uintmax_to_bcstr(&buf[xlen], len - xlen, skad->in6.sin6_scope_id, 10, 0, '\0', MIO_NULL); */
+						xlen += mio_fmt_uintmax_to_bcstr(&buf[xlen], len - xlen, skad->in6.sin6_scope_id, 10, 0, '\0', MIO_NULL);
 					}
 					else xlen += tmp;
 				}
@@ -1287,7 +1288,7 @@ mio_oow_t mio_skadtobcstr (mio_t* mio, const mio_skad_t* _skad, mio_bch_t* buf, 
 					}
 
 					if (xlen + 1 >= len) goto done;
-/*					xlen += mio_fmt_uintmax_to_bcstr(&buf[xlen], len - xlen, mio_ntoh16(skad->in6.sin6_port), 10, 0, '\0', MIO_NULL); */
+					xlen += mio_fmt_uintmax_to_bcstr(&buf[xlen], len - xlen, mio_ntoh16(skad->in6.sin6_port), 10, 0, '\0', MIO_NULL);
 				}
 			}
 
@@ -1301,16 +1302,6 @@ mio_oow_t mio_skadtobcstr (mio_t* mio, const mio_skad_t* _skad, mio_bch_t* buf, 
 
 				if (xlen + 1 >= len) goto done;
 				xlen += mio_copy_bcstr(&buf[xlen], len - xlen, skad->un.sun_path);
-#if 0
-				if (xlen + 1 >= len) goto done;
-				else
-				{
-					mio_oow_t wcslen, mbslen = len - xlen;
-					mio_convutobcstr (mio, skad->un.sun_path, &wcslen, &buf[xlen], &mbslen);
-					/* i don't care about conversion errors */
-					xlen += mbslen;
-				}
-#endif
 			}
 
 			break;
