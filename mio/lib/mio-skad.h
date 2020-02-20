@@ -175,7 +175,8 @@ MIO_EXPORT void mio_clear_skad (
 
 MIO_EXPORT int mio_equal_skads (
 	const mio_skad_t* addr1,
-	const mio_skad_t* addr2
+	const mio_skad_t* addr2,
+	int               strict
 );
 
 #if defined(__cplusplus)

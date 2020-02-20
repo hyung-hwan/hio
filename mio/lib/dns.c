@@ -244,7 +244,8 @@ static int dnc_on_read (mio_dev_sck_t* dev, const void* data, mio_iolen_t dlen, 
 	{
 		mio_dns_pkt_t* reqpkt = mio_dns_msg_to_pkt(reqmsg);
 		dnc_dns_msg_xtn_t* msgxtn = dnc_dns_msg_getxtn(reqmsg);
-		if (dev == (mio_dev_sck_t*)msgxtn->dev && pkt->id == reqpkt->id && mio_equal_skads(&msgxtn->servaddr, srcaddr))
+
+		if (dev == (mio_dev_sck_t*)msgxtn->dev && pkt->id == reqpkt->id && mio_equal_skads(&msgxtn->servaddr, srcaddr, 0))
 		{
 MIO_DEBUG1 (mio, "received dns response...id %d\n", id);
 			if (MIO_LIKELY(msgxtn->on_reply))
@@ -270,7 +271,7 @@ static void dnc_on_reply_timeout (mio_t* mio, const mio_ntime_t* now, mio_tmrjob
 
 	MIO_ASSERT (mio, msgxtn->rtmridx == MIO_TMRIDX_INVALID);
 
-MIO_DEBUG0 (mio, "unable to receive dns response in time...\n");
+MIO_DEBUG0 (mio, "*** TIMEOUT ==> unable to receive dns response in time...\n");
 	if (msgxtn->rtries < msgxtn->rmaxtries)
 	{
 		mio_ntime_t* tmout;
@@ -384,7 +385,20 @@ mio_svc_dnc_t* mio_svc_dnc_start (mio_t* mio, const mio_skad_t* serv_addr, const
 	dnc->reply_tmout_max_tries = reply_tmout_max_tries;
 
 	MIO_MEMSET (&mkinfo, 0, MIO_SIZEOF(mkinfo));
-	mkinfo.type = MIO_DEV_SCK_UDP4; /* or UDP6 depending on the binding address */
+	switch (mio_skad_family(serv_addr))
+	{
+		case MIO_AF_INET:
+			mkinfo.type = MIO_DEV_SCK_UDP4;
+			break;
+
+		case MIO_AF_INET6:
+			mkinfo.type = MIO_DEV_SCK_UDP6;
+			break;
+
+		default:
+			mio_seterrnum (mio, MIO_EINVAL);
+			goto oops;
+	}
 	mkinfo.on_write = dnc_on_write;
 	mkinfo.on_read = dnc_on_read;
 	mkinfo.on_connect = dnc_on_connect;
@@ -490,11 +504,15 @@ static void on_dnc_resolve (mio_svc_dnc_t* dnc, mio_dns_msg_t* reqmsg, mio_errnu
 	mio_dns_pkt_info_t* pi = MIO_NULL;
 	dnc_dns_msg_resolve_xtn_t* reqmsgxtn = dnc_dns_msg_resolve_getxtn(reqmsg);
 
-	MIO_ASSERT (mio, dlen >= MIO_SIZEOF(*pkt)); /* this is guaranteed by the dnc_on_read() */
-	pkt = (mio_dns_pkt_t*)data;
-	if (pkt->tc && (reqmsgxtn->flags & MIO_SVC_DNC_RESOLVE_FLAG_TCP_IF_TC)) /* truncated */
+	if (data)
 	{
-		/* TODO: */
+		MIO_ASSERT (mio, dlen >= MIO_SIZEOF(*pkt)); /* this is guaranteed by the dnc_on_read() */
+
+		pkt = (mio_dns_pkt_t*)data;
+		if (pkt->tc && (reqmsgxtn->flags & MIO_SVC_DNC_RESOLVE_FLAG_TCP_IF_TC)) /* truncated */
+		{
+			/* TODO: */
+		}
 	}
 
 	if (!(reqmsgxtn->flags & MIO_SVC_DNC_RESOLVE_FLAG_BRIEF))
