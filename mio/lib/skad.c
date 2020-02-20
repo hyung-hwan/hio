@@ -55,6 +55,9 @@ union mio_skad_alt_t
 #if (MIO_SIZEOF_STRUCT_SOCKADDR_LL > 0)
 	struct sockaddr_ll ll;
 #endif
+#if (MIO_SIZEOF_STRUCT_SOCKADDR_DL > 0)
+	struct sockaddr_dl dl;
+#endif
 #if (MIO_SIZEOF_STRUCT_SOCKADDR_UN > 0)
 	struct sockaddr_un un;
 #endif
@@ -1345,6 +1348,9 @@ int mio_skad_size (const mio_skad_t* _skad)
 	#if defined(AF_PACKET) && (MIO_SIZEOF_STRUCT_SOCKADDR_LL > 0)
 		case AF_PACKET: return MIO_SIZEOF(struct sockaddr_ll);
 	#endif
+	#if defined(AF_LINK) && (MIO_SIZEOF_STRUCT_SOCKADDR_DL > 0)
+		case AF_LINK: return MIO_SIZEOF(struct sockaddr_dl);
+	#endif
 	#if defined(AF_UNIX) && (MIO_SIZEOF_STRUCT_SOCKADDR_UN > 0)
 		case AF_UNIX: return MIO_SIZEOF(struct sockaddr_un);
 	#endif
@@ -1353,10 +1359,97 @@ int mio_skad_size (const mio_skad_t* _skad)
 	return 0;
 }
 
+int mio_skad_port (const mio_skad_t* _skad)
+{
+	const mio_skad_alt_t* skad = (const mio_skad_alt_t*)_skad;
+
+	switch (skad->sa.sa_family)
+	{
+	#if defined(AF_INET) && (MIO_SIZEOF_STRUCT_SOCKADDR_IN > 0)
+		case AF_INET: return mio_ntoh16(((struct sockaddr_in*)skad)->sin_port);
+	#endif
+	#if defined(AF_INET6) && (MIO_SIZEOF_STRUCT_SOCKADDR_IN6 > 0)
+		case AF_INET6: return mio_ntoh16(((struct sockaddr_in6*)skad)->sin6_port);
+	#endif
+	}
+	return 0;
+}
+
+int mio_skad_ifindex (const mio_skad_t* _skad)
+{
+	const mio_skad_alt_t* skad = (const mio_skad_alt_t*)_skad;
+
+#if defined(AF_PACKET) && (MIO_SIZEOF_STRUCT_SOCKADDR_LL > 0)
+	if (skad->sa.sa_family == AF_PACKET) return ((struct sockaddr_ll*)skad)->sll_ifindex;
+
+#elif defined(AF_LINK) && (MIO_SIZEOF_STRUCT_SOCKADDR_DL > 0)
+	if (skad->sa.sa_family == AF_LINK)  return ((struct sockaddr_dl*)skad)->sdl_index;
+#endif
+
+	return 0;
+}
+
+
+void mio_skad_init_for_ip4 (mio_skad_t* skad, mio_uint16_t port, mio_ip4addr_t* ip4addr)
+{
+	struct sockaddr_in* sin = (struct sockaddr_in*)skad;
+
+	MIO_MEMSET (sin, 0, MIO_SIZEOF(*sin));
+	sin->sin_family = AF_INET;
+	sin->sin_port = htons(port);
+	if (ip4addr) MIO_MEMCPY (&sin->sin_addr, ip4addr, MIO_IP4ADDR_LEN);
+}
+
+void mio_skad_init_for_ip6 (mio_skad_t* skad, mio_uint16_t port, mio_ip6addr_t* ip6addr, int scope_id)
+{
+	struct sockaddr_in6* sin = (struct sockaddr_in6*)skad;
+
+	MIO_MEMSET (sin, 0, MIO_SIZEOF(*sin));
+	sin->sin6_family = AF_INET;
+	sin->sin6_port = htons(port);
+	sin->sin6_scope_id = scope_id;
+	if (ip6addr) MIO_MEMCPY (&sin->sin6_addr, ip6addr, MIO_IP6ADDR_LEN);
+}
+
+void mio_skad_init_for_eth (mio_skad_t* skad, int ifindex, mio_ethaddr_t* ethaddr)
+{
+#if defined(AF_PACKET) && (MIO_SIZEOF_STRUCT_SOCKADDR_LL > 0)
+	struct sockaddr_ll* sll = (struct sockaddr_ll*)skad;
+	MIO_MEMSET (sll, 0, MIO_SIZEOF(*sll));
+	sll->sll_family = AF_PACKET;
+	sll->sll_ifindex = ifindex;
+	if (ethaddr)
+	{
+		sll->sll_halen = MIO_ETHADDR_LEN;
+		MIO_MEMCPY (sll->sll_addr, ethaddr, MIO_ETHADDR_LEN);
+	}
+
+#elif defined(AF_LINK) && (MIO_SIZEOF_STRUCT_SOCKADDR_DL > 0)
+	struct sockaddr_dl* sll = (struct sockaddr_dl*)skad;
+	MIO_MEMSET (sll, 0, MIO_SIZEOF(*sll));
+	sll->sdl_family = AF_LINK;
+	sll->sdl_index = ifindex;
+	if (ethaddr)
+	{
+		sll->sdl_alen = MIO_ETHADDR_LEN;
+		MIO_MEMCPY (sll->sdl_data, ethaddr, MIO_ETHADDR_LEN);
+	}
+#else
+#	error UNSUPPORTED DATALINK SOCKET ADDRESS
+#endif
+}
+
 void mio_clear_skad (mio_skad_t* _skad)
 {
 	mio_skad_alt_t* skad = (mio_skad_alt_t*)_skad;
 	/*MIO_STATIC_ASSERT (MIO_SIZEOF(*_skad) >= MIO_SIZEOF(*skad));*/
 	MIO_MEMSET (skad, 0, MIO_SIZEOF(*skad));
 	skad->sa.sa_family = MIO_AF_UNSPEC;
+}
+
+int mio_equal_skads (const mio_skad_t* addr1, const mio_skad_t* addr2)
+{
+	return mio_skad_family(addr1) == mio_skad_family(addr2) && 
+	       mio_skad_size(addr1) == mio_skad_size(addr2) &&
+	       MIO_MEMCMP(addr1, addr2, mio_skad_size(addr1)) == 0;
 }

@@ -30,6 +30,7 @@
 #include <mio-sck.h>
 #include <mio-pro.h>
 #include <mio-dns.h>
+#include <mio-nwif.h>
 
 #include <stdlib.h>
 #include <string.h>
@@ -38,8 +39,6 @@
 #include <netinet/in.h>
 #include <arpa/inet.h>
 #include <signal.h>
-
-#include <net/if.h>
 
 #include <assert.h>
 
@@ -51,7 +50,7 @@
 #	if defined(HAVE_OPENSSL_ENGINE_H)
 #		include <openssl/engine.h>
 #	endif
-#	define USE_SSL
+//#	define USE_SSL
 #endif
 
 /* ========================================================================= */
@@ -160,28 +159,18 @@ static void tcp_sck_on_disconnect (mio_dev_sck_t* tcp)
 
 static void tcp_sck_on_connect (mio_dev_sck_t* tcp)
 {
-	mio_sckfam_t fam;
-	mio_scklen_t len;
 	mio_bch_t buf1[128], buf2[128];
 
-	memset (buf1, 0, MIO_SIZEOF(buf1));
-	memset (buf2, 0, MIO_SIZEOF(buf2));
-
-	mio_getsckaddrinfo (tcp->mio, &tcp->localaddr, &len, &fam);
-	inet_ntop (fam, tcp->localaddr.data, buf1, MIO_COUNTOF(buf1));
-
-	mio_getsckaddrinfo (tcp->mio, &tcp->remoteaddr, &len, &fam);
-	inet_ntop (fam, tcp->remoteaddr.data, buf2, MIO_COUNTOF(buf2));
+	mio_skadtobcstr (tcp->mio, &tcp->localaddr, buf1, MIO_COUNTOF(buf1), MIO_SKAD_TO_BCSTR_ADDR | MIO_SKAD_TO_BCSTR_PORT);
+	mio_skadtobcstr (tcp->mio, &tcp->remoteaddr, buf2, MIO_COUNTOF(buf2), MIO_SKAD_TO_BCSTR_ADDR | MIO_SKAD_TO_BCSTR_PORT);
 
 	if (tcp->state & MIO_DEV_SCK_CONNECTED)
 	{
-		MIO_INFO5 (tcp->mio, "DEVICE connected to a remote server... LOCAL %hs:%d REMOTE %hs:%d SCK: %d\n", 
-			buf1, mio_getsckaddrport(&tcp->localaddr), buf2, mio_getsckaddrport(&tcp->remoteaddr), tcp->sck);
+		MIO_INFO3 (tcp->mio, "DEVICE connected to a remote server... LOCAL %hs REMOTE %hs SCK: %d\n", buf1, buf2, tcp->sck);
 	}
 	else if (tcp->state & MIO_DEV_SCK_ACCEPTED)
 	{
-		MIO_INFO5 (tcp->mio, "DEVICE accepted client device... .LOCAL %hs:%d REMOTE %hs:%d\n",
-			buf1, mio_getsckaddrport(&tcp->localaddr), buf2, mio_getsckaddrport(&tcp->remoteaddr), tcp->sck);
+		MIO_INFO3 (tcp->mio, "DEVICE accepted client device... .LOCAL %hs REMOTE %hs  SCK: %d\n", buf1, buf2, tcp->sck);
 	}
 
 	if (mio_dev_sck_write(tcp, "hello", 5, MIO_NULL, MIO_NULL) <= -1)
@@ -190,7 +179,7 @@ static void tcp_sck_on_connect (mio_dev_sck_t* tcp)
 	}
 }
 
-static int tcp_sck_on_write (mio_dev_sck_t* tcp, mio_iolen_t wrlen, void* wrctx, const mio_sckaddr_t* dstaddr)
+static int tcp_sck_on_write (mio_dev_sck_t* tcp, mio_iolen_t wrlen, void* wrctx, const mio_skad_t* dstaddr)
 {
 	tcp_server_t* ts;
 	mio_ntime_t tmout;
@@ -225,7 +214,7 @@ static int tcp_sck_on_write (mio_dev_sck_t* tcp, mio_iolen_t wrlen, void* wrctx,
 	return 0;
 }
 
-static int tcp_sck_on_read (mio_dev_sck_t* tcp, const void* buf, mio_iolen_t len, const mio_sckaddr_t* srcaddr)
+static int tcp_sck_on_read (mio_dev_sck_t* tcp, const void* buf, mio_iolen_t len, const mio_skad_t* srcaddr)
 {
 	int n;
 
@@ -333,7 +322,7 @@ static int pro_on_write (mio_dev_pro_t* pro, mio_iolen_t wrlen, void* wrctx)
 
 /* ========================================================================= */
 
-static int arp_sck_on_read (mio_dev_sck_t* dev, const void* data, mio_iolen_t dlen, const mio_sckaddr_t* srcaddr)
+static int arp_sck_on_read (mio_dev_sck_t* dev, const void* data, mio_iolen_t dlen, const mio_skad_t* srcaddr)
 {
 	mio_etharp_pkt_t* eap;
 
@@ -342,7 +331,7 @@ static int arp_sck_on_read (mio_dev_sck_t* dev, const void* data, mio_iolen_t dl
 
 	eap = (mio_etharp_pkt_t*)data;
 
-	printf ("ARP ON IFINDEX %d OPCODE: %d", mio_getsckaddrifindex(srcaddr), ntohs(eap->arphdr.opcode));
+	printf ("ARP ON IFINDEX %d OPCODE: %d", mio_skad_ifindex(srcaddr), ntohs(eap->arphdr.opcode));
 
 	printf (" SHA: %02X:%02X:%02X:%02X:%02X:%02X", eap->arppld.sha[0], eap->arppld.sha[1], eap->arppld.sha[2], eap->arppld.sha[3], eap->arppld.sha[4], eap->arppld.sha[5]);
 	printf (" SPA: %d.%d.%d.%d", eap->arppld.spa[0], eap->arppld.spa[1], eap->arppld.spa[2], eap->arppld.spa[3]);
@@ -352,7 +341,7 @@ static int arp_sck_on_read (mio_dev_sck_t* dev, const void* data, mio_iolen_t dl
 	return 0;
 }
 
-static int arp_sck_on_write (mio_dev_sck_t* dev, mio_iolen_t wrlen, void* wrctx, const mio_sckaddr_t* dstaddr)
+static int arp_sck_on_write (mio_dev_sck_t* dev, mio_iolen_t wrlen, void* wrctx, const mio_skad_t* dstaddr)
 {
 	return 0;
 }
@@ -369,11 +358,11 @@ printf ("SHUTTING DOWN ARP SOCKET %d...\n", dev->sck);
 
 static int setup_arp_tester (mio_t* mio)
 {
-	mio_sckaddr_t ethdst;
+	mio_skad_t ethdst;
 	mio_etharp_pkt_t etharp;
 	mio_dev_sck_make_t sck_make;
 	mio_dev_sck_t* sck;
-
+	unsigned int ifindex;
 
 	memset (&sck_make, 0, MIO_SIZEOF(sck_make));
 	sck_make.type = MIO_DEV_SCK_ARP;
@@ -389,11 +378,11 @@ static int setup_arp_tester (mio_t* mio)
 		return -1;
 	}
 
-
-	//mio_sckaddr_initforeth (&ethdst, if_nametoindex("enp0s25.3"), (mio_ethaddr_t*)"\xFF\xFF\xFF\xFF\xFF\xFF");
-	//mio_sckaddr_initforeth (&ethdst, if_nametoindex("enp0s25.3"), (mio_ethaddr_t*)"\xAA\xBB\xFF\xCC\xDD\xFF");
-
-	mio_sckaddr_initforeth (&ethdst, if_nametoindex("wlan0"), (mio_ethaddr_t*)"\xAA\xBB\xFF\xCC\xDD\xFF");
+	//mio_bcstrtoifindex (mio, "enp0s25.3", &ifindex);
+	//mio_skad_init_for_eth (&ethdst, ifindex, (mio_ethaddr_t*)"\xFF\xFF\xFF\xFF\xFF\xFF");
+	//mio_skad_init_for_eth (&ethdst, ifindex, (mio_ethaddr_t*)"\xAA\xBB\xFF\xCC\xDD\xFF");
+	mio_bcstrtoifindex (mio, "eno1", &ifindex);
+	mio_skad_init_for_eth (&ethdst, ifindex, (mio_ethaddr_t*)"\xAA\xBB\xFF\xCC\xDD\xFF");
 
 	memset (&etharp, 0, MIO_SIZEOF(etharp));
 
@@ -436,13 +425,11 @@ static int schedule_icmp_wait (mio_dev_sck_t* dev);
 static void send_icmp (mio_dev_sck_t* dev, mio_uint16_t seq)
 {
 	mio_t* mio = dev->mio;
-	mio_sckaddr_t dstaddr;
-	mio_ip4addr_t ia;
+	mio_skad_t dstaddr;
 	mio_icmphdr_t* icmphdr;
 	mio_uint8_t buf[512];
 
-	inet_pton (AF_INET, "192.168.1.131", &ia);
-	mio_sckaddr_initforip4 (&dstaddr, 0, &ia);
+	mio_bcharstoskad (mio, "192.168.9.1", 11, &dstaddr); 
 
 	memset(buf, 0, MIO_SIZEOF(buf));
 	icmphdr = (mio_icmphdr_t*)buf;
@@ -459,7 +446,7 @@ static void send_icmp (mio_dev_sck_t* dev, mio_uint16_t seq)
 		mio_dev_sck_halt (dev);
 	}
 
-	if (schedule_icmp_wait (dev) <= -1)
+	if (schedule_icmp_wait(dev) <= -1)
 	{
 		MIO_INFO1 (mio, "Cannot schedule icmp wait - %js\n", mio_geterrmsg(mio));
 		mio_dev_sck_halt (dev);
@@ -504,7 +491,7 @@ static int schedule_icmp_wait (mio_dev_sck_t* dev)
 	return (mio_instmrjob(dev->mio, &tmrjob) == MIO_TMRIDX_INVALID)? -1: 0;
 }
 
-static int icmp_sck_on_read (mio_dev_sck_t* dev, const void* data, mio_iolen_t dlen, const mio_sckaddr_t* srcaddr)
+static int icmp_sck_on_read (mio_dev_sck_t* dev, const void* data, mio_iolen_t dlen, const mio_skad_t* srcaddr)
 {
 	icmpxtn_t* icmpxtn;
 	mio_iphdr_t* iphdr;
@@ -548,7 +535,7 @@ static int icmp_sck_on_read (mio_dev_sck_t* dev, const void* data, mio_iolen_t d
 }
 
 
-static int icmp_sck_on_write (mio_dev_sck_t* dev, mio_iolen_t wrlen, void* wrctx, const mio_sckaddr_t* dstaddr)
+static int icmp_sck_on_write (mio_dev_sck_t* dev, mio_iolen_t wrlen, void* wrctx, const mio_skad_t* dstaddr)
 {
 	/*icmpxtn_t* icmpxtn;
 
@@ -801,11 +788,8 @@ int main (int argc, char* argv[])
 	ts->tally = 0;
 
 	memset (&tcp_conn, 0, MIO_SIZEOF(tcp_conn));
-{
 	/* openssl s_server -accept 9999 -key localhost.key  -cert localhost.crt */
-	in_addr_t ia = inet_addr("127.0.0.1");
-	mio_sckaddr_initforip4 (&tcp_conn.remoteaddr, 9999, (mio_ip4addr_t*)&ia);
-}
+	mio_bcharstoskad(mio, "127.0.0.1:9999", 14, &tcp_conn.remoteaddr);
 
 	MIO_INIT_NTIME (&tcp_conn.connect_tmout, 5, 0);
 	tcp_conn.options = MIO_DEV_SCK_CONNECT_SSL;
@@ -833,7 +817,7 @@ int main (int argc, char* argv[])
 	ts->tally = 0;
 
 	memset (&tcp_bind, 0, MIO_SIZEOF(tcp_bind));
-	mio_sckaddr_initforip4 (&tcp_bind.localaddr, 1234, MIO_NULL);
+	mio_bcharstoskad(mio, "0.0.0.0:1234", 14, &tcp_bind.localaddr);
 	tcp_bind.options = MIO_DEV_SCK_BIND_REUSEADDR;
 
 	if (mio_dev_sck_bind(tcp[1],&tcp_bind) <= -1)
@@ -870,7 +854,7 @@ int main (int argc, char* argv[])
 
 
 	memset (&tcp_bind, 0, MIO_SIZEOF(tcp_bind));
-	mio_sckaddr_initforip4 (&tcp_bind.localaddr, 1235, MIO_NULL);
+	mio_bcharstoskad(mio, "0.0.0.0:1235", 14, &tcp_bind.localaddr);
 	tcp_bind.options = MIO_DEV_SCK_BIND_REUSEADDR /*| MIO_DEV_SCK_BIND_REUSEPORT |*/;
 #if defined(USE_SSL)
 	tcp_bind.options |= MIO_DEV_SCK_BIND_SSL; 
@@ -933,13 +917,16 @@ for (i = 0; i < 5; i++)
 {
 	mio_svc_dnc_t* dnc;
 	mio_ntime_t send_tmout, reply_tmout;
+	mio_skad_t servaddr;
 
 	send_tmout.sec = 0;
 	send_tmout.nsec = 0;
 	reply_tmout.sec = 1;
 	reply_tmout.nsec = 0;
 
-	dnc = mio_svc_dnc_start (mio/*, "8.8.8.8:53,1.1.1.1:53"*/, &send_tmout, &reply_tmout, 2); /* option - send to all, send one by one */
+
+	mio_bcharstoskad (mio, "1.1.1.1:53", 10, &servaddr);
+	dnc = mio_svc_dnc_start (mio, &servaddr, &send_tmout, &reply_tmout, 2); /* option - send to all, send one by one */
 	{
 		mio_dns_bqr_t qrs[] = 
 		{
@@ -1086,10 +1073,8 @@ int main (int argc, char* argv[])
 	ts->tally = 0;
 
 	memset (&tcp_conn, 0, MIO_SIZEOF(tcp_conn));
-{
-	in_addr_t ia = inet_addr("127.0.0.1");
-	mio_sckaddr_initforip4 (&tcp_conn.remoteaddr, 9999, (mio_ip4addr_t*)&ia);
-}
+	mio_bcharstoskad(mio, "127.0.0.1:9999", 14, &tcp_conn.remoteaddr);
+
 	MIO_INIT_NTIME (&tcp_conn.connect_tmout, 5, 0);
 	tcp_conn.options = 0;
 	if (mio_dev_sck_connect(tcpsvr, &tcp_conn) <= -1)

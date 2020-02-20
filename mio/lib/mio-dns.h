@@ -28,6 +28,7 @@
 #define _MIO_DNS_H_
 
 #include <mio.h>
+#include <mio-skad.h>
 
 #define MIO_DNS_PORT (53)
 
@@ -443,6 +444,7 @@ extern "C" {
 
 MIO_EXPORT mio_svc_dnc_t* mio_svc_dnc_start (
 	mio_t*             mio,
+	const mio_skad_t*  serv_addr,
 	const mio_ntime_t* send_tmout,
 	const mio_ntime_t* reply_tmout,
 	mio_oow_t          reply_tmout_max_tries

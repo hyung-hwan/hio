@@ -42,7 +42,7 @@ struct mio_svc_dnc_t
 	/*MIO_DNS_SVC_HEADERS;*/
 
 	mio_dev_sck_t* sck;
-	mio_sckaddr_t serveraddr;
+	mio_skad_t serv_addr;
 
 	mio_ntime_t send_tmout; 
 	mio_ntime_t reply_tmout; /* default reply timeout */
@@ -213,7 +213,7 @@ MIO_DEBUG1 (mio, "releasing dns msg %d\n", (int)mio_ntoh16(mio_dns_msg_to_pkt(ms
 }
 
 
-static int dnc_on_read (mio_dev_sck_t* dev, const void* data, mio_iolen_t dlen, const mio_sckaddr_t* srcaddr)
+static int dnc_on_read (mio_dev_sck_t* dev, const void* data, mio_iolen_t dlen, const mio_skad_t* srcaddr)
 {
 	mio_t* mio = dev->mio;
 	mio_svc_dnc_t* dnc = ((dnc_sck_xtn_t*)mio_dev_sck_getxtn(dev))->dnc;
@@ -275,13 +275,13 @@ MIO_DEBUG0 (mio, "unable to receive dns response in time...\n");
 		mio_ntime_t* tmout;
 
 		tmout = MIO_IS_POS_NTIME(&msgxtn->wtmout)? &msgxtn->wtmout: MIO_NULL;
-		if (mio_dev_sck_timedwrite(dnc->sck, mio_dns_msg_to_pkt(reqmsg), reqmsg->pktlen, tmout, reqmsg, &dnc->serveraddr) <= -1)
+		if (mio_dev_sck_timedwrite(dnc->sck, mio_dns_msg_to_pkt(reqmsg), reqmsg->pktlen, tmout, reqmsg, &dnc->serv_addr) <= -1)
 		{
 			if (MIO_LIKELY(msgxtn->on_reply))
 				msgxtn->on_reply (dnc, reqmsg, MIO_ETMOUT, MIO_NULL, 0);
 
 			release_dns_msg (dnc, reqmsg);
-			return MIO_NULL;
+			return;
 		}
 
 printf (">>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>> RESENT REQUEST >>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>> \n");
@@ -295,7 +295,7 @@ printf (">>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>> RESENT REQUEST >>>>>>>>>>>>>>>>
 }
 
 
-static int dnc_on_write (mio_dev_sck_t* dev, mio_iolen_t wrlen, void* wrctx, const mio_sckaddr_t* dstaddr)
+static int dnc_on_write (mio_dev_sck_t* dev, mio_iolen_t wrlen, void* wrctx, const mio_skad_t* dstaddr)
 {
 	mio_t* mio = dev->mio;
 	mio_dns_msg_t* msg = (mio_dns_msg_t*)wrctx;
@@ -366,7 +366,7 @@ static void dnc_on_disconnect (mio_dev_sck_t* dev)
 {
 }
 
-mio_svc_dnc_t* mio_svc_dnc_start (mio_t* mio, const mio_ntime_t* send_tmout, const mio_ntime_t* reply_tmout, mio_oow_t reply_tmout_max_tries)
+mio_svc_dnc_t* mio_svc_dnc_start (mio_t* mio, const mio_skad_t* serv_addr, const mio_ntime_t* send_tmout, const mio_ntime_t* reply_tmout, mio_oow_t reply_tmout_max_tries)
 {
 	mio_svc_dnc_t* dnc = MIO_NULL;
 	mio_dev_sck_make_t mkinfo;
@@ -377,6 +377,7 @@ mio_svc_dnc_t* mio_svc_dnc_start (mio_t* mio, const mio_ntime_t* send_tmout, con
 
 	dnc->mio = mio;
 	dnc->stop = mio_svc_dnc_stop;
+	dnc->serv_addr = *serv_addr;
 	dnc->send_tmout = *send_tmout;
 	dnc->reply_tmout = *reply_tmout;
 	dnc->reply_tmout_max_tries = reply_tmout_max_tries;
@@ -395,10 +396,6 @@ mio_svc_dnc_t* mio_svc_dnc_start (mio_t* mio, const mio_ntime_t* send_tmout, con
 
 	/* TODO: bind if requested */
 	/*if (mio_dev_sck_bind(dev, ....) <= -1) goto oops;*/
-{
-mio_uint32_t ia = 0x01010101; /* 1.1.1.1 */ /* TODO: accept as parameter ... */
-	mio_sckaddr_initforip4 (&dnc->serveraddr, 53, (mio_ip4addr_t*)&ia);
-}
 
 	MIO_SVC_REGISTER (mio, (mio_svc_t*)dnc);
 	return dnc;
@@ -439,9 +436,9 @@ mio_dns_msg_t* mio_svc_dnc_sendmsg (mio_svc_dnc_t* dnc, mio_dns_bhdr_t* bdns, mi
 	msgxtn->rmaxtries = dnc->reply_tmout_max_tries; 
 	msgxtn->rtries = 0;
 
-/* TODO: optionally, override dnc->serveraddr and use the target address passed as a parameter */
+/* TODO: optionally, override dnc->serv_addr and use the target address passed as a parameter */
 	tmout = MIO_IS_POS_NTIME(&msgxtn->wtmout)? &msgxtn->wtmout: MIO_NULL;
-	if (mio_dev_sck_timedwrite(dnc->sck, mio_dns_msg_to_pkt(msg), msg->pktlen, tmout, msg, &dnc->serveraddr) <= -1)
+	if (mio_dev_sck_timedwrite(dnc->sck, mio_dns_msg_to_pkt(msg), msg->pktlen, tmout, msg, &dnc->serv_addr) <= -1)
 	{
 		release_dns_msg (dnc, msg);
 		return MIO_NULL;

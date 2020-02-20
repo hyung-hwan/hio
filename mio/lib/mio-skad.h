@@ -62,6 +62,31 @@ typedef struct mio_skad_t mio_skad_t;
 #define MIO_SKAD_TO_BCSTR_ADDR MIO_SKAD_TO_OOCSTR_ADDR
 #define MIO_SKAD_TO_BCSTR_PORT MIO_SKAD_TO_OOCSTR_PORT
 
+/* -------------------------------------------------------------------- */
+
+#define MIO_ETHADDR_LEN 6
+#define MIO_IP4ADDR_LEN 4
+#define MIO_IP6ADDR_LEN 16 
+
+#include <mio-pac1.h>
+struct MIO_PACKED mio_ethaddr_t
+{
+	mio_uint8_t v[MIO_ETHADDR_LEN]; 
+};
+typedef struct mio_ethaddr_t mio_ethaddr_t;
+
+struct MIO_PACKED mio_ip4addr_t
+{
+	mio_uint8_t v[MIO_IP4ADDR_LEN];
+};
+typedef struct mio_ip4addr_t mio_ip4addr_t;
+
+struct MIO_PACKED mio_ip6addr_t
+{
+	mio_uint8_t v[MIO_IP6ADDR_LEN]; 
+};
+typedef struct mio_ip6addr_t mio_ip6addr_t;
+#include <mio-upac.h>
 
 #if defined(__cplusplus)
 extern "C" {
@@ -105,6 +130,25 @@ MIO_EXPORT mio_oow_t mio_skadtobcstr (
 #       define mio_skadtooocstr mio_skadtobcstr
 #endif
 
+MIO_EXPORT void mio_skad_init_for_ip4 (
+	mio_skad_t*        skad,
+	mio_uint16_t       port,
+	mio_ip4addr_t*     ip4addr
+);
+
+MIO_EXPORT void mio_skad_init_for_ip6 (
+	mio_skad_t*        skad,
+	mio_uint16_t       port,
+	mio_ip6addr_t*     ip6addr,
+	int                scope_id
+);
+
+MIO_EXPORT void mio_skad_init_for_eth (
+	mio_skad_t*        skad,
+	int                ifindex,
+	mio_ethaddr_t*     ethaddr
+);
+
 MIO_EXPORT int mio_skad_family (
 	const mio_skad_t* skad
 );
@@ -113,8 +157,21 @@ MIO_EXPORT int mio_skad_size (
 	const mio_skad_t* skad
 );
 
+MIO_EXPORT int mio_skad_port (
+	const mio_skad_t* skad
+);
+
+MIO_EXPORT int mio_skad_ifindex (
+	const mio_skad_t* skad
+);
+
 MIO_EXPORT void mio_clear_skad (
 	mio_skad_t* skad
+);
+
+MIO_EXPORT int mio_equal_skads (
+	const mio_skad_t* addr1,
+	const mio_skad_t* addr2
 );
 
 #if defined(__cplusplus)
