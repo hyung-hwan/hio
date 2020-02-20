@@ -114,34 +114,6 @@ int mio_makesyshndasync (
 	mio_syshnd_t hnd
 );
 
-
-mio_bch_t* mio_mbsdup (
-	mio_t*             mio,
-	const mio_bch_t* src
-);
-
-mio_oow_t mio_mbscpy (
-	mio_bch_t*       buf,
-	const mio_bch_t* str
-);
-
-int mio_mbsspltrn (
-	mio_bch_t*       s,
-	const mio_bch_t* delim,
-	mio_bch_t        lquote,
-	mio_bch_t        rquote, 
-	mio_bch_t        escape,
-	const mio_bch_t* trset
-);
-
-int mio_mbsspl (
-	mio_bch_t*       s,
-	const mio_bch_t* delim,
-	mio_bch_t        lquote,
-	mio_bch_t        rquote,
-	mio_bch_t        escape
-);
-
 void mio_cleartmrjobs (
 	mio_t* mio
 );

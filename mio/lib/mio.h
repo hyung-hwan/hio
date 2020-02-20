@@ -1029,11 +1029,6 @@ MIO_EXPORT mio_bch_t* mio_duputobcstr (
 );
 
 
-#if defined(MIO_OOCH_IS_UCH)
-#	define mio_dupoochars(mio,oocs,oocslen) mio_dupuchars(mio,oocs,oocslen)
-#else
-#	define mio_dupoochars(mio,oocs,oocslen) mio_dupbchars(mio,oocs,oocslen)
-#endif
 
 MIO_EXPORT mio_uch_t* mio_dupuchars (
 	mio_t*           mio,
@@ -1046,6 +1041,27 @@ MIO_EXPORT mio_bch_t* mio_dupbchars (
 	const mio_bch_t* bcs,
 	mio_oow_t        bcslen
 );
+
+
+MIO_EXPORT mio_uch_t* mio_dupucstr (
+	mio_t*           mio,
+	const mio_uch_t* ucs,
+	mio_oow_t*       ucslen /* [OUT] length*/
+);
+
+MIO_EXPORT mio_bch_t* mio_dupbcstr (
+	mio_t*           mio,
+	const mio_bch_t* bcs,
+	mio_oow_t*       bcslen /* [OUT] length */
+);
+
+#if defined(MIO_OOCH_IS_UCH)
+#	define mio_dupoochars(mio,oocs,oocslen) mio_dupuchars(mio,oocs,oocslen)
+#	define mio_dupoocstr(mio,oocs,oocslen) mio_dupucstr(mio,oocs,oocslen)
+#else
+#	define mio_dupoochars(mio,oocs,oocslen) mio_dupbchars(mio,oocs,oocslen)
+#	define mio_dupoocstr(mio,oocs,oocslen) mio_dupbcstr(mio,oocs,oocslen)
+#endif
 
 
 /* =========================================================================

@@ -88,10 +88,10 @@ static int make_param (mio_t* mio, const mio_bch_t* cmd, int flags, param_t* par
 		mio_bch_t** argv;
 		mio_bch_t* mcmdptr;
 
-		mcmd = mio_mbsdup (mio, cmd);
+		mcmd = mio_dupbcstr(mio, cmd, MIO_NULL);
 		if (!mcmd) goto oops;
 		
-		fcnt = mio_mbsspl(mcmd, "", '\"', '\"', '\\'); 
+		fcnt = mio_split_bcstr(mcmd, "", '\"', '\"', '\\'); 
 		if (fcnt <= 0) 
 		{
 			/* no field or an error */
