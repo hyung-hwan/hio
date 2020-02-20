@@ -133,6 +133,7 @@ struct dnc_dns_msg_xtn_t
 	mio_tmridx_t   rtmridx;
 	mio_dns_msg_t* prev;
 	mio_dns_msg_t* next;
+	mio_skad_t     servaddr;
 	mio_svc_dnc_on_reply_t on_reply;
 	mio_ntime_t    wtmout;
 	mio_ntime_t    rtmout;
@@ -243,7 +244,7 @@ static int dnc_on_read (mio_dev_sck_t* dev, const void* data, mio_iolen_t dlen, 
 	{
 		mio_dns_pkt_t* reqpkt = mio_dns_msg_to_pkt(reqmsg);
 		dnc_dns_msg_xtn_t* msgxtn = dnc_dns_msg_getxtn(reqmsg);
-		if (dev == (mio_dev_sck_t*)msgxtn->dev && pkt->id == reqpkt->id) /* TODO: check the source address against the target address */
+		if (dev == (mio_dev_sck_t*)msgxtn->dev && pkt->id == reqpkt->id && mio_equal_skads(&msgxtn->servaddr, srcaddr))
 		{
 MIO_DEBUG1 (mio, "received dns response...id %d\n", id);
 			if (MIO_LIKELY(msgxtn->on_reply))
@@ -275,7 +276,7 @@ MIO_DEBUG0 (mio, "unable to receive dns response in time...\n");
 		mio_ntime_t* tmout;
 
 		tmout = MIO_IS_POS_NTIME(&msgxtn->wtmout)? &msgxtn->wtmout: MIO_NULL;
-		if (mio_dev_sck_timedwrite(dnc->sck, mio_dns_msg_to_pkt(reqmsg), reqmsg->pktlen, tmout, reqmsg, &dnc->serv_addr) <= -1)
+		if (mio_dev_sck_timedwrite(dnc->sck, mio_dns_msg_to_pkt(reqmsg), reqmsg->pktlen, tmout, reqmsg, &msgxtn->servaddr) <= -1)
 		{
 			if (MIO_LIKELY(msgxtn->on_reply))
 				msgxtn->on_reply (dnc, reqmsg, MIO_ETMOUT, MIO_NULL, 0);
@@ -366,7 +367,7 @@ static void dnc_on_disconnect (mio_dev_sck_t* dev)
 {
 }
 
-mio_svc_dnc_t* mio_svc_dnc_start (mio_t* mio, const mio_skad_t* serv_addr, const mio_ntime_t* send_tmout, const mio_ntime_t* reply_tmout, mio_oow_t reply_tmout_max_tries)
+mio_svc_dnc_t* mio_svc_dnc_start (mio_t* mio, const mio_skad_t* serv_addr, const mio_skad_t* bind_addr, const mio_ntime_t* send_tmout, const mio_ntime_t* reply_tmout, mio_oow_t reply_tmout_max_tries)
 {
 	mio_svc_dnc_t* dnc = MIO_NULL;
 	mio_dev_sck_make_t mkinfo;
@@ -394,8 +395,13 @@ mio_svc_dnc_t* mio_svc_dnc_start (mio_t* mio, const mio_skad_t* serv_addr, const
 	xtn = (dnc_sck_xtn_t*)mio_dev_sck_getxtn(dnc->sck);
 	xtn->dnc = dnc;
 
-	/* TODO: bind if requested */
-	/*if (mio_dev_sck_bind(dev, ....) <= -1) goto oops;*/
+	if (bind_addr) /* TODO: get mio_dev_sck_bind_t? instead of bind_addr? */
+	{
+		mio_dev_sck_bind_t bi;
+		MIO_MEMSET (&bi, 0, MIO_SIZEOF(bi));
+		bi.localaddr = *bind_addr;
+		if (mio_dev_sck_bind(dnc->sck, &bi) <= -1) goto oops;
+	}
 
 	MIO_SVC_REGISTER (mio, (mio_svc_t*)dnc);
 	return dnc;
@@ -435,10 +441,11 @@ mio_dns_msg_t* mio_svc_dnc_sendmsg (mio_svc_dnc_t* dnc, mio_dns_bhdr_t* bdns, mi
 	msgxtn->rtmout = dnc->reply_tmout;
 	msgxtn->rmaxtries = dnc->reply_tmout_max_tries; 
 	msgxtn->rtries = 0;
+	msgxtn->servaddr = dnc->serv_addr;
 
 /* TODO: optionally, override dnc->serv_addr and use the target address passed as a parameter */
 	tmout = MIO_IS_POS_NTIME(&msgxtn->wtmout)? &msgxtn->wtmout: MIO_NULL;
-	if (mio_dev_sck_timedwrite(dnc->sck, mio_dns_msg_to_pkt(msg), msg->pktlen, tmout, msg, &dnc->serv_addr) <= -1)
+	if (mio_dev_sck_timedwrite(dnc->sck, mio_dns_msg_to_pkt(msg), msg->pktlen, tmout, msg, &msgxtn->servaddr) <= -1)
 	{
 		release_dns_msg (dnc, msg);
 		return MIO_NULL;

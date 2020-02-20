@@ -106,6 +106,10 @@ MIO_EXPORT int mio_bcharstoskad (
 	mio_skad_t*       skad
 );
 
+#define mio_bcstrtoskad(mio,str,skad) mio_bcharstoskad(mio, str, mio_count_bcstr(str), skad)
+#define mio_ucstrtoskad(mio,str,skad) mio_ucharstoskad(mio, str, mio_count_ucstr(str), skad)
+
+
 MIO_EXPORT mio_oow_t mio_skadtoucstr (
 	mio_t*            mio,
 	const mio_skad_t* skad,

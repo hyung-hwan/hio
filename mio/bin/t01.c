@@ -429,7 +429,7 @@ static void send_icmp (mio_dev_sck_t* dev, mio_uint16_t seq)
 	mio_icmphdr_t* icmphdr;
 	mio_uint8_t buf[512];
 
-	mio_bcharstoskad (mio, "192.168.9.1", 11, &dstaddr); 
+	mio_bcstrtoskad (mio, "192.168.9.1", &dstaddr); 
 
 	memset(buf, 0, MIO_SIZEOF(buf));
 	icmphdr = (mio_icmphdr_t*)buf;
@@ -789,7 +789,7 @@ int main (int argc, char* argv[])
 
 	memset (&tcp_conn, 0, MIO_SIZEOF(tcp_conn));
 	/* openssl s_server -accept 9999 -key localhost.key  -cert localhost.crt */
-	mio_bcharstoskad(mio, "127.0.0.1:9999", 14, &tcp_conn.remoteaddr);
+	mio_bcstrtoskad(mio, "127.0.0.1:9999", &tcp_conn.remoteaddr);
 
 	MIO_INIT_NTIME (&tcp_conn.connect_tmout, 5, 0);
 	tcp_conn.options = MIO_DEV_SCK_CONNECT_SSL;
@@ -817,7 +817,7 @@ int main (int argc, char* argv[])
 	ts->tally = 0;
 
 	memset (&tcp_bind, 0, MIO_SIZEOF(tcp_bind));
-	mio_bcharstoskad(mio, "0.0.0.0:1234", 14, &tcp_bind.localaddr);
+	mio_bcstrtoskad(mio, "0.0.0.0:1234", &tcp_bind.localaddr);
 	tcp_bind.options = MIO_DEV_SCK_BIND_REUSEADDR;
 
 	if (mio_dev_sck_bind(tcp[1],&tcp_bind) <= -1)
@@ -854,7 +854,7 @@ int main (int argc, char* argv[])
 
 
 	memset (&tcp_bind, 0, MIO_SIZEOF(tcp_bind));
-	mio_bcharstoskad(mio, "0.0.0.0:1235", 14, &tcp_bind.localaddr);
+	mio_bcstrtoskad(mio, "0.0.0.0:1235", &tcp_bind.localaddr);
 	tcp_bind.options = MIO_DEV_SCK_BIND_REUSEADDR /*| MIO_DEV_SCK_BIND_REUSEPORT |*/;
 #if defined(USE_SSL)
 	tcp_bind.options |= MIO_DEV_SCK_BIND_SSL; 
@@ -925,8 +925,8 @@ for (i = 0; i < 5; i++)
 	reply_tmout.nsec = 0;
 
 
-	mio_bcharstoskad (mio, "1.1.1.1:53", 10, &servaddr);
-	dnc = mio_svc_dnc_start (mio, &servaddr, &send_tmout, &reply_tmout, 2); /* option - send to all, send one by one */
+	mio_bcstrtoskad (mio, "8.8.8.8:53", &servaddr);
+	dnc = mio_svc_dnc_start (mio, &servaddr, MIO_NULL, &send_tmout, &reply_tmout, 2); /* option - send to all, send one by one */
 	{
 		mio_dns_bqr_t qrs[] = 
 		{
@@ -1073,7 +1073,7 @@ int main (int argc, char* argv[])
 	ts->tally = 0;
 
 	memset (&tcp_conn, 0, MIO_SIZEOF(tcp_conn));
-	mio_bcharstoskad(mio, "127.0.0.1:9999", 14, &tcp_conn.remoteaddr);
+	mio_bcstroskad(mio, "127.0.0.1:9999", &tcp_conn.remoteaddr);
 
 	MIO_INIT_NTIME (&tcp_conn.connect_tmout, 5, 0);
 	tcp_conn.options = 0;
