@@ -138,12 +138,13 @@ am__DEPENDENCIES_1 =
 am__DEPENDENCIES_2 = $(am__DEPENDENCIES_1)
 libmio_la_DEPENDENCIES = $(am__DEPENDENCIES_2) $(am__DEPENDENCIES_1) \
 	$(am__DEPENDENCIES_1) $(am__DEPENDENCIES_1)
-am_libmio_la_OBJECTS = libmio_la-dns.lo libmio_la-err.lo \
-	libmio_la-fmt.lo libmio_la-mio.lo libmio_la-nwif.lo \
-	libmio_la-pro.lo libmio_la-sck.lo libmio_la-skad.lo \
-	libmio_la-sys.lo libmio_la-sys-ass.lo libmio_la-sys-err.lo \
-	libmio_la-sys-log.lo libmio_la-sys-mux.lo libmio_la-sys-tim.lo \
-	libmio_la-tmr.lo libmio_la-utf8.lo libmio_la-utl.lo
+am_libmio_la_OBJECTS = libmio_la-dns.lo libmio_la-dns-cli.lo \
+	libmio_la-err.lo libmio_la-fmt.lo libmio_la-mio.lo \
+	libmio_la-nwif.lo libmio_la-pro.lo libmio_la-sck.lo \
+	libmio_la-skad.lo libmio_la-sys.lo libmio_la-sys-ass.lo \
+	libmio_la-sys-err.lo libmio_la-sys-log.lo libmio_la-sys-mux.lo \
+	libmio_la-sys-tim.lo libmio_la-tmr.lo libmio_la-utf8.lo \
+	libmio_la-utl.lo
 libmio_la_OBJECTS = $(am_libmio_la_OBJECTS)
 AM_V_lt = $(am__v_lt_@AM_V@)
 am__v_lt_ = $(am__v_lt_@AM_DEFAULT_V@)
@@ -167,11 +168,11 @@ am__v_at_1 =
 DEFAULT_INCLUDES = 
 depcomp = $(SHELL) $(top_srcdir)/ac/depcomp
 am__maybe_remake_depfiles = depfiles
-am__depfiles_remade = ./$(DEPDIR)/libmio_la-dns.Plo \
-	./$(DEPDIR)/libmio_la-err.Plo ./$(DEPDIR)/libmio_la-fmt.Plo \
-	./$(DEPDIR)/libmio_la-mio.Plo ./$(DEPDIR)/libmio_la-nwif.Plo \
-	./$(DEPDIR)/libmio_la-pro.Plo ./$(DEPDIR)/libmio_la-sck.Plo \
-	./$(DEPDIR)/libmio_la-skad.Plo \
+am__depfiles_remade = ./$(DEPDIR)/libmio_la-dns-cli.Plo \
+	./$(DEPDIR)/libmio_la-dns.Plo ./$(DEPDIR)/libmio_la-err.Plo \
+	./$(DEPDIR)/libmio_la-fmt.Plo ./$(DEPDIR)/libmio_la-mio.Plo \
+	./$(DEPDIR)/libmio_la-nwif.Plo ./$(DEPDIR)/libmio_la-pro.Plo \
+	./$(DEPDIR)/libmio_la-sck.Plo ./$(DEPDIR)/libmio_la-skad.Plo \
 	./$(DEPDIR)/libmio_la-sys-ass.Plo \
 	./$(DEPDIR)/libmio_la-sys-err.Plo \
 	./$(DEPDIR)/libmio_la-sys-log.Plo \
@@ -411,6 +412,7 @@ include_HEADERS = \
 lib_LTLIBRARIES = libmio.la
 libmio_la_SOURCES = \
 	dns.c \
+	dns-cli.c \
 	err.c \
 	fmt.c \
 	fmt-imp.h \
@@ -528,6 +530,7 @@ mostlyclean-compile:
 distclean-compile:
 	-rm -f *.tab.c
 
+@AMDEP_TRUE@@am__include@ @am__quote@./$(DEPDIR)/libmio_la-dns-cli.Plo@am__quote@ # am--include-marker
 @AMDEP_TRUE@@am__include@ @am__quote@./$(DEPDIR)/libmio_la-dns.Plo@am__quote@ # am--include-marker
 @AMDEP_TRUE@@am__include@ @am__quote@./$(DEPDIR)/libmio_la-err.Plo@am__quote@ # am--include-marker
 @AMDEP_TRUE@@am__include@ @am__quote@./$(DEPDIR)/libmio_la-fmt.Plo@am__quote@ # am--include-marker
@@ -582,6 +585,13 @@ libmio_la-dns.lo: dns.c
 @AMDEP_TRUE@@am__fastdepCC_FALSE@	$(AM_V_CC)source='dns.c' object='libmio_la-dns.lo' libtool=yes @AMDEPBACKSLASH@
 @AMDEP_TRUE@@am__fastdepCC_FALSE@	DEPDIR=$(DEPDIR) $(CCDEPMODE) $(depcomp) @AMDEPBACKSLASH@
 @am__fastdepCC_FALSE@	$(AM_V_CC@am__nodep@)$(LIBTOOL) $(AM_V_lt) --tag=CC $(AM_LIBTOOLFLAGS) $(LIBTOOLFLAGS) --mode=compile $(CC) $(DEFS) $(DEFAULT_INCLUDES) $(INCLUDES) $(libmio_la_CPPFLAGS) $(CPPFLAGS) $(AM_CFLAGS) $(CFLAGS) -c -o libmio_la-dns.lo `test -f 'dns.c' || echo '$(srcdir)/'`dns.c
+
+libmio_la-dns-cli.lo: dns-cli.c
+@am__fastdepCC_TRUE@	$(AM_V_CC)$(LIBTOOL) $(AM_V_lt) --tag=CC $(AM_LIBTOOLFLAGS) $(LIBTOOLFLAGS) --mode=compile $(CC) $(DEFS) $(DEFAULT_INCLUDES) $(INCLUDES) $(libmio_la_CPPFLAGS) $(CPPFLAGS) $(AM_CFLAGS) $(CFLAGS) -MT libmio_la-dns-cli.lo -MD -MP -MF $(DEPDIR)/libmio_la-dns-cli.Tpo -c -o libmio_la-dns-cli.lo `test -f 'dns-cli.c' || echo '$(srcdir)/'`dns-cli.c
+@am__fastdepCC_TRUE@	$(AM_V_at)$(am__mv) $(DEPDIR)/libmio_la-dns-cli.Tpo $(DEPDIR)/libmio_la-dns-cli.Plo
+@AMDEP_TRUE@@am__fastdepCC_FALSE@	$(AM_V_CC)source='dns-cli.c' object='libmio_la-dns-cli.lo' libtool=yes @AMDEPBACKSLASH@
+@AMDEP_TRUE@@am__fastdepCC_FALSE@	DEPDIR=$(DEPDIR) $(CCDEPMODE) $(depcomp) @AMDEPBACKSLASH@
+@am__fastdepCC_FALSE@	$(AM_V_CC@am__nodep@)$(LIBTOOL) $(AM_V_lt) --tag=CC $(AM_LIBTOOLFLAGS) $(LIBTOOLFLAGS) --mode=compile $(CC) $(DEFS) $(DEFAULT_INCLUDES) $(INCLUDES) $(libmio_la_CPPFLAGS) $(CPPFLAGS) $(AM_CFLAGS) $(CFLAGS) -c -o libmio_la-dns-cli.lo `test -f 'dns-cli.c' || echo '$(srcdir)/'`dns-cli.c
 
 libmio_la-err.lo: err.c
 @am__fastdepCC_TRUE@	$(AM_V_CC)$(LIBTOOL) $(AM_V_lt) --tag=CC $(AM_LIBTOOLFLAGS) $(LIBTOOLFLAGS) --mode=compile $(CC) $(DEFS) $(DEFAULT_INCLUDES) $(INCLUDES) $(libmio_la_CPPFLAGS) $(CPPFLAGS) $(AM_CFLAGS) $(CFLAGS) -MT libmio_la-err.lo -MD -MP -MF $(DEPDIR)/libmio_la-err.Tpo -c -o libmio_la-err.lo `test -f 'err.c' || echo '$(srcdir)/'`err.c
@@ -850,7 +860,8 @@ clean-am: clean-generic clean-libLTLIBRARIES clean-libtool \
 	mostlyclean-am
 
 distclean: distclean-am
-		-rm -f ./$(DEPDIR)/libmio_la-dns.Plo
+		-rm -f ./$(DEPDIR)/libmio_la-dns-cli.Plo
+	-rm -f ./$(DEPDIR)/libmio_la-dns.Plo
 	-rm -f ./$(DEPDIR)/libmio_la-err.Plo
 	-rm -f ./$(DEPDIR)/libmio_la-fmt.Plo
 	-rm -f ./$(DEPDIR)/libmio_la-mio.Plo
@@ -913,7 +924,8 @@ install-ps-am:
 installcheck-am:
 
 maintainer-clean: maintainer-clean-am
-		-rm -f ./$(DEPDIR)/libmio_la-dns.Plo
+		-rm -f ./$(DEPDIR)/libmio_la-dns-cli.Plo
+	-rm -f ./$(DEPDIR)/libmio_la-dns.Plo
 	-rm -f ./$(DEPDIR)/libmio_la-err.Plo
 	-rm -f ./$(DEPDIR)/libmio_la-fmt.Plo
 	-rm -f ./$(DEPDIR)/libmio_la-mio.Plo

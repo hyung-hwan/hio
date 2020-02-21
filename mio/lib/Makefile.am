@@ -36,6 +36,7 @@ include_HEADERS = \
 lib_LTLIBRARIES = libmio.la
 libmio_la_SOURCES = \
 	dns.c \
+	dns-cli.c \
 	err.c \
 	fmt.c \
 	fmt-imp.h \
