@@ -1,8 +1,11 @@
 #
-# qseawk --striprecspace=on -f generr.awk mio.h
+# hawk -f generr.awk mio.h
 #
 
+@pragma striprecspc on
+
 BEGIN {
+	##STRIPRECSPC=1 
 	FS = "[[:space:]]+";
 	capture = 0;
 	msgcount = 0;
@@ -13,7 +16,7 @@ capture == 1 {
 	{
 		capture = 0;
 	}
-	else if ($1 ~ /^MIO_E.+,/)
+	else if ($1 ~ /^MIO_E[[:alnum:]]+,*/)
 	{
 		msg = "";
 		for (i = 3; i < NF; i++)

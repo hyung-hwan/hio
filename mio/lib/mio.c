@@ -47,9 +47,6 @@ static int kill_and_free_device (mio_dev_t* dev, int force);
 } while (0)
 
 
-
-
-
 static void on_read_timeout (mio_t* mio, const mio_ntime_t* now, mio_tmrjob_t* job);
 static void on_write_timeout (mio_t* mio, const mio_ntime_t* now, mio_tmrjob_t* job);
 
@@ -680,7 +677,6 @@ mio_dev_t* mio_dev_make (mio_t* mio, mio_oow_t dev_size, mio_dev_mth_t* dev_mth,
 	/* and place the new device object at the back of the active device list */
 	APPEND_DEVICE_TO_LIST (&mio->actdev, dev);
 	dev->dev_cap |= MIO_DEV_CAP_ACTIVE;
-
 
 	return dev;
 

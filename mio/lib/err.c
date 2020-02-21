@@ -57,6 +57,7 @@ static mio_ooch_t errstr_26[] = {'n', 'o', ' ', 'c', 'a', 'p', 'a', 'b', 'i', 'l
 static mio_ooch_t errstr_27[] = {'t', 'i', 'm', 'e', 'd', ' ', 'o', 'u', 't', '\0' };
 static mio_ooch_t errstr_28[] = {'u', 'n', 'a', 'b', 'l', 'e', ' ', 't', 'o', ' ', 'm', 'a', 'k', 'e', ' ', 'd', 'e', 'v', 'i', 'c', 'e', '\0' };
 static mio_ooch_t errstr_29[] = {'d', 'e', 'v', 'i', 'c', 'e', ' ', 'e', 'r', 'r', 'o', 'r', '\0' };
+static mio_ooch_t errstr_30[] = {'d', 'e', 'v', 'i', 'c', 'e', ' ', 'h', 'a', 'n', 'g', '-', 'u', 'p', '\0' };
 static mio_ooch_t* errstr[] =
 {
 	errstr_0, errstr_1, errstr_2, errstr_3, errstr_4,
@@ -64,7 +65,8 @@ static mio_ooch_t* errstr[] =
 	errstr_10, errstr_11, errstr_12, errstr_13, errstr_14,
 	errstr_15, errstr_16, errstr_17, errstr_18, errstr_19,
 	errstr_20, errstr_21, errstr_22, errstr_23, errstr_24,
-	errstr_25, errstr_26, errstr_27, errstr_28, errstr_29
+	errstr_25, errstr_26, errstr_27, errstr_28, errstr_29,
+	errstr_30
 };
 
 /* -------------------------------------------------------------------------- 
