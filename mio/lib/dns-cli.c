@@ -56,6 +56,7 @@ struct mio_svc_dnc_t
 struct dnc_sck_xtn_t
 {
 	mio_svc_dnc_t* dnc;
+	mio_dns_msg_t* reqmsg; /* used when switching to TCP from UDP  for truncation */
 };
 typedef struct dnc_sck_xtn_t dnc_sck_xtn_t;
 
@@ -147,6 +148,118 @@ MIO_DEBUG1 (mio, "releasing dns msg %d\n", (int)mio_ntoh16(mio_dns_msg_to_pkt(ms
 	mio_dns_free_msg (dnc->mio, msg);
 }
 
+/* ----------------------------------------------------------------------- */
+
+
+static int on_tcp_read (mio_dev_sck_t* dev, const void* data, mio_iolen_t dlen, const mio_skad_t* srcaddr)
+{
+	return 0;
+}
+
+static int on_tcp_write (mio_dev_sck_t* dev, mio_iolen_t wrlen, void* wrctx, const mio_skad_t* dstaddr)
+{
+printf ("ON WRITE >>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>\n");
+	return 0;
+}
+
+
+static void on_tcp_connect (mio_dev_sck_t* dev)
+{
+	mio_t* mio = dev->mio;
+	mio_svc_dnc_t* dnc = ((dnc_sck_xtn_t*)mio_dev_sck_getxtn(dev))->dnc;
+	mio_dns_msg_t* reqmsg = ((dnc_sck_xtn_t*)mio_dev_sck_getxtn(dev))->reqmsg;
+	dnc_dns_msg_xtn_t* reqmsgxtn = dnc_dns_msg_getxtn(reqmsg);
+	mio_uint16_t pktlen;
+
+	MIO_ASSERT (mio, dev == dnc->tcp_sck);
+
+	pktlen = mio_hton16(reqmsg->pktlen);
+
+/* TODO: create writev... which triggered on_write_once */
+	mio_dev_sck_timedwrite(dev, &pktlen, MIO_SIZEOF(pktlen), &reqmsgxtn->rtmout, reqmsg, MIO_NULL);
+	if (mio_dev_sck_timedwrite(dev, mio_dns_msg_to_pkt(reqmsg), reqmsg->pktlen, &reqmsgxtn->rtmout, reqmsg, MIO_NULL) <= -1)
+	{
+		if (MIO_LIKELY(reqmsgxtn->on_reply))
+			reqmsgxtn->on_reply (dnc, reqmsg, mio_geterrnum(mio), MIO_NULL, 0);
+
+		release_dns_msg (dnc, reqmsg);
+	}
+}
+
+static void on_tcp_disconnect (mio_dev_sck_t* dev)
+{
+	mio_t* mio = dev->mio;
+	mio_svc_dnc_t* dnc = ((dnc_sck_xtn_t*)mio_dev_sck_getxtn(dev))->dnc;
+	mio_dns_msg_t* reqmsg = ((dnc_sck_xtn_t*)mio_dev_sck_getxtn(dev))->reqmsg;
+	dnc_dns_msg_xtn_t* reqmsgxtn = dnc_dns_msg_getxtn(reqmsg);
+	int status;
+
+	/* UNABLE TO CONNECT or CONNECT TIMED OUT */
+	if (reqmsgxtn->rtries <= 0) 
+	{
+		status = mio_geterrnum(mio);
+	}
+	else
+	{
+		status = mio_geterrnum(mio);
+	}
+MIO_DEBUG2 (mio, "TCP UNABLED TO CONNECT .. OR DISCONNECTED ... ---> %d -> %js\n", status, mio_errnum_to_errstr(status));
+
+	if (MIO_LIKELY(reqmsgxtn->on_reply))
+		reqmsgxtn->on_reply (dnc, reqmsg, status, MIO_NULL, 0);
+	
+
+	release_dns_msg (dnc, reqmsg);
+}
+
+static int switch_reqmsg_transport_to_tcp (mio_svc_dnc_t* dnc, mio_dns_msg_t* reqmsg)
+{
+	mio_t* mio = dnc->mio;
+	dnc_dns_msg_xtn_t* reqmsgxtn = dnc_dns_msg_getxtn(reqmsg);
+	dnc_sck_xtn_t* sckxtn;
+
+	mio_dev_sck_make_t mkinfo;
+	mio_dev_sck_connect_t cinfo;
+
+	if (!dnc->tcp_sck)
+	{
+		MIO_MEMSET (&mkinfo, 0, MIO_SIZEOF(mkinfo));
+		switch (mio_skad_family(&reqmsgxtn->servaddr))
+		{
+			case MIO_AF_INET:
+				mkinfo.type = MIO_DEV_SCK_TCP4;
+				break;
+
+			case MIO_AF_INET6:
+				mkinfo.type = MIO_DEV_SCK_TCP6;
+				break;
+
+			default:
+				mio_seterrnum (mio, MIO_EINTERN);
+				return -1;
+		}
+
+		mkinfo.on_write = on_tcp_write;
+		mkinfo.on_read = on_tcp_read;
+		mkinfo.on_connect = on_tcp_connect;
+		mkinfo.on_disconnect = on_tcp_disconnect;
+		dnc->tcp_sck = mio_dev_sck_make(mio, MIO_SIZEOF(*sckxtn), &mkinfo);
+	}
+
+	sckxtn = (dnc_sck_xtn_t*)mio_dev_sck_getxtn(dnc->tcp_sck);
+	sckxtn->dnc = dnc;
+	sckxtn->reqmsg = reqmsg;
+
+	MIO_MEMSET (&cinfo, 0, MIO_SIZEOF(cinfo));
+	cinfo.remoteaddr = reqmsgxtn->servaddr;
+	cinfo.connect_tmout = reqmsgxtn->rtmout; /* TOOD: create a separate connect timeout or treate rtmout as a whole transaction time and calculate the remaining time from the transaction start, and use it */
+
+	reqmsgxtn->rtries = 0; /* reset the number of tries back to 0 which means it's never sent over tcp */
+	return mio_dev_sck_connect(dnc->tcp_sck, &cinfo);
+}
+
+/* ----------------------------------------------------------------------- */
+
 static int on_udp_read (mio_dev_sck_t* dev, const void* data, mio_iolen_t dlen, const mio_skad_t* srcaddr)
 {
 	mio_t* mio = dev->mio;
@@ -180,10 +293,15 @@ static int on_udp_read (mio_dev_sck_t* dev, const void* data, mio_iolen_t dlen, 
 
 		if (dev == (mio_dev_sck_t*)reqmsgxtn->dev && pkt->id == reqpkt->id && mio_equal_skads(&reqmsgxtn->servaddr, srcaddr, 0))
 		{
+////////////////////////
+pkt->tc = 1;
+////////////////////////
 			if (pkt->tc) /* truncated */
 			{
 				/* TODO: add an option for this behavior */
 				/* TODO: switch to tc ... send the same request over tcp... */
+				switch_reqmsg_transport_to_tcp (dnc, reqmsg);
+				return 0;
 			}
 
 MIO_DEBUG1 (mio, "received dns response...id %d\n", id);
@@ -209,6 +327,7 @@ static void on_udp_reply_timeout (mio_t* mio, const mio_ntime_t* now, mio_tmrjob
 	mio_svc_dnc_t* dnc = ((dnc_sck_xtn_t*)mio_dev_sck_getxtn(dev))->dnc;
 
 	MIO_ASSERT (mio, msgxtn->rtmridx == MIO_TMRIDX_INVALID);
+	MIO_ASSERT (mio, dev == dnc->udp_sck);
 
 MIO_DEBUG0 (mio, "*** TIMEOUT ==> unable to receive dns response in time...\n");
 	if (msgxtn->rtries < msgxtn->rmaxtries)
@@ -216,7 +335,7 @@ MIO_DEBUG0 (mio, "*** TIMEOUT ==> unable to receive dns response in time...\n");
 		mio_ntime_t* tmout;
 
 		tmout = MIO_IS_POS_NTIME(&msgxtn->wtmout)? &msgxtn->wtmout: MIO_NULL;
-		if (mio_dev_sck_timedwrite(dnc->udp_sck, mio_dns_msg_to_pkt(reqmsg), reqmsg->pktlen, tmout, reqmsg, &msgxtn->servaddr) <= -1)
+		if (mio_dev_sck_timedwrite(dev, mio_dns_msg_to_pkt(reqmsg), reqmsg->pktlen, tmout, reqmsg, &msgxtn->servaddr) <= -1)
 		{
 			if (MIO_LIKELY(msgxtn->on_reply))
 				msgxtn->on_reply (dnc, reqmsg, MIO_ETMOUT, MIO_NULL, 0);

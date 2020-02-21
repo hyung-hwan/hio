@@ -713,7 +713,6 @@ static void on_dnc_resolve_brief (mio_svc_dnc_t* dnc, mio_dns_msg_t* reqmsg, mio
 
 /* ========================================================================= */
 
-#if 1
 static mio_t* g_mio;
 
 static void handle_signal (int sig)
@@ -932,7 +931,8 @@ for (i = 0; i < 5; i++)
 
 
 	//mio_bcstrtoskad (mio, "8.8.8.8:53", &servaddr);
-	mio_bcstrtoskad (mio, "[fe80::c7e2:bd6e:1209:ac1b]:1153", &servaddr);
+	//mio_bcstrtoskad (mio, "[fe80::c7e2:bd6e:1209:ac1b]:1153", &servaddr);
+	mio_bcstrtoskad (mio, "[fe80::c7e2:bd6e:1209:ac1b%eno1]:1153", &servaddr);
 	dnc = mio_svc_dnc_start (mio, &servaddr, MIO_NULL, &send_tmout, &reply_tmout, 2); /* option - send to all, send one by one */
 
 #if 0
@@ -1056,59 +1056,3 @@ oops:
 	return -1;
 }
 
-#else
-int main (int argc, char* argv[])
-{
-	mio_t* mio = MIO_NULL;
-	mio_dev_sck_t* tcpsvr;
-	mio_dev_sck_make_t tcp_make;
-	mio_dev_sck_connect_t tcp_conn;
-	tcp_server_t* ts;
-	mio_svc_dnc_t dnc = MIO_NULL;
-
-	mio = mio_open(&mmgr, 0, MIO_NULL, 512, MIO_NULL);
-	if (!mio)
-	{
-		printf ("Cannot open mio\n");
-		goto oops;
-	}
-
-	memset (&tcp_make, 0, MIO_SIZEOF(tcp_make));
-	tcp_make.type = MIO_DEV_SCK_TCP4;
-	tcp_make.on_write = tcp_sck_on_write;
-	tcp_make.on_read = tcp_sck_on_read;
-	tcp_make.on_connect = tcp_sck_on_connect;
-	tcp_make.on_disconnect = tcp_sck_on_disconnect;
-	tcpsvr = mio_dev_sck_make(mio, MIO_SIZEOF(tcp_server_t), &tcp_make);
-	if (!tcpsvr)
-	{
-		printf ("Cannot make a tcp server\n");
-		goto oops;
-	}
-
-	ts = (tcp_server_t*)(tcpsvr + 1);
-	ts->tally = 0;
-
-	memset (&tcp_conn, 0, MIO_SIZEOF(tcp_conn));
-	mio_bcstroskad(mio, "127.0.0.1:9999", &tcp_conn.remoteaddr);
-
-	MIO_INIT_NTIME (&tcp_conn.connect_tmout, 5, 0);
-	tcp_conn.options = 0;
-	if (mio_dev_sck_connect(tcpsvr, &tcp_conn) <= -1)
-	{
-	}
-
-#if 0
-	while (1)
-	{
-		mio_exec (mio);
-	}
-#endif
-	mio_loop (mio);
-
-oops:
-	if (mio) mio_close (mio);
-	return 0;
-}
-
-#endif

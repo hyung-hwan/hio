@@ -1383,16 +1383,19 @@ int mio_skad_ifindex (const mio_skad_t* _skad)
 
 void mio_skad_init_for_ip4 (mio_skad_t* skad, mio_uint16_t port, mio_ip4addr_t* ip4addr)
 {
+#if (MIO_SIZEOF_STRUCT_SOCKADDR_IN > 0)
 	struct sockaddr_in* sin = (struct sockaddr_in*)skad;
 
 	MIO_MEMSET (sin, 0, MIO_SIZEOF(*sin));
 	sin->sin_family = AF_INET;
 	sin->sin_port = htons(port);
 	if (ip4addr) MIO_MEMCPY (&sin->sin_addr, ip4addr, MIO_IP4ADDR_LEN);
+#endif
 }
 
 void mio_skad_init_for_ip6 (mio_skad_t* skad, mio_uint16_t port, mio_ip6addr_t* ip6addr, int scope_id)
 {
+#if (MIO_SIZEOF_STRUCT_SOCKADDR_IN6 > 0)
 	struct sockaddr_in6* sin = (struct sockaddr_in6*)skad;
 
 	MIO_MEMSET (sin, 0, MIO_SIZEOF(*sin));
@@ -1400,6 +1403,7 @@ void mio_skad_init_for_ip6 (mio_skad_t* skad, mio_uint16_t port, mio_ip6addr_t* 
 	sin->sin6_port = htons(port);
 	sin->sin6_scope_id = scope_id;
 	if (ip6addr) MIO_MEMCPY (&sin->sin6_addr, ip6addr, MIO_IP6ADDR_LEN);
+#endif
 }
 
 void mio_skad_init_for_eth (mio_skad_t* skad, int ifindex, mio_ethaddr_t* ethaddr)
@@ -1447,11 +1451,13 @@ int mio_equal_skads (const mio_skad_t* addr1, const mio_skad_t* addr2, int stric
 
 	switch (f1)
 	{
+	#if defined(AF_INET) && (MIO_SIZEOF_STRUCT_SOCKADDR_IN > 0)
 		case AF_INET:
 			return ((struct sockaddr_in*)addr1)->sin_addr.s_addr == ((struct sockaddr_in*)addr2)->sin_addr.s_addr &&
 			       ((struct sockaddr_in*)addr1)->sin_port == ((struct sockaddr_in*)addr2)->sin_port;
+	#endif
 
-	#if defined(AF_INET6)
+	#if defined(AF_INET6) && (MIO_SIZEOF_STRUCT_SOCKADDR_IN6 > 0)
 		case AF_INET6:
 			
 			if (strict)
@@ -1468,7 +1474,7 @@ int mio_equal_skads (const mio_skad_t* addr1, const mio_skad_t* addr2, int stric
 			}
 	#endif
 
-	#if defined(AF_UNIX)
+	#if defined(AF_UNIX) && (MIO_SIZEOF_STRUCT_SOCKADDR_UN > 0)
 		case AF_UNIX:
 			return mio_comp_bcstr(((struct sockaddr_un*)addr1)->sun_path, ((struct sockaddr_un*)addr2)->sun_path) == 0;
 	#endif

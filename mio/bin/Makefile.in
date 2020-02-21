@@ -88,7 +88,7 @@ PRE_UNINSTALL = :
 POST_UNINSTALL = :
 build_triplet = @build@
 host_triplet = @host@
-bin_PROGRAMS = mio-execd$(EXEEXT) mio-t01$(EXEEXT)
+bin_PROGRAMS = mio-execd$(EXEEXT) mio-t01$(EXEEXT) mio-t02$(EXEEXT)
 subdir = bin
 ACLOCAL_M4 = $(top_srcdir)/aclocal.m4
 am__aclocal_m4_deps = $(top_srcdir)/m4/ax_check_sign.m4 \
@@ -126,6 +126,13 @@ mio_t01_DEPENDENCIES = $(am__DEPENDENCIES_2) $(am__DEPENDENCIES_1) \
 mio_t01_LINK = $(LIBTOOL) $(AM_V_lt) --tag=CC $(AM_LIBTOOLFLAGS) \
 	$(LIBTOOLFLAGS) --mode=link $(CCLD) $(AM_CFLAGS) $(CFLAGS) \
 	$(mio_t01_LDFLAGS) $(LDFLAGS) -o $@
+am_mio_t02_OBJECTS = mio_t02-t02.$(OBJEXT)
+mio_t02_OBJECTS = $(am_mio_t02_OBJECTS)
+mio_t02_DEPENDENCIES = $(am__DEPENDENCIES_2) $(am__DEPENDENCIES_1) \
+	$(am__DEPENDENCIES_1) $(am__DEPENDENCIES_1)
+mio_t02_LINK = $(LIBTOOL) $(AM_V_lt) --tag=CC $(AM_LIBTOOLFLAGS) \
+	$(LIBTOOLFLAGS) --mode=link $(CCLD) $(AM_CFLAGS) $(CFLAGS) \
+	$(mio_t02_LDFLAGS) $(LDFLAGS) -o $@
 AM_V_P = $(am__v_P_@AM_V@)
 am__v_P_ = $(am__v_P_@AM_DEFAULT_V@)
 am__v_P_0 = false
@@ -142,7 +149,7 @@ DEFAULT_INCLUDES =
 depcomp = $(SHELL) $(top_srcdir)/ac/depcomp
 am__maybe_remake_depfiles = depfiles
 am__depfiles_remade = ./$(DEPDIR)/mio_execd-execd.Po \
-	./$(DEPDIR)/mio_t01-t01.Po
+	./$(DEPDIR)/mio_t01-t01.Po ./$(DEPDIR)/mio_t02-t02.Po
 am__mv = mv -f
 COMPILE = $(CC) $(DEFS) $(DEFAULT_INCLUDES) $(INCLUDES) $(AM_CPPFLAGS) \
 	$(CPPFLAGS) $(AM_CFLAGS) $(CFLAGS)
@@ -162,8 +169,9 @@ AM_V_CCLD = $(am__v_CCLD_@AM_V@)
 am__v_CCLD_ = $(am__v_CCLD_@AM_DEFAULT_V@)
 am__v_CCLD_0 = @echo "  CCLD    " $@;
 am__v_CCLD_1 = 
-SOURCES = $(mio_execd_SOURCES) $(mio_t01_SOURCES)
-DIST_SOURCES = $(mio_execd_SOURCES) $(mio_t01_SOURCES)
+SOURCES = $(mio_execd_SOURCES) $(mio_t01_SOURCES) $(mio_t02_SOURCES)
+DIST_SOURCES = $(mio_execd_SOURCES) $(mio_t01_SOURCES) \
+	$(mio_t02_SOURCES)
 am__can_run_installinfo = \
   case $$AM_UPDATE_INFO_DIR in \
     n|no|NO) false;; \
@@ -361,6 +369,10 @@ mio_t01_SOURCES = t01.c
 mio_t01_CPPFLAGS = $(CPPFLAGS_LIB_COMMON)
 mio_t01_LDFLAGS = $(LDFLAGS_LIB_COMMON)
 mio_t01_LDADD = $(LIBADD_LIB_COMMON) -lmio $(SSL_LIBS) $(SOCKET_LIBS) $(SENDFILE_LIBS)
+mio_t02_SOURCES = t02.c
+mio_t02_CPPFLAGS = $(CPPFLAGS_LIB_COMMON)
+mio_t02_LDFLAGS = $(LDFLAGS_LIB_COMMON)
+mio_t02_LDADD = $(LIBADD_LIB_COMMON) -lmio $(SSL_LIBS) $(SOCKET_LIBS) $(SENDFILE_LIBS)
 all: all-am
 
 .SUFFIXES:
@@ -452,6 +464,10 @@ mio-t01$(EXEEXT): $(mio_t01_OBJECTS) $(mio_t01_DEPENDENCIES) $(EXTRA_mio_t01_DEP
 	@rm -f mio-t01$(EXEEXT)
 	$(AM_V_CCLD)$(mio_t01_LINK) $(mio_t01_OBJECTS) $(mio_t01_LDADD) $(LIBS)
 
+mio-t02$(EXEEXT): $(mio_t02_OBJECTS) $(mio_t02_DEPENDENCIES) $(EXTRA_mio_t02_DEPENDENCIES) 
+	@rm -f mio-t02$(EXEEXT)
+	$(AM_V_CCLD)$(mio_t02_LINK) $(mio_t02_OBJECTS) $(mio_t02_LDADD) $(LIBS)
+
 mostlyclean-compile:
 	-rm -f *.$(OBJEXT)
 
@@ -460,6 +476,7 @@ distclean-compile:
 
 @AMDEP_TRUE@@am__include@ @am__quote@./$(DEPDIR)/mio_execd-execd.Po@am__quote@ # am--include-marker
 @AMDEP_TRUE@@am__include@ @am__quote@./$(DEPDIR)/mio_t01-t01.Po@am__quote@ # am--include-marker
+@AMDEP_TRUE@@am__include@ @am__quote@./$(DEPDIR)/mio_t02-t02.Po@am__quote@ # am--include-marker
 
 $(am__depfiles_remade):
 	@$(MKDIR_P) $(@D)
@@ -518,6 +535,20 @@ mio_t01-t01.obj: t01.c
 @AMDEP_TRUE@@am__fastdepCC_FALSE@	$(AM_V_CC)source='t01.c' object='mio_t01-t01.obj' libtool=no @AMDEPBACKSLASH@
 @AMDEP_TRUE@@am__fastdepCC_FALSE@	DEPDIR=$(DEPDIR) $(CCDEPMODE) $(depcomp) @AMDEPBACKSLASH@
 @am__fastdepCC_FALSE@	$(AM_V_CC@am__nodep@)$(CC) $(DEFS) $(DEFAULT_INCLUDES) $(INCLUDES) $(mio_t01_CPPFLAGS) $(CPPFLAGS) $(AM_CFLAGS) $(CFLAGS) -c -o mio_t01-t01.obj `if test -f 't01.c'; then $(CYGPATH_W) 't01.c'; else $(CYGPATH_W) '$(srcdir)/t01.c'; fi`
+
+mio_t02-t02.o: t02.c
+@am__fastdepCC_TRUE@	$(AM_V_CC)$(CC) $(DEFS) $(DEFAULT_INCLUDES) $(INCLUDES) $(mio_t02_CPPFLAGS) $(CPPFLAGS) $(AM_CFLAGS) $(CFLAGS) -MT mio_t02-t02.o -MD -MP -MF $(DEPDIR)/mio_t02-t02.Tpo -c -o mio_t02-t02.o `test -f 't02.c' || echo '$(srcdir)/'`t02.c
+@am__fastdepCC_TRUE@	$(AM_V_at)$(am__mv) $(DEPDIR)/mio_t02-t02.Tpo $(DEPDIR)/mio_t02-t02.Po
+@AMDEP_TRUE@@am__fastdepCC_FALSE@	$(AM_V_CC)source='t02.c' object='mio_t02-t02.o' libtool=no @AMDEPBACKSLASH@
+@AMDEP_TRUE@@am__fastdepCC_FALSE@	DEPDIR=$(DEPDIR) $(CCDEPMODE) $(depcomp) @AMDEPBACKSLASH@
+@am__fastdepCC_FALSE@	$(AM_V_CC@am__nodep@)$(CC) $(DEFS) $(DEFAULT_INCLUDES) $(INCLUDES) $(mio_t02_CPPFLAGS) $(CPPFLAGS) $(AM_CFLAGS) $(CFLAGS) -c -o mio_t02-t02.o `test -f 't02.c' || echo '$(srcdir)/'`t02.c
+
+mio_t02-t02.obj: t02.c
+@am__fastdepCC_TRUE@	$(AM_V_CC)$(CC) $(DEFS) $(DEFAULT_INCLUDES) $(INCLUDES) $(mio_t02_CPPFLAGS) $(CPPFLAGS) $(AM_CFLAGS) $(CFLAGS) -MT mio_t02-t02.obj -MD -MP -MF $(DEPDIR)/mio_t02-t02.Tpo -c -o mio_t02-t02.obj `if test -f 't02.c'; then $(CYGPATH_W) 't02.c'; else $(CYGPATH_W) '$(srcdir)/t02.c'; fi`
+@am__fastdepCC_TRUE@	$(AM_V_at)$(am__mv) $(DEPDIR)/mio_t02-t02.Tpo $(DEPDIR)/mio_t02-t02.Po
+@AMDEP_TRUE@@am__fastdepCC_FALSE@	$(AM_V_CC)source='t02.c' object='mio_t02-t02.obj' libtool=no @AMDEPBACKSLASH@
+@AMDEP_TRUE@@am__fastdepCC_FALSE@	DEPDIR=$(DEPDIR) $(CCDEPMODE) $(depcomp) @AMDEPBACKSLASH@
+@am__fastdepCC_FALSE@	$(AM_V_CC@am__nodep@)$(CC) $(DEFS) $(DEFAULT_INCLUDES) $(INCLUDES) $(mio_t02_CPPFLAGS) $(CPPFLAGS) $(AM_CFLAGS) $(CFLAGS) -c -o mio_t02-t02.obj `if test -f 't02.c'; then $(CYGPATH_W) 't02.c'; else $(CYGPATH_W) '$(srcdir)/t02.c'; fi`
 
 mostlyclean-libtool:
 	-rm -f *.lo
@@ -654,6 +685,7 @@ clean-am: clean-binPROGRAMS clean-generic clean-libtool mostlyclean-am
 distclean: distclean-am
 		-rm -f ./$(DEPDIR)/mio_execd-execd.Po
 	-rm -f ./$(DEPDIR)/mio_t01-t01.Po
+	-rm -f ./$(DEPDIR)/mio_t02-t02.Po
 	-rm -f Makefile
 distclean-am: clean-am distclean-compile distclean-generic \
 	distclean-tags
@@ -701,6 +733,7 @@ installcheck-am:
 maintainer-clean: maintainer-clean-am
 		-rm -f ./$(DEPDIR)/mio_execd-execd.Po
 	-rm -f ./$(DEPDIR)/mio_t01-t01.Po
+	-rm -f ./$(DEPDIR)/mio_t02-t02.Po
 	-rm -f Makefile
 maintainer-clean-am: distclean-am maintainer-clean-generic
 
