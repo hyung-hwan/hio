@@ -1279,6 +1279,12 @@ int mio_dev_timedwrite (mio_dev_t* dev, const void* data, mio_iolen_t len, const
 	return __dev_write(dev, data, len, tmout, wrctx, dstaddr);
 }
 
+int mio_dev_timedwritev (mio_dev_t* dev, const mio_iovec_t* iov, mio_iolen_t iovcnt, const mio_ntime_t* tmout, void* wrctx, const mio_devaddr_t* dstaddr)
+{
+	//return __dev_write(dev, data, len, tmout, wrctx, dstaddr);
+	return -1;
+}
+
 /* -------------------------------------------------------------------------- */
 
 void mio_gettime (mio_t* mio, mio_ntime_t* now)

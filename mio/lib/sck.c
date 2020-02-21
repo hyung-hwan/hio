@@ -1601,6 +1601,12 @@ int mio_dev_sck_timedwrite (mio_dev_sck_t* dev, const void* data, mio_iolen_t dl
 	return mio_dev_timedwrite((mio_dev_t*)dev, data, dlen, tmout, wrctx, skad_to_devaddr(dev, dstaddr, &devaddr));
 }
 
+int mio_dev_sck_timedwritev (mio_dev_sck_t* dev, const mio_iovec_t* iov, mio_iolen_t iovcnt, const mio_ntime_t* tmout, void* wrctx, const mio_skad_t* dstaddr)
+{
+	mio_devaddr_t devaddr;
+	return mio_dev_timedwrite((mio_dev_t*)dev, iov, iovcnt, tmout, wrctx, skad_to_devaddr(dev, dstaddr, &devaddr));
+}
+
 
 /* ========================================================================= */
 
