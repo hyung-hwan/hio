@@ -63,6 +63,13 @@ typedef struct mio_wq_t mio_wq_t;
 typedef struct mio_cwq_t mio_cwq_t;
 typedef mio_intptr_t mio_iolen_t; /* NOTE: this is a signed type */
 
+struct mio_iovec_t
+{
+	void*     iov_ptr;
+	mio_oow_t iov_len;
+};
+typedef struct mio_iovec_t mio_iovec_t;
+
 enum mio_errnum_t
 {
 	MIO_ENOERR,   /**< no error */
@@ -803,6 +810,16 @@ MIO_EXPORT int mio_dev_timedwrite (
 	mio_iolen_t          len,
 	const mio_ntime_t*   tmout,
 	void*                wrctx,
+	const mio_devaddr_t* dstaddr
+);
+
+
+MIO_EXPORT int mio_dev_timedwritev (
+	mio_dev_t*            dev,
+	const mio_iovec_t*    iov,
+	mio_iolen_t           iovcnt,
+	const mio_ntime_t*    tmout,
+	void*                 wrctx,
 	const mio_devaddr_t* dstaddr
 );
 

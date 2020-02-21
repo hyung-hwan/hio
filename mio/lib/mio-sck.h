@@ -463,6 +463,17 @@ MIO_EXPORT int mio_dev_sck_timedwrite (
 	const mio_skad_t*     dstaddr
 );
 
+
+MIO_EXPORT int mio_dev_sck_timedwritev (
+	mio_dev_sck_t*        dev,
+	const mio_iovec_t*    iov,
+	mio_iolen_t           iovcnt,
+	const mio_ntime_t*    tmout,
+	void*                 wrctx,
+	const mio_skad_t*     dstaddr
+);
+
+
 #if defined(MIO_HAVE_INLINE)
 
 static MIO_INLINE void mio_dev_sck_kill (mio_dev_sck_t* sck)
