@@ -548,6 +548,88 @@ static int dev_sck_write_stateful (mio_dev_t* dev, const void* data, mio_iolen_t
 	return 1;
 }
 
+
+static int dev_sck_writev_stateful (mio_dev_t* dev, const mio_iovec_t* iov, mio_iolen_t* iovcnt, const mio_devaddr_t* dstaddr)
+{
+	mio_t* mio = dev->mio;
+	mio_dev_sck_t* rdev = (mio_dev_sck_t*)dev;
+
+#if 0 && defined(USE_SSL)
+	if (rdev->ssl)
+	{
+		int x;
+
+		if (*iovcnt <= 0)
+		{
+			/* it's a writing finish indicator. close the writing end of
+			 * the socket, probably leaving it in the half-closed state */
+			if ((x = SSL_shutdown((SSL*)rdev->ssl)) == -1)
+			{
+				set_ssl_error (mio, SSL_get_error((SSL*)rdev->ssl, x));
+				return -1;
+			}
+			return 1;
+		}
+
+		x = SSL_write((SSL*)rdev->ssl, data, *len);
+		if (x <= -1)
+		{
+			int err = SSL_get_error ((SSL*)rdev->ssl, x);
+			if (err == SSL_ERROR_WANT_READ || err == SSL_ERROR_WANT_WRITE) return 0;
+			set_ssl_error (mio, err);
+			return -1;
+		}
+
+		*len = x;
+	}
+	else
+	{
+#endif
+		ssize_t x;
+		int flags = 0;
+		struct msghdr msg;
+
+		if (*iovcnt <= 0)
+		{
+			/* it's a writing finish indicator. close the writing end of
+			 * the socket, probably leaving it in the half-closed state */
+			if (shutdown(rdev->sck, SHUT_WR) == -1)
+			{
+				mio_seterrwithsyserr (mio, 0, errno);
+				return -1;
+			}
+
+			return 1;
+		}
+
+		/* TODO: flags MSG_DONTROUTE, MSG_DONTWAIT, MSG_MORE, MSG_OOB, MSG_NOSIGNAL */
+	#if defined(MSG_NOSIGNAL)
+		flags |= MSG_NOSIGNAL;
+	#endif
+
+	#if defined(HAVE_SENDMSG)
+		MIO_MEMSET (&msg, 0, MIO_SIZEOF(msg));
+		msg.msg_iov = (struct iovec*)iov;
+		msg.msg_iovlen = *iovcnt;
+		x = sendmsg(rdev->sck, &msg, flags);
+	#else
+		x = writev(rdev->sck, (const struct iovec*)iov, *iovcnt);
+	#endif
+		if (x == -1) 
+		{
+			if (errno == EINPROGRESS || errno == EWOULDBLOCK || errno == EAGAIN) return 0;  /* no data can be written */
+			if (errno == EINTR) return 0;
+			mio_seterrwithsyserr (mio, 0, errno);
+			return -1;
+		}
+
+		*iovcnt = x;
+#if 0 && defined(USE_SSL)
+	}
+#endif
+	return 1;
+}
+
 static int dev_sck_write_stateless (mio_dev_t* dev, const void* data, mio_iolen_t* len, const mio_devaddr_t* dstaddr)
 {
 	mio_t* mio = dev->mio;
@@ -564,6 +646,36 @@ static int dev_sck_write_stateless (mio_dev_t* dev, const void* data, mio_iolen_
 	}
 
 	*len = x;
+	return 1;
+}
+
+
+static int dev_sck_writev_stateless (mio_dev_t* dev, const mio_iovec_t* iov, mio_iolen_t* iovcnt, const mio_devaddr_t* dstaddr)
+{
+	mio_t* mio = dev->mio;
+	mio_dev_sck_t* rdev = (mio_dev_sck_t*)dev;
+	struct msghdr msg;
+	ssize_t x;
+	
+	MIO_MEMSET (&msg, 0, MIO_SIZEOF(msg));
+	if (MIO_LIKELY(dstaddr))
+	{
+		msg.msg_name = dstaddr->ptr;
+		msg.msg_namelen = dstaddr->len;
+	}
+	msg.msg_iov = (struct iovec*)iov;
+	msg.msg_iovlen = *iovcnt;
+
+	x = sendmsg(rdev->sck, &msg, 0);
+	if (x <= -1) 
+	{
+		if (errno == EINPROGRESS || errno == EWOULDBLOCK || errno == EAGAIN) return 0;  /* no data can be written */
+		if (errno == EINTR) return 0;
+		mio_seterrwithsyserr (mio, 0, errno);
+		return -1;
+	}
+
+	*iovcnt = x;
 	return 1;
 }
 
@@ -1039,6 +1151,7 @@ static mio_dev_mth_t dev_sck_methods_stateless =
 
 	dev_sck_read_stateless,
 	dev_sck_write_stateless,
+	dev_sck_writev_stateless,
 	dev_sck_ioctl,     /* ioctl */
 };
 
@@ -1051,6 +1164,7 @@ static mio_dev_mth_t dev_sck_methods_stateful =
 
 	dev_sck_read_stateful,
 	dev_sck_write_stateful,
+	dev_sck_writev_stateful,
 	dev_sck_ioctl,     /* ioctl */
 };
 
@@ -1062,6 +1176,7 @@ static mio_dev_mth_t dev_mth_clisck =
 
 	dev_sck_read_stateful,
 	dev_sck_write_stateful,
+	dev_sck_writev_stateful,
 	dev_sck_ioctl
 };
 /* ========================================================================= */
@@ -1595,16 +1710,22 @@ int mio_dev_sck_write (mio_dev_sck_t* dev, const void* data, mio_iolen_t dlen, v
 	return mio_dev_write((mio_dev_t*)dev, data, dlen, wrctx, skad_to_devaddr(dev, dstaddr, &devaddr));
 }
 
+int mio_dev_sck_writev (mio_dev_sck_t* dev, mio_iovec_t* iov, mio_iolen_t iovcnt, void* wrctx, const mio_skad_t* dstaddr)
+{
+	mio_devaddr_t devaddr;
+	return mio_dev_writev((mio_dev_t*)dev, iov, iovcnt, wrctx, skad_to_devaddr(dev, dstaddr, &devaddr));
+}
+
 int mio_dev_sck_timedwrite (mio_dev_sck_t* dev, const void* data, mio_iolen_t dlen, const mio_ntime_t* tmout, void* wrctx, const mio_skad_t* dstaddr)
 {
 	mio_devaddr_t devaddr;
 	return mio_dev_timedwrite((mio_dev_t*)dev, data, dlen, tmout, wrctx, skad_to_devaddr(dev, dstaddr, &devaddr));
 }
 
-int mio_dev_sck_timedwritev (mio_dev_sck_t* dev, const mio_iovec_t* iov, mio_iolen_t iovcnt, const mio_ntime_t* tmout, void* wrctx, const mio_skad_t* dstaddr)
+int mio_dev_sck_timedwritev (mio_dev_sck_t* dev, mio_iovec_t* iov, mio_iolen_t iovcnt, const mio_ntime_t* tmout, void* wrctx, const mio_skad_t* dstaddr)
 {
 	mio_devaddr_t devaddr;
-	return mio_dev_timedwrite((mio_dev_t*)dev, iov, iovcnt, tmout, wrctx, skad_to_devaddr(dev, dstaddr, &devaddr));
+	return mio_dev_timedwritev((mio_dev_t*)dev, iov, iovcnt, tmout, wrctx, skad_to_devaddr(dev, dstaddr, &devaddr));
 }
 
 

@@ -50,7 +50,7 @@
 #	if defined(HAVE_OPENSSL_ENGINE_H)
 #		include <openssl/engine.h>
 #	endif
-//#	define USE_SSL
+#	define USE_SSL
 #endif
 
 /* ========================================================================= */
@@ -160,6 +160,12 @@ static void tcp_sck_on_disconnect (mio_dev_sck_t* tcp)
 static void tcp_sck_on_connect (mio_dev_sck_t* tcp)
 {
 	mio_bch_t buf1[128], buf2[128];
+	mio_iovec_t iov[] =
+	{
+		{ "hello", 5 },
+		{ "world", 5 },
+		{ "mio test", 8 }
+	};
 
 	mio_skadtobcstr (tcp->mio, &tcp->localaddr, buf1, MIO_COUNTOF(buf1), MIO_SKAD_TO_BCSTR_ADDR | MIO_SKAD_TO_BCSTR_PORT);
 	mio_skadtobcstr (tcp->mio, &tcp->remoteaddr, buf2, MIO_COUNTOF(buf2), MIO_SKAD_TO_BCSTR_ADDR | MIO_SKAD_TO_BCSTR_PORT);
@@ -173,7 +179,7 @@ static void tcp_sck_on_connect (mio_dev_sck_t* tcp)
 		MIO_INFO3 (tcp->mio, "DEVICE accepted client device... .LOCAL %hs REMOTE %hs  SCK: %d\n", buf1, buf2, tcp->sck);
 	}
 
-	if (mio_dev_sck_write(tcp, "hello", 5, MIO_NULL, MIO_NULL) <= -1)
+	if (mio_dev_sck_writev(tcp, iov, MIO_COUNTOF(iov), MIO_NULL, MIO_NULL) <= -1)
 	{
 		mio_dev_sck_halt (tcp);
 	}

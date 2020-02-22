@@ -454,6 +454,14 @@ MIO_EXPORT int mio_dev_sck_write (
 	const mio_skad_t*     dstaddr
 );
 
+MIO_EXPORT int mio_dev_sck_writev (
+	mio_dev_sck_t*        dev,
+	mio_iovec_t*          iov,
+	mio_iolen_t           iovcnt,
+	void*                 wrctx,
+	const mio_skad_t*     dstaddr
+);
+
 MIO_EXPORT int mio_dev_sck_timedwrite (
 	mio_dev_sck_t*        dev,
 	const void*           data,
@@ -466,7 +474,7 @@ MIO_EXPORT int mio_dev_sck_timedwrite (
 
 MIO_EXPORT int mio_dev_sck_timedwritev (
 	mio_dev_sck_t*        dev,
-	const mio_iovec_t*    iov,
+	mio_iovec_t*          iov,
 	mio_iolen_t           iovcnt,
 	const mio_ntime_t*    tmout,
 	void*                 wrctx,

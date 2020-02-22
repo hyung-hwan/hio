@@ -563,7 +563,7 @@ static int dev_pro_write_slave (mio_dev_t* dev, const void* data, mio_iolen_t* l
 	mio_dev_pro_slave_t* pro = (mio_dev_pro_slave_t*)dev;
 	ssize_t x;
 
-	x = write (pro->pfd, data, *len);
+	x = write(pro->pfd, data, *len);
 	if (x <= -1)
 	{
 		if (errno == EINPROGRESS || errno == EWOULDBLOCK || errno == EAGAIN) return 0;  /* no data can be written */
@@ -573,6 +573,24 @@ static int dev_pro_write_slave (mio_dev_t* dev, const void* data, mio_iolen_t* l
 	}
 
 	*len = x;
+	return 1;
+}
+
+static int dev_pro_writev_slave (mio_dev_t* dev, const mio_iovec_t* iov, mio_iolen_t* iovcnt, const mio_devaddr_t* dstaddr)
+{
+	mio_dev_pro_slave_t* pro = (mio_dev_pro_slave_t*)dev;
+	ssize_t x;
+
+	x = writev(pro->pfd, iov, *iovcnt);
+	if (x <= -1)
+	{
+		if (errno == EINPROGRESS || errno == EWOULDBLOCK || errno == EAGAIN) return 0;  /* no data can be written */
+		if (errno == EINTR) return 0;
+		mio_seterrwithsyserr (pro->mio, 0, errno);
+		return -1;
+	}
+
+	*iovcnt = x;
 	return 1;
 }
 
@@ -640,6 +658,7 @@ static mio_dev_mth_t dev_pro_methods =
 
 	MIO_NULL,
 	MIO_NULL,
+	MIO_NULL,
 	dev_pro_ioctl
 };
 
@@ -651,6 +670,7 @@ static mio_dev_mth_t dev_pro_methods_slave =
 
 	dev_pro_read_slave,
 	dev_pro_write_slave,
+	dev_pro_writev_slave,
 	dev_pro_ioctl
 };
 

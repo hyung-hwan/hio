@@ -1136,7 +1136,7 @@ static int __dev_write (mio_dev_t* dev, const void* data, mio_iolen_t len, const
 
 		if (len <= 0) /* original length */
 		{
-			/* a zero-length writing request is to close the writing end */
+			/* a zero-length writing request is to close the writing end. this causes further write request to fail */
 			dev->dev_cap |= MIO_DEV_CAP_OUT_CLOSED;
 		}
 
@@ -1159,7 +1159,7 @@ static int __dev_write (mio_dev_t* dev, const void* data, mio_iolen_t len, const
 
 		/* read the comment in the 'if' block above for why i enqueue the write completion event 
 		 * instead of calling the event callback here...
-		 * --> if (dev->dev_evcb->on_write(dev, ulen, wrctx, dstaddr) <= -1) return -1; */
+		 *  ---> if (dev->dev_evcb->on_write(dev, ulen, wrctx, dstaddr) <= -1) return -1; */
 		goto enqueue_completed_write;
 	}
 
@@ -1269,9 +1269,225 @@ enqueue_completed_write:
 	return 0;
 }
 
+static int __dev_writev (mio_dev_t* dev, mio_iovec_t* iov, mio_iolen_t iovcnt, const mio_ntime_t* tmout, void* wrctx, const mio_devaddr_t* dstaddr)
+{
+	mio_t* mio = dev->mio;
+	mio_iolen_t urem, len;
+	mio_iolen_t index = 0, i, j;
+	mio_wq_t* q;
+	mio_cwq_t* cwq;
+	mio_oow_t cwq_extra_aligned, cwqfl_index;
+	int x;
+
+	if (dev->dev_cap & MIO_DEV_CAP_OUT_CLOSED)
+	{
+		mio_seterrbfmt (mio, MIO_ENOCAPA, "unable to write to closed device");
+		return -1;
+	}
+
+	len = 0;
+	for (i = 0; i < iovcnt; i++) len += iov[i].iov_len;
+
+	if (!MIO_WQ_ISEMPTY(&dev->wq)) 
+	{
+		/* the writing queue is not empty. 
+		 * enqueue this request immediately */
+		urem = len;
+		goto enqueue_data;
+	}
+
+	if (dev->dev_cap & MIO_DEV_CAP_STREAM)
+	{
+		/* use the do..while() loop to be able to send a zero-length data */
+		mio_iolen_t backup_index = -1, dcnt;
+		mio_iovec_t backup;
+
+		do
+		{
+			dcnt = iovcnt - index;
+			x = dev->dev_mth->writev(dev, &iov[index], &dcnt, dstaddr);
+			if (x <= -1) return -1;
+			else if (x == 0) 
+			{
+				/* [NOTE] 
+				 * the write queue is empty at this moment. a zero-length 
+				 * request for a stream device can still get enqueued if the
+				 * write callback returns 0 though i can't figure out if there
+				 * is a compelling reason to do so 
+				 */
+				goto enqueue_data; /* enqueue remaining data */
+			}
+
+			urem -= dcnt;
+			while (index < iovcnt && (mio_oow_t)dcnt >= iov[index].iov_len)
+				dcnt -= iov[index++].iov_len;
+
+			if (index == iovcnt) break;
+
+			if (backup_index != index)
+			{
+				if (backup_index >= 0) iov[backup_index] = backup;
+				backup = iov[index];
+				backup_index = index;
+			}
+
+			iov[index].iov_ptr = (void*)((mio_uint8_t*)iov[index].iov_ptr + x);
+			iov[index].iov_len -= dcnt;
+		}
+		while (1);
+
+		if (backup_index >= 0) iov[backup_index] = backup;
+
+		if (iovcnt <= 0) /* original vector count */
+		{
+			/* a zero-length writing request is to close the writing end. this causes further write request to fail */
+			dev->dev_cap |= MIO_DEV_CAP_OUT_CLOSED;
+		}
+
+		/* if i trigger the write completion callback here, the performance
+		 * may increase, but there can be annoying recursion issues if the 
+		 * callback requests another writing operation. it's imperative to
+		 * delay the callback until this write function is finished.
+		 * ---> if (dev->dev_evcb->on_write(dev, len, wrctx, dstaddr) <= -1) return -1; */
+		goto enqueue_completed_write;
+	}
+	else
+	{
+		mio_iolen_t dcnt;
+
+		dcnt = iovcnt;
+		x = dev->dev_mth->writev(dev, iov, &dcnt, dstaddr);
+		if (x <= -1) return -1;
+		else if (x == 0) goto enqueue_data;
+
+		urem -= dcnt;
+		/* partial writing is still considered ok for a non-stream device. */
+
+		/* read the comment in the 'if' block above for why i enqueue the write completion event 
+		 * instead of calling the event callback here...
+		 *  ---> if (dev->dev_evcb->on_write(dev, ulen, wrctx, dstaddr) <= -1) return -1; */
+		goto enqueue_completed_write;
+	}
+
+	return 1; /* written immediately and called on_write callback */
+
+enqueue_data:
+	if (dev->dev_cap & MIO_DEV_CAP_OUT_UNQUEUEABLE)
+	{
+		/* writing queuing is not requested. so return failure */
+		mio_seterrbfmt (mio, MIO_ENOCAPA, "device incapable of queuing");
+		return -1;
+	}
+
+	/* queue the remaining data*/
+	q = (mio_wq_t*)mio_allocmem(mio, MIO_SIZEOF(*q) + (dstaddr? dstaddr->len: 0) + urem);
+	if (!q) return -1;
+
+	q->tmridx = MIO_TMRIDX_INVALID;
+	q->dev = dev;
+	q->ctx = wrctx;
+
+	if (dstaddr)
+	{
+		q->dstaddr.ptr = (mio_uint8_t*)(q + 1);
+		q->dstaddr.len = dstaddr->len;
+		MIO_MEMCPY (q->dstaddr.ptr, dstaddr->ptr, dstaddr->len);
+	}
+	else
+	{
+		q->dstaddr.len = 0;
+	}
+
+	q->ptr = (mio_uint8_t*)(q + 1) + q->dstaddr.len;
+	q->len = urem;
+	q->olen = len;
+	for (i = index, j = 0; i < iovcnt; i++)
+	{
+		MIO_MEMCPY (&q->ptr[j], iov[i].iov_ptr, iov[i].iov_len);
+		j += iov[i].iov_len;
+	}
+
+	if (tmout && MIO_IS_POS_NTIME(tmout))
+	{
+		mio_tmrjob_t tmrjob;
+
+		MIO_MEMSET (&tmrjob, 0, MIO_SIZEOF(tmrjob));
+		tmrjob.ctx = q;
+		mio_gettime (mio, &tmrjob.when);
+		MIO_ADD_NTIME (&tmrjob.when, &tmrjob.when, tmout);
+		tmrjob.handler = on_write_timeout;
+		tmrjob.idxptr = &q->tmridx;
+
+		q->tmridx = mio_instmrjob(mio, &tmrjob);
+		if (q->tmridx == MIO_TMRIDX_INVALID) 
+		{
+			mio_freemem (mio, q);
+			return -1;
+		}
+	}
+
+	MIO_WQ_ENQ (&dev->wq, q);
+	if (!(dev->dev_cap & MIO_DEV_CAP_OUT_WATCHED))
+	{
+		/* if output is not being watched, arrange to do so */
+		if (mio_dev_watch(dev, MIO_DEV_WATCH_RENEW, 0) <= -1)
+		{
+			unlink_wq (mio, q);
+			mio_freemem (mio, q);
+			return -1;
+		}
+	}
+
+	return 0; /* request pused to a write queue. */
+
+enqueue_completed_write:
+	/* queue the remaining data*/
+	cwq_extra_aligned = (dstaddr? dstaddr->len: 0);
+	cwq_extra_aligned = MIO_ALIGN_POW2(cwq_extra_aligned, MIO_CWQFL_ALIGN);
+	cwqfl_index = cwq_extra_aligned / MIO_CWQFL_SIZE;
+
+	if (cwqfl_index < MIO_COUNTOF(mio->cwqfl) && mio->cwqfl[cwqfl_index])
+	{
+		/* take an available cwq object from the free cwq list */
+		cwq = dev->mio->cwqfl[cwqfl_index];
+		dev->mio->cwqfl[cwqfl_index] = cwq->next;
+	}
+	else
+	{
+		cwq = (mio_cwq_t*)mio_allocmem(mio, MIO_SIZEOF(*cwq) + cwq_extra_aligned);
+		if (!cwq) return -1;
+	}
+
+	MIO_MEMSET (cwq, 0, MIO_SIZEOF(*cwq));
+	cwq->dev = dev;
+	cwq->ctx = wrctx;
+	if (dstaddr)
+	{
+		cwq->dstaddr.ptr = (mio_uint8_t*)(cwq + 1);
+		cwq->dstaddr.len = dstaddr->len;
+		MIO_MEMCPY (cwq->dstaddr.ptr, dstaddr->ptr, dstaddr->len);
+	}
+	else
+	{
+		cwq->dstaddr.len = 0;
+	}
+
+	cwq->olen = len;
+
+	MIO_CWQ_ENQ (&dev->mio->cwq, cwq);
+	dev->cw_count++; /* increment the number of complete write operations */
+	return 0;
+}
+
+
 int mio_dev_write (mio_dev_t* dev, const void* data, mio_iolen_t len, void* wrctx, const mio_devaddr_t* dstaddr)
 {
 	return __dev_write(dev, data, len, MIO_NULL, wrctx, dstaddr);
+}
+
+int mio_dev_writev (mio_dev_t* dev, mio_iovec_t* iov, mio_iolen_t iovcnt, void* wrctx, const mio_devaddr_t* dstaddr)
+{
+	return __dev_writev(dev, iov, iovcnt, MIO_NULL, wrctx, dstaddr);
 }
 
 int mio_dev_timedwrite (mio_dev_t* dev, const void* data, mio_iolen_t len, const mio_ntime_t* tmout, void* wrctx, const mio_devaddr_t* dstaddr)
@@ -1279,10 +1495,9 @@ int mio_dev_timedwrite (mio_dev_t* dev, const void* data, mio_iolen_t len, const
 	return __dev_write(dev, data, len, tmout, wrctx, dstaddr);
 }
 
-int mio_dev_timedwritev (mio_dev_t* dev, const mio_iovec_t* iov, mio_iolen_t iovcnt, const mio_ntime_t* tmout, void* wrctx, const mio_devaddr_t* dstaddr)
+int mio_dev_timedwritev (mio_dev_t* dev, mio_iovec_t* iov, mio_iolen_t iovcnt, const mio_ntime_t* tmout, void* wrctx, const mio_devaddr_t* dstaddr)
 {
-	//return __dev_write(dev, data, len, tmout, wrctx, dstaddr);
-	return -1;
+	return __dev_writev(dev, iov, iovcnt, tmout, wrctx, dstaddr);
 }
 
 /* -------------------------------------------------------------------------- */
