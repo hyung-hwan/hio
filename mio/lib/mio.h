@@ -193,6 +193,7 @@ struct mio_dev_mth_t
 
 	/* ------------------------------------------------------------------ */
 	int           (*write)        (mio_dev_t* dev, const void* data, mio_iolen_t* len, const mio_devaddr_t* dstaddr);
+	int           (*writev)       (mio_dev_t* dev, const mio_iovec_t* iov, mio_iolen_t* iovcnt, const mio_devaddr_t* dstaddr);
 
 	/* ------------------------------------------------------------------ */
 	int           (*ioctl)        (mio_dev_t* dev, int cmd, void* arg);
@@ -803,6 +804,13 @@ MIO_EXPORT int mio_dev_write (
 	const mio_devaddr_t*  dstaddr
 );
 
+MIO_EXPORT int mio_dev_writev (
+	mio_dev_t*            dev,
+	mio_iovec_t*          iov,
+	mio_iolen_t           iovcnt,
+	void*                 wrctx,
+	const mio_devaddr_t*  dstaddr
+);
 
 MIO_EXPORT int mio_dev_timedwrite (
 	mio_dev_t*           dev,
@@ -816,11 +824,11 @@ MIO_EXPORT int mio_dev_timedwrite (
 
 MIO_EXPORT int mio_dev_timedwritev (
 	mio_dev_t*            dev,
-	const mio_iovec_t*    iov,
+	mio_iovec_t*          iov,
 	mio_iolen_t           iovcnt,
 	const mio_ntime_t*    tmout,
 	void*                 wrctx,
-	const mio_devaddr_t* dstaddr
+	const mio_devaddr_t*  dstaddr
 );
 
 
