@@ -160,13 +160,18 @@ static void tcp_sck_on_disconnect (mio_dev_sck_t* tcp)
 static void tcp_sck_on_connect (mio_dev_sck_t* tcp)
 {
 	mio_bch_t buf1[128], buf2[128];
+	mio_bch_t k[50000];
 	mio_iovec_t iov[] =
 	{
 		{ "hello", 5 },
 		{ "world", 5 },
-		{ "mio test", 8 }
+		{ k, MIO_COUNTOF(k) },
+		{ "mio test", 8 },
+		{ k, MIO_COUNTOF(k) }
 	};
+	int i;
 
+	
 	mio_skadtobcstr (tcp->mio, &tcp->localaddr, buf1, MIO_COUNTOF(buf1), MIO_SKAD_TO_BCSTR_ADDR | MIO_SKAD_TO_BCSTR_PORT);
 	mio_skadtobcstr (tcp->mio, &tcp->remoteaddr, buf2, MIO_COUNTOF(buf2), MIO_SKAD_TO_BCSTR_ADDR | MIO_SKAD_TO_BCSTR_PORT);
 
@@ -178,6 +183,15 @@ static void tcp_sck_on_connect (mio_dev_sck_t* tcp)
 	{
 		MIO_INFO3 (tcp->mio, "DEVICE accepted client device... .LOCAL %hs REMOTE %hs  SCK: %d\n", buf1, buf2, tcp->sck);
 	}
+
+	for (i = 0; i < MIO_COUNTOF(k); i++) k[i]  = 'A' + (i % 26);
+
+/*
+	{
+	int sndbuf = 2000;
+	mio_dev_sck_setsockopt(tcp, SOL_SOCKET, SO_SNDBUF, &sndbuf, MIO_SIZEOF(sndbuf));
+	}
+*/
 
 	if (mio_dev_sck_writev(tcp, iov, MIO_COUNTOF(iov), MIO_NULL, MIO_NULL) <= -1)
 	{

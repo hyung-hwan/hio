@@ -514,6 +514,21 @@ static MIO_INLINE int mio_dev_sck_timedread (mio_dev_sck_t* sck, int enabled, mi
 
 
 
+MIO_EXPORT int mio_dev_sck_setsockopt (
+	mio_dev_sck_t* dev,
+	int            level,
+	int            optname,
+	void*          optval,
+	mio_scklen_t   optlen
+);
+
+MIO_EXPORT int mio_dev_sck_getsockopt (
+	mio_dev_sck_t* dev,
+	int            level,
+	int            optname,
+	void*          optval,
+	mio_scklen_t*  optlen
+);
 
 MIO_EXPORT mio_uint16_t mio_checksumip (
 	const void* hdr,

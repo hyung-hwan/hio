@@ -1331,7 +1331,7 @@ static int __dev_writev (mio_dev_t* dev, mio_iovec_t* iov, mio_iolen_t iovcnt, c
 				backup_index = index;
 			}
 
-			iov[index].iov_ptr = (void*)((mio_uint8_t*)iov[index].iov_ptr + x);
+			iov[index].iov_ptr = (void*)((mio_uint8_t*)iov[index].iov_ptr + dcnt);
 			iov[index].iov_len -= dcnt;
 		}
 		while (1);
