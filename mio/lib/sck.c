@@ -554,10 +554,11 @@ static int dev_sck_writev_stateful (mio_dev_t* dev, const mio_iovec_t* iov, mio_
 	mio_t* mio = dev->mio;
 	mio_dev_sck_t* rdev = (mio_dev_sck_t*)dev;
 
-#if 0 && defined(USE_SSL)
+#if defined(USE_SSL)
 	if (rdev->ssl)
 	{
 		int x;
+		mio_iolen_t i, nwritten;
 
 		if (*iovcnt <= 0)
 		{
@@ -571,16 +572,24 @@ static int dev_sck_writev_stateful (mio_dev_t* dev, const mio_iovec_t* iov, mio_
 			return 1;
 		}
 
-		x = SSL_write((SSL*)rdev->ssl, data, *len);
-		if (x <= -1)
+		nwritten = 0;
+		for (i = 0; i < *iovcnt; i++)
 		{
-			int err = SSL_get_error ((SSL*)rdev->ssl, x);
-			if (err == SSL_ERROR_WANT_READ || err == SSL_ERROR_WANT_WRITE) return 0;
-			set_ssl_error (mio, err);
-			return -1;
+			/* no SSL_writev. invoke multiple calls to SSL_write(). 
+			 * since the write function is for the stateful connection,
+			 * mutiple calls shouldn't really matter */
+			x = SSL_write((SSL*)rdev->ssl, iov[i].iov_ptr, iov[i].iov_len);
+			if (x <= -1)
+			{
+				int err = SSL_get_error ((SSL*)rdev->ssl, x);
+				if (err == SSL_ERROR_WANT_READ || err == SSL_ERROR_WANT_WRITE) return 0;
+				set_ssl_error (mio, err);
+				return -1;
+			}
+			nwritten += x;
 		}
 
-		*len = x;
+		*iovcnt = nwritten;
 	}
 	else
 	{
@@ -624,7 +633,7 @@ static int dev_sck_writev_stateful (mio_dev_t* dev, const mio_iovec_t* iov, mio_
 		}
 
 		*iovcnt = x;
-#if 0 && defined(USE_SSL)
+#if defined(USE_SSL)
 	}
 #endif
 	return 1;
@@ -1728,6 +1737,17 @@ int mio_dev_sck_timedwritev (mio_dev_sck_t* dev, mio_iovec_t* iov, mio_iolen_t i
 	return mio_dev_timedwritev((mio_dev_t*)dev, iov, iovcnt, tmout, wrctx, skad_to_devaddr(dev, dstaddr, &devaddr));
 }
 
+
+/* ========================================================================= */
+int mio_dev_sck_setsockopt (mio_dev_sck_t* dev, int level, int optname, void* optval, mio_scklen_t optlen)
+{
+	return setsockopt(dev->sck, level, optname, optval, optlen);
+}
+
+int mio_dev_sck_getsockopt (mio_dev_sck_t* dev, int level, int optname, void* optval, mio_scklen_t* optlen)
+{
+	return getsockopt(dev->sck, level, optname, optval, optlen);
+}
 
 /* ========================================================================= */
 
