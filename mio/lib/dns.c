@@ -31,10 +31,9 @@
 
 #define DN_AT_END(ptr) (ptr[0] == '\0' || (ptr[0] == '.' && ptr[1] == '\0'))
 
-static mio_oow_t to_dn (const mio_bch_t* str, mio_uint8_t* buf, mio_oow_t bufsz)
+static mio_oow_t to_dn (const mio_bch_t* str, mio_uint8_t* buf)
 {
-	mio_uint8_t* bp = buf, * be = buf + bufsz;
-
+	mio_uint8_t* bp = buf;
 	/*MIO_ASSERT (MIO_SIZEOF(mio_uint8_t) == MIO_SIZEOF(mio_bch_t));*/
 
 	if (str && !DN_AT_END(str))
@@ -46,27 +45,60 @@ static mio_oow_t to_dn (const mio_bch_t* str, mio_uint8_t* buf, mio_oow_t bufsz)
 
 		do
 		{
-			if (bp < be) lp = bp++;
-			else lp = MIO_NULL;
+			lp = bp++;
 
 			seg = ++cur;
 			while (*cur != '\0' && *cur != '.')
 			{
-				if (bp < be) *bp++ = *cur;
+				*bp++ = *cur;
 				cur++;
 			}
 			len = cur - seg;
 			if (len <= 0 || len > 63) return 0;
 
-			if (lp) *lp = (mio_uint8_t)len;
+			*lp = (mio_uint8_t)len;
 		}
 		while (!DN_AT_END(cur));
 	}
 
-	if (bp < be) *bp++ = 0;
+	*bp++ = 0;
 
 	/* the length includes the terminating zero. */
 	return bp - buf;
+}
+
+static mio_oow_t to_dn_capa (const mio_bch_t* str)
+{
+	mio_oow_t capa;
+
+	/*MIO_ASSERT (MIO_SIZEOF(mio_uint8_t) == MIO_SIZEOF(mio_bch_t));*/
+
+	if (str && !DN_AT_END(str))
+	{
+		mio_oow_t len;
+		const mio_bch_t* seg;
+		const mio_bch_t* cur = str - 1;
+
+		do
+		{
+			capa++;
+
+			seg = ++cur;
+			while (*cur != '\0' && *cur != '.')
+			{
+				capa++;
+				cur++;
+			}
+			len = cur - seg;
+			if (len <= 0 || len > 63) return 0;
+		}
+		while (!DN_AT_END(cur));
+	}
+
+	capa++; 
+
+	/* the length includes the terminating zero. */
+	return capa;
 }
 
 static mio_oow_t dn_length (mio_uint8_t* ptr, mio_oow_t len)
@@ -261,6 +293,7 @@ static int parse_answer_rr (mio_t* mio, mio_dns_rr_part_t rr_part, mio_oow_t pos
 			goto verbatim;
 
 		case MIO_DNS_RRT_CNAME:
+		case MIO_DNS_RRT_MX:
 		case MIO_DNS_RRT_NS:
 		case MIO_DNS_RRT_PTR:
 		{
@@ -432,22 +465,22 @@ void mio_dns_free_packet_info (mio_t* mio, mio_dns_pkt_info_t* pi)
 
 /* ----------------------------------------------------------------------- */
 
-static mio_oow_t encode_rrdata_in_dns_msg (mio_t* mio, const mio_dns_brr_t* rr, mio_dns_rrtr_t* rrtr)
+static mio_oow_t encode_rrdata_in_dns_msg (mio_t* mio, const mio_dns_brr_t* rr, void* dptr)
 {
+	mio_oow_t xlen;
+
 	switch (rr->rrtype)
 	{
 		case MIO_DNS_RRT_A:
+			xlen = rr->dlen;
 			break;
 		case MIO_DNS_RRT_AAAA:
+			xlen = rr->dlen;
 			break;
 
 		/*
 		case MIO_DNS_RRT_WKS:
 			break; */
-
-		case MIO_DNS_RRT_MX:
-			/* preference, exchange */
-			break;
 
 		case MIO_DNS_RRT_CNAME: 
 		/*case MIO_DNS_RRT_MB:
@@ -455,10 +488,15 @@ static mio_oow_t encode_rrdata_in_dns_msg (mio_t* mio, const mio_dns_brr_t* rr, 
 		case MIO_DNS_RRT_MF:
 		case MIO_DNS_RRT_MG:
 		case MIO_DNS_RRT_MR:*/
+		case MIO_DNS_RRT_MX:
 		case MIO_DNS_RRT_NS:
 		case MIO_DNS_RRT_PTR:
 			/* just a normal domain name */
-			/* TODO: take a null-terminated string and encode it using to_dn() */
+			if (dptr)
+				xlen = to_dn(rr->dptr, dptr);
+			else
+				xlen = to_dn_capa(rr->dptr);
+			if (xlen <= 0)
 			break;
 
 	#if 0
@@ -471,21 +509,25 @@ static mio_oow_t encode_rrdata_in_dns_msg (mio_t* mio, const mio_dns_brr_t* rr, 
 		case MIO_DNS_RRT_MINFO:
 			/* rmailbx, emailbx */
 	#endif
+			xlen = rr->dlen;
 			break;
 		
 		case MIO_DNS_RRT_SOA:
 			/* soa */
+			xlen = rr->dlen;
 			break;
 
 		case MIO_DNS_RRT_TXT:
 		case MIO_DNS_RRT_NULL:
 		default:
 			/* TODO: custom transformator? */
-			rrtr->dlen = mio_hton16(rr->dlen);
-			if (rr->dlen > 0) MIO_MEMCPY (rrtr + 1, rr->dptr, rr->dlen);
+			if (rr->dlen > 0) MIO_MEMCPY (dptr, rr->dptr, rr->dlen);
+			xlen = rr->dlen;
+			break;
 	}
 
-	return rr->dlen;
+	if (MIO_UNLIKELY(xlen > MIO_TYPE_MAX(mio_uint16_t))) return 0;
+	return xlen;
 }
 
 mio_dns_msg_t* mio_dns_make_msg (mio_t* mio, mio_dns_bhdr_t* bhdr, mio_dns_bqr_t* qr, mio_oow_t qr_count, mio_dns_brr_t* rr, mio_oow_t rr_count, mio_dns_bedns_t* edns, mio_oow_t xtnsize)
@@ -503,15 +545,20 @@ mio_dns_msg_t* mio_dns_make_msg (mio_t* mio, mio_dns_bhdr_t* bhdr, mio_dns_bqr_t
 
 	for (i = 0; i < qr_count; i++)
 	{
-		/* <length>segmnet<length>segment<zero>.
-		 * if the input has the ending period(e.g. mio.lib.), the dn length is namelen + 1. 
-		 * if the input doesn't have the ending period(e.g. mio.lib) . the dn length is namelen + 2. */
-		pktlen += mio_count_bcstr(qr[i].qname) + 2 + MIO_SIZEOF(*qrtr);
+		pktlen += to_dn_capa(qr[i].qname) + MIO_SIZEOF(*qrtr);
 	}
 
 	for (i = 0; i < rr_count; i++)
 	{
-		pktlen += mio_count_bcstr(rr[i].rrname) + 2 + MIO_SIZEOF(*rrtr) + rr[i].dlen;
+		mio_oow_t rrdata_len;
+		rrdata_len = encode_rrdata_in_dns_msg(mio, &rr[i], MIO_NULL);
+		if (MIO_UNLIKELY(rrdata_len <= 0))
+		{
+			/* invalid rrdata */
+			mio_seterrnum (mio, MIO_EINVAL);
+			return MIO_NULL;
+		}
+		pktlen += to_dn_capa(rr[i].rrname) + MIO_SIZEOF(*rrtr) + rrdata_len;
 	}
 
 	edns_dlen = 0;
@@ -560,7 +607,7 @@ mio_dns_msg_t* mio_dns_make_msg (mio_t* mio, mio_dns_bhdr_t* bhdr, mio_dns_bqr_t
 	for (i = 0; i < qr_count; i++)
 	{
 		/* dnlen includes the ending <zero> */
-		dnlen = to_dn(qr[i].qname, dn, mio_count_bcstr(qr[i].qname) + 2);
+		dnlen = to_dn(qr[i].qname, dn);
 		if (dnlen <= 0)
 		{
 			mio_dns_free_msg (mio, msg);
@@ -581,9 +628,9 @@ mio_dns_msg_t* mio_dns_make_msg (mio_t* mio, mio_dns_bhdr_t* bhdr, mio_dns_bqr_t
 		{
 			if (rr[i].part == rr_sect)
 			{
-				mio_oow_t rdata_len;
+				mio_oow_t rrdata_len;
 
-				dnlen = to_dn(rr[i].rrname, dn, mio_count_bcstr(rr[i].rrname) + 2);
+				dnlen = to_dn(rr[i].rrname, dn);
 				if (dnlen <= 0)
 				{
 					mio_dns_free_msg (mio, msg);
@@ -596,8 +643,10 @@ mio_dns_msg_t* mio_dns_make_msg (mio_t* mio, mio_dns_bhdr_t* bhdr, mio_dns_bqr_t
 				rrtr->rrclass = mio_hton16(rr[i].rrclass);
 				rrtr->ttl = mio_hton32(rr[i].ttl);
 
-				rdata_len = encode_rrdata_in_dns_msg(mio, &rr[i], rrtr);
-				dn = (mio_uint8_t*)(rrtr + 1) + rdata_len;
+				rrdata_len = encode_rrdata_in_dns_msg(mio, &rr[i], rrtr + 1);
+				MIO_ASSERT (mio, rrdata_len > 0);
+				rrtr->dlen = mio_hton16(rrdata_len);
+				dn = (mio_uint8_t*)(rrtr + 1) + rrdata_len;
 
 				match_count++;
 			}
