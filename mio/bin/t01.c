@@ -953,12 +953,12 @@ for (i = 0; i < 5; i++)
 	reply_tmout.nsec = 0;
 
 
-	//mio_bcstrtoskad (mio, "8.8.8.8:53", &servaddr);
+	mio_bcstrtoskad (mio, "8.8.8.8:53", &servaddr);
 	//mio_bcstrtoskad (mio, "[fe80::c7e2:bd6e:1209:ac1b]:1153", &servaddr);
-	mio_bcstrtoskad (mio, "[fe80::c7e2:bd6e:1209:ac1b%eno1]:1153", &servaddr);
+	//mio_bcstrtoskad (mio, "[fe80::c7e2:bd6e:1209:ac1b%eno1]:1153", &servaddr);
 	dnc = mio_svc_dnc_start (mio, &servaddr, MIO_NULL, &send_tmout, &reply_tmout, 2); /* option - send to all, send one by one */
 
-#if 1
+#if 0
 	{
 		mio_dns_bqr_t qrs[] = 
 		{
