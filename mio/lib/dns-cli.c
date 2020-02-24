@@ -91,7 +91,6 @@ static mio_dns_msg_t* build_dns_msg (mio_svc_dnc_t* dnc, mio_dns_bhdr_t* bdns, m
 	msg = mio_dns_make_msg(dnc->mio, bdns, qr, qr_count, rr, rr_count, edns, MIO_SIZEOF(*msgxtn) + xtnsize);
 	if (msg)
 	{
-		
 		if (bdns->id < 0)
 		{
 			mio_dns_pkt_t* pkt = mio_dns_msg_to_pkt(msg);

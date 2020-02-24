@@ -69,7 +69,7 @@ static mio_oow_t to_dn (const mio_bch_t* str, mio_uint8_t* buf)
 
 static mio_oow_t to_dn_capa (const mio_bch_t* str)
 {
-	mio_oow_t capa;
+	mio_oow_t capa = 0;
 
 	/*MIO_ASSERT (MIO_SIZEOF(mio_uint8_t) == MIO_SIZEOF(mio_bch_t));*/
 
