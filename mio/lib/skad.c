@@ -790,7 +790,7 @@ int mio_bcharstoskad (mio_t* mio, const mio_bch_t* str, mio_oow_t len, mio_skad_
 unrecog:
 	mio_seterrbfmt (mio, MIO_EINVAL, "unrecognized address");
 	return -1;
-	
+
 no_rbrack:
 	mio_seterrbfmt (mio, MIO_EINVAL, "missing right bracket");
 	return -1;
@@ -827,7 +827,7 @@ no_rbrack:
 
 /* ---------------------------------------------------------- */
 
-static mio_oow_t ip4addr_to_ucstr (const struct in_addr* ipad, mio_uch_t* buf, mio_oow_t size)
+static mio_oow_t ip4ad_to_ucstr (const struct in_addr* ipad, mio_uch_t* buf, mio_oow_t size)
 {
 	mio_uint8_t b;
 	mio_uch_t* p, * end;
@@ -859,7 +859,7 @@ static mio_oow_t ip4addr_to_ucstr (const struct in_addr* ipad, mio_uch_t* buf, m
 }
 
 
-static mio_oow_t ip6addr_to_ucstr (const struct in6_addr* ipad, mio_uch_t* buf, mio_oow_t size)
+static mio_oow_t ip6ad_to_ucstr (const struct in6_addr* ipad, mio_uch_t* buf, mio_oow_t size)
 {
 	/*
 	 * Note that int32_t and int16_t need only be "at least" large enough
@@ -942,7 +942,7 @@ static mio_oow_t ip6addr_to_ucstr (const struct in6_addr* ipad, mio_uch_t* buf, 
 		{
 			struct in_addr ip4ad;
 			MIO_MEMCPY (&ip4ad.s_addr, ipad->s6_addr + 12, MIO_SIZEOF(ip4ad.s_addr));
-			tp += ip4addr_to_ucstr(&ip4ad, tp, MIO_COUNTOF(tmp) - (tp - tmp));
+			tp += ip4ad_to_ucstr(&ip4ad, tp, MIO_COUNTOF(tmp) - (tp - tmp));
 			break;
 		}
 
@@ -972,7 +972,7 @@ mio_oow_t mio_skadtoucstr (mio_t* mio, const mio_skad_t* _skad, mio_uch_t* buf, 
 			if (flags & MIO_SKAD_TO_BCSTR_ADDR)
 			{
 				if (xlen + 1 >= len) goto done;
-				xlen += ip4addr_to_ucstr(&skad->in4.sin_addr, buf, len);
+				xlen += ip4ad_to_ucstr(&skad->in4.sin_addr, buf, len);
 			}
 
 			if (flags & MIO_SKAD_TO_BCSTR_PORT)
@@ -1007,7 +1007,7 @@ mio_oow_t mio_skadtoucstr (mio_t* mio, const mio_skad_t* _skad, mio_uch_t* buf, 
 			if (flags & MIO_SKAD_TO_BCSTR_ADDR)
 			{
 				if (xlen + 1 >= len) goto done;
-				xlen += ip6addr_to_ucstr(&skad->in6.sin6_addr, &buf[xlen], len - xlen);
+				xlen += ip6ad_to_ucstr(&skad->in6.sin6_addr, &buf[xlen], len - xlen);
 
 				if (skad->in6.sin6_scope_id != 0)
 				{
@@ -1073,7 +1073,7 @@ done:
 
 /* ---------------------------------------------------------- */
 
-static mio_oow_t ip4addr_to_bcstr (const struct in_addr* ipad, mio_bch_t* buf, mio_oow_t size)
+static mio_oow_t ip4ad_to_bcstr (const struct in_addr* ipad, mio_bch_t* buf, mio_oow_t size)
 {
 	mio_uint8_t b;
 	mio_bch_t* p, * end;
@@ -1105,7 +1105,7 @@ static mio_oow_t ip4addr_to_bcstr (const struct in_addr* ipad, mio_bch_t* buf, m
 }
 
 
-static mio_oow_t ip6addr_to_bcstr (const struct in6_addr* ipad, mio_bch_t* buf, mio_oow_t size)
+static mio_oow_t ip6ad_to_bcstr (const struct in6_addr* ipad, mio_bch_t* buf, mio_oow_t size)
 {
 	/*
 	 * Note that int32_t and int16_t need only be "at least" large enough
@@ -1188,7 +1188,7 @@ static mio_oow_t ip6addr_to_bcstr (const struct in6_addr* ipad, mio_bch_t* buf, 
 		{
 			struct in_addr ip4ad;
 			MIO_MEMCPY (&ip4ad.s_addr, ipad->s6_addr + 12, MIO_SIZEOF(ip4ad.s_addr));
-			tp += ip4addr_to_bcstr(&ip4ad, tp, MIO_COUNTOF(tmp) - (tp - tmp));
+			tp += ip4ad_to_bcstr(&ip4ad, tp, MIO_COUNTOF(tmp) - (tp - tmp));
 			break;
 		}
 
@@ -1218,7 +1218,7 @@ mio_oow_t mio_skadtobcstr (mio_t* mio, const mio_skad_t* _skad, mio_bch_t* buf, 
 			if (flags & MIO_SKAD_TO_BCSTR_ADDR)
 			{
 				if (xlen + 1 >= len) goto done;
-				xlen += ip4addr_to_bcstr(&skad->in4.sin_addr, buf, len);
+				xlen += ip4ad_to_bcstr(&skad->in4.sin_addr, buf, len);
 			}
 
 			if (flags & MIO_SKAD_TO_BCSTR_PORT)
@@ -1254,7 +1254,7 @@ mio_oow_t mio_skadtobcstr (mio_t* mio, const mio_skad_t* _skad, mio_bch_t* buf, 
 			{
 
 				if (xlen + 1 >= len) goto done;
-				xlen += ip6addr_to_bcstr(&skad->in6.sin6_addr, &buf[xlen], len - xlen);
+				xlen += ip6ad_to_bcstr(&skad->in6.sin6_addr, &buf[xlen], len - xlen);
 
 				if (skad->in6.sin6_scope_id != 0)
 				{
@@ -1381,7 +1381,7 @@ int mio_skad_ifindex (const mio_skad_t* _skad)
 }
 
 
-void mio_skad_init_for_ip4 (mio_skad_t* skad, mio_uint16_t port, mio_ip4addr_t* ip4addr)
+void mio_skad_init_for_ip4 (mio_skad_t* skad, mio_uint16_t port, mio_ip4ad_t* ip4ad)
 {
 #if (MIO_SIZEOF_STRUCT_SOCKADDR_IN > 0)
 	struct sockaddr_in* sin = (struct sockaddr_in*)skad;
@@ -1389,11 +1389,11 @@ void mio_skad_init_for_ip4 (mio_skad_t* skad, mio_uint16_t port, mio_ip4addr_t* 
 	MIO_MEMSET (sin, 0, MIO_SIZEOF(*sin));
 	sin->sin_family = AF_INET;
 	sin->sin_port = htons(port);
-	if (ip4addr) MIO_MEMCPY (&sin->sin_addr, ip4addr, MIO_IP4ADDR_LEN);
+	if (ip4ad) MIO_MEMCPY (&sin->sin_addr, ip4ad, MIO_IP4ADDR_LEN);
 #endif
 }
 
-void mio_skad_init_for_ip6 (mio_skad_t* skad, mio_uint16_t port, mio_ip6addr_t* ip6addr, int scope_id)
+void mio_skad_init_for_ip6 (mio_skad_t* skad, mio_uint16_t port, mio_ip6ad_t* ip6ad, int scope_id)
 {
 #if (MIO_SIZEOF_STRUCT_SOCKADDR_IN6 > 0)
 	struct sockaddr_in6* sin = (struct sockaddr_in6*)skad;
@@ -1402,7 +1402,7 @@ void mio_skad_init_for_ip6 (mio_skad_t* skad, mio_uint16_t port, mio_ip6addr_t* 
 	sin->sin6_family = AF_INET;
 	sin->sin6_port = htons(port);
 	sin->sin6_scope_id = scope_id;
-	if (ip6addr) MIO_MEMCPY (&sin->sin6_addr, ip6addr, MIO_IP6ADDR_LEN);
+	if (ip6ad) MIO_MEMCPY (&sin->sin6_addr, ip6ad, MIO_IP6ADDR_LEN);
 #endif
 }
 
