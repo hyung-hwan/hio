@@ -952,7 +952,6 @@ for (i = 0; i < 5; i++)
 	reply_tmout.sec = 1;
 	reply_tmout.nsec = 0;
 
-
 	mio_bcstrtoskad (mio, "8.8.8.8:53", &servaddr);
 	//mio_bcstrtoskad (mio, "[fe80::c7e2:bd6e:1209:ac1b]:1153", &servaddr);
 	//mio_bcstrtoskad (mio, "[fe80::c7e2:bd6e:1209:ac1b%eno1]:1153", &servaddr);
@@ -968,10 +967,14 @@ for (i = 0; i < 5; i++)
 			{ "code6.abiyo.net",  MIO_DNS_RRT_AAAA, MIO_DNS_RRC_IN },
 			{ "abiyo.net",        MIO_DNS_RRT_MX,   MIO_DNS_RRC_IN }
 		};
+
+		mio_ip4ad_t rrdata_a = { { 4, 3, 2, 1 } };
+		mio_ip6ad_t rrdata_aaaa = { { 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, }};
+
 		mio_dns_brr_t rrs[] = 
 		{
-			{ MIO_DNS_RR_PART_ANSWER,    "code.miflux.com",  MIO_DNS_RRT_A,     MIO_DNS_RRC_IN, 86400, 0,  MIO_NULL },
-			{ MIO_DNS_RR_PART_ANSWER,    "code.miflux.com",  MIO_DNS_RRT_AAAA,  MIO_DNS_RRC_IN, 86400, 0,  MIO_NULL },
+			{ MIO_DNS_RR_PART_ANSWER,    "code.miflux.com",  MIO_DNS_RRT_A,     MIO_DNS_RRC_IN, 86400, MIO_SIZEOF(rrdata_a),    &rrdata_a },
+			{ MIO_DNS_RR_PART_ANSWER,    "code.miflux.com",  MIO_DNS_RRT_AAAA,  MIO_DNS_RRC_IN, 86400, MIO_SIZEOF(rrdata_aaaa), &rrdata_aaaa },
 			{ MIO_DNS_RR_PART_ANSWER,    "miflux.com",       MIO_DNS_RRT_NS,    MIO_DNS_RRC_IN, 86400, 0,  "ns1.miflux.com" },
 			{ MIO_DNS_RR_PART_ANSWER,    "miflux.com",       MIO_DNS_RRT_NS,    MIO_DNS_RRC_IN, 86400, 0,  "ns2.miflux.com" }, //, 
 			//{ MIO_DNS_RR_PART_AUTHORITY, "miflux.com",       MIO_DNS_RRT_SOA,    MIO_DNS_RRC_IN, 86400, 0,  "ns2.miflux.com" }, //, 
@@ -1028,6 +1031,7 @@ for (i = 0; i < 5; i++)
 		mio_svc_dnc_sendmsg (dnc, &rhdr, qrs, MIO_COUNTOF(qrs), rrs, MIO_COUNTOF(rrs), &qedns, MIO_NULL, 0);
 	}
 #endif
+
 
 if (!mio_svc_dnc_resolve(dnc, "a.wild.com", MIO_DNS_RRT_A, 0, on_dnc_resolve, 0))
 {

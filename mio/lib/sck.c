@@ -986,18 +986,17 @@ static int dev_sck_ioctl (mio_dev_t* dev, int cmd, void* arg)
 				                           SSL_MODE_ACCEPT_MOVING_WRITE_BUFFER);
 			}
 		#endif
+			/* the socket is already non-blocking */
 /*{
 int flags = fcntl (rdev->sck, F_GETFL);
 fcntl (rdev->sck, F_SETFL, flags & ~O_NONBLOCK);
 }*/
-
-			/* the socket is already non-blocking */
 			x = connect(rdev->sck, sa, sl);
 /*{
 int flags = fcntl (rdev->sck, F_GETFL);
 fcntl (rdev->sck, F_SETFL, flags | O_NONBLOCK);
 }*/
-			if (x == -1)
+			if (x <= -1)
 			{
 				if (errno == EINPROGRESS || errno == EWOULDBLOCK || errno == EAGAIN)
 				{
@@ -1051,70 +1050,24 @@ fcntl (rdev->sck, F_SETFL, flags | O_NONBLOCK);
 			else
 			{
 				/* connected immediately */
+
+				/* don't call on_connect() callback even though the connection has been established.
+				 * i don't want on_connect() to be called within the this function. */
+				if (mio_dev_watch((mio_dev_t*)rdev, MIO_DEV_WATCH_UPDATE, MIO_DEV_EVENT_IN | MIO_DEV_EVENT_OUT) <= -1)
+				{
+					/* watcher update failure. it's critical */
+					mio_stop (mio, MIO_STOPREQ_WATCHER_ERROR);
+					goto oops_connect;
+				}
+
+				/* as i know it's connected already,
+				 * i don't schedule a connection timeout job */
+
 				rdev->remoteaddr = conn->remoteaddr;
-
-				sl = MIO_SIZEOF(localaddr);
-				if (getsockname(rdev->sck, (struct sockaddr*)&localaddr, &sl) == 0) rdev->localaddr = localaddr;
-
 			#if defined(USE_SSL)
-				if (ssl_ctx)
-				{
-					int x;
-					rdev->ssl_ctx = ssl_ctx;
-
-					x = connect_ssl(rdev);
-					if (x <= -1) 
-					{
-						SSL_CTX_free (rdev->ssl_ctx);
-						rdev->ssl_ctx = MIO_NULL;
-
-						MIO_ASSERT (mio, rdev->ssl == MIO_NULL);
-						return -1;
-					}
-					if (x == 0) 
-					{
-						MIO_ASSERT (mio, rdev->tmrjob_index == MIO_TMRIDX_INVALID);
-						MIO_INIT_NTIME (&rdev->tmout, 0, 0); /* just in case */
-
-						/* it's ok to use conn->connect_tmout for ssl-connect as
-						 * the underlying socket connection has been established immediately */
-						if (MIO_IS_POS_NTIME(&conn->connect_tmout))
-						{
-							if (schedule_timer_job_after(rdev, &conn->connect_tmout, ssl_connect_timedout) <= -1) 
-							{
-								/* no device halting in spite of failure.
-								 * let the caller handle this after having 
-								 * checked the return code as it is an IOCTL call. */
-								SSL_CTX_free (rdev->ssl_ctx);
-								rdev->ssl_ctx = MIO_NULL;
-
-								MIO_ASSERT (mio, rdev->ssl == MIO_NULL);
-								return -1;
-							}
-							else
-							{
-								/* update rdev->tmout to the deadline of the connect timeout job */
-								MIO_ASSERT (mio, rdev->tmrjob_index != MIO_TMRIDX_INVALID);
-								mio_gettmrjobdeadline (mio, rdev->tmrjob_index, &rdev->tmout);
-							}
-						}
-
-						MIO_DEV_SCK_SET_PROGRESS (rdev, MIO_DEV_SCK_CONNECTING_SSL);
-					}
-					else 
-					{
-						goto ssl_connected;
-					}
-				}
-				else
-				{
-				ssl_connected:
+				rdev->ssl_ctx = ssl_ctx;
 			#endif
-					MIO_DEV_SCK_SET_PROGRESS (rdev, MIO_DEV_SCK_CONNECTED);
-					if (rdev->on_connect) rdev->on_connect (rdev);
-			#if defined(USE_SSL)
-				}
-			#endif
+				MIO_DEV_SCK_SET_PROGRESS (rdev, MIO_DEV_SCK_CONNECTING);
 				return 0;
 			}
 		}

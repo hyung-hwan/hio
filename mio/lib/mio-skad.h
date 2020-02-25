@@ -75,17 +75,17 @@ struct MIO_PACKED mio_ethaddr_t
 };
 typedef struct mio_ethaddr_t mio_ethaddr_t;
 
-struct MIO_PACKED mio_ip4addr_t
+struct MIO_PACKED mio_ip4ad_t
 {
 	mio_uint8_t v[MIO_IP4ADDR_LEN];
 };
-typedef struct mio_ip4addr_t mio_ip4addr_t;
+typedef struct mio_ip4ad_t mio_ip4ad_t;
 
-struct MIO_PACKED mio_ip6addr_t
+struct MIO_PACKED mio_ip6ad_t
 {
 	mio_uint8_t v[MIO_IP6ADDR_LEN]; 
 };
-typedef struct mio_ip6addr_t mio_ip6addr_t;
+typedef struct mio_ip6ad_t mio_ip6ad_t;
 #include <mio-upac.h>
 
 #if defined(__cplusplus)
@@ -137,13 +137,13 @@ MIO_EXPORT mio_oow_t mio_skadtobcstr (
 MIO_EXPORT void mio_skad_init_for_ip4 (
 	mio_skad_t*        skad,
 	mio_uint16_t       port,
-	mio_ip4addr_t*     ip4addr
+	mio_ip4ad_t*       ip4ad
 );
 
 MIO_EXPORT void mio_skad_init_for_ip6 (
 	mio_skad_t*        skad,
 	mio_uint16_t       port,
-	mio_ip6addr_t*     ip6addr,
+	mio_ip6ad_t*       ip6ad,
 	int                scope_id
 );
 
