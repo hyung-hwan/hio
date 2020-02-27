@@ -69,7 +69,7 @@ struct dnc_dns_msg_xtn_t
 	mio_dns_msg_t* prev;
 	mio_dns_msg_t* next;
 	mio_skad_t     servaddr;
-	mio_svc_dnc_on_reply_t on_reply;
+	mio_svc_dnc_on_done_t on_done;
 	mio_ntime_t    wtmout;
 	mio_ntime_t    rtmout;
 	int            rmaxtries; /* maximum number of tries to receive a reply */
@@ -128,18 +128,71 @@ MIO_DEBUG1 (mio, "releasing dns msg %d\n", (int)mio_ntoh16(mio_dns_msg_to_pkt(ms
 
 static int on_tcp_read (mio_dev_sck_t* dev, const void* data, mio_iolen_t dlen, const mio_skad_t* srcaddr)
 {
+	mio_t* mio = dev->mio;
+	mio_svc_dnc_t* dnc = ((dnc_sck_xtn_t*)mio_dev_sck_getxtn(dev))->dnc;
+	mio_dns_msg_t* reqmsg = ((dnc_sck_xtn_t*)mio_dev_sck_getxtn(dev))->reqmsg;
+	dnc_dns_msg_xtn_t* reqmsgxtn = dnc_dns_msg_getxtn(reqmsg);
+	mio_dns_pkt_t* pkt;
+	mio_uint16_t id;
+
+//	mio_dns_pkt_t* pkt;
+	mio_errnum_t status;
+
 	if (MIO_UNLIKELY(dlen <= -1))
 	{
-printf ("ON TCP READ ERROR>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>> %d\n", dlen);	
+		status = mio_geterrnum(mio);
+		MIO_DEBUG1 (mio, "dns tcp read error ....%js\n", mio_geterrmsg(mio)); /* TODO: add source packet */
+		goto finalize;
 	}
 	else if (dlen == 0)
 	{
-printf ("ON TCP READ EOF>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>> %d\n", dlen);	
+		status = MIO_EDEVHUP;
+		MIO_DEBUG0 (mio, "dns tcp read error ...premature socket hangul\n"); /* TODO: add source packet */
+		goto finalize;
 	}
-	else
+
+/* assemble the first two bytes.
+ * read as many as those two bytes.. */
+
+#if 0
+	if (MIO_UNLIKELY(dlen < MIO_SIZEOF(*pkt))) 
 	{
-printf ("ON TCP READ DATA>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>> %d\n", dlen);	
+		status = MIO_E
+		MIO_DEBUG0 (mio, "dns packet too small from ....\n"); /* TODO: add source packet */
 	}
+	pkt = (mio_dns_pkt_t*)data;
+	if (!pkt->qr) 
+	{
+		MIO_DEBUG0 (mio, "dropping dns request received ...\n"); /* TODO: add source info */
+	}
+
+	//id = mio_ntoh16(pkt->id);
+#endif
+MIO_DEBUG0 (mio, "<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<GOT DATA>>>>>>>>>>>>>>>>>>>>>>>>>>>>>\n");
+
+// must not read it this way...
+	if (reqmsgxtn->rtmridx != MIO_TMRIDX_INVALID)
+	{
+		/* unschedule a timer job if any */
+		mio_deltmrjob (mio, reqmsgxtn->rtmridx);
+		MIO_ASSERT (mio, reqmsgxtn->rtmridx == MIO_TMRIDX_INVALID);
+	}
+
+	if (MIO_LIKELY(reqmsgxtn->on_done))
+	{
+		reqmsgxtn->on_done (dnc, reqmsg, MIO_ENOERR, (mio_uint8_t*)data + 2, dlen - 2);
+		reqmsgxtn->on_done = MIO_NULL;
+	}
+	mio_dev_sck_halt(dev);
+	return 0;
+
+finalize:
+	if (MIO_LIKELY(reqmsgxtn->on_done))
+	{
+		reqmsgxtn->on_done (dnc, reqmsg, status, MIO_NULL, 0);
+		reqmsgxtn->on_done = MIO_NULL;
+	}
+	mio_dev_sck_halt(dev);
 	return 0;
 }
 
@@ -155,11 +208,11 @@ static void on_tcp_reply_timeout (mio_t* mio, const mio_ntime_t* now, mio_tmrjob
 
 MIO_DEBUG0 (mio, "*** TIMEOUT ==> unable to receive dns response in time over TCP...\n");
 
-	if (MIO_LIKELY(msgxtn->on_reply))
-		msgxtn->on_reply (dnc, reqmsg, MIO_ETMOUT, MIO_NULL, 0);
-
-	//release_dns_msg (dnc, reqmsg);
-
+	if (MIO_LIKELY(msgxtn->on_done))
+	{
+		msgxtn->on_done (dnc, reqmsg, MIO_ETMOUT, MIO_NULL, 0);
+		msgxtn->on_done = MIO_NULL;
+	}
 	mio_dev_sck_halt(dev);
 }
 
@@ -169,15 +222,13 @@ static int on_tcp_write (mio_dev_sck_t* dev, mio_iolen_t wrlen, void* wrctx, con
 	mio_dns_msg_t* msg = (mio_dns_msg_t*)wrctx;
 	dnc_dns_msg_xtn_t* msgxtn = dnc_dns_msg_getxtn(msg);
 	mio_svc_dnc_t* dnc = ((dnc_sck_xtn_t*)mio_dev_sck_getxtn(dev))->dnc;
+	mio_errnum_t status;
 
-printf ("ON TCP WRITE >>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>\n");
 	if (wrlen <= -1)
 	{
-		if (MIO_LIKELY(msgxtn->on_reply))
-			msgxtn->on_reply (dnc, msg, mio_geterrnum(mio), MIO_NULL, 0);
-
-//		release_dns_msg (dnc, msg);
-		mio_dev_sck_halt (dev);
+		/* send failure */
+		status = mio_geterrnum(mio);
+		goto finalize;
 	}
 	else if (mio_dns_msg_to_pkt(msg)->qr == 0 && msgxtn->rmaxtries > 0)
 	{
@@ -194,23 +245,26 @@ printf ("ON TCP WRITE >>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>\n");
 		if (msgxtn->rtmridx == MIO_TMRIDX_INVALID)
 		{
 			/* call the callback to indicate this operation failure in the middle of transaction */
-			if (MIO_LIKELY(msgxtn->on_reply))
-				msgxtn->on_reply (dnc, msg, mio_geterrnum(mio), MIO_NULL, 0);
-
-			//release_dns_msg (dnc, msg);
-			mio_dev_sck_halt (dev);
-
-			MIO_DEBUG0 (mio, "unable to schedule timeout...\n");
+			status = mio_geterrnum(mio);
+			MIO_DEBUG0 (mio, "unable to schedule tcp timeout...\n");
+			goto finalize;
 		}
 	}
 	else
 	{
-		/* sent an answer - we don't need this any more */
-		/* we don't call the on_reply callback stored in msg->ctx as this is not a reply context */
-//		release_dns_msg (dnc, msg);
-		mio_dev_sck_halt (dev);
+		status = MIO_ENOERR;
+		goto finalize;
 	}
 
+	return 0;
+
+finalize:
+	if (MIO_LIKELY(msgxtn->on_done))
+	{
+		msgxtn->on_done (dnc, msg, status, MIO_NULL, 0);
+		msgxtn->on_done = MIO_NULL;
+	}
+	mio_dev_sck_halt (dev);
 	return 0;
 }
 
@@ -235,10 +289,12 @@ static void on_tcp_connect (mio_dev_sck_t* dev)
 	iov[1].iov_len = reqmsg->pktlen;
 	if (mio_dev_sck_timedwritev(dev, iov, MIO_COUNTOF(iov), &reqmsgxtn->rtmout, reqmsg, MIO_NULL) <= -1)
 	{
-		if (MIO_LIKELY(reqmsgxtn->on_reply))
-			reqmsgxtn->on_reply (dnc, reqmsg, mio_geterrnum(mio), MIO_NULL, 0);
-
-		release_dns_msg (dnc, reqmsg);
+		if (MIO_LIKELY(reqmsgxtn->on_done))
+		{
+			reqmsgxtn->on_done (dnc, reqmsg, mio_geterrnum(mio), MIO_NULL, 0);
+			reqmsgxtn->on_done = MIO_NULL;
+		}
+		mio_dev_sck_halt (dev);
 	}
 }
 
@@ -254,11 +310,17 @@ static void on_tcp_disconnect (mio_dev_sck_t* dev)
 	
 	status = mio_geterrnum(mio);
 
-MIO_DEBUG2 (mio, "TCP UNABLED TO CONNECT .. OR DISCONNECTED ... ---> %d -> %js\n", status, mio_errnum_to_errstr(status));
+	if (status == MIO_ENOERR)
+	{
+		MIO_DEBUG0 (mio, "TCP DISCONNECTED\n");
+	}
+	else
+	{
+		MIO_DEBUG2 (mio, "TCP UNABLED TO CONNECT  %d -> %js\n", status, mio_errnum_to_errstr(status));
+	}
 
-	if (MIO_LIKELY(reqmsgxtn->on_reply))
-		reqmsgxtn->on_reply (dnc, reqmsg, status, MIO_NULL, 0);
-
+printf ("KILLING REQMSG %p REQMSGXTN %p\n", reqmsg, reqmsgxtn);
+	if (MIO_LIKELY(reqmsgxtn->on_done)) reqmsgxtn->on_done (dnc, reqmsg, status, MIO_NULL, 0);
 	release_dns_msg (dnc, reqmsg);
 
 	/* let's forget about the tcp socket */
@@ -308,13 +370,19 @@ static int switch_reqmsg_transport_to_tcp (mio_svc_dnc_t* dnc, mio_dns_msg_t* re
 	cinfo.remoteaddr = reqmsgxtn->servaddr;
 	cinfo.connect_tmout = reqmsgxtn->rtmout; /* TOOD: create a separate connect timeout or treate rtmout as a whole transaction time and calculate the remaining time from the transaction start, and use it */
 
-	if (mio_dev_sck_connect(dnc->tcp_sck, &cinfo) <= -1) return -1; /* the connect request hasn't been honored. */
+	if (mio_dev_sck_connect(dnc->tcp_sck, &cinfo) <= -1) 
+	{
+		mio_dev_sck_kill (dnc->tcp_sck);
+		dnc->tcp_sck = MIO_NULL;
+		return -1; /* the connect request hasn't been honored. */
+	}
 
 	/* switch the belonging device to the tcp socket since the connect request has been acknowledged. */
 	MIO_ASSERT (mio, reqmsgxtn->rtmridx == MIO_TMRIDX_INVALID); /* ensure no timer job scheduled at this moment */
 	reqmsgxtn->dev = (mio_dev_t*)dnc->tcp_sck;
 	reqmsgxtn->rtries = 0; /* i don't retry with tcp. so reset this to 0 */
 
+printf ("SWITCHED >>>>>>>>>>>>>>>>> %p %p %p %p %p\n", reqmsg, reqmsgxtn, reqmsgxtn->dev, dnc->udp_sck, dnc->tcp_sck);
 	return 0;
 }
 
@@ -327,6 +395,12 @@ static int on_udp_read (mio_dev_sck_t* dev, const void* data, mio_iolen_t dlen, 
 	mio_dns_pkt_t* pkt;
 	mio_dns_msg_t* reqmsg;
 	mio_uint16_t id;
+
+	if (MIO_UNLIKELY(dlen <= -1))
+	{
+		MIO_DEBUG1 (mio, "dns read error ....%js\n", mio_geterrmsg(mio)); /* TODO: add source packet */
+		return 0;
+	}
 
 	if (MIO_UNLIKELY(dlen < MIO_SIZEOF(*pkt))) 
 	{
@@ -353,6 +427,7 @@ static int on_udp_read (mio_dev_sck_t* dev, const void* data, mio_iolen_t dlen, 
 
 		if (dev == (mio_dev_sck_t*)reqmsgxtn->dev && pkt->id == reqpkt->id && mio_equal_skads(&reqmsgxtn->servaddr, srcaddr, 0))
 		{
+printf ("MATCHED >>>>>>>>>>>>>>>>> %p %p %p %p %p\n", reqmsg, reqmsgxtn, reqmsgxtn->dev, dnc->udp_sck, dnc->tcp_sck);
 			if (reqmsgxtn->rtmridx != MIO_TMRIDX_INVALID)
 			{
 				/* unschedule a timer job if any */
@@ -366,17 +441,16 @@ pkt->tc = 1;
 			if (MIO_UNLIKELY(pkt->tc))
 			{
 				/* TODO: add an option for this behavior */
-				if (switch_reqmsg_transport_to_tcp(dnc, reqmsg) >= 0) return 0;
+				if (switch_reqmsg_transport_to_tcp(dnc, reqmsg) >= 0) { printf ("SWITCHING OK...\n"); return 0; }
 				/* TODO: add an option to call an error callback with TRUNCATION error code instead of fallback to received UDP truncated message */
 			}
 
-MIO_DEBUG1 (mio, "received dns response...id %d\n", id);
-			if (MIO_LIKELY(reqmsgxtn->on_reply))
-				reqmsgxtn->on_reply (dnc, reqmsg, MIO_ENOERR, data, dlen);
-
+MIO_DEBUG1 (mio, "received dns response over udp..id %d\n", id);
+			if (MIO_LIKELY(reqmsgxtn->on_done)) reqmsgxtn->on_done (dnc, reqmsg, MIO_ENOERR, data, dlen);
 			release_dns_msg (dnc, reqmsg);
 			return 0;
 		}
+
 		reqmsg = reqmsgxtn->next;
 	}
 
@@ -391,6 +465,7 @@ static void on_udp_reply_timeout (mio_t* mio, const mio_ntime_t* now, mio_tmrjob
 	dnc_dns_msg_xtn_t* msgxtn = dnc_dns_msg_getxtn(reqmsg);
 	mio_dev_sck_t* dev = (mio_dev_sck_t*)msgxtn->dev;
 	mio_svc_dnc_t* dnc = ((dnc_sck_xtn_t*)mio_dev_sck_getxtn(dev))->dnc;
+	mio_errnum_t status = MIO_ETMOUT;
 
 	MIO_ASSERT (mio, msgxtn->rtmridx == MIO_TMRIDX_INVALID);
 	MIO_ASSERT (mio, dev == dnc->udp_sck);
@@ -401,23 +476,14 @@ MIO_DEBUG0 (mio, "*** TIMEOUT ==> unable to receive dns response in time...\n");
 		mio_ntime_t* tmout;
 
 		tmout = MIO_IS_POS_NTIME(&msgxtn->wtmout)? &msgxtn->wtmout: MIO_NULL;
-		if (mio_dev_sck_timedwrite(dev, mio_dns_msg_to_pkt(reqmsg), reqmsg->pktlen, tmout, reqmsg, &msgxtn->servaddr) <= -1)
-		{
-			if (MIO_LIKELY(msgxtn->on_reply))
-				msgxtn->on_reply (dnc, reqmsg, MIO_ETMOUT, MIO_NULL, 0);
+		if (mio_dev_sck_timedwrite(dev, mio_dns_msg_to_pkt(reqmsg), reqmsg->pktlen, tmout, reqmsg, &msgxtn->servaddr) >= 0) return; /* resent */
 
-			release_dns_msg (dnc, reqmsg);
-			return;
-		}
+		/* retry failed */
+		status = mio_geterrnum(mio);
+	}
 
-printf (">>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>> RESENT REQUEST >>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>> \n");
-	}
-	else
-	{
-		if (MIO_LIKELY(msgxtn->on_reply))
-			msgxtn->on_reply (dnc, reqmsg, MIO_ETMOUT, MIO_NULL, 0);
-		release_dns_msg (dnc, reqmsg);
-	}
+	if (MIO_LIKELY(msgxtn->on_done)) msgxtn->on_done (dnc, reqmsg, status, MIO_NULL, 0);
+	release_dns_msg (dnc, reqmsg);
 }
 
 
@@ -427,23 +493,22 @@ static int on_udp_write (mio_dev_sck_t* dev, mio_iolen_t wrlen, void* wrctx, con
 	mio_dns_msg_t* msg = (mio_dns_msg_t*)wrctx;
 	dnc_dns_msg_xtn_t* msgxtn = dnc_dns_msg_getxtn(msg);
 	mio_svc_dnc_t* dnc = ((dnc_sck_xtn_t*)mio_dev_sck_getxtn(dev))->dnc;
-
-MIO_DEBUG1 (mio, "sent dns message %d\n", (int)mio_ntoh16(mio_dns_msg_to_pkt(msg)->id));
+	mio_errnum_t status;
 
 	MIO_ASSERT (mio, dev == (mio_dev_sck_t*)msgxtn->dev);
 
 	if (wrlen <= -1)
 	{
 		/* write has timed out or an error has occurred */
-		if (MIO_LIKELY(msgxtn->on_reply))
-			msgxtn->on_reply (dnc, msg, mio_geterrnum(mio), MIO_NULL, 0);
-		release_dns_msg (dnc, msg);
+		status = mio_geterrnum(mio);
+		goto finalize;
 	}
 	else if (mio_dns_msg_to_pkt(msg)->qr == 0 && msgxtn->rmaxtries > 0)
 	{
 		/* question. schedule to wait for response */
 		mio_tmrjob_t tmrjob;
 
+MIO_DEBUG1 (mio, "sent dns question %d\n", (int)mio_ntoh16(mio_dns_msg_to_pkt(msg)->id));
 		MIO_MEMSET (&tmrjob, 0, MIO_SIZEOF(tmrjob));
 		tmrjob.ctx = msg;
 		mio_gettime (mio, &tmrjob.when);
@@ -454,33 +519,33 @@ MIO_DEBUG1 (mio, "sent dns message %d\n", (int)mio_ntoh16(mio_dns_msg_to_pkt(msg
 		if (msgxtn->rtmridx == MIO_TMRIDX_INVALID)
 		{
 			/* call the callback to indicate this operation failure in the middle of transaction */
-			if (MIO_LIKELY(msgxtn->on_reply))
-				msgxtn->on_reply (dnc, msg, mio_geterrnum(mio), MIO_NULL, 0);
-			release_dns_msg (dnc, msg);
-
+			status = mio_geterrnum(mio);
 			MIO_DEBUG0 (mio, "unable to schedule timeout...\n");
+			goto finalize;
 		}
-		else
+		
+		if (msgxtn->rtries == 0)
 		{
-			if (msgxtn->rtries == 0)
-			{
-				/* this is the first wait */
-
-				/* TODO: improve performance. hashing by id? */
-				/* chain it to the peing request list */
-				chain_pending_dns_reqmsg (dnc, msg);
-			}
-
-			msgxtn->rtries++;
+			/* this is the first wait */
+			/* TODO: improve performance. hashing by id? */
+			/* chain it to the peing request list */
+			chain_pending_dns_reqmsg (dnc, msg);
 		}
+		msgxtn->rtries++;
 	}
 	else
 	{
-		/* sent an answer - we don't need this any more */
-		/* we don't call the on_reply callback stored in msg->ctx as this is not a reply context */
-		release_dns_msg (dnc, msg);
+MIO_DEBUG1 (mio, "sent dns message %d\n", (int)mio_ntoh16(mio_dns_msg_to_pkt(msg)->id));
+		/* sent an answer. however this may be a question if msgxtn->rmaxtries is 0. */
+		status = MIO_ENOERR;
+		goto finalize;
 	}
 
+	return 0;
+
+finalize:
+	if (MIO_LIKELY(msgxtn->on_done)) msgxtn->on_done (dnc, msg, status, MIO_NULL, 0);
+	release_dns_msg (dnc, msg);
 	return 0;
 }
 
@@ -564,7 +629,7 @@ void mio_svc_dnc_stop (mio_svc_dnc_t* dnc)
 	mio_freemem (mio, dnc);
 }
 
-mio_dns_msg_t* mio_svc_dnc_sendmsg (mio_svc_dnc_t* dnc, mio_dns_bhdr_t* bdns, mio_dns_bqr_t* qr, mio_oow_t qr_count, mio_dns_brr_t* rr, mio_oow_t rr_count, mio_dns_bedns_t* edns, mio_svc_dnc_on_reply_t on_reply, mio_oow_t xtnsize)
+mio_dns_msg_t* mio_svc_dnc_sendmsg (mio_svc_dnc_t* dnc, mio_dns_bhdr_t* bdns, mio_dns_bqr_t* qr, mio_oow_t qr_count, mio_dns_brr_t* rr, mio_oow_t rr_count, mio_dns_bedns_t* edns, mio_svc_dnc_on_done_t on_done, mio_oow_t xtnsize)
 {
 	/* send a request or a response */
 	mio_dns_msg_t* msg;
@@ -584,7 +649,7 @@ mio_dns_msg_t* mio_svc_dnc_sendmsg (mio_svc_dnc_t* dnc, mio_dns_bhdr_t* bdns, mi
 	msgxtn = dnc_dns_msg_getxtn(msg);
 	msgxtn->dev = (mio_dev_t*)dnc->udp_sck;
 	msgxtn->rtmridx = MIO_TMRIDX_INVALID;
-	msgxtn->on_reply = on_reply;
+	msgxtn->on_done = on_done;
 	msgxtn->wtmout = dnc->send_tmout;
 	msgxtn->rtmout = dnc->reply_tmout;
 	msgxtn->rmaxtries = dnc->reply_tmout_max_tries; 
@@ -602,7 +667,7 @@ mio_dns_msg_t* mio_svc_dnc_sendmsg (mio_svc_dnc_t* dnc, mio_dns_bhdr_t* bdns, mi
 	return msg;
 }
 
-mio_dns_msg_t* mio_svc_dnc_sendreq (mio_svc_dnc_t* dnc, mio_dns_bhdr_t* bdns, mio_dns_bqr_t* qr, mio_dns_bedns_t* edns, mio_svc_dnc_on_reply_t on_reply, mio_oow_t xtnsize)
+mio_dns_msg_t* mio_svc_dnc_sendreq (mio_svc_dnc_t* dnc, mio_dns_bhdr_t* bdns, mio_dns_bqr_t* qr, mio_dns_bedns_t* edns, mio_svc_dnc_on_done_t on_done, mio_oow_t xtnsize)
 {
 	/* send a request without resource records */
 	if (bdns->rcode != MIO_DNS_RCODE_NOERROR)
@@ -611,7 +676,7 @@ mio_dns_msg_t* mio_svc_dnc_sendreq (mio_svc_dnc_t* dnc, mio_dns_bhdr_t* bdns, mi
 		return MIO_NULL;
 	}
 
-	return mio_svc_dnc_sendmsg(dnc, bdns, qr, 1, MIO_NULL, 0, edns, on_reply, xtnsize);
+	return mio_svc_dnc_sendmsg(dnc, bdns, qr, 1, MIO_NULL, 0, edns, on_done, xtnsize);
 }
 
 /* ----------------------------------------------------------------------- */
@@ -654,16 +719,16 @@ static void on_dnc_resolve (mio_svc_dnc_t* dnc, mio_dns_msg_t* reqmsg, mio_errnu
 		if (!pi)
 		{
 			status = mio_geterrnum(mio);
-			goto no_valid_reply;
+			goto no_data;
 		}
 
 		if (pi->hdr.rcode != MIO_DNS_RCODE_NOERROR) 
 		{
 			status = MIO_EINVAL;
-			goto no_valid_reply;
+			goto no_data;
 		}
 
-		if (pi->ancount < 0) goto no_valid_reply;
+		if (pi->ancount < 0) goto no_data;
 
 		/* in the brief mode, we inspect the answer section only */
 		if (reqmsgxtn->qtype == MIO_DNS_RRT_Q_ANY)
@@ -708,11 +773,11 @@ static void on_dnc_resolve (mio_svc_dnc_t* dnc, mio_dns_msg_t* reqmsg, mio_errnu
 					break;
 			}
 		}
-		goto no_valid_reply;
+		goto no_data;
 	}
 	else
 	{
-	no_valid_reply:
+	no_data:
 		if (reqmsgxtn->on_resolve) reqmsgxtn->on_resolve (dnc, reqmsg, status, MIO_NULL, 0);
 	}
 

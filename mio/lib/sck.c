@@ -459,7 +459,7 @@ static int dev_sck_read_stateless (mio_dev_t* dev, void* buf, mio_iolen_t* len, 
 	ssize_t x;
 
 	srcaddrlen = MIO_SIZEOF(rdev->remoteaddr);
-	x = recvfrom (rdev->sck, buf, *len, 0, (struct sockaddr*)&rdev->remoteaddr, &srcaddrlen);
+	x = recvfrom(rdev->sck, buf, *len, 0, (struct sockaddr*)&rdev->remoteaddr, &srcaddrlen);
 	if (x <= -1)
 	{
 		if (errno == EINPROGRESS || errno == EWOULDBLOCK || errno == EAGAIN) return 0;  /* no data available */

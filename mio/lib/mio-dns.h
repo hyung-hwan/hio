@@ -369,7 +369,7 @@ typedef struct mio_svc_dns_t mio_svc_dns_t; /* server service */
 typedef struct mio_svc_dnc_t mio_svc_dnc_t; /* client service */
 typedef struct mio_svc_dnr_t mio_svc_dnr_t; /* recursor service */
 
-typedef void (*mio_svc_dnc_on_reply_t) (
+typedef void (*mio_svc_dnc_on_done_t) (
 	mio_svc_dnc_t* dnc,
 	mio_dns_msg_t* reqmsg,
 	mio_errnum_t   status,
@@ -462,7 +462,7 @@ MIO_EXPORT mio_dns_msg_t* mio_svc_dnc_sendmsg (
 	mio_dns_brr_t*         rr,
 	mio_oow_t              rr_count,
 	mio_dns_bedns_t*       edns,
-	mio_svc_dnc_on_reply_t on_reply,
+	mio_svc_dnc_on_done_t  on_done,
 	mio_oow_t              xtnsize
 );
 
@@ -471,7 +471,7 @@ MIO_EXPORT mio_dns_msg_t* mio_svc_dnc_sendreq (
 	mio_dns_bhdr_t*        bdns,
 	mio_dns_bqr_t*         qr,
 	mio_dns_bedns_t*       edns,
-	mio_svc_dnc_on_reply_t on_reply,
+	mio_svc_dnc_on_done_t  on_done,
 	mio_oow_t              xtnsize
 );
 

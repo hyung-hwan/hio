@@ -620,11 +620,11 @@ static void on_dnc_resolve(mio_svc_dnc_t* dnc, mio_dns_msg_t* reqmsg, mio_errnum
 		mio_uint32_t i;
 
 		pi = mio_dns_make_packet_info(mio_svc_dnc_getmio(dnc), data, dlen);
-		if (!pi) goto no_valid_reply;
+		if (!pi) goto no_data;
 
-		if (pi->hdr.rcode != MIO_DNS_RCODE_NOERROR) goto no_valid_reply;
+		if (pi->hdr.rcode != MIO_DNS_RCODE_NOERROR) goto no_data;
 
-		if (pi->ancount < 0) goto no_valid_reply;
+		if (pi->ancount < 0) goto no_data;
 
 		printf (">>>>>>>> RRDLEN = %d\n", (int)pi->_rrdlen);
 		printf (">>>>>>>> RCODE %d EDNS exist %d uplen %d version %d dnssecok %d\n", pi->hdr.rcode, pi->edns.exist, pi->edns.uplen, pi->edns.version, pi->edns.dnssecok);
@@ -666,16 +666,16 @@ static void on_dnc_resolve(mio_svc_dnc_t* dnc, mio_dns_msg_t* reqmsg, mio_errnum
 					printf ("^^^  GOT REPLY.... PTR [%s] %d\n", brr->dptr, (int)brr->dlen);
 					goto done;
 				default:
-					goto no_valid_reply;
+					goto no_data;
 			}
 		}
-		goto no_valid_reply;
+		goto no_data;
 	}
 	else
 	{
-	no_valid_reply:
+	no_data:
 		if (status == MIO_ETMOUT) printf ("XXXXXXXXXXXXXXXX TIMED OUT XXXXXXXXXXXXXXXXX\n");
-		else printf ("XXXXXXXXXXXXXXXXx NO VALID REPLY XXXXXXXXXXXXXXXXXXXXXXXXX\n");
+		else printf ("XXXXXXXXXXXXXXXXx NO REPLY DATA XXXXXXXXXXXXXXXXXXXXXXXXX\n");
 	}
 
 done:
@@ -730,7 +730,7 @@ static void on_dnc_resolve_brief (mio_svc_dnc_t* dnc, mio_dns_msg_t* reqmsg, mio
 	else
 	{
 		if (status == MIO_ETMOUT) printf ("QQQQQQQQQQQQQQQQQQQ TIMED OUT QQQQQQQQQQQQQQQQQ\n");
-		else printf ("QQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQ NO VALID REPLY QQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQq - %d\n", mio_geterrnum(mio_svc_dnc_getmio(dnc)));
+		else printf ("QQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQ NO REPLY DATA QQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQq - %d\n", mio_geterrnum(mio_svc_dnc_getmio(dnc)));
 	}
 }
 
@@ -1038,11 +1038,12 @@ if (!mio_svc_dnc_resolve(dnc, "a.wild.com", MIO_DNS_RRT_A, 0, on_dnc_resolve, 0)
 	printf ("resolve attempt failure ---> a.wild.com\n");
 }
 
-#if 0
 if (!mio_svc_dnc_resolve(dnc, "www.microsoft.com", MIO_DNS_RRT_CNAME, 0, on_dnc_resolve, 0))
 {
-	printf ("resolve attempt failure ---> code.miflux.com\n");
+	printf ("resolve attempt failure ---> www.microsoft.com\n");
 }
+
+#if 0
 //if (!mio_svc_dnc_resolve(dnc, "www.microsoft.com", MIO_DNS_RRT_A, MIO_SVC_DNC_RESOLVE_FLAG_BRIEF, on_dnc_resolve_brief, 0))
 if (!mio_svc_dnc_resolve(dnc, "code.miflux.com", MIO_DNS_RRT_A, MIO_SVC_DNC_RESOLVE_FLAG_BRIEF, on_dnc_resolve_brief, 0))
 {
