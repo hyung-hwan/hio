@@ -143,9 +143,73 @@ printf ("ON TCP READ DATA>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>> %d\n", dlen);
 	return 0;
 }
 
+static void on_tcp_reply_timeout (mio_t* mio, const mio_ntime_t* now, mio_tmrjob_t* job)
+{
+	mio_dns_msg_t* reqmsg = (mio_dns_msg_t*)job->ctx;
+	dnc_dns_msg_xtn_t* msgxtn = dnc_dns_msg_getxtn(reqmsg);
+	mio_dev_sck_t* dev = (mio_dev_sck_t*)msgxtn->dev;
+	mio_svc_dnc_t* dnc = ((dnc_sck_xtn_t*)mio_dev_sck_getxtn(dev))->dnc;
+
+	MIO_ASSERT (mio, msgxtn->rtmridx == MIO_TMRIDX_INVALID);
+	MIO_ASSERT (mio, dev == dnc->tcp_sck);
+
+MIO_DEBUG0 (mio, "*** TIMEOUT ==> unable to receive dns response in time over TCP...\n");
+
+	if (MIO_LIKELY(msgxtn->on_reply))
+		msgxtn->on_reply (dnc, reqmsg, MIO_ETMOUT, MIO_NULL, 0);
+
+	//release_dns_msg (dnc, reqmsg);
+
+	mio_dev_sck_halt(dev);
+}
+
 static int on_tcp_write (mio_dev_sck_t* dev, mio_iolen_t wrlen, void* wrctx, const mio_skad_t* dstaddr)
 {
+	mio_t* mio = dev->mio;
+	mio_dns_msg_t* msg = (mio_dns_msg_t*)wrctx;
+	dnc_dns_msg_xtn_t* msgxtn = dnc_dns_msg_getxtn(msg);
+	mio_svc_dnc_t* dnc = ((dnc_sck_xtn_t*)mio_dev_sck_getxtn(dev))->dnc;
+
 printf ("ON TCP WRITE >>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>\n");
+	if (wrlen <= -1)
+	{
+		if (MIO_LIKELY(msgxtn->on_reply))
+			msgxtn->on_reply (dnc, msg, mio_geterrnum(mio), MIO_NULL, 0);
+
+//		release_dns_msg (dnc, msg);
+		mio_dev_sck_halt (dev);
+	}
+	else if (mio_dns_msg_to_pkt(msg)->qr == 0 && msgxtn->rmaxtries > 0)
+	{
+		/* question. schedule to wait for response */
+		mio_tmrjob_t tmrjob;
+
+		MIO_MEMSET (&tmrjob, 0, MIO_SIZEOF(tmrjob));
+		tmrjob.ctx = msg;
+		mio_gettime (mio, &tmrjob.when);
+		MIO_ADD_NTIME (&tmrjob.when, &tmrjob.when, &msgxtn->rtmout);
+		tmrjob.handler = on_tcp_reply_timeout;
+		tmrjob.idxptr = &msgxtn->rtmridx;
+		msgxtn->rtmridx = mio_instmrjob(mio, &tmrjob);
+		if (msgxtn->rtmridx == MIO_TMRIDX_INVALID)
+		{
+			/* call the callback to indicate this operation failure in the middle of transaction */
+			if (MIO_LIKELY(msgxtn->on_reply))
+				msgxtn->on_reply (dnc, msg, mio_geterrnum(mio), MIO_NULL, 0);
+
+			//release_dns_msg (dnc, msg);
+			mio_dev_sck_halt (dev);
+
+			MIO_DEBUG0 (mio, "unable to schedule timeout...\n");
+		}
+	}
+	else
+	{
+		/* sent an answer - we don't need this any more */
+		/* we don't call the on_reply callback stored in msg->ctx as this is not a reply context */
+//		release_dns_msg (dnc, msg);
+		mio_dev_sck_halt (dev);
+	}
 
 	return 0;
 }
@@ -187,20 +251,18 @@ static void on_tcp_disconnect (mio_dev_sck_t* dev)
 	int status;
 
 	/* UNABLE TO CONNECT or CONNECT TIMED OUT */
-	if (reqmsgxtn->rtries <= 0) 
-	{
-		status = mio_geterrnum(mio);
-	}
-	else
-	{
-		status = mio_geterrnum(mio);
-	}
+	
+	status = mio_geterrnum(mio);
+
 MIO_DEBUG2 (mio, "TCP UNABLED TO CONNECT .. OR DISCONNECTED ... ---> %d -> %js\n", status, mio_errnum_to_errstr(status));
 
 	if (MIO_LIKELY(reqmsgxtn->on_reply))
 		reqmsgxtn->on_reply (dnc, reqmsg, status, MIO_NULL, 0);
 
 	release_dns_msg (dnc, reqmsg);
+
+	/* let's forget about the tcp socket */
+	dnc->tcp_sck = MIO_NULL; 
 }
 
 static int switch_reqmsg_transport_to_tcp (mio_svc_dnc_t* dnc, mio_dns_msg_t* reqmsg)
@@ -249,14 +311,9 @@ static int switch_reqmsg_transport_to_tcp (mio_svc_dnc_t* dnc, mio_dns_msg_t* re
 	if (mio_dev_sck_connect(dnc->tcp_sck, &cinfo) <= -1) return -1; /* the connect request hasn't been honored. */
 
 	/* switch the belonging device to the tcp socket since the connect request has been acknowledged. */
+	MIO_ASSERT (mio, reqmsgxtn->rtmridx == MIO_TMRIDX_INVALID); /* ensure no timer job scheduled at this moment */
 	reqmsgxtn->dev = (mio_dev_t*)dnc->tcp_sck;
-	reqmsgxtn->rtries = 0;
-	if (reqmsgxtn->rtmridx != MIO_TMRIDX_INVALID)
-	{
-		/* unschedule a timer job added for udp transport if any */
-		mio_deltmrjob (mio, reqmsgxtn->rtmridx);
-		MIO_ASSERT (mio, reqmsgxtn->rtmridx == MIO_TMRIDX_INVALID);
-	}
+	reqmsgxtn->rtries = 0; /* i don't retry with tcp. so reset this to 0 */
 
 	return 0;
 }
@@ -296,6 +353,13 @@ static int on_udp_read (mio_dev_sck_t* dev, const void* data, mio_iolen_t dlen, 
 
 		if (dev == (mio_dev_sck_t*)reqmsgxtn->dev && pkt->id == reqpkt->id && mio_equal_skads(&reqmsgxtn->servaddr, srcaddr, 0))
 		{
+			if (reqmsgxtn->rtmridx != MIO_TMRIDX_INVALID)
+			{
+				/* unschedule a timer job if any */
+				mio_deltmrjob (mio, reqmsgxtn->rtmridx);
+				MIO_ASSERT (mio, reqmsgxtn->rtmridx == MIO_TMRIDX_INVALID);
+			}
+
 ////////////////////////
 pkt->tc = 1;
 ////////////////////////
