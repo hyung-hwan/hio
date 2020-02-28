@@ -132,6 +132,8 @@ static int on_tcp_read (mio_dev_sck_t* dev, const void* data, mio_iolen_t dlen, 
 	mio_dns_msg_t* reqmsg;
 	mio_dns_pkt_t* pkt;
 	mio_uint16_t id;
+	mio_uint16_t pktlen;
+	mio_iolen_t rem;
 
 	if (MIO_UNLIKELY(dlen <= -1))
 	{
@@ -143,6 +145,64 @@ static int on_tcp_read (mio_dev_sck_t* dev, const void* data, mio_iolen_t dlen, 
 		MIO_DEBUG0 (mio, "dns tcp read error ...premature socket hangul\n"); /* TODO: add source packet */
 		goto oops;
 	}
+
+
+#if 0
+	dptr = data;
+	rem = dlen;
+	do
+	{
+		if (sckxtn->rbuf.len == 1)
+		{
+			/* append the received data to the buffer */
+			pktlen = (mio_uint16_t)sckxtn->rbuf.ptr[0] << 8 | *(mio_uint8_t*)data;
+			rem--;
+			dptr--;
+			if (rem >= pktlen)
+			{
+				handle_packet_from (dptr, pktlen);
+				rem -= pktlen;
+				sckxtn->rbuf.len = 0;
+			}
+			else
+			{
+				rem++;
+				dptr++;
+				goto incomplete_data;
+			}
+		}
+		else if (sckxtn->rbuf.len > 1)
+		{
+			/* copy to rbuf... some data... */
+		}
+		else
+		{
+			if (rem >= 2) 
+			{
+				pktlen = ((mio_uint16_t)*(mio_uint8_t*)data << 8) | *((mio_uint8_t*)data + 1);
+				rem -= 2;
+			
+				if (rem >= pktlen)
+				{
+					handle_packet_from (dptr, pktlen);
+					rem -= pktlen;
+				}
+				else
+				{
+					goto incomplete_data;
+					
+				}
+			}
+			else
+			{
+			incomplete_data:
+				copy to sckxtn->rbuf....
+				rem = 0;
+			}
+		}
+	}
+	while (rem > 0);
+#endif
 
 /* TODO: assemble the first two bytes.
  * read as many as those two bytes..
@@ -344,6 +404,8 @@ static int switch_reqmsg_transport_to_tcp (mio_svc_dnc_t* dnc, mio_dns_msg_t* re
 	mio_dev_sck_make_t mkinfo;
 	mio_dev_sck_connect_t cinfo;
 
+/* TODO: more reliable way to check if connection is ok.
+ * even if tcp_sck is not null, the connection could have been torn down... */
 	if (!dnc->tcp_sck)
 	{
 		MIO_MEMSET (&mkinfo, 0, MIO_SIZEOF(mkinfo));
