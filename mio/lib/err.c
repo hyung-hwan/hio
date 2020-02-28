@@ -55,9 +55,10 @@ static mio_ooch_t errstr_24[] = {'c', 'o', 'n', 'n', 'e', 'c', 't', 'i', 'o', 'n
 static mio_ooch_t errstr_25[] = {'c', 'o', 'n', 'n', 'e', 'c', 't', 'i', 'o', 'n', ' ', 'r', 'e', 's', 'e', 't', '\0' };
 static mio_ooch_t errstr_26[] = {'n', 'o', ' ', 'c', 'a', 'p', 'a', 'b', 'i', 'l', 'i', 't', 'y', '\0' };
 static mio_ooch_t errstr_27[] = {'t', 'i', 'm', 'e', 'd', ' ', 'o', 'u', 't', '\0' };
-static mio_ooch_t errstr_28[] = {'u', 'n', 'a', 'b', 'l', 'e', ' ', 't', 'o', ' ', 'm', 'a', 'k', 'e', ' ', 'd', 'e', 'v', 'i', 'c', 'e', '\0' };
-static mio_ooch_t errstr_29[] = {'d', 'e', 'v', 'i', 'c', 'e', ' ', 'e', 'r', 'r', 'o', 'r', '\0' };
-static mio_ooch_t errstr_30[] = {'d', 'e', 'v', 'i', 'c', 'e', ' ', 'h', 'a', 'n', 'g', '-', 'u', 'p', '\0' };
+static mio_ooch_t errstr_28[] = {'n', 'o', ' ', 'r', 'e', 's', 'p', 'o', 'n', 's', 'e', '\0' };
+static mio_ooch_t errstr_29[] = {'u', 'n', 'a', 'b', 'l', 'e', ' ', 't', 'o', ' ', 'm', 'a', 'k', 'e', ' ', 'd', 'e', 'v', 'i', 'c', 'e', '\0' };
+static mio_ooch_t errstr_30[] = {'d', 'e', 'v', 'i', 'c', 'e', ' ', 'e', 'r', 'r', 'o', 'r', '\0' };
+static mio_ooch_t errstr_31[] = {'d', 'e', 'v', 'i', 'c', 'e', ' ', 'h', 'a', 'n', 'g', '-', 'u', 'p', '\0' };
 static mio_ooch_t* errstr[] =
 {
 	errstr_0, errstr_1, errstr_2, errstr_3, errstr_4,
@@ -66,7 +67,7 @@ static mio_ooch_t* errstr[] =
 	errstr_15, errstr_16, errstr_17, errstr_18, errstr_19,
 	errstr_20, errstr_21, errstr_22, errstr_23, errstr_24,
 	errstr_25, errstr_26, errstr_27, errstr_28, errstr_29,
-	errstr_30
+	errstr_30, errstr_31
 };
 
 /* -------------------------------------------------------------------------- 
