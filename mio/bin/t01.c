@@ -1033,7 +1033,7 @@ for (i = 0; i < 5; i++)
 #endif
 
 
-if (!mio_svc_dnc_resolve(dnc, "a.wild.com", MIO_DNS_RRT_A, 0, on_dnc_resolve, 0))
+if (!mio_svc_dnc_resolve(dnc, "b.wild.com", MIO_DNS_RRT_A, 0, on_dnc_resolve, 0))
 {
 	printf ("resolve attempt failure ---> a.wild.com\n");
 }

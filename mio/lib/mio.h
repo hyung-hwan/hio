@@ -105,6 +105,7 @@ enum mio_errnum_t
 	MIO_ECONRS,   /**< connection reset */
 	MIO_ENOCAPA,  /**< no capability */
 	MIO_ETMOUT,   /**< timed out */
+	MIO_ENORSP,   /**< no response */
 
 	MIO_EDEVMAKE, /**< unable to make device */
 	MIO_EDEVERR,  /**< device error */
