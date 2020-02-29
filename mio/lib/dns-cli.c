@@ -56,6 +56,13 @@ struct mio_svc_dnc_t
 struct dnc_sck_xtn_t
 {
 	mio_svc_dnc_t* dnc;
+
+	struct
+	{
+		mio_uint8_t* ptr;
+		mio_oow_t  len;
+		mio_oow_t  capa;
+	} rbuf; /* used by tcp socket */
 };
 typedef struct dnc_sck_xtn_t dnc_sck_xtn_t;
 
@@ -124,99 +131,17 @@ MIO_DEBUG1 (mio, "releasing dns msg %d\n", (int)mio_ntoh16(mio_dns_msg_to_pkt(ms
 }
 /* ----------------------------------------------------------------------- */
 
-
-static int on_tcp_read (mio_dev_sck_t* dev, const void* data, mio_iolen_t dlen, const mio_skad_t* srcaddr)
+static int handle_tcp_packet (mio_dev_sck_t* dev, mio_dns_pkt_t* pkt, mio_uint16_t pktlen)
 {
 	mio_t* mio = dev->mio;
-	mio_svc_dnc_t* dnc = ((dnc_sck_xtn_t*)mio_dev_sck_getxtn(dev))->dnc;
-	mio_dns_msg_t* reqmsg;
-	mio_dns_pkt_t* pkt;
+	dnc_sck_xtn_t* sckxtn = mio_dev_sck_getxtn(dev);
+	mio_svc_dnc_t* dnc = sckxtn->dnc;
 	mio_uint16_t id;
-	mio_uint16_t pktlen;
-	mio_iolen_t rem;
+	mio_dns_msg_t* reqmsg;
 
-	if (MIO_UNLIKELY(dlen <= -1))
-	{
-		MIO_DEBUG1 (mio, "dns tcp read error ....%js\n", mio_geterrmsg(mio)); /* TODO: add source packet */
-		goto oops;
-	}
-	else if (MIO_UNLIKELY(dlen == 0))
-	{
-		MIO_DEBUG0 (mio, "dns tcp read error ...premature socket hangul\n"); /* TODO: add source packet */
-		goto oops;
-	}
-
-
-#if 0
-	dptr = data;
-	rem = dlen;
-	do
-	{
-		if (sckxtn->rbuf.len == 1)
-		{
-			/* append the received data to the buffer */
-			pktlen = (mio_uint16_t)sckxtn->rbuf.ptr[0] << 8 | *(mio_uint8_t*)data;
-			rem--;
-			dptr--;
-			if (rem >= pktlen)
-			{
-				handle_packet_from (dptr, pktlen);
-				rem -= pktlen;
-				sckxtn->rbuf.len = 0;
-			}
-			else
-			{
-				rem++;
-				dptr++;
-				goto incomplete_data;
-			}
-		}
-		else if (sckxtn->rbuf.len > 1)
-		{
-			/* copy to rbuf... some data... */
-		}
-		else
-		{
-			if (rem >= 2) 
-			{
-				pktlen = ((mio_uint16_t)*(mio_uint8_t*)data << 8) | *((mio_uint8_t*)data + 1);
-				rem -= 2;
-			
-				if (rem >= pktlen)
-				{
-					handle_packet_from (dptr, pktlen);
-					rem -= pktlen;
-				}
-				else
-				{
-					goto incomplete_data;
-					
-				}
-			}
-			else
-			{
-			incomplete_data:
-				copy to sckxtn->rbuf....
-				rem = 0;
-			}
-		}
-	}
-	while (rem > 0);
-#endif
-
-/* TODO: assemble the first two bytes.
- * read as many as those two bytes..
- * the following code is wrong.. */
-	if (MIO_UNLIKELY(dlen < MIO_SIZEOF(*pkt) + 2)) 
-	{
-		MIO_DEBUG0 (mio, "dns packet too small from ....\n"); /* TODO: add source packet */
-		goto oops; /* mut not be an error. buffer it futher... */
-	}
-
-	pkt = (mio_dns_pkt_t*)((mio_uint8_t*)data + 2);
 	if (!pkt->qr) 
 	{
-		MIO_DEBUG0 (mio, "dropping dns request received ...\n"); /* TODO: add source info */
+		MIO_DEBUG0 (mio, "dropping dns request received over tcp ...\n"); /* TODO: add source info */
 		return 0; /* drop request. nothing to do */
 	}
 
@@ -232,7 +157,7 @@ MIO_DEBUG1 (mio, "<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<GOT DATA>>>>>>>>>>>id [%d] >>>>
 
 		if (dev == (mio_dev_sck_t*)reqmsgxtn->dev && pkt->id == reqpkt->id)
 		{
-			if (MIO_LIKELY(reqmsgxtn->on_done)) reqmsgxtn->on_done (dnc, reqmsg, MIO_ENOERR, pkt, dlen  - 2);
+			if (MIO_LIKELY(reqmsgxtn->on_done)) reqmsgxtn->on_done (dnc, reqmsg, MIO_ENOERR, pkt, pktlen);
 			release_dns_msg (dnc, reqmsg);
 			return 0;
 		}
@@ -241,6 +166,96 @@ MIO_DEBUG1 (mio, "<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<GOT DATA>>>>>>>>>>>id [%d] >>>>
 	}
 
 MIO_DEBUG1 (mio, "unknown dns response over tcp... %d\n", pkt->id); /* TODO: add source info */
+	return 0;
+}
+
+static MIO_INLINE int copy_data_to_sck_rbuf (mio_dev_sck_t* dev, const void* data, mio_uint16_t dlen)
+{
+	dnc_sck_xtn_t* sckxtn = mio_dev_sck_getxtn(dev);
+
+	if (sckxtn->rbuf.capa - sckxtn->rbuf.len < dlen)
+	{
+		mio_uint16_t newcapa;
+		mio_uint8_t* tmp;
+
+		newcapa = sckxtn->rbuf.len + dlen;
+		newcapa = MIO_ALIGN_POW2(newcapa, 512);
+		tmp = mio_reallocmem(dev->mio, sckxtn->rbuf.ptr, newcapa);
+		if (!tmp) return -1;
+
+		sckxtn->rbuf.capa = newcapa;
+		sckxtn->rbuf.ptr = tmp;
+	}
+
+	MIO_MEMCPY (&sckxtn->rbuf.ptr[sckxtn->rbuf.len], data, dlen);
+	sckxtn->rbuf.len += dlen;
+	return 0;
+}
+
+static int on_tcp_read (mio_dev_sck_t* dev, const void* data, mio_iolen_t dlen, const mio_skad_t* srcaddr)
+{
+	mio_t* mio = dev->mio;
+	dnc_sck_xtn_t* sckxtn = mio_dev_sck_getxtn(dev);
+	mio_uint16_t pktlen;
+	mio_uint8_t* dptr;
+	mio_iolen_t rem;
+
+	if (MIO_UNLIKELY(dlen <= -1))
+	{
+		MIO_DEBUG1 (mio, "dns tcp read error ....%js\n", mio_geterrmsg(mio)); /* TODO: add source packet */
+		goto oops;
+	}
+	else if (MIO_UNLIKELY(dlen == 0))
+	{
+		MIO_DEBUG0 (mio, "dns tcp read error ...premature socket hangul\n"); /* TODO: add source packet */
+		goto oops;
+	}
+
+	dptr = (mio_uint8_t*)data;
+	rem = dlen;
+	do
+	{
+		if (MIO_UNLIKELY(sckxtn->rbuf.len == 1))
+		{
+			pktlen = ((mio_uint16_t)sckxtn->rbuf.ptr[0] << 8) | *(mio_uint8_t*)dptr;
+			if (MIO_UNLIKELY((rem - 1) < pktlen)) goto incomplete_data;
+			dptr += 1; rem -= 1; sckxtn->rbuf.len = 0;
+			handle_tcp_packet (dev, (mio_dns_pkt_t*)dptr, pktlen);
+			dptr += pktlen; rem -= pktlen;
+		}
+		else if (MIO_UNLIKELY(sckxtn->rbuf.len > 1))
+		{
+			mio_uint16_t cplen;
+
+			pktlen = ((mio_uint16_t)sckxtn->rbuf.ptr[0] << 8) | sckxtn->rbuf.ptr[1];
+			if (MIO_UNLIKELY(sckxtn->rbuf.len - 2 + rem < pktlen)) goto incomplete_data;
+
+			cplen = pktlen - (sckxtn->rbuf.len - 2);
+			if (copy_data_to_sck_rbuf(dev, dptr, cplen) <= -1) goto oops;
+
+			dptr += cplen; rem -= cplen; sckxtn->rbuf.len = 0;
+			handle_tcp_packet (dev, (mio_dns_pkt_t*)&sckxtn->rbuf.ptr[2], pktlen);
+		}
+		else
+		{
+			if (MIO_LIKELY(rem >= 2)) 
+			{
+				pktlen = ((mio_uint16_t)*(mio_uint8_t*)dptr << 8) | *((mio_uint8_t*)dptr + 1);
+				dptr += 2; rem -= 2;
+				if (MIO_UNLIKELY(rem < pktlen)) goto incomplete_data;
+				handle_tcp_packet (dev, (mio_dns_pkt_t*)dptr, pktlen);
+				dptr += pktlen; rem -= pktlen;
+			}
+			else
+			{
+			incomplete_data:
+				if (copy_data_to_sck_rbuf(dev, dptr, rem) <= -1) goto oops;
+				rem = 0;
+			}
+		}
+	}
+	while (rem > 0);
+
 	return 0;
 
 oops:
@@ -654,7 +669,7 @@ mio_svc_dnc_t* mio_svc_dnc_start (mio_t* mio, const mio_skad_t* serv_addr, const
 {
 	mio_svc_dnc_t* dnc = MIO_NULL;
 	mio_dev_sck_make_t mkinfo;
-	dnc_sck_xtn_t* xtn;
+	dnc_sck_xtn_t* sckxtn;
 
 	dnc = (mio_svc_dnc_t*)mio_callocmem(mio, MIO_SIZEOF(*dnc));
 	if (!dnc) goto oops;
@@ -685,11 +700,11 @@ mio_svc_dnc_t* mio_svc_dnc_start (mio_t* mio, const mio_skad_t* serv_addr, const
 	mkinfo.on_read = on_udp_read;
 	mkinfo.on_connect = on_udp_connect;
 	mkinfo.on_disconnect = on_udp_disconnect;
-	dnc->udp_sck = mio_dev_sck_make(mio, MIO_SIZEOF(*xtn), &mkinfo);
+	dnc->udp_sck = mio_dev_sck_make(mio, MIO_SIZEOF(*sckxtn), &mkinfo);
 	if (!dnc->udp_sck) goto oops;
 
-	xtn = (dnc_sck_xtn_t*)mio_dev_sck_getxtn(dnc->udp_sck);
-	xtn->dnc = dnc;
+	sckxtn = (dnc_sck_xtn_t*)mio_dev_sck_getxtn(dnc->udp_sck);
+	sckxtn->dnc = dnc;
 
 	if (bind_addr) /* TODO: get mio_dev_sck_bind_t? instead of bind_addr? */
 	{
