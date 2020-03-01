@@ -392,7 +392,8 @@ typedef void (*mio_svc_dnc_on_resolve_t) (
 
 enum mio_svc_dnc_resolve_flag_t
 {
-	MIO_SVC_DNC_RESOLVE_FLAG_BRIEF     = (1 << 0)
+	MIO_SVC_DNC_RESOLVE_FLAG_BRIEF      = (1 << 0),
+	MIO_SVC_DNC_RESOLVE_FLAG_PREFER_TCP = (1 << 1)
 };
 typedef enum mio_svc_dnc_resolve_flag_t  mio_svc_dnc_resolve_flag_t;
 
@@ -462,6 +463,7 @@ MIO_EXPORT mio_dns_msg_t* mio_svc_dnc_sendmsg (
 	mio_dns_brr_t*         rr,
 	mio_oow_t              rr_count,
 	mio_dns_bedns_t*       edns,
+	int                    prefer_tcp,
 	mio_svc_dnc_on_done_t  on_done,
 	mio_oow_t              xtnsize
 );
@@ -471,6 +473,7 @@ MIO_EXPORT mio_dns_msg_t* mio_svc_dnc_sendreq (
 	mio_dns_bhdr_t*        bdns,
 	mio_dns_bqr_t*         qr,
 	mio_dns_bedns_t*       edns,
+	int                    prefer_tcp,
 	mio_svc_dnc_on_done_t  on_done,
 	mio_oow_t              xtnsize
 );
