@@ -1027,13 +1027,13 @@ for (i = 0; i < 5; i++)
 			MIO_DNS_RCODE_BADCOOKIE /* rcode */
 		}; 
 
-		mio_svc_dnc_sendreq (dnc, &qhdr, &qrs[0], &qedns, MIO_NULL, 0);
-		mio_svc_dnc_sendmsg (dnc, &rhdr, qrs, MIO_COUNTOF(qrs), rrs, MIO_COUNTOF(rrs), &qedns, MIO_NULL, 0);
+		mio_svc_dnc_sendreq (dnc, &qhdr, &qrs[0], &qedns, 0, MIO_NULL, 0);
+		mio_svc_dnc_sendmsg (dnc, &rhdr, qrs, MIO_COUNTOF(qrs), rrs, MIO_COUNTOF(rrs), &qedns, 0, MIO_NULL, 0);
 	}
 #endif
 
 
-if (!mio_svc_dnc_resolve(dnc, "b.wild.com", MIO_DNS_RRT_A, 0, on_dnc_resolve, 0))
+if (!mio_svc_dnc_resolve(dnc, "b.wild.com", MIO_DNS_RRT_A, MIO_SVC_DNC_RESOLVE_FLAG_PREFER_TCP, on_dnc_resolve, 0))
 {
 	printf ("resolve attempt failure ---> a.wild.com\n");
 }
@@ -1043,13 +1043,14 @@ if (!mio_svc_dnc_resolve(dnc, "www.microsoft.com", MIO_DNS_RRT_CNAME, 0, on_dnc_
 	printf ("resolve attempt failure ---> www.microsoft.com\n");
 }
 
-#if 0
+
 //if (!mio_svc_dnc_resolve(dnc, "www.microsoft.com", MIO_DNS_RRT_A, MIO_SVC_DNC_RESOLVE_FLAG_BRIEF, on_dnc_resolve_brief, 0))
-if (!mio_svc_dnc_resolve(dnc, "code.miflux.com", MIO_DNS_RRT_A, MIO_SVC_DNC_RESOLVE_FLAG_BRIEF, on_dnc_resolve_brief, 0))
+if (!mio_svc_dnc_resolve(dnc, "code.miflux.com", MIO_DNS_RRT_A, MIO_SVC_DNC_RESOLVE_FLAG_BRIEF | MIO_SVC_DNC_RESOLVE_FLAG_PREFER_TCP, on_dnc_resolve_brief, 0))
 {
 	printf ("resolve attempt failure ---> code.miflux.com\n");
 }
 
+#if 0
 if (!mio_svc_dnc_resolve(dnc, "1.1.1.1.in-addr.arpa", MIO_DNS_RRT_PTR, MIO_SVC_DNC_RESOLVE_FLAG_BRIEF, on_dnc_resolve_brief, 0))
 {
 	printf ("resolve attempt failure ---> 1.1.1.1.in-addr.arpa\n");
