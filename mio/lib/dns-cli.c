@@ -47,7 +47,14 @@ struct mio_svc_dnc_t
 
 	mio_ntime_t send_tmout; 
 	mio_ntime_t reply_tmout; /* default reply timeout */
-	mio_oow_t reply_tmout_max_tries;
+
+	/* For a question sent out, it may wait for a corresponding answer.
+	 * if max_tries is greater than 0, sending and waiting is limited
+	 * to this value over udp and to 1 over tcp. if max_tries is 0,
+	 * it sends out the question but never waits for a response.
+	 * For a non-question message sent out, it never waits for a response
+	 * regardless of max_tries. */ 
+	mio_oow_t max_tries; 
 
 	mio_oow_t seq;
 	mio_dns_msg_t* pending_req;
@@ -131,7 +138,7 @@ static mio_dns_msg_t* make_dns_msg (mio_svc_dnc_t* dnc, mio_dns_bhdr_t* bdns, mi
 	msgxtn->on_done = on_done;
 	msgxtn->wtmout = dnc->send_tmout;
 	msgxtn->rtmout = dnc->reply_tmout;
-	msgxtn->rmaxtries = dnc->reply_tmout_max_tries; 
+	msgxtn->rmaxtries = dnc->max_tries; 
 	msgxtn->rtries = 0;
 	msgxtn->servaddr = dnc->serv_addr;
 
@@ -344,7 +351,7 @@ static int on_tcp_write (mio_dev_sck_t* dev, mio_iolen_t wrlen, void* wrctx, con
 			goto finalize;
 		}
 
-		MIO_ASSERT (mio, msgxtn->pending == 1);
+		MIO_ASSERT (mio, msgxtn->pending != 0);
 	}
 	else
 	{
@@ -566,7 +573,8 @@ static int on_udp_read (mio_dev_sck_t* dev, const void* data, mio_iolen_t dlen, 
 			}
 
 ////////////////////////
-pkt->tc = 1;
+// for simple testing without actual truncated dns response
+//pkt->tc = 1;
 ////////////////////////
 			if (MIO_UNLIKELY(pkt->tc))
 			{
@@ -705,7 +713,7 @@ static void on_udp_disconnect (mio_dev_sck_t* dev)
 	}
 }
 
-mio_svc_dnc_t* mio_svc_dnc_start (mio_t* mio, const mio_skad_t* serv_addr, const mio_skad_t* bind_addr, const mio_ntime_t* send_tmout, const mio_ntime_t* reply_tmout, mio_oow_t reply_tmout_max_tries)
+mio_svc_dnc_t* mio_svc_dnc_start (mio_t* mio, const mio_skad_t* serv_addr, const mio_skad_t* bind_addr, const mio_ntime_t* send_tmout, const mio_ntime_t* reply_tmout, mio_oow_t max_tries)
 {
 	mio_svc_dnc_t* dnc = MIO_NULL;
 	mio_dev_sck_make_t mkinfo;
@@ -719,7 +727,7 @@ mio_svc_dnc_t* mio_svc_dnc_start (mio_t* mio, const mio_skad_t* serv_addr, const
 	dnc->serv_addr = *serv_addr;
 	dnc->send_tmout = *send_tmout;
 	dnc->reply_tmout = *reply_tmout;
-	dnc->reply_tmout_max_tries = reply_tmout_max_tries;
+	dnc->max_tries = max_tries;
 
 	MIO_MEMSET (&mkinfo, 0, MIO_SIZEOF(mkinfo));
 	switch (mio_skad_family(serv_addr))
@@ -798,7 +806,7 @@ mio_dns_msg_t* mio_svc_dnc_sendmsg (mio_svc_dnc_t* dnc, mio_dns_bhdr_t* bdns, mi
 	msg = make_dns_msg(dnc, bdns, qr, qr_count, rr, rr_count, edns, on_done, xtnsize);
 	if (!msg) return MIO_NULL;
 
-	if (send_dns_msg(dnc, msg, prefer_tcp) <= -1)  /* TODO: determine to prefer tcp or not before sending */
+	if (send_dns_msg(dnc, msg, prefer_tcp) <= -1)
 	{
 		release_dns_msg (dnc, msg);
 		return MIO_NULL;
