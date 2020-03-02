@@ -786,19 +786,19 @@ void mio_svc_dnc_stop (mio_svc_dnc_t* dnc)
 }
 
 
-static MIO_INLINE int send_dns_msg (mio_svc_dnc_t* dnc, mio_dns_msg_t* msg, int prefer_tcp)
+static MIO_INLINE int send_dns_msg (mio_svc_dnc_t* dnc, mio_dns_msg_t* msg, int send_flags)
 {
 	dnc_dns_msg_xtn_t* msgxtn = dnc_dns_msg_getxtn(msg);
 	mio_ntime_t* tmout;
 
-	if (prefer_tcp && switch_reqmsg_transport_to_tcp(dnc, msg) >= 0) return 0;
+	if ((send_flags & MIO_SVC_DNC_SEND_FLAG_PREFER_TCP) && switch_reqmsg_transport_to_tcp(dnc, msg) >= 0) return 0;
 
 	tmout = MIO_IS_POS_NTIME(&msgxtn->wtmout)? &msgxtn->wtmout: MIO_NULL;
 /* TODO: optionally, override dnc->serv_addr and use the target address passed as a parameter */
 	return mio_dev_sck_timedwrite(dnc->udp_sck, mio_dns_msg_to_pkt(msg), msg->pktlen, tmout, msg, &msgxtn->servaddr);
 }
 
-mio_dns_msg_t* mio_svc_dnc_sendmsg (mio_svc_dnc_t* dnc, mio_dns_bhdr_t* bdns, mio_dns_bqr_t* qr, mio_oow_t qr_count, mio_dns_brr_t* rr, mio_oow_t rr_count, mio_dns_bedns_t* edns, int prefer_tcp, mio_svc_dnc_on_done_t on_done, mio_oow_t xtnsize)
+mio_dns_msg_t* mio_svc_dnc_sendmsg (mio_svc_dnc_t* dnc, mio_dns_bhdr_t* bdns, mio_dns_bqr_t* qr, mio_oow_t qr_count, mio_dns_brr_t* rr, mio_oow_t rr_count, mio_dns_bedns_t* edns, int send_flags, mio_svc_dnc_on_done_t on_done, mio_oow_t xtnsize)
 {
 	/* send a request or a response */
 	mio_dns_msg_t* msg;
@@ -806,7 +806,7 @@ mio_dns_msg_t* mio_svc_dnc_sendmsg (mio_svc_dnc_t* dnc, mio_dns_bhdr_t* bdns, mi
 	msg = make_dns_msg(dnc, bdns, qr, qr_count, rr, rr_count, edns, on_done, xtnsize);
 	if (!msg) return MIO_NULL;
 
-	if (send_dns_msg(dnc, msg, prefer_tcp) <= -1)
+	if (send_dns_msg(dnc, msg, send_flags) <= -1)
 	{
 		release_dns_msg (dnc, msg);
 		return MIO_NULL;
@@ -815,7 +815,7 @@ mio_dns_msg_t* mio_svc_dnc_sendmsg (mio_svc_dnc_t* dnc, mio_dns_bhdr_t* bdns, mi
 	return msg;
 }
 
-mio_dns_msg_t* mio_svc_dnc_sendreq (mio_svc_dnc_t* dnc, mio_dns_bhdr_t* bdns, mio_dns_bqr_t* qr, mio_dns_bedns_t* edns, int prefer_tcp, mio_svc_dnc_on_done_t on_done, mio_oow_t xtnsize)
+mio_dns_msg_t* mio_svc_dnc_sendreq (mio_svc_dnc_t* dnc, mio_dns_bhdr_t* bdns, mio_dns_bqr_t* qr, mio_dns_bedns_t* edns, int send_flags, mio_svc_dnc_on_done_t on_done, mio_oow_t xtnsize)
 {
 	/* send a request without resource records */
 	if (bdns->rcode != MIO_DNS_RCODE_NOERROR)
@@ -824,7 +824,7 @@ mio_dns_msg_t* mio_svc_dnc_sendreq (mio_svc_dnc_t* dnc, mio_dns_bhdr_t* bdns, mi
 		return MIO_NULL;
 	}
 
-	return mio_svc_dnc_sendmsg(dnc, bdns, qr, 1, MIO_NULL, 0, edns, prefer_tcp, on_done, xtnsize);
+	return mio_svc_dnc_sendmsg(dnc, bdns, qr, 1, MIO_NULL, 0, edns, send_flags, on_done, xtnsize);
 }
 
 /* ----------------------------------------------------------------------- */
@@ -933,7 +933,7 @@ done:
 	if (pi) mio_dns_free_packet_info(mio_svc_dnc_getmio(dnc), pi);
 }
 
-mio_dns_msg_t* mio_svc_dnc_resolve (mio_svc_dnc_t* dnc, const mio_bch_t* qname, mio_dns_rrt_t qtype, int flags, mio_svc_dnc_on_resolve_t on_resolve, mio_oow_t xtnsize)
+mio_dns_msg_t* mio_svc_dnc_resolve (mio_svc_dnc_t* dnc, const mio_bch_t* qname, mio_dns_rrt_t qtype, int resolve_flags, mio_svc_dnc_on_resolve_t on_resolve, mio_oow_t xtnsize)
 {
 	static mio_dns_bhdr_t qhdr =
 	{
@@ -971,12 +971,16 @@ mio_dns_msg_t* mio_svc_dnc_resolve (mio_svc_dnc_t* dnc, const mio_bch_t* qname, 
 	reqmsg = make_dns_msg(dnc, &qhdr, &qr, 1, MIO_NULL, 0, &qedns, on_dnc_resolve, MIO_SIZEOF(*resolxtn) + xtnsize);
 	if (reqmsg)
 	{
+		int send_flags;
+
 		resolxtn = dnc_dns_msg_resolve_getxtn(reqmsg);
 		resolxtn->on_resolve = on_resolve;
 		resolxtn->qtype = qtype;
-		resolxtn->flags = flags;
+		resolxtn->flags = resolve_flags;
 
-		if (send_dns_msg(dnc, reqmsg, ((flags & MIO_SVC_DNC_RESOLVE_FLAG_PREFER_TCP) || qtype == MIO_DNS_RRT_Q_AFXR)) <= -1)
+		send_flags = (resolve_flags & MIO_SVC_DNC_SEND_FLAG_ALL);
+		if (MIO_UNLIKELY(qtype == MIO_DNS_RRT_Q_AFXR)) send_flags |= MIO_SVC_DNC_SEND_FLAG_PREFER_TCP;
+		if (send_dns_msg(dnc, reqmsg, send_flags) <= -1)
 		{
 			release_dns_msg (dnc, reqmsg);
 			return MIO_NULL;
