@@ -467,16 +467,16 @@ void mio_dns_free_packet_info (mio_t* mio, mio_dns_pkt_info_t* pi)
 
 static int encode_rrdata_in_dns_msg (mio_t* mio, const mio_dns_brr_t* rr, mio_uint16_t* dxlen, void* dptr)
 {
-	mio_oow_t xlen;
+	mio_oow_t xlen; /* actual data length after encoding */
 
 	switch (rr->rrtype)
 	{
 		case MIO_DNS_RRT_A:
-			if (rr->dlen != MIO_SIZEOF(mio_ip4ad_t)) goto inval;
+			if (MIO_UNLIKELY(rr->dlen != MIO_SIZEOF(mio_ip4ad_t))) goto inval;
 			goto verbatim;
 
 		case MIO_DNS_RRT_AAAA:
-			if (rr->dlen != MIO_SIZEOF(mio_ip6ad_t)) goto inval;
+			if (MIO_UNLIKELY(rr->dlen != MIO_SIZEOF(mio_ip6ad_t))) goto inval;
 			goto verbatim;
 
 		case MIO_DNS_RRT_CNAME: 
@@ -493,7 +493,7 @@ static int encode_rrdata_in_dns_msg (mio_t* mio, const mio_dns_brr_t* rr, mio_ui
 				xlen = to_dn(rr->dptr, dptr);
 			else
 				xlen = to_dn_capa(rr->dptr);
-			if (xlen <= 0) goto inval;
+			if (MIO_UNLIKELY(xlen <= 0)) goto inval;
 			break;
 
 	#if 0
@@ -510,9 +510,52 @@ static int encode_rrdata_in_dns_msg (mio_t* mio, const mio_dns_brr_t* rr, mio_ui
 			break;
 		
 		case MIO_DNS_RRT_SOA:
+		{
 			/* soa */
-			xlen = rr->dlen;
+			mio_dns_brrd_soa_t* soa;
+			mio_oow_t tmp;
+
+			if (MIO_UNLIKELY(rr->dlen != MIO_SIZEOF(mio_dns_brrd_soa_t))) goto inval;
+
+			soa = (mio_dns_brrd_soa_t*)rr->dptr;
+			xlen = 0;
+			if (dptr)
+			{
+				mio_uint32_t ti;
+
+				tmp = to_dn(soa->mname, (mio_uint8_t*)dptr + xlen);
+				if (MIO_UNLIKELY(tmp <= 0)) goto inval;
+				xlen += tmp;
+
+				tmp = to_dn(soa->rname, (mio_uint8_t*)dptr + xlen);
+				if (MIO_UNLIKELY(tmp <= 0)) goto inval;
+				xlen += tmp;
+
+				ti = mio_ntoh32(soa->serial);
+				MIO_MEMCPY((mio_uint8_t*)dptr + xlen, &ti, MIO_SIZEOF(ti)); xlen += MIO_SIZEOF(ti);
+				ti = mio_ntoh32(soa->refresh);
+				MIO_MEMCPY((mio_uint8_t*)dptr + xlen, &ti, MIO_SIZEOF(ti)); xlen += MIO_SIZEOF(ti);
+				ti = mio_ntoh32(soa->retry);
+				MIO_MEMCPY((mio_uint8_t*)dptr + xlen, &ti, MIO_SIZEOF(ti)); xlen += MIO_SIZEOF(ti);
+				ti = mio_ntoh32(soa->expire);
+				MIO_MEMCPY((mio_uint8_t*)dptr + xlen, &ti, MIO_SIZEOF(ti)); xlen += MIO_SIZEOF(ti);
+				ti = mio_ntoh32(soa->minimum);
+				MIO_MEMCPY((mio_uint8_t*)dptr + xlen, &ti, MIO_SIZEOF(ti)); xlen += MIO_SIZEOF(ti);
+			}
+			else
+			{
+				tmp = to_dn_capa(soa->mname);
+				if (MIO_UNLIKELY(tmp <= 0)) goto inval;
+				xlen += tmp;
+
+				tmp = to_dn_capa(soa->rname);
+				if (MIO_UNLIKELY(tmp <= 0)) goto inval;
+				xlen += tmp;
+
+				xlen += 20;
+			}
 			break;
+		}
 
 		case MIO_DNS_RRT_TXT:
 		case MIO_DNS_RRT_NULL:

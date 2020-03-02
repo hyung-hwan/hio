@@ -957,7 +957,7 @@ for (i = 0; i < 5; i++)
 	//mio_bcstrtoskad (mio, "[fe80::c7e2:bd6e:1209:ac1b%eno1]:1153", &servaddr);
 	dnc = mio_svc_dnc_start (mio, &servaddr, MIO_NULL, &send_tmout, &reply_tmout, 2); /* option - send to all, send one by one */
 
-#if 0
+#if 1
 	{
 		mio_dns_bqr_t qrs[] = 
 		{
@@ -971,13 +971,18 @@ for (i = 0; i < 5; i++)
 		mio_ip4ad_t rrdata_a = { { 4, 3, 2, 1 } };
 		mio_ip6ad_t rrdata_aaaa = { { 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, }};
 
+		mio_dns_brrd_soa_t miflux_soa_data = 
+		{
+			"ns9.dnszi.com", "root.dnszi.com", 2019091905, 43200, 3600, 1209600, 1100
+		};
+
 		mio_dns_brr_t rrs[] = 
 		{
 			{ MIO_DNS_RR_PART_ANSWER,    "code.miflux.com",  MIO_DNS_RRT_A,     MIO_DNS_RRC_IN, 86400, MIO_SIZEOF(rrdata_a),    &rrdata_a },
 			{ MIO_DNS_RR_PART_ANSWER,    "code.miflux.com",  MIO_DNS_RRT_AAAA,  MIO_DNS_RRC_IN, 86400, MIO_SIZEOF(rrdata_aaaa), &rrdata_aaaa },
 			{ MIO_DNS_RR_PART_ANSWER,    "miflux.com",       MIO_DNS_RRT_NS,    MIO_DNS_RRC_IN, 86400, 0,  "ns1.miflux.com" },
-			{ MIO_DNS_RR_PART_ANSWER,    "miflux.com",       MIO_DNS_RRT_NS,    MIO_DNS_RRC_IN, 86400, 0,  "ns2.miflux.com" }, //, 
-			//{ MIO_DNS_RR_PART_AUTHORITY, "miflux.com",       MIO_DNS_RRT_SOA,    MIO_DNS_RRC_IN, 86400, 0,  "ns2.miflux.com" }, //, 
+			{ MIO_DNS_RR_PART_ANSWER,    "miflux.com",       MIO_DNS_RRT_NS,    MIO_DNS_RRC_IN, 86400, 0,  "ns2.miflux.com" },
+			{ MIO_DNS_RR_PART_AUTHORITY, "miflux.com",       MIO_DNS_RRT_SOA,    MIO_DNS_RRC_IN, 86400, MIO_SIZEOF(miflux_soa_data),  &miflux_soa_data }, //, 
 			//{ MIO_DNS_RR_PART_ANSERT,    "www.miflux.com",   MIO_DNS_RRT_CNAME, MIO_DNS_RRC_IN, 60,    15, "code.miflux.com" }  
 		};
 
