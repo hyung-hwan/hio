@@ -390,10 +390,24 @@ typedef void (*mio_svc_dnc_on_resolve_t) (
 #define mio_svc_dnc_getmio(svc) mio_svc_getmio(svc)
 #define mio_svc_dnr_getmio(svc) mio_svc_getmio(svc)
 
+enum mio_svc_dnc_send_flag_t
+{
+	MIO_SVC_DNC_SEND_FLAG_PREFER_TCP = (1 << 0),
+	MIO_SVC_DNC_SEND_FLAG_TCP_IF_TC  = (1 << 1), // retry over tcp if the truncated bit is set in an answer over udp.
+
+	MIO_SVC_DNC_SEND_FLAG_ALL = (MIO_SVC_DNC_SEND_FLAG_PREFER_TCP | MIO_SVC_DNC_SEND_FLAG_TCP_IF_TC)
+};
+typedef enum mio_svc_dnc_send_flag_t mio_svc_dnc_send_flag_t;
+
 enum mio_svc_dnc_resolve_flag_t
 {
-	MIO_SVC_DNC_RESOLVE_FLAG_BRIEF      = (1 << 0),
-	MIO_SVC_DNC_RESOLVE_FLAG_PREFER_TCP = (1 << 1)
+	MIO_SVC_DNC_RESOLVE_FLAG_PREFER_TCP = MIO_SVC_DNC_SEND_FLAG_PREFER_TCP,
+	MIO_SVC_DNC_RESOLVE_FLAG_TCP_IF_TC  = MIO_SVC_DNC_SEND_FLAG_TCP_IF_TC,
+
+	/* the following flag bits are resolver specific. it must not overlap with send flag bits */
+	MIO_SVC_DNC_RESOLVE_FLAG_BRIEF      = (1 << 8),
+
+	MIO_SVC_DNC_RESOLVE_FLAG_ALL = (MIO_SVC_DNC_RESOLVE_FLAG_PREFER_TCP | MIO_SVC_DNC_RESOLVE_FLAG_TCP_IF_TC | MIO_SVC_DNC_RESOLVE_FLAG_BRIEF)
 };
 typedef enum mio_svc_dnc_resolve_flag_t  mio_svc_dnc_resolve_flag_t;
 
@@ -463,7 +477,7 @@ MIO_EXPORT mio_dns_msg_t* mio_svc_dnc_sendmsg (
 	mio_dns_brr_t*         rr,
 	mio_oow_t              rr_count,
 	mio_dns_bedns_t*       edns,
-	int                    prefer_tcp,
+	int                    send_flags,
 	mio_svc_dnc_on_done_t  on_done,
 	mio_oow_t              xtnsize
 );
@@ -473,7 +487,7 @@ MIO_EXPORT mio_dns_msg_t* mio_svc_dnc_sendreq (
 	mio_dns_bhdr_t*        bdns,
 	mio_dns_bqr_t*         qr,
 	mio_dns_bedns_t*       edns,
-	int                    prefer_tcp,
+	int                    send_flags,
 	mio_svc_dnc_on_done_t  on_done,
 	mio_oow_t              xtnsize
 );
@@ -483,7 +497,7 @@ MIO_EXPORT mio_dns_msg_t* mio_svc_dnc_resolve (
 	mio_svc_dnc_t*           dnc,
 	const mio_bch_t*         qname,
 	mio_dns_rrt_t            qtype,
-	int                      flags,
+	int                      resolve_flags,
 	mio_svc_dnc_on_resolve_t on_resolve,
 	mio_oow_t                xtnsize
 );

@@ -1055,6 +1055,11 @@ if (!mio_svc_dnc_resolve(dnc, "code.miflux.com", MIO_DNS_RRT_A, MIO_SVC_DNC_RESO
 	printf ("resolve attempt failure ---> code.miflux.com\n");
 }
 
+if (!mio_svc_dnc_resolve(dnc, "45.77.246.105.in-addr.arpa", MIO_DNS_RRT_PTR, MIO_SVC_DNC_RESOLVE_FLAG_BRIEF, on_dnc_resolve_brief, 0))
+{
+	printf ("resolve attempt failure ---> 45.77.246.105.in-addr.arpa.\n");
+}
+
 #if 0
 if (!mio_svc_dnc_resolve(dnc, "1.1.1.1.in-addr.arpa", MIO_DNS_RRT_PTR, MIO_SVC_DNC_RESOLVE_FLAG_BRIEF, on_dnc_resolve_brief, 0))
 {
