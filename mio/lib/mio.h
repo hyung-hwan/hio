@@ -27,11 +27,11 @@
 #ifndef _MIO_H_
 #define _MIO_H_
 
-#include "mio-cmn.h"
+#include <mio-cmn.h>
 #include <stdarg.h>
 
 #if defined(_WIN32)
-	typedef mio_uintptr_t qse_syshnd_t;
+	typedef mio_uintptr_t mio_syshnd_t;
 	#define MIO_SYSHND_INVALID (~(mio_uintptr_t)0)
 #else
 	typedef int mio_syshnd_t;
