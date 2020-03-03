@@ -749,7 +749,7 @@ static int do_ssl (mio_dev_sck_t* dev, int (*ssl_func)(SSL*))
 		ret = 1; /* accepted */
 	}
 
-	if (mio_dev_watch ((mio_dev_t*)dev, watcher_cmd, watcher_events) <= -1)
+	if (mio_dev_watch((mio_dev_t*)dev, watcher_cmd, watcher_events) <= -1)
 	{
 		mio_stop (mio, MIO_STOPREQ_WATCHER_ERROR);
 		ret = -1;

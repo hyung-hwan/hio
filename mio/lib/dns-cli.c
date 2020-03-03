@@ -989,3 +989,15 @@ mio_dns_msg_t* mio_svc_dnc_resolve (mio_svc_dnc_t* dnc, const mio_bch_t* qname, 
 
 	return reqmsg;
 }
+
+
+/* TODO: upon startup, read /etc/hosts. setup inotify or find a way to detect file changes..
+ *       in resolve, add an option to use entries from /etc/hosts */
+
+/* TODO: afxr client ... */
+
+/* TODO: trace function to do its own recursive resolution?... 
+mio_dns_msg_t* mio_svc_dnc_trace (mio_svc_dnc_t* dnc, const mio_bch_t* qname, mio_dns_rrt_t qtype, int resolve_flags, mio_svc_dnc_on_resolve_t on_resolve, mio_oow_t xtnsize)
+{
+}
+*/
