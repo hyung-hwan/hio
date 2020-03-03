@@ -194,8 +194,8 @@ typedef struct mio_icmphdr_t mio_icmphdr_t;
 #	define MIO_SCKHND_INVALID (INVALID_SOCKET)
 	*/
 
-	typedef mio_uintptr_t qse_sckhnd_t;
-#	define MIO_SCKHND_INVALID (~(qse_sck_hnd_t)0)
+	typedef mio_uintptr_t mio_sckhnd_t;
+#	define MIO_SCKHND_INVALID (~(mio_sck_hnd_t)0)
 
 #else
 	typedef int mio_sckhnd_t;
