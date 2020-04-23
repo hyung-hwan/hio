@@ -28,7 +28,7 @@
 #define _MIO_SKAD_H_
 
 #include <mio.h>
-
+#include <mio-utl.h>
 
 #define MIO_SIZEOF_SKAD_T 1
 #if (MIO_SIZEOF_STRUCT_SOCKADDR_IN > MIO_SIZEOF_SKAD_T)
