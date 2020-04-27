@@ -155,6 +155,77 @@
 #	error UNKNOWN ENDIAN
 #endif
 
+
+/* =========================================================================
+ * HASH
+ * ========================================================================= */
+#if (MIO_SIZEOF_OOW_T == 4)
+#	define MIO_HASH_FNV_MAGIC_INIT (0x811c9dc5)
+#	define MIO_HASH_FNV_MAGIC_PRIME (0x01000193)
+#elif (MIO_SIZEOF_OOW_T == 8)
+#	define MIO_HASH_FNV_MAGIC_INIT (0xCBF29CE484222325)
+#	define MIO_HASH_FNV_MAGIC_PRIME (0x100000001B3l)
+#elif (MIO_SIZEOF_OOW_T == 16)
+#	define MIO_HASH_FNV_MAGIC_INIT (0x6C62272E07BB014262B821756295C58D)
+#	define MIO_HASH_FNV_MAGIC_PRIME (0x1000000000000000000013B)
+#endif
+
+#if defined(MIO_HASH_FNV_MAGIC_INIT)
+	/* FNV-1 hash */
+#	define MIO_HASH_INIT MIO_HASH_FNV_MAGIC_INIT
+#	define MIO_HASH_VALUE(hv,v) (((hv) ^ (v)) * MIO_HASH_FNV_MAGIC_PRIME)
+
+#else
+	/* SDBM hash */
+#	define MIO_HASH_INIT 0
+#	define MIO_HASH_VALUE(hv,v) (((hv) << 6) + ((hv) << 16) - (hv) + (v))
+#endif
+
+#define MIO_HASH_VPTL(hv, ptr, len, type) do { \
+	hv = MIO_HASH_INIT; \
+	MIO_HASH_MORE_VPTL (hv, ptr, len, type); \
+} while(0)
+
+#define MIO_HASH_MORE_VPTL(hv, ptr, len, type) do { \
+	type* __mio_hash_more_vptl_p = (type*)(ptr); \
+	type* __mio_hash_more_vptl_q = (type*)__mio_hash_more_vptl_p + (len); \
+	while (__mio_hash_more_vptl_p < __mio_hash_more_vptl_q) \
+	{ \
+		hv = MIO_HASH_VALUE(hv, *__mio_hash_more_vptl_p); \
+		__mio_hash_more_vptl_p++; \
+	} \
+} while(0)
+
+#define MIO_HASH_VPTR(hv, ptr, type) do { \
+	hv = MIO_HASH_INIT; \
+	MIO_HASH_MORE_VPTR (hv, ptr, type); \
+} while(0)
+
+#define MIO_HASH_MORE_VPTR(hv, ptr, type) do { \
+	type* __mio_hash_more_vptr_p = (type*)(ptr); \
+	while (*__mio_hash_more_vptr_p) \
+	{ \
+		hv = MIO_HASH_VALUE(hv, *__mio_hash_more_vptr_p); \
+		__mio_hash_more_vptr_p++; \
+	} \
+} while(0)
+
+#define MIO_HASH_BYTES(hv, ptr, len) MIO_HASH_VPTL(hv, ptr, len, const mio_uint8_t)
+#define MIO_HASH_MORE_BYTES(hv, ptr, len) MIO_HASH_MORE_VPTL(hv, ptr, len, const mio_uint8_t)
+
+#define MIO_HASH_BCHARS(hv, ptr, len) MIO_HASH_VPTL(hv, ptr, len, const mio_bch_t)
+#define MIO_HASH_MORE_BCHARS(hv, ptr, len) MIO_HASH_MORE_VPTL(hv, ptr, len, const mio_bch_t)
+
+#define MIO_HASH_UCHARS(hv, ptr, len) MIO_HASH_VPTL(hv, ptr, len, const mio_uch_t)
+#define MIO_HASH_MORE_UCHARS(hv, ptr, len) MIO_HASH_MORE_VPTL(hv, ptr, len, const mio_uch_t)
+
+#define MIO_HASH_BCSTR(hv, ptr) MIO_HASH_VPTR(hv, ptr, const mio_bch_t)
+#define MIO_HASH_MORE_BCSTR(hv, ptr) MIO_HASH_MORE_VPTR(hv, ptr, const mio_bch_t)
+
+#define MIO_HASH_UCSTR(hv, ptr) MIO_HASH_VPTR(hv, ptr, const mio_uch_t)
+#define MIO_HASH_MORE_UCSTR(hv, ptr) MIO_HASH_MORE_VPTR(hv, ptr, const mio_uch_t)
+
+
 #ifdef __cplusplus
 extern "C" {
 #endif
