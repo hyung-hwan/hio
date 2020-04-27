@@ -429,8 +429,6 @@ struct mio_svc_t
 	else (mio)->actsvc.tail = (svc)->svc_prev; \
 } while (0)
 
-#define mio_svc_getmio(svc) (((mio_svc_t*)(svc))->mio)
-
 /* =========================================================================
  * MIO LOGGING
  * ========================================================================= */
@@ -764,6 +762,12 @@ MIO_EXPORT void mio_dev_halt (
 	mio_dev_t* dev
 );
 
+#if defined(MIO_HAVE_INLINE)
+static MIO_INLINE mio_t* mio_dev_getmio (mio_dev_t* dev) { return dev->mio; }
+#else
+#	define mio_dev_getmio(dev) (((mio_dev_t*)(dev))->mio)
+#endif
+
 MIO_EXPORT int mio_dev_ioctl (
 	mio_dev_t*  dev,
 	int         cmd,
@@ -831,6 +835,16 @@ MIO_EXPORT int mio_dev_timedwritev (
 	void*                 wrctx,
 	const mio_devaddr_t*  dstaddr
 );
+
+/* =========================================================================
+ * SERVICE 
+ * ========================================================================= */
+
+#if defined(MIO_HAVE_INLINE)
+static MIO_INLINE mio_t* mio_svc_getmio (mio_svc_t* svc) { return svc->mio; }
+#else
+#	define mio_svc_getmio(svc) (((mio_svc_t*)(svc))->mio)
+#endif
 
 
 /* =========================================================================
