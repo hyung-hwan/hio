@@ -329,7 +329,7 @@ struct mio_dev_sck_bind_t
 	mio_ntime_t accept_tmout;
 };
 
-enum mio_def_sck_connect_option_t
+enum mio_dev_sck_connect_option_t
 {
 	MIO_DEV_SCK_CONNECT_SSL = (1 << 15)
 };
@@ -424,6 +424,12 @@ MIO_EXPORT mio_dev_sck_t* mio_dev_sck_make (
 	mio_oow_t                 xtnsize,
 	const mio_dev_sck_make_t* info
 );
+
+#if defined(MIO_HAVE_INLINE)
+static MIO_INLINE mio_t* mio_dev_sck_getmio (mio_dev_sck_t* sck) { return mio_dev_getmio((mio_dev_t*)sck); }
+#else
+#	define mio_dev_sck_getmio(sck) mio_dev_getmio(sck)
+#endif
 
 #if defined(MIO_HAVE_INLINE)
 static MIO_INLINE void* mio_dev_sck_getxtn (mio_dev_sck_t* sck) { return (void*)(sck + 1); }
