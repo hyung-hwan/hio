@@ -141,6 +141,18 @@ MIO_EXPORT  mio_dev_pro_t* mio_dev_pro_make (
 	const mio_dev_pro_make_t* data
 );
 
+#if defined(MIO_HAVE_INLINE)
+static MIO_INLINE mio_t* mio_dev_pro_getmio (mio_dev_pro_t* pro) { return mio_dev_getmio((mio_dev_t*)pro); }
+#else
+#	define mio_dev_pro_getmio(pro) mio_dev_getmio(pro)
+#endif
+
+#if defined(MIO_HAVE_INLINE)
+static MIO_INLINE void* mio_dev_pro_getxtn (mio_dev_pro_t* pro) { return (void*)(pro + 1); }
+#else
+#	define mio_dev_pro_getxtn(pro) ((void*)(((mio_dev_pro_t*)pro) + 1))
+#endif
+
 MIO_EXPORT void mio_dev_pro_kill (
 	mio_dev_pro_t* pro
 );
