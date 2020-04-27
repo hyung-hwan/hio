@@ -25,6 +25,7 @@
  */
 
 #include "mio-prv.h"
+#include <stdlib.h>
   
 #define DEV_CAP_ALL_WATCHED (MIO_DEV_CAP_IN_WATCHED | MIO_DEV_CAP_OUT_WATCHED | MIO_DEV_CAP_PRI_WATCHED)
 
@@ -52,10 +53,36 @@ static void on_write_timeout (mio_t* mio, const mio_ntime_t* now, mio_tmrjob_t* 
 
 /* ========================================================================= */
 
+static void* mmgr_alloc (mio_mmgr_t* mmgr, mio_oow_t size)
+{
+	return malloc(size);
+}
+
+static void* mmgr_realloc (mio_mmgr_t* mmgr, void* ptr, mio_oow_t size)
+{
+	return realloc(ptr, size);
+}
+
+static void mmgr_free (mio_mmgr_t* mmgr, void* ptr)
+{
+	return free (ptr);
+}
+
+static mio_mmgr_t default_mmgr =
+{
+	mmgr_alloc,
+	mmgr_realloc,
+	mmgr_free,
+	MIO_NULL
+};
+
+/* ========================================================================= */
+
 mio_t* mio_open (mio_mmgr_t* mmgr, mio_oow_t xtnsize, mio_cmgr_t* cmgr, mio_oow_t tmrcapa, mio_errinf_t* errinfo)
 {
 	mio_t* mio;
 
+	if (!mmgr) mmgr = &default_mmgr;
 	if (!cmgr) cmgr = mio_get_utf8_cmgr();
 
 	mio = (mio_t*)MIO_MMGR_ALLOC(mmgr, MIO_SIZEOF(mio_t) + xtnsize);
