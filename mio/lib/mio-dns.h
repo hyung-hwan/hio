@@ -317,6 +317,7 @@ struct mio_dns_brrd_cname_t
 };
 typedef struct mio_dns_brrd_cname_t mio_dns_brc_cname_t;
 
+#endif
 
 /* 3.3.9 MX RDATA format */
 struct mio_dns_brrd_mx_t
@@ -325,8 +326,8 @@ struct mio_dns_brrd_mx_t
 	mio_bch_t*   exchange;
 };
 typedef struct mio_dns_brrd_mx_t mio_dns_brrd_mx_t;
-#endif
 
+/* 3.3.13. SOA RDATA format */
 struct mio_dns_brrd_soa_t
 {
 	mio_bch_t*   mname;
