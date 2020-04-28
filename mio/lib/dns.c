@@ -168,11 +168,12 @@ static int parse_domain_name (mio_t* mio, mio_dns_pkt_info_t* pi)
 			if (MIO_UNLIKELY(pi->_ptr >= pi->_end)) goto oops;
 			offset = ((seglen & 0x3F) << 8) | *pi->_ptr++;
 
-			if (MIO_UNLIKELY(pi->_ptr >= pi->_end)) goto oops;
+			/*if (MIO_UNLIKELY(pi->_ptr >= pi->_end)) goto oops; <- this condition can be true if the function is called for the domain name at the back of the last RR */
+
 			seglen = pi->_start[offset];
 			if (seglen >= 64) goto oops; /* the pointed position must not contain another pointer */
 
-			if (!xptr) xptr = pi->_ptr; /* some later parts can also be a poitner again. so xptr, once set, must not be set again */
+			if (!xptr) xptr = pi->_ptr; /* some later parts can also be a pointer again. so xptr, once set, must not be set again */
 			pi->_ptr = &pi->_start[offset + 1];
 			if (MIO_UNLIKELY(pi->_ptr >= pi->_end)) goto oops;
 
@@ -293,7 +294,6 @@ static int parse_answer_rr (mio_t* mio, mio_dns_rr_part_t rr_part, mio_oow_t pos
 			goto verbatim;
 
 		case MIO_DNS_RRT_CNAME:
-		case MIO_DNS_RRT_MX:
 		case MIO_DNS_RRT_NS:
 		case MIO_DNS_RRT_PTR:
 		{
@@ -301,6 +301,37 @@ static int parse_answer_rr (mio_t* mio, mio_dns_rr_part_t rr_part, mio_oow_t pos
 			mio_uint8_t* xptr = pi->_ptr;
 		#endif
 			if (parse_domain_name(mio, pi) <= -1) goto oops;
+			MIO_ASSERT (mio, pi->_ptr == xptr + dlen);
+			break;
+		}
+
+		case MIO_DNS_RRT_MX:
+		{
+		#if !defined(MIO_BUILD_RELEASE)
+			mio_uint8_t* xptr = pi->_ptr;
+		#endif
+			mio_dns_brrd_mx_t* mx;
+
+			pi->_rrdlen += MIO_SIZEOF(*mx);
+			if (MIO_UNLIKELY(pi->_end - pi->_ptr < 2)) goto oops;
+
+			if (pi->_rrdptr)
+			{
+				mx = (mio_dns_brrd_soa_t*)pi->_rrdptr;
+				pi->_rrdptr += MIO_SIZEOF(*mx);
+
+				MIO_MEMCPY (&mx->preference, pi->_ptr, 2); pi->_ptr += 2;
+
+				mx->preference = mio_ntoh16(mx->preference);	
+				mx->exchange = (mio_bch_t*)pi->_rrdptr;
+				if (parse_domain_name(mio, pi) <= -1) goto oops;
+			}
+			else
+			{
+				pi->_ptr += 2;
+				if (parse_domain_name(mio, pi) <= -1) goto oops;
+			}
+
 			MIO_ASSERT (mio, pi->_ptr == xptr + dlen);
 			break;
 		}
@@ -365,6 +396,7 @@ static int parse_answer_rr (mio_t* mio, mio_dns_rr_part_t rr_part, mio_oow_t pos
 			case MIO_DNS_RR_PART_ANSWER: brr = pi->rr.an; break;
 			case MIO_DNS_RR_PART_AUTHORITY: brr = pi->rr.ns; break;
 			case MIO_DNS_RR_PART_ADDITIONAL: brr = pi->rr.ar; break;
+			default: goto oops;
 		}
 
 		brr[pos].part = rr_part;
@@ -480,12 +512,6 @@ static int encode_rrdata_in_dns_msg (mio_t* mio, const mio_dns_brr_t* rr, mio_ui
 			goto verbatim;
 
 		case MIO_DNS_RRT_CNAME: 
-		/*case MIO_DNS_RRT_MB:
-		case MIO_DNS_RRT_MD:
-		case MIO_DNS_RRT_MF:
-		case MIO_DNS_RRT_MG:
-		case MIO_DNS_RRT_MR:*/
-		case MIO_DNS_RRT_MX:
 		case MIO_DNS_RRT_NS:
 		case MIO_DNS_RRT_PTR:
 			/* just a normal domain name */
@@ -508,6 +534,41 @@ static int encode_rrdata_in_dns_msg (mio_t* mio, const mio_dns_brr_t* rr, mio_ui
 	#endif
 			xlen = rr->dlen;
 			break;
+
+		/*case MIO_DNS_RRT_MB:
+		case MIO_DNS_RRT_MD:
+		case MIO_DNS_RRT_MF:
+		case MIO_DNS_RRT_MG:
+		case MIO_DNS_RRT_MR:*/
+		case MIO_DNS_RRT_MX:
+		{
+			mio_dns_brrd_mx_t* mx;
+			mio_oow_t tmp;
+
+			if (MIO_UNLIKELY(rr->dlen != MIO_SIZEOF(mio_dns_brrd_mx_t))) goto inval;
+			mx = (mio_dns_brrd_mx_t*)rr->dptr;
+			xlen = 0;
+			if (dptr)
+			{
+				mio_uint16_t ti;
+
+				ti = mio_hton16(mx->preference);
+				MIO_MEMCPY((mio_uint8_t*)dptr + xlen, &ti, MIO_SIZEOF(ti)); xlen += MIO_SIZEOF(ti);
+
+				tmp = to_dn(mx->exchange, (mio_uint8_t*)dptr + xlen);
+				if (MIO_UNLIKELY(tmp <= 0)) goto inval;
+				xlen += tmp;
+			}
+			else
+			{
+				xlen += 2;
+
+				tmp = to_dn_capa(mx->exchange);
+				if (MIO_UNLIKELY(tmp <= 0)) goto inval;
+				xlen += tmp;
+			}
+			break;
+		}
 		
 		case MIO_DNS_RRT_SOA:
 		{
@@ -531,15 +592,15 @@ static int encode_rrdata_in_dns_msg (mio_t* mio, const mio_dns_brr_t* rr, mio_ui
 				if (MIO_UNLIKELY(tmp <= 0)) goto inval;
 				xlen += tmp;
 
-				ti = mio_ntoh32(soa->serial);
+				ti = mio_hton32(soa->serial);
 				MIO_MEMCPY((mio_uint8_t*)dptr + xlen, &ti, MIO_SIZEOF(ti)); xlen += MIO_SIZEOF(ti);
-				ti = mio_ntoh32(soa->refresh);
+				ti = mio_hton32(soa->refresh);
 				MIO_MEMCPY((mio_uint8_t*)dptr + xlen, &ti, MIO_SIZEOF(ti)); xlen += MIO_SIZEOF(ti);
-				ti = mio_ntoh32(soa->retry);
+				ti = mio_hton32(soa->retry);
 				MIO_MEMCPY((mio_uint8_t*)dptr + xlen, &ti, MIO_SIZEOF(ti)); xlen += MIO_SIZEOF(ti);
-				ti = mio_ntoh32(soa->expire);
+				ti = mio_hton32(soa->expire);
 				MIO_MEMCPY((mio_uint8_t*)dptr + xlen, &ti, MIO_SIZEOF(ti)); xlen += MIO_SIZEOF(ti);
-				ti = mio_ntoh32(soa->minimum);
+				ti = mio_hton32(soa->minimum);
 				MIO_MEMCPY((mio_uint8_t*)dptr + xlen, &ti, MIO_SIZEOF(ti)); xlen += MIO_SIZEOF(ti);
 			}
 			else
