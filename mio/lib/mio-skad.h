@@ -147,6 +147,13 @@ MIO_EXPORT void mio_skad_init_for_ip6 (
 	int                scope_id
 );
 
+MIO_EXPORT void mio_skad_init_for_ip_with_bytes (
+	mio_skad_t*        skad,
+	mio_uint16_t       port,
+	const mio_uint8_t* bytes,
+	mio_oow_t          len 
+);
+
 MIO_EXPORT void mio_skad_init_for_eth (
 	mio_skad_t*        skad,
 	int                ifindex,
