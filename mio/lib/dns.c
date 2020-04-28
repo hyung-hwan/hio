@@ -293,6 +293,11 @@ static int parse_answer_rr (mio_t* mio, mio_dns_rr_part_t rr_part, mio_oow_t pos
 			if (MIO_UNLIKELY(dlen != MIO_SIZEOF(mio_ip6ad_t))) goto oops;
 			goto verbatim;
 
+		/*case MIO_DNS_RRT_MB:
+		case MIO_DNS_RRT_MD:
+		case MIO_DNS_RRT_MF:
+		case MIO_DNS_RRT_MG:
+		case MIO_DNS_RRT_MR:*/
 		case MIO_DNS_RRT_CNAME:
 		case MIO_DNS_RRT_NS:
 		case MIO_DNS_RRT_PTR:
@@ -511,6 +516,11 @@ static int encode_rrdata_in_dns_msg (mio_t* mio, const mio_dns_brr_t* rr, mio_ui
 			if (MIO_UNLIKELY(rr->dlen != MIO_SIZEOF(mio_ip6ad_t))) goto inval;
 			goto verbatim;
 
+		/*case MIO_DNS_RRT_MB:
+		case MIO_DNS_RRT_MD:
+		case MIO_DNS_RRT_MF:
+		case MIO_DNS_RRT_MG:
+		case MIO_DNS_RRT_MR:*/
 		case MIO_DNS_RRT_CNAME: 
 		case MIO_DNS_RRT_NS:
 		case MIO_DNS_RRT_PTR:
@@ -535,11 +545,6 @@ static int encode_rrdata_in_dns_msg (mio_t* mio, const mio_dns_brr_t* rr, mio_ui
 			xlen = rr->dlen;
 			break;
 
-		/*case MIO_DNS_RRT_MB:
-		case MIO_DNS_RRT_MD:
-		case MIO_DNS_RRT_MF:
-		case MIO_DNS_RRT_MG:
-		case MIO_DNS_RRT_MR:*/
 		case MIO_DNS_RRT_MX:
 		{
 			mio_dns_brrd_mx_t* mx;
