@@ -1385,11 +1385,10 @@ void mio_skad_init_for_ip4 (mio_skad_t* skad, mio_uint16_t port, mio_ip4ad_t* ip
 {
 #if (MIO_SIZEOF_STRUCT_SOCKADDR_IN > 0)
 	struct sockaddr_in* sin = (struct sockaddr_in*)skad;
-
 	MIO_MEMSET (sin, 0, MIO_SIZEOF(*sin));
 	sin->sin_family = AF_INET;
-	sin->sin_port = htons(port);
-	if (ip4ad) MIO_MEMCPY (&sin->sin_addr, ip4ad, MIO_IP4ADDR_LEN);
+	sin->sin_port = mio_hton16(port);
+	if (ip4ad) MIO_MEMCPY (&sin->sin_addr, ip4ad->v, MIO_IP4ADDR_LEN);
 #endif
 }
 
@@ -1397,14 +1396,45 @@ void mio_skad_init_for_ip6 (mio_skad_t* skad, mio_uint16_t port, mio_ip6ad_t* ip
 {
 #if (MIO_SIZEOF_STRUCT_SOCKADDR_IN6 > 0)
 	struct sockaddr_in6* sin = (struct sockaddr_in6*)skad;
-
 	MIO_MEMSET (sin, 0, MIO_SIZEOF(*sin));
-	sin->sin6_family = AF_INET;
-	sin->sin6_port = htons(port);
+	sin->sin6_family = AF_INET6;
+	sin->sin6_port = mio_hton16(port);
 	sin->sin6_scope_id = scope_id;
-	if (ip6ad) MIO_MEMCPY (&sin->sin6_addr, ip6ad, MIO_IP6ADDR_LEN);
+	if (ip6ad) MIO_MEMCPY (&sin->sin6_addr, ip6ad->v, MIO_IP6ADDR_LEN);
 #endif
 }
+
+void mio_skad_init_for_ip_with_bytes (mio_skad_t* skad, mio_uint16_t port, const mio_uint8_t* bytes, mio_oow_t len)
+{
+	switch (len)
+	{
+	#if (MIO_SIZEOF_STRUCT_SOCKADDR_IN > 0)
+		case MIO_IP4ADDR_LEN:
+		{
+			struct sockaddr_in* sin = (struct sockaddr_in*)skad;
+			MIO_MEMSET (sin, 0, MIO_SIZEOF(*sin));
+			sin->sin_family = AF_INET;
+			sin->sin_port = mio_hton16(port);
+			MIO_MEMCPY (&sin->sin_addr, bytes, len);
+			break;
+		}
+	#endif
+	#if (MIO_SIZEOF_STRUCT_SOCKADDR_IN6 > 0)
+		case MIO_IP6ADDR_LEN:
+		{
+			struct sockaddr_in6* sin = (struct sockaddr_in6*)skad;
+			MIO_MEMSET (sin, 0, MIO_SIZEOF(*sin));
+			sin->sin6_family = AF_INET6;
+			sin->sin6_port = mio_hton16(port);
+			MIO_MEMCPY (&sin->sin6_addr, bytes, len);
+			break;
+		}
+	#endif
+		default:
+			break;
+	}
+}
+
 
 void mio_skad_init_for_eth (mio_skad_t* skad, int ifindex, mio_ethaddr_t* ethaddr)
 {
