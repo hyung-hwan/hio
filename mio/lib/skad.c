@@ -1513,3 +1513,51 @@ int mio_equal_skads (const mio_skad_t* addr1, const mio_skad_t* addr2, int stric
 			return MIO_MEMCMP(addr1, addr2, mio_skad_size(addr1)) == 0;
 	}
 }
+
+mio_oow_t mio_ipad_bytes_to_ucstr (const mio_uint8_t* iptr, mio_oow_t ilen, mio_uch_t* buf, mio_oow_t blen)
+{
+	switch (ilen)
+	{
+		case 4:
+		{
+			struct in_addr ip4ad;
+			MIO_MEMCPY (&ip4ad.s_addr, iptr, ilen);
+			return ip4ad_to_ucstr(&ip4ad, buf, blen);
+		}
+
+		case 16:
+		{
+			struct in6_addr ip6ad;
+			MIO_MEMCPY (&ip6ad.s6_addr, iptr, ilen);
+			return ip6ad_to_ucstr(&ip6ad, buf, blen);
+		}
+
+		default:
+			if (blen > 0) buf[blen] = '\0';
+			return 0;
+	}
+}
+
+mio_oow_t mio_ipad_bytes_to_bcstr (const mio_uint8_t* iptr, mio_oow_t ilen, mio_bch_t* buf, mio_oow_t blen)
+{
+	switch (ilen)
+	{
+		case 4:
+		{
+			struct in_addr ip4ad;
+			MIO_MEMCPY (&ip4ad.s_addr, iptr, ilen);
+			return ip4ad_to_bcstr(&ip4ad, buf, blen);
+		}
+
+		case 16:
+		{
+			struct in6_addr ip6ad;
+			MIO_MEMCPY (&ip6ad.s6_addr, iptr, ilen);
+			return ip6ad_to_bcstr(&ip6ad, buf, blen);
+		}
+
+		default:
+			if (blen > 0) buf[blen] = '\0';
+			return 0;
+	}
+}

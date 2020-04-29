@@ -186,6 +186,20 @@ MIO_EXPORT int mio_equal_skads (
 	int               strict
 );
 
+MIO_EXPORT mio_oow_t mio_ipad_bytes_to_ucstr (
+	const mio_uint8_t* iptr,
+	mio_oow_t          ilen,
+	mio_uch_t*         buf,
+	mio_oow_t          blen
+);
+
+MIO_EXPORT mio_oow_t mio_ipad_bytes_to_bcstr (
+	const mio_uint8_t* iptr,
+	mio_oow_t          ilen,
+	mio_bch_t*         buf,
+	mio_oow_t          blen
+);
+
 #if defined(__cplusplus)
 }
 #endif
