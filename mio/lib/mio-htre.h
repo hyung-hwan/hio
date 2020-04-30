@@ -49,21 +49,21 @@ typedef enum mio_htre_state_t mio_htre_state_t;
 
 typedef int (*mio_htre_concb_t) (
 	mio_htre_t*        re,
-	const mio_mchar_t* ptr,
-	mio_size_t         len,
+	const mio_bch_t* ptr,
+	mio_oow_t         len,
 	void*              ctx
 );
 
 struct mio_htre_hdrval_t
 {
-	const mio_mchar_t* ptr;
-	mio_size_t         len;
+	const mio_bch_t* ptr;
+	mio_oow_t         len;
 	mio_htre_hdrval_t* next;
 };
 
 struct mio_htre_t 
 {
-	mio_mmgr_t* mmgr;
+	mio_t* mio;
 
 	enum
 	{
@@ -73,7 +73,7 @@ struct mio_htre_t
 
 	/* version */
 	mio_http_version_t version;
-	const mio_mchar_t* verstr; /* version string include HTTP/ */
+	const mio_bch_t* verstr; /* version string include HTTP/ */
 
 	union
 	{
@@ -82,19 +82,19 @@ struct mio_htre_t
 			struct
 			{
 				mio_http_method_t type;
-				const mio_mchar_t* name;
+				const mio_bch_t* name;
 			} method;
-			mio_mcstr_t path;
-			mio_mcstr_t param;
+			mio_bcs_t path;
+			mio_bcs_t param;
 		} q;
 		struct
 		{
 			struct
 			{
 				int val;
-				mio_mchar_t* str;
+				mio_bch_t* str;
 			} code;
-			mio_mchar_t* mesg;
+			mio_bch_t* mesg;
 		} s;
 	} u;
 
@@ -111,18 +111,18 @@ struct mio_htre_t
 	 * meaningful if MIO_HTRE_QPATH_PERDEC is set in the flags */
 	struct
 	{
-		mio_mchar_t* buf; /* buffer pointer */
-		mio_size_t capa; /* buffer capacity */
+		mio_bch_t* buf; /* buffer pointer */
+		mio_oow_t capa; /* buffer capacity */
 
-		mio_mchar_t* ptr;
-		mio_size_t len;
+		mio_bch_t* ptr;
+		mio_oow_t len;
 	} orgqpath;
 
 	/* special attributes derived from the header */
 	struct
 	{
-		mio_size_t content_length;
-		const mio_mchar_t* status; /* for cgi */
+		mio_oow_t content_length;
+		const mio_bch_t* status; /* for cgi */
 	} attr;
 
 	/* header table */
@@ -130,7 +130,7 @@ struct mio_htre_t
 	mio_htb_t trailers;
 	
 	/* content octets */
-	mio_mbs_t content;
+	mio_htob_t content;
 
 	/* content callback */
 	mio_htre_concb_t concb;
@@ -164,7 +164,7 @@ struct mio_htre_t
 
 typedef int (*mio_htre_header_walker_t) (
 	mio_htre_t*              re,
-	const mio_mchar_t*       key,
+	const mio_bch_t*       key,
 	const mio_htre_hdrval_t* val,
 	void*                    ctx
 );
@@ -175,7 +175,7 @@ extern "C" {
 
 MIO_EXPORT int mio_htre_init (
 	mio_htre_t* re,
-	mio_mmgr_t* mmgr
+	mio_t*      mio
 );
 
 MIO_EXPORT void mio_htre_fini (
@@ -188,12 +188,12 @@ MIO_EXPORT void mio_htre_clear (
 
 MIO_EXPORT const mio_htre_hdrval_t* mio_htre_getheaderval (
 	const mio_htre_t*  re, 
-	const mio_mchar_t* key
+	const mio_bch_t* key
 );
 
 MIO_EXPORT const mio_htre_hdrval_t* mio_htre_gettrailerval (
 	const mio_htre_t*  re, 
-	const mio_mchar_t* key
+	const mio_bch_t* key
 );
 
 MIO_EXPORT int mio_htre_walkheaders (
@@ -217,8 +217,8 @@ MIO_EXPORT int mio_htre_walktrailers (
  */
 MIO_EXPORT int mio_htre_addcontent (
 	mio_htre_t*        re,
-	const mio_mchar_t* ptr,
-	mio_size_t         len
+	const mio_bch_t* ptr,
+	mio_oow_t         len
 );
 
 MIO_EXPORT void mio_htre_completecontent (

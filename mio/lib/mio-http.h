@@ -25,17 +25,17 @@
 #ifndef _MIO_HTTP_H_
 #define _MIO_HTTP_H_
 
-#include <mio-cmn.h>
+#include <mio-ecs.h>
 
 /** \file
  * This file provides basic data types and functions for the http protocol.
  */
 
 /* octet buffer */
-typedef mio_mbs_t mio_htob_t;
+typedef mio_becs_t mio_htob_t;
 
 /* octet string */
-typedef mio_mcstr_t mio_htos_t;
+typedef mio_bcs_t mio_htos_t;
 
 /**
  * The mio_http_version_t type defines http version.
@@ -176,22 +176,23 @@ MIO_EXPORT const mio_bch_t* mio_httpmethodtombs (
 	mio_http_method_t type
 );
 
-MIO_EXPORT mio_http_method_t mio_mbstohttpmethod (
+MIO_EXPORT mio_http_method_t mio_bcstr_to_http_method (
 	const mio_bch_t* name
 );
 
-MIO_EXPORT mio_http_method_t mio_mcstrtohttpmethod (
-	const mio_mcstr_t* name
+MIO_EXPORT mio_http_method_t mio_bchars_to_http_method (
+	const mio_bch_t* nameptr,
+	mio_oow_t        namelen
 );
 
-MIO_EXPORT int mio_parsehttprange (
-	const mio_bch_t* str,
+MIO_EXPORT int mio_parse_http_range_bcstr (
+	const mio_bch_t*  str,
 	mio_http_range_t* range
 );
 
-MIO_EXPORT int mio_parsehttptime (
+MIO_EXPORT int mio_parse_http_time_bcstr (
 	const mio_bch_t* str,
-	mio_ntime_t*       nt
+	mio_ntime_t*     nt
 );
 
 MIO_EXPORT mio_bch_t* mio_fmthttptime (
@@ -201,10 +202,10 @@ MIO_EXPORT mio_bch_t* mio_fmthttptime (
 );
 
 /**
- * The mio_isperencedhttpstr() function determines if the given string
+ * The mio_is_perenced_http_bcstr() function determines if the given string
  * contains a valid percent-encoded sequence.
  */
-MIO_EXPORT int mio_isperencedhttpstr (
+MIO_EXPORT int mio_is_perenced_http_bcstr (
 	const mio_bch_t* str
 );
 

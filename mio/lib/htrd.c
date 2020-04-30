@@ -88,9 +88,9 @@ static MIO_INLINE int xdigit_to_num (mio_bch_t c)
 }
 
 
-static MIO_INLINE int push_to_buffer (mio_htrd_t* htrd, mio_htob_t* octb, const mio_bch_t* ptr, mio_size_t len)
+static MIO_INLINE int push_to_buffer (mio_htrd_t* htrd, mio_htob_t* octb, const mio_bch_t* ptr, mio_oow_t len)
 {
-	if (mio_mbs_ncat (octb, ptr, len) == (mio_size_t)-1) 
+	if (mio_mbs_ncat (octb, ptr, len) == (mio_oow_t)-1) 
 	{
 		htrd->errnum = MIO_HTRD_ENOMEM;
 		return -1;
@@ -98,7 +98,7 @@ static MIO_INLINE int push_to_buffer (mio_htrd_t* htrd, mio_htob_t* octb, const 
 	return 0;
 }
 
-static MIO_INLINE int push_content (mio_htrd_t* htrd, const mio_bch_t* ptr, mio_size_t len)
+static MIO_INLINE int push_content (mio_htrd_t* htrd, const mio_bch_t* ptr, mio_oow_t len)
 {
 	MIO_ASSERT (len > 0);
 
@@ -126,7 +126,7 @@ static MIO_INLINE void clear_feed (mio_htrd_t* htrd)
 	MIO_MEMSET (&htrd->fed.s, 0, MIO_SIZEOF(htrd->fed.s));
 }
 
-mio_htrd_t* mio_htrd_open (mio_mmgr_t* mmgr, mio_size_t xtnsize)
+mio_htrd_t* mio_htrd_open (mio_mmgr_t* mmgr, mio_oow_t xtnsize)
 {
 	mio_htrd_t* htrd;
 
@@ -558,7 +558,7 @@ static int capture_connection (mio_htrd_t* htrd, mio_htb_pair_t* pair)
 
 static int capture_content_length (mio_htrd_t* htrd, mio_htb_pair_t* pair)
 {
-	mio_size_t len = 0, off = 0, tmp;
+	mio_oow_t len = 0, off = 0, tmp;
 	const mio_bch_t* ptr;
 	mio_htre_hdrval_t* val;
 
@@ -671,7 +671,7 @@ static MIO_INLINE int capture_key_header (mio_htrd_t* htrd, mio_htb_pair_t* pair
 	static struct
 	{
 		const mio_bch_t* ptr;
-		mio_size_t        len;
+		mio_oow_t        len;
 		int (*handler) (mio_htrd_t*, mio_htb_pair_t*);
 	} hdrtab[] = 
 	{
@@ -683,7 +683,7 @@ static MIO_INLINE int capture_key_header (mio_htrd_t* htrd, mio_htb_pair_t* pair
 	};
 
 	int n;
-	mio_size_t mid, count, base = 0;
+	mio_oow_t mid, count, base = 0;
 
 	/* perform binary search */
 	for (count = MIO_COUNTOF(hdrtab); count > 0; count /= 2)
@@ -712,12 +712,12 @@ struct hdr_cbserter_ctx_t
 {
 	mio_htrd_t* htrd;
 	void*       vptr;
-	mio_size_t  vlen;
+	mio_oow_t  vlen;
 };
 
 static mio_htb_pair_t* hdr_cbserter (
 	mio_htb_t* htb, mio_htb_pair_t* pair, 
-	void* kptr, mio_size_t klen, void* ctx)
+	void* kptr, mio_oow_t klen, void* ctx)
 {
 	struct hdr_cbserter_ctx_t* tx = (struct hdr_cbserter_ctx_t*)ctx;
 
@@ -824,7 +824,7 @@ mio_bch_t* parse_header_field (mio_htrd_t* htrd, mio_bch_t* line, mio_htb_t* tab
 	struct
 	{
 		mio_bch_t* ptr;
-		mio_size_t   len;
+		mio_oow_t   len;
 	} name, value;
 
 #if 0
@@ -928,7 +928,7 @@ badhdr:
 }
 
 static MIO_INLINE int parse_initial_line_and_headers (
-	mio_htrd_t* htrd, const mio_bch_t* req, mio_size_t rlen)
+	mio_htrd_t* htrd, const mio_bch_t* req, mio_oow_t rlen)
 {
 	mio_bch_t* p;
 
@@ -980,7 +980,7 @@ static MIO_INLINE int parse_initial_line_and_headers (
 #define GET_CHUNK_CRLF     3
 #define GET_CHUNK_TRAILERS 4
 
-static const mio_bch_t* getchunklen (mio_htrd_t* htrd, const mio_bch_t* ptr, mio_size_t len)
+static const mio_bch_t* getchunklen (mio_htrd_t* htrd, const mio_bch_t* ptr, mio_oow_t len)
 {
 	const mio_bch_t* end = ptr + len;
 
@@ -1122,12 +1122,12 @@ done:
 }
 
 /* feed the percent encoded string */
-int mio_htrd_feed (mio_htrd_t* htrd, const mio_bch_t* req, mio_size_t len)
+int mio_htrd_feed (mio_htrd_t* htrd, const mio_bch_t* req, mio_oow_t len)
 {
 	const mio_bch_t* end = req + len;
 	const mio_bch_t* ptr = req;
 	int header_completed_during_this_feed = 0;
-	mio_size_t avail;
+	mio_oow_t avail;
 
 	MIO_ASSERT (len > 0);
 
