@@ -27,7 +27,7 @@
 #include <mio-htre.h>
 #include "mio-prv.h"
 
-static void free_hdrval (mio_htb_t* htb, void* vptr, mio_size_t vlen)
+static void free_hdrval (mio_htb_t* htb, void* vptr, mio_oow_t vlen)
 {
 	mio_htre_hdrval_t* val;
 	mio_htre_hdrval_t* tmp;
@@ -37,11 +37,11 @@ static void free_hdrval (mio_htb_t* htb, void* vptr, mio_size_t vlen)
 	{
 		tmp = val;
 		val = val->next;
-		MIO_MMGR_FREE (htb->mmgr, tmp);
+		mio_freemem (htb->mio, tmp);
 	}
 }
 
-int mio_htre_init (mio_htre_t* re, mio_mmgr_t* mmgr)
+int mio_htre_init (mio_htre_t* re, mio_t* mio)
 {
 	static mio_htb_style_t style =
 	{
@@ -60,17 +60,17 @@ int mio_htre_init (mio_htre_t* re, mio_mmgr_t* mmgr)
 	};
 
 	MIO_MEMSET (re, 0, MIO_SIZEOF(*re));
-	re->mmgr = mmgr;
+	re->mio = mio;
 
-	if (mio_htb_init (&re->hdrtab, mmgr, 60, 70, 1, 1) <= -1) return -1;
-	if (mio_htb_init (&re->trailers, mmgr, 20, 70, 1, 1) <= -1) return -1;
+	if (mio_htb_init(&re->hdrtab, mio, 60, 70, 1, 1) <= -1) return -1;
+	if (mio_htb_init(&re->trailers, mio, 20, 70, 1, 1) <= -1) return -1;
 
 	mio_htb_setstyle (&re->hdrtab, &style);
 	mio_htb_setstyle (&re->trailers, &style);
 
-	mio_mbs_init (&re->content, mmgr, 0);
+	mio_becs_init (&re->content, mio, 0);
 #if 0
-	mio_mbs_init (&re->iniline, mmgr, 0);
+	mio_becs_init (&re->iniline, mio, 0);
 #endif
 
 	return 0;
@@ -79,14 +79,13 @@ int mio_htre_init (mio_htre_t* re, mio_mmgr_t* mmgr)
 void mio_htre_fini (mio_htre_t* re)
 {
 #if 0
-	mio_mbs_fini (&re->iniline);
+	mio_becs_fini (&re->iniline);
 #endif
-	mio_mbs_fini (&re->content);
+	mio_becs_fini (&re->content);
 	mio_htb_fini (&re->trailers);
 	mio_htb_fini (&re->hdrtab);
 
-	if (re->orgqpath.buf) 
-		MIO_MMGR_FREE (re->mmgr, re->orgqpath.buf);
+	if (re->orgqpath.buf) mio_freemem (re->mio, re->orgqpath.buf);
 }
 
 void mio_htre_clear (mio_htre_t* re)
@@ -113,26 +112,24 @@ void mio_htre_clear (mio_htre_t* re)
 	mio_htb_clear (&re->hdrtab);
 	mio_htb_clear (&re->trailers);
 
-	mio_mbs_clear (&re->content);
+	mio_becs_clear (&re->content);
 #if 0 
-	mio_mbs_clear (&re->iniline);
+	mio_becs_clear (&re->iniline);
 #endif
 }
 
-const mio_htre_hdrval_t* mio_htre_getheaderval (
-	const mio_htre_t* re, const mio_mchar_t* name)
+const mio_htre_hdrval_t* mio_htre_getheaderval (const mio_htre_t* re, const mio_bch_t* name)
 {
 	mio_htb_pair_t* pair;
-	pair = mio_htb_search (&re->hdrtab, name, mio_mbslen(name));
+	pair = mio_htb_search(&re->hdrtab, name, mio_count_bcstr(name));
 	if (pair == MIO_NULL) return MIO_NULL;
 	return MIO_HTB_VPTR(pair);
 }
 
-const mio_htre_hdrval_t* mio_htre_gettrailerval (
-	const mio_htre_t* re, const mio_mchar_t* name)
+const mio_htre_hdrval_t* mio_htre_gettrailerval (const mio_htre_t* re, const mio_bch_t* name)
 {
 	mio_htb_pair_t* pair;
-	pair = mio_htb_search (&re->trailers, name, mio_mbslen(name));
+	pair = mio_htb_search(&re->trailers, name, mio_count_bcstr(name));
 	if (pair == MIO_NULL) return MIO_NULL;
 	return MIO_HTB_VPTR(pair);
 }
@@ -145,8 +142,7 @@ struct header_walker_ctx_t
 	int ret;
 };
 
-static mio_htb_walk_t walk_headers (
-	mio_htb_t* htb, mio_htb_pair_t* pair, void* ctx)
+static mio_htb_walk_t walk_headers (mio_htb_t* htb, mio_htb_pair_t* pair, void* ctx)
 {
 	struct header_walker_ctx_t* hwctx = (struct header_walker_ctx_t*)ctx;
 	if (hwctx->walker (hwctx->re, MIO_HTB_KPTR(pair), MIO_HTB_VPTR(pair), hwctx->ctx) <= -1) 
@@ -157,8 +153,7 @@ static mio_htb_walk_t walk_headers (
 	return MIO_HTB_WALK_FORWARD;
 }
 
-int mio_htre_walkheaders (
-	mio_htre_t* re, mio_htre_header_walker_t walker, void* ctx)
+int mio_htre_walkheaders (mio_htre_t* re, mio_htre_header_walker_t walker, void* ctx)
 {
 	struct header_walker_ctx_t hwctx;
 	hwctx.re = re;
@@ -169,8 +164,7 @@ int mio_htre_walkheaders (
 	return hwctx.ret;
 }
 
-int mio_htre_walktrailers (
-	mio_htre_t* re, mio_htre_header_walker_t walker, void* ctx)
+int mio_htre_walktrailers (mio_htre_t* re, mio_htre_header_walker_t walker, void* ctx)
 {
 	struct header_walker_ctx_t hwctx;
 	hwctx.re = re;
@@ -181,8 +175,7 @@ int mio_htre_walktrailers (
 	return hwctx.ret;
 }
 
-int mio_htre_addcontent (
-	mio_htre_t* re, const mio_mchar_t* ptr, mio_size_t len)
+int mio_htre_addcontent (mio_htre_t* re, const mio_bch_t* ptr, mio_oow_t len)
 {
 	/* see comments in mio_htre_discardcontent() */
 
@@ -191,12 +184,12 @@ int mio_htre_addcontent (
 	if (re->concb) 
 	{
 		/* if the callback is set, the content goes to the callback. */
-		if (re->concb (re, ptr, len, re->concb_ctx) <= -1) return -1;
+		if (re->concb(re, ptr, len, re->concb_ctx) <= -1) return -1;
 	}
 	else
 	{
 		/* if the callback is not set, the contents goes to the internal buffer */
-		if (mio_mbs_ncat (&re->content, ptr, len) == (mio_size_t)-1) return -1;
+		if (mio_becs_ncat(&re->content, ptr, len) == (mio_oow_t)-1) return -1;
 	}
 
 	return 1; /* added successfully */
@@ -225,8 +218,7 @@ void mio_htre_discardcontent (mio_htre_t* re)
 	 * you can't add contents to this if it's completed or discarded
 	 */
 
-	if (!(re->state & MIO_HTRE_COMPLETED) &&
-	    !(re->state & MIO_HTRE_DISCARDED))
+	if (!(re->state & MIO_HTRE_COMPLETED) && !(re->state & MIO_HTRE_DISCARDED))
 	{
 		re->state |= MIO_HTRE_DISCARDED;
 
@@ -243,7 +235,7 @@ void mio_htre_discardcontent (mio_htre_t* re)
 		 * designed to serve a certain usage pattern not including
 		 * weird combinations.
 		 */
-		mio_mbs_clear (&re->content);
+		mio_becs_clear (&re->content);
 		if (re->concb)
 		{
 			/* indicate end of content */
@@ -266,34 +258,34 @@ void mio_htre_setconcb (mio_htre_t* re, mio_htre_concb_t concb, void* ctx)
 
 int mio_htre_perdecqpath (mio_htre_t* re)
 {
-	mio_size_t dec_count;
+	mio_oow_t dec_count;
 
 	/* percent decode the query path*/
 
 	if (re->type != MIO_HTRE_Q || (re->flags & MIO_HTRE_QPATH_PERDEC)) return -1;
 
-	MIO_ASSERT (re->orgqpath.len <= 0);
-	MIO_ASSERT (re->orgqpath.ptr == MIO_NULL);
+	MIO_ASSERT (re->mio, re->orgqpath.len <= 0);
+	MIO_ASSERT (re->mio, re->orgqpath.ptr == MIO_NULL);
 
-	if (mio_isperencedhttpstr(re->u.q.path.ptr))
+	if (mio_is_perenced_http_bcstr(re->u.q.path.ptr))
 	{
 		/* the string is percent-encoded. keep the original request
 		 * in a separately allocated buffer */
 
 		if (re->orgqpath.buf && re->u.q.path.len <= re->orgqpath.capa)
 		{
-			re->orgqpath.len = mio_mbscpy (re->orgqpath.buf, re->u.q.path.ptr);
+			re->orgqpath.len = mio_copy_bcstr_unlimited(re->orgqpath.buf, re->u.q.path.ptr);
 			re->orgqpath.ptr = re->orgqpath.buf;
 		}
 		else
 		{
 			if (re->orgqpath.buf)
 			{
-				MIO_MMGR_FREE (re->mmgr, re->orgqpath.buf);
+				mio_freemem (re->mio, re->orgqpath.buf);
 				re->orgqpath.capa = 0;
 			}
 
-			re->orgqpath.buf = mio_mbsxdup (re->u.q.path.ptr, re->u.q.path.len, re->mmgr);
+			re->orgqpath.buf = mio_mbsxdup(re->u.q.path.ptr, re->u.q.path.len, re->mio);
 			if (!re->orgqpath.buf) return -1;
 			re->orgqpath.capa = re->u.q.path.len;
 
@@ -309,10 +301,10 @@ int mio_htre_perdecqpath (mio_htre_t* re)
 	re->u.q.path.len = mio_perdechttpstr (re->u.q.path.ptr, re->u.q.path.ptr, &dec_count);
 	if (dec_count > 0) 
 	{
-		/* this assertion is to ensure that mio_isperencedhttpstr() 
+		/* this assertion is to ensure that mio_is_perenced_http_bstr() 
 		 * returned true when dec_count is greater than 0 */
-		MIO_ASSERT (re->orgqpath.buf != MIO_NULL);
-		MIO_ASSERT (re->orgqpath.ptr != MIO_NULL);
+		MIO_ASSERT (re->mio, re->orgqpath.buf != MIO_NULL);
+		MIO_ASSERT (re->mio, re->orgqpath.ptr != MIO_NULL);
 		re->flags |= MIO_HTRE_QPATH_PERDEC;
 	}
 

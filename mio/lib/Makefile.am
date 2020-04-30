@@ -23,7 +23,11 @@ include_HEADERS = \
 	mio-cfg.h \
 	mio-cmn.h \
 	mio-dns.h \
+	mio-ecs.h \
 	mio-fmt.h \
+	mio-htb.h \
+	mio-htre.h \
+	mio-http.h \
 	mio-nwif.h \
 	mio-pac1.h \
 	mio-pro.h \
@@ -37,9 +41,12 @@ lib_LTLIBRARIES = libmio.la
 libmio_la_SOURCES = \
 	dns.c \
 	dns-cli.c \
+	ecs.c \
+	ecs-imp.h \
 	err.c \
 	fmt.c \
 	fmt-imp.h \
+	htb.c \
 	mio-prv.h \
 	mio.c \
 	nwif.c \

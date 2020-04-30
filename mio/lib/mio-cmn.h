@@ -430,6 +430,13 @@ typedef struct mio_bcs_t mio_bcs_t;
 
 typedef unsigned int mio_bitmask_t;
 
+typedef struct mio_ptl_t mio_ptl_t;
+struct mio_ptl_t
+{
+	void*     ptr;
+	mio_oow_t len;
+};
+
 /* =========================================================================
  * TIME-RELATED TYPES
  * =========================================================================*/

@@ -33,9 +33,9 @@ int mio_comparehttpversions (
 	return v1->major - v2->major;
 }
 
-const mio_mchar_t* mio_httpstatustombs (int code)
+const mio_bch_t* mio_httpstatustombs (int code)
 {
-	const mio_mchar_t* msg;
+	const mio_bch_t* msg;
 
 	switch (code)
 	{
@@ -95,10 +95,10 @@ const mio_mchar_t* mio_httpstatustombs (int code)
 	return msg;
 }
 
-const mio_mchar_t* mio_httpmethodtombs (mio_http_method_t type)
+const mio_bch_t* mio_httpmethodtombs (mio_http_method_t type)
 {
 	/* keep this table in the same order as mio_httpd_method_t enumerators */
-	static mio_mchar_t* names[]  =
+	static mio_bch_t* names[]  =
 	{
 		"OTHER",
 
@@ -117,7 +117,7 @@ const mio_mchar_t* mio_httpmethodtombs (mio_http_method_t type)
 
 struct mtab_t
 {
-	const mio_mchar_t* name;
+	const mio_bch_t* name;
 	mio_http_method_t type;
 };
 
@@ -134,7 +134,7 @@ static struct mtab_t mtab[] =
 	{ "TRACE",   MIO_HTTP_TRACE }
 };
 
-mio_http_method_t mio_mbstohttpmethod (const mio_mchar_t* name)
+mio_http_method_t mio_bcstr_to_http_method (const mio_bch_t* name)
 {
 	/* perform binary search */
 
@@ -151,10 +151,10 @@ mio_http_method_t mio_mbstohttpmethod (const mio_mchar_t* name)
 		mid = left + (right - left) / 2;
 		entry = &mtab[mid];
 
-		n = mio_mbscmp (name, entry->name);
+		n = mio_comp_bcstr(name, entry->name);
 		if (n < 0) 
 		{
-			/* if left, right, mid were of mio_size_t,
+			/* if left, right, mid were of mio_oow_t,
 			 * you would need the following line. 
 			if (mid == 0) break;
 			 */
@@ -167,7 +167,7 @@ mio_http_method_t mio_mbstohttpmethod (const mio_mchar_t* name)
 	return MIO_HTTP_OTHER;
 }
 
-mio_http_method_t mio_mcstrtohttpmethod (const mio_mcstr_t* name)
+mio_http_method_t mio_bchars_to_http_method (const mio_bch_t* nameptr, mio_oow_t namelen)
 {
 	/* perform binary search */
 
@@ -184,10 +184,10 @@ mio_http_method_t mio_mcstrtohttpmethod (const mio_mcstr_t* name)
 		mid = left + (right - left) / 2;
 		entry = &mtab[mid];
 
-		n = mio_mbsxcmp (name->ptr, name->len, entry->name);
+		n = mio_mbsxcmp(nameptr, namelen, entry->name);
 		if (n < 0) 
 		{
-			/* if left, right, mid were of mio_size_t,
+			/* if left, right, mid were of mio_oow_t,
 			 * you would need the following line. 
 			if (mid == 0) break;
 			 */
@@ -200,7 +200,7 @@ mio_http_method_t mio_mcstrtohttpmethod (const mio_mcstr_t* name)
 	return MIO_HTTP_OTHER;
 }
 
-int mio_parsehttprange (const mio_mchar_t* str, mio_http_range_t* range)
+int mio_parse_http_range_bcstr (const mio_bch_t* str, mio_http_range_t* range)
 {
 	/* NOTE: this function does not support a range set 
 	 *       like bytes=1-20,30-50 */
@@ -255,8 +255,8 @@ int mio_parsehttprange (const mio_mchar_t* str, mio_http_range_t* range)
 typedef struct mname_t mname_t;
 struct mname_t
 {
-	const mio_mchar_t* s;
-	const mio_mchar_t* l;
+	const mio_bch_t* s;
+	const mio_bch_t* l;
 };
 	
 static mname_t wday_name[] =
@@ -286,11 +286,11 @@ static mname_t mon_name[] =
 	{ "Dec", "December" }
 };
 
-int mio_parsehttptime (const mio_mchar_t* str, mio_ntime_t* nt)
+int mio_parse_http_time_bcstr (const mio_bch_t* str, mio_ntime_t* nt)
 {
 	mio_btime_t bt;
-	const mio_mchar_t* word;
-	mio_size_t wlen, i;
+	const mio_bch_t* word;
+	mio_oow_t wlen, i;
 
 	/* TODO: support more formats */
 
@@ -302,7 +302,7 @@ int mio_parsehttptime (const mio_mchar_t* str, mio_ntime_t* nt)
 	wlen = str - word;
 	for (i = 0; i < MIO_COUNTOF(wday_name); i++)
 	{
-		if (mio_mbsxcmp (word, wlen, wday_name[i].s) == 0)
+		if (mio_mbsxcmp(word, wlen, wday_name[i].s) == 0)
 		{
 			bt.wday = i;
 			break;
@@ -325,7 +325,7 @@ int mio_parsehttptime (const mio_mchar_t* str, mio_ntime_t* nt)
 	wlen = str - word;
 	for (i = 0; i < MIO_COUNTOF(mon_name); i++)
 	{
-		if (mio_mbsxcmp (word, wlen, mon_name[i].s) == 0)
+		if (mio_mbsxcmp(word, wlen, mon_name[i].s) == 0)
 		{
 			bt.mon = i;
 			break;
@@ -362,15 +362,15 @@ int mio_parsehttptime (const mio_mchar_t* str, mio_ntime_t* nt)
 	while (MIO_ISMSPACE(*str)) str++;
 	for (word = str; MIO_ISMALPHA(*str); str++);
 	wlen = str - word;
-	if (mio_mbsxcmp (word, wlen, "GMT" != 0) return -1;
+	if (mio_mbsxcmp(word, wlen, "GMT") != 0) return -1;
 
 	while (MIO_ISMSPACE(*str)) str++;
 	if (*str != '\0') return -1;
 
-	return mio_timegm (&bt, nt);
+	return mio_timegm(&bt, nt);
 }
 
-mio_mchar_t* mio_fmthttptime (const mio_ntime_t* nt, mio_mchar_t* buf, mio_size_t bufsz)
+mio_bch_t* mio_fmthttptime (const mio_ntime_t* nt, mio_bch_t* buf, mio_oow_t bufsz)
 {
 	mio_btime_t bt;
 
@@ -389,9 +389,9 @@ mio_mchar_t* mio_fmthttptime (const mio_ntime_t* nt, mio_mchar_t* buf, mio_size_
 	return buf;
 }
 
-int mio_isperencedhttpstr (const mio_mchar_t* str)
+int mio_is_perenced_http_bcstr (const mio_bch_t* str)
 {
-	const mio_mchar_t* p = str;
+	const mio_bch_t* p = str;
 
 	while (*p != '\0')
 	{
@@ -412,11 +412,11 @@ int mio_isperencedhttpstr (const mio_mchar_t* str)
 	return 1;
 }
 
-mio_size_t mio_perdechttpstr (const mio_mchar_t* str, mio_mchar_t* buf, mio_size_t* ndecs)
+mio_oow_t mio_perdechttpstr (const mio_bch_t* str, mio_bch_t* buf, mio_oow_t* ndecs)
 {
-	const mio_mchar_t* p = str;
-	mio_mchar_t* out = buf;
-	mio_size_t dec_count = 0;
+	const mio_bch_t* p = str;
+	mio_bch_t* out = buf;
+	mio_oow_t dec_count = 0;
 
 	while (*p != '\0')
 	{
@@ -454,11 +454,11 @@ mio_size_t mio_perdechttpstr (const mio_mchar_t* str, mio_mchar_t* buf, mio_size
 
 #define TO_HEX(v) ("0123456789ABCDEF"[(v) & 15])
 
-mio_size_t mio_perenchttpstr (int opt, const mio_mchar_t* str, mio_mchar_t* buf, mio_size_t* nencs)
+mio_oow_t mio_perenchttpstr (int opt, const mio_bch_t* str, mio_bch_t* buf, mio_oow_t* nencs)
 {
-	const mio_mchar_t* p = str;
-	mio_mchar_t* out = buf;
-	mio_size_t enc_count = 0;
+	const mio_bch_t* p = str;
+	mio_bch_t* out = buf;
+	mio_oow_t enc_count = 0;
 
 	/* this function doesn't accept the size of the buffer. the caller must 
 	 * ensure that the buffer is large enough */
@@ -498,11 +498,11 @@ mio_size_t mio_perenchttpstr (int opt, const mio_mchar_t* str, mio_mchar_t* buf,
 	return out - buf;
 }
 
-mio_mchar_t* mio_perenchttpstrdup (int opt, const mio_mchar_t* str, mio_mmgr_t* mmgr)
+mio_bch_t* mio_perenchttpstrdup (int opt, const mio_bch_t* str, mio_mmgr_t* mmgr)
 {
-	mio_mchar_t* buf;
-	mio_size_t len = 0;
-	mio_size_t count = 0;
+	mio_bch_t* buf;
+	mio_oow_t len = 0;
+	mio_oow_t count = 0;
 	
 	/* count the number of characters that should be encoded */
 	if (opt & MIO_PERENCHTTPSTR_KEEP_SLASH)
@@ -521,7 +521,7 @@ mio_mchar_t* mio_perenchttpstrdup (int opt, const mio_mchar_t* str, mio_mmgr_t* 
 	}
 
 	/* if there are no characters to escape, just return the original string */
-	if (count <= 0) return (mio_mchar_t*)str;
+	if (count <= 0) return (mio_bch_t*)str;
 
 	/* allocate a buffer of an optimal size for escaping, otherwise */
 	buf = MIO_MMGR_ALLOC (mmgr, (len  + (count * 2) + 1)  * MIO_SIZEOF(*buf));
