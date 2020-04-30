@@ -322,7 +322,7 @@ static int parse_answer_rr (mio_t* mio, mio_dns_rr_part_t rr_part, mio_oow_t pos
 
 			if (pi->_rrdptr)
 			{
-				mx = (mio_dns_brrd_soa_t*)pi->_rrdptr;
+				mx = (mio_dns_brrd_mx_t*)pi->_rrdptr;
 				pi->_rrdptr += MIO_SIZEOF(*mx);
 
 				MIO_MEMCPY (&mx->preference, pi->_ptr, 2); pi->_ptr += 2;

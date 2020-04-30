@@ -229,7 +229,7 @@ struct mio_q_t
 #define MIO_Q_INIT(q) ((q)->next = (q)->prev = (q))
 #define MIO_Q_TAIL(q) ((q)->prev)
 #define MIO_Q_HEAD(q) ((q)->next)
-#define MIO_Q_ISEMPTY(q) (MIO_Q_HEAD(q) == (q))
+#define MIO_Q_IS_EMPTY(q) (MIO_Q_HEAD(q) == (q))
 #define MIO_Q_ISNODE(q,x) ((q) != (x))
 #define MIO_Q_ISHEAD(q,x) (MIO_Q_HEAD(q) == (x))
 #define MIO_Q_ISTAIL(q,x) (MIO_Q_TAIL(q) == (x))
@@ -280,7 +280,7 @@ struct mio_cwq_t
 #define MIO_CWQ_INIT(cwq) ((cwq)->next = (cwq)->prev = (cwq))
 #define MIO_CWQ_TAIL(cwq) ((cwq)->prev)
 #define MIO_CWQ_HEAD(cwq) ((cwq)->next)
-#define MIO_CWQ_ISEMPTY(cwq) (MIO_CWQ_HEAD(cwq) == (cwq))
+#define MIO_CWQ_IS_EMPTY(cwq) (MIO_CWQ_HEAD(cwq) == (cwq))
 #define MIO_CWQ_ISNODE(cwq,x) ((cwq) != (x))
 #define MIO_CWQ_ISHEAD(cwq,x) (MIO_CWQ_HEAD(cwq) == (x))
 #define MIO_CWQ_ISTAIL(cwq,x) (MIO_CWQ_TAIL(cwq) == (x))
@@ -311,7 +311,7 @@ struct mio_wq_t
 #define MIO_WQ_INIT(wq) ((wq)->next = (wq)->prev = (wq))
 #define MIO_WQ_TAIL(wq) ((wq)->prev)
 #define MIO_WQ_HEAD(wq) ((wq)->next)
-#define MIO_WQ_ISEMPTY(wq) (MIO_WQ_HEAD(wq) == (wq))
+#define MIO_WQ_IS_EMPTY(wq) (MIO_WQ_HEAD(wq) == (wq))
 #define MIO_WQ_ISNODE(wq,x) ((wq) != (x))
 #define MIO_WQ_ISHEAD(wq,x) (MIO_WQ_HEAD(wq) == (x))
 #define MIO_WQ_ISTAIL(wq,x) (MIO_WQ_TAIL(wq) == (x))
@@ -340,6 +340,32 @@ struct mio_dev_t
 {
 	MIO_DEV_HEADERS;
 };
+
+#define MIO_DEVL_PREPEND_DEV(lh,dev) do { \
+	(dev)->dev_prev = (lh); \
+	(dev)->dev_next = (lh)->dev_next; \
+	(dev)->dev_next->dev_prev = (dev); \
+	(lh)->dev_next = (dev); \
+} while(0)
+
+#define MIO_DEVL_APPEND_DEV(lh,dev) do { \
+	(dev)->dev_next = (lh); \
+	(dev)->dev_prev = (lh)->dev_prev; \
+	(dev)->dev_prev->dev_next = (dev); \
+	(lh)->dev_prev = (dev); \
+} while(0)
+
+#define MIO_DEVL_UNLINK_DEV(dev) do { \
+	(dev)->dev_prev->dev_next = (dev)->dev_next; \
+	(dev)->dev_next->dev_prev = (dev)->dev_prev; \
+} while (0)
+
+
+#define MIO_DEVL_INIT(lh) ((lh)->dev_next = (lh)->dev_prev = lh)
+#define MIO_DEVL_FIRST_DEV(lh) ((lh)->dev_next)
+#define MIO_DEVL_LAST_DEV(lh) ((lh)->dev_prev)
+#define MIO_DEVL_IS_EMPTY(lh) (MIO_DEVL_FIRST_DEV(lh) == (lh))
+#define MIO_DEVL_IS_NIL_DEV(lh,dev) ((dev) == (lh))
 
 enum mio_dev_cap_t
 {
@@ -405,29 +431,40 @@ typedef void (*mio_svc_stop_t) (mio_svc_t* svc);
 	mio_svc_t*      svc_next 
 
 /* the stop callback is called if it's not NULL and the service is still 
- * alive when mio_close() is reached. it still calls MIO_SVC_UNREGISTER()
+ * alive when mio_close() is reached. it still calls MIO_SVCL_UNLINK_SVC()
  * if the stop callback is NULL. The stop callback, if specified, must
- * call MIO_SVC_UNREGISTER(). */ 
+ * call MIO_SVCL_UNLINK_SVC(). */ 
 
 struct mio_svc_t
 {
 	MIO_SVC_HEADERS;
 };
 
-#define MIO_SVC_REGISTER(mio,svc) do { \
-	if ((mio)->actsvc.tail) (mio)->actsvc.tail->svc_next = (svc); \
-	else (mio)->actsvc.head = (svc); \
-	(svc)->svc_prev = (mio)->actsvc.tail; \
-	(svc)->svc_next = MIO_NULL; \
-	(mio)->actsvc.tail = (svc); \
+#define MIO_SVCL_PREPEND_SVC(lh,svc) do { \
+	(svc)->svc_prev = (lh); \
+	(svc)->svc_next = (lh)->svc_next; \
+	(svc)->svc_next->svc_prev = (svc); \
+	(lh)->svc_next = (svc); \
 } while(0)
 
-#define MIO_SVC_UNREGISTER(mio,svc) do { \
-	if ((svc)->svc_prev) (svc)->svc_prev->svc_next = (svc)->svc_next; \
-	else (mio)->actsvc.head = (svc)->svc_next; \
-	if ((svc)->svc_next) (svc)->svc_next->svc_prev = (svc)->svc_prev; \
-	else (mio)->actsvc.tail = (svc)->svc_prev; \
+#define MIO_SVCL_APPEND_SVC(lh,svc) do { \
+	(svc)->svc_next = (lh); \
+	(svc)->svc_prev = (lh)->svc_prev; \
+	(svc)->svc_prev->svc_next = (svc); \
+	(lh)->svc_prev = (svc); \
+} while(0)
+
+#define MIO_SVCL_UNLINK_SVC(svc) do { \
+	(svc)->svc_prev->svc_next = (svc)->svc_next; \
+	(svc)->svc_next->svc_prev = (svc)->svc_prev; \
 } while (0)
+
+
+#define MIO_SVCL_INIT(lh) ((lh)->svc_next = (lh)->svc_prev = lh)
+#define MIO_SVCL_FIRST_SVC(lh) ((lh)->svc_next)
+#define MIO_SVCL_LAST_SVC(lh) ((lh)->svc_prev)
+#define MIO_SVCL_IS_EMPTY(lh) (MIO_SVCL_FIRST_SVC(lh) == (lh))
+#define MIO_SVCL_IS_NIL_SVC(lh,svc) ((svc) == (lh))
 
 /* =========================================================================
  * MIO LOGGING
@@ -562,23 +599,9 @@ struct mio_t
 
 	mio_stopreq_t stopreq;  /* stop request to abort mio_loop() */
 
-	struct
-	{
-		mio_dev_t* head;
-		mio_dev_t* tail;
-	} actdev; /* active devices */
-
-	struct
-	{
-		mio_dev_t* head;
-		mio_dev_t* tail;
-	} hltdev; /* halted devices */
-
-	struct
-	{
-		mio_dev_t* head;
-		mio_dev_t* tail;
-	} zmbdev; /* zombie devices */
+	mio_dev_t actdev; /* list head of active devices */
+	mio_dev_t hltdev; /* list head of halted devices */
+	mio_dev_t zmbdev; /* list head of zombie devices */
 
 	mio_uint8_t bigbuf[65535]; /* TODO: make this dynamic depending on devices added. device may indicate a buffer size required??? */
 
@@ -593,11 +616,7 @@ struct mio_t
 	mio_cwq_t cwq;
 	mio_cwq_t* cwqfl[MIO_CWQFL_SIZE]; /* list of free cwq objects */
 
-	struct
-	{
-		mio_svc_t* head;
-		mio_svc_t* tail;
-	} actsvc; /* active services */
+	mio_svc_t actsvc; /* list head of active services */
 
 	/* platform specific fields below */
 	mio_sys_t* sysdep;
