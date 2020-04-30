@@ -762,7 +762,7 @@ mio_svc_dnc_t* mio_svc_dnc_start (mio_t* mio, const mio_skad_t* serv_addr, const
 		if (mio_dev_sck_bind(dnc->udp_sck, &bi) <= -1) goto oops;
 	}
 
-	MIO_SVC_REGISTER (mio, (mio_svc_t*)dnc);
+	MIO_SVCL_APPEND_SVC (&mio->actsvc, (mio_svc_t*)dnc);
 	return dnc;
 
 oops:
@@ -781,7 +781,7 @@ void mio_svc_dnc_stop (mio_svc_dnc_t* dnc)
 	if (dnc->udp_sck) mio_dev_sck_kill (dnc->udp_sck);
 	if (dnc->tcp_sck) mio_dev_sck_kill (dnc->tcp_sck);
 	while (dnc->pending_req) release_dns_msg (dnc, dnc->pending_req);
-	MIO_SVC_UNREGISTER (mio, dnc);
+	MIO_SVCL_UNLINK_SVC (dnc);
 	mio_freemem (mio, dnc);
 }
 

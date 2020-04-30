@@ -129,20 +129,25 @@ int mio_init (mio_t* mio, mio_mmgr_t* mmgr, mio_cmgr_t* cmgr, mio_oow_t tmrcapa)
 	 * reallocation fails */
 	/* +1 required for consistency with put_oocs and put_ooch in fmtout.c */
 	mio->log.ptr = mio_allocmem(mio, (mio->log.capa + 1) * MIO_SIZEOF(*mio->log.ptr)); 
-	if (!mio->log.ptr) goto oops;
+	if (MIO_UNLIKELY(!mio->log.ptr)) goto oops;
 
 	/* inititalize the system-side logging */
-	if (mio_sys_init(mio) <= -1) goto oops;
+	if (MIO_UNLIKELY(mio_sys_init(mio) <= -1)) goto oops;
 	sys_inited = 1;
 
 	/* initialize the timer object */
 	if (tmrcapa <= 0) tmrcapa = 1;
 	mio->tmr.jobs = mio_allocmem(mio, tmrcapa * MIO_SIZEOF(mio_tmrjob_t));
-	if (!mio->tmr.jobs) goto oops;
+	if (MIO_UNLIKELY(!mio->tmr.jobs)) goto oops;
 
 	mio->tmr.capa = tmrcapa;
 
+	MIO_DEVL_INIT (&mio->actdev);
+	MIO_DEVL_INIT (&mio->hltdev);
+	MIO_DEVL_INIT (&mio->zmbdev);
 	MIO_CWQ_INIT (&mio->cwq);
+	MIO_SVCL_INIT (&mio->actsvc);
+
 	mio_sys_gettime (mio, &mio->init_time);
 	return 0;
 
@@ -159,11 +164,7 @@ oops:
 void mio_fini (mio_t* mio)
 {
 	mio_dev_t* dev, * next_dev;
-	struct
-	{
-		mio_dev_t* head;
-		mio_dev_t* tail;
-	} diehard;
+	mio_dev_t diehard;
 	mio_oow_t i;
 
 	/* clean up free cwq list */
@@ -177,62 +178,65 @@ void mio_fini (mio_t* mio)
 		}
 	}
 
-	while (mio->actsvc.head)
+	while (!MIO_SVCL_IS_EMPTY(&mio->actsvc))
 	{
-		if (mio->actsvc.head->stop) 
+		mio_svc_t* svc;
+
+		svc = MIO_SVCL_FIRST_SVC(&mio->actsvc);
+		if (svc->stop) 
 		{
 			/* the stop callback must unregister itself */
-			mio->actsvc.head->stop (mio->actsvc.head);
+			svc->stop (svc);
 		}
 		else
 		{
 			/* unregistration only if no stop callback is designated */
-			MIO_SVC_UNREGISTER (mio, mio->actsvc.head);
+			MIO_SVCL_UNLINK_SVC (svc);
 		}
 	}
 
 	/* kill all registered devices */
-	while (mio->actdev.head)
+	while (!MIO_DEVL_IS_EMPTY(&mio->actdev))
 	{
-		mio_dev_kill (mio->actdev.head);
+		mio_dev_kill (MIO_DEVL_FIRST_DEV(&mio->actdev));
 	}
 
 	/* kill all halted devices */
-	while (mio->hltdev.head)
+	while (!MIO_DEVL_IS_EMPTY(&mio->hltdev))
 	{
-		mio_dev_kill (mio->hltdev.head);
+		mio_dev_kill (MIO_DEVL_FIRST_DEV(&mio->hltdev));
 	}
 
 	/* clean up all zombie devices */
-	MIO_MEMSET (&diehard, 0, MIO_SIZEOF(diehard));
-	for (dev = mio->zmbdev.head; dev; )
+	MIO_DEVL_INIT (&diehard);
+	for (dev = MIO_DEVL_FIRST_DEV(&mio->zmbdev); !MIO_DEVL_IS_NIL_DEV(&mio->zmbdev, dev); )
 	{
 		kill_and_free_device (dev, 1);
-		if (mio->zmbdev.head == dev) 
+		if (MIO_DEVL_FIRST_DEV(&mio->zmbdev) == dev) 
 		{
 			/* the deive has not been freed. go on to the next one */
 			next_dev = dev->dev_next;
 
 			/* remove the device from the zombie device list */
-			UNLINK_DEVICE_FROM_LIST (&mio->zmbdev, dev);
+			MIO_DEVL_UNLINK_DEV (dev);
 			dev->dev_cap &= ~MIO_DEV_CAP_ZOMBIE;
 
 			/* put it to a private list for aborting */
-			APPEND_DEVICE_TO_LIST (&diehard, dev);
+			MIO_DEVL_APPEND_DEV (&diehard, dev);
 
 			dev = next_dev;
 		}
-		else dev = mio->zmbdev.head;
+		else dev = MIO_DEVL_FIRST_DEV(&mio->zmbdev);
 	}
 
-	while (diehard.head)
+	while (!MIO_DEVL_IS_EMPTY(&diehard))
 	{
 		/* if the kill method returns failure, it can leak some resource
 		 * because the device is freed regardless of the failure when 2 
 		 * is given to kill_and_free_device(). */
-		dev = diehard.head;
+		dev = MIO_DEVL_FIRST_DEV(&diehard);
 		MIO_ASSERT (mio, !(dev->dev_cap & (MIO_DEV_CAP_ACTIVE | MIO_DEV_CAP_HALTED | MIO_DEV_CAP_ZOMBIE)));
-		UNLINK_DEVICE_FROM_LIST (&diehard, dev);
+		MIO_DEVL_UNLINK_DEV (dev);
 		kill_and_free_device (dev, 2);
 	}
 
@@ -346,7 +350,7 @@ static MIO_INLINE void handle_event (mio_t* mio, mio_dev_t* dev, int events, int
 	if (dev && (events & MIO_DEV_EVENT_OUT))
 	{
 		/* write pending requests */
-		while (!MIO_WQ_ISEMPTY(&dev->wq))
+		while (!MIO_WQ_IS_EMPTY(&dev->wq))
 		{
 			mio_wq_t* q;
 			const mio_uint8_t* uptr;
@@ -408,7 +412,7 @@ static MIO_INLINE void handle_event (mio_t* mio, mio_dev_t* dev, int events, int
 					{
 						/* drain all pending requests. 
 						 * callbacks are skipped for drained requests */
-						while (!MIO_WQ_ISEMPTY(&dev->wq))
+						while (!MIO_WQ_IS_EMPTY(&dev->wq))
 						{
 							q = MIO_WQ_HEAD(&dev->wq);
 							unlink_wq (mio, q);
@@ -421,7 +425,7 @@ static MIO_INLINE void handle_event (mio_t* mio, mio_dev_t* dev, int events, int
 			}
 		}
 
-		if (dev && MIO_WQ_ISEMPTY(&dev->wq))
+		if (dev && MIO_WQ_IS_EMPTY(&dev->wq))
 		{
 			/* no pending request to write */
 			if ((dev->dev_cap & MIO_DEV_CAP_IN_CLOSED) &&
@@ -574,7 +578,7 @@ int mio_exec (mio_t* mio)
 	int ret = 0;
 
 	/* execute callbacks for completed write operations */
-	while (!MIO_CWQ_ISEMPTY(&mio->cwq))
+	while (!MIO_CWQ_IS_EMPTY(&mio->cwq))
 	{
 		mio_cwq_t* cwq;
 		mio_oow_t cwqfl_index;
@@ -602,7 +606,7 @@ int mio_exec (mio_t* mio)
 	 * multiplexer. the scheduled jobs can safely destroy the devices */
 	mio_firetmrjobs (mio, MIO_NULL, MIO_NULL);
 
-	if (mio->actdev.head)
+	if (!MIO_DEVL_IS_EMPTY(&mio->actdev))
 	{
 		/* wait on the multiplexer only if there is at least 1 active device */
 		mio_ntime_t tmout;
@@ -622,13 +626,13 @@ int mio_exec (mio_t* mio)
 	}
 
 	/* kill all halted devices */
-	while (mio->hltdev.head) 
+	while (!MIO_DEVL_IS_EMPTY(&mio->hltdev)) 
 	{
-		MIO_DEBUG1 (mio, "Killing HALTED device %p\n", mio->hltdev.head);
-		mio_dev_kill (mio->hltdev.head);
+		mio_dev_t* dev = MIO_DEVL_FIRST_DEV(&mio->hltdev);
+		MIO_DEBUG1 (mio, "Killing HALTED device %p\n", dev);
+		mio_dev_kill (dev);
 	}
 
-	MIO_ASSERT (mio, mio->hltdev.tail == MIO_NULL);
 	return ret;
 }
 
@@ -639,13 +643,13 @@ void mio_stop (mio_t* mio, mio_stopreq_t stopreq)
 
 int mio_loop (mio_t* mio)
 {
-	if (!mio->actdev.head) return 0;
+	if (MIO_DEVL_IS_EMPTY(&mio->actdev)) return 0;
 
 	mio->stopreq = MIO_STOPREQ_NONE;
 
 	if (mio_prologue(mio) <= -1) return -1;
 
-	while (mio->stopreq == MIO_STOPREQ_NONE && mio->actdev.head)
+	while (mio->stopreq == MIO_STOPREQ_NONE && !MIO_DEVL_IS_EMPTY(&mio->actdev))
 	{
 		if (mio_exec(mio) <= -1) break;
 		/* you can do other things here */
@@ -702,7 +706,7 @@ mio_dev_t* mio_dev_make (mio_t* mio, mio_oow_t dev_size, mio_dev_mth_t* dev_mth,
 
 	if (mio_dev_watch(dev, MIO_DEV_WATCH_START, 0) <= -1) goto oops_after_make;
 	/* and place the new device object at the back of the active device list */
-	APPEND_DEVICE_TO_LIST (&mio->actdev, dev);
+	MIO_DEVL_APPEND_DEV (&mio->actdev, dev);
 	dev->dev_cap |= MIO_DEV_CAP_ACTIVE;
 
 	return dev;
@@ -753,7 +757,7 @@ static int kill_and_free_device (mio_dev_t* dev, int force)
 
 		if (!(dev->dev_cap & MIO_DEV_CAP_ZOMBIE))
 		{
-			APPEND_DEVICE_TO_LIST (&mio->zmbdev, dev);
+			MIO_DEVL_APPEND_DEV (&mio->zmbdev, dev);
 			dev->dev_cap |= MIO_DEV_CAP_ZOMBIE;
 		}
 
@@ -764,7 +768,7 @@ free_device:
 	if (dev->dev_cap & MIO_DEV_CAP_ZOMBIE)
 	{
 		/* detach it from the zombie device list */
-		UNLINK_DEVICE_FROM_LIST (&mio->zmbdev, dev);
+		MIO_DEVL_UNLINK_DEV (dev);
 		dev->dev_cap &= ~MIO_DEV_CAP_ZOMBIE;
 	}
 
@@ -822,7 +826,7 @@ void mio_dev_kill (mio_dev_t* dev)
 
 	if (dev->dev_cap & MIO_DEV_CAP_ZOMBIE)
 	{
-		MIO_ASSERT (mio, MIO_WQ_ISEMPTY(&dev->wq));
+		MIO_ASSERT (mio, MIO_WQ_IS_EMPTY(&dev->wq));
 		MIO_ASSERT (mio, dev->cw_count == 0);
 		MIO_ASSERT (mio, dev->rtmridx == MIO_TMRIDX_INVALID);
 		goto kill_device;
@@ -852,7 +856,7 @@ void mio_dev_kill (mio_dev_t* dev)
 	}
 
 	/* clear pending send requests */
-	while (!MIO_WQ_ISEMPTY(&dev->wq))
+	while (!MIO_WQ_IS_EMPTY(&dev->wq))
 	{
 		mio_wq_t* q;
 		q = MIO_WQ_HEAD(&dev->wq);
@@ -864,13 +868,13 @@ void mio_dev_kill (mio_dev_t* dev)
 	{
 		/* this device is in the halted state.
 		 * unlink it from the halted device list */
-		UNLINK_DEVICE_FROM_LIST (&mio->hltdev, dev);
+		MIO_DEVL_UNLINK_DEV (dev);
 		dev->dev_cap &= ~MIO_DEV_CAP_HALTED;
 	}
 	else
 	{
 		MIO_ASSERT (mio, dev->dev_cap & MIO_DEV_CAP_ACTIVE);
-		UNLINK_DEVICE_FROM_LIST (&mio->actdev, dev);
+		MIO_DEVL_UNLINK_DEV (dev);
 		dev->dev_cap &= ~MIO_DEV_CAP_ACTIVE;
 	}
 
@@ -905,11 +909,11 @@ void mio_dev_halt (mio_dev_t* dev)
 	if (dev->dev_cap & MIO_DEV_CAP_ACTIVE)
 	{
 		/* delink the device object from the active device list */
-		UNLINK_DEVICE_FROM_LIST (&mio->actdev, dev);
+		MIO_DEVL_UNLINK_DEV (dev);
 		dev->dev_cap &= ~MIO_DEV_CAP_ACTIVE;
 
 		/* place it at the back of the halted device list */
-		APPEND_DEVICE_TO_LIST (&mio->hltdev, dev);
+		MIO_DEVL_APPEND_DEV (&mio->hltdev, dev);
 		dev->dev_cap |= MIO_DEV_CAP_HALTED;
 	}
 }
@@ -956,7 +960,7 @@ int mio_dev_watch (mio_dev_t* dev, mio_dev_watch_cmd_t cmd, int events)
 			 * output watching is requested only if there're enqueued 
 			 * data for writing. */
 			events = MIO_DEV_EVENT_IN;
-			if (!MIO_WQ_ISEMPTY(&dev->wq)) events |= MIO_DEV_EVENT_OUT;
+			if (!MIO_WQ_IS_EMPTY(&dev->wq)) events |= MIO_DEV_EVENT_OUT;
 			/* fall through */
 		case MIO_DEV_WATCH_UPDATE:
 			/* honor event watching requests as given by the caller */
@@ -1128,7 +1132,7 @@ static int __dev_write (mio_dev_t* dev, const void* data, mio_iolen_t len, const
 	uptr = data;
 	urem = len;
 
-	if (!MIO_WQ_ISEMPTY(&dev->wq)) 
+	if (!MIO_WQ_IS_EMPTY(&dev->wq)) 
 	{
 		/* the writing queue is not empty. 
 		 * enqueue this request immediately */
@@ -1315,7 +1319,7 @@ static int __dev_writev (mio_dev_t* dev, mio_iovec_t* iov, mio_iolen_t iovcnt, c
 	len = 0;
 	for (i = 0; i < iovcnt; i++) len += iov[i].iov_len;
 
-	if (!MIO_WQ_ISEMPTY(&dev->wq)) 
+	if (!MIO_WQ_IS_EMPTY(&dev->wq)) 
 	{
 		/* the writing queue is not empty. 
 		 * enqueue this request immediately */
