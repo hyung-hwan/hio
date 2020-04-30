@@ -24,7 +24,7 @@
     THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  */
 
-#include "mio-sys.h"
+#include "sys-prv.h"
 
 int mio_sys_init (mio_t* mio)
 {

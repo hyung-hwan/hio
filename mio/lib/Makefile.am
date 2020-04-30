@@ -41,7 +41,6 @@ libmio_la_SOURCES = \
 	fmt.c \
 	fmt-imp.h \
 	mio-prv.h \
-	mio-sys.h \
 	mio.c \
 	nwif.c \
 	pro.c \
@@ -52,6 +51,7 @@ libmio_la_SOURCES = \
 	sys-err.c \
 	sys-log.c \
 	sys-mux.c \
+	sys-prv.h \
 	sys-tim.c \
 	tmr.c \
 	utf8.c \
