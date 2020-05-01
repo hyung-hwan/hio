@@ -21,6 +21,7 @@ LIBADD_LIB_COMMON = $(LIBM)
 
 include_HEADERS = \
 	mio-cfg.h \
+	mio-chr.h \
 	mio-cmn.h \
 	mio-dns.h \
 	mio-ecs.h \
@@ -39,6 +40,7 @@ include_HEADERS = \
 
 lib_LTLIBRARIES = libmio.la
 libmio_la_SOURCES = \
+	chr.c \
 	dns.c \
 	dns-cli.c \
 	ecs.c \
@@ -47,6 +49,8 @@ libmio_la_SOURCES = \
 	fmt.c \
 	fmt-imp.h \
 	htb.c \
+	htre.c \
+	http.c \
 	mio-prv.h \
 	mio.c \
 	nwif.c \

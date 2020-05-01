@@ -163,16 +163,16 @@ typedef enum mio_perenchttpstr_opt_t mio_perenchttpstr_opt_t;
 extern "C" {
 #endif
 
-MIO_EXPORT int mio_comparehttpversions (
+MIO_EXPORT int mio_comp_http_versions (
 	const mio_http_version_t* v1,
 	const mio_http_version_t* v2
 );
 
-MIO_EXPORT const mio_bch_t* mio_httpstatustombs (
+MIO_EXPORT const mio_bch_t* mio_http_status_to_bcstr (
 	int code
 );
 
-MIO_EXPORT const mio_bch_t* mio_httpmethodtombs (
+MIO_EXPORT const mio_bch_t* mio_http_method_to_bcstr (
 	mio_http_method_t type
 );
 
@@ -195,7 +195,7 @@ MIO_EXPORT int mio_parse_http_time_bcstr (
 	mio_ntime_t*     nt
 );
 
-MIO_EXPORT mio_bch_t* mio_fmthttptime (
+MIO_EXPORT mio_bch_t* mio_fmt_http_time_to_bcstr (
 	const mio_ntime_t* nt,
 	mio_bch_t*         buf,
 	mio_oow_t          bufsz

@@ -39,13 +39,13 @@
  * ========================================================================= */
 typedef struct mio_fmtout_t mio_fmtout_t;
 
-typedef int (*mio_fmtout_putbcs_t) (
+typedef int (*mio_fmtout_putbchars_t) (
 	mio_fmtout_t*     fmtout,
 	const mio_bch_t*  ptr,
 	mio_oow_t         len
 );
 
-typedef int (*mio_fmtout_putucs_t) (
+typedef int (*mio_fmtout_putuchars_t) (
 	mio_fmtout_t*     fmtout,
 	const mio_uch_t*  ptr,
 	mio_oow_t         len
@@ -63,11 +63,13 @@ struct mio_fmtout_t
 {
 	mio_oow_t             count; /* out */
 
-	mio_fmtout_putbcs_t   putbcs; /* in */
-	mio_fmtout_putucs_t   putucs; /* in */
-	mio_bitmask_t         mask;   /* in */
-	void*                 ctx;    /* in */
+	//mio_mmgr_t*            mmgr;
+	mio_fmtout_putbchars_t putbchars; /* in */
+	mio_fmtout_putuchars_t putuchars; /* in */
+	mio_bitmask_t          mask;   /* in */
+	void*                  ctx;    /* in */
 
+	/* internally set a input */
 	mio_fmtout_fmt_type_t fmt_type;
 	const void*           fmt_str;
 };

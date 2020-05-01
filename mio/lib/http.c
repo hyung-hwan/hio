@@ -22,18 +22,19 @@
     THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  */
 
-#include <mio-http.h>
+#include "mio-http.h"
+#include "mio-chr.h"
+#include "mio-utl.h"
 #include "mio-prv.h"
+#include <time.h>
 
-int mio_comparehttpversions (
-	const mio_http_version_t* v1,
-	const mio_http_version_t* v2)
+int mio_comp_http_versions (const mio_http_version_t* v1, const mio_http_version_t* v2)
 {
 	if (v1->major == v2->major) return v1->minor - v2->minor;
 	return v1->major - v2->major;
 }
 
-const mio_bch_t* mio_httpstatustombs (int code)
+const mio_bch_t* mio_http_status_to_bcstr (int code)
 {
 	const mio_bch_t* msg;
 
@@ -95,7 +96,7 @@ const mio_bch_t* mio_httpstatustombs (int code)
 	return msg;
 }
 
-const mio_bch_t* mio_httpmethodtombs (mio_http_method_t type)
+const mio_bch_t* mio_http_method_to_bcstr (mio_http_method_t type)
 {
 	/* keep this table in the same order as mio_httpd_method_t enumerators */
 	static mio_bch_t* names[]  =
@@ -151,7 +152,7 @@ mio_http_method_t mio_bcstr_to_http_method (const mio_bch_t* name)
 		mid = left + (right - left) / 2;
 		entry = &mtab[mid];
 
-		n = mio_comp_bcstr(name, entry->name);
+		n = mio_comp_bcstr(name, entry->name, 1);
 		if (n < 0) 
 		{
 			/* if left, right, mid were of mio_oow_t,
@@ -184,7 +185,7 @@ mio_http_method_t mio_bchars_to_http_method (const mio_bch_t* nameptr, mio_oow_t
 		mid = left + (right - left) / 2;
 		entry = &mtab[mid];
 
-		n = mio_mbsxcmp(nameptr, namelen, entry->name);
+		n = mio_comp_bchars_bcstr(nameptr, namelen, entry->name, 1);
 		if (n < 0) 
 		{
 			/* if left, right, mid were of mio_oow_t,
@@ -218,21 +219,21 @@ int mio_parse_http_range_bcstr (const mio_bch_t* str, mio_http_range_t* range)
 	str += 6;
 
 	from = 0;
-	if (MIO_ISMDIGIT(*str))
+	if (mio_is_bch_digit(*str))
 	{
 		do
 		{
 			from = from * 10 + (*str - '0');
 			str++;
 		}
-		while (MIO_ISMDIGIT(*str));
+		while (mio_is_bch_digit(*str));
 	}
 	else type = MIO_HTTP_RANGE_SUFFIX;
 
 	if (*str != '-') return -1;
 	str++;
 
-	if (MIO_ISMDIGIT(*str))
+	if (mio_is_bch_digit(*str))
 	{
 		to = 0;
 		do
@@ -240,7 +241,7 @@ int mio_parse_http_range_bcstr (const mio_bch_t* str, mio_http_range_t* range)
 			to = to * 10 + (*str - '0');
 			str++;
 		}
-		while (MIO_ISMDIGIT(*str));
+		while (mio_is_bch_digit(*str));
 	}
 	else to = MIO_TYPE_MAX(mio_http_range_int_t); 
 
@@ -288,7 +289,7 @@ static mname_t mon_name[] =
 
 int mio_parse_http_time_bcstr (const mio_bch_t* str, mio_ntime_t* nt)
 {
-	mio_btime_t bt;
+	struct tm bt;
 	const mio_bch_t* word;
 	mio_oow_t wlen, i;
 
@@ -297,97 +298,107 @@ int mio_parse_http_time_bcstr (const mio_bch_t* str, mio_ntime_t* nt)
 	MIO_MEMSET (&bt, 0, MIO_SIZEOF(bt));
 
 	/* weekday */
-	while (MIO_ISMSPACE(*str)) str++;
-	for (word = str; MIO_ISMALPHA(*str); str++);
+	while (mio_is_bch_space(*str)) str++;
+	for (word = str; mio_is_bch_alpha(*str); str++);
 	wlen = str - word;
 	for (i = 0; i < MIO_COUNTOF(wday_name); i++)
 	{
-		if (mio_mbsxcmp(word, wlen, wday_name[i].s) == 0)
+		if (mio_comp_bchars_bcstr(word, wlen, wday_name[i].s, 1) == 0)
 		{
-			bt.wday = i;
+			bt.tm_wday = i;
 			break;
 		}
 	}
 	if (i >= MIO_COUNTOF(wday_name)) return -1;
 
 	/* comma - i'm just loose as i don't care if it doesn't exist */
-	while (MIO_ISMSPACE(*str)) str++;
+	while (mio_is_bch_space(*str)) str++;
 	if (*str == ',') str++;
 
 	/* day */
-	while (MIO_ISMSPACE(*str)) str++;
-	if (!MIO_ISMDIGIT(*str)) return -1;
-	do bt.mday = bt.mday * 10 + *str++ - '0'; while (MIO_ISMDIGIT(*str));
+	while (mio_is_bch_space(*str)) str++;
+	if (!mio_is_bch_digit(*str)) return -1;
+	do bt.tm_mday = bt.tm_mday * 10 + *str++ - '0'; while (mio_is_bch_digit(*str));
 
 	/* month */
-	while (MIO_ISMSPACE(*str)) str++;
-	for (word = str; MIO_ISMALPHA(*str); str++);
+	while (mio_is_bch_space(*str)) str++;
+	for (word = str; mio_is_bch_alpha(*str); str++);
 	wlen = str - word;
 	for (i = 0; i < MIO_COUNTOF(mon_name); i++)
 	{
-		if (mio_mbsxcmp(word, wlen, mon_name[i].s) == 0)
+		if (mio_comp_bchars_bcstr(word, wlen, mon_name[i].s, 1) == 0)
 		{
-			bt.mon = i;
+			bt.tm_mon = i;
 			break;
 		}
 	}
 	if (i >= MIO_COUNTOF(mon_name)) return -1;
 
 	/* year */
-	while (MIO_ISMSPACE(*str)) str++;
-	if (!MIO_ISMDIGIT(*str)) return -1;
-	do bt.year = bt.year * 10 + *str++ - '0'; while (MIO_ISMDIGIT(*str));
-	bt.year -= MIO_BTIME_YEAR_BASE;
+	while (mio_is_bch_space(*str)) str++;
+	if (!mio_is_bch_digit(*str)) return -1;
+	do bt.tm_year = bt.tm_year * 10 + *str++ - '0'; while (mio_is_bch_digit(*str));
+	bt.tm_year -= 1900;
 
 	/* hour */
-	while (MIO_ISMSPACE(*str)) str++;
-	if (!MIO_ISMDIGIT(*str)) return -1;
-	do bt.hour = bt.hour * 10 + *str++ - '0'; while (MIO_ISMDIGIT(*str));
+	while (mio_is_bch_space(*str)) str++;
+	if (!mio_is_bch_digit(*str)) return -1;
+	do bt.tm_hour = bt.tm_hour * 10 + *str++ - '0'; while (mio_is_bch_digit(*str));
 	if (*str != ':')  return -1;
 	str++;
 
 	/* min */
-	while (MIO_ISMSPACE(*str)) str++;
-	if (!MIO_ISMDIGIT(*str)) return -1;
-	do bt.min = bt.min * 10 + *str++ - '0'; while (MIO_ISMDIGIT(*str));
+	while (mio_is_bch_space(*str)) str++;
+	if (!mio_is_bch_digit(*str)) return -1;
+	do bt.tm_min = bt.tm_min * 10 + *str++ - '0'; while (mio_is_bch_digit(*str));
 	if (*str != ':')  return -1;
 	str++;
 
 	/* sec */
-	while (MIO_ISMSPACE(*str)) str++;
-	if (!MIO_ISMDIGIT(*str)) return -1;
-	do bt.sec = bt.sec * 10 + *str++ - '0'; while (MIO_ISMDIGIT(*str));
+	while (mio_is_bch_space(*str)) str++;
+	if (!mio_is_bch_digit(*str)) return -1;
+	do bt.tm_sec = bt.tm_sec * 10 + *str++ - '0'; while (mio_is_bch_digit(*str));
 
 	/* GMT */
-	while (MIO_ISMSPACE(*str)) str++;
-	for (word = str; MIO_ISMALPHA(*str); str++);
+	while (mio_is_bch_space(*str)) str++;
+	for (word = str; mio_is_bch_alpha(*str); str++);
 	wlen = str - word;
-	if (mio_mbsxcmp(word, wlen, "GMT") != 0) return -1;
+	if (mio_comp_bchars_bcstr(word, wlen, "GMT", 1) != 0) return -1;
 
-	while (MIO_ISMSPACE(*str)) str++;
+	while (mio_is_bch_space(*str)) str++;
 	if (*str != '\0') return -1;
 
-	return mio_timegm(&bt, nt);
+	nt->sec = timegm(&bt);
+	nt->nsec = 0;
+
+	return 0;
 }
 
-mio_bch_t* mio_fmthttptime (const mio_ntime_t* nt, mio_bch_t* buf, mio_oow_t bufsz)
+mio_bch_t* mio_fmt_http_time_to_bcstr (const mio_ntime_t* nt, mio_bch_t* buf, mio_oow_t bufsz)
 {
-	mio_btime_t bt;
+	time_t t;
+	struct tm bt;
 
-	mio_gmtime (nt, &bt);
+	t = nt->sec;
+	gmtime_r (&t, &bt);
 
-	mio_mbsxfmt (
-		buf, bufsz,
-		"%s, %d %s %d %02d:%02d:%02d GMT",
-		wday_name[bt.wday].s,
-		bt.mday,
-		mon_name[bt.mon].s,
-		bt.year + MIO_BTIME_YEAR_BASE,
-		bt.hour, bt.min, bt.sec
+	/* mio_fmttobcstr() works well with MIO_NULL in mio if formatting doesn't involve cross-encoding */
+	mio_fmttobcstr (MIO_NULL, buf, bufsz, 
+		"%hs, %d %hs %d %02d:%02d:%02d GMT",
+		wday_name[bt.tm_wday].s,
+		bt.tm_mday,
+		mon_name[bt.tm_mon].s,
+		bt.tm_year + 1900,
+		bt.tm_hour, bt.tm_min, bt.tm_sec
 	);
 
 	return buf;
 }
+
+#define XDIGIT_TO_NUM(c) \
+	(((c) >= '0' && (c) <= '9')? ((c) - '0'): \
+	 ((c) >= 'A' && (c) <= 'F')? ((c) - 'A' + 10): \
+	 ((c) >= 'a' && (c) <= 'f')? ((c) - 'a' + 10): -1)
 
 int mio_is_perenced_http_bcstr (const mio_bch_t* str)
 {
@@ -397,11 +408,11 @@ int mio_is_perenced_http_bcstr (const mio_bch_t* str)
 	{
 		if (*p == '%' && *(p + 1) != '\0' && *(p + 2) != '\0')
 		{
-			int q = MIO_MXDIGITTONUM (*(p + 1));
+			int q = XDIGIT_TO_NUM(*(p + 1));
 			if (q >= 0)
 			{
 				/* return true if the first valid percent-encoded sequence is found */
-				int w = MIO_MXDIGITTONUM (*(p + 2));
+				int w = XDIGIT_TO_NUM(*(p + 2));
 				if (w >= 0) return 1; 
 			}
 		}
@@ -422,10 +433,10 @@ mio_oow_t mio_perdechttpstr (const mio_bch_t* str, mio_bch_t* buf, mio_oow_t* nd
 	{
 		if (*p == '%' && *(p + 1) != '\0' && *(p + 2) != '\0')
 		{
-			int q = MIO_MXDIGITTONUM (*(p + 1));
+			int q = XDIGIT_TO_NUM(*(p + 1));
 			if (q >= 0)
 			{
-				int w = MIO_MXDIGITTONUM (*(p + 2));
+				int w = XDIGIT_TO_NUM(*(p + 2));
 				if (w >= 0)
 				{
 					/* we don't care if it contains a null character */

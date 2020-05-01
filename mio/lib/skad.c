@@ -1506,7 +1506,7 @@ int mio_equal_skads (const mio_skad_t* addr1, const mio_skad_t* addr2, int stric
 
 	#if defined(AF_UNIX) && (MIO_SIZEOF_STRUCT_SOCKADDR_UN > 0)
 		case AF_UNIX:
-			return mio_comp_bcstr(((struct sockaddr_un*)addr1)->sun_path, ((struct sockaddr_un*)addr2)->sun_path) == 0;
+			return mio_comp_bcstr(((struct sockaddr_un*)addr1)->sun_path, ((struct sockaddr_un*)addr2)->sun_path, 0) == 0;
 	#endif
 
 		default:
