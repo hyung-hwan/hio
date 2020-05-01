@@ -85,9 +85,9 @@ static MIO_INLINE int xdigit_to_num (mio_bch_t c)
 	return MIO_XDIGIT_TO_NUM(c);
 }
 
-static MIO_INLINE int push_to_buffer (mio_htrd_t* htrd, mio_htob_t* octb, const mio_bch_t* ptr, mio_oow_t len)
+static MIO_INLINE int push_to_buffer (mio_htrd_t* htrd, mio_becs_t* octb, const mio_bch_t* ptr, mio_oow_t len)
 {
-	if (mio_becs_ncat (octb, ptr, len) == (mio_oow_t)-1) 
+	if (mio_becs_ncat(octb, ptr, len) == (mio_oow_t)-1) 
 	{
 		htrd->errnum = MIO_HTRD_ENOMEM;
 		return -1;
@@ -128,9 +128,9 @@ mio_htrd_t* mio_htrd_open (mio_t* mio, mio_oow_t xtnsize)
 	mio_htrd_t* htrd;
 
 	htrd = (mio_htrd_t*)mio_allocmem(mio, MIO_SIZEOF(mio_htrd_t) + xtnsize);
-	if (htrd)
+	if (MIO_LIKELY(htrd))
 	{
-		if (mio_htrd_init(htrd, mio) <= -1)
+		if (MIO_UNLIKELY(mio_htrd_init(htrd, mio) <= -1))
 		{
 			mio_freemem (mio, htrd);
 			return MIO_NULL;
@@ -719,8 +719,8 @@ static mio_htb_pair_t* hdr_cbserter (
 		val->len = tx->vlen;
 		val->next = MIO_NULL;
 
-		p = mio_htb_allocpair (htb, kptr, klen, val, 0);
-		if (p == MIO_NULL) 
+		p = mio_htb_allocpair(htb, kptr, klen, val, 0);
+		if (MIO_UNLIKELY(!p)) 
 		{
 			mio_freemem (htb->mio, val);
 			tx->htrd->errnum = MIO_HTRD_ENOMEM;

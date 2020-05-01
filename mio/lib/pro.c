@@ -522,13 +522,13 @@ static int dev_pro_kill_slave (mio_dev_t* dev, int force)
 				/* the master pointer is not valid from this point onwards
 				 * as the actual master device object is freed in mio_dev_kill() */
 			}
-		}
-		else
-		{
-			/* this call is initiated by this slave device itself.
-			 * if it were by the master device, it would be MIO_NULL as
-			 * nullified by the dev_pro_kill() */
-			master->slave[rdev->id] = MIO_NULL;
+			else
+			{
+				/* this call is initiated by this slave device itself.
+				 * if it were by the master device, it would be MIO_NULL as
+				 * nullified by the dev_pro_kill() */
+				master->slave[rdev->id] = MIO_NULL;
+			}
 		}
 	}
 
