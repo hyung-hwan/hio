@@ -32,6 +32,7 @@
 #include <errno.h>
 #include <signal.h>
 #include <sys/wait.h>
+#include <sys/uio.h>
 
 /* ========================================================================= */
 

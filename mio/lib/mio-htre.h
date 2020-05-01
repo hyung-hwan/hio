@@ -130,7 +130,7 @@ struct mio_htre_t
 	mio_htb_t trailers;
 	
 	/* content octets */
-	mio_htob_t content;
+	mio_becs_t content;
 
 	/* content callback */
 	mio_htre_concb_t concb;

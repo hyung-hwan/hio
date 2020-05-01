@@ -27,6 +27,7 @@ include_HEADERS = \
 	mio-ecs.h \
 	mio-fmt.h \
 	mio-htb.h \
+	mio-htrd.h \
 	mio-htre.h \
 	mio-http.h \
 	mio-nwif.h \

@@ -31,12 +31,6 @@
  * This file provides basic data types and functions for the http protocol.
  */
 
-/* octet buffer */
-typedef mio_becs_t mio_htob_t;
-
-/* octet string */
-typedef mio_bcs_t mio_htos_t;
-
 /**
  * The mio_http_version_t type defines http version.
  */

@@ -395,11 +395,6 @@ mio_bch_t* mio_fmt_http_time_to_bcstr (const mio_ntime_t* nt, mio_bch_t* buf, mi
 	return buf;
 }
 
-#define XDIGIT_TO_NUM(c) \
-	(((c) >= '0' && (c) <= '9')? ((c) - '0'): \
-	 ((c) >= 'A' && (c) <= 'F')? ((c) - 'A' + 10): \
-	 ((c) >= 'a' && (c) <= 'f')? ((c) - 'a' + 10): -1)
-
 int mio_is_perenced_http_bcstr (const mio_bch_t* str)
 {
 	const mio_bch_t* p = str;
@@ -408,11 +403,11 @@ int mio_is_perenced_http_bcstr (const mio_bch_t* str)
 	{
 		if (*p == '%' && *(p + 1) != '\0' && *(p + 2) != '\0')
 		{
-			int q = XDIGIT_TO_NUM(*(p + 1));
+			int q = MIO_XDIGIT_TO_NUM(*(p + 1));
 			if (q >= 0)
 			{
 				/* return true if the first valid percent-encoded sequence is found */
-				int w = XDIGIT_TO_NUM(*(p + 2));
+				int w = MIO_XDIGIT_TO_NUM(*(p + 2));
 				if (w >= 0) return 1; 
 			}
 		}
@@ -433,10 +428,10 @@ mio_oow_t mio_perdechttpstr (const mio_bch_t* str, mio_bch_t* buf, mio_oow_t* nd
 	{
 		if (*p == '%' && *(p + 1) != '\0' && *(p + 2) != '\0')
 		{
-			int q = XDIGIT_TO_NUM(*(p + 1));
+			int q = MIO_XDIGIT_TO_NUM(*(p + 1));
 			if (q >= 0)
 			{
-				int w = XDIGIT_TO_NUM(*(p + 2));
+				int w = MIO_XDIGIT_TO_NUM(*(p + 2));
 				if (w >= 0)
 				{
 					/* we don't care if it contains a null character */

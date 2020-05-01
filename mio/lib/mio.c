@@ -1606,7 +1606,7 @@ static int fmt_put_bchars_to_uch_buf (mio_fmtout_t* fmtout, const mio_bch_t* ptr
 		}
 		else
 		{
-			if (b->mio) mio_seterrnum (b->mio, MIO_EECERR);
+			mio_seterrnum (b->mio, MIO_EECERR);
 			return -1;
 		}
 	}
@@ -1717,7 +1717,7 @@ static int fmt_put_uchars_to_bch_buf (mio_fmtout_t* fmtout, const mio_uch_t* ptr
 		}
 		else
 		{
-			if (b->mio) mio_seterrnum (b->mio, MIO_EECERR);
+			mio_seterrnum (b->mio, MIO_EECERR);
 			return -1;
 		}
 	}
