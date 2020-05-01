@@ -25,6 +25,7 @@
  */
 
 #include "mio-prv.h"
+#include "mio-fmt.h"
 #include <stdlib.h>
   
 #define DEV_CAP_ALL_WATCHED (MIO_DEV_CAP_IN_WATCHED | MIO_DEV_CAP_OUT_WATCHED | MIO_DEV_CAP_PRI_WATCHED)
@@ -1573,3 +1574,191 @@ void mio_freemem (mio_t* mio, void* ptr)
 {
 	MIO_MMGR_FREE (mio->_mmgr, ptr);
 }
+
+/* ------------------------------------------------------------------------ */
+
+struct fmt_uch_buf_t
+{
+	mio_t* mio;
+	mio_uch_t* ptr;
+	mio_oow_t len;
+	mio_oow_t capa;
+};
+typedef struct fmt_uch_buf_t fmt_uch_buf_t;
+
+static int fmt_put_bchars_to_uch_buf (mio_fmtout_t* fmtout, const mio_bch_t* ptr, mio_oow_t len)
+{
+	fmt_uch_buf_t* b = (fmt_uch_buf_t*)fmtout->ctx;
+	mio_oow_t bcslen, ucslen;
+	int n;
+
+	if (!b->mio) return -1; /* no mio, no cross encoding formatting */
+
+	bcslen = len;
+	ucslen = b->capa - b->len;
+	n = mio_conv_bchars_to_uchars_with_cmgr(ptr, &bcslen, &b->ptr[b->len], &ucslen, b->mio->_cmgr, 1);
+	b->len += ucslen;
+	if (n <= -1) 
+	{
+		if (n == -2) 
+		{
+			return 0; /* buffer full. stop */
+		}
+		else
+		{
+			if (b->mio) mio_seterrnum (b->mio, MIO_EECERR);
+			return -1;
+		}
+	}
+
+	return 1; /* success. carry on */
+}
+
+static int fmt_put_uchars_to_uch_buf (mio_fmtout_t* fmtout, const mio_uch_t* ptr, mio_oow_t len)
+{
+	fmt_uch_buf_t* b = (fmt_uch_buf_t*)fmtout->ctx;
+	mio_oow_t n;
+
+	/* this function null-terminates the destination. so give the restored buffer size */
+	n = mio_copy_uchars_to_ucstr(&b->ptr[b->len], b->capa - b->len + 1, ptr, len);
+	b->len += n;
+	if (n < len)
+	{
+		if (b->mio) mio_seterrnum (b->mio, MIO_EBUFFULL);
+		return 0; /* stop. insufficient buffer */
+	}
+
+	return 1; /* success */
+}
+
+mio_oow_t mio_vfmttoucstr (mio_t* mio, mio_uch_t* buf, mio_oow_t bufsz, const mio_uch_t* fmt, va_list ap)
+{
+	mio_fmtout_t fo;
+	fmt_uch_buf_t fb;
+
+	if (bufsz <= 0) return 0;
+
+	MIO_MEMSET (&fo, 0, MIO_SIZEOF(fo));
+	//fo.mmgr = mio->mmgr;
+	fo.putbchars = fmt_put_bchars_to_uch_buf;
+	fo.putuchars = fmt_put_uchars_to_uch_buf;
+	fo.ctx = &fb;
+
+	MIO_MEMSET (&fb, 0, MIO_SIZEOF(fb));
+	fb.mio = mio;
+	fb.ptr = buf;
+	fb.capa = bufsz - 1;
+
+	if (mio_ufmt_outv(&fo, fmt, ap) <= -1) return -1;
+
+	buf[fb.len] = '\0';
+	return fb.len;
+}
+
+mio_oow_t mio_fmttoucstr (mio_t* mio, mio_uch_t* buf, mio_oow_t bufsz, const mio_uch_t* fmt, ...)
+{
+	mio_oow_t x;
+	va_list ap;
+
+	va_start (ap, fmt);
+	x = mio_vfmttoucstr(mio, buf, bufsz, fmt, ap);
+	va_end (ap);
+
+	return x;
+}
+
+/* ------------------------------------------------------------------------ */
+
+struct fmt_bch_buf_t
+{
+	mio_t* mio;
+	mio_bch_t* ptr;
+	mio_oow_t len;
+	mio_oow_t capa;
+};
+typedef struct fmt_bch_buf_t fmt_bch_buf_t;
+
+
+static int fmt_put_bchars_to_bch_buf (mio_fmtout_t* fmtout, const mio_bch_t* ptr, mio_oow_t len)
+{
+	fmt_bch_buf_t* b = (fmt_bch_buf_t*)fmtout->ctx;
+	mio_oow_t n;
+
+	/* this function null-terminates the destination. so give the restored buffer size */
+	n = mio_copy_bchars_to_bcstr(&b->ptr[b->len], b->capa - b->len + 1, ptr, len);
+	b->len += n;
+	if (n < len)
+	{
+		if (b->mio) mio_seterrnum (b->mio, MIO_EBUFFULL);
+		return 0; /* stop. insufficient buffer */
+	}
+
+	return 1; /* success */
+}
+
+
+static int fmt_put_uchars_to_bch_buf (mio_fmtout_t* fmtout, const mio_uch_t* ptr, mio_oow_t len)
+{
+	fmt_bch_buf_t* b = (fmt_bch_buf_t*)fmtout->ctx;
+	mio_oow_t bcslen, ucslen;
+	int n;
+
+	if (!b->mio) return -1; /* no mio, no cross encoding formatting */
+
+	bcslen = b->capa - b->len;
+	ucslen = len;
+	n = mio_conv_uchars_to_bchars_with_cmgr(ptr, &ucslen, &b->ptr[b->len], &bcslen, b->mio->_cmgr);
+	b->len += bcslen;
+	if (n <= -1)
+	{
+		if (n == -2)
+		{
+			return 0; /* buffer full. stop */
+		}
+		else
+		{
+			if (b->mio) mio_seterrnum (b->mio, MIO_EECERR);
+			return -1;
+		}
+	}
+
+	return 1; /* success. carry on */
+}
+
+mio_oow_t mio_vfmttobcstr (mio_t* mio, mio_bch_t* buf, mio_oow_t bufsz, const mio_bch_t* fmt, va_list ap)
+{
+	mio_fmtout_t fo;
+	fmt_bch_buf_t fb;
+
+	if (bufsz <= 0) return 0;
+
+	MIO_MEMSET (&fo, 0, MIO_SIZEOF(fo));
+	//fo.mmgr = mio->mmgr;
+	fo.putbchars = fmt_put_bchars_to_bch_buf;
+	fo.putuchars = fmt_put_uchars_to_bch_buf;
+	fo.ctx = &fb;
+
+	MIO_MEMSET (&fb, 0, MIO_SIZEOF(fb));
+	fb.mio = mio;
+	fb.ptr = buf;
+	fb.capa = bufsz - 1;
+
+	if (mio_bfmt_outv(&fo, fmt, ap) <= -1) return -1;
+
+	buf[fb.len] = '\0';
+	return fb.len;
+}
+
+mio_oow_t mio_fmttobcstr (mio_t* mio, mio_bch_t* buf, mio_oow_t bufsz, const mio_bch_t* fmt, ...)
+{
+	mio_oow_t x;
+	va_list ap;
+
+	va_start (ap, fmt);
+	x = mio_vfmttobcstr(mio, buf, bufsz, fmt, ap);
+	va_end (ap);
+
+	return x;
+}
+
+/* ------------------------------------------------------------------------ */

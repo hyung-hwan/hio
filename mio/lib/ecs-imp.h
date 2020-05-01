@@ -25,16 +25,16 @@
  */
 
 
-str_t* FN(open) (mio_t* gem, mio_oow_t xtnsize, mio_oow_t capa)
+str_t* FN(open) (mio_t* mio, mio_oow_t xtnsize, mio_oow_t capa)
 {
 	str_t* str;
 
-	str = (str_t*)mio_allocmem(gem, MIO_SIZEOF(str_t) + xtnsize);
+	str = (str_t*)mio_allocmem(mio, MIO_SIZEOF(str_t) + xtnsize);
 	if (str)
 	{
-		if (FN(init)(str, gem, capa) <= -1)
+		if (FN(init)(str, mio, capa) <= -1)
 		{
-			mio_freemem (gem, str);
+			mio_freemem (mio, str);
 			str = MIO_NULL;
 		}
 		else
@@ -48,20 +48,20 @@ str_t* FN(open) (mio_t* gem, mio_oow_t xtnsize, mio_oow_t capa)
 void FN(close) (str_t* str)
 {
 	FN(fini) (str);
-	mio_freemem (str->gem, str);
+	mio_freemem (str->mio, str);
 }
 
-int FN(init) (str_t* str, mio_t* gem, mio_oow_t capa)
+int FN(init) (str_t* str, mio_t* mio, mio_oow_t capa)
 {
 	MIO_MEMSET (str, 0, MIO_SIZEOF(str_t));
 
-	str->gem = gem;
+	str->mio = mio;
 	str->sizer = MIO_NULL;
 
 	if (capa == 0) str->val.ptr = MIO_NULL;
 	else
 	{
-		str->val.ptr = (char_t*)mio_allocmem(gem, MIO_SIZEOF(char_t) * (capa + 1));
+		str->val.ptr = (char_t*)mio_allocmem(mio, MIO_SIZEOF(char_t) * (capa + 1));
 		if (!str->val.ptr) return -1;
 		str->val.ptr[0] = '\0';
 	}
@@ -74,7 +74,7 @@ int FN(init) (str_t* str, mio_t* gem, mio_oow_t capa)
 
 void FN(fini) (str_t* str)
 {
-	if (str->val.ptr) mio_freemem (str->gem, str->val.ptr);
+	if (str->val.ptr) mio_freemem (str->mio, str->val.ptr);
 }
 
 int FN(yield) (str_t* str, cstr_t* buf, mio_oow_t newcapa)
@@ -84,7 +84,7 @@ int FN(yield) (str_t* str, cstr_t* buf, mio_oow_t newcapa)
 	if (newcapa == 0) tmp = MIO_NULL;
 	else
 	{
-		tmp = (char_t*)mio_allocmem(str->gem, MIO_SIZEOF(char_t) * (newcapa + 1));
+		tmp = (char_t*)mio_allocmem(str->mio, MIO_SIZEOF(char_t) * (newcapa + 1));
 		if (!tmp) return -1;
 		tmp[0] = '\0';
 	}
@@ -112,7 +112,7 @@ mio_oow_t FN(setcapa) (str_t* str, mio_oow_t capa)
 
 	if (capa == str->capa) return capa;
 
-	tmp = (char_t*)mio_reallocmem(str->gem, str->val.ptr, MIO_SIZEOF(char_t) * (capa+1));
+	tmp = (char_t*)mio_reallocmem(str->mio, str->val.ptr, MIO_SIZEOF(char_t) * (capa+1));
 	if (!tmp) return (mio_oow_t)-1;
 
 	if (capa < str->val.len)
@@ -152,7 +152,7 @@ void FN(clear) (str_t* str)
 	str->val.len = 0;
 	if (str->val.ptr)
 	{
-		MIO_ASSERT (str->gem, str->capa >= 1);
+		MIO_ASSERT (str->mio, str->capa >= 1);
 		str->val.ptr[0] = '\0';
 	}
 }
@@ -164,17 +164,17 @@ void FN(swap) (str_t* str, str_t* str1)
 	tmp.val.ptr = str->val.ptr;
 	tmp.val.len = str->val.len;
 	tmp.capa = str->capa;
-	tmp.gem = str->gem;
+	tmp.mio = str->mio;
 
 	str->val.ptr = str1->val.ptr;
 	str->val.len = str1->val.len;
 	str->capa = str1->capa;
-	str->gem = str1->gem;
+	str->mio = str1->mio;
 
 	str1->val.ptr = tmp.val.ptr;
 	str1->val.len = tmp.val.len;
 	str1->capa = tmp.capa;
-	str1->gem = tmp.gem;
+	str1->mio = tmp.mio;
 }
 
 
@@ -251,8 +251,8 @@ static int FN(resize_for_ncat) (str_t* str, mio_oow_t len)
 	}
 	else if (str->capa <= 0 && len <= 0)
 	{
-		MIO_ASSERT (str->gem, str->val.ptr == MIO_NULL);
-		MIO_ASSERT (str->gem, str->val.len <= 0);
+		MIO_ASSERT (str->mio, str->val.ptr == MIO_NULL);
+		MIO_ASSERT (str->mio, str->val.len <= 0);
 		if (FN(setcapa)(str, 1) == (mio_oow_t)-1) return -1;
 	}
 
@@ -364,12 +364,11 @@ mio_oow_t FN(amend) (str_t* str, mio_oow_t pos, mio_oow_t len, const char_t* rep
 	return str->val.len;
 }
 
-#if 0
 static int FN(put_bchars) (mio_fmtout_t* fmtout, const mio_bch_t* ptr, mio_oow_t len)
 {
 #if defined(BUILD_UECS)
 	mio_uecs_t* uecs = (mio_uecs_t*)fmtout->ctx;
-	if (mio_uecs_ncatbchars(uecs, ptr, len, uecs->gem->cmgr, 1) == (mio_oow_t)-1) return -1;
+	if (mio_uecs_ncatbchars(uecs, ptr, len, uecs->mio->_cmgr, 1) == (mio_oow_t)-1) return -1;
 #else
 	mio_becs_t* becs = (mio_becs_t*)fmtout->ctx;
 	if (mio_becs_ncat(becs, ptr, len) == (mio_oow_t)-1) return -1;
@@ -384,7 +383,7 @@ static int FN(put_uchars) (mio_fmtout_t* fmtout, const mio_uch_t* ptr, mio_oow_t
 	if (mio_uecs_ncat(uecs, ptr, len) == (mio_oow_t)-1) return -1;
 #else
 	mio_becs_t* becs = (mio_becs_t*)fmtout->ctx;
-	if (mio_becs_ncatuchars(becs, ptr, len, becs->gem->cmgr) == (mio_oow_t)-1) return -1;
+	if (mio_becs_ncatuchars(becs, ptr, len, becs->mio->_cmgr) == (mio_oow_t)-1) return -1;
 #endif
 	return 1; /* success. carry on */
 }
@@ -394,7 +393,7 @@ mio_oow_t FN(vfcat) (str_t* str, const char_t* fmt, va_list ap)
 	mio_fmtout_t fo;
 
 	MIO_MEMSET (&fo, 0, MIO_SIZEOF(fo));
-	fo.mmgr = str->gem->mmgr;
+	//fo.mmgr = str->mio->_mmgr;
 	fo.putbchars = FN(put_bchars);
 	fo.putuchars = FN(put_uchars);
 	fo.ctx = str;
@@ -424,7 +423,7 @@ mio_oow_t FN(vfmt) (str_t* str, const char_t* fmt, va_list ap)
 	mio_fmtout_t fo;
 
 	MIO_MEMSET (&fo, 0, MIO_SIZEOF(fo));
-	fo.mmgr = str->gem->mmgr;
+	//fo.mmgr = str->mio->_mmgr;
 	fo.putbchars = FN(put_bchars);
 	fo.putuchars = FN(put_uchars);
 	fo.ctx = str;
@@ -450,4 +449,3 @@ mio_oow_t FN(fmt) (str_t* str, const char_t* fmt, ...)
 
 	return x;
 }
-#endif

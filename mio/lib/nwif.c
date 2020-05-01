@@ -188,7 +188,7 @@ int mio_bcstrtoifindex (mio_t* mio, const mio_bch_t* ptr, unsigned int* index)
 	num = ifc.ifc_len / MIO_SIZEOF(struct ifreq);
 	for (i = 0; i < num; i++)
 	{
-		if (mio_comp_bcstr(ptr, ifc.ifc_req[i].ifr_name) == 0) 
+		if (mio_comp_bcstr(ptr, ifc.ifc_req[i].ifr_name, 0) == 0) 
 		{
 			free_sco_ifconf (mio, &ifc);
 			*index = i + 1;
@@ -363,7 +363,7 @@ int mio_ucstrtoifindex (mio_t* mio, const mio_uch_t* ptr, unsigned int* index)
 	num = ifc.ifc_len / MIO_SIZEOF(struct ifreq);
 	for (i = 0; i < num; i++)
 	{
-		if (mio_comp_bcstr(tmp, ifc.ifc_req[i].ifr_name) == 0) 
+		if (mio_comp_bcstr(tmp, ifc.ifc_req[i].ifr_name, 0) == 0) 
 		{
 			free_sco_ifconf (mio, &ifc);
 			*index = i + 1;
@@ -457,7 +457,7 @@ int mio_ucharstoifindex (mio_t* mio, const mio_uch_t* ptr, mio_oow_t len, unsign
 	num = ifc.ifc_len / MIO_SIZEOF(struct ifreq);
 	for (i = 0; i < num; i++)
 	{
-		if (mio_comp_bcstr(tmp, ifc.ifc_req[i].ifr_name) == 0) 
+		if (mio_comp_bcstr(tmp, ifc.ifc_req[i].ifr_name, 0) == 0) 
 		{
 			free_sco_ifconf (mio, &ifc);
 			*index = i + 1;

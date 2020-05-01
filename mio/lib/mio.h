@@ -1122,6 +1122,49 @@ MIO_EXPORT mio_bch_t* mio_dupbcstr (
 #	define mio_dupoocstr(mio,oocs,oocslen) mio_dupbcstr(mio,oocs,oocslen)
 #endif
 
+/* =========================================================================
+ * STRING FORMATTING
+ * ========================================================================= */
+
+MIO_EXPORT mio_oow_t mio_vfmttoucstr (
+	mio_t*           mio,
+	mio_uch_t*       buf,
+	mio_oow_t        bufsz,
+	const mio_uch_t* fmt,
+	va_list          ap
+);
+
+MIO_EXPORT mio_oow_t mio_fmttoucstr (
+	mio_t*           mio,
+	mio_uch_t*       buf,
+	mio_oow_t        bufsz,
+	const mio_uch_t* fmt,
+	...
+);
+
+MIO_EXPORT mio_oow_t mio_vfmttobcstr (
+	mio_t*           mio,
+	mio_bch_t*       buf,
+	mio_oow_t        bufsz,
+	const mio_bch_t* fmt,
+	va_list          ap
+);
+
+MIO_EXPORT mio_oow_t mio_fmttobcstr (
+	mio_t*           mio,
+	mio_bch_t*       buf,
+	mio_oow_t        bufsz,
+	const mio_bch_t* fmt,
+	...
+);
+
+#if defined(MIO_OOCH_IS_UCH)
+#	define mio_vfmttooocstr mio_vfmttoucstr
+#	define mio_fmttooocstr mio_fmttoucstr
+#else
+#	define mio_vfmttooocstr mio_vfmttobcstr
+#	define mio_fmttooocstr mio_fmttobcstr
+#endif
 
 /* =========================================================================
  * MIO VM LOGGING

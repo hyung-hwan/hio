@@ -211,7 +211,7 @@ static mio_bch_t* sprintn_upper (mio_bch_t* nbuf, mio_uintmax_t num, int base, m
 		for (_yy = 0; _yy < n; _yy++) \
 		{ \
 			int _xx; \
-			if ((_xx = fmtout->putbcs(fmtout, &_cc, 1)) <= -1) goto oops; \
+			if ((_xx = fmtout->putbchars(fmtout, &_cc, 1)) <= -1) goto oops; \
 			if (_xx == 0) goto done; \
 			fmtout->count++; \
 		} \
@@ -221,7 +221,7 @@ static mio_bch_t* sprintn_upper (mio_bch_t* nbuf, mio_uintmax_t num, int base, m
 #define PUT_BCS(fmtout,ptr,len) do { \
 	if (len > 0) { \
 		int _xx; \
-		if ((_xx = fmtout->putbcs(fmtout, ptr, len)) <= -1) goto oops; \
+		if ((_xx = fmtout->putbchars(fmtout, ptr, len)) <= -1) goto oops; \
 		if (_xx == 0) goto done; \
 		fmtout->count += len; \
 	} \
@@ -234,7 +234,7 @@ static mio_bch_t* sprintn_upper (mio_bch_t* nbuf, mio_uintmax_t num, int base, m
 		for (_yy = 0; _yy < n; _yy++) \
 		{ \
 			int _xx; \
-			if ((_xx = fmtout->putucs(fmtout, &_cc, 1)) <= -1) goto oops; \
+			if ((_xx = fmtout->putuchars(fmtout, &_cc, 1)) <= -1) goto oops; \
 			if (_xx == 0) goto done; \
 			fmtout->count++; \
 		} \
@@ -244,7 +244,7 @@ static mio_bch_t* sprintn_upper (mio_bch_t* nbuf, mio_uintmax_t num, int base, m
 #define PUT_UCS(fmtout,ptr,len) do { \
 	if (len > 0) { \
 		int _xx; \
-		if ((_xx = fmtout->putucs(fmtout, ptr, len)) <= -1) goto oops; \
+		if ((_xx = fmtout->putuchars(fmtout, ptr, len)) <= -1) goto oops; \
 		if (_xx == 0) goto done; \
 		fmtout->count += len; \
 	} \
@@ -1106,7 +1106,7 @@ static int fmt_outv (mio_fmtout_t* fmtout, va_list ap)
 				#endif
 				}
 			#else
-				num = va_arg (ap, mio_uintmax_t);
+				num = va_arg(ap, mio_uintmax_t);
 			#endif
 			}
 #if 0
@@ -1142,15 +1142,15 @@ static int fmt_outv (mio_fmtout_t* fmtout, va_list ap)
 				for (i = 0, num = 0; i < MIO_SIZEOF(mio_intmax_t) / MIO_SIZEOF(mio_oow_t); i++)
 				{
 				#if defined(MIO_ENDIAN_BIG)
-					num = num << (8 * MIO_SIZEOF(mio_oow_t)) | (va_arg (ap, mio_oow_t));
+					num = num << (8 * MIO_SIZEOF(mio_oow_t)) | (va_arg(ap, mio_oow_t));
 				#else
 					register int shift = i * MIO_SIZEOF(mio_oow_t);
-					mio_oow_t x = va_arg (ap, mio_oow_t);
+					mio_oow_t x = va_arg(ap, mio_oow_t);
 					num |= (mio_uintmax_t)x << (shift * MIO_BITS_PER_BYTE);
 				#endif
 				}
 			#else
-				num = va_arg (ap, mio_intmax_t);
+				num = va_arg(ap, mio_intmax_t);
 			#endif
 			}
 
@@ -1159,19 +1159,19 @@ static int fmt_outv (mio_fmtout_t* fmtout, va_list ap)
 				num = va_arg(ap, mio_ptrdiff_t);
 #endif
 			else if (lm_flag & LF_Z)
-				num = va_arg (ap, mio_ooi_t);
+				num = va_arg(ap, mio_ooi_t);
 			#if (MIO_SIZEOF_LONG_LONG > 0)
 			else if (lm_flag & LF_Q)
-				num = va_arg (ap, long long int);
+				num = va_arg(ap, long long int);
 			#endif
 			else if (lm_flag & (LF_L | LF_LD))
-				num = va_arg (ap, long int);
+				num = va_arg(ap, long int);
 			else if (lm_flag & LF_H)
-				num = (short int)va_arg (ap, int);
+				num = (short int)va_arg(ap, int);
 			else if (lm_flag & LF_C)
-				num = (char)va_arg (ap, int);
+				num = (char)va_arg(ap, int);
 			else
-				num = va_arg (ap, int);
+				num = va_arg(ap, int);
 
 		number:
 			if (sign && (mio_intmax_t)num < 0) 
@@ -1537,8 +1537,8 @@ mio_ooi_t mio_logbfmtv (mio_t* mio, mio_bitmask_t mask, const mio_bch_t* fmt, va
 	fo.fmt_str = fmt;
 	fo.ctx = mio;
 	fo.mask = mask;
-	fo.putbcs = log_bcs;
-	fo.putucs = log_ucs;
+	fo.putbchars = log_bcs;
+	fo.putuchars = log_ucs;
 
 	x = fmt_outv(&fo, ap);
 
@@ -1590,8 +1590,8 @@ mio_ooi_t mio_logufmtv (mio_t* mio, mio_bitmask_t mask, const mio_uch_t* fmt, va
 	fo.fmt_str = fmt;
 	fo.ctx = mio;
 	fo.mask = mask;
-	fo.putbcs = log_bcs;
-	fo.putucs = log_ucs;
+	fo.putbchars = log_bcs;
+	fo.putuchars = log_ucs;
 
 	x = fmt_outv(&fo, ap);
 

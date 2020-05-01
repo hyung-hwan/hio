@@ -25,6 +25,7 @@
  */
 
 #include "mio-ecs.h"
+#include "mio-fmt.h"
 #include "mio-prv.h"
 
 #define _FN(type,verb) mio_ ## type  ## _ ## verb

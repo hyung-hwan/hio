@@ -101,7 +101,7 @@ typedef mio_oow_t (*mio_uecs_sizer_t) (
  */
 struct mio_becs_t
 {
-	mio_t*       gem;
+	mio_t*           mio;
 	mio_becs_sizer_t sizer; /**< buffer resizer function */
 	mio_bcs_t        val;   /**< buffer/string pointer and lengh */
 	mio_oow_t        capa;  /**< buffer capacity */
@@ -112,7 +112,7 @@ struct mio_becs_t
  */
 struct mio_uecs_t
 {
-	mio_t*       gem;
+	mio_t*           mio;
 	mio_uecs_sizer_t sizer; /**< buffer resizer function */
 	mio_ucs_t        val;   /**< buffer/string pointer and lengh */
 	mio_oow_t        capa;  /**< buffer capacity */
@@ -127,7 +127,7 @@ extern "C" {
  * The mio_becs_open() function creates a dynamically resizable multibyte string.
  */
 MIO_EXPORT mio_becs_t* mio_becs_open (
-	mio_t* gem,
+	mio_t*     mio,
 	mio_oow_t  xtnsize,
 	mio_oow_t  capa
 );
@@ -144,7 +144,7 @@ MIO_EXPORT void mio_becs_close (
  */
 MIO_EXPORT int mio_becs_init (
 	mio_becs_t*  becs,
-	mio_t*   gem,
+	mio_t*       mio,
 	mio_oow_t    capa
 );
 
@@ -341,7 +341,7 @@ MIO_EXPORT mio_oow_t mio_becs_fmt (
  * The mio_uecs_open() function creates a dynamically resizable multibyte string.
  */
 MIO_EXPORT mio_uecs_t* mio_uecs_open (
-	mio_t* gem,
+	mio_t*     mio,
 	mio_oow_t  xtnsize,
 	mio_oow_t  capa
 );
@@ -358,7 +358,7 @@ MIO_EXPORT void mio_uecs_close (
  */
 MIO_EXPORT int mio_uecs_init (
 	mio_uecs_t*  uecs,
-	mio_t*   gem,
+	mio_t*       mio,
 	mio_oow_t    capa
 );
 
@@ -526,7 +526,6 @@ MIO_EXPORT mio_oow_t mio_uecs_amend (
 	const mio_uch_t*  repl
 );
 
-#if 0
 MIO_EXPORT mio_oow_t mio_uecs_vfcat (
 	mio_uecs_t*       str, 
 	const mio_uch_t*  fmt,
@@ -550,7 +549,6 @@ MIO_EXPORT mio_oow_t mio_uecs_fmt (
 	const mio_uch_t*  fmt,
 	...
 );
-#endif
 
 #if defined(MIO_OOCH_IS_UCH)
 #	define mio_ooecs_open mio_uecs_open
@@ -577,12 +575,11 @@ MIO_EXPORT mio_oow_t mio_uecs_fmt (
 #	define mio_ooecs_nccat mio_uecs_nccat
 #	define mio_ooecs_del mio_uecs_del
 #	define mio_ooecs_amend mio_uecs_amend
-#if 0
+
 #	define mio_ooecs_vfcat mio_uecs_vfcat
 #	define mio_ooecs_fcat mio_uecs_fcat
 #	define mio_ooecs_vfmt mio_uecs_vfmt
 #	define mio_ooecs_fmt mio_uecs_fmt
-#endif
 #else
 #	define mio_ooecs_open mio_becs_open
 #	define mio_ooecs_close mio_becs_close
@@ -609,12 +606,10 @@ MIO_EXPORT mio_oow_t mio_uecs_fmt (
 #	define mio_ooecs_del mio_becs_del
 #	define mio_ooecs_amend mio_becs_amend
 
-#if 0
 #	define mio_ooecs_vfcat mio_becs_vfcat
 #	define mio_ooecs_fcat mio_becs_fcat
 #	define mio_ooecs_vfmt mio_becs_vfmt
 #	define mio_ooecs_fmt mio_becs_fmt
-#endif
 
 #endif
 

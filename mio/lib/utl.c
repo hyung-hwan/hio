@@ -25,6 +25,7 @@
  */
 
 #include "mio-prv.h"
+#include <mio-chr.h>
 
 /* ========================================================================= */
 
@@ -58,73 +59,135 @@ int mio_equal_bchars (const mio_bch_t* str1, const mio_bch_t* str2, mio_oow_t le
 	return 1;
 }
 
-int mio_comp_uchars (const mio_uch_t* str1, mio_oow_t len1, const mio_uch_t* str2, mio_oow_t len2)
+int mio_comp_uchars (const mio_uch_t* str1, mio_oow_t len1, const mio_uch_t* str2, mio_oow_t len2, int ignorecase)
 {
 	mio_uchu_t c1, c2;
 	const mio_uch_t* end1 = str1 + len1;
 	const mio_uch_t* end2 = str2 + len2;
 
-	while (str1 < end1)
+	if (ignorecase)
 	{
-		c1 = *str1;
-		if (str2 < end2) 
+		while (str1 < end1)
 		{
-			c2 = *str2;
-			if (c1 > c2) return 1;
-			if (c1 < c2) return -1;
+			c1 = mio_to_uch_lower(*str1);
+			if (str2 < end2) 
+			{
+				c2 = mio_to_uch_lower(*str2);
+				if (c1 > c2) return 1;
+				if (c1 < c2) return -1;
+			}
+			else return 1;
+			str1++; str2++;
 		}
-		else return 1;
-		str1++; str2++;
+	}
+	else
+	{
+		while (str1 < end1)
+		{
+			c1 = *str1;
+			if (str2 < end2) 
+			{
+				c2 = *str2;
+				if (c1 > c2) return 1;
+				if (c1 < c2) return -1;
+			}
+			else return 1;
+			str1++; str2++;
+		}
 	}
 
 	return (str2 < end2)? -1: 0;
 }
 
-int mio_comp_bchars (const mio_bch_t* str1, mio_oow_t len1, const mio_bch_t* str2, mio_oow_t len2)
+int mio_comp_bchars (const mio_bch_t* str1, mio_oow_t len1, const mio_bch_t* str2, mio_oow_t len2, int ignorecase)
 {
 	mio_bchu_t c1, c2;
 	const mio_bch_t* end1 = str1 + len1;
 	const mio_bch_t* end2 = str2 + len2;
 
-	while (str1 < end1)
+	if (ignorecase)
 	{
-		c1 = *str1;
-		if (str2 < end2) 
+		while (str1 < end1)
 		{
-			c2 = *str2;
-			if (c1 > c2) return 1;
-			if (c1 < c2) return -1;
+			c1 = mio_to_bch_lower(*str1);
+			if (str2 < end2) 
+			{
+				c2 = mio_to_bch_lower(*str2);
+				if (c1 > c2) return 1;
+				if (c1 < c2) return -1;
+			}
+			else return 1;
+			str1++; str2++;
 		}
-		else return 1;
-		str1++; str2++;
+	}
+	else
+	{
+		while (str1 < end1)
+		{
+			c1 = *str1;
+			if (str2 < end2) 
+			{
+				c2 = *str2;
+				if (c1 > c2) return 1;
+				if (c1 < c2) return -1;
+			}
+			else return 1;
+			str1++; str2++;
+		}
 	}
 
 	return (str2 < end2)? -1: 0;
 }
 
-int mio_comp_ucstr (const mio_uch_t* str1, const mio_uch_t* str2)
+int mio_comp_ucstr (const mio_uch_t* str1, const mio_uch_t* str2, int ignorecase)
 {
-	while (*str1 == *str2)
+	if (ignorecase)
 	{
-		if (*str1 == '\0') return 0;
-		str1++; str2++;
-	}
+		while (mio_to_uch_lower(*str1) == mio_to_uch_lower(*str2))
+		{
+			if (*str1 == '\0') return 0;
+			str1++; str2++;
+		}
 
-	return ((mio_uchu_t)*str1 > (mio_uchu_t)*str2)? 1: -1;
+		return ((mio_uchu_t)mio_to_uch_lower(*str1) > (mio_uchu_t)mio_to_uch_lower(*str2))? 1: -1;
+	}
+	else
+	{
+		while (*str1 == *str2)
+		{
+			if (*str1 == '\0') return 0;
+			str1++; str2++;
+		}
+
+		return ((mio_uchu_t)*str1 > (mio_uchu_t)*str2)? 1: -1;
+	}
 }
 
-int mio_comp_bcstr (const mio_bch_t* str1, const mio_bch_t* str2)
+int mio_comp_bcstr (const mio_bch_t* str1, const mio_bch_t* str2, int ignorecase)
 {
-	while (*str1 == *str2)
+	if (ignorecase)
 	{
-		if (*str1 == '\0') return 0;
-		str1++; str2++;
-	}
+		while (mio_to_bch_lower(*str1) == mio_to_bch_lower(*str2))
+		{
+			if (*str1 == '\0') return 0;
+			str1++; str2++;
+		}
 
-	return ((mio_bchu_t)*str1 > (mio_bchu_t)*str2)? 1: -1;
+                return ((mio_bchu_t)mio_to_bch_lower(*str1) > (mio_bchu_t)mio_to_bch_lower(*str2))? 1: -1;
+	}
+	else
+	{
+		while (*str1 == *str2)
+		{
+			if (*str1 == '\0') return 0;
+			str1++; str2++;
+		}
+
+		return ((mio_bchu_t)*str1 > (mio_bchu_t)*str2)? 1: -1;
+	}
 }
 
-int mio_comp_ucstr_bcstr (const mio_uch_t* str1, const mio_bch_t* str2)
+int mio_comp_ucstr_bcstr (const mio_uch_t* str1, const mio_bch_t* str2, int ignorecase)
 {
 	while (*str1 == *str2)
 	{
@@ -135,7 +198,7 @@ int mio_comp_ucstr_bcstr (const mio_uch_t* str1, const mio_bch_t* str2)
 	return ((mio_uchu_t)*str1 > (mio_bchu_t)*str2)? 1: -1;
 }
 
-int mio_comp_uchars_ucstr (const mio_uch_t* str1, mio_oow_t len, const mio_uch_t* str2)
+int mio_comp_uchars_ucstr (const mio_uch_t* str1, mio_oow_t len, const mio_uch_t* str2, int ignorecase)
 {
 	/* for "abc\0" of length 4 vs "abc", the fourth character
 	 * of the first string is equal to the terminating null of
@@ -150,7 +213,7 @@ int mio_comp_uchars_ucstr (const mio_uch_t* str1, mio_oow_t len, const mio_uch_t
 	return (str1 < end)? 1: (*str2 == '\0'? 0: -1);
 }
 
-int mio_comp_uchars_bcstr (const mio_uch_t* str1, mio_oow_t len, const mio_bch_t* str2)
+int mio_comp_uchars_bcstr (const mio_uch_t* str1, mio_oow_t len, const mio_bch_t* str2, int ignorecase)
 {
 	const mio_uch_t* end = str1 + len;
 	while (str1 < end && *str2 != '\0') 
@@ -161,7 +224,7 @@ int mio_comp_uchars_bcstr (const mio_uch_t* str1, mio_oow_t len, const mio_bch_t
 	return (str1 < end)? 1: (*str2 == '\0'? 0: -1);
 }
 
-int mio_comp_bchars_bcstr (const mio_bch_t* str1, mio_oow_t len, const mio_bch_t* str2)
+int mio_comp_bchars_bcstr (const mio_bch_t* str1, mio_oow_t len, const mio_bch_t* str2, int ignorecase)
 {
 	const mio_bch_t* end = str1 + len;
 	while (str1 < end && *str2 != '\0') 
@@ -172,7 +235,7 @@ int mio_comp_bchars_bcstr (const mio_bch_t* str1, mio_oow_t len, const mio_bch_t
 	return (str1 < end)? 1: (*str2 == '\0'? 0: -1);
 }
 
-int mio_comp_bchars_ucstr (const mio_bch_t* str1, mio_oow_t len, const mio_uch_t* str2)
+int mio_comp_bchars_ucstr (const mio_bch_t* str1, mio_oow_t len, const mio_uch_t* str2, int ignorecase)
 {
 	const mio_bch_t* end = str1 + len;
 	while (str1 < end && *str2 != '\0') 

@@ -126,16 +126,16 @@ static MIO_INLINE void clear_feed (mio_htrd_t* htrd)
 	MIO_MEMSET (&htrd->fed.s, 0, MIO_SIZEOF(htrd->fed.s));
 }
 
-mio_htrd_t* mio_htrd_open (mio_mmgr_t* mmgr, mio_oow_t xtnsize)
+mio_htrd_t* mio_htrd_open (mio_t* mio, mio_oow_t xtnsize)
 {
 	mio_htrd_t* htrd;
 
-	htrd = (mio_htrd_t*)MIO_MMGR_ALLOC(mmgr, MIO_SIZEOF(mio_htrd_t) + xtnsize);
+	htrd = (mio_htrd_t*)mio_allocmem(mio, MIO_SIZEOF(mio_htrd_t) + xtnsize);
 	if (htrd)
 	{
-		if (mio_htrd_init (htrd, mmgr) <= -1)
+		if (mio_htrd_init(htrd, mio) <= -1)
 		{
-			MIO_MMGR_FREE (mmgr, htrd);
+			mio_freemem (mio, htrd);
 			return MIO_NULL;
 		}
 		else MIO_MEMSET (MIO_XTN(htrd), 0, xtnsize);
@@ -146,27 +146,27 @@ mio_htrd_t* mio_htrd_open (mio_mmgr_t* mmgr, mio_oow_t xtnsize)
 void mio_htrd_close (mio_htrd_t* htrd)
 {
 	mio_htrd_fini (htrd);
-	MIO_MMGR_FREE (htrd->mmgr, htrd);
+	mio_freemem (htrd->mio, htrd);
 }
 
-int mio_htrd_init (mio_htrd_t* htrd, mio_mmgr_t* mmgr)
+int mio_htrd_init (mio_htrd_t* htrd, mio_t* mio)
 {
 	MIO_MEMSET (htrd, 0, MIO_SIZEOF(*htrd));
-	htrd->mmgr = mmgr;
+	htrd->mio = mio;
 	htrd->option = MIO_HTRD_REQUEST | MIO_HTRD_RESPONSE;
 
 #if 0
-	mio_mbs_init (&htrd->tmp.qparam, htrd->mmgr, 0);
+	mio_becs_init (&htrd->tmp.qparam, htrd->mio, 0);
 #endif
-	mio_mbs_init (&htrd->fed.b.raw, htrd->mmgr, 0);
-	mio_mbs_init (&htrd->fed.b.tra, htrd->mmgr, 0);
+	mio_becs_init (&htrd->fed.b.raw, htrd->mio, 0);
+	mio_becs_init (&htrd->fed.b.tra, htrd->mio, 0);
 
-	if (mio_htre_init (&htrd->re, mmgr) <= -1)
+	if (mio_htre_init(&htrd->re, mio) <= -1)
 	{
-		mio_mbs_fini (&htrd->fed.b.tra);
-		mio_mbs_fini (&htrd->fed.b.raw);
+		mio_becs_fini (&htrd->fed.b.tra);
+		mio_becs_fini (&htrd->fed.b.raw);
 #if 0
-		mio_mbs_fini (&htrd->tmp.qparam);
+		mio_becs_fini (&htrd->tmp.qparam);
 #endif
 		return -1;
 	}
@@ -481,11 +481,6 @@ void mio_htrd_clear (mio_htrd_t* htrd)
 	htrd->flags = 0;
 }
 
-mio_mmgr_t* mio_htrd_getmmgr (mio_htrd_t* htrd)
-{
-	return htrd->mmgr;
-}
-
 void* mio_htrd_getxtn (mio_htrd_t* htrd)
 {
 	return MIO_XTN (htrd);
@@ -727,8 +722,8 @@ static mio_htb_pair_t* hdr_cbserter (
 		mio_htb_pair_t* p; 
 		mio_htre_hdrval_t *val;
 
-		val = MIO_MMGR_ALLOC (htb->mmgr, MIO_SIZEOF(*val));
-		if (val == MIO_NULL)
+		val = mio_allocmem(htb->mio, MIO_SIZEOF(*val));
+		if (HAWK_UNLIKELY(!val))
 		{
 			tx->htrd->errnum = MIO_HTRD_ENOMEM;
 			return MIO_NULL;
@@ -742,7 +737,7 @@ static mio_htb_pair_t* hdr_cbserter (
 		p = mio_htb_allocpair (htb, kptr, klen, val, 0);
 		if (p == MIO_NULL) 
 		{
-			MIO_MMGR_FREE (htb->mmgr, val);
+			mio_freemem (htb->mio, val);
 			tx->htrd->errnum = MIO_HTRD_ENOMEM;
 		}
 		else 
@@ -791,9 +786,8 @@ static mio_htb_pair_t* hdr_cbserter (
 		mio_htre_hdrval_t* val;
 		mio_htre_hdrval_t* tmp;
 
-		val = (mio_htre_hdrval_t*) MIO_MMGR_ALLOC (
-			tx->htrd->mmgr, MIO_SIZEOF(*val));
-		if (val == MIO_NULL)
+		val = (mio_htre_hdrval_t*)mio_allocmem(tx->htrd->mio, MIO_SIZEOF(*val));
+		if (HAWK_UNLIKELY(!val))
 		{
 			tx->htrd->errnum = MIO_HTRD_ENOMEM;
 			return MIO_NULL;

@@ -165,8 +165,8 @@ void mio_seterrbfmt (mio_t* mio, mio_errnum_t errnum, const mio_bch_t* fmt, ...)
 	mio->errmsg.len = 0;
 
 	MIO_MEMSET (&fo, 0, MIO_SIZEOF(fo));
-	fo.putbcs = err_bcs;
-	fo.putucs = err_ucs;
+	fo.putbchars = err_bcs;
+	fo.putuchars = err_ucs;
 	fo.ctx = mio;
 
 	va_start (ap, fmt);
@@ -185,8 +185,8 @@ void mio_seterrufmt (mio_t* mio, mio_errnum_t errnum, const mio_uch_t* fmt, ...)
 	mio->errmsg.len = 0;
 
 	MIO_MEMSET (&fo, 0, MIO_SIZEOF(fo));
-	fo.putbcs = err_bcs;
-	fo.putucs = err_ucs;
+	fo.putbchars = err_bcs;
+	fo.putuchars = err_ucs;
 	fo.ctx = mio;
 
 	va_start (ap, fmt);
@@ -206,8 +206,8 @@ void mio_seterrbfmtv (mio_t* mio, mio_errnum_t errnum, const mio_bch_t* fmt, va_
 	mio->errmsg.len = 0;
 
 	MIO_MEMSET (&fo, 0, MIO_SIZEOF(fo));
-	fo.putbcs = err_bcs;
-	fo.putucs = err_ucs;
+	fo.putbchars = err_bcs;
+	fo.putuchars = err_ucs;
 	fo.ctx = mio;
 
 	mio_bfmt_outv (&fo, fmt, ap);
@@ -223,8 +223,8 @@ void mio_seterrufmtv (mio_t* mio, mio_errnum_t errnum, const mio_uch_t* fmt, va_
 	mio->errmsg.len = 0;
 
 	MIO_MEMSET (&fo, 0, MIO_SIZEOF(fo));
-	fo.putbcs = err_bcs;
-	fo.putucs = err_ucs;
+	fo.putbchars = err_bcs;
+	fo.putuchars = err_ucs;
 	fo.ctx = mio;
 
 	mio_ufmt_outv (&fo, fmt, ap);

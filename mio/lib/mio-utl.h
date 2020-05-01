@@ -250,53 +250,62 @@ MIO_EXPORT int mio_comp_uchars (
 	const mio_uch_t* str1,
 	mio_oow_t        len1,
 	const mio_uch_t* str2,
-	mio_oow_t        len2
+	mio_oow_t        len2,
+	int              ignorecase
 );
 
 MIO_EXPORT int mio_comp_bchars (
 	const mio_bch_t* str1,
 	mio_oow_t        len1,
 	const mio_bch_t* str2,
-	mio_oow_t        len2
+	mio_oow_t        len2,
+	int              ignorecase
 );
 
 MIO_EXPORT int mio_comp_ucstr (
 	const mio_uch_t* str1,
-	const mio_uch_t* str2
+	const mio_uch_t* str2,
+	int              ignorecase
 );
 
 MIO_EXPORT int mio_comp_bcstr (
 	const mio_bch_t* str1,
-	const mio_bch_t* str2
+	const mio_bch_t* str2,
+	int              ignorecase
 );
 
 MIO_EXPORT int mio_comp_ucstr_bcstr (
 	const mio_uch_t* str1,
-	const mio_bch_t* str2
+	const mio_bch_t* str2,
+	int              ignorecase
 );
 
 MIO_EXPORT int mio_comp_uchars_ucstr (
 	const mio_uch_t* str1,
 	mio_oow_t        len,
-	const mio_uch_t* str2
+	const mio_uch_t* str2,
+	int              ignorecase
 );
 
 MIO_EXPORT int mio_comp_uchars_bcstr (
 	const mio_uch_t* str1,
 	mio_oow_t        len,
-	const mio_bch_t* str2
+	const mio_bch_t* str2,
+	int              ignorecase
 );
 
 MIO_EXPORT int mio_comp_bchars_bcstr (
 	const mio_bch_t* str1,
 	mio_oow_t        len,
-	const mio_bch_t* str2
+	const mio_bch_t* str2,
+	int              ignorecase
 );
 
 MIO_EXPORT int mio_comp_bchars_ucstr (
 	const mio_bch_t* str1,
 	mio_oow_t        len,
-	const mio_uch_t* str2
+	const mio_uch_t* str2,
+	int              ignorecase
 );
 
 MIO_EXPORT void mio_copy_uchars (

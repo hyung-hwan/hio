@@ -285,8 +285,8 @@ int mio_htre_perdecqpath (mio_htre_t* re)
 				re->orgqpath.capa = 0;
 			}
 
-			re->orgqpath.buf = mio_mbsxdup(re->u.q.path.ptr, re->u.q.path.len, re->mio);
-			if (!re->orgqpath.buf) return -1;
+			re->orgqpath.buf = mio_dupbchars(re->mio, re->u.q.path.ptr, re->u.q.path.len);
+			if (MIO_UNLIKELY(!re->orgqpath.buf)) return -1;
 			re->orgqpath.capa = re->u.q.path.len;
 
 			re->orgqpath.ptr = re->orgqpath.buf;
