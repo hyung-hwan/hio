@@ -274,6 +274,20 @@ MIO_EXPORT int mio_comp_bcstr (
 	int              ignorecase
 );
 
+MIO_EXPORT int mio_comp_ucstr_limited (
+	const mio_uch_t* str1,
+	const mio_uch_t* str2,
+	mio_oow_t        maxlen,
+	int              ignorecase
+);
+
+MIO_EXPORT int mio_comp_bcstr_limited (
+	const mio_bch_t* str1,
+	const mio_bch_t* str2,
+	mio_oow_t        maxlen,
+	int              ignorecase
+);
+
 MIO_EXPORT int mio_comp_ucstr_bcstr (
 	const mio_uch_t* str1,
 	const mio_bch_t* str2,
@@ -391,6 +405,20 @@ MIO_EXPORT void mio_fill_bchars (
 	mio_oow_t        len
 );
 
+MIO_EXPORT const mio_bch_t* mio_find_bcstr_word_in_bcstr (
+	const mio_bch_t* str,
+	const mio_bch_t* word,
+	mio_bch_t        extra_delim,
+	int              ignorecase
+);
+
+MIO_EXPORT const mio_uch_t* mio_find_ucstr_word_in_ucstr (
+	const mio_uch_t* str,
+	const mio_uch_t* word,
+	mio_uch_t        extra_delim,
+	int              ignorecase
+);
+
 MIO_EXPORT mio_uch_t* mio_find_uchar (
 	const mio_uch_t* ptr,
 	mio_oow_t        len,
@@ -469,10 +497,11 @@ MIO_EXPORT mio_oow_t mio_count_bcstr (
 #	define mio_copy_oocstr mio_copy_ucstr
 #	define mio_copy_oocstr_unlimited mio_copy_ucstr_unlimited
 
-#	define mio_fill_oochars(dst,ch,len) mio_fill_uchars(dst,ch,len)
-#	define mio_find_oochar(ptr,len,c) mio_find_uchar(ptr,len,c)
-#	define mio_rfind_oochar(ptr,len,c) mio_rfind_uchar(ptr,len,c)
-#	define mio_find_oochar_in_oocstr(ptr,c) mio_find_uchar_in_ucstr(ptr,c)
+#	define mio_fill_oochars mio_fill_uchars
+#	define mio_find_oocstr_word_in_oocstr mio_find_ucstr_word_in_ucstr
+#	define mio_find_oochar mio_find_uchar
+#	define mio_rfind_oochar mio_rfind_uchar
+#	define mio_find_oochar_in_oocstr mio_find_uchar_in_ucstr
 
 #	define mio_split_oocstr mio_split_ucstr
 #	define mio_count_oocstr mio_count_ucstr
@@ -496,10 +525,11 @@ MIO_EXPORT mio_oow_t mio_count_bcstr (
 #	define mio_copy_oocstr mio_copy_bcstr
 #	define mio_copy_oocstr_unlimited mio_copy_bcstr_unlimited
 
-#	define mio_fill_oochars(dst,ch,len) mio_fill_bchars(dst,ch,len)
-#	define mio_find_oochar(ptr,len,c) mio_find_bchar(ptr,len,c)
-#	define mio_rfind_oochar(ptr,len,c) mio_rfind_bchar(ptr,len,c)
-#	define mio_find_oochar_in_oocstr(ptr,c) mio_find_bchar_in_bcstr(ptr,c)
+#	define mio_fill_oochars mio_fill_bchars
+#	define mio_find_oocstr_word_in_oocstr mio_find_bcstr_word_in_bcstr
+#	define mio_find_oochar mio_find_bchar
+#	define mio_rfind_oochar mio_rfind_bchar
+#	define mio_find_oochar_in_oocstr mio_find_bchar_in_bcstr
 
 #	define mio_split_oocstr mio_split_bcstr
 #	define mio_count_oocstr mio_count_bcstr

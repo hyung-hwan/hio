@@ -22,10 +22,9 @@
     THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  */
 
-#include <mio/http/htrd.h>
-#include <mio/cmn/chr.h>
-#include <mio/cmn/path.h>
-#include "../cmn/mem-prv.h"
+#include "mio-htrd.h"
+#include "mio-chr.h"
+#include "mio-prv.h"
 
 static const mio_bch_t NUL = '\0';
 
@@ -78,19 +77,17 @@ static MIO_INLINE int is_xdigit_octet (mio_bch_t c)
 
 static MIO_INLINE int digit_to_num (mio_bch_t c)
 {
-	if (c >= '0' && c <= '9') return c - '0';
-	return -1;
+	return MIO_DIGIT_TO_NUM(c);
 }
 
 static MIO_INLINE int xdigit_to_num (mio_bch_t c)
 {
-	return MIO_MXDIGITTONUM (c);
+	return MIO_XDIGIT_TO_NUM(c);
 }
-
 
 static MIO_INLINE int push_to_buffer (mio_htrd_t* htrd, mio_htob_t* octb, const mio_bch_t* ptr, mio_oow_t len)
 {
-	if (mio_mbs_ncat (octb, ptr, len) == (mio_oow_t)-1) 
+	if (mio_becs_ncat (octb, ptr, len) == (mio_oow_t)-1) 
 	{
 		htrd->errnum = MIO_HTRD_ENOMEM;
 		return -1;
@@ -100,7 +97,7 @@ static MIO_INLINE int push_to_buffer (mio_htrd_t* htrd, mio_htob_t* octb, const 
 
 static MIO_INLINE int push_content (mio_htrd_t* htrd, const mio_bch_t* ptr, mio_oow_t len)
 {
-	MIO_ASSERT (len > 0);
+	MIO_ASSERT (htrd->mio, len > 0);
 
 	if (mio_htre_addcontent(&htrd->re, ptr, len) <= -1) 
 	{
@@ -120,8 +117,8 @@ static MIO_INLINE void clear_feed (mio_htrd_t* htrd)
 	htrd->clean = 1;
 	mio_htre_clear (&htrd->re);
 
-	mio_mbs_clear (&htrd->fed.b.tra);
-	mio_mbs_clear (&htrd->fed.b.raw);
+	mio_becs_clear (&htrd->fed.b.tra);
+	mio_becs_clear (&htrd->fed.b.raw);
 
 	MIO_MEMSET (&htrd->fed.s, 0, MIO_SIZEOF(htrd->fed.s));
 }
@@ -138,7 +135,7 @@ mio_htrd_t* mio_htrd_open (mio_t* mio, mio_oow_t xtnsize)
 			mio_freemem (mio, htrd);
 			return MIO_NULL;
 		}
-		else MIO_MEMSET (MIO_XTN(htrd), 0, xtnsize);
+		else MIO_MEMSET (htrd + 1, 0, xtnsize);
 	}
 	return htrd;
 }
@@ -179,17 +176,17 @@ void mio_htrd_fini (mio_htrd_t* htrd)
 {
 	mio_htre_fini (&htrd->re);
 
-	mio_mbs_fini (&htrd->fed.b.tra);
-	mio_mbs_fini (&htrd->fed.b.raw);
+	mio_becs_fini (&htrd->fed.b.tra);
+	mio_becs_fini (&htrd->fed.b.raw);
 #if 0
-	mio_mbs_fini (&htrd->tmp.qparam);
+	mio_becs_fini (&htrd->tmp.qparam);
 #endif
 }
 
 static mio_bch_t* parse_initial_line (mio_htrd_t* htrd, mio_bch_t* line)
 {
 	mio_bch_t* p = line;
-	mio_mcstr_t tmp;
+	mio_bcs_t tmp;
 
 #if 0
 	/* ignore leading spaces excluding crlf */
@@ -212,11 +209,10 @@ static mio_bch_t* parse_initial_line (mio_htrd_t* htrd, mio_bch_t* line)
 
 		*p = '\0'; /* null-terminate the method name */
 
-		htrd->re.u.q.method.type = mio_mcstrtohttpmethod (&tmp);
+		htrd->re.u.q.method.type = mio_bchars_to_http_method(tmp.ptr, tmp.len);
 		htrd->re.u.q.method.name = tmp.ptr;
 	}
-	else if ((htrd->option & MIO_HTRD_RESPONSE) &&
-	         mio_mbsxcmp (tmp.ptr, tmp.len, "HTTP") == 0)
+	else if ((htrd->option & MIO_HTRD_RESPONSE) && mio_comp_bchars_bcstr(tmp.ptr, tmp.len, "HTTP", 1) == 0)
 	{
 		/* it begins with HTTP. it may be a response */
 		htrd->re.type = MIO_HTRE_S;
@@ -296,7 +292,7 @@ static mio_bch_t* parse_initial_line (mio_htrd_t* htrd, mio_bch_t* line)
 #if 0
 		mio_bch_t* out;
 #endif
-		mio_mcstr_t param;
+		mio_bcs_t param;
 
 		/* skip spaces */
 		do p++; while (is_space_octet(*p));
@@ -412,16 +408,16 @@ static mio_bch_t* parse_initial_line (mio_htrd_t* htrd, mio_bch_t* line)
 			/* if the url begins with xxx://,
 			 * skip xxx:/ and canonicalize from the second slash */
 			while (is_alpha_octet(*qpath)) qpath++;
-			if (mio_mbszcmp (qpath, "://", 3) == 0)
+			if (mio_comp_bcstr_limited(qpath, "://", 3, 1) == 0)
 			{
 				qpath = qpath + 2; /* set the position to the second / in :// */
-				htrd->re.u.q.path.len = mio_canonmbspath (qpath, qpath, 0);
+				htrd->re.u.q.path.len = mio_canon_bcstr_path(qpath, qpath, 0);
 				htrd->re.u.q.path.len += qpath - htrd->re.u.q.path.ptr;
 			}
 			else
 			{
 				qpath = htrd->re.u.q.path.ptr;
-				htrd->re.u.q.path.len = mio_canonmbspath (qpath, qpath, 0);
+				htrd->re.u.q.path.len = mio_canon_bcstr_path(qpath, qpath, 0);
 			}
 		}
 	
@@ -481,12 +477,6 @@ void mio_htrd_clear (mio_htrd_t* htrd)
 	htrd->flags = 0;
 }
 
-void* mio_htrd_getxtn (mio_htrd_t* htrd)
-{
-	return MIO_XTN (htrd);
-}
-
-
 mio_htrd_errnum_t mio_htrd_geterrnum (mio_htrd_t* htrd)
 {
 	return htrd->errnum;
@@ -520,15 +510,15 @@ static int capture_connection (mio_htrd_t* htrd, mio_htb_pair_t* pair)
 	while (val->next) val = val->next;
 
 	/* The value for Connection: may get comma-separated. 
-	 * so use mio_mbscaseword() instead of mio_mbscmp(). */
+	 * so use mio_find_bcstr_word_in_bcstr() instead of mio_comp_bcstr(). */
 
-	if (mio_mbscaseword (val->ptr, "close", ','))
+	if (mio_find_bcstr_word_in_bcstr(val->ptr, "close", ',', 1))
 	{
 		htrd->re.flags &= ~MIO_HTRE_ATTR_KEEPALIVE;
 		return 0;
 	}
 
-	if (mio_mbscaseword (val->ptr, "keep-alive", ','))
+	if (mio_find_bcstr_word_in_bcstr(val->ptr, "keep-alive", ',', 1))
 	{
 		htrd->re.flags |= MIO_HTRE_ATTR_KEEPALIVE;
 		return 0;
@@ -543,8 +533,7 @@ static int capture_connection (mio_htrd_t* htrd, mio_htb_pair_t* pair)
 	 * For the second Keep-Alive, this function sees 'Keep-Alive,Keep-Alive'
 	 * That's because values of the same keys are concatenated.
 	 */
-	if (htrd->re.version.major < 1  || 
-	    (htrd->re.version.major == 1 && htrd->re.version.minor <= 0))
+	if (htrd->re.version.major < 1  || (htrd->re.version.major == 1 && htrd->re.version.minor <= 0))
 	{
 		htrd->re.flags &= ~MIO_HTRE_ATTR_KEEPALIVE;
 	}
@@ -615,7 +604,7 @@ static int capture_expect (mio_htrd_t* htrd, mio_htb_pair_t* pair)
 	while (val) 
 	{	
 		/* Expect: 100-continue is included */
-		if (mio_mbscasecmp(val->ptr, "100-continue") == 0) htrd->re.flags |= MIO_HTRE_ATTR_EXPECT100; 
+		if (mio_comp_bcstr(val->ptr, "100-continue", 1) == 0) htrd->re.flags |= MIO_HTRE_ATTR_EXPECT100; 
 		val = val->next;
 	}
 
@@ -641,7 +630,7 @@ static int capture_transfer_encoding (mio_htrd_t* htrd, mio_htb_pair_t* pair)
 	val = MIO_HTB_VPTR(pair);
 	while (val->next) val = val->next;
 
-	n = mio_mbscasecmp(val->ptr, "chunked");
+	n = mio_comp_bcstr(val->ptr, "chunked", 1);
 	if (n == 0)
 	{
 		/* if (htrd->re.attr.content_length > 0) */
@@ -685,15 +674,11 @@ static MIO_INLINE int capture_key_header (mio_htrd_t* htrd, mio_htb_pair_t* pair
 	{
 		mid = base + count / 2;
 
-		n = mio_mbsxncasecmp (
-			MIO_HTB_KPTR(pair), MIO_HTB_KLEN(pair),
-			hdrtab[mid].ptr, hdrtab[mid].len
-		);
-
+		n = mio_comp_bchars(MIO_HTB_KPTR(pair), MIO_HTB_KLEN(pair), hdrtab[mid].ptr, hdrtab[mid].len, 1);
 		if (n == 0)
 		{
 			/* bingo! */
-			return hdrtab[mid].handler (htrd, pair);
+			return hdrtab[mid].handler(htrd, pair);
 		}
 
 		if (n > 0) { base = mid + 1; count--; }
@@ -723,7 +708,7 @@ static mio_htb_pair_t* hdr_cbserter (
 		mio_htre_hdrval_t *val;
 
 		val = mio_allocmem(htb->mio, MIO_SIZEOF(*val));
-		if (HAWK_UNLIKELY(!val))
+		if (MIO_UNLIKELY(!val))
 		{
 			tx->htrd->errnum = MIO_HTRD_ENOMEM;
 			return MIO_NULL;
@@ -787,7 +772,7 @@ static mio_htb_pair_t* hdr_cbserter (
 		mio_htre_hdrval_t* tmp;
 
 		val = (mio_htre_hdrval_t*)mio_allocmem(tx->htrd->mio, MIO_SIZEOF(*val));
-		if (HAWK_UNLIKELY(!val))
+		if (MIO_UNLIKELY(!val))
 		{
 			tx->htrd->errnum = MIO_HTRD_ENOMEM;
 			return MIO_NULL;
@@ -800,7 +785,7 @@ static mio_htb_pair_t* hdr_cbserter (
 
 /* TODO: doubly linked list for speed-up??? */
 		tmp = MIO_HTB_VPTR(pair);
-		MIO_ASSERT (tmp != MIO_NULL);
+		MIO_ASSERT (tx->htrd->mio, tmp != MIO_NULL);
 
 		/* find the tail */
 		while (tmp->next) tmp = tmp->next;
@@ -826,7 +811,7 @@ mio_bch_t* parse_header_field (mio_htrd_t* htrd, mio_bch_t* line, mio_htb_t* tab
 	while (is_space_octet(*p)) p++;
 #endif
 
-	MIO_ASSERT (!is_whspace_octet(*p));
+	MIO_ASSERT (htrd->mio, !is_whspace_octet(*p));
 
 	/* check the field name */
 	name.ptr = last = p;
@@ -932,7 +917,7 @@ static MIO_INLINE int parse_initial_line_and_headers (
 	/* add the terminating null for easier parsing */
 	if (push_to_buffer (htrd, &htrd->fed.b.raw, &NUL, 1) <= -1) return -1;
 
-	p = MIO_MBS_PTR(&htrd->fed.b.raw);
+	p = MIO_BECS_PTR(&htrd->fed.b.raw);
 
 #if 0
 	if (htrd->option & MIO_HTRD_SKIPEMPTYLINES)
@@ -941,7 +926,7 @@ static MIO_INLINE int parse_initial_line_and_headers (
 #endif
 		while (is_space_octet(*p)) p++;
 	
-	MIO_ASSERT (*p != '\0');
+	MIO_ASSERT (htrd->mio, *p != '\0');
 
 	/* parse the initial line */
 	if (!(htrd->option & MIO_HTRD_SKIPINITIALLINE))
@@ -979,7 +964,7 @@ static const mio_bch_t* getchunklen (mio_htrd_t* htrd, const mio_bch_t* ptr, mio
 	const mio_bch_t* end = ptr + len;
 
 	/* this function must be called in the GET_CHUNK_LEN context */
-	MIO_ASSERT (htrd->fed.s.chunk.phase == GET_CHUNK_LEN);
+	MIO_ASSERT (htrd->mio, htrd->fed.s.chunk.phase == GET_CHUNK_LEN);
 
 	if (htrd->fed.s.chunk.count <= 0)
 	{
@@ -1063,7 +1048,7 @@ static const mio_bch_t* get_trailing_headers (
 				{
 					mio_bch_t* p;
 	
-					MIO_ASSERT (htrd->fed.s.crlf <= 3);
+					MIO_ASSERT (htrd->mio, htrd->fed.s.crlf <= 3);
 					htrd->fed.s.crlf = 0;
 	
 					if (push_to_buffer (
@@ -1073,7 +1058,7 @@ static const mio_bch_t* get_trailing_headers (
 						htrd, &htrd->fed.b.tra, &NUL, 1) <= -1) 
 						return MIO_NULL;
 	
-					p = MIO_MBS_PTR(&htrd->fed.b.tra);
+					p = MIO_BECS_PTR(&htrd->fed.b.tra);
 	
 					do
 					{
@@ -1123,7 +1108,7 @@ int mio_htrd_feed (mio_htrd_t* htrd, const mio_bch_t* req, mio_oow_t len)
 	int header_completed_during_this_feed = 0;
 	mio_oow_t avail;
 
-	MIO_ASSERT (len > 0);
+	MIO_ASSERT (htrd->mio, len > 0);
 
 	if (htrd->flags & FEEDING_SUSPENDED)
 	{
@@ -1212,7 +1197,7 @@ int mio_htrd_feed (mio_htrd_t* htrd, const mio_bch_t* req, mio_oow_t len)
 					 */
 
 					/* we got a complete request header. */
-					MIO_ASSERT (htrd->fed.s.crlf <= 3);
+					MIO_ASSERT (htrd->mio, htrd->fed.s.crlf <= 3);
 	
 					/* reset the crlf state */
 					htrd->fed.s.crlf = 0;
@@ -1260,7 +1245,7 @@ int mio_htrd_feed (mio_htrd_t* htrd, const mio_bch_t* req, mio_oow_t len)
 					if (htrd->re.flags & MIO_HTRE_ATTR_CHUNKED)
 					{
 						/* transfer-encoding: chunked */
-						MIO_ASSERT (!(htrd->re.flags & MIO_HTRE_ATTR_LENGTH));
+						MIO_ASSERT (htrd->mio, !(htrd->re.flags & MIO_HTRE_ATTR_LENGTH));
 
 					dechunk_start:
 						htrd->fed.s.chunk.phase = GET_CHUNK_LEN;
@@ -1411,7 +1396,7 @@ XXXXXXXX
 
 					if (htrd->fed.s.chunk.phase == GET_CHUNK_DATA)
 					{
-						MIO_ASSERT (htrd->fed.s.need == 0);
+						MIO_ASSERT (htrd->mio, htrd->fed.s.need == 0);
 						htrd->fed.s.chunk.phase = GET_CHUNK_CRLF;
 
 					dechunk_crlf:
@@ -1495,8 +1480,8 @@ XXXXXXXX
 
 #if 0
 mio_printf (MIO_T("CONTENT_LENGTH %d, RAW HEADER LENGTH %d\n"), 
-	(int)MIO_MBS_LEN(&htrd->re.content),
-	(int)MIO_MBS_LEN(&htrd->fed.b.raw));
+	(int)MIO_BECS_LEN(&htrd->re.content),
+	(int)MIO_BECS_LEN(&htrd->fed.b.raw));
 #endif
 
 					clear_feed (htrd);
@@ -1621,9 +1606,9 @@ void mio_htrd_undummify (mio_htrd_t* htrd)
 }
 
 #if 0
-int mio_htrd_scanqparam (mio_htrd_t* htrd, const mio_mcstr_t* cstr)
+int mio_htrd_scanqparam (mio_htrd_t* htrd, const mio_bcs_t* cstr)
 {
-	mio_mcstr_t key, val;
+	mio_bcs_t key, val;
 	const mio_bch_t* p, * end;
 	mio_bch_t* out;
 
@@ -1637,11 +1622,11 @@ int mio_htrd_scanqparam (mio_htrd_t* htrd, const mio_mcstr_t* cstr)
 	/* a key and a value pair including two terminating null 
 	 * can't exceed the the qparamstrlen + 2. only +1 below as there is
 	 * one more space for an internal terminating null */
-	mio_mbs_setlen (&htrd->tmp.qparam, cstr->len + 1);
+	mio_becs_setlen (&htrd->tmp.qparam, cstr->len + 1);
 
 	/* let out point to the beginning of the qparam buffer.
 	 * the loop below emits percent-decode key and value to this buffer. */
-	out = MIO_MBS_PTR(&htrd->tmp.qparam);
+	out = MIO_BECS_PTR(&htrd->tmp.qparam);
 
 	key.ptr = out; key.len = 0;
 	val.ptr = MIO_NULL; val.len = 0;
@@ -1650,7 +1635,7 @@ int mio_htrd_scanqparam (mio_htrd_t* htrd, const mio_mcstr_t* cstr)
 	{
 		if (p >= end || *p == '&' || *p == ';')
 		{
-			MIO_ASSERT (key.ptr != MIO_NULL);
+			MIO_ASSERT (htrd->mio, key.ptr != MIO_NULL);
 
 			*out++ = '\0'; 
 			if (val.ptr == MIO_NULL) 
@@ -1664,13 +1649,11 @@ int mio_htrd_scanqparam (mio_htrd_t* htrd, const mio_mcstr_t* cstr)
 
 				val.ptr = out;
 				*out++ = '\0'; 
-				MIO_ASSERT (val.len == 0);
+				MIO_ASSERT (htrd->mio, val.len == 0);
 			}
 
-			MIO_ASSERTX (
-				htrd->recbs->qparamstr != MIO_NULL,
-				"set request parameter string callback before scanning"
-			);
+			/* set request parameter string callback before scanning */
+			MIO_ASSERT (htrd->mio, htrd->recbs->qparamstr != MIO_NULL);
 
 			htrd->errnum = MIO_HTRD_ENOERR;
 			if (htrd->recbs->qparamstr (htrd, &key, &val) <= -1) 
@@ -1684,7 +1667,7 @@ int mio_htrd_scanqparam (mio_htrd_t* htrd, const mio_mcstr_t* cstr)
 			if (p >= end) break;
 			p++;
 
-			out = MIO_MBS_PTR(&htrd->tmp.qparam);
+			out = MIO_BECS_PTR(&htrd->tmp.qparam);
 			key.ptr = out; key.len = 0;
 			val.ptr = MIO_NULL; val.len = 0;
 		}
@@ -1723,7 +1706,7 @@ int mio_htrd_scanqparam (mio_htrd_t* htrd, const mio_mcstr_t* cstr)
 	}
 	while (1);
 
-	mio_mbs_clear (&htrd->tmp.qparam);
+	mio_becs_clear (&htrd->tmp.qparam);
 	return 0;
 }
 #endif

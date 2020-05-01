@@ -76,7 +76,7 @@ struct mio_htrd_recbs_t
 
 struct mio_htrd_t
 {
-	mio_mmgr_t* mmgr;
+	mio_t* mio;
 	mio_htrd_errnum_t errnum;
 	int option;
 	int flags;
@@ -90,13 +90,13 @@ struct mio_htrd_t
 			int flags;
 
 			int crlf; /* crlf status */
-			mio_size_t plen; /* raw request length excluding crlf */
-			mio_size_t need; /* number of octets needed for contents */
+			mio_oow_t plen; /* raw request length excluding crlf */
+			mio_oow_t need; /* number of octets needed for contents */
 
 			struct
 			{
-				mio_size_t len;
-				mio_size_t count;
+				mio_oow_t len;
+				mio_oow_t count;
 				int        phase;
 			} chunk;
 		} s; /* state */
@@ -104,8 +104,8 @@ struct mio_htrd_t
 		/* buffers needed for processing a request */
 		struct
 		{
-			mio_htob_t raw; /* buffer to hold raw octets */
-			mio_htob_t tra; /* buffer for handling trailers */
+			mio_becs_t raw; /* buffer to hold raw octets */
+			mio_becs_t tra; /* buffer for handling trailers */
 		} b; 
 	} fed; 
 
@@ -121,8 +121,8 @@ extern "C" {
  * The mio_htrd_open() function creates a htrd processor.
  */
 MIO_EXPORT mio_htrd_t* mio_htrd_open (
-	mio_mmgr_t* mmgr,   /**< memory manager */
-	mio_size_t  xtnsize /**< extension size in bytes */
+	mio_t*      mio,   /**< memory manager */
+	mio_oow_t  xtnsize /**< extension size in bytes */
 );
 
 /**
@@ -134,20 +134,18 @@ MIO_EXPORT void mio_htrd_close (
 
 MIO_EXPORT int mio_htrd_init (
 	mio_htrd_t* htrd,
-	mio_mmgr_t* mmgr
+	mio_t*      mio
 );
 
 MIO_EXPORT void mio_htrd_fini (
 	mio_htrd_t* htrd
 );
 
-MIO_EXPORT mio_mmgr_t* mio_htrd_getmmgr (
-	mio_htrd_t* htrd
-); 
-
-MIO_EXPORT void* mio_htrd_getxtn (
-	mio_htrd_t* htrd
-);
+#if defined(MIO_HAVE_INLINE)
+static MIO_INLINE void* mio_htrd_getxtn (mio_htrd_t* htrd) { return (void*)(htrd + 1); }
+#else
+#define mio_htrd_getxtn(htrd) ((void*)((mio_htrd_t*)(htrd) + 1))
+#endif
 
 MIO_EXPORT mio_htrd_errnum_t mio_htrd_geterrnum (
 	mio_htrd_t* htrd
@@ -181,8 +179,8 @@ MIO_EXPORT void mio_htrd_setrecbs (
  */
 MIO_EXPORT int mio_htrd_feed (
 	mio_htrd_t*        htrd, /**< htrd */
-	const mio_mchar_t* req,  /**< request octets */
-	mio_size_t         len   /**< number of octets */
+	const mio_bch_t*  req,  /**< request octets */
+	mio_oow_t         len   /**< number of octets */
 );
 
 /**
@@ -210,10 +208,12 @@ MIO_EXPORT void mio_htrd_undummify (
 	mio_htrd_t* htrd
 );
 
+/*
 MIO_EXPORT int mio_htrd_scanqparam (
-	mio_htrd_t*        http,
-	const mio_mcstr_t* cstr
+	mio_htrd_t*      http,
+	const mio_bcs_t* cstr
 );
+*/
 
 #if defined(__cplusplus)
 }
