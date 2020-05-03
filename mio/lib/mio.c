@@ -174,7 +174,7 @@ void mio_fini (mio_t* mio)
 		mio_cwq_t* cwq;
 		while ((cwq = mio->cwqfl[i]))
 		{
-			mio->cwqfl[i] = cwq->next;
+			mio->cwqfl[i] = cwq->q_next;
 			mio_freemem (mio, cwq);
 		}
 	}
@@ -593,7 +593,7 @@ int mio_exec (mio_t* mio)
 		if (cwqfl_index < MIO_COUNTOF(mio->cwqfl))
 		{
 			/* reuse the cwq object if dstaddr is 0 in size. chain it to the free list */
-			cwq->next = mio->cwqfl[cwqfl_index];
+			cwq->q_next = mio->cwqfl[cwqfl_index];
 			mio->cwqfl[cwqfl_index] = cwq;
 		}
 		else
@@ -1272,12 +1272,12 @@ enqueue_completed_write:
 	{
 		/* take an available cwq object from the free cwq list */
 		cwq = dev->mio->cwqfl[cwqfl_index];
-		dev->mio->cwqfl[cwqfl_index] = cwq->next;
+		dev->mio->cwqfl[cwqfl_index] = cwq->q_next;
 	}
 	else
 	{
 		cwq = (mio_cwq_t*)mio_allocmem(mio, MIO_SIZEOF(*cwq) + cwq_extra_aligned);
-		if (!cwq) return -1;
+		if (MIO_UNLIKELY(!cwq)) return -1;
 	}
 
 	MIO_MEMSET (cwq, 0, MIO_SIZEOF(*cwq));
@@ -1482,7 +1482,7 @@ enqueue_completed_write:
 	{
 		/* take an available cwq object from the free cwq list */
 		cwq = dev->mio->cwqfl[cwqfl_index];
-		dev->mio->cwqfl[cwqfl_index] = cwq->next;
+		dev->mio->cwqfl[cwqfl_index] = cwq->q_next;
 	}
 	else
 	{

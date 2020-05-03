@@ -222,40 +222,40 @@ struct mio_dev_evcb_t
 
 struct mio_q_t
 {
-	mio_q_t*    next;
-	mio_q_t*    prev;
+	mio_q_t*    q_next;
+	mio_q_t*    q_prev;
 };
 
-#define MIO_Q_INIT(q) ((q)->next = (q)->prev = (q))
-#define MIO_Q_TAIL(q) ((q)->prev)
-#define MIO_Q_HEAD(q) ((q)->next)
+#define MIO_Q_INIT(q) ((q)->q_next = (q)->q_prev = (q))
+#define MIO_Q_TAIL(q) ((q)->q_prev)
+#define MIO_Q_HEAD(q) ((q)->q_next)
 #define MIO_Q_IS_EMPTY(q) (MIO_Q_HEAD(q) == (q))
-#define MIO_Q_ISNODE(q,x) ((q) != (x))
-#define MIO_Q_ISHEAD(q,x) (MIO_Q_HEAD(q) == (x))
-#define MIO_Q_ISTAIL(q,x) (MIO_Q_TAIL(q) == (x))
+#define MIO_Q_IS_NODE(q,x) ((q) != (x))
+#define MIO_Q_IS_HEAD(q,x) (MIO_Q_HEAD(q) == (x))
+#define MIO_Q_IS_TAIL(q,x) (MIO_Q_TAIL(q) == (x))
 
-#define MIO_Q_NEXT(x) ((x)->next)
-#define MIO_Q_PREV(x) ((x)->prev)
+#define MIO_Q_NEXT(x) ((x)->q_next)
+#define MIO_Q_PREV(x) ((x)->q_prev)
 
 #define MIO_Q_LINK(p,x,n) do { \
-	mio_q_t* pp = (p), * nn = (n); \
-	(x)->prev = (p); \
-	(x)->next = (n); \
-	nn->prev = (x); \
-	pp->next = (x); \
+	mio_q_t* __pp = (p), * __nn = (n); \
+	(x)->q_prev = (p); \
+	(x)->q_next = (n); \
+	__nn->q_prev = (x); \
+	__pp->q_next = (x); \
 } while (0)
 
 #define MIO_Q_UNLINK(x) do { \
-	mio_q_t* pp = (x)->prev, * nn = (x)->next; \
-	nn->prev = pp; pp->next = nn; \
+	mio_q_t* __pp = (x)->q_prev, * __nn = (x)->q_next; \
+	__nn->q_prev = __pp; __pp->q_next = __nn; \
 } while (0)
 
 #define MIO_Q_REPL(o,n) do { \
-	mio_q_t* oo = (o), * nn = (n); \
-	nn->next = oo->next; \
-	nn->next->prev = nn; \
-	nn->prev = oo->prev; \
-	nn->prev->next = nn; \
+	mio_q_t* __oo = (o), * __nn = (n); \
+	__nn->q_next = __oo->q_next; \
+	__nn->q_next->q_prev = __nn; \
+	__nn->q_prev = __oo->q_prev; \
+	__nn->q_prev->q_next = __nn; \
 } while (0)
 
 /* insert an item at the back of the queue */
@@ -268,8 +268,8 @@ struct mio_q_t
 /* completed write queue */
 struct mio_cwq_t
 {
-	mio_cwq_t*    next;
-	mio_cwq_t*    prev;
+	mio_cwq_t*    q_next;
+	mio_cwq_t*    q_prev;
 
 	mio_iolen_t   olen; 
 	void*         ctx;
@@ -277,26 +277,26 @@ struct mio_cwq_t
 	mio_devaddr_t dstaddr;
 };
 
-#define MIO_CWQ_INIT(cwq) ((cwq)->next = (cwq)->prev = (cwq))
-#define MIO_CWQ_TAIL(cwq) ((cwq)->prev)
-#define MIO_CWQ_HEAD(cwq) ((cwq)->next)
+#define MIO_CWQ_INIT(cwq) ((cwq)->q_next = (cwq)->q_prev = (cwq))
+#define MIO_CWQ_TAIL(cwq) ((cwq)->q_prev)
+#define MIO_CWQ_HEAD(cwq) ((cwq)->q_next)
 #define MIO_CWQ_IS_EMPTY(cwq) (MIO_CWQ_HEAD(cwq) == (cwq))
-#define MIO_CWQ_ISNODE(cwq,x) ((cwq) != (x))
-#define MIO_CWQ_ISHEAD(cwq,x) (MIO_CWQ_HEAD(cwq) == (x))
-#define MIO_CWQ_ISTAIL(cwq,x) (MIO_CWQ_TAIL(cwq) == (x))
-#define MIO_CWQ_NEXT(x) ((x)->next)
-#define MIO_CWQ_PREV(x) ((x)->prev)
+#define MIO_CWQ_IS_NODE(cwq,x) ((cwq) != (x))
+#define MIO_CWQ_IS_HEAD(cwq,x) (MIO_CWQ_HEAD(cwq) == (x))
+#define MIO_CWQ_IS_TAIL(cwq,x) (MIO_CWQ_TAIL(cwq) == (x))
+#define MIO_CWQ_NEXT(x) ((x)->q_next)
+#define MIO_CWQ_PREV(x) ((x)->q_prev)
 #define MIO_CWQ_LINK(p,x,n) MIO_Q_LINK((mio_q_t*)p,(mio_q_t*)x,(mio_q_t*)n)
 #define MIO_CWQ_UNLINK(x) MIO_Q_UNLINK((mio_q_t*)x)
-#define MIO_CWQ_REPL(o,n) MIO_CWQ_REPL(o,n);
+#define MIO_CWQ_REPL(o,n) MIO_Q_REPL(o,n);
 #define MIO_CWQ_ENQ(cwq,x) MIO_CWQ_LINK(MIO_CWQ_TAIL(cwq), (mio_q_t*)x, cwq)
 #define MIO_CWQ_DEQ(cwq) MIO_CWQ_UNLINK(MIO_CWQ_HEAD(cwq))
 
 /* write queue */
 struct mio_wq_t
 {
-	mio_wq_t*       next;
-	mio_wq_t*       prev;
+	mio_wq_t*       q_next;
+	mio_wq_t*       q_prev;
 
 	mio_iolen_t     olen; /* original data length */
 	mio_uint8_t*    ptr;  /* pointer to data */
@@ -308,18 +308,18 @@ struct mio_wq_t
 	mio_devaddr_t   dstaddr;
 };
 
-#define MIO_WQ_INIT(wq) ((wq)->next = (wq)->prev = (wq))
-#define MIO_WQ_TAIL(wq) ((wq)->prev)
-#define MIO_WQ_HEAD(wq) ((wq)->next)
+#define MIO_WQ_INIT(wq) ((wq)->q_next = (wq)->q_prev = (wq))
+#define MIO_WQ_TAIL(wq) ((wq)->q_prev)
+#define MIO_WQ_HEAD(wq) ((wq)->q_next)
 #define MIO_WQ_IS_EMPTY(wq) (MIO_WQ_HEAD(wq) == (wq))
-#define MIO_WQ_ISNODE(wq,x) ((wq) != (x))
-#define MIO_WQ_ISHEAD(wq,x) (MIO_WQ_HEAD(wq) == (x))
-#define MIO_WQ_ISTAIL(wq,x) (MIO_WQ_TAIL(wq) == (x))
-#define MIO_WQ_NEXT(x) ((x)->next)
-#define MIO_WQ_PREV(x) ((x)->prev)
+#define MIO_WQ_IS_NODE(wq,x) ((wq) != (x))
+#define MIO_WQ_IS_HEAD(wq,x) (MIO_WQ_HEAD(wq) == (x))
+#define MIO_WQ_IS_TAIL(wq,x) (MIO_WQ_TAIL(wq) == (x))
+#define MIO_WQ_NEXT(x) ((x)->q_next)
+#define MIO_WQ_PREV(x) ((x)->q_prev)
 #define MIO_WQ_LINK(p,x,n) MIO_Q_LINK((mio_q_t*)p,(mio_q_t*)x,(mio_q_t*)n)
 #define MIO_WQ_UNLINK(x) MIO_Q_UNLINK((mio_q_t*)x)
-#define MIO_WQ_REPL(o,n) MIO_WQ_REPL(o,n);
+#define MIO_WQ_REPL(o,n) MIO_Q_REPL(o,n);
 #define MIO_WQ_ENQ(wq,x) MIO_WQ_LINK(MIO_WQ_TAIL(wq), (mio_q_t*)x, wq)
 #define MIO_WQ_DEQ(wq) MIO_WQ_UNLINK(MIO_WQ_HEAD(wq))
 
