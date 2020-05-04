@@ -140,12 +140,13 @@ libmio_la_DEPENDENCIES = $(am__DEPENDENCIES_2) $(am__DEPENDENCIES_1) \
 	$(am__DEPENDENCIES_1) $(am__DEPENDENCIES_1)
 am_libmio_la_OBJECTS = libmio_la-chr.lo libmio_la-dns.lo \
 	libmio_la-dns-cli.lo libmio_la-ecs.lo libmio_la-err.lo \
-	libmio_la-fmt.lo libmio_la-htb.lo libmio_la-htre.lo \
-	libmio_la-http.lo libmio_la-mio.lo libmio_la-nwif.lo \
-	libmio_la-pro.lo libmio_la-sck.lo libmio_la-skad.lo \
-	libmio_la-sys.lo libmio_la-sys-ass.lo libmio_la-sys-err.lo \
-	libmio_la-sys-log.lo libmio_la-sys-mux.lo libmio_la-sys-tim.lo \
-	libmio_la-tmr.lo libmio_la-utf8.lo libmio_la-utl.lo
+	libmio_la-fmt.lo libmio_la-htb.lo libmio_la-htrd.lo \
+	libmio_la-htre.lo libmio_la-http.lo libmio_la-mio.lo \
+	libmio_la-nwif.lo libmio_la-path.lo libmio_la-pro.lo \
+	libmio_la-sck.lo libmio_la-skad.lo libmio_la-sys.lo \
+	libmio_la-sys-ass.lo libmio_la-sys-err.lo libmio_la-sys-log.lo \
+	libmio_la-sys-mux.lo libmio_la-sys-tim.lo libmio_la-tmr.lo \
+	libmio_la-utf8.lo libmio_la-utl.lo
 libmio_la_OBJECTS = $(am_libmio_la_OBJECTS)
 AM_V_lt = $(am__v_lt_@AM_V@)
 am__v_lt_ = $(am__v_lt_@AM_DEFAULT_V@)
@@ -173,9 +174,10 @@ am__depfiles_remade = ./$(DEPDIR)/libmio_la-chr.Plo \
 	./$(DEPDIR)/libmio_la-dns-cli.Plo \
 	./$(DEPDIR)/libmio_la-dns.Plo ./$(DEPDIR)/libmio_la-ecs.Plo \
 	./$(DEPDIR)/libmio_la-err.Plo ./$(DEPDIR)/libmio_la-fmt.Plo \
-	./$(DEPDIR)/libmio_la-htb.Plo ./$(DEPDIR)/libmio_la-htre.Plo \
-	./$(DEPDIR)/libmio_la-http.Plo ./$(DEPDIR)/libmio_la-mio.Plo \
-	./$(DEPDIR)/libmio_la-nwif.Plo ./$(DEPDIR)/libmio_la-pro.Plo \
+	./$(DEPDIR)/libmio_la-htb.Plo ./$(DEPDIR)/libmio_la-htrd.Plo \
+	./$(DEPDIR)/libmio_la-htre.Plo ./$(DEPDIR)/libmio_la-http.Plo \
+	./$(DEPDIR)/libmio_la-mio.Plo ./$(DEPDIR)/libmio_la-nwif.Plo \
+	./$(DEPDIR)/libmio_la-path.Plo ./$(DEPDIR)/libmio_la-pro.Plo \
 	./$(DEPDIR)/libmio_la-sck.Plo ./$(DEPDIR)/libmio_la-skad.Plo \
 	./$(DEPDIR)/libmio_la-sys-ass.Plo \
 	./$(DEPDIR)/libmio_la-sys-err.Plo \
@@ -412,6 +414,7 @@ include_HEADERS = \
 	mio-http.h \
 	mio-nwif.h \
 	mio-pac1.h \
+	mio-path.h \
 	mio-pro.h \
 	mio-sck.h \
 	mio-skad.h \
@@ -430,11 +433,13 @@ libmio_la_SOURCES = \
 	fmt.c \
 	fmt-imp.h \
 	htb.c \
+	htrd.c \
 	htre.c \
 	http.c \
 	mio-prv.h \
 	mio.c \
 	nwif.c \
+	path.c \
 	pro.c \
 	sck.c \
 	skad.c \
@@ -553,10 +558,12 @@ distclean-compile:
 @AMDEP_TRUE@@am__include@ @am__quote@./$(DEPDIR)/libmio_la-err.Plo@am__quote@ # am--include-marker
 @AMDEP_TRUE@@am__include@ @am__quote@./$(DEPDIR)/libmio_la-fmt.Plo@am__quote@ # am--include-marker
 @AMDEP_TRUE@@am__include@ @am__quote@./$(DEPDIR)/libmio_la-htb.Plo@am__quote@ # am--include-marker
+@AMDEP_TRUE@@am__include@ @am__quote@./$(DEPDIR)/libmio_la-htrd.Plo@am__quote@ # am--include-marker
 @AMDEP_TRUE@@am__include@ @am__quote@./$(DEPDIR)/libmio_la-htre.Plo@am__quote@ # am--include-marker
 @AMDEP_TRUE@@am__include@ @am__quote@./$(DEPDIR)/libmio_la-http.Plo@am__quote@ # am--include-marker
 @AMDEP_TRUE@@am__include@ @am__quote@./$(DEPDIR)/libmio_la-mio.Plo@am__quote@ # am--include-marker
 @AMDEP_TRUE@@am__include@ @am__quote@./$(DEPDIR)/libmio_la-nwif.Plo@am__quote@ # am--include-marker
+@AMDEP_TRUE@@am__include@ @am__quote@./$(DEPDIR)/libmio_la-path.Plo@am__quote@ # am--include-marker
 @AMDEP_TRUE@@am__include@ @am__quote@./$(DEPDIR)/libmio_la-pro.Plo@am__quote@ # am--include-marker
 @AMDEP_TRUE@@am__include@ @am__quote@./$(DEPDIR)/libmio_la-sck.Plo@am__quote@ # am--include-marker
 @AMDEP_TRUE@@am__include@ @am__quote@./$(DEPDIR)/libmio_la-skad.Plo@am__quote@ # am--include-marker
@@ -649,6 +656,13 @@ libmio_la-htb.lo: htb.c
 @AMDEP_TRUE@@am__fastdepCC_FALSE@	DEPDIR=$(DEPDIR) $(CCDEPMODE) $(depcomp) @AMDEPBACKSLASH@
 @am__fastdepCC_FALSE@	$(AM_V_CC@am__nodep@)$(LIBTOOL) $(AM_V_lt) --tag=CC $(AM_LIBTOOLFLAGS) $(LIBTOOLFLAGS) --mode=compile $(CC) $(DEFS) $(DEFAULT_INCLUDES) $(INCLUDES) $(libmio_la_CPPFLAGS) $(CPPFLAGS) $(AM_CFLAGS) $(CFLAGS) -c -o libmio_la-htb.lo `test -f 'htb.c' || echo '$(srcdir)/'`htb.c
 
+libmio_la-htrd.lo: htrd.c
+@am__fastdepCC_TRUE@	$(AM_V_CC)$(LIBTOOL) $(AM_V_lt) --tag=CC $(AM_LIBTOOLFLAGS) $(LIBTOOLFLAGS) --mode=compile $(CC) $(DEFS) $(DEFAULT_INCLUDES) $(INCLUDES) $(libmio_la_CPPFLAGS) $(CPPFLAGS) $(AM_CFLAGS) $(CFLAGS) -MT libmio_la-htrd.lo -MD -MP -MF $(DEPDIR)/libmio_la-htrd.Tpo -c -o libmio_la-htrd.lo `test -f 'htrd.c' || echo '$(srcdir)/'`htrd.c
+@am__fastdepCC_TRUE@	$(AM_V_at)$(am__mv) $(DEPDIR)/libmio_la-htrd.Tpo $(DEPDIR)/libmio_la-htrd.Plo
+@AMDEP_TRUE@@am__fastdepCC_FALSE@	$(AM_V_CC)source='htrd.c' object='libmio_la-htrd.lo' libtool=yes @AMDEPBACKSLASH@
+@AMDEP_TRUE@@am__fastdepCC_FALSE@	DEPDIR=$(DEPDIR) $(CCDEPMODE) $(depcomp) @AMDEPBACKSLASH@
+@am__fastdepCC_FALSE@	$(AM_V_CC@am__nodep@)$(LIBTOOL) $(AM_V_lt) --tag=CC $(AM_LIBTOOLFLAGS) $(LIBTOOLFLAGS) --mode=compile $(CC) $(DEFS) $(DEFAULT_INCLUDES) $(INCLUDES) $(libmio_la_CPPFLAGS) $(CPPFLAGS) $(AM_CFLAGS) $(CFLAGS) -c -o libmio_la-htrd.lo `test -f 'htrd.c' || echo '$(srcdir)/'`htrd.c
+
 libmio_la-htre.lo: htre.c
 @am__fastdepCC_TRUE@	$(AM_V_CC)$(LIBTOOL) $(AM_V_lt) --tag=CC $(AM_LIBTOOLFLAGS) $(LIBTOOLFLAGS) --mode=compile $(CC) $(DEFS) $(DEFAULT_INCLUDES) $(INCLUDES) $(libmio_la_CPPFLAGS) $(CPPFLAGS) $(AM_CFLAGS) $(CFLAGS) -MT libmio_la-htre.lo -MD -MP -MF $(DEPDIR)/libmio_la-htre.Tpo -c -o libmio_la-htre.lo `test -f 'htre.c' || echo '$(srcdir)/'`htre.c
 @am__fastdepCC_TRUE@	$(AM_V_at)$(am__mv) $(DEPDIR)/libmio_la-htre.Tpo $(DEPDIR)/libmio_la-htre.Plo
@@ -676,6 +690,13 @@ libmio_la-nwif.lo: nwif.c
 @AMDEP_TRUE@@am__fastdepCC_FALSE@	$(AM_V_CC)source='nwif.c' object='libmio_la-nwif.lo' libtool=yes @AMDEPBACKSLASH@
 @AMDEP_TRUE@@am__fastdepCC_FALSE@	DEPDIR=$(DEPDIR) $(CCDEPMODE) $(depcomp) @AMDEPBACKSLASH@
 @am__fastdepCC_FALSE@	$(AM_V_CC@am__nodep@)$(LIBTOOL) $(AM_V_lt) --tag=CC $(AM_LIBTOOLFLAGS) $(LIBTOOLFLAGS) --mode=compile $(CC) $(DEFS) $(DEFAULT_INCLUDES) $(INCLUDES) $(libmio_la_CPPFLAGS) $(CPPFLAGS) $(AM_CFLAGS) $(CFLAGS) -c -o libmio_la-nwif.lo `test -f 'nwif.c' || echo '$(srcdir)/'`nwif.c
+
+libmio_la-path.lo: path.c
+@am__fastdepCC_TRUE@	$(AM_V_CC)$(LIBTOOL) $(AM_V_lt) --tag=CC $(AM_LIBTOOLFLAGS) $(LIBTOOLFLAGS) --mode=compile $(CC) $(DEFS) $(DEFAULT_INCLUDES) $(INCLUDES) $(libmio_la_CPPFLAGS) $(CPPFLAGS) $(AM_CFLAGS) $(CFLAGS) -MT libmio_la-path.lo -MD -MP -MF $(DEPDIR)/libmio_la-path.Tpo -c -o libmio_la-path.lo `test -f 'path.c' || echo '$(srcdir)/'`path.c
+@am__fastdepCC_TRUE@	$(AM_V_at)$(am__mv) $(DEPDIR)/libmio_la-path.Tpo $(DEPDIR)/libmio_la-path.Plo
+@AMDEP_TRUE@@am__fastdepCC_FALSE@	$(AM_V_CC)source='path.c' object='libmio_la-path.lo' libtool=yes @AMDEPBACKSLASH@
+@AMDEP_TRUE@@am__fastdepCC_FALSE@	DEPDIR=$(DEPDIR) $(CCDEPMODE) $(depcomp) @AMDEPBACKSLASH@
+@am__fastdepCC_FALSE@	$(AM_V_CC@am__nodep@)$(LIBTOOL) $(AM_V_lt) --tag=CC $(AM_LIBTOOLFLAGS) $(LIBTOOLFLAGS) --mode=compile $(CC) $(DEFS) $(DEFAULT_INCLUDES) $(INCLUDES) $(libmio_la_CPPFLAGS) $(CPPFLAGS) $(AM_CFLAGS) $(CFLAGS) -c -o libmio_la-path.lo `test -f 'path.c' || echo '$(srcdir)/'`path.c
 
 libmio_la-pro.lo: pro.c
 @am__fastdepCC_TRUE@	$(AM_V_CC)$(LIBTOOL) $(AM_V_lt) --tag=CC $(AM_LIBTOOLFLAGS) $(LIBTOOLFLAGS) --mode=compile $(CC) $(DEFS) $(DEFAULT_INCLUDES) $(INCLUDES) $(libmio_la_CPPFLAGS) $(CPPFLAGS) $(AM_CFLAGS) $(CFLAGS) -MT libmio_la-pro.lo -MD -MP -MF $(DEPDIR)/libmio_la-pro.Tpo -c -o libmio_la-pro.lo `test -f 'pro.c' || echo '$(srcdir)/'`pro.c
@@ -923,10 +944,12 @@ distclean: distclean-am
 	-rm -f ./$(DEPDIR)/libmio_la-err.Plo
 	-rm -f ./$(DEPDIR)/libmio_la-fmt.Plo
 	-rm -f ./$(DEPDIR)/libmio_la-htb.Plo
+	-rm -f ./$(DEPDIR)/libmio_la-htrd.Plo
 	-rm -f ./$(DEPDIR)/libmio_la-htre.Plo
 	-rm -f ./$(DEPDIR)/libmio_la-http.Plo
 	-rm -f ./$(DEPDIR)/libmio_la-mio.Plo
 	-rm -f ./$(DEPDIR)/libmio_la-nwif.Plo
+	-rm -f ./$(DEPDIR)/libmio_la-path.Plo
 	-rm -f ./$(DEPDIR)/libmio_la-pro.Plo
 	-rm -f ./$(DEPDIR)/libmio_la-sck.Plo
 	-rm -f ./$(DEPDIR)/libmio_la-skad.Plo
@@ -992,10 +1015,12 @@ maintainer-clean: maintainer-clean-am
 	-rm -f ./$(DEPDIR)/libmio_la-err.Plo
 	-rm -f ./$(DEPDIR)/libmio_la-fmt.Plo
 	-rm -f ./$(DEPDIR)/libmio_la-htb.Plo
+	-rm -f ./$(DEPDIR)/libmio_la-htrd.Plo
 	-rm -f ./$(DEPDIR)/libmio_la-htre.Plo
 	-rm -f ./$(DEPDIR)/libmio_la-http.Plo
 	-rm -f ./$(DEPDIR)/libmio_la-mio.Plo
 	-rm -f ./$(DEPDIR)/libmio_la-nwif.Plo
+	-rm -f ./$(DEPDIR)/libmio_la-path.Plo
 	-rm -f ./$(DEPDIR)/libmio_la-pro.Plo
 	-rm -f ./$(DEPDIR)/libmio_la-sck.Plo
 	-rm -f ./$(DEPDIR)/libmio_la-skad.Plo
