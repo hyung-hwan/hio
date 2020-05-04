@@ -61,7 +61,7 @@ typedef void (*mio_dev_pro_on_close_t) (
 
 struct mio_dev_pro_t
 {
-	MIO_DEV_HEADERS;
+	MIO_DEV_HEADER;
 
 	int flags;
 	mio_intptr_t child_pid;
@@ -77,7 +77,7 @@ struct mio_dev_pro_t
 
 struct mio_dev_pro_slave_t
 {
-	MIO_DEV_HEADERS;
+	MIO_DEV_HEADER;
 	mio_dev_pro_sid_t id;
 	mio_syshnd_t pfd;
 	mio_dev_pro_t* master; /* parent device */

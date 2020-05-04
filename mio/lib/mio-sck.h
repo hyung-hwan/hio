@@ -359,7 +359,7 @@ struct mio_dev_sck_accept_t
 
 struct mio_dev_sck_t
 {
-	MIO_DEV_HEADERS;
+	MIO_DEV_HEADER;
 
 	mio_dev_sck_type_t type;
 	mio_sckhnd_t sck;

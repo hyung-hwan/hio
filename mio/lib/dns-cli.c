@@ -32,14 +32,14 @@
 
 struct mio_svc_dns_t
 {
-	MIO_SVC_HEADERS;
-	/*MIO_DNS_SVC_HEADERS;*/
+	MIO_SVC_HEADER;
+	/*MIO_DNS_SVC_HEADER;*/
 };
 
 struct mio_svc_dnc_t
 {
-	MIO_SVC_HEADERS;
-	/*MIO_DNS_SVC_HEADERS;*/
+	MIO_SVC_HEADER;
+	/*MIO_DNS_SVC_HEADER;*/
 
 	mio_dev_sck_t* udp_sck;
 	mio_dev_sck_t* tcp_sck;
