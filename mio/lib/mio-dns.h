@@ -250,7 +250,7 @@ typedef struct mio_dns_eopt_t mio_dns_eopt_t;
 /* ---------------------------------------------------------------- */
 
 /*
-#define MIO_DNS_HDR_MAKE_FLAGS(qr,opcode,aa,tc,rd,ra,ad,cd,rcode) \
+#define MIO_DNS_HEADER_MAKE_FLAGS(qr,opcode,aa,tc,rd,ra,ad,cd,rcode) \
 	((((qr) & 0x01) << 15) | (((opcode) & 0x0F) << 14) | (((aa) & 0x01) << 10) | (((tc) & 0x01) << 9) | \
 	(((rd) & 0x01) << 8) | (((ra) & 0x01) << 7) | (((ad) & 0x01) << 5) | (((cd) & 0x01) << 4) | ((rcode) & 0x0F))
 */

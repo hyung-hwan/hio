@@ -323,7 +323,7 @@ struct mio_wq_t
 #define MIO_WQ_ENQ(wq,x) MIO_WQ_LINK(MIO_WQ_TAIL(wq), (mio_q_t*)x, wq)
 #define MIO_WQ_DEQ(wq) MIO_WQ_UNLINK(MIO_WQ_HEAD(wq))
 
-#define MIO_DEV_HEADERS \
+#define MIO_DEV_HEADER \
 	mio_t*          mio; \
 	mio_oow_t       dev_size; \
 	int             dev_cap; \
@@ -338,7 +338,7 @@ struct mio_wq_t
 
 struct mio_dev_t
 {
-	MIO_DEV_HEADERS;
+	MIO_DEV_HEADER;
 };
 
 #define MIO_DEVL_PREPEND_DEV(lh,dev) do { \
@@ -424,7 +424,7 @@ typedef enum mio_dev_event_t mio_dev_event_t;
 
 typedef void (*mio_svc_stop_t) (mio_svc_t* svc);
 
-#define MIO_SVC_HEADERS \
+#define MIO_SVC_HEADER \
 	mio_t*          mio; \
 	mio_svc_stop_t  stop; \
 	mio_svc_t*      svc_prev; \
@@ -437,7 +437,7 @@ typedef void (*mio_svc_stop_t) (mio_svc_t* svc);
 
 struct mio_svc_t
 {
-	MIO_SVC_HEADERS;
+	MIO_SVC_HEADER;
 };
 
 #define MIO_SVCL_PREPEND_SVC(lh,svc) do { \
