@@ -32,6 +32,7 @@ include_HEADERS = \
 	mio-http.h \
 	mio-nwif.h \
 	mio-pac1.h \
+	mio-path.h \
 	mio-pro.h \
 	mio-sck.h \
 	mio-skad.h \
@@ -50,11 +51,13 @@ libmio_la_SOURCES = \
 	fmt.c \
 	fmt-imp.h \
 	htb.c \
+	htrd.c \
 	htre.c \
 	http.c \
 	mio-prv.h \
 	mio.c \
 	nwif.c \
+	path.c \
 	pro.c \
 	sck.c \
 	skad.c \
