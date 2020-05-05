@@ -184,10 +184,10 @@ void mio_fini (mio_t* mio)
 		mio_svc_t* svc;
 
 		svc = MIO_SVCL_FIRST_SVC(&mio->actsvc);
-		if (svc->stop) 
+		if (svc->svc_stop) 
 		{
 			/* the stop callback must unregister itself */
-			svc->stop (svc);
+			svc->svc_stop (svc);
 		}
 		else
 		{
@@ -670,8 +670,8 @@ mio_dev_t* mio_dev_make (mio_t* mio, mio_oow_t dev_size, mio_dev_mth_t* dev_mth,
 		return MIO_NULL;
 	}
 
-	dev = mio_callocmem(mio, dev_size);
-	if (!dev) return MIO_NULL;
+	dev = (mio_dev_t*)mio_callocmem(mio, dev_size);
+	if (MIO_UNLIKELY(!dev)) return MIO_NULL;
 
 	dev->mio = mio;
 	dev->dev_size = dev_size;
@@ -888,7 +888,7 @@ kill_device:
 		if (schedule_kill_zombie_job (dev) <= -1)
 		{
 			/* i have no choice but to free up the devide by force */
-			while (kill_and_free_device (dev, 1) <= -1)
+			while (kill_and_free_device(dev, 1) <= -1)
 			{
 				if (mio->stopreq  != MIO_STOPREQ_NONE) 
 				{

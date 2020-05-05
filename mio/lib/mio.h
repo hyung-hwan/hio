@@ -426,7 +426,7 @@ typedef void (*mio_svc_stop_t) (mio_svc_t* svc);
 
 #define MIO_SVC_HEADER \
 	mio_t*          mio; \
-	mio_svc_stop_t  stop; \
+	mio_svc_stop_t  svc_stop; \
 	mio_svc_t*      svc_prev; \
 	mio_svc_t*      svc_next 
 
