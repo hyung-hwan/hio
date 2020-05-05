@@ -31,6 +31,7 @@
 #include <mio-pro.h>
 #include <mio-dns.h>
 #include <mio-nwif.h>
+#include <mio-http.h>
 
 #include <stdlib.h>
 #include <string.h>
@@ -944,8 +945,10 @@ for (i = 0; i < 5; i++)
 
 {
 	mio_svc_dnc_t* dnc;
+	mio_svc_htts_t* htts;
 	mio_ntime_t send_tmout, reply_tmout;
 	mio_skad_t servaddr;
+	mio_skad_t htts_bind_addr;
 
 	send_tmout.sec = 0;
 	send_tmout.nsec = 0;
@@ -955,7 +958,12 @@ for (i = 0; i < 5; i++)
 	mio_bcstrtoskad (mio, "8.8.8.8:53", &servaddr);
 	//mio_bcstrtoskad (mio, "[fe80::c7e2:bd6e:1209:ac1b]:1153", &servaddr);
 	//mio_bcstrtoskad (mio, "[fe80::c7e2:bd6e:1209:ac1b%eno1]:1153", &servaddr);
-	dnc = mio_svc_dnc_start (mio, &servaddr, MIO_NULL, &send_tmout, &reply_tmout, 2); /* option - send to all, send one by one */
+
+	//mio_bcstrtoskad (mio, "[::]:9988", &htts_bind_addr);
+	mio_bcstrtoskad (mio, "127.0.0.1:9988", &htts_bind_addr);
+
+	dnc = mio_svc_dnc_start(mio, &servaddr, MIO_NULL, &send_tmout, &reply_tmout, 2); /* option - send to all, send one by one */
+	htts = mio_svc_htts_start(mio, &htts_bind_addr);
 
 #if 1
 	{
@@ -1077,6 +1085,7 @@ if (!mio_svc_dnc_resolve(dnc, "google.com", MIO_DNS_RRT_SOA, MIO_SVC_DNC_RESOLVE
 	mio_loop (mio);
 
 	/* TODO: let mio close it ... dnc is svc. sck is dev. */
+	if (htts) mio_svc_htts_stop (htts);
 	mio_svc_dnc_stop (dnc);
 }
 

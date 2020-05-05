@@ -26,6 +26,7 @@
 #define _MIO_HTTP_H_
 
 #include <mio-ecs.h>
+#include <mio-sck.h>
 
 /** \file
  * This file provides basic data types and functions for the http protocol.
@@ -153,6 +154,11 @@ enum mio_perenchttpstr_opt_t
 };
 typedef enum mio_perenchttpstr_opt_t mio_perenchttpstr_opt_t;
 
+
+/* -------------------------------------------------------------- */
+typedef struct mio_svc_htts_t mio_svc_htts_t;
+typedef struct mio_svc_httc_t mio_svc_httc_t;
+
 #if defined(__cplusplus)
 extern "C" {
 #endif
@@ -234,6 +240,19 @@ MIO_EXPORT mio_bch_t* mio_perenchttpstrdup (
 	int                opt, /**< 0 or bitwise-OR'ed of #mio_perenchttpstr_opt_t */
 	const mio_bch_t*   str, 
 	mio_mmgr_t*        mmgr
+);
+
+/* ------------------------------------------------------------------------- */
+/* HTTP SERVER SERVICE                                                       */
+/* ------------------------------------------------------------------------- */
+
+MIO_EXPORT mio_svc_htts_t* mio_svc_htts_start (
+	mio_t*            mio,
+	const mio_skad_t* bind_addr
+);
+
+MIO_EXPORT void mio_svc_htts_stop (
+	mio_svc_htts_t* htts
 );
 
 #if defined(__cplusplus)

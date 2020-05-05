@@ -123,7 +123,7 @@ static mio_dns_msg_t* make_dns_msg (mio_svc_dnc_t* dnc, mio_dns_bhdr_t* bdns, mi
 	dnc_dns_msg_xtn_t* msgxtn;
 
 	msg = mio_dns_make_msg(dnc->mio, bdns, qr, qr_count, rr, rr_count, edns, MIO_SIZEOF(*msgxtn) + xtnsize);
-	if (!msg) return MIO_NULL;
+	if (MIO_UNLIKELY(!msg)) return MIO_NULL;
 
 	if (bdns->id < 0)
 	{
@@ -720,10 +720,10 @@ mio_svc_dnc_t* mio_svc_dnc_start (mio_t* mio, const mio_skad_t* serv_addr, const
 	dnc_sck_xtn_t* sckxtn;
 
 	dnc = (mio_svc_dnc_t*)mio_callocmem(mio, MIO_SIZEOF(*dnc));
-	if (!dnc) goto oops;
+	if (MIO_UNLIKELY(!dnc)) goto oops;
 
 	dnc->mio = mio;
-	dnc->stop = mio_svc_dnc_stop;
+	dnc->svc_stop = mio_svc_dnc_stop;
 	dnc->serv_addr = *serv_addr;
 	dnc->send_tmout = *send_tmout;
 	dnc->reply_tmout = *reply_tmout;

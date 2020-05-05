@@ -1289,7 +1289,7 @@ accept_done:
 	 * extension area as big as that of the master sck device
 	 * is created in the client sck device */
 	clidev = (mio_dev_sck_t*)mio_dev_make(mio, rdev->dev_size, &dev_mth_clisck, rdev->dev_evcb, &clisck); 
-	if (!clidev) 
+	if (MIO_UNLIKELY(!clidev))
 	{
 		close (clisck);
 		return -1;
@@ -1347,6 +1347,10 @@ accept_done:
 	clidev->on_write = rdev->on_write;
 	clidev->on_read = rdev->on_read;
 
+	/* inherit the contents of the extension area */
+	MIO_ASSERT (mio, rdev->dev_size == clidev->dev_size);
+	MIO_MEMCPY (mio_dev_sck_getxtn(clidev), mio_dev_sck_getxtn(rdev), rdev->dev_size - MIO_SIZEOF(mio_dev_sck_t));
+
 	MIO_ASSERT (mio, clidev->tmrjob_index == MIO_TMRIDX_INVALID);
 
 	if (rdev->ssl_ctx)
@@ -1359,7 +1363,7 @@ accept_done:
 		clidev->ssl_ctx = rdev->ssl_ctx;
 
 		if (MIO_IS_POS_NTIME(&rdev->tmout) &&
-		    schedule_timer_job_after (clidev, &rdev->tmout, ssl_accept_timedout) <= -1)
+		    schedule_timer_job_after(clidev, &rdev->tmout, ssl_accept_timedout) <= -1)
 		{
 			/* TODO: call a warning/error callback */
 			/* timer job scheduling failed. halt the device */
@@ -1484,7 +1488,7 @@ static int dev_evcb_sck_ready_stateful (mio_dev_t* dev, int events)
 			}
 			else if (events & MIO_DEV_EVENT_IN)
 			{
-				return accept_incoming_connection (rdev);
+				return accept_incoming_connection(rdev);
 			}
 			else
 			{
@@ -1638,7 +1642,7 @@ mio_dev_sck_t* mio_dev_sck_make (mio_t* mio, mio_oow_t xtnsize, const mio_dev_sc
 	if (sck_type_map[info->type].extra_dev_cap & MIO_DEV_CAP_STREAM) /* can't use the IS_STATEFUL() macro yet */
 	{
 		rdev = (mio_dev_sck_t*)mio_dev_make(
-			mio, MIO_SIZEOF(mio_dev_sck_t) + xtnsize, 
+			mio, MIO_SIZEOF(mio_dev_sck_t) + xtnsize,
 			&dev_sck_methods_stateful, &dev_sck_event_callbacks_stateful, (void*)info);
 	}
 	else
