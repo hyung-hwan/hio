@@ -85,7 +85,13 @@ void mio_htre_fini (mio_htre_t* re)
 	mio_htb_fini (&re->trailers);
 	mio_htb_fini (&re->hdrtab);
 
-	if (re->orgqpath.buf) mio_freemem (re->mio, re->orgqpath.buf);
+	if (re->orgqpath.buf) 
+	{
+		mio_freemem (re->mio, re->orgqpath.buf);
+		re->orgqpath.buf = MIO_NULL;
+		re->orgqpath.len = 0;
+		re->orgqpath.capa = 0;
+	}
 }
 
 void mio_htre_clear (mio_htre_t* re)
@@ -103,8 +109,13 @@ void mio_htre_clear (mio_htre_t* re)
 	re->state = 0;
 	re->flags = 0;
 
-	re->orgqpath.ptr = MIO_NULL;
-	re->orgqpath.len = 0;
+	if (re->orgqpath.buf) 
+	{
+		mio_freemem (re->mio, re->orgqpath.buf);
+		re->orgqpath.buf = MIO_NULL;
+		re->orgqpath.len = 0;
+		re->orgqpath.capa = 0;
+	}
 
 	MIO_MEMSET (&re->version, 0, MIO_SIZEOF(re->version));
 	MIO_MEMSET (&re->attr, 0, MIO_SIZEOF(re->attr));
@@ -282,6 +293,7 @@ int mio_htre_perdecqpath (mio_htre_t* re)
 			if (re->orgqpath.buf)
 			{
 				mio_freemem (re->mio, re->orgqpath.buf);
+				re->orgqpath.len = 0;
 				re->orgqpath.capa = 0;
 			}
 
@@ -298,7 +310,7 @@ int mio_htre_perdecqpath (mio_htre_t* re)
 		}
 	}
 
-	re->u.q.path.len = mio_perdechttpstr (re->u.q.path.ptr, re->u.q.path.ptr, &dec_count);
+	re->u.q.path.len = mio_perdec_http_bcstr(re->u.q.path.ptr, re->u.q.path.ptr, &dec_count);
 	if (dec_count > 0) 
 	{
 		/* this assertion is to ensure that mio_is_perenced_http_bstr() 

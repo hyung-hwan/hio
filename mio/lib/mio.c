@@ -1592,11 +1592,9 @@ static int fmt_put_bchars_to_uch_buf (mio_fmtout_t* fmtout, const mio_bch_t* ptr
 	mio_oow_t bcslen, ucslen;
 	int n;
 
-	if (!b->mio) return -1; /* no mio, no cross encoding formatting */
-
 	bcslen = len;
 	ucslen = b->capa - b->len;
-	n = mio_conv_bchars_to_uchars_with_cmgr(ptr, &bcslen, &b->ptr[b->len], &ucslen, b->mio->_cmgr, 1);
+	n = mio_conv_bchars_to_uchars_with_cmgr(ptr, &bcslen, &b->ptr[b->len], &ucslen, (b->mio? b->mio->_cmgr: mio_get_utf8_cmgr()), 1);
 	b->len += ucslen;
 	if (n <= -1) 
 	{
@@ -1703,11 +1701,9 @@ static int fmt_put_uchars_to_bch_buf (mio_fmtout_t* fmtout, const mio_uch_t* ptr
 	mio_oow_t bcslen, ucslen;
 	int n;
 
-	if (!b->mio) return -1; /* no mio, no cross encoding formatting */
-
 	bcslen = b->capa - b->len;
 	ucslen = len;
-	n = mio_conv_uchars_to_bchars_with_cmgr(ptr, &ucslen, &b->ptr[b->len], &bcslen, b->mio->_cmgr);
+	n = mio_conv_uchars_to_bchars_with_cmgr(ptr, &ucslen, &b->ptr[b->len], &bcslen, (b->mio? b->mio->_cmgr: mio_get_utf8_cmgr()));
 	b->len += bcslen;
 	if (n <= -1)
 	{
@@ -1742,7 +1738,6 @@ mio_oow_t mio_vfmttobcstr (mio_t* mio, mio_bch_t* buf, mio_oow_t bufsz, const mi
 	fb.mio = mio;
 	fb.ptr = buf;
 	fb.capa = bufsz - 1;
-
 	if (mio_bfmt_outv(&fo, fmt, ap) <= -1) return -1;
 
 	buf[fb.len] = '\0';

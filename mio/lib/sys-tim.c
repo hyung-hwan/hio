@@ -151,3 +151,17 @@ void mio_sys_gettime (mio_t* mio, mio_ntime_t* now)
 	MIO_INIT_NTIME(now, tv.tv_sec, MIO_USEC_TO_NSEC(tv.tv_usec));
 #endif
 }
+
+
+void mio_sys_getrealtime (mio_t* mio, mio_ntime_t* now)
+{
+#if defined(HAVE_CLOCK_GETTIME) && defined(CLOCK_REALTIME)
+	struct timespec ts;
+	clock_gettime (CLOCK_REALTIME, &ts);
+	MIO_INIT_NTIME(now, ts.tv_sec, ts.tv_nsec);
+#else
+	struct timeval tv;
+	gettimeofday (&tv, MIO_NULL);
+	MIO_INIT_NTIME(now, tv.tv_sec, MIO_USEC_TO_NSEC(tv.tv_usec));
+#endif
+}

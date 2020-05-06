@@ -183,6 +183,11 @@ void mio_sys_gettime (
 	mio_ntime_t* now
 );
 
+void mio_sys_getrealtime (
+	mio_t*       mio,
+	mio_ntime_t* now
+);
+
 #ifdef __cplusplus
 }
 #endif
