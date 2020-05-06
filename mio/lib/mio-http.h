@@ -148,11 +148,11 @@ struct mio_http_range_t
 typedef struct mio_http_range_t mio_http_range_t;
 
 
-enum mio_perenchttpstr_opt_t
+enum mio_perenc_http_opt_t
 {
-	MIO_PERENCHTTPSTR_KEEP_SLASH = (1 << 0)
+	MIO_PERENC_HTTP_KEEP_SLASH = (1 << 0)
 };
-typedef enum mio_perenchttpstr_opt_t mio_perenchttpstr_opt_t;
+typedef enum mio_perenc_http_opt_t mio_perenc_bcstr_opt_t;
 
 
 /* -------------------------------------------------------------- */
@@ -210,37 +210,40 @@ MIO_EXPORT int mio_is_perenced_http_bcstr (
 );
 
 /**
- * The mio_perdechttpstr() function performs percent-decoding over a string.
+ * The mio_perdec_http_bcstr() function performs percent-decoding over a string.
  * The caller must ensure that the output buffer \a buf is large enough.
  * If \a ndecs is not #MIO_NULL, it is set to the number of characters
  * decoded.  0 means no characters in the input string required decoding
  * \return the length of the output string.
  */
-MIO_EXPORT mio_oow_t mio_perdechttpstr (
+MIO_EXPORT mio_oow_t mio_perdec_http_bcstr (
 	const mio_bch_t* str, 
 	mio_bch_t*       buf,
 	mio_oow_t*       ndecs
 );
 
 /**
- * The mio_perenchttpstr() function performs percent-encoding over a string.
+ * The mio_perenc_http_bcstr() function performs percent-encoding over a string.
  * The caller must ensure that the output buffer \a buf is large enough.
  * If \a nencs is not #MIO_NULL, it is set to the number of characters
  * encoded.  0 means no characters in the input string required encoding.
  * \return the length of the output string.
  */
-MIO_EXPORT mio_oow_t mio_perenchttpstr (
-	int              opt, /**< 0 or bitwise-OR'ed of #mio_perenchttpstr_opt_t */
+MIO_EXPORT mio_oow_t mio_perenc_http_bcstr (
+	int              opt, /**< 0 or bitwise-OR'ed of #mio_perenc_http_bcstr_opt_t */
 	const mio_bch_t* str, 
 	mio_bch_t*       buf,
 	mio_oow_t*       nencs
 );
 
-MIO_EXPORT mio_bch_t* mio_perenchttpstrdup (
-	int                opt, /**< 0 or bitwise-OR'ed of #mio_perenchttpstr_opt_t */
+#if 0
+/* TODO: rename this function according to the naming convension */
+MIO_EXPORT mio_bch_t* mio_perenc_http_bcstrdup (
+	int                opt, /**< 0 or bitwise-OR'ed of #mio_perenc_http_bcstr_opt_t */
 	const mio_bch_t*   str, 
 	mio_mmgr_t*        mmgr
 );
+#endif
 
 /* ------------------------------------------------------------------------- */
 /* HTTP SERVER SERVICE                                                       */
@@ -253,6 +256,24 @@ MIO_EXPORT mio_svc_htts_t* mio_svc_htts_start (
 
 MIO_EXPORT void mio_svc_htts_stop (
 	mio_svc_htts_t* htts
+);
+
+
+MIO_EXPORT void mio_svc_htts_sendstatus (
+	mio_svc_htts_t*           htts,
+	mio_dev_sck_t*            csck,
+	int                       status_code,
+	mio_http_method_t         method,
+	const mio_http_version_t* version,
+	int                       keepalive,
+	void*                     extra
+);
+
+MIO_EXPORT void mio_svc_htts_fmtgmtime (
+	mio_svc_htts_t*           htts,
+	const mio_ntime_t*        nt,
+	mio_bch_t*                buf,
+	mio_oow_t                 len
 );
 
 #if defined(__cplusplus)

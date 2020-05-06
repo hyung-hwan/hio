@@ -380,9 +380,8 @@ mio_bch_t* mio_fmt_http_time_to_bcstr (const mio_ntime_t* nt, mio_bch_t* buf, mi
 	struct tm bt;
 
 	t = nt->sec;
-	gmtime_r (&t, &bt);
+	gmtime_r (&t, &bt); /* TODO: create mio_sys_gmtime() and make it system dependent */
 
-	/* mio_fmttobcstr() works well with MIO_NULL in mio if formatting doesn't involve cross-encoding */
 	mio_fmttobcstr (MIO_NULL, buf, bufsz, 
 		"%hs, %d %hs %d %02d:%02d:%02d GMT",
 		wday_name[bt.tm_wday].s,
@@ -418,7 +417,7 @@ int mio_is_perenced_http_bcstr (const mio_bch_t* str)
 	return 1;
 }
 
-mio_oow_t mio_perdechttpstr (const mio_bch_t* str, mio_bch_t* buf, mio_oow_t* ndecs)
+mio_oow_t mio_perdec_http_bcstr (const mio_bch_t* str, mio_bch_t* buf, mio_oow_t* ndecs)
 {
 	const mio_bch_t* p = str;
 	mio_bch_t* out = buf;
@@ -460,7 +459,7 @@ mio_oow_t mio_perdechttpstr (const mio_bch_t* str, mio_bch_t* buf, mio_oow_t* nd
 
 #define TO_HEX(v) ("0123456789ABCDEF"[(v) & 15])
 
-mio_oow_t mio_perenchttpstr (int opt, const mio_bch_t* str, mio_bch_t* buf, mio_oow_t* nencs)
+mio_oow_t mio_perenc_http_bcstr (int opt, const mio_bch_t* str, mio_bch_t* buf, mio_oow_t* nencs)
 {
 	const mio_bch_t* p = str;
 	mio_bch_t* out = buf;
@@ -469,7 +468,7 @@ mio_oow_t mio_perenchttpstr (int opt, const mio_bch_t* str, mio_bch_t* buf, mio_
 	/* this function doesn't accept the size of the buffer. the caller must 
 	 * ensure that the buffer is large enough */
 
-	if (opt & MIO_PERENCHTTPSTR_KEEP_SLASH)
+	if (opt & MIO_PERENC_HTTP_KEEP_SLASH)
 	{
 		while (*p != '\0')
 		{
@@ -504,14 +503,15 @@ mio_oow_t mio_perenchttpstr (int opt, const mio_bch_t* str, mio_bch_t* buf, mio_
 	return out - buf;
 }
 
-mio_bch_t* mio_perenchttpstrdup (int opt, const mio_bch_t* str, mio_mmgr_t* mmgr)
+#if 0
+mio_bch_t* mio_perenc_http_bcstrdup (int opt, const mio_bch_t* str, mio_mmgr_t* mmgr)
 {
 	mio_bch_t* buf;
 	mio_oow_t len = 0;
 	mio_oow_t count = 0;
 	
 	/* count the number of characters that should be encoded */
-	if (opt & MIO_PERENCHTTPSTR_KEEP_SLASH)
+	if (opt & MIO_PERENC_HTTP_KEEP_SLASH)
 	{
 		for (len = 0; str[len] != '\0'; len++)
 		{
@@ -530,11 +530,12 @@ mio_bch_t* mio_perenchttpstrdup (int opt, const mio_bch_t* str, mio_mmgr_t* mmgr
 	if (count <= 0) return (mio_bch_t*)str;
 
 	/* allocate a buffer of an optimal size for escaping, otherwise */
-	buf = MIO_MMGR_ALLOC (mmgr, (len  + (count * 2) + 1)  * MIO_SIZEOF(*buf));
-	if (buf == MIO_NULL) return MIO_NULL;
+	buf = MIO_MMGR_ALLOC(mmgr, (len  + (count * 2) + 1)  * MIO_SIZEOF(*buf));
+	if (!buf) return MIO_NULL;
 
 	/* perform actual escaping */
-	mio_perenchttpstr (opt, str, buf, MIO_NULL);
+	mio_perenc_http_bcstr (opt, str, buf, MIO_NULL);
 
 	return buf;
 }
+#endif

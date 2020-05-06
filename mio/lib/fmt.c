@@ -1236,6 +1236,7 @@ static int fmt_outv (mio_fmtout_t* fmtout, va_list ap)
 				PUT_OOCH (fmtout, padc, width);
 			}
 
+			
 			while (*nbufp) PUT_OOCH (fmtout, *nbufp--, 1); /* output actual digits */
 
 			if ((flagc & FLAGC_LEFTADJ) && width > 0 && (width -= tmp) > 0)

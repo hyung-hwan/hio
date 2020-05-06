@@ -49,15 +49,15 @@ typedef enum mio_htre_state_t mio_htre_state_t;
 
 typedef int (*mio_htre_concb_t) (
 	mio_htre_t*        re,
-	const mio_bch_t* ptr,
-	mio_oow_t         len,
+	const mio_bch_t*   ptr,
+	mio_oow_t          len,
 	void*              ctx
 );
 
 struct mio_htre_hdrval_t
 {
-	const mio_bch_t* ptr;
-	mio_oow_t         len;
+	const mio_bch_t*   ptr;
+	mio_oow_t          len;
 	mio_htre_hdrval_t* next;
 };
 
