@@ -119,6 +119,8 @@ if (mio_htre_getcontentlen(req) > 0)
 		}
 		else 
 		{
+//mio_svc_htts_sendstatus (htts, csck, 500, mth, mio_htre_getversion(req), (req->flags & MIO_HTRE_ATTR_KEEPALIVE), MIO_NULL);
+//return 0;
 #if 0
 			if (mth == MIO_HTTP_POST &&
 			    !(req->flags & MIO_HTRE_ATTR_LENGTH) &&
@@ -583,6 +585,11 @@ void mio_svc_htts_sendstatus (mio_svc_htts_t* htts, mio_dev_sck_t* csck, int sta
 	if (mio_dev_sck_write(csck, MIO_BECS_PTR(csckxtn->c.sbuf), MIO_BECS_LEN(csckxtn->c.sbuf), MIO_NULL, MIO_NULL) <= -1)
 	{
 		mio_dev_sck_halt (csck);
+	}
+
+	if (!keepalive)
+	{
+		mio_dev_sck_write(csck, MIO_NULL, 0, MIO_NULL, MIO_NULL); /* arrange to close the writing end */
 	}
 }
 
