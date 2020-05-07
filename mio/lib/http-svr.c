@@ -2,6 +2,10 @@
 #include "mio-htrd.h"
 #include "mio-prv.h"
 
+
+#include <unistd.h> /* TODO: move file operations to sys-file.XXX */
+#include <fcntl.h>
+
 struct mio_svc_htts_t
 {
 	MIO_SVC_HEADER;
@@ -122,7 +126,6 @@ if (mio_htre_getcontentlen(req) > 0)
 		{
 //mio_svc_htts_sendstatus (htts, csck, 500, mth, mio_htre_getversion(req), (req->flags & MIO_HTRE_ATTR_KEEPALIVE), MIO_NULL);
 //return 0;
-#if 0
 			if (mth == MIO_HTTP_POST &&
 			    !(req->flags & MIO_HTRE_ATTR_LENGTH) &&
 			    !(req->flags & MIO_HTRE_ATTR_CHUNKED))
@@ -130,22 +133,19 @@ if (mio_htre_getcontentlen(req) > 0)
 				/* POST without Content-Length nor not chunked */
 				req->flags &= ~MIO_HTRE_ATTR_KEEPALIVE;
 				mio_htre_discardcontent (req);
-				task = mio_htts_entaskerror(htts, client, MIO_NULL, 411, req);
-				if (task) 
-				{
-					/* 411 Length Required - can't keep alive. Force disconnect */
-					task = mio_htts_entaskdisconnect (htts, client, MIO_NULL);
-				}
 
-/*
-	const qse_http_version_t* version = qse_htre_getversion(req);
-	return qse_httpd_entaskformat (
-		httpd, client, pred,
-		QSE_MT("HTTP/%d.%d 100 Continue\r\n\r\n"),
-		version->major, version->minor);
-*/
-				mio_dev_sck_write (csck, data, len, XXXX, MIO_NULL);
+				/* 411 Length Required - can't keep alive. Force disconnect */
+				mio_svc_htts_sendstatus (htts, csck, 411, mth, mio_htre_getversion(req), 0, MIO_NULL);
 			}
+			else
+			{
+				const mio_bch_t* qpath = mio_htre_getqpath(req);
+				if (mio_comp_bcstr(qpath, "/mio.c", 0) == 0)
+				{
+					mio_svc_htts_sendfile (htts, csck, "/home/hyung-hwan/projects/mio/lib/mio.c", mth, mio_htre_getversion(req), (req->flags & MIO_HTRE_ATTR_KEEPALIVE));
+				}
+			}
+#if 0
 			else if (server_xtn->makersrc(htts, client, req, &rsrc) <= -1)
 			{
 				/* failed to make a resource. just send the internal server error.
@@ -158,9 +158,7 @@ if (mio_htre_getcontentlen(req) > 0)
 			}
 			else
 			{
-
 				task = MIO_NULL;
-
 
 				if ((rsrc.flags & MIO_HTTPD_RSRC_100_CONTINUE) &&
 				    (task = mio_htts_entaskcontinue(htts, client, task, req)) == MIO_NULL) 
@@ -195,7 +193,7 @@ return 0;
 		{
 			MIO_DEBUG1 (htts->mio, "Switching HTRD to DUMMY for [%hs]\n", mio_htre_getqpath(req));
 
-			/* Switch the http read to a dummy mode so that the subsqeuent
+			/* Switch the http reader to a dummy mode so that the subsqeuent
 			 * input(request) is just treated as data to the request just 
 			 * completed */
 			mio_htrd_dummify (csckxtn->c.htrd);
@@ -337,6 +335,49 @@ printf ("** HTTS - client read   %p  %d -> htts:%p\n", sck, (int)len, sckxtn->ht
 
 static int client_on_write (mio_dev_sck_t* sck, mio_iolen_t wrlen, void* wrctx, const mio_skad_t* dstaddr)
 {
+#if 0
+	mio_htts_rsrc_t* rsrc = (mio_htts_rsrc_t*)wrctx;
+
+
+	switch  (rsrc->type)
+	{
+		case MIO_HTTS_RSRC_FILE:
+		{
+			int fd = ((mio_htts_rsrc_file_t*)rsrc)->fd;
+			ssize_t n;
+
+			n = read(fd, buf, sizeof(buf));
+			if (n <= -1)
+			{
+				/* TODO: free the resource */
+			}
+			else if (n == 0)
+			{
+				close (((mio_htts_rsrc_file_t*)rsrc)->fd);
+				/* TODO: free the resource */
+			}
+			else
+			{
+				if (mio_dev_sck_write(sck, buf, n, rsrc, MIO_NULL) <= -1)
+				{
+					mio_dev_sck_halt (sck);
+					/* TODO: free the resource */
+				}
+			}
+
+			break;
+		}
+
+		/* case MIO_HTTS_RSRC_CGI:
+		{
+			break;
+		}*/
+
+		default:
+			break;
+	}
+#endif
+
 	return 0;
 }
 
@@ -550,6 +591,36 @@ int mio_svc_htts_setservernamewithbcstr (mio_svc_htts_t* htts, const mio_bch_t* 
 	return 0;
 }
 
+void mio_svc_htts_sendfile (mio_svc_htts_t* htts, mio_dev_sck_t* csck, const mio_bch_t* file_path, mio_http_method_t method, const mio_http_version_t* version, int keepalive)
+{
+	mio_t* mio = htts->mio;
+	int fd;
+
+	mio_bch_t buf[4196];
+	ssize_t n;
+
+	fd = open(file_path, O_RDONLY, 0);
+	if (fd <= -1)
+	{
+		/* TODO: write error status */
+		return;
+	}
+
+	n = read(fd, buf, MIO_SIZEOF(buf));
+	if (n <= -1)
+	{
+		/* TODO: write error status */
+		close (fd);
+		return 0;
+	}
+
+	/* TODO: timed write or arrange a callback */
+	if (mio_dev_sck_write(csck, buf, n, MIO_NULL, MIO_NULL) <= -1)
+	{
+		mio_dev_sck_halt (csck);
+	}
+}
+
 void mio_svc_htts_sendstatus (mio_svc_htts_t* htts, mio_dev_sck_t* csck, int status_code, mio_http_method_t method, const mio_http_version_t* version, int keepalive, void* extra)
 {
 	sck_xtn_t* csckxtn = mio_dev_sck_getxtn(csck);
@@ -559,7 +630,6 @@ void mio_svc_htts_sendstatus (mio_svc_htts_t* htts, mio_dev_sck_t* csck, int sta
 	const mio_bch_t* extrapre = ""; 
 	const mio_bch_t* extrapst = "";
 	const mio_bch_t* extraval = "";
-
 
 	text[0] = '\0';
 
@@ -621,14 +691,18 @@ void mio_svc_htts_sendstatus (mio_svc_htts_t* htts, mio_dev_sck_t* csck, int sta
 		extrapre, extraval, extraval, text
 	);
 
+/* TODO: use timedwrite? */
 	if (mio_dev_sck_write(csck, MIO_BECS_PTR(csckxtn->c.sbuf), MIO_BECS_LEN(csckxtn->c.sbuf), MIO_NULL, MIO_NULL) <= -1)
 	{
 		mio_dev_sck_halt (csck);
 	}
-
-	if (!keepalive)
+	else if (!keepalive)
 	{
-		mio_dev_sck_write(csck, MIO_NULL, 0, MIO_NULL, MIO_NULL); /* arrange to close the writing end */
+		/* arrange to close the writing end */
+		if (mio_dev_sck_write(csck, MIO_NULL, 0, MIO_NULL, MIO_NULL) <= -1) 
+		{
+			mio_dev_sck_halt (csck);
+		}
 	}
 }
 

@@ -261,6 +261,16 @@ MIO_EXPORT void mio_svc_htts_stop (
 MIO_EXPORT int mio_svc_htts_setservernamewithbcstr (
 	mio_svc_htts_t*  htts,
 	const mio_bch_t* server_name
+
+);
+
+MIO_EXPORT void mio_svc_htts_sendfile (
+	mio_svc_htts_t*           htts,
+	mio_dev_sck_t*            csck,
+	const mio_bch_t*          file_path,
+	mio_http_method_t         method,
+	const mio_http_version_t* version,
+	int                       keepalive
 );
 
 MIO_EXPORT void mio_svc_htts_sendstatus (
