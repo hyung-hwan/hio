@@ -179,6 +179,7 @@ void mio_fini (mio_t* mio)
 		}
 	}
 
+	/* kill services before killing devices */
 	while (!MIO_SVCL_IS_EMPTY(&mio->actsvc))
 	{
 		mio_svc_t* svc;
@@ -751,7 +752,6 @@ static int kill_and_free_device (mio_dev_t* dev, int force)
 	MIO_ASSERT (mio, !(dev->dev_cap & MIO_DEV_CAP_ACTIVE));
 	MIO_ASSERT (mio, !(dev->dev_cap & MIO_DEV_CAP_HALTED));
 
-
 	if (dev->dev_mth->kill(dev, force) <= -1) 
 	{
 		if (force >= 2) goto free_device;
@@ -909,6 +909,8 @@ void mio_dev_halt (mio_dev_t* dev)
 
 	if (dev->dev_cap & MIO_DEV_CAP_ACTIVE)
 	{
+		MIO_DEBUG1 (mio, "HALTING DEVICE %p\n", dev);
+
 		/* delink the device object from the active device list */
 		MIO_DEVL_UNLINK_DEV (dev);
 		dev->dev_cap &= ~MIO_DEV_CAP_ACTIVE;
@@ -1160,6 +1162,11 @@ static int __dev_write (mio_dev_t* dev, const void* data, mio_iolen_t len, const
 			}
 			else 
 			{
+				/* the write callback should return at most the number of requested
+				 * bytes. but returning more is harmless as urem is of a signed type.
+				 * for a zero-length request, it's necessary to return at least 1
+				 * to indicate successful acknowlegement. otherwise, it gets enqueued
+				 * as shown in the 'if' block right above. */
 				urem -= ulen;
 				uptr += ulen;
 			}

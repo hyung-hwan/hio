@@ -360,7 +360,6 @@ struct mio_dev_t
 	(dev)->dev_next->dev_prev = (dev)->dev_prev; \
 } while (0)
 
-
 #define MIO_DEVL_INIT(lh) ((lh)->dev_next = (lh)->dev_prev = lh)
 #define MIO_DEVL_FIRST_DEV(lh) ((lh)->dev_next)
 #define MIO_DEVL_LAST_DEV(lh) ((lh)->dev_prev)

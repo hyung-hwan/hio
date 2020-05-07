@@ -221,6 +221,8 @@ typedef enum mio_dev_sck_ioctl_cmd_t mio_dev_sck_ioctl_cmd_t;
 } while(0)
 
 #define MIO_DEV_SCK_GET_PROGRESS(dev) ((dev)->state & MIO_DEV_SCK_ALL_PROGRESS_BITS)
+#define MIO_DEV_SCK_GET_TOLERANT(dev) ((dev)->state & MIO_DEV_SCK_
+
 
 enum mio_dev_sck_state_t
 {
@@ -233,8 +235,8 @@ enum mio_dev_sck_state_t
 	MIO_DEV_SCK_ACCEPTED       = (1 << 5),
 
 	/* the following items can be bitwise-ORed with an exclusive item above */
+	MIO_DEV_SCK_LENIENT        = (1 << 14),
 	MIO_DEV_SCK_INTERCEPTED    = (1 << 15),
-
 
 	/* convenience bit masks */
 	MIO_DEV_SCK_ALL_PROGRESS_BITS = (MIO_DEV_SCK_CONNECTING |
@@ -313,6 +315,7 @@ enum mio_dev_sck_bind_option_t
 /* TODO: more options --- SO_RCVBUF, SO_SNDBUF, SO_RCVTIMEO, SO_SNDTIMEO, SO_KEEPALIVE */
 /*   BINDTODEVICE??? */
 
+	MIO_DEV_SCK_BIND_LENIENT     = (1 << 14), /* for now, accept failure doesn't affect the listing socket if this is set */
 	MIO_DEV_SCK_BIND_SSL         = (1 << 15)
 };
 typedef enum mio_dev_sck_bind_option_t mio_dev_sck_bind_option_t;
@@ -320,18 +323,18 @@ typedef enum mio_dev_sck_bind_option_t mio_dev_sck_bind_option_t;
 typedef struct mio_dev_sck_bind_t mio_dev_sck_bind_t;
 struct mio_dev_sck_bind_t
 {
-	int options;
+	int options; /** 0 or bitwise-OR'ed of mio_dev_sck_bind_option_t enumerators */
 	mio_skad_t localaddr;
 	/* TODO: add device name for BIND_TO_DEVICE */
 
 	const mio_bch_t* ssl_certfile;
 	const mio_bch_t* ssl_keyfile;
-	mio_ntime_t accept_tmout;
+	mio_ntime_t ssl_accept_tmout;
 };
 
 enum mio_dev_sck_connect_option_t
 {
-	MIO_DEV_SCK_CONNECT_SSL = (1 << 15)
+	MIO_DEV_SCK_CONNECT_SSL         = (1 << 15)
 };
 typedef enum mio_dev_sck_connect_option_t mio_dev_sck_connect_option_t;
 
@@ -347,14 +350,6 @@ typedef struct mio_dev_sck_listen_t mio_dev_sck_listen_t;
 struct mio_dev_sck_listen_t
 {
 	int backlogs;
-};
-
-typedef struct mio_dev_sck_accept_t mio_dev_sck_accept_t;
-struct mio_dev_sck_accept_t
-{
-	mio_syshnd_t  sck;
-/* TODO: add timeout */
-	mio_skad_t remoteaddr;
 };
 
 struct mio_dev_sck_t

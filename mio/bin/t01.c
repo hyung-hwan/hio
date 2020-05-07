@@ -76,18 +76,31 @@ printf ("CRITICAL ERROR ---> too many heap chunks...\n");
 	}
 
 	x = malloc (size);
-	if (x) ((mmgr_stat_t*)mmgr->ctx)->total_count++;
+	if (x)
+	{
+		((mmgr_stat_t*)mmgr->ctx)->total_count++;
+		/*printf ("MMGR total_count INCed to %d => %p\n", ((mmgr_stat_t*)mmgr->ctx)->total_count, x);*/
+	}
 	return x;
 }
 
 static void* mmgr_realloc (mio_mmgr_t* mmgr, void* ptr, mio_oow_t size)
 {
-	return realloc (ptr, size);
+	void* x;
+
+	x = realloc (ptr, size);
+	if (x && !ptr) 
+	{
+		((mmgr_stat_t*)mmgr->ctx)->total_count++;
+		/*printf ("MMGR total_count INCed to %d => %p\n", ((mmgr_stat_t*)mmgr->ctx)->total_count, x);*/
+	}
+	return x;
 }
 
 static void mmgr_free (mio_mmgr_t* mmgr, void* ptr)
 {
 	((mmgr_stat_t*)mmgr->ctx)->total_count--;
+	/*printf ("MMGR total_count DECed to %d => %p\n", ((mmgr_stat_t*)mmgr->ctx)->total_count, ptr);*/
 	return free (ptr);
 }
 
@@ -889,8 +902,8 @@ int main (int argc, char* argv[])
 	tcp_bind.options |= MIO_DEV_SCK_BIND_SSL; 
 	tcp_bind.ssl_certfile = "localhost.crt";
 	tcp_bind.ssl_keyfile = "localhost.key";
+	MIO_INIT_NTIME (&tcp_bind.ssl_accept_tmout, 5, 1);
 #endif
-	MIO_INIT_NTIME (&tcp_bind.accept_tmout, 5, 1);
 
 	if (mio_dev_sck_bind(tcp[2], &tcp_bind) <= -1)
 	{

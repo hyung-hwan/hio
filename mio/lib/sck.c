@@ -517,14 +517,17 @@ static int dev_sck_write_stateful (mio_dev_t* dev, const void* data, mio_iolen_t
 
 		if (*len <= 0)
 		{
-			/* it's a writing finish indicator. close the writing end of
-			 * the socket, probably leaving it in the half-closed state */
+			/* the write handler for a stream device must handle a zero-length 
+			 * writing request specially. it's a writing finish indicator. close
+			 * the writing end of the socket, probably leaving it in the half-closed state */
 			if (shutdown(rdev->sck, SHUT_WR) == -1)
 			{
 				mio_seterrwithsyserr (mio, 0, errno);
 				return -1;
 			}
 
+			/* it must return a non-zero positive value. if it returns 0, this request 
+			 * gets enqueued by the core. we must aovid it */
 			return 1;
 		}
 
@@ -658,14 +661,13 @@ static int dev_sck_write_stateless (mio_dev_t* dev, const void* data, mio_iolen_
 	return 1;
 }
 
-
 static int dev_sck_writev_stateless (mio_dev_t* dev, const mio_iovec_t* iov, mio_iolen_t* iovcnt, const mio_devaddr_t* dstaddr)
 {
 	mio_t* mio = dev->mio;
 	mio_dev_sck_t* rdev = (mio_dev_sck_t*)dev;
 	struct msghdr msg;
 	ssize_t x;
-	
+
 	MIO_MEMSET (&msg, 0, MIO_SIZEOF(msg));
 	if (MIO_LIKELY(dstaddr))
 	{
@@ -900,7 +902,7 @@ static int dev_sck_ioctl (mio_dev_t* dev, int cmd, void* arg)
 
 				SSL_CTX_set_options(ssl_ctx, SSL_OP_NO_SSLv2); /* no outdated SSLv2 by default */
 
-				rdev->tmout = bnd->accept_tmout;
+				rdev->tmout = bnd->ssl_accept_tmout;
 			#else
 				mio_seterrnum (mio, MIO_ENOIMPL);
 				return -1;
@@ -923,6 +925,7 @@ static int dev_sck_ioctl (mio_dev_t* dev, int cmd, void* arg)
 			rdev->ssl_ctx = ssl_ctx;
 		#endif
 
+			if (bnd->options & MIO_DEV_SCK_BIND_LENIENT) rdev->state |= MIO_DEV_SCK_LENIENT;
 			return 0;
 		}
 
@@ -931,7 +934,6 @@ static int dev_sck_ioctl (mio_dev_t* dev, int cmd, void* arg)
 			mio_dev_sck_connect_t* conn = (mio_dev_sck_connect_t*)arg;
 			struct sockaddr* sa = (struct sockaddr*)&conn->remoteaddr;
 			mio_scklen_t sl;
-			mio_skad_t localaddr;
 			int x;
 		#if defined(USE_SSL)
 			SSL_CTX* ssl_ctx = MIO_NULL;
@@ -1488,7 +1490,16 @@ static int dev_evcb_sck_ready_stateful (mio_dev_t* dev, int events)
 			}
 			else if (events & MIO_DEV_EVENT_IN)
 			{
-				return accept_incoming_connection(rdev);
+				if (rdev->state & MIO_DEV_SCK_LENIENT)
+				{
+					accept_incoming_connection(rdev);
+					return 0; /* return ok to the core regardless of accept()'s result */
+				}
+				else
+				{
+					/* [NOTE] if the accept operation fails, the core also kills this listening device. */
+					return accept_incoming_connection(rdev);
+				}
 			}
 			else
 			{

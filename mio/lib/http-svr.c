@@ -344,6 +344,8 @@ static void client_on_disconnect (mio_dev_sck_t* sck)
 	sck_xtn_t* sckxtn = mio_dev_sck_getxtn(sck);
 printf ("** HTTS - client disconnect  %p\n", sck);
 	fini_client (sck->mio, &sckxtn->c);
+
+	/* TODO: remove it from the list of clients */
 }
 
 /* ------------------------------------------------------------------------ */
@@ -410,15 +412,15 @@ static void listener_on_disconnect (mio_dev_sck_t* sck)
 			break;
 
 		case MIO_DEV_SCK_ACCEPTING_SSL:
-			MIO_INFO1 (sck->mio, "INCOMING SSL-ACCEPT GOT DISCONNECTED(%d) ....\n", (int)sck->sck);
+			MIO_INFO1 (sck->mio, "LISTENER INCOMING SSL-ACCEPT GOT DISCONNECTED(%d) ....\n", (int)sck->sck);
 			break;
 
 		case MIO_DEV_SCK_ACCEPTED:
-			MIO_INFO1 (sck->mio, "INCOMING CLIENT BEING SERVED GOT DISCONNECTED(%d).......\n", (int)sck->sck);
+			MIO_INFO1 (sck->mio, "LISTENER INCOMING CLIENT BEING SERVED GOT DISCONNECTED(%d).......\n", (int)sck->sck);
 			break;
 
 		default:
-			MIO_INFO1 (sck->mio, "DISCONNECTED AFTER ALL(%d).......\n", (int)sck->sck);
+			MIO_INFO1 (sck->mio, "LISTENER DISCONNECTED AFTER ALL(%d).......\n", (int)sck->sck);
 			break;
 	}
 
@@ -427,6 +429,8 @@ static void listener_on_disconnect (mio_dev_sck_t* sck)
 	 * for a listener socket, these fields must be NULL */
 	MIO_ASSERT (sck->mio, sckxtn->c.htrd == MIO_NULL);
 	MIO_ASSERT (sck->mio, sckxtn->c.sbuf == MIO_NULL);
+
+	sckxtn->htts->lsck = MIO_NULL; /* let the htts service forget about this listening socket */
 }
 
 
@@ -478,8 +482,8 @@ mio_svc_htts_t* mio_svc_htts_start (mio_t* mio, const mio_skad_t* bind_addr)
 
 	MIO_MEMSET (&info, 0, MIO_SIZEOF(info));
 	info.b.localaddr = *bind_addr;
-	info.b.options = MIO_DEV_SCK_BIND_REUSEADDR | MIO_DEV_SCK_BIND_REUSEPORT;
-	MIO_INIT_NTIME (&info.b.accept_tmout, 5, 1);
+	info.b.options = MIO_DEV_SCK_BIND_REUSEADDR | MIO_DEV_SCK_BIND_REUSEPORT | MIO_DEV_SCK_BIND_LENIENT;
+	/*MIO_INIT_NTIME (&info.b.ssl_accept_tmout, 5, 1);*/
 	if (mio_dev_sck_bind(htts->lsck, &info.b) <= -1) goto oops;
 
 	info.l.backlogs = 255;
