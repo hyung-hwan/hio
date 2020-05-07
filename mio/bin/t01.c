@@ -902,7 +902,6 @@ int main (int argc, char* argv[])
 	tcp_bind.options |= MIO_DEV_SCK_BIND_SSL; 
 	tcp_bind.ssl_certfile = "localhost.crt";
 	tcp_bind.ssl_keyfile = "localhost.key";
-	MIO_INIT_NTIME (&tcp_bind.ssl_accept_tmout, 5, 1);
 #endif
 
 	if (mio_dev_sck_bind(tcp[2], &tcp_bind) <= -1)
@@ -912,6 +911,7 @@ int main (int argc, char* argv[])
 	}
 
 	tcp_lstn.backlogs = 100;
+	MIO_INIT_NTIME (&tcp_lstn.accept_tmout, 5, 1);
 	if (mio_dev_sck_listen(tcp[2], &tcp_lstn) <= -1)
 	{
 		MIO_INFO1 (mio, "tcp[2] mio_dev_sck_listen() failed - %js\n", mio_geterrmsg(mio));
@@ -977,7 +977,7 @@ for (i = 0; i < 5; i++)
 
 	dnc = mio_svc_dnc_start(mio, &servaddr, MIO_NULL, &send_tmout, &reply_tmout, 2); /* option - send to all, send one by one */
 	htts = mio_svc_htts_start(mio, &htts_bind_addr);
-
+	mio_svc_htts_setservernamewithbcstr (htts, "MIO-HTTP");
 #if 1
 	{
 		mio_dns_bqr_t qrs[] = 

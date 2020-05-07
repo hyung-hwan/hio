@@ -901,8 +901,6 @@ static int dev_sck_ioctl (mio_dev_t* dev, int cmd, void* arg)
 				                           SSL_MODE_ACCEPT_MOVING_WRITE_BUFFER);
 
 				SSL_CTX_set_options(ssl_ctx, SSL_OP_NO_SSLv2); /* no outdated SSLv2 by default */
-
-				rdev->tmout = bnd->ssl_accept_tmout;
 			#else
 				mio_seterrnum (mio, MIO_ENOIMPL);
 				return -1;
@@ -925,7 +923,6 @@ static int dev_sck_ioctl (mio_dev_t* dev, int cmd, void* arg)
 			rdev->ssl_ctx = ssl_ctx;
 		#endif
 
-			if (bnd->options & MIO_DEV_SCK_BIND_LENIENT) rdev->state |= MIO_DEV_SCK_LENIENT;
 			return 0;
 		}
 
@@ -1092,12 +1089,15 @@ fcntl (rdev->sck, F_SETFL, flags | O_NONBLOCK);
 				return -1;
 			}
 
-			x = listen (rdev->sck, lstn->backlogs);
+			x = listen(rdev->sck, lstn->backlogs);
 			if (x == -1) 
 			{
 				mio_seterrwithsyserr (mio, 0, errno);
 				return -1;
 			}
+
+			rdev->tmout = lstn->accept_tmout;
+			if (lstn->options & MIO_DEV_SCK_LISTEN_LENIENT) rdev->state |= MIO_DEV_SCK_LENIENT;
 
 			MIO_DEV_SCK_SET_PROGRESS (rdev, MIO_DEV_SCK_LISTENING);
 			return 0;
@@ -1150,7 +1150,6 @@ static int harvest_outgoing_connection (mio_dev_sck_t* rdev)
 	mio_t* mio = rdev->mio;
 	int errcode;
 	mio_scklen_t len;
-	
 
 	MIO_ASSERT (mio, !(rdev->state & MIO_DEV_SCK_CONNECTED));
 
@@ -1283,7 +1282,6 @@ static int accept_incoming_connection (mio_dev_sck_t* rdev)
 		mio_seterrwithsyserr (mio, 0, errno);
 		return -1;
 	}
-
 
 accept_done:
 	/* use rdev->dev_size when instantiating a client sck device

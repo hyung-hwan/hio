@@ -7,13 +7,14 @@ struct mio_svc_htts_t
 	MIO_SVC_HEADER;
 
 	mio_dev_sck_t* lsck;
+	mio_bch_t* server_name;
+	mio_bch_t server_name_buf[64];
 };
 
 struct mio_svc_httc_t
 {
 	MIO_SVC_HEADER;
 };
-
 
 struct mio_htts_client_t
 {
@@ -396,34 +397,38 @@ static void listener_on_disconnect (mio_dev_sck_t* sck)
 	switch (MIO_DEV_SCK_GET_PROGRESS(sck))
 	{
 		case MIO_DEV_SCK_CONNECTING:
+			/* only for connecting sockets */
 			MIO_INFO1 (sck->mio, "OUTGOING SESSION DISCONNECTED - FAILED TO CONNECT (%d) TO REMOTE SERVER\n", (int)sck->sck);
 			break;
 
 		case MIO_DEV_SCK_CONNECTING_SSL:
+			/* only for connecting sockets */
 			MIO_INFO1 (sck->mio, "OUTGOING SESSION DISCONNECTED - FAILED TO SSL-CONNECT (%d) TO REMOTE SERVER\n", (int)sck->sck);
 			break;
 
-		case MIO_DEV_SCK_LISTENING:
-			MIO_INFO1 (sck->mio, "SHUTTING DOWN THE SERVER SOCKET(%d)...\n", (int)sck->sck);
+		case MIO_DEV_SCK_CONNECTED:
+			/* only for connecting sockets */
+			MIO_INFO1 (sck->mio, "OUTGOING CLIENT CONNECTION GOT TORN DOWN %p(%d).......\n", (int)sck->sck);
 			break;
 
-		case MIO_DEV_SCK_CONNECTED:
-			MIO_INFO1 (sck->mio, "OUTGOING CLIENT CONNECTION GOT TORN DOWN(%d).......\n", (int)sck->sck);
+		case MIO_DEV_SCK_LISTENING:
+			MIO_INFO2 (sck->mio, "LISTNER SOCKET %p(%d) - SHUTTUING DOWN\n", sck, (int)sck->sck);
 			break;
 
 		case MIO_DEV_SCK_ACCEPTING_SSL:
-			MIO_INFO1 (sck->mio, "LISTENER INCOMING SSL-ACCEPT GOT DISCONNECTED(%d) ....\n", (int)sck->sck);
+			MIO_INFO2 (sck->mio, "LISTENER INCOMING SSL-ACCEPT GOT DISCONNECTED %p(%d) ....\n", sck, (int)sck->sck);
 			break;
 
 		case MIO_DEV_SCK_ACCEPTED:
-			MIO_INFO1 (sck->mio, "LISTENER INCOMING CLIENT BEING SERVED GOT DISCONNECTED(%d).......\n", (int)sck->sck);
+			/* only for sockets accepted by the listeners. will never come here because
+			 * the disconnect call for such sockets have been changed in listener_on_connect() */
+			MIO_INFO2 (sck->mio, "ACCEPTED SOCKET %p(%d) GOT DISCONNECTED.......\n", sck, (int)sck->sck);
 			break;
 
 		default:
-			MIO_INFO1 (sck->mio, "LISTENER DISCONNECTED AFTER ALL(%d).......\n", (int)sck->sck);
+			MIO_INFO2 (sck->mio, "SOCKET %p(%d) DISCONNECTED AFTER ALL.......\n", sck, (int)sck->sck);
 			break;
 	}
-
 
 	/* the client sockets are finalized in clinet_on_disconnect().
 	 * for a listener socket, these fields must be NULL */
@@ -482,15 +487,22 @@ mio_svc_htts_t* mio_svc_htts_start (mio_t* mio, const mio_skad_t* bind_addr)
 
 	MIO_MEMSET (&info, 0, MIO_SIZEOF(info));
 	info.b.localaddr = *bind_addr;
-	info.b.options = MIO_DEV_SCK_BIND_REUSEADDR | MIO_DEV_SCK_BIND_REUSEPORT | MIO_DEV_SCK_BIND_LENIENT;
-	/*MIO_INIT_NTIME (&info.b.ssl_accept_tmout, 5, 1);*/
+	info.b.options = MIO_DEV_SCK_BIND_REUSEADDR | MIO_DEV_SCK_BIND_REUSEPORT;
 	if (mio_dev_sck_bind(htts->lsck, &info.b) <= -1) goto oops;
 
+	MIO_MEMSET (&info, 0, MIO_SIZEOF(info));
+	info.l.options = MIO_DEV_SCK_LISTEN_LENIENT;
 	info.l.backlogs = 255;
+	MIO_INIT_NTIME (&info.l.accept_tmout, 5, 1);
 	if (mio_dev_sck_listen(htts->lsck, &info.l) <= -1) goto oops;
 
-printf ("** HTTS LISTENER SOCKET %p\n", htts->lsck);
+	mio_fmttobcstr (htts->mio, htts->server_name_buf, MIO_COUNTOF(htts->server_name_buf), "%s-%d.%d.%d", 
+		MIO_PACKAGE_NAME, (int)MIO_PACKAGE_VERSION_MAJOR, (int)MIO_PACKAGE_VERSION_MINOR, (int)MIO_PACKAGE_VERSION_PATCH);
+	htts->server_name = htts->server_name_buf;
+
 	MIO_SVCL_APPEND_SVC (&mio->actsvc, (mio_svc_t*)htts);
+
+	MIO_DEBUG3 (mio, "STARTED SVC(HTTS) LISTENER %p LISTENER SOCKET %p(%d)\n", htts, htts->lsck, (int)htts->lsck->sck);
 	return htts;
 
 oops:
@@ -506,14 +518,37 @@ void mio_svc_htts_stop (mio_svc_htts_t* htts)
 {
 	mio_t* mio = htts->mio;
 
+	MIO_DEBUG3 (mio, "STOPPING SVC(HTTS) %p LISTENER SOCKET %p(%d)\n", htts, htts->lsck, (int)(htts->lsck? htts->lsck->sck: -1));
+
+	/* htts->lsck may be null if the socket has been destroyed for operational error and 
+	 * forgotten in the disconnect callback thereafter */
 	if (htts->lsck) mio_dev_sck_kill (htts->lsck);
-	/*if (dnc->lsck) mio_dev_sck_kill (dnc->lsck);
-	while (dnc->pending_req) release_dns_msg (dnc, dnc->pending_req);*/
+
+	if (htts->server_name && htts->server_name != htts->server_name_buf) mio_freemem (mio, htts->server_name);
 
 	MIO_SVCL_UNLINK_SVC (htts);
 	mio_freemem (mio, htts);
 }
 
+int mio_svc_htts_setservernamewithbcstr (mio_svc_htts_t* htts, const mio_bch_t* name)
+{
+	mio_t* mio = htts->mio;
+	mio_bch_t* tmp;
+
+	if (mio_copy_bcstr(htts->server_name_buf, MIO_COUNTOF(htts->server_name_buf), name) == mio_count_bcstr(name))
+	{
+		tmp = htts->server_name_buf;
+	}
+	else
+	{
+		tmp = mio_dupbcstr(mio, name, MIO_NULL);
+		if (!tmp) return -1;
+	}
+
+	if (htts->server_name && htts->server_name != htts->server_name_buf) mio_freemem (mio, htts->server_name);
+	htts->server_name = tmp;
+	return 0;
+}
 
 void mio_svc_htts_sendstatus (mio_svc_htts_t* htts, mio_dev_sck_t* csck, int status_code, mio_http_method_t method, const mio_http_version_t* version, int keepalive, void* extra)
 {
@@ -579,7 +614,7 @@ void mio_svc_htts_sendstatus (mio_svc_htts_t* htts, mio_dev_sck_t* csck, int sta
 
 	mio_becs_fmt (csckxtn->c.sbuf, "HTTP/%d.%d %d %s\r\nServer: %s\r\nDate: %s\r\nConnection: %s\r\nContent-Type: text/html\r\nContent-Length: %u\r\n%s%s%s\r\n%s",
 		version->major, version->minor, status_code, mio_http_status_to_bcstr(status_code), 
-		"SERVER-NAME", /* TODO: use actual name mio_svc_htts_getservername(). */
+		htts->server_name,
 		dtbuf, /* DATE */
 		(keepalive? "keep-alive": "close"), /* connection */
 		mio_count_bcstr(text), /* content length */
@@ -596,7 +631,6 @@ void mio_svc_htts_sendstatus (mio_svc_htts_t* htts, mio_dev_sck_t* csck, int sta
 		mio_dev_sck_write(csck, MIO_NULL, 0, MIO_NULL, MIO_NULL); /* arrange to close the writing end */
 	}
 }
-
 
 void mio_svc_htts_fmtgmtime (mio_svc_htts_t* htts, const mio_ntime_t* nt, mio_bch_t* buf, mio_oow_t len)
 {
