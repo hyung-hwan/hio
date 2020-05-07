@@ -297,7 +297,7 @@ static int on_tcp_read (mio_dev_sck_t* dev, const void* data, mio_iolen_t dlen, 
 	return 0;
 
 oops:
-	mio_dev_sck_halt(dev);
+	mio_dev_sck_halt (dev);
 	return 0;
 }
 
