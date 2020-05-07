@@ -315,7 +315,6 @@ enum mio_dev_sck_bind_option_t
 /* TODO: more options --- SO_RCVBUF, SO_SNDBUF, SO_RCVTIMEO, SO_SNDTIMEO, SO_KEEPALIVE */
 /*   BINDTODEVICE??? */
 
-	MIO_DEV_SCK_BIND_LENIENT     = (1 << 14), /* for now, accept failure doesn't affect the listing socket if this is set */
 	MIO_DEV_SCK_BIND_SSL         = (1 << 15)
 };
 typedef enum mio_dev_sck_bind_option_t mio_dev_sck_bind_option_t;
@@ -329,7 +328,6 @@ struct mio_dev_sck_bind_t
 
 	const mio_bch_t* ssl_certfile;
 	const mio_bch_t* ssl_keyfile;
-	mio_ntime_t ssl_accept_tmout;
 };
 
 enum mio_dev_sck_connect_option_t
@@ -346,10 +344,18 @@ struct mio_dev_sck_connect_t
 	mio_ntime_t connect_tmout;
 };
 
+enum mio_dev_sck_listen_option_t
+{
+	MIO_DEV_SCK_LISTEN_LENIENT     = (1 << 0) /* for now, accept failure doesn't affect the listing socket if this is set */
+};
+typedef enum mio_dev_sck_listen_option_t mio_dev_sck_listen_option_t;
+
 typedef struct mio_dev_sck_listen_t mio_dev_sck_listen_t;
 struct mio_dev_sck_listen_t
 {
+	int options;
 	int backlogs;
+	mio_ntime_t accept_tmout;
 };
 
 struct mio_dev_sck_t
