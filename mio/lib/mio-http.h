@@ -159,6 +159,42 @@ typedef enum mio_perenc_http_opt_t mio_perenc_bcstr_opt_t;
 typedef struct mio_svc_htts_t mio_svc_htts_t;
 typedef struct mio_svc_httc_t mio_svc_httc_t;
 
+/* -------------------------------------------------------------- */
+
+typedef struct mio_svc_htts_rsrc_t mio_svc_htts_rsrc_t;
+typedef mio_uint64_t mio_foff_t ; /* TODO: define this via the main configure.ac ... */
+
+typedef int (*mio_svc_htts_rsrc_on_write_t) (
+	mio_svc_htts_rsrc_t* rsrc,
+	mio_dev_sck_t*       sck
+);
+
+typedef void (*mio_svc_htts_rsrc_on_kill_t) (
+	mio_svc_htts_rsrc_t* rsrc
+);
+
+enum mio_svc_htts_rsrc_flag_t
+{
+	MIO_SVC_HTTS_RSRC_FLAG_CONTENT_LENGTH_SET = (1 << 0)
+};
+typedef enum mio_svc_htts_rsrc_flag_t mio_svc_htts_rsrc_flag_t;
+
+struct mio_svc_htts_rsrc_t
+{
+	mio_svc_htts_t* htts;
+//	mio_svc_htts_rsrc_t* rsrc_prev;
+//	mio_svc_htts_rsrc_t* rsrc_next;
+
+	int flags;
+	mio_bch_t* content_type;
+	mio_foff_t content_length;
+
+	mio_svc_htts_rsrc_on_write_t on_write;
+	mio_svc_htts_rsrc_on_kill_t on_kill;
+};
+
+/* -------------------------------------------------------------- */
+
 #if defined(__cplusplus)
 extern "C" {
 #endif
@@ -264,16 +300,17 @@ MIO_EXPORT int mio_svc_htts_setservernamewithbcstr (
 
 );
 
-MIO_EXPORT void mio_svc_htts_sendfile (
+MIO_EXPORT int mio_svc_htts_sendfile (
 	mio_svc_htts_t*           htts,
 	mio_dev_sck_t*            csck,
 	const mio_bch_t*          file_path,
+	int                       status_code,
 	mio_http_method_t         method,
 	const mio_http_version_t* version,
 	int                       keepalive
 );
 
-MIO_EXPORT void mio_svc_htts_sendstatus (
+MIO_EXPORT int mio_svc_htts_sendstatus (
 	mio_svc_htts_t*           htts,
 	mio_dev_sck_t*            csck,
 	int                       status_code,

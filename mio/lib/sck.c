@@ -1175,7 +1175,7 @@ static int harvest_outgoing_connection (mio_dev_sck_t* rdev)
 		addrlen = MIO_SIZEOF(localaddr);
 		if (getsockname(rdev->sck, (struct sockaddr*)&localaddr, &addrlen) == 0) rdev->localaddr = localaddr;
 
-		if (mio_dev_watch((mio_dev_t*)rdev, MIO_DEV_WATCH_RENEW, 0) <= -1) 
+		if (mio_dev_watch((mio_dev_t*)rdev, MIO_DEV_WATCH_RENEW, MIO_DEV_EVENT_IN) <= -1) 
 		{
 			/* watcher update failure. it's critical */
 			mio_stop (mio, MIO_STOPREQ_WATCHER_ERROR);

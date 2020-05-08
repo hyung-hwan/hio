@@ -1451,7 +1451,7 @@ XXXXXXXX
 						 * of the next request. */
 						int n;
 						htrd->errnum = MIO_HTRD_ENOERR;	
-						n = htrd->recbs->peek (htrd, &htrd->re);
+						n = htrd->recbs->peek(htrd, &htrd->re);
 						if (n <= -1)
 						{
 							if (htrd->errnum == MIO_HTRD_ENOERR)
@@ -1468,7 +1468,7 @@ XXXXXXXX
 					{
 						int n;
 						htrd->errnum = MIO_HTRD_ENOERR;
-						n = htrd->recbs->poke (htrd, &htrd->re);
+						n = htrd->recbs->poke(htrd, &htrd->re);
 						if (n <= -1)
 						{
 							if (htrd->errnum == MIO_HTRD_ENOERR)
