@@ -397,7 +397,7 @@ enum mio_dev_watch_cmd_t
 {
 	MIO_DEV_WATCH_START,
 	MIO_DEV_WATCH_UPDATE,
-	MIO_DEV_WATCH_RENEW, /* automatic update */
+	MIO_DEV_WATCH_RENEW, /* automatic renewal */
 	MIO_DEV_WATCH_STOP
 };
 typedef enum mio_dev_watch_cmd_t mio_dev_watch_cmd_t;

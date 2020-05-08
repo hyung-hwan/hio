@@ -568,7 +568,7 @@ static MIO_INLINE void handle_event (mio_t* mio, mio_dev_t* dev, int events, int
 	}
 
 skip_evcb:
-	if (dev && (dev->dev_cap & MIO_DEV_CAP_RENEW_REQUIRED) && mio_dev_watch(dev, MIO_DEV_WATCH_RENEW, 0) <= -1)
+	if (dev && (dev->dev_cap & MIO_DEV_CAP_RENEW_REQUIRED) && mio_dev_watch(dev, MIO_DEV_WATCH_RENEW, MIO_DEV_EVENT_IN) <= -1)
 	{
 		mio_dev_halt (dev);
 		dev = MIO_NULL;
@@ -959,11 +959,15 @@ int mio_dev_watch (mio_dev_t* dev, mio_dev_watch_cmd_t cmd, int events)
 			break;
 
 		case MIO_DEV_WATCH_RENEW:
-			/* auto-renwal mode. input watching is requested all the time.
-			 * output watching is requested only if there're enqueued 
-			 * data for writing. */
-			events = MIO_DEV_EVENT_IN;
-			if (!MIO_WQ_IS_EMPTY(&dev->wq)) events |= MIO_DEV_EVENT_OUT;
+			/* auto-renwal mode. input watching is taken from the events make passed in.
+			 * output watching is requested only if there're enqueued data for writing.
+			 * if you want to enable input watching while renewing, call this function like this.
+			 *  mio_dev_wtach (dev, MIO_DEV_WATCH_RENEW, MIO_DEV_EVENT_IN);
+			 * if you want input whatching disabled while renewing, call this function like this. 
+			 *  mio_dev_wtach (dev, MIO_DEV_WATCH_RENEW, 0); */
+			if (MIO_WQ_IS_EMPTY(&dev->wq)) events &= ~MIO_DEV_EVENT_OUT;
+			else events |= MIO_DEV_EVENT_OUT;
+			
 			/* fall through */
 		case MIO_DEV_WATCH_UPDATE:
 			/* honor event watching requests as given by the caller */
@@ -1054,7 +1058,7 @@ static int __dev_read (mio_dev_t* dev, int enabled, const mio_ntime_t* tmout, vo
 	goto update_timer;
 
 renew_watch_now:
-	if (mio_dev_watch(dev, MIO_DEV_WATCH_RENEW, 0) <= -1) return -1;
+	if (mio_dev_watch(dev, MIO_DEV_WATCH_RENEW, MIO_DEV_EVENT_IN) <= -1) return -1;
 	goto update_timer;
 
 update_timer:
@@ -1259,7 +1263,7 @@ enqueue_data:
 	if (!(dev->dev_cap & MIO_DEV_CAP_OUT_WATCHED))
 	{
 		/* if output is not being watched, arrange to do so */
-		if (mio_dev_watch(dev, MIO_DEV_WATCH_RENEW, 0) <= -1)
+		if (mio_dev_watch(dev, MIO_DEV_WATCH_RENEW, MIO_DEV_EVENT_IN) <= -1)
 		{
 			unlink_wq (mio, q);
 			mio_freemem (mio, q);
@@ -1469,7 +1473,7 @@ enqueue_data:
 	if (!(dev->dev_cap & MIO_DEV_CAP_OUT_WATCHED))
 	{
 		/* if output is not being watched, arrange to do so */
-		if (mio_dev_watch(dev, MIO_DEV_WATCH_RENEW, 0) <= -1)
+		if (mio_dev_watch(dev, MIO_DEV_WATCH_RENEW, MIO_DEV_EVENT_IN) <= -1)
 		{
 			unlink_wq (mio, q);
 			mio_freemem (mio, q);
