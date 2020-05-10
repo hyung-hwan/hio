@@ -204,6 +204,13 @@ MIO_EXPORT int mio_comp_http_versions (
 	const mio_http_version_t* v2
 );
 
+MIO_EXPORT int mio_comp_http_version_numbers (
+	const mio_http_version_t* v1,
+	int                       v2_major,
+	int                       v2_minor
+);
+
+
 MIO_EXPORT const mio_bch_t* mio_http_status_to_bcstr (
 	int code
 );
@@ -325,6 +332,17 @@ MIO_EXPORT void mio_svc_htts_fmtgmtime (
 	const mio_ntime_t*        nt,
 	mio_bch_t*                buf,
 	mio_oow_t                 len
+);
+
+MIO_EXPORT mio_svc_htts_rsrc_t* mio_svc_htts_rsrc_make (
+	mio_svc_htts_t*              htts,
+	mio_svc_htts_rsrc_on_write_t on_write,
+	mio_svc_htts_rsrc_on_kill_t  on_kill,
+	mio_oow_t                    xtnsize
+);
+
+MIO_EXPORT void mio_svc_htts_rsrc_kill (
+	mio_svc_htts_rsrc_t*         rsrc
 );
 
 #if defined(__cplusplus)

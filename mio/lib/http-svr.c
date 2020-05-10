@@ -6,6 +6,7 @@
 #include <unistd.h> /* TODO: move file operations to sys-file.XXX */
 #include <fcntl.h>
 #include <sys/stat.h>
+#include <pthread.h>
 
 struct mio_svc_htts_t
 {
@@ -45,6 +46,21 @@ struct htrd_xtn_t
 };
 typedef struct htrd_xtn_t htrd_xtn_t;
 /* ------------------------------------------------------------------------ */
+
+static int test_func_handler (int rfd, int wfd)
+{
+	int i;
+
+	/* you can read the post data from rfd;
+	 * you can write result to wfd */
+	write (wfd, "Content-Type: text/plain\r\n\r\n", 28);
+	for (i = 0 ; i < 10; i++)
+	{
+		write (wfd, "hello\n", 6);
+		sleep (1);
+	}
+	return -1;
+}
 
 static int process_request (mio_svc_htts_t* htts, mio_dev_sck_t* csck, mio_htre_t* req, int peek)
 {
@@ -141,12 +157,34 @@ if (mio_htre_getcontentlen(req) > 0)
 			else
 			{
 /* TODO: handle 100 continue??? */
+				if ((req->flags & MIO_HTRE_ATTR_EXPECT) && 
+				    mio_comp_http_version_numbers(&req->version, 1, 1) >= 0 &&
+				    mio_htre_getcontentlen(req) <= 0)
+				{
+					if (req->flags & MIO_HTRE_ATTR_EXPECT100)
+					{
+						mio_dev_sck_write(csck, "HTTP/1.1 100 Continue\r\n", 23, MIO_NULL, MIO_NULL);
+					}
+					else
+					{
+					}
+				}
+
 				const mio_bch_t* qpath = mio_htre_getqpath(req);
-				if (mio_svc_htts_sendfile(htts, csck, qpath, 200, mth, mio_htre_getversion(req), (req->flags & MIO_HTRE_ATTR_KEEPALIVE)) <= -1)
+				if (mio_comp_bcstr(qpath, "/testfunc", 0) == 0)
+				{
+					if (mio_svc_htts_sendcgi(htts, csck, test_func_handler, req) <= -1)
+					{
+						mio_htre_discardcontent (req);
+						mio_dev_sck_halt (csck);
+					}
+				}
+				else if (mio_svc_htts_sendfile(htts, csck, qpath, 200, mth, mio_htre_getversion(req), (req->flags & MIO_HTRE_ATTR_KEEPALIVE)) <= -1)
 				{
 					mio_htre_discardcontent (req);
-					mio_dev_halt (csck);
+					mio_dev_sck_halt (csck);
 				}
+				
 
 				/*
 				if (mio_comp_bcstr(qpath, "/mio.c", 0) == 0)
@@ -357,11 +395,11 @@ static int client_on_write (mio_dev_sck_t* sck, mio_iolen_t wrlen, void* wrctx, 
 			/* 0: end of resource
 			 * -1: error or incompelete transmission. 
 			 *     arrange to close connection regardless of Connection: Keep-Alive or Connection: close */
-			if (n <= -1 && mio_dev_sck_write(sck, MIO_NULL, 0, MIO_NULL, MIO_NULL) <= -1) mio_dev_sck_halt (sck);
+			if (n <= -1 && mio_dev_sck_write(sck, MIO_NULL, 0, MIO_NULL, MIO_NULL) <= -1) mio_dev_sck_halt (sck); 
 		}
 	}
 
-	return 0; /* if this returns failure, the listener socket gets terminated. it should never return failure. */
+	return 0;
 }
 
 static void client_on_disconnect (mio_dev_sck_t* sck)
@@ -613,6 +651,21 @@ int mio_svc_htts_sendrsrc (mio_svc_htts_t* htts, mio_dev_sck_t* csck, mio_svc_ht
 	mio_bch_t dtbuf[64];
 	mio_oow_t x;
 
+#if 0
+	if ((req->flags & MIO_HTRE_ATTR_EXPECT) && 
+	    mio_comp_http_version_numbers(&req->version, 1, 1) >= 0 &&
+	    mio_htre_getcontentlen(req) <= 0)
+	{
+		if (req->flags & MIO_HTRE_ATTR_EXPECT100)
+		{
+			mio_dev_sck_write(csck, "HTTP/1.1 100 Continue\r\n", 23, MIO_NULL, MIO_NULL);
+		}
+		else
+		{
+		}
+	}
+#endif
+
 	mio_svc_htts_fmtgmtime(htts, MIO_NULL, dtbuf, MIO_COUNTOF(dtbuf));
 
 	x = mio_becs_fmt(csckxtn->c.sbuf, "HTTP/%d.%d %d %hs\r\nServer: %hs\r\nDate: %hs\r\nConnection: %s\r\n",
@@ -756,11 +809,125 @@ int mio_svc_htts_schedproxy (mio_svc_htts_t* htts, mio_dev_sck_t* csck, mio_htre
 	4. start proxying
 
 
-	5. if one side is stalled, don't read from another side... let the kernel slow the connection...
+	5. if one side is stalled, donot read from another side... let the kernel slow the connection...
 	   i need to know how may bytes are pending for this.
 	   if pending too high, disable read watching... mio_dev_watch (csck, MIO_DEV_WATCH_RENEW, 0);
 }
 #endif
+
+/* ----------------------------------------------------------------- */
+
+typedef void (*mio_svc_htts_rsrc_cgi_t) (
+	int   rfd,
+	int   wfd
+);
+
+struct mio_svc_htts_rsrc_cgi_peer_t
+{
+	int rfd;
+	int wfd;
+};
+typedef struct mio_svc_htts_rsrc_cgi_peer_t mio_svc_htts_rsrc_cgi_peer_t;
+
+enum mio_svc_htts_rsrc_cgi_type_t
+{
+	MIO_SVC_HTTS_RSRC_CGI_TYPE_FUNC,
+	MIO_SVC_HTTS_RSRC_CGI_TYPE_PROC
+};
+typedef enum mio_svc_htts_rsrc_cgi_type_t mio_svc_htts_rsrc_cgi_type_t;
+
+struct rsrc_cgi_xtn_t
+{
+	mio_svc_htts_rsrc_cgi_type_t type;
+	int rfd;
+	int wfd;
+
+	mio_svc_htts_rsrc_cgi_t handler;
+	pthread_t thr;
+	mio_svc_htts_rsrc_cgi_peer_t peer;
+};
+typedef struct rsrc_cgi_xtn_t rsrc_cgi_xtn_t;
+
+
+static int rsrc_cgi_on_write (mio_svc_htts_rsrc_t* rsrc, mio_dev_sck_t* sck)
+{
+	rsrc_cgi_xtn_t* file = (rsrc_cgi_xtn_t*)mio_svc_htts_rsrc_getxtn(rsrc);
+	return 0; 
+}
+
+static void rsrc_cgi_on_kill (mio_svc_htts_rsrc_t* rsrc)
+{
+	rsrc_cgi_xtn_t* cgi = (rsrc_cgi_xtn_t*)mio_svc_htts_rsrc_getxtn(rsrc);
+
+	close (cgi->rfd); cgi->rfd = -1;
+	close (cgi->wfd); cgi->wfd = -1;
+
+	switch (cgi->type)
+	{
+		case MIO_SVC_HTTS_RSRC_CGI_TYPE_FUNC:
+/* TODO: check cgi->thr is valid.
+ *       non-blocking way?  if alive, kill gracefully?? */
+			pthread_join (cgi->thr, MIO_NULL);
+			break;
+
+		case MIO_SVC_HTTS_RSRC_CGI_TYPE_PROC:
+			/* TODO:
+			waitpid with no wait
+			still alive kill
+			waitpid with no wait.
+			*/
+			break;
+	}
+}
+
+static void* cgi_thr_func (void* ctx)
+{
+	rsrc_cgi_xtn_t* func = (rsrc_cgi_xtn_t*)ctx;
+	func->handler (func->peer.rfd, func->peer.wfd);
+	close (func->peer.rfd); func->peer.rfd = -1;
+	close (func->peer.wfd); func->peer.wfd = -1;
+	return MIO_NULL;
+}
+
+int mio_svc_htts_sendcgi (mio_svc_htts_t* htts, mio_dev_sck_t* csck, mio_svc_htts_rsrc_cgi_t handler, mio_htre_t* req)
+{
+	mio_svc_htts_rsrc_t* rsrc = MIO_NULL;
+	rsrc_cgi_xtn_t* cgi = MIO_NULL;
+	int pfd[2];
+
+	rsrc = mio_svc_htts_rsrc_make(htts, rsrc_cgi_on_write, rsrc_cgi_on_kill, MIO_SIZEOF(*cgi));
+	if (MIO_UNLIKELY(!rsrc)) goto oops;
+
+	cgi = mio_svc_htts_rsrc_getxtn(rsrc);
+	cgi->type = MIO_SVC_HTTS_RSRC_CGI_TYPE_FUNC;
+	cgi->handler = handler;
+	cgi->rfd = -1;
+	cgi->wfd = -1;
+	cgi->peer.rfd = -1;
+	cgi->peer.wfd = -1;
+
+	if (pipe(pfd) == -1) goto oops;
+	cgi->peer.rfd = pfd[0];
+	cgi->wfd = pfd[1];
+
+	if (pipe(pfd) == -1) goto oops;
+	cgi->rfd = pfd[0];
+	cgi->peer.wfd = pfd[1];
+
+	if (pthread_create(&cgi->thr, MIO_NULL, cgi_thr_func, cgi) != 0) goto oops;
+	return 0;
+
+oops:
+	if (cgi)
+	{
+		if (cgi->peer.rfd >= 0) { close (cgi->peer.rfd); cgi->peer.rfd = -1; }
+		if (cgi->peer.wfd >= 0) { close (cgi->peer.wfd); cgi->peer.wfd = -1; }
+		if (cgi->rfd >= 0) { close (cgi->rfd); cgi->rfd = -1; }
+		if (cgi->wfd >= 0) { close (cgi->wfd); cgi->wfd = -1; }
+	}
+	if (rsrc) mio_svc_htts_rsrc_kill (rsrc);
+	return -1;
+}
 
 int mio_svc_htts_sendstatus (mio_svc_htts_t* htts, mio_dev_sck_t* csck, int status_code, mio_http_method_t method, const mio_http_version_t* version, int keepalive, void* extra)
 {
@@ -821,7 +988,6 @@ int mio_svc_htts_sendstatus (mio_svc_htts_t* htts, mio_dev_sck_t* csck, int stat
 
 			break;
 	}
-
 
 	mio_svc_htts_fmtgmtime(htts, MIO_NULL, dtbuf, MIO_COUNTOF(dtbuf));
 

@@ -157,10 +157,9 @@ struct mio_htre_t
 #define mio_htre_getsmesg(re) ((re)->u.s.mesg)
 
 #define mio_htre_getcontent(re)     (&(re)->content)
-#define mio_htre_getcontentxstr(re) MIO_MBS_XSTR(&(re)->content)
-#define mio_htre_getcontentcstr(re) MIO_MBS_CSTR(&(re)->content)
-#define mio_htre_getcontentptr(re)  MIO_MBS_PTR(&(re)->content)
-#define mio_htre_getcontentlen(re)  MIO_MBS_LEN(&(re)->content)
+#define mio_htre_getcontentbcs(re)  MIO_BECS_BCS(&(re)->content)
+#define mio_htre_getcontentptr(re)  MIO_BECS_PTR(&(re)->content)
+#define mio_htre_getcontentlen(re)  MIO_BECS_LEN(&(re)->content)
 
 typedef int (*mio_htre_header_walker_t) (
 	mio_htre_t*              re,

@@ -1,4 +1,4 @@
-/*m
+/*
  * $Id$
  *
     Copyright (c) 2016-2020 Chung, Hyung-Hwan. All rights reserved.
