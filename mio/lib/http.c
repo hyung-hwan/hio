@@ -34,6 +34,12 @@ int mio_comp_http_versions (const mio_http_version_t* v1, const mio_http_version
 	return v1->major - v2->major;
 }
 
+int mio_comp_http_version_numbers (const mio_http_version_t* v1, int v2_major, int v2_minor)
+{
+	if (v1->major == v2_major) return v1->minor - v2_minor;
+	return v1->major - v2_major;
+}
+
 const mio_bch_t* mio_http_status_to_bcstr (int code)
 {
 	const mio_bch_t* msg;

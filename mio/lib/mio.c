@@ -405,6 +405,7 @@ static MIO_INLINE void handle_event (mio_t* mio, mio_dev_t* dev, int events, int
 
 					if (y <= -1)
 					{
+						MIO_DEBUG1 (mio, "Error returned by on_write() of device %p\n", dev);
 						mio_dev_halt (dev);
 						dev = MIO_NULL;
 						break;
@@ -584,9 +585,18 @@ int mio_exec (mio_t* mio)
 	{
 		mio_cwq_t* cwq;
 		mio_oow_t cwqfl_index;
+		mio_dev_t* dev_to_halt;
 
 		cwq = MIO_CWQ_HEAD(&mio->cwq);
-		if (cwq->dev->dev_evcb->on_write(cwq->dev, cwq->olen, cwq->ctx, &cwq->dstaddr) <= -1) return -1;
+		if (cwq->dev->dev_evcb->on_write(cwq->dev, cwq->olen, cwq->ctx, &cwq->dstaddr) <= -1) 
+		{
+			MIO_DEBUG1 (mio, "Error returned by on_write() of device %p in cwq\n", cwq->dev);
+			dev_to_halt = cwq->dev;
+		}
+		else
+		{
+			dev_to_halt = MIO_NULL;
+		}
 		cwq->dev->cw_count--;
 		MIO_CWQ_UNLINK (cwq);
 
@@ -602,6 +612,8 @@ int mio_exec (mio_t* mio)
 			/* TODO: more reuse of objects of different size? */
 			mio_freemem (mio, cwq);
 		}
+
+		if (dev_to_halt) mio_dev_halt (dev_to_halt);
 	}
 
 	/* execute the scheduled jobs before checking devices with the 
