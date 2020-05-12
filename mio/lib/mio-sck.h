@@ -363,7 +363,7 @@ struct mio_dev_sck_t
 	MIO_DEV_HEADER;
 
 	mio_dev_sck_type_t type;
-	mio_sckhnd_t sck;
+	mio_sckhnd_t hnd;
 
 	int state;
 

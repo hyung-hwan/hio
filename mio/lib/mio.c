@@ -703,6 +703,7 @@ mio_dev_t* mio_dev_make (mio_t* mio, mio_oow_t dev_size, mio_dev_mth_t* dev_mth,
 	if (!(dev->dev_cap & MIO_DEV_CAP_OUT)) dev->dev_cap |= MIO_DEV_CAP_OUT_CLOSED;
 
 	if (mio_dev_watch(dev, MIO_DEV_WATCH_START, 0) <= -1) goto oops_after_make;
+
 	/* and place the new device object at the back of the active device list */
 	MIO_DEVL_APPEND_DEV (&mio->actdev, dev);
 	dev->dev_cap |= MIO_DEV_CAP_ACTIVE;

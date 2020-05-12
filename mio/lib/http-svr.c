@@ -13,9 +13,8 @@
 typedef struct mio_svc_htts_cli_t mio_svc_htts_cli_t;
 struct mio_svc_htts_cli_t
 {
-	mio_svc_htts_cli_t* cli_prev;
-	mio_svc_htts_cli_t* cli_next;
-
+	/* a listener socket sets htts and sck fields only */
+	/* a client sockets uses all the fields in this struct */
 	mio_svc_htts_t* htts;
 	mio_dev_sck_t* sck;
 
@@ -26,6 +25,9 @@ struct mio_svc_htts_cli_t
 	mio_becs_t* sbuf; /* temporary buffer for status line formatting */
 
 	mio_svc_htts_rsrc_t rsrc; /* list head for resource list */
+
+	mio_svc_htts_cli_t* cli_prev;
+	mio_svc_htts_cli_t* cli_next;
 };
 
 struct mio_svc_htts_t
@@ -56,6 +58,13 @@ struct mio_svc_httc_t
 #define CLIL_UNLINK_CLI(cli) do { \
 	(cli)->cli_prev->cli_next = (cli)->cli_next; \
 	(cli)->cli_next->cli_prev = (cli)->cli_prev; \
+} while (0)
+
+#define CLIL_UNLINK_CLI_CLEAN(cli) do { \
+	(cli)->cli_prev->cli_next = (cli)->cli_next; \
+	(cli)->cli_next->cli_prev = (cli)->cli_prev; \
+	(cli)->cli_prev = (cli); \
+	(cli)->cli_next = (cli); \
 } while (0)
 
 #define CLIL_INIT(lh) ((lh)->cli_next = (lh)->cli_prev = lh)
@@ -374,6 +383,7 @@ static int init_client (mio_svc_htts_cli_t* cli, mio_dev_sck_t* sck)
 
 	/* the htts field must be filled with the same field in the listening socket upon accept() */
 	MIO_ASSERT (sck->mio, cli->htts != MIO_NULL);
+	MIO_ASSERT (sck->mio, cli->sck == cli->htts->lsck); /* the field should still point to the listner socket */
 	MIO_ASSERT (sck->mio, sck->mio == cli->htts->mio);
 
 	cli->htrd = mio_htrd_open(sck->mio, MIO_SIZEOF(*htrdxtn));
@@ -389,6 +399,7 @@ static int init_client (mio_svc_htts_cli_t* cli, mio_dev_sck_t* sck)
 
 	cli->sck = sck;
 	CLIL_APPEND_CLI (&cli->htts->cli, cli);
+MIO_DEBUG3 (sck->mio, "HTTS(%p) - initialized client %p socket %p\n", cli->htts, cli, sck);
 	return 0;
 
 oops:
@@ -407,6 +418,8 @@ oops:
 
 static void fini_client (mio_svc_htts_cli_t* cli)
 {
+	MIO_DEBUG3 (cli->sck->mio, "HTTS(%p) - finalizing client %p socket %p\n", cli->htts, cli, cli->sck);
+
 	while (!RSRCL_IS_EMPTY(&cli->rsrc)) 
 		mio_svc_htts_rsrc_kill (RSRCL_FIRST_RSRC(&cli->rsrc));
 
@@ -421,7 +434,14 @@ static void fini_client (mio_svc_htts_cli_t* cli)
 		cli->htrd = MIO_NULL;
 	}
 
-	CLIL_UNLINK_CLI (cli);
+	CLIL_UNLINK_CLI_CLEAN (cli);
+
+	/* are these needed? not symmetrical if done here. 
+	 * these fields are copied from the listener socket upon accept.
+	 * init_client() doesn't fill in these fields. let's comment out these lines
+	cli->sck = MIO_NULL;
+	cli->htts = MIO_NULL; 
+	*/
 }
 
 /* ------------------------------------------------------------------------ */
@@ -461,13 +481,6 @@ static int client_on_write (mio_dev_sck_t* sck, mio_iolen_t wrlen, void* wrctx, 
 	return 0;
 }
 
-static void client_on_disconnect (mio_dev_sck_t* sck)
-{
-	mio_svc_htts_cli_t* cli = mio_dev_sck_getxtn(sck);
-MIO_DEBUG1 (sck->mio, "** HTTS - client disconnect  %p\n", sck);
-	fini_client (cli);
-}
-
 /* ------------------------------------------------------------------------ */
 
 static int listener_on_read (mio_dev_sck_t* sck, const void* buf, mio_iolen_t len, const mio_skad_t* srcaddr)
@@ -487,23 +500,22 @@ static void listener_on_connect (mio_dev_sck_t* sck)
 	if (sck->state & MIO_DEV_SCK_ACCEPTED)
 	{
 		/* accepted a new client */
-		MIO_DEBUG3 (sck->mio, "** HTTS(%p) - accepted... %p %d \n", cli->htts, sck, sck->sck);
+		MIO_DEBUG3 (sck->mio, "HTTS(%p) - accepted... %p %d \n", cli->htts, sck, sck->hnd);
 
 		/* the accepted socket inherits various event callbacks. switch some of them to avoid sharing */
 		sck->on_read = client_on_read;
 		sck->on_write = client_on_write;
-		sck->on_disconnect = client_on_disconnect;
 
 		if (init_client(cli, sck) <= -1)
 		{
-			MIO_INFO2 (sck->mio, "UNABLE TO INITIALIZE NEW CLIENT %p %d\n", sck, (int)sck->sck);
+			MIO_INFO2 (sck->mio, "UNABLE TO INITIALIZE NEW CLIENT %p %d\n", sck, (int)sck->hnd);
 			mio_dev_sck_halt (sck);
 		}
 	}
 	else if (sck->state & MIO_DEV_SCK_CONNECTED)
 	{
 		/* this will never be triggered as the listing socket never call mio_dev_sck_connect() */
-		MIO_DEBUG3 (sck->mio, "** HTTS(%p) - connected... %p %d \n", cli->htts, sck, sck->sck);
+		MIO_DEBUG3 (sck->mio, "** HTTS(%p) - connected... %p %d \n", cli->htts, sck, sck->hnd);
 	}
 
 	/* MIO_DEV_SCK_CONNECTED must not be seen here as this is only for the listener socket */
@@ -517,44 +529,59 @@ static void listener_on_disconnect (mio_dev_sck_t* sck)
 	{
 		case MIO_DEV_SCK_CONNECTING:
 			/* only for connecting sockets */
-			MIO_INFO1 (sck->mio, "OUTGOING SESSION DISCONNECTED - FAILED TO CONNECT (%d) TO REMOTE SERVER\n", (int)sck->sck);
+			MIO_INFO1 (sck->mio, "OUTGOING SESSION DISCONNECTED - FAILED TO CONNECT (%d) TO REMOTE SERVER\n", (int)sck->hnd);
 			break;
 
 		case MIO_DEV_SCK_CONNECTING_SSL:
 			/* only for connecting sockets */
-			MIO_INFO1 (sck->mio, "OUTGOING SESSION DISCONNECTED - FAILED TO SSL-CONNECT (%d) TO REMOTE SERVER\n", (int)sck->sck);
+			MIO_INFO1 (sck->mio, "OUTGOING SESSION DISCONNECTED - FAILED TO SSL-CONNECT (%d) TO REMOTE SERVER\n", (int)sck->hnd);
 			break;
 
 		case MIO_DEV_SCK_CONNECTED:
 			/* only for connecting sockets */
-			MIO_INFO1 (sck->mio, "OUTGOING CLIENT CONNECTION GOT TORN DOWN %p(%d).......\n", (int)sck->sck);
+			MIO_INFO1 (sck->mio, "OUTGOING CLIENT CONNECTION GOT TORN DOWN %p(%d).......\n", (int)sck->hnd);
 			break;
 
 		case MIO_DEV_SCK_LISTENING:
-			MIO_INFO2 (sck->mio, "LISTNER SOCKET %p(%d) - SHUTTUING DOWN\n", sck, (int)sck->sck);
+			MIO_INFO2 (sck->mio, "LISTNER SOCKET %p(%d) - SHUTTUING DOWN\n", sck, (int)sck->hnd);
 			break;
 
-		case MIO_DEV_SCK_ACCEPTING_SSL:
-			MIO_INFO2 (sck->mio, "LISTENER INCOMING SSL-ACCEPT GOT DISCONNECTED %p(%d) ....\n", sck, (int)sck->sck);
-			break;
+		case MIO_DEV_SCK_ACCEPTING_SSL: /* special case. */
+			/* this progress code indicates that the ssl-level accept failed.
+			 * on_disconnected() with this code is called without corresponding on_connect(). 
+			 * the cli extension are is not initialized yet */
+			MIO_ASSERT (sck->mio, sck != cli->sck);
+			MIO_ASSERT (sck->mio, cli->sck == cli->htts->lsck); /* the field is a copy of the extension are of the listener socket. so it should point to the listner socket */
+			MIO_INFO2 (sck->mio, "LISTENER UNABLE TO SSL-ACCEPT CLIENT %p(%d) ....%p\n", sck, (int)sck->hnd);
+			return;
 
 		case MIO_DEV_SCK_ACCEPTED:
 			/* only for sockets accepted by the listeners. will never come here because
 			 * the disconnect call for such sockets have been changed in listener_on_connect() */
-			MIO_INFO2 (sck->mio, "ACCEPTED SOCKET %p(%d) GOT DISCONNECTED.......\n", sck, (int)sck->sck);
+			MIO_INFO2 (sck->mio, "ACCEPTED CLIENT SOCKET %p(%d) GOT DISCONNECTED.......\n", sck, (int)sck->hnd);
 			break;
 
 		default:
-			MIO_INFO2 (sck->mio, "SOCKET %p(%d) DISCONNECTED AFTER ALL.......\n", sck, (int)sck->sck);
+			MIO_INFO2 (sck->mio, "SOCKET %p(%d) DISCONNECTED AFTER ALL.......\n", sck, (int)sck->hnd);
 			break;
 	}
 
-	/* the client sockets are finalized in clinet_on_disconnect().
-	 * for a listener socket, these fields must be NULL */
-	MIO_ASSERT (sck->mio, cli->htrd == MIO_NULL);
-	MIO_ASSERT (sck->mio, cli->sbuf == MIO_NULL);
+	if (sck == cli->htts->lsck)
+	{
+		/* the listener socket has these fields set to NULL */
+		MIO_ASSERT (sck->mio, cli->htrd == MIO_NULL);
+		MIO_ASSERT (sck->mio, cli->sbuf == MIO_NULL);
 
-	cli->htts->lsck = MIO_NULL; /* let the htts service forget about this listening socket */
+		MIO_DEBUG2 (sck->mio, "HTTS(%p) - listener socket disconnect %p\n", cli->htts, sck);
+		cli->htts->lsck = MIO_NULL; /* let the htts service forget about this listening socket */
+	}
+	else
+	{
+		/* client socket */
+		MIO_DEBUG2 (sck->mio, "HTTS(%p) - client socket disconnect %p\n", cli->htts, sck);
+		MIO_ASSERT (sck->mio, cli->sck == sck);
+		fini_client (cli);
+	}
 }
 
 
@@ -602,15 +629,19 @@ mio_svc_htts_t* mio_svc_htts_start (mio_t* mio, const mio_skad_t* bind_addr)
 	if (!htts->lsck) goto oops;
 
 	/* the name 'cli' for the listening socket is awkard.
-	 * the listing socket will use the htts field for tracking only.
+	 * the listing socket will use the htts and sck fields for tracking only.
 	 * each accepted client socket gets the extension size for this size as well.
 	 * most of other fields are used for client management */
 	cli = (mio_svc_htts_cli_t*)mio_dev_sck_getxtn(htts->lsck);
 	cli->htts = htts; 
+	cli->sck = htts->lsck;
 
 	MIO_MEMSET (&info, 0, MIO_SIZEOF(info));
 	info.b.localaddr = *bind_addr;
 	info.b.options = MIO_DEV_SCK_BIND_REUSEADDR | MIO_DEV_SCK_BIND_REUSEPORT;
+	info.b.options |= MIO_DEV_SCK_BIND_SSL; 
+	info.b.ssl_certfile = "localhost.crt";
+	info.b.ssl_keyfile = "localhost.key";
 	if (mio_dev_sck_bind(htts->lsck, &info.b) <= -1) goto oops;
 
 	MIO_MEMSET (&info, 0, MIO_SIZEOF(info));
@@ -626,7 +657,7 @@ mio_svc_htts_t* mio_svc_htts_start (mio_t* mio, const mio_skad_t* bind_addr)
 	MIO_SVCL_APPEND_SVC (&mio->actsvc, (mio_svc_t*)htts);
 	CLIL_INIT (&htts->cli);
 
-	MIO_DEBUG3 (mio, "STARTED SVC(HTTS) LISTENER %p LISTENER SOCKET %p(%d)\n", htts, htts->lsck, (int)htts->lsck->sck);
+	MIO_DEBUG3 (mio, "STARTED SVC(HTTS) LISTENER %p LISTENER SOCKET %p(%d)\n", htts, htts->lsck, (int)htts->lsck->hnd);
 	return htts;
 
 oops:
@@ -642,7 +673,7 @@ void mio_svc_htts_stop (mio_svc_htts_t* htts)
 {
 	mio_t* mio = htts->mio;
 
-	MIO_DEBUG3 (mio, "STOPPING SVC(HTTS) %p LISTENER SOCKET %p(%d)\n", htts, htts->lsck, (int)(htts->lsck? htts->lsck->sck: -1));
+	MIO_DEBUG3 (mio, "STOPPING SVC(HTTS) %p LISTENER SOCKET %p(%d)\n", htts, htts->lsck, (int)(htts->lsck? htts->lsck->hnd: -1));
 
 	/* htts->lsck may be null if the socket has been destroyed for operational error and 
 	 * forgotten in the disconnect callback thereafter */
@@ -703,7 +734,6 @@ void mio_svc_htts_rsrc_kill (mio_svc_htts_rsrc_t* rsrc)
 {
 printf ("RSRC KILL >>>>> %p\n", rsrc->htts);
 	mio_t* mio = rsrc->htts->mio;
-
 
 	if (rsrc->on_kill) rsrc->on_kill (rsrc);
 
@@ -1033,7 +1063,7 @@ int mio_svc_htts_docgi (mio_svc_htts_t* htts, mio_dev_sck_t* csck, mio_htre_t* r
 #endif
 
 #if 0
-	rsrc = mio_svc_htts_rsrc_make(htts, csck, rsrc_cgi_on_write, rsrc_cgi_on_kill, MIO_SIZEOF(*rsrc_cgi));
+	rsrc = mio_svc_htts_rsrc_make(htts, csck, rsrc_cgi_on_read, rsrc_cgi_on_write, rsrc_cgi_on_kill, MIO_SIZEOF(*rsrc_cgi));
 	if (MIO_UNLIKELY(!rsrc)) goto oops;
 #endif
 
