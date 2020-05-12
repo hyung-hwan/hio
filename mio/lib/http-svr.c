@@ -1,5 +1,6 @@
 #include "mio-http.h"
 #include "mio-htrd.h"
+#include "mio-pro.h" /* for cgi */
 #include "mio-prv.h"
 
 
@@ -8,11 +9,32 @@
 #include <sys/stat.h>
 #include <pthread.h>
 
+
+typedef struct mio_svc_htts_cli_t mio_svc_htts_cli_t;
+struct mio_svc_htts_cli_t
+{
+	mio_svc_htts_cli_t* cli_prev;
+	mio_svc_htts_cli_t* cli_next;
+
+	mio_svc_htts_t* htts;
+	mio_dev_sck_t* sck;
+
+	mio_skad_t remote_addr;
+	mio_skad_t local_addr;
+	mio_skad_t orgdst_addr;
+	mio_htrd_t* htrd;
+	mio_becs_t* sbuf; /* temporary buffer for status line formatting */
+
+	mio_svc_htts_rsrc_t rsrc; /* list head for resource list */
+};
+
 struct mio_svc_htts_t
 {
 	MIO_SVC_HEADER;
 
 	mio_dev_sck_t* lsck;
+	mio_svc_htts_cli_t cli; /* list head for client list */
+
 	mio_bch_t* server_name;
 	mio_bch_t server_name_buf[64];
 };
@@ -22,23 +44,48 @@ struct mio_svc_httc_t
 	MIO_SVC_HEADER;
 };
 
-struct mio_htts_client_t
-{
-	mio_skad_t remote_addr;
-	mio_skad_t local_addr;
-	mio_skad_t orgdst_addr;
-	mio_htrd_t* htrd;
-	mio_becs_t* sbuf; /* temporary buffer for status line formatting */
-};
-typedef struct mio_htts_client_t mio_htts_client_t;
+/* ------------------------------------------------------------------------- */
 
-struct sck_xtn_t
-{
-	mio_svc_htts_t* htts;
+#define CLIL_APPEND_CLI(lh,cli) do { \
+	(cli)->cli_next = (lh); \
+	(cli)->cli_prev = (lh)->cli_prev; \
+	(cli)->cli_prev->cli_next = (cli); \
+	(lh)->cli_prev = (cli); \
+} while(0)
 
-	mio_htts_client_t c;
-};
-typedef struct sck_xtn_t sck_xtn_t;
+#define CLIL_UNLINK_CLI(cli) do { \
+	(cli)->cli_prev->cli_next = (cli)->cli_next; \
+	(cli)->cli_next->cli_prev = (cli)->cli_prev; \
+} while (0)
+
+#define CLIL_INIT(lh) ((lh)->cli_next = (lh)->cli_prev = lh)
+#define CLIL_FIRST_CLI(lh) ((lh)->cli_next)
+#define CLIL_LAST_CLI(lh) ((lh)->cli_prev)
+#define CLIL_IS_EMPTY(lh) (CLIL_FIRST_CLI(lh) == (lh))
+#define CLIL_IS_NIL_CLI(lh,cli) ((cli) == (lh))
+
+
+/* ------------------------------------------------------------------------- */
+
+#define RSRCL_APPEND_RSRC(lh,rsrc) do { \
+	(rsrc)->rsrc_next = (lh); \
+	(rsrc)->rsrc_prev = (lh)->rsrc_prev; \
+	(rsrc)->rsrc_prev->rsrc_next = (rsrc); \
+	(lh)->rsrc_prev = (rsrc); \
+} while(0)
+
+#define RSRCL_UNLINK_RSRC(rsrc) do { \
+	(rsrc)->rsrc_prev->rsrc_next = (rsrc)->rsrc_next; \
+	(rsrc)->rsrc_next->rsrc_prev = (rsrc)->rsrc_prev; \
+} while (0)
+
+#define RSRCL_INIT(lh) ((lh)->rsrc_next = (lh)->rsrc_prev = lh)
+#define RSRCL_FIRST_RSRC(lh) ((lh)->rsrc_next)
+#define RSRCL_LAST_RSRC(lh) ((lh)->rsrc_prev)
+#define RSRCL_IS_EMPTY(lh) (RSRCL_FIRST_RSRC(lh) == (lh))
+#define RSRCL_IS_NIL_RSRC(lh,rsrc) ((rsrc) == (lh))
+
+/* ------------------------------------------------------------------------- */
 
 struct htrd_xtn_t
 {
@@ -66,7 +113,7 @@ static int process_request (mio_svc_htts_t* htts, mio_dev_sck_t* csck, mio_htre_
 {
 	//server_xtn_t* server_xtn = GET_SERVER_XTN(htts, client->server);
 	//mio_htts_task_t* task;
-	sck_xtn_t* csckxtn = mio_dev_sck_getxtn(csck);
+	mio_svc_htts_cli_t* cli = mio_dev_sck_getxtn(csck);
 	mio_http_method_t mth;
 	//mio_htts_rsrc_t rsrc;
 
@@ -171,6 +218,7 @@ if (mio_htre_getcontentlen(req) > 0)
 				}
 
 				const mio_bch_t* qpath = mio_htre_getqpath(req);
+/*
 				if (mio_comp_bcstr(qpath, "/testfunc", 0) == 0)
 				{
 					if (mio_svc_htts_sendcgi(htts, csck, test_func_handler, req) <= -1)
@@ -179,7 +227,7 @@ if (mio_htre_getcontentlen(req) > 0)
 						mio_dev_sck_halt (csck);
 					}
 				}
-				else if (mio_svc_htts_sendfile(htts, csck, qpath, 200, mth, mio_htre_getversion(req), (req->flags & MIO_HTRE_ATTR_KEEPALIVE)) <= -1)
+				else */if (mio_svc_htts_sendfile(htts, csck, qpath, 200, mth, mio_htre_getversion(req), (req->flags & MIO_HTRE_ATTR_KEEPALIVE)) <= -1)
 				{
 					mio_htre_discardcontent (req);
 					mio_dev_sck_halt (csck);
@@ -245,7 +293,7 @@ if (mio_htre_getcontentlen(req) > 0)
 			/* Switch the http reader to a dummy mode so that the subsqeuent
 			 * input(request) is just treated as data to the request just 
 			 * completed */
-			mio_htrd_dummify (csckxtn->c.htrd);
+			mio_htrd_dummify (cli->htrd);
 
 			/* connect is not handled in the peek mode. create a proxy resource here */
 ////////
@@ -303,15 +351,14 @@ oops:
 static int client_htrd_peek_request (mio_htrd_t* htrd, mio_htre_t* req)
 {
 	htrd_xtn_t* htrdxtn = (htrd_xtn_t*)mio_htrd_getxtn(htrd);
-	sck_xtn_t* sckxtn = (sck_xtn_t*)mio_dev_sck_getxtn(htrdxtn->sck);
+	mio_svc_htts_cli_t* sckxtn = (mio_svc_htts_cli_t*)mio_dev_sck_getxtn(htrdxtn->sck);
 	return process_request(sckxtn->htts, htrdxtn->sck, req, 1);
-//	return xtn->htts->opt.rcb.peekreq(xtn->htts, xtn->client, req);
 }
 
 static int client_htrd_poke_request (mio_htrd_t* htrd, mio_htre_t* req)
 {
 	htrd_xtn_t* htrdxtn = (htrd_xtn_t*)mio_htrd_getxtn(htrd);
-	sck_xtn_t* sckxtn = (sck_xtn_t*)mio_dev_sck_getxtn(htrdxtn->sck);
+	mio_svc_htts_cli_t* sckxtn = (mio_svc_htts_cli_t*)mio_dev_sck_getxtn(htrdxtn->sck);
 	return process_request(sckxtn->htts, htrdxtn->sck, req, 0);
 }
 
@@ -321,61 +368,73 @@ static mio_htrd_recbs_t client_htrd_recbs =
 	client_htrd_poke_request
 };
 
-static int init_client (mio_t* mio, mio_htts_client_t* c, mio_dev_sck_t* sck)
+static int init_client (mio_svc_htts_cli_t* cli, mio_dev_sck_t* sck)
 {
 	htrd_xtn_t* htrdxtn;
 
-	c->htrd = mio_htrd_open(mio, MIO_SIZEOF(*htrdxtn));
-	if (MIO_UNLIKELY(!c->htrd)) goto oops;
+	/* the htts field must be filled with the same field in the listening socket upon accept() */
+	MIO_ASSERT (sck->mio, cli->htts != MIO_NULL);
+	MIO_ASSERT (sck->mio, sck->mio == cli->htts->mio);
 
-	c->sbuf = mio_becs_open(mio, 0, 2048);
-	if (MIO_UNLIKELY(!c->sbuf)) goto oops;
-	htrdxtn = mio_htrd_getxtn(c->htrd);
-	htrdxtn->sck = sck;
+	cli->htrd = mio_htrd_open(sck->mio, MIO_SIZEOF(*htrdxtn));
+	if (MIO_UNLIKELY(!cli->htrd)) goto oops;
 
-	mio_htrd_setrecbs (c->htrd, &client_htrd_recbs);
+	cli->sbuf = mio_becs_open(sck->mio, 0, 2048);
+	if (MIO_UNLIKELY(!cli->sbuf)) goto oops;
+	htrdxtn = mio_htrd_getxtn(cli->htrd);
+	htrdxtn->sck = sck; /* TODO: remember cli instead? */
 
+	mio_htrd_setrecbs (cli->htrd, &client_htrd_recbs);
+	RSRCL_INIT (&cli->rsrc);
+
+	cli->sck = sck;
+	CLIL_APPEND_CLI (&cli->htts->cli, cli);
 	return 0;
 
 oops:
-	if (c->sbuf) 
+	if (cli->sbuf) 
 	{
-		mio_becs_close(c->sbuf);
-		c->sbuf = MIO_NULL;
+		mio_becs_close(cli->sbuf);
+		cli->sbuf = MIO_NULL;
 	}
-	if (c->htrd)
+	if (cli->htrd)
 	{
-		mio_htrd_close (c->htrd);
-		c->htrd = MIO_NULL;
+		mio_htrd_close (cli->htrd);
+		cli->htrd = MIO_NULL;
 	}
 	return -1;
 }
 
-static void fini_client (mio_t* mio, mio_htts_client_t* c)
+static void fini_client (mio_svc_htts_cli_t* cli)
 {
-	if (c->sbuf) 
+	while (!RSRCL_IS_EMPTY(&cli->rsrc)) 
+		mio_svc_htts_rsrc_kill (RSRCL_FIRST_RSRC(&cli->rsrc));
+
+	if (cli->sbuf) 
 	{
-		mio_becs_close(c->sbuf);
-		c->sbuf = MIO_NULL;
+		mio_becs_close (cli->sbuf);
+		cli->sbuf = MIO_NULL;
 	}
-	if (c->htrd)
+	if (cli->htrd)
 	{
-		mio_htrd_close (c->htrd);
-		c->htrd = MIO_NULL;
+		mio_htrd_close (cli->htrd);
+		cli->htrd = MIO_NULL;
 	}
+
+	CLIL_UNLINK_CLI (cli);
 }
 
 /* ------------------------------------------------------------------------ */
 
 static int client_on_read (mio_dev_sck_t* sck, const void* buf, mio_iolen_t len, const mio_skad_t* srcaddr)
 {
-	sck_xtn_t* sckxtn = mio_dev_sck_getxtn(sck);
-printf ("** HTTS - client read   %p  %d -> htts:%p\n", sck, (int)len, sckxtn->htts);
+	mio_svc_htts_cli_t* cli = mio_dev_sck_getxtn(sck);
+printf ("** HTTS - client read   %p  %d -> htts:%p\n", sck, (int)len, cli->htts);
 	if (len <= 0)
 	{
 		mio_dev_sck_halt (sck);
 	}
-	else if (mio_htrd_feed(sckxtn->c.htrd, buf, len) <= -1)
+	else if (mio_htrd_feed(cli->htrd, buf, len) <= -1)
 	{
 		mio_dev_sck_halt (sck);
 	}
@@ -404,11 +463,9 @@ static int client_on_write (mio_dev_sck_t* sck, mio_iolen_t wrlen, void* wrctx, 
 
 static void client_on_disconnect (mio_dev_sck_t* sck)
 {
-	sck_xtn_t* sckxtn = mio_dev_sck_getxtn(sck);
-printf ("** HTTS - client disconnect  %p\n", sck);
-	fini_client (sck->mio, &sckxtn->c);
-
-	/* TODO: remove it from the list of clients */
+	mio_svc_htts_cli_t* cli = mio_dev_sck_getxtn(sck);
+MIO_DEBUG1 (sck->mio, "** HTTS - client disconnect  %p\n", sck);
+	fini_client (cli);
 }
 
 /* ------------------------------------------------------------------------ */
@@ -425,19 +482,19 @@ static int listener_on_write (mio_dev_sck_t* sck, mio_iolen_t wrlen, void* wrctx
 
 static void listener_on_connect (mio_dev_sck_t* sck)
 {
-	sck_xtn_t* sckxtn = mio_dev_sck_getxtn(sck); /* the contents came from the listening socket */
+	mio_svc_htts_cli_t* cli = mio_dev_sck_getxtn(sck); /* the contents came from the listening socket */
 
 	if (sck->state & MIO_DEV_SCK_ACCEPTED)
 	{
 		/* accepted a new client */
-		MIO_DEBUG3 (sck->mio, "** HTTS(%p) - accepted... %p %d \n", sckxtn->htts, sck, sck->sck);
+		MIO_DEBUG3 (sck->mio, "** HTTS(%p) - accepted... %p %d \n", cli->htts, sck, sck->sck);
 
 		/* the accepted socket inherits various event callbacks. switch some of them to avoid sharing */
 		sck->on_read = client_on_read;
 		sck->on_write = client_on_write;
 		sck->on_disconnect = client_on_disconnect;
 
-		if (init_client(sck->mio, &sckxtn->c, sck) <= -1)
+		if (init_client(cli, sck) <= -1)
 		{
 			MIO_INFO2 (sck->mio, "UNABLE TO INITIALIZE NEW CLIENT %p %d\n", sck, (int)sck->sck);
 			mio_dev_sck_halt (sck);
@@ -446,7 +503,7 @@ static void listener_on_connect (mio_dev_sck_t* sck)
 	else if (sck->state & MIO_DEV_SCK_CONNECTED)
 	{
 		/* this will never be triggered as the listing socket never call mio_dev_sck_connect() */
-		MIO_DEBUG3 (sck->mio, "** HTTS(%p) - connected... %p %d \n", sckxtn->htts, sck, sck->sck);
+		MIO_DEBUG3 (sck->mio, "** HTTS(%p) - connected... %p %d \n", cli->htts, sck, sck->sck);
 	}
 
 	/* MIO_DEV_SCK_CONNECTED must not be seen here as this is only for the listener socket */
@@ -454,7 +511,7 @@ static void listener_on_connect (mio_dev_sck_t* sck)
 
 static void listener_on_disconnect (mio_dev_sck_t* sck)
 {
-	sck_xtn_t* sckxtn = mio_dev_sck_getxtn(sck);
+	mio_svc_htts_cli_t* cli = mio_dev_sck_getxtn(sck);
 
 	switch (MIO_DEV_SCK_GET_PROGRESS(sck))
 	{
@@ -494,10 +551,10 @@ static void listener_on_disconnect (mio_dev_sck_t* sck)
 
 	/* the client sockets are finalized in clinet_on_disconnect().
 	 * for a listener socket, these fields must be NULL */
-	MIO_ASSERT (sck->mio, sckxtn->c.htrd == MIO_NULL);
-	MIO_ASSERT (sck->mio, sckxtn->c.sbuf == MIO_NULL);
+	MIO_ASSERT (sck->mio, cli->htrd == MIO_NULL);
+	MIO_ASSERT (sck->mio, cli->sbuf == MIO_NULL);
 
-	sckxtn->htts->lsck = MIO_NULL; /* let the htts service forget about this listening socket */
+	cli->htts->lsck = MIO_NULL; /* let the htts service forget about this listening socket */
 }
 
 
@@ -512,7 +569,7 @@ mio_svc_htts_t* mio_svc_htts_start (mio_t* mio, const mio_skad_t* bind_addr)
 		mio_dev_sck_bind_t b;
 		mio_dev_sck_listen_t l;
 	} info;
-	sck_xtn_t* sckxtn;
+	mio_svc_htts_cli_t* cli;
 
 	htts = (mio_svc_htts_t*)mio_callocmem(mio, MIO_SIZEOF(*htts));
 	if (MIO_UNLIKELY(!htts)) goto oops;
@@ -541,11 +598,15 @@ mio_svc_htts_t* mio_svc_htts_start (mio_t* mio, const mio_skad_t* bind_addr)
 	info.m.on_read = listener_on_read;
 	info.m.on_connect = listener_on_connect;
 	info.m.on_disconnect = listener_on_disconnect;
-	htts->lsck = mio_dev_sck_make(mio, MIO_SIZEOF(*sckxtn), &info.m);
+	htts->lsck = mio_dev_sck_make(mio, MIO_SIZEOF(*cli), &info.m);
 	if (!htts->lsck) goto oops;
 
-	sckxtn = (sck_xtn_t*)mio_dev_sck_getxtn(htts->lsck);
-	sckxtn->htts = htts;
+	/* the name 'cli' for the listening socket is awkard.
+	 * the listing socket will use the htts field for tracking only.
+	 * each accepted client socket gets the extension size for this size as well.
+	 * most of other fields are used for client management */
+	cli = (mio_svc_htts_cli_t*)mio_dev_sck_getxtn(htts->lsck);
+	cli->htts = htts; 
 
 	MIO_MEMSET (&info, 0, MIO_SIZEOF(info));
 	info.b.localaddr = *bind_addr;
@@ -563,6 +624,7 @@ mio_svc_htts_t* mio_svc_htts_start (mio_t* mio, const mio_skad_t* bind_addr)
 	htts->server_name = htts->server_name_buf;
 
 	MIO_SVCL_APPEND_SVC (&mio->actsvc, (mio_svc_t*)htts);
+	CLIL_INIT (&htts->cli);
 
 	MIO_DEBUG3 (mio, "STARTED SVC(HTTS) LISTENER %p LISTENER SOCKET %p(%d)\n", htts, htts->lsck, (int)htts->lsck->sck);
 	return htts;
@@ -586,9 +648,14 @@ void mio_svc_htts_stop (mio_svc_htts_t* htts)
 	 * forgotten in the disconnect callback thereafter */
 	if (htts->lsck) mio_dev_sck_kill (htts->lsck);
 
-	if (htts->server_name && htts->server_name != htts->server_name_buf) mio_freemem (mio, htts->server_name);
+	while (!CLIL_IS_EMPTY(&htts->cli))
+	{
+		mio_svc_htts_cli_t* cli = CLIL_FIRST_CLI(&htts->cli);
+		mio_dev_sck_kill (cli->sck);
+	}
 
 	MIO_SVCL_UNLINK_SVC (htts);
+	if (htts->server_name && htts->server_name != htts->server_name_buf) mio_freemem (mio, htts->server_name);
 	mio_freemem (mio, htts);
 }
 
@@ -614,10 +681,12 @@ int mio_svc_htts_setservernamewithbcstr (mio_svc_htts_t* htts, const mio_bch_t* 
 
 /* ----------------------------------------------------------------- */
 
-mio_svc_htts_rsrc_t* mio_svc_htts_rsrc_make (mio_svc_htts_t* htts, mio_svc_htts_rsrc_on_write_t on_write, mio_svc_htts_rsrc_on_kill_t on_kill, mio_oow_t xtnsize)
+mio_svc_htts_rsrc_t* mio_svc_htts_rsrc_make (mio_svc_htts_t* htts, mio_dev_sck_t* csck, mio_svc_htts_rsrc_on_write_t on_write, mio_svc_htts_rsrc_on_kill_t on_kill, mio_oow_t xtnsize)
 {
 	mio_t* mio = htts->mio;
+	mio_svc_htts_cli_t* cli = (mio_svc_htts_cli_t*)mio_dev_sck_getxtn(csck);
 	mio_svc_htts_rsrc_t* rsrc;
+	
 
 	rsrc = mio_callocmem(mio, MIO_SIZEOF(*rsrc) + xtnsize);
 	if (MIO_UNLIKELY(!rsrc)) return MIO_NULL;
@@ -626,14 +695,19 @@ mio_svc_htts_rsrc_t* mio_svc_htts_rsrc_make (mio_svc_htts_t* htts, mio_svc_htts_
 	rsrc->on_write = on_write;
 	rsrc->on_kill = on_kill;
 
+	RSRCL_APPEND_RSRC (&cli->rsrc, rsrc);
 	return rsrc;
 }
 
 void mio_svc_htts_rsrc_kill (mio_svc_htts_rsrc_t* rsrc)
 {
+printf ("RSRC KILL >>>>> %p\n", rsrc->htts);
 	mio_t* mio = rsrc->htts->mio;
 
+
 	if (rsrc->on_kill) rsrc->on_kill (rsrc);
+
+	RSRCL_UNLINK_RSRC (rsrc);
 	mio_freemem (mio, rsrc);
 }
 
@@ -647,7 +721,7 @@ static MIO_INLINE void* mio_svc_htts_rsrc_getxtn (mio_svc_htts_rsrc_t* rsrc) { r
 
 int mio_svc_htts_sendrsrc (mio_svc_htts_t* htts, mio_dev_sck_t* csck, mio_svc_htts_rsrc_t* rsrc, int status_code, mio_http_method_t method, const mio_http_version_t* version, int keepalive)
 {
-	sck_xtn_t* csckxtn = mio_dev_sck_getxtn(csck);
+	mio_svc_htts_cli_t* cli = mio_dev_sck_getxtn(csck);
 	mio_bch_t dtbuf[64];
 	mio_oow_t x;
 
@@ -668,7 +742,7 @@ int mio_svc_htts_sendrsrc (mio_svc_htts_t* htts, mio_dev_sck_t* csck, mio_svc_ht
 
 	mio_svc_htts_fmtgmtime(htts, MIO_NULL, dtbuf, MIO_COUNTOF(dtbuf));
 
-	x = mio_becs_fmt(csckxtn->c.sbuf, "HTTP/%d.%d %d %hs\r\nServer: %hs\r\nDate: %hs\r\nConnection: %s\r\n",
+	x = mio_becs_fmt(cli->sbuf, "HTTP/%d.%d %d %hs\r\nServer: %hs\r\nDate: %hs\r\nConnection: %s\r\n",
 		(int)version->major, (int)version->minor,
 		(int)status_code, mio_http_status_to_bcstr(status_code), 
 		htts->server_name,
@@ -679,17 +753,17 @@ int mio_svc_htts_sendrsrc (mio_svc_htts_t* htts, mio_dev_sck_t* csck, mio_svc_ht
 
 	if (rsrc->content_type)
 	{
-		x = mio_becs_fcat(csckxtn->c.sbuf, "Content-Type: %hs\r\n", rsrc->content_type);
+		x = mio_becs_fcat(cli->sbuf, "Content-Type: %hs\r\n", rsrc->content_type);
 		if (MIO_UNLIKELY(x == (mio_oow_t)-1)) return -1;
 	}
 
 	if (rsrc->flags & MIO_SVC_HTTS_RSRC_FLAG_CONTENT_LENGTH_SET)
 	{
-		x = mio_becs_fcat(csckxtn->c.sbuf, "Content-Length: %ju\r\n", (mio_uintmax_t)rsrc->content_length);
+		x = mio_becs_fcat(cli->sbuf, "Content-Length: %ju\r\n", (mio_uintmax_t)rsrc->content_length);
 		if (MIO_UNLIKELY(x == (mio_oow_t)-1)) return -1;
 	}
 
-	x = mio_becs_fcat(csckxtn->c.sbuf, "\r\n", rsrc->content_length);
+	x = mio_becs_fcat(cli->sbuf, "\r\n", rsrc->content_length);
 	if (MIO_UNLIKELY(x == (mio_oow_t)-1)) return -1;
 
 /* TODO: handle METHOD HEAD... should abort after header trasmission... */
@@ -697,7 +771,7 @@ int mio_svc_htts_sendrsrc (mio_svc_htts_t* htts, mio_dev_sck_t* csck, mio_svc_ht
 /* TODO: allow extra header items */
 
 /* TODO: use timedwrite? */
-	if (mio_dev_sck_write(csck, MIO_BECS_PTR(csckxtn->c.sbuf), MIO_BECS_LEN(csckxtn->c.sbuf), rsrc, MIO_NULL) <= -1)
+	if (mio_dev_sck_write(csck, MIO_BECS_PTR(cli->sbuf), MIO_BECS_LEN(cli->sbuf), rsrc, MIO_NULL) <= -1)
 	{
 		mio_dev_sck_halt (csck);
 		return -1;
@@ -760,7 +834,7 @@ static void rsrc_file_on_kill (mio_svc_htts_rsrc_t* rsrc)
 
 int mio_svc_htts_sendfile (mio_svc_htts_t* htts, mio_dev_sck_t* csck, const mio_bch_t* file_path, int status_code, mio_http_method_t method, const mio_http_version_t* version, int keepalive)
 {
-	//sck_xtn_t* csckxtn = (sck_xtn_t*)mio_dev_sck_getxtn(csck);
+	//mio_svc_htts_cli_t* cli = (mio_svc_htts_cli_t*)mio_dev_sck_getxtn(csck);
 	int fd;
 	struct stat st;
 	mio_svc_htts_rsrc_t* rsrc = MIO_NULL;
@@ -775,7 +849,7 @@ int mio_svc_htts_sendfile (mio_svc_htts_t* htts, mio_dev_sck_t* csck, const mio_
 
 	if (fstat(fd, &st) <= -1) goto oops; /* TODO: write error status instead. probably 500 internal server error???*/
 
-	rsrc = mio_svc_htts_rsrc_make(htts, rsrc_file_on_write, rsrc_file_on_kill, MIO_SIZEOF(*rsrc_file));
+	rsrc = mio_svc_htts_rsrc_make(htts, csck, rsrc_file_on_write, rsrc_file_on_kill, MIO_SIZEOF(*rsrc_file));
 	if (MIO_UNLIKELY(!rsrc)) goto oops;
 
 	rsrc->flags = MIO_SVC_HTTS_RSRC_FLAG_CONTENT_LENGTH_SET;
@@ -796,9 +870,187 @@ oops:
 	return -1;
 }
 
-#if 0
-int mio_svc_htts_schedproxy (mio_svc_htts_t* htts, mio_dev_sck_t* csck, mio_htre_t* req)
+int mio_svc_htts_dofile (mio_svc_htts_t* htts, mio_dev_sck_t* csck, mio_htre_t* req, const mio_bch_t* docroot)
 {
+	switch (mio_htre_getqmethodtype(req))
+	{
+		case MIO_HTTP_OPTIONS:
+			mio_htre_discardcontent (req);
+			/* TODO: return 200 with Allow: OPTIONS, HEAD, GET, POST, PUT, DELETE... */
+			/* However, if there is access configuration, the item list must reflect it */
+			break;
+
+		case MIO_HTTP_HEAD:
+		case MIO_HTTP_GET:
+		case MIO_HTTP_POST:
+			mio_htre_discardcontent (req);
+			break;
+
+		case MIO_HTTP_PUT:
+			break;
+
+		case MIO_HTTP_DELETE:
+			mio_htre_discardcontent (req);
+			break;
+
+		default:
+			/* method not allowed */
+			mio_htre_discardcontent (req);
+			/* schedule to send 405  */
+			break;
+	}
+
+	return 0;
+}
+
+
+/* ----------------------------------------------------------------- */
+
+static void cgi_peer_on_close (mio_dev_pro_t* pro, mio_dev_pro_sid_t sid)
+{
+	mio_t* mio = pro->mio;
+	if (sid == MIO_DEV_PRO_MASTER)
+		MIO_INFO1 (mio, "PROCESS(%d) CLOSE MASTER\n", (int)pro->child_pid);
+	else
+		MIO_INFO2 (mio, "PROCESS(%d) CLOSE SLAVE[%d]\n", (int)pro->child_pid, sid);
+}
+
+static int cgi_peer_on_read (mio_dev_pro_t* pro, mio_dev_pro_sid_t sid, const void* data, mio_iolen_t dlen)
+{
+	mio_t* mio = pro->mio;
+
+	if (dlen <= -1)
+	{
+		MIO_INFO1 (mio, "PROCESS(%d): READ TIMED OUT...\n", (int)pro->child_pid);
+		mio_dev_pro_halt (pro);
+		return 0;
+	}
+	else if (dlen <= 0)
+	{
+		MIO_INFO1 (mio, "PROCESS(%d): EOF RECEIVED...\n", (int)pro->child_pid);
+		/* no outstanding request. but EOF */
+		mio_dev_pro_halt (pro);
+		return 0;
+	}
+
+	MIO_INFO5 (mio, "PROCESS(%d) READ DATA ON SLAVE[%d] len=%d [%.*hs]\n", (int)pro->child_pid, (int)sid, (int)dlen, dlen, (char*)data);
+	if (sid == MIO_DEV_PRO_OUT)
+	{
+		mio_dev_pro_read (pro, sid, 0);
+		mio_dev_pro_write (pro, "HELLO\n", 6, MIO_NULL);
+	}
+	return 0;
+}
+
+static int cgi_peer_on_write (mio_dev_pro_t* pro, mio_iolen_t wrlen, void* wrctx)
+{
+	mio_t* mio = pro->mio;
+	mio_ntime_t tmout;
+	if (wrlen <= -1)
+	{
+		MIO_INFO1 (mio, "PROCESS(%d): WRITE TIMED OUT...\n", (int)pro->child_pid);
+		mio_dev_pro_halt (pro);
+		return 0;
+	}
+
+	MIO_DEBUG2 (mio, "PROCESS(%d) wrote data of %d bytes\n", (int)pro->child_pid, (int)wrlen);
+	/*mio_dev_pro_read (pro, MIO_DEV_PRO_OUT, 1);*/
+	MIO_INIT_NTIME (&tmout, 5, 0);
+	mio_dev_pro_timedread (pro, MIO_DEV_PRO_OUT, 1, &tmout);
+	return 0;
+}
+
+
+static int cgi_client_on_read (mio_dev_sck_t* sck, const void* buf, mio_iolen_t len, const mio_skad_t* srcaddr)
+{
+	mio_svc_htts_cli_t* cli = mio_dev_sck_getxtn(sck);
+printf ("** HTTS - cgi client read   %p  %d -> htts:%p\n", sck, (int)len, cli->htts);
+	if (len <= 0)
+	{
+		/* read error */
+		mio_dev_sck_halt (sck);
+	}
+	else if (mio_htrd_feed(cli->htrd, buf, len) <= -1)
+	{
+		mio_dev_sck_halt (sck);
+	}
+
+	return 0;
+}
+
+static int cgi_client_on_write (mio_dev_sck_t* sck, mio_iolen_t wrlen, void* wrctx, const mio_skad_t* dstaddr)
+{
+	return 0;
+}
+
+static void cgi_client_on_disconnect (mio_dev_sck_t* sck)
+{
+	client_on_disconnect (sck);
+}
+
+typedef int (*mio_htre_concb_t) (
+	mio_htre_t*        re,
+	const mio_bch_t*   ptr,
+	mio_oow_t          len,
+	void*              ctx
+);
+
+int cgi_forward_client_to_peer (mio_htre_t* re, const mio_bch_t* ptr, mio_oow_t len, void* ctx)
+{
+	mio_dev_pro_t* pro = (mio_dev_pro_t*)ctx;
+	return mio_dev_pro_write(pro, ptr, len, MIO_NULL);
+	/* TODO: if there are too many pending write requests, stop read event on the client */
+}
+
+int mio_svc_htts_docgi (mio_svc_htts_t* htts, mio_dev_sck_t* csck, mio_htre_t* req, const mio_bch_t* docroot)
+{
+	mio_dev_pro_t* pro = MIO_NULL;
+	mio_dev_pro_make_t mi;
+
+	MIO_MEMSET (&mi, 0, MIO_SIZEOF(mi));
+	mi.flags = MIO_DEV_PRO_READOUT /*| MIO_DEV_PRO_READERR*/ | MIO_DEV_PRO_WRITEIN /*| MIO_DEV_PRO_FORGET_CHILD*/;
+	mi.cmd = mio_htre_getqpath(req); /* TODO: combine it with docroot */
+	mi.on_read = cgi_peer_on_read;
+	mi.on_write = cgi_peer_on_write;
+	mi.on_close = cgi_peer_on_close;
+
+/* TODO: create cgi environment variables... */
+	pro = mio_dev_pro_make(htts->mio, 0, &mi);
+	if (MIO_UNLIKELY(!pro)) goto oops;
+
+/* THE process device must be ready for I/O */
+	if (mio_htre_getcontentlen(req) > 0)
+	{
+		if (mio_dev_pro_write(pro, mio_htre_getcontentptr(req), mio_htre_getcontentlen(req), MIO_NULL) <= -1) goto oops;
+	}
+
+	mio_htre_setconcb (req, cgi_forward_client_to_peer, pro);
+
+#if 0
+	csck->on_read = cgi_client_on_read;
+	cssk->on_write = cgi_client_on_write;
+	csck->on_disconnect = cgi_client_on_disconnect;
+#endif
+
+#if 0
+	rsrc = mio_svc_htts_rsrc_make(htts, csck, rsrc_cgi_on_write, rsrc_cgi_on_kill, MIO_SIZEOF(*rsrc_cgi));
+	if (MIO_UNLIKELY(!rsrc)) goto oops;
+#endif
+
+	return 0;
+
+
+oops:
+	if (pro) mio_dev_pro_kill (pro);
+	return -1;
+}
+
+/* ----------------------------------------------------------------- */
+
+
+int mio_svc_htts_doproxy (mio_svc_htts_t* htts, mio_dev_sck_t* csck, mio_htre_t* req, const mio_bch_t* upstream)
+{
+#if 0
 	1. attempt to connect to the proxy target...
 	2. in the mean time, 
 	mio_dev_watch (csck, MIO_DEV_WATCH_UPDATE, 0); /* no input, no output watching */
@@ -812,8 +1064,10 @@ int mio_svc_htts_schedproxy (mio_svc_htts_t* htts, mio_dev_sck_t* csck, mio_htre
 	5. if one side is stalled, donot read from another side... let the kernel slow the connection...
 	   i need to know how may bytes are pending for this.
 	   if pending too high, disable read watching... mio_dev_watch (csck, MIO_DEV_WATCH_RENEW, 0);
-}
 #endif
+	return 0;
+}
+
 
 /* ----------------------------------------------------------------- */
 
@@ -895,7 +1149,7 @@ int mio_svc_htts_sendcgi (mio_svc_htts_t* htts, mio_dev_sck_t* csck, mio_svc_htt
 	rsrc_cgi_xtn_t* cgi = MIO_NULL;
 	int pfd[2];
 
-	rsrc = mio_svc_htts_rsrc_make(htts, rsrc_cgi_on_write, rsrc_cgi_on_kill, MIO_SIZEOF(*cgi));
+	rsrc = mio_svc_htts_rsrc_make(htts, csck, rsrc_cgi_on_write, rsrc_cgi_on_kill, MIO_SIZEOF(*cgi));
 	if (MIO_UNLIKELY(!rsrc)) goto oops;
 
 	cgi = mio_svc_htts_rsrc_getxtn(rsrc);
@@ -932,7 +1186,7 @@ oops:
 int mio_svc_htts_sendstatus (mio_svc_htts_t* htts, mio_dev_sck_t* csck, int status_code, mio_http_method_t method, const mio_http_version_t* version, int keepalive, void* extra)
 {
 /* TODO: change this to use send status */
-	sck_xtn_t* csckxtn = mio_dev_sck_getxtn(csck);
+	mio_svc_htts_cli_t* cli = mio_dev_sck_getxtn(csck);
 	mio_bch_t text[1024]; /* TODO: make this buffer dynamic or scalable */
 	mio_bch_t dtbuf[64];
 	mio_oow_t x;
@@ -991,7 +1245,7 @@ int mio_svc_htts_sendstatus (mio_svc_htts_t* htts, mio_dev_sck_t* csck, int stat
 
 	mio_svc_htts_fmtgmtime(htts, MIO_NULL, dtbuf, MIO_COUNTOF(dtbuf));
 
-	x = mio_becs_fmt(csckxtn->c.sbuf, "HTTP/%d.%d %d %s\r\nServer: %s\r\nDate: %s\r\nConnection: %s\r\nContent-Type: text/html\r\nContent-Length: %u\r\n%s%s%s\r\n%s",
+	x = mio_becs_fmt(cli->sbuf, "HTTP/%d.%d %d %s\r\nServer: %s\r\nDate: %s\r\nConnection: %s\r\nContent-Type: text/html\r\nContent-Length: %u\r\n%s%s%s\r\n%s",
 		version->major, version->minor, status_code, mio_http_status_to_bcstr(status_code), 
 		htts->server_name,
 		dtbuf, /* DATE */
@@ -1003,7 +1257,7 @@ int mio_svc_htts_sendstatus (mio_svc_htts_t* htts, mio_dev_sck_t* csck, int stat
 	
 
 /* TODO: use timedwrite? */
-	if (mio_dev_sck_write(csck, MIO_BECS_PTR(csckxtn->c.sbuf), MIO_BECS_LEN(csckxtn->c.sbuf), MIO_NULL, MIO_NULL) <= -1)
+	if (mio_dev_sck_write(csck, MIO_BECS_PTR(cli->sbuf), MIO_BECS_LEN(cli->sbuf), MIO_NULL, MIO_NULL) <= -1)
 	{
 		mio_dev_sck_halt (csck);
 		return -1;

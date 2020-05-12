@@ -182,8 +182,8 @@ typedef enum mio_svc_htts_rsrc_flag_t mio_svc_htts_rsrc_flag_t;
 struct mio_svc_htts_rsrc_t
 {
 	mio_svc_htts_t* htts;
-//	mio_svc_htts_rsrc_t* rsrc_prev;
-//	mio_svc_htts_rsrc_t* rsrc_next;
+	mio_svc_htts_rsrc_t* rsrc_prev;
+	mio_svc_htts_rsrc_t* rsrc_next;
 
 	int flags;
 	mio_bch_t* content_type;
@@ -336,6 +336,7 @@ MIO_EXPORT void mio_svc_htts_fmtgmtime (
 
 MIO_EXPORT mio_svc_htts_rsrc_t* mio_svc_htts_rsrc_make (
 	mio_svc_htts_t*              htts,
+	mio_dev_sck_t*               csck,
 	mio_svc_htts_rsrc_on_write_t on_write,
 	mio_svc_htts_rsrc_on_kill_t  on_kill,
 	mio_oow_t                    xtnsize

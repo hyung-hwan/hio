@@ -33,22 +33,6 @@
 static int schedule_kill_zombie_job (mio_dev_t* dev);
 static int kill_and_free_device (mio_dev_t* dev, int force);
 
-#define APPEND_DEVICE_TO_LIST(list,dev) do { \
-	if ((list)->tail) (list)->tail->dev_next = (dev); \
-	else (list)->head = (dev); \
-	(dev)->dev_prev = (list)->tail; \
-	(dev)->dev_next = MIO_NULL; \
-	(list)->tail = (dev); \
-} while(0)
-
-#define UNLINK_DEVICE_FROM_LIST(list,dev) do { \
-	if ((dev)->dev_prev) (dev)->dev_prev->dev_next = (dev)->dev_next; \
-	else (list)->head = (dev)->dev_next; \
-	if ((dev)->dev_next) (dev)->dev_next->dev_prev = (dev)->dev_prev; \
-	else (list)->tail = (dev)->dev_prev; \
-} while (0)
-
-
 static void on_read_timeout (mio_t* mio, const mio_ntime_t* now, mio_tmrjob_t* job);
 static void on_write_timeout (mio_t* mio, const mio_ntime_t* now, mio_tmrjob_t* job);
 
