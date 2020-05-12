@@ -130,31 +130,31 @@ static void tcp_sck_on_disconnect (mio_dev_sck_t* tcp)
 	switch (MIO_DEV_SCK_GET_PROGRESS(tcp))
 	{
 		case MIO_DEV_SCK_CONNECTING:
-			MIO_INFO1 (tcp->mio, "OUTGOING SESSION DISCONNECTED - FAILED TO CONNECT (%d) TO REMOTE SERVER\n", (int)tcp->sck);
+			MIO_INFO1 (tcp->mio, "OUTGOING SESSION DISCONNECTED - FAILED TO CONNECT (%d) TO REMOTE SERVER\n", (int)tcp->hnd);
 			break;
 
 		case MIO_DEV_SCK_CONNECTING_SSL:
-			MIO_INFO1 (tcp->mio, "OUTGOING SESSION DISCONNECTED - FAILED TO SSL-CONNECT (%d) TO REMOTE SERVER\n", (int)tcp->sck);
+			MIO_INFO1 (tcp->mio, "OUTGOING SESSION DISCONNECTED - FAILED TO SSL-CONNECT (%d) TO REMOTE SERVER\n", (int)tcp->hnd);
 			break;
 
 		case MIO_DEV_SCK_LISTENING:
-			MIO_INFO1 (tcp->mio, "SHUTTING DOWN THE SERVER SOCKET(%d)...\n", (int)tcp->sck);
+			MIO_INFO1 (tcp->mio, "SHUTTING DOWN THE SERVER SOCKET(%d)...\n", (int)tcp->hnd);
 			break;
 
 		case MIO_DEV_SCK_CONNECTED:
-			MIO_INFO1 (tcp->mio, "OUTGOING CLIENT CONNECTION GOT TORN DOWN(%d).......\n", (int)tcp->sck);
+			MIO_INFO1 (tcp->mio, "OUTGOING CLIENT CONNECTION GOT TORN DOWN(%d).......\n", (int)tcp->hnd);
 			break;
 
 		case MIO_DEV_SCK_ACCEPTING_SSL:
-			MIO_INFO1 (tcp->mio, "INCOMING SSL-ACCEPT GOT DISCONNECTED(%d) ....\n", (int)tcp->sck);
+			MIO_INFO1 (tcp->mio, "INCOMING SSL-ACCEPT GOT DISCONNECTED(%d) ....\n", (int)tcp->hnd);
 			break;
 
 		case MIO_DEV_SCK_ACCEPTED:
-			MIO_INFO1 (tcp->mio, "INCOMING CLIENT BEING SERVED GOT DISCONNECTED(%d).......\n", (int)tcp->sck);
+			MIO_INFO1 (tcp->mio, "INCOMING CLIENT BEING SERVED GOT DISCONNECTED(%d).......\n", (int)tcp->hnd);
 			break;
 
 		default:
-			MIO_INFO2 (tcp->mio, "SOCKET DEVICE DISCONNECTED (%d - %x)\n", (int)tcp->sck, (unsigned int)tcp->state);
+			MIO_INFO2 (tcp->mio, "SOCKET DEVICE DISCONNECTED (%d - %x)\n", (int)tcp->hnd, (unsigned int)tcp->state);
 			break;
 	}
 }
@@ -168,11 +168,11 @@ static void tcp_sck_on_connect (mio_dev_sck_t* tcp)
 
 	if (tcp->state & MIO_DEV_SCK_CONNECTED)
 	{
-		MIO_INFO3 (tcp->mio, "DEVICE connected to a remote server... LOCAL %hs REMOTE %hs SCK: %d\n", buf1, buf2, tcp->sck);
+		MIO_INFO3 (tcp->mio, "DEVICE connected to a remote server... LOCAL %hs REMOTE %hs SCK: %d\n", buf1, buf2, tcp->hnd);
 	}
 	else if (tcp->state & MIO_DEV_SCK_ACCEPTED)
 	{
-		MIO_INFO3 (tcp->mio, "DEVICE accepted client device... .LOCAL %hs REMOTE %hs SCK: %d\n", buf1, buf2, tcp->sck);
+		MIO_INFO3 (tcp->mio, "DEVICE accepted client device... .LOCAL %hs REMOTE %hs SCK: %d\n", buf1, buf2, tcp->hnd);
 	}
 
 	if (mio_dev_sck_write(tcp, "hello", 5, MIO_NULL, MIO_NULL) <= -1)
@@ -188,7 +188,7 @@ static int tcp_sck_on_write (mio_dev_sck_t* tcp, mio_iolen_t wrlen, void* wrctx,
 
 	if (wrlen <= -1)
 	{
-		MIO_INFO1 (tcp->mio, "TCP_SCK_ON_WRITE(%d) >>> SEDING TIMED OUT...........\n", (int)tcp->sck);
+		MIO_INFO1 (tcp->mio, "TCP_SCK_ON_WRITE(%d) >>> SEDING TIMED OUT...........\n", (int)tcp->hnd);
 		mio_dev_sck_halt (tcp);
 	}
 	else
@@ -196,11 +196,11 @@ static int tcp_sck_on_write (mio_dev_sck_t* tcp, mio_iolen_t wrlen, void* wrctx,
 		ts = (tcp_server_t*)(tcp + 1);
 		if (wrlen == 0)
 		{
-			MIO_INFO1 (tcp->mio, "TCP_SCK_ON_WRITE(%d) >>> CLOSED WRITING END\n", (int)tcp->sck);
+			MIO_INFO1 (tcp->mio, "TCP_SCK_ON_WRITE(%d) >>> CLOSED WRITING END\n", (int)tcp->hnd);
 		}
 		else
 		{
-			MIO_INFO3 (tcp->mio, "TCP_SCK_ON_WRITE(%d) >>> SENT MESSAGE %d of length %ld\n", (int)tcp->sck, ts->tally, (long int)wrlen);
+			MIO_INFO3 (tcp->mio, "TCP_SCK_ON_WRITE(%d) >>> SENT MESSAGE %d of length %ld\n", (int)tcp->hnd, ts->tally, (long int)wrlen);
 		}
 
 		ts->tally++;
@@ -210,7 +210,7 @@ static int tcp_sck_on_write (mio_dev_sck_t* tcp, mio_iolen_t wrlen, void* wrctx,
 		MIO_INIT_NTIME (&tmout, 5, 0);
 		//mio_dev_sck_read (tcp, 1);
 
-		MIO_INFO3 (tcp->mio, "TCP_SCK_ON_WRITE(%d) >>> REQUESTING to READ with timeout of %ld.%08ld\n", (int)tcp->sck, (long int)tmout.sec, (long int)tmout.nsec);
+		MIO_INFO3 (tcp->mio, "TCP_SCK_ON_WRITE(%d) >>> REQUESTING to READ with timeout of %ld.%08ld\n", (int)tcp->hnd, (long int)tmout.sec, (long int)tmout.nsec);
 		mio_dev_sck_timedread (tcp, 1, &tmout);
 	}
 	return 0;
@@ -222,19 +222,19 @@ static int tcp_sck_on_read (mio_dev_sck_t* tcp, const void* buf, mio_iolen_t len
 
 	if (len <= -1)
 	{
-		MIO_INFO1 (tcp->mio, "TCP_SCK_ON_READ(%d) STREAM DEVICE: TIMED OUT...\n", (int)tcp->sck);
+		MIO_INFO1 (tcp->mio, "TCP_SCK_ON_READ(%d) STREAM DEVICE: TIMED OUT...\n", (int)tcp->hnd);
 		mio_dev_sck_halt (tcp);
 		return 0;
 	}
 	else if (len <= 0)
 	{
-		MIO_INFO1 (tcp->mio, "TCP_SCK_ON_READ(%d) STREAM DEVICE: EOF RECEIVED...\n", (int)tcp->sck);
+		MIO_INFO1 (tcp->mio, "TCP_SCK_ON_READ(%d) STREAM DEVICE: EOF RECEIVED...\n", (int)tcp->hnd);
 		/* no outstanding request. but EOF */
 		mio_dev_sck_halt (tcp);
 		return 0;
 	}
 
-	MIO_INFO2 (tcp->mio, "TCP_SCK_ON_READ(%d) - received %d bytes\n", (int)tcp->sck, (int)len);
+	MIO_INFO2 (tcp->mio, "TCP_SCK_ON_READ(%d) - received %d bytes\n", (int)tcp->hnd, (int)len);
 
 	{
 		mio_ntime_t tmout;
@@ -243,7 +243,7 @@ static int tcp_sck_on_read (mio_dev_sck_t* tcp, const void* buf, mio_iolen_t len
 		static char xxx[1000000];
 		memset (xxx, a++ , MIO_SIZEOF(xxx));
 
-		MIO_INFO2 (tcp->mio, "TCP_SCK_ON_READ(%d) >>> REQUESTING to write data of %d bytes\n", (int)tcp->sck, MIO_SIZEOF(xxx));
+		MIO_INFO2 (tcp->mio, "TCP_SCK_ON_READ(%d) >>> REQUESTING to write data of %d bytes\n", (int)tcp->hnd, MIO_SIZEOF(xxx));
 		//return mio_dev_sck_write  (tcp, "HELLO", 5, MIO_NULL);
 		MIO_INIT_NTIME (&tmout, 5, 0);
 		n = mio_dev_sck_timedwrite(tcp, xxx, MIO_SIZEOF(xxx), &tmout, MIO_NULL, MIO_NULL);
@@ -251,11 +251,11 @@ static int tcp_sck_on_read (mio_dev_sck_t* tcp, const void* buf, mio_iolen_t len
 		if (n <= -1) return -1;
 	}
 
-	MIO_INFO1 (tcp->mio, "TCP_SCK_ON_READ(%d) - REQUESTING TO STOP READ\n", (int)tcp->sck);
+	MIO_INFO1 (tcp->mio, "TCP_SCK_ON_READ(%d) - REQUESTING TO STOP READ\n", (int)tcp->hnd);
 	mio_dev_sck_read (tcp, 0);
 
 #if 0
-	MIO_INFO1 (tcp->mio, "TCP_SCK_ON_READ(%d) - REQUESTING TO CLOSE WRITING END\n", (int)tcp->sck);
+	MIO_INFO1 (tcp->mio, "TCP_SCK_ON_READ(%d) - REQUESTING TO CLOSE WRITING END\n", (int)tcp->hnd);
 	/* post the write finisher - close the writing end */
 	n = mio_dev_sck_write(tcp, MIO_NULL, 0, MIO_NULL, MIO_NULL);
 	if (n <= -1) return -1;
