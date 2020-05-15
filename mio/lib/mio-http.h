@@ -156,6 +156,7 @@ typedef enum mio_perenc_http_opt_t mio_perenc_bcstr_opt_t;
 
 
 /* -------------------------------------------------------------- */
+typedef struct mio_htre_t mio_htre_t;
 typedef struct mio_svc_htts_t mio_svc_htts_t;
 typedef struct mio_svc_httc_t mio_svc_httc_t;
 
@@ -163,6 +164,13 @@ typedef struct mio_svc_httc_t mio_svc_httc_t;
 
 typedef struct mio_svc_htts_rsrc_t mio_svc_htts_rsrc_t;
 typedef mio_uint64_t mio_foff_t ; /* TODO: define this via the main configure.ac ... */
+
+
+typedef int (*mio_svc_htts_rsrc_on_read_t) (
+	mio_svc_htts_rsrc_t* rsrc,
+	mio_dev_sck_t*       sck
+);
+
 
 typedef int (*mio_svc_htts_rsrc_on_write_t) (
 	mio_svc_htts_rsrc_t* rsrc,
@@ -185,12 +193,14 @@ struct mio_svc_htts_rsrc_t
 	mio_svc_htts_rsrc_t* rsrc_prev;
 	mio_svc_htts_rsrc_t* rsrc_next;
 
+	mio_svc_htts_rsrc_on_kill_t on_kill;
+	mio_svc_htts_rsrc_on_write_t on_write;
+
 	int flags;
 	mio_bch_t* content_type;
 	mio_foff_t content_length;
 
-	mio_svc_htts_rsrc_on_write_t on_write;
-	mio_svc_htts_rsrc_on_kill_t on_kill;
+	
 };
 
 /* -------------------------------------------------------------- */
@@ -307,6 +317,14 @@ MIO_EXPORT int mio_svc_htts_setservernamewithbcstr (
 
 );
 
+MIO_EXPORT int mio_svc_htts_docgi (
+	mio_svc_htts_t* htts,
+	mio_dev_sck_t*  csck,
+	mio_htre_t*     req,
+	const mio_bch_t* docroot
+);
+
+
 MIO_EXPORT int mio_svc_htts_sendfile (
 	mio_svc_htts_t*           htts,
 	mio_dev_sck_t*            csck,
@@ -320,10 +338,8 @@ MIO_EXPORT int mio_svc_htts_sendfile (
 MIO_EXPORT int mio_svc_htts_sendstatus (
 	mio_svc_htts_t*           htts,
 	mio_dev_sck_t*            csck,
+	mio_htre_t*               req,
 	int                       status_code,
-	mio_http_method_t         method,
-	const mio_http_version_t* version,
-	int                       keepalive,
 	void*                     extra
 );
 

@@ -37,7 +37,7 @@
  */
 
 /* header and contents of request/response */
-typedef struct mio_htre_t mio_htre_t;
+/*typedef struct mio_htre_t mio_htre_t; <--- defined in mio-http.h TODO: remove recursive definition */
 typedef struct mio_htre_hdrval_t mio_htre_hdrval_t;
 
 enum mio_htre_state_t

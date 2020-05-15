@@ -924,7 +924,7 @@ int main (int argc, char* argv[])
 	setup_arp_tester(mio);
 	setup_ping4_tester(mio);
 
-#if 1
+#if 0
 for (i = 0; i < 5; i++)
 {
 	mio_dev_pro_t* pro;
@@ -978,6 +978,7 @@ for (i = 0; i < 5; i++)
 	dnc = mio_svc_dnc_start(mio, &servaddr, MIO_NULL, &send_tmout, &reply_tmout, 2); /* option - send to all, send one by one */
 	htts = mio_svc_htts_start(mio, &htts_bind_addr);
 	mio_svc_htts_setservernamewithbcstr (htts, "MIO-HTTP");
+
 #if 1
 	{
 		mio_dns_bqr_t qrs[] = 

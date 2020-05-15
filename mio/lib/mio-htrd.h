@@ -179,8 +179,9 @@ MIO_EXPORT void mio_htrd_setrecbs (
  */
 MIO_EXPORT int mio_htrd_feed (
 	mio_htrd_t*        htrd, /**< htrd */
-	const mio_bch_t*  req,  /**< request octets */
-	mio_oow_t         len   /**< number of octets */
+	const mio_bch_t*   req,  /**< request octets */
+	mio_oow_t          len,   /**< number of octets */
+	mio_oow_t*         rem
 );
 
 /**

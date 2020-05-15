@@ -728,7 +728,7 @@ static mio_htb_pair_t* hdr_cbserter (
 		}
 		else 
 		{
-			if (capture_key_header (tx->htrd, p) <= -1)
+			if (capture_key_header(tx->htrd, p) <= -1)
 			{
 				/* Destroy the pair created here
 				 * as it is not added to the hash table yet */
@@ -793,7 +793,7 @@ static mio_htb_pair_t* hdr_cbserter (
 		/* append it to the list*/
 		tmp->next = val; 
 
-		if (capture_key_header (tx->htrd, pair) <= -1) return MIO_NULL;
+		if (capture_key_header(tx->htrd, pair) <= -1) return MIO_NULL;
 		return pair;
 	}
 }
@@ -1102,7 +1102,7 @@ done:
 }
 
 /* feed the percent encoded string */
-int mio_htrd_feed (mio_htrd_t* htrd, const mio_bch_t* req, mio_oow_t len)
+int mio_htrd_feed (mio_htrd_t* htrd, const mio_bch_t* req, mio_oow_t len, mio_oow_t* rem)
 {
 	const mio_bch_t* end = req + len;
 	const mio_bch_t* ptr = req;
@@ -1122,7 +1122,7 @@ int mio_htrd_feed (mio_htrd_t* htrd, const mio_bch_t* req, mio_oow_t len)
 	{
 		/* treat everything as contents.
 		 * i don't care about headers or whatsoever. */
-		return push_content (htrd, req, len);
+		return push_content(htrd, req, len);
 	}
 
 	/* does this goto drop code maintainability? */
@@ -1199,7 +1199,7 @@ int mio_htrd_feed (mio_htrd_t* htrd, const mio_bch_t* req, mio_oow_t len)
 
 					/* we got a complete request header. */
 					MIO_ASSERT (htrd->mio, htrd->fed.s.crlf <= 3);
-	
+
 					/* reset the crlf state */
 					htrd->fed.s.crlf = 0;
 					/* reset the raw request length */
@@ -1228,7 +1228,7 @@ int mio_htrd_feed (mio_htrd_t* htrd, const mio_bch_t* req, mio_oow_t len)
 						 * reading CGI outputs. So it comes with
 						 * awkwardity described above.
 						 */
-						if (ptr < end && push_content (htrd, ptr, end - ptr) <= -1) return -1;
+						if (ptr < end && push_content(htrd, ptr, end - ptr) <= -1) return -1;
 
 						/* i don't really know if it is really completed 
 						 * with content. MIO_HTRD_PEEKONLY is not compatible
@@ -1246,7 +1246,7 @@ int mio_htrd_feed (mio_htrd_t* htrd, const mio_bch_t* req, mio_oow_t len)
 					if (htrd->re.flags & MIO_HTRE_ATTR_CHUNKED)
 					{
 						/* transfer-encoding: chunked */
-						MIO_ASSERT (htrd->mio, !(htrd->re.flags & MIO_HTRE_ATTR_LENGTH));
+						/*MIO_ASSERT (htrd->mio, !(htrd->re.flags & MIO_HTRE_ATTR_LENGTH)); <- this assertion is wrong. non-conforming client may include content-length while transfer-encoding is chunked*/
 
 					dechunk_start:
 						htrd->fed.s.chunk.phase = GET_CHUNK_LEN;
@@ -1254,8 +1254,8 @@ int mio_htrd_feed (mio_htrd_t* htrd, const mio_bch_t* req, mio_oow_t len)
 						htrd->fed.s.chunk.count = 0;
 
 					dechunk_resume:
-						ptr = getchunklen (htrd, ptr, end - ptr);
-						if (ptr == MIO_NULL) return -1;
+						ptr = getchunklen(htrd, ptr, end - ptr);
+						if (MIO_UNLIKELY(!ptr)) return -1;
 
 						if (htrd->fed.s.chunk.phase == GET_CHUNK_LEN)
 						{
@@ -1274,8 +1274,8 @@ int mio_htrd_feed (mio_htrd_t* htrd, const mio_bch_t* req, mio_oow_t len)
 							htrd->fed.s.crlf = 2;
 
 						dechunk_get_trailers:
-							ptr = get_trailing_headers (htrd, ptr, end);
-							if (ptr == MIO_NULL) return -1;
+							ptr = get_trailing_headers(htrd, ptr, end);
+							if (!MIO_UNLIKELY(ptr)) return -1;
 
 							if (htrd->fed.s.chunk.phase == GET_CHUNK_TRAILERS)
 							{
@@ -1450,12 +1450,12 @@ XXXXXXXX
 						 * plus complete content body and the header 
 						 * of the next request. */
 						int n;
-						htrd->errnum = MIO_HTRD_ENOERR;	
+						htrd->errnum = MIO_HTRD_ENOERR;
 						n = htrd->recbs->peek(htrd, &htrd->re);
 						if (n <= -1)
 						{
 							if (htrd->errnum == MIO_HTRD_ENOERR)
-								htrd->errnum = MIO_HTRD_ERECBS;	
+								htrd->errnum = MIO_HTRD_ERECBS;
 							/* need to clear request on error? 
 							clear_feed (htrd); */
 							return -1;
@@ -1472,7 +1472,7 @@ XXXXXXXX
 						if (n <= -1)
 						{
 							if (htrd->errnum == MIO_HTRD_ENOERR)
-								htrd->errnum = MIO_HTRD_ERECBS;	
+								htrd->errnum = MIO_HTRD_ERECBS;
 							/* need to clear request on error? 
 							clear_feed (htrd); */
 							return -1;
@@ -1484,27 +1484,36 @@ mio_printf (MIO_T("CONTENT_LENGTH %d, RAW HEADER LENGTH %d\n"),
 	(int)MIO_BECS_LEN(&htrd->re.content),
 	(int)MIO_BECS_LEN(&htrd->fed.b.raw));
 #endif
-
 					clear_feed (htrd);
-					if (ptr >= end) return 0; /* no more feeds to handle */
 
-					if (htrd->flags & FEEDING_SUSPENDED)
+					if (rem) 
+					{
+						/* stop even if there are fed data left */
+						*rem = end - ptr; /* remaining feeds */
+						return 0; /* to indicate completed when the 'rem' is not NULL */
+					}
+					else if (ptr >= end)
+					{
+						/* no more feeds to handle */
+						return 0;
+					}
+
+					if (htrd->flags & FEEDING_SUSPENDED) /* in case the callback called mio_htrd_suspend() */
 					{
 						htrd->errnum = MIO_HTRD_ESUSPENDED;
 						return -1;
 					}
 
 					/*if (htrd->option & MIO_HTRD_DUMMY)*/
-					if (htrd->flags & FEEDING_DUMMIFIED)
+					if (htrd->flags & FEEDING_DUMMIFIED) /* in case the callback called mio_htrd_dummify() */
 					{
 						/* once the mode changes to RAW in a callback,
 						 * left-over is pushed as contents */
 						if (ptr < end)
-							return push_content (htrd, ptr, end - ptr);
+							return push_content(htrd, ptr, end - ptr);
 						else
 							return 0;
 					}
-
 
 					/* let ptr point to the next character to LF or 
 					 * the optional contents */
@@ -1537,31 +1546,32 @@ mio_printf (MIO_T("CONTENT_LENGTH %d, RAW HEADER LENGTH %d\n"),
 	if (ptr > req)
 	{
 		/* enbuffer the incomplete request */
-		if (push_to_buffer (htrd, &htrd->fed.b.raw, req, ptr - req) <= -1) return -1;
+		if (push_to_buffer(htrd, &htrd->fed.b.raw, req, ptr - req) <= -1) return -1;
 	}
 
 feedme_more:
 	if (header_completed_during_this_feed && htrd->recbs->peek)
 	{
 		int n;
-		htrd->errnum = MIO_HTRD_ENOERR;	
-		n = htrd->recbs->peek (htrd, &htrd->re);
+		htrd->errnum = MIO_HTRD_ENOERR;
+		n = htrd->recbs->peek(htrd, &htrd->re);
 		if (n <= -1)
 		{
 			if (htrd->errnum == MIO_HTRD_ENOERR)
-				htrd->errnum = MIO_HTRD_ERECBS;	
+				htrd->errnum = MIO_HTRD_ERECBS;
 			/* need to clear request on error? 
 			clear_feed (htrd); */
 			return -1;
 		}
 	}
 
+	if (rem) *rem = 0;
 	return 0;
 }
 
 int mio_htrd_halt (mio_htrd_t* htrd)
 {
-	if (htrd->fed.s.flags & CONSUME_UNTIL_CLOSE || !htrd->clean)
+	if ((htrd->fed.s.flags & CONSUME_UNTIL_CLOSE) || !htrd->clean)
 	{
 		mio_htre_completecontent (&htrd->re);
 
@@ -1573,7 +1583,7 @@ int mio_htrd_halt (mio_htrd_t* htrd)
 			if (n <= -1)
 			{
 				if (htrd->errnum == MIO_HTRD_ENOERR)
-					htrd->errnum = MIO_HTRD_ERECBS;	
+					htrd->errnum = MIO_HTRD_ERECBS;
 				/* need to clear request on error? 
 				clear_feed (htrd); */
 				return -1;
@@ -1657,7 +1667,7 @@ int mio_htrd_scanqparam (mio_htrd_t* htrd, const mio_bcs_t* cstr)
 			MIO_ASSERT (htrd->mio, htrd->recbs->qparamstr != MIO_NULL);
 
 			htrd->errnum = MIO_HTRD_ENOERR;
-			if (htrd->recbs->qparamstr (htrd, &key, &val) <= -1) 
+			if (htrd->recbs->qparamstr(htrd, &key, &val) <= -1) 
 			{
 				if (htrd->errnum == MIO_HTRD_ENOERR)
 					htrd->errnum = MIO_HTRD_ERECBS;	

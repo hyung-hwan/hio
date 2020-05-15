@@ -150,7 +150,7 @@ static void release_dns_msg (mio_svc_dnc_t* dnc, mio_dns_msg_t* msg)
 	mio_t* mio = dnc->mio;
 	dnc_dns_msg_xtn_t* msgxtn = dnc_dns_msg_getxtn(msg);
 
-MIO_DEBUG1 (mio, "releasing dns msg %d\n", (int)mio_ntoh16(mio_dns_msg_to_pkt(msg)->id));
+MIO_DEBUG1 (mio, "DNC - releasing dns message - msgid:%d\n", (int)mio_ntoh16(mio_dns_msg_to_pkt(msg)->id));
 
 	if (msg == dnc->pending_req || msgxtn->next || msgxtn->prev)
 	{
@@ -179,13 +179,13 @@ static int handle_tcp_packet (mio_dev_sck_t* dev, mio_dns_pkt_t* pkt, mio_uint16
 
 	if (!pkt->qr) 
 	{
-		MIO_DEBUG0 (mio, "dropping dns request received over tcp ...\n"); /* TODO: add source info */
+		MIO_DEBUG0 (mio, "DNC - dropping dns request received over tcp ...\n"); /* TODO: add source info */
 		return 0; /* drop request. nothing to do */
 	}
 
 	id = mio_ntoh16(pkt->id);
 
-MIO_DEBUG1 (mio, "<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<GOT DATA>>>>>>>>>>>id [%d] >>>>>>>>>>>>>>>>>>\n", id);
+MIO_DEBUG1 (mio, "DNC - got dns response over tcp - msgid:%d\n", id);
 
 	reqmsg = dnc->pending_req;
 	while (reqmsg)
@@ -203,7 +203,7 @@ MIO_DEBUG1 (mio, "<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<GOT DATA>>>>>>>>>>>id [%d] >>>>
 		reqmsg = reqmsgxtn->next;
 	}
 
-MIO_DEBUG1 (mio, "unknown dns response over tcp... %d\n", pkt->id); /* TODO: add source info */
+MIO_DEBUG1 (mio, "DNC - unknown dns response over tcp... msgid:%d\n", id); /* TODO: add source info */
 	return 0;
 }
 
@@ -240,12 +240,12 @@ static int on_tcp_read (mio_dev_sck_t* dev, const void* data, mio_iolen_t dlen, 
 
 	if (MIO_UNLIKELY(dlen <= -1))
 	{
-		MIO_DEBUG1 (mio, "dns tcp read error ....%js\n", mio_geterrmsg(mio)); /* TODO: add source packet */
+		MIO_DEBUG1 (mio, "DNC - dns tcp read error ....%js\n", mio_geterrmsg(mio)); /* TODO: add source packet */
 		goto oops;
 	}
 	else if (MIO_UNLIKELY(dlen == 0))
 	{
-		MIO_DEBUG0 (mio, "dns tcp read error ...premature socket hangul\n"); /* TODO: add source packet */
+		MIO_DEBUG0 (mio, "DNC - dns tcp read error ...premature tcp socket end\n"); /* TODO: add source packet */
 		goto oops;
 	}
 
@@ -311,7 +311,7 @@ static void on_tcp_reply_timeout (mio_t* mio, const mio_ntime_t* now, mio_tmrjob
 	MIO_ASSERT (mio, reqmsgxtn->rtmridx == MIO_TMRIDX_INVALID);
 	MIO_ASSERT (mio, dev == dnc->tcp_sck);
 
-MIO_DEBUG0 (mio, "*** TIMEOUT ==> unable to receive dns response in time over TCP...\n");
+MIO_DEBUG1 (mio, "DNC - unable to receive dns response in time over TCP - msgid:%d\n", (int)mio_ntoh16(mio_dns_msg_to_pkt(reqmsg)->id));
 
 	if (MIO_LIKELY(reqmsgxtn->on_done)) reqmsgxtn->on_done (dnc, reqmsg, MIO_ETMOUT, MIO_NULL, 0);
 	release_dns_msg (dnc, reqmsg);
@@ -336,6 +336,8 @@ static int on_tcp_write (mio_dev_sck_t* dev, mio_iolen_t wrlen, void* wrctx, con
 		/* question. schedule to wait for response */
 		mio_tmrjob_t tmrjob;
 
+		MIO_DEBUG1 (mio, "DNC - sent dns question over tcp - msgid:%d\n", (int)mio_ntoh16(mio_dns_msg_to_pkt(msg)->id));
+
 		MIO_MEMSET (&tmrjob, 0, MIO_SIZEOF(tmrjob));
 		tmrjob.ctx = msg;
 		mio_gettime (mio, &tmrjob.when);
@@ -347,7 +349,7 @@ static int on_tcp_write (mio_dev_sck_t* dev, mio_iolen_t wrlen, void* wrctx, con
 		{
 			/* call the callback to indicate this operation failure in the middle of transaction */
 			status = mio_geterrnum(mio);
-			MIO_DEBUG0 (mio, "unable to schedule tcp timeout...\n");
+			MIO_DEBUG1 (mio, "DNC - unable to schedule tcp timeout - msgid: %d\n", (int)mio_ntoh16(mio_dns_msg_to_pkt(msg)->id));
 			goto finalize;
 		}
 
@@ -356,6 +358,7 @@ static int on_tcp_write (mio_dev_sck_t* dev, mio_iolen_t wrlen, void* wrctx, con
 	else
 	{
 		/* no error. successfuly sent a message. no reply is expected */
+		MIO_DEBUG1 (mio, "DNC - sent dns message over tcp - msgid:%d\n", (int)mio_ntoh16(mio_dns_msg_to_pkt(msg)->id));
 		status = MIO_ENOERR;
 		goto finalize;
 	}
@@ -374,6 +377,8 @@ static int write_dns_msg_over_tcp (mio_dev_sck_t* dev, mio_dns_msg_t* msg)
 	dnc_dns_msg_xtn_t* msgxtn = dnc_dns_msg_getxtn(msg);
 	mio_uint16_t pktlen;
 	mio_iovec_t iov[2];
+
+	MIO_DEBUG1 (mio, "DNC - sending dns message over tcp - msgid:%d\n", (int)mio_ntoh16(mio_dns_msg_to_pkt(msg)->id));
 
 	pktlen = mio_hton16(msg->pktlen);
 
@@ -426,11 +431,11 @@ static void on_tcp_disconnect (mio_dev_sck_t* dev)
 
 	if (status == MIO_ENOERR)
 	{
-		MIO_DEBUG0 (mio, "TCP DISCONNECTED\n");
+		MIO_DEBUG0 (mio, "DNC - TCP DISCONNECTED\n");
 	}
 	else
 	{
-		MIO_DEBUG2 (mio, "TCP UNABLED TO CONNECT  %d -> %js\n", status, mio_errnum_to_errstr(status));
+		MIO_DEBUG2 (mio, "DNC - TCP UNABLE TO CONNECT  %d -> %js\n", status, mio_errnum_to_errstr(status));
 	}
 
 	reqmsg = dnc->pending_req;
@@ -509,7 +514,7 @@ static int switch_reqmsg_transport_to_tcp (mio_svc_dnc_t* dnc, mio_dns_msg_t* re
 	reqmsgxtn->rtries = 0;
 	if (!reqmsgxtn->pending && mio_dns_msg_to_pkt(reqmsg)->qr == 0) chain_pending_dns_reqmsg (dnc, reqmsg);
 
-printf ("SWITCHED >>>>>>>>>>>>>>>>> %p %p %p %p %p\n", reqmsg, reqmsgxtn, reqmsgxtn->dev, dnc->udp_sck, dnc->tcp_sck);
+MIO_DEBUG6 (mio, "DNC - switched transport to tcp - msgid:%d %p %p %p %p %p\n", (int)mio_ntoh16(mio_dns_msg_to_pkt(reqmsg)->id), reqmsg, reqmsgxtn, reqmsgxtn->dev, dnc->udp_sck, dnc->tcp_sck);
 
 	if (MIO_DEV_SCK_GET_PROGRESS(dnc->tcp_sck) & MIO_DEV_SCK_CONNECTED)
 	{
@@ -536,19 +541,19 @@ static int on_udp_read (mio_dev_sck_t* dev, const void* data, mio_iolen_t dlen, 
 
 	if (MIO_UNLIKELY(dlen <= -1))
 	{
-		MIO_DEBUG1 (mio, "dns read error ....%js\n", mio_geterrmsg(mio)); /* TODO: add source packet */
+		MIO_DEBUG1 (mio, "DNC - dns read error ....%js\n", mio_geterrmsg(mio)); /* TODO: add source packet */
 		return 0;
 	}
 
 	if (MIO_UNLIKELY(dlen < MIO_SIZEOF(*pkt))) 
 	{
-		MIO_DEBUG0 (mio, "dns packet too small from ....\n"); /* TODO: add source packet */
+		MIO_DEBUG0 (mio, "DNC - dns packet too small from ....\n"); /* TODO: add source packet */
 		return 0; /* drop */
 	}
 	pkt = (mio_dns_pkt_t*)data;
 	if (!pkt->qr) 
 	{
-		MIO_DEBUG0 (mio, "dropping dns request received ...\n"); /* TODO: add source info */
+		MIO_DEBUG0 (mio, "DNC - dropping dns request received ...\n"); /* TODO: add source info */
 		return 0; /* drop request */
 	}
 
@@ -583,7 +588,7 @@ static int on_udp_read (mio_dev_sck_t* dev, const void* data, mio_iolen_t dlen, 
 				/* TODO: add an option to call an error callback with TRUNCATION error code instead of fallback to received UDP truncated message */
 			}
 
-MIO_DEBUG1 (mio, "received dns response over udp..id %d\n", id);
+MIO_DEBUG1 (mio, "DNC - received dns response over udp for msgid:%d\n", id);
 			if (MIO_LIKELY(reqmsgxtn->on_done)) reqmsgxtn->on_done (dnc, reqmsg, MIO_ENOERR, data, dlen);
 			release_dns_msg (dnc, reqmsg);
 			return 0;
@@ -593,7 +598,7 @@ MIO_DEBUG1 (mio, "received dns response over udp..id %d\n", id);
 	}
 
 	/* the response id didn't match the ID of pending requests - need to wait longer? */
-MIO_DEBUG1 (mio, "unknown dns response... %d\n", pkt->id); /* TODO: add source info */
+MIO_DEBUG1 (mio, "DNC - unknown dns response over udp... msgid:%d\n", id); /* TODO: add source info */
 	return 0;
 }
 
@@ -608,12 +613,13 @@ static void on_udp_reply_timeout (mio_t* mio, const mio_ntime_t* now, mio_tmrjob
 	MIO_ASSERT (mio, msgxtn->rtmridx == MIO_TMRIDX_INVALID);
 	MIO_ASSERT (mio, dev == dnc->udp_sck);
 
-MIO_DEBUG0 (mio, "*** TIMEOUT ==> unable to receive dns response in time...\n");
+MIO_DEBUG1 (mio, "DNC - unable to receive dns response in time over udp - msgid:%d\n", (int)mio_ntoh16(mio_dns_msg_to_pkt(reqmsg)->id));
 	if (msgxtn->rtries < msgxtn->rmaxtries)
 	{
 		mio_ntime_t* tmout;
 
 		tmout = MIO_IS_POS_NTIME(&msgxtn->wtmout)? &msgxtn->wtmout: MIO_NULL;
+MIO_DEBUG1 (mio, "DNC - sending dns question again over udp - msgid:%d\n", (int)mio_ntoh16(mio_dns_msg_to_pkt(reqmsg)->id));
 		if (mio_dev_sck_timedwrite(dev, mio_dns_msg_to_pkt(reqmsg), reqmsg->pktlen, tmout, reqmsg, &msgxtn->servaddr) >= 0) return; /* resent */
 
 		/* retry failed */
@@ -623,7 +629,6 @@ MIO_DEBUG0 (mio, "*** TIMEOUT ==> unable to receive dns response in time...\n");
 	if (MIO_LIKELY(msgxtn->on_done)) msgxtn->on_done (dnc, reqmsg, status, MIO_NULL, 0);
 	release_dns_msg (dnc, reqmsg);
 }
-
 
 static int on_udp_write (mio_dev_sck_t* dev, mio_iolen_t wrlen, void* wrctx, const mio_skad_t* dstaddr)
 {
@@ -646,7 +651,7 @@ static int on_udp_write (mio_dev_sck_t* dev, mio_iolen_t wrlen, void* wrctx, con
 		/* question. schedule to wait for response */
 		mio_tmrjob_t tmrjob;
 
-MIO_DEBUG1 (mio, "sent dns question %d\n", (int)mio_ntoh16(mio_dns_msg_to_pkt(msg)->id));
+		MIO_DEBUG1 (mio, "DNC - sent dns question over udp - msgid:%d\n", (int)mio_ntoh16(mio_dns_msg_to_pkt(msg)->id));
 		MIO_MEMSET (&tmrjob, 0, MIO_SIZEOF(tmrjob));
 		tmrjob.ctx = msg;
 		mio_gettime (mio, &tmrjob.when);
@@ -658,10 +663,10 @@ MIO_DEBUG1 (mio, "sent dns question %d\n", (int)mio_ntoh16(mio_dns_msg_to_pkt(ms
 		{
 			/* call the callback to indicate this operation failure in the middle of transaction */
 			status = mio_geterrnum(mio);
-			MIO_DEBUG0 (mio, "unable to schedule timeout...\n");
+			MIO_DEBUG1 (mio, "DNC - unable to schedule udp timeout - msgid:%d\n", (int)mio_ntoh16(mio_dns_msg_to_pkt(msg)->id));
 			goto finalize;
 		}
-		
+
 		if (msgxtn->rtries == 0)
 		{
 			/* this is the first wait */
@@ -673,7 +678,7 @@ MIO_DEBUG1 (mio, "sent dns question %d\n", (int)mio_ntoh16(mio_dns_msg_to_pkt(ms
 	}
 	else
 	{
-MIO_DEBUG1 (mio, "sent dns message %d\n", (int)mio_ntoh16(mio_dns_msg_to_pkt(msg)->id));
+		MIO_DEBUG1 (mio, "DNC - sent dns message over udp - msgid:%d\n", (int)mio_ntoh16(mio_dns_msg_to_pkt(msg)->id));
 		/* sent an answer. however this may be a question if msgxtn->rmaxtries is 0. */
 		status = MIO_ENOERR;
 		goto finalize;
@@ -693,7 +698,7 @@ static void on_udp_connect (mio_dev_sck_t* dev)
 
 static void on_udp_disconnect (mio_dev_sck_t* dev)
 {
-	mio_t* mio = dev->mio;
+	/*mio_t* mio = dev->mio;*/
 	mio_svc_dnc_t* dnc = ((dnc_sck_xtn_t*)mio_dev_sck_getxtn(dev))->dnc;
 	mio_dns_msg_t* reqmsg;
 
@@ -763,6 +768,7 @@ mio_svc_dnc_t* mio_svc_dnc_start (mio_t* mio, const mio_skad_t* serv_addr, const
 	}
 
 	MIO_SVCL_APPEND_SVC (&mio->actsvc, (mio_svc_t*)dnc);
+	MIO_DEBUG1 (mio, "DNC - STARTED SERVICE %p\n", dnc);
 	return dnc;
 
 oops:
@@ -778,6 +784,7 @@ void mio_svc_dnc_stop (mio_svc_dnc_t* dnc)
 {
 	mio_t* mio = dnc->mio;
 
+	MIO_DEBUG1 (mio, "DNC - STOPPING SERVICE %p\n", dnc);
 	if (dnc->udp_sck) mio_dev_sck_kill (dnc->udp_sck);
 	if (dnc->tcp_sck) mio_dev_sck_kill (dnc->tcp_sck);
 	while (dnc->pending_req) release_dns_msg (dnc, dnc->pending_req);
@@ -792,6 +799,8 @@ static MIO_INLINE int send_dns_msg (mio_svc_dnc_t* dnc, mio_dns_msg_t* msg, int 
 	mio_ntime_t* tmout;
 
 	if ((send_flags & MIO_SVC_DNC_SEND_FLAG_PREFER_TCP) && switch_reqmsg_transport_to_tcp(dnc, msg) >= 0) return 0;
+
+	MIO_DEBUG1 (dnc->mio, "DNC - sending dns message over udp - msgid:%d\n", (int)mio_ntoh16(mio_dns_msg_to_pkt(msg)->id));
 
 	tmout = MIO_IS_POS_NTIME(&msgxtn->wtmout)? &msgxtn->wtmout: MIO_NULL;
 /* TODO: optionally, override dnc->serv_addr and use the target address passed as a parameter */
