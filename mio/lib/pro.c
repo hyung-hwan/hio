@@ -198,9 +198,9 @@ static pid_t standard_fork_and_exec (mio_t* mio, int pfds[], int flags, param_t*
 		    (flags & MIO_DEV_PRO_ERRTONUL))
 		{
 		#if defined(O_LARGEFILE)
-			devnull = open ("/dev/null", O_RDWR | O_LARGEFILE, 0);
+			devnull = open("/dev/null", O_RDWR | O_LARGEFILE, 0);
 		#else
-			devnull = open ("/dev/null", O_RDWR, 0);
+			devnull = open("/dev/null", O_RDWR, 0);
 		#endif
 			if (devnull == MIO_SYSHND_INVALID) goto slave_oops;
 		}
@@ -224,7 +224,7 @@ static int dev_pro_make_master (mio_dev_t* dev, void* ctx)
 	mio_t* mio = dev->mio;
 	mio_dev_pro_t* rdev = (mio_dev_pro_t*)dev;
 	mio_dev_pro_make_t* info = (mio_dev_pro_make_t*)ctx;
-	mio_syshnd_t pfds[6];
+	mio_syshnd_t pfds[6] = { MIO_SYSHND_INVALID, MIO_SYSHND_INVALID, MIO_SYSHND_INVALID, MIO_SYSHND_INVALID, MIO_SYSHND_INVALID, MIO_SYSHND_INVALID };
 	int i, minidx = -1, maxidx = -1;
 	param_t param;
 	pid_t pid;
@@ -459,7 +459,7 @@ static int dev_pro_kill_master (mio_dev_t* dev, int force)
 			int killed = 0;
 
 		await_child:
-			wpid = waitpid (rdev->child_pid, &status, WNOHANG);
+			wpid = waitpid(rdev->child_pid, &status, WNOHANG);
 			if (wpid == 0)
 			{
 				if (force && !killed)
