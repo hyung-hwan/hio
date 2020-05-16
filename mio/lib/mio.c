@@ -567,12 +567,18 @@ static MIO_INLINE void handle_event (mio_t* mio, mio_dev_t* dev, int events, int
 				 * is started from within on_read() callback, and the input data is available 
 				 * in the next iteration of this loop, the on_read() callback is triggered
 				 * before the on_write() callbacks scheduled before that on_read() callback. */
+			#if 0
 				if (dev->cw_count > 0) 
 				{
 					fire_cwq_handlers_for_dev (mio, dev);
 					/* it will still invoke the on_read() callbak below even if
 					 * the device gets halted inside fire_cwq_handlers_for_dev() */
 				}
+			#else
+				/* currently fire_cwq_handlers_for_dev() scans the entire cwq list.
+				 * i might as well triggger handlers for all devices */
+				fire_cwq_handlers (mio); 
+			#endif
 
 				if (len <= 0 && (dev->dev_cap & MIO_DEV_CAP_STREAM)) 
 				{
