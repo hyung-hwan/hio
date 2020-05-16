@@ -1210,6 +1210,17 @@ int mio_htrd_feed (mio_htrd_t* htrd, const mio_bch_t* req, mio_oow_t len, mio_oo
 
 					/* compelete request header is received */
 					header_completed_during_this_feed = 1;
+
+////////////////////////////////////////////////////////////////////////////////////////////////////
+					if (htrd->recbs->peek(htrd, &htrd->re) <= -1)
+					{
+						/* need to clear request on error? 
+						clear_feed (htrd); */
+						return -1;
+/// TODO: PEEKONLY doens't seem to be neede. delete it...
+					}
+////////////////////////////////////////////////////////////////////////////////////////////////////
+
 					if (htrd->option & MIO_HTRD_PEEKONLY)
 					{
 						/* when MIO_HTRD_PEEKONLY is set,
@@ -1443,6 +1454,7 @@ XXXXXXXX
 					/* the content has been received fully */
 					mio_htre_completecontent (&htrd->re);
 
+#if 0 // XXXX
 					if (header_completed_during_this_feed && htrd->recbs->peek)
 					{
 						/* the peek handler has not been executed.
@@ -1464,6 +1476,7 @@ XXXXXXXX
 
 						header_completed_during_this_feed = 0;
 					}
+#endif
 
 					if (htrd->recbs->poke)
 					{
@@ -1551,6 +1564,7 @@ mio_printf (MIO_T("CONTENT_LENGTH %d, RAW HEADER LENGTH %d\n"),
 	}
 
 feedme_more:
+#if 0 //XXXX
 	if (header_completed_during_this_feed && htrd->recbs->peek)
 	{
 		int n;
@@ -1565,6 +1579,7 @@ feedme_more:
 			return -1;
 		}
 	}
+#endif
 
 	if (rem) *rem = 0;
 	return 0;

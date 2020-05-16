@@ -706,8 +706,8 @@ static MIO_INLINE void* mio_svc_htts_rsrc_getxtn (mio_svc_htts_rsrc_t* rsrc) { r
 enum cgi_state_res_mode_t
 {
 	CGI_STATE_RES_MODE_CHUNKED,
-	CGI_STATE_RES_MODE_CLOSE
-	/* CGI_STATE_RES_MODE_LENGTH */ 
+	CGI_STATE_RES_MODE_CLOSE,
+	CGI_STATE_RES_MODE_LENGTH
 };
 typedef enum cgi_state_res_mode_t cgi_state_res_mode_t;
 
@@ -834,6 +834,8 @@ static int cgi_peer_on_read (mio_dev_pro_t* pro, mio_dev_pro_sid_t sid, const vo
 		goto oops;
 	}
 
+	if (cgi_state->peer_eof) return 0; /* will ignore */
+
 	if (dlen == 0)
 	{
 		MIO_DEBUG3 (mio, "HTTPS(%p) - EOF from peer %p(pid=%u)\n", cgi_state->cli->htts, pro, (unsigned int)pro->child_pid);
@@ -847,8 +849,17 @@ static int cgi_peer_on_read (mio_dev_pro_t* pro, mio_dev_pro_sid_t sid, const vo
 	{
 		mio_oow_t rem;
 printf ( "QQQQQQQQQQQQQQQQQQ>>>>>>>>>>>>>>>>>> feeding to peer htrd.... dlen => %d\n", (int)dlen);
-		if (mio_htrd_feed(cgi_state->peer_htrd, data, dlen, &rem) <= -1) goto oops;
-		/* if (rem > 0) also something is not right */
+		if (mio_htrd_feed(cgi_state->peer_htrd, data, dlen, &rem) <= -1) 
+		{
+printf ( "FEEDING FAILURE TO PEER HTDDRD.. dlen => %d\n", (int)dlen);
+			goto oops;
+		}
+		if (rem > 0) 
+		{
+			/* If the script specifies Content-Length and produces longer data, it will come here */
+			printf ("AAAAAAAAAAAAAAAAAa EEEEEXcessive DATA..................\n");
+			cgi_state->peer_eof = 1; /* EOF or use another bit-field? */
+		}
 	}
 
 	return 0;
@@ -892,6 +903,12 @@ static int cgi_peer_htrd_peek (mio_htrd_t* htrd, mio_htre_t* req)
 	mio_svc_htts_cli_t* cli = cgi_state->cli;
 	int status_code;
 
+	if (req->attr.content_length)
+	{
+// TOOD: remove content_length if content_length is negative or not numeric.
+		cgi_state->res_mode_to_cli = CGI_STATE_RES_MODE_LENGTH;
+	}
+
 	if (req->attr.status)
 	{
 	}
@@ -917,6 +934,11 @@ printf ("CGI PEER HTRD PEEK...\n");
 
 		case CGI_STATE_RES_MODE_CLOSE:
 			if (mio_becs_cat(cli->sbuf, "Connection: close\r\n") == (mio_oow_t)-1) return -1;
+			break;
+
+		case CGI_STATE_RES_MODE_LENGTH:
+			/* TODO: Keep-Alive if explicit in http/1.0 .
+			 *       Keep-Alive not needed if http/1.1 or later */
 			break;
 	}
 
@@ -960,6 +982,7 @@ static int cgi_peer_htrd_push_content (mio_htrd_t* htrd, mio_htre_t* req, const 
 		}
 
 		case CGI_STATE_RES_MODE_CLOSE:
+		case CGI_STATE_RES_MODE_LENGTH:
 			cgi_state->num_pending_writes_to_client++;
 			if (mio_dev_sck_write(cgi_state->cli->sck, data, dlen, MIO_NULL, MIO_NULL) <= -1)
 			{
@@ -1254,6 +1277,7 @@ int mio_svc_htts_docgi (mio_svc_htts_t* htts, mio_dev_sck_t* csck, mio_htre_t* r
 		if (mio_dev_sck_read(csck, 0) <= -1) goto oops;
 	}
 
+	/* this may change later if Content-Length is included in the cgi output */
 	cgi_state->res_mode_to_cli = (req->flags & MIO_HTRE_ATTR_KEEPALIVE)? CGI_STATE_RES_MODE_CHUNKED: CGI_STATE_RES_MODE_CLOSE;
 	return 0;
 
