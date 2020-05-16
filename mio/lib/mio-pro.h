@@ -31,7 +31,7 @@
 
 enum mio_dev_pro_sid_t
 {
-	MIO_DEV_PRO_MASTER = -1,
+	MIO_DEV_PRO_MASTER = -1, /* no io occurs on this. used only in on_close() */
 	MIO_DEV_PRO_IN     =  0, /* input of the child process */
 	MIO_DEV_PRO_OUT    =  1, /* output of the child process */
 	MIO_DEV_PRO_ERR    =  2  /* error output of the child process */
