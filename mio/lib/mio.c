@@ -633,6 +633,15 @@ static MIO_INLINE void handle_event (mio_t* mio, mio_dev_t* dev, int events, int
 			 * halt the device. this check is performed after
 			 * EPOLLIN or EPOLLOUT check because EPOLLERR or EPOLLHUP
 			 * can be set together with EPOLLIN or EPOLLOUT. */
+			if (!(dev->dev_cap & MIO_DEV_CAP_IN_CLOSED))
+			{
+				/* this is simulated EOF. the INPUT side has not been closed on the device
+				 * but there is the hangup/error event. */
+				dev->dev_evcb->on_read (dev, MIO_NULL, -!!(events & MIO_DEV_EVENT_ERR), MIO_NULL);
+				/* i don't care about the return value since the device will be halted below
+				 * if both MIO_DEV_CAP_IN_CLOSE and MIO_DEV_CAP_OUT_CLOSED are set */
+			}
+
 			dev->dev_cap |= MIO_DEV_CAP_IN_CLOSED | MIO_DEV_CAP_OUT_CLOSED;
 			dev->dev_cap |= MIO_DEV_CAP_RENEW_REQUIRED;
 		}

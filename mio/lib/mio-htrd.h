@@ -72,6 +72,7 @@ struct mio_htrd_recbs_t
 {
 	int  (*peek) (mio_htrd_t* htrd, mio_htre_t* re);
 	int  (*poke) (mio_htrd_t* htrd, mio_htre_t* re);
+	int  (*push_content) (mio_htrd_t* htrd, mio_htre_t* re, const mio_bch_t* data, mio_oow_t len);
 };
 
 struct mio_htrd_t

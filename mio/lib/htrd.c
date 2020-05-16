@@ -100,6 +100,8 @@ static MIO_INLINE int push_content (mio_htrd_t* htrd, const mio_bch_t* ptr, mio_
 {
 	MIO_ASSERT (htrd->mio, len > 0);
 
+	if (htrd->recbs->push_content) return htrd->recbs->push_content(htrd, &htrd->re, ptr, len);
+
 	if (mio_htre_addcontent(&htrd->re, ptr, len) <= -1) 
 	{
 		htrd->errnum = MIO_HTRD_ENOMEM;
@@ -907,8 +909,7 @@ badhdr:
 	return MIO_NULL;
 }
 
-static MIO_INLINE int parse_initial_line_and_headers (
-	mio_htrd_t* htrd, const mio_bch_t* req, mio_oow_t rlen)
+static MIO_INLINE int parse_initial_line_and_headers (mio_htrd_t* htrd, const mio_bch_t* req, mio_oow_t rlen)
 {
 	mio_bch_t* p;
 
@@ -932,8 +933,8 @@ static MIO_INLINE int parse_initial_line_and_headers (
 	/* parse the initial line */
 	if (!(htrd->option & MIO_HTRD_SKIPINITIALLINE))
 	{
-		p = parse_initial_line (htrd, p);
-		if (p == MIO_NULL) return -1;
+		p = parse_initial_line(htrd, p);
+		if (MIO_UNLIKELY(!p)) return -1;
 	}
 
 	/* parse header fields */
@@ -945,8 +946,8 @@ static MIO_INLINE int parse_initial_line_and_headers (
 		/* TODO: return error if protocol is 0.9.
 		 * HTTP/0.9 must not get headers... */
 
-		p = parse_header_field (htrd, p, &htrd->re.hdrtab);
-		if (p == MIO_NULL) return -1;
+		p = parse_header_field(htrd, p, &htrd->re.hdrtab);
+		if (MIO_UNLIKELY(!p)) return -1;
 	}
 	while (1);
 

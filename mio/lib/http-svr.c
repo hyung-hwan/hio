@@ -1,6 +1,7 @@
 #include "mio-http.h"
 #include "mio-htrd.h"
 #include "mio-pro.h" /* for cgi */
+#include "mio-fmt.h"
 #include "mio-prv.h"
 
 
@@ -23,6 +24,7 @@ struct mio_svc_htts_cli_t
 	mio_skad_t orgdst_addr;
 	mio_htrd_t* htrd;
 	mio_becs_t* sbuf; /* temporary buffer for status line formatting */
+	mio_becs_t rbuf; /* data that has been read but unconsumed */
 
 	mio_svc_htts_rsrc_t rsrc; /* list head for resource list */
 
@@ -306,6 +308,11 @@ static int init_client (mio_svc_htts_cli_t* cli, mio_dev_sck_t* sck)
 
 	cli->sbuf = mio_becs_open(sck->mio, 0, 2048);
 	if (MIO_UNLIKELY(!cli->sbuf)) goto oops;
+
+	/* the following actions from here down must not fail. otherwise, 
+	 * some more statements will have to be added under the oops: label */
+	mio_becs_init(&cli->rbuf, sck->mio, 0); /* it never fails if the capacity is zero */
+
 	htrdxtn = mio_htrd_getxtn(cli->htrd);
 	htrdxtn->sck = sck; /* TODO: remember cli instead? */
 
@@ -338,6 +345,7 @@ static void fini_client (mio_svc_htts_cli_t* cli)
 	while (!RSRCL_IS_EMPTY(&cli->rsrc)) 
 		mio_svc_htts_rsrc_kill (RSRCL_FIRST_RSRC(&cli->rsrc));
 
+	mio_becs_fini (&cli->rbuf);
 	if (cli->sbuf) 
 	{
 		mio_becs_close (cli->sbuf);
@@ -366,25 +374,28 @@ static int listener_on_read (mio_dev_sck_t* sck, const void* buf, mio_iolen_t le
 	/* unlike the function name, this callback is set on both the listener and the client.
 	 * however, it must never be triggered for the listener */
 
+	mio_t* mio = sck->mio;
 	mio_svc_htts_cli_t* cli = mio_dev_sck_getxtn(sck);
 	mio_oow_t rem;
 	int x;
 
-	MIO_ASSERT (sck->mio, sck != cli->htts->lsck);
+	MIO_ASSERT (mio, sck != cli->htts->lsck);
+	MIO_ASSERT (mio, RSRCL_IS_EMPTY(&cli->rsrc));
 
-printf ("** HTTS - client read  socket(%p)  %d -> htts:%p\n", sck, (int)len, cli->htts);
-{
-mio_iolen_t i;
-for (i = 0; i < len; i++)
-{
-printf ("%c", ((const mio_uint8_t*)buf)[i]);
-}
-}
-	if (len <= 0)
+	if (len <= -1)
+	{
+		MIO_DEBUG3 (mio, "HTTS(%p) - unable to read client socket %p(%d)\n", cli->htts, sck, (int)sck->hnd);
+		goto oops;
+	}
+
+	if (len == 0)
 	{
 		mio_dev_sck_halt (sck);
+		goto oops;
 	}
-	else if ((x = mio_htrd_feed(cli->htrd, buf, len, &rem)) <= -1)
+
+feed_to_htrd:
+	if ((x = mio_htrd_feed(cli->htrd, buf, len, &rem)) <= -1) 
 	{
 /* in some cases, we may have to send  some http response depending on the failure type */
 /* BADRE -> bad request? */
@@ -394,10 +405,26 @@ printf ("** HTTS - client htrd feed failure socket(%p) - %d\n", sck, x);
 	}
 	else if (rem > 0)
 	{
-		/* TODO: store the remaining data in the client's buffer */
+		/* the peek and poke handlers are called by mio_htrd_feed(). 
+		 * mio_htrd_feed() returns after the handlers are finished. */
+
+		if (RSRCL_IS_EMPTY(&cli->rsrc))
+		{
+			/* no resource has been scheduled for the request. or the schedule job has been completed*/
+			len = rem;
+			buf = (mio_uint8_t*)buf + (len - rem);
+			goto feed_to_htrd;
+		}
+
+/* TODO: don't use mio_becs_ncpy. this is not a string. no null termination is need */
+		MIO_ASSERT (mio, MIO_BECS_LEN(&cli->rbuf) == 0);
+		if (mio_becs_ncpy(&cli->rbuf, (mio_bch_t*)buf + (len - rem), rem) == (mio_oow_t)-1) goto oops;
 	}
 
 	return 0;
+
+oops:
+	mio_dev_sck_halt (sck);
 }
 
 static int listener_on_write (mio_dev_sck_t* sck, mio_iolen_t wrlen, void* wrctx, const mio_skad_t* dstaddr)
@@ -676,193 +703,6 @@ static MIO_INLINE void* mio_svc_htts_rsrc_getxtn (mio_svc_htts_rsrc_t* rsrc) { r
 
 /* ----------------------------------------------------------------- */
 
-int mio_svc_htts_sendrsrc (mio_svc_htts_t* htts, mio_dev_sck_t* csck, mio_svc_htts_rsrc_t* rsrc, int status_code, mio_http_method_t method, const mio_http_version_t* version, int keepalive)
-{
-	mio_svc_htts_cli_t* cli = mio_dev_sck_getxtn(csck);
-	mio_bch_t dtbuf[64];
-	mio_oow_t x;
-
-#if 0
-	if ((req->flags & MIO_HTRE_ATTR_EXPECT) && 
-	    mio_comp_http_version_numbers(&req->version, 1, 1) >= 0 &&
-	    mio_htre_getcontentlen(req) <= 0)
-	{
-		if (req->flags & MIO_HTRE_ATTR_EXPECT100)
-		{
-			mio_dev_sck_write(csck, "HTTP/1.1 100 Continue\r\n", 23, MIO_NULL, MIO_NULL);
-		}
-		else
-		{
-		}
-	}
-#endif
-
-	mio_svc_htts_fmtgmtime(htts, MIO_NULL, dtbuf, MIO_COUNTOF(dtbuf));
-
-	x = mio_becs_fmt(cli->sbuf, "HTTP/%d.%d %d %hs\r\nServer: %hs\r\nDate: %hs\r\nConnection: %s\r\n",
-		(int)version->major, (int)version->minor,
-		(int)status_code, mio_http_status_to_bcstr(status_code), 
-		htts->server_name,
-		dtbuf, /* Date */
-		(keepalive? "keep-alive": "close") /* Connection */
-	);
-	if (MIO_UNLIKELY(x == (mio_oow_t)-1)) return -1;
-
-	if (rsrc->content_type)
-	{
-		x = mio_becs_fcat(cli->sbuf, "Content-Type: %hs\r\n", rsrc->content_type);
-		if (MIO_UNLIKELY(x == (mio_oow_t)-1)) return -1;
-	}
-
-	if (rsrc->flags & MIO_SVC_HTTS_RSRC_FLAG_CONTENT_LENGTH_SET)
-	{
-		x = mio_becs_fcat(cli->sbuf, "Content-Length: %ju\r\n", (mio_uintmax_t)rsrc->content_length);
-		if (MIO_UNLIKELY(x == (mio_oow_t)-1)) return -1;
-	}
-
-	x = mio_becs_fcat(cli->sbuf, "\r\n", rsrc->content_length);
-	if (MIO_UNLIKELY(x == (mio_oow_t)-1)) return -1;
-
-/* TODO: handle METHOD HEAD... should abort after header trasmission... */
-
-/* TODO: allow extra header items */
-
-/* TODO: use timedwrite? */
-	if (mio_dev_sck_write(csck, MIO_BECS_PTR(cli->sbuf), MIO_BECS_LEN(cli->sbuf), rsrc, MIO_NULL) <= -1)
-	{
-		mio_dev_sck_halt (csck);
-		return -1;
-	}
-
-	return 0;
-}
-
-/* ----------------------------------------------------------------- */
-
-
-struct rsrc_file_xtn_t
-{
-	int fd;
-	mio_foff_t range_offset;
-	mio_foff_t range_start;
-	mio_foff_t range_end;
-	mio_bch_t rbuf[4096];
-};
-typedef struct rsrc_file_xtn_t rsrc_file_xtn_t;
-
-static int rsrc_file_on_write (mio_svc_htts_rsrc_t* rsrc, mio_dev_sck_t* sck)
-{
-	rsrc_file_xtn_t* file = (rsrc_file_xtn_t*)mio_svc_htts_rsrc_getxtn(rsrc);
-	ssize_t n;
-
-	if (file->range_offset >= file->range_end) return 0; /* transmitted as long as content-length. end of the resource */
-
-	if (file->range_offset < file->range_start)
-	{
-		if (lseek(file->fd, SEEK_SET, file->range_start) == (off_t)-1) return -1;
-		file->range_offset = file->range_start;
-	}
-
-	n = read(file->fd, file->rbuf, MIO_SIZEOF(file->rbuf));
-	if (n <= 0) return -1; 
-
-	if (n > file->range_end - file->range_start)
-	{
-		/* TODO: adjust */
-		n = file->range_end - file->range_start;
-	}
-
-	file->range_offset += n;
-	if (mio_dev_sck_write(sck, file->rbuf, n, rsrc, MIO_NULL) <= -1) return -1; /* failure */
-
-	return 1; /* keep calling me */
-}
-
-static void rsrc_file_on_kill (mio_svc_htts_rsrc_t* rsrc)
-{
-	rsrc_file_xtn_t* file = (rsrc_file_xtn_t*)mio_svc_htts_rsrc_getxtn(rsrc);
-
-	if (file->fd >= 0)
-	{
-		close (file->fd);
-		file->fd = -1;
-	}
-}
-
-int mio_svc_htts_sendfile (mio_svc_htts_t* htts, mio_dev_sck_t* csck, const mio_bch_t* file_path, int status_code, mio_http_method_t method, const mio_http_version_t* version, int keepalive)
-{
-	//mio_svc_htts_cli_t* cli = (mio_svc_htts_cli_t*)mio_dev_sck_getxtn(csck);
-	int fd;
-	struct stat st;
-	mio_svc_htts_rsrc_t* rsrc = MIO_NULL;
-	rsrc_file_xtn_t* rsrc_file;
-
-	fd = open(file_path, O_RDONLY, 0);
-	if (fd <= -1) 
-	{
-/* TODO: divert to writing status code not found... */
-		goto oops; /* write error status instead */
-	}
-
-	if (fstat(fd, &st) <= -1) goto oops; /* TODO: write error status instead. probably 500 internal server error???*/
-
-	rsrc = mio_svc_htts_rsrc_make(htts, csck, rsrc_file_on_write, rsrc_file_on_kill, MIO_SIZEOF(*rsrc_file));
-	if (MIO_UNLIKELY(!rsrc)) goto oops;
-
-	rsrc->flags = MIO_SVC_HTTS_RSRC_FLAG_CONTENT_LENGTH_SET;
-	rsrc->content_length = st.st_size;
-	rsrc->content_type = "text/plain";
-
-	rsrc_file = mio_svc_htts_rsrc_getxtn(rsrc);
-	rsrc_file->fd = fd;
-	rsrc_file->range_start = 0;
-	rsrc_file->range_end = st.st_size;
-
-	if (mio_svc_htts_sendrsrc(htts, csck, rsrc, 200, method, version, keepalive) <= -1) goto oops;
-	return 0;
-
-oops:
-	if (rsrc) mio_svc_htts_rsrc_kill (rsrc);
-	if (fd >= 0) close (fd);
-	return -1;
-}
-
-int mio_svc_htts_dofile (mio_svc_htts_t* htts, mio_dev_sck_t* csck, mio_htre_t* req, const mio_bch_t* docroot)
-{
-	switch (mio_htre_getqmethodtype(req))
-	{
-		case MIO_HTTP_OPTIONS:
-			mio_htre_discardcontent (req);
-			/* TODO: return 200 with Allow: OPTIONS, HEAD, GET, POST, PUT, DELETE... */
-			/* However, if there is access configuration, the item list must reflect it */
-			break;
-
-		case MIO_HTTP_HEAD:
-		case MIO_HTTP_GET:
-		case MIO_HTTP_POST:
-			mio_htre_discardcontent (req);
-			break;
-
-		case MIO_HTTP_PUT:
-			break;
-
-		case MIO_HTTP_DELETE:
-			mio_htre_discardcontent (req);
-			break;
-
-		default:
-			/* method not allowed */
-			mio_htre_discardcontent (req);
-			/* schedule to send 405  */
-			break;
-	}
-
-	return 0;
-}
-
-
-/* ----------------------------------------------------------------- */
-
 enum cgi_state_res_mode_t
 {
 	CGI_STATE_RES_MODE_CHUNKED,
@@ -871,6 +711,7 @@ enum cgi_state_res_mode_t
 };
 typedef enum cgi_state_res_mode_t cgi_state_res_mode_t;
 
+#define CGI_STATE_PENDING_IO_THRESHOLD 5
 
 struct cgi_state_t
 {
@@ -886,10 +727,11 @@ struct cgi_state_t
 	mio_dev_pro_t* peer;
 	mio_htrd_t* peer_htrd;
 	mio_svc_htts_cli_t* cli;
-	mio_htre_t* req;
-	mio_oow_t req_content_length;
+	mio_http_version_t req_version; /* client request */
+	mio_oow_t req_content_length; /* client request content length */
 
 	cgi_state_res_mode_t res_mode_to_cli;
+	unsigned int peer_eof: 1;
 
 	mio_dev_sck_on_read_t cli_org_on_read;
 	mio_dev_sck_on_write_t cli_org_on_write;
@@ -902,6 +744,20 @@ struct cgi_peer_xtn_t
 };
 typedef struct cgi_peer_xtn_t cgi_peer_xtn_t;
 
+static void cgi_state_halt (cgi_state_t* cgi_state)
+{
+	MIO_ASSERT (cgi_state->cli->htts->mio, cgi_state->cli != MIO_NULL);
+	MIO_ASSERT (cgi_state->cli->htts->mio, cgi_state->cli->sck != MIO_NULL);
+
+	MIO_DEBUG4 (cgi_state->cli->htts->mio, "HTTS(%p) - halting cgi state %p(client=%p,peer=%p)\n", cgi_state->cli->htts, cgi_state, cgi_state->cli->sck, cgi_state->peer);
+
+	mio_dev_sck_halt (cgi_state->cli->sck);
+	/* check for peer as it may not have been started */
+	if (cgi_state->peer) mio_dev_pro_halt (cgi_state->peer);
+
+/* TODO: when to destroy cgi_state? */
+
+}
 static void cgi_state_on_kill (cgi_state_t* cgi_state)
 {
 printf ("**** CGI_STATE_ON_KILL \n");
@@ -928,21 +784,39 @@ printf ("**** CGI_STATE_ON_KILL \n");
 		cgi_state->cli->sck->on_write = cgi_state->cli_org_on_write;
 		cgi_state->cli_org_on_write = MIO_NULL;
 	}
+
+	if (MIO_BECS_LEN(&cgi_state->cli->rbuf) > 0)
+	{
+		mio_svc_htts_cli_t* cli = cgi_state->cli;
+		/* TODO: trigger cli->on_read again (). */
+
+		/* mio_arrange_fake_on_read (mio, cli->sck, data, len, MIO_NULL);??? can i do this instead of calling on-read() here? */
+		cli->sck->on_read (cli->sck, MIO_BECS_PTR(&cli->rbuf), MIO_BECS_LEN(&cli->rbuf), MIO_NULL); /* TOOD: better error handling?? */
+
+		mio_becs_clear (&cli->rbuf);
+	}
 }
 
 static void cgi_peer_on_close (mio_dev_pro_t* pro, mio_dev_pro_sid_t sid)
 {
 	mio_t* mio = pro->mio;
 	cgi_peer_xtn_t* cgi_peer = mio_dev_pro_getxtn(pro);
+	cgi_state_t* cgi_state = cgi_peer->state;
+
+	MIO_ASSERT (mio, cgi_state->peer == pro);
 
 	if (sid == MIO_DEV_PRO_MASTER)
 	{
-		MIO_DEBUG1 (mio, "PROCESS(%d) CLOSE MASTER\n", (int)pro->child_pid);
+		MIO_DEBUG3 (mio, "HTTS(%p) - peer %p(pid=%d) closing master\n", cgi_state->cli->htts, pro, (int)pro->child_pid);
 		cgi_peer->state->peer = MIO_NULL; /* clear this peer from the state */
 	}
 	else
 	{
-		MIO_DEBUG2 (mio, "PROCESS(%d) CLOSE SLAVE[%d]\n", (int)pro->child_pid, sid);
+		MIO_DEBUG4 (mio, "HTTS(%p) - peer %p(pid=%d) closing slave[%d]\n", cgi_state->cli->htts, pro, (int)pro->child_pid, sid);
+		if (sid == MIO_DEV_PRO_OUT)
+		{
+			cgi_state->peer_eof = 1;
+		}
 	}
 }
 
@@ -952,87 +826,220 @@ static int cgi_peer_on_read (mio_dev_pro_t* pro, mio_dev_pro_sid_t sid, const vo
 	cgi_peer_xtn_t* cgi_peer = mio_dev_pro_getxtn(pro);
 	cgi_state_t* cgi_state = cgi_peer->state;
 
+	MIO_ASSERT (mio, sid == MIO_DEV_PRO_OUT); /* since MIO_DEV_PRO_ERRTONUL is used, there should be no input from MIO_DEV_PRO_ERR */
+
 	if (dlen <= -1)
 	{
-		MIO_DEBUG1 (mio, "PROCESS(%d): READ TIMED OUT...\n", (int)pro->child_pid);
-		mio_dev_pro_halt (pro);
+		MIO_DEBUG3 (mio, "HTTPS(%p) - read error from peer %p(pid=%u)\n", cgi_state->cli->htts, pro, (unsigned int)pro->child_pid);
+		goto oops;
 	}
-	else if (dlen <= 0)
+
+	if (dlen == 0)
 	{
-		MIO_DEBUG1 (mio, "PROCESS(%d): EOF RECEIVED...\n", (int)pro->child_pid);
-		/* no outstanding request. but EOF */
-/* TODO: arrange to finish chunk. or close... also finish the entire state... */
-		mio_dev_pro_halt (pro);
+		MIO_DEBUG3 (mio, "HTTPS(%p) - EOF from peer %p(pid=%u)\n", cgi_state->cli->htts, pro, (unsigned int)pro->child_pid);
+		cgi_state->peer_eof = 1;
+
+		/* don't care about cgi_state->num_pending_writes_to_client since this is the last read */
+		if (cgi_state->res_mode_to_cli == CGI_STATE_RES_MODE_CHUNKED && 
+		    mio_dev_sck_write(cgi_state->cli->sck, "0\r\n\r\n", 5, MIO_NULL, MIO_NULL) <= -1) goto oops;
 	}
 	else
 	{
-		MIO_DEBUG5 (mio, "PROCESS(%d) READ DATA ON SLAVE[%d] len=%d [%.*hs]\n", (int)pro->child_pid, (int)sid, (int)dlen, dlen, (char*)data);
-		if (sid == MIO_DEV_PRO_OUT)
-		{
-			//mio_dev_pro_read (pro, sid, 0);
-			//mio_dev_pro_write (pro, "HELLO\n", 6, MIO_NULL);
-
-	/* If chunked, need to write in the chunked format... */
-			cgi_state->num_pending_writes_to_client++;
-			if (mio_dev_sck_write(cgi_state->cli->sck, data, dlen, MIO_NULL, 0) <= -1)
-			{
-				cgi_state->num_pending_writes_to_client--;
-				mio_dev_pro_halt (pro);
-			}
-		}
+		mio_oow_t rem;
+printf ( "QQQQQQQQQQQQQQQQQQ>>>>>>>>>>>>>>>>>> feeding to peer htrd.... dlen => %d\n", (int)dlen);
+		if (mio_htrd_feed(cgi_state->peer_htrd, data, dlen, &rem) <= -1) goto oops;
+		/* if (rem > 0) also something is not right */
 	}
+
+	return 0;
+
+oops:
+	cgi_state_halt (cgi_state);
 	return 0;
 }
+
+static int cgi_peer_capture_header (mio_htre_t* req, const mio_bch_t* key, const mio_htre_hdrval_t* val, void* ctx)
+{
+	mio_svc_htts_cli_t* cli = (mio_svc_htts_cli_t*)ctx;
+
+	/* capture a header except Status, Connection, Transfer-Encoding, and Server */
+	if (mio_comp_bcstr(key, "Status", 1) != 0 &&
+	    mio_comp_bcstr(key, "Connection", 1) != 0 &&
+	    mio_comp_bcstr(key, "Transfer-Encoding", 1) != 0 &&
+	    mio_comp_bcstr(key, "Server", 1) != 0)
+	{
+		do
+		{
+			if (mio_becs_cat(cli->sbuf, key) == (mio_oow_t)-1 ||
+			    mio_becs_cat(cli->sbuf, ": ") == (mio_oow_t)-1 ||
+			    mio_becs_cat(cli->sbuf, val->ptr) == (mio_oow_t)-1 ||
+			    mio_becs_cat(cli->sbuf, "\r\n") == (mio_oow_t)-1)
+			{
+				return -1;
+			}
+
+			val = val->next;
+		}
+		while (val);
+	}
+
+	return 0;
+}
+static int cgi_peer_htrd_peek (mio_htrd_t* htrd, mio_htre_t* req)
+{
+	cgi_peer_xtn_t* cgi_peer = mio_htrd_getxtn(htrd);
+	cgi_state_t* cgi_state = cgi_peer->state;
+	mio_svc_htts_cli_t* cli = cgi_state->cli;
+	int status_code;
+
+	if (req->attr.status)
+	{
+	}
+	else
+	{
+	}
+
+	status_code = 200;
+
+printf ("CGI PEER HTRD PEEK...\n");
+	if (mio_becs_fmt(cli->sbuf, "HTTP/%d.%d %d %hs\r\n",
+		cgi_state->req_version.major, cgi_state->req_version.minor,
+		status_code, mio_http_status_to_bcstr(status_code)) == (mio_oow_t)-1) return -1;
+
+	if (mio_htre_walkheaders(req, cgi_peer_capture_header, cli) <= -1) return -1;
+
+	switch (cgi_state->res_mode_to_cli)
+	{
+		case CGI_STATE_RES_MODE_CHUNKED:
+			if (mio_becs_cat(cli->sbuf, "Transfer-Encoding: chunked\r\n") == (mio_oow_t)-1) return -1;
+			/*if (mio_becs_cat(cli->sbuf, "Connection: keep-alive\r\n") == (mio_oow_t)-1) return -1;*/
+			break;
+
+		case CGI_STATE_RES_MODE_CLOSE:
+			if (mio_becs_cat(cli->sbuf, "Connection: close\r\n") == (mio_oow_t)-1) return -1;
+			break;
+	}
+
+	if (mio_becs_cat(cli->sbuf, "\r\n") == (mio_oow_t)-1) return -1;
+	return mio_dev_sck_write(cli->sck, MIO_BECS_PTR(cli->sbuf), MIO_BECS_LEN(cli->sbuf), MIO_NULL, MIO_NULL);
+}
+
+static int cgi_peer_htrd_push_content (mio_htrd_t* htrd, mio_htre_t* req, const mio_bch_t* data, mio_oow_t dlen)
+{
+	cgi_peer_xtn_t* cgi_peer = mio_htrd_getxtn(htrd);
+	cgi_state_t* cgi_state = cgi_peer->state;
+
+	MIO_ASSERT (cgi_state->cli->htts->mio, htrd == cgi_state->peer_htrd);
+
+	switch (cgi_state->res_mode_to_cli)
+	{
+		case CGI_STATE_RES_MODE_CHUNKED:
+		{
+			mio_iovec_t iov[3];
+			mio_bch_t lbuf[16];
+			mio_oow_t llen;
+
+			llen = mio_fmt_uintmax_to_bcstr(lbuf, MIO_COUNTOF(lbuf) - 2, dlen, 16, 0, '\0', MIO_NULL);
+			lbuf[llen++] = '\r';
+			lbuf[llen++] = '\n';
+
+			iov[0].iov_ptr = lbuf;
+			iov[0].iov_len = llen;
+			iov[1].iov_ptr = data;
+			iov[1].iov_len = dlen;
+			iov[2].iov_ptr = "\r\n";
+			iov[2].iov_len = 2;
+
+			cgi_state->num_pending_writes_to_client++;
+			if (mio_dev_sck_writev(cgi_state->cli->sck, iov, MIO_COUNTOF(iov), MIO_NULL, MIO_NULL) <= -1)
+			{
+				cgi_state->num_pending_writes_to_client--;
+				goto oops;
+			}
+			break;
+		}
+
+		case CGI_STATE_RES_MODE_CLOSE:
+			cgi_state->num_pending_writes_to_client++;
+			if (mio_dev_sck_write(cgi_state->cli->sck, data, dlen, MIO_NULL, MIO_NULL) <= -1)
+			{
+				cgi_state->num_pending_writes_to_client--;
+				goto oops;
+			}
+	}
+
+	if (cgi_state->num_pending_writes_to_client > CGI_STATE_PENDING_IO_THRESHOLD)
+	{
+		if (mio_dev_pro_read(cgi_state->peer, MIO_DEV_PRO_OUT, 0) <= -1) goto oops;
+	}
+
+	return 0;
+
+oops:
+	return -1;
+}
+
+static mio_htrd_recbs_t cgi_peer_htrd_recbs =
+{
+	cgi_peer_htrd_peek,
+	MIO_NULL,
+	cgi_peer_htrd_push_content
+};
 
 static int cgi_peer_on_write (mio_dev_pro_t* pro, mio_iolen_t wrlen, void* wrctx)
 {
 	mio_t* mio = pro->mio;
 	cgi_peer_xtn_t* cgi_peer = mio_dev_pro_getxtn(pro);
 	cgi_state_t* cgi_state = cgi_peer->state;
-	mio_ntime_t tmout;
+
+	MIO_ASSERT (mio, cgi_state->peer == pro);
 
 	if (wrlen <= -1)
 	{
-		MIO_DEBUG1 (mio, "PROCESS(%d): WRITE TIMED OUT...\n", (int)pro->child_pid);
-		mio_dev_pro_halt (pro);
-		return 0;
+		MIO_DEBUG3 (mio, "HTTS(%p) - unable to write to peer %p(pid=%u)\n", cgi_state->cli->htts, pro, (int)pro->child_pid);
+		goto oops;
 	}
-
-	MIO_DEBUG2 (mio, "PROCESS(%d) wrote data of %d bytes\n", (int)pro->child_pid, (int)wrlen);
-
-#if 0
-	/*mio_dev_pro_read (pro, MIO_DEV_PRO_OUT, 1);*/
-	MIO_INIT_NTIME (&tmout, 5, 0);
-	mio_dev_pro_timedread (pro, MIO_DEV_PRO_OUT, 1, &tmout);
-#endif
-
-
-#if 0
-	if (mio_dev_pro_write(pro, cgi_peer->cli->req, length, MIO_NULL) <= -1) 
-	{
-		/* halt both peer and cli */
-	}
-#endif
 
 	cgi_state->num_pending_writes_to_peer--;
+	if (cgi_state->num_pending_writes_to_peer == CGI_STATE_PENDING_IO_THRESHOLD)
+	{
+		if (mio_dev_sck_read(cgi_state->cli->sck, 0) <= -1) goto oops;
+	}
+	return 0;
+
+oops:
+	cgi_state_halt (cgi_state);
 	return 0;
 }
 
 
 static int cgi_client_on_read (mio_dev_sck_t* sck, const void* buf, mio_iolen_t len, const mio_skad_t* srcaddr)
 {
+	mio_t* mio = sck->mio;
 	mio_svc_htts_cli_t* cli = mio_dev_sck_getxtn(sck);
 	cgi_state_t* cgi_state = RSRCL_FIRST_RSRC(&cli->rsrc);
 
+	MIO_ASSERT (mio, sck == cli->sck);
+
 printf ("** HTTS - cgi client read   %p  %d -> htts:%p\n", sck, (int)len, cli->htts);
+
 	if (len <= -1)
 	{
 		/* read error */
+		MIO_DEBUG2 (cli->htts->mio, "HTTPS(%p) - read error on client socket %p(%d)\n", sck, (int)sck->hnd);
 		goto oops;
 	}
-	else if (len == 0)
+
+	if (!cgi_state->peer)
 	{
-		/* EOF */
+		/* the peer is gone */
+		goto oops; /* do what?  just return 0? */
+	}
+
+	if (len == 0)
+	{
+		/* EOF on the client side. arrange to close */
+		if (mio_dev_pro_write(cgi_state->peer, MIO_NULL, 0, MIO_NULL) <= -1) goto oops;
 	}
 	else
 	{
@@ -1044,7 +1051,6 @@ printf ("** HTTS - cgi client read   %p  %d -> htts:%p\n", sck, (int)len, cli->h
 			/* TODO: there is left-over data */
 		}
 #endif
-
 		cgi_state->num_pending_writes_to_peer++;
 		if (mio_dev_pro_write(cgi_state->peer, buf, len, MIO_NULL) <= -1) 
 		{
@@ -1052,7 +1058,7 @@ printf ("** HTTS - cgi client read   %p  %d -> htts:%p\n", sck, (int)len, cli->h
 			goto oops;
 		}
 
-		if (cgi_state->num_pending_writes_to_peer > 1)
+		if (cgi_state->num_pending_writes_to_peer > CGI_STATE_PENDING_IO_THRESHOLD)
 		{
 			if (mio_dev_sck_read(sck, 0) <= -1) goto oops; /* disable input watching */
 		}
@@ -1062,17 +1068,41 @@ printf ("** HTTS - cgi client read   %p  %d -> htts:%p\n", sck, (int)len, cli->h
 
 oops:
 /* TODO: arrange to kill the entire cgi_state??? */
-	mio_dev_sck_halt (sck);
+	cgi_state_halt (cgi_state);
 	return 0;
 }
 
 static int cgi_client_on_write (mio_dev_sck_t* sck, mio_iolen_t wrlen, void* wrctx, const mio_skad_t* dstaddr)
 {
+	mio_t* mio = sck->mio;
 	mio_svc_htts_cli_t* cli = mio_dev_sck_getxtn(sck);
 	cgi_state_t* cgi_state = RSRCL_FIRST_RSRC(&cli->rsrc);
 
+	if (wrlen <= -1)
+	{
+		MIO_DEBUG3 (mio, "HTTPS(%p) - unable to write to client socket %p(%d)\n", sck->mio, sck, (int)sck->hnd);
+		goto oops;
+	}
 
+printf ("MANAGED TO WRITE TO CLIENT>... %d\n", (int)wrlen);
+	cgi_state->num_pending_writes_to_client--;
+	if (cgi_state->peer && cgi_state->num_pending_writes_to_client == CGI_STATE_PENDING_IO_THRESHOLD)
+	{
+		if (mio_dev_pro_read(cgi_state->peer, MIO_DEV_PRO_OUT, 1) <= -1) goto oops;
+	}
 
+/* in case the peer died before peer read handler reads EOF */
+	if (cgi_state->peer_eof && cgi_state->num_pending_writes_to_client <= 0)
+	{
+		/*if (no_more_input is to be read from the client)*/
+		cgi_state_halt (cgi_state); // must not use this... must kill the state ... 
+		/* finished writing all */
+	}
+
+	return 0;
+
+oops:
+	cgi_state_halt (cgi_state);
 	return 0;
 }
 
@@ -1142,7 +1172,7 @@ int mio_svc_htts_docgi (mio_svc_htts_t* htts, mio_dev_sck_t* csck, mio_htre_t* r
 	cgi_state->cli = cli;
 	/*cgi_state->num_pending_writes_to_client = 0;
 	cgi_state->num_pending_writes_to_peer = 0;*/
-	cgi_state->req	= req;
+	cgi_state->req_version = *mio_htre_getversion(req);
 	cgi_state->req_content_length = req_content_length;
 
 	cgi_state->cli_org_on_read = csck->on_read;
@@ -1163,6 +1193,9 @@ int mio_svc_htts_docgi (mio_svc_htts_t* htts, mio_dev_sck_t* csck, mio_htre_t* r
 
 	cgi_state->peer_htrd = mio_htrd_open(mio, MIO_SIZEOF(*cgi_peer));
 	if (MIO_UNLIKELY(!cgi_state->peer_htrd)) goto oops;
+	mio_htrd_setopt (cgi_state->peer_htrd, MIO_HTRD_SKIPINITIALLINE | MIO_HTRD_RESPONSE);
+	mio_htrd_setrecbs (cgi_state->peer_htrd, &cgi_peer_htrd_recbs);
+
 	cgi_peer = mio_htrd_getxtn(cgi_state->peer_htrd);
 	cgi_peer->state = cgi_state;
 /* TODO: any other handling before this? */
@@ -1221,6 +1254,7 @@ int mio_svc_htts_docgi (mio_svc_htts_t* htts, mio_dev_sck_t* csck, mio_htre_t* r
 		if (mio_dev_sck_read(csck, 0) <= -1) goto oops;
 	}
 
+	cgi_state->res_mode_to_cli = (req->flags & MIO_HTRE_ATTR_KEEPALIVE)? CGI_STATE_RES_MODE_CHUNKED: CGI_STATE_RES_MODE_CLOSE;
 	return 0;
 
 oops:
@@ -1232,6 +1266,40 @@ oops:
 
 /* ----------------------------------------------------------------- */
 
+int mio_svc_htts_dofile (mio_svc_htts_t* htts, mio_dev_sck_t* csck, mio_htre_t* req, const mio_bch_t* docroot)
+{
+	switch (mio_htre_getqmethodtype(req))
+	{
+		case MIO_HTTP_OPTIONS:
+			mio_htre_discardcontent (req);
+			/* TODO: return 200 with Allow: OPTIONS, HEAD, GET, POST, PUT, DELETE... */
+			/* However, if there is access configuration, the item list must reflect it */
+			break;
+
+		case MIO_HTTP_HEAD:
+		case MIO_HTTP_GET:
+		case MIO_HTTP_POST:
+			mio_htre_discardcontent (req);
+			break;
+
+		case MIO_HTTP_PUT:
+			break;
+
+		case MIO_HTTP_DELETE:
+			mio_htre_discardcontent (req);
+			break;
+
+		default:
+			/* method not allowed */
+			mio_htre_discardcontent (req);
+			/* schedule to send 405  */
+			break;
+	}
+
+	return 0;
+}
+
+/* ----------------------------------------------------------------- */
 
 int mio_svc_htts_doproxy (mio_svc_htts_t* htts, mio_dev_sck_t* csck, mio_htre_t* req, const mio_bch_t* upstream)
 {
@@ -1474,3 +1542,173 @@ void mio_svc_htts_fmtgmtime (mio_svc_htts_t* htts, const mio_ntime_t* nt, mio_bc
 
 	mio_fmt_http_time_to_bcstr(nt, buf, len);
 }
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+#if 0
+/* ----------------------------------------------------------------- */
+
+int mio_svc_htts_sendrsrc (mio_svc_htts_t* htts, mio_dev_sck_t* csck, mio_svc_htts_rsrc_t* rsrc, int status_code, mio_http_method_t method, const mio_http_version_t* version, int keepalive)
+{
+	mio_svc_htts_cli_t* cli = mio_dev_sck_getxtn(csck);
+	mio_bch_t dtbuf[64];
+	mio_oow_t x;
+
+#if 0
+	if ((req->flags & MIO_HTRE_ATTR_EXPECT) && 
+	    mio_comp_http_version_numbers(&req->version, 1, 1) >= 0 &&
+	    mio_htre_getcontentlen(req) <= 0)
+	{
+		if (req->flags & MIO_HTRE_ATTR_EXPECT100)
+		{
+			mio_dev_sck_write(csck, "HTTP/1.1 100 Continue\r\n", 23, MIO_NULL, MIO_NULL);
+		}
+		else
+		{
+		}
+	}
+#endif
+
+	mio_svc_htts_fmtgmtime(htts, MIO_NULL, dtbuf, MIO_COUNTOF(dtbuf));
+
+	x = mio_becs_fmt(cli->sbuf, "HTTP/%d.%d %d %hs\r\nServer: %hs\r\nDate: %hs\r\nConnection: %s\r\n",
+		(int)version->major, (int)version->minor,
+		(int)status_code, mio_http_status_to_bcstr(status_code), 
+		htts->server_name,
+		dtbuf, /* Date */
+		(keepalive? "keep-alive": "close") /* Connection */
+	);
+	if (MIO_UNLIKELY(x == (mio_oow_t)-1)) return -1;
+
+	if (rsrc->content_type)
+	{
+		x = mio_becs_fcat(cli->sbuf, "Content-Type: %hs\r\n", rsrc->content_type);
+		if (MIO_UNLIKELY(x == (mio_oow_t)-1)) return -1;
+	}
+
+	if (rsrc->flags & MIO_SVC_HTTS_RSRC_FLAG_CONTENT_LENGTH_SET)
+	{
+		x = mio_becs_fcat(cli->sbuf, "Content-Length: %ju\r\n", (mio_uintmax_t)rsrc->content_length);
+		if (MIO_UNLIKELY(x == (mio_oow_t)-1)) return -1;
+	}
+
+	x = mio_becs_fcat(cli->sbuf, "\r\n", rsrc->content_length);
+	if (MIO_UNLIKELY(x == (mio_oow_t)-1)) return -1;
+
+/* TODO: handle METHOD HEAD... should abort after header trasmission... */
+
+/* TODO: allow extra header items */
+
+/* TODO: use timedwrite? */
+	if (mio_dev_sck_write(csck, MIO_BECS_PTR(cli->sbuf), MIO_BECS_LEN(cli->sbuf), rsrc, MIO_NULL) <= -1)
+	{
+		mio_dev_sck_halt (csck);
+		return -1;
+	}
+
+	return 0;
+}
+
+/* ----------------------------------------------------------------- */
+
+
+struct rsrc_file_xtn_t
+{
+	int fd;
+	mio_foff_t range_offset;
+	mio_foff_t range_start;
+	mio_foff_t range_end;
+	mio_bch_t rbuf[4096];
+};
+typedef struct rsrc_file_xtn_t rsrc_file_xtn_t;
+
+static int rsrc_file_on_write (mio_svc_htts_rsrc_t* rsrc, mio_dev_sck_t* sck)
+{
+	rsrc_file_xtn_t* file = (rsrc_file_xtn_t*)mio_svc_htts_rsrc_getxtn(rsrc);
+	ssize_t n;
+
+	if (file->range_offset >= file->range_end) return 0; /* transmitted as long as content-length. end of the resource */
+
+	if (file->range_offset < file->range_start)
+	{
+		if (lseek(file->fd, SEEK_SET, file->range_start) == (off_t)-1) return -1;
+		file->range_offset = file->range_start;
+	}
+
+	n = read(file->fd, file->rbuf, MIO_SIZEOF(file->rbuf));
+	if (n <= 0) return -1; 
+
+	if (n > file->range_end - file->range_start)
+	{
+		/* TODO: adjust */
+		n = file->range_end - file->range_start;
+	}
+
+	file->range_offset += n;
+	if (mio_dev_sck_write(sck, file->rbuf, n, rsrc, MIO_NULL) <= -1) return -1; /* failure */
+
+	return 1; /* keep calling me */
+}
+
+static void rsrc_file_on_kill (mio_svc_htts_rsrc_t* rsrc)
+{
+	rsrc_file_xtn_t* file = (rsrc_file_xtn_t*)mio_svc_htts_rsrc_getxtn(rsrc);
+
+	if (file->fd >= 0)
+	{
+		close (file->fd);
+		file->fd = -1;
+	}
+}
+
+int mio_svc_htts_sendfile (mio_svc_htts_t* htts, mio_dev_sck_t* csck, const mio_bch_t* file_path, int status_code, mio_http_method_t method, const mio_http_version_t* version, int keepalive)
+{
+	//mio_svc_htts_cli_t* cli = (mio_svc_htts_cli_t*)mio_dev_sck_getxtn(csck);
+	int fd;
+	struct stat st;
+	mio_svc_htts_rsrc_t* rsrc = MIO_NULL;
+	rsrc_file_xtn_t* rsrc_file;
+
+	fd = open(file_path, O_RDONLY, 0);
+	if (fd <= -1) 
+	{
+/* TODO: divert to writing status code not found... */
+		goto oops; /* write error status instead */
+	}
+
+	if (fstat(fd, &st) <= -1) goto oops; /* TODO: write error status instead. probably 500 internal server error???*/
+
+	rsrc = mio_svc_htts_rsrc_make(htts, csck, rsrc_file_on_write, rsrc_file_on_kill, MIO_SIZEOF(*rsrc_file));
+	if (MIO_UNLIKELY(!rsrc)) goto oops;
+
+	rsrc->flags = MIO_SVC_HTTS_RSRC_FLAG_CONTENT_LENGTH_SET;
+	rsrc->content_length = st.st_size;
+	rsrc->content_type = "text/plain";
+
+	rsrc_file = mio_svc_htts_rsrc_getxtn(rsrc);
+	rsrc_file->fd = fd;
+	rsrc_file->range_start = 0;
+	rsrc_file->range_end = st.st_size;
+
+	if (mio_svc_htts_sendrsrc(htts, csck, rsrc, 200, method, version, keepalive) <= -1) goto oops;
+	return 0;
+
+oops:
+	if (rsrc) mio_svc_htts_rsrc_kill (rsrc);
+	if (fd >= 0) close (fd);
+	return -1;
+}
+
+#endif

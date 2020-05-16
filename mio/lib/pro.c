@@ -636,7 +636,7 @@ static int dev_pro_ioctl (mio_dev_t* dev, int cmd, void* arg)
 		case MIO_DEV_PRO_KILL_CHILD:
 			if (rdev->child_pid >= 0)
 			{
-				if (kill (rdev->child_pid, SIGKILL) == -1)
+				if (kill(rdev->child_pid, SIGKILL) == -1)
 				{
 					mio_seterrwithsyserr (mio, 0, errno);
 					return -1;

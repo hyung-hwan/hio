@@ -4,12 +4,12 @@ BEGIN {
 	x = sys::socket (sys::AF_INET, sys::SOCK_STREAM, 0);
 	sys::connect (x, "127.0.0.1:9988");
 
-msg = b"GET /home/hyung-hwan/projects/mio/bld/b.sh HTTP/1.0\r\n\
+msg = b"GET /home/hyung-hwan/projects/mio/t/b.sh HTTP/1.1\r\n\
 Host: www.google.com\r\n\
 Connection: Keep-Alive\r\n\r\n";
 
 
 	sys::write (x, msg);
-	while (sys::read (x, buf) >= 0) printf ("%s", buf);
+	while (sys::read (x, buf) > 0) printf ("%s", buf);
 	sys::close (x);
 }
