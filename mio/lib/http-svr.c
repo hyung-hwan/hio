@@ -863,6 +863,14 @@ int mio_svc_htts_dofile (mio_svc_htts_t* htts, mio_dev_sck_t* csck, mio_htre_t* 
 
 /* ----------------------------------------------------------------- */
 
+enum cgi_state_res_mode_t
+{
+	CGI_STATE_RES_MODE_CHUNKED,
+	CGI_STATE_RES_MODE_CLOSE
+	/* CGI_STATE_RES_MODE_LENGTH */ 
+};
+typedef enum cgi_state_res_mode_t cgi_state_res_mode_t;
+
 
 struct cgi_state_t
 {
@@ -880,6 +888,8 @@ struct cgi_state_t
 	mio_svc_htts_cli_t* cli;
 	mio_htre_t* req;
 	mio_oow_t req_content_length;
+
+	cgi_state_res_mode_t res_mode_to_cli;
 
 	mio_dev_sck_on_read_t cli_org_on_read;
 	mio_dev_sck_on_write_t cli_org_on_write;
@@ -940,26 +950,36 @@ static int cgi_peer_on_read (mio_dev_pro_t* pro, mio_dev_pro_sid_t sid, const vo
 {
 	mio_t* mio = pro->mio;
 	cgi_peer_xtn_t* cgi_peer = mio_dev_pro_getxtn(pro);
+	cgi_state_t* cgi_state = cgi_peer->state;
 
 	if (dlen <= -1)
 	{
 		MIO_DEBUG1 (mio, "PROCESS(%d): READ TIMED OUT...\n", (int)pro->child_pid);
 		mio_dev_pro_halt (pro);
-		return 0;
 	}
 	else if (dlen <= 0)
 	{
 		MIO_DEBUG1 (mio, "PROCESS(%d): EOF RECEIVED...\n", (int)pro->child_pid);
 		/* no outstanding request. but EOF */
+/* TODO: arrange to finish chunk. or close... also finish the entire state... */
 		mio_dev_pro_halt (pro);
-		return 0;
 	}
-
-	MIO_DEBUG5 (mio, "PROCESS(%d) READ DATA ON SLAVE[%d] len=%d [%.*hs]\n", (int)pro->child_pid, (int)sid, (int)dlen, dlen, (char*)data);
-	if (sid == MIO_DEV_PRO_OUT)
+	else
 	{
-		mio_dev_pro_read (pro, sid, 0);
-		mio_dev_pro_write (pro, "HELLO\n", 6, MIO_NULL);
+		MIO_DEBUG5 (mio, "PROCESS(%d) READ DATA ON SLAVE[%d] len=%d [%.*hs]\n", (int)pro->child_pid, (int)sid, (int)dlen, dlen, (char*)data);
+		if (sid == MIO_DEV_PRO_OUT)
+		{
+			//mio_dev_pro_read (pro, sid, 0);
+			//mio_dev_pro_write (pro, "HELLO\n", 6, MIO_NULL);
+
+	/* If chunked, need to write in the chunked format... */
+			cgi_state->num_pending_writes_to_client++;
+			if (mio_dev_sck_write(cgi_state->cli->sck, data, dlen, MIO_NULL, 0) <= -1)
+			{
+				cgi_state->num_pending_writes_to_client--;
+				mio_dev_pro_halt (pro);
+			}
+		}
 	}
 	return 0;
 }
