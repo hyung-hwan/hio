@@ -100,7 +100,7 @@ static MIO_INLINE int push_content (mio_htrd_t* htrd, const mio_bch_t* ptr, mio_
 {
 	MIO_ASSERT (htrd->mio, len > 0);
 
-	if (htrd->recbs->push_content) return htrd->recbs->push_content(htrd, &htrd->re, ptr, len);
+	if (htrd->recbs.push_content) return htrd->recbs.push_content(htrd, &htrd->re, ptr, len);
 
 	if (mio_htre_addcontent(&htrd->re, ptr, len) <= -1) 
 	{
@@ -497,12 +497,12 @@ void mio_htrd_setopt (mio_htrd_t* htrd, int opts)
 
 const mio_htrd_recbs_t* mio_htrd_getrecbs (mio_htrd_t* htrd)
 {
-	return htrd->recbs;
+	return &htrd->recbs;
 }
 
 void mio_htrd_setrecbs (mio_htrd_t* htrd, const mio_htrd_recbs_t* recbs)
 {
-	htrd->recbs = recbs;
+	htrd->recbs = *recbs;
 }
 
 static int capture_connection (mio_htrd_t* htrd, mio_htb_pair_t* pair)
@@ -556,7 +556,7 @@ static int capture_content_length (mio_htrd_t* htrd, mio_htb_pair_t* pair)
 	ptr = val->ptr;
 	while (off < val->len)
 	{
-		int num = digit_to_num (ptr[off]);
+		int num = digit_to_num(ptr[off]);
 		if (num <= -1)
 		{
 			/* the length contains a non-digit */
@@ -1024,8 +1024,7 @@ static const mio_bch_t* getchunklen (mio_htrd_t* htrd, const mio_bch_t* ptr, mio
 	return ptr;
 }
 
-static const mio_bch_t* get_trailing_headers (
-	mio_htrd_t* htrd, const mio_bch_t* req, const mio_bch_t* end)
+static const mio_bch_t* get_trailing_headers (mio_htrd_t* htrd, const mio_bch_t* req, const mio_bch_t* end)
 {
 	const mio_bch_t* ptr = req;
 
@@ -1049,19 +1048,15 @@ static const mio_bch_t* get_trailing_headers (
 				else
 				{
 					mio_bch_t* p;
-	
+
 					MIO_ASSERT (htrd->mio, htrd->fed.s.crlf <= 3);
 					htrd->fed.s.crlf = 0;
-	
-					if (push_to_buffer (
-						htrd, &htrd->fed.b.tra, req, ptr - req) <= -1)
-						return MIO_NULL;
-					if (push_to_buffer (
-						htrd, &htrd->fed.b.tra, &NUL, 1) <= -1) 
-						return MIO_NULL;
-	
+
+					if (push_to_buffer(htrd, &htrd->fed.b.tra, req, ptr - req) <= -1 ||
+					    push_to_buffer(htrd, &htrd->fed.b.tra, &NUL, 1) <= -1) return MIO_NULL;
+
 					p = MIO_BECS_PTR(&htrd->fed.b.tra);
-	
+
 					do
 					{
 						while (is_whspace_octet(*p)) p++;
@@ -1070,11 +1065,8 @@ static const mio_bch_t* get_trailing_headers (
 						/* TODO: return error if protocol is 0.9.
 						 * HTTP/0.9 must not get headers... */
 
-						p = parse_header_field (
-							htrd, p, 
-							((htrd->option & MIO_HTRD_TRAILERS)? &htrd->re.trailers: &htrd->re.hdrtab)
-						);
-						if (p == MIO_NULL) return MIO_NULL;
+						p = parse_header_field(htrd, p, ((htrd->option & MIO_HTRD_TRAILERS)? &htrd->re.trailers: &htrd->re.hdrtab));
+						if (MIO_UNLIKELY(!p)) return MIO_NULL;
 					}
 					while (1);
 
@@ -1212,7 +1204,7 @@ int mio_htrd_feed (mio_htrd_t* htrd, const mio_bch_t* req, mio_oow_t len, mio_oo
 					header_completed_during_this_feed = 1;
 
 ////////////////////////////////////////////////////////////////////////////////////////////////////
-					if (htrd->recbs->peek(htrd, &htrd->re) <= -1)
+					if (htrd->recbs.peek(htrd, &htrd->re) <= -1)
 					{
 						/* need to clear request on error? 
 						clear_feed (htrd); */
@@ -1455,7 +1447,7 @@ XXXXXXXX
 					mio_htre_completecontent (&htrd->re);
 
 #if 0 // XXXX
-					if (header_completed_during_this_feed && htrd->recbs->peek)
+					if (header_completed_during_this_feed && htrd->recbs.peek)
 					{
 						/* the peek handler has not been executed.
 						 * this can happen if this function is fed with
@@ -1463,12 +1455,9 @@ XXXXXXXX
 						 * plus complete content body and the header 
 						 * of the next request. */
 						int n;
-						htrd->errnum = MIO_HTRD_ENOERR;
-						n = htrd->recbs->peek(htrd, &htrd->re);
+						n = htrd->recbs.peek(htrd, &htrd->re);
 						if (n <= -1)
 						{
-							if (htrd->errnum == MIO_HTRD_ENOERR)
-								htrd->errnum = MIO_HTRD_ERECBS;
 							/* need to clear request on error? 
 							clear_feed (htrd); */
 							return -1;
@@ -1478,15 +1467,12 @@ XXXXXXXX
 					}
 #endif
 
-					if (htrd->recbs->poke)
+					if (htrd->recbs.poke)
 					{
 						int n;
-						htrd->errnum = MIO_HTRD_ENOERR;
-						n = htrd->recbs->poke(htrd, &htrd->re);
+						n = htrd->recbs.poke(htrd, &htrd->re);
 						if (n <= -1)
 						{
-							if (htrd->errnum == MIO_HTRD_ENOERR)
-								htrd->errnum = MIO_HTRD_ERECBS;
 							/* need to clear request on error? 
 							clear_feed (htrd); */
 							return -1;
@@ -1565,15 +1551,12 @@ mio_printf (MIO_T("CONTENT_LENGTH %d, RAW HEADER LENGTH %d\n"),
 
 feedme_more:
 #if 0 //XXXX
-	if (header_completed_during_this_feed && htrd->recbs->peek)
+	if (header_completed_during_this_feed && htrd->recbs.peek)
 	{
 		int n;
-		htrd->errnum = MIO_HTRD_ENOERR;
-		n = htrd->recbs->peek(htrd, &htrd->re);
+		n = htrd->recbs.peek(htrd, &htrd->re);
 		if (n <= -1)
 		{
-			if (htrd->errnum == MIO_HTRD_ENOERR)
-				htrd->errnum = MIO_HTRD_ERECBS;
 			/* need to clear request on error? 
 			clear_feed (htrd); */
 			return -1;
@@ -1591,15 +1574,12 @@ int mio_htrd_halt (mio_htrd_t* htrd)
 	{
 		mio_htre_completecontent (&htrd->re);
 
-		if (htrd->recbs->poke)
+		if (htrd->recbs.poke)
 		{
 			int n;
-			htrd->errnum = MIO_HTRD_ENOERR;
-			n = htrd->recbs->poke (htrd, &htrd->re);
+			n = htrd->recbs.poke(htrd, &htrd->re);
 			if (n <= -1)
 			{
-				if (htrd->errnum == MIO_HTRD_ENOERR)
-					htrd->errnum = MIO_HTRD_ERECBS;
 				/* need to clear request on error? 
 				clear_feed (htrd); */
 				return -1;
@@ -1680,15 +1660,9 @@ int mio_htrd_scanqparam (mio_htrd_t* htrd, const mio_bcs_t* cstr)
 			}
 
 			/* set request parameter string callback before scanning */
-			MIO_ASSERT (htrd->mio, htrd->recbs->qparamstr != MIO_NULL);
+			MIO_ASSERT (htrd->mio, htrd->recbs.qparamstr != MIO_NULL);
 
-			htrd->errnum = MIO_HTRD_ENOERR;
-			if (htrd->recbs->qparamstr(htrd, &key, &val) <= -1) 
-			{
-				if (htrd->errnum == MIO_HTRD_ENOERR)
-					htrd->errnum = MIO_HTRD_ERECBS;	
-				return -1;
-			}
+			if (htrd->recbs.qparamstr(htrd, &key, &val) <= -1) return -1;
 
 		next_octet:
 			if (p >= end) break;

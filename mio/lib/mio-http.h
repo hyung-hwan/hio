@@ -362,6 +362,14 @@ MIO_EXPORT void mio_svc_htts_rsrc_kill (
 	mio_svc_htts_rsrc_t*         rsrc
 );
 
+
+MIO_EXPORT void mio_svc_htts_fmtgmtime (
+	mio_svc_htts_t*    htts, 
+	const mio_ntime_t* nt,
+	mio_bch_t*         buf,
+	mio_oow_t          len
+);
+
 #if defined(__cplusplus)
 }
 #endif
