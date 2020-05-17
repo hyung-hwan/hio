@@ -41,8 +41,6 @@ enum mio_htrd_errnum_t
 	MIO_HTRD_ENOMEM,
 	MIO_HTRD_EBADRE,
 	MIO_HTRD_EBADHDR,
-	MIO_HTRD_ERECBS,
-	MIO_HTRD_ECONCB,
 	MIO_HTRD_ESUSPENDED
 };
 
@@ -82,7 +80,7 @@ struct mio_htrd_t
 	int option;
 	int flags;
 
-	const mio_htrd_recbs_t* recbs;
+	mio_htrd_recbs_t recbs;
 
 	struct
 	{
