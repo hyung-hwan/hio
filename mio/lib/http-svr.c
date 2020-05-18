@@ -1245,7 +1245,7 @@ oops:
 	return 0;
 }
 
-static int get_request_content_length (mio_htre_t* req, mio_oow_t* len)
+static MIO_INLINE int get_request_content_length (mio_htre_t* req, mio_oow_t* len)
 {
 	if (req->flags & MIO_HTRE_ATTR_CHUNKED)
 	{
@@ -1255,9 +1255,10 @@ static int get_request_content_length (mio_htre_t* req, mio_oow_t* len)
 		 *  If a message is received with both a Transfer-Encoding and a
 		 *  Content-Length header field, the Transfer-Encoding overrides the
 		 *  Content-Length. */
-		return -1; /* unable to determine content-length in advance */
+		return 1; /* unable to determine content-length in advance. unlimited */
 	}
-	else if (req->flags & MIO_HTRE_ATTR_LENGTH)
+
+	if (req->flags & MIO_HTRE_ATTR_LENGTH)
 	{
 		*len = req->attr.content_length;
 	}
@@ -1266,7 +1267,7 @@ static int get_request_content_length (mio_htre_t* req, mio_oow_t* len)
 		/* If no Content-Length is specified in a request, it's Content-Length: 0 */
 		*len = 0;
 	}
-	return 0;
+	return 0; /* limited to the length set in *len */
 }
 
 int mio_svc_htts_docgi (mio_svc_htts_t* htts, mio_dev_sck_t* csck, mio_htre_t* req, const mio_bch_t* docroot)
@@ -1299,8 +1300,7 @@ int mio_svc_htts_docgi (mio_svc_htts_t* htts, mio_dev_sck_t* csck, mio_htre_t* r
 	cgi_state->num_pending_writes_to_peer = 0;*/
 	cgi_state->req_version = *mio_htre_getversion(req);
 
-	cgi_state->req_content_length_unlimited = 0;
-	if (get_request_content_length(req, &cgi_state->req_content_length) <= -1) cgi_state->req_content_length_unlimited = 1;
+	cgi_state->req_content_length_unlimited = get_request_content_length(req, &cgi_state->req_content_length);
 
 	cgi_state->cli_org_on_read = csck->on_read;
 	cgi_state->cli_org_on_write = csck->on_write;
