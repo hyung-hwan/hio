@@ -147,7 +147,6 @@ struct mio_http_range_t
 };
 typedef struct mio_http_range_t mio_http_range_t;
 
-
 enum mio_perenc_http_opt_t
 {
 	MIO_PERENC_HTTP_KEEP_SLASH = (1 << 0)
@@ -163,46 +162,24 @@ typedef struct mio_svc_httc_t mio_svc_httc_t;
 /* -------------------------------------------------------------- */
 
 typedef struct mio_svc_htts_rsrc_t mio_svc_htts_rsrc_t;
-typedef mio_uint64_t mio_foff_t ; /* TODO: define this via the main configure.ac ... */
-
-
-typedef int (*mio_svc_htts_rsrc_on_read_t) (
-	mio_svc_htts_rsrc_t* rsrc,
-	mio_dev_sck_t*       sck
-);
-
-
-typedef int (*mio_svc_htts_rsrc_on_write_t) (
-	mio_svc_htts_rsrc_t* rsrc,
-	mio_dev_sck_t*       sck
-);
 
 typedef void (*mio_svc_htts_rsrc_on_kill_t) (
 	mio_svc_htts_rsrc_t* rsrc
 );
 
-enum mio_svc_htts_rsrc_flag_t
-{
-	MIO_SVC_HTTS_RSRC_FLAG_CONTENT_LENGTH_SET = (1 << 0)
-};
-typedef enum mio_svc_htts_rsrc_flag_t mio_svc_htts_rsrc_flag_t;
+#define MIO_SVC_HTTS_RSRC_HEADER \
+	mio_svc_htts_t* htts; \
+	mio_oow_t rsrc_size; \
+	mio_oow_t rsrc_refcnt; \
+	mio_svc_htts_rsrc_on_kill_t rsrc_on_kill
 
 struct mio_svc_htts_rsrc_t
 {
-	mio_svc_htts_t* htts;
-	mio_svc_htts_rsrc_t* rsrc_prev;
-	mio_svc_htts_rsrc_t* rsrc_next;
-
-	mio_svc_htts_rsrc_on_kill_t on_kill;
-	mio_svc_htts_rsrc_on_write_t on_write;
-
-	int flags;
-	mio_bch_t* content_type;
-	mio_foff_t content_length;
-
-	
+	MIO_SVC_HTTS_RSRC_HEADER;
 };
 
+#define MIO_SVC_HTTS_RSRC_ASSIGN(rsrc, var) do { (var) = (rsrc); ++(rsrc)->rsrc_size; } while(0)
+#define MIO_SVC_HTTS_RSRC_DEASSIGN(rsrc_var) do { if (--(rsrc_var)->rsrc_size == 0) mio_svc_htts_rsrc_kill(rsrc_var); (rsrc_var) = MIO_NULL; } while(0)
 /* -------------------------------------------------------------- */
 
 #if defined(__cplusplus)
@@ -314,7 +291,6 @@ MIO_EXPORT void mio_svc_htts_stop (
 MIO_EXPORT int mio_svc_htts_setservernamewithbcstr (
 	mio_svc_htts_t*  htts,
 	const mio_bch_t* server_name
-
 );
 
 MIO_EXPORT int mio_svc_htts_docgi (
@@ -344,10 +320,8 @@ MIO_EXPORT void mio_svc_htts_fmtgmtime (
 
 MIO_EXPORT mio_svc_htts_rsrc_t* mio_svc_htts_rsrc_make (
 	mio_svc_htts_t*              htts,
-	mio_dev_sck_t*               csck,
-	mio_svc_htts_rsrc_on_write_t on_write,
-	mio_svc_htts_rsrc_on_kill_t  on_kill,
-	mio_oow_t                    xtnsize
+	mio_oow_t                    rsrc_size,
+	mio_svc_htts_rsrc_on_kill_t  on_kill
 );
 
 MIO_EXPORT void mio_svc_htts_rsrc_kill (
