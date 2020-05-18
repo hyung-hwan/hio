@@ -335,14 +335,6 @@ MIO_EXPORT int mio_svc_htts_sendfile (
 	int                       keepalive
 );
 
-MIO_EXPORT int mio_svc_htts_sendstatus (
-	mio_svc_htts_t*           htts,
-	mio_dev_sck_t*            csck,
-	mio_htre_t*               req,
-	int                       status_code,
-	void*                     extra
-);
-
 MIO_EXPORT void mio_svc_htts_fmtgmtime (
 	mio_svc_htts_t*           htts,
 	const mio_ntime_t*        nt,
