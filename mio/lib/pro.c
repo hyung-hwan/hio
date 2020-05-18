@@ -564,6 +564,13 @@ static int dev_pro_write_slave (mio_dev_t* dev, const void* data, mio_iolen_t* l
 	mio_dev_pro_slave_t* pro = (mio_dev_pro_slave_t*)dev;
 	ssize_t x;
 
+	if (MIO_UNLIKELY(*len <= 0))
+	{
+		/* this is an EOF indicator */
+		mio_dev_halt (dev); /* halt this slave device */
+		return 1;
+	}
+
 	x = write(pro->pfd, data, *len);
 	if (x <= -1)
 	{
@@ -581,6 +588,13 @@ static int dev_pro_writev_slave (mio_dev_t* dev, const mio_iovec_t* iov, mio_iol
 {
 	mio_dev_pro_slave_t* pro = (mio_dev_pro_slave_t*)dev;
 	ssize_t x;
+
+	if (MIO_UNLIKELY(*iovcnt <= 0))
+	{
+		/* this is an EOF indicator */
+		mio_dev_halt (dev); /* halt this slave device */
+		return 1;
+	}
 
 	x = writev(pro->pfd, iov, *iovcnt);
 	if (x <= -1)

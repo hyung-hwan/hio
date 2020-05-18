@@ -9,3 +9,4 @@ while read x
 do
 	echo $x
 done
+##echo "<<EOF>>"
