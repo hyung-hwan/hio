@@ -178,8 +178,8 @@ struct mio_svc_htts_rsrc_t
 	MIO_SVC_HTTS_RSRC_HEADER;
 };
 
-#define MIO_SVC_HTTS_RSRC_ASSIGN(rsrc, var) do { (var) = (rsrc); ++(rsrc)->rsrc_size; } while(0)
-#define MIO_SVC_HTTS_RSRC_DEASSIGN(rsrc_var) do { if (--(rsrc_var)->rsrc_size == 0) mio_svc_htts_rsrc_kill(rsrc_var); (rsrc_var) = MIO_NULL; } while(0)
+#define MIO_SVC_HTTS_RSRC_ASSIGN(rsrc, var) do { (var) = (rsrc); ++(rsrc)->rsrc_refcnt; } while(0)
+#define MIO_SVC_HTTS_RSRC_DEASSIGN(rsrc_var) do { if (--(rsrc_var)->rsrc_refcnt == 0) { mio_svc_htts_rsrc_t* __rsrc_tmp = (rsrc_var); (rsrc_var) = MIO_NULL; mio_svc_htts_rsrc_kill(__rsrc_tmp); } else { (rsrc_var) = MIO_NULL; } } while(0)
 /* -------------------------------------------------------------- */
 
 #if defined(__cplusplus)
@@ -196,7 +196,6 @@ MIO_EXPORT int mio_comp_http_version_numbers (
 	int                       v2_major,
 	int                       v2_minor
 );
-
 
 MIO_EXPORT const mio_bch_t* mio_http_status_to_bcstr (
 	int code
