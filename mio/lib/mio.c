@@ -337,7 +337,7 @@ static void fire_cwq_handlers (mio_t* mio)
 	}
 }
 
-static void fire_cwq_handlers_for_dev (mio_t* mio, mio_dev_t* dev)
+static void fire_cwq_handlers_for_dev (mio_t* mio, mio_dev_t* dev, int for_kill)
 {
 	mio_cwq_t* cwq, * next;
 
@@ -378,7 +378,7 @@ static void fire_cwq_handlers_for_dev (mio_t* mio, mio_dev_t* dev)
 				mio_freemem (mio, cwq);
 			}
 
-			if (dev_to_halt) mio_dev_halt (dev_to_halt);
+			if (!for_kill && dev_to_halt) mio_dev_halt (dev_to_halt);
 		}
 		cwq = next;
 	}
@@ -687,7 +687,7 @@ int mio_exec (mio_t* mio)
 	mio_firetmrjobs (mio, MIO_NULL, MIO_NULL);
 
 	/* execute callbacks for completed write operations again in case there were some jobs initiaated in the timer jobs */
-	//fire_cwq_handlers (mio);
+	/*fire_cwq_handlers (mio);   <-- this may not be needed as it's called inside handle_event(). keep this line commented for now until i have new findings */
 
 	if (!MIO_DEVL_IS_EMPTY(&mio->actdev))
 	{
@@ -696,10 +696,10 @@ int mio_exec (mio_t* mio)
 
 		if (mio_gettmrtmout(mio, MIO_NULL, &tmout) <= -1)
 		{
-			/* defaults to 1 second if timeout can't be acquired.
-			 * if this timeout affects how fast the halted device will get
-			 * killed when there are no events or timer jobs */
-			tmout.sec = 1; /* TODO: make the default timeout configurable */
+			/* defaults to 0 or 1 second if timeout can't be acquired.
+			 * if this timeout affects how fast the halted device will get killed.
+			 * if there is a halted device, set timeout to 0. otherwise set it to 1*/
+			tmout.sec = !!MIO_DEVL_IS_EMPTY(&mio->hltdev); /* TODO: don't use 1. make this longer value configurable */
 			tmout.nsec = 0;
 		}
 
@@ -923,25 +923,10 @@ void mio_dev_kill (mio_dev_t* dev)
 		dev->rtmridx = MIO_TMRIDX_INVALID;
 	}
 
-	/* clear completed write event queues - TODO: do i need to fire these? */
-	if (dev->cw_count > 0)
-	{
-		mio_cwq_t* cwq, * next;
-		cwq = MIO_CWQ_HEAD(&mio->cwq);
-		while (cwq != &mio->cwq)
-		{
-			next = MIO_CWQ_NEXT(cwq);
-			if (cwq->dev == dev)
-			{
-				cwq->dev->cw_count--;
-				MIO_CWQ_UNLINK (cwq);
-				mio_freemem (mio, cwq);
-			}
-			cwq = next;
-		}
-	}
+	/* clear completed write event queues */
+	if (dev->cw_count > 0) fire_cwq_handlers_for_dev (mio, dev, 1);
 
-	/* clear pending send requests */
+	/* clear pending write requests - won't fire on_write for pending write requests */
 	while (!MIO_WQ_IS_EMPTY(&dev->wq))
 	{
 		mio_wq_t* q;
