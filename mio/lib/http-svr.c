@@ -1363,6 +1363,12 @@ int mio_svc_htts_docgi (mio_svc_htts_t* htts, mio_dev_sck_t* csck, mio_htre_t* r
 /* TODO:
  * never put Expect: 100-continue  to environment variable
  */
+	if (access(mi.cmd, X_OK) == -1)
+	{
+		cgi_state_send_final_status_to_client (cgi_state, 403); /* 403 Forbidden */
+		goto oops; /* TODO: must not go to oops.  just destroy the cgi_state and finalize the request .. */
+	}
+
 	cgi_state->peer = mio_dev_pro_make(mio, MIO_SIZEOF(*cgi_peer), &mi);
 	if (MIO_UNLIKELY(!cgi_state->peer)) goto oops;
 	cgi_peer = mio_dev_pro_getxtn(cgi_state->peer);
