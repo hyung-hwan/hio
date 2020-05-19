@@ -546,6 +546,12 @@ static int dev_pro_read_slave (mio_dev_t* dev, void* buf, mio_iolen_t* len, mio_
 	mio_dev_pro_slave_t* pro = (mio_dev_pro_slave_t*)dev;
 	ssize_t x;
 
+	if (MIO_UNLIKELY(pro->pfd == MIO_SYSHND_INVALID))
+	{
+		mio_seterrnum (pro->mio, MIO_EBADHND);
+		return -1;
+	}
+
 	x = read(pro->pfd, buf, *len);
 	if (x <= -1)
 	{
@@ -564,11 +570,22 @@ static int dev_pro_write_slave (mio_dev_t* dev, const void* data, mio_iolen_t* l
 	mio_dev_pro_slave_t* pro = (mio_dev_pro_slave_t*)dev;
 	ssize_t x;
 
+	if (MIO_UNLIKELY(pro->pfd == MIO_SYSHND_INVALID))
+	{
+		mio_seterrnum (pro->mio, MIO_EBADHND);
+		return -1;
+	}
+
 	if (MIO_UNLIKELY(*len <= 0))
 	{
 		/* this is an EOF indicator */
-		mio_dev_halt (dev); /* halt this slave device */
-		return 1;
+		//mio_dev_halt (dev); /* halt this slave device to indicate EOF on the lower-level handle */*
+		if (MIO_LIKELY(pro->pfd != MIO_SYSHND_INVALID)) /* halt() doesn't close the pipe immediately. so close the underlying pipe */
+		{
+			close (pro->pfd);
+			pro->pfd = MIO_SYSHND_INVALID;
+		}
+		return 1; /* indicate that the operation got successful. the core will execute on_write() with 0. */
 	}
 
 	x = write(pro->pfd, data, *len);
@@ -589,11 +606,22 @@ static int dev_pro_writev_slave (mio_dev_t* dev, const mio_iovec_t* iov, mio_iol
 	mio_dev_pro_slave_t* pro = (mio_dev_pro_slave_t*)dev;
 	ssize_t x;
 
+	if (MIO_UNLIKELY(pro->pfd == MIO_SYSHND_INVALID))
+	{
+		mio_seterrnum (pro->mio, MIO_EBADHND);
+		return -1;
+	}
+
 	if (MIO_UNLIKELY(*iovcnt <= 0))
 	{
 		/* this is an EOF indicator */
-		mio_dev_halt (dev); /* halt this slave device */
-		return 1;
+		/*mio_dev_halt (dev);*/ /* halt this slave device to indicate EOF on the lower-level handle  */
+		if (MIO_LIKELY(pro->pfd != MIO_SYSHND_INVALID)) /* halt() doesn't close the pipe immediately. so close the underlying pipe */
+		{
+			close (pro->pfd);
+			pro->pfd = MIO_SYSHND_INVALID;
+		}
+		return 1; /* indicate that the operation got successful. the core will execute on_write() with 0. */
 	}
 
 	x = writev(pro->pfd, iov, *iovcnt);

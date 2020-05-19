@@ -409,6 +409,13 @@ struct mio_dev_sck_t
 
 };
 
+enum mio_dev_sck_shutdown_how_t
+{
+	MIO_DEV_SCK_SHUTDOWN_READ  = (1 << 0),
+	MIO_DEV_SCK_SHUTDOWN_WRITE = (1 << 1)
+};
+typedef enum mio_dev_sck_shutdown_how_t mio_dev_sck_shutdown_how_t;
+
 #ifdef __cplusplus
 extern "C" {
 #endif
@@ -520,7 +527,6 @@ static MIO_INLINE int mio_dev_sck_timedread (mio_dev_sck_t* sck, int enabled, mi
 #endif
 
 
-
 MIO_EXPORT int mio_dev_sck_setsockopt (
 	mio_dev_sck_t* dev,
 	int            level,
@@ -537,7 +543,12 @@ MIO_EXPORT int mio_dev_sck_getsockopt (
 	mio_scklen_t*  optlen
 );
 
-MIO_EXPORT mio_uint16_t mio_checksumip (
+MIO_EXPORT int mio_dev_sck_shutdown (
+	mio_dev_sck_t* dev,
+	int            how  /* bitwise-ORed of mio_dev_sck_shutdown_how_t enumerators */
+);
+
+MIO_EXPORT mio_uint16_t mio_checksum_ip (
 	const void* hdr,
 	mio_oow_t len
 );

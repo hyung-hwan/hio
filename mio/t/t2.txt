@@ -1,0 +1,15 @@
+GET /home/hyung-hwan/projects/mio/t/b.sh HTTP/1.1
+Host: abc.txt
+Transfer-Encoding: chunked
+Connection: close
+Trailer: Content-Type
+
+7
+Mozilla
+9
+Developer
+7
+Network
+0
+Content-Type: text/plain
+

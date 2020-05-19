@@ -254,6 +254,10 @@ static int init_client (mio_svc_htts_cli_t* cli, mio_dev_sck_t* sck)
 	cli->htrd = mio_htrd_open(sck->mio, MIO_SIZEOF(*htrdxtn));
 	if (MIO_UNLIKELY(!cli->htrd)) goto oops;
 
+	/* With MIO_HTRD_TRAILERS, htrd stores trailers in a separate place.
+	 * Otherwise, it is merged to the headers. */
+	/*mio_htrd_setopt (cli->htrd, MIO_HTRD_REQUEST | MIO_HTRD_TRAILERS);*/
+
 	cli->sbuf = mio_becs_open(sck->mio, 0, 2048);
 	if (MIO_UNLIKELY(!cli->sbuf)) goto oops;
 
@@ -616,6 +620,13 @@ typedef enum cgi_state_res_mode_t cgi_state_res_mode_t;
 
 #define CGI_STATE_PENDING_IO_THRESHOLD 5
 
+#define CGI_STATE_OVER_READ_FROM_CLIENT (1 << 0)
+#define CGI_STATE_OVER_READ_FROM_PEER   (1 << 1)
+#define CGI_STATE_OVER_WRITE_TO_CLIENT  (1 << 2)
+#define CGI_STATE_OVER_WRITE_TO_PEER    (1 << 3)
+#define CGI_STATE_OVER_ALL (CGI_STATE_OVER_READ_FROM_CLIENT | CGI_STATE_OVER_READ_FROM_PEER | CGI_STATE_OVER_WRITE_TO_CLIENT | CGI_STATE_OVER_WRITE_TO_PEER)
+
+
 struct cgi_state_t
 {
 	MIO_SVC_HTTS_RSRC_HEADER;
@@ -624,16 +635,17 @@ struct cgi_state_t
 	mio_oow_t num_pending_writes_to_peer;
 	mio_dev_pro_t* peer;
 	mio_htrd_t* peer_htrd;
-	mio_svc_htts_cli_t* cli;
+	mio_svc_htts_cli_t* client;
 	mio_http_version_t req_version; /* client request */
 
+	unsigned int over: 4; /* must be large enough to accomodate CGI_STATE_OVER_ALL */
+	unsigned int keep_alive: 1;
 	unsigned int req_content_length_unlimited: 1;
-	unsigned int peer_eof: 1;
 	mio_oow_t req_content_length; /* client request content length */
 	cgi_state_res_mode_t res_mode_to_cli;
 
-	mio_dev_sck_on_read_t cli_org_on_read;
-	mio_dev_sck_on_write_t cli_org_on_write;
+	mio_dev_sck_on_read_t client_org_on_read;
+	mio_dev_sck_on_write_t client_org_on_write;
 };
 typedef struct cgi_state_t cgi_state_t;
 
@@ -645,12 +657,12 @@ typedef struct cgi_peer_xtn_t cgi_peer_xtn_t;
 
 static void cgi_state_halt_participating_devices (cgi_state_t* cgi_state)
 {
-	MIO_ASSERT (cgi_state->cli->htts->mio, cgi_state->cli != MIO_NULL);
-	MIO_ASSERT (cgi_state->cli->htts->mio, cgi_state->cli->sck != MIO_NULL);
+	MIO_ASSERT (cgi_state->client->htts->mio, cgi_state->client != MIO_NULL);
+	MIO_ASSERT (cgi_state->client->htts->mio, cgi_state->client->sck != MIO_NULL);
 
-	MIO_DEBUG4 (cgi_state->cli->htts->mio, "HTTS(%p) - halting cgi state %p(client=%p,peer=%p)\n", cgi_state->cli->htts, cgi_state, cgi_state->cli->sck, cgi_state->peer);
+	MIO_DEBUG4 (cgi_state->client->htts->mio, "HTTS(%p) - halting cgi state %p(client=%p,peer=%p)\n", cgi_state->client->htts, cgi_state, cgi_state->client->sck, cgi_state->peer);
 
-	mio_dev_sck_halt (cgi_state->cli->sck);
+	mio_dev_sck_halt (cgi_state->client->sck);
 	/* check for peer as it may not have been started */
 	if (cgi_state->peer) mio_dev_pro_halt (cgi_state->peer);
 
@@ -660,8 +672,9 @@ static void cgi_state_halt_participating_devices (cgi_state_t* cgi_state)
 
 static int cgi_state_write_to_client (cgi_state_t* cgi_state, const void* data, mio_iolen_t dlen)
 {
+printf ("WRIING TO CLIENT %d\n", dlen);
 	cgi_state->num_pending_writes_to_client++;
-	if (mio_dev_sck_write(cgi_state->cli->sck, data, dlen, MIO_NULL, MIO_NULL) <= -1) 
+	if (mio_dev_sck_write(cgi_state->client->sck, data, dlen, MIO_NULL, MIO_NULL) <= -1) 
 	{
 		cgi_state->num_pending_writes_to_client--;
 		return -1;
@@ -676,8 +689,9 @@ static int cgi_state_write_to_client (cgi_state_t* cgi_state, const void* data, 
 
 static int cgi_state_writev_to_client (cgi_state_t* cgi_state, mio_iovec_t* iov, mio_iolen_t iovcnt)
 {
+printf ("WRITIV TO CLIENT iovcnt = %d\n", (int)iovcnt);
 	cgi_state->num_pending_writes_to_client++;
-	if (mio_dev_sck_writev(cgi_state->cli->sck, iov, iovcnt, MIO_NULL, MIO_NULL) <= -1) 
+	if (mio_dev_sck_writev(cgi_state->client->sck, iov, iovcnt, MIO_NULL, MIO_NULL) <= -1) 
 	{
 		cgi_state->num_pending_writes_to_client--;
 		return -1;
@@ -692,6 +706,7 @@ static int cgi_state_writev_to_client (cgi_state_t* cgi_state, mio_iovec_t* iov,
 
 static int cgi_state_write_to_peer (cgi_state_t* cgi_state, const void* data, mio_iolen_t dlen)
 {
+printf ("WRIING TO PEER %d\n", (int)dlen);
 	cgi_state->num_pending_writes_to_peer++;
 	if (mio_dev_pro_write(cgi_state->peer, data, dlen, MIO_NULL) <= -1) 
 	{
@@ -702,14 +717,14 @@ static int cgi_state_write_to_peer (cgi_state_t* cgi_state, const void* data, mi
 /* TODO: check if it's already finished or something.. */
 	if (cgi_state->num_pending_writes_to_peer > CGI_STATE_PENDING_IO_THRESHOLD)
 	{
-		if (mio_dev_sck_read(cgi_state->cli->sck, 0) <= -1) return -1;
+		if (mio_dev_sck_read(cgi_state->client->sck, 0) <= -1) return -1;
 	}
 	return 0;
 }
 
 static int cgi_state_send_final_status_to_client (cgi_state_t* cgi_state, int status_code)
 {
-	mio_svc_htts_cli_t* cli = cgi_state->cli;
+	mio_svc_htts_cli_t* cli = cgi_state->client;
 	mio_bch_t dtbuf[64];
 
 	mio_svc_htts_fmtgmtime (cli->htts, MIO_NULL, dtbuf, MIO_COUNTOF(dtbuf));
@@ -720,6 +735,42 @@ static int cgi_state_send_final_status_to_client (cgi_state_t* cgi_state, int st
 		cli->htts->server_name, dtbuf) == (mio_oow_t)-1) return -1;
 
 	return cgi_state_write_to_client(cgi_state, MIO_BECS_PTR(cli->sbuf), MIO_BECS_LEN(cli->sbuf));
+}
+
+static MIO_INLINE void cgi_state_mark_over (cgi_state_t* cgi_state, int over_bits)
+{
+	cgi_state->over |= over_bits;
+
+	MIO_DEBUG5 (cgi_state->htts->mio, "HTTS(%p) - client=%p peer=%p new-bits=%x over=%x\n", cgi_state->htts, cgi_state->client->sck, cgi_state->peer, (int)over_bits, (int)cgi_state->over);
+
+
+	if (cgi_state->over & CGI_STATE_OVER_READ_FROM_CLIENT)
+	{
+		mio_dev_sck_read (cgi_state->client->sck, 0); /* TODO: error handling */
+	}
+
+	if (cgi_state->over & CGI_STATE_OVER_READ_FROM_PEER)
+	{
+		if (cgi_state->peer) mio_dev_pro_read (cgi_state->peer, MIO_DEV_PRO_OUT, 0); /* TODO: error handling */
+	}
+
+	if (cgi_state->over == CGI_STATE_OVER_ALL)
+	{
+		/* ready to stop */
+		if (cgi_state->peer) mio_dev_pro_halt (cgi_state->peer);
+
+		if (cgi_state->keep_alive) 
+		{
+			/* how to arrange to delete this cgi_state object and put the socket back to the normal waiting state??? */
+printf ("XXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXX\n");
+
+		}
+		else
+		{
+			mio_dev_sck_shutdown (cgi_state->client->sck, MIO_DEV_SCK_SHUTDOWN_WRITE);
+			mio_dev_sck_halt (cgi_state->client->sck);
+		}
+	}
 }
 
 static void cgi_state_on_kill (cgi_state_t* cgi_state)
@@ -743,19 +794,19 @@ printf ("**** CGI_STATE_ON_KILL \n");
 		cgi_state->peer_htrd = MIO_NULL;
 	}
 
-	if (cgi_state->cli_org_on_read)
+	if (cgi_state->client_org_on_read)
 	{
-		cgi_state->cli->sck->on_read = cgi_state->cli_org_on_read;
-		cgi_state->cli_org_on_read = MIO_NULL;
+		cgi_state->client->sck->on_read = cgi_state->client_org_on_read;
+		cgi_state->client_org_on_read = MIO_NULL;
 	}
 
-	if (cgi_state->cli_org_on_write)
+	if (cgi_state->client_org_on_write)
 	{
-		cgi_state->cli->sck->on_write = cgi_state->cli_org_on_write;
-		cgi_state->cli_org_on_write = MIO_NULL;
+		cgi_state->client->sck->on_write = cgi_state->client_org_on_write;
+		cgi_state->client_org_on_write = MIO_NULL;
 	}
 
-	mio_htrd_setrecbs (cgi_state->cli->htrd, &client_htrd_recbs); /* restore the callbacks */
+	mio_htrd_setrecbs (cgi_state->client->htrd, &client_htrd_recbs); /* restore the callbacks */
 }
 
 static void cgi_peer_on_close (mio_dev_pro_t* pro, mio_dev_pro_sid_t sid)
@@ -766,32 +817,39 @@ static void cgi_peer_on_close (mio_dev_pro_t* pro, mio_dev_pro_sid_t sid)
 
 	if (!cgi_state) return; /* cgi state already gone */
 
-printf (">>>>>>>>> PEER ON CLOSE sid=%d\n", (int)sid);
-printf (">> cgi_state %p\n", cgi_state);
-printf (">> cgi_state->peer %p\n", cgi_state->peer);
-printf (">> cgi_state->cli %p\n", cgi_state->cli);
-printf (">> cgi_state->cli->htts %p\n", cgi_state->cli->htts);
-
-	if (sid == MIO_DEV_PRO_MASTER)
+	switch (sid)
 	{
-		MIO_DEBUG3 (mio, "HTTS(%p) - peer %p(pid=%d) closing master\n", cgi_state->cli->htts, pro, (int)pro->child_pid);
-		cgi_peer->state->peer = MIO_NULL; /* clear this peer from the state */
-	}
-	else
-	{
-		MIO_ASSERT (mio, cgi_state->peer == pro);
+		case MIO_DEV_PRO_MASTER:
+			MIO_DEBUG3 (mio, "HTTS(%p) - peer %p(pid=%d) closing master\n", cgi_state->client->htts, pro, (int)pro->child_pid);
+			cgi_peer->state->peer = MIO_NULL; /* clear this peer from the state */
+			break;
 
-		MIO_DEBUG4 (mio, "HTTS(%p) - peer %p(pid=%d) closing slave[%d]\n", cgi_state->cli->htts, pro, (int)pro->child_pid, sid);
-		if (sid == MIO_DEV_PRO_OUT && !cgi_state->peer_eof)
-		{
-/* check if it's sending... */
-			cgi_state->peer_eof = 1;
-			if (cgi_state->res_mode_to_cli == CGI_STATE_RES_MODE_CHUNKED &&
-			    cgi_state_write_to_client(cgi_state, "0\r\n\r\n", 5) <= -1) 
+		case MIO_DEV_PRO_OUT:
+			MIO_ASSERT (mio, cgi_state->peer == pro);
+			MIO_DEBUG4 (mio, "HTTS(%p) - peer %p(pid=%d) closing slave[%d]\n", cgi_state->client->htts, pro, (int)pro->child_pid, sid);
+
+			if (!(cgi_state->over & CGI_STATE_OVER_READ_FROM_PEER))
 			{
-				cgi_state_halt_participating_devices (cgi_state);
+				if (cgi_state->res_mode_to_cli == CGI_STATE_RES_MODE_CHUNKED &&
+				    cgi_state_write_to_client(cgi_state, "0\r\n\r\n", 5) <= -1) 
+				{
+					cgi_state_halt_participating_devices (cgi_state);
+				}
+
+				cgi_state_mark_over (cgi_state, CGI_STATE_OVER_READ_FROM_PEER);
 			}
-		}
+
+			break;
+
+		case MIO_DEV_PRO_IN:
+			cgi_state_mark_over (cgi_state, CGI_STATE_OVER_WRITE_TO_PEER);
+			break;
+
+		case MIO_DEV_PRO_ERR:
+		default:
+			MIO_DEBUG4 (mio, "HTTS(%p) - peer %p(pid=%d) closing slave[%d]\n", cgi_state->client->htts, pro, (int)pro->child_pid, sid);
+			/* do nothing */
+			break;
 	}
 }
 
@@ -806,35 +864,40 @@ static int cgi_peer_on_read (mio_dev_pro_t* pro, mio_dev_pro_sid_t sid, const vo
 printf (">>>>>>>>> PEER ON READ %d\n", dlen);
 	if (dlen <= -1)
 	{
-		MIO_DEBUG3 (mio, "HTTPS(%p) - read error from peer %p(pid=%u)\n", cgi_state->cli->htts, pro, (unsigned int)pro->child_pid);
+		MIO_DEBUG3 (mio, "HTTPS(%p) - read error from peer %p(pid=%u)\n", cgi_state->client->htts, pro, (unsigned int)pro->child_pid);
 		goto oops;
 	}
 
-	if (cgi_state->peer_eof) return 0; /* will ignore */
+#if 0
+	if (cgi_state->over & CGI_STATE_OVER_READ_FROM_PEER) return 0; /* ignore the read event */
+#endif
 
 	if (dlen == 0)
 	{
-		MIO_DEBUG3 (mio, "HTTPS(%p) - EOF from peer %p(pid=%u)\n", cgi_state->cli->htts, pro, (unsigned int)pro->child_pid);
-		cgi_state->peer_eof = 1;
+		MIO_DEBUG3 (mio, "HTTPS(%p) - EOF from peer %p(pid=%u)\n", cgi_state->client->htts, pro, (unsigned int)pro->child_pid);
 
 		if (cgi_state->res_mode_to_cli == CGI_STATE_RES_MODE_CHUNKED &&
 		    cgi_state_write_to_client(cgi_state, "0\r\n\r\n", 5) <= -1) goto oops;
+
+		cgi_state_mark_over (cgi_state, CGI_STATE_OVER_READ_FROM_PEER);
 	}
 	else
 	{
 		mio_oow_t rem;
-printf ( "QQQQQQQQQQQQQQQQQQ>>>>>>>>>>>>>>>>>> feeding to peer htrd.... dlen => %d\n", (int)dlen);
+
 		if (mio_htrd_feed(cgi_state->peer_htrd, data, dlen, &rem) <= -1) 
 		{
 printf ( "FEEDING FAILURE TO PEER HTDDRD.. dlen => %d\n", (int)dlen);
 			cgi_state_send_final_status_to_client (cgi_state, 500); /* don't care about error */
 			goto oops;
 		}
+
 		if (rem > 0) 
 		{
 			/* If the script specifies Content-Length and produces longer data, it will come here */
-			printf ("AAAAAAAAAAAAAAAAAa EEEEEXcessive DATA..................\n");
-			cgi_state->peer_eof = 1; /* EOF or use another bit-field? */
+printf ("AAAAAAAAAAAAAAAAAa EEEEEXcessive DATA..................\n");
+/* TODO: or drop this request?? */
+			cgi_state_mark_over (cgi_state, CGI_STATE_OVER_READ_FROM_PEER);
 		}
 	}
 
@@ -873,11 +936,12 @@ static int cgi_peer_capture_header (mio_htre_t* req, const mio_bch_t* key, const
 
 	return 0;
 }
+
 static int cgi_peer_htrd_peek (mio_htrd_t* htrd, mio_htre_t* req)
 {
 	cgi_peer_xtn_t* cgi_peer = mio_htrd_getxtn(htrd);
 	cgi_state_t* cgi_state = cgi_peer->state;
-	mio_svc_htts_cli_t* cli = cgi_state->cli;
+	mio_svc_htts_cli_t* cli = cgi_state->client;
 	mio_bch_t dtbuf[64];
 	int status_code;
 
@@ -942,7 +1006,7 @@ static int cgi_peer_htrd_push_content (mio_htrd_t* htrd, mio_htre_t* req, const 
 	cgi_peer_xtn_t* cgi_peer = mio_htrd_getxtn(htrd);
 	cgi_state_t* cgi_state = cgi_peer->state;
 
-	MIO_ASSERT (cgi_state->cli->htts->mio, htrd == cgi_state->peer_htrd);
+	MIO_ASSERT (cgi_state->client->htts->mio, htrd == cgi_state->peer_htrd);
 
 	switch (cgi_state->res_mode_to_cli)
 	{
@@ -958,7 +1022,7 @@ static int cgi_peer_htrd_push_content (mio_htrd_t* htrd, mio_htre_t* req, const 
 
 			iov[0].iov_ptr = lbuf;
 			iov[0].iov_len = llen;
-			iov[1].iov_ptr = data;
+			iov[1].iov_ptr = (void*)data;
 			iov[1].iov_len = dlen;
 			iov[2].iov_ptr = "\r\n";
 			iov[2].iov_len = 2;
@@ -991,15 +1055,33 @@ static mio_htrd_recbs_t cgi_peer_htrd_recbs =
 	cgi_peer_htrd_push_content
 };
 
+static int walk_client_req_trailer (mio_htre_t* req, const mio_bch_t* key, const mio_htre_hdrval_t* val, void* ctx)
+{
+	printf ("\t%s=");
+	while (val)
+	{
+		printf ("%s ", val->ptr);
+		val = val->next;
+	}
+	printf ("\n");
+	return 0;
+}
+
 static int cgi_client_htrd_poke (mio_htrd_t* htrd, mio_htre_t* req)
 {
 	/* client request got completed */
 	htrd_xtn_t* htrdxtn = mio_htrd_getxtn(htrd);
 	mio_dev_sck_t* sck = htrdxtn->sck;
 	mio_svc_htts_cli_t* cli = mio_dev_sck_getxtn(sck);
-	cgi_state_t* cgi_state = cli->rsrc;
+	cgi_state_t* cgi_state = (cgi_state_t*)cli->rsrc;
+
+
+printf (">> CLIENT REQUEST COMPLETED\n");
+//mio_htre_walkheaders (req, walk_client_req_trailer, MIO_NULL);
+mio_htre_walktrailers (req, walk_client_req_trailer, MIO_NULL); // MIO_HTRD_TRAILERS must be set for this to work
 
 	/* indicate EOF to the client peer */
+	cgi_state_mark_over (cgi_state, CGI_STATE_OVER_READ_FROM_CLIENT);
 	return cgi_state_write_to_peer(cgi_state, MIO_NULL, 0);
 }
 
@@ -1008,7 +1090,7 @@ static int cgi_client_htrd_push_content (mio_htrd_t* htrd, mio_htre_t* req, cons
 	htrd_xtn_t* htrdxtn = mio_htrd_getxtn(htrd);
 	mio_dev_sck_t* sck = htrdxtn->sck;
 	mio_svc_htts_cli_t* cli = mio_dev_sck_getxtn(sck);
-	cgi_state_t* cgi_state = cli->rsrc;
+	cgi_state_t* cgi_state = (cgi_state_t*)cli->rsrc;
 
 	MIO_ASSERT (sck->mio, cli->sck == sck);
 	return cgi_state_write_to_peer(cgi_state, data, dlen);
@@ -1024,18 +1106,20 @@ static int cgi_peer_on_write (mio_dev_pro_t* pro, mio_iolen_t wrlen, void* wrctx
 
 	if (wrlen <= -1)
 	{
-		MIO_DEBUG3 (mio, "HTTS(%p) - unable to write to peer %p(pid=%u)\n", cgi_state->cli->htts, pro, (int)pro->child_pid);
+		MIO_DEBUG3 (mio, "HTTS(%p) - unable to write to peer %p(pid=%u)\n", cgi_state->client->htts, pro, (int)pro->child_pid);
 		goto oops;
 	}
 	else if (wrlen == 0)
 	{
 		/* indicated EOF */
 		/* do nothing here as i didn't incremented num_pending_writes_to_peer when making the write request */
+
 		cgi_state->num_pending_writes_to_peer--;
 		MIO_ASSERT (mio, cgi_state->num_pending_writes_to_peer == 0);
-		MIO_DEBUG3 (mio, "HTTS(%p) - indicated EOF to peer %p(pid=%u)\n", cgi_state->cli->htts, pro, (int)pro->child_pid);
+		MIO_DEBUG3 (mio, "HTTS(%p) - indicated EOF to peer %p(pid=%u)\n", cgi_state->client->htts, pro, (int)pro->child_pid);
 		/* indicated EOF to the peer side. i need no more data from the client side.
 		 * i don't need to enable input watching in the client side either */
+		cgi_state_mark_over (cgi_state, CGI_STATE_OVER_WRITE_TO_PEER);
 	}
 	else
 	{
@@ -1044,8 +1128,13 @@ static int cgi_peer_on_write (mio_dev_pro_t* pro, mio_iolen_t wrlen, void* wrctx
 		cgi_state->num_pending_writes_to_peer--;
 		if (cgi_state->num_pending_writes_to_peer == CGI_STATE_PENDING_IO_THRESHOLD)
 		{
-			// TODO: check if (cli has anything to read...) if so ...
-			if (mio_dev_sck_read(cgi_state->cli->sck, 1) <= -1) goto oops;
+			if (!(cgi_state->over & CGI_STATE_OVER_READ_FROM_CLIENT) &&
+			    mio_dev_sck_read(cgi_state->client->sck, 1) <= -1) goto oops;
+		}
+
+		if ((cgi_state->over & CGI_STATE_OVER_READ_FROM_CLIENT) && cgi_state->num_pending_writes_to_peer <= 0)
+		{
+			cgi_state_mark_over (cgi_state, CGI_STATE_OVER_WRITE_TO_PEER);
 		}
 	}
 
@@ -1056,12 +1145,11 @@ oops:
 	return 0;
 }
 
-
 static int cgi_client_on_read (mio_dev_sck_t* sck, const void* buf, mio_iolen_t len, const mio_skad_t* srcaddr)
 {
 	mio_t* mio = sck->mio;
 	mio_svc_htts_cli_t* cli = mio_dev_sck_getxtn(sck);
-	cgi_state_t* cgi_state = cli->rsrc;
+	cgi_state_t* cgi_state = (cgi_state_t*)cli->rsrc;
 
 	MIO_ASSERT (mio, sck == cli->sck);
 
@@ -1083,24 +1171,16 @@ printf ("** HTTS - cgi client read   %p  %d -> htts:%p\n", sck, (int)len, cli->h
 	if (len == 0)
 	{
 		/* EOF on the client side. arrange to close */
-printf ("asking pro to close...\n");
-/* HAVE I ALREADY CLOSED IT??? Check conflict is the poke handler */
 		return cgi_state_write_to_peer(cgi_state, MIO_NULL, 0);
 	}
 	else
 	{
 		mio_oow_t rem;
-/* EOF if it got content as long as cgi_state->req_content_length??? */
-		if (mio_htrd_feed(cli->htrd, buf, len, &rem) <= -1)
-		{
-printf ("FAILED TO FEED TH CLIENT HTRD......\n");
-			goto oops;
-		}
+		if (mio_htrd_feed(cli->htrd, buf, len, &rem) <= -1) goto oops;
 
 		if (rem > 0)
 		{
-			/* the cgi script is not behaving properly */
-/* giving excessive data... */
+printf ("UUUUUUUUUUUUUUUUUUUUUUUUUUGGGGGHHHHHHHHHHHH .......... CGI CLIENT GIVING EXCESSIVE DATA AFTER CONTENTS...\n");			
 		}
 	}
 
@@ -1116,7 +1196,7 @@ static int cgi_client_on_write (mio_dev_sck_t* sck, mio_iolen_t wrlen, void* wrc
 {
 	mio_t* mio = sck->mio;
 	mio_svc_htts_cli_t* cli = mio_dev_sck_getxtn(sck);
-	cgi_state_t* cgi_state = cli->rsrc;
+	cgi_state_t* cgi_state = (cgi_state_t*)cli->rsrc;
 
 	if (wrlen <= -1)
 	{
@@ -1129,29 +1209,26 @@ static int cgi_client_on_write (mio_dev_sck_t* sck, mio_iolen_t wrlen, void* wrc
 		/* if the connect is keep-alive, this part may not be called */
 		cgi_state->num_pending_writes_to_client--;
 		MIO_ASSERT (mio, cgi_state->num_pending_writes_to_client == 0);
-		MIO_DEBUG3 (mio, "HTTS(%p) - indicated EOF to client %p(%d)\n", cgi_state->cli->htts, sck, (int)sck->hnd);
+		MIO_DEBUG3 (mio, "HTTS(%p) - indicated EOF to client %p(%d)\n", cgi_state->client->htts, sck, (int)sck->hnd);
 		/* since EOF has been indicated to the client, it must not write to the client any further.
 		 * this also means that i don't need any data from the peer side either.
 		 * i don't need to enable input watching on the peer side */
+		cgi_state_mark_over (cgi_state, CGI_STATE_OVER_WRITE_TO_CLIENT);
 	}
 	else
 	{
 		MIO_ASSERT (mio, cgi_state->num_pending_writes_to_client > 0);
 
-	printf ("MANAGED TO WRITE TO CLIENT>... %d\n", (int)wrlen);
 		cgi_state->num_pending_writes_to_client--;
 		if (cgi_state->peer && cgi_state->num_pending_writes_to_client == CGI_STATE_PENDING_IO_THRESHOLD)
 		{
-			// TODO: check if there is anything to read... */
-			if (mio_dev_pro_read(cgi_state->peer, MIO_DEV_PRO_OUT, 1) <= -1) goto oops;
+			if (!(cgi_state->over & CGI_STATE_OVER_READ_FROM_PEER) &&
+			    mio_dev_pro_read(cgi_state->peer, MIO_DEV_PRO_OUT, 1) <= -1) goto oops;
 		}
 
-	/* in case the peer died before peer read handler reads EOF */
-		if (cgi_state->peer_eof && cgi_state->num_pending_writes_to_client <= 0)
+		if ((cgi_state->over & CGI_STATE_OVER_READ_FROM_PEER) && cgi_state->num_pending_writes_to_client <= 0)
 		{
-			/*if (no_more_input is to be read from the client)*/
-			cgi_state_halt_participating_devices (cgi_state); // must not use this... must kill the state ... 
-			/* finished writing all */
+			cgi_state_mark_over (cgi_state, CGI_STATE_OVER_WRITE_TO_CLIENT);
 		}
 	}
 
@@ -1194,7 +1271,6 @@ int mio_svc_htts_docgi (mio_svc_htts_t* htts, mio_dev_sck_t* csck, mio_htre_t* r
 	cgi_state_t* cgi_state = MIO_NULL;
 	cgi_peer_xtn_t* cgi_peer;
 	mio_dev_pro_make_t mi;
-	int enable_input;
 
 	/* ensure that you call this function before any contents is received */
 	MIO_ASSERT (mio, mio_htre_getcontentlen(req) == 0);
@@ -1209,14 +1285,14 @@ int mio_svc_htts_docgi (mio_svc_htts_t* htts, mio_dev_sck_t* csck, mio_htre_t* r
 	cgi_state = (cgi_state_t*)mio_svc_htts_rsrc_make(htts, MIO_SIZEOF(*cgi_state), cgi_state_on_kill);
 	if (MIO_UNLIKELY(!cgi_state)) goto oops;
 
-	cgi_state->cli = cli;
+	cgi_state->client = cli;
 	/*cgi_state->num_pending_writes_to_client = 0;
 	cgi_state->num_pending_writes_to_peer = 0;*/
 	cgi_state->req_version = *mio_htre_getversion(req);
 	cgi_state->req_content_length_unlimited = get_request_content_length(req, &cgi_state->req_content_length);
 
-	cgi_state->cli_org_on_read = csck->on_read;
-	cgi_state->cli_org_on_write = csck->on_write;
+	cgi_state->client_org_on_read = csck->on_read;
+	cgi_state->client_org_on_write = csck->on_write;
 	csck->on_read = cgi_client_on_read;
 	csck->on_write = cgi_client_on_write;
 
@@ -1287,7 +1363,6 @@ int mio_svc_htts_docgi (mio_svc_htts_t* htts, mio_dev_sck_t* csck, mio_htre_t* r
 		goto oops;
 	}
 
-	enable_input = 1;
 #if defined(CGI_ALLOW_UNLIMITED_REQ_CONTENT_LENGTH)
 	if (cgi_state->req_content_length_unlimited)
 	{
@@ -1299,8 +1374,8 @@ int mio_svc_htts_docgi (mio_svc_htts_t* htts, mio_dev_sck_t* csck, mio_htre_t* r
 
 /* TODO: must set CONTENT-LENGTH to -1 before start the process */
 		/* change the callbacks to subscribe to contents to be uploaded */
-		cgi_state->cli->htrd->recbs.poke = cgi_client_htrd_poke;
-		cgi_state->cli->htrd->recbs.push_content = cgi_client_htrd_push_content;
+		cgi_state->client->htrd->recbs.poke = cgi_client_htrd_poke;
+		cgi_state->client->htrd->recbs.push_content = cgi_client_htrd_push_content;
 	}
 	else
 	{
@@ -1309,26 +1384,36 @@ int mio_svc_htts_docgi (mio_svc_htts_t* htts, mio_dev_sck_t* csck, mio_htre_t* r
 		{
 		
 			/* change the callbacks to subscribe to contents to be uploaded */
-			cgi_state->cli->htrd->recbs.poke = cgi_client_htrd_poke;
-			cgi_state->cli->htrd->recbs.push_content = cgi_client_htrd_push_content;
+			cgi_state->client->htrd->recbs.poke = cgi_client_htrd_poke;
+			cgi_state->client->htrd->recbs.push_content = cgi_client_htrd_push_content;
 		}
 		else
 		{
 			/* no content to be uploaded from the client */
 			/* indicate EOF to the peer and disable input wathching from the client */
 			if (cgi_state_write_to_peer(cgi_state, MIO_NULL, 0) <= -1) goto oops;
-			enable_input = 0;
+			cgi_state_mark_over (cgi_state, CGI_STATE_OVER_READ_FROM_CLIENT | CGI_STATE_OVER_WRITE_TO_PEER);
 		}
 #if defined(CGI_ALLOW_UNLIMITED_REQ_CONTENT_LENGTH)
 	}
 #endif
 
-	/* TODO: store current input watching state and use it when destroying the cgi_state data */
-	if (mio_dev_sck_read(csck, enable_input) <= -1) goto oops;
-
-
 	/* this may change later if Content-Length is included in the cgi output */
-	cgi_state->res_mode_to_cli = (req->flags & MIO_HTRE_ATTR_KEEPALIVE)? CGI_STATE_RES_MODE_CHUNKED: CGI_STATE_RES_MODE_CLOSE;
+	if (req->flags & MIO_HTRE_ATTR_KEEPALIVE)
+	{
+		cgi_state->keep_alive = 1;
+		cgi_state->res_mode_to_cli = CGI_STATE_RES_MODE_CHUNKED; 
+		/* the mode still can get switched to CGI_STATE_RES_MODE_LENGTH if the cgi script emits Content-Length */
+	}
+	else
+	{
+		cgi_state->keep_alive = 0;
+		cgi_state->res_mode_to_cli = CGI_STATE_RES_MODE_CLOSE;
+	}
+
+	/* TODO: store current input watching state and use it when destroying the cgi_state data */
+	if (mio_dev_sck_read(csck, !(cgi_state->over & CGI_STATE_OVER_READ_FROM_CLIENT)) <= -1) goto oops;
+
 	return 0;
 
 oops:

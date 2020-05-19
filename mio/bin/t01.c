@@ -472,7 +472,7 @@ static void send_icmp (mio_dev_sck_t* dev, mio_uint16_t seq)
 	icmphdr->u.echo.seq = mio_hton16(seq);
 
 	memset (&buf[MIO_SIZEOF(*icmphdr)], 'A', MIO_SIZEOF(buf) - MIO_SIZEOF(*icmphdr));
-	icmphdr->checksum = mio_checksumip (icmphdr, MIO_SIZEOF(buf));
+	icmphdr->checksum = mio_checksum_ip(icmphdr, MIO_SIZEOF(buf));
 
 	if (mio_dev_sck_write(dev, buf, MIO_SIZEOF(buf), MIO_NULL, &dstaddr) <= -1)
 	{

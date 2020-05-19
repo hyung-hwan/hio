@@ -696,7 +696,9 @@ int mio_exec (mio_t* mio)
 
 		if (mio_gettmrtmout(mio, MIO_NULL, &tmout) <= -1)
 		{
-			/* defaults to 1 second if timeout can't be acquired */
+			/* defaults to 1 second if timeout can't be acquired.
+			 * if this timeout affects how fast the halted device will get
+			 * killed when there are no events or timer jobs */
 			tmout.sec = 1; /* TODO: make the default timeout configurable */
 			tmout.nsec = 0;
 		}

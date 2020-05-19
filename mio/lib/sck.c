@@ -1716,14 +1716,37 @@ int mio_dev_sck_getsockopt (mio_dev_sck_t* dev, int level, int optname, void* op
 	return getsockopt(dev->hnd, level, optname, optval, optlen);
 }
 
+int mio_dev_sck_shutdown (mio_dev_sck_t* dev, int how)
+{
+	switch (how & (MIO_DEV_SCK_SHUTDOWN_READ | MIO_DEV_SCK_SHUTDOWN_WRITE))
+	{
+		case (MIO_DEV_SCK_SHUTDOWN_READ | MIO_DEV_SCK_SHUTDOWN_WRITE):
+			how = SHUT_RDWR;
+			break;
+
+		case MIO_DEV_SCK_SHUTDOWN_READ:
+			how = SHUT_RD;
+			break;
+
+		case MIO_DEV_SCK_SHUTDOWN_WRITE:
+			how = SHUT_WR;
+			break;
+
+		default:
+			mio_seterrnum (dev->mio, MIO_EINVAL);
+			return -1;
+	}
+
+	return shutdown(dev->hnd, how);
+}
+
 /* ========================================================================= */
 
-mio_uint16_t mio_checksumip (const void* hdr, mio_oow_t len)
+mio_uint16_t mio_checksum_ip (const void* hdr, mio_oow_t len)
 {
 	mio_uint32_t sum = 0;
 	mio_uint16_t *ptr = (mio_uint16_t*)hdr;
 
-	
 	while (len > 1)
 	{
 		sum += *ptr++;
