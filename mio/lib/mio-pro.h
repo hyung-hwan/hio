@@ -59,6 +59,11 @@ typedef void (*mio_dev_pro_on_close_t) (
 	mio_dev_pro_sid_t sid
 );
 
+typedef int (*mio_dev_pro_on_fork_t) (
+	mio_dev_pro_t*    dev,
+	void*             fork_ctx
+);
+
 struct mio_dev_pro_t
 {
 	MIO_DEV_HEADER;
@@ -121,6 +126,8 @@ struct mio_dev_pro_make_t
 	mio_dev_pro_on_write_t on_write; /* mandatory */
 	mio_dev_pro_on_read_t on_read; /* mandatory */
 	mio_dev_pro_on_close_t on_close; /* optional */
+	mio_dev_pro_on_fork_t on_fork; /* optional */
+	void* fork_ctx;
 };
 
 

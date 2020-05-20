@@ -178,8 +178,8 @@ struct mio_svc_htts_rsrc_t
 	MIO_SVC_HTTS_RSRC_HEADER;
 };
 
-#define MIO_SVC_HTTS_RSRC_ASSIGN(rsrc, var) do { (var) = (rsrc); ++(rsrc)->rsrc_refcnt; } while(0)
-#define MIO_SVC_HTTS_RSRC_DEASSIGN(rsrc_var) do { if (--(rsrc_var)->rsrc_refcnt == 0) { mio_svc_htts_rsrc_t* __rsrc_tmp = (rsrc_var); (rsrc_var) = MIO_NULL; mio_svc_htts_rsrc_kill(__rsrc_tmp); } else { (rsrc_var) = MIO_NULL; } } while(0)
+#define MIO_SVC_HTTS_RSRC_ATTACH(rsrc, var) do { (var) = (rsrc); ++(rsrc)->rsrc_refcnt; } while(0)
+#define MIO_SVC_HTTS_RSRC_DETACH(rsrc_var) do { if (--(rsrc_var)->rsrc_refcnt == 0) { mio_svc_htts_rsrc_t* __rsrc_tmp = (rsrc_var); (rsrc_var) = MIO_NULL; mio_svc_htts_rsrc_kill(__rsrc_tmp); } else { (rsrc_var) = MIO_NULL; } } while(0)
 /* -------------------------------------------------------------- */
 
 #if defined(__cplusplus)

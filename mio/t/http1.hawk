@@ -6,7 +6,11 @@ BEGIN {
 
 msg = b"GET /home/hyung-hwan/projects/mio/t/b.sh HTTP/1.1\r\n\
 Host: www.google.com\r\n\
-Connection: Keep-Alive\r\n\r\n";
+Connection: close\r\n\r\n";
+
+#msg = b"GET /home/hyung-hwan/projects/mio/t/b.sh HTTP/1.1\r\n\
+#Host: www.google.com\r\n\
+#Connection: Keep-Alive\r\n\r\n";
 
 
 	sys::write (x, msg);
