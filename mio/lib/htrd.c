@@ -1217,42 +1217,8 @@ int mio_htrd_feed (mio_htrd_t* htrd, const mio_bch_t* req, mio_oow_t len, mio_oo
 						/* need to clear request on error? 
 						clear_feed (htrd); */
 						return -1;
-/// TODO: PEEKONLY doens't seem to be neede. delete it...
 					}
 ////////////////////////////////////////////////////////////////////////////////////////////////////
-
-					if (htrd->option & MIO_HTRD_PEEKONLY)
-					{
-						/* when MIO_HTRD_PEEKONLY is set,
-						 * the peek callback is invoked once
-						 * a complete header is seen. the caller
-						 * should not feed more data by calling
-						 * this function again once the callback is
-						 * invoked. the trailing data is appended
-						 * to the content buffer.
-						 *
-						 * NOTE: if the current feed that completed 
-						 *  the header contains the next request, 
-						 *  the next request is treated as if it 
-						 *  belongs to the current request.
-						 *
-						 * In priciple, this option was added for
-						 * reading CGI outputs. So it comes with
-						 * awkwardity described above.
-						 */
-						if (ptr < end && push_content(htrd, ptr, end - ptr) <= -1) return -1;
-
-						/* i don't really know if it is really completed 
-						 * with content. MIO_HTRD_PEEKONLY is not compatible
-						 * with the completed state. anyway, let me complete
-						 * it. */
-						mio_htre_completecontent (&htrd->re);
-
-						/* this jump is only to invoke the peek 
-						 * callback. this function should not be fed
-						 * more. */
-						goto feedme_more; 
-					}
 
 					/* carry on processing content body fed together with the header */
 					if (htrd->re.flags & MIO_HTRE_ATTR_CHUNKED)

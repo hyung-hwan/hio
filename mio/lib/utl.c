@@ -1729,5 +1729,39 @@ mio_bch_t* mio_dupbcstr (mio_t* mio, const mio_bch_t* bcs, mio_oow_t* bcslen)
 	return ptr;
 }
 
+mio_uch_t* mio_dupucstrs (mio_t* mio, const mio_uch_t* ucs[], mio_oow_t* ucslen)
+{
+	mio_uch_t* ptr;
+	mio_oow_t len, i;
 
+	for (i = 0, len = 0; ucs[i]; i++) len += mio_count_ucstr(ucs[i]);
+
+	ptr = (mio_uch_t*)mio_allocmem(mio, (len + 1) * MIO_SIZEOF(mio_uch_t));
+	if (!ptr) return MIO_NULL;
+
+	for (i = 0, len = 0; ucs[i]; i++) 
+		len += mio_copy_ucstr_unlimited(&ptr[len], ucs[i]);
+	ptr[len] = '\0';
+
+	if (ucslen) *ucslen = len;
+	return ptr;
+}
+
+mio_bch_t* mio_dupbcstrs (mio_t* mio, const mio_bch_t* bcs[], mio_oow_t* bcslen)
+{
+	mio_bch_t* ptr;
+	mio_oow_t len, i;
+
+	for (i = 0, len = 0; bcs[i]; i++) len += mio_count_bcstr(bcs[i]);
+
+	ptr = (mio_bch_t*)mio_allocmem(mio, (len + 1) * MIO_SIZEOF(mio_bch_t));
+	if (!ptr) return MIO_NULL;
+
+	for (i = 0, len = 0; bcs[i]; i++) 
+		len += mio_copy_bcstr_unlimited(&ptr[len], bcs[i]);
+	ptr[len] = '\0';
+
+	if (bcslen) *bcslen = len;
+	return ptr;
+}
 /* ========================================================================= */
