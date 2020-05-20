@@ -377,7 +377,7 @@ static mio_bch_t* parse_initial_line (mio_htrd_t* htrd, mio_bch_t* line)
 #else
 		while (*p != '\0' && !is_space_octet(*p)) 
 		{
-			if (*p == '?' && param.ptr == MIO_NULL)
+			if (*p == '?' && !param.ptr)
 			{
 				tmp.len = p - tmp.ptr; /* length of the path part */
 				*p++ = '\0'; /* null-terminate the path part */
@@ -388,7 +388,15 @@ static mio_bch_t* parse_initial_line (mio_htrd_t* htrd, mio_bch_t* line)
 
 		/* the url must be followed by a space */
 		if (!is_space_octet(*p)) goto badre;
-		param.len = p - param.ptr; /* length of the param part */
+		if (param.ptr) 
+		{
+			param.len = p - param.ptr; /* length of the param part */
+		}
+		else 
+		{
+			tmp.len = p - tmp.ptr;
+			param.len = 0;
+		}
 		*p = '\0';  /* null-terminate the path or param part */
 
 		if (param.ptr)

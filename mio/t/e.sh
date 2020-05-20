@@ -5,8 +5,18 @@
 echo "Content-Type: text/plain"
 echo
 
-while IFS= read -r x
-do
-	echo "$x"
-done
-echo "<<EOF>>"
+if IFS= read -r x
+then
+	q="${x}"
+	while IFS= read -r x
+	do
+	q="${q}
+${x}"
+	done
+else
+	q = ""
+fi
+
+sleep 3
+printf "%s" "$q"
+##echo "<<EOF>>"

@@ -128,11 +128,12 @@ oops:
 	return -1;
 }
 
-static pid_t standard_fork_and_exec (mio_t* mio, int pfds[], int flags, param_t* param)
+static pid_t standard_fork_and_exec (mio_dev_pro_t* dev, int pfds[], mio_dev_pro_make_t* mi, param_t* param)
 {
+	mio_t* mio = dev->mio;
 	pid_t pid;
 
-	pid = fork ();
+	pid = fork();
 	if (pid == -1) 
 	{
 		mio_seterrwithsyserr (mio, 0, errno);
@@ -146,8 +147,9 @@ static pid_t standard_fork_and_exec (mio_t* mio, int pfds[], int flags, param_t*
 		mio_syshnd_t devnull = MIO_SYSHND_INVALID;
 
 /* TODO: close all uneeded fds */
+		if (mi->on_fork) mi->on_fork (dev, mi->fork_ctx);
 
-		if (flags & MIO_DEV_PRO_WRITEIN)
+		if (mi->flags & MIO_DEV_PRO_WRITEIN)
 		{
 			/* slave should read */
 			close (pfds[1]);
@@ -160,7 +162,7 @@ static pid_t standard_fork_and_exec (mio_t* mio, int pfds[], int flags, param_t*
 			pfds[0] = MIO_SYSHND_INVALID;
 		}
 
-		if (flags & MIO_DEV_PRO_READOUT)
+		if (mi->flags & MIO_DEV_PRO_READOUT)
 		{
 			/* slave should write */
 			close (pfds[2]);
@@ -168,7 +170,7 @@ static pid_t standard_fork_and_exec (mio_t* mio, int pfds[], int flags, param_t*
 
 			if (dup2(pfds[3], 1) == -1) goto slave_oops;
 
-			if (flags & MIO_DEV_PRO_ERRTOOUT)
+			if (mi->flags & MIO_DEV_PRO_ERRTOOUT)
 			{
 				if (dup2(pfds[3], 2) == -1) goto slave_oops;
 			}
@@ -177,14 +179,14 @@ static pid_t standard_fork_and_exec (mio_t* mio, int pfds[], int flags, param_t*
 			pfds[3] = MIO_SYSHND_INVALID;
 		}
 
-		if (flags & MIO_DEV_PRO_READERR)
+		if (mi->flags & MIO_DEV_PRO_READERR)
 		{
 			close (pfds[4]);
 			pfds[4] = MIO_SYSHND_INVALID;
 
 			if (dup2(pfds[5], 2) == -1) goto slave_oops;
 
-			if (flags & MIO_DEV_PRO_OUTTOERR)
+			if (mi->flags & MIO_DEV_PRO_OUTTOERR)
 			{
 				if (dup2(pfds[5], 1) == -1) goto slave_oops;
 			}
@@ -193,9 +195,9 @@ static pid_t standard_fork_and_exec (mio_t* mio, int pfds[], int flags, param_t*
 			pfds[5] = MIO_SYSHND_INVALID;
 		}
 
-		if ((flags & MIO_DEV_PRO_INTONUL) ||
-		    (flags & MIO_DEV_PRO_OUTTONUL) ||
-		    (flags & MIO_DEV_PRO_ERRTONUL))
+		if ((mi->flags & MIO_DEV_PRO_INTONUL) ||
+		    (mi->flags & MIO_DEV_PRO_OUTTONUL) ||
+		    (mi->flags & MIO_DEV_PRO_ERRTONUL))
 		{
 		#if defined(O_LARGEFILE)
 			devnull = open("/dev/null", O_RDWR | O_LARGEFILE, 0);
@@ -270,7 +272,7 @@ static int dev_pro_make_master (mio_dev_t* dev, void* ctx)
 	if (make_param(mio, info->cmd, info->flags, &param) <= -1) goto oops;
 
 /* TODO: more advanced fork and exec .. */
-	pid = standard_fork_and_exec(mio, pfds, info->flags, &param);
+	pid = standard_fork_and_exec(dev, pfds, info, &param);
 	if (pid <= -1) 
 	{
 		free_param (mio, &param);
@@ -582,6 +584,7 @@ static int dev_pro_write_slave (mio_dev_t* dev, const void* data, mio_iolen_t* l
 		//mio_dev_halt (dev); /* halt this slave device to indicate EOF on the lower-level handle */*
 		if (MIO_LIKELY(pro->pfd != MIO_SYSHND_INVALID)) /* halt() doesn't close the pipe immediately. so close the underlying pipe */
 		{
+			mio_dev_watch (dev, MIO_DEV_WATCH_STOP, 0);
 			close (pro->pfd);
 			pro->pfd = MIO_SYSHND_INVALID;
 		}
@@ -618,6 +621,7 @@ static int dev_pro_writev_slave (mio_dev_t* dev, const mio_iovec_t* iov, mio_iol
 		/*mio_dev_halt (dev);*/ /* halt this slave device to indicate EOF on the lower-level handle  */
 		if (MIO_LIKELY(pro->pfd != MIO_SYSHND_INVALID)) /* halt() doesn't close the pipe immediately. so close the underlying pipe */
 		{
+			mio_dev_watch (dev, MIO_DEV_WATCH_STOP, 0);
 			close (pro->pfd);
 			pro->pfd = MIO_SYSHND_INVALID;
 		}

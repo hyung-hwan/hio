@@ -1037,7 +1037,7 @@ int mio_dev_watch (mio_dev_t* dev, mio_dev_watch_cmd_t cmd, int events)
 			 *  mio_dev_wtach (dev, MIO_DEV_WATCH_RENEW, 0); */
 			if (MIO_WQ_IS_EMPTY(&dev->wq)) events &= ~MIO_DEV_EVENT_OUT;
 			else events |= MIO_DEV_EVENT_OUT;
-			
+
 			/* fall through */
 		case MIO_DEV_WATCH_UPDATE:
 			/* honor event watching requests as given by the caller */
@@ -1045,17 +1045,18 @@ int mio_dev_watch (mio_dev_t* dev, mio_dev_watch_cmd_t cmd, int events)
 			break;
 
 		case MIO_DEV_WATCH_STOP:
+			if (!(dev->dev_cap & DEV_CAP_ALL_WATCHED)) return 0; /* the device is not being watched */
 			events = 0; /* override events */
 			mux_cmd = MIO_SYS_MUX_CMD_DELETE;
-			break;
+			dev_cap = dev->dev_cap & ~(DEV_CAP_ALL_WATCHED);
+			goto ctrl_mux;
 
 		default:
 			mio_seterrnum (dev->mio, MIO_EINVAL);
 			return -1;
 	}
 
-	dev_cap = dev->dev_cap;
-	dev_cap &= ~(DEV_CAP_ALL_WATCHED);
+	dev_cap = dev->dev_cap & ~(DEV_CAP_ALL_WATCHED);
 
 	/* this function honors MIO_DEV_EVENT_IN and MIO_DEV_EVENT_OUT only
 	 * as valid input event bits. it intends to provide simple abstraction
@@ -1081,6 +1082,7 @@ int mio_dev_watch (mio_dev_t* dev, mio_dev_watch_cmd_t cmd, int events)
 	}
 	else
 	{
+	ctrl_mux:
 		if (mio_sys_ctrlmux(mio, mux_cmd, dev, dev_cap) <= -1) return -1;
 	}
 

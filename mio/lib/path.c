@@ -31,7 +31,7 @@
  *       support \\?\UNC\server\path which is equivalent to \\server\path. 
  * */
 /* ------------------------------------------------------------------ */
-/*  WCS IMPLEMENTATION                                                */
+/*  UCH IMPLEMENTATION                                                */
 /* ------------------------------------------------------------------ */
 
 #if 0
@@ -335,7 +335,7 @@ mio_oow_t mio_canon_ucstr_path (const mio_uch_t* path, mio_uch_t* canon, int fla
 
 
 /* ------------------------------------------------------------------ */
-/*  MBS IMPLEMENTATION                                                */
+/*  BCH IMPLEMENTATION                                                */
 /* ------------------------------------------------------------------ */
 
 #if 0
