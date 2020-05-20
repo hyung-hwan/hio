@@ -387,15 +387,7 @@ typedef void (*mio_svc_dnc_on_resolve_t) (
 	mio_oow_t      len
 );
 
-#if defined(MIO_HAVE_INLINE)
-static MIO_INLINE mio_t* mio_svc_dns_getmio(mio_svc_dns_t* svc) { return mio_svc_getmio((mio_svc_t*)svc); }
-static MIO_INLINE mio_t* mio_svc_dnc_getmio(mio_svc_dnc_t* svc) { return mio_svc_getmio((mio_svc_t*)svc); }
-static MIO_INLINE mio_t* mio_svc_dnr_getmio(mio_svc_dnr_t* svc) { return mio_svc_getmio((mio_svc_t*)svc); }
-#else
-#	define mio_svc_dns_getmio(svc) mio_svc_getmio(svc)
-#	define mio_svc_dnc_getmio(svc) mio_svc_getmio(svc)
-#	define mio_svc_dnr_getmio(svc) mio_svc_getmio(svc)
-#endif
+
 
 enum mio_svc_dnc_send_flag_t
 {
@@ -475,6 +467,16 @@ MIO_EXPORT mio_svc_dnc_t* mio_svc_dnc_start (
 MIO_EXPORT void mio_svc_dnc_stop (
 	mio_svc_dnc_t* dnc
 );
+
+#if defined(MIO_HAVE_INLINE)
+static MIO_INLINE mio_t* mio_svc_dns_getmio(mio_svc_dns_t* svc) { return mio_svc_getmio((mio_svc_t*)svc); }
+static MIO_INLINE mio_t* mio_svc_dnc_getmio(mio_svc_dnc_t* svc) { return mio_svc_getmio((mio_svc_t*)svc); }
+static MIO_INLINE mio_t* mio_svc_dnr_getmio(mio_svc_dnr_t* svc) { return mio_svc_getmio((mio_svc_t*)svc); }
+#else
+#	define mio_svc_dns_getmio(svc) mio_svc_getmio(svc)
+#	define mio_svc_dnc_getmio(svc) mio_svc_getmio(svc)
+#	define mio_svc_dnr_getmio(svc) mio_svc_getmio(svc)
+#endif
 
 MIO_EXPORT mio_dns_msg_t* mio_svc_dnc_sendmsg (
 	mio_svc_dnc_t*         dnc,

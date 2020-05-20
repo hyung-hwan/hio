@@ -27,76 +27,11 @@
 
 #include <mio-ecs.h>
 #include <mio-sck.h>
+#include <mio-htre.h>
 
 /** \file
  * This file provides basic data types and functions for the http protocol.
  */
-
-/**
- * The mio_http_version_t type defines http version.
- */
-struct mio_http_version_t
-{
-	short major; /**< major version */
-	short minor; /**< minor version */
-};
-
-typedef struct mio_http_version_t mio_http_version_t;
-
-/**
- * The mio_http_method_t type defines http methods .
- */
-enum mio_http_method_t
-{
-	MIO_HTTP_OTHER,
-
-	/* rfc 2616 */
-	MIO_HTTP_HEAD,
-	MIO_HTTP_GET,
-	MIO_HTTP_POST,
-	MIO_HTTP_PUT,
-	MIO_HTTP_DELETE,
-	MIO_HTTP_OPTIONS,
-	MIO_HTTP_TRACE,
-	MIO_HTTP_CONNECT
-
-#if 0
-	/* rfc 2518 */
-	MIO_HTTP_PROPFIND,
-	MIO_HTTP_PROPPATCH,
-	MIO_HTTP_MKCOL,
-	MIO_HTTP_COPY,
-	MIO_HTTP_MOVE,
-	MIO_HTTP_LOCK,
-	MIO_HTTP_UNLOCK,
-
-	/* rfc 3253 */
-	MIO_HTTP_VERSION_CONTROL,
-	MIO_HTTP_REPORT,
-	MIO_HTTP_CHECKOUT,
-	MIO_HTTP_CHECKIN,
-	MIO_HTTP_UNCHECKOUT,
-	MIO_HTTP_MKWORKSPACE,
-	MIO_HTTP_UPDATE,
-	MIO_HTTP_LABEL,
-	MIO_HTTP_MERGE,
-	MIO_HTTP_BASELINE_CONTROL,
-	MIO_HTTP_MKACTIVITY,
-	
-	/* microsoft */
-	MIO_HTTP_BPROPFIND,
-	MIO_HTTP_BPROPPATCH,
-	MIO_HTTP_BCOPY,
-	MIO_HTTP_BDELETE,
-	MIO_HTTP_BMOVE,
-	MIO_HTTP_NOTIFY,
-	MIO_HTTP_POLL,
-	MIO_HTTP_SUBSCRIBE,
-	MIO_HTTP_UNSUBSCRIBE,
-#endif
-};
-
-typedef enum mio_http_method_t mio_http_method_t;
 
 /** 
  * The #mio_http_range_int_t type defines an integer that can represent
@@ -155,7 +90,6 @@ typedef enum mio_perenc_http_opt_t mio_perenc_bcstr_opt_t;
 
 
 /* -------------------------------------------------------------- */
-typedef struct mio_htre_t mio_htre_t;
 typedef struct mio_svc_htts_t mio_svc_htts_t;
 typedef struct mio_svc_httc_t mio_svc_httc_t;
 
@@ -180,6 +114,14 @@ struct mio_svc_htts_rsrc_t
 
 #define MIO_SVC_HTTS_RSRC_ATTACH(rsrc, var) do { (var) = (rsrc); ++(rsrc)->rsrc_refcnt; } while(0)
 #define MIO_SVC_HTTS_RSRC_DETACH(rsrc_var) do { if (--(rsrc_var)->rsrc_refcnt == 0) { mio_svc_htts_rsrc_t* __rsrc_tmp = (rsrc_var); (rsrc_var) = MIO_NULL; mio_svc_htts_rsrc_kill(__rsrc_tmp); } else { (rsrc_var) = MIO_NULL; } } while(0)
+
+
+typedef int (*mio_svc_htts_proc_req_t) (
+	mio_svc_htts_t* htts,
+	mio_dev_sck_t*  sck,
+	mio_htre_t*     req
+);
+
 /* -------------------------------------------------------------- */
 
 #if defined(__cplusplus)
@@ -279,13 +221,20 @@ MIO_EXPORT mio_bch_t* mio_perenc_http_bcstrdup (
 /* ------------------------------------------------------------------------- */
 
 MIO_EXPORT mio_svc_htts_t* mio_svc_htts_start (
-	mio_t*            mio,
-	const mio_skad_t* bind_addr
+	mio_t*                   mio,
+	const mio_skad_t*        bind_addr,
+	mio_svc_htts_proc_req_t  proc_req
 );
 
 MIO_EXPORT void mio_svc_htts_stop (
 	mio_svc_htts_t* htts
 );
+
+#if defined(MIO_HAVE_INLINE)
+static MIO_INLINE mio_t* mio_svc_htts_getmio(mio_svc_htts_t* svc) { return mio_svc_getmio((mio_svc_t*)svc); }
+#else
+#	define mio_svc_htts_getmio(svc) mio_svc_getmio(svc)
+#endif
 
 MIO_EXPORT int mio_svc_htts_setservernamewithbcstr (
 	mio_svc_htts_t*  htts,
@@ -293,28 +242,11 @@ MIO_EXPORT int mio_svc_htts_setservernamewithbcstr (
 );
 
 MIO_EXPORT int mio_svc_htts_docgi (
-	mio_svc_htts_t* htts,
-	mio_dev_sck_t*  csck,
-	mio_htre_t*     req,
-	const mio_bch_t* docroot
-);
-
-
-MIO_EXPORT int mio_svc_htts_sendfile (
-	mio_svc_htts_t*           htts,
-	mio_dev_sck_t*            csck,
-	const mio_bch_t*          file_path,
-	int                       status_code,
-	mio_http_method_t         method,
-	const mio_http_version_t* version,
-	int                       keepalive
-);
-
-MIO_EXPORT void mio_svc_htts_fmtgmtime (
-	mio_svc_htts_t*           htts,
-	const mio_ntime_t*        nt,
-	mio_bch_t*                buf,
-	mio_oow_t                 len
+	mio_svc_htts_t*  htts,
+	mio_dev_sck_t*   csck,
+	mio_htre_t*      req,
+	const mio_bch_t* docroot,
+	const mio_bch_t* script
 );
 
 MIO_EXPORT mio_svc_htts_rsrc_t* mio_svc_htts_rsrc_make (
@@ -333,6 +265,12 @@ MIO_EXPORT void mio_svc_htts_fmtgmtime (
 	const mio_ntime_t* nt,
 	mio_bch_t*         buf,
 	mio_oow_t          len
+);
+
+MIO_EXPORT mio_bch_t* mio_svc_htts_dupmergepaths (
+	mio_svc_htts_t*    htts,
+	const mio_bch_t*   base,
+	const mio_bch_t*   path
 );
 
 #if defined(__cplusplus)

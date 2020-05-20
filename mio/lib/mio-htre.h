@@ -27,8 +27,74 @@
 #ifndef _MIO_HTRE_H_
 #define _MIO_HTRE_H_
 
-#include <mio-http.h>
 #include <mio-htb.h>
+#include <mio-ecs.h>
+
+/**
+ * The mio_http_version_t type defines http version.
+ */
+struct mio_http_version_t
+{
+	short major; /**< major version */
+	short minor; /**< minor version */
+};
+
+typedef struct mio_http_version_t mio_http_version_t;
+
+/**
+ * The mio_http_method_t type defines http methods .
+ */
+enum mio_http_method_t
+{
+	MIO_HTTP_OTHER,
+
+	/* rfc 2616 */
+	MIO_HTTP_HEAD,
+	MIO_HTTP_GET,
+	MIO_HTTP_POST,
+	MIO_HTTP_PUT,
+	MIO_HTTP_DELETE,
+	MIO_HTTP_OPTIONS,
+	MIO_HTTP_TRACE,
+	MIO_HTTP_CONNECT
+
+#if 0
+	/* rfc 2518 */
+	MIO_HTTP_PROPFIND,
+	MIO_HTTP_PROPPATCH,
+	MIO_HTTP_MKCOL,
+	MIO_HTTP_COPY,
+	MIO_HTTP_MOVE,
+	MIO_HTTP_LOCK,
+	MIO_HTTP_UNLOCK,
+
+	/* rfc 3253 */
+	MIO_HTTP_VERSION_CONTROL,
+	MIO_HTTP_REPORT,
+	MIO_HTTP_CHECKOUT,
+	MIO_HTTP_CHECKIN,
+	MIO_HTTP_UNCHECKOUT,
+	MIO_HTTP_MKWORKSPACE,
+	MIO_HTTP_UPDATE,
+	MIO_HTTP_LABEL,
+	MIO_HTTP_MERGE,
+	MIO_HTTP_BASELINE_CONTROL,
+	MIO_HTTP_MKACTIVITY,
+	
+	/* microsoft */
+	MIO_HTTP_BPROPFIND,
+	MIO_HTTP_BPROPPATCH,
+	MIO_HTTP_BCOPY,
+	MIO_HTTP_BDELETE,
+	MIO_HTTP_BMOVE,
+	MIO_HTTP_NOTIFY,
+	MIO_HTTP_POLL,
+	MIO_HTTP_SUBSCRIBE,
+	MIO_HTTP_UNSUBSCRIBE,
+#endif
+};
+
+typedef enum mio_http_method_t mio_http_method_t;
 
 /* 
  * You should not manipulate an object of the #mio_htre_t 
@@ -37,7 +103,7 @@
  */
 
 /* header and contents of request/response */
-/*typedef struct mio_htre_t mio_htre_t; <--- defined in mio-http.h TODO: remove recursive definition */
+typedef struct mio_htre_t mio_htre_t;
 typedef struct mio_htre_hdrval_t mio_htre_hdrval_t;
 
 enum mio_htre_state_t

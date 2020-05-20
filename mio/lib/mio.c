@@ -1776,7 +1776,6 @@ static int fmt_put_bchars_to_bch_buf (mio_fmtout_t* fmtout, const mio_bch_t* ptr
 	return 1; /* success */
 }
 
-
 static int fmt_put_uchars_to_bch_buf (mio_fmtout_t* fmtout, const mio_uch_t* ptr, mio_oow_t len)
 {
 	fmt_bch_buf_t* b = (fmt_bch_buf_t*)fmtout->ctx;

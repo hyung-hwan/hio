@@ -3,6 +3,7 @@
 #include "mio-pro.h" /* for cgi */
 #include "mio-fmt.h"
 #include "mio-chr.h"
+#include "mio-path.h"
 #include "mio-prv.h"
 
 
@@ -34,6 +35,8 @@ struct mio_svc_htts_cli_t
 struct mio_svc_htts_t
 {
 	MIO_SVC_HEADER;
+
+	mio_svc_htts_proc_req_t proc_req;
 
 	mio_dev_sck_t* lsck;
 	mio_svc_htts_cli_t cli; /* list head for client list */
@@ -98,110 +101,11 @@ static int test_func_handler (int rfd, int wfd)
 	return -1;
 }
 
-static int process_request (mio_svc_htts_t* htts, mio_dev_sck_t* csck, mio_htre_t* req)
-{
-	//server_xtn_t* server_xtn = GET_SERVER_XTN(htts, client->server);
-	//mio_htts_task_t* task;
-	mio_svc_htts_cli_t* cli = mio_dev_sck_getxtn(csck);
-	mio_http_method_t mth;
-	//mio_htts_rsrc_t rsrc;
-
-	/* percent-decode the query path to the original buffer
-	 * since i'm not going to need it in the original form
-	 * any more. once it's decoded in the peek mode,
-	 * the decoded query path is made available in the
-	 * non-peek mode as well */
-
-	MIO_DEBUG2 (htts->mio, "[RAW-REQ] %s %s\n", mio_htre_getqmethodname(req), mio_htre_getqpath(req));
-
-	mio_htre_perdecqpath(req);
-	/* TODO: proper request logging */
-
-	MIO_DEBUG2 (htts->mio, "[REQ] %s %s\n", mio_htre_getqmethodname(req), mio_htre_getqpath(req));
-
-
-
-#if 0
-mio_printf (MIO_T("================================\n"));
-mio_printf (MIO_T("[%lu] %hs REQUEST ==> [%hs] version[%d.%d %hs] method[%hs]\n"),
-	(unsigned long)time(NULL),
-	(peek? MIO_MT("PEEK"): MIO_MT("HANDLE")),
-	mio_htre_getqpath(req),
-	mio_htre_getmajorversion(req),
-	mio_htre_getminorversion(req),
-	mio_htre_getverstr(req),
-	mio_htre_getqmethodname(req)
-);
-if (mio_htre_getqparam(req))
-	mio_printf (MIO_T("PARAMS ==> [%hs]\n"), mio_htre_getqparam(req));
-
-mio_htb_walk (&req->hdrtab, walk, MIO_NULL);
-if (mio_htre_getcontentlen(req) > 0)
-{
-	mio_printf (MIO_T("CONTENT [%.*S]\n"), (int)mio_htre_getcontentlen(req), mio_htre_getcontentptr(req));
-}
-#endif
-
-	mth = mio_htre_getqmethodtype(req);
-	/* determine what to do once the header fields are all received.
-	 * i don't want to delay this until the contents are received.
-	 * if you don't like this behavior, you must implement your own
-	 * callback function for request handling. */
-#if 0
-	/* TODO support X-HTTP-Method-Override */
-	if (data.method == MIO_HTTP_POST)
-	{
-		tmp = mio_htre_getheaderval(req, MIO_MT("X-HTTP-Method-Override"));
-		if (tmp)
-		{
-			/*while (tmp->next) tmp = tmp->next;*/ /* get the last value */
-			data.method = mio_mbstohttpmethod (tmp->ptr);
-		}
-	}
-#endif
-
-#if 0
-	if (mth == MIO_HTTP_CONNECT)
-	{
-		/* CONNECT method must not have content set. 
-		 * however, arrange to discard it if so. 
-		 *
-		 * NOTE: CONNECT is implemented to ignore many headers like
-		 *       'Expect: 100-continue' and 'Connection: keep-alive'. */
-		mio_htre_discardcontent (req);
-	}
-	else 
-	{
-/* this part can be checked in actual mio_svc_htts_doXXX() functions.
- * some doXXX handlers may not require length for POST.
- * it may be able to simply accept till EOF? or  treat as if CONTENT_LENGTH is 0*/
-		if (mth == MIO_HTTP_POST && !(req->flags & (MIO_HTRE_ATTR_LENGTH | MIO_HTRE_ATTR_CHUNKED)))
-		{
-			/* POST without Content-Length nor not chunked */
-			mio_htre_discardcontent (req); 
-			/* 411 Length Required - can't keep alive. Force disconnect */
-			req->flags &= ~MIO_HTRE_ATTR_KEEPALIVE; /* to cause sendstatus() to close */
-			if (mio_svc_htts_sendstatus(htts, csck, req, 411, MIO_NULL) <= -1) goto oops;
-		}
-		else
-
-		{
-#endif
-			/*const mio_bch_t* qpath = mio_htre_getqpath(req);*/
-			if (mio_svc_htts_docgi(htts, csck, req, "") <= -1) goto oops;
-
-	return 0;
-
-oops:
-	mio_dev_sck_halt (csck);
-	return -1;
-}
-
 static int client_htrd_peek_request (mio_htrd_t* htrd, mio_htre_t* req)
 {
 	htrd_xtn_t* htrdxtn = (htrd_xtn_t*)mio_htrd_getxtn(htrd);
 	mio_svc_htts_cli_t* sckxtn = (mio_svc_htts_cli_t*)mio_dev_sck_getxtn(htrdxtn->sck);
-	return process_request(sckxtn->htts, htrdxtn->sck, req);
+	return sckxtn->htts->proc_req(sckxtn->htts, htrdxtn->sck, req);
 }
 
 
@@ -439,7 +343,7 @@ static void listener_on_disconnect (mio_dev_sck_t* sck)
 
 /* ------------------------------------------------------------------------ */
 
-mio_svc_htts_t* mio_svc_htts_start (mio_t* mio, const mio_skad_t* bind_addr)
+mio_svc_htts_t* mio_svc_htts_start (mio_t* mio, const mio_skad_t* bind_addr, mio_svc_htts_proc_req_t proc_req)
 {
 	mio_svc_htts_t* htts = MIO_NULL;
 	union
@@ -455,6 +359,7 @@ mio_svc_htts_t* mio_svc_htts_start (mio_t* mio, const mio_skad_t* bind_addr)
 
 	htts->mio = mio;
 	htts->svc_stop = mio_svc_htts_stop;
+	htts->proc_req = proc_req;
 
 	MIO_MEMSET (&info, 0, MIO_SIZEOF(info));
 	switch (mio_skad_family(bind_addr))
@@ -1314,6 +1219,8 @@ struct cgi_peer_fork_ctx_t
 	mio_svc_htts_cli_t* cli;
 	mio_htre_t* req;
 	const mio_bch_t* docroot;
+	const mio_bch_t* script;
+	mio_bch_t* actual_script;
 };
 typedef struct cgi_peer_fork_ctx_t cgi_peer_fork_ctx_t;
 
@@ -1362,24 +1269,27 @@ static int cgi_peer_on_fork (mio_dev_pro_t* pro, void* fork_ctx)
 	cgi_peer_fork_ctx_t* fc = (cgi_peer_fork_ctx_t*)fork_ctx;
 	mio_oow_t content_length;
 	const mio_bch_t* qparam;
-	const char* path;
+	const char* path, * lang;
 	mio_bch_t tmp[256];
 	mio_becs_t dbuf;
 
 	qparam = mio_htre_getqparam(fc->req);
 
 	path = getenv("PATH");
+	lang = getenv("LANG");
 	clearenv ();
 	if (path) setenv ("PATH", path, 1);
+	if (lang) setenv ("LANG", lang, 1);
 
 	setenv ("GATEWAY_INTERFACE", "CGI/1.1", 1);
 
 	mio_fmttobcstr (pro->mio, tmp, MIO_COUNTOF(tmp), "HTTP/%d.%d", (int)mio_htre_getmajorversion(fc->req), (int)mio_htre_getminorversion(fc->req));
 	setenv ("SERVER_PROTOCOL", tmp, 1);
 
-	//setenv ("SCRIPT_FILENAME",  
-	//setenv ("SCRIPT_NAME",
 	setenv ("DOCUMENT_ROOT", fc->docroot, 1);
+	setenv ("SCRIPT_NAME", fc->script, 1);
+	setenv ("SCRIPT_FILENAME", fc->actual_script, 1);
+	/* TODO: PATH_INFO */
 
 	setenv ("REQUEST_METHOD", mio_htre_getqmethodname(fc->req), 1);
 	setenv ("REQUEST_URI", mio_htre_getqpath(fc->req), 1);
@@ -1422,8 +1332,7 @@ static int cgi_peer_on_fork (mio_dev_pro_t* pro, void* fork_ctx)
 	return 0;
 }
 
-
-int mio_svc_htts_docgi (mio_svc_htts_t* htts, mio_dev_sck_t* csck, mio_htre_t* req, const mio_bch_t* docroot)
+int mio_svc_htts_docgi (mio_svc_htts_t* htts, mio_dev_sck_t* csck, mio_htre_t* req, const mio_bch_t* docroot, const mio_bch_t* script)
 {
 	mio_t* mio = htts->mio;
 	mio_svc_htts_cli_t* cli = mio_dev_sck_getxtn(csck);
@@ -1439,10 +1348,13 @@ int mio_svc_htts_docgi (mio_svc_htts_t* htts, mio_dev_sck_t* csck, mio_htre_t* r
 	fc.cli = cli;
 	fc.req = req;
 	fc.docroot = docroot;
+	fc.script = script;
+	fc.actual_script = mio_svc_htts_dupmergepaths(htts, docroot, script);
+	if (!fc.actual_script) goto oops;
 
 	MIO_MEMSET (&mi, 0, MIO_SIZEOF(mi));
 	mi.flags = MIO_DEV_PRO_READOUT | MIO_DEV_PRO_ERRTONUL | MIO_DEV_PRO_WRITEIN /*| MIO_DEV_PRO_FORGET_CHILD*/;
-	mi.cmd = mio_htre_getqpath(req); /* TODO: combine it with docroot */
+	mi.cmd = fc.actual_script;
 	mi.on_read = cgi_peer_on_read;
 	mi.on_write = cgi_peer_on_write;
 	mi.on_close = cgi_peer_on_close;
@@ -1468,10 +1380,6 @@ int mio_svc_htts_docgi (mio_svc_htts_t* htts, mio_dev_sck_t* csck, mio_htre_t* r
 	MIO_ASSERT (mio, cli->rsrc == MIO_NULL);
 	MIO_SVC_HTTS_RSRC_ATTACH (cgi_state, cli->rsrc);
 
-/* TODO: create cgi environment variables... */
-/* TODO:
- * never put Expect: 100-continue  to environment variable
- */
 	if (access(mi.cmd, X_OK) == -1)
 	{
 		cgi_state_send_final_status_to_client (cgi_state, 403); /* 403 Forbidden */
@@ -1588,17 +1496,29 @@ int mio_svc_htts_docgi (mio_svc_htts_t* htts, mio_dev_sck_t* csck, mio_htre_t* r
 
 	/* TODO: store current input watching state and use it when destroying the cgi_state data */
 	if (mio_dev_sck_read(csck, !(cgi_state->over & CGI_STATE_OVER_READ_FROM_CLIENT)) <= -1) goto oops;
+	mio_freemem (mio, fc.actual_script);
 	return 0;
 
 oops:
 	MIO_DEBUG2 (mio, "HTTS(%p) - FAILURE in docgi - socket(%p)\n", htts, csck);
 	if (cgi_state) cgi_state_halt_participating_devices (cgi_state);
+	if (fc.actual_script) mio_freemem (mio, fc.actual_script);
 	return -1;
 }
 
 /* ----------------------------------------------------------------- */
 
-int mio_svc_htts_dofile (mio_svc_htts_t* htts, mio_dev_sck_t* csck, mio_htre_t* req, const mio_bch_t* docroot)
+#if 0
+int mio_svc_htts_dothrfunc (mio_svc_htts_t* htts, mio_dev_sck_t* csck, mio_htre_t* req, mio_svc_htts_func_t func)
+{
+	
+}
+#endif
+
+
+/* ----------------------------------------------------------------- */
+
+int mio_svc_htts_dofile (mio_svc_htts_t* htts, mio_dev_sck_t* csck, mio_htre_t* req, const mio_bch_t* docroot, const mio_bch_t* file)
 {
 	switch (mio_htre_getqmethodtype(req))
 	{
@@ -1666,6 +1586,26 @@ void mio_svc_htts_fmtgmtime (mio_svc_htts_t* htts, const mio_ntime_t* nt, mio_bc
 	}
 
 	mio_fmt_http_time_to_bcstr(nt, buf, len);
+}
+
+mio_bch_t* mio_svc_htts_dupmergepaths (mio_svc_htts_t* htts, const mio_bch_t* base, const mio_bch_t* path)
+{
+	mio_bch_t* xpath;
+	const mio_bch_t* ta[4];
+	mio_oow_t idx = 0;
+
+	ta[idx++] = base;
+	if (path[0] != '\0')
+	{
+		ta[idx++] = "/";
+		ta[idx++] = path;
+	}
+	ta[idx++] = MIO_NULL;
+	xpath = mio_dupbcstrs(htts->mio, ta, MIO_NULL);
+	if (MIO_UNLIKELY(!xpath)) return MIO_NULL;
+
+	mio_canon_bcstr_path (xpath, xpath, 0);
+	return xpath;
 }
 
 /* ----------------------------------------------------------------- */

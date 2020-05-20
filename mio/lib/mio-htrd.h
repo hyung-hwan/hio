@@ -55,11 +55,10 @@ enum mio_htrd_option_t
 	MIO_HTRD_SKIPEMPTYLINES  = (1 << 0), /**< skip leading empty lines before the initial line */
 	MIO_HTRD_SKIPINITIALLINE = (1 << 1), /**< skip processing an initial line */
 	MIO_HTRD_CANONQPATH      = (1 << 2), /**< canonicalize the query path */
-	MIO_HTRD_PEEKONLY        = (1 << 3), /**< trigger a peek callback after headers without processing contents */
-	MIO_HTRD_REQUEST         = (1 << 4), /**< parse input as a request */
-	MIO_HTRD_RESPONSE        = (1 << 5), /**< parse input as a response */
-	MIO_HTRD_TRAILERS        = (1 << 6), /**< store trailers in a separate table */
-	MIO_HTRD_STRICT          = (1 << 7)  /**< be more picky */
+	MIO_HTRD_REQUEST         = (1 << 3), /**< parse input as a request */
+	MIO_HTRD_RESPONSE        = (1 << 4), /**< parse input as a response */
+	MIO_HTRD_TRAILERS        = (1 << 5), /**< store trailers in a separate table */
+	MIO_HTRD_STRICT          = (1 << 6)  /**< be more picky */
 };
 
 typedef enum mio_htrd_option_t mio_htrd_option_t;

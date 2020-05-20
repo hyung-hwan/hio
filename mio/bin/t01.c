@@ -749,6 +749,102 @@ static void on_dnc_resolve_brief (mio_svc_dnc_t* dnc, mio_dns_msg_t* reqmsg, mio
 }
 
 /* ========================================================================= */
+int process_http_request (mio_svc_htts_t* htts, mio_dev_sck_t* csck, mio_htre_t* req)
+{
+	mio_t* mio = mio_svc_htts_getmio(htts);
+//	mio_svc_htts_cli_t* cli = mio_dev_sck_getxtn(csck);
+	mio_http_method_t mth;
+
+	/* percent-decode the query path to the original buffer
+	 * since i'm not going to need it in the original form
+	 * any more. once it's decoded in the peek mode,
+	 * the decoded query path is made available in the
+	 * non-peek mode as well */
+
+	MIO_DEBUG2 (mio, "[RAW-REQ] %s %s\n", mio_htre_getqmethodname(req), mio_htre_getqpath(req));
+
+	mio_htre_perdecqpath(req);
+	/* TODO: proper request logging */
+
+	MIO_DEBUG2 (mio, "[REQ] %s %s\n", mio_htre_getqmethodname(req), mio_htre_getqpath(req));
+
+#if 0
+mio_printf (MIO_T("================================\n"));
+mio_printf (MIO_T("[%lu] %hs REQUEST ==> [%hs] version[%d.%d %hs] method[%hs]\n"),
+	(unsigned long)time(NULL),
+	(peek? MIO_MT("PEEK"): MIO_MT("HANDLE")),
+	mio_htre_getqpath(req),
+	mio_htre_getmajorversion(req),
+	mio_htre_getminorversion(req),
+	mio_htre_getverstr(req),
+	mio_htre_getqmethodname(req)
+);
+if (mio_htre_getqparam(req))
+	mio_printf (MIO_T("PARAMS ==> [%hs]\n"), mio_htre_getqparam(req));
+
+mio_htb_walk (&req->hdrtab, walk, MIO_NULL);
+if (mio_htre_getcontentlen(req) > 0)
+{
+	mio_printf (MIO_T("CONTENT [%.*S]\n"), (int)mio_htre_getcontentlen(req), mio_htre_getcontentptr(req));
+}
+#endif
+
+	mth = mio_htre_getqmethodtype(req);
+	/* determine what to do once the header fields are all received.
+	 * i don't want to delay this until the contents are received.
+	 * if you don't like this behavior, you must implement your own
+	 * callback function for request handling. */
+#if 0
+	/* TODO support X-HTTP-Method-Override */
+	if (data.method == MIO_HTTP_POST)
+	{
+		tmp = mio_htre_getheaderval(req, MIO_MT("X-HTTP-Method-Override"));
+		if (tmp)
+		{
+			/*while (tmp->next) tmp = tmp->next;*/ /* get the last value */
+			data.method = mio_mbstohttpmethod (tmp->ptr);
+		}
+	}
+#endif
+
+#if 0
+	if (mth == MIO_HTTP_CONNECT)
+	{
+		/* CONNECT method must not have content set. 
+		 * however, arrange to discard it if so. 
+		 *
+		 * NOTE: CONNECT is implemented to ignore many headers like
+		 *       'Expect: 100-continue' and 'Connection: keep-alive'. */
+		mio_htre_discardcontent (req);
+	}
+	else 
+	{
+/* this part can be checked in actual mio_svc_htts_doXXX() functions.
+ * some doXXX handlers may not require length for POST.
+ * it may be able to simply accept till EOF? or  treat as if CONTENT_LENGTH is 0*/
+		if (mth == MIO_HTTP_POST && !(req->flags & (MIO_HTRE_ATTR_LENGTH | MIO_HTRE_ATTR_CHUNKED)))
+		{
+			/* POST without Content-Length nor not chunked */
+			mio_htre_discardcontent (req); 
+			/* 411 Length Required - can't keep alive. Force disconnect */
+			req->flags &= ~MIO_HTRE_ATTR_KEEPALIVE; /* to cause sendstatus() to close */
+			if (mio_svc_htts_sendstatus(htts, csck, req, 411, MIO_NULL) <= -1) goto oops;
+		}
+		else
+
+		{
+#endif
+			/*const mio_bch_t* qpath = mio_htre_getqpath(req);*/
+			if (mio_svc_htts_docgi(htts, csck, req, "", mio_htre_getqpath(req)) <= -1) goto oops;
+
+	return 0;
+
+oops:
+	mio_dev_sck_halt (csck);
+	return -1;
+}
+
+/* ========================================================================= */
 
 static mio_t* g_mio;
 
@@ -976,7 +1072,7 @@ for (i = 0; i < 5; i++)
 	mio_bcstrtoskad (mio, "127.0.0.1:9988", &htts_bind_addr);
 
 	dnc = mio_svc_dnc_start(mio, &servaddr, MIO_NULL, &send_tmout, &reply_tmout, 2); /* option - send to all, send one by one */
-	htts = mio_svc_htts_start(mio, &htts_bind_addr);
+	htts = mio_svc_htts_start(mio, &htts_bind_addr, process_http_request);
 	mio_svc_htts_setservernamewithbcstr (htts, "MIO-HTTP");
 
 #if 1
