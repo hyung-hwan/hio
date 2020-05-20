@@ -371,14 +371,14 @@ MIO_EXPORT mio_oow_t mio_copy_bcstr (
 
 MIO_EXPORT mio_oow_t mio_copy_uchars_to_ucstr (
 	mio_uch_t*       dst,
-	mio_uch_t        dlen,
+	mio_oow_t        dlen,
 	const mio_uch_t* src,
 	mio_oow_t        slen
 );
 
 MIO_EXPORT mio_oow_t mio_copy_bchars_to_bcstr (
 	mio_bch_t*       dst,
-	mio_bch_t        dlen,
+	mio_oow_t        dlen,
 	const mio_bch_t* src,
 	mio_oow_t        slen
 );

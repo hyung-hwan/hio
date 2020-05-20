@@ -393,7 +393,6 @@ mio_oow_t FN(vfcat) (str_t* str, const char_t* fmt, va_list ap)
 	mio_fmtout_t fo;
 
 	MIO_MEMSET (&fo, 0, MIO_SIZEOF(fo));
-	//fo.mmgr = str->mio->_mmgr;
 	fo.putbchars = FN(put_bchars);
 	fo.putuchars = FN(put_uchars);
 	fo.ctx = str;
@@ -423,7 +422,6 @@ mio_oow_t FN(vfmt) (str_t* str, const char_t* fmt, va_list ap)
 	mio_fmtout_t fo;
 
 	MIO_MEMSET (&fo, 0, MIO_SIZEOF(fo));
-	//fo.mmgr = str->mio->_mmgr;
 	fo.putbchars = FN(put_bchars);
 	fo.putuchars = FN(put_uchars);
 	fo.ctx = str;

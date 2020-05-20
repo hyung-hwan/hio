@@ -398,7 +398,7 @@ void mio_copy_uchars_to_bchars (mio_bch_t* dst, const mio_uch_t* src, mio_oow_t 
 	for (i = 0; i < len; i++) dst[i] = src[i];
 }
 
-mio_oow_t mio_copy_uchars_to_ucstr (mio_uch_t* dst, mio_uch_t dlen, const mio_uch_t* src, mio_oow_t slen)
+mio_oow_t mio_copy_uchars_to_ucstr (mio_uch_t* dst, mio_oow_t dlen, const mio_uch_t* src, mio_oow_t slen)
 {
 	mio_oow_t i;
 	if (dlen <= 0) return 0;
@@ -408,7 +408,7 @@ mio_oow_t mio_copy_uchars_to_ucstr (mio_uch_t* dst, mio_uch_t dlen, const mio_uc
 	return i;
 }
 
-mio_oow_t mio_copy_bchars_to_bcstr (mio_bch_t* dst, mio_bch_t dlen, const mio_bch_t* src, mio_oow_t slen)
+mio_oow_t mio_copy_bchars_to_bcstr (mio_bch_t* dst, mio_oow_t dlen, const mio_bch_t* src, mio_oow_t slen)
 {
 	mio_oow_t i;
 	if (dlen <= 0) return 0;
