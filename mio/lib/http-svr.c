@@ -2,6 +2,7 @@
 #include "mio-htrd.h"
 #include "mio-pro.h" /* for cgi */
 #include "mio-fmt.h"
+#include "mio-chr.h"
 #include "mio-prv.h"
 
 
@@ -9,7 +10,7 @@
 #include <fcntl.h>
 #include <sys/stat.h>
 #include <pthread.h>
-#include <stdlib.h> /* setenv */
+#include <stdlib.h> /* setenv, clearenv */
 
 #define CGI_ALLOW_UNLIMITED_REQ_CONTENT_LENGTH
 
@@ -24,9 +25,6 @@ struct mio_svc_htts_cli_t
 	mio_svc_htts_t* htts;
 	mio_dev_sck_t* sck;
 
-	mio_skad_t remote_addr;
-	mio_skad_t local_addr;
-	mio_skad_t orgdst_addr;
 	mio_htrd_t* htrd;
 	mio_becs_t* sbuf; /* temporary buffer for status line formatting */
 
@@ -951,7 +949,7 @@ oops:
 	return 0;
 }
 
-static int cgi_peer_capture_header (mio_htre_t* req, const mio_bch_t* key, const mio_htre_hdrval_t* val, void* ctx)
+static int cgi_peer_capture_response_header (mio_htre_t* req, const mio_bch_t* key, const mio_htre_hdrval_t* val, void* ctx)
 {
 	mio_svc_htts_cli_t* cli = (mio_svc_htts_cli_t*)ctx;
 
@@ -1011,7 +1009,7 @@ printf ("CGI PEER HTRD PEEK...\n");
 		status_code, mio_http_status_to_bcstr(status_code),
 		cli->htts->server_name, dtbuf) == (mio_oow_t)-1) return -1;
 
-	if (mio_htre_walkheaders(req, cgi_peer_capture_header, cli) <= -1) return -1;
+	if (mio_htre_walkheaders(req, cgi_peer_capture_response_header, cli) <= -1) return -1;
 
 	switch (cgi_state->res_mode_to_cli)
 	{
@@ -1100,18 +1098,6 @@ static mio_htrd_recbs_t cgi_peer_htrd_recbs =
 	cgi_peer_htrd_push_content
 };
 
-static int walk_client_req_trailer (mio_htre_t* req, const mio_bch_t* key, const mio_htre_hdrval_t* val, void* ctx)
-{
-	printf ("\t%s=");
-	while (val)
-	{
-		printf ("%s ", val->ptr);
-		val = val->next;
-	}
-	printf ("\n");
-	return 0;
-}
-
 static int cgi_client_htrd_poke (mio_htrd_t* htrd, mio_htre_t* req)
 {
 	/* client request got completed */
@@ -1121,8 +1107,6 @@ static int cgi_client_htrd_poke (mio_htrd_t* htrd, mio_htre_t* req)
 	cgi_state_t* cgi_state = (cgi_state_t*)cli->rsrc;
 
 printf (">> CLIENT REQUEST COMPLETED\n");
-//mio_htre_walkheaders (req, walk_client_req_trailer, MIO_NULL);
-mio_htre_walktrailers (req, walk_client_req_trailer, MIO_NULL); // MIO_HTRD_TRAILERS must be set for this to work
 
 	/* indicate EOF to the client peer */
 	if (cgi_state_write_to_peer(cgi_state, MIO_NULL, 0) <= -1) return -1;
@@ -1333,25 +1317,64 @@ struct cgi_peer_fork_ctx_t
 };
 typedef struct cgi_peer_fork_ctx_t cgi_peer_fork_ctx_t;
 
+static int cgi_peer_capture_request_header (mio_htre_t* req, const mio_bch_t* key, const mio_htre_hdrval_t* val, void* ctx)
+{
+	mio_becs_t* dbuf = (mio_becs_t*)ctx;
+
+	if (mio_comp_bcstr(key, "Connection", 1) != 0 &&
+	    mio_comp_bcstr(key, "Transfer-Encoding", 1) != 0 &&
+	    mio_comp_bcstr(key, "Content-Length", 1) != 0 &&
+	    mio_comp_bcstr(key, "Expect", 1) != 0)
+	{
+		mio_oow_t val_offset;
+		mio_bch_t* ptr;
+
+		mio_becs_clear (dbuf);
+		if (mio_becs_cpy(dbuf, "HTTP_") == (mio_oow_t)-1 ||
+		    mio_becs_cat(dbuf, key) == (mio_oow_t)-1 ||
+		    mio_becs_ccat(dbuf, '\0') == (mio_oow_t)-1) return -1;
+
+		for (ptr = MIO_BECS_PTR(dbuf); *ptr; ptr++)
+		{
+			*ptr = mio_to_bch_upper(*ptr);
+			if (*ptr =='-') *ptr = '_';
+		}
+
+		val_offset = MIO_BECS_LEN(dbuf);
+		if (mio_becs_cat(dbuf, val->ptr) == (mio_oow_t)-1) return -1;
+		val = val->next;
+		while (val)
+		{
+			if (mio_becs_cat(dbuf, ",") == (mio_oow_t)-1 ||
+			    mio_becs_cat (dbuf, val->ptr) == (mio_oow_t)-1) return -1;
+			val = val->next;
+		}
+
+		setenv (MIO_BECS_PTR(dbuf), MIO_BECS_CPTR(dbuf, val_offset), 1);
+	}
+
+	return 0;
+}
+
 static int cgi_peer_on_fork (mio_dev_pro_t* pro, void* fork_ctx)
 {
 	/*mio_t* mio = pro->mio;*/ /* in this callback, the pro device is not fully up. however, the mio field is guaranteed to be available */
 	cgi_peer_fork_ctx_t* fc = (cgi_peer_fork_ctx_t*)fork_ctx;
 	mio_oow_t content_length;
-	mio_bch_t tmp[128];
 	const mio_bch_t* qparam;
+	const char* path;
+	mio_bch_t tmp[256];
+	mio_becs_t dbuf;
 
 	qparam = mio_htre_getqparam(fc->req);
 
+	path = getenv("PATH");
 	clearenv ();
+	if (path) setenv ("PATH", path, 1);
 
 	setenv ("GATEWAY_INTERFACE", "CGI/1.1", 1);
 
-/////////
-printf (">>>>>>>>>> %d  pro->mio %p\n", 
-	mio_fmttobcstr (pro->mio, tmp, MIO_COUNTOF(tmp), "HTTP/%d.%d", (int)mio_htre_getmajorversion(fc->req), (int)mio_htre_getminorversion(fc->req)), pro->mio);
-////////
-
+	mio_fmttobcstr (pro->mio, tmp, MIO_COUNTOF(tmp), "HTTP/%d.%d", (int)mio_htre_getmajorversion(fc->req), (int)mio_htre_getminorversion(fc->req));
 	setenv ("SERVER_PROTOCOL", tmp, 1);
 
 	//setenv ("SCRIPT_FILENAME",  
@@ -1364,7 +1387,6 @@ printf (">>>>>>>>>> %d  pro->mio %p\n",
 
 	if (get_request_content_length(fc->req, &content_length) == 0)
 	{
-		
 		mio_fmt_uintmax_to_bcstr(tmp, MIO_COUNTOF(tmp), content_length, 10, 0, '\0', MIO_NULL);
 		setenv ("CONTENT_LENGTH", tmp, 1);
 	}
@@ -1374,17 +1396,28 @@ printf (">>>>>>>>>> %d  pro->mio %p\n",
 		setenv ("CONTENT_LENGTH", "-1", 1);
 	}
 	setenv ("SERVER_SOFTWARE", fc->cli->htts->server_name, 1);
-#if 0
-	setenv ("SERVER_PORT", 
-	setenv ("SERVER_ADDR",
-	setenv ("SERVER_NAME",   /* server host name */
 
-	setenv ("REMOTE_PORT",
-	setenv ("REMOTE_ADDR",
-#endif
+	mio_skadtobcstr (pro->mio, &fc->cli->sck->localaddr, tmp, MIO_COUNTOF(tmp), MIO_SKAD_TO_BCSTR_ADDR);
+	setenv ("SERVER_ADDR", tmp, 1);
 
-	//mio_htre_walkheaders(req, 
-	/* [NOTE] trailers are not available when this cgi resource is started. let's not call mio_htre_walktrailers() */
+	gethostname (tmp, MIO_COUNTOF(tmp)); /* if this fails, i assume tmp contains the ip address set by mio_skadtobcstr() above */
+	setenv ("SERVER_NAME", tmp, 1);
+
+	mio_skadtobcstr (pro->mio, &fc->cli->sck->localaddr, tmp, MIO_COUNTOF(tmp), MIO_SKAD_TO_BCSTR_PORT);
+	setenv ("SERVER_PORT", tmp, 1);
+
+	mio_skadtobcstr (pro->mio, &fc->cli->sck->remoteaddr, tmp, MIO_COUNTOF(tmp), MIO_SKAD_TO_BCSTR_ADDR);
+	setenv ("REMOTE_ADDR", tmp, 1);
+
+	mio_skadtobcstr (pro->mio, &fc->cli->sck->remoteaddr, tmp, MIO_COUNTOF(tmp), MIO_SKAD_TO_BCSTR_PORT);
+	setenv ("REMOTE_PORT", tmp, 1);
+
+	if (mio_becs_init(&dbuf, pro->mio, 256) >= 0)
+	{
+		mio_htre_walkheaders (fc->req,  cgi_peer_capture_request_header, &dbuf);
+		/* [NOTE] trailers are not available when this cgi resource is started. let's not call mio_htre_walktrailers() */
+		mio_becs_fini (&dbuf);
+	}
 
 	return 0;
 }

@@ -1720,7 +1720,6 @@ mio_oow_t mio_vfmttoucstr (mio_t* mio, mio_uch_t* buf, mio_oow_t bufsz, const mi
 	if (bufsz <= 0) return 0;
 
 	MIO_MEMSET (&fo, 0, MIO_SIZEOF(fo));
-	//fo.mmgr = mio->mmgr;
 	fo.putbchars = fmt_put_bchars_to_uch_buf;
 	fo.putuchars = fmt_put_uchars_to_uch_buf;
 	fo.ctx = &fb;
@@ -1812,7 +1811,6 @@ mio_oow_t mio_vfmttobcstr (mio_t* mio, mio_bch_t* buf, mio_oow_t bufsz, const mi
 	if (bufsz <= 0) return 0;
 
 	MIO_MEMSET (&fo, 0, MIO_SIZEOF(fo));
-	//fo.mmgr = mio->mmgr;
 	fo.putbchars = fmt_put_bchars_to_bch_buf;
 	fo.putuchars = fmt_put_uchars_to_bch_buf;
 	fo.ctx = &fb;
