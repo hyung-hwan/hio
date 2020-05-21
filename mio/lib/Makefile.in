@@ -146,8 +146,8 @@ am_libmio_la_OBJECTS = libmio_la-chr.lo libmio_la-dns.lo \
 	libmio_la-pipe.lo libmio_la-pro.lo libmio_la-sck.lo \
 	libmio_la-skad.lo libmio_la-sys.lo libmio_la-sys-ass.lo \
 	libmio_la-sys-err.lo libmio_la-sys-log.lo libmio_la-sys-mux.lo \
-	libmio_la-sys-tim.lo libmio_la-tmr.lo libmio_la-utf8.lo \
-	libmio_la-utl.lo
+	libmio_la-sys-tim.lo libmio_la-thr.lo libmio_la-tmr.lo \
+	libmio_la-utf8.lo libmio_la-utl.lo
 libmio_la_OBJECTS = $(am_libmio_la_OBJECTS)
 AM_V_lt = $(am__v_lt_@AM_V@)
 am__v_lt_ = $(am__v_lt_@AM_DEFAULT_V@)
@@ -187,8 +187,9 @@ am__depfiles_remade = ./$(DEPDIR)/libmio_la-chr.Plo \
 	./$(DEPDIR)/libmio_la-sys-log.Plo \
 	./$(DEPDIR)/libmio_la-sys-mux.Plo \
 	./$(DEPDIR)/libmio_la-sys-tim.Plo \
-	./$(DEPDIR)/libmio_la-sys.Plo ./$(DEPDIR)/libmio_la-tmr.Plo \
-	./$(DEPDIR)/libmio_la-utf8.Plo ./$(DEPDIR)/libmio_la-utl.Plo
+	./$(DEPDIR)/libmio_la-sys.Plo ./$(DEPDIR)/libmio_la-thr.Plo \
+	./$(DEPDIR)/libmio_la-tmr.Plo ./$(DEPDIR)/libmio_la-utf8.Plo \
+	./$(DEPDIR)/libmio_la-utl.Plo
 am__mv = mv -f
 COMPILE = $(CC) $(DEFS) $(DEFAULT_INCLUDES) $(INCLUDES) $(AM_CPPFLAGS) \
 	$(CPPFLAGS) $(AM_CFLAGS) $(CFLAGS)
@@ -423,6 +424,7 @@ include_HEADERS = \
 	mio-pro.h \
 	mio-sck.h \
 	mio-skad.h \
+	mio-thr.h \
 	mio-upac.h \
 	mio-utl.h \
 	mio.h
@@ -457,6 +459,7 @@ libmio_la_SOURCES = \
 	sys-mux.c \
 	sys-prv.h \
 	sys-tim.c \
+	thr.c \
 	uch-case.h \
 	uch-prop.h \
 	tmr.c \
@@ -584,6 +587,7 @@ distclean-compile:
 @AMDEP_TRUE@@am__include@ @am__quote@./$(DEPDIR)/libmio_la-sys-mux.Plo@am__quote@ # am--include-marker
 @AMDEP_TRUE@@am__include@ @am__quote@./$(DEPDIR)/libmio_la-sys-tim.Plo@am__quote@ # am--include-marker
 @AMDEP_TRUE@@am__include@ @am__quote@./$(DEPDIR)/libmio_la-sys.Plo@am__quote@ # am--include-marker
+@AMDEP_TRUE@@am__include@ @am__quote@./$(DEPDIR)/libmio_la-thr.Plo@am__quote@ # am--include-marker
 @AMDEP_TRUE@@am__include@ @am__quote@./$(DEPDIR)/libmio_la-tmr.Plo@am__quote@ # am--include-marker
 @AMDEP_TRUE@@am__include@ @am__quote@./$(DEPDIR)/libmio_la-utf8.Plo@am__quote@ # am--include-marker
 @AMDEP_TRUE@@am__include@ @am__quote@./$(DEPDIR)/libmio_la-utl.Plo@am__quote@ # am--include-marker
@@ -786,6 +790,13 @@ libmio_la-sys-tim.lo: sys-tim.c
 @AMDEP_TRUE@@am__fastdepCC_FALSE@	DEPDIR=$(DEPDIR) $(CCDEPMODE) $(depcomp) @AMDEPBACKSLASH@
 @am__fastdepCC_FALSE@	$(AM_V_CC@am__nodep@)$(LIBTOOL) $(AM_V_lt) --tag=CC $(AM_LIBTOOLFLAGS) $(LIBTOOLFLAGS) --mode=compile $(CC) $(DEFS) $(DEFAULT_INCLUDES) $(INCLUDES) $(libmio_la_CPPFLAGS) $(CPPFLAGS) $(AM_CFLAGS) $(CFLAGS) -c -o libmio_la-sys-tim.lo `test -f 'sys-tim.c' || echo '$(srcdir)/'`sys-tim.c
 
+libmio_la-thr.lo: thr.c
+@am__fastdepCC_TRUE@	$(AM_V_CC)$(LIBTOOL) $(AM_V_lt) --tag=CC $(AM_LIBTOOLFLAGS) $(LIBTOOLFLAGS) --mode=compile $(CC) $(DEFS) $(DEFAULT_INCLUDES) $(INCLUDES) $(libmio_la_CPPFLAGS) $(CPPFLAGS) $(AM_CFLAGS) $(CFLAGS) -MT libmio_la-thr.lo -MD -MP -MF $(DEPDIR)/libmio_la-thr.Tpo -c -o libmio_la-thr.lo `test -f 'thr.c' || echo '$(srcdir)/'`thr.c
+@am__fastdepCC_TRUE@	$(AM_V_at)$(am__mv) $(DEPDIR)/libmio_la-thr.Tpo $(DEPDIR)/libmio_la-thr.Plo
+@AMDEP_TRUE@@am__fastdepCC_FALSE@	$(AM_V_CC)source='thr.c' object='libmio_la-thr.lo' libtool=yes @AMDEPBACKSLASH@
+@AMDEP_TRUE@@am__fastdepCC_FALSE@	DEPDIR=$(DEPDIR) $(CCDEPMODE) $(depcomp) @AMDEPBACKSLASH@
+@am__fastdepCC_FALSE@	$(AM_V_CC@am__nodep@)$(LIBTOOL) $(AM_V_lt) --tag=CC $(AM_LIBTOOLFLAGS) $(LIBTOOLFLAGS) --mode=compile $(CC) $(DEFS) $(DEFAULT_INCLUDES) $(INCLUDES) $(libmio_la_CPPFLAGS) $(CPPFLAGS) $(AM_CFLAGS) $(CFLAGS) -c -o libmio_la-thr.lo `test -f 'thr.c' || echo '$(srcdir)/'`thr.c
+
 libmio_la-tmr.lo: tmr.c
 @am__fastdepCC_TRUE@	$(AM_V_CC)$(LIBTOOL) $(AM_V_lt) --tag=CC $(AM_LIBTOOLFLAGS) $(LIBTOOLFLAGS) --mode=compile $(CC) $(DEFS) $(DEFAULT_INCLUDES) $(INCLUDES) $(libmio_la_CPPFLAGS) $(CPPFLAGS) $(AM_CFLAGS) $(CFLAGS) -MT libmio_la-tmr.lo -MD -MP -MF $(DEPDIR)/libmio_la-tmr.Tpo -c -o libmio_la-tmr.lo `test -f 'tmr.c' || echo '$(srcdir)/'`tmr.c
 @am__fastdepCC_TRUE@	$(AM_V_at)$(am__mv) $(DEPDIR)/libmio_la-tmr.Tpo $(DEPDIR)/libmio_la-tmr.Plo
@@ -986,6 +997,7 @@ distclean: distclean-am
 	-rm -f ./$(DEPDIR)/libmio_la-sys-mux.Plo
 	-rm -f ./$(DEPDIR)/libmio_la-sys-tim.Plo
 	-rm -f ./$(DEPDIR)/libmio_la-sys.Plo
+	-rm -f ./$(DEPDIR)/libmio_la-thr.Plo
 	-rm -f ./$(DEPDIR)/libmio_la-tmr.Plo
 	-rm -f ./$(DEPDIR)/libmio_la-utf8.Plo
 	-rm -f ./$(DEPDIR)/libmio_la-utl.Plo
@@ -1059,6 +1071,7 @@ maintainer-clean: maintainer-clean-am
 	-rm -f ./$(DEPDIR)/libmio_la-sys-mux.Plo
 	-rm -f ./$(DEPDIR)/libmio_la-sys-tim.Plo
 	-rm -f ./$(DEPDIR)/libmio_la-sys.Plo
+	-rm -f ./$(DEPDIR)/libmio_la-thr.Plo
 	-rm -f ./$(DEPDIR)/libmio_la-tmr.Plo
 	-rm -f ./$(DEPDIR)/libmio_la-utf8.Plo
 	-rm -f ./$(DEPDIR)/libmio_la-utl.Plo
