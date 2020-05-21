@@ -502,8 +502,7 @@ static MIO_INLINE void handle_event (mio_t* mio, mio_dev_t* dev, int events, int
 		if (dev && MIO_WQ_IS_EMPTY(&dev->wq))
 		{
 			/* no pending request to write */
-			if ((dev->dev_cap & MIO_DEV_CAP_IN_CLOSED) &&
-			    (dev->dev_cap & MIO_DEV_CAP_OUT_CLOSED))
+			if ((dev->dev_cap & MIO_DEV_CAP_IN_CLOSED) && (dev->dev_cap & MIO_DEV_CAP_OUT_CLOSED))
 			{
 				mio_dev_halt (dev);
 				dev = MIO_NULL;

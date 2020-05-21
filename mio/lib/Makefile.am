@@ -33,6 +33,7 @@ include_HEADERS = \
 	mio-nwif.h \
 	mio-pac1.h \
 	mio-path.h \
+	mio-pipe.h \
 	mio-pro.h \
 	mio-sck.h \
 	mio-skad.h \
@@ -59,6 +60,7 @@ libmio_la_SOURCES = \
 	mio.c \
 	nwif.c \
 	path.c \
+	pipe.c \
 	pro.c \
 	sck.c \
 	skad.c \

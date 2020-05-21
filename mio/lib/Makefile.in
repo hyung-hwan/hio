@@ -143,10 +143,11 @@ am_libmio_la_OBJECTS = libmio_la-chr.lo libmio_la-dns.lo \
 	libmio_la-fmt.lo libmio_la-htb.lo libmio_la-htrd.lo \
 	libmio_la-htre.lo libmio_la-http.lo libmio_la-http-svr.lo \
 	libmio_la-mio.lo libmio_la-nwif.lo libmio_la-path.lo \
-	libmio_la-pro.lo libmio_la-sck.lo libmio_la-skad.lo \
-	libmio_la-sys.lo libmio_la-sys-ass.lo libmio_la-sys-err.lo \
-	libmio_la-sys-log.lo libmio_la-sys-mux.lo libmio_la-sys-tim.lo \
-	libmio_la-tmr.lo libmio_la-utf8.lo libmio_la-utl.lo
+	libmio_la-pipe.lo libmio_la-pro.lo libmio_la-sck.lo \
+	libmio_la-skad.lo libmio_la-sys.lo libmio_la-sys-ass.lo \
+	libmio_la-sys-err.lo libmio_la-sys-log.lo libmio_la-sys-mux.lo \
+	libmio_la-sys-tim.lo libmio_la-tmr.lo libmio_la-utf8.lo \
+	libmio_la-utl.lo
 libmio_la_OBJECTS = $(am_libmio_la_OBJECTS)
 AM_V_lt = $(am__v_lt_@AM_V@)
 am__v_lt_ = $(am__v_lt_@AM_DEFAULT_V@)
@@ -179,8 +180,8 @@ am__depfiles_remade = ./$(DEPDIR)/libmio_la-chr.Plo \
 	./$(DEPDIR)/libmio_la-http-svr.Plo \
 	./$(DEPDIR)/libmio_la-http.Plo ./$(DEPDIR)/libmio_la-mio.Plo \
 	./$(DEPDIR)/libmio_la-nwif.Plo ./$(DEPDIR)/libmio_la-path.Plo \
-	./$(DEPDIR)/libmio_la-pro.Plo ./$(DEPDIR)/libmio_la-sck.Plo \
-	./$(DEPDIR)/libmio_la-skad.Plo \
+	./$(DEPDIR)/libmio_la-pipe.Plo ./$(DEPDIR)/libmio_la-pro.Plo \
+	./$(DEPDIR)/libmio_la-sck.Plo ./$(DEPDIR)/libmio_la-skad.Plo \
 	./$(DEPDIR)/libmio_la-sys-ass.Plo \
 	./$(DEPDIR)/libmio_la-sys-err.Plo \
 	./$(DEPDIR)/libmio_la-sys-log.Plo \
@@ -418,6 +419,7 @@ include_HEADERS = \
 	mio-nwif.h \
 	mio-pac1.h \
 	mio-path.h \
+	mio-pipe.h \
 	mio-pro.h \
 	mio-sck.h \
 	mio-skad.h \
@@ -444,6 +446,7 @@ libmio_la_SOURCES = \
 	mio.c \
 	nwif.c \
 	path.c \
+	pipe.c \
 	pro.c \
 	sck.c \
 	skad.c \
@@ -569,6 +572,7 @@ distclean-compile:
 @AMDEP_TRUE@@am__include@ @am__quote@./$(DEPDIR)/libmio_la-mio.Plo@am__quote@ # am--include-marker
 @AMDEP_TRUE@@am__include@ @am__quote@./$(DEPDIR)/libmio_la-nwif.Plo@am__quote@ # am--include-marker
 @AMDEP_TRUE@@am__include@ @am__quote@./$(DEPDIR)/libmio_la-path.Plo@am__quote@ # am--include-marker
+@AMDEP_TRUE@@am__include@ @am__quote@./$(DEPDIR)/libmio_la-pipe.Plo@am__quote@ # am--include-marker
 @AMDEP_TRUE@@am__include@ @am__quote@./$(DEPDIR)/libmio_la-pro.Plo@am__quote@ # am--include-marker
 @AMDEP_TRUE@@am__include@ @am__quote@./$(DEPDIR)/libmio_la-sck.Plo@am__quote@ # am--include-marker
 @AMDEP_TRUE@@am__include@ @am__quote@./$(DEPDIR)/libmio_la-skad.Plo@am__quote@ # am--include-marker
@@ -709,6 +713,13 @@ libmio_la-path.lo: path.c
 @AMDEP_TRUE@@am__fastdepCC_FALSE@	$(AM_V_CC)source='path.c' object='libmio_la-path.lo' libtool=yes @AMDEPBACKSLASH@
 @AMDEP_TRUE@@am__fastdepCC_FALSE@	DEPDIR=$(DEPDIR) $(CCDEPMODE) $(depcomp) @AMDEPBACKSLASH@
 @am__fastdepCC_FALSE@	$(AM_V_CC@am__nodep@)$(LIBTOOL) $(AM_V_lt) --tag=CC $(AM_LIBTOOLFLAGS) $(LIBTOOLFLAGS) --mode=compile $(CC) $(DEFS) $(DEFAULT_INCLUDES) $(INCLUDES) $(libmio_la_CPPFLAGS) $(CPPFLAGS) $(AM_CFLAGS) $(CFLAGS) -c -o libmio_la-path.lo `test -f 'path.c' || echo '$(srcdir)/'`path.c
+
+libmio_la-pipe.lo: pipe.c
+@am__fastdepCC_TRUE@	$(AM_V_CC)$(LIBTOOL) $(AM_V_lt) --tag=CC $(AM_LIBTOOLFLAGS) $(LIBTOOLFLAGS) --mode=compile $(CC) $(DEFS) $(DEFAULT_INCLUDES) $(INCLUDES) $(libmio_la_CPPFLAGS) $(CPPFLAGS) $(AM_CFLAGS) $(CFLAGS) -MT libmio_la-pipe.lo -MD -MP -MF $(DEPDIR)/libmio_la-pipe.Tpo -c -o libmio_la-pipe.lo `test -f 'pipe.c' || echo '$(srcdir)/'`pipe.c
+@am__fastdepCC_TRUE@	$(AM_V_at)$(am__mv) $(DEPDIR)/libmio_la-pipe.Tpo $(DEPDIR)/libmio_la-pipe.Plo
+@AMDEP_TRUE@@am__fastdepCC_FALSE@	$(AM_V_CC)source='pipe.c' object='libmio_la-pipe.lo' libtool=yes @AMDEPBACKSLASH@
+@AMDEP_TRUE@@am__fastdepCC_FALSE@	DEPDIR=$(DEPDIR) $(CCDEPMODE) $(depcomp) @AMDEPBACKSLASH@
+@am__fastdepCC_FALSE@	$(AM_V_CC@am__nodep@)$(LIBTOOL) $(AM_V_lt) --tag=CC $(AM_LIBTOOLFLAGS) $(LIBTOOLFLAGS) --mode=compile $(CC) $(DEFS) $(DEFAULT_INCLUDES) $(INCLUDES) $(libmio_la_CPPFLAGS) $(CPPFLAGS) $(AM_CFLAGS) $(CFLAGS) -c -o libmio_la-pipe.lo `test -f 'pipe.c' || echo '$(srcdir)/'`pipe.c
 
 libmio_la-pro.lo: pro.c
 @am__fastdepCC_TRUE@	$(AM_V_CC)$(LIBTOOL) $(AM_V_lt) --tag=CC $(AM_LIBTOOLFLAGS) $(LIBTOOLFLAGS) --mode=compile $(CC) $(DEFS) $(DEFAULT_INCLUDES) $(INCLUDES) $(libmio_la_CPPFLAGS) $(CPPFLAGS) $(AM_CFLAGS) $(CFLAGS) -MT libmio_la-pro.lo -MD -MP -MF $(DEPDIR)/libmio_la-pro.Tpo -c -o libmio_la-pro.lo `test -f 'pro.c' || echo '$(srcdir)/'`pro.c
@@ -963,6 +974,7 @@ distclean: distclean-am
 	-rm -f ./$(DEPDIR)/libmio_la-mio.Plo
 	-rm -f ./$(DEPDIR)/libmio_la-nwif.Plo
 	-rm -f ./$(DEPDIR)/libmio_la-path.Plo
+	-rm -f ./$(DEPDIR)/libmio_la-pipe.Plo
 	-rm -f ./$(DEPDIR)/libmio_la-pro.Plo
 	-rm -f ./$(DEPDIR)/libmio_la-sck.Plo
 	-rm -f ./$(DEPDIR)/libmio_la-skad.Plo
@@ -1035,6 +1047,7 @@ maintainer-clean: maintainer-clean-am
 	-rm -f ./$(DEPDIR)/libmio_la-mio.Plo
 	-rm -f ./$(DEPDIR)/libmio_la-nwif.Plo
 	-rm -f ./$(DEPDIR)/libmio_la-path.Plo
+	-rm -f ./$(DEPDIR)/libmio_la-pipe.Plo
 	-rm -f ./$(DEPDIR)/libmio_la-pro.Plo
 	-rm -f ./$(DEPDIR)/libmio_la-sck.Plo
 	-rm -f ./$(DEPDIR)/libmio_la-skad.Plo
