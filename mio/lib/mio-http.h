@@ -116,7 +116,17 @@ struct mio_svc_htts_rsrc_t
 #define MIO_SVC_HTTS_RSRC_DETACH(rsrc_var) do { if (--(rsrc_var)->rsrc_refcnt == 0) { mio_svc_htts_rsrc_t* __rsrc_tmp = (rsrc_var); (rsrc_var) = MIO_NULL; mio_svc_htts_rsrc_kill(__rsrc_tmp); } else { (rsrc_var) = MIO_NULL; } } while(0)
 
 
+/* -------------------------------------------------------------- */
+
 typedef int (*mio_svc_htts_proc_req_t) (
+	mio_svc_htts_t* htts,
+	mio_dev_sck_t*  sck,
+	mio_htre_t*     req
+);
+
+/* -------------------------------------------------------------- */
+
+typedef int (*mio_svc_htts_thr_func_t) (
 	mio_svc_htts_t* htts,
 	mio_dev_sck_t*  sck,
 	mio_htre_t*     req
@@ -247,6 +257,13 @@ MIO_EXPORT int mio_svc_htts_docgi (
 	mio_htre_t*      req,
 	const mio_bch_t* docroot,
 	const mio_bch_t* script
+);
+
+MIO_EXPORT int mio_svc_htts_dothr (
+	mio_svc_htts_t*         htts,
+	mio_dev_sck_t*          csck,
+	mio_htre_t*             req,
+	mio_svc_htts_thr_func_t func
 );
 
 MIO_EXPORT mio_svc_htts_rsrc_t* mio_svc_htts_rsrc_make (
