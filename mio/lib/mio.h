@@ -804,6 +804,14 @@ MIO_EXPORT int mio_dev_read (
 	int                enabled
 );
 
+/*
+ * The mio_dev_timedread() function enables or disables the input watching.
+ * If tmout is not MIO_NULL, it schedules to fire the on_read() callback
+ * with the length of -1 and the mio error number set to MIO_ETMOUT.
+ * If there is input before the time elapses, the scheduled timer job
+ * is automaticaly cancelled. A call to mio_dev_read() or mio_dev_timedread()
+ * with no timeout also cancels the unfired scheduled job.
+ */
 MIO_EXPORT int mio_dev_timedread (
 	mio_dev_t*         dev,
 	int                enabled,
