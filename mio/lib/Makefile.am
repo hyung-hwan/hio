@@ -37,6 +37,7 @@ include_HEADERS = \
 	mio-pro.h \
 	mio-sck.h \
 	mio-skad.h \
+	mio-thr.h \
 	mio-upac.h \
 	mio-utl.h \
 	mio.h
@@ -71,6 +72,7 @@ libmio_la_SOURCES = \
 	sys-mux.c \
 	sys-prv.h \
 	sys-tim.c \
+	thr.c \
 	uch-case.h \
 	uch-prop.h \
 	tmr.c \
