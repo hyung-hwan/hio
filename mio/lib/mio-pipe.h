@@ -29,7 +29,16 @@
 
 #include <mio.h>
 
+enum mio_dev_pipe_sid_t
+{
+	MIO_DEV_PIPE_MASTER = -1, /* no io occurs on this. used only in on_close() */
+	MIO_DEV_PIPE_IN     =  0, /* input */
+	MIO_DEV_PIPE_OUT    =  1 /* output */
+};
+typedef enum mio_dev_pipe_sid_t mio_dev_pipe_sid_t;
+
 typedef struct mio_dev_pipe_t mio_dev_pipe_t;
+typedef struct mio_dev_pipe_slave_t mio_dev_pipe_slave_t;
 
 typedef int (*mio_dev_pipe_on_read_t) (
 	mio_dev_pipe_t*    dev,
@@ -44,18 +53,29 @@ typedef int (*mio_dev_pipe_on_write_t) (
 );
 
 typedef void (*mio_dev_pipe_on_close_t) (
-	mio_dev_pipe_t*    dev
+	mio_dev_pipe_t*    dev,
+	mio_dev_pipe_sid_t sid
 );
 
 struct mio_dev_pipe_t
 {
 	MIO_DEV_HEADER;
 
-	int pfd[2];
+	mio_dev_pipe_slave_t* slave[2];
+	int slave_count;
 
 	mio_dev_pipe_on_read_t on_read;
 	mio_dev_pipe_on_write_t on_write;
 	mio_dev_pipe_on_close_t on_close;
+};
+
+
+struct mio_dev_pipe_slave_t
+{
+	MIO_DEV_HEADER;
+	mio_dev_pipe_sid_t id;
+	mio_syshnd_t pfd;
+	mio_dev_pipe_t* master; /* parent device */
 };
 
 typedef struct mio_dev_pipe_make_t mio_dev_pipe_make_t;
@@ -68,8 +88,7 @@ struct mio_dev_pipe_make_t
 
 enum mio_dev_pipe_ioctl_cmd_t
 {
-	MIO_DEV_PIPE_CLOSE,
-	MIO_DEV_PIPE_KILL_CHILD
+	MIO_DEV_PIPE_CLOSE
 };
 typedef enum mio_dev_pipe_ioctl_cmd_t mio_dev_pipe_ioctl_cmd_t;
 

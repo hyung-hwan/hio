@@ -272,7 +272,7 @@ static int dev_pro_make_master (mio_dev_t* dev, void* ctx)
 	if (make_param(mio, info->cmd, info->flags, &param) <= -1) goto oops;
 
 /* TODO: more advanced fork and exec .. */
-	pid = standard_fork_and_exec(dev, pfds, info, &param);
+	pid = standard_fork_and_exec(rdev, pfds, info, &param);
 	if (pid <= -1) 
 	{
 		free_param (mio, &param);
@@ -516,10 +516,10 @@ static int dev_pro_kill_slave (mio_dev_t* dev, int force)
 
 		if (master->slave[rdev->id])
 		{
-			/* this call is started by the slave device itself.
-			 * if this is the last slave, kill the master also */
+			/* this call is started by the slave device itself. */
 			if (master->slave_count <= 0) 
 			{
+				/* if this is the last slave, kill the master also */
 				mio_dev_kill ((mio_dev_t*)master);
 				/* the master pointer is not valid from this point onwards
 				 * as the actual master device object is freed in mio_dev_kill() */
@@ -548,11 +548,14 @@ static int dev_pro_read_slave (mio_dev_t* dev, void* buf, mio_iolen_t* len, mio_
 	mio_dev_pro_slave_t* pro = (mio_dev_pro_slave_t*)dev;
 	ssize_t x;
 
+	/* the read and write operation happens on different slave devices.
+	 * the write EOF indication doesn't affect this device 
 	if (MIO_UNLIKELY(pro->pfd == MIO_SYSHND_INVALID))
 	{
 		mio_seterrnum (pro->mio, MIO_EBADHND);
 		return -1;
-	}
+	}*/
+	MIO_ASSERT (pro->mio, pro->pfd != MIO_SYSHND_INVALID); /* use this assertion to check if my claim above is right */
 
 	x = read(pro->pfd, buf, *len);
 	if (x <= -1)
@@ -572,23 +575,28 @@ static int dev_pro_write_slave (mio_dev_t* dev, const void* data, mio_iolen_t* l
 	mio_dev_pro_slave_t* pro = (mio_dev_pro_slave_t*)dev;
 	ssize_t x;
 
+	/* this check is not needed because MIO_DEV_CAP_OUT_CLOSED is set on the device by the core
+	 * when EOF indication is successful(return value 1 and *iovcnt 0).
+	 * If MIO_DEV_CAP_OUT_CLOSED, the core doesn't invoke the write method 
 	if (MIO_UNLIKELY(pro->pfd == MIO_SYSHND_INVALID))
 	{
 		mio_seterrnum (pro->mio, MIO_EBADHND);
 		return -1;
-	}
+	}*/
+	MIO_ASSERT (pro->mio, pro->pfd != MIO_SYSHND_INVALID); /* use this assertion to check if my claim above is right */
 
 	if (MIO_UNLIKELY(*len <= 0))
 	{
 		/* this is an EOF indicator */
-		//mio_dev_halt (dev); /* halt this slave device to indicate EOF on the lower-level handle */*
-		if (MIO_LIKELY(pro->pfd != MIO_SYSHND_INVALID)) /* halt() doesn't close the pipe immediately. so close the underlying pipe */
+		/* It isn't appropriate to call mio_dev_halt(pro) or mio_dev_pro_close(pro->master, MIO_DEV_PRO_IN)
+		 * as those functions destroy the device itself */
+		if (MIO_LIKELY(pro->pfd != MIO_SYSHND_INVALID))
 		{
 			mio_dev_watch (dev, MIO_DEV_WATCH_STOP, 0);
 			close (pro->pfd);
 			pro->pfd = MIO_SYSHND_INVALID;
 		}
-		return 1; /* indicate that the operation got successful. the core will execute on_write() with 0. */
+		return 1; /* indicate that the operation got successful. the core will execute on_write() with the write length of 0. */
 	}
 
 	x = write(pro->pfd, data, *len);
@@ -609,17 +617,22 @@ static int dev_pro_writev_slave (mio_dev_t* dev, const mio_iovec_t* iov, mio_iol
 	mio_dev_pro_slave_t* pro = (mio_dev_pro_slave_t*)dev;
 	ssize_t x;
 
+	/* this check is not needed because MIO_DEV_CAP_OUT_CLOSED is set on the device by the core
+	 * when EOF indication is successful(return value 1 and *iovcnt 0).
+	 * If MIO_DEV_CAP_OUT_CLOSED, the core doesn't invoke the write method 
 	if (MIO_UNLIKELY(pro->pfd == MIO_SYSHND_INVALID))
 	{
 		mio_seterrnum (pro->mio, MIO_EBADHND);
 		return -1;
-	}
+	}*/
+	MIO_ASSERT (pro->mio, pro->pfd != MIO_SYSHND_INVALID); /* use this assertion to check if my claim above is right */
 
 	if (MIO_UNLIKELY(*iovcnt <= 0))
 	{
 		/* this is an EOF indicator */
-		/*mio_dev_halt (dev);*/ /* halt this slave device to indicate EOF on the lower-level handle  */
-		if (MIO_LIKELY(pro->pfd != MIO_SYSHND_INVALID)) /* halt() doesn't close the pipe immediately. so close the underlying pipe */
+		/* It isn't appropriate to call mio_dev_halt(pro) or mio_dev_pro_close(pro->master, MIO_DEV_PRO_IN)
+		 * as those functions destroy the device itself */
+		if (MIO_LIKELY(pro->pfd != MIO_SYSHND_INVALID))
 		{
 			mio_dev_watch (dev, MIO_DEV_WATCH_STOP, 0);
 			close (pro->pfd);
@@ -675,7 +688,12 @@ static int dev_pro_ioctl (mio_dev_t* dev, int cmd, void* arg)
 				 * so i treat the closing ioctl as if it's a kill request 
 				 * initiated by the slave device itself. */
 				mio_dev_kill ((mio_dev_t*)rdev->slave[sid]);
+
+				/* if this is the last slave, the master is destroyed as well. 
+				 * therefore, using rdev is unsafe in the assertion below is unsafe.
+				 *MIO_ASSERT (mio, rdev->slave[sid] == MIO_NULL); */
 			}
+
 			return 0;
 		}
 
@@ -896,6 +914,7 @@ int mio_dev_pro_timedread (mio_dev_pro_t* dev, mio_dev_pro_sid_t sid, int enable
 		return -1;
 	}
 }
+
 int mio_dev_pro_write (mio_dev_pro_t* dev, const void* data, mio_iolen_t dlen, void* wrctx)
 {
 	if (dev->slave[MIO_DEV_PRO_IN])

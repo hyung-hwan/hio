@@ -29,6 +29,7 @@
 #include <mio-utl.h>
 #include <mio-sck.h>
 #include <mio-pro.h>
+#include <mio-pipe.h>
 #include <mio-dns.h>
 #include <mio-nwif.h>
 #include <mio-http.h>
@@ -624,6 +625,20 @@ static int setup_ping4_tester (mio_t* mio)
 }
 
 /* ========================================================================= */
+static int pipe_on_read (mio_dev_pipe_t* dev, const void* data, mio_iolen_t dlen)
+{
+	MIO_INFO3 (dev->mio, "PIPE READ %d bytes - [%.*s]\n", (int)dlen, (int)dlen, data);
+}
+static int pipe_on_write (mio_dev_pipe_t* dev, mio_iolen_t wrlen, void* wrctx)
+{
+	MIO_INFO1 (dev->mio, "PIPE WRITTEN %d bytes\n", (int)wrlen);
+}
+
+static void pipe_on_close (mio_dev_pipe_t* dev, mio_dev_pipe_sid_t sid)
+{
+	MIO_INFO1 (dev->mio, "PIPE[%d] CLOSED \n", (int)sid);
+}
+/* ========================================================================= */
 
 static void on_dnc_resolve(mio_svc_dnc_t* dnc, mio_dns_msg_t* reqmsg, mio_errnum_t status, const void* data, mio_oow_t dlen)
 {
@@ -1191,6 +1206,16 @@ if (!mio_svc_dnc_resolve(dnc, "google.com", MIO_DNS_RRT_SOA, MIO_SVC_DNC_RESOLVE
 	printf ("resolve attempt failure ---> code.miflux.com\n");
 }
 #endif
+
+{
+	mio_dev_pipe_t* pp;
+	mio_dev_pipe_make_t mi;
+	mi.on_read = pipe_on_read;
+	mi.on_write = pipe_on_write;
+	mi.on_close = pipe_on_close;
+	pp = mio_dev_pipe_make (mio, 0, &mi);
+	mio_dev_pipe_write (pp, "hello, world", 12, MIO_NULL);
+}
 
 	mio_loop (mio);
 
