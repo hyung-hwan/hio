@@ -71,6 +71,8 @@ libmio_la_SOURCES = \
 	sys-mux.c \
 	sys-prv.h \
 	sys-tim.c \
+	uch-case.h \
+	uch-prop.h \
 	tmr.c \
 	utf8.c \
 	utl.c
