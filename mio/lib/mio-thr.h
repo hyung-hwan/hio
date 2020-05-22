@@ -57,23 +57,30 @@ typedef void (*mio_dev_thr_on_close_t) (
 	mio_dev_thr_sid_t sid
 );
 
-typedef int (*mio_dev_thr_func_t) (
-	mio_dev_thr_t*    dev,
-	mio_syshnd_t      rfd,
-	mio_syshnd_t      wfd,
-	void*             ctx
+struct mio_dev_thr_iopair_t
+{
+	mio_syshnd_t rfd;
+	mio_syshnd_t wfd;
+};
+typedef struct mio_dev_thr_iopair_t mio_dev_thr_iopair_t;
+
+typedef void (*mio_dev_thr_func_t) (
+	mio_t*                mio,
+	mio_dev_thr_iopair_t* iop,
+	void*                 ctx
 );
+
+typedef struct mio_dev_thr_info_t mio_dev_thr_info_t;
 
 struct mio_dev_thr_t
 {
 	MIO_DEV_HEADER;
 
-	int flags;
-	mio_syshnd_t thr_fd[2];
 	mio_dev_thr_slave_t* slave[2];
 	int slave_count;
 
-	mio_dev_thr_func_t thr_func;
+	mio_dev_thr_info_t* thr_info;
+
 	mio_dev_thr_on_read_t on_read;
 	mio_dev_thr_on_write_t on_write;
 	mio_dev_thr_on_close_t on_close;
@@ -87,18 +94,11 @@ struct mio_dev_thr_slave_t
 	mio_dev_thr_t* master; /* parent device */
 };
 
-enum mio_dev_thr_make_flag_t
-{
-	MIO_DEV_THR_WRITEIN = (1 << 0),
-	MIO_DEV_THR_READOUT = (1 << 1),
-};
-typedef enum mio_dev_thr_make_flag_t mio_dev_thr_make_flag_t;
-
 typedef struct mio_dev_thr_make_t mio_dev_thr_make_t;
 struct mio_dev_thr_make_t
 {
-	int flags; /**< bitwise-ORed of mio_dev_thr_make_flag_t enumerators */
 	mio_dev_thr_func_t thr_func;
+	void* thr_ctx;
 	mio_dev_thr_on_write_t on_write; /* mandatory */
 	mio_dev_thr_on_read_t on_read; /* mandatory */
 	mio_dev_thr_on_close_t on_close; /* optional */
