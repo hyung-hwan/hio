@@ -30,6 +30,7 @@
 #include <mio-sck.h>
 #include <mio-pro.h>
 #include <mio-pipe.h>
+#include <mio-thr.h>
 #include <mio-dns.h>
 #include <mio-nwif.h>
 #include <mio-http.h>
@@ -638,6 +639,36 @@ static void pipe_on_close (mio_dev_pipe_t* dev, mio_dev_pipe_sid_t sid)
 {
 	MIO_INFO1 (dev->mio, "PIPE[%d] CLOSED \n", (int)sid);
 }
+
+
+static int thr_on_read (mio_dev_thr_t* dev, const void* data, mio_iolen_t dlen)
+{
+	MIO_INFO3 (dev->mio, "THR READ FROM THR - %d bytes - [%.*s]\n", (int)dlen, (int)dlen, data);
+}
+
+static int thr_on_write (mio_dev_thr_t* dev, mio_iolen_t wrlen, void* wrctx)
+{
+	MIO_INFO1 (dev->mio, "THR WRITTEN TO THR - %d bytes\n", (int)wrlen);
+}
+
+static void thr_on_close (mio_dev_thr_t* dev, mio_dev_thr_sid_t sid)
+{
+	MIO_INFO1 (dev->mio, "THR[%d] CLOSED \n", (int)sid);
+}
+
+static void thr_func (mio_dev_thr_t* dev, mio_dev_thr_iopair_t* iop, void* cx)
+{
+	mio_bch_t buf[5];
+	ssize_t n;
+
+	while ((n = read(iop->rfd, buf, MIO_COUNTOF(buf)))> 0) write (iop->wfd, buf, n);
+
+	while (1)
+	{
+		sleep (1);
+		write (iop->wfd, "THR LOOPING", 11);
+	}
+}
 /* ========================================================================= */
 
 static void on_dnc_resolve(mio_svc_dnc_t* dnc, mio_dns_msg_t* reqmsg, mio_errnum_t status, const void* data, mio_oow_t dlen)
@@ -1213,8 +1244,21 @@ if (!mio_svc_dnc_resolve(dnc, "google.com", MIO_DNS_RRT_SOA, MIO_SVC_DNC_RESOLVE
 	mi.on_read = pipe_on_read;
 	mi.on_write = pipe_on_write;
 	mi.on_close = pipe_on_close;
-	pp = mio_dev_pipe_make (mio, 0, &mi);
-	mio_dev_pipe_write (pp, "hello, world", 12, MIO_NULL);
+	pp = mio_dev_pipe_make(mio, 0, &mi);
+	mio_dev_pipe_write (pp, "this is good", 12, MIO_NULL);
+}
+
+{
+	mio_dev_thr_t* tt;
+	mio_dev_thr_make_t mi;
+	mi.thr_func = thr_func;
+	mi.thr_ctx = MIO_NULL;
+	mi.on_read = thr_on_read;
+	mi.on_write = thr_on_write;
+	mi.on_close =  thr_on_close;
+	tt = mio_dev_thr_make(mio, 0, &mi);
+	mio_dev_thr_write (tt, "hello, world", 12, MIO_NULL);
+	mio_dev_thr_write (tt, MIO_NULL, 0, MIO_NULL);
 }
 
 	mio_loop (mio);
