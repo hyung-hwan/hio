@@ -1277,7 +1277,11 @@ static int cgi_peer_on_fork (mio_dev_pro_t* pro, void* fork_ctx)
 
 	path = getenv("PATH");
 	lang = getenv("LANG");
+#if defined(HAVE_CLEARENV)
 	clearenv ();
+#else
+	putenv ("environ=NULL");
+#endif
 	if (path) setenv ("PATH", path, 1);
 	if (lang) setenv ("LANG", lang, 1);
 
