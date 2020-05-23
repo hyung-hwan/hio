@@ -418,6 +418,55 @@ typedef enum mio_dev_event_t mio_dev_event_t;
 
 
 /* =========================================================================
+ * CHECK-AND-FREE MEMORY BLOCK
+ * ========================================================================= */
+
+#define MIO_CFMB_HEADER \
+	mio_t* mio; \
+	mio_cfmb_t* cfmb_next; \
+	mio_cfmb_t* cfmb_prev; \
+	mio_cfmb_checker_t cfmb_checker
+
+typedef struct mio_cfmb_t mio_cfmb_t;
+
+typedef int (*mio_cfmb_checker_t) (
+	mio_t*       mio,
+	mio_cfmb_t*  cfmb
+);
+
+struct mio_cfmb_t
+{
+	MIO_CFMB_HEADER;
+};
+
+#define MIO_CFMBL_PREPEND_CFMB(lh,cfmb) do { \
+	(cfmb)->cfmb_prev = (lh); \
+	(cfmb)->cfmb_next = (lh)->cfmb_next; \
+	(cfmb)->cfmb_next->cfmb_prev = (cfmb); \
+	(lh)->cfmb_next = (cfmb); \
+} while(0)
+
+#define MIO_CFMBL_APPEND_CFMB(lh,cfmb) do { \
+	(cfmb)->cfmb_next = (lh); \
+	(cfmb)->cfmb_prev = (lh)->cfmb_prev; \
+	(cfmb)->cfmb_prev->cfmb_next = (cfmb); \
+	(lh)->cfmb_prev = (cfmb); \
+} while(0)
+
+#define MIO_CFMBL_UNLINK_CFMB(cfmb) do { \
+	(cfmb)->cfmb_prev->cfmb_next = (cfmb)->cfmb_next; \
+	(cfmb)->cfmb_next->cfmb_prev = (cfmb)->cfmb_prev; \
+} while (0)
+
+#define MIO_CFMBL_INIT(lh) ((lh)->cfmb_next = (lh)->cfmb_prev = lh)
+#define MIO_CFMBL_FIRST_CFMB(lh) ((lh)->cfmb_next)
+#define MIO_CFMBL_LAST_CFMB(lh) ((lh)->cfmb_prev)
+#define MIO_CFMBL_IS_EMPTY(lh) (MIO_CFMBL_FIRST_CFMB(lh) == (lh))
+#define MIO_CFMBL_IS_NIL_CFMB(lh,cfmb) ((cfmb) == (lh))
+
+#define MIO_CFMBL_PREV_CFMB(cfmb) ((cfmb)->cfmb_prev)
+#define MIO_CFMBL_NEXT_CFMB(cfmb) ((cfmb)->cfmb_next)
+/* =========================================================================
  * SERVICE 
  * ========================================================================= */
 
@@ -465,6 +514,8 @@ struct mio_svc_t
 #define MIO_SVCL_IS_EMPTY(lh) (MIO_SVCL_FIRST_SVC(lh) == (lh))
 #define MIO_SVCL_IS_NIL_SVC(lh,svc) ((svc) == (lh))
 
+#define MIO_SVCL_PREV_SVC(svc) ((svc)->svc_prev)
+#define MIO_SVCL_NEXT_SVC(svc) ((svc)->svc_next)
 /* =========================================================================
  * MIO LOGGING
  * ========================================================================= */
@@ -568,7 +619,8 @@ struct mio_t
 		mio_oow_t len;
 	} errmsg;
 
-	int shuterr;
+	unsigned short int _shuterr;
+	unsigned short int _fini_in_progress;
 
 	struct
 	{
@@ -598,6 +650,7 @@ struct mio_t
 
 	mio_stopreq_t stopreq;  /* stop request to abort mio_loop() */
 
+	mio_cfmb_t cfmb; /* list head of cfmbs */
 	mio_dev_t actdev; /* list head of active devices */
 	mio_dev_t hltdev; /* list head of halted devices */
 	mio_dev_t zmbdev; /* list head of zombie devices */

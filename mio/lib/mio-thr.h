@@ -172,8 +172,9 @@ MIO_EXPORT int mio_dev_thr_close (
 	mio_dev_thr_sid_t  sid
 );
 
-MIO_EXPORT int mio_dev_thr_killthr (
-	mio_dev_thr_t*     thr
+void mio_dev_thr_haltslave (
+	mio_dev_thr_t*     dev,
+	mio_dev_thr_sid_t  sid
 );
 
 #ifdef __cplusplus

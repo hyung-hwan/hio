@@ -629,10 +629,12 @@ static int setup_ping4_tester (mio_t* mio)
 static int pipe_on_read (mio_dev_pipe_t* dev, const void* data, mio_iolen_t dlen)
 {
 	MIO_INFO3 (dev->mio, "PIPE READ %d bytes - [%.*s]\n", (int)dlen, (int)dlen, data);
+	return 0;
 }
 static int pipe_on_write (mio_dev_pipe_t* dev, mio_iolen_t wrlen, void* wrctx)
 {
 	MIO_INFO1 (dev->mio, "PIPE WRITTEN %d bytes\n", (int)wrlen);
+	return 0;
 }
 
 static void pipe_on_close (mio_dev_pipe_t* dev, mio_dev_pipe_sid_t sid)
@@ -644,22 +646,33 @@ static void pipe_on_close (mio_dev_pipe_t* dev, mio_dev_pipe_sid_t sid)
 static int thr_on_read (mio_dev_thr_t* dev, const void* data, mio_iolen_t dlen)
 {
 	MIO_INFO3 (dev->mio, "THR READ FROM THR - %d bytes - [%.*s]\n", (int)dlen, (int)dlen, data);
+	//if (dlen == 0) mio_dev_halt(dev); /* EOF on the input. treat this as end of whole thread transaction */
+	return 0;
 }
 
 static int thr_on_write (mio_dev_thr_t* dev, mio_iolen_t wrlen, void* wrctx)
 {
 	MIO_INFO1 (dev->mio, "THR WRITTEN TO THR - %d bytes\n", (int)wrlen);
+	return 0;
 }
 
 static void thr_on_close (mio_dev_thr_t* dev, mio_dev_thr_sid_t sid)
 {
+	if (sid == MIO_DEV_THR_OUT) mio_dev_thr_haltslave (dev, MIO_DEV_THR_IN);
 	MIO_INFO1 (dev->mio, "THR[%d] CLOSED \n", (int)sid);
 }
 
-static void thr_func (mio_dev_thr_t* dev, mio_dev_thr_iopair_t* iop, void* cx)
+static void thr_func (mio_t* mio, mio_dev_thr_iopair_t* iop, void* cx)
 {
 	mio_bch_t buf[5];
 	ssize_t n;
+
+static int x = 0;
+int y;
+int z = 0;
+
+	//y = ++x;
+	y = __atomic_add_fetch (&x, 1, __ATOMIC_RELAXED);
 
 	while ((n = read(iop->rfd, buf, MIO_COUNTOF(buf)))> 0) write (iop->wfd, buf, n);
 
@@ -667,7 +680,14 @@ static void thr_func (mio_dev_thr_t* dev, mio_dev_thr_iopair_t* iop, void* cx)
 	{
 		sleep (1);
 		write (iop->wfd, "THR LOOPING", 11);
+		z++;
+		if ((y % 2) && (z >5)) 
+		{
+			write (iop->wfd, 0, MIO_NULL);
+			break;
+		}
 	}
+
 }
 /* ========================================================================= */
 
@@ -1248,6 +1268,7 @@ if (!mio_svc_dnc_resolve(dnc, "google.com", MIO_DNS_RRT_SOA, MIO_SVC_DNC_RESOLVE
 	mio_dev_pipe_write (pp, "this is good", 12, MIO_NULL);
 }
 
+for (i = 0; i < 20; i++)
 {
 	mio_dev_thr_t* tt;
 	mio_dev_thr_make_t mi;
