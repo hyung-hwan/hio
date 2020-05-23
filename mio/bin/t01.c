@@ -1135,7 +1135,7 @@ for (i = 0; i < 5; i++)
 	//mio_bcstrtoskad (mio, "[fe80::c7e2:bd6e:1209:ac1b%eno1]:1153", &servaddr);
 
 	//mio_bcstrtoskad (mio, "[::]:9988", &htts_bind_addr);
-	mio_bcstrtoskad (mio, "127.0.0.1:9988", &htts_bind_addr);
+	mio_bcstrtoskad (mio, "0.0.0.0:9988", &htts_bind_addr);
 
 	dnc = mio_svc_dnc_start(mio, &servaddr, MIO_NULL, &send_tmout, &reply_tmout, 2); /* option - send to all, send one by one */
 	htts = mio_svc_htts_start(mio, &htts_bind_addr, process_http_request);

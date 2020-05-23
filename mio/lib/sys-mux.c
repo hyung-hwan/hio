@@ -243,7 +243,7 @@ int mio_sys_waitmux (mio_t* mio, const mio_ntime_t* tmout, mio_sys_mux_evtcb_t e
 
 			dev = mux->pd.dptr[i];
 
-			MIO_ASSERT (mio, !(mux->pd.pfd[i].revents & POLLNVAL));
+			/*MIO_ASSERT (mio, !(mux->pd.pfd[i].revents & POLLNVAL));*/
 			if (mux->pd.pfd[i].revents & POLLIN) events |= MIO_DEV_EVENT_IN;
 			if (mux->pd.pfd[i].revents & POLLOUT) events |= MIO_DEV_EVENT_OUT;
 			if (mux->pd.pfd[i].revents & POLLPRI) events |= MIO_DEV_EVENT_PRI;
