@@ -72,6 +72,9 @@
 /* Define to 1 if you have the `ceilq' function. */
 #undef HAVE_CEILQ
 
+/* Define to 1 if you have the `clearenv' function. */
+#undef HAVE_CLEARENV
+
 /* Define to 1 if you have the `clock_gettime' function. */
 #undef HAVE_CLOCK_GETTIME
 
