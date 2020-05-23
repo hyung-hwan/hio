@@ -107,7 +107,7 @@ const mio_ooch_t* mio_backuperrmsg (mio_t* mio)
 
 void mio_seterrnum (mio_t* mio, mio_errnum_t errnum)
 {
-	if (mio->shuterr) return;
+	if (mio->_shuterr) return;
 	mio->errnum = errnum; 
 	mio->errmsg.len = 0; 
 }
@@ -161,7 +161,7 @@ void mio_seterrbfmt (mio_t* mio, mio_errnum_t errnum, const mio_bch_t* fmt, ...)
 	va_list ap;
 	mio_fmtout_t fo;
 
-	if (mio->shuterr) return;
+	if (mio->_shuterr) return;
 	mio->errmsg.len = 0;
 
 	MIO_MEMSET (&fo, 0, MIO_SIZEOF(fo));
@@ -181,7 +181,7 @@ void mio_seterrufmt (mio_t* mio, mio_errnum_t errnum, const mio_uch_t* fmt, ...)
 	va_list ap;
 	mio_fmtout_t fo;
 
-	if (mio->shuterr) return;
+	if (mio->_shuterr) return;
 	mio->errmsg.len = 0;
 
 	MIO_MEMSET (&fo, 0, MIO_SIZEOF(fo));
@@ -201,7 +201,7 @@ void mio_seterrbfmtv (mio_t* mio, mio_errnum_t errnum, const mio_bch_t* fmt, va_
 {
 	mio_fmtout_t fo;
 
-	if (mio->shuterr) return;
+	if (mio->_shuterr) return;
 
 	mio->errmsg.len = 0;
 
@@ -218,7 +218,7 @@ void mio_seterrufmtv (mio_t* mio, mio_errnum_t errnum, const mio_uch_t* fmt, va_
 {
 	mio_fmtout_t fo;
 
-	if (mio->shuterr) return;
+	if (mio->_shuterr) return;
 
 	mio->errmsg.len = 0;
 
@@ -237,7 +237,7 @@ void mio_seterrwithsyserr (mio_t* mio, int syserr_type, int syserr_code)
 {
 	mio_errnum_t errnum;
 
-	if (mio->shuterr) return;
+	if (mio->_shuterr) return;
 
 	/*if (mio->vmprim.syserrstrb)
 	{*/
@@ -259,7 +259,7 @@ void mio_seterrbfmtwithsyserr (mio_t* mio, int syserr_type, int syserr_code, con
 	mio_oow_t ucslen, bcslen;
 	va_list ap;
 
-	if (mio->shuterr) return;
+	if (mio->_shuterr) return;
 	
 	/*
 	if (mio->vmprim.syserrstrb)
@@ -317,7 +317,7 @@ void mio_seterrufmtwithsyserr (mio_t* mio, int syserr_type, int syserr_code, con
 	mio_oow_t ucslen, bcslen;
 	va_list ap;
 
-	if (mio->shuterr) return;
+	if (mio->_shuterr) return;
 	
 	/*if (mio->vmprim.syserrstrb)
 	{*/

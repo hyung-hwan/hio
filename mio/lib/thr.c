@@ -50,19 +50,19 @@ static mio_dev_thr_slave_t* make_slave (mio_t* mio, slave_info_t* si);
 
 struct mio_dev_thr_info_t
 {
-	mio_t* mio;
+	MIO_CFMB_HEADER;
+
 	mio_dev_thr_func_t thr_func;
 	mio_dev_thr_iopair_t thr_iop;
 	void* thr_ctx;
 	pthread_t thr_hnd;
 	int thr_done;
-	mio_tmridx_t cleanup_tmridx;
 };
 
 typedef struct mio_dev_thr_info_t mio_dev_thr_info_t;
 
 
-static void free_thr_info (mio_t* mio, mio_dev_thr_info_t* ti)
+static void free_thr_info_resources (mio_t* mio, mio_dev_thr_info_t* ti)
 {
 	if (ti->thr_iop.rfd != MIO_SYSHND_INVALID) 
 	{
@@ -74,14 +74,37 @@ static void free_thr_info (mio_t* mio, mio_dev_thr_info_t* ti)
 		close (ti->thr_iop.wfd);
 		ti->thr_iop.wfd = MIO_SYSHND_INVALID;
 	}
+}
 
-	mio_freemem (mio, ti);
+static int ready_to_free_thr_info (mio_t* mio, mio_cfmb_t* cfmb)
+{
+	mio_dev_thr_info_t* ti = (mio_dev_thr_info_t*)cfmb;
+
+#if 1
+	if (MIO_UNLIKELY(mio->_fini_in_progress))
+	{
+		pthread_join (ti->thr_hnd, MIO_NULL); /* BAD. blocking call in a non-blocking library. not useful to call pthread_tryjoin_np() here. */
+		free_thr_info_resources (mio, ti);
+		return 1; /* free me */
+	}
+#endif
+
+	if (ti->thr_done)
+	{
+		free_thr_info_resources (mio, ti);
+#if defined(HAVE_PTHREAD_TRYJOIN_NP)
+		if (pthread_tryjoin_np(ti->thr_hnd) != 0) /* not terminated yet - however, this isn't necessary. z*/
+#endif
+			pthread_detach (ti->thr_hnd); /* just detach it */
+		return 1; /* free me */
+	}
+
+	return 0; /* not freeed */
 }
 
 static void mark_thr_done (void* ctx)
 {
 	mio_dev_thr_info_t* ti = (mio_dev_thr_info_t*)ctx;
-	printf ("QQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQ\n");
 	ti->thr_done = 1;
 }
 
@@ -97,6 +120,10 @@ static void* run_thr_func (void* ctx)
 	pthread_cleanup_push (mark_thr_done, ti);
 
 	ti->thr_func (ti->mio, &ti->thr_iop, ti->thr_ctx);
+
+	/* This part may get partially executed or not executed if the thread is cancelled */
+	free_thr_info_resources (ti->mio, ti); /* TODO: check if the close() call inside this call completes when it becomes a cancellation point. if so, the code must get changed */
+	/* ---------------------------------------------------------- */
 
 	pthread_cleanup_pop (1);
 	pthread_exit (MIO_NULL);
@@ -117,7 +144,7 @@ static int dev_thr_make_master (mio_dev_t* dev, void* ctx)
 		mio_seterrwithsyserr (mio, 0, errno);
 		goto oops;
 	}
-	
+
 	if (mio_makesyshndasync(mio, pfds[1]) <= -1 ||
 	    mio_makesyshndasync(mio, pfds[2]) <= -1) goto oops;
 
@@ -215,18 +242,6 @@ static int dev_thr_make_slave (mio_dev_t* dev, void* ctx)
 	return 0;
 }
 
-static void check_and_free_thr_info (mio_t* mio, const mio_ntime_t* now, mio_tmrjob_t* job)
-{
-	mio_dev_thr_info_t* ti = (mio_dev_thr_info_t*)job->ctx;
-	if (ti->thr_done)
-	{
-		free_thr_info (mio, ti);
-	}
-	else
-	{
-	}
-}
-
 static int dev_thr_kill_master (mio_dev_t* dev, int force)
 {
 	mio_t* mio = dev->mio;
@@ -260,32 +275,13 @@ static int dev_thr_kill_master (mio_dev_t* dev, int force)
 	{
 printf ("THREAD DONE>...111\n");
 		pthread_detach (ti->thr_hnd); /* pthread_join() may be blocking. */
-		free_thr_info (mio, ti);
+		free_thr_info_resources (mio, ti);
+		mio_freemem (mio, ti);
 	}
 	else
 	{
-		mio_tmrjob_t tmrjob;
-		MIO_MEMSET (&tmrjob, 0, MIO_SIZEOF(tmrjob));
-		tmrjob.ctx = ti;
-		mio_gettime (mio, &tmrjob.when);
-		tmrjob.when.sec++;
-		tmrjob.handler = check_and_free_thr_info;
-		tmrjob.idxptr = &ti->cleanup_tmridx;
-
-		if (ti->thr_done)
-		{
-printf ("THREAD DONE>...222\n");
-			pthread_detach (ti->thr_hnd); /* pthread_join() may be blocking. */
-			free_thr_info (mio, ti);
-		}
-		else
-		{
-printf ("THREAD NOT DONE>...222\n");
-			//ti->cleanup_tmridx = mio_instmrjob(mio, &tmrjob);
-			pthread_join (ti->thr_hnd, MIO_NULL); /* pthread_join() may be blocking. */
-			mio_freemem (mio, ti);
-			//mio_instmrjob (mio, 
-		}
+printf ("THREAD NOT DONE>...111\n");
+		mio_addcfmb (mio, ti, ready_to_free_thr_info);
 	}
 	rdev->thr_info = MIO_NULL;
 
@@ -719,12 +715,11 @@ int mio_dev_thr_close (mio_dev_thr_t* dev, mio_dev_thr_sid_t sid)
 	return mio_dev_ioctl((mio_dev_t*)dev, MIO_DEV_THR_CLOSE, &sid);
 }
 
-#if 0
-int mio_dev_thr_killchild (mio_dev_thr_t* dev)
+void mio_dev_thr_haltslave (mio_dev_thr_t* dev, mio_dev_thr_sid_t sid)
 {
-	return mio_dev_ioctl((mio_dev_t*)dev, MIO_DEV_THR_KILL_CHILD, MIO_NULL);
+	if (sid >= 0 && sid < MIO_COUNTOF(dev->slave) && dev->slave[sid])
+		mio_dev_halt((mio_dev_t*)dev->slave[sid]);
 }
-#endif
 
 #if 0
 mio_dev_thr_t* mio_dev_thr_getdev (mio_dev_thr_t* thr, mio_dev_thr_sid_t sid)

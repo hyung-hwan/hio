@@ -30,6 +30,7 @@
   
 #define DEV_CAP_ALL_WATCHED (MIO_DEV_CAP_IN_WATCHED | MIO_DEV_CAP_OUT_WATCHED | MIO_DEV_CAP_PRI_WATCHED)
 
+static void clear_unneeded_cfmbs (mio_t* mio);
 static int schedule_kill_zombie_job (mio_dev_t* dev);
 static int kill_and_free_device (mio_dev_t* dev, int force);
 
@@ -127,6 +128,7 @@ int mio_init (mio_t* mio, mio_mmgr_t* mmgr, mio_cmgr_t* cmgr, mio_oow_t tmrcapa)
 
 	mio->tmr.capa = tmrcapa;
 
+	MIO_CFMBL_INIT (&mio->cfmb);
 	MIO_DEVL_INIT (&mio->actdev);
 	MIO_DEVL_INIT (&mio->hltdev);
 	MIO_DEVL_INIT (&mio->zmbdev);
@@ -151,6 +153,8 @@ void mio_fini (mio_t* mio)
 	mio_dev_t* dev, * next_dev;
 	mio_dev_t diehard;
 	mio_oow_t i;
+
+	mio->_fini_in_progress = 1;
 
 	/* clean up free cwq list */
 	for (i = 0; i < MIO_COUNTOF(mio->cwqfl); i++)
@@ -229,6 +233,10 @@ void mio_fini (mio_t* mio)
 	/* purge scheduled timer jobs and kill the timer */
 	mio_cleartmrjobs (mio);
 	mio_freemem (mio, mio->tmr.jobs);
+
+printf ("BEGINNING CFMB CLEARANCE........\n");
+	/* clear unneeded cfmbs insistently - a misbehaving checker will make this cleaning step loop forever*/
+	while (!MIO_CFMBL_IS_EMPTY(&mio->cfmb)) clear_unneeded_cfmbs (mio);
 
 	mio_sys_fini (mio); /* finalize the system dependent data */
 
@@ -674,9 +682,29 @@ skip_evcb:
 	}
 }
 
+static void clear_unneeded_cfmbs (mio_t* mio)
+{
+	mio_cfmb_t* cur, * next;
+
+	cur = MIO_CFMBL_FIRST_CFMB(&mio->cfmb);
+	while (!MIO_CFMBL_IS_NIL_CFMB(&mio->cfmb, cur))
+	{
+		next = MIO_CFMBL_NEXT_CFMB(cur);
+		if (cur->cfmb_checker(mio, cur)) 
+		{
+			MIO_CFMBL_UNLINK_CFMB (cur);
+			mio_freemem (mio, cur);
+		}
+		cur = next;
+	}
+}
+
 int mio_exec (mio_t* mio)
 {
 	int ret = 0;
+
+	/* clear unneeded cfmbs - i hate to do this. TODO: should i do this less frequently? if less frequent, would it accumulate too many blocks? */
+	if (!MIO_CFMBL_IS_EMPTY(&mio->cfmb)) clear_unneeded_cfmbs (mio);
 
 	/* execute callbacks for completed write operations */
 	fire_cwq_handlers (mio);
@@ -1655,6 +1683,13 @@ void* mio_reallocmem (mio_t* mio, void* ptr, mio_oow_t size)
 void mio_freemem (mio_t* mio, void* ptr)
 {
 	MIO_MMGR_FREE (mio->_mmgr, ptr);
+}
+/* ------------------------------------------------------------------------ */
+
+void mio_addcfmb (mio_t* mio, mio_cfmb_t* cfmb, mio_cfmb_checker_t checker)
+{
+	cfmb->cfmb_checker = checker;
+	MIO_CFMBL_APPEND_CFMB (&mio->cfmb, cfmb);
 }
 
 /* ------------------------------------------------------------------------ */
