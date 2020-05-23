@@ -146,7 +146,7 @@ dnl	[],
 dnl	[#include <stddef.h>])
 
 dnl check functions
-AC_CHECK_FUNCS([uselocale])
+AC_CHECK_FUNCS([uselocale clearenv])
 AC_CHECK_FUNCS([mbrlen mbrtowc wcrtomb])
 AC_CHECK_FUNCS([mbsnrtowcs mbsrtowcs wcsnrtombs wcsrtombs])
 AC_CHECK_FUNCS([wctype iswctype wctrans towctrans])
