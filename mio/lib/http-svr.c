@@ -1267,7 +1267,7 @@ static int cgi_peer_capture_request_header (mio_htre_t* req, const mio_bch_t* ke
 
 static int cgi_peer_on_fork (mio_dev_pro_t* pro, void* fork_ctx)
 {
-	/*mio_t* mio = pro->mio;*/ /* in this callback, the pro device is not fully up. however, the mio field is guaranteed to be available */
+	mio_t* mio = pro->mio; /* in this callback, the pro device is not fully up. however, the mio field is guaranteed to be available */
 	cgi_peer_fork_ctx_t* fc = (cgi_peer_fork_ctx_t*)fork_ctx;
 	mio_oow_t content_length;
 	const mio_bch_t* qparam;
@@ -1277,22 +1277,32 @@ static int cgi_peer_on_fork (mio_dev_pro_t* pro, void* fork_ctx)
 
 	qparam = mio_htre_getqparam(fc->req);
 
-	path = getenv("PATH");
-	lang = getenv("LANG");
+	path = mio_dupbcstr(mio, getenv("PATH"), MIO_NULL);
+	lang = mio_dupbcstr(mio, getenv("LANG"), MIO_NULL);
 #if defined(HAVE_CLEARENV)
 	clearenv ();
 #else
 	{
 		extern char** environ;
+		/* environ = NULL; this crashed this program on NetBSD */
 		if (environ) environ[0] = '\0';
 	}
 #endif
-	if (path) setenv ("PATH", path, 1);
-	if (lang) setenv ("LANG", lang, 1);
+	if (path) 
+	{
+		setenv ("PATH", path, 1);
+		mio_freemem (mio, path);
+	}
+
+	if (lang) 
+	{
+		setenv ("LANG", lang, 1);
+		mio_freemem (mio, lang);
+	}
 
 	setenv ("GATEWAY_INTERFACE", "CGI/1.1", 1);
 
-	mio_fmttobcstr (pro->mio, tmp, MIO_COUNTOF(tmp), "HTTP/%d.%d", (int)mio_htre_getmajorversion(fc->req), (int)mio_htre_getminorversion(fc->req));
+	mio_fmttobcstr (mio, tmp, MIO_COUNTOF(tmp), "HTTP/%d.%d", (int)mio_htre_getmajorversion(fc->req), (int)mio_htre_getminorversion(fc->req));
 	setenv ("SERVER_PROTOCOL", tmp, 1);
 
 	setenv ("DOCUMENT_ROOT", fc->docroot, 1);
@@ -1316,22 +1326,22 @@ static int cgi_peer_on_fork (mio_dev_pro_t* pro, void* fork_ctx)
 	}
 	setenv ("SERVER_SOFTWARE", fc->cli->htts->server_name, 1);
 
-	mio_skadtobcstr (pro->mio, &fc->cli->sck->localaddr, tmp, MIO_COUNTOF(tmp), MIO_SKAD_TO_BCSTR_ADDR);
+	mio_skadtobcstr (mio, &fc->cli->sck->localaddr, tmp, MIO_COUNTOF(tmp), MIO_SKAD_TO_BCSTR_ADDR);
 	setenv ("SERVER_ADDR", tmp, 1);
 
 	gethostname (tmp, MIO_COUNTOF(tmp)); /* if this fails, i assume tmp contains the ip address set by mio_skadtobcstr() above */
 	setenv ("SERVER_NAME", tmp, 1);
 
-	mio_skadtobcstr (pro->mio, &fc->cli->sck->localaddr, tmp, MIO_COUNTOF(tmp), MIO_SKAD_TO_BCSTR_PORT);
+	mio_skadtobcstr (mio, &fc->cli->sck->localaddr, tmp, MIO_COUNTOF(tmp), MIO_SKAD_TO_BCSTR_PORT);
 	setenv ("SERVER_PORT", tmp, 1);
 
-	mio_skadtobcstr (pro->mio, &fc->cli->sck->remoteaddr, tmp, MIO_COUNTOF(tmp), MIO_SKAD_TO_BCSTR_ADDR);
+	mio_skadtobcstr (mio, &fc->cli->sck->remoteaddr, tmp, MIO_COUNTOF(tmp), MIO_SKAD_TO_BCSTR_ADDR);
 	setenv ("REMOTE_ADDR", tmp, 1);
 
-	mio_skadtobcstr (pro->mio, &fc->cli->sck->remoteaddr, tmp, MIO_COUNTOF(tmp), MIO_SKAD_TO_BCSTR_PORT);
+	mio_skadtobcstr (mio, &fc->cli->sck->remoteaddr, tmp, MIO_COUNTOF(tmp), MIO_SKAD_TO_BCSTR_PORT);
 	setenv ("REMOTE_PORT", tmp, 1);
 
-	if (mio_becs_init(&dbuf, pro->mio, 256) >= 0)
+	if (mio_becs_init(&dbuf, mio, 256) >= 0)
 	{
 		mio_htre_walkheaders (fc->req,  cgi_peer_capture_request_header, &dbuf);
 		/* [NOTE] trailers are not available when this cgi resource is started. let's not call mio_htre_walktrailers() */
@@ -1541,7 +1551,7 @@ static void* thr_state_run_func (void* arg)
 
 int mio_svc_htts_dothr (mio_svc_htts_t* htts, mio_dev_sck_t* csck, mio_htre_t* req, mio_svc_htts_thr_func_t func)
 {
-	mio_t* mio = htts->mio;
+	/*mio_t* mio = htts->mio;*/
 //	mio_svc_htts_cli_t* cli = mio_dev_sck_getxtn(csck);
 	thr_state_t* thr_state = MIO_NULL;
 
