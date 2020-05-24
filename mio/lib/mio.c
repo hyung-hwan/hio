@@ -1044,6 +1044,8 @@ int mio_dev_watch (mio_dev_t* dev, mio_dev_watch_cmd_t cmd, int events)
 	if (dev->dev_cap & MIO_DEV_CAP_VIRTUAL) return 0;
 
 	/*ev.data.ptr = dev;*/
+	dev_cap = dev->dev_cap & ~(DEV_CAP_ALL_WATCHED);
+
 	switch (cmd)
 	{
 		case MIO_DEV_WATCH_START:
@@ -1053,6 +1055,7 @@ int mio_dev_watch (mio_dev_t* dev, mio_dev_watch_cmd_t cmd, int events)
 			 * after this 'switch' block */
 			events = MIO_DEV_EVENT_IN;
 			mux_cmd = MIO_SYS_MUX_CMD_INSERT;
+			dev_cap |= MIO_DEV_CAP_WATCH_STARTED;
 			break;
 
 		case MIO_DEV_WATCH_RENEW:
@@ -1072,10 +1075,10 @@ int mio_dev_watch (mio_dev_t* dev, mio_dev_watch_cmd_t cmd, int events)
 			break;
 
 		case MIO_DEV_WATCH_STOP:
-			if (!(dev->dev_cap & DEV_CAP_ALL_WATCHED)) return 0; /* the device is not being watched */
+			if (!(dev_cap & MIO_DEV_CAP_WATCH_STARTED)) return 0; /* the device is not being watched */
 			events = 0; /* override events */
 			mux_cmd = MIO_SYS_MUX_CMD_DELETE;
-			dev_cap = dev->dev_cap & ~(DEV_CAP_ALL_WATCHED);
+			dev_cap &= ~MIO_DEV_CAP_WATCH_STARTED;
 			goto ctrl_mux;
 
 		default:
@@ -1083,7 +1086,6 @@ int mio_dev_watch (mio_dev_t* dev, mio_dev_watch_cmd_t cmd, int events)
 			return -1;
 	}
 
-	dev_cap = dev->dev_cap & ~(DEV_CAP_ALL_WATCHED);
 
 	/* this function honors MIO_DEV_EVENT_IN and MIO_DEV_EVENT_OUT only
 	 * as valid input event bits. it intends to provide simple abstraction
