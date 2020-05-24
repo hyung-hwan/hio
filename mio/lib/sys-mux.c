@@ -40,14 +40,7 @@ int mio_sys_initmux (mio_t* mio)
 {
 	mio_sys_mux_t* mux = &mio->sysdep->mux;
 
-#if defined(POLL)
-	mux->devnull = open("/dev/null", O_RDONLY);	
-	if (mux->devnull == -1)
-	{
-		mio_seterrwithsyserr (mio, 0, errno);
-		return -1;
-	}
-#elif defined(USE_EPOLL)
+#if defined(USE_EPOLL)
 	mux->hnd = epoll_create(1000); /* TODO: choose proper initial size? */
 	if (mux->hnd == -1)
 	{
@@ -81,9 +74,6 @@ void mio_sys_finimux (mio_t* mio)
 		mux->pd.dptr = MIO_NULL;
 	}
 	mux->pd.capa = 0;
-
-	close (mux->devnull);
-	mux->devnull = MIO_SYSHND_INVALID;
 
 #elif defined(USE_EPOLL)
 	close (mux->hnd);
@@ -128,7 +118,7 @@ int mio_sys_ctrlmux (mio_t* mio, mio_sys_mux_cmd_t cmd, mio_dev_t* dev, int dev_
 	switch (cmd)
 	{
 		case MIO_SYS_MUX_CMD_INSERT:
-			if (idx != MUX_INDEX_INVALID || idex != MUX_INDEX_SUSPENDED)
+			if (idx != MUX_INDEX_INVALID) /* not valid index and not MUX_INDEX_SUSPENDED */
 			{
 				mio_seterrnum (mio, MIO_EEXIST);
 				return -1;
@@ -177,12 +167,12 @@ int mio_sys_ctrlmux (mio_t* mio, mio_sys_mux_cmd_t cmd, mio_dev_t* dev, int dev_
 			if (dev_cap & MIO_DEV_CAP_IN_WATCHED) events |= POLLIN;
 			if (dev_cap & MIO_DEV_CAP_OUT_WATCHED) events |= POLLOUT;
 
-			if (idx == MIO_INDEX_INVALID)
+			if (idx == MUX_INDEX_INVALID)
 			{
 				mio_seterrnum (mio, MIO_ENOENT);
 				return -1;
 			}
-			else if (idx == MIO_INDEX_SUSPENDED) 
+			else if (idx == MUX_INDEX_SUSPENDED) 
 			{
 				if (!events) return 0; /* no change. keep suspended */
 				goto do_insert;
@@ -198,9 +188,10 @@ int mio_sys_ctrlmux (mio_t* mio, mio_sys_mux_cmd_t cmd, mio_dev_t* dev, int dev_
 			mux->pd.pfd[idx].events = events;
 			
 			return 0;
+		}
 
 		case MIO_SYS_MUX_CMD_DELETE:
-			if (idx == MIO_INDEX_INVALID)
+			if (idx == MUX_INDEX_INVALID)
 			{
 				mio_seterrnum (mio, MIO_ENOENT);
 				return -1;

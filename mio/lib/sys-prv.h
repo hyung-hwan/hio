@@ -61,9 +61,6 @@ struct mio_sys_mux_t
 		mio_oow_t size;
 		mio_oow_t capa;
 	} pd; /* poll data */
-
-
-	int devnull;
 };
 
 #elif defined(USE_EPOLL)
