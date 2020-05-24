@@ -263,7 +263,7 @@ static void listener_on_connect (mio_dev_sck_t* sck)
 
 		if (init_client(cli, sck) <= -1)
 		{
-			MIO_DEBUG2 (sck->mio, "UNABLE TO INITIALIZE NEW CLIENT %p %d\n", sck, (int)sck->hnd);
+			MIO_DEBUG2 (cli->htts->mio, "HTTS(%p) - halting client(%p) for client intiaialization failure\n", cli->htts, sck);
 			mio_dev_sck_halt (sck);
 		}
 	}
@@ -598,13 +598,38 @@ static int cgi_state_writev_to_client (cgi_state_t* cgi_state, mio_iovec_t* iov,
 	return 0;
 }
 
+static int cgi_state_send_final_status_to_client (cgi_state_t* cgi_state, int status_code, int force_close)
+{
+	mio_svc_htts_cli_t* cli = cgi_state->client;
+	mio_bch_t dtbuf[64];
+
+	mio_svc_htts_fmtgmtime (cli->htts, MIO_NULL, dtbuf, MIO_COUNTOF(dtbuf));
+
+	if (!force_close) force_close = !cgi_state->keep_alive;
+	if (mio_becs_fmt(cli->sbuf, "HTTP/%d.%d %d %hs\r\nServer: %hs\r\nDate: %s\r\nConnection: %hs\r\nContent-Length: 0\r\n\r\n",
+		cgi_state->req_version.major, cgi_state->req_version.minor,
+		status_code, mio_http_status_to_bcstr(status_code),
+		cli->htts->server_name, dtbuf,
+		(force_close? "close": "keep-alive")) == (mio_oow_t)-1) return -1;
+
+	return (cgi_state_write_to_client(cgi_state, MIO_BECS_PTR(cli->sbuf), MIO_BECS_LEN(cli->sbuf)) <= -1 ||
+	        (force_close && cgi_state_write_to_client(cgi_state, MIO_NULL, 0) <= -1))? -1: 0;
+}
+
+
 static int cgi_state_write_last_chunk_to_client (cgi_state_t* cgi_state)
 {
-	if (cgi_state->res_mode_to_cli == CGI_STATE_RES_MODE_CHUNKED &&
-	    cgi_state_write_to_client(cgi_state, "0\r\n\r\n", 5) <= -1) return -1;
+	if (!cgi_state->ever_attempted_to_write_to_client)
+	{
+		if (cgi_state_send_final_status_to_client(cgi_state, 500, 0) <= -1) return -1;
+	}
+	else
+	{
+		if (cgi_state->res_mode_to_cli == CGI_STATE_RES_MODE_CHUNKED &&
+		    cgi_state_write_to_client(cgi_state, "0\r\n\r\n", 5) <= -1) return -1;
+	}
 
 	if (!cgi_state->keep_alive && cgi_state_write_to_client(cgi_state, MIO_NULL, 0) <= -1) return -1;
-
 	return 0;
 }
 
@@ -625,22 +650,6 @@ static int cgi_state_write_to_peer (cgi_state_t* cgi_state, const void* data, mi
 	return 0;
 }
 
-static int cgi_state_send_final_status_to_client (cgi_state_t* cgi_state, int status_code)
-{
-	mio_svc_htts_cli_t* cli = cgi_state->client;
-	mio_bch_t dtbuf[64];
-
-	mio_svc_htts_fmtgmtime (cli->htts, MIO_NULL, dtbuf, MIO_COUNTOF(dtbuf));
-
-	if (mio_becs_fmt(cli->sbuf, "HTTP/%d.%d %d %hs\r\nServer: %hs\r\nDate: %s\r\nConnection: close\r\nContent-Length: 0\r\n\r\n",
-		cgi_state->req_version.major, cgi_state->req_version.minor,
-		status_code, mio_http_status_to_bcstr(status_code),
-		cli->htts->server_name, dtbuf) == (mio_oow_t)-1) return -1;
-
-	return (cgi_state_write_to_client(cgi_state, MIO_BECS_PTR(cli->sbuf), MIO_BECS_LEN(cli->sbuf)) <= -1 ||
-	        cgi_state_write_to_client(cgi_state, MIO_NULL, 0) <= -1)? -1: 0;
-}
-
 static MIO_INLINE void cgi_state_mark_over (cgi_state_t* cgi_state, int over_bits)
 {
 	unsigned int old_over;
@@ -652,7 +661,11 @@ static MIO_INLINE void cgi_state_mark_over (cgi_state_t* cgi_state, int over_bit
 
 	if (!(old_over & CGI_STATE_OVER_READ_FROM_CLIENT) && (cgi_state->over & CGI_STATE_OVER_READ_FROM_CLIENT))
 	{
-		if (mio_dev_sck_read(cgi_state->client->sck, 0) <= -1) mio_dev_sck_halt (cgi_state->client->sck);
+		if (mio_dev_sck_read(cgi_state->client->sck, 0) <= -1) 
+		{
+			MIO_DEBUG2 (cgi_state->htts->mio, "HTTS(%p) - halting client(%p) for failure to disable input watching\n", cgi_state->htts, cgi_state->client->sck);
+			mio_dev_sck_halt (cgi_state->client->sck);
+		}
 	}
 
 	if (!(old_over & CGI_STATE_OVER_READ_FROM_PEER) && (cgi_state->over & CGI_STATE_OVER_READ_FROM_PEER))
@@ -676,6 +689,7 @@ printf ("DETACHING FROM THE MAIN CLIENT RSRC... state -> %p\n", cgi_state->clien
 		}
 		else
 		{
+			MIO_DEBUG2 (cgi_state->htts->mio, "HTTS(%p) - halting client(%p) for no keep-alive\n", cgi_state->htts, cgi_state->client->sck);
 			mio_dev_sck_shutdown (cgi_state->client->sck, MIO_DEV_SCK_SHUTDOWN_WRITE);
 			mio_dev_sck_halt (cgi_state->client->sck);
 		}
@@ -729,7 +743,7 @@ printf ("**** CGI_STATE_ON_KILL \n");
 printf ("ENABLING INPUT WATCHING on CLIENT %p. \n", cgi_state->client->sck);
 		if (!cgi_state->keep_alive || mio_dev_sck_read(cgi_state->client->sck, 1) <= -1)
 		{
-printf ("FAILED TO ENABLE INPUT WATCHING on CLINET %p. SO HALTING CLIENT SOCKET>>>>>>>>>>>>>\n", cgi_state->client->sck);
+			MIO_DEBUG2 (cgi_state->htts->mio, "HTTS(%p) - halting client(%p) for failure to enable input watching\n", cgi_state->htts, cgi_state->client->sck);
 			mio_dev_sck_halt (cgi_state->client->sck);
 		}
 	}
@@ -833,7 +847,7 @@ static int cgi_peer_on_read (mio_dev_pro_t* pro, mio_dev_pro_sid_t sid, const vo
 			if (!cgi_state->ever_attempted_to_write_to_client &&
 			    !(cgi_state->over & CGI_STATE_OVER_WRITE_TO_CLIENT))
 			{
-				cgi_state_send_final_status_to_client (cgi_state, 500); /* don't care about error because it jumps to oops below anyway */
+				cgi_state_send_final_status_to_client (cgi_state, 500, 1); /* don't care about error because it jumps to oops below anyway */
 			}
 
 			goto oops; 
@@ -932,6 +946,7 @@ printf ("CGI PEER HTRD PEEK...\n");
 	}
 
 	if (mio_becs_cat(cli->sbuf, "\r\n") == (mio_oow_t)-1) return -1;
+
 	return cgi_state_write_to_client(cgi_state, MIO_BECS_PTR(cli->sbuf), MIO_BECS_LEN(cli->sbuf));
 }
 
@@ -1271,7 +1286,7 @@ static int cgi_peer_on_fork (mio_dev_pro_t* pro, void* fork_ctx)
 	cgi_peer_fork_ctx_t* fc = (cgi_peer_fork_ctx_t*)fork_ctx;
 	mio_oow_t content_length;
 	const mio_bch_t* qparam;
-	const char* path, * lang;
+	mio_bch_t* path, * lang;
 	mio_bch_t tmp[256];
 	mio_becs_t dbuf;
 
@@ -1401,7 +1416,7 @@ int mio_svc_htts_docgi (mio_svc_htts_t* htts, mio_dev_sck_t* csck, mio_htre_t* r
 
 	if (access(mi.cmd, X_OK) == -1)
 	{
-		cgi_state_send_final_status_to_client (cgi_state, 403); /* 403 Forbidden */
+		cgi_state_send_final_status_to_client (cgi_state, 403, 1); /* 403 Forbidden */
 		goto oops; /* TODO: must not go to oops.  just destroy the cgi_state and finalize the request .. */
 	}
 
@@ -1427,7 +1442,7 @@ int mio_svc_htts_docgi (mio_svc_htts_t* htts, mio_dev_sck_t* csck, mio_htre_t* r
 		 * option 2. send 411 Length Required immediately
 		 * option 3. set Content-Length to -1 and use EOF to indicate the end of content [Non-Standard] */
 
-		if (cgi_state_send_final_status_to_client(cgi_state, 411) <= -1) goto oops;
+		if (cgi_state_send_final_status_to_client(cgi_state, 411, 1) <= -1) goto oops;
 	}
 #endif
 
@@ -1462,7 +1477,7 @@ int mio_svc_htts_docgi (mio_svc_htts_t* htts, mio_dev_sck_t* csck, mio_htre_t* r
 	else if (req->flags & MIO_HTRE_ATTR_EXPECT)
 	{
 		/* 417 Expectation Failed */
-		cgi_state_send_final_status_to_client(cgi_state, 417);
+		cgi_state_send_final_status_to_client(cgi_state, 417, 1);
 		goto oops;
 	}
 
