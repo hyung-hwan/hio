@@ -33,6 +33,7 @@
 /* ========================================================================= */
 #if defined(USE_POLL)
 #	define MUX_INDEX_INVALID MIO_TYPE_MAX(mio_oow_t)
+#	define MUX_INDEX_SUSPENDED (MUX_INDEX_INVALID - 1)
 #endif
 
 int mio_sys_initmux (mio_t* mio)
@@ -123,27 +124,17 @@ int mio_sys_ctrlmux (mio_t* mio, mio_sys_mux_cmd_t cmd, mio_dev_t* dev, int dev_
 	}
 
 	idx = mux->map.ptr[hnd];
-	if (idx != MUX_INDEX_INVALID)
-	{
-		if (cmd == MIO_SYS_MUX_CMD_INSERT)
-		{
-			mio_seterrnum (mio, MIO_EEXIST);
-			return -1;
-		}
-	}
-	else
-	{
-		if (cmd != MIO_SYS_MUX_CMD_INSERT)
-		{
-			mio_seterrnum (mio, MIO_ENOENT);
-			return -1;
-		}
-	}
 
 	switch (cmd)
 	{
 		case MIO_SYS_MUX_CMD_INSERT:
+			if (idx != MUX_INDEX_INVALID || idex != MUX_INDEX_SUSPENDED)
+			{
+				mio_seterrnum (mio, MIO_EEXIST);
+				return -1;
+			}
 
+		do_insert:
 			if (mux->pd.size >= mux->pd.capa)
 			{
 				mio_oow_t new_capa;
@@ -181,32 +172,49 @@ int mio_sys_ctrlmux (mio_t* mio, mio_sys_mux_cmd_t cmd, mio_dev_t* dev, int dev_
 			return 0;
 
 		case MIO_SYS_MUX_CMD_UPDATE:
-			MIO_ASSERT (mio, mux->pd.dptr[idx] == dev);
-			mux->pd.pfd[idx].events = 0;
-			if (dev_cap & MIO_DEV_CAP_IN_WATCHED) mux->pd.pfd[idx].events |= POLLIN;
-			if (dev_cap & MIO_DEV_CAP_OUT_WATCHED) mux->pd.pfd[idx].events |= POLLOUT;
+		{
+			int events = 0;
+			if (dev_cap & MIO_DEV_CAP_IN_WATCHED) events |= POLLIN;
+			if (dev_cap & MIO_DEV_CAP_OUT_WATCHED) events |= POLLOUT;
 
-			/* On NetBSD 7.1.2 (GENERIC.201803151611Z) i386, the following happened.
-			 *  There is still pending data to read on the file descriptor.
-			 *  Disable input and output watching.
-			 *  The other end of file descriptor closes it (EOF).
-			 * Because input and output watching is disabled, the file descriptor is
-			 * included into the pollfd watch set with the following values.
-			 *  pollfd.events - 0
-			 *  pollfd.fd - hnd
-			 * However, poll() watches for POLLHUP regardless of the watch event mask.
-			 * On NetBSD (or probably on other systems), EOF was reported despite
-			 * the pending data to read.
-			 *
-			 * I just use /dev/null to avoid receiving premature EOF. Alternatively,
-			 * using a pipe is possible whereas it will create two file descriptors. */
-			mux->pd.pfd[idx].fd = mux->pd.pfd[idx].events? hnd: mux->devnull;
+			if (idx == MIO_INDEX_INVALID)
+			{
+				mio_seterrnum (mio, MIO_ENOENT);
+				return -1;
+			}
+			else if (idx == MIO_INDEX_SUSPENDED) 
+			{
+				if (!events) return 0; /* no change. keep suspended */
+				goto do_insert;
+			}
+
+			if (!events)
+			{
+				mux->map.ptr[hnd] = MUX_INDEX_SUSPENDED;
+				goto do_delete;
+			}
+
+			MIO_ASSERT (mio, mux->pd.dptr[idx] == dev);
+			mux->pd.pfd[idx].events = events;
+			
 			return 0;
 
 		case MIO_SYS_MUX_CMD_DELETE:
+			if (idx == MIO_INDEX_INVALID)
+			{
+				mio_seterrnum (mio, MIO_ENOENT);
+				return -1;
+			}
+			else if (idx == MUX_INDEX_SUSPENDED)
+			{
+				mux->map.ptr[hnd] = MUX_INDEX_INVALID;
+				return 0;
+			}
+
 			MIO_ASSERT (mio, mux->pd.dptr[idx] == dev);
 			mux->map.ptr[hnd] = MUX_INDEX_INVALID;
 
+		do_delete:
 			/* TODO: speed up deletion. allow a hole in the array.
 			 *       delay array compaction if there is a hole.
 			 *       set fd for the hole to -1 such that poll()
