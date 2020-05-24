@@ -6,4 +6,6 @@ echo
 
 printenv
 exec cat /home/hyung-hwan/projects/hawk/lib/run.c
+##exec cat /home/hyung-hwan/projects/hawk/lib/uch-prop.h
+##exec cat /tmp/qq
 
