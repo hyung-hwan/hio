@@ -671,8 +671,12 @@ static int x = 0;
 int y;
 int z = 0;
 
-	//y = ++x;
+#if defined(__ATOMIC_RELAXED)
 	y = __atomic_add_fetch (&x, 1, __ATOMIC_RELAXED);
+#else
+	// this is buggy..
+	y = ++x;
+#endif
 
 	while ((n = read(iop->rfd, buf, MIO_COUNTOF(buf)))> 0) write (iop->wfd, buf, n);
 
@@ -1031,6 +1035,7 @@ int main (int argc, char* argv[])
 	}
 
 
+	memset (&tcp_lstn, 0, MIO_SIZEOF(tcp_lstn));
 	tcp_lstn.backlogs = 100;
 	if (mio_dev_sck_listen(tcp[1], &tcp_lstn) <= -1)
 	{
@@ -1139,7 +1144,8 @@ for (i = 0; i < 5; i++)
 
 	dnc = mio_svc_dnc_start(mio, &servaddr, MIO_NULL, &send_tmout, &reply_tmout, 2); /* option - send to all, send one by one */
 	htts = mio_svc_htts_start(mio, &htts_bind_addr, process_http_request);
-	mio_svc_htts_setservernamewithbcstr (htts, "MIO-HTTP");
+	if (htts) mio_svc_htts_setservernamewithbcstr (htts, "MIO-HTTP");
+	else MIO_INFO1 (mio, "UNABLE TO START HTTS - %js\n", mio_geterrmsg(mio));
 
 #if 1
 	{
@@ -1258,6 +1264,7 @@ if (!mio_svc_dnc_resolve(dnc, "google.com", MIO_DNS_RRT_SOA, MIO_SVC_DNC_RESOLVE
 }
 #endif
 
+#if 0
 {
 	mio_dev_pipe_t* pp;
 	mio_dev_pipe_make_t mi;
@@ -1281,6 +1288,7 @@ for (i = 0; i < 20; i++)
 	mio_dev_thr_write (tt, "hello, world", 12, MIO_NULL);
 	mio_dev_thr_write (tt, MIO_NULL, 0, MIO_NULL);
 }
+#endif
 
 	mio_loop (mio);
 

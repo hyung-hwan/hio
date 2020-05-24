@@ -34,6 +34,17 @@
 
 /* ========================================================================= */
 
+struct mio_dev_thr_info_t
+{
+	MIO_CFMB_HEADER;
+
+	mio_dev_thr_func_t thr_func;
+	mio_dev_thr_iopair_t thr_iop;
+	void* thr_ctx;
+	pthread_t thr_hnd;
+	int thr_done;
+};
+
 struct slave_info_t
 {
 	mio_dev_thr_make_t* mi;
@@ -47,19 +58,6 @@ typedef struct slave_info_t slave_info_t;
 static mio_dev_thr_slave_t* make_slave (mio_t* mio, slave_info_t* si);
 
 /* ========================================================================= */
-
-struct mio_dev_thr_info_t
-{
-	MIO_CFMB_HEADER;
-
-	mio_dev_thr_func_t thr_func;
-	mio_dev_thr_iopair_t thr_iop;
-	void* thr_ctx;
-	pthread_t thr_hnd;
-	int thr_done;
-};
-
-typedef struct mio_dev_thr_info_t mio_dev_thr_info_t;
 
 
 static void free_thr_info_resources (mio_t* mio, mio_dev_thr_info_t* ti)

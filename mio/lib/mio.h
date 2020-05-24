@@ -1003,6 +1003,12 @@ MIO_EXPORT void mio_freemem (
 	void*   ptr
 );
 
+MIO_EXPORT void mio_addcfmb (
+	mio_t*             mio,
+	mio_cfmb_t*        cfmb,
+	mio_cfmb_checker_t checker
+);
+
 /* =========================================================================
  * STRING ENCODING CONVERSION
  * ========================================================================= */

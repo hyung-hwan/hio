@@ -809,8 +809,11 @@ static int dev_sck_ioctl (mio_dev_t* dev, int cmd, void* arg)
 				int v = 1;
 				if (setsockopt(rdev->hnd, SOL_SOCKET, SO_REUSEADDR, &v, MIO_SIZEOF(v)) == -1)
 				{
-					mio_seterrbfmtwithsyserr (mio, 0, errno, "unable to set SO_REUSEADDR");
-					return -1;
+					if (!(bnd->options & MIO_DEV_SCK_BIND_IGNERR))
+					{
+						mio_seterrbfmtwithsyserr (mio, 0, errno, "unable to set SO_REUSEADDR");
+						return -1;
+					}
 				}
 			/* ignore it if not available
 			#else
@@ -826,8 +829,11 @@ static int dev_sck_ioctl (mio_dev_t* dev, int cmd, void* arg)
 				int v = 1;
 				if (setsockopt(rdev->hnd, SOL_SOCKET, SO_REUSEPORT, &v, MIO_SIZEOF(v)) == -1)
 				{
-					mio_seterrbfmtwithsyserr (mio, 0, errno, "unable to set SO_REUSEPORT");
-					return -1;
+					if (!(bnd->options & MIO_DEV_SCK_BIND_IGNERR))
+					{
+						mio_seterrbfmtwithsyserr (mio, 0, errno, "unable to set SO_REUSEPORT");
+						return -1;
+					}
 				}
 			/* ignore it if not available
 			#else

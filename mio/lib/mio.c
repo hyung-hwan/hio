@@ -1429,12 +1429,11 @@ static int __dev_writev (mio_dev_t* dev, mio_iovec_t* iov, mio_iolen_t iovcnt, c
 
 	len = 0;
 	for (i = 0; i < iovcnt; i++) len += iov[i].iov_len;
+	urem = len;
 
 	if (!MIO_WQ_IS_EMPTY(&dev->wq)) 
 	{
-		/* the writing queue is not empty. 
-		 * enqueue this request immediately */
-		urem = len;
+		/* if the writing queue is not empty, enqueue this request immediately */
 		goto enqueue_data;
 	}
 
@@ -1523,7 +1522,7 @@ enqueue_data:
 
 	/* queue the remaining data*/
 	q = (mio_wq_t*)mio_allocmem(mio, MIO_SIZEOF(*q) + (dstaddr? dstaddr->len: 0) + urem);
-	if (!q) return -1;
+	if (MIO_UNLIKELY(!q)) return -1;
 
 	q->tmridx = MIO_TMRIDX_INVALID;
 	q->dev = dev;
@@ -1542,7 +1541,7 @@ enqueue_data:
 
 	q->ptr = (mio_uint8_t*)(q + 1) + q->dstaddr.len;
 	q->len = urem;
-	q->olen = len;
+	q->olen = len; /* original length to use when invoking on_write() */
 	for (i = index, j = 0; i < iovcnt; i++)
 	{
 		MIO_MEMCPY (&q->ptr[j], iov[i].iov_ptr, iov[i].iov_len);
