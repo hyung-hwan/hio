@@ -390,7 +390,8 @@ enum mio_dev_cap_t
 	MIO_DEV_CAP_HALTED          = (1 << 16),
 	MIO_DEV_CAP_ZOMBIE          = (1 << 17),
 	MIO_DEV_CAP_RENEW_REQUIRED  = (1 << 18),
-	MIO_DEV_CAP_WATCH_STARTED   = (1 << 19)
+	MIO_DEV_CAP_WATCH_STARTED   = (1 << 19),
+	MIO_DEV_CAP_WATCH_SUSPENDED = (1 << 20)
 };
 typedef enum mio_dev_cap_t mio_dev_cap_t;
 

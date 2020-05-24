@@ -186,7 +186,7 @@ int mio_sys_ctrlmux (mio_t* mio, mio_sys_mux_cmd_t cmd, mio_dev_t* dev, int dev_
 
 			MIO_ASSERT (mio, mux->pd.dptr[idx] == dev);
 			mux->pd.pfd[idx].events = events;
-			
+
 			return 0;
 		}
 
@@ -235,26 +235,85 @@ int mio_sys_ctrlmux (mio_t* mio, mio_sys_mux_cmd_t cmd, mio_dev_t* dev, int dev_
 	}
 #elif defined(USE_EPOLL)
 	mio_sys_mux_t* mux = &mio->sysdep->mux;
-	static int epoll_cmd[] = { EPOLL_CTL_ADD, EPOLL_CTL_MOD, EPOLL_CTL_DEL };
 	struct epoll_event ev;
+	mio_syshnd_t hnd;
+	mio_uint32_t events;
+	int x;
 
 	MIO_ASSERT (mio, mio == dev->mio);
+	hnd = dev->dev_mth->getsyshnd(dev);
 
-	ev.data.ptr = dev;
-	ev.events = EPOLLHUP | EPOLLERR /*| EPOLLET*/;
-
+	events = 0;
 	if (dev_cap & MIO_DEV_CAP_IN_WATCHED) 
 	{
-		ev.events |= EPOLLIN;
+		events |= EPOLLIN;
 	#if defined(EPOLLRDHUP)
-		ev.events |= EPOLLRDHUP;
+		events |= EPOLLRDHUP;
 	#endif
-		if (dev_cap & MIO_DEV_CAP_PRI_WATCHED) ev.events |= EPOLLPRI;
+		if (dev_cap & MIO_DEV_CAP_PRI_WATCHED) events |= EPOLLPRI;
+	}
+	if (dev_cap & MIO_DEV_CAP_OUT_WATCHED) events |= EPOLLOUT;
+
+	ev.events = events | EPOLLHUP | EPOLLERR /*| EPOLLET*/;
+	ev.data.ptr = dev;
+
+	switch (cmd)
+	{
+		case MIO_SYS_MUX_CMD_INSERT:
+			if (MIO_UNLIKELY(dev->dev_cap & MIO_DEV_CAP_WATCH_SUSPENDED))
+			{
+				mio_seterrnum (mio, MIO_EEXIST);
+				return -1;
+			}
+
+			x = epoll_ctl(mux->hnd, EPOLL_CTL_ADD, hnd, &ev);
+			break;
+
+		case MIO_SYS_MUX_CMD_UPDATE:
+			if (MIO_UNLIKELY(!events))
+			{
+				if (dev->dev_cap & MIO_DEV_CAP_WATCH_SUSPENDED)
+				{
+					/* no change. keep suspended */
+					return 0;
+				}
+				else
+				{
+					x = epoll_ctl(mux->hnd, EPOLL_CTL_DEL, hnd, &ev);
+					if (x >= 0) dev->dev_cap |= MIO_DEV_CAP_WATCH_SUSPENDED;
+				}
+			}
+			else
+			{
+				if (dev->dev_cap & MIO_DEV_CAP_WATCH_SUSPENDED)
+				{
+					x = epoll_ctl(mux->hnd, EPOLL_CTL_ADD, hnd, &ev);
+					if (x >= 0) dev->dev_cap &= ~MIO_DEV_CAP_WATCH_SUSPENDED;
+				}
+				else
+				{
+					x = epoll_ctl(mux->hnd, EPOLL_CTL_MOD, hnd, &ev);
+				}
+			}
+			break;
+
+		case MIO_SYS_MUX_CMD_DELETE:
+			if (dev->dev_cap & MIO_DEV_CAP_WATCH_SUSPENDED) 
+			{
+				/* clear the SUSPENDED bit because it's a normal deletion */
+				dev->dev_cap &= ~MIO_DEV_CAP_WATCH_SUSPENDED;
+				return 0;
+			}
+
+			x = epoll_ctl(mux->hnd, EPOLL_CTL_DEL, hnd, &ev);
+			break;
+
+		default:
+			mio_seterrnum (mio, MIO_EINVAL);
+			return -1;
 	}
 
-	if (dev_cap & MIO_DEV_CAP_OUT_WATCHED) ev.events |= EPOLLOUT;
-
-	if (epoll_ctl(mux->hnd, epoll_cmd[cmd], dev->dev_mth->getsyshnd(dev), &ev) == -1)
+	if (x == -1)
 	{
 		mio_seterrwithsyserr (mio, 0, errno);
 		return -1;
