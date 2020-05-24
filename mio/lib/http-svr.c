@@ -1282,7 +1282,10 @@ static int cgi_peer_on_fork (mio_dev_pro_t* pro, void* fork_ctx)
 #if defined(HAVE_CLEARENV)
 	clearenv ();
 #else
-	putenv ("environ=NULL");
+	{
+		extern char** environ;
+		if (environ) environ[0] = '\0';
+	}
 #endif
 	if (path) setenv ("PATH", path, 1);
 	if (lang) setenv ("LANG", lang, 1);
