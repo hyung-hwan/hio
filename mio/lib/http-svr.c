@@ -1062,6 +1062,8 @@ static int cgi_peer_on_write (mio_dev_pro_t* pro, mio_iolen_t wrlen, void* wrctx
 	cgi_peer_xtn_t* cgi_peer = mio_dev_pro_getxtn(pro);
 	cgi_state_t* cgi_state = cgi_peer->state;
 
+	if (cgi_state == MIO_NULL) return 0; /* there is nothing i can do. the cgi_state is being cleared or has been cleared already. */
+
 	MIO_ASSERT (mio, cgi_state->peer == pro);
 
 	if (wrlen <= -1)
