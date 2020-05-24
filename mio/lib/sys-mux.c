@@ -39,7 +39,14 @@ int mio_sys_initmux (mio_t* mio)
 {
 	mio_sys_mux_t* mux = &mio->sysdep->mux;
 
-#if defined(USE_EPOLL)
+#if defined(POLL)
+	mux->devnull = open("/dev/null", O_RDONLY);	
+	if (mux->devnull == -1)
+	{
+		mio_seterrwithsyserr (mio, 0, errno);
+		return -1;
+	}
+#elif defined(USE_EPOLL)
 	mux->hnd = epoll_create(1000); /* TODO: choose proper initial size? */
 	if (mux->hnd == -1)
 	{
@@ -73,6 +80,10 @@ void mio_sys_finimux (mio_t* mio)
 		mux->pd.dptr = MIO_NULL;
 	}
 	mux->pd.capa = 0;
+
+	close (mux->devnull);
+	mux->devnull = MIO_SYSHND_INVALID;
+
 #elif defined(USE_EPOLL)
 	close (mux->hnd);
 	mux->hnd = MIO_SYSHND_INVALID;
@@ -174,6 +185,22 @@ int mio_sys_ctrlmux (mio_t* mio, mio_sys_mux_cmd_t cmd, mio_dev_t* dev, int dev_
 			mux->pd.pfd[idx].events = 0;
 			if (dev_cap & MIO_DEV_CAP_IN_WATCHED) mux->pd.pfd[idx].events |= POLLIN;
 			if (dev_cap & MIO_DEV_CAP_OUT_WATCHED) mux->pd.pfd[idx].events |= POLLOUT;
+
+			/* On NetBSD 7.1.2 (GENERIC.201803151611Z) i386, the following happened.
+			 *  There is still pending data to read on the file descriptor.
+			 *  Disable input and output watching.
+			 *  The other end of file descriptor closes it (EOF).
+			 * Because input and output watching is disabled, the file descriptor is
+			 * included into the pollfd watch set with the following values.
+			 *  pollfd.events - 0
+			 *  pollfd.fd - hnd
+			 * However, poll() watches for POLLHUP regardless of the watch event mask.
+			 * On NetBSD (or probably on other systems), EOF was reported despite
+			 * the pending data to read.
+			 *
+			 * I just use /dev/null to avoid receiving premature EOF. Alternatively,
+			 * using a pipe is possible whereas it will create two file descriptors. */
+			mux->pd.pfd[idx].fd = mux->pd.pfd[idx].events? hnd: mux->devnull;
 			return 0;
 
 		case MIO_SYS_MUX_CMD_DELETE:
