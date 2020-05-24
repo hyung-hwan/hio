@@ -670,13 +670,21 @@ static MIO_INLINE void cgi_state_mark_over (cgi_state_t* cgi_state, int over_bit
 
 	if (!(old_over & CGI_STATE_OVER_READ_FROM_PEER) && (cgi_state->over & CGI_STATE_OVER_READ_FROM_PEER))
 	{
-		if (cgi_state->peer && mio_dev_pro_read(cgi_state->peer, MIO_DEV_PRO_OUT, 0) <= -1) mio_dev_pro_halt (cgi_state->peer);
+		if (cgi_state->peer && mio_dev_pro_read(cgi_state->peer, MIO_DEV_PRO_OUT, 0) <= -1) 
+		{
+			MIO_DEBUG2 (cgi_state->htts->mio, "HTTS(%p) - halting peer(%p) for failure to disable input watching\n", cgi_state->htts, cgi_state->peer);
+			mio_dev_pro_halt (cgi_state->peer);
+		}
 	}
 
 	if (old_over != CGI_STATE_OVER_ALL && cgi_state->over == CGI_STATE_OVER_ALL)
 	{
 		/* ready to stop */
-		if (cgi_state->peer) mio_dev_pro_halt (cgi_state->peer);
+		if (cgi_state->peer) 
+		{
+			MIO_DEBUG2 (cgi_state->htts->mio, "HTTS(%p) - halting peer(%p) as it is unneeded\n", cgi_state->htts, cgi_state->peer);
+			mio_dev_pro_halt (cgi_state->peer);
+		}
 
 		if (cgi_state->keep_alive) 
 		{
