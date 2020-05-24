@@ -1045,7 +1045,7 @@ int mio_dev_watch (mio_dev_t* dev, mio_dev_watch_cmd_t cmd, int events)
 	if (dev->dev_cap & MIO_DEV_CAP_VIRTUAL) return 0;
 
 	/*ev.data.ptr = dev;*/
-	dev_cap = dev->dev_cap & ~(DEV_CAP_ALL_WATCHED);
+	dev_cap = dev->dev_cap & ~(DEV_CAP_ALL_WATCHED | MIO_DEV_CAP_WATCH_SUSPENDED); /* UGLY to use MIO_DEV_CAP_WATCH_SUSPENDED here */
 
 	switch (cmd)
 	{
@@ -1116,7 +1116,8 @@ int mio_dev_watch (mio_dev_t* dev, mio_dev_watch_cmd_t cmd, int events)
 		if (mio_sys_ctrlmux(mio, mux_cmd, dev, dev_cap) <= -1) return -1;
 	}
 
-	dev->dev_cap = dev_cap;
+	/* UGLY. MIO_DEV_CAP_WATCH_SUSPENDED may be set/unset by mio_sys_ctrlmux. I need this to reflect it */
+	dev->dev_cap = dev_cap | (dev->dev_cap & MIO_DEV_CAP_WATCH_SUSPENDED);
 	return 0;
 }
 
