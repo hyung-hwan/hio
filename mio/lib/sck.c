@@ -326,7 +326,7 @@ static int dev_sck_make_client (mio_dev_t* dev, void* ctx)
 {
 	mio_t* mio = dev->mio;
 	mio_dev_sck_t* rdev = (mio_dev_sck_t*)dev;
-	mio_syshnd_t* sck = (mio_syshnd_t*)ctx;
+	mio_syshnd_t* clisckhnd = (mio_syshnd_t*)ctx;
 
 	/* create a socket device that is made of a socket connection
 	 * on a listening socket.
@@ -334,7 +334,7 @@ static int dev_sck_make_client (mio_dev_t* dev, void* ctx)
 	 * most of the initialization is done by the listening socket device
 	 * after a client socket has been created. */
 
-	rdev->hnd = *sck;
+	rdev->hnd = *clisckhnd;
 	rdev->tmrjob_index = MIO_TMRIDX_INVALID;
 
 	if (mio_makesckasync(mio, rdev->hnd) <= -1) return -1;

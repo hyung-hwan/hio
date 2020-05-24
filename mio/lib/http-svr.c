@@ -826,7 +826,6 @@ static int cgi_peer_on_read (mio_dev_pro_t* pro, mio_dev_pro_sid_t sid, const vo
 
 		MIO_ASSERT (mio, !(cgi_state->over & CGI_STATE_OVER_READ_FROM_PEER));
 
-printf ("FEED %d BYTES TO HTRD\n", (int)dlen);
 		if (mio_htrd_feed(cgi_state->peer_htrd, data, dlen, &rem) <= -1) 
 		{
 			MIO_DEBUG3 (mio, "HTTPS(%p) - unable to feed peer into to htrd - peer %p(pid=%u)\n", cgi_state->htts, pro, (unsigned int)pro->child_pid);
