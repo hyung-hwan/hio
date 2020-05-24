@@ -850,6 +850,7 @@ oops_after_make:
 
 		return MIO_NULL;
 	}
+	return MIO_NULL;
 
 oops:
 	mio_freemem (mio, dev);

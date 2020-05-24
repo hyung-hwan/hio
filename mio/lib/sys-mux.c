@@ -54,8 +54,28 @@ int mio_sys_initmux (mio_t* mio)
 void mio_sys_finimux (mio_t* mio)
 {
 	mio_sys_mux_t* mux = &mio->sysdep->mux;
-#if defined(USE_EPOLL)
+#if defined(USE_POLL)
+	if (mux->map.ptr) 
+	{
+		mio_freemem (mio, mux->map.ptr);
+		mux->map.ptr = MIO_NULL;
+		mux->map.capa = 0;
+	}
+
+	if (mux->pd.pfd) 
+	{
+		mio_freemem (mio, mux->pd.pfd);
+		mux->pd.pfd = MIO_NULL;
+	}
+	if (mux->pd.dptr) 
+	{
+		mio_freemem (mio, mux->pd.dptr);
+		mux->pd.dptr = MIO_NULL;
+	}
+	mux->pd.capa = 0;
+#elif defined(USE_EPOLL)
 	close (mux->hnd);
+	mux->hnd = MIO_SYSHND_INVALID;
 #endif
 }
 
