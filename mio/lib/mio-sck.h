@@ -315,6 +315,7 @@ enum mio_dev_sck_bind_option_t
 /* TODO: more options --- SO_RCVBUF, SO_SNDBUF, SO_RCVTIMEO, SO_SNDTIMEO, SO_KEEPALIVE */
 /*   BINDTODEVICE??? */
 
+	MIO_DEV_SCK_BIND_IGNERR      = (1 << 14), /* ignore non-critical error in binding */
 	MIO_DEV_SCK_BIND_SSL         = (1 << 15)
 };
 typedef enum mio_dev_sck_bind_option_t mio_dev_sck_bind_option_t;

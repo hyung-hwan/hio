@@ -205,7 +205,18 @@ static pid_t standard_fork_and_exec (mio_dev_pro_t* dev, int pfds[], mio_dev_pro
 			devnull = open("/dev/null", O_RDWR, 0);
 		#endif
 			if (devnull == MIO_SYSHND_INVALID) goto slave_oops;
+
+			if ((mi->flags & MIO_DEV_PRO_INTONUL) && dup2(devnull, 0) == -1) goto slave_oops;
+			if ((mi->flags & MIO_DEV_PRO_OUTTONUL) && dup2(devnull, 1) == -1) goto slave_oops;
+			if ((mi->flags & MIO_DEV_PRO_ERRTONUL) && dup2(devnull, 2) == -1) goto slave_oops;
+
+			close (devnull); 
+			devnull = MIO_SYSHND_INVALID;
 		}
+
+		if (mi->flags & MIO_DEV_PRO_DROPIN) close (0);
+		if (mi->flags & MIO_DEV_PRO_DROPOUT) close (1);
+		if (mi->flags & MIO_DEV_PRO_DROPERR) close (2);
 
 		execv (param->argv[0], param->argv);
 

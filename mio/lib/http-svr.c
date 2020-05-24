@@ -395,7 +395,7 @@ mio_svc_htts_t* mio_svc_htts_start (mio_t* mio, const mio_skad_t* bind_addr, mio
 
 	MIO_MEMSET (&info, 0, MIO_SIZEOF(info));
 	info.b.localaddr = *bind_addr;
-	info.b.options = MIO_DEV_SCK_BIND_REUSEADDR | MIO_DEV_SCK_BIND_REUSEPORT;
+	info.b.options = MIO_DEV_SCK_BIND_REUSEADDR | MIO_DEV_SCK_BIND_REUSEPORT | MIO_DEV_SCK_BIND_IGNERR;
 	/*info.b.options |= MIO_DEV_SCK_BIND_SSL; */
 	info.b.ssl_certfile = "localhost.crt";
 	info.b.ssl_keyfile = "localhost.key";
@@ -826,6 +826,7 @@ static int cgi_peer_on_read (mio_dev_pro_t* pro, mio_dev_pro_sid_t sid, const vo
 
 		MIO_ASSERT (mio, !(cgi_state->over & CGI_STATE_OVER_READ_FROM_PEER));
 
+printf ("FEED %d BYTES TO HTRD\n", (int)dlen);
 		if (mio_htrd_feed(cgi_state->peer_htrd, data, dlen, &rem) <= -1) 
 		{
 			MIO_DEBUG3 (mio, "HTTPS(%p) - unable to feed peer into to htrd - peer %p(pid=%u)\n", cgi_state->htts, pro, (unsigned int)pro->child_pid);
@@ -964,7 +965,9 @@ static int cgi_peer_htrd_push_content (mio_htrd_t* htrd, mio_htre_t* req, const 
 			mio_bch_t lbuf[16];
 			mio_oow_t llen;
 
-			llen = mio_fmt_uintmax_to_bcstr(lbuf, MIO_COUNTOF(lbuf) - 2, dlen, 16 | MIO_FMT_UINTMAX_UPPERCASE, 0, '\0', MIO_NULL);
+			/* mio_fmt_uintmax_to_bcstr() null-terminates the output. only MIO_COUNTOF(lbuf) - 1
+			 * is enough to hold '\r' and '\n' at the back without '\0'. */ 
+			llen = mio_fmt_uintmax_to_bcstr(lbuf, MIO_COUNTOF(lbuf) - 1, dlen, 16 | MIO_FMT_UINTMAX_UPPERCASE, 0, '\0', MIO_NULL);
 			lbuf[llen++] = '\r';
 			lbuf[llen++] = '\n';
 
