@@ -25,7 +25,7 @@
  */
 
 
-#include "mio-sck.h"
+#include <mio-sck.h>
 #include "mio-prv.h"
 
 #include <sys/socket.h>

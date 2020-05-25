@@ -24,8 +24,8 @@
     THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  */
 
-#include "mio-ecs.h"
-#include "mio-fmt.h"
+#include <mio-ecs.h>
+#include <mio-fmt.h>
 #include "mio-prv.h"
 
 #define _FN(type,verb) mio_ ## type  ## _ ## verb

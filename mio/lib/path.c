@@ -24,7 +24,7 @@
     THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  */
 
-#include "mio-path.h"
+#include <mio-path.h>
 #include "mio-prv.h"
 
 /* TODO: support the \\?\ prefix and the \\.\ prefix on windows 

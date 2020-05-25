@@ -24,8 +24,8 @@
     THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  */
 
-#include "mio-chr.h"
-#include "mio-utl.h"
+#include <mio-chr.h>
+#include <mio-utl.h>
 
 /* ---------------------------------------------------------- */
 #include "uch-prop.h"

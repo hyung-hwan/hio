@@ -27,8 +27,8 @@
 #ifndef _MIO_PRV_H_
 #define _MIO_PRV_H_
 
-#include "mio.h"
-#include "mio-utl.h"
+#include <mio.h>
+#include <mio-utl.h>
 
 #if defined(__has_builtin)
 

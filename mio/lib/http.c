@@ -22,9 +22,9 @@
     THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  */
 
-#include "mio-http.h"
-#include "mio-chr.h"
-#include "mio-utl.h"
+#include <mio-http.h>
+#include <mio-chr.h>
+#include <mio-utl.h>
 #include "mio-prv.h"
 #include <time.h>
 

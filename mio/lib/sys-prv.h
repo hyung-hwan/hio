@@ -24,8 +24,8 @@
     THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  */
 
-#ifndef _MIO_SYS_H_
-#define _MIO_SYS_H_
+#ifndef _MIO_SYS_PRV_H_
+#define _MIO_SYS_PRV_H_
 
 /* this is a private header file used by sys-XXX files */
 

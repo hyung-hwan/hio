@@ -25,6 +25,7 @@
  */
 
 #include <mio-htre.h>
+#include <mio-http.h>
 #include "mio-prv.h"
 
 static void free_hdrval (mio_htb_t* htb, void* vptr, mio_oow_t vlen)
