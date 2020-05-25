@@ -24,9 +24,9 @@
     THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  */
 
-#include "mio-skad.h"
-#include "mio-nwif.h"
-#include "mio-fmt.h"
+#include <mio-skad.h>
+#include <mio-nwif.h>
+#include <mio-fmt.h>
 #include "mio-prv.h"
 
 #include <sys/types.h>

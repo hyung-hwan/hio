@@ -25,8 +25,8 @@
  */
 
 #include "mio-prv.h"
-#include "mio-fmt.h"
-#include <stdlib.h>
+#include <mio-fmt.h>
+#include <stdlib.h> /* malloc, free, etc */
   
 #define DEV_CAP_ALL_WATCHED (MIO_DEV_CAP_IN_WATCHED | MIO_DEV_CAP_OUT_WATCHED | MIO_DEV_CAP_PRI_WATCHED)
 

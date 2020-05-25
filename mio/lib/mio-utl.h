@@ -27,7 +27,7 @@
 #ifndef _MIO_UTL_H_
 #define _MIO_UTL_H_
 
-#include "mio-cmn.h"
+#include <mio-cmn.h>
 #include <stdarg.h>
 
 /* =========================================================================

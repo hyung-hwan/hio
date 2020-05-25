@@ -22,9 +22,9 @@
     THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  */
 
-#include "mio-htrd.h"
-#include "mio-chr.h"
-#include "mio-path.h"
+#include <mio-htrd.h>
+#include <mio-chr.h>
+#include <mio-path.h>
 #include "mio-prv.h"
 
 static const mio_bch_t NUL = '\0';

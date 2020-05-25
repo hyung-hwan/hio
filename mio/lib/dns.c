@@ -24,7 +24,7 @@
     THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  */
 
-#include "mio-dns.h"
+#include <mio-dns.h>
 #include "mio-prv.h"
 
 /* ----------------------------------------------------------------------- */

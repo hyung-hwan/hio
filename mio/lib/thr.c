@@ -24,7 +24,7 @@
     THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  */
 
-#include "mio-thr.h"
+#include <mio-thr.h>
 #include "mio-prv.h"
 
 #include <unistd.h>

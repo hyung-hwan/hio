@@ -92,6 +92,7 @@ enum mio_errnum_t
 	MIO_EPIPE,    /**< pipe error */
 	MIO_EAGAIN,   /**< resource temporarily unavailable */
 	MIO_EBADHND,  /**< bad system handle */
+	MIO_EBADRE,   /**< bad request or response */
 
 	MIO_EMFILE,   /**< too many open files */
 	MIO_ENFILE,   /**< too many open files */
