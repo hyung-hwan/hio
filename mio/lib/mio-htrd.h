@@ -95,7 +95,7 @@ struct mio_htrd_t
 			{
 				mio_oow_t len;
 				mio_oow_t count;
-				int        phase;
+				int       phase;
 			} chunk;
 		} s; /* state */
 
@@ -206,13 +206,6 @@ MIO_EXPORT void  mio_htrd_dummify (
 MIO_EXPORT void mio_htrd_undummify (
 	mio_htrd_t* htrd
 );
-
-/*
-MIO_EXPORT int mio_htrd_scanqparam (
-	mio_htrd_t*      http,
-	const mio_bcs_t* cstr
-);
-*/
 
 #if defined(__cplusplus)
 }
