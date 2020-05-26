@@ -308,6 +308,12 @@ MIO_EXPORT int mio_htre_perdecqpath (
 	mio_htre_t*      req
 );
 
+
+MIO_EXPORT int mio_htre_getreqcontentlen (
+	mio_htre_t*      req,
+	mio_oow_t*       len
+);
+
 #if defined(__cplusplus)
 }
 #endif

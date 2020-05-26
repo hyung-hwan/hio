@@ -759,31 +759,6 @@ oops:
 	return 0;
 }
 
-static MIO_INLINE int get_request_content_length (mio_htre_t* req, mio_oow_t* len)
-{
-	if (req->flags & MIO_HTRE_ATTR_CHUNKED)
-	{
-		/* "Transfer-Encoding: chunked" take precedence over "Content-Length: XXX". 
-		 *
-		 * [RFC7230]
-		 *  If a message is received with both a Transfer-Encoding and a
-		 *  Content-Length header field, the Transfer-Encoding overrides the
-		 *  Content-Length. */
-		return 1; /* unable to determine content-length in advance. unlimited */
-	}
-
-	if (req->flags & MIO_HTRE_ATTR_LENGTH)
-	{
-		*len = req->attr.content_length;
-	}
-	else
-	{
-		/* If no Content-Length is specified in a request, it's Content-Length: 0 */
-		*len = 0;
-	}
-	return 0; /* limited to the length set in *len */
-}
-
 struct cgi_peer_fork_ctx_t
 {
 	mio_svc_htts_cli_t* cli;
@@ -882,7 +857,7 @@ static int cgi_peer_on_fork (mio_dev_pro_t* pro, void* fork_ctx)
 	setenv ("REQUEST_URI", mio_htre_getqpath(fc->req), 1);
 	if (qparam) setenv ("QUERY_STRING", qparam, 1);
 
-	if (get_request_content_length(fc->req, &content_length) == 0)
+	if (mio_htre_getreqcontentlen(fc->req, &content_length) == 0)
 	{
 		mio_fmt_uintmax_to_bcstr(tmp, MIO_COUNTOF(tmp), content_length, 10, 0, '\0', MIO_NULL);
 		setenv ("CONTENT_LENGTH", tmp, 1);
@@ -955,7 +930,7 @@ int mio_svc_htts_docgi (mio_svc_htts_t* htts, mio_dev_sck_t* csck, mio_htre_t* r
 	/*cgi_state->num_pending_writes_to_client = 0;
 	cgi_state->num_pending_writes_to_peer = 0;*/
 	cgi_state->req_version = *mio_htre_getversion(req);
-	cgi_state->req_content_length_unlimited = get_request_content_length(req, &cgi_state->req_content_length);
+	cgi_state->req_content_length_unlimited = mio_htre_getreqcontentlen(req, &cgi_state->req_content_length);
 
 	cgi_state->client_org_on_read = csck->on_read;
 	cgi_state->client_org_on_write = csck->on_write;
