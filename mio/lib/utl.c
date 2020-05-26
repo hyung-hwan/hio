@@ -1132,7 +1132,7 @@ mio_oow_t mio_byte_to_bcstr (mio_uint8_t byte, mio_bch_t* buf, mio_oow_t size, i
  
 	do 
 	{
-		mio_uint8_t digit = byte % radix;	
+		mio_uint8_t digit = byte % radix;
 		if (digit < 10) *p++ = digit + '0';
 		else *p++ = digit + radix_char - 10;
 		byte /= radix;
@@ -1154,6 +1154,197 @@ mio_oow_t mio_byte_to_bcstr (mio_uint8_t byte, mio_bch_t* buf, mio_oow_t size, i
 }
  
 /* ========================================================================= */
+
+mio_intmax_t mio_uchars_to_intmax (const mio_uch_t* str, mio_oow_t len, int option, const mio_uch_t** endptr, int* is_sober)
+{
+	mio_intmax_t n = 0;
+	const mio_uch_t* p, * pp;
+	const mio_uch_t* end;
+	mio_oow_t rem;
+	int digit, negative = 0;
+	int base = MIO_UCHARS_TO_INTMAX_GET_OPTION_BASE(option);
+
+	p = str; 
+	end = str + len;
+
+	if (MIO_UCHARS_TO_INTMAX_GET_OPTION_LTRIM(option))
+	{
+		/* strip off leading spaces */
+		while (p < end && mio_is_uch_space(*p)) p++;
+	}
+
+	/* check for a sign */
+	while (p < end)
+	{
+		if (*p == '-') 
+		{
+			negative = ~negative;
+			p++;
+		}
+		else if (*p == '+') p++;
+		else break;
+	}
+
+	/* check for a binary/octal/hexadecimal notation */
+	rem = end - p;
+	if (base == 0) 
+	{
+		if (rem >= 1 && *p == '0') 
+		{
+			p++;
+
+			if (rem == 1) base = 8;
+			else if (*p == 'x' || *p == 'X')
+			{
+				p++; base = 16;
+			} 
+			else if (*p == 'b' || *p == 'B')
+			{
+				p++; base = 2;
+			}
+			else base = 8;
+		}
+		else base = 10;
+	} 
+	else if (rem >= 2 && base == 16)
+	{
+		if (*p == '0' && 
+		    (*(p + 1) == 'x' || *(p + 1) == 'X')) p += 2; 
+	}
+	else if (rem >= 2 && base == 2)
+	{
+		if (*p == '0' && 
+		    (*(p + 1) == 'b' || *(p + 1) == 'B')) p += 2; 
+	}
+
+	/* process the digits */
+	pp = p;
+	while (p < end)
+	{
+		if (*p >= '0' && *p <= '9') {
+			digit = *p - '0'; }
+		else if (*p >= 'A' && *p <= 'Z')
+			digit = *p - 'A' + 10;
+		else if (*p >= 'a' && *p <= 'z')
+			digit = *p - 'a' + 10;
+		else break;
+
+		if (digit >= base) break;
+		n = n * base + digit;
+
+		p++;
+	}
+
+	/* base 8: at least a zero digit has been seen.
+	 * other case: p > pp to be able to have at least 1 meaningful digit. */
+	if (is_sober) *is_sober = (base == 8 || p > pp); 
+
+	if (MIO_UCHARS_TO_INTMAX_GET_OPTION_RTRIM(option))
+	{
+		/* consume trailing spaces */
+		while (p < end && mio_is_uch_space(*p)) p++;
+	}
+
+	if (endptr) *endptr = p;
+	return (negative)? -n: n;
+}
+
+mio_intmax_t mio_bchars_to_intmax (const mio_bch_t* str, mio_oow_t len, int option, const mio_bch_t** endptr, int* is_sober)
+{
+	mio_intmax_t n = 0;
+	const mio_bch_t* p, * pp;
+	const mio_bch_t* end;
+	mio_oow_t rem;
+	int digit, negative = 0;
+	int base = MIO_BCHARS_TO_INTMAX_GET_OPTION_BASE(option);
+
+	p = str; 
+	end = str + len;
+	
+	if (MIO_BCHARS_TO_INTMAX_GET_OPTION_LTRIM(option))
+	{
+		/* strip off leading spaces */
+		while (p < end && mio_is_bch_space(*p)) p++;
+	}
+
+	/* check for a sign */
+	while (p < end)
+	{
+		if (*p == '-') 
+		{
+			negative = ~negative;
+			p++;
+		}
+		else if (*p == '+') p++;
+		else break;
+	}
+
+	/* check for a binary/octal/hexadecimal notation */
+	rem = end - p;
+	if (base == 0) 
+	{
+		if (rem >= 1 && *p == '0') 
+		{
+			p++;
+
+			if (rem == 1) base = 8;
+			else if (*p == 'x' || *p == 'X')
+			{
+				p++; base = 16;
+			} 
+			else if (*p == 'b' || *p == 'B')
+			{
+				p++; base = 2;
+			}
+			else base = 8;
+		}
+		else base = 10;
+	} 
+	else if (rem >= 2 && base == 16)
+	{
+		if (*p == '0' && 
+		    (*(p + 1) == 'x' || *(p + 1) == 'X')) p += 2; 
+	}
+	else if (rem >= 2 && base == 2)
+	{
+		if (*p == '0' && 
+		    (*(p + 1) == 'b' || *(p + 1) == 'B')) p += 2; 
+	}
+
+	/* process the digits */
+	pp = p;
+	while (p < end)
+	{
+		if (*p >= '0' && *p <= '9')
+			digit = *p - '0';
+		else if (*p >= 'A' && *p <= 'Z')
+			digit = *p - 'A' + 10;
+		else if (*p >= 'a' && *p <= 'z')
+			digit = *p - 'a' + 10;
+		else break;
+
+		if (digit >= base) break;
+		n = n * base + digit;
+
+		p++;
+	}
+
+	/* base 8: at least a zero digit has been seen.
+	 * other case: p > pp to be able to have at least 1 meaningful digit. */
+	if (is_sober) *is_sober = (base == 8 || p > pp);
+
+	if (MIO_BCHARS_TO_INTMAX_GET_OPTION_RTRIM(option))
+	{
+		/* consume trailing spaces */
+		while (p < end && mio_is_bch_space(*p)) p++;
+	}
+
+	if (endptr) *endptr = p;
+	return (negative)? -n: n;
+}
+
+/* ========================================================================= */
+
 
 MIO_INLINE int mio_conv_bchars_to_uchars_with_cmgr (
 	const mio_bch_t* bcs, mio_oow_t* bcslen,

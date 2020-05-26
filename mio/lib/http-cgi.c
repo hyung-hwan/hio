@@ -446,7 +446,7 @@ static int cgi_peer_htrd_peek (mio_htrd_t* htrd, mio_htre_t* req)
 	cgi_state_t* cgi_state = cgi_peer->state;
 	mio_svc_htts_cli_t* cli = cgi_state->client;
 	mio_bch_t dtbuf[64];
-	int status_code;
+	int status_code = 200;
 
 	if (req->attr.content_length)
 	{
@@ -456,12 +456,13 @@ static int cgi_peer_htrd_peek (mio_htrd_t* htrd, mio_htre_t* req)
 
 	if (req->attr.status)
 	{
-	}
-	else
-	{
-	}
+		int is_sober;
+		const mio_bch_t* endptr;
+		mio_intmax_t v;
 
-	status_code = 200;
+		v = mio_bchars_to_intmax(req->attr.status, mio_count_bcstr(req->attr.status), MIO_BCHARS_TO_INTMAX_MAKE_OPTION(0,0,10), &endptr, &is_sober);
+		if (*endptr == '\0' && is_sober && v > 0 && v <= MIO_TYPE_MAX(int)) status_code = v;
+	}
 
 printf ("CGI PEER HTRD PEEK...\n");
 	mio_svc_htts_fmtgmtime (cli->htts, MIO_NULL, dtbuf, MIO_COUNTOF(dtbuf));

@@ -539,12 +539,40 @@ MIO_EXPORT mio_oow_t mio_count_bcstr (
 #define MIO_BYTE_TO_BCSTR_RADIXMASK (0xFF)
 #define MIO_BYTE_TO_BCSTR_LOWERCASE (1 << 8)
  
-mio_oow_t mio_byte_to_bcstr (
+MIO_EXPORT mio_oow_t mio_byte_to_bcstr (
 	mio_uint8_t   byte,  
 	mio_bch_t*    buf,
 	mio_oow_t     size,
 	int           flagged_radix,
 	mio_bch_t     fill
+);
+
+/* ------------------------------------------------------------------------- */
+
+#define MIO_UCHARS_TO_INTMAX_MAKE_OPTION(ltrim,rtrim,base) (((!!(ltrim)) << 2) | ((!!(rtrim)) << 4) | ((base) << 8))
+#define MIO_UCHARS_TO_INTMAX_GET_OPTION_LTRIM(option) ((option) & 4)
+#define MIO_UCHARS_TO_INTMAX_GET_OPTION_RTRIM(option) ((option) & 8)
+#define MIO_UCHARS_TO_INTMAX_GET_OPTION_BASE(option) ((option) >> 8)
+
+#define MIO_BCHARS_TO_INTMAX_MAKE_OPTION(ltrim,rtrim,base) (((!!(ltrim)) << 2) | ((!!(rtrim)) << 4) | ((base) << 8))
+#define MIO_BCHARS_TO_INTMAX_GET_OPTION_LTRIM(option) ((option) & 4)
+#define MIO_BCHARS_TO_INTMAX_GET_OPTION_RTRIM(option) ((option) & 8)
+#define MIO_BCHARS_TO_INTMAX_GET_OPTION_BASE(option) ((option) >> 8)
+
+MIO_EXPORT mio_intmax_t mio_uchars_to_intmax (
+	const mio_uch_t*  str,
+	mio_oow_t         len,
+	int               option,
+	const mio_uch_t** endptr,
+	int*              is_sober
+);
+
+MIO_EXPORT mio_intmax_t mio_bchars_to_intmax (
+	const mio_bch_t*  str,
+	mio_oow_t         len,
+	int               option,
+	const mio_bch_t** endptr,
+	int*              is_sober
 );
 
 /* ------------------------------------------------------------------------- */
