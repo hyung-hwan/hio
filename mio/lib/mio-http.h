@@ -28,6 +28,7 @@
 #include <mio-ecs.h>
 #include <mio-sck.h>
 #include <mio-htre.h>
+#include <mio-thr.h>
 
 /** \file
  * This file provides basic data types and functions for the http protocol.
@@ -125,11 +126,27 @@ typedef int (*mio_svc_htts_proc_req_t) (
 );
 
 /* -------------------------------------------------------------- */
+struct mio_svc_htts_thr_func_info_t
+{
+	mio_t*             mio;
 
-typedef int (*mio_svc_htts_thr_func_t) (
-	mio_svc_htts_t* htts,
-	mio_dev_sck_t*  sck,
-	mio_htre_t*     req
+	mio_http_method_t  req_method;
+	mio_http_version_t req_version;
+	mio_bch_t*         req_path;
+	mio_bch_t*         req_param;
+
+	/* TODO: header table */
+
+	mio_skad_t         client_addr;
+	mio_skad_t         server_addr;
+};
+typedef struct mio_svc_htts_thr_func_info_t mio_svc_htts_thr_func_info_t;
+
+typedef void (*mio_svc_htts_thr_func_t) (
+	mio_t*                        mio,
+	mio_dev_thr_iopair_t*         iop,
+	mio_svc_htts_thr_func_info_t* info,
+	void*                         ctx
 );
 
 /* -------------------------------------------------------------- */
@@ -263,7 +280,8 @@ MIO_EXPORT int mio_svc_htts_dothr (
 	mio_svc_htts_t*         htts,
 	mio_dev_sck_t*          csck,
 	mio_htre_t*             req,
-	mio_svc_htts_thr_func_t func
+	mio_svc_htts_thr_func_t func,
+	void*                   ctx
 );
 
 MIO_EXPORT mio_svc_htts_rsrc_t* mio_svc_htts_rsrc_make (

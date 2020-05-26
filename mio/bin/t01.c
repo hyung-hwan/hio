@@ -662,7 +662,7 @@ static void thr_on_close (mio_dev_thr_t* dev, mio_dev_thr_sid_t sid)
 	MIO_INFO1 (dev->mio, "THR[%d] CLOSED \n", (int)sid);
 }
 
-static void thr_func (mio_t* mio, mio_dev_thr_iopair_t* iop, void* cx)
+static void thr_func (mio_t* mio, mio_dev_thr_iopair_t* iop, void* ctx)
 {
 	mio_bch_t buf[5];
 	ssize_t n;
@@ -818,6 +818,23 @@ static void on_dnc_resolve_brief (mio_svc_dnc_t* dnc, mio_dns_msg_t* reqmsg, mio
 	}
 }
 
+static void on_htts_thr_request (mio_t* mio, mio_dev_thr_iopair_t* iop, mio_svc_htts_thr_func_info_t* tfi, void* ctx)
+{
+	FILE* fp;
+	int i;
+
+	fp = fdopen(iop->wfd, "w");
+	fprintf (fp, "Status: 201\r\n");
+	fprintf (fp, "Content-Type: text/html\r\n\r\n");
+
+	fprintf (fp, "request path = %s\n", tfi->req_path);
+	if (tfi->req_param) fprintf (fp, "request param = %s\n", tfi->req_param);
+	for (i = 0; i < 100; i++) fprintf (fp, "%d * %d => %d\n", i, i, i * i);
+
+	fclose (fp);
+	iop->wfd = MIO_SYSHND_INVALID;
+}
+
 /* ========================================================================= */
 int process_http_request (mio_svc_htts_t* htts, mio_dev_sck_t* csck, mio_htre_t* req)
 {
@@ -904,8 +921,13 @@ if (mio_htre_getcontentlen(req) > 0)
 
 		{
 #endif
-			/*const mio_bch_t* qpath = mio_htre_getqpath(req);*/
-			if (mio_svc_htts_docgi(htts, csck, req, "", mio_htre_getqpath(req)) <= -1) goto oops;
+			const mio_bch_t* qpath = mio_htre_getqpath(req);
+			int x;
+			if (mio_comp_bcstr_limited(qpath, "/thr/", 5, 1) == 0)
+				x = mio_svc_htts_dothr(htts, csck, req, on_htts_thr_request, MIO_NULL);
+			else
+				x = mio_svc_htts_docgi(htts, csck, req, "", mio_htre_getqpath(req));
+			if (x <= -1) goto oops;
 
 	return 0;
 
