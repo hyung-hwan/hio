@@ -545,3 +545,101 @@ mio_bch_t* mio_perenc_http_bcstrdup (int opt, const mio_bch_t* str, mio_mmgr_t* 
 	return buf;
 }
 #endif
+
+#if 0
+int mio_scan_http_qparam (mio_htrd_t* htrd, const mio_bch_t* qparam)
+{
+	mio_bcs_t key, val;
+	const mio_bch_t* p, * end;
+	mio_bch_t* out;
+
+	p = qparam
+	if (!p) return 0; /* no param string to scan */
+
+	end = p + mio_count_bcstr(qparam);
+
+	/* a key and a value pair including two terminating null 
+	 * can't exceed the the qparamstrlen + 2. only +1 below as there is
+	 * one more space for an internal terminating null */
+	mio_becs_setlen (&htrd->tmp.qparam, cstr->len + 1);
+
+	/* let out point to the beginning of the qparam buffer.
+	 * the loop below emits percent-decode key and value to this buffer. */
+	out = MIO_BECS_PTR(&htrd->tmp.qparam);
+
+	key.ptr = out; key.len = 0;
+	val.ptr = MIO_NULL; val.len = 0;
+
+	do
+	{
+		if (p >= end || *p == '&' || *p == ';')
+		{
+			MIO_ASSERT (htrd->mio, key.ptr != MIO_NULL);
+
+			*out++ = '\0'; 
+			if (val.ptr == MIO_NULL) 
+			{
+				if (key.len == 0) 
+				{
+					/* both key and value are empty.
+					 * we don't need to do anything */
+					goto next_octet;
+				}
+
+				val.ptr = out;
+				*out++ = '\0'; 
+				MIO_ASSERT (htrd->mio, val.len == 0);
+			}
+
+			/* set request parameter string callback before scanning */
+			MIO_ASSERT (htrd->mio, htrd->recbs.qparamstr != MIO_NULL);
+
+			if (htrd->recbs.qparamstr(htrd, &key, &val) <= -1) return -1;
+
+		next_octet:
+			if (p >= end) break;
+			p++;
+
+			out = MIO_BECS_PTR(&htrd->tmp.qparam);
+			key.ptr = out; key.len = 0;
+			val.ptr = MIO_NULL; val.len = 0;
+		}
+		else if (*p == '=')
+		{
+			*out++ = '\0'; p++;
+
+			val.ptr = out;
+			/*val.len = 0; */
+		}
+		else
+		{
+			if (*p == '%' && p + 2 <= end)
+			{
+				int q = xdigit_to_num(*(p+1));
+				if (q >= 0)
+				{
+					int w = xdigit_to_num(*(p+2));
+					if (w >= 0)
+					{
+						/* unlike the path part, we don't care if it 
+						 * contains a null character */
+						*out++ = ((q << 4) + w);
+						p += 3;
+						goto next;
+					}
+				}
+			}
+
+			*out++ = *p++;
+
+		next:
+			if (val.ptr) val.len++;
+			else key.len++;
+		}
+	}
+	while (1);
+
+	mio_becs_clear (&htrd->tmp.qparam);
+	return 0;
+}
+#endif
