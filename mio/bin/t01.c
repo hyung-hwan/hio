@@ -836,8 +836,6 @@ static void on_htts_thr_request (mio_t* mio, mio_dev_thr_iopair_t* iop, mio_svc_
 		return;
 	}
 
-	fprintf (fp, "Content-Type: text/html\r\n\r\n");
-
 	fprintf (fp, "Status: 201\r\n");
 	fprintf (fp, "Content-Type: text/html\r\n\r\n");
 
