@@ -765,31 +765,6 @@ oops:
 	return 0;
 }
 
-static MIO_INLINE int get_request_content_length (mio_htre_t* req, mio_oow_t* len)
-{
-	if (req->flags & MIO_HTRE_ATTR_CHUNKED)
-	{
-		/* "Transfer-Encoding: chunked" take precedence over "Content-Length: XXX". 
-		 *
-		 * [RFC7230]
-		 *  If a message is received with both a Transfer-Encoding and a
-		 *  Content-Length header field, the Transfer-Encoding overrides the
-		 *  Content-Length. */
-		return 1; /* unable to determine content-length in advance. unlimited */
-	}
-
-	if (req->flags & MIO_HTRE_ATTR_LENGTH)
-	{
-		*len = req->attr.content_length;
-	}
-	else
-	{
-		/* If no Content-Length is specified in a request, it's Content-Length: 0 */
-		*len = 0;
-	}
-	return 0; /* limited to the length set in *len */
-}
-
 static void free_thr_start_info (void* ctx)
 {
 	thr_func_start_t* tfs = (thr_func_start_t*)ctx;
@@ -852,7 +827,7 @@ int mio_svc_htts_dothr (mio_svc_htts_t* htts, mio_dev_sck_t* csck, mio_htre_t* r
 	/*thr_state->num_pending_writes_to_client = 0;
 	thr_state->num_pending_writes_to_peer = 0;*/
 	thr_state->req_version = *mio_htre_getversion(req);
-	thr_state->req_content_length_unlimited = get_request_content_length(req, &thr_state->req_content_length);
+	thr_state->req_content_length_unlimited = mio_htre_getreqcontentlen(req, &thr_state->req_content_length);
 
 	thr_state->client_org_on_read = csck->on_read;
 	thr_state->client_org_on_write = csck->on_write;

@@ -320,3 +320,31 @@ int mio_htre_perdecqpath (mio_htre_t* re)
 
 	return 0;
 }
+
+int mio_htre_getreqcontentlen (mio_htre_t* req, mio_oow_t* len)
+{
+	/* return the potential content length to expect to receive if used as a request */
+
+	if (req->flags & MIO_HTRE_ATTR_CHUNKED)
+	{
+		/* "Transfer-Encoding: chunked" take precedence over "Content-Length: XXX". 
+		 *
+		 * [RFC7230]
+		 *  If a message is received with both a Transfer-Encoding and a
+		 *  Content-Length header field, the Transfer-Encoding overrides the
+		 *  Content-Length. */
+		return 1; /* unable to determine content-length in advance. unlimited */
+	}
+
+	if (req->flags & MIO_HTRE_ATTR_LENGTH)
+	{
+		*len = req->attr.content_length;
+	}
+	else
+	{
+		/* If no Content-Length is specified in a request, it's Content-Length: 0 */
+		*len = 0;
+	}
+
+	return 0; /* limited to the length set in *len */
+}
