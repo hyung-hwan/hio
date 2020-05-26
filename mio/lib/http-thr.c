@@ -73,6 +73,7 @@ struct thr_state_t
 	unsigned int req_content_length_unlimited: 1;
 	unsigned int ever_attempted_to_write_to_client: 1;
 	unsigned int client_disconnected: 1;
+	unsigned int client_htrd_recbs_changed: 1;
 	mio_oow_t req_content_length; /* client request content length */
 	thr_state_res_mode_t res_mode_to_cli;
 
@@ -287,7 +288,11 @@ printf ("**** THR_STATE_ON_KILL \n");
 		thr_state->client_org_on_disconnect = MIO_NULL;
 	}
 
-	mio_htrd_setrecbs (thr_state->client->htrd, &thr_state->client_htrd_org_recbs); /* restore the callbacks */
+	if (thr_state->client_htrd_recbs_changed)
+	{
+		/* restore the callbacks */
+		mio_htrd_setrecbs (thr_state->client->htrd, &thr_state->client_htrd_org_recbs); 
+	}
 
 	if (!thr_state->client_disconnected)
 	{
@@ -910,6 +915,7 @@ int mio_svc_htts_dothr (mio_svc_htts_t* htts, mio_dev_sck_t* csck, mio_htre_t* r
 		thr_state->client_htrd_org_recbs = *mio_htrd_getrecbs(thr_state->client->htrd);
 		thr_client_htrd_recbs.peek = thr_state->client_htrd_org_recbs.peek;
 		mio_htrd_setrecbs (thr_state->client->htrd, &thr_client_htrd_recbs);
+		thr_state->client_htrd_recbs_changed = 1;
 	}
 	else
 	{
@@ -920,6 +926,7 @@ int mio_svc_htts_dothr (mio_svc_htts_t* htts, mio_dev_sck_t* csck, mio_htre_t* r
 			thr_state->client_htrd_org_recbs = *mio_htrd_getrecbs(thr_state->client->htrd);
 			thr_client_htrd_recbs.peek = thr_state->client_htrd_org_recbs.peek;
 			mio_htrd_setrecbs (thr_state->client->htrd, &thr_client_htrd_recbs);
+			thr_state->client_htrd_recbs_changed = 1;
 		}
 		else
 		{

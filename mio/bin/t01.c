@@ -937,6 +937,8 @@ if (mio_htre_getcontentlen(req) > 0)
 			int x;
 			if (mio_comp_bcstr_limited(qpath, "/thr/", 5, 1) == 0)
 				x = mio_svc_htts_dothr(htts, csck, req, on_htts_thr_request, MIO_NULL);
+			else if (mio_comp_bcstr_limited(qpath, "/txt/", 5, 1) == 0)
+				x = mio_svc_htts_dotxt(htts, csck, req, 200, "text/plain", qpath);
 			else
 				x = mio_svc_htts_docgi(htts, csck, req, "", mio_htre_getqpath(req));
 			if (x <= -1) goto oops;
