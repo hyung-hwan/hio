@@ -823,7 +823,21 @@ static void on_htts_thr_request (mio_t* mio, mio_dev_thr_iopair_t* iop, mio_svc_
 	FILE* fp;
 	int i;
 
+	if (tfi->req_method != MIO_HTTP_GET)
+	{
+		write (iop->wfd, "Status: 405\r\n\r\n", 15); /* method not allowed */
+		return;
+	}
+
 	fp = fdopen(iop->wfd, "w");
+	if (!fp)
+	{
+		write (iop->wfd, "Status: 500\r\n\r\n", 15); /* internal server error */
+		return;
+	}
+
+	fprintf (fp, "Content-Type: text/html\r\n\r\n");
+
 	fprintf (fp, "Status: 201\r\n");
 	fprintf (fp, "Content-Type: text/html\r\n\r\n");
 
