@@ -68,6 +68,7 @@ struct cgi_state_t
 	unsigned int req_content_length_unlimited: 1;
 	unsigned int ever_attempted_to_write_to_client: 1;
 	unsigned int client_disconnected: 1;
+	unsigned int client_htrd_recbs_changed: 1;
 	mio_oow_t req_content_length; /* client request content length */
 	cgi_state_res_mode_t res_mode_to_cli;
 
@@ -279,7 +280,11 @@ printf ("**** CGI_STATE_ON_KILL \n");
 		cgi_state->client_org_on_disconnect = MIO_NULL;
 	}
 
-	mio_htrd_setrecbs (cgi_state->client->htrd, &cgi_state->client_htrd_org_recbs); /* restore the callbacks */
+	if (cgi_state->client_htrd_recbs_changed)
+	{
+		/* restore the callbacks */
+		mio_htrd_setrecbs (cgi_state->client->htrd, &cgi_state->client_htrd_org_recbs);
+	}
 
 	if (!cgi_state->client_disconnected)
 	{
@@ -1016,6 +1021,7 @@ int mio_svc_htts_docgi (mio_svc_htts_t* htts, mio_dev_sck_t* csck, mio_htre_t* r
 		cgi_state->client_htrd_org_recbs = *mio_htrd_getrecbs(cgi_state->client->htrd);
 		cgi_client_htrd_recbs.peek = cgi_state->client_htrd_org_recbs.peek;
 		mio_htrd_setrecbs (cgi_state->client->htrd, &cgi_client_htrd_recbs);
+		cgi_state->client_htrd_recbs_changed = 1;
 	}
 	else
 	{
@@ -1026,6 +1032,7 @@ int mio_svc_htts_docgi (mio_svc_htts_t* htts, mio_dev_sck_t* csck, mio_htre_t* r
 			cgi_state->client_htrd_org_recbs = *mio_htrd_getrecbs(cgi_state->client->htrd);
 			cgi_client_htrd_recbs.peek = cgi_state->client_htrd_org_recbs.peek;
 			mio_htrd_setrecbs (cgi_state->client->htrd, &cgi_client_htrd_recbs);
+			cgi_state->client_htrd_recbs_changed = 1;
 		}
 		else
 		{

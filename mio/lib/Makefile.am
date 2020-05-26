@@ -59,6 +59,7 @@ libmio_la_SOURCES = \
 	http-cgi.c \
 	http-svr.c \
 	http-thr.c \
+	http-txt.c \
 	mio-prv.h \
 	mio.c \
 	nwif.c \

@@ -284,6 +284,15 @@ MIO_EXPORT int mio_svc_htts_dothr (
 	void*                   ctx
 );
 
+MIO_EXPORT int mio_svc_htts_dotxt (
+	mio_svc_htts_t*     htts,
+	mio_dev_sck_t*      csck,
+	mio_htre_t*         req,
+	int                 status_code,
+	const mio_bch_t*    content_type,
+	const mio_bch_t*    content_text
+);
+
 MIO_EXPORT mio_svc_htts_rsrc_t* mio_svc_htts_rsrc_make (
 	mio_svc_htts_t*              htts,
 	mio_oow_t                    rsrc_size,
