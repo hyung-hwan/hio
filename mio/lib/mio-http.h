@@ -221,6 +221,16 @@ MIO_EXPORT mio_oow_t mio_perdec_http_bcstr (
 );
 
 /**
+ * The mio_perdec_http_bcstr() function performs percent-decoding over a length-bound string.
+ * It doesn't insert the terminating null.
+ */
+MIO_EXPORT mio_oow_t mio_perdec_http_bcs (
+	const mio_bcs_t* str, 
+	mio_bch_t*       buf,
+	mio_oow_t*       ndecs
+);
+
+/**
  * The mio_perenc_http_bcstr() function performs percent-encoding over a string.
  * The caller must ensure that the output buffer \a buf is large enough.
  * If \a nencs is not #MIO_NULL, it is set to the number of characters
@@ -242,6 +252,12 @@ MIO_EXPORT mio_bch_t* mio_perenc_http_bcstrdup (
 	mio_mmgr_t*        mmgr
 );
 #endif
+
+MIO_EXPORT int mio_scan_http_qparam (
+	mio_bch_t*      qparam,
+	int (*qparamcb) (mio_bcs_t* key, mio_bcs_t* val, void* ctx),
+	void*           ctx
+);
 
 /* ------------------------------------------------------------------------- */
 /* HTTP SERVER SERVICE                                                       */

@@ -818,6 +818,14 @@ static void on_dnc_resolve_brief (mio_svc_dnc_t* dnc, mio_dns_msg_t* reqmsg, mio
 	}
 }
 
+static int print_qparam (mio_bcs_t* key, mio_bcs_t* val, void* ctx)
+{
+	key->len = mio_perdec_http_bcs(key, key->ptr, MIO_NULL);
+	val->len = mio_perdec_http_bcs(val, val->ptr, MIO_NULL);
+	fprintf ((FILE*)ctx, "\t[%.*s] = [%.*s]\n", (int)key->len, key->ptr, (int)val->len, val->ptr);
+	return 0;
+}
+
 static void on_htts_thr_request (mio_t* mio, mio_dev_thr_iopair_t* iop, mio_svc_htts_thr_func_info_t* tfi, void* ctx)
 {
 	FILE* fp;
@@ -840,7 +848,11 @@ static void on_htts_thr_request (mio_t* mio, mio_dev_thr_iopair_t* iop, mio_svc_
 	fprintf (fp, "Content-Type: text/html\r\n\r\n");
 
 	fprintf (fp, "request path = %s\n", tfi->req_path);
-	if (tfi->req_param) fprintf (fp, "request param = %s\n", tfi->req_param);
+	if (tfi->req_param) 
+	{
+		fprintf (fp, "request params:\n");
+		mio_scan_http_qparam (tfi->req_param, print_qparam, fp);
+	}
 	for (i = 0; i < 100; i++) fprintf (fp, "%d * %d => %d\n", i, i, i * i);
 
 	fclose (fp);

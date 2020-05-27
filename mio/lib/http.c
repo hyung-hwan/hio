@@ -456,6 +456,41 @@ mio_oow_t mio_perdec_http_bcstr (const mio_bch_t* str, mio_bch_t* buf, mio_oow_t
 	return out - buf;
 }
 
+mio_oow_t mio_perdec_http_bcs (const mio_bcs_t* str, mio_bch_t* buf, mio_oow_t* ndecs)
+{
+	const mio_bch_t* p = str->ptr;
+	const mio_bch_t* end = str->ptr + str->len;
+	mio_bch_t* out = buf;
+	mio_oow_t dec_count = 0;
+
+	while (p < end)
+	{
+		if (*p == '%' && (p + 2) < end)
+		{
+			int q = MIO_XDIGIT_TO_NUM(*(p + 1));
+			if (q >= 0)
+			{
+				int w = MIO_XDIGIT_TO_NUM(*(p + 2));
+				if (w >= 0)
+				{
+					/* we don't care if it contains a null character */
+					*out++ = ((q << 4) + w);
+					p += 3;
+					dec_count++;
+					continue;
+				}
+			}
+		}
+
+		*out++ = *p++;
+	}
+
+	/* [NOTE] this function deesn't insert '\0' at the end */
+
+	if (ndecs) *ndecs = dec_count;
+	return out - buf;
+}
+
 #define IS_UNRESERVED(c) \
 	(((c) >= 'A' && (c) <= 'Z') || \
 	 ((c) >= 'a' && (c) <= 'z') || \
@@ -546,100 +581,61 @@ mio_bch_t* mio_perenc_http_bcstrdup (int opt, const mio_bch_t* str, mio_mmgr_t* 
 }
 #endif
 
-#if 0
-int mio_scan_http_qparam (mio_htrd_t* htrd, const mio_bch_t* qparam)
+
+int mio_scan_http_qparam (mio_bch_t* qparam, int (*qparamcb) (mio_bcs_t* key, mio_bcs_t* val, void* ctx), void* ctx)
 {
 	mio_bcs_t key, val;
-	const mio_bch_t* p, * end;
-	mio_bch_t* out;
+	mio_bch_t* p, * end;
 
-	p = qparam
-	if (!p) return 0; /* no param string to scan */
-
+	p = qparam;
 	end = p + mio_count_bcstr(qparam);
 
-	/* a key and a value pair including two terminating null 
-	 * can't exceed the the qparamstrlen + 2. only +1 below as there is
-	 * one more space for an internal terminating null */
-	mio_becs_setlen (&htrd->tmp.qparam, cstr->len + 1);
-
-	/* let out point to the beginning of the qparam buffer.
-	 * the loop below emits percent-decode key and value to this buffer. */
-	out = MIO_BECS_PTR(&htrd->tmp.qparam);
-
-	key.ptr = out; key.len = 0;
+	key.ptr = p; key.len = 0;
 	val.ptr = MIO_NULL; val.len = 0;
 
 	do
 	{
 		if (p >= end || *p == '&' || *p == ';')
 		{
-			MIO_ASSERT (htrd->mio, key.ptr != MIO_NULL);
-
-			*out++ = '\0'; 
-			if (val.ptr == MIO_NULL) 
+			if (val.ptr)
 			{
-				if (key.len == 0) 
-				{
-					/* both key and value are empty.
-					 * we don't need to do anything */
-					goto next_octet;
-				}
-
-				val.ptr = out;
-				*out++ = '\0'; 
-				MIO_ASSERT (htrd->mio, val.len == 0);
+				val.len = p - val.ptr;
+			}
+			else
+			{
+				key.len = p - key.ptr;
+				if (key.len == 0) goto next_octet; /* both key and value are empty. we don't need to do anything */
 			}
 
 			/* set request parameter string callback before scanning */
-			MIO_ASSERT (htrd->mio, htrd->recbs.qparamstr != MIO_NULL);
-
-			if (htrd->recbs.qparamstr(htrd, &key, &val) <= -1) return -1;
+			if (qparamcb(&key, &val, ctx) <= -1) return -1;
 
 		next_octet:
 			if (p >= end) break;
 			p++;
 
-			out = MIO_BECS_PTR(&htrd->tmp.qparam);
-			key.ptr = out; key.len = 0;
+			key.ptr = p; key.len = 0;
 			val.ptr = MIO_NULL; val.len = 0;
 		}
 		else if (*p == '=')
 		{
-			*out++ = '\0'; p++;
-
-			val.ptr = out;
-			/*val.len = 0; */
+			if (!val.ptr)
+			{
+				key.len = p - key.ptr;
+				val.ptr = ++p;
+				/*val.len = 0; */
+			}
+			else
+			{
+				p++;
+			}
 		}
 		else
 		{
-			if (*p == '%' && p + 2 <= end)
-			{
-				int q = xdigit_to_num(*(p+1));
-				if (q >= 0)
-				{
-					int w = xdigit_to_num(*(p+2));
-					if (w >= 0)
-					{
-						/* unlike the path part, we don't care if it 
-						 * contains a null character */
-						*out++ = ((q << 4) + w);
-						p += 3;
-						goto next;
-					}
-				}
-			}
-
-			*out++ = *p++;
-
-		next:
-			if (val.ptr) val.len++;
-			else key.len++;
+			p++;
 		}
 	}
 	while (1);
 
-	mio_becs_clear (&htrd->tmp.qparam);
 	return 0;
 }
-#endif
