@@ -27,6 +27,7 @@
 #include <mio-skad.h>
 #include <mio-nwif.h>
 #include <mio-fmt.h>
+#include <mio-chr.h>
 #include "mio-prv.h"
 
 #include <sys/types.h>

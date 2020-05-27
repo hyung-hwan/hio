@@ -1326,6 +1326,169 @@ mio_intmax_t mio_bchars_to_intmax (const mio_bch_t* str, mio_oow_t len, int opti
 	if (endptr) *endptr = p;
 	return (negative)? -n: n;
 }
+/* ========================================================================= */
+
+mio_uintmax_t mio_uchars_to_uintmax (const mio_uch_t* str, mio_oow_t len, int option, const mio_uch_t** endptr, int* is_sober)
+{
+	mio_uintmax_t n = 0;
+	const mio_uch_t* p, * pp;
+	const mio_uch_t* end;
+	mio_oow_t rem;
+	int digit;
+	int base = MIO_UCHARS_TO_UINTMAX_GET_OPTION_BASE(option);
+
+	p = str; 
+	end = str + len;
+
+	if (MIO_UCHARS_TO_UINTMAX_GET_OPTION_LTRIM(option))
+	{
+		/* strip off leading spaces */
+		while (p < end && mio_is_uch_space(*p)) p++;
+	}
+
+	/* check for a sign */
+	while (p < end)
+	{
+		if (*p == '+') p++;
+		else break;
+	}
+
+	/* check for a binary/octal/hexadecimal notation */
+	rem = end - p;
+	if (base == 0) 
+	{
+		if (rem >= 1 && *p == '0') 
+		{
+			p++;
+
+			if (rem == 1) base = 8;
+			else if (*p == 'x' || *p == 'X')
+			{
+				p++; base = 16;
+			} 
+			else if (*p == 'b' || *p == 'B')
+			{
+				p++; base = 2;
+			}
+			else base = 8;
+		}
+		else base = 10;
+	} 
+	else if (rem >= 2 && base == 16)
+	{
+		if (*p == '0' && 
+		    (*(p + 1) == 'x' || *(p + 1) == 'X')) p += 2; 
+	}
+	else if (rem >= 2 && base == 2)
+	{
+		if (*p == '0' && 
+		    (*(p + 1) == 'b' || *(p + 1) == 'B')) p += 2; 
+	}
+
+	/* process the digits */
+	pp = p;
+	while (p < end)
+	{
+		digit = MIO_ZDIGIT_TO_NUM(*p, base);
+		if (digit >= base) break;
+		n = n * base + digit;
+		p++;
+	}
+
+	/* base 8: at least a zero digit has been seen.
+	 * other case: p > pp to be able to have at least 1 meaningful digit. */
+	if (is_sober) *is_sober = (base == 8 || p > pp); 
+
+	if (MIO_UCHARS_TO_UINTMAX_GET_OPTION_RTRIM(option))
+	{
+		/* consume trailing spaces */
+		while (p < end && mio_is_uch_space(*p)) p++;
+	}
+
+	if (endptr) *endptr = p;
+	return n;
+}
+
+mio_uintmax_t mio_bchars_to_uintmax (const mio_bch_t* str, mio_oow_t len, int option, const mio_bch_t** endptr, int* is_sober)
+{
+	mio_uintmax_t n = 0;
+	const mio_bch_t* p, * pp;
+	const mio_bch_t* end;
+	mio_oow_t rem;
+	int digit;
+	int base = MIO_BCHARS_TO_UINTMAX_GET_OPTION_BASE(option);
+
+	p = str; 
+	end = str + len;
+	
+	if (MIO_BCHARS_TO_UINTMAX_GET_OPTION_LTRIM(option))
+	{
+		/* strip off leading spaces */
+		while (p < end && mio_is_bch_space(*p)) p++;
+	}
+
+	/* check for a sign */
+	while (p < end)
+	{
+		if (*p == '+') p++;
+		else break;
+	}
+
+	/* check for a binary/octal/hexadecimal notation */
+	rem = end - p;
+	if (base == 0) 
+	{
+		if (rem >= 1 && *p == '0') 
+		{
+			p++;
+
+			if (rem == 1) base = 8;
+			else if (*p == 'x' || *p == 'X')
+			{
+				p++; base = 16;
+			} 
+			else if (*p == 'b' || *p == 'B')
+			{
+				p++; base = 2;
+			}
+			else base = 8;
+		}
+		else base = 10;
+	} 
+	else if (rem >= 2 && base == 16)
+	{
+		if (*p == '0' && 
+		    (*(p + 1) == 'x' || *(p + 1) == 'X')) p += 2; 
+	}
+	else if (rem >= 2 && base == 2)
+	{
+		if (*p == '0' && 
+		    (*(p + 1) == 'b' || *(p + 1) == 'B')) p += 2; 
+	}
+
+	/* process the digits */
+	pp = p;
+	while (p < end)
+	{
+		digit = MIO_ZDIGIT_TO_NUM(*p, base);
+		if (digit >= base) break;
+		n = n * base + digit;
+		p++;
+	}
+
+	/* base 8: at least a zero digit has been seen.
+	 * other case: p > pp to be able to have at least 1 meaningful digit. */
+	if (is_sober) *is_sober = (base == 8 || p > pp);
+
+	if (MIO_BCHARS_TO_UINTMAX_GET_OPTION_RTRIM(option))
+	{
+		/* consume trailing spaces */
+		while (p < end && mio_is_bch_space(*p)) p++;
+	}
+
+	if (endptr) *endptr = p;
+	return n;
+}
 
 /* ========================================================================= */
 
