@@ -1550,3 +1550,45 @@ mio_oow_t mio_ipad_bytes_to_bcstr (const mio_uint8_t* iptr, mio_oow_t ilen, mio_
 			return 0;
 	}
 }
+
+int mio_uchars_to_ipad_bytes (const mio_uch_t* str, mio_oow_t slen, mio_uint8_t* buf, mio_oow_t blen)
+{
+	if (blen >= 16)
+	{
+		struct in6_addr i6;
+		if (uchars_to_ipv6(str, slen, &i6) <= -1) goto ipv4;
+		MIO_MEMCPY (buf, i6.s6_addr, 16);
+		return 16;
+	}
+	else if (blen >= 4)
+	{
+		struct in_addr i4;
+	ipv4:
+		if (uchars_to_ipv4(str, slen, &i4) <= -1) return -1;
+		MIO_MEMCPY (buf, &i4.s_addr, 4);
+		return 4;
+	}
+
+	return -1;
+}
+
+int mio_bchars_to_ipad_bytes (const mio_bch_t* str, mio_oow_t slen, mio_uint8_t* buf, mio_oow_t blen)
+{
+	if (blen >= 16)
+	{
+		struct in6_addr i6;
+		if (bchars_to_ipv6(str, slen, &i6) <= -1) goto ipv4;
+		MIO_MEMCPY (buf, i6.s6_addr, 16);
+		return 16;
+	}
+	else if (blen >= 4)
+	{
+		struct in_addr i4;
+	ipv4:
+		if (bchars_to_ipv4(str, slen, &i4) <= -1) return -1;
+		MIO_MEMCPY (buf, &i4.s_addr, 4);
+		return 4;
+	}
+
+	return -1;
+}

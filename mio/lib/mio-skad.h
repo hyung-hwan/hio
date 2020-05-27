@@ -200,6 +200,22 @@ MIO_EXPORT mio_oow_t mio_ipad_bytes_to_bcstr (
 	mio_oow_t          blen
 );
 
+
+MIO_EXPORT int mio_uchars_to_ipad_bytes (
+	const mio_uch_t*   str,
+	mio_oow_t          slen,
+	mio_uint8_t*       buf,
+	mio_oow_t          blen
+);
+
+MIO_EXPORT int mio_bchars_to_ipad_bytes (
+	const mio_bch_t*   str,
+	mio_oow_t          slen,
+	mio_uint8_t*       buf,
+	mio_oow_t          blen
+);
+
+
 #if defined(__cplusplus)
 }
 #endif
