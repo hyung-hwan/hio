@@ -1507,14 +1507,14 @@ mio_oow_t mio_ipad_bytes_to_ucstr (const mio_uint8_t* iptr, mio_oow_t ilen, mio_
 {
 	switch (ilen)
 	{
-		case 4:
+		case MIO_IP4ADDR_LEN:
 		{
 			struct in_addr ip4ad;
 			MIO_MEMCPY (&ip4ad.s_addr, iptr, ilen);
 			return ip4ad_to_ucstr(&ip4ad, buf, blen);
 		}
 
-		case 16:
+		case MIO_IP6ADDR_LEN:
 		{
 			struct in6_addr ip6ad;
 			MIO_MEMCPY (&ip6ad.s6_addr, iptr, ilen);
@@ -1531,14 +1531,14 @@ mio_oow_t mio_ipad_bytes_to_bcstr (const mio_uint8_t* iptr, mio_oow_t ilen, mio_
 {
 	switch (ilen)
 	{
-		case 4:
+		case MIO_IP4ADDR_LEN:
 		{
 			struct in_addr ip4ad;
 			MIO_MEMCPY (&ip4ad.s_addr, iptr, ilen);
 			return ip4ad_to_bcstr(&ip4ad, buf, blen);
 		}
 
-		case 16:
+		case MIO_IP6ADDR_LEN:
 		{
 			struct in6_addr ip6ad;
 			MIO_MEMCPY (&ip6ad.s6_addr, iptr, ilen);
@@ -1553,20 +1553,20 @@ mio_oow_t mio_ipad_bytes_to_bcstr (const mio_uint8_t* iptr, mio_oow_t ilen, mio_
 
 int mio_uchars_to_ipad_bytes (const mio_uch_t* str, mio_oow_t slen, mio_uint8_t* buf, mio_oow_t blen)
 {
-	if (blen >= 16)
+	if (blen >= MIO_IP6ADDR_LEN)
 	{
 		struct in6_addr i6;
 		if (uchars_to_ipv6(str, slen, &i6) <= -1) goto ipv4;
 		MIO_MEMCPY (buf, i6.s6_addr, 16);
-		return 16;
+		return MIO_IP6ADDR_LEN;
 	}
-	else if (blen >= 4)
+	else if (blen >= MIO_IP4ADDR_LEN)
 	{
 		struct in_addr i4;
 	ipv4:
 		if (uchars_to_ipv4(str, slen, &i4) <= -1) return -1;
 		MIO_MEMCPY (buf, &i4.s_addr, 4);
-		return 4;
+		return MIO_IP4ADDR_LEN;
 	}
 
 	return -1;
@@ -1574,20 +1574,20 @@ int mio_uchars_to_ipad_bytes (const mio_uch_t* str, mio_oow_t slen, mio_uint8_t*
 
 int mio_bchars_to_ipad_bytes (const mio_bch_t* str, mio_oow_t slen, mio_uint8_t* buf, mio_oow_t blen)
 {
-	if (blen >= 16)
+	if (blen >= MIO_IP6ADDR_LEN)
 	{
 		struct in6_addr i6;
 		if (bchars_to_ipv6(str, slen, &i6) <= -1) goto ipv4;
 		MIO_MEMCPY (buf, i6.s6_addr, 16);
-		return 16;
+		return MIO_IP6ADDR_LEN;
 	}
-	else if (blen >= 4)
+	else if (blen >= MIO_IP4ADDR_LEN)
 	{
 		struct in_addr i4;
 	ipv4:
 		if (bchars_to_ipv4(str, slen, &i4) <= -1) return -1;
 		MIO_MEMCPY (buf, &i4.s_addr, 4);
-		return 4;
+		return MIO_IP4ADDR_LEN;
 	}
 
 	return -1;
