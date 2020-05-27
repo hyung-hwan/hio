@@ -1221,17 +1221,9 @@ mio_intmax_t mio_uchars_to_intmax (const mio_uch_t* str, mio_oow_t len, int opti
 	pp = p;
 	while (p < end)
 	{
-		if (*p >= '0' && *p <= '9') {
-			digit = *p - '0'; }
-		else if (*p >= 'A' && *p <= 'Z')
-			digit = *p - 'A' + 10;
-		else if (*p >= 'a' && *p <= 'z')
-			digit = *p - 'a' + 10;
-		else break;
-
+		digit = MIO_ZDIGIT_TO_NUM(*p, base);
 		if (digit >= base) break;
 		n = n * base + digit;
-
 		p++;
 	}
 
@@ -1315,17 +1307,9 @@ mio_intmax_t mio_bchars_to_intmax (const mio_bch_t* str, mio_oow_t len, int opti
 	pp = p;
 	while (p < end)
 	{
-		if (*p >= '0' && *p <= '9')
-			digit = *p - '0';
-		else if (*p >= 'A' && *p <= 'Z')
-			digit = *p - 'A' + 10;
-		else if (*p >= 'a' && *p <= 'z')
-			digit = *p - 'a' + 10;
-		else break;
-
+		digit = MIO_ZDIGIT_TO_NUM(*p, base);
 		if (digit >= base) break;
 		n = n * base + digit;
-
 		p++;
 	}
 
