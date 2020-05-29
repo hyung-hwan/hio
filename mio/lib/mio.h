@@ -975,7 +975,7 @@ MIO_EXPORT int mio_gettmrjobdeadline (
  * ========================================================================= */
 
 /**
- * the mio_gettime() function returns the elapsed time since mio initialization.
+ * The mio_gettime() function returns the elapsed time since mio initialization.
  */
 MIO_EXPORT void mio_gettime (
 	mio_t*            mio,
