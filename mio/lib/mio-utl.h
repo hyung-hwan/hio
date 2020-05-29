@@ -478,13 +478,13 @@ MIO_EXPORT mio_oow_t mio_count_bcstr (
 );
 
 #if defined(MIO_OOCH_IS_UCH)
-#	define mio_equal_oochars(str1,str2,len) mio_equal_uchars(str1,str2,len)
-#	define mio_comp_oochars(str1,len1,str2,len2) mio_comp_uchars(str1,len1,str2,len2)
-#	define mio_comp_oocstr_bcstr(str1,str2) mio_comp_ucstr_bcstr(str1,str2)
-#	define mio_comp_oochars_bcstr(str1,len1,str2) mio_comp_uchars_bcstr(str1,len1,str2)
-#	define mio_comp_oochars_ucstr(str1,len1,str2) mio_comp_uchars_ucstr(str1,len1,str2)
-#	define mio_comp_oochars_oocstr(str1,len1,str2) mio_comp_uchars_ucstr(str1,len1,str2)
-#	define mio_comp_oocstr(str1,str2) mio_comp_ucstr(str1,str2)
+#	define mio_equal_oochars mio_equal_uchars
+#	define mio_comp_oochars mio_comp_uchars
+#	define mio_comp_oocstr_bcstr mio_comp_ucstr_bcstr
+#	define mio_comp_oochars_bcstr mio_comp_uchars_bcstr
+#	define mio_comp_oochars_ucstr mio_comp_uchars_ucstr
+#	define mio_comp_oochars_oocstr mio_comp_uchars_ucstr
+#	define mio_comp_oocstr mio_comp_ucstr
 
 #	define mio_copy_oochars mio_copy_uchars
 #	define mio_copy_bchars_to_oochars mio_copy_bchars_to_uchars
@@ -506,13 +506,13 @@ MIO_EXPORT mio_oow_t mio_count_bcstr (
 #	define mio_split_oocstr mio_split_ucstr
 #	define mio_count_oocstr mio_count_ucstr
 #else
-#	define mio_equal_oochars(str1,str2,len) mio_equal_bchars(str1,str2,len)
-#	define mio_comp_oochars(str1,len1,str2,len2) mio_comp_bchars(str1,len1,str2,len2)
-#	define mio_comp_oocstr_bcstr(str1,str2) mio_comp_bcstr(str1,str2)
-#	define mio_comp_oochars_bcstr(str1,len1,str2) mio_comp_bchars_bcstr(str1,len1,str2)
-#	define mio_comp_oochars_ucstr(str1,len1,str2) mio_comp_bchars_ucstr(str1,len1,str2)
-#	define mio_comp_oochars_oocstr(str1,len1,str2) mio_comp_bchars_bcstr(str1,len1,str2)
-#	define mio_comp_oocstr(str1,str2) mio_comp_bcstr(str1,str2)
+#	define mio_equal_oochars mio_equal_bchars
+#	define mio_comp_oochars mio_comp_bchars
+#	define mio_comp_oocstr_bcstr mio_comp_bcstr
+#	define mio_comp_oochars_bcstr mio_comp_bchars_bcstr
+#	define mio_comp_oochars_ucstr mio_comp_bchars_ucstr
+#	define mio_comp_oochars_oocstr mio_comp_bchars_bcstr
+#	define mio_comp_oocstr mio_comp_bcstr
 
 #	define mio_copy_oochars mio_copy_bchars
 #	define mio_copy_bchars_to_oochars mio_copy_bchars

@@ -30,6 +30,7 @@ include_HEADERS = \
 	mio-htrd.h \
 	mio-htre.h \
 	mio-http.h \
+	mio-json.h \
 	mio-nwif.h \
 	mio-pac1.h \
 	mio-path.h \
@@ -60,6 +61,7 @@ libmio_la_SOURCES = \
 	http-svr.c \
 	http-thr.c \
 	http-txt.c \
+	json.c \
 	mio-prv.h \
 	mio.c \
 	nwif.c \
