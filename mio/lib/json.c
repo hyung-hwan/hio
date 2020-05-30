@@ -109,6 +109,7 @@ static int push_state (mio_json_t* json, mio_json_state_t state)
 	if (MIO_UNLIKELY(!ss)) return -1;
 
 	ss->state = state;
+	ss->level = json->state_stack->level; /* copy from the parent */
 	ss->next = json->state_stack;
 	
 	json->state_stack = ss;
@@ -156,10 +157,7 @@ static int invoke_data_inst (mio_json_t* json, mio_json_inst_t inst)
 		inst = MIO_JSON_INST_KEY;
 	}
 
-///// XXXXX
-/////	if (json->instcb(json, inst, &json->tok) <= -1) return -1;
-/////
-	return 0;
+	return json->instcb(json, inst, json->state_stack->level, &json->tok);
 }
 
 static int handle_string_value_char (mio_json_t* json, mio_ooci_t c)
@@ -242,6 +240,7 @@ static int handle_string_value_char (mio_json_t* json, mio_ooci_t c)
 		}
 		else if (c == 'u')
 		{
+			/* TOOD: handle UTF-16 surrogate pair  U+1D11E ->  \uD834\uDD1E*/
 			json->state_stack->u.sv.escaped = 4;
 			json->state_stack->u.sv.digit_count = 0;
 			json->state_stack->u.sv.acc = 0;
@@ -439,25 +438,31 @@ static int handle_word_value_char (mio_json_t* json, mio_ooci_t c)
 
 static int handle_start_char (mio_json_t* json, mio_ooci_t c)
 {
+printf ("HANDLE START CHAR [%c]\n", c);
 	if (c == '[')
 	{
 		if (push_state(json, MIO_JSON_STATE_IN_ARRAY) <= -1) return -1;
 		json->state_stack->u.ia.got_value = 0;
-		if (json->instcb(json, MIO_JSON_INST_START_ARRAY, MIO_NULL) <= -1) return -1;
+		if (json->instcb(json, MIO_JSON_INST_START_ARRAY, json->state_stack->level, MIO_NULL) <= -1) return -1;
+		json->state_stack->level++;
 		return 1;
 	}
 	else if (c == '{')
 	{
 		if (push_state(json, MIO_JSON_STATE_IN_DIC) <= -1) return -1;
 		json->state_stack->u.id.state = 0;
-		if (json->instcb(json, MIO_JSON_INST_START_DIC, MIO_NULL) <= -1) return -1;
+		if (json->instcb(json, MIO_JSON_INST_START_DIC, json->state_stack->level, MIO_NULL) <= -1) return -1;
+		json->state_stack->level++;
 		return 1;
 	}
+#if 0
+/* this check is not needed for screening in feed_json_data() */
 	else if (mio_is_ooch_space(c)) 
 	{
 		/* do nothing */
 		return 1;
 	}
+#endif
 	else
 	{
 		mio_seterrbfmt (json->mio, MIO_EINVAL, "not starting with [ or { - %jc", (mio_ooch_t)c);
@@ -469,7 +474,7 @@ static int handle_char_in_array (mio_json_t* json, mio_ooci_t c)
 {
 	if (c == ']')
 	{
-		if (json->instcb(json, MIO_JSON_INST_END_ARRAY, MIO_NULL) <= -1) return -1;
+		if (json->instcb(json, MIO_JSON_INST_END_ARRAY, json->state_stack->level - 1, MIO_NULL) <= -1) return -1;
 		pop_state (json);
 		return 1;
 	}
@@ -527,14 +532,16 @@ static int handle_char_in_array (mio_json_t* json, mio_ooci_t c)
 		{
 			if (push_state(json, MIO_JSON_STATE_IN_ARRAY) <= -1) return -1;
 			json->state_stack->u.ia.got_value = 0;
-			if (json->instcb(json, MIO_JSON_INST_START_ARRAY, MIO_NULL) <= -1) return -1;
+			if (json->instcb(json, MIO_JSON_INST_START_ARRAY, json->state_stack->level, MIO_NULL) <= -1) return -1;
+			json->state_stack->level++;
 			return 1;
 		}
 		else if (c == '{')
 		{
 			if (push_state(json, MIO_JSON_STATE_IN_DIC) <= -1) return -1;
 			json->state_stack->u.id.state = 0;
-			if (json->instcb(json, MIO_JSON_INST_START_DIC, MIO_NULL) <= -1) return -1;
+			if (json->instcb(json, MIO_JSON_INST_START_DIC, json->state_stack->level, MIO_NULL) <= -1) return -1;
+			json->state_stack->level++;
 			return 1;
 		}
 		else
@@ -549,7 +556,7 @@ static int handle_char_in_dic (mio_json_t* json, mio_ooci_t c)
 {
 	if (c == '}')
 	{
-		if (json->instcb(json, MIO_JSON_INST_END_DIC, MIO_NULL) <= -1) return -1;
+		if (json->instcb(json, MIO_JSON_INST_END_DIC, json->state_stack->level - 1, MIO_NULL) <= -1) return -1;
 		pop_state (json);
 		return 1;
 	}
@@ -622,14 +629,16 @@ static int handle_char_in_dic (mio_json_t* json, mio_ooci_t c)
 		{
 			if (push_state(json, MIO_JSON_STATE_IN_ARRAY) <= -1) return -1;
 			json->state_stack->u.ia.got_value = 0;
-			if (json->instcb(json, MIO_JSON_INST_START_ARRAY, MIO_NULL) <= -1) return -1;
+			json->state_stack->level++;
+			if (json->instcb(json, MIO_JSON_INST_START_ARRAY, json->state_stack->level, MIO_NULL) <= -1) return -1;
 			return 1;
 		}
 		else if (c == '{')
 		{
 			if (push_state(json, MIO_JSON_STATE_IN_DIC) <= -1) return -1;
 			json->state_stack->u.id.state = 0;
-			if (json->instcb(json, MIO_JSON_INST_START_DIC, MIO_NULL) <= -1) return -1;
+			json->state_stack->level++;
+			if (json->instcb(json, MIO_JSON_INST_START_DIC, json->state_stack->level, MIO_NULL) <= -1) return -1;
 			return 1;
 		}
 		else
@@ -704,10 +713,11 @@ start_over:
 
 /* ========================================================================= */
 
-static int feed_json_data (mio_json_t* json, const mio_bch_t* data, mio_oow_t len, mio_oow_t* xlen)
+static int feed_json_data (mio_json_t* json, const mio_bch_t* data, mio_oow_t len, mio_oow_t* xlen, int stop_if_ever_completed)
 {
 	const mio_bch_t* ptr;
 	const mio_bch_t* end;
+	int ever_completed = 0;
 
 	ptr = data;
 	end = ptr + len;
@@ -715,12 +725,14 @@ static int feed_json_data (mio_json_t* json, const mio_bch_t* data, mio_oow_t le
 	while (ptr < end)
 	{
 		mio_ooci_t c;
+		const mio_bch_t* optr;
 
 	#if defined(MIO_OOCH_IS_UCH)
 		mio_ooch_t uc;
 		mio_oow_t bcslen;
 		mio_oow_t n;
 
+		optr = ptr;
 		bcslen = end - ptr;
 		n = json->mio->_cmgr->bctouc(ptr, bcslen, &uc);
 		if (n == 0)
@@ -739,15 +751,24 @@ static int feed_json_data (mio_json_t* json, const mio_bch_t* data, mio_oow_t le
 		ptr += n;
 		c = uc;
 	#else
+		optr = ptr;
 		c = *ptr++;
 	#endif
 
+		if (json->state_stack->state == MIO_JSON_STATE_START && mio_is_ooch_space(c)) continue; /* skip white space */
+		if (stop_if_ever_completed && ever_completed) 
+		{
+			*xlen = optr - data;
+			return 2;
+		}
+
 		/* handle a signle character */
 		if (handle_char(json, c) <= -1) goto oops;
+		if (json->state_stack->state == MIO_JSON_STATE_START) ever_completed = 1;
 	}
 
 	*xlen = ptr - data;
-	return 1;
+	return (stop_if_ever_completed && ever_completed)? 2: 1;
 
 oops:
 	/* TODO: compute the number of processed bytes so far and return it via a parameter??? */
@@ -785,12 +806,17 @@ void mio_json_close (mio_json_t* json)
 	mio_freemem (json->mio, json);
 }
 
+static int do_nothing_on_inst  (mio_json_t* json, mio_json_inst_t inst, mio_oow_t level, const mio_oocs_t* str)
+{
+	return 0;
+}
 
 int mio_json_init (mio_json_t* json, mio_t* mio)
 {
 	MIO_MEMSET (json, 0, MIO_SIZEOF(*json));
 
 	json->mio = mio;
+	json->instcb = do_nothing_on_inst;
 	json->state_top.state = MIO_JSON_STATE_START;
 	json->state_top.next = MIO_NULL;
 	json->state_stack = &json->state_top;
@@ -809,20 +835,24 @@ void mio_json_fini (mio_json_t* json)
 }
 /* ========================================================================= */
 
+void mio_json_setinstcb (mio_json_t* json, mio_json_instcb_t instcb)
+{
+	json->instcb = instcb;
+}
+
 mio_json_state_t mio_json_getstate (mio_json_t* json)
 {
 	return json->state_stack->state;
 }
 
-void mio_json_reset (mio_json_t* json)
+void mio_json_resetstates (mio_json_t* json)
 {
-	/* TODO: reset XXXXXXXXXXXXXXXXXXXXXXXXXXXxxxxx */
 	pop_all_states (json);
 	MIO_ASSERT (json->mio, json->state_stack == &json->state_top);
 	json->state_stack->state = MIO_JSON_STATE_START;
 }
 
-int mio_json_feed (mio_json_t* json, const void* ptr, mio_oow_t len, mio_oow_t* xlen)
+int mio_json_feed (mio_json_t* json, const void* ptr, mio_oow_t len, mio_oow_t* rem, int stop_if_ever_completed)
 {
 	int x;
 	mio_oow_t total, ylen;
@@ -832,13 +862,19 @@ int mio_json_feed (mio_json_t* json, const void* ptr, mio_oow_t len, mio_oow_t* 
 	total = 0;
 	while (total < len)
 	{
-		x = feed_json_data(json, &buf[total], len - total, &ylen);
+		x = feed_json_data(json, &buf[total], len - total, &ylen, stop_if_ever_completed);
 		if (x <= -1) return -1;
 
 		total += ylen;
 		if (x == 0) break; /* incomplete sequence encountered */
+
+		if (stop_if_ever_completed && x >= 2) 
+		{
+			*rem = len - total;
+			return 1;
+		}
 	}
 
-	*xlen = total;
+	*rem = len - total;
 	return 0;
 }

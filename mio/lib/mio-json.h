@@ -71,6 +71,7 @@ typedef enum mio_json_inst_t mio_json_inst_t;
 typedef int (*mio_json_instcb_t) (
 	mio_json_t*           json,
 	mio_json_inst_t       inst,
+	mio_oow_t             level,
 	const mio_oocs_t*     str
 );
 
@@ -79,6 +80,7 @@ typedef struct mio_json_state_node_t mio_json_state_node_t;
 struct mio_json_state_node_t
 {
 	mio_json_state_t state;
+	mio_oow_t level;
 	union
 	{
 		struct
@@ -151,19 +153,46 @@ MIO_EXPORT void mio_json_fini (
 	mio_json_t* json
 );
 
-MIO_EXPORT void mio_json_reset (
-	mio_json_t* json
+#if defined(MIO_HAVE_INLINE)
+static MIO_INLINE mio_t* mio_json_getmio (mio_json_t* json) { return json->mio; }
+#else
+#	define mio_json_getmio(json) (((mio_json_t*)(json))->mio)
+#endif
+
+MIO_EXPORT void mio_json_setinstcb (
+	mio_json_t*       json,
+	mio_json_instcb_t instcb
 );
 
+
+MIO_EXPORT mio_json_state_t mio_json_getstate (
+	mio_json_t*   json
+);
+
+MIO_EXPORT void mio_json_resetstates (
+	mio_json_t*   json
+);
+
+/**
+ * The mio_json_feed() function processes the raw data.
+ *
+ * If stop_if_ever_complted is 0, it returns 0 on success. If the value pointed to by
+ * rem is greater 0 after the call, processing is not complete and more feeding is 
+ * required. Incomplete feeding may be caused by incomplete byte sequences or incomplete
+ * json object.
+ *
+ * If stop_if_ever_completed is non-zero, it returns 0 upon incomplet byte sequence or
+ * incomplete json object. It returns 1 if it sees the first complete json object. It stores
+ * the size of remaning raw data in the memory pointed to by rem.
+ * 
+ * The function returns -1 upon failure.
+ */
 MIO_EXPORT int mio_json_feed (
 	mio_json_t*   json,
 	const void*   ptr,
 	mio_oow_t     len,
-	mio_oow_t*    xlen
-);
-
-MIO_EXPORT mio_json_state_t mio_json_getstate (
-	mio_json_t* json
+	mio_oow_t*    rem,
+	int stop_if_ever_completed
 );
 
 
