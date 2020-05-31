@@ -1659,7 +1659,7 @@ MIO_INLINE int mio_conv_uchars_to_bchars_with_cmgr (
 				break;
 			}
 
-			n = cmgr->uctobc (*p, bcs, rem);
+			n = cmgr->uctobc(*p, bcs, rem);
 			if (n == 0) 
 			{
 				ret = -1;
@@ -1684,7 +1684,7 @@ MIO_INLINE int mio_conv_uchars_to_bchars_with_cmgr (
 		{
 			mio_oow_t n;
 
-			n = cmgr->uctobc (*p, bcsbuf, MIO_COUNTOF(bcsbuf));
+			n = cmgr->uctobc(*p, bcsbuf, MIO_COUNTOF(bcsbuf));
 			if (n == 0) 
 			{
 				ret = -1;
