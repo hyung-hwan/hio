@@ -28,7 +28,7 @@
 #include <mio.h>
 #include <mio-json.h>
 #include <stdio.h>
-
+#include <string.h>
 
 static int on_json_inst (mio_json_t* json, mio_json_inst_t inst,	mio_oow_t level, const mio_oocs_t* str)
 {
@@ -91,13 +91,15 @@ static int on_json_inst (mio_json_t* json, mio_json_inst_t inst,	mio_oow_t level
 	return 0;
 }
 
+static int write_json_element (mio_jsonwr_t* jsonwr, const mio_bch_t* dptr, mio_oow_t dlen)
+{
+	write (1, dptr, dlen);
+	return 0;
+}
+
 int main (int argc, char* argv[])
 {
 	mio_t* mio = MIO_NULL;
-	mio_json_t* json = MIO_NULL;
-	char buf[128];
-	mio_oow_t rem;
-
 
 	mio = mio_open(MIO_NULL, 0, MIO_NULL, 512, MIO_NULL);
 	if (!mio)
@@ -106,30 +108,73 @@ int main (int argc, char* argv[])
 		return -1;
 	}
 
-	json = mio_json_open(mio, 0);
-
-	mio_json_setinstcb (json, on_json_inst);
-
-
-	rem = 0;
-	while (1)
 	{
-		int x;
-		size_t size = fread(&buf[rem], 1, sizeof(buf) - rem, stdin);
-		if (size <= 0) break;
+		mio_json_t* json = MIO_NULL;
+		char buf[128];
+		mio_oow_t rem;
+
+		json = mio_json_open(mio, 0);
+
+		mio_json_setinstcb (json, on_json_inst);
 
 
-		if ((x = mio_json_feed(json, buf, size + rem, &rem, 1)) <= -1) 
+		rem = 0;
+		while (1)
 		{
-			printf ("**** ERROR ****\n");
-			break;
+			int x;
+			size_t size = fread(&buf[rem], 1, sizeof(buf) - rem, stdin);
+			if (size <= 0) break;
+
+
+			if ((x = mio_json_feed(json, buf, size + rem, &rem, 1)) <= -1) 
+			{
+				printf ("**** ERROR ****\n");
+				break;
+			}
+
+			//printf ("--> x %d input %d left-over %d\n", (int)x, (int)size, (int)rem);
+			if  (rem > 0) memcpy (buf, &buf[size - rem], rem);
 		}
 
-		//printf ("--> x %d input %d left-over %d\n", (int)x, (int)size, (int)rem);
-		if  (rem > 0) memcpy (buf, &buf[size - rem], rem);
+		mio_json_close (json);
 	}
 
-	mio_json_close (json);
+
+	{
+		mio_jsonwr_t* jsonwr = MIO_NULL;
+		mio_uch_t ddd[4] = { 'D', '\0', 'R', 'Q' };
+		mio_uch_t ddv[5] = { L'밝', L'혀', L'졌', L'는', L'데' };
+	
+		jsonwr = mio_jsonwr_open (mio, 0);
+
+		mio_jsonwr_setwritecb (jsonwr, write_json_element);
+
+		mio_jsonwr_write (jsonwr, MIO_JSON_INST_START_ARRAY, 0, MIO_NULL, 0);
+		mio_jsonwr_write (jsonwr, MIO_JSON_INST_STRING, 0, "hello", 5);
+		mio_jsonwr_write (jsonwr, MIO_JSON_INST_STRING, 0, "world", 5);
+
+		mio_jsonwr_write (jsonwr, MIO_JSON_INST_START_DIC, 0, MIO_NULL, 0);
+		mio_jsonwr_write (jsonwr, MIO_JSON_INST_KEY, 0, "abc", 3);
+		mio_jsonwr_write (jsonwr, MIO_JSON_INST_STRING, 0, "computer", 8);
+		mio_jsonwr_write (jsonwr, MIO_JSON_INST_KEY, 0, "k", 1);
+		mio_jsonwr_write (jsonwr, MIO_JSON_INST_STRING, 0, "play nice", 9);
+		mio_jsonwr_write (jsonwr, MIO_JSON_INST_KEY, 1, ddd, 4);
+		mio_jsonwr_write (jsonwr, MIO_JSON_INST_STRING, 1, ddv, 5);
+		mio_jsonwr_write (jsonwr, MIO_JSON_INST_END_DIC, 0, MIO_NULL, 0);
+
+		mio_jsonwr_write (jsonwr, MIO_JSON_INST_STRING, 0, "tyler", 5);
+
+		mio_jsonwr_write (jsonwr, MIO_JSON_INST_START_ARRAY, 0, MIO_NULL, 0);
+		mio_jsonwr_write (jsonwr, MIO_JSON_INST_STRING, 0, "airplain", 8);
+		mio_jsonwr_write (jsonwr, MIO_JSON_INST_STRING, 0, "gro\0wn\nup", 9);
+		mio_jsonwr_write (jsonwr, MIO_JSON_INST_TRUE, 0, MIO_NULL, 0);
+		mio_jsonwr_write (jsonwr, MIO_JSON_INST_END_ARRAY, 0, MIO_NULL, 0);
+
+		mio_jsonwr_write (jsonwr, MIO_JSON_INST_END_ARRAY, 0, MIO_NULL, 0);
+
+		mio_jsonwr_close (jsonwr);
+	}
+
 	mio_close (mio);
 
 	return 0;

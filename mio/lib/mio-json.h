@@ -131,6 +131,39 @@ struct mio_json_t
 
 /* ========================================================================= */
 
+typedef struct mio_jsonwr_t mio_jsonwr_t;
+
+typedef int (*mio_jsonwr_writecb_t) (
+	mio_jsonwr_t*         jsonwr,
+	/*mio_oow_t           level,*/
+	const mio_bch_t*      dptr,
+	mio_oow_t             dlen
+);
+
+typedef struct mio_jsonwr_state_node_t mio_jsonwr_state_node_t;
+struct mio_jsonwr_state_node_t
+{
+	mio_json_state_t state;
+	mio_oow_t level;
+	mio_oow_t index;
+	int dic_awaiting_val;
+	mio_jsonwr_state_node_t* next;
+};
+
+struct mio_jsonwr_t
+{
+	mio_t* mio;
+	mio_jsonwr_writecb_t writecb;
+	mio_jsonwr_state_node_t state_top;
+	mio_jsonwr_state_node_t* state_stack;
+	int pretty;
+
+	mio_bch_t wbuf[4096];
+	mio_oow_t wbuf_len;
+};
+
+/* ========================================================================= */
+
 #if defined(__cplusplus)
 extern "C" {
 #endif
@@ -159,11 +192,16 @@ static MIO_INLINE mio_t* mio_json_getmio (mio_json_t* json) { return json->mio; 
 #	define mio_json_getmio(json) (((mio_json_t*)(json))->mio)
 #endif
 
+#if defined(MIO_HAVE_INLINE)
+static MIO_INLINE void* mio_json_getxtn (mio_json_t* json) { return (void*)(json + 1); }
+#else
+#define mio_json_getxtn(json) ((void*)((mio_json_t*)(json) + 1))
+#endif
+
 MIO_EXPORT void mio_json_setinstcb (
 	mio_json_t*       json,
 	mio_json_instcb_t instcb
 );
-
 
 MIO_EXPORT mio_json_state_t mio_json_getstate (
 	mio_json_t*   json
@@ -195,12 +233,50 @@ MIO_EXPORT int mio_json_feed (
 	int stop_if_ever_completed
 );
 
+/* ========================================================================= */
+
+MIO_EXPORT mio_jsonwr_t* mio_jsonwr_open (
+	mio_t*             mio,
+	mio_oow_t          xtnsize
+);
+
+MIO_EXPORT void mio_jsonwr_close (
+	mio_jsonwr_t* jsonwr
+);
+
+MIO_EXPORT int mio_jsonwr_init (
+	mio_jsonwr_t* jsonwr,
+	mio_t*        mio
+);
+
+MIO_EXPORT void mio_jsonwr_fini (
+	mio_jsonwr_t* jsonwr
+);
 
 #if defined(MIO_HAVE_INLINE)
-static MIO_INLINE void* mio_json_getxtn (mio_json_t* json) { return (void*)(json + 1); }
+static MIO_INLINE mio_t* mio_jsonwr_getmio (mio_jsonwr_t* jsonwr) { return jsonwr->mio; }
 #else
-#define mio_json_getxtn(json) ((void*)((mio_json_t*)(json) + 1))
+#	define mio_jsonwr_getmio(jsonwr) (((mio_jsonwr_t*)(jsonwr))->mio)
 #endif
+
+#if defined(MIO_HAVE_INLINE)
+static MIO_INLINE void* mio_jsonwr_getxtn (mio_jsonwr_t* jsonwr) { return (void*)(jsonwr + 1); }
+#else
+#define mio_jsonwr_getxtn(jsonwr) ((void*)((mio_jsonwr_t*)(jsonwr) + 1))
+#endif
+
+MIO_EXPORT void mio_jsonwr_setwritecb (
+	mio_jsonwr_t*        jsonwr,
+	mio_jsonwr_writecb_t writecb
+);
+
+MIO_EXPORT int mio_jsonwr_write (
+	mio_jsonwr_t*   jsonwr,
+	mio_json_inst_t inst,
+	int             is_uchars,
+	const void*     dptr,
+	mio_oow_t       dlen
+);
 
 #if defined(__cplusplus)
 }
