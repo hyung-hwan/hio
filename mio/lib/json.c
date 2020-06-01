@@ -1147,3 +1147,9 @@ jsonwr->pretty = 1;
 
 	return 0;
 }
+
+int mio_jsonwr_writerawbytes (mio_jsonwr_t* jsonwr, const mio_uint8_t* dptr, mio_oow_t dlen)
+{
+	WRITE_BYTES_NOESC (jsonwr, dptr, dlen);
+	return 0;
+}
