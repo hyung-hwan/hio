@@ -309,6 +309,13 @@ MIO_EXPORT int mio_jsonwr_write (
 #define mio_jsonwr_writestringwithbcstr(jsonwr,dptr) mio_jsonwr_write(jsonwr, MIO_JSON_INST_STRING, 0, dptr, mio_count_bcstr(dptr))
 
 
+
+MIO_EXPORT int mio_jsonwr_writerawbytes (
+	mio_jsonwr_t*      jsonwr,
+	const mio_uint8_t* dptr,
+	mio_oow_t          dlen
+);
+
 #if defined(__cplusplus)
 }
 #endif
