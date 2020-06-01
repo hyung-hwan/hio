@@ -293,11 +293,20 @@ MIO_EXPORT int mio_jsonwr_write (
 #define mio_jsonwr_writekeywithuchars(jsonwr,dptr,dlen) mio_jsonwr_write(jsonwr, MIO_JSON_INST_KEY, 1, dptr, dlen)
 #define mio_jsonwr_writekeywithbchars(jsonwr,dptr,dlen) mio_jsonwr_write(jsonwr, MIO_JSON_INST_KEY, 0, dptr, dlen)
 
+#define mio_jsonwr_writekeywithucstr(jsonwr,dptr) mio_jsonwr_write(jsonwr, MIO_JSON_INST_KEY, 1, dptr, mio_count_ucstr(dptr))
+#define mio_jsonwr_writekeywithbcstr(jsonwr,dptr) mio_jsonwr_write(jsonwr, MIO_JSON_INST_KEY, 0, dptr, mio_count_bcstr(dptr))
+
 #define mio_jsonwr_writenumberwithuchars(jsonwr,dptr,dlen) mio_jsonwr_write(jsonwr, MIO_JSON_INST_NUMBER, 1, dptr, dlen)
 #define mio_jsonwr_writenumberwithbchars(jsonwr,dptr,dlen) mio_jsonwr_write(jsonwr, MIO_JSON_INST_NUMBER, 0, dptr, dlen)
 
+#define mio_jsonwr_writenumberwithucstr(jsonwr,dptr) mio_jsonwr_write(jsonwr, MIO_JSON_INST_NUMBER, 1, dptr, mio_count_ucstr(dptr))
+#define mio_jsonwr_writenumberwithbcstr(jsonwr,dptr) mio_jsonwr_write(jsonwr, MIO_JSON_INST_NUMBER, 0, dptr, mio_count_bcstr(dptr))
+
 #define mio_jsonwr_writestringwithuchars(jsonwr,dptr,dlen) mio_jsonwr_write(jsonwr, MIO_JSON_INST_STRING, 1, dptr, dlen)
 #define mio_jsonwr_writestringwithbchars(jsonwr,dptr,dlen) mio_jsonwr_write(jsonwr, MIO_JSON_INST_STRING, 0, dptr, dlen)
+
+#define mio_jsonwr_writestringwithucstr(jsonwr,dptr) mio_jsonwr_write(jsonwr, MIO_JSON_INST_STRING, 1, dptr, mio_count_ucstr(dptr))
+#define mio_jsonwr_writestringwithbcstr(jsonwr,dptr) mio_jsonwr_write(jsonwr, MIO_JSON_INST_STRING, 0, dptr, mio_count_bcstr(dptr))
 
 
 #if defined(__cplusplus)
