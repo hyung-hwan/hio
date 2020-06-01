@@ -133,9 +133,9 @@ typedef struct mio_jsonwr_t mio_jsonwr_t;
 
 typedef int (*mio_jsonwr_writecb_t) (
 	mio_jsonwr_t*         jsonwr,
-	/*mio_oow_t           level,*/
 	const mio_bch_t*      dptr,
-	mio_oow_t             dlen
+	mio_oow_t             dlen,
+	void*                 ctx
 );
 
 typedef struct mio_jsonwr_state_node_t mio_jsonwr_state_node_t;
@@ -156,6 +156,7 @@ struct mio_jsonwr_t
 	mio_jsonwr_state_node_t* state_stack;
 	int pretty;
 
+	void* wctx;	
 	mio_bch_t wbuf[8192];
 	mio_oow_t wbuf_len;
 };
@@ -265,7 +266,8 @@ static MIO_INLINE void* mio_jsonwr_getxtn (mio_jsonwr_t* jsonwr) { return (void*
 
 MIO_EXPORT void mio_jsonwr_setwritecb (
 	mio_jsonwr_t*        jsonwr,
-	mio_jsonwr_writecb_t writecb
+	mio_jsonwr_writecb_t writecb,
+	void*                ctx
 );
 
 MIO_EXPORT int mio_jsonwr_write (
