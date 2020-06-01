@@ -309,11 +309,26 @@ MIO_EXPORT int mio_jsonwr_write (
 #define mio_jsonwr_writestringwithbcstr(jsonwr,dptr) mio_jsonwr_write(jsonwr, MIO_JSON_INST_STRING, 0, dptr, mio_count_bcstr(dptr))
 
 
+MIO_EXPORT int mio_jsonwr_writerawuchars (
+	mio_jsonwr_t*     jsonwr,
+	const mio_uch_t*  dptr,
+	mio_oow_t         dlen
+);
 
-MIO_EXPORT int mio_jsonwr_writerawbytes (
-	mio_jsonwr_t*      jsonwr,
-	const mio_uint8_t* dptr,
-	mio_oow_t          dlen
+MIO_EXPORT int mio_jsonwr_writerawucstr (
+	mio_jsonwr_t*     jsonwr,
+	const mio_uch_t*  dptr
+);
+
+MIO_EXPORT int mio_jsonwr_writerawbchars (
+	mio_jsonwr_t*     jsonwr,
+	const mio_bch_t*  dptr,
+	mio_oow_t         dlen
+);
+
+MIO_EXPORT int mio_jsonwr_writerawbcstr (
+	mio_jsonwr_t*     jsonwr,
+	const mio_bch_t*  dptr
 );
 
 #if defined(__cplusplus)
