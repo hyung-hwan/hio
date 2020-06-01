@@ -75,7 +75,6 @@ static int on_json_inst (mio_json_t* json, mio_json_inst_t inst,	mio_oow_t level
 			break;
 
 		case MIO_JSON_INST_NUMBER:
-		case MIO_JSON_INST_CHARACTER:
 			mio_logbfmt (mio, MIO_LOG_STDOUT, "%.*js\n", str->len, str->ptr); 
 			break;
 
@@ -149,28 +148,29 @@ int main (int argc, char* argv[])
 
 		mio_jsonwr_setwritecb (jsonwr, write_json_element);
 
-		mio_jsonwr_write (jsonwr, MIO_JSON_INST_START_ARRAY, 0, MIO_NULL, 0);
-		mio_jsonwr_write (jsonwr, MIO_JSON_INST_STRING, 0, "hello", 5);
-		mio_jsonwr_write (jsonwr, MIO_JSON_INST_STRING, 0, "world", 5);
+		mio_jsonwr_startarray (jsonwr);
+		
+			mio_jsonwr_writestringwithbchars (jsonwr, "hello", 5);
+			mio_jsonwr_writestringwithbchars (jsonwr, "world", 5);
 
-		mio_jsonwr_write (jsonwr, MIO_JSON_INST_START_DIC, 0, MIO_NULL, 0);
-		mio_jsonwr_write (jsonwr, MIO_JSON_INST_KEY, 0, "abc", 3);
-		mio_jsonwr_write (jsonwr, MIO_JSON_INST_STRING, 0, "computer", 8);
-		mio_jsonwr_write (jsonwr, MIO_JSON_INST_KEY, 0, "k", 1);
-		mio_jsonwr_write (jsonwr, MIO_JSON_INST_STRING, 0, "play nice", 9);
-		mio_jsonwr_write (jsonwr, MIO_JSON_INST_KEY, 1, ddd, 4);
-		mio_jsonwr_write (jsonwr, MIO_JSON_INST_STRING, 1, ddv, 5);
-		mio_jsonwr_write (jsonwr, MIO_JSON_INST_END_DIC, 0, MIO_NULL, 0);
+			mio_jsonwr_startdic (jsonwr);
+				mio_jsonwr_writekeywithbchars (jsonwr, "abc", 3);
+				mio_jsonwr_writestringwithbchars (jsonwr, "computer", 8);
+				mio_jsonwr_writekeywithbchars (jsonwr, "k", 1);
+				mio_jsonwr_writestringwithbchars (jsonwr, "play nice", 9);
+				mio_jsonwr_writekeywithuchars (jsonwr, ddd, 4);
+				mio_jsonwr_writestringwithuchars (jsonwr, ddv, 5);
+			mio_jsonwr_enddic (jsonwr);
 
-		mio_jsonwr_write (jsonwr, MIO_JSON_INST_STRING, 0, "tyler", 5);
+			mio_jsonwr_writestringwithbchars (jsonwr, "tyler", 5);
 
-		mio_jsonwr_write (jsonwr, MIO_JSON_INST_START_ARRAY, 0, MIO_NULL, 0);
-		mio_jsonwr_write (jsonwr, MIO_JSON_INST_STRING, 0, "airplain", 8);
-		mio_jsonwr_write (jsonwr, MIO_JSON_INST_STRING, 0, "gro\0wn\nup", 9);
-		mio_jsonwr_write (jsonwr, MIO_JSON_INST_TRUE, 0, MIO_NULL, 0);
-		mio_jsonwr_write (jsonwr, MIO_JSON_INST_END_ARRAY, 0, MIO_NULL, 0);
+			mio_jsonwr_startarray (jsonwr);
+				mio_jsonwr_writestringwithbchars (jsonwr, "airplain", 8);
+				mio_jsonwr_writestringwithbchars (jsonwr, "gro\0wn\nup", 9);
+				mio_jsonwr_writetrue (jsonwr);
+			mio_jsonwr_endarray (jsonwr);
 
-		mio_jsonwr_write (jsonwr, MIO_JSON_INST_END_ARRAY, 0, MIO_NULL, 0);
+		mio_jsonwr_endarray (jsonwr);
 
 		mio_jsonwr_close (jsonwr);
 	}

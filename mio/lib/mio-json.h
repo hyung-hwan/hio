@@ -44,8 +44,7 @@ enum mio_json_state_t
 
 	MIO_JSON_STATE_IN_WORD_VALUE,
 	MIO_JSON_STATE_IN_NUMERIC_VALUE,
-	MIO_JSON_STATE_IN_STRING_VALUE,
-	MIO_JSON_STATE_IN_CHARACTER_VALUE
+	MIO_JSON_STATE_IN_STRING_VALUE
 };
 typedef enum mio_json_state_t mio_json_state_t;
 
@@ -59,7 +58,6 @@ enum mio_json_inst_t
 
 	MIO_JSON_INST_KEY,
 
-	MIO_JSON_INST_CHARACTER, /* there is no such element as character in real JSON */
 	MIO_JSON_INST_STRING,
 	MIO_JSON_INST_NUMBER,
 	MIO_JSON_INST_NIL,
@@ -158,7 +156,7 @@ struct mio_jsonwr_t
 	mio_jsonwr_state_node_t* state_stack;
 	int pretty;
 
-	mio_bch_t wbuf[4096];
+	mio_bch_t wbuf[8192];
 	mio_oow_t wbuf_len;
 };
 
@@ -277,6 +275,28 @@ MIO_EXPORT int mio_jsonwr_write (
 	const void*     dptr,
 	mio_oow_t       dlen
 );
+
+
+
+#define mio_jsonwr_startarray(jsonwr) mio_jsonwr_write(jsonwr, MIO_JSON_INST_START_ARRAY, 0, MIO_NULL, 0)
+#define mio_jsonwr_endarray(jsonwr) mio_jsonwr_write(jsonwr, MIO_JSON_INST_END_ARRAY, 0, MIO_NULL, 0)
+
+#define mio_jsonwr_startdic(jsonwr) mio_jsonwr_write(jsonwr, MIO_JSON_INST_START_DIC, 0, MIO_NULL, 0)
+#define mio_jsonwr_enddic(jsonwr) mio_jsonwr_write(jsonwr, MIO_JSON_INST_END_DIC, 0, MIO_NULL, 0)
+
+#define mio_jsonwr_writenil(jsonwr) mio_jsonwr_write(jsonwr, MIO_JSON_INST_NIL, 0, MIO_NULL, 0)
+#define mio_jsonwr_writetrue(jsonwr) mio_jsonwr_write(jsonwr, MIO_JSON_INST_TRUE, 0, MIO_NULL, 0)
+#define mio_jsonwr_writefalse(jsonwr) mio_jsonwr_write(jsonwr, MIO_JSON_INST_FALSE, 0, MIO_NULL, 0)
+
+#define mio_jsonwr_writekeywithuchars(jsonwr,dptr,dlen) mio_jsonwr_write(jsonwr, MIO_JSON_INST_KEY, 1, dptr, dlen)
+#define mio_jsonwr_writekeywithbchars(jsonwr,dptr,dlen) mio_jsonwr_write(jsonwr, MIO_JSON_INST_KEY, 0, dptr, dlen)
+
+#define mio_jsonwr_writenumberwithuchars(jsonwr,dptr,dlen) mio_jsonwr_write(jsonwr, MIO_JSON_INST_NUMBER, 1, dptr, dlen)
+#define mio_jsonwr_writenumberwithbchars(jsonwr,dptr,dlen) mio_jsonwr_write(jsonwr, MIO_JSON_INST_NUMBER, 0, dptr, dlen)
+
+#define mio_jsonwr_writestringwithuchars(jsonwr,dptr,dlen) mio_jsonwr_write(jsonwr, MIO_JSON_INST_STRING, 1, dptr, dlen)
+#define mio_jsonwr_writestringwithbchars(jsonwr,dptr,dlen) mio_jsonwr_write(jsonwr, MIO_JSON_INST_STRING, 0, dptr, dlen)
+
 
 #if defined(__cplusplus)
 }
