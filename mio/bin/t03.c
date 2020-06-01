@@ -90,7 +90,7 @@ static int on_json_inst (mio_json_t* json, mio_json_inst_t inst,	mio_oow_t level
 	return 0;
 }
 
-static int write_json_element (mio_jsonwr_t* jsonwr, const mio_bch_t* dptr, mio_oow_t dlen)
+static int write_json_element (mio_jsonwr_t* jsonwr, const mio_bch_t* dptr, mio_oow_t dlen, void* ctx)
 {
 	write (1, dptr, dlen);
 	return 0;
@@ -146,7 +146,7 @@ int main (int argc, char* argv[])
 	
 		jsonwr = mio_jsonwr_open (mio, 0);
 
-		mio_jsonwr_setwritecb (jsonwr, write_json_element);
+		mio_jsonwr_setwritecb (jsonwr, write_json_element, MIO_NULL);
 
 		mio_jsonwr_startarray (jsonwr);
 		

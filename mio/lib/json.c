@@ -815,7 +815,7 @@ void mio_jsonwr_close (mio_jsonwr_t* jsonwr)
 	mio_freemem (jsonwr->mio, jsonwr);
 }
 
-static int write_nothing (mio_jsonwr_t* jsonwr, const mio_bch_t* dptr, mio_oow_t dlen)
+static int write_nothing (mio_jsonwr_t* jsonwr, const mio_bch_t* dptr, mio_oow_t dlen, void* ctx)
 {
 	return 0;
 }
@@ -837,7 +837,7 @@ static int flush_wbuf (mio_jsonwr_t* jsonwr)
 {
 	int ret = 0;
 
-	if (jsonwr->writecb(jsonwr, jsonwr->wbuf, jsonwr->wbuf_len) <= -1) ret = -1;
+	if (jsonwr->writecb(jsonwr, jsonwr->wbuf, jsonwr->wbuf_len, jsonwr->wctx) <= -1) ret = -1;
 	jsonwr->wbuf_len = 0; /* reset the buffer length regardless of writing result */
 
 	return ret;
@@ -851,9 +851,10 @@ void mio_jsonwr_fini (mio_jsonwr_t* jsonwr)
 
 /* ========================================================================= */
 
-void mio_jsonwr_setwritecb (mio_jsonwr_t* jsonwr, mio_jsonwr_writecb_t writecb)
+void mio_jsonwr_setwritecb (mio_jsonwr_t* jsonwr, mio_jsonwr_writecb_t writecb, void* ctx)
 {
 	jsonwr->writecb = writecb;
+	jsonwr->wctx = ctx;
 }
 
 static int escape_char (mio_uch_t uch, mio_uch_t* xch)
