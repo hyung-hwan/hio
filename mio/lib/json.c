@@ -272,114 +272,6 @@ static int handle_string_value_char (mio_json_t* json, mio_ooci_t c)
 	return ret;
 }
 
-static int handle_character_value_char (mio_json_t* json, mio_ooci_t c)
-{
-	/* The real JSON dones't support character literal. this is MIO's own extension. */
-	int ret = 1;
-
-	if (json->state_stack->u.cv.escaped == 3)
-	{
-		if (c >= '0' && c <= '7')
-		{
-			json->state_stack->u.cv.acc = json->state_stack->u.cv.acc * 8 + c - '0';
-			json->state_stack->u.cv.digit_count++;
-			if (json->state_stack->u.cv.digit_count >= json->state_stack->u.cv.escaped) goto add_cv_acc;
-		}
-		else
-		{
-			ret = 0;
-			goto add_cv_acc;
-		}
-	}
-	if (json->state_stack->u.cv.escaped >= 2)
-	{
-		if (c >= '0' && c <= '9')
-		{
-			json->state_stack->u.cv.acc = json->state_stack->u.cv.acc * 16 + c - '0';
-			json->state_stack->u.cv.digit_count++;
-			if (json->state_stack->u.cv.digit_count >= json->state_stack->u.cv.escaped) goto add_cv_acc;
-		}
-		else if (c >= 'a' && c <= 'f')
-		{
-			json->state_stack->u.cv.acc = json->state_stack->u.cv.acc * 16 + c - 'a' + 10;
-			json->state_stack->u.cv.digit_count++;
-			if (json->state_stack->u.cv.digit_count >= json->state_stack->u.cv.escaped) goto add_cv_acc;
-		}
-		else if (c >= 'A' && c <= 'F')
-		{
-			json->state_stack->u.cv.acc = json->state_stack->u.cv.acc * 16 + c - 'A' + 10;
-			json->state_stack->u.cv.digit_count++;
-			if (json->state_stack->u.cv.digit_count >= json->state_stack->u.cv.escaped) goto add_cv_acc;
-		}
-		else
-		{
-			ret = 0;
-		add_cv_acc:
-			if (add_char_to_token(json, json->state_stack->u.cv.acc) <= -1) return -1;
-			json->state_stack->u.cv.escaped = 0;
-		}
-	}
-	else if (json->state_stack->u.cv.escaped == 1)
-	{
-		if (c >= '0' && c <= '8') 
-		{
-			json->state_stack->u.cv.escaped = 3;
-			json->state_stack->u.cv.digit_count = 0;
-			json->state_stack->u.cv.acc = c - '0';
-		}
-		else if (c == 'x')
-		{
-			json->state_stack->u.cv.escaped = 2;
-			json->state_stack->u.cv.digit_count = 0;
-			json->state_stack->u.cv.acc = 0;
-		}
-		else if (c == 'u')
-		{
-			json->state_stack->u.cv.escaped = 4;
-			json->state_stack->u.cv.digit_count = 0;
-			json->state_stack->u.cv.acc = 0;
-		}
-		else if (c == 'U')
-		{
-			json->state_stack->u.cv.escaped = 8;
-			json->state_stack->u.cv.digit_count = 0;
-			json->state_stack->u.cv.acc = 0;
-		}
-		else
-		{
-			json->state_stack->u.cv.escaped = 0;
-			if (add_char_to_token(json, unescape(c)) <= -1) return -1;
-		}
-	}
-	else if (c == '\\')
-	{
-		json->state_stack->u.cv.escaped = 1;
-	}
-	else if (c == '\'')
-	{
-		pop_read_state (json);
-		
-		if (json->tok.len < 1)
-		{
-			mio_seterrbfmt (json->mio, MIO_EINVAL, "no character in a character literal");
-			return -1;
-		}
-		if (invoke_data_inst(json, MIO_JSON_INST_CHARACTER) <= -1) return -1;
-	}
-	else
-	{
-		if (add_char_to_token(json, c) <= -1) return -1;
-	}
-
-	if (json->tok.len > 1) 
-	{
-		mio_seterrbfmt (json->mio, MIO_EINVAL, "too many characters in a character literal - %.*js", json->tok.len, json->tok.ptr);
-		return -1;
-	}
-
-	return ret;
-}
-
 static int handle_numeric_value_char (mio_json_t* json, mio_ooci_t c)
 {
 	if (mio_is_ooch_digit(c) || (json->tok.len == 0 && (c == '+' || c == '-')))
@@ -505,12 +397,6 @@ static int handle_char_in_array (mio_json_t* json, mio_ooci_t c)
 			clear_token (json);
 			return 1;
 		}
-		else if (c == '\'')
-		{
-			if (push_read_state(json, MIO_JSON_STATE_IN_CHARACTER_VALUE) <= -1) return -1;
-			clear_token (json);
-			return 1;
-		}
 		/* TOOD: else if (c == '#') MIO radixed number
 		 */
 		else if (mio_is_ooch_digit(c) || c == '+' || c == '-')
@@ -602,12 +488,6 @@ static int handle_char_in_dic (mio_json_t* json, mio_ooci_t c)
 			clear_token (json);
 			return 1;
 		}
-		else if (c == '\'')
-		{
-			if (push_read_state(json, MIO_JSON_STATE_IN_CHARACTER_VALUE) <= -1) return -1;
-			clear_token (json);
-			return 1;
-		}
 		/* TOOD: else if (c == '#') MIO radixed number
 		 */
 		else if (mio_is_ooch_digit(c) || c == '+' || c == '-')
@@ -688,10 +568,6 @@ start_over:
 
 		case MIO_JSON_STATE_IN_STRING_VALUE:
 			x = handle_string_value_char(json, c);
-			break;
-			
-		case MIO_JSON_STATE_IN_CHARACTER_VALUE:
-			x = handle_character_value_char(json, c);
 			break;
 
 		case MIO_JSON_STATE_IN_NUMERIC_VALUE:
@@ -1036,6 +912,7 @@ static int write_bytes_noesc (mio_jsonwr_t* jsonwr, const mio_bch_t* dptr, mio_o
 
 		MIO_MEMCPY (&jsonwr->wbuf[jsonwr->wbuf_len], dptr, rem);
 		jsonwr->wbuf_len += rem;
+		dptr += rem;
 		dlen -= rem;
 		if (flush_wbuf(jsonwr) <= -1) return -1;
 	}
@@ -1152,7 +1029,10 @@ int mio_jsonwr_write (mio_jsonwr_t* jsonwr, mio_json_inst_t inst, int is_uchars,
 {
 	mio_jsonwr_state_node_t* sn = jsonwr->state_stack;
 
+/* ============================= */
 jsonwr->pretty = 1;
+/* ============================= */
+
 	switch (inst)
 	{
 		case MIO_JSON_INST_START_ARRAY:
@@ -1242,7 +1122,6 @@ jsonwr->pretty = 1;
 			break;
 
 		case MIO_JSON_INST_NUMBER:
-		case MIO_JSON_INST_CHARACTER:
 			PREACTION_FOR_VLAUE (jsonwr, sn);
 			if (is_uchars)
 				WRITE_UCHARS (jsonwr, 0, dptr, dlen);
