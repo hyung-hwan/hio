@@ -1148,8 +1148,27 @@ jsonwr->pretty = 1;
 	return 0;
 }
 
-int mio_jsonwr_writerawbytes (mio_jsonwr_t* jsonwr, const mio_uint8_t* dptr, mio_oow_t dlen)
+int mio_jsonwr_writerawuchars (mio_jsonwr_t* jsonwr, const mio_uch_t* dptr, mio_oow_t dlen)
+{
+	WRITE_UCHARS (jsonwr, 0, dptr, dlen);
+	return 0;
+}
+
+int mio_jsonwr_writerawucstr (mio_jsonwr_t* jsonwr, const mio_uch_t* dptr)
+{
+	WRITE_UCHARS (jsonwr, 0, dptr, mio_count_ucstr(dptr));
+	return 0;
+}
+
+int mio_jsonwr_writerawbchars (mio_jsonwr_t* jsonwr, const mio_bch_t* dptr, mio_oow_t dlen)
 {
 	WRITE_BYTES_NOESC (jsonwr, dptr, dlen);
 	return 0;
 }
+
+int mio_jsonwr_writerawbcstr (mio_jsonwr_t* jsonwr, const mio_bch_t* dptr)
+{
+	WRITE_BYTES_NOESC (jsonwr, dptr, mio_count_bcstr(dptr));
+	return 0;
+}
+
