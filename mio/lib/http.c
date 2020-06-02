@@ -114,6 +114,7 @@ const mio_bch_t* mio_http_method_to_bcstr (mio_http_method_t type)
 		"POST",
 		"PUT",
 		"DELETE",
+		"PATCH",
 		"OPTIONS",
 		"TRACE",
 		"CONNECT"
