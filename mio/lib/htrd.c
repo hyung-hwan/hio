@@ -292,125 +292,66 @@ static mio_bch_t* parse_initial_line (mio_htrd_t* htrd, mio_bch_t* line)
 	}
 	else
 	{
-#if 0
-		mio_bch_t* out;
-#endif
 		mio_bcs_t param;
+		mio_bcs_t anchor;
 
 		/* skip spaces */
 		do p++; while (is_space_octet(*p));
 
 		/* process the url part */
-		tmp.ptr = p; /* remember the beginning of path*/
-		param.ptr = MIO_NULL;
-#if 0
-		out = p;
-		while (*p != '\0' && !is_space_octet(*p)) 
+		tmp.ptr = p; tmp.len = 0;
+		param.ptr = MIO_NULL; param.len = 0;
+		anchor.ptr = MIO_NULL; anchor.len = 0;
+
+		while (1)
 		{
-			if (*p == '%' && param.ptr == MIO_NULL)
+			if (MIO_UNLIKELY(*p == '\0')) goto badre;
+			else if (is_space_octet(*p) || *p == '?' || *p == '#')
 			{
-				/* decode percent-encoded charaters in the 
-				 * path part. if we're in the parameter string
-				 * part, we don't decode them. */
-
-				int q = xdigit_to_num(*(p+1));
-				int w = xdigit_to_num(*(p+2));
-
-				if (q >= 0 && w >= 0)
-				{
-					int t = (q << 4) + w;
-					if (t == 0)
-					{
-						/* percent enconding contains a null character */
-						goto badre;
-					}
-
-					*out++ = t;
-					p += 3;
-
-					htrd->re.flags |= MIO_HTRE_QPATH_PERDEC;
-				}
-				else *out++ = *p++;
-			}
-			else if (*p == '?')
-			{
-				if (param.ptr == MIO_NULL)
-				{
-					/* ? must be explicit to be an argument instroducer. 
-					 * %3f is just a literal. */
-					tmp.len = out - tmp.ptr;
-					*out++ = '\0'; /* null-terminate the path part */
-					param.ptr = out;
-					p++;
-				}
-				else *out++ = *p++;
-			}
-			else *out++ = *p++;
-		}
-
-		/* the url must be followed by a space */
-		if (!is_space_octet(*p)) goto badre;
-	
-		/* null-terminate the url part though we know the length */
-		*out = '\0'; 
-
-		if (htrd->re.flags & MIO_HTRE_QPATH_PERDEC)
-		{
-			/* TODO: build the original qpath */
-			htrd->re.orgpqath.ptr = XXX;
-			htrd->re.orgpath.len = XXXX;
-		}
-
-		if (param.ptr)
-		{
-			param.len = out - param.ptr;
-			htrd->re.u.q.path = tmp;
-			htrd->re.u.q.param = param;
-		}
-		else 
-		{
-			tmp.len = out - tmp.ptr;
-			htrd->re.u.q.path = tmp;
-			htrd->re.u.q.param.ptr = MIO_NULL;
-			htrd->re.u.q.param.len = 0;
-		}
-#else
-		while (*p != '\0' && !is_space_octet(*p)) 
-		{
-			if (*p == '?' && !param.ptr)
-			{
-				tmp.len = p - tmp.ptr; /* length of the path part */
-				*p++ = '\0'; /* null-terminate the path part */
-				param.ptr = p;
+				tmp.len = p - tmp.ptr; 
+				if (tmp.len <= 0) goto badre;
+				break;
 			}
 			else p++;
 		}
 
-		/* the url must be followed by a space */
-		if (!is_space_octet(*p)) goto badre;
-		if (param.ptr) 
+		if (*p == '?')
 		{
-			param.len = p - param.ptr; /* length of the param part */
+			param.ptr = ++p;
+			while (1)
+			{
+				if (MIO_UNLIKELY(*p == '\0')) goto badre;
+				else if (is_space_octet(*p) || *p == '#')
+				{
+					param.len = p - param.ptr;
+					break;
+				}
+				else p++;
+			}
 		}
-		else 
-		{
-			tmp.len = p - tmp.ptr;
-			param.len = 0;
-		}
-		*p = '\0';  /* null-terminate the path or param part */
 
-		if (param.ptr)
+		if (*p == '#')
 		{
-			htrd->re.u.q.path = tmp;
-			htrd->re.u.q.param = param;
+			anchor.ptr = ++p;
+			while (1)
+			{
+				if (MIO_UNLIKELY(*p == '\0')) goto badre;
+				else if (is_space_octet(*p))
+				{
+					anchor.len = p - anchor.ptr;
+					break;
+				}
+				else p++;
+			}
 		}
-		else
-		{
-			htrd->re.u.q.path = tmp;
-			htrd->re.u.q.param.ptr = MIO_NULL;
-			htrd->re.u.q.param.len = 0;
-		}
-#endif
+
+		tmp.ptr[tmp.len] = '\0';
+		if (param.ptr) param.ptr[param.len] = '\0';
+		if (anchor.ptr) anchor.ptr[anchor.len] = '\0';
+
+		htrd->re.u.q.path = tmp;
+		htrd->re.u.q.param = param;
+		htrd->re.u.q.anchor = anchor;
 
 		if (htrd->option & MIO_HTRD_CANONQPATH)
 		{
