@@ -152,6 +152,7 @@ struct mio_htre_t
 			} method;
 			mio_bcs_t path;
 			mio_bcs_t param;
+			mio_bcs_t anchor;
 		} q;
 		struct
 		{
@@ -216,6 +217,7 @@ struct mio_htre_t
 
 #define mio_htre_getqpath(re) ((re)->u.q.path.ptr)
 #define mio_htre_getqparam(re) ((re)->u.q.param.ptr)
+#define mio_htre_getqanchor(re) ((re)->u.q.anchor.ptr)
 #define mio_htre_getorgqpath(re) ((re)->orgqpath.ptr)
 
 #define mio_htre_getscodeval(re) ((re)->u.s.code.val)
