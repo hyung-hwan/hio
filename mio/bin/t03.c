@@ -30,7 +30,7 @@
 #include <stdio.h>
 #include <string.h>
 
-static int on_json_inst (mio_json_t* json, mio_json_inst_t inst,	mio_oow_t level, const mio_oocs_t* str)
+static int on_json_inst (mio_json_t* json, mio_json_inst_t inst, mio_oow_t level, const mio_oocs_t* str, void* ctx)
 {
 	mio_t* mio = mio_json_getmio(json);
 	mio_oow_t i;
@@ -114,7 +114,7 @@ int main (int argc, char* argv[])
 
 		json = mio_json_open(mio, 0);
 
-		mio_json_setinstcb (json, on_json_inst);
+		mio_json_setinstcb (json, on_json_inst, MIO_NULL);
 
 
 		rem = 0;

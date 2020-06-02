@@ -70,7 +70,8 @@ typedef int (*mio_json_instcb_t) (
 	mio_json_t*           json,
 	mio_json_inst_t       inst,
 	mio_oow_t             level,
-	const mio_oocs_t*     str
+	const mio_oocs_t*     str,
+	void*                 ctx
 );
 
 
@@ -120,6 +121,7 @@ struct mio_json_t
 {
 	mio_t* mio;
 	mio_json_instcb_t instcb;
+	void* rctx;
 
 	mio_json_state_node_t state_top;
 	mio_json_state_node_t* state_stack;
@@ -199,7 +201,8 @@ static MIO_INLINE void* mio_json_getxtn (mio_json_t* json) { return (void*)(json
 
 MIO_EXPORT void mio_json_setinstcb (
 	mio_json_t*       json,
-	mio_json_instcb_t instcb
+	mio_json_instcb_t instcb,
+	void*             ctx
 );
 
 MIO_EXPORT mio_json_state_t mio_json_getstate (
