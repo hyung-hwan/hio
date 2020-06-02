@@ -155,7 +155,7 @@ static int invoke_data_inst (mio_json_t* json, mio_json_inst_t inst)
 		inst = MIO_JSON_INST_KEY;
 	}
 
-	return json->instcb(json, inst, json->state_stack->level, &json->tok);
+	return json->instcb(json, inst, json->state_stack->level, &json->tok, json->rctx);
 }
 
 static int handle_string_value_char (mio_json_t* json, mio_ooci_t c)
@@ -333,7 +333,7 @@ printf ("HANDLE START CHAR [%c]\n", c);
 	{
 		if (push_read_state(json, MIO_JSON_STATE_IN_ARRAY) <= -1) return -1;
 		json->state_stack->u.ia.got_value = 0;
-		if (json->instcb(json, MIO_JSON_INST_START_ARRAY, json->state_stack->level, MIO_NULL) <= -1) return -1;
+		if (json->instcb(json, MIO_JSON_INST_START_ARRAY, json->state_stack->level, MIO_NULL, json->rctx) <= -1) return -1;
 		json->state_stack->level++;
 		return 1;
 	}
@@ -341,7 +341,7 @@ printf ("HANDLE START CHAR [%c]\n", c);
 	{
 		if (push_read_state(json, MIO_JSON_STATE_IN_DIC) <= -1) return -1;
 		json->state_stack->u.id.state = 0;
-		if (json->instcb(json, MIO_JSON_INST_START_DIC, json->state_stack->level, MIO_NULL) <= -1) return -1;
+		if (json->instcb(json, MIO_JSON_INST_START_DIC, json->state_stack->level, MIO_NULL, json->rctx) <= -1) return -1;
 		json->state_stack->level++;
 		return 1;
 	}
@@ -364,7 +364,7 @@ static int handle_char_in_array (mio_json_t* json, mio_ooci_t c)
 {
 	if (c == ']')
 	{
-		if (json->instcb(json, MIO_JSON_INST_END_ARRAY, json->state_stack->level - 1, MIO_NULL) <= -1) return -1;
+		if (json->instcb(json, MIO_JSON_INST_END_ARRAY, json->state_stack->level - 1, MIO_NULL, json->rctx) <= -1) return -1;
 		pop_read_state (json);
 		return 1;
 	}
@@ -416,7 +416,7 @@ static int handle_char_in_array (mio_json_t* json, mio_ooci_t c)
 		{
 			if (push_read_state(json, MIO_JSON_STATE_IN_ARRAY) <= -1) return -1;
 			json->state_stack->u.ia.got_value = 0;
-			if (json->instcb(json, MIO_JSON_INST_START_ARRAY, json->state_stack->level, MIO_NULL) <= -1) return -1;
+			if (json->instcb(json, MIO_JSON_INST_START_ARRAY, json->state_stack->level, MIO_NULL, json->rctx) <= -1) return -1;
 			json->state_stack->level++;
 			return 1;
 		}
@@ -424,7 +424,7 @@ static int handle_char_in_array (mio_json_t* json, mio_ooci_t c)
 		{
 			if (push_read_state(json, MIO_JSON_STATE_IN_DIC) <= -1) return -1;
 			json->state_stack->u.id.state = 0;
-			if (json->instcb(json, MIO_JSON_INST_START_DIC, json->state_stack->level, MIO_NULL) <= -1) return -1;
+			if (json->instcb(json, MIO_JSON_INST_START_DIC, json->state_stack->level, MIO_NULL, json->rctx) <= -1) return -1;
 			json->state_stack->level++;
 			return 1;
 		}
@@ -440,7 +440,7 @@ static int handle_char_in_dic (mio_json_t* json, mio_ooci_t c)
 {
 	if (c == '}')
 	{
-		if (json->instcb(json, MIO_JSON_INST_END_DIC, json->state_stack->level - 1, MIO_NULL) <= -1) return -1;
+		if (json->instcb(json, MIO_JSON_INST_END_DIC, json->state_stack->level - 1, MIO_NULL, json->rctx) <= -1) return -1;
 		pop_read_state (json);
 		return 1;
 	}
@@ -508,7 +508,7 @@ static int handle_char_in_dic (mio_json_t* json, mio_ooci_t c)
 			if (push_read_state(json, MIO_JSON_STATE_IN_ARRAY) <= -1) return -1;
 			json->state_stack->u.ia.got_value = 0;
 			json->state_stack->level++;
-			if (json->instcb(json, MIO_JSON_INST_START_ARRAY, json->state_stack->level, MIO_NULL) <= -1) return -1;
+			if (json->instcb(json, MIO_JSON_INST_START_ARRAY, json->state_stack->level, MIO_NULL, json->rctx) <= -1) return -1;
 			return 1;
 		}
 		else if (c == '{')
@@ -516,7 +516,7 @@ static int handle_char_in_dic (mio_json_t* json, mio_ooci_t c)
 			if (push_read_state(json, MIO_JSON_STATE_IN_DIC) <= -1) return -1;
 			json->state_stack->u.id.state = 0;
 			json->state_stack->level++;
-			if (json->instcb(json, MIO_JSON_INST_START_DIC, json->state_stack->level, MIO_NULL) <= -1) return -1;
+			if (json->instcb(json, MIO_JSON_INST_START_DIC, json->state_stack->level, MIO_NULL, json->rctx) <= -1) return -1;
 			return 1;
 		}
 		else
@@ -709,9 +709,10 @@ void mio_json_fini (mio_json_t* json)
 }
 /* ========================================================================= */
 
-void mio_json_setinstcb (mio_json_t* json, mio_json_instcb_t instcb)
+void mio_json_setinstcb (mio_json_t* json, mio_json_instcb_t instcb, void* ctx)
 {
 	json->instcb = instcb;
+	json->rctx = ctx;
 }
 
 mio_json_state_t mio_json_getstate (mio_json_t* json)
