@@ -603,12 +603,6 @@ MIO_EXPORT mio_uintmax_t mio_bchars_to_uintmax (
 
 /* ------------------------------------------------------------------------- */
 
-MIO_EXPORT int mio_ucwidth (
-	mio_uch_t uc
-);
-
-/* ------------------------------------------------------------------------- */
-
 #if defined(MIO_OOCH_IS_UCH)
 #	define mio_conv_oocstr_to_bcstr_with_cmgr(oocs,oocslen,bcs,bcslen,cmgr) mio_conv_ucstr_to_bcstr_with_cmgr(oocs,oocslen,bcs,bcslen,cmgr)
 #	define mio_conv_oochars_to_bchars_with_cmgr(oocs,oocslen,bcs,bcslen,cmgr) mio_conv_uchars_to_bchars_with_cmgr(oocs,oocslen,bcs,bcslen,cmgr)

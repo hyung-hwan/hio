@@ -474,7 +474,7 @@ int mio_get_ucwidth (mio_uch_t uc)
 		    (uc >= 0xfe30 && uc <= 0xfe6f) || /* CJK Compatibility Forms */
 		    (uc >= 0xff00 && uc <= 0xff60) || /* Fullwidth Forms */
 		    (uc >= 0xffe0 && uc <= 0xffe6)
-		#if (MIO_SIZEOF_UCH_T  > 2)
+		#if (MIO_SIZEOF_UCH_T > 2)
 		    || 
 		    (uc >= 0x20000 && uc <= 0x2fffd) ||
 		    (uc >= 0x30000 && uc <= 0x3fffd)
