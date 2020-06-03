@@ -238,7 +238,10 @@ static int handle_string_value_char (mio_json_t* json, mio_ooci_t c)
 		}
 		else if (c == 'u')
 		{
+		#if (MIO_SIZEOF_UCH_T > 2)
 			/* TOOD: handle UTF-16 surrogate pair  U+1D11E ->  \uD834\uDD1E*/
+                	/*  0xD800-0xDBFF 0xDC00-0xDFFF */
+		#endif
 			json->state_stack->u.sv.escaped = 4;
 			json->state_stack->u.sv.digit_count = 0;
 			json->state_stack->u.sv.acc = 0;
