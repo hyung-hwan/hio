@@ -70,6 +70,7 @@ typedef int (*mio_json_instcb_t) (
 	mio_json_t*           json,
 	mio_json_inst_t       inst,
 	mio_oow_t             level,
+	mio_oow_t             index,
 	const mio_oocs_t*     str,
 	void*                 ctx
 );
@@ -80,6 +81,7 @@ struct mio_json_state_node_t
 {
 	mio_json_state_t state;
 	mio_oow_t level;
+	mio_oow_t index;
 	union
 	{
 		struct
