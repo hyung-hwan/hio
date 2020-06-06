@@ -30,56 +30,93 @@
 #include <stdio.h>
 #include <string.h>
 
-static int on_json_inst (mio_json_t* json, mio_json_inst_t inst, mio_oow_t level, const mio_oocs_t* str, void* ctx)
+static int on_json_inst (mio_json_t* json, mio_json_inst_t inst, mio_oow_t level, mio_oow_t index, const mio_oocs_t* str, void* ctx)
 {
 	mio_t* mio = mio_json_getmio(json);
 	mio_oow_t i;
 
+
 	switch (inst)
 	{
 		case MIO_JSON_INST_START_ARRAY:
-			/* for (i = 0; i < level; i++) mio_logbfmt (mio, MIO_LOG_STDOUT, "\t"); */
+			if (level > 0)
+			{
+				if (index > 0) mio_logbfmt (mio, MIO_LOG_STDOUT, ",\n");
+				for (i = 0; i < level; i++) mio_logbfmt (mio, MIO_LOG_STDOUT, "\t"); 
+			}
 			mio_logbfmt (mio, MIO_LOG_STDOUT, "[\n"); 
 			break;
 
 		case MIO_JSON_INST_END_ARRAY:
+			mio_logbfmt (mio, MIO_LOG_STDOUT, "\n"); 
 			for (i = 0; i < level; i++) mio_logbfmt (mio, MIO_LOG_STDOUT, "\t"); 
-			mio_logbfmt (mio, MIO_LOG_STDOUT, "]\n"); 
+			mio_logbfmt (mio, MIO_LOG_STDOUT, "]"); 
 			break;
 
 		case MIO_JSON_INST_START_DIC:
-			/*for (i = 0; i < level; i++) mio_logbfmt (mio, MIO_LOG_STDOUT, "\t"); */
+			if (level > 0)
+			{
+				if (index > 0) mio_logbfmt (mio, MIO_LOG_STDOUT, ",\n");
+				for (i = 0; i < level; i++) mio_logbfmt (mio, MIO_LOG_STDOUT, "\t"); 
+			}
 			mio_logbfmt (mio, MIO_LOG_STDOUT, "{\n"); 
 			break;
 
 		case MIO_JSON_INST_END_DIC:
+			mio_logbfmt (mio, MIO_LOG_STDOUT, "\n"); 
 			for (i = 0; i < level; i++) mio_logbfmt (mio, MIO_LOG_STDOUT, "\t");
-			mio_logbfmt (mio, MIO_LOG_STDOUT, "}\n"); 
+			mio_logbfmt (mio, MIO_LOG_STDOUT, "}"); 
 			break;
 
 		case MIO_JSON_INST_KEY:
-			for (i = 0; i < level; i++) mio_logbfmt (mio, MIO_LOG_STDOUT, "\t");
+			if (index > 0) mio_logbfmt (mio, MIO_LOG_STDOUT, ",\n");
+			for (i = 0; i < level; i++) mio_logbfmt (mio, MIO_LOG_STDOUT, "\t"); 
 			mio_logbfmt (mio, MIO_LOG_STDOUT, "%.*js: ", str->len, str->ptr);
 			break;
 
 		case MIO_JSON_INST_NIL:
-			mio_logbfmt (mio, MIO_LOG_STDOUT, "null\n");
+			if (level > 0)
+			{
+				if (index > 0) mio_logbfmt (mio, MIO_LOG_STDOUT, ",\n");
+				for (i = 0; i < level; i++) mio_logbfmt (mio, MIO_LOG_STDOUT, "\t"); 
+			}
+			mio_logbfmt (mio, MIO_LOG_STDOUT, "null");
 			break;
 
 		case MIO_JSON_INST_TRUE:
-			mio_logbfmt (mio, MIO_LOG_STDOUT, "true\n");
+			if (level > 0)
+			{
+				if (index > 0) mio_logbfmt (mio, MIO_LOG_STDOUT, ",\n");
+				for (i = 0; i < level; i++) mio_logbfmt (mio, MIO_LOG_STDOUT, "\t"); 
+			}
+			mio_logbfmt (mio, MIO_LOG_STDOUT, "true");
 			break;
 
 		case MIO_JSON_INST_FALSE:
-			mio_logbfmt (mio, MIO_LOG_STDOUT, "false\n");
+			if (level > 0)
+			{
+				if (index > 0) mio_logbfmt (mio, MIO_LOG_STDOUT, ",\n");
+				for (i = 0; i < level; i++) mio_logbfmt (mio, MIO_LOG_STDOUT, "\t"); 
+			}
+			mio_logbfmt (mio, MIO_LOG_STDOUT, "false");
 			break;
 
 		case MIO_JSON_INST_NUMBER:
-			mio_logbfmt (mio, MIO_LOG_STDOUT, "%.*js\n", str->len, str->ptr); 
+			if (level > 0)
+			{
+				if (index > 0) mio_logbfmt (mio, MIO_LOG_STDOUT, ",\n");
+				for (i = 0; i < level; i++) mio_logbfmt (mio, MIO_LOG_STDOUT, "\t"); 
+			}
+			mio_logbfmt (mio, MIO_LOG_STDOUT, "%.*js", str->len, str->ptr); 
 			break;
 
 		case MIO_JSON_INST_STRING:
-			mio_logbfmt (mio, MIO_LOG_STDOUT, "\"%.*js\"\n", str->len, str->ptr); /* TODO: escaping */
+			if (level > 0)
+			{
+				if (index > 0) mio_logbfmt (mio, MIO_LOG_STDOUT, ",\n");
+				for (i = 0; i < level; i++) mio_logbfmt (mio, MIO_LOG_STDOUT, "\t"); 
+			}
+			mio_logbfmt (mio, MIO_LOG_STDOUT, "\"%.*js\"", str->len, str->ptr); /* TODO: escaping */
 			break;
 
 		default:
@@ -135,6 +172,7 @@ int main (int argc, char* argv[])
 			if  (rem > 0) memcpy (buf, &buf[size - rem], rem);
 		}
 
+mio_logbfmt (mio, MIO_LOG_STDOUT, "\n");
 		mio_json_close (json);
 	}
 

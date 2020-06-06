@@ -108,6 +108,7 @@ static int push_read_state (mio_json_t* json, mio_json_state_t state)
 
 	ss->state = state;
 	ss->level = json->state_stack->level; /* copy from the parent */
+	ss->index  = 0;
 	ss->next = json->state_stack;
 	
 	json->state_stack = ss;
@@ -144,18 +145,53 @@ static void pop_all_read_states (mio_json_t* json)
 
 static int invoke_data_inst (mio_json_t* json, mio_json_inst_t inst)
 {
-	if (json->state_stack->state == MIO_JSON_STATE_IN_DIC && json->state_stack->u.id.state == 1) 
-	{
-		if (inst != MIO_JSON_INST_STRING)
-		{
-			mio_seterrbfmt (json->mio, MIO_EINVAL, "dictionary key not a string - %.*js", json->tok.len, json->tok.ptr);
-			return -1;
-		}
+	mio_json_state_node_t* ss;
+	int is_dic_val = 0;
 
-		inst = MIO_JSON_INST_KEY;
+	ss = json->state_stack;
+
+	if (ss->state == MIO_JSON_STATE_IN_DIC)
+	{
+		if (ss->u.id.state == 1) /* got colon */
+		{
+			/* this is called after the reader has seen a colon. 
+			 * the data item must be used as a key */
+
+			if (inst != MIO_JSON_INST_STRING)
+			{
+				mio_seterrbfmt (json->mio, MIO_EINVAL, "dictionary key not a string - %.*js", json->tok.len, json->tok.ptr);
+				return -1;
+			}
+
+			inst = MIO_JSON_INST_KEY;
+		}
+		else
+		{
+			/* if this variable is non-zero, level is set to 0 regardless of actual level */
+			is_dic_val = 1;
+		}
 	}
 
-	return json->instcb(json, inst, json->state_stack->level, &json->tok, json->rctx);
+	switch (inst)
+	{
+		case MIO_JSON_INST_START_ARRAY:
+			if (push_read_state(json, MIO_JSON_STATE_IN_ARRAY) <= -1) return -1;
+			json->state_stack->u.ia.got_value = 0;
+			json->state_stack->level++;
+			if (ss->state != MIO_JSON_STATE_IN_DIC || ss->u.id.state == 1) ss->index++;
+			return json->instcb(json, inst, (is_dic_val? 0: json->state_stack->level - 1), ss->index - 1, MIO_NULL, json->rctx);
+
+		case MIO_JSON_INST_START_DIC:
+			if (push_read_state(json, MIO_JSON_STATE_IN_DIC) <= -1) return -1;
+			json->state_stack->u.id.state = 0;
+			json->state_stack->level++;
+			if (ss->state != MIO_JSON_STATE_IN_DIC || ss->u.id.state == 1) ss->index++;
+			return json->instcb(json, inst, (is_dic_val? 0: json->state_stack->level - 1), ss->index - 1, MIO_NULL, json->rctx);
+
+		default:
+			if (ss->state != MIO_JSON_STATE_IN_DIC || ss->u.id.state == 1) ss->index++;
+			return json->instcb(json, inst, (is_dic_val? 0: json->state_stack->level), ss->index - 1, &json->tok, json->rctx);
+	}
 }
 
 static int handle_string_value_char (mio_json_t* json, mio_ooci_t c)
@@ -331,21 +367,14 @@ static int handle_word_value_char (mio_json_t* json, mio_ooci_t c)
 
 static int handle_start_char (mio_json_t* json, mio_ooci_t c)
 {
-printf ("HANDLE START CHAR [%c]\n", c);
 	if (c == '[')
 	{
-		if (push_read_state(json, MIO_JSON_STATE_IN_ARRAY) <= -1) return -1;
-		json->state_stack->u.ia.got_value = 0;
-		if (json->instcb(json, MIO_JSON_INST_START_ARRAY, json->state_stack->level, MIO_NULL, json->rctx) <= -1) return -1;
-		json->state_stack->level++;
+		if (invoke_data_inst(json, MIO_JSON_INST_START_ARRAY) <= -1) return -1;
 		return 1;
 	}
 	else if (c == '{')
 	{
-		if (push_read_state(json, MIO_JSON_STATE_IN_DIC) <= -1) return -1;
-		json->state_stack->u.id.state = 0;
-		if (json->instcb(json, MIO_JSON_INST_START_DIC, json->state_stack->level, MIO_NULL, json->rctx) <= -1) return -1;
-		json->state_stack->level++;
+		if (invoke_data_inst(json, MIO_JSON_INST_START_DIC) <= -1) return -1;
 		return 1;
 	}
 #if 0
@@ -367,7 +396,7 @@ static int handle_char_in_array (mio_json_t* json, mio_ooci_t c)
 {
 	if (c == ']')
 	{
-		if (json->instcb(json, MIO_JSON_INST_END_ARRAY, json->state_stack->level - 1, MIO_NULL, json->rctx) <= -1) return -1;
+		if (json->instcb(json, MIO_JSON_INST_END_ARRAY, json->state_stack->level - 1, json->state_stack->index, MIO_NULL, json->rctx) <= -1) return -1;
 		pop_read_state (json);
 		return 1;
 	}
@@ -417,18 +446,12 @@ static int handle_char_in_array (mio_json_t* json, mio_ooci_t c)
 		}
 		else if (c == '[')
 		{
-			if (push_read_state(json, MIO_JSON_STATE_IN_ARRAY) <= -1) return -1;
-			json->state_stack->u.ia.got_value = 0;
-			if (json->instcb(json, MIO_JSON_INST_START_ARRAY, json->state_stack->level, MIO_NULL, json->rctx) <= -1) return -1;
-			json->state_stack->level++;
+			if (invoke_data_inst(json, MIO_JSON_INST_START_ARRAY) <= -1) return -1;
 			return 1;
 		}
 		else if (c == '{')
 		{
-			if (push_read_state(json, MIO_JSON_STATE_IN_DIC) <= -1) return -1;
-			json->state_stack->u.id.state = 0;
-			if (json->instcb(json, MIO_JSON_INST_START_DIC, json->state_stack->level, MIO_NULL, json->rctx) <= -1) return -1;
-			json->state_stack->level++;
+			if (invoke_data_inst(json, MIO_JSON_INST_START_DIC) <= -1) return -1;
 			return 1;
 		}
 		else
@@ -443,7 +466,7 @@ static int handle_char_in_dic (mio_json_t* json, mio_ooci_t c)
 {
 	if (c == '}')
 	{
-		if (json->instcb(json, MIO_JSON_INST_END_DIC, json->state_stack->level - 1, MIO_NULL, json->rctx) <= -1) return -1;
+		if (json->instcb(json, MIO_JSON_INST_END_DIC, json->state_stack->level - 1, json->state_stack->index, MIO_NULL, json->rctx) <= -1) return -1;
 		pop_read_state (json);
 		return 1;
 	}
@@ -508,18 +531,12 @@ static int handle_char_in_dic (mio_json_t* json, mio_ooci_t c)
 		}
 		else if (c == '[')
 		{
-			if (push_read_state(json, MIO_JSON_STATE_IN_ARRAY) <= -1) return -1;
-			json->state_stack->u.ia.got_value = 0;
-			json->state_stack->level++;
-			if (json->instcb(json, MIO_JSON_INST_START_ARRAY, json->state_stack->level, MIO_NULL, json->rctx) <= -1) return -1;
+			if (invoke_data_inst(json, MIO_JSON_INST_START_ARRAY) <= -1) return -1;
 			return 1;
 		}
 		else if (c == '{')
 		{
-			if (push_read_state(json, MIO_JSON_STATE_IN_DIC) <= -1) return -1;
-			json->state_stack->u.id.state = 0;
-			json->state_stack->level++;
-			if (json->instcb(json, MIO_JSON_INST_START_DIC, json->state_stack->level, MIO_NULL, json->rctx) <= -1) return -1;
+			if (invoke_data_inst(json, MIO_JSON_INST_START_DIC) <= -1) return -1;
 			return 1;
 		}
 		else
