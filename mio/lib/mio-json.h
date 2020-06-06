@@ -71,6 +71,7 @@ typedef int (*mio_json_instcb_t) (
 	mio_json_inst_t       inst,
 	mio_oow_t             level,
 	mio_oow_t             index,
+	mio_json_state_t      container_state,
 	const mio_oocs_t*     str,
 	void*                 ctx
 );

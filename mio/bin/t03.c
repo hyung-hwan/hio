@@ -30,7 +30,7 @@
 #include <stdio.h>
 #include <string.h>
 
-static int on_json_inst (mio_json_t* json, mio_json_inst_t inst, mio_oow_t level, mio_oow_t index, const mio_oocs_t* str, void* ctx)
+static int on_json_inst (mio_json_t* json, mio_json_inst_t inst, mio_oow_t level, mio_oow_t index, mio_json_state_t container_state, const mio_oocs_t* str, void* ctx)
 {
 	mio_t* mio = mio_json_getmio(json);
 	mio_oow_t i;

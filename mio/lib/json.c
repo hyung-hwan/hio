@@ -179,18 +179,18 @@ static int invoke_data_inst (mio_json_t* json, mio_json_inst_t inst)
 			json->state_stack->u.ia.got_value = 0;
 			json->state_stack->level++;
 			if (ss->state != MIO_JSON_STATE_IN_DIC || ss->u.id.state == 1) ss->index++;
-			return json->instcb(json, inst, (is_dic_val? 0: json->state_stack->level - 1), ss->index - 1, MIO_NULL, json->rctx);
+			return json->instcb(json, inst, (is_dic_val? 0: json->state_stack->level - 1), ss->index - 1, ss->state, MIO_NULL, json->rctx);
 
 		case MIO_JSON_INST_START_DIC:
 			if (push_read_state(json, MIO_JSON_STATE_IN_DIC) <= -1) return -1;
 			json->state_stack->u.id.state = 0;
 			json->state_stack->level++;
 			if (ss->state != MIO_JSON_STATE_IN_DIC || ss->u.id.state == 1) ss->index++;
-			return json->instcb(json, inst, (is_dic_val? 0: json->state_stack->level - 1), ss->index - 1, MIO_NULL, json->rctx);
+			return json->instcb(json, inst, (is_dic_val? 0: json->state_stack->level - 1), ss->index - 1, ss->state, MIO_NULL, json->rctx);
 
 		default:
 			if (ss->state != MIO_JSON_STATE_IN_DIC || ss->u.id.state == 1) ss->index++;
-			return json->instcb(json, inst, (is_dic_val? 0: json->state_stack->level), ss->index - 1, &json->tok, json->rctx);
+			return json->instcb(json, inst, (is_dic_val? 0: json->state_stack->level), ss->index - 1, ss->state, &json->tok, json->rctx);
 	}
 }
 
@@ -396,7 +396,7 @@ static int handle_char_in_array (mio_json_t* json, mio_ooci_t c)
 {
 	if (c == ']')
 	{
-		if (json->instcb(json, MIO_JSON_INST_END_ARRAY, json->state_stack->level - 1, json->state_stack->index, MIO_NULL, json->rctx) <= -1) return -1;
+		if (json->instcb(json, MIO_JSON_INST_END_ARRAY, json->state_stack->level - 1, json->state_stack->index, json->state_stack->next->state, MIO_NULL, json->rctx) <= -1) return -1;
 		pop_read_state (json);
 		return 1;
 	}
@@ -466,7 +466,7 @@ static int handle_char_in_dic (mio_json_t* json, mio_ooci_t c)
 {
 	if (c == '}')
 	{
-		if (json->instcb(json, MIO_JSON_INST_END_DIC, json->state_stack->level - 1, json->state_stack->index, MIO_NULL, json->rctx) <= -1) return -1;
+		if (json->instcb(json, MIO_JSON_INST_END_DIC, json->state_stack->level - 1, json->state_stack->index, json->state_stack->next->state, MIO_NULL, json->rctx) <= -1) return -1;
 		pop_read_state (json);
 		return 1;
 	}
