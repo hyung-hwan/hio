@@ -548,26 +548,35 @@ MIO_EXPORT mio_oow_t mio_byte_to_bcstr (
 );
 
 /* ------------------------------------------------------------------------- */
+#define MIO_OOCHARS_TO_INTMAX_MAKE_OPTION(ltrim,rtrim,base) (((!!(ltrim)) << 2) | ((!!(rtrim)) << 4) | ((base) << 8))
+#define MIO_OOCHARS_TO_INTMAX_GET_OPTION_LTRIM(option) ((option) & 4)
+#define MIO_OOCHARS_TO_INTMAX_GET_OPTION_RTRIM(option) ((option) & 8)
+#define MIO_OOCHARS_TO_INTMAX_GET_OPTION_BASE(option) ((option) >> 8)
 
-#define MIO_UCHARS_TO_INTMAX_MAKE_OPTION(ltrim,rtrim,base) (((!!(ltrim)) << 2) | ((!!(rtrim)) << 4) | ((base) << 8))
-#define MIO_UCHARS_TO_INTMAX_GET_OPTION_LTRIM(option) ((option) & 4)
-#define MIO_UCHARS_TO_INTMAX_GET_OPTION_RTRIM(option) ((option) & 8)
-#define MIO_UCHARS_TO_INTMAX_GET_OPTION_BASE(option) ((option) >> 8)
+#define MIO_OOCHARS_TO_UINTMAX_MAKE_OPTION(ltrim,rtrim,base) (((!!(ltrim)) << 2) | ((!!(rtrim)) << 4) | ((base) << 8))
+#define MIO_OOCHARS_TO_UINTMAX_GET_OPTION_LTRIM(option) ((option) & 4)
+#define MIO_OOCHARS_TO_UINTMAX_GET_OPTION_RTRIM(option) ((option) & 8)
+#define MIO_OOCHARS_TO_UINTMAX_GET_OPTION_BASE(option) ((option) >> 8)
 
-#define MIO_BCHARS_TO_INTMAX_MAKE_OPTION(ltrim,rtrim,base) MIO_UCHARS_TO_INTMAX_MAKE_OPTION(ltrim,rtrim,base)
-#define MIO_BCHARS_TO_INTMAX_GET_OPTION_LTRIM(option) MIO_UCHARS_TO_INTMAX_GET_OPTION_LTRIM(option)
-#define MIO_BCHARS_TO_INTMAX_GET_OPTION_RTRIM(option) MIO_UCHARS_TO_INTMAX_GET_OPTION_RTRIM(option)
-#define MIO_BCHARS_TO_INTMAX_GET_OPTION_BASE(option) MIO_UCHARS_TO_INTMAX_GET_OPTION_BASE(option)
+#define MIO_UCHARS_TO_INTMAX_MAKE_OPTION(ltrim,rtrim,base) MIO_OOCHARS_TO_INTMAX_MAKE_OPTION(ltrim,rtrim,base)
+#define MIO_UCHARS_TO_INTMAX_GET_OPTION_LTRIM(option) MIO_OOCHARS_TO_INTMAX_GET_OPTION_LTRIM(option)
+#define MIO_UCHARS_TO_INTMAX_GET_OPTION_RTRIM(option) MIO_OOCHARS_TO_INTMAX_GET_OPTION_RTRIM(option)
+#define MIO_UCHARS_TO_INTMAX_GET_OPTION_BASE(option) MIO_OOCHARS_TO_INTMAX_GET_OPTION_BASE(option)
 
-#define MIO_UCHARS_TO_UINTMAX_MAKE_OPTION(ltrim,rtrim,base) MIO_UCHARS_TO_INTMAX_MAKE_OPTION(ltrim,rtrim,base)
-#define MIO_UCHARS_TO_UINTMAX_GET_OPTION_LTRIM(option) MIO_UCHARS_TO_INTMAX_GET_OPTION_LTRIM(option)
-#define MIO_UCHARS_TO_UINTMAX_GET_OPTION_RTRIM(option) MIO_UCHARS_TO_INTMAX_GET_OPTION_RTRIM(option)
-#define MIO_UCHARS_TO_UINTMAX_GET_OPTION_BASE(option) MIO_UCHARS_TO_INTMAX_GET_OPTION_BASE(option)
+#define MIO_BCHARS_TO_INTMAX_MAKE_OPTION(ltrim,rtrim,base) MIO_OOCHARS_TO_INTMAX_MAKE_OPTION(ltrim,rtrim,base)
+#define MIO_BCHARS_TO_INTMAX_GET_OPTION_LTRIM(option) MIO_OOCHARS_TO_INTMAX_GET_OPTION_LTRIM(option)
+#define MIO_BCHARS_TO_INTMAX_GET_OPTION_RTRIM(option) MIO_OOCHARS_TO_INTMAX_GET_OPTION_RTRIM(option)
+#define MIO_BCHARS_TO_INTMAX_GET_OPTION_BASE(option) MIO_OOCHARS_TO_INTMAX_GET_OPTION_BASE(option)
 
-#define MIO_BCHARS_TO_UINTMAX_MAKE_OPTION(ltrim,rtrim,base) MIO_UCHARS_TO_INTMAX_MAKE_OPTION(ltrim,rtrim,base)
-#define MIO_BCHARS_TO_UINTMAX_GET_OPTION_LTRIM(option) MIO_UCHARS_TO_INTMAX_GET_OPTION_LTRIM(option)
-#define MIO_BCHARS_TO_UINTMAX_GET_OPTION_RTRIM(option) MIO_UCHARS_TO_INTMAX_GET_OPTION_RTRIM(option)
-#define MIO_BCHARS_TO_UINTMAX_GET_OPTION_BASE(option) MIO_UCHARS_TO_INTMAX_GET_OPTION_BASE(option)
+#define MIO_UCHARS_TO_UINTMAX_MAKE_OPTION(ltrim,rtrim,base) MIO_OOCHARS_TO_UINTMAX_MAKE_OPTION(ltrim,rtrim,base)
+#define MIO_UCHARS_TO_UINTMAX_GET_OPTION_LTRIM(option) MIO_OOCHARS_TO_UINTMAX_GET_OPTION_LTRIM(option)
+#define MIO_UCHARS_TO_UINTMAX_GET_OPTION_RTRIM(option) MIO_OOCHARS_TO_UINTMAX_GET_OPTION_RTRIM(option)
+#define MIO_UCHARS_TO_UINTMAX_GET_OPTION_BASE(option) MIO_OOCHARS_TO_UINTMAX_GET_OPTION_BASE(option)
+
+#define MIO_BCHARS_TO_UINTMAX_MAKE_OPTION(ltrim,rtrim,base) MIO_OOCHARS_TO_UINTMAX_MAKE_OPTION(ltrim,rtrim,base)
+#define MIO_BCHARS_TO_UINTMAX_GET_OPTION_LTRIM(option) MIO_OOCHARS_TO_UINTMAX_GET_OPTION_LTRIM(option)
+#define MIO_BCHARS_TO_UINTMAX_GET_OPTION_RTRIM(option) MIO_OOCHARS_TO_UINTMAX_GET_OPTION_RTRIM(option)
+#define MIO_BCHARS_TO_UINTMAX_GET_OPTION_BASE(option) MIO_OOCHARS_TO_UINTMAX_GET_OPTION_BASE(option)
 
 MIO_EXPORT mio_intmax_t mio_uchars_to_intmax (
 	const mio_uch_t*  str,
@@ -600,6 +609,13 @@ MIO_EXPORT mio_uintmax_t mio_bchars_to_uintmax (
 	const mio_bch_t** endptr,
 	int*              is_sober
 );
+#if defined(MIO_OOCH_IS_UCH)
+#	define mio_oochars_to_intmax mio_uchars_to_intmax
+#	define mio_oochars_to_uintmax mio_uchars_to_uintmax
+#else
+#	define mio_oochars_to_intmax mio_bchars_to_intmax
+#	define mio_oochars_to_uintmax mio_bchars_to_uintmax
+#endif
 
 /* ------------------------------------------------------------------------- */
 
