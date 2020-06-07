@@ -40,7 +40,7 @@ enum mio_json_state_t
 {
 	MIO_JSON_STATE_START,
 	MIO_JSON_STATE_IN_ARRAY,
-	MIO_JSON_STATE_IN_DIC,
+	MIO_JSON_STATE_IN_OBJECT,
 
 	MIO_JSON_STATE_IN_WORD_VALUE,
 	MIO_JSON_STATE_IN_NUMERIC_VALUE,
@@ -53,8 +53,8 @@ enum mio_json_inst_t
 {
 	MIO_JSON_INST_START_ARRAY,
 	MIO_JSON_INST_END_ARRAY,
-	MIO_JSON_INST_START_DIC,
-	MIO_JSON_INST_END_DIC,
+	MIO_JSON_INST_START_OBJECT,
+	MIO_JSON_INST_END_OBJECT,
 
 	MIO_JSON_INST_KEY,
 
@@ -95,7 +95,7 @@ struct mio_json_state_node_t
 			/* 0: ready to get key (at the beginning or got comma), 
 			 * 1: got key, 2: got colon, 3: got value */
 			int state; 
-		} id; /* in dictionary */
+		} io; /* in object */
 		struct
 		{
 			int escaped;
@@ -149,7 +149,7 @@ struct mio_jsonwr_state_node_t
 	mio_json_state_t state;
 	mio_oow_t level;
 	mio_oow_t index;
-	int dic_awaiting_val;
+	int obj_awaiting_val;
 	mio_jsonwr_state_node_t* next;
 };
 
@@ -289,8 +289,8 @@ MIO_EXPORT int mio_jsonwr_write (
 #define mio_jsonwr_startarray(jsonwr) mio_jsonwr_write(jsonwr, MIO_JSON_INST_START_ARRAY, 0, MIO_NULL, 0)
 #define mio_jsonwr_endarray(jsonwr) mio_jsonwr_write(jsonwr, MIO_JSON_INST_END_ARRAY, 0, MIO_NULL, 0)
 
-#define mio_jsonwr_startdic(jsonwr) mio_jsonwr_write(jsonwr, MIO_JSON_INST_START_DIC, 0, MIO_NULL, 0)
-#define mio_jsonwr_enddic(jsonwr) mio_jsonwr_write(jsonwr, MIO_JSON_INST_END_DIC, 0, MIO_NULL, 0)
+#define mio_jsonwr_startobject(jsonwr) mio_jsonwr_write(jsonwr, MIO_JSON_INST_START_OBJECT, 0, MIO_NULL, 0)
+#define mio_jsonwr_endobject(jsonwr) mio_jsonwr_write(jsonwr, MIO_JSON_INST_END_OBJECT, 0, MIO_NULL, 0)
 
 #define mio_jsonwr_writenil(jsonwr) mio_jsonwr_write(jsonwr, MIO_JSON_INST_NIL, 0, MIO_NULL, 0)
 #define mio_jsonwr_writetrue(jsonwr) mio_jsonwr_write(jsonwr, MIO_JSON_INST_TRUE, 0, MIO_NULL, 0)
