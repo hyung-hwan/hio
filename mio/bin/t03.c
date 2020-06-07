@@ -53,7 +53,7 @@ static int on_json_inst (mio_json_t* json, mio_json_inst_t inst, mio_oow_t level
 			mio_logbfmt (mio, MIO_LOG_STDOUT, "]"); 
 			break;
 
-		case MIO_JSON_INST_START_DIC:
+		case MIO_JSON_INST_START_OBJECT:
 			if (level > 0)
 			{
 				if (index > 0) mio_logbfmt (mio, MIO_LOG_STDOUT, ",\n");
@@ -62,7 +62,7 @@ static int on_json_inst (mio_json_t* json, mio_json_inst_t inst, mio_oow_t level
 			mio_logbfmt (mio, MIO_LOG_STDOUT, "{\n"); 
 			break;
 
-		case MIO_JSON_INST_END_DIC:
+		case MIO_JSON_INST_END_OBJECT:
 			mio_logbfmt (mio, MIO_LOG_STDOUT, "\n"); 
 			for (i = 0; i < level; i++) mio_logbfmt (mio, MIO_LOG_STDOUT, "\t");
 			mio_logbfmt (mio, MIO_LOG_STDOUT, "}"); 
@@ -191,14 +191,14 @@ mio_logbfmt (mio, MIO_LOG_STDOUT, "\n");
 			mio_jsonwr_writestringwithbchars (jsonwr, "hello", 5);
 			mio_jsonwr_writestringwithbchars (jsonwr, "world", 5);
 
-			mio_jsonwr_startdic (jsonwr);
+			mio_jsonwr_startobject (jsonwr);
 				mio_jsonwr_writekeywithbchars (jsonwr, "abc", 3);
 				mio_jsonwr_writestringwithbchars (jsonwr, "computer", 8);
 				mio_jsonwr_writekeywithbchars (jsonwr, "k", 1);
 				mio_jsonwr_writestringwithbchars (jsonwr, "play nice", 9);
 				mio_jsonwr_writekeywithuchars (jsonwr, ddd, 4);
 				mio_jsonwr_writestringwithuchars (jsonwr, ddv, 5);
-			mio_jsonwr_enddic (jsonwr);
+			mio_jsonwr_endobject (jsonwr);
 
 			mio_jsonwr_writestringwithbchars (jsonwr, "tyler", 5);
 

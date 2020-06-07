@@ -127,9 +127,9 @@ static void pop_read_state (mio_json_t* json)
 	{
 		json->state_stack->u.ia.got_value = 1;
 	}
-	else if (json->state_stack->state == MIO_JSON_STATE_IN_DIC)
+	else if (json->state_stack->state == MIO_JSON_STATE_IN_OBJECT)
 	{
-		json->state_stack->u.id.state++;
+		json->state_stack->u.io.state++;
 	}
 
 /* TODO: don't free this. move it to the free list? */
@@ -146,20 +146,20 @@ static void pop_all_read_states (mio_json_t* json)
 static int invoke_data_inst (mio_json_t* json, mio_json_inst_t inst)
 {
 	mio_json_state_node_t* ss;
-	int is_dic_val = 0;
+	int is_obj_val = 0;
 
 	ss = json->state_stack;
 
-	if (ss->state == MIO_JSON_STATE_IN_DIC)
+	if (ss->state == MIO_JSON_STATE_IN_OBJECT)
 	{
-		if (ss->u.id.state == 1) /* got colon */
+		if (ss->u.io.state == 1) /* got colon */
 		{
 			/* this is called after the reader has seen a colon. 
 			 * the data item must be used as a key */
 
 			if (inst != MIO_JSON_INST_STRING)
 			{
-				mio_seterrbfmt (json->mio, MIO_EINVAL, "dictionary key not a string - %.*js", json->tok.len, json->tok.ptr);
+				mio_seterrbfmt (json->mio, MIO_EINVAL, "object key not a string - %.*js", json->tok.len, json->tok.ptr);
 				return -1;
 			}
 
@@ -168,7 +168,7 @@ static int invoke_data_inst (mio_json_t* json, mio_json_inst_t inst)
 		else
 		{
 			/* if this variable is non-zero, level is set to 0 regardless of actual level */
-			is_dic_val = 1;
+			is_obj_val = 1;
 		}
 	}
 
@@ -178,19 +178,19 @@ static int invoke_data_inst (mio_json_t* json, mio_json_inst_t inst)
 			if (push_read_state(json, MIO_JSON_STATE_IN_ARRAY) <= -1) return -1;
 			json->state_stack->u.ia.got_value = 0;
 			json->state_stack->level++;
-			if (ss->state != MIO_JSON_STATE_IN_DIC || ss->u.id.state == 1) ss->index++;
-			return json->instcb(json, inst, (is_dic_val? 0: json->state_stack->level - 1), ss->index - 1, ss->state, MIO_NULL, json->rctx);
+			if (ss->state != MIO_JSON_STATE_IN_OBJECT || ss->u.io.state == 1) ss->index++;
+			return json->instcb(json, inst, (is_obj_val? 0: json->state_stack->level - 1), ss->index - 1, ss->state, MIO_NULL, json->rctx);
 
-		case MIO_JSON_INST_START_DIC:
-			if (push_read_state(json, MIO_JSON_STATE_IN_DIC) <= -1) return -1;
-			json->state_stack->u.id.state = 0;
+		case MIO_JSON_INST_START_OBJECT:
+			if (push_read_state(json, MIO_JSON_STATE_IN_OBJECT) <= -1) return -1;
+			json->state_stack->u.io.state = 0;
 			json->state_stack->level++;
-			if (ss->state != MIO_JSON_STATE_IN_DIC || ss->u.id.state == 1) ss->index++;
-			return json->instcb(json, inst, (is_dic_val? 0: json->state_stack->level - 1), ss->index - 1, ss->state, MIO_NULL, json->rctx);
+			if (ss->state != MIO_JSON_STATE_IN_OBJECT || ss->u.io.state == 1) ss->index++;
+			return json->instcb(json, inst, (is_obj_val? 0: json->state_stack->level - 1), ss->index - 1, ss->state, MIO_NULL, json->rctx);
 
 		default:
-			if (ss->state != MIO_JSON_STATE_IN_DIC || ss->u.id.state == 1) ss->index++;
-			return json->instcb(json, inst, (is_dic_val? 0: json->state_stack->level), ss->index - 1, ss->state, &json->tok, json->rctx);
+			if (ss->state != MIO_JSON_STATE_IN_OBJECT || ss->u.io.state == 1) ss->index++;
+			return json->instcb(json, inst, (is_obj_val? 0: json->state_stack->level), ss->index - 1, ss->state, &json->tok, json->rctx);
 	}
 }
 
@@ -374,7 +374,7 @@ static int handle_start_char (mio_json_t* json, mio_ooci_t c)
 	}
 	else if (c == '{')
 	{
-		if (invoke_data_inst(json, MIO_JSON_INST_START_DIC) <= -1) return -1;
+		if (invoke_data_inst(json, MIO_JSON_INST_START_OBJECT) <= -1) return -1;
 		return 1;
 	}
 #if 0
@@ -396,8 +396,9 @@ static int handle_char_in_array (mio_json_t* json, mio_ooci_t c)
 {
 	if (c == ']')
 	{
-		if (json->instcb(json, MIO_JSON_INST_END_ARRAY, json->state_stack->level - 1, json->state_stack->index, json->state_stack->next->state, MIO_NULL, json->rctx) <= -1) return -1;
 		pop_read_state (json);
+		/* START_ARRAY incremented index by 1. so subtract 1 from index before invoking instcb for END_ARRAY. */
+		if (json->instcb(json, MIO_JSON_INST_END_ARRAY, json->state_stack->level, json->state_stack->index - 1, json->state_stack->state, MIO_NULL, json->rctx) <= -1) return -1;
 		return 1;
 	}
 	else if (c == ',')
@@ -451,7 +452,7 @@ static int handle_char_in_array (mio_json_t* json, mio_ooci_t c)
 		}
 		else if (c == '{')
 		{
-			if (invoke_data_inst(json, MIO_JSON_INST_START_DIC) <= -1) return -1;
+			if (invoke_data_inst(json, MIO_JSON_INST_START_OBJECT) <= -1) return -1;
 			return 1;
 		}
 		else
@@ -462,32 +463,33 @@ static int handle_char_in_array (mio_json_t* json, mio_ooci_t c)
 	}
 }
 
-static int handle_char_in_dic (mio_json_t* json, mio_ooci_t c)
+static int handle_char_in_object (mio_json_t* json, mio_ooci_t c)
 {
 	if (c == '}')
 	{
-		if (json->instcb(json, MIO_JSON_INST_END_DIC, json->state_stack->level - 1, json->state_stack->index, json->state_stack->next->state, MIO_NULL, json->rctx) <= -1) return -1;
 		pop_read_state (json);
+		/* START_OBJECT incremented index by 1. so subtract 1 from index before invoking instcb for END_OBJECT. */
+		if (json->instcb(json, MIO_JSON_INST_END_OBJECT, json->state_stack->level, json->state_stack->index - 1, json->state_stack->state, MIO_NULL, json->rctx) <= -1) return -1;
 		return 1;
 	}
 	else if (c == ':')
 	{
-		if (json->state_stack->u.id.state != 1)
+		if (json->state_stack->u.io.state != 1)
 		{
-			mio_seterrbfmt (json->mio, MIO_EINVAL, "redundant colon in dictionary - %jc", (mio_ooch_t)c);
+			mio_seterrbfmt (json->mio, MIO_EINVAL, "redundant colon in object - %jc", (mio_ooch_t)c);
 			return -1;
 		}
-		json->state_stack->u.id.state++;
+		json->state_stack->u.io.state++;
 		return 1;
 	}
 	else if (c == ',')
 	{
-		if (json->state_stack->u.id.state != 3)
+		if (json->state_stack->u.io.state != 3)
 		{
-			mio_seterrbfmt (json->mio, MIO_EINVAL, "redundant comma in dicitonary - %jc", (mio_ooch_t)c);
+			mio_seterrbfmt (json->mio, MIO_EINVAL, "redundant comma in object - %jc", (mio_ooch_t)c);
 			return -1;
 		}
-		json->state_stack->u.id.state = 0;
+		json->state_stack->u.io.state = 0;
 		return 1;
 	}
 	else if (mio_is_ooch_space(c))
@@ -497,14 +499,14 @@ static int handle_char_in_dic (mio_json_t* json, mio_ooci_t c)
 	}
 	else
 	{
-		if (json->state_stack->u.id.state == 1)
+		if (json->state_stack->u.io.state == 1)
 		{
-			mio_seterrbfmt (json->mio, MIO_EINVAL, "colon required in dicitonary - %jc", (mio_ooch_t)c);
+			mio_seterrbfmt (json->mio, MIO_EINVAL, "colon required in object - %jc", (mio_ooch_t)c);
 			return -1;
 		}
-		else if (json->state_stack->u.id.state == 3)
+		else if (json->state_stack->u.io.state == 3)
 		{
-			mio_seterrbfmt (json->mio, MIO_EINVAL, "comma required in dicitonary - %jc", (mio_ooch_t)c);
+			mio_seterrbfmt (json->mio, MIO_EINVAL, "comma required in object - %jc", (mio_ooch_t)c);
 			return -1;
 		}
 
@@ -536,12 +538,12 @@ static int handle_char_in_dic (mio_json_t* json, mio_ooci_t c)
 		}
 		else if (c == '{')
 		{
-			if (invoke_data_inst(json, MIO_JSON_INST_START_DIC) <= -1) return -1;
+			if (invoke_data_inst(json, MIO_JSON_INST_START_OBJECT) <= -1) return -1;
 			return 1;
 		}
 		else
 		{
-			mio_seterrbfmt (json->mio, MIO_EINVAL, "wrong character inside dictionary - %jc[%d]", (mio_ooch_t)c, (int)c);
+			mio_seterrbfmt (json->mio, MIO_EINVAL, "wrong character inside object - %jc[%d]", (mio_ooch_t)c, (int)c);
 			return -1;
 		}
 	}
@@ -578,8 +580,8 @@ start_over:
 			x = handle_char_in_array(json, c);
 			break;
 
-		case MIO_JSON_STATE_IN_DIC:
-			x = handle_char_in_dic(json, c);
+		case MIO_JSON_STATE_IN_OBJECT:
+			x = handle_char_in_object(json, c);
 			break;
 
 		case MIO_JSON_STATE_IN_WORD_VALUE:
@@ -1038,10 +1040,10 @@ static int write_uchars (mio_jsonwr_t* jsonwr, int escape, const mio_uch_t* ptr,
 #define WRITE_COMMA(jsonwr) do { WRITE_BYTES_NOESC(jsonwr, ",", 1); if (jsonwr->pretty) WRITE_LINE_BREAK(jsonwr); } while(0)
 
 #define PREACTION_FOR_VLAUE(jsonwr,sn) do { \
-	if (sn->state != MIO_JSON_STATE_IN_ARRAY && !(sn->state == MIO_JSON_STATE_IN_DIC && sn->dic_awaiting_val)) goto incompatible_inst; \
+	if (sn->state != MIO_JSON_STATE_IN_ARRAY && !(sn->state == MIO_JSON_STATE_IN_OBJECT && sn->obj_awaiting_val)) goto incompatible_inst; \
 	if (sn->index > 0 && sn->state == MIO_JSON_STATE_IN_ARRAY) WRITE_COMMA (jsonwr); \
 	sn->index++; \
-	sn->dic_awaiting_val = 0; \
+	sn->obj_awaiting_val = 0; \
 	if (jsonwr->pretty && sn->state == MIO_JSON_STATE_IN_ARRAY) WRITE_INDENT (jsonwr); \
 } while(0)
 
@@ -1059,10 +1061,10 @@ jsonwr->pretty = 1;
 	{
 		case MIO_JSON_INST_START_ARRAY:
 			if (sn->state != MIO_JSON_STATE_START && sn->state != MIO_JSON_STATE_IN_ARRAY &&
-			    !(sn->state == MIO_JSON_STATE_IN_DIC && sn->dic_awaiting_val)) goto incompatible_inst;
+			    !(sn->state == MIO_JSON_STATE_IN_OBJECT && sn->obj_awaiting_val)) goto incompatible_inst;
 			if (sn->index > 0) WRITE_COMMA (jsonwr);
 			sn->index++;
-			sn->dic_awaiting_val = 0;
+			sn->obj_awaiting_val = 0;
 			if (jsonwr->pretty) WRITE_INDENT (jsonwr);
 			WRITE_BYTES_NOESC (jsonwr, "[", 1); 
 			if (jsonwr->pretty) WRITE_LINE_BREAK (jsonwr);
@@ -1070,16 +1072,16 @@ jsonwr->pretty = 1;
 			jsonwr->state_stack->level++;
 			break;
 
-		case MIO_JSON_INST_START_DIC:
+		case MIO_JSON_INST_START_OBJECT:
 			if (sn->state != MIO_JSON_STATE_START && sn->state != MIO_JSON_STATE_IN_ARRAY &&
-			    !(sn->state == MIO_JSON_STATE_IN_DIC && !sn->dic_awaiting_val)) goto incompatible_inst;
+			    !(sn->state == MIO_JSON_STATE_IN_OBJECT && !sn->obj_awaiting_val)) goto incompatible_inst;
 			if (sn->index > 0) WRITE_COMMA (jsonwr);
 			sn->index++;
-			sn->dic_awaiting_val = 0;
+			sn->obj_awaiting_val = 0;
 			if (jsonwr->pretty) WRITE_INDENT (jsonwr);
 			WRITE_BYTES_NOESC (jsonwr, "{", 1); 
 			if (jsonwr->pretty) WRITE_LINE_BREAK (jsonwr);
-			if (push_write_state (jsonwr, MIO_JSON_STATE_IN_DIC) <= -1) return -1;
+			if (push_write_state (jsonwr, MIO_JSON_STATE_IN_OBJECT) <= -1) return -1;
 			jsonwr->state_stack->level++;
 			break;
 
@@ -1100,8 +1102,8 @@ jsonwr->pretty = 1;
 			}
 			break;
 
-		case MIO_JSON_INST_END_DIC:
-			if (sn->state != MIO_JSON_STATE_IN_DIC || sn->dic_awaiting_val) goto incompatible_inst;
+		case MIO_JSON_INST_END_OBJECT:
+			if (sn->state != MIO_JSON_STATE_IN_OBJECT || sn->obj_awaiting_val) goto incompatible_inst;
 			pop_write_state (jsonwr);
 			if (jsonwr->pretty) 
 			{
@@ -1118,14 +1120,14 @@ jsonwr->pretty = 1;
 			break;
 
 		case MIO_JSON_INST_KEY:
-			if (sn->state != MIO_JSON_STATE_IN_DIC || sn->dic_awaiting_val) goto incompatible_inst;
+			if (sn->state != MIO_JSON_STATE_IN_OBJECT || sn->obj_awaiting_val) goto incompatible_inst;
 			if (sn->index > 0) WRITE_COMMA (jsonwr);
 			if (jsonwr->pretty) WRITE_INDENT (jsonwr);
 			WRITE_BYTES_NOESC (jsonwr, "\"", 1);
 			if (is_uchars) WRITE_UCHARS (jsonwr, 1, dptr, dlen);
 			else WRITE_BYTES_ESC (jsonwr, dptr, dlen);
 			WRITE_BYTES_NOESC (jsonwr, "\": ", 3);
-			sn->dic_awaiting_val = 1;
+			sn->obj_awaiting_val = 1;
 			break;
 
 		case MIO_JSON_INST_NIL:
