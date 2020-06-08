@@ -891,6 +891,10 @@ static int escape_char (mio_uch_t uch, mio_uch_t* xch)
 			*xch = uch;
 			break;
 
+		case '\a':
+			*xch = 'a';
+			break;
+
 		case '\b':
 			*xch = 'b';
 			break;
@@ -909,6 +913,10 @@ static int escape_char (mio_uch_t uch, mio_uch_t* xch)
 
 		case '\t':
 			*xch = 't';
+			break;
+
+		case '\v':
+			*xch = 'v';
 			break;
 
 		default:
