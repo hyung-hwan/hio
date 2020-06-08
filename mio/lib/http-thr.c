@@ -786,6 +786,33 @@ static void thr_func (mio_t* mio, mio_dev_thr_iopair_t* iop, void* ctx)
 	pthread_cleanup_pop (1);
 }
 
+static int thr_capture_request_header (mio_htre_t* req, const mio_bch_t* key, const mio_htre_hdrval_t* val, void* ctx)
+{
+	thr_func_start_t* tfs = (thr_func_start_t*)ctx;
+
+	if (mio_comp_bcstr(key, "X-HTTP-Method-Override", 1) == 0)
+	{
+		tfs->tfi.req_x_http_method_override = mio_bchars_to_http_method(val->ptr, val->len); /* don't care about multiple values */
+	}
+
+#if 0
+	if (mio_comp_bcstr(key, "Connection", 1) != 0 &&
+	    mio_comp_bcstr(key, "Transfer-Encoding", 1) != 0 &&
+	    mio_comp_bcstr(key, "Content-Length", 1) != 0 &&
+	    mio_comp_bcstr(key, "Expect", 1) != 0)
+	{
+		do
+		{
+			/* TODO: ... */
+			val = val->next;
+		}
+		while (val);
+	}
+#endif
+
+	return 0;
+}
+
 int mio_svc_htts_dothr (mio_svc_htts_t* htts, mio_dev_sck_t* csck, mio_htre_t* req, mio_svc_htts_thr_func_t func, void* ctx)
 {
 	mio_t* mio = htts->mio;
@@ -814,7 +841,10 @@ int mio_svc_htts_dothr (mio_svc_htts_t* htts, mio_dev_sck_t* csck, mio_htre_t* r
 		tfs->tfi.req_param = mio_dupbcstr(mio, mio_htre_getqparam(req), MIO_NULL);
 		if (!tfs->tfi.req_param) goto oops;
 	}
-	/* TODO: copy headers.. */
+
+	tfs->tfi.req_x_http_method_override = -1;
+	if (mio_htre_walkheaders(req, thr_capture_request_header, tfs) <= -1) return -1;
+
 	tfs->tfi.server_addr = cli->sck->localaddr;
 	tfs->tfi.client_addr = cli->sck->remoteaddr;
 
