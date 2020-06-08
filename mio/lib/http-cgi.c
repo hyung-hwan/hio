@@ -803,7 +803,7 @@ static int cgi_peer_capture_request_header (mio_htre_t* req, const mio_bch_t* ke
 		while (val)
 		{
 			if (mio_becs_cat(dbuf, ",") == (mio_oow_t)-1 ||
-			    mio_becs_cat (dbuf, val->ptr) == (mio_oow_t)-1) return -1;
+			    mio_becs_cat(dbuf, val->ptr) == (mio_oow_t)-1) return -1;
 			val = val->next;
 		}
 

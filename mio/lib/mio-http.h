@@ -134,6 +134,7 @@ struct mio_svc_htts_thr_func_info_t
 	mio_http_version_t req_version;
 	mio_bch_t*         req_path;
 	mio_bch_t*         req_param;
+	int                req_x_http_method_override; /* -1 or mio_http_method_t */
 
 	/* TODO: header table */
 
