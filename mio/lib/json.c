@@ -39,7 +39,7 @@ static void clear_token (mio_json_t* json)
 	if (json->tok_capa > 0) json->tok.ptr[json->tok.len] = '\0';
 }
 
-static int add_char_to_token (mio_json_t* json, mio_ooch_t ch)
+static int add_char_to_token (mio_json_t* json, mio_ooch_t ch, int handle_surrogate_pair)
 {
 	if (json->tok.len >= json->tok_capa)
 	{
@@ -48,11 +48,33 @@ static int add_char_to_token (mio_json_t* json, mio_ooch_t ch)
 
 		newcapa = MIO_ALIGN_POW2(json->tok.len + 2, MIO_JSON_TOKEN_NAME_ALIGN);  /* +2 here because of -1 when setting newcapa */
 		tmp = (mio_ooch_t*)mio_reallocmem(json->mio, json->tok.ptr, newcapa * MIO_SIZEOF(*tmp));
-		if (!tmp) return -1;
+		if (MIO_UNLIKELY(!tmp)) return -1;
 
 		json->tok_capa = newcapa - 1; /* -1 to secure space for terminating null */
 		json->tok.ptr = tmp;
 	}
+
+#if (MIO_SIZEOF_OOCH_T >= 4) 
+	if (handle_surrogate_pair && ch >= 0xDC00 && ch <= 0xDFFF && json->tok.len > 0)
+	{
+		/* RFC7159
+			To escape an extended character that is not in the Basic Multilingual
+			Plane, the character is represented as a 12-character sequence,
+			encoding the UTF-16 surrogate pair.  So, for example, a string
+			containing only the G clef character (U+1D11E) may be represented as
+			"\uD834\uDD1E".
+		*/
+		mio_ooch_t pch = json->tok.ptr[json->tok.len - 1];
+		if (pch >= 0xD800 && pch <= 0xDBFF)
+		{
+			/* X = (character outside BMP) - 0x10000;
+			 * W1 = high ten bits of X + 0xD800
+			 * W2 = low ten bits of X + 0xDC00 */
+			json->tok.ptr[json->tok.len - 1] = (((pch - 0xD800) << 10) | (ch - 0xDC00)) + 0x10000;
+			return 0;
+		}
+	}
+#endif
 
 	json->tok.ptr[json->tok.len++] = ch;
 	json->tok.ptr[json->tok.len] = '\0';
@@ -70,14 +92,13 @@ static int add_chars_to_token (mio_json_t* json, const mio_ooch_t* ptr, mio_oow_
 
 		newcapa = MIO_ALIGN_POW2(json->tok.len + len + 1, MIO_JSON_TOKEN_NAME_ALIGN);
 		tmp = (mio_ooch_t*)mio_reallocmem(json->mio, json->tok.ptr, newcapa * MIO_SIZEOF(*tmp));
-		if (!tmp) return -1;
+		if (MIO_UNLIKELY(!tmp)) return -1;
 
 		json->tok_capa = newcapa - 1;
 		json->tok.ptr = tmp;
 	}
 
-	for (i = 0; i < len; i++)  
-		json->tok.ptr[json->tok.len++] = ptr[i];
+	for (i = 0; i < len; i++) json->tok.ptr[json->tok.len++] = ptr[i];
 	json->tok.ptr[json->tok.len] = '\0';
 	return 0;
 }
@@ -237,7 +258,7 @@ static int handle_string_value_char (mio_json_t* json, mio_ooci_t c)
 			ret = 0;
 		add_sv_acc:
 		#if defined(MIO_OOCH_IS_UCH)
-			if (add_char_to_token(json, json->state_stack->u.sv.acc) <= -1) return -1;
+			if (add_char_to_token(json, json->state_stack->u.sv.acc, json->state_stack->u.sv.escaped == 4) <= -1) return -1;
 		#else
 			/* convert the character to utf8 */
 			{
@@ -274,10 +295,6 @@ static int handle_string_value_char (mio_json_t* json, mio_ooci_t c)
 		}
 		else if (c == 'u')
 		{
-		#if (MIO_SIZEOF_UCH_T > 2)
-			/* TOOD: handle UTF-16 surrogate pair  U+1D11E ->  \uD834\uDD1E*/
-                	/*  0xD800-0xDBFF 0xDC00-0xDFFF */
-		#endif
 			json->state_stack->u.sv.escaped = 4;
 			json->state_stack->u.sv.digit_count = 0;
 			json->state_stack->u.sv.acc = 0;
@@ -291,7 +308,7 @@ static int handle_string_value_char (mio_json_t* json, mio_ooci_t c)
 		else
 		{
 			json->state_stack->u.sv.escaped = 0;
-			if (add_char_to_token(json, unescape(c)) <= -1) return -1;
+			if (add_char_to_token(json, unescape(c), 0) <= -1) return -1;
 		}
 	}
 	else if (c == '\\')
@@ -305,7 +322,7 @@ static int handle_string_value_char (mio_json_t* json, mio_ooci_t c)
 	}
 	else
 	{
-		if (add_char_to_token(json, c) <= -1) return -1;
+		if (add_char_to_token(json, c, 0) <= -1) return -1;
 	}
 
 	return ret;
@@ -315,13 +332,13 @@ static int handle_numeric_value_char (mio_json_t* json, mio_ooci_t c)
 {
 	if (mio_is_ooch_digit(c) || (json->tok.len == 0 && (c == '+' || c == '-')))
 	{
-		if (add_char_to_token(json, c) <= -1) return -1;
+		if (add_char_to_token(json, c, 0) <= -1) return -1;
 		return 1;
 	}
 	else if (!json->state_stack->u.nv.dotted && c == '.' &&
 	         json->tok.len > 0 && mio_is_ooch_digit(json->tok.ptr[json->tok.len - 1]))
 	{
-		if (add_char_to_token(json, c) <= -1) return -1;
+		if (add_char_to_token(json, c, 0) <= -1) return -1;
 		json->state_stack->u.nv.dotted = 1;
 		return 1;
 	}
@@ -344,7 +361,7 @@ static int handle_word_value_char (mio_json_t* json, mio_ooci_t c)
 
 	if (mio_is_ooch_alpha(c))
 	{
-		if (add_char_to_token(json, c) <= -1) return -1;
+		if (add_char_to_token(json, c, 0) <= -1) return -1;
 		return 1;
 	}
 
