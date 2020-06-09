@@ -182,7 +182,7 @@ mio_logbfmt (mio, MIO_LOG_STDOUT, "\n");
 		mio_uch_t ddd[4] = { 'D', '\0', 'R', 'Q' };
 		mio_uch_t ddv[5] = { L'밝', L'혀', L'졌', L'는', L'데' };
 	
-		jsonwr = mio_jsonwr_open (mio, 0);
+		jsonwr = mio_jsonwr_open (mio, 0, MIO_JSONWR_FLAG_PRETTY);
 
 		mio_jsonwr_setwritecb (jsonwr, write_json_element, MIO_NULL);
 
