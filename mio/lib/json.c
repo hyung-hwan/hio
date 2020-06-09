@@ -719,7 +719,7 @@ void mio_json_close (mio_json_t* json)
 	mio_freemem (json->mio, json);
 }
 
-static int do_nothing_on_inst  (mio_json_t* json, mio_json_inst_t inst, mio_oow_t level, const mio_oocs_t* str)
+static int do_nothing_on_inst  (mio_json_t* json, mio_json_inst_t inst, mio_oow_t level, mio_oow_t index, mio_json_state_t container_state, const mio_oocs_t* str, void* ctx)
 {
 	return 0;
 }
@@ -828,14 +828,14 @@ static void pop_all_write_states (mio_jsonwr_t* jsonwr)
 	while (jsonwr->state_stack != &jsonwr->state_top) pop_write_state (jsonwr);
 }
 
-mio_jsonwr_t* mio_jsonwr_open (mio_t* mio, mio_oow_t xtnsize)
+mio_jsonwr_t* mio_jsonwr_open (mio_t* mio, mio_oow_t xtnsize, int flags)
 {
 	mio_jsonwr_t* jsonwr;
 
 	jsonwr = (mio_jsonwr_t*)mio_allocmem(mio, MIO_SIZEOF(*jsonwr) + xtnsize);
 	if (MIO_LIKELY(jsonwr))
 	{
-		if (mio_jsonwr_init(jsonwr, mio) <= -1)
+		if (mio_jsonwr_init(jsonwr, mio, flags) <= -1)
 		{
 			mio_freemem (mio, jsonwr);
 			return MIO_NULL;
@@ -860,12 +860,13 @@ static int write_nothing (mio_jsonwr_t* jsonwr, const mio_bch_t* dptr, mio_oow_t
 	return 0;
 }
 
-int mio_jsonwr_init (mio_jsonwr_t* jsonwr, mio_t* mio)
+int mio_jsonwr_init (mio_jsonwr_t* jsonwr, mio_t* mio, int flags)
 {
 	MIO_MEMSET (jsonwr, 0, MIO_SIZEOF(*jsonwr));
 
 	jsonwr->mio = mio;
 	jsonwr->writecb = write_nothing;
+	jsonwr->flags = flags;
 
 	jsonwr->state_top.state = MIO_JSON_STATE_START;
 	jsonwr->state_top.next = MIO_NULL;
@@ -1062,14 +1063,14 @@ static int write_uchars (mio_jsonwr_t* jsonwr, int escape, const mio_uch_t* ptr,
 
 #define WRITE_LINE_BREAK(jsonwr) WRITE_BYTES_NOESC(jsonwr, "\n", 1)
 
-#define WRITE_COMMA(jsonwr) do { WRITE_BYTES_NOESC(jsonwr, ",", 1); if (jsonwr->pretty) WRITE_LINE_BREAK(jsonwr); } while(0)
+#define WRITE_COMMA(jsonwr) do { WRITE_BYTES_NOESC(jsonwr, ",", 1); if (jsonwr->flags & MIO_JSONWR_FLAG_PRETTY) WRITE_LINE_BREAK(jsonwr); } while(0)
 
 #define PREACTION_FOR_VLAUE(jsonwr,sn) do { \
 	if (sn->state != MIO_JSON_STATE_IN_ARRAY && !(sn->state == MIO_JSON_STATE_IN_OBJECT && sn->obj_awaiting_val)) goto incompatible_inst; \
 	if (sn->index > 0 && sn->state == MIO_JSON_STATE_IN_ARRAY) WRITE_COMMA (jsonwr); \
 	sn->index++; \
 	sn->obj_awaiting_val = 0; \
-	if (jsonwr->pretty && sn->state == MIO_JSON_STATE_IN_ARRAY) WRITE_INDENT (jsonwr); \
+	if ((jsonwr->flags & MIO_JSONWR_FLAG_PRETTY) && sn->state == MIO_JSON_STATE_IN_ARRAY) WRITE_INDENT (jsonwr); \
 } while(0)
 
 #define WRITE_INDENT(jsonwr) do { mio_oow_t i; for (i = 0; i < jsonwr->state_stack->level; i++) WRITE_BYTES_NOESC (jsonwr, "\t", 1); } while(0)
@@ -1077,10 +1078,6 @@ static int write_uchars (mio_jsonwr_t* jsonwr, int escape, const mio_uch_t* ptr,
 int mio_jsonwr_write (mio_jsonwr_t* jsonwr, mio_json_inst_t inst, int is_uchars, const void* dptr, mio_oow_t dlen)
 {
 	mio_jsonwr_state_node_t* sn = jsonwr->state_stack;
-
-/* ============================= */
-jsonwr->pretty = 1;
-/* ============================= */
 
 	switch (inst)
 	{
@@ -1090,9 +1087,9 @@ jsonwr->pretty = 1;
 			if (sn->index > 0) WRITE_COMMA (jsonwr);
 			sn->index++;
 			sn->obj_awaiting_val = 0;
-			if (jsonwr->pretty) WRITE_INDENT (jsonwr);
+			if (jsonwr->flags & MIO_JSONWR_FLAG_PRETTY) WRITE_INDENT (jsonwr);
 			WRITE_BYTES_NOESC (jsonwr, "[", 1); 
-			if (jsonwr->pretty) WRITE_LINE_BREAK (jsonwr);
+			if (jsonwr->flags & MIO_JSONWR_FLAG_PRETTY) WRITE_LINE_BREAK (jsonwr);
 			if (push_write_state(jsonwr, MIO_JSON_STATE_IN_ARRAY) <= -1) return -1;
 			jsonwr->state_stack->level++;
 			break;
@@ -1103,9 +1100,9 @@ jsonwr->pretty = 1;
 			if (sn->index > 0) WRITE_COMMA (jsonwr);
 			sn->index++;
 			sn->obj_awaiting_val = 0;
-			if (jsonwr->pretty) WRITE_INDENT (jsonwr);
+			if (jsonwr->flags & MIO_JSONWR_FLAG_PRETTY) WRITE_INDENT (jsonwr);
 			WRITE_BYTES_NOESC (jsonwr, "{", 1); 
-			if (jsonwr->pretty) WRITE_LINE_BREAK (jsonwr);
+			if (jsonwr->flags & MIO_JSONWR_FLAG_PRETTY) WRITE_LINE_BREAK (jsonwr);
 			if (push_write_state (jsonwr, MIO_JSON_STATE_IN_OBJECT) <= -1) return -1;
 			jsonwr->state_stack->level++;
 			break;
@@ -1113,7 +1110,7 @@ jsonwr->pretty = 1;
 		case MIO_JSON_INST_END_ARRAY:
 			if (sn->state != MIO_JSON_STATE_IN_ARRAY) goto incompatible_inst;
 			pop_write_state (jsonwr);
-			if (jsonwr->pretty) 
+			if (jsonwr->flags & MIO_JSONWR_FLAG_PRETTY) 
 			{
 				WRITE_LINE_BREAK (jsonwr);
 				WRITE_INDENT (jsonwr);
@@ -1122,7 +1119,7 @@ jsonwr->pretty = 1;
 			if (jsonwr->state_stack->state == MIO_JSON_STATE_START) 
 			{
 				/* end of json */
-				if (jsonwr->pretty) WRITE_LINE_BREAK (jsonwr);
+				if (jsonwr->flags & MIO_JSONWR_FLAG_PRETTY) WRITE_LINE_BREAK (jsonwr);
 				if (jsonwr->wbuf_len > 0 && flush_wbuf(jsonwr) <= -1) return -1;
 			}
 			break;
@@ -1130,7 +1127,7 @@ jsonwr->pretty = 1;
 		case MIO_JSON_INST_END_OBJECT:
 			if (sn->state != MIO_JSON_STATE_IN_OBJECT || sn->obj_awaiting_val) goto incompatible_inst;
 			pop_write_state (jsonwr);
-			if (jsonwr->pretty) 
+			if (jsonwr->flags & MIO_JSONWR_FLAG_PRETTY) 
 			{
 				WRITE_LINE_BREAK (jsonwr);
 				WRITE_INDENT (jsonwr);
@@ -1139,7 +1136,7 @@ jsonwr->pretty = 1;
 			if (jsonwr->state_stack->state == MIO_JSON_STATE_START) 
 			{
 				/* end of json */
-				if (jsonwr->pretty) WRITE_LINE_BREAK (jsonwr);
+				if (jsonwr->flags & MIO_JSONWR_FLAG_PRETTY) WRITE_LINE_BREAK (jsonwr);
 				if (jsonwr->wbuf_len > 0 && flush_wbuf(jsonwr) <= -1) return -1;
 			}
 			break;
@@ -1147,7 +1144,7 @@ jsonwr->pretty = 1;
 		case MIO_JSON_INST_KEY:
 			if (sn->state != MIO_JSON_STATE_IN_OBJECT || sn->obj_awaiting_val) goto incompatible_inst;
 			if (sn->index > 0) WRITE_COMMA (jsonwr);
-			if (jsonwr->pretty) WRITE_INDENT (jsonwr);
+			if (jsonwr->flags & MIO_JSONWR_FLAG_PRETTY) WRITE_INDENT (jsonwr);
 			WRITE_BYTES_NOESC (jsonwr, "\"", 1);
 			if (is_uchars) WRITE_UCHARS (jsonwr, 1, dptr, dlen);
 			else WRITE_BYTES_ESC (jsonwr, dptr, dlen);
@@ -1188,12 +1185,47 @@ jsonwr->pretty = 1;
 
 		default:
 		incompatible_inst:
-			flush_wbuf(jsonwr);
+			flush_wbuf (jsonwr);
 			mio_seterrbfmt (jsonwr->mio, MIO_EINVAL, "incompatiable write instruction - %d", (int)inst);
 			return -1;
 	}
 
 	return 0;
+}
+
+
+int mio_jsonwr_writeintmax (mio_jsonwr_t* jsonwr, mio_intmax_t v)
+{
+	mio_jsonwr_state_node_t* sn = jsonwr->state_stack;
+	mio_bch_t tmp[((MIO_SIZEOF_UINTMAX_T * MIO_BITS_PER_BYTE) / 3) + 3]; /* there can be a sign. so +3 instead of +2 */
+	mio_oow_t len;
+
+	PREACTION_FOR_VLAUE (jsonwr, sn);
+	len = mio_fmt_intmax_to_bcstr(tmp, MIO_COUNTOF(tmp), v, 10, 0, '\0', MIO_NULL);
+	WRITE_BYTES_NOESC (jsonwr, tmp, len);
+	return 0;
+
+incompatible_inst:
+	flush_wbuf (jsonwr);
+	mio_seterrbfmt (jsonwr->mio, MIO_EINVAL, "incompatiable integer write instruction");
+	return -1;
+}
+
+int mio_jsonwr_writeuintmax (mio_jsonwr_t* jsonwr, mio_uintmax_t v)
+{
+	mio_jsonwr_state_node_t* sn = jsonwr->state_stack;
+	mio_bch_t tmp[((MIO_SIZEOF_UINTMAX_T * MIO_BITS_PER_BYTE) / 3) + 2];
+	mio_oow_t len;
+
+	PREACTION_FOR_VLAUE (jsonwr, sn);
+	len = mio_fmt_uintmax_to_bcstr(tmp, MIO_COUNTOF(tmp), v, 10, 0, '\0', MIO_NULL);
+	WRITE_BYTES_NOESC (jsonwr, tmp, len);
+	return 0;
+
+incompatible_inst:
+	flush_wbuf (jsonwr);
+	mio_seterrbfmt (jsonwr->mio, MIO_EINVAL, "incompatiable integer write instruction");
+	return -1;
 }
 
 int mio_jsonwr_writerawuchars (mio_jsonwr_t* jsonwr, const mio_uch_t* dptr, mio_oow_t dlen)

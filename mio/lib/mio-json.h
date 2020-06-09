@@ -153,13 +153,19 @@ struct mio_jsonwr_state_node_t
 	mio_jsonwr_state_node_t* next;
 };
 
+enum mio_jsonwr_flag_t
+{
+	MIO_JSONWR_FLAG_PRETTY = (1 << 0)
+};
+typedef enum mio_jsonwr_flag_t mio_jsonwr_flag_t;
+
 struct mio_jsonwr_t
 {
 	mio_t* mio;
 	mio_jsonwr_writecb_t writecb;
 	mio_jsonwr_state_node_t state_top;
 	mio_jsonwr_state_node_t* state_stack;
-	int pretty;
+	int flags;
 
 	void* wctx;	
 	mio_bch_t wbuf[8192];
@@ -242,7 +248,8 @@ MIO_EXPORT int mio_json_feed (
 
 MIO_EXPORT mio_jsonwr_t* mio_jsonwr_open (
 	mio_t*             mio,
-	mio_oow_t          xtnsize
+	mio_oow_t          xtnsize,
+	int                flags
 );
 
 MIO_EXPORT void mio_jsonwr_close (
@@ -251,7 +258,8 @@ MIO_EXPORT void mio_jsonwr_close (
 
 MIO_EXPORT int mio_jsonwr_init (
 	mio_jsonwr_t* jsonwr,
-	mio_t*        mio
+	mio_t*        mio,
+	int           flags
 );
 
 MIO_EXPORT void mio_jsonwr_fini (
@@ -314,6 +322,15 @@ MIO_EXPORT int mio_jsonwr_write (
 #define mio_jsonwr_writestringwithucstr(jsonwr,dptr) mio_jsonwr_write(jsonwr, MIO_JSON_INST_STRING, 1, dptr, mio_count_ucstr(dptr))
 #define mio_jsonwr_writestringwithbcstr(jsonwr,dptr) mio_jsonwr_write(jsonwr, MIO_JSON_INST_STRING, 0, dptr, mio_count_bcstr(dptr))
 
+MIO_EXPORT int mio_jsonwr_writeintmax (
+	mio_jsonwr_t*     jsonwr,
+	mio_intmax_t      v
+);
+
+MIO_EXPORT int mio_jsonwr_writeuintmax (
+	mio_jsonwr_t*     jsonwr,
+	mio_uintmax_t     v
+);
 
 MIO_EXPORT int mio_jsonwr_writerawuchars (
 	mio_jsonwr_t*     jsonwr,
