@@ -155,7 +155,7 @@ int main (int argc, char* argv[])
 
 
 		rem = 0;
-		while (1)
+		while (!feof(stdin))
 		{
 			int x;
 			size_t size = fread(&buf[rem], 1, sizeof(buf) - rem, stdin);
