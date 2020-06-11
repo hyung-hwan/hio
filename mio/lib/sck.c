@@ -1073,6 +1073,7 @@ fcntl (rdev->hnd, F_SETFL, flags | O_NONBLOCK);
 			#if defined(USE_SSL)
 				rdev->ssl_ctx = ssl_ctx;
 			#endif
+				/* set progress CONNECTING so that the ready handler invokes on_connect() */
 				MIO_DEV_SCK_SET_PROGRESS (rdev, MIO_DEV_SCK_CONNECTING);
 				return 0;
 			}
