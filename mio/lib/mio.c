@@ -1042,7 +1042,15 @@ int mio_dev_watch (mio_dev_t* dev, mio_dev_watch_cmd_t cmd, int events)
 	 * it's different from not hanving MIO_DEV_CAP_IN and MIO_DEV_CAP_OUT.
 	 * a non-virtual device without the capabilities still gets attention
 	 * of the system multiplexer for hangup and error. */
-	if (dev->dev_cap & MIO_DEV_CAP_VIRTUAL) return 0;
+	if (dev->dev_cap & MIO_DEV_CAP_VIRTUAL) 
+	{
+		/* UGLY HACK - you may start a device with VIRTUAL set upon creation when START is attempted.
+		 *             later, if you mask off VIRTUAL, you may perform normal IO and call 
+		 *             mio_dev_watch() with UPDATE. if SUSPENDED is set, UPDATE works */
+		if (cmd == MIO_DEV_WATCH_START) dev->dev_cap |= MIO_DEV_CAP_WATCH_SUSPENDED;
+		/* END UGLY HACK */
+		return 0;
+	}
 
 	/*ev.data.ptr = dev;*/
 	dev_cap = dev->dev_cap & ~(DEV_CAP_ALL_WATCHED | MIO_DEV_CAP_WATCH_SUSPENDED); /* UGLY to use MIO_DEV_CAP_WATCH_SUSPENDED here */
@@ -1064,7 +1072,7 @@ int mio_dev_watch (mio_dev_t* dev, mio_dev_watch_cmd_t cmd, int events)
 			 * output watching is requested only if there're enqueued data for writing.
 			 * if you want to enable input watching while renewing, call this function like this.
 			 *  mio_dev_wtach (dev, MIO_DEV_WATCH_RENEW, MIO_DEV_EVENT_IN);
-			 * if you want input whatching disabled while renewing, call this function like this. 
+			 * if you want input watching disabled while renewing, call this function like this. 
 			 *  mio_dev_wtach (dev, MIO_DEV_WATCH_RENEW, 0); */
 			if (MIO_WQ_IS_EMPTY(&dev->wq)) events &= ~MIO_DEV_EVENT_OUT;
 			else events |= MIO_DEV_EVENT_OUT;
@@ -1091,7 +1099,6 @@ int mio_dev_watch (mio_dev_t* dev, mio_dev_watch_cmd_t cmd, int events)
 	/* this function honors MIO_DEV_EVENT_IN and MIO_DEV_EVENT_OUT only
 	 * as valid input event bits. it intends to provide simple abstraction
 	 * by reducing the variety of event bits that the caller has to handle. */
-
 	if ((events & MIO_DEV_EVENT_IN) && !(dev->dev_cap & (MIO_DEV_CAP_IN_CLOSED | MIO_DEV_CAP_IN_DISABLED)))
 	{
 		if (dev->dev_cap & MIO_DEV_CAP_IN) 

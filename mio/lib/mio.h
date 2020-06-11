@@ -79,7 +79,6 @@ enum mio_errnum_t
 	MIO_ESYSERR,  /**< system error */
 	MIO_EINTERN,  /**< internal error */
 	MIO_ESYSMEM,  /**< insufficient system memory */
-	MIO_EOOMEM,   /**< insufficient object memory */
 
 	MIO_EINVAL,   /**< invalid parameter or data */
 	MIO_ENOENT,   /**< data not found */

@@ -309,6 +309,19 @@ then
 fi
 AC_SUBST(SSL_LIBS)
 
+dnl ===== enable-mariadb =====
+AC_ARG_ENABLE([mariadb],
+        [AS_HELP_STRING([--enable-mariadb],[enable mariadb support (default. no)])],
+        enable_mariadb_is=$enableval,
+        enable_mariadb_is=no
+)
+if test "${enable_mariadb_is}" = "yes"
+then
+        AC_DEFINE([MIO_ENABLE_MARIADB],[1],[build the mariadb device])
+fi
+AM_CONDITIONAL(ENABLE_MARIADB, test "${enable_mariadb_is}" = "yes")
+
+
 if test "x${ac_cv_header_libunwind_h}" = "xyes"
 then
 	AC_CHECK_LIB([unwind], [unw_backtrace],

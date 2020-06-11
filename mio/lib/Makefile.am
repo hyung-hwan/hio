@@ -83,9 +83,18 @@ libmio_la_SOURCES = \
 	tmr.c \
 	utf8.c \
 	utl.c
+
+
 libmio_la_CPPFLAGS = $(CPPFLAGS_LIB_COMMON)
 libmio_la_LDFLAGS = $(LDFLAGS_LIB_COMMON)
 libmio_la_LIBADD = $(LIBADD_LIB_COMMON) $(SSL_LIBS) $(SOCKET_LIBS) $(SENDFILE_LIBS)
+
+if ENABLE_MARIADB
+include_HEADERS += mio-maria.h
+libmio_la_SOURCES += maria.c
+libmio_la_LDFLAGS +=
+libmio_la_LIBADD += -lmariadb
+endif
 
 install-data-hook:
 	@echo "#ifndef _MIO_CFG_H_" > "$(DESTDIR)$(includedir)/mio-cfg.h"

@@ -221,8 +221,6 @@ typedef enum mio_dev_sck_ioctl_cmd_t mio_dev_sck_ioctl_cmd_t;
 } while(0)
 
 #define MIO_DEV_SCK_GET_PROGRESS(dev) ((dev)->state & MIO_DEV_SCK_ALL_PROGRESS_BITS)
-#define MIO_DEV_SCK_GET_TOLERANT(dev) ((dev)->state & MIO_DEV_SCK_
-
 
 enum mio_dev_sck_state_t
 {
@@ -240,11 +238,11 @@ enum mio_dev_sck_state_t
 
 	/* convenience bit masks */
 	MIO_DEV_SCK_ALL_PROGRESS_BITS = (MIO_DEV_SCK_CONNECTING |
-	                                  MIO_DEV_SCK_CONNECTING_SSL |
-	                                  MIO_DEV_SCK_CONNECTED |
-	                                  MIO_DEV_SCK_LISTENING |
-	                                  MIO_DEV_SCK_ACCEPTING_SSL |
-	                                  MIO_DEV_SCK_ACCEPTED)
+	                                 MIO_DEV_SCK_CONNECTING_SSL |
+	                                 MIO_DEV_SCK_CONNECTED |
+	                                 MIO_DEV_SCK_LISTENING |
+	                                 MIO_DEV_SCK_ACCEPTING_SSL |
+	                                 MIO_DEV_SCK_ACCEPTED)
 };
 typedef enum mio_dev_sck_state_t mio_dev_sck_state_t;
 

@@ -765,6 +765,9 @@
 /* use libunwind for backtracing stack frames */
 #undef MIO_ENABLE_LIBUNWIND
 
+/* build the mariadb device */
+#undef MIO_ENABLE_MARIADB
+
 /* Use the unicode character type as the default character type */
 #undef MIO_ENABLE_UNICODE
 
