@@ -4,36 +4,55 @@
 #include <stdio.h>
 #include <string.h>
 
+#include <mariadb/mysql.h>
+
 static void maria_on_disconnect (mio_dev_maria_t* dev)
 {
 }
 
 static void maria_on_connect (mio_dev_maria_t* dev)
 {
-printf ("CONNEcTED...\n");
+printf ("CONNECTED...\n");
 	if (mio_dev_maria_querywithbchars(dev, "SHOW STATUS", 11) <= -1)
 	{
 		mio_dev_maria_halt (dev);
 	}
 }
 
-static void maria_on_query_started (mio_dev_maria_t* dev)
+static void maria_on_query_started (mio_dev_maria_t* dev, int maria_ret)
 {
-printf ("QUERY SENT...\n");
-	if (mio_dev_maria_fetchrow(dev) <= -1)
+	if (maria_ret != 0)
 	{
-printf ("FETCH ROW FAILURE\n");
-		mio_dev_maria_halt (dev);
+printf ("QUERY NOT SENT PROPERLY..%s\n", mysql_error(dev->hnd));
+	}
+	else
+	{
+printf ("QUERY SENT..\n");
+		if (mio_dev_maria_fetchrows(dev) <= -1)
+		{
+printf ("FETCH ROW FAILURE - %s\n", mysql_error(dev->hnd));
+			mio_dev_maria_halt (dev);
+		}
 	}
 }
 
-static void maria_on_row_fetched (mio_dev_maria_t* dev, void* row)
+static void maria_on_row_fetched (mio_dev_maria_t* dev, void* data)
 {
-	if (!row) printf ("NO MORE ROW..\n");
+	MYSQL_ROW row = (MYSQL_ROW)data;
+	static int x = 0;
+	if (!row) 
+	{
+		printf ("NO MORE ROW..\n");
+		if (x == 0 && mio_dev_maria_querywithbchars(dev, "SELECT * FROM pdns.records", 26) <= -1) mio_dev_maria_halt (dev);
+		x++;
+	}
 	else
-	{	
-		printf ("GOT ROW\n");
-		mio_dev_maria_fetchrow (dev);
+	{
+		if (x == 0)
+			printf ("%s %s\n", row[0], row[1]);
+		else if (x == 1)
+			printf ("%s %s %s %s %s\n", row[0], row[1], row[2], row[3], row[4]);
+		//printf ("GOT ROW\n");
 	}
 }
 
