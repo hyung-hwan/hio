@@ -75,6 +75,11 @@ static int dev_maria_kill (mio_dev_t* dev, int force)
 
 	if (rdev->on_disconnect) rdev->on_disconnect (rdev);
 
+	if (rdev->res)
+	{
+		mysql_free_result (rdev->res);
+		rdev->res = MIO_NULL;
+	}
 	if (rdev->hnd)
 	{
 		mysql_close (rdev->hnd);
@@ -212,12 +217,6 @@ static int dev_maria_ioctl (mio_dev_t* dev, int cmd, void* arg)
 			else
 			{
 				/* query sent immediately */
-				if (MIO_UNLIKELY(err))
-				{
-					mio_seterrbfmt (mio, MIO_ESYSERR, "%s", mysql_error(rdev->hnd));
-					return -1;
-				}
-
 				rdev->query_started = 1;
 				rdev->query_ret = err;
 				watch_mysql (rdev, MYSQL_WAIT_READ | MYSQL_WAIT_WRITE);
@@ -227,8 +226,6 @@ static int dev_maria_ioctl (mio_dev_t* dev, int cmd, void* arg)
 
 		case MIO_DEV_MARIA_FETCH_ROW:
 		{
-			int status;
-
 			if (!rdev->res)
 			{
 				rdev->res = mysql_use_result(rdev->hnd);
@@ -441,3 +438,4 @@ int mio_dev_maria_fetchrows (mio_dev_maria_t* dev)
 {
 	return mio_dev_ioctl((mio_dev_t*)dev, MIO_DEV_MARIA_FETCH_ROW, MIO_NULL);
 }
+
