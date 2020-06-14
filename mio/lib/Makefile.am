@@ -90,8 +90,8 @@ libmio_la_LDFLAGS = $(LDFLAGS_LIB_COMMON)
 libmio_la_LIBADD = $(LIBADD_LIB_COMMON) $(SSL_LIBS) $(SOCKET_LIBS) $(SENDFILE_LIBS)
 
 if ENABLE_MARIADB
-include_HEADERS += mio-maria.h
-libmio_la_SOURCES += maria.c
+include_HEADERS += mio-mar.h
+libmio_la_SOURCES += mar.c mar-cli.c
 libmio_la_LDFLAGS +=
 libmio_la_LIBADD += -lmariadb
 endif
