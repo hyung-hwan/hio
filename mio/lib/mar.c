@@ -24,7 +24,7 @@
     THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  */
 
-#include <mio-maria.h>
+#include <mio-mar.h>
 #include "mio-prv.h"
 
 #include <mariadb/mysql.h>
@@ -32,11 +32,11 @@
 
 /* ========================================================================= */
 
-static int dev_maria_make (mio_dev_t* dev, void* ctx)
+static int dev_mar_make (mio_dev_t* dev, void* ctx)
 {
 	mio_t* mio = dev->mio;
-	mio_dev_maria_t* rdev = (mio_dev_maria_t*)dev;
-	mio_dev_maria_make_t* mi = (mio_dev_maria_make_t*)ctx;
+	mio_dev_mar_t* rdev = (mio_dev_mar_t*)dev;
+	mio_dev_mar_make_t* mi = (mio_dev_mar_make_t*)ctx;
 
 	rdev->hnd = mysql_init(MIO_NULL);
 	if (MIO_UNLIKELY(!rdev->hnd)) 
@@ -68,10 +68,10 @@ static int dev_maria_make (mio_dev_t* dev, void* ctx)
 	return 0;
 }
 
-static int dev_maria_kill (mio_dev_t* dev, int force)
+static int dev_mar_kill (mio_dev_t* dev, int force)
 {
 	/*mio_t* mio = dev->mio;*/
-	mio_dev_maria_t* rdev = (mio_dev_maria_t*)dev;
+	mio_dev_mar_t* rdev = (mio_dev_mar_t*)dev;
 
 	if (rdev->on_disconnect) rdev->on_disconnect (rdev);
 
@@ -89,9 +89,9 @@ static int dev_maria_kill (mio_dev_t* dev, int force)
 	return 0;
 }
 
-static mio_syshnd_t dev_maria_getsyshnd (mio_dev_t* dev)
+static mio_syshnd_t dev_mar_getsyshnd (mio_dev_t* dev)
 {
-	mio_dev_maria_t* rdev = (mio_dev_maria_t*)dev;
+	mio_dev_mar_t* rdev = (mio_dev_mar_t*)dev;
 	return (mio_syshnd_t)mysql_get_socket(rdev->hnd);
 }
 
@@ -114,7 +114,7 @@ static int mysql_wstatus_to_events (int wstatus)
 	return events;
 }
 
-static MIO_INLINE void watch_mysql (mio_dev_maria_t* rdev, int wstatus)
+static MIO_INLINE void watch_mysql (mio_dev_mar_t* rdev, int wstatus)
 {
 	if (mio_dev_watch((mio_dev_t*)rdev, MIO_DEV_WATCH_UPDATE, mysql_wstatus_to_events(wstatus)) <= -1)
 	{
@@ -124,13 +124,13 @@ static MIO_INLINE void watch_mysql (mio_dev_maria_t* rdev, int wstatus)
 }
 
 
-static void start_fetch_row (mio_dev_maria_t* rdev)
+static void start_fetch_row (mio_dev_mar_t* rdev)
 {
 	MYSQL_ROW row;
 	int status;
 
 	status = mysql_fetch_row_start(&row, rdev->res);
-	MIO_DEV_MARIA_SET_PROGRESS (rdev, MIO_DEV_MARIA_ROW_FETCHING);
+	MIO_DEV_MAR_SET_PROGRESS (rdev, MIO_DEV_MAR_ROW_FETCHING);
 	if (status)
 	{
 		/* row fetched */
@@ -148,21 +148,21 @@ static void start_fetch_row (mio_dev_maria_t* rdev)
 }
 
 
-static int dev_maria_ioctl (mio_dev_t* dev, int cmd, void* arg)
+static int dev_mar_ioctl (mio_dev_t* dev, int cmd, void* arg)
 {
 	mio_t* mio = dev->mio;
-	mio_dev_maria_t* rdev = (mio_dev_maria_t*)dev;
+	mio_dev_mar_t* rdev = (mio_dev_mar_t*)dev;
 
 	switch (cmd)
 	{
-		case MIO_DEV_MARIA_CONNECT:
+		case MIO_DEV_MAR_CONNECT:
 		{
-			mio_dev_maria_connect_t* ci = (mio_dev_maria_connect_t*)arg;
+			mio_dev_mar_connect_t* ci = (mio_dev_mar_connect_t*)arg;
 			MYSQL* ret;
 			int status;
 
 
-			if (MIO_DEV_MARIA_GET_PROGRESS(rdev))
+			if (MIO_DEV_MAR_GET_PROGRESS(rdev))
 			{
 				/* can't connect again */
 				mio_seterrbfmt (mio, MIO_EPERM, "operation in progress. disallowed to connect again");
@@ -174,7 +174,7 @@ static int dev_maria_ioctl (mio_dev_t* dev, int cmd, void* arg)
 			if (status)
 			{
 				/* not connected */
-				MIO_DEV_MARIA_SET_PROGRESS (rdev, MIO_DEV_MARIA_CONNECTING);
+				MIO_DEV_MAR_SET_PROGRESS (rdev, MIO_DEV_MAR_CONNECTING);
 				rdev->connected = 0;
 				watch_mysql (rdev, status);
 			}
@@ -195,7 +195,7 @@ static int dev_maria_ioctl (mio_dev_t* dev, int cmd, void* arg)
 			return 0;
 		}
 
-		case MIO_DEV_MARIA_QUERY_WITH_BCS:
+		case MIO_DEV_MAR_QUERY_WITH_BCS:
 		{
 			const mio_bcs_t* qstr = (const mio_bcs_t*)arg;
 			int err, status;
@@ -207,7 +207,7 @@ static int dev_maria_ioctl (mio_dev_t* dev, int cmd, void* arg)
 			}
 
 			status = mysql_real_query_start(&err, rdev->hnd, qstr->ptr, qstr->len);
-			MIO_DEV_MARIA_SET_PROGRESS (rdev, MIO_DEV_MARIA_QUERY_STARTING);
+			MIO_DEV_MAR_SET_PROGRESS (rdev, MIO_DEV_MAR_QUERY_STARTING);
 			if (status)
 			{
 				/* not done */
@@ -224,7 +224,7 @@ static int dev_maria_ioctl (mio_dev_t* dev, int cmd, void* arg)
 			return 0;
 		}
 
-		case MIO_DEV_MARIA_FETCH_ROW:
+		case MIO_DEV_MAR_FETCH_ROW:
 		{
 			if (!rdev->res)
 			{
@@ -246,25 +246,25 @@ static int dev_maria_ioctl (mio_dev_t* dev, int cmd, void* arg)
 	}
 }
 
-static mio_dev_mth_t dev_maria_methods = 
+static mio_dev_mth_t dev_mar_methods = 
 {
-	dev_maria_make,
-	dev_maria_kill,
-	dev_maria_getsyshnd,
+	dev_mar_make,
+	dev_mar_kill,
+	dev_mar_getsyshnd,
 
 	MIO_NULL,
 	MIO_NULL,
 	MIO_NULL,
-	dev_maria_ioctl
+	dev_mar_ioctl
 };
 
 /* ========================================================================= */
 
 
-static int dev_evcb_maria_ready (mio_dev_t* dev, int events)
+static int dev_evcb_mar_ready (mio_dev_t* dev, int events)
 {
 	mio_t* mio = dev->mio;
-	mio_dev_maria_t* rdev = (mio_dev_maria_t*)dev;
+	mio_dev_mar_t* rdev = (mio_dev_mar_t*)dev;
 
 #if 0
 	if (events & MIO_DEV_EVENT_ERR)
@@ -290,14 +290,14 @@ static int dev_evcb_maria_ready (mio_dev_t* dev, int events)
 	}
 #endif
 
-	switch (MIO_DEV_MARIA_GET_PROGRESS(rdev))
+	switch (MIO_DEV_MAR_GET_PROGRESS(rdev))
 	{
-		case MIO_DEV_MARIA_CONNECTING:
+		case MIO_DEV_MAR_CONNECTING:
 		
 			if (rdev->connected)
 			{
 				rdev->connected = 0;
-				MIO_DEV_MARIA_SET_PROGRESS (rdev, MIO_DEV_MARIA_CONNECTED);
+				MIO_DEV_MAR_SET_PROGRESS (rdev, MIO_DEV_MAR_CONNECTED);
 				if (rdev->on_connect) rdev->on_connect (rdev);
 			}
 			else
@@ -311,17 +311,17 @@ static int dev_evcb_maria_ready (mio_dev_t* dev, int events)
 				if (!status)
 				{
 					/* connected */
-					MIO_DEV_MARIA_SET_PROGRESS (rdev, MIO_DEV_MARIA_CONNECTED);
+					MIO_DEV_MAR_SET_PROGRESS (rdev, MIO_DEV_MAR_CONNECTED);
 					if (rdev->on_connect) rdev->on_connect (rdev);
 				}
 			}
 			break;
 
-		case MIO_DEV_MARIA_QUERY_STARTING:
+		case MIO_DEV_MAR_QUERY_STARTING:
 			if (rdev->query_started)
 			{
 				rdev->query_started = 0;
-				MIO_DEV_MARIA_SET_PROGRESS (rdev, MIO_DEV_MARIA_QUERY_STARTED);
+				MIO_DEV_MAR_SET_PROGRESS (rdev, MIO_DEV_MAR_QUERY_STARTED);
 				if (rdev->on_query_started) rdev->on_query_started (rdev, rdev->query_ret);
 			}
 			else
@@ -335,14 +335,14 @@ static int dev_evcb_maria_ready (mio_dev_t* dev, int events)
 				if (!status)
 				{
 					/* query sent */
-					MIO_DEV_MARIA_SET_PROGRESS (rdev, MIO_DEV_MARIA_QUERY_STARTED);
+					MIO_DEV_MAR_SET_PROGRESS (rdev, MIO_DEV_MAR_QUERY_STARTED);
 					if (rdev->on_query_started) rdev->on_query_started (rdev, tmp);
 				}
 			}
 
 			break;
 
-		case MIO_DEV_MARIA_ROW_FETCHING:
+		case MIO_DEV_MAR_ROW_FETCHING:
 		{
 			int status;
 			MYSQL_ROW row;
@@ -361,7 +361,7 @@ static int dev_evcb_maria_ready (mio_dev_t* dev, int events)
 					watch_mysql (rdev, rdev->row_wstatus);
 				}
 
-				MIO_DEV_MARIA_SET_PROGRESS (rdev, MIO_DEV_MARIA_ROW_FETCHED);
+				MIO_DEV_MAR_SET_PROGRESS (rdev, MIO_DEV_MAR_ROW_FETCHED);
 				if (rdev->on_row_fetched) rdev->on_row_fetched (rdev, row);
 
 				if (row) start_fetch_row (rdev);
@@ -383,7 +383,7 @@ static int dev_evcb_maria_ready (mio_dev_t* dev, int events)
 						rdev->res = MIO_NULL;
 					}
 
-					MIO_DEV_MARIA_SET_PROGRESS (rdev, MIO_DEV_MARIA_ROW_FETCHED);
+					MIO_DEV_MAR_SET_PROGRESS (rdev, MIO_DEV_MAR_ROW_FETCHED);
 					if (rdev->on_row_fetched) rdev->on_row_fetched (rdev, row);
 
 					if (row) start_fetch_row (rdev); /* arrange to fetch the next row */
@@ -398,16 +398,16 @@ static int dev_evcb_maria_ready (mio_dev_t* dev, int events)
 		}
 
 		default:
-			mio_seterrbfmt (mio, MIO_EINTERN, "invalid progress state in maria");
+			mio_seterrbfmt (mio, MIO_EINTERN, "invalid progress state in mar");
 			return -1;
 	}
 
 	return 0; /* success. but skip core event handling */
 }
 
-static mio_dev_evcb_t dev_maria_event_callbacks =
+static mio_dev_evcb_t dev_mar_event_callbacks =
 {
-	dev_evcb_maria_ready,
+	dev_evcb_mar_ready,
 	MIO_NULL, /* no read callback */
 	MIO_NULL  /* no write callback */
 };
@@ -416,26 +416,26 @@ static mio_dev_evcb_t dev_maria_event_callbacks =
 /* ========================================================================= */
 
 
-mio_dev_maria_t* mio_dev_maria_make (mio_t* mio, mio_oow_t xtnsize, const mio_dev_maria_make_t* mi)
+mio_dev_mar_t* mio_dev_mar_make (mio_t* mio, mio_oow_t xtnsize, const mio_dev_mar_make_t* mi)
 {
-	return (mio_dev_maria_t*)mio_dev_make(
-		mio, MIO_SIZEOF(mio_dev_maria_t) + xtnsize,
-		&dev_maria_methods, &dev_maria_event_callbacks, (void*)mi);
+	return (mio_dev_mar_t*)mio_dev_make(
+		mio, MIO_SIZEOF(mio_dev_mar_t) + xtnsize,
+		&dev_mar_methods, &dev_mar_event_callbacks, (void*)mi);
 }
 
-int mio_dev_maria_connect (mio_dev_maria_t* dev, mio_dev_maria_connect_t* ci)
+int mio_dev_mar_connect (mio_dev_mar_t* dev, mio_dev_mar_connect_t* ci)
 {
-	return mio_dev_ioctl((mio_dev_t*)dev, MIO_DEV_MARIA_CONNECT, ci);
+	return mio_dev_ioctl((mio_dev_t*)dev, MIO_DEV_MAR_CONNECT, ci);
 }
 
-int mio_dev_maria_querywithbchars (mio_dev_maria_t* dev, const mio_bch_t* qstr, mio_oow_t qlen)
+int mio_dev_mar_querywithbchars (mio_dev_mar_t* dev, const mio_bch_t* qstr, mio_oow_t qlen)
 {
 	mio_bcs_t bcs = { (mio_bch_t*)qstr, qlen};
-	return mio_dev_ioctl((mio_dev_t*)dev, MIO_DEV_MARIA_QUERY_WITH_BCS, &bcs);
+	return mio_dev_ioctl((mio_dev_t*)dev, MIO_DEV_MAR_QUERY_WITH_BCS, &bcs);
 }
 
-int mio_dev_maria_fetchrows (mio_dev_maria_t* dev)
+int mio_dev_mar_fetchrows (mio_dev_mar_t* dev)
 {
-	return mio_dev_ioctl((mio_dev_t*)dev, MIO_DEV_MARIA_FETCH_ROW, MIO_NULL);
+	return mio_dev_ioctl((mio_dev_t*)dev, MIO_DEV_MAR_FETCH_ROW, MIO_NULL);
 }
 
