@@ -153,19 +153,29 @@ int main (int argc, char* argv[])
 
 		mio_json_setinstcb (json, on_json_inst, MIO_NULL);
 
-
 		rem = 0;
-		while (!feof(stdin))
+		while (!feof(stdin) || rem > 0)
 		{
 			int x;
-			size_t size = fread(&buf[rem], 1, sizeof(buf) - rem, stdin);
-			if (size <= 0) break;
+			size_t size;
 
+			if (!feof(stdin))
+			{
+				size = fread(&buf[rem], 1, sizeof(buf) - rem, stdin);
+				if (size <= 0) break;
+			}
+			else size = 0;
 
 			if ((x = mio_json_feed(json, buf, size + rem, &rem, 1)) <= -1) 
 			{
 				printf ("**** ERROR ****\n");
 				break;
+			}
+
+			if (x > 0)
+			{
+				/* document completed */
+				mio_logbfmt (mio, MIO_LOG_STDOUT, "\n-----------------------------------\n");
 			}
 
 			//printf ("--> x %d input %d left-over %d\n", (int)x, (int)size, (int)rem);
