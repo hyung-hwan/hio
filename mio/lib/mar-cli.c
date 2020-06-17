@@ -31,6 +31,7 @@
 struct mio_svc_marc_t
 {
 	MIO_SVC_HEADER;
+
 };
 
 mio_svc_marc_t* mio_svc_marc_start (mio_t* mio)
@@ -61,4 +62,102 @@ void mio_svc_marc_stop (mio_svc_marc_t* marc)
 
 	MIO_SVCL_UNLINK_SVC (marc);
 	mio_freemem (mio, marc);
+}
+
+static void mar_on_disconnect (mio_dev_mar_t* dev)
+{
+}
+
+static void mar_on_connect (mio_dev_mar_t* dev)
+{
+/*
+	if (mio_dev_mar_querywithbchars(dev, "SHOW STATUS", 11) <= -1)
+	{
+		mio_dev_mar_halt (dev);
+	}
+*/
+}
+
+static void mar_on_query_started (mio_dev_mar_t* dev, int mar_ret)
+{
+#if 0
+	if (mar_ret != 0)
+	{
+printf ("QUERY NOT SENT PROPERLY..%s\n", mysql_error(dev->hnd));
+	}
+	else
+	{
+printf ("QUERY SENT..\n");
+		if (mio_dev_mar_fetchrows(dev) <= -1)
+		{
+printf ("FETCH ROW FAILURE - %s\n", mysql_error(dev->hnd));
+			mio_dev_mar_halt (dev);
+		}
+	}
+#endif
+}
+
+static void mar_on_row_fetched (mio_dev_mar_t* dev, void* data)
+{
+#if 0
+	MYSQL_ROW row = (MYSQL_ROW)data;
+	static int x = 0;
+	if (!row) 
+	{
+		printf ("NO MORE ROW..\n");
+		if (x == 0 && mio_dev_mar_querywithbchars(dev, "SELECT * FROM pdns.records", 26) <= -1) mio_dev_mar_halt (dev);
+		x++;
+	}
+	else
+	{
+		if (x == 0)
+			printf ("%s %s\n", row[0], row[1]);
+		else if (x == 1)
+			printf ("%s %s %s %s %s\n", row[0], row[1], row[2], row[3], row[4]);
+		//printf ("GOT ROW\n");
+	}
+#endif
+}
+
+static mio_dev_mar_t* alloc_device (mio_svc_marc_t* marc)
+{
+	mio_t* mio = (mio_t*)marc->mio;
+	mio_dev_mar_t* mar;
+	mio_dev_mar_make_t mi;
+	mio_dev_mar_connect_t ci;
+
+	MIO_MEMSET (&ci, 0, MIO_SIZEOF(ci));
+	ci.host = "localhost"; /* TOOD: use marc configuration */
+	ci.port = 3306; /* TODO: use marc configuration */
+	ci.username = ""; /* TODO: use marc configuration */
+	ci.password = ""; /* TODO: use marc conifguration */
+	ci.dbname = ""; /* TODO: use marc configuration */
+
+	MIO_MEMSET (&mi, 0, MIO_SIZEOF(mi));
+	mi.on_connect = mar_on_connect;
+	mi.on_disconnect = mar_on_disconnect;
+	mi.on_query_started = mar_on_query_started;
+	mi.on_row_fetched = mar_on_row_fetched;
+
+	mar = mio_dev_mar_make(mio, 0, &mi);
+	if (!mar) return MIO_NULL;
+
+        if (mio_dev_mar_connect(mar, &ci) <= -1) return MIO_NULL;
+	
+	return mar;
+}
+
+int mio_svc_mar_querywithbchars (mio_svc_marc_t* marc, const mio_bch_t* qptr, mio_oow_t qlen)
+{
+	mio_dev_mar_t* dev;
+
+#if 0
+	dev = alloc_device(marc);
+	if (!dev)
+	{
+		
+	}	
+
+	if (mio_dev_mar_querywithbchars(dev, qptr, qlen) <= -1) return -1; /* TODO: need a context pointer */
+#endif
 }
