@@ -114,7 +114,7 @@ struct mio_json_state_node_t
 		} cv;
 		struct
 		{
-			int dotted;
+			int progress;
 		} nv;
 	} u;
 	mio_json_state_node_t* next;

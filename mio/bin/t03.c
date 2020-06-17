@@ -129,7 +129,7 @@ static int on_json_inst (mio_json_t* json, mio_json_inst_t inst, mio_oow_t level
 
 static int write_json_element (mio_jsonwr_t* jsonwr, const mio_bch_t* dptr, mio_oow_t dlen, void* ctx)
 {
-	write (1, dptr, dlen);
+	fwrite (dptr, 1, dlen, stdout);
 	return 0;
 }
 
@@ -148,6 +148,7 @@ int main (int argc, char* argv[])
 		mio_json_t* json = MIO_NULL;
 		char buf[128];
 		mio_oow_t rem;
+		size_t size;
 
 		json = mio_json_open(mio, 0);
 
@@ -157,18 +158,21 @@ int main (int argc, char* argv[])
 		while (!feof(stdin) || rem > 0)
 		{
 			int x;
-			size_t size;
 
 			if (!feof(stdin))
 			{
 				size = fread(&buf[rem], 1, sizeof(buf) - rem, stdin);
 				if (size <= 0) break;
 			}
-			else size = 0;
+			else
+			{
+				size = rem;
+				rem = 0;
+			}
 
 			if ((x = mio_json_feed(json, buf, size + rem, &rem, 1)) <= -1) 
 			{
-				printf ("**** ERROR ****\n");
+				mio_logbfmt (mio, MIO_LOG_STDOUT, "**** ERROR - %js ****\n", mio_geterrmsg(mio));
 				break;
 			}
 
@@ -178,7 +182,7 @@ int main (int argc, char* argv[])
 				mio_logbfmt (mio, MIO_LOG_STDOUT, "\n-----------------------------------\n");
 			}
 
-			//printf ("--> x %d input %d left-over %d\n", (int)x, (int)size, (int)rem);
+			/*printf ("--> x %d input %d left-over %d => [%.*s]\n", (int)x, (int)size, (int)rem, (int)rem, &buf[size - rem]);*/
 			if  (rem > 0) memcpy (buf, &buf[size - rem], rem);
 		}
 
