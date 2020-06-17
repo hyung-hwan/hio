@@ -330,17 +330,51 @@ static int handle_string_value_char (mio_json_t* json, mio_ooci_t c)
 
 static int handle_numeric_value_char (mio_json_t* json, mio_ooci_t c)
 {
-	if (mio_is_ooch_digit(c) || (json->tok.len == 0 && (c == '+' || c == '-')))
+	switch (json->state_stack->u.nv.progress)
 	{
-		if (add_char_to_token(json, c, 0) <= -1) return -1;
-		return 1;
-	}
-	else if (!json->state_stack->u.nv.dotted && c == '.' &&
-	         json->tok.len > 0 && mio_is_ooch_digit(json->tok.ptr[json->tok.len - 1]))
-	{
-		if (add_char_to_token(json, c, 0) <= -1) return -1;
-		json->state_stack->u.nv.dotted = 1;
-		return 1;
+		case 0: /* integer part */
+			if (mio_is_ooch_digit(c) || (json->tok.len == 0 && (c == '+' || c == '-')))
+			{
+				if (add_char_to_token(json, c, 0) <= -1) return -1;
+				return 1;
+			}
+			else if ((c == '.' || c == 'e' || c == 'E') && json->tok.len > 0 && mio_is_ooch_digit(json->tok.ptr[json->tok.len - 1]))
+			{
+				if (add_char_to_token(json, c, 0) <= -1) return -1;
+				json->state_stack->u.nv.progress = (c == '.'? 1: 2);
+				return 1;
+			}
+			break;
+
+		case 1: /* decimal part */
+			if (mio_is_ooch_digit(c))
+			{
+				if (add_char_to_token(json, c, 0) <= -1) return -1;
+				return 1;
+			}
+			else if (c == 'e' || c == 'E')
+			{
+				if (add_char_to_token(json, c, 0) <= -1) return -1;
+				json->state_stack->u.nv.progress = 2;
+				return 1;
+			}
+			break;
+
+		case 2: /* exponent part (ok to have a sign) */
+			if (c == '+' || c == '-')
+			{
+				if (add_char_to_token(json, c, 0) <= -1) return -1;
+				json->state_stack->u.nv.progress = 3;
+				return 1;
+			}
+			/* fall thru */
+		case 3: /* exponent part (no sign expected) */
+			if (mio_is_ooch_digit(c))
+			{
+				if (add_char_to_token(json, c, 0) <= -1) return -1;
+				return 1;
+			}
+			break;
 	}
 
 	pop_read_state (json);
@@ -453,7 +487,7 @@ static int handle_char_in_array (mio_json_t* json, mio_ooci_t c)
 		{
 			if (push_read_state(json, MIO_JSON_STATE_IN_NUMERIC_VALUE) <= -1) return -1;
 			clear_token (json);
-			json->state_stack->u.nv.dotted = 0;
+			json->state_stack->u.nv.progress = 0;
 			return 0; /* start over */
 		}
 		else if (mio_is_ooch_alpha(c))
@@ -539,7 +573,7 @@ static int handle_char_in_object (mio_json_t* json, mio_ooci_t c)
 		{
 			if (push_read_state(json, MIO_JSON_STATE_IN_NUMERIC_VALUE) <= -1) return -1;
 			clear_token (json);
-			json->state_stack->u.nv.dotted = 0;
+			json->state_stack->u.nv.progress = 0;
 			return 0; /* start over */
 		}
 		else if (mio_is_ooch_alpha(c))
