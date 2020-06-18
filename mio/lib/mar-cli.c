@@ -25,24 +25,49 @@
  */
 
 #include <mio-mar.h>
+#include "mio-prv.h"
 
 #include <mariadb/mysql.h>
+
+typedef struct sess_t sess_t;
+typedef struct sess_qry_t sess_qry_t;
 
 struct mio_svc_marc_t
 {
 	MIO_SVC_HEADER;
 
+	struct
+	{
+		sess_t* ptr;
+		mio_oow_t capa;
+	} sess;
+};
+
+struct sess_qry_t
+{
+	mio_bch_t*   qptr;
+	mio_oow_t    qlen;
+	void*        qctx;
+
+	sess_qry_t*  sq_next;
+};
+
+struct sess_t
+{
+	mio_dev_mar_t* dev;
+
+	sess_qry_t* q_head;
+	sess_qry_t* q_tail
 };
 
 mio_svc_marc_t* mio_svc_marc_start (mio_t* mio)
 {
 	mio_svc_marc_t* marc = MIO_NULL;
 
-
 	marc = (mio_svc_marc_t*)mio_callocmem(mio, MIO_SIZEOF(*marc));
 	if (MIO_UNLIKELY(!marc)) goto oops;
 
-	marc->mio = mio;	
+	marc->mio = mio;
 	marc->svc_stop = mio_svc_marc_stop;
 
 	MIO_SVCL_APPEND_SVC (&mio->actsvc, (mio_svc_t*)marc);
@@ -142,22 +167,135 @@ static mio_dev_mar_t* alloc_device (mio_svc_marc_t* marc)
 	mar = mio_dev_mar_make(mio, 0, &mi);
 	if (!mar) return MIO_NULL;
 
-        if (mio_dev_mar_connect(mar, &ci) <= -1) return MIO_NULL;
+	if (mio_dev_mar_connect(mar, &ci) <= -1) return MIO_NULL;
 	
 	return mar;
 }
 
-int mio_svc_mar_querywithbchars (mio_svc_marc_t* marc, const mio_bch_t* qptr, mio_oow_t qlen)
+
+static sess_qry_t* make_session_query (mio_t* mio, const mio_bch_t* qptr, mio_oow_t qlen, void* qctx)
 {
-	mio_dev_mar_t* dev;
+	sess_qry_t* sq;
+
+	sq = mio_allocmem(mio, MIO_SIZEOF(*sq) + (MIO_SIZEOF(*qptr) * qlen));
+	if (MIO_UNLIKELY(!sq)) return MIO_NULL;
+
+	MIO_MEMCPY (sq + 1, qptr, (MIO_SIZEOF(*qptr) * qlen));
+
+	sq->qptr = (mio_bch_t*)(sq + 1);
+	sq->qlen = qlen;
+	sq->qctx = qctx;
+	sq->sq_next = MIO_NULL;
+
+	return sq;
+}
+
+static MIO_INLINE void free_session_query (mio_t* mio, sess_qry_t* sq)
+{
+	mio_freemem (mio, sq);
+}
+
+static sess_t* get_session (mio_svc_marc_t* marc, int sid)
+{
+	mio_t* mio = marc->mio;
+	sess_t* sess;
+
+	if (sid >= marc->sess.capa)
+	{
+		sess_t* tmp;
+		mio_oow_t newcapa;
+
+		newcapa = marc->sess.capa + 16;
+		if (newcapa <= sid) newcapa = sid + 1;
+		newcapa = MIO_ALIGN_POW2(newcapa, 16);
+
+		tmp = mio_reallocmem(mio, marc->sess.ptr, MIO_SIZEOF(sess_t) * newcapa);
+		if (MIO_UNLIKELY(!tmp)) return MIO_NULL;
+
+		MIO_MEMSET (&marc->sess.ptr[marc->sess.capa], 0, MIO_SIZEOF(sess_t) * (newcapa - marc->sess.capa));
+
+		marc->sess.ptr = tmp;
+		marc->sess.capa = newcapa;
+	}
+
+	sess = &marc->sess.ptr[sid];
+	if (!sess->dev)
+	{
+		sess_qry_t* sq;
+
+		sq = make_session_query(mio, "", 0, MIO_NULL); /* this is a place holder */
+		if (MIO_UNLIKELY(!sq)) return MIO_NULL;
+
+		sess->dev = alloc_device(marc);
+		if (MIO_UNLIKELY(!sess->dev)) 
+		{
+			free_session_query (mio, sq);
+			return MIO_NULL;
+		}
+
+		sess->q_head = sess->q_tail = sq;
+	}
+
+	return sess;
+}
+
+
+int mio_svc_mar_querywithbchars (mio_svc_marc_t* marc, int sid, const mio_bch_t* qptr, mio_oow_t qlen, void* qctx)
+{
+	mio_t* mio = marc->mio;
+	sess_t* sess;
+
+	sess = get_session(marc, sid);
+	if (MIO_UNLIKELY(!sess)) return -1;
+
+
+	if (!sess->q_head)
+	{
+		/* the first query for the device */
+		sess_qry_t* sq;
+		sq = make_session_query(mio, qptr, qlen, qctx);
+		if (MIO_UNLIKELY(!sq)) return -1;
+
+		sess->q_head = sq;
+		sess->q_tail = sq;
+
+/* what if it's not connected??? */
+
+		if (mio_dev_mar_querywithbchars(sess->dev, qptr, qlen) <= -1) 
+		{
+			sess->q_head = MIO_NULL;
+			sess->q_tail = MIO_NULL;
+			free_session_query (mio, sq);
+			return -1; /* TODO: need a context pointer */
+		}
+	}
+	else
+	{
+		/* there is an ongoing query for the device */
+		sess_qry_t* sq;
+		sq = make_session_query(mio, qptr, qlen, qctx);
+		if (MIO_UNLIKELY(!sq)) return -1;
+
+		/* push it at the back */
+		sess->q_tail->sq_next = sq;
+		sess->q_tail = sq;
+	}
+
 
 #if 0
-	dev = alloc_device(marc);
+	dev = get_session(marc, sid);
 	if (!dev)
 	{
-		
-	}	
-
+	}
 	if (mio_dev_mar_querywithbchars(dev, qptr, qlen) <= -1) return -1; /* TODO: need a context pointer */
 #endif
 }
+
+
+#if 0
+mio_svc_mar_querywithbchars (1, "select...");
+for (each row)
+{
+mio_svc_mar_querywithbchars (2, "xxxxxx");
+}
+#endif
