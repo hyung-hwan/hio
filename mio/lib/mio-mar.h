@@ -153,6 +153,16 @@ typedef enum mio_dev_mar_ioctl_cmd_t mio_dev_mar_ioctl_cmd_t;
 /* -------------------------------------------------------------- */
 
 typedef struct mio_svc_marc_t mio_svc_marc_t;
+typedef mio_dev_mar_connect_t mio_svc_marc_connect_t;
+
+typedef void (*mio_svc_marc_on_row_fetched) (
+	mio_svc_marc_t* marc,
+	mio_oow_t       sid,
+	void*           data,
+	void*           qctx
+);
+
+/* -------------------------------------------------------------- */
 
 #ifdef __cplusplus
 extern "C" {
@@ -206,7 +216,8 @@ static MIO_INLINE void mio_dev_mar_halt (mio_dev_mar_t* mar) { mio_dev_halt ((mi
 /* ------------------------------------------------------------------------- */
 
 MIO_EXPORT mio_svc_marc_t* mio_svc_marc_start (
-	mio_t*          mio
+	mio_t*                        mio,
+	const mio_svc_marc_connect_t* ci
 );
 
 MIO_EXPORT void mio_svc_marc_stop (
@@ -218,6 +229,15 @@ static MIO_INLINE mio_t* mio_svc_marc_getmio(mio_svc_marc_t* svc) { return mio_s
 #else
 #       define mio_svc_marc_getmio(svc) mio_svc_getmio(svc)
 #endif
+
+
+MIO_EXPORT int mio_svc_mar_querywithbchars (
+	mio_svc_marc_t*   marc,
+	mio_oow_t         sid,
+	const mio_bch_t*  qptr,
+	mio_oow_t         qlen,
+	void*             qctx
+);
 
 #ifdef __cplusplus
 }
