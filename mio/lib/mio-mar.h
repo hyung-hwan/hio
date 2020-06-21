@@ -50,11 +50,11 @@ enum mio_dev_mar_state_t
 
 	/* convenience bit masks */
 	MIO_DEV_MAR_ALL_PROGRESS_BITS = (MIO_DEV_MAR_CONNECTING |
-	                                   MIO_DEV_MAR_CONNECTED |
-	                                   MIO_DEV_MAR_QUERY_STARTING |
-	                                   MIO_DEV_MAR_QUERY_STARTED |
-	                                   MIO_DEV_MAR_ROW_FETCHING |
-	                                   MIO_DEV_MAR_ROW_FETCHED)
+	                                 MIO_DEV_MAR_CONNECTED |
+	                                 MIO_DEV_MAR_QUERY_STARTING |
+	                                 MIO_DEV_MAR_QUERY_STARTED |
+	                                 MIO_DEV_MAR_ROW_FETCHING |
+	                                 MIO_DEV_MAR_ROW_FETCHED)
 };
 typedef enum mio_dev_mar_state_t mio_dev_mar_state_t;
 
@@ -168,9 +168,17 @@ enum mio_svc_marc_rcode_t
 {
 	MIO_SVC_MARC_RCODE_ROW, /* has row *- data is MYSQL_ROW */
 	MIO_SVC_MARC_RCODE_DONE, /* completed or no more row  - data is NULL */
-	MIO_SVC_MARC_RCODE_ERROR /* query error - data is a numeric database error code cast to void* */
+	MIO_SVC_MARC_RCODE_ERROR /* query error - data is mio_sv_marc_dev_error_t* */
 };
 typedef enum mio_svc_marc_rcode_t mio_svc_marc_rcode_t;
+
+
+struct mio_svc_marc_dev_error_t
+{
+	int mar_errcode;
+	const mio_bch_t* mar_errmsg;
+};
+typedef struct mio_svc_marc_dev_error_t mio_svc_marc_dev_error_t;
 
 typedef void (*mio_svc_marc_on_result_t) (
 	mio_svc_marc_t*      marc,
@@ -250,13 +258,13 @@ static MIO_INLINE mio_t* mio_svc_marc_getmio(mio_svc_marc_t* svc) { return mio_s
 
 
 MIO_EXPORT int mio_svc_mar_querywithbchars (
-	mio_svc_marc_t*          marc,
-	mio_oow_t                sid,
-	mio_svc_marc_qtype_t     qtype,
-	const mio_bch_t*         qptr,
-	mio_oow_t                qlen,
-	mio_svc_marc_on_result_t on_result,
-	void*                    qctx
+	mio_svc_marc_t*            marc,
+	mio_oow_t                  sid,
+	mio_svc_marc_qtype_t       qtype,
+	const mio_bch_t*           qptr,
+	mio_oow_t                  qlen,
+	mio_svc_marc_on_result_t   on_result,
+	void*                      qctx
 );
 
 #ifdef __cplusplus
