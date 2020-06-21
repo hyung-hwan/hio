@@ -219,13 +219,16 @@ static void mar_on_query_started (mio_dev_mar_t* dev, int mar_ret, const mio_bch
 
 	if (mar_ret)
 	{
+		mio_svc_marc_dev_error_t err;
 printf ("QUERY FAILED...%d -> %s\n", mar_ret, mar_errmsg);
 #if 0
 		if (mar_ret == CR_SERVER_GONE_ERROR || /*  server gone away between queries */
 		    mar_ret == CR_SERVER_LOST) /* server gone away during a query */
 #endif
 
-		sq->on_result(sess->svc, sess->sid, MIO_SVC_MARC_RCODE_ERROR, mysql_error(dev->hnd), sq->qctx);
+		err.mar_errcode = mar_ret;
+		err.mar_errmsg = mar_errmsg;
+		sq->on_result(sess->svc, sess->sid, MIO_SVC_MARC_RCODE_ERROR, &err, sq->qctx);
 
 		dequeue_session_query (sess->svc->mio, sess);
 		send_pending_query_if_any (sess);

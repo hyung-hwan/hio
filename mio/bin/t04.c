@@ -138,8 +138,11 @@ printf ("[%lu] NO DATA..\n", sid);
 			break;
 
 		case MIO_SVC_MARC_RCODE_ERROR:
-			printf ("QUERY ERROR - %s\n", data); /* TODO: how to get both error code and error message? */
+		{
+			mio_svc_marc_dev_error_t* err = (mio_svc_marc_dev_error_t*)data;
+			printf ("QUERY ERROR - [%d] %s\n", err->mar_errcode, err->mar_errmsg); 
 			break;
+		}
 	}
 }
 
