@@ -68,14 +68,14 @@ typedef enum mio_dev_mar_state_t mio_dev_mar_state_t;
 
 typedef int (*mio_dev_mar_on_read_t) (
 	mio_dev_mar_t*    dev,
-	const void*         data,
-	mio_iolen_t         len
+	const void*       data,
+	mio_iolen_t       len
 );
 
 typedef int (*mio_dev_mar_on_write_t) (
 	mio_dev_mar_t*    dev,
-	mio_iolen_t         wrlen,
-	void*               wrctx
+	mio_iolen_t       wrlen,
+	void*             wrctx
 );
 
 typedef void (*mio_dev_mar_on_connect_t) (
@@ -88,12 +88,13 @@ typedef void (*mio_dev_mar_on_disconnect_t) (
 
 typedef void (*mio_dev_mar_on_query_started_t) (
 	mio_dev_mar_t*    dev,
-	int                 mar_ret
+	int               mar_ret,
+	const mio_bch_t*  mar_errmsg
 );
 
 typedef void (*mio_dev_mar_on_row_fetched_t) (
 	mio_dev_mar_t*    dev,
-	void*               row_data
+	void*             row_data
 );
 
 struct mio_dev_mar_t
@@ -108,6 +109,7 @@ struct mio_dev_mar_t
 	unsigned int query_started;
 	unsigned int row_fetched;
 
+	char errbuf[256];
 	int query_ret;
 	int row_wstatus;
 	void* row;
@@ -155,11 +157,27 @@ typedef enum mio_dev_mar_ioctl_cmd_t mio_dev_mar_ioctl_cmd_t;
 typedef struct mio_svc_marc_t mio_svc_marc_t;
 typedef mio_dev_mar_connect_t mio_svc_marc_connect_t;
 
-typedef void (*mio_svc_marc_on_row_fetched) (
-	mio_svc_marc_t* marc,
-	mio_oow_t       sid,
-	void*           data,
-	void*           qctx
+enum mio_svc_marc_qtype_t
+{
+	MIO_SVC_MARC_QTYPE_SELECT, /* SELECT, SHOW, ... */
+	MIO_SVC_MARC_QTYPE_ACTION /* UPDATE, INSERT, DELETE, ALTER ... */
+};
+typedef enum mio_svc_marc_qtype_t mio_svc_marc_qtype_t;
+
+enum mio_svc_marc_rcode_t
+{
+	MIO_SVC_MARC_RCODE_ROW, /* has row *- data is MYSQL_ROW */
+	MIO_SVC_MARC_RCODE_DONE, /* completed or no more row  - data is NULL */
+	MIO_SVC_MARC_RCODE_ERROR /* query error - data is a numeric database error code cast to void* */
+};
+typedef enum mio_svc_marc_rcode_t mio_svc_marc_rcode_t;
+
+typedef void (*mio_svc_marc_on_result_t) (
+	mio_svc_marc_t*      marc,
+	mio_oow_t            sid,
+	mio_svc_marc_rcode_t rcode,
+	void*                data,
+	void*                qctx
 );
 
 /* -------------------------------------------------------------- */
@@ -232,11 +250,13 @@ static MIO_INLINE mio_t* mio_svc_marc_getmio(mio_svc_marc_t* svc) { return mio_s
 
 
 MIO_EXPORT int mio_svc_mar_querywithbchars (
-	mio_svc_marc_t*   marc,
-	mio_oow_t         sid,
-	const mio_bch_t*  qptr,
-	mio_oow_t         qlen,
-	void*             qctx
+	mio_svc_marc_t*          marc,
+	mio_oow_t                sid,
+	mio_svc_marc_qtype_t     qtype,
+	const mio_bch_t*         qptr,
+	mio_oow_t                qlen,
+	mio_svc_marc_on_result_t on_result,
+	void*                    qctx
 );
 
 #ifdef __cplusplus
