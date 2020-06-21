@@ -217,6 +217,11 @@ static int dev_mar_ioctl (mio_dev_t* dev, int cmd, void* arg)
 			else
 			{
 				/* query sent immediately */
+				if (err) 
+				{
+					if (err == 1) err = mysql_errno(rdev->hnd);
+					mio_copy_bcstr (rdev->errbuf, MIO_COUNTOF(rdev->errbuf), mysql_error(rdev->hnd));
+				}
 				rdev->query_started = 1;
 				rdev->query_ret = err;
 				watch_mysql (rdev, MYSQL_WAIT_READ | MYSQL_WAIT_WRITE);
@@ -322,7 +327,7 @@ static int dev_evcb_mar_ready (mio_dev_t* dev, int events)
 			{
 				rdev->query_started = 0;
 				MIO_DEV_MAR_SET_PROGRESS (rdev, MIO_DEV_MAR_QUERY_STARTED);
-				if (rdev->on_query_started) rdev->on_query_started (rdev, rdev->query_ret);
+				if (rdev->on_query_started) rdev->on_query_started (rdev, rdev->query_ret, (rdev->query_ret? rdev->errbuf: MIO_NULL));
 			}
 			else
 			{
@@ -336,7 +341,8 @@ static int dev_evcb_mar_ready (mio_dev_t* dev, int events)
 				{
 					/* query sent */
 					MIO_DEV_MAR_SET_PROGRESS (rdev, MIO_DEV_MAR_QUERY_STARTED);
-					if (rdev->on_query_started) rdev->on_query_started (rdev, tmp);
+					if (tmp == 1) tmp = mysql_errno(rdev->hnd); /* tmp is set to 1 by mariadb-connector-c 3.1 as of this writing. let me work around it by fetching the error code */
+					if (rdev->on_query_started) rdev->on_query_started (rdev, tmp, (tmp? mysql_error(rdev->hnd): MIO_NULL));
 				}
 			}
 

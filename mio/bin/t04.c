@@ -20,7 +20,7 @@ printf ("CONNECTED...\n");
 	}
 }
 
-static void mar_on_query_started (mio_dev_mar_t* dev, int mar_ret)
+static void mar_on_query_started (mio_dev_mar_t* dev, int mar_ret, const mio_bch_t* mar_errmsg)
 {
 	if (mar_ret != 0)
 	{
@@ -31,7 +31,7 @@ printf ("QUERY NOT SENT PROPERLY..%s\n", mysql_error(dev->hnd));
 printf ("QUERY SENT..\n");
 		if (mio_dev_mar_fetchrows(dev) <= -1)
 		{
-printf ("FETCH ROW FAILURE - %s\n", mysql_error(dev->hnd));
+printf ("FETCH ROW FAILURE - %s\n", errmsg);
 			mio_dev_mar_halt (dev);
 		}
 	}
@@ -118,9 +118,30 @@ oops:
 
 
 
+static void on_result (mio_svc_marc_t* svc, mio_oow_t sid, mio_svc_marc_rcode_t rcode, void* data, void* qctx)
+{
+	switch (rcode)
+	{
+		case MIO_SVC_MARC_RCODE_ROW:
+		{
+			MYSQL_ROW row = (MYSQL_ROW)data;
+//		if (x == 0)
+			printf ("[%lu] %s %s\n", sid, row[0], row[1]);
+//		else if (x == 1)
+//			printf ("%s %s %s %s %s\n", row[0], row[1], row[2], row[3], row[4]);
+		//printf ("GOT ROW\n");
+			break;
+		}
 
+		case MIO_SVC_MARC_RCODE_DONE:
+printf ("[%lu] NO DATA..\n", sid);
+			break;
 
-
+		case MIO_SVC_MARC_RCODE_ERROR:
+			printf ("QUERY ERROR - %s\n", data); /* TODO: how to get both error code and error message? */
+			break;
+	}
+}
 
 int main (int argc, char* argv[])
 {
@@ -157,7 +178,10 @@ int main (int argc, char* argv[])
 		goto oops;
 	}
 
-	mio_svc_mar_querywithbchars (marc, 0, "SHOW STATUS", 11, MIO_NULL);
+	mio_svc_mar_querywithbchars (marc, 0, MIO_SVC_MARC_QTYPE_SELECT, "SHOW STATUS", 11, on_result, MIO_NULL);
+	mio_svc_mar_querywithbchars (marc, 0, MIO_SVC_MARC_QTYPE_ACTION, "DELETE FROM", 11, on_result, MIO_NULL);
+//	mio_svc_mar_querywithbchars (marc, 0, MIO_SVC_MARC_QTYPE_SELECT, "SHOW STATUS", 11, on_result, MIO_NULL);
+	mio_svc_mar_querywithbchars (marc, 0, MIO_SVC_MARC_QTYPE_ACTION, "DELETE FROM XXX", 14, on_result, MIO_NULL);
 
 #if 0
 	memset (&mi, 0, MIO_SIZEOF(mi));
