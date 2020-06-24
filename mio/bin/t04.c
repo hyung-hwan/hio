@@ -167,14 +167,14 @@ static void send_test_query (mio_t* mio, const mio_ntime_t* now, mio_tmrjob_t* j
 	mio_bch_t tmp[256];
 	int len;
 
-	if (mio_svc_mar_querywithbchars(marc, 0, MIO_SVC_MARC_QTYPE_SELECT, "SHOW STATUS", 11, on_result, MIO_NULL) <= -1)
+	if (mio_svc_marc_querywithbchars(marc, 0, MIO_SVC_MARC_QTYPE_SELECT, "SHOW STATUS", 11, on_result, MIO_NULL) <= -1)
 	{
 		MIO_INFO1 (mio, "FAILED TO SEND QUERY - %js\n", mio_geterrmsg(mio));
 	}
 
-	mio_svc_mar_escapebchars (marc, "wild", 4, tmp);
+	mio_svc_marc_escapebchars (marc, "wild", 4, tmp);
 	len = snprintf(buf, MIO_COUNTOF(buf), "SELECT name, content FROM records WHERE name like '%%%s%%'", tmp);
-	if (mio_svc_mar_querywithbchars(marc, 1, MIO_SVC_MARC_QTYPE_SELECT, buf, len, on_result, MIO_NULL) <= -1)
+	if (mio_svc_marc_querywithbchars(marc, 1, MIO_SVC_MARC_QTYPE_SELECT, buf, len, on_result, MIO_NULL) <= -1)
 	{
 		MIO_INFO1 (mio, "FAILED TO SEND QUERY - %js\n", mio_geterrmsg(mio));
 	}
@@ -238,10 +238,10 @@ int main (int argc, char* argv[])
 		goto oops;
 	}
 
-	mio_svc_mar_querywithbchars (marc, 0, MIO_SVC_MARC_QTYPE_SELECT, "SHOW STATUS", 11, on_result, MIO_NULL);
-	mio_svc_mar_querywithbchars (marc, 0, MIO_SVC_MARC_QTYPE_ACTION, "DELETE FROM", 11, on_result, MIO_NULL);
-//	mio_svc_mar_querywithbchars (marc, 0, MIO_SVC_MARC_QTYPE_SELECT, "SHOW STATUS", 11, on_result, MIO_NULL);
-	mio_svc_mar_querywithbchars (marc, 0, MIO_SVC_MARC_QTYPE_ACTION, "DELETE FROM XXX", 14, on_result, MIO_NULL);
+	mio_svc_marc_querywithbchars (marc, 0, MIO_SVC_MARC_QTYPE_SELECT, "SHOW STATUS", 11, on_result, MIO_NULL);
+	mio_svc_marc_querywithbchars (marc, 0, MIO_SVC_MARC_QTYPE_ACTION, "DELETE FROM", 11, on_result, MIO_NULL);
+//	mio_svc_marc_querywithbchars (marc, 0, MIO_SVC_MARC_QTYPE_SELECT, "SHOW STATUS", 11, on_result, MIO_NULL);
+	mio_svc_marc_querywithbchars (marc, 0, MIO_SVC_MARC_QTYPE_ACTION, "DELETE FROM XXX", 14, on_result, MIO_NULL);
 
 #if 0
 	memset (&mi, 0, MIO_SIZEOF(mi));

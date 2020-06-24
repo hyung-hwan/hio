@@ -237,6 +237,12 @@ static MIO_INLINE void mio_dev_mar_halt (mio_dev_mar_t* mar) { mio_dev_halt ((mi
 #	define mio_dev_mar_halt(mar) mio_dev_halt((mio_dev_t*)mar)
 #endif
 
+MIO_EXPORT mio_oow_t mio_dev_mar_escapebchars (
+	mio_dev_mar_t*     dev,
+	const mio_bch_t*   qstr,
+	mio_oow_t          qlen,
+	mio_bch_t*         buf
+);
 
 /* ------------------------------------------------------------------------- */
 /* MARDB CLIENT SERVICE                                                    */
@@ -258,7 +264,7 @@ static MIO_INLINE mio_t* mio_svc_marc_getmio(mio_svc_marc_t* svc) { return mio_s
 #       define mio_svc_marc_getmio(svc) mio_svc_getmio(svc)
 #endif
 
-MIO_EXPORT int mio_svc_mar_querywithbchars (
+MIO_EXPORT int mio_svc_marc_querywithbchars (
 	mio_svc_marc_t*            marc,
 	mio_oow_t                  sid,
 	mio_svc_marc_qtype_t       qtype,
@@ -268,11 +274,11 @@ MIO_EXPORT int mio_svc_mar_querywithbchars (
 	void*                      qctx
 );
 
-MIO_EXPORT mio_oow_t mio_dev_mar_escapebchars (
-	mio_dev_mar_t*     dev,
-	const mio_bch_t*   qstr,
-	mio_oow_t          qlen,
-	mio_bch_t*         buf
+MIO_EXPORT mio_oow_t mio_svc_marc_escapebchars (
+	mio_svc_marc_t*     marc,
+	const mio_bch_t*    qstr,
+	mio_oow_t           qlen,
+	mio_bch_t*          buf
 );
 
 #ifdef __cplusplus

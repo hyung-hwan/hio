@@ -434,7 +434,7 @@ static sess_t* get_session (mio_svc_marc_t* marc, mio_oow_t sid)
 }
 
 
-int mio_svc_mar_querywithbchars (mio_svc_marc_t* marc, mio_oow_t sid, mio_svc_marc_qtype_t qtype, const mio_bch_t* qptr, mio_oow_t qlen, mio_svc_marc_on_result_t on_result, void* qctx)
+int mio_svc_marc_querywithbchars (mio_svc_marc_t* marc, mio_oow_t sid, mio_svc_marc_qtype_t qtype, const mio_bch_t* qptr, mio_oow_t qlen, mio_svc_marc_on_result_t on_result, void* qctx)
 {
 	mio_t* mio = marc->mio;
 	sess_t* sess;
@@ -483,7 +483,7 @@ int mio_svc_mar_querywithbchars (mio_svc_marc_t* marc, mio_oow_t sid, mio_svc_ma
 	return 0;
 }
 
-mio_oow_t mio_svc_mar_escapebchars (mio_svc_marc_t* marc, const mio_bch_t* qptr, mio_oow_t qlen, mio_bch_t* buf)
+mio_oow_t mio_svc_marc_escapebchars (mio_svc_marc_t* marc, const mio_bch_t* qptr, mio_oow_t qlen, mio_bch_t* buf)
 {
 	return mysql_real_escape_string(marc->edev, buf, qptr, qlen);
 }
