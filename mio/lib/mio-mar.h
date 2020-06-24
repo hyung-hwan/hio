@@ -89,8 +89,8 @@ struct mio_dev_mar_t
 	unsigned int connected: 1;
 	unsigned int connected_deferred: 1;
 	unsigned int query_started_deferred: 1;
-	//unsigned int query_started: 1;
-	unsigned int row_fetched: 1;
+	/*unsigned int query_started: 1;*/
+	unsigned int row_fetched_deferred: 1;
 	unsigned int broken: 1;
 	mio_syshnd_t broken_syshnd;
 
@@ -107,14 +107,24 @@ struct mio_dev_mar_t
 
 enum mio_dev_mar_make_flag_t
 {
-	MIO_DEV_MAR_UNUSED_YET = (1 << 0)
+	MIO_DEV_MAR_USE_TMOUT = (1 << 0)
 };
 typedef enum mio_dev_mar_make_flag_t mio_dev_mar_make_flag_t;
+
+
+typedef struct mio_dev_mar_tmout_t mio_dev_mar_tmout_t;
+struct mio_dev_mar_tmout_t
+{
+	mio_ntime_t c;
+	mio_ntime_t r;
+	mio_ntime_t w;
+};
 
 typedef struct mio_dev_mar_make_t mio_dev_mar_make_t;
 struct mio_dev_mar_make_t
 {
 	int flags;
+	mio_dev_mar_tmout_t tmout;
 	mio_dev_mar_on_write_t on_write; /* mandatory */
 	mio_dev_mar_on_read_t on_read; /* mandatory */
 	mio_dev_mar_on_connect_t on_connect; /* optional */
@@ -146,6 +156,7 @@ typedef enum mio_dev_mar_ioctl_cmd_t mio_dev_mar_ioctl_cmd_t;
 
 typedef struct mio_svc_marc_t mio_svc_marc_t;
 typedef mio_dev_mar_connect_t mio_svc_marc_connect_t;
+typedef mio_dev_mar_tmout_t mio_svc_marc_tmout_t;
 
 enum mio_svc_marc_qtype_t
 {
@@ -162,7 +173,6 @@ enum mio_svc_marc_rcode_t
 };
 typedef enum mio_svc_marc_rcode_t mio_svc_marc_rcode_t;
 
-
 struct mio_svc_marc_dev_error_t
 {
 	int mar_errcode;
@@ -177,6 +187,7 @@ typedef void (*mio_svc_marc_on_result_t) (
 	void*                data,
 	void*                qctx
 );
+
 
 /* -------------------------------------------------------------- */
 
@@ -233,7 +244,8 @@ static MIO_INLINE void mio_dev_mar_halt (mio_dev_mar_t* mar) { mio_dev_halt ((mi
 
 MIO_EXPORT mio_svc_marc_t* mio_svc_marc_start (
 	mio_t*                        mio,
-	const mio_svc_marc_connect_t* ci
+	const mio_svc_marc_connect_t* ci,
+	const mio_svc_marc_tmout_t*   tmout
 );
 
 MIO_EXPORT void mio_svc_marc_stop (
@@ -246,7 +258,6 @@ static MIO_INLINE mio_t* mio_svc_marc_getmio(mio_svc_marc_t* svc) { return mio_s
 #       define mio_svc_marc_getmio(svc) mio_svc_getmio(svc)
 #endif
 
-
 MIO_EXPORT int mio_svc_mar_querywithbchars (
 	mio_svc_marc_t*            marc,
 	mio_oow_t                  sid,
@@ -255,6 +266,13 @@ MIO_EXPORT int mio_svc_mar_querywithbchars (
 	mio_oow_t                  qlen,
 	mio_svc_marc_on_result_t   on_result,
 	void*                      qctx
+);
+
+MIO_EXPORT mio_oow_t mio_dev_mar_escapebchars (
+	mio_dev_mar_t*     dev,
+	const mio_bch_t*   qstr,
+	mio_oow_t          qlen,
+	mio_bch_t*         buf
 );
 
 #ifdef __cplusplus

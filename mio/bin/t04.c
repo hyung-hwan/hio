@@ -115,12 +115,9 @@ oops:
 }
 #endif
 
-
-
-
-
 static void on_result (mio_svc_marc_t* svc, mio_oow_t sid, mio_svc_marc_rcode_t rcode, void* data, void* qctx)
 {
+static int x = 0;
 	switch (rcode)
 	{
 		case MIO_SVC_MARC_RCODE_ROW:
@@ -131,6 +128,15 @@ static void on_result (mio_svc_marc_t* svc, mio_oow_t sid, mio_svc_marc_rcode_t 
 //		else if (x == 1)
 //			printf ("%s %s %s %s %s\n", row[0], row[1], row[2], row[3], row[4]);
 		//printf ("GOT ROW\n");
+#if 0
+x++;
+if (x == 1)
+{
+printf ("BLOCKING PACKET...........................\n");
+system ("/sbin/iptables -I OUTPUT -p tcp --dport 3306 -j REJECT");
+system ("/sbin/iptables -I INPUT -p tcp --sport 3306 -j REJECT");
+}
+#endif
 			break;
 		}
 
@@ -157,8 +163,18 @@ static void handle_signal (int sig)
 static void send_test_query (mio_t* mio, const mio_ntime_t* now, mio_tmrjob_t* job)
 {
 	mio_svc_marc_t* marc = (mio_svc_marc_t*)job->ctx;
+	mio_bch_t buf[256];
+	mio_bch_t tmp[256];
+	int len;
 
 	if (mio_svc_mar_querywithbchars(marc, 0, MIO_SVC_MARC_QTYPE_SELECT, "SHOW STATUS", 11, on_result, MIO_NULL) <= -1)
+	{
+		MIO_INFO1 (mio, "FAILED TO SEND QUERY - %js\n", mio_geterrmsg(mio));
+	}
+
+	mio_svc_mar_escapebchars (marc, "wild", 4, tmp);
+	len = snprintf(buf, MIO_COUNTOF(buf), "SELECT name, content FROM records WHERE name like '%%%s%%'", tmp);
+	if (mio_svc_mar_querywithbchars(marc, 1, MIO_SVC_MARC_QTYPE_SELECT, buf, len, on_result, MIO_NULL) <= -1)
 	{
 		MIO_INFO1 (mio, "FAILED TO SEND QUERY - %js\n", mio_geterrmsg(mio));
 	}
@@ -187,6 +203,7 @@ int main (int argc, char* argv[])
 	mio_t* mio = MIO_NULL;
 	mio_svc_marc_t* marc;
 	mio_svc_marc_connect_t ci;
+/*	mio_svc_marc_tmout_t tmout;*/
 
 	if (argc != 6)
 	{
@@ -208,7 +225,13 @@ int main (int argc, char* argv[])
 	ci.password = argv[4];
 	ci.dbname = argv[5];
 
-	marc = mio_svc_marc_start(mio, &ci);
+/* timeout not implemented  yet in the mardiab device and services 
+	MIO_INIT_NTIME (&tmout.c, 2,  0);
+	MIO_INIT_NTIME (&tmout.r, -1,  0);
+	MIO_INIT_NTIME (&tmout.w, -1,  0);
+*/
+
+	marc = mio_svc_marc_start(mio, &ci, MIO_NULL);
 	if (!marc)
 	{
 		printf ("Cannot start a mariadb client service\n");
