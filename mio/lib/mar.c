@@ -28,7 +28,7 @@
 #include "mio-prv.h"
 
 #include <mariadb/mysql.h>
-
+#include <mariadb/errmsg.h>
 
 /* ========================================================================= */
 
@@ -47,14 +47,14 @@ static int dev_mar_make (mio_dev_t* dev, void* ctx)
 
 	if (mysql_options(rdev->hnd, MYSQL_OPT_NONBLOCK, 0) != 0)
 	{
-		mio_seterrbfmt (mio, MIO_ESYSERR, "%s", mysql_error(rdev->hnd));
+		mio_seterrbfmt (mio, MIO_ESYSERR, "%hs", mysql_error(rdev->hnd));
 		mysql_close (rdev->hnd);
 		rdev->hnd = MIO_NULL;
 		return -1;
 	}
 
 	{
-		my_bool x = 0;
+		my_bool x = 0; /* no auto-reconnect */
 		mysql_options(rdev->hnd, MYSQL_OPT_RECONNECT, &x);
 	}
 
@@ -65,6 +65,9 @@ static int dev_mar_make (mio_dev_t* dev, void* ctx)
 	rdev->on_disconnect = mi->on_disconnect;
 	rdev->on_query_started = mi->on_query_started;
 	rdev->on_row_fetched = mi->on_row_fetched;
+
+	rdev->progress = MIO_DEV_MAR_INITIAL;
+
 	return 0;
 }
 
@@ -73,6 +76,8 @@ static int dev_mar_kill (mio_dev_t* dev, int force)
 	/*mio_t* mio = dev->mio;*/
 	mio_dev_mar_t* rdev = (mio_dev_mar_t*)dev;
 
+	/* if rdev->connected is 0 at this point, 
+	 * the underlying socket of this device is down */
 	if (rdev->on_disconnect) rdev->on_disconnect (rdev);
 
 	if (rdev->res)
@@ -86,12 +91,16 @@ static int dev_mar_kill (mio_dev_t* dev, int force)
 		rdev->hnd = MIO_NULL;
 	}
 
+	rdev->connected = 0;
+	rdev->broken = 0;
+
 	return 0;
 }
 
 static mio_syshnd_t dev_mar_getsyshnd (mio_dev_t* dev)
 {
 	mio_dev_mar_t* rdev = (mio_dev_mar_t*)dev;
+	if (rdev->broken) return rdev->broken_syshnd; /* hack!! */
 	return (mio_syshnd_t)mysql_get_socket(rdev->hnd);
 }
 
@@ -123,7 +132,6 @@ static MIO_INLINE void watch_mysql (mio_dev_mar_t* rdev, int wstatus)
 	}
 }
 
-
 static void start_fetch_row (mio_dev_mar_t* rdev)
 {
 	MYSQL_ROW row;
@@ -147,7 +155,6 @@ static void start_fetch_row (mio_dev_mar_t* rdev)
 	}
 }
 
-
 static int dev_mar_ioctl (mio_dev_t* dev, int cmd, void* arg)
 {
 	mio_t* mio = dev->mio;
@@ -158,38 +165,41 @@ static int dev_mar_ioctl (mio_dev_t* dev, int cmd, void* arg)
 		case MIO_DEV_MAR_CONNECT:
 		{
 			mio_dev_mar_connect_t* ci = (mio_dev_mar_connect_t*)arg;
-			MYSQL* ret;
+			MYSQL* tmp;
 			int status;
 
-
-			if (MIO_DEV_MAR_GET_PROGRESS(rdev))
+			if (MIO_DEV_MAR_GET_PROGRESS(rdev) != MIO_DEV_MAR_INITIAL)
 			{
 				/* can't connect again */
 				mio_seterrbfmt (mio, MIO_EPERM, "operation in progress. disallowed to connect again");
 				return -1;
 			}
 
-			status = mysql_real_connect_start(&ret, rdev->hnd, ci->host, ci->username, ci->password, ci->dbname, ci->port, MIO_NULL, 0);
+			MIO_ASSERT (mio, rdev->connected_deferred == 0);
+
+			status = mysql_real_connect_start(&tmp, rdev->hnd, ci->host, ci->username, ci->password, ci->dbname, ci->port, MIO_NULL, 0);
 			rdev->dev_cap &= ~MIO_DEV_CAP_VIRTUAL; /* a socket is created in mysql_real_connect_start() */
 			if (status)
 			{
 				/* not connected */
 				MIO_DEV_MAR_SET_PROGRESS (rdev, MIO_DEV_MAR_CONNECTING);
-				rdev->connected = 0;
 				watch_mysql (rdev, status);
 			}
 			else
 			{
-				/* connected immediately */
-				if (MIO_UNLIKELY(!ret))
+				if (MIO_UNLIKELY(!tmp)) /* connection attempt failed immediately */
 				{
-					mio_seterrbfmt (mio, MIO_ESYSERR, "%s", mysql_error(rdev->hnd));
+					/* immediate failure doesn't invoke on_discoonect(). 
+					 * the caller must check the return code of this function.  */
+					mio_seterrbfmt (mio, MIO_ESYSERR, "%hs", mysql_error(rdev->hnd));
 					return -1;
 				}
 
+				/* connected_deferred immediately. postpone actual handling to the ready() callback */
+				MIO_DEV_MAR_SET_PROGRESS (rdev, MIO_DEV_MAR_CONNECTING);
+				rdev->connected_deferred = 1; /* to let the ready() handler to trigger on_connect() */
 				/* regiter it in the multiplexer so that the ready() handler is
 				 * invoked to call the on_connect() callback */
-				rdev->connected = 1;
 				watch_mysql (rdev, MYSQL_WAIT_READ | MYSQL_WAIT_WRITE); /* TODO: verify this */
 			}
 			return 0;
@@ -199,6 +209,13 @@ static int dev_mar_ioctl (mio_dev_t* dev, int cmd, void* arg)
 		{
 			const mio_bcs_t* qstr = (const mio_bcs_t*)arg;
 			int err, status;
+			mio_syshnd_t syshnd;
+
+			if (!rdev->connected)
+			{
+				mio_seterrbfmt (mio, MIO_EPERM, "not connected. disallowed to query");
+				return -1;
+			}
 
 			if (rdev->res) /* TODO: more accurate check */
 			{
@@ -206,12 +223,13 @@ static int dev_mar_ioctl (mio_dev_t* dev, int cmd, void* arg)
 				return -1;
 			}
 
+
+			syshnd = mysql_get_socket(rdev->hnd);
 			status = mysql_real_query_start(&err, rdev->hnd, qstr->ptr, qstr->len);
 			MIO_DEV_MAR_SET_PROGRESS (rdev, MIO_DEV_MAR_QUERY_STARTING);
 			if (status)
 			{
 				/* not done */
-				rdev->query_started = 0;
 				watch_mysql (rdev, status);
 			}
 			else
@@ -219,11 +237,26 @@ static int dev_mar_ioctl (mio_dev_t* dev, int cmd, void* arg)
 				/* query sent immediately */
 				if (err) 
 				{
+					/* but there is an error */
 					if (err == 1) err = mysql_errno(rdev->hnd);
-					mio_copy_bcstr (rdev->errbuf, MIO_COUNTOF(rdev->errbuf), mysql_error(rdev->hnd));
+
+					mio_seterrbfmt (mio, MIO_ESYSERR, "%hs", mysql_error(rdev->hnd));
+					if (err == CR_SERVER_LOST || err == CR_SERVER_GONE_ERROR)
+					{
+						/* the underlying socket must have gotten closed by mysql_real_query_start() */
+						const mio_ooch_t* prev_errmsg;
+						prev_errmsg = mio_backuperrmsg(mio);
+						rdev->broken = 1;
+						rdev->broken_syshnd = syshnd;
+						watch_mysql (rdev, 0);
+						mio_dev_mar_halt (rdev); /* i can't keep this device alive regardless of the caller's post-action */
+						mio_seterrbfmt (mio, MIO_ESYSERR, "%js", prev_errmsg);
+					}
+					return -1;
 				}
-				rdev->query_started = 1;
-				rdev->query_ret = err;
+
+				/* sent without an error */
+				rdev->query_started_deferred = 1;
 				watch_mysql (rdev, MYSQL_WAIT_READ | MYSQL_WAIT_WRITE);
 			}
 			return 0;
@@ -236,7 +269,7 @@ static int dev_mar_ioctl (mio_dev_t* dev, int cmd, void* arg)
 				rdev->res = mysql_use_result(rdev->hnd);
 				if (MIO_UNLIKELY(!rdev->res))
 				{
-					mio_seterrbfmt (mio, MIO_ESYSERR, "%s", mysql_error(rdev->hnd));
+					mio_seterrbfmt (mio, MIO_ESYSERR, "%hs", mysql_error(rdev->hnd));
 					return -1;
 				}
 			}
@@ -298,10 +331,11 @@ static int dev_evcb_mar_ready (mio_dev_t* dev, int events)
 	switch (MIO_DEV_MAR_GET_PROGRESS(rdev))
 	{
 		case MIO_DEV_MAR_CONNECTING:
-		
-			if (rdev->connected)
+			if (rdev->connected_deferred)
 			{
-				rdev->connected = 0;
+				/* connection esablished dev_mar_ioctl() but postponed to this function */
+				rdev->connected_deferred = 0;
+				rdev->connected = 1; /* really connected */
 				MIO_DEV_MAR_SET_PROGRESS (rdev, MIO_DEV_MAR_CONNECTED);
 				if (rdev->on_connect) rdev->on_connect (rdev);
 			}
@@ -309,40 +343,100 @@ static int dev_evcb_mar_ready (mio_dev_t* dev, int events)
 			{
 				int status;
 				MYSQL* tmp;
+				mio_syshnd_t syshnd;
 
+				syshnd = mysql_get_socket(rdev->hnd); /* ugly hack for handling a socket closed b y mysql_real_connect_cont() */
 				status = mysql_real_connect_cont(&tmp, rdev->hnd, events_to_mysql_wstatus(events));
-				watch_mysql (rdev, status);
 
-				if (!status)
+				if (status)
 				{
-					/* connected */
-					MIO_DEV_MAR_SET_PROGRESS (rdev, MIO_DEV_MAR_CONNECTED);
-					if (rdev->on_connect) rdev->on_connect (rdev);
+					/* connection in progress */
+					watch_mysql (rdev, status);
+				}
+				else
+				{
+					/* connection completed. */
+					if (tmp)
+					{
+						/* established ok */
+						watch_mysql (rdev, status);
+
+						rdev->connected = 1; /* really connected */
+						MIO_DEV_MAR_SET_PROGRESS (rdev, MIO_DEV_MAR_CONNECTED);
+						if (rdev->on_connect) rdev->on_connect (rdev);
+					}
+					else
+					{
+						/* connection attempt failed */
+
+						rdev->broken = 1; /* trick dev_mar_getsyshnd() to return rdev->broken_syshnd. */
+						rdev->broken_syshnd = syshnd; /* mysql_get_socket() over a failed mariadb handle ends up with segfault */
+
+						/* this attempts to trigger the low-level multiplxer to delete 'syshnd' closed by mysql_real_connect_cont().
+						 * the underlying low-level operation may fail. but i don't care. the best is not to open 
+						 * new file descriptor between mysql_real_connect_cont() and watch_mysql(rdev, 0).
+						 * 
+						 * close(6); <- mysql_real_connect_cont();
+						 * epoll_ctl(4, EPOLL_CTL_DEL, 6, 0x7ffc785e7154) = -1 EBADF (Bad file descriptor) <- by mio_dev_watch() in watch_mysql
+						 */
+						watch_mysql (rdev, 0);
+
+						/* on_disconnect() will be called without on_connect(). 
+						 * you may assume that the initial connectinon attempt failed. 
+						 * reconnectin doesn't apply in this context. */
+						mio_dev_mar_halt (rdev); 
+					}
 				}
 			}
 			break;
 
 		case MIO_DEV_MAR_QUERY_STARTING:
-			if (rdev->query_started)
+			if (rdev->query_started_deferred)
 			{
-				rdev->query_started = 0;
+				rdev->query_started_deferred = 0;
 				MIO_DEV_MAR_SET_PROGRESS (rdev, MIO_DEV_MAR_QUERY_STARTED);
-				if (rdev->on_query_started) rdev->on_query_started (rdev, rdev->query_ret, (rdev->query_ret? rdev->errbuf: MIO_NULL));
+				if (rdev->on_query_started) rdev->on_query_started (rdev, 0, MIO_NULL);
 			}
 			else
 			{
-				int status;
-				int tmp;
+				int status, err;
+				mio_syshnd_t syshnd;
 
-				status = mysql_real_query_cont(&tmp, rdev->hnd, events_to_mysql_wstatus(events));
-				watch_mysql (rdev, status);
+				syshnd = mysql_get_socket(rdev->hnd);
+				status = mysql_real_query_cont(&err, rdev->hnd, events_to_mysql_wstatus(events));
 
-				if (!status)
+				if (status)
 				{
-					/* query sent */
-					MIO_DEV_MAR_SET_PROGRESS (rdev, MIO_DEV_MAR_QUERY_STARTED);
-					if (tmp == 1) tmp = mysql_errno(rdev->hnd); /* tmp is set to 1 by mariadb-connector-c 3.1 as of this writing. let me work around it by fetching the error code */
-					if (rdev->on_query_started) rdev->on_query_started (rdev, tmp, (tmp? mysql_error(rdev->hnd): MIO_NULL));
+					watch_mysql (rdev, status);
+				}
+				else
+				{
+					if (err)
+					{
+						/* query send failure */
+						if (err == 1) err = mysql_errno(rdev->hnd); /* err is set to 1 by mariadb-connector-c 3.1 as of this writing. let me work around it by fetching the error code */
+
+						if (err == CR_SERVER_LOST || err == CR_SERVER_GONE_ERROR)
+						{
+							rdev->broken = 1;
+							rdev->broken_syshnd = syshnd;
+							watch_mysql (rdev, 0);
+							mio_dev_mar_halt (rdev); /* i can't keep this device alive regardless of the caller's post-action */
+							/* don't invoke on_query_started(). in this case, on_disconnect() will be called later */
+						}
+						else
+						{
+							/* query not sent for other reasons. probably nothing to watch? */
+							watch_mysql (rdev, 0); /* TODO: use status instead of 0? is status reliable in this context? */
+							if (rdev->on_query_started) rdev->on_query_started (rdev, err, mysql_error(rdev->hnd));
+						}
+					}
+					else
+					{
+						/* query really sent */
+						MIO_DEV_MAR_SET_PROGRESS (rdev, MIO_DEV_MAR_QUERY_STARTED);
+						if (rdev->on_query_started) rdev->on_query_started (rdev, 0, MIO_NULL);
+					}
 				}
 			}
 
@@ -404,7 +498,7 @@ static int dev_evcb_mar_ready (mio_dev_t* dev, int events)
 		}
 
 		default:
-			mio_seterrbfmt (mio, MIO_EINTERN, "invalid progress state in mar");
+			mio_seterrbfmt (mio, MIO_EINTERN, "invalid progress value in mar");
 			return -1;
 	}
 

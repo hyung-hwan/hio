@@ -167,7 +167,7 @@ struct mio_jsonwr_t
 	mio_jsonwr_state_node_t* state_stack;
 	int flags;
 
-	void* wctx;	
+	void* wctx;
 	mio_bch_t wbuf[8192];
 	mio_oow_t wbuf_len;
 };

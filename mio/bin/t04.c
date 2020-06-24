@@ -3,6 +3,7 @@
 #include <mio-mar.h>
 #include <stdio.h>
 #include <string.h>
+#include <signal.h>
 
 #include <mariadb/mysql.h>
 
@@ -146,6 +147,40 @@ printf ("[%lu] NO DATA..\n", sid);
 	}
 }
 
+static mio_t* g_mio = MIO_NULL;
+
+static void handle_signal (int sig)
+{
+	mio_stop (g_mio, MIO_STOPREQ_TERMINATION);
+}
+
+static void send_test_query (mio_t* mio, const mio_ntime_t* now, mio_tmrjob_t* job)
+{
+	mio_svc_marc_t* marc = (mio_svc_marc_t*)job->ctx;
+
+	if (mio_svc_mar_querywithbchars(marc, 0, MIO_SVC_MARC_QTYPE_SELECT, "SHOW STATUS", 11, on_result, MIO_NULL) <= -1)
+	{
+		MIO_INFO1 (mio, "FAILED TO SEND QUERY - %js\n", mio_geterrmsg(mio));
+	}
+}
+
+static int schedule_timer_job_after (mio_t* mio, const mio_ntime_t* fire_after, mio_tmrjob_handler_t handler, void* ctx)
+{
+	mio_tmrjob_t tmrjob;
+
+	memset (&tmrjob, 0, MIO_SIZEOF(tmrjob));
+	tmrjob.ctx = ctx;
+
+	mio_gettime (mio, &tmrjob.when);
+	MIO_ADD_NTIME (&tmrjob.when, &tmrjob.when, fire_after);
+
+	tmrjob.handler = handler;
+	tmrjob.idxptr = MIO_NULL;
+
+	return mio_instmrjob(mio, &tmrjob);
+}
+
+
 int main (int argc, char* argv[])
 {
 
@@ -165,7 +200,6 @@ int main (int argc, char* argv[])
 		printf ("Cannot open mio\n");
 		goto oops;
 	}
-
 
 	memset (&ci, 0, MIO_SIZEOF(ci));
 	ci.host = argv[1];
@@ -209,9 +243,23 @@ int main (int argc, char* argv[])
 	}
 #endif
 
-	mio_loop (mio);
+	g_mio = mio;
+	signal (SIGINT, handle_signal);
+
+	/* ---------------------------------------- */
+	{
+		mio_ntime_t x;
+		MIO_INIT_NTIME (&x, 32, 0);
+		schedule_timer_job_after (mio, &x, send_test_query, marc);
+		mio_loop (mio);
+	}
+	/* ---------------------------------------- */
+
+	signal (SIGINT, SIG_IGN);
+	g_mio = MIO_NULL;
 
 oops:
+printf ("about to close mio...\n");
 	if (mio) mio_close (mio);
 	return 0;
 }
