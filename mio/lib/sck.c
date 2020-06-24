@@ -259,7 +259,7 @@ static int schedule_timer_job_at (mio_dev_sck_t* dev, const mio_ntime_t* fire_at
 	tmrjob.idxptr = &dev->tmrjob_index;
 
 	MIO_ASSERT (dev->mio, dev->tmrjob_index == MIO_TMRIDX_INVALID);
-	dev->tmrjob_index = mio_instmrjob (dev->mio, &tmrjob);
+	dev->tmrjob_index = mio_instmrjob(dev->mio, &tmrjob);
 	return dev->tmrjob_index == MIO_TMRIDX_INVALID? -1: 0;
 }
 
@@ -1196,7 +1196,7 @@ static int harvest_outgoing_connection (mio_dev_sck_t* rdev)
 			int x;
 			MIO_ASSERT (mio, !rdev->ssl); /* must not be SSL-connected yet */
 
-			x = connect_ssl (rdev);
+			x = connect_ssl(rdev);
 			if (x <= -1) return -1;
 			if (x == 0)
 			{
@@ -1540,7 +1540,6 @@ static int dev_evcb_sck_ready_stateful (mio_dev_t* dev, int events)
 				}
 
 				MIO_DEV_SCK_SET_PROGRESS (rdev, MIO_DEV_SCK_ACCEPTED);
-				/*if (rdev->on_connect(rdev) <= -1) mio_dev_sck_halt (rdev);*/
 				if (rdev->on_connect) rdev->on_connect (rdev);
 
 				return 0;

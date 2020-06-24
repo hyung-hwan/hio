@@ -31,39 +31,20 @@
 
 typedef struct mio_dev_mar_t mio_dev_mar_t;
 
-enum mio_dev_mar_state_t
+enum mio_dev_mar_progress_t
 {
-	/* the following items(progress bits) are mutually exclusive */
-	MIO_DEV_MAR_CONNECTING      = (1 << 0),
-	MIO_DEV_MAR_CONNECTED       = (1 << 1),
-	MIO_DEV_MAR_QUERY_STARTING  = (1 << 2),
-	MIO_DEV_MAR_QUERY_STARTED   = (1 << 3),
-	MIO_DEV_MAR_ROW_FETCHING    = (1 << 4),
-	MIO_DEV_MAR_ROW_FETCHED     = (1 << 5),
-
-
-#if 0
-	/* the following items can be bitwise-ORed with an exclusive item above */
-	MIO_DEV_MAR_LENIENT        = (1 << 14),
-	MIO_DEV_MAR_INTERCEPTED    = (1 << 15),
-#endif
-
-	/* convenience bit masks */
-	MIO_DEV_MAR_ALL_PROGRESS_BITS = (MIO_DEV_MAR_CONNECTING |
-	                                 MIO_DEV_MAR_CONNECTED |
-	                                 MIO_DEV_MAR_QUERY_STARTING |
-	                                 MIO_DEV_MAR_QUERY_STARTED |
-	                                 MIO_DEV_MAR_ROW_FETCHING |
-	                                 MIO_DEV_MAR_ROW_FETCHED)
+	MIO_DEV_MAR_INITIAL,
+	MIO_DEV_MAR_CONNECTING,
+	MIO_DEV_MAR_CONNECTED,
+	MIO_DEV_MAR_QUERY_STARTING,
+	MIO_DEV_MAR_QUERY_STARTED,
+	MIO_DEV_MAR_ROW_FETCHING,
+	MIO_DEV_MAR_ROW_FETCHED
 };
-typedef enum mio_dev_mar_state_t mio_dev_mar_state_t;
+typedef enum mio_dev_mar_progress_t mio_dev_mar_progress_t;
 
-#define MIO_DEV_MAR_SET_PROGRESS(dev,bit) do { \
-	(dev)->state &= ~MIO_DEV_MAR_ALL_PROGRESS_BITS; \
-	(dev)->state |= (bit); \
-} while(0)
-
-#define MIO_DEV_MAR_GET_PROGRESS(dev) ((dev)->state & MIO_DEV_MAR_ALL_PROGRESS_BITS)
+#define MIO_DEV_MAR_SET_PROGRESS(dev,value) ((dev)->progress = (value))
+#define MIO_DEV_MAR_GET_PROGRESS(dev) ((dev)->progress)
 
 
 typedef int (*mio_dev_mar_on_read_t) (
@@ -103,14 +84,16 @@ struct mio_dev_mar_t
 
 	void* hnd;
 	void* res;
-	int state;
+	mio_dev_mar_progress_t progress;
 
-	unsigned int connected;
-	unsigned int query_started;
-	unsigned int row_fetched;
+	unsigned int connected: 1;
+	unsigned int connected_deferred: 1;
+	unsigned int query_started_deferred: 1;
+	//unsigned int query_started: 1;
+	unsigned int row_fetched: 1;
+	unsigned int broken: 1;
+	mio_syshnd_t broken_syshnd;
 
-	char errbuf[256];
-	int query_ret;
 	int row_wstatus;
 	void* row;
 
@@ -122,9 +105,16 @@ struct mio_dev_mar_t
 	mio_dev_mar_on_row_fetched_t on_row_fetched;
 };
 
+enum mio_dev_mar_make_flag_t
+{
+	MIO_DEV_MAR_UNUSED_YET = (1 << 0)
+};
+typedef enum mio_dev_mar_make_flag_t mio_dev_mar_make_flag_t;
+
 typedef struct mio_dev_mar_make_t mio_dev_mar_make_t;
 struct mio_dev_mar_make_t
 {
+	int flags;
 	mio_dev_mar_on_write_t on_write; /* mandatory */
 	mio_dev_mar_on_read_t on_read; /* mandatory */
 	mio_dev_mar_on_connect_t on_connect; /* optional */

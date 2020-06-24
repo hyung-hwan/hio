@@ -28,6 +28,7 @@
 #include "mio-prv.h"
 
 #include <mariadb/mysql.h>
+#include <mariadb/errmsg.h>
 
 typedef struct sess_t sess_t;
 typedef struct sess_qry_t sess_qry_t;
@@ -37,13 +38,13 @@ struct mio_svc_marc_t
 	MIO_SVC_HEADER;
 
 	mio_svc_marc_connect_t ci;
+	int stopping;
 
 	struct
 	{
 		sess_t* ptr;
 		mio_oow_t capa;
 	} sess;
-
 };
 
 struct sess_qry_t
@@ -77,7 +78,6 @@ struct dev_xtn_t
 };
 
 
-
 mio_svc_marc_t* mio_svc_marc_start (mio_t* mio, const mio_svc_marc_connect_t* ci)
 {
 	mio_svc_marc_t* marc = MIO_NULL;
@@ -103,6 +103,15 @@ oops:
 void mio_svc_marc_stop (mio_svc_marc_t* marc)
 {
 	mio_t* mio = marc->mio;
+	mio_oow_t i;
+
+	marc->stopping = 1;
+
+	for (i = 0; i < marc->sess.capa; i++)
+	{
+		if (marc->sess.ptr[i].dev) mio_dev_mar_kill (marc->sess.ptr[i].dev);
+	}
+	mio_freemem (mio, marc->sess.ptr);
 
 	MIO_SVCL_UNLINK_SVC (marc);
 	mio_freemem (mio, marc);
@@ -171,8 +180,10 @@ static int send_pending_query_if_any (sess_t* sess)
 printf ("sending... %.*s\n", (int)sq->qlen, sq->qptr);
 		if (mio_dev_mar_querywithbchars(sess->dev, sq->qptr, sq->qlen) <= -1) 
 		{
+MIO_DEBUG1 (sess->svc->mio, "QQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQ SEND FAIL %js\n", mio_geterrmsg(sess->svc->mio));
 			sq->sent = 0;
-			return -1; /* failure */
+			mio_dev_mar_halt (sess->dev); /* this device can't carray on */
+			return -1; /* halted the device for failure */
 		}
 
 		return 1; /* sent */
@@ -183,32 +194,74 @@ printf ("sending... %.*s\n", (int)sq->qlen, sq->qptr);
 }
 
 /* ------------------------------------------------------------------- */
+static mio_dev_mar_t* alloc_device (mio_svc_marc_t* marc, sess_t* sess);
 
 static void mar_on_disconnect (mio_dev_mar_t* dev)
 {
+	mio_t* mio = dev->mio;
 	dev_xtn_t* xtn = (dev_xtn_t*)mio_dev_mar_getxtn(dev);
 	sess_t* sess = xtn->sess;
 
-printf ("disconnected on sid %d\n", sess->sid);
+	MIO_DEBUG6 (mio, "MARC(%p) - device disconnected - sid %lu session %p session-connected %d device %p device-broken %d\n", sess->svc, (unsigned long int)sess->sid, sess, (int)sess->connected, dev, (int)dev->broken); 
+	MIO_ASSERT (mio, dev == sess->dev);
+
+	if (MIO_UNLIKELY(!sess->svc->stopping && mio->stopreq == MIO_STOPREQ_NONE))
+	{
+		if (sess->connected && sess->dev->broken) /* risk of infinite cycle if the underlying db suffers never-ending 'broken' issue after getting connected */
+		{
+			/* restart the dead device */
+			mio_dev_mar_t* dev;
+
+			sess->connected = 0;
+
+			dev = alloc_device(sess->svc, sess);
+			if (MIO_LIKELY(dev))
+			{
+				sess->dev = dev;
+				/* the pending query will be sent in on_connect() */
+				return;
+			}
+
+			/* if device allocation fails, just carry on */
+		}
+	}
+
 	sess->connected = 0;
+
+	while (1)
+	{
+		sess_qry_t* sq;
+		mio_svc_marc_dev_error_t err;
+
+		sq = get_first_session_query(sess);
+		if (!sq) break;
+
+		/* what is the best error code and message to use for this? */
+		err.mar_errcode = CR_SERVER_LOST;
+		err.mar_errmsg = "server lost";
+		sq->on_result (sess->svc, sess->sid, MIO_SVC_MARC_RCODE_ERROR, &err, sq->qctx);
+		dequeue_session_query (mio, sess);
+	}
+
+	/* it should point to a placeholder node(either the initial one or the transited one after dequeing */
+	MIO_ASSERT (mio, sess->q_head == sess->q_tail);
+	MIO_ASSERT (mio, sess->q_head->sq_next == MIO_NULL);
+	free_session_query (mio, sess->q_head);
+	sess->q_head = sess->q_tail = MIO_NULL;
+
 	sess->dev = MIO_NULL;
-
-
-	//if (there is a query which has been sent  but not processed... ) <--- can this be handled by the caller?
 }
 
 static void mar_on_connect (mio_dev_mar_t* dev)
 {
+	mio_t* mio = dev->mio;
 	dev_xtn_t* xtn = (dev_xtn_t*)mio_dev_mar_getxtn(dev);
 	sess_t* sess = xtn->sess;
 
-	sess->connected = 1;
-printf ("connected on sid %d\n", sess->sid);
+	MIO_DEBUG5 (mio, "MARC(%p) - device connected - sid %lu session %p device %p device-broken %d\n", sess->svc, (unsigned long int)sess->sid, sess, dev, dev->broken); 
 
-	if (send_pending_query_if_any (sess) <= -1)
-	{
-		mio_dev_mar_halt (sess->dev);
-	}
+	sess->connected = 1;
+	send_pending_query_if_any (sess);
 }
 
 static void mar_on_query_started (mio_dev_mar_t* dev, int mar_ret, const mio_bch_t* mar_errmsg)
@@ -221,10 +274,6 @@ static void mar_on_query_started (mio_dev_mar_t* dev, int mar_ret, const mio_bch
 	{
 		mio_svc_marc_dev_error_t err;
 printf ("QUERY FAILED...%d -> %s\n", mar_ret, mar_errmsg);
-#if 0
-		if (mar_ret == CR_SERVER_GONE_ERROR || /*  server gone away between queries */
-		    mar_ret == CR_SERVER_LOST) /* server gone away during a query */
-#endif
 
 		err.mar_errcode = mar_ret;
 		err.mar_errmsg = mar_errmsg;
@@ -246,9 +295,7 @@ printf ("QUERY STARTED\n");
 		}
 		else
 		{
-			if (sq->on_result) 
-				sq->on_result (sess->svc, sess->sid, MIO_SVC_MARC_RCODE_DONE, MIO_NULL, sq->qctx);
-
+			sq->on_result (sess->svc, sess->sid, MIO_SVC_MARC_RCODE_DONE, MIO_NULL, sq->qctx);
 			dequeue_session_query (sess->svc->mio, sess);
 			send_pending_query_if_any (sess);
 		}
@@ -261,10 +308,7 @@ static void mar_on_row_fetched (mio_dev_mar_t* dev, void* data)
 	sess_t* sess = xtn->sess;
 	sess_qry_t* sq = get_first_session_query(sess);
 
-	if (sq->on_result)
-	{
-		sq->on_result (sess->svc, sess->sid, (data? MIO_SVC_MARC_RCODE_ROW: MIO_SVC_MARC_RCODE_DONE), data, sq->qctx);
-	}
+	sq->on_result (sess->svc, sess->sid, (data? MIO_SVC_MARC_RCODE_ROW: MIO_SVC_MARC_RCODE_DONE), data, sq->qctx);
 
 	if (!data) 
 	{
@@ -278,7 +322,6 @@ static mio_dev_mar_t* alloc_device (mio_svc_marc_t* marc, sess_t* sess)
 	mio_t* mio = (mio_t*)marc->mio;
 	mio_dev_mar_t* mar;
 	mio_dev_mar_make_t mi;
-	mio_dev_mar_connect_t ci;
 	dev_xtn_t* xtn;
 
 	MIO_MEMSET (&mi, 0, MIO_SIZEOF(mi));
@@ -347,7 +390,26 @@ static sess_t* get_session (mio_svc_marc_t* marc, mio_oow_t sid)
 			return MIO_NULL;
 		}
 
-		/* queue initialization with a place holder */
+		/* queue initialization with a place holder. the queue maintains a placeholder node. 
+		 * the first actual data node enqueued is inserted at the back and becomes the second
+		 * node in terms of the entire queue. 
+		 *     
+		 *     PH -> DN1 -> DN2 -> ... -> DNX
+		 *     ^                          ^
+		 *     q_head                     q_tail
+		 *
+		 * get_first_session_query() returns the data of DN1, not the data held in PH.
+		 *
+		 * the first dequeing operations kills PH.
+ 		 * 
+		 *     DN1 -> DN2 -> ... -> DNX
+		 *     ^                    ^
+		 *     q_head               q_tail
+		 *
+		 * get_first_session_query() at this point returns the data of DN2, not the data held in DN1.
+		 * dequeing kills DN1, however.
+		 */
+
 		sess->q_head = sess->q_tail = sq;
 	}
 
@@ -367,33 +429,37 @@ int mio_svc_mar_querywithbchars (mio_svc_marc_t* marc, mio_oow_t sid, mio_svc_ma
 	sq = make_session_query(mio, qtype, qptr, qlen, qctx, on_result);
 	if (MIO_UNLIKELY(!sq)) return -1;
 
-	if (get_first_session_query(sess))
+	if (get_first_session_query(sess) || !sess->connected)
 	{
-printf ("XXXXXXXXXx\n");
 		/* there are other ongoing queries */
 		enqueue_session_query (sess, sq);
 	}
 	else
 	{
-		/* this is the first query */
+		/* this is the first query or the device is not connected yet */
 		sess_qry_t* old_q_tail = sess->q_tail;
+
 		enqueue_session_query (sess, sq);
 
-printf ("YYYYYYYYYYYYYY\n");
-		if(sess->dev->connected && !sq->sent)
-		{
-			sq->sent = 1;
-			if (mio_dev_mar_querywithbchars(sess->dev, qptr, qlen) <= -1) 
-			{
-				sq->sent = 0;
+		MIO_ASSERT (mio, sq->sent == 0);
 
-				/* ugly to unlink the the last item added */
+		sq->sent = 1;
+		if (mio_dev_mar_querywithbchars(sess->dev, sq->qptr, sq->qlen) <= -1) 
+		{
+			sq->sent = 0;
+			if (!sess->dev->broken)
+			{
+				/* unlink the the last item added */
 				old_q_tail->sq_next = MIO_NULL;
 				sess->q_tail = old_q_tail;
 
 				free_session_query (mio, sq);
 				return -1;
 			}
+
+			/* the underlying socket of the device may get disconnected.
+			 * in such a case, keep the enqueued query with sq->sent 0
+			 * and defer actual sending and processing */
 		}
 	}
 
