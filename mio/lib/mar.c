@@ -29,6 +29,7 @@
 
 #include <mariadb/mysql.h>
 #include <mariadb/errmsg.h>
+#include <sys/socket.h>
 
 /* ========================================================================= */
 
@@ -58,6 +59,25 @@ static int dev_mar_make (mio_dev_t* dev, void* ctx)
 		mysql_options(rdev->hnd, MYSQL_OPT_RECONNECT, &x);
 	}
 
+#if 0
+/* TOOD: timeout not implemented...
+ * timeout can't be implemented using the mysql timeout options in the nonblocking mode.
+ * i must create a timeer jobs for these */
+	if (mi->flags & MIO_DEV_MAR_USE_TMOUT)
+	{
+		unsigned int tmout;
+
+		tmout = mi->tmout.c.sec; /* mysql supports the granularity of seconds only */
+		if (tmout >= 0) mysql_options(rdev->hnd, MYSQL_OPT_CONNECT_TIMEOUT, &tmout);
+
+		tmout = mi->tmout.r.sec;
+		if (tmout >= 0) mysql_options(rdev->hnd, MYSQL_OPT_READ_TIMEOUT, &tmout);
+
+		tmout = mi->tmout.w.sec;
+		if (tmout >= 0) mysql_options(rdev->hnd, MYSQL_OPT_WRITE_TIMEOUT, &tmout);
+	}
+#endif
+
 	rdev->dev_cap = MIO_DEV_CAP_IN | MIO_DEV_CAP_OUT | MIO_DEV_CAP_VIRTUAL; /* mysql_init() doesn't create a socket. so no IO is possible at this point */
 	rdev->on_read = mi->on_read;
 	rdev->on_write = mi->on_write;
@@ -78,16 +98,31 @@ static int dev_mar_kill (mio_dev_t* dev, int force)
 
 	/* if rdev->connected is 0 at this point, 
 	 * the underlying socket of this device is down */
-	if (rdev->on_disconnect) rdev->on_disconnect (rdev);
+	if (MIO_LIKELY(rdev->on_disconnect)) rdev->on_disconnect (rdev);
+
+	/* hack */
+	if (!rdev->broken) 
+	{
+		/* mysql_free_result() blocks if not all rows have been read.
+		 * mysql_close() also blocks to transmit COM_QUIT,
+		 * in this context, it is not appropriate to call 
+		 * mysql_free_result_start()/mysql_free_result_cont() and
+		 * mysql_close_start()/mysql_close_cont().
+		 * let me just call shutdown on the underlying socket to work around this issue.
+		 * as a result, mysql_close() will be unable to send COM_QUIT but will return fast
+		 */
+		shutdown (mysql_get_socket(rdev->hnd), SHUT_RDWR);
+	}
 
 	if (rdev->res)
 	{
 		mysql_free_result (rdev->res);
 		rdev->res = MIO_NULL;
 	}
+
 	if (rdev->hnd)
 	{
-		mysql_close (rdev->hnd);
+		mysql_close (rdev->hnd); 
 		rdev->hnd = MIO_NULL;
 	}
 
@@ -138,17 +173,20 @@ static void start_fetch_row (mio_dev_mar_t* rdev)
 	int status;
 
 	status = mysql_fetch_row_start(&row, rdev->res);
+
 	MIO_DEV_MAR_SET_PROGRESS (rdev, MIO_DEV_MAR_ROW_FETCHING);
 	if (status)
 	{
-		/* row fetched */
-		rdev->row_fetched = 0;
+printf ("fetch_row_start not fetched %d\n", status);
+		/* row not fetched */
+		rdev->row_fetched_deferred = 0;
 		watch_mysql (rdev, status);
 	}
 	else
 	{
 		/* row fetched - don't handle it immediately here */
-		rdev->row_fetched = 1;
+printf ("fetch_row_start returning %d %p \n", status, row);
+		rdev->row_fetched_deferred = 1;
 		rdev->row_wstatus = status;
 		rdev->row = row;
 		watch_mysql (rdev, MYSQL_WAIT_READ | MYSQL_WAIT_WRITE);
@@ -447,10 +485,10 @@ static int dev_evcb_mar_ready (mio_dev_t* dev, int events)
 			int status;
 			MYSQL_ROW row;
 
-			if (rdev->row_fetched)
+			if (rdev->row_fetched_deferred)
 			{
 				row = (MYSQL_ROW)rdev->row;
-				rdev->row_fetched = 0;
+				rdev->row_fetched_deferred = 0;
 
 				if (!row)
 				{
@@ -462,8 +500,9 @@ static int dev_evcb_mar_ready (mio_dev_t* dev, int events)
 				}
 
 				MIO_DEV_MAR_SET_PROGRESS (rdev, MIO_DEV_MAR_ROW_FETCHED);
-				if (rdev->on_row_fetched) rdev->on_row_fetched (rdev, row);
+				if (MIO_LIKELY(rdev->on_row_fetched)) rdev->on_row_fetched (rdev, row);
 
+printf ("CALLING sTARTING FFETCH ROW %p \n", row);
 				if (row) start_fetch_row (rdev);
 			}
 			else
@@ -471,8 +510,10 @@ static int dev_evcb_mar_ready (mio_dev_t* dev, int events)
 				/* TODO: if rdev->res is MIO_NULL, error.. */
 				status = mysql_fetch_row_cont(&row, rdev->res, events_to_mysql_wstatus(events));
 
+printf ("FETCH_ROW -> %d  %p\n", status, row);
 				if (!status)
 				{
+					/* row is available */
 					if (!row) 
 					{
 						/* the last row has been received - cleanup before invoking the callback */
@@ -484,12 +525,13 @@ static int dev_evcb_mar_ready (mio_dev_t* dev, int events)
 					}
 
 					MIO_DEV_MAR_SET_PROGRESS (rdev, MIO_DEV_MAR_ROW_FETCHED);
-					if (rdev->on_row_fetched) rdev->on_row_fetched (rdev, row);
+					if (MIO_LIKELY(rdev->on_row_fetched)) rdev->on_row_fetched (rdev, row);
 
 					if (row) start_fetch_row (rdev); /* arrange to fetch the next row */
 				}
 				else
 				{
+					/* no row is available */
 					watch_mysql (rdev, status);
 				}
 			}
@@ -539,3 +581,8 @@ int mio_dev_mar_fetchrows (mio_dev_mar_t* dev)
 	return mio_dev_ioctl((mio_dev_t*)dev, MIO_DEV_MAR_FETCH_ROW, MIO_NULL);
 }
 
+mio_oow_t mio_dev_mar_escapebchars (mio_dev_mar_t* dev, const mio_bch_t* qstr, mio_oow_t qlen, mio_bch_t* buf)
+{
+	mio_dev_mar_t* rdev = (mio_dev_mar_t*)dev;
+	return mysql_real_escape_string (rdev->hnd, buf, qstr, qlen);
+}

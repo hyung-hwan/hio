@@ -37,8 +37,13 @@ struct mio_svc_marc_t
 {
 	MIO_SVC_HEADER;
 
-	mio_svc_marc_connect_t ci;
 	int stopping;
+	int tmout_set;
+
+	mio_svc_marc_connect_t ci;
+	mio_svc_marc_tmout_t tmout;
+
+	MYSQL* edev;
 
 	struct
 	{
@@ -78,25 +83,31 @@ struct dev_xtn_t
 };
 
 
-mio_svc_marc_t* mio_svc_marc_start (mio_t* mio, const mio_svc_marc_connect_t* ci)
+mio_svc_marc_t* mio_svc_marc_start (mio_t* mio, const mio_svc_marc_connect_t* ci, const mio_svc_marc_tmout_t* tmout)
 {
 	mio_svc_marc_t* marc = MIO_NULL;
 
 	marc = (mio_svc_marc_t*)mio_callocmem(mio, MIO_SIZEOF(*marc));
 	if (MIO_UNLIKELY(!marc)) goto oops;
 
+	marc->edev = mysql_init(MIO_NULL);
+	if (MIO_UNLIKELY(!marc->edev)) goto oops;
+
 	marc->mio = mio;
 	marc->svc_stop = mio_svc_marc_stop;
 	marc->ci = *ci;
+	if (tmout) 
+	{
+		marc->tmout = *tmout;
+		marc->tmout_set = 1;
+	}
 
 	MIO_SVCL_APPEND_SVC (&mio->actsvc, (mio_svc_t*)marc);
 	return marc;
 
 oops:
-	if (marc)
-	{
-		mio_freemem (mio, marc);
-	}
+	if (marc->edev) mysql_close (marc->edev);
+	if (marc) mio_freemem (mio, marc);
 	return MIO_NULL;
 }
 
@@ -114,9 +125,10 @@ void mio_svc_marc_stop (mio_svc_marc_t* marc)
 	mio_freemem (mio, marc->sess.ptr);
 
 	MIO_SVCL_UNLINK_SVC (marc);
+
+	mysql_close (marc->edev);
 	mio_freemem (mio, marc);
 }
-
 
 /* ------------------------------------------------------------------- */
 
@@ -325,6 +337,12 @@ static mio_dev_mar_t* alloc_device (mio_svc_marc_t* marc, sess_t* sess)
 	dev_xtn_t* xtn;
 
 	MIO_MEMSET (&mi, 0, MIO_SIZEOF(mi));
+	if (marc->tmout_set)
+	{
+		mi.flags = MIO_DEV_MAR_USE_TMOUT;
+		mi.tmout = marc->tmout;
+	}
+
 	mi.on_connect = mar_on_connect;
 	mi.on_disconnect = mar_on_disconnect;
 	mi.on_query_started = mar_on_query_started;
@@ -351,7 +369,7 @@ static sess_t* get_session (mio_svc_marc_t* marc, mio_oow_t sid)
 	if (sid >= marc->sess.capa)
 	{
 		sess_t* tmp;
-		mio_oow_t newcapa;
+		mio_oow_t newcapa, i;
 
 		newcapa = marc->sess.capa + 16;
 		if (newcapa <= sid) newcapa = sid + 1;
@@ -361,20 +379,19 @@ static sess_t* get_session (mio_svc_marc_t* marc, mio_oow_t sid)
 		if (MIO_UNLIKELY(!tmp)) return MIO_NULL;
 
 		MIO_MEMSET (&tmp[marc->sess.capa], 0, MIO_SIZEOF(sess_t) * (newcapa - marc->sess.capa));
+		for (i = marc->sess.capa; i < newcapa; i++)
+		{
+			tmp[i].svc = marc;
+			tmp[i].sid = i;
+		}
 
 		marc->sess.ptr = tmp;
 		marc->sess.capa = newcapa;
+	}
 
-		sess = &marc->sess.ptr[sid];
-		sess->svc = marc;
-		sess->sid = sid;
-	}
-	else
-	{
-		sess = &marc->sess.ptr[sid];
-		MIO_ASSERT (mio, sess->sid == sid);
-		MIO_ASSERT (mio, sess->svc == marc);
-	}
+	sess = &marc->sess.ptr[sid];
+	MIO_ASSERT (mio, sess->sid == sid);
+	MIO_ASSERT (mio, sess->svc == marc);
 
 	if (!sess->dev)
 	{
@@ -464,4 +481,9 @@ int mio_svc_mar_querywithbchars (mio_svc_marc_t* marc, mio_oow_t sid, mio_svc_ma
 	}
 
 	return 0;
+}
+
+mio_oow_t mio_svc_mar_escapebchars (mio_svc_marc_t* marc, const mio_bch_t* qptr, mio_oow_t qlen, mio_bch_t* buf)
+{
+	return mysql_real_escape_string(marc->edev, buf, qptr, qlen);
 }
