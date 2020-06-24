@@ -177,7 +177,6 @@ static void start_fetch_row (mio_dev_mar_t* rdev)
 	MIO_DEV_MAR_SET_PROGRESS (rdev, MIO_DEV_MAR_ROW_FETCHING);
 	if (status)
 	{
-printf ("fetch_row_start not fetched %d\n", status);
 		/* row not fetched */
 		rdev->row_fetched_deferred = 0;
 		watch_mysql (rdev, status);
@@ -185,7 +184,6 @@ printf ("fetch_row_start not fetched %d\n", status);
 	else
 	{
 		/* row fetched - don't handle it immediately here */
-printf ("fetch_row_start returning %d %p \n", status, row);
 		rdev->row_fetched_deferred = 1;
 		rdev->row_wstatus = status;
 		rdev->row = row;
@@ -502,7 +500,6 @@ static int dev_evcb_mar_ready (mio_dev_t* dev, int events)
 				MIO_DEV_MAR_SET_PROGRESS (rdev, MIO_DEV_MAR_ROW_FETCHED);
 				if (MIO_LIKELY(rdev->on_row_fetched)) rdev->on_row_fetched (rdev, row);
 
-printf ("CALLING sTARTING FFETCH ROW %p \n", row);
 				if (row) start_fetch_row (rdev);
 			}
 			else
@@ -510,7 +507,6 @@ printf ("CALLING sTARTING FFETCH ROW %p \n", row);
 				/* TODO: if rdev->res is MIO_NULL, error.. */
 				status = mysql_fetch_row_cont(&row, rdev->res, events_to_mysql_wstatus(events));
 
-printf ("FETCH_ROW -> %d  %p\n", status, row);
 				if (!status)
 				{
 					/* row is available */
