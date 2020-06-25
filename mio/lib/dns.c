@@ -211,9 +211,10 @@ static int parse_question_rr (mio_t* mio, mio_oow_t pos, mio_dns_pkt_info_t* pi)
 	if (parse_domain_name(mio, pi) <= -1) return -1;
 
 	qrtr = (mio_dns_qrtr_t*)pi->_ptr;
+	if (MIO_UNLIKELY(pi->_ptr > pi->_end || pi->_end - pi->_ptr < MIO_SIZEOF(*qrtr))) goto oops;
+
 	pi->_ptr += MIO_SIZEOF(*qrtr);
-	pi->_rrdlen += MIO_SIZEOF(*qrtr);
-	if (MIO_UNLIKELY(pi->_ptr >= pi->_end)) goto oops;
+	/*pi->_rrdlen += MIO_SIZEOF(*qrtr);*/
 
 	if (pi->_rrdptr)
 	{
@@ -235,22 +236,19 @@ static int parse_answer_rr (mio_t* mio, mio_dns_rr_part_t rr_part, mio_oow_t pos
 {
 	mio_dns_rrtr_t* rrtr;
 	mio_uint16_t qtype, dlen;
-	mio_oow_t remsize;
 	mio_uint8_t* xrrdptr, *xrrdptr2;
 
 	xrrdptr = pi->_rrdptr;
 	if (parse_domain_name(mio, pi) <= -1) return -1;
 
 	rrtr = (mio_dns_rrtr_t*)pi->_ptr;
-	if (MIO_UNLIKELY(pi->_end - pi->_ptr < MIO_SIZEOF(*rrtr))) goto oops;
+	if (MIO_UNLIKELY(pi->_ptr > pi->_end ||  pi->_end - pi->_ptr < MIO_SIZEOF(*rrtr))) goto oops;
+
 	pi->_ptr += MIO_SIZEOF(*rrtr);
 	dlen = mio_ntoh16(rrtr->dlen);
-
-	if (MIO_UNLIKELY(pi->_end - pi->_ptr < dlen)) goto oops;
+	if (MIO_UNLIKELY(pi->_ptr > pi->_end ||  pi->_end - pi->_ptr < dlen)) goto oops;
 
 	qtype = mio_ntoh16(rrtr->rrtype);
-	remsize = pi->_end - pi->_ptr;
-	if (MIO_UNLIKELY(remsize < dlen)) goto oops;
 
 	xrrdptr2 = pi->_rrdptr;
 
@@ -430,7 +428,11 @@ mio_dns_pkt_info_t* mio_dns_make_packet_info (mio_t* mio, const mio_dns_pkt_t* p
 	MIO_ASSERT (mio, len >= MIO_SIZEOF(*pkt));
 
 	MIO_MEMSET (&pib, 0, MIO_SIZEOF(pib));
-	pii = &pib;
+
+	/* this is used a initial workspace and also indicates that it's the first run. 
+	 * at the second run, it is set to a dynamically allocated memory block large enough
+	 * to hold actual data.  */
+	pii = &pib; 
 
 redo:
 	pii->_start = (mio_uint8_t*)pkt;
@@ -474,7 +476,7 @@ redo:
 
 	if (pii == &pib)
 	{
-	/* TODO: buffer management... */
+	/* TODO: better buffer management... */
 		pii = (mio_dns_pkt_info_t*)mio_callocmem(mio, MIO_SIZEOF(*pii) + (MIO_SIZEOF(mio_dns_bqr_t) * pib.qdcount) + (MIO_SIZEOF(mio_dns_brr_t) * (pib.ancount + pib.nscount + pib.arcount)) + pib._rrdlen);
 		if (!pii) goto oops;
 
@@ -483,6 +485,12 @@ redo:
 		pii->rr.ns = (mio_dns_brr_t*)&pii->rr.an[pib.ancount];
 		pii->rr.ar = (mio_dns_brr_t*)&pii->rr.ns[pib.nscount];
 		pii->_rrdptr = (mio_uint8_t*)&pii->rr.ar[pib.arcount];
+	
+		/* _rrdptr points to the beginning of memory where additional data will 
+		 * be held for some RRs. _rrdlen is the length of total additional data.
+		 * the additional data refers to the data that is pointed to by the 
+		 * breakdown RRs(mio_dns_bqr_t/mio_dns_brr_t) but is not stored in them. */
+
 		goto redo;
 	}
 
