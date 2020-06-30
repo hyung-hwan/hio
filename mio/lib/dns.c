@@ -256,6 +256,9 @@ static int parse_answer_rr (mio_t* mio, mio_dns_rr_part_t rr_part, mio_oow_t pos
 	{
 		case MIO_DNS_RRT_OPT:
 		{
+			mio_uint16_t eopt_tot_len, eopt_len;
+			mio_dns_eopt_t* eopt;
+
 			/* RFC 6891
 			The extended RCODE and flags, which OPT stores in the RR Time to Live
 			(TTL) field, are structured as follows:
@@ -280,7 +283,27 @@ static int parse_answer_rr (mio_t* mio, mio_dns_rr_part_t rr_part, mio_oow_t pos
 			pi->edns.version = (rrtr->ttl >> 16) & 0xFF;
 			pi->edns.dnssecok = ((rrtr->ttl & 0x8000) >> 15);
 			/*if ((rrtr->ttl & 0x7FFF) != 0) goto oops;*/ /* Z not 0 - ignore this for now */
-			goto verbatim;
+
+			eopt = (mio_dns_eopt_t*)(rrtr + 1);
+			eopt_tot_len = dlen;
+			while (eopt_tot_len > 0)
+			{
+				if (eopt_tot_len < MIO_SIZEOF(mio_dns_eopt_t)) goto oops;
+
+				eopt_len = mio_ntoh16(eopt->dlen);
+				if (eopt_tot_len - MIO_SIZEOF(mio_dns_eopt_t) < eopt_len) goto oops; /* wrong eopt length */
+
+				if (eopt->code == MIO_CONST_HTON16(MIO_DNS_EOPT_COOKIE))
+				{
+					if (eopt_len < 8) goto oops; /* the client cookie must be 8 bytes */
+					/* TODO: dns cookies */
+				}
+
+				eopt_tot_len -= MIO_SIZEOF(mio_dns_eopt_t) + eopt_len;
+				eopt = (mio_dns_eopt_t*)((mio_uint8_t*)eopt + MIO_SIZEOF(mio_dns_eopt_t) + eopt_len);
+			}
+
+			goto verbatim; /* keep the entire option data including cookies */
 		}
 
 		case MIO_DNS_RRT_A:
