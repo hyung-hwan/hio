@@ -862,7 +862,7 @@ static void on_dnc_resolve (mio_svc_dnc_t* dnc, mio_dns_msg_t* reqmsg, mio_errnu
 	if (!(reqmsgxtn->flags & MIO_SVC_DNC_RESOLVE_FLAG_BRIEF))
 	{
 		/* the full reply packet is requested. no transformation is required */
-		if (reqmsgxtn->on_resolve) reqmsgxtn->on_resolve(dnc, reqmsg, status, data, dlen);
+		if (reqmsgxtn->on_resolve) reqmsgxtn->on_resolve (dnc, reqmsg, status, data, dlen);
 		return;
 	}
 
@@ -965,7 +965,7 @@ mio_dns_msg_t* mio_svc_dnc_resolve (mio_svc_dnc_t* dnc, const mio_bch_t* qname, 
 		MIO_DNS_RCODE_NOERROR /* rcode */
 	};
 
-	static mio_dns_bedns_t qedns =
+	mio_dns_bedns_t qedns =
 	{
 		4096, /* uplen */
 
@@ -976,6 +976,8 @@ mio_dns_msg_t* mio_svc_dnc_resolve (mio_svc_dnc_t* dnc, const mio_bch_t* qname, 
 		MIO_NULL
 	};
 
+	mio_dns_beopt_t beopt_cookie;
+
 	mio_dns_bqr_t qr;
 	mio_dns_msg_t* reqmsg;
 	dnc_dns_msg_resolve_xtn_t* resolxtn;
@@ -984,10 +986,48 @@ mio_dns_msg_t* mio_svc_dnc_resolve (mio_svc_dnc_t* dnc, const mio_bch_t* qname, 
 	qr.qtype = qtype;
 	qr.qclass = MIO_DNS_RRC_IN;
 
+	if (resolve_flags & MIO_SVC_DNC_RESOLVE_FLAG_COOKIE)
+	{
+		static mio_uint8_t dummy[48];
+		beopt_cookie.code = MIO_DNS_EOPT_COOKIE;
+		beopt_cookie.dlen = MIO_COUNTOF(dummy);
+		beopt_cookie.dptr = dummy;
+
+		qedns.beonum = 1;
+		qedns.beoptr = &beopt_cookie;
+	}
+
 	reqmsg = make_dns_msg(dnc, &qhdr, &qr, 1, MIO_NULL, 0, &qedns, on_dnc_resolve, MIO_SIZEOF(*resolxtn) + xtnsize);
 	if (reqmsg)
 	{
 		int send_flags;
+
+		if (resolve_flags & MIO_SVC_DNC_RESOLVE_FLAG_COOKIE)
+		{
+			/* ASSUMPTIONS:
+			 *  the eopt entries are at the back of the packet.
+			 *  only 1 eopt entry(MIO_DNS_EOPT_COOKIE) has been added. 
+			 * 
+			 * manipulate the data length of the EDNS0 RR and COOKIE option 
+			 * as if the server cookie data has not been added.
+			 */
+			mio_dns_rrtr_t* edns_rrtr;
+			mio_dns_eopt_t* eopt;
+
+/* TODO: generate the client cookie and copy it */
+/* if the server cookie is available, copy it to the packet. but the server cookike may still be shorter than 40. so some manipulation is still needed
+ * if not, manipualte the length like below */
+			edns_rrtr = (mio_dns_rrtr_t*)((mio_uint8_t*)mio_dns_msg_to_pkt(reqmsg) + reqmsg->ednsrrtroff);
+			reqmsg->pktlen -= 40; /* maximum server cookie space */
+
+			MIO_ASSERT (dnc->mio, edns_rrtr->rrtype == MIO_CONST_HTON16(MIO_DNS_RRT_OPT));
+			MIO_ASSERT (dnc->mio, edns_rrtr->dlen == MIO_CONST_HTON16(52));
+
+			edns_rrtr->dlen = MIO_CONST_HTON16(12);
+			eopt = (mio_dns_eopt_t*)(edns_rrtr + 1);
+			MIO_ASSERT (dnc->mio, eopt->dlen == MIO_CONST_HTON16(48));
+			eopt->dlen = MIO_CONST_HTON16(8);
+		}
 
 		resolxtn = dnc_dns_msg_resolve_getxtn(reqmsg);
 		resolxtn->on_resolve = on_resolve;
