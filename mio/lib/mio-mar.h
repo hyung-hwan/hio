@@ -261,7 +261,7 @@ MIO_EXPORT void mio_svc_marc_stop (
 #if defined(MIO_HAVE_INLINE)
 static MIO_INLINE mio_t* mio_svc_marc_getmio(mio_svc_marc_t* svc) { return mio_svc_getmio((mio_svc_t*)svc); }
 #else
-#       define mio_svc_marc_getmio(svc) mio_svc_getmio(svc)
+#	define mio_svc_marc_getmio(svc) mio_svc_getmio(svc)
 #endif
 
 MIO_EXPORT int mio_svc_marc_querywithbchars (
