@@ -162,6 +162,7 @@ typedef struct mio_dns_msg_t mio_dns_msg_t;
 struct mio_dns_msg_t
 {
 	mio_oow_t      msglen;
+	mio_oow_t      ednsrrtroff; /* offset to trailing data after the name in the dns0 RR*/
 	mio_oow_t      pktlen;
 	mio_oow_t      pktalilen;
 };
@@ -405,8 +406,9 @@ enum mio_svc_dnc_resolve_flag_t
 
 	/* the following flag bits are resolver specific. it must not overlap with send flag bits */
 	MIO_SVC_DNC_RESOLVE_FLAG_BRIEF      = (1 << 8),
+	MIO_SVC_DNC_RESOLVE_FLAG_COOKIE     = (1 << 9),
 
-	MIO_SVC_DNC_RESOLVE_FLAG_ALL = (MIO_SVC_DNC_RESOLVE_FLAG_PREFER_TCP | MIO_SVC_DNC_RESOLVE_FLAG_TCP_IF_TC | MIO_SVC_DNC_RESOLVE_FLAG_BRIEF)
+	MIO_SVC_DNC_RESOLVE_FLAG_ALL = (MIO_SVC_DNC_RESOLVE_FLAG_PREFER_TCP | MIO_SVC_DNC_RESOLVE_FLAG_TCP_IF_TC | MIO_SVC_DNC_RESOLVE_FLAG_BRIEF | MIO_SVC_DNC_RESOLVE_FLAG_COOKIE)
 };
 typedef enum mio_svc_dnc_resolve_flag_t  mio_svc_dnc_resolve_flag_t;
 

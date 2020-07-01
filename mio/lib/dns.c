@@ -746,7 +746,7 @@ mio_dns_msg_t* mio_dns_make_msg (mio_t* mio, mio_dns_bhdr_t* bhdr, mio_dns_bqr_t
 
 /* TODO: msg buffer reuse */
 	msg = mio_callocmem(mio, msgbufsz);
-	if (!msg) return MIO_NULL;
+	if (MIO_UNLIKELY(!msg)) return MIO_NULL;
 
 	msg->msglen = msgbufsz; /* record the instance size */
 	msg->pktalilen = MIO_ALIGN_POW2(pktlen, MIO_SIZEOF_VOID_P);
@@ -812,6 +812,7 @@ mio_dns_msg_t* mio_dns_make_msg (mio_t* mio, mio_dns_bhdr_t* bhdr, mio_dns_bqr_t
 
 		beopt = edns->beoptr;
 		eopt = (mio_dns_eopt_t*)dn;
+		msg->ednsrrtroff = (mio_uint8_t*)rrtr - (mio_uint8_t*)pkt;
 
 		for (i = 0; i < edns->beonum; i++)
 		{

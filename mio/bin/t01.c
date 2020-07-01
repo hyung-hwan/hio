@@ -1281,7 +1281,7 @@ if (!mio_svc_dnc_resolve(dnc, "b.wild.com", MIO_DNS_RRT_A, MIO_SVC_DNC_RESOLVE_F
 	printf ("resolve attempt failure ---> a.wild.com\n");
 }
 
-if (!mio_svc_dnc_resolve(dnc, "www.microsoft.com", MIO_DNS_RRT_CNAME, 0, on_dnc_resolve, 0))
+if (!mio_svc_dnc_resolve(dnc, "www.microsoft.com", MIO_DNS_RRT_CNAME, MIO_SVC_DNC_RESOLVE_FLAG_COOKIE, on_dnc_resolve, 0))
 {
 	printf ("resolve attempt failure ---> www.microsoft.com\n");
 }
