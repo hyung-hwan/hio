@@ -879,6 +879,13 @@ static void on_dnc_resolve (mio_svc_dnc_t* dnc, mio_dns_msg_t* reqmsg, mio_errnu
 			goto no_data;
 		}
 
+/*
+if (pi->hdr.code == MIO_DNS_RCODE_BADCOOKIE)
+{
+// retry with server cookie received....
+}
+*/
+
 		if (pi->hdr.rcode != MIO_DNS_RCODE_NOERROR) 
 		{
 			status = MIO_EINVAL;
