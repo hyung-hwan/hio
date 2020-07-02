@@ -277,7 +277,9 @@ static int parse_answer_rr (mio_t* mio, mio_dns_rr_part_t rr_part, mio_oow_t pos
 			*/
 
 			/* TODO: do i need to check if rrname is <ROOT>? */
-			pi->edns.exist = 1;
+			/* TODO: do i need to check if rr_part  is MIO_DNS_RR_PART_ADDITIONAL? the OPT pseudo-RR may exist in the ADDITIONAL section only */
+			/* TODO: do i need to check if there is more than 1 OPT RRs */
+			pi->edns.exist++; /* you may treat this as the number of OPT RRs */
 			pi->edns.uplen = mio_ntoh16(rrtr->rrclass);
 			pi->hdr.rcode |= (rrtr->ttl >> 24);
 			pi->edns.version = (rrtr->ttl >> 16) & 0xFF;
@@ -295,8 +297,26 @@ static int parse_answer_rr (mio_t* mio, mio_dns_rr_part_t rr_part, mio_oow_t pos
 
 				if (eopt->code == MIO_CONST_HTON16(MIO_DNS_EOPT_COOKIE))
 				{
-					if (eopt_len < 8) goto oops; /* the client cookie must be 8 bytes */
-					/* TODO: dns cookies */
+					if (eopt_len == MIO_DNS_COOKIE_CLIENT_LEN)
+					{
+						/* client cookie only */
+						MIO_MEMCPY (pi->edns.cookie.data.client, eopt + 1, eopt_len);
+						pi->edns.cookie.client_len = eopt_len;
+						pi->edns.cookie.server_len = 0;
+					}
+					else if (eopt_len >= (MIO_DNS_COOKIE_CLIENT_LEN + MIO_DNS_COOKIE_SERVER_MIN_LEN) &&
+					         eopt_len <= (MIO_DNS_COOKIE_CLIENT_LEN + MIO_DNS_COOKIE_SERVER_MAX_LEN))
+					{
+						/* both client and server cookie */
+						MIO_MEMCPY (&pi->edns.cookie.data, eopt + 1, eopt_len);
+						pi->edns.cookie.client_len = MIO_DNS_COOKIE_CLIENT_LEN;
+						pi->edns.cookie.server_len = eopt_len - MIO_DNS_COOKIE_CLIENT_LEN;
+					}
+					else
+					{
+						/* wrong cookie length */
+						goto oops;
+					}
 				}
 
 				eopt_tot_len -= MIO_SIZEOF(mio_dns_eopt_t) + eopt_len;

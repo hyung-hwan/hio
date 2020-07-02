@@ -697,21 +697,28 @@ int z = 0;
 
 static void on_dnc_resolve(mio_svc_dnc_t* dnc, mio_dns_msg_t* reqmsg, mio_errnum_t status, const void* data, mio_oow_t dlen)
 {
-	mio_dns_pkt_info_t* pi = MIO_NULL;
+	mio_dns_pkt_info_t* pi = (mio_dns_pkt_info_t*)data;
 
-	if (data) // status == MIO_ENOERR
+	if (pi) // status == MIO_ENOERR
 	{
 		mio_uint32_t i;
 
-		pi = mio_dns_make_packet_info(mio_svc_dnc_getmio(dnc), data, dlen);
-		if (!pi) goto no_data;
-
-		if (pi->hdr.rcode != MIO_DNS_RCODE_NOERROR) goto no_data;
-
-		if (pi->ancount < 0) goto no_data;
 
 		printf (">>>>>>>> RRDLEN = %d\n", (int)pi->_rrdlen);
 		printf (">>>>>>>> RCODE %d EDNS exist %d uplen %d version %d dnssecok %d\n", pi->hdr.rcode, pi->edns.exist, pi->edns.uplen, pi->edns.version, pi->edns.dnssecok);
+		if (pi->hdr.rcode == MIO_DNS_RCODE_BADCOOKIE)
+		{
+			/* TODO: must retry */
+		}
+
+		if (pi->edns.cookie.client_len > 0 && !pi->edns.cookie_verified) /* TODO: do i need to check if cookie.server_len > 0? */
+		{
+			/* client cookie is bad.. */
+			printf ("CLIENT COOKIE IS BAD>>>>>>>>>>>>>>>>>>>\n");
+		}
+
+		//if (pi->hdr.rcode != MIO_DNS_RCODE_NOERROR) goto no_data;
+		if (pi->ancount < 0) goto no_data;
 
 		for (i = 0; i < pi->ancount; i++)
 		{
@@ -763,7 +770,8 @@ static void on_dnc_resolve(mio_svc_dnc_t* dnc, mio_dns_msg_t* reqmsg, mio_errnum
 	}
 
 done:
-	if (pi) mio_dns_free_packet_info(mio_svc_dnc_getmio(dnc), pi);
+	/* nothing special */
+	return;
 }
 
 static void on_dnc_resolve_brief (mio_svc_dnc_t* dnc, mio_dns_msg_t* reqmsg, mio_errnum_t status, const void* data, mio_oow_t dlen)
@@ -969,6 +977,32 @@ static mio_t* g_mio;
 static void handle_signal (int sig)
 {
 	if (g_mio) mio_stop (g_mio, MIO_STOPREQ_TERMINATION);
+}
+
+static int schedule_timer_job_after (mio_t* mio, const mio_ntime_t* fire_after, mio_tmrjob_handler_t handler, void* ctx)
+{
+	mio_tmrjob_t tmrjob;
+
+	memset (&tmrjob, 0, MIO_SIZEOF(tmrjob));
+	tmrjob.ctx = ctx;
+
+	mio_gettime (mio, &tmrjob.when);
+	MIO_ADD_NTIME (&tmrjob.when, &tmrjob.when, fire_after);
+
+	tmrjob.handler = handler;
+	tmrjob.idxptr = MIO_NULL;
+
+	return mio_instmrjob(mio, &tmrjob);
+}
+
+
+static void send_test_query (mio_t* mio, const mio_ntime_t* now, mio_tmrjob_t* job)
+{
+	//if (!mio_svc_dnc_resolve((mio_svc_dnc_t*)job->ctx, "www.microsoft.com", MIO_DNS_RRT_CNAME, MIO_SVC_DNC_RESOLVE_FLAG_COOKIE, on_dnc_resolve, 0))
+	if (!mio_svc_dnc_resolve((mio_svc_dnc_t*)job->ctx, "mailserver.manyhost.net", MIO_DNS_RRT_A, MIO_SVC_DNC_RESOLVE_FLAG_COOKIE, on_dnc_resolve, 0))
+	{
+		printf ("resolve attempt failure ---> mailserver.manyhost.net\n");
+	}
 }
 
 int main (int argc, char* argv[])
@@ -1183,7 +1217,9 @@ for (i = 0; i < 5; i++)
 	reply_tmout.sec = 1;
 	reply_tmout.nsec = 0;
 
-	mio_bcstrtoskad (mio, "8.8.8.8:53", &servaddr);
+	//mio_bcstrtoskad (mio, "8.8.8.8:53", &servaddr);
+	//mio_bcstrtoskad (mio, "130.59.31.29:53", &servaddr); // ns2.switch.ch
+	mio_bcstrtoskad (mio, "134.119.216.86:53", &servaddr); // ns.manyhost.net
 	//mio_bcstrtoskad (mio, "[fe80::c7e2:bd6e:1209:ac1b]:1153", &servaddr);
 	//mio_bcstrtoskad (mio, "[fe80::c7e2:bd6e:1209:ac1b%eno1]:1153", &servaddr);
 
@@ -1191,11 +1227,17 @@ for (i = 0; i < 5; i++)
 	mio_bcstrtoskad (mio, "0.0.0.0:9988", &htts_bind_addr);
 
 	dnc = mio_svc_dnc_start(mio, &servaddr, MIO_NULL, &send_tmout, &reply_tmout, 2); /* option - send to all, send one by one */
+	if (!dnc)
+	{
+		MIO_INFO1 (mio, "UNABLE TO START DNC - %js\n", mio_geterrmsg(mio));
+	}
+
 	htts = mio_svc_htts_start(mio, &htts_bind_addr, process_http_request);
 	if (htts) mio_svc_htts_setservernamewithbcstr (htts, "MIO-HTTP");
 	else MIO_INFO1 (mio, "UNABLE TO START HTTS - %js\n", mio_geterrmsg(mio));
 
-#if 1
+#if 0
+	if (dnc)
 	{
 		mio_dns_bqr_t qrs[] = 
 		{
@@ -1275,42 +1317,48 @@ for (i = 0; i < 5; i++)
 	}
 #endif
 
+	if (dnc)
+	{
+		mio_ntime_t x;
+		MIO_INIT_NTIME (&x, 5, 0);
+		schedule_timer_job_after (mio, &x, send_test_query, dnc);
 
-if (!mio_svc_dnc_resolve(dnc, "b.wild.com", MIO_DNS_RRT_A, MIO_SVC_DNC_RESOLVE_FLAG_PREFER_TCP, on_dnc_resolve, 0))
-{
-	printf ("resolve attempt failure ---> a.wild.com\n");
-}
-
-if (!mio_svc_dnc_resolve(dnc, "www.microsoft.com", MIO_DNS_RRT_CNAME, MIO_SVC_DNC_RESOLVE_FLAG_COOKIE, on_dnc_resolve, 0))
-{
-	printf ("resolve attempt failure ---> www.microsoft.com\n");
-}
-
-
-//if (!mio_svc_dnc_resolve(dnc, "www.microsoft.com", MIO_DNS_RRT_A, MIO_SVC_DNC_RESOLVE_FLAG_BRIEF, on_dnc_resolve_brief, 0))
-if (!mio_svc_dnc_resolve(dnc, "code.miflux.com", MIO_DNS_RRT_A, MIO_SVC_DNC_RESOLVE_FLAG_BRIEF | MIO_SVC_DNC_RESOLVE_FLAG_PREFER_TCP, on_dnc_resolve_brief, 0))
-{
-	printf ("resolve attempt failure ---> code.miflux.com\n");
-}
-
-if (!mio_svc_dnc_resolve(dnc, "45.77.246.105.in-addr.arpa", MIO_DNS_RRT_PTR, MIO_SVC_DNC_RESOLVE_FLAG_BRIEF, on_dnc_resolve_brief, 0))
-{
-	printf ("resolve attempt failure ---> 45.77.246.105.in-addr.arpa.\n");
-}
-
-#if 0
-if (!mio_svc_dnc_resolve(dnc, "1.1.1.1.in-addr.arpa", MIO_DNS_RRT_PTR, MIO_SVC_DNC_RESOLVE_FLAG_BRIEF, on_dnc_resolve_brief, 0))
-{
-	printf ("resolve attempt failure ---> 1.1.1.1.in-addr.arpa\n");
-}
-
-//if (!mio_svc_dnc_resolve(dnc, "ipv6.google.com", MIO_DNS_RRT_AAAA, MIO_SVC_DNC_RESOLVE_FLAG_BRIEF, on_dnc_resolve_brief, 0))
-if (!mio_svc_dnc_resolve(dnc, "google.com", MIO_DNS_RRT_SOA, MIO_SVC_DNC_RESOLVE_FLAG_BRIEF, on_dnc_resolve_brief, 0))
-//if (!mio_svc_dnc_resolve(dnc, "google.com", MIO_DNS_RRT_NS, MIO_SVC_DNC_RESOLVE_FLAG_BRIEF, on_dnc_resolve_brief, 0))
-{
-	printf ("resolve attempt failure ---> code.miflux.com\n");
-}
-#endif
+		if (!mio_svc_dnc_resolve(dnc, "b.wild.com", MIO_DNS_RRT_A, MIO_SVC_DNC_RESOLVE_FLAG_PREFER_TCP, on_dnc_resolve, 0))
+		{
+			printf ("resolve attempt failure ---> a.wild.com\n");
+		}
+		
+		if (!mio_svc_dnc_resolve(dnc, "www.microsoft.com", MIO_DNS_RRT_CNAME, MIO_SVC_DNC_RESOLVE_FLAG_COOKIE, on_dnc_resolve, 0))
+		{
+			printf ("resolve attempt failure ---> www.microsoft.com\n");
+		}
+		
+		
+		//if (!mio_svc_dnc_resolve(dnc, "www.microsoft.com", MIO_DNS_RRT_A, MIO_SVC_DNC_RESOLVE_FLAG_BRIEF, on_dnc_resolve_brief, 0))
+		if (!mio_svc_dnc_resolve(dnc, "code.miflux.com", MIO_DNS_RRT_A, MIO_SVC_DNC_RESOLVE_FLAG_BRIEF | MIO_SVC_DNC_RESOLVE_FLAG_PREFER_TCP, on_dnc_resolve_brief, 0))
+		{
+			printf ("resolve attempt failure ---> code.miflux.com\n");
+		}
+		
+		if (!mio_svc_dnc_resolve(dnc, "45.77.246.105.in-addr.arpa", MIO_DNS_RRT_PTR, MIO_SVC_DNC_RESOLVE_FLAG_BRIEF, on_dnc_resolve_brief, 0))
+		{
+			printf ("resolve attempt failure ---> 45.77.246.105.in-addr.arpa.\n");
+		}
+		
+		#if 0
+		if (!mio_svc_dnc_resolve(dnc, "1.1.1.1.in-addr.arpa", MIO_DNS_RRT_PTR, MIO_SVC_DNC_RESOLVE_FLAG_BRIEF, on_dnc_resolve_brief, 0))
+		{
+			printf ("resolve attempt failure ---> 1.1.1.1.in-addr.arpa\n");
+		}
+		
+		//if (!mio_svc_dnc_resolve(dnc, "ipv6.google.com", MIO_DNS_RRT_AAAA, MIO_SVC_DNC_RESOLVE_FLAG_BRIEF, on_dnc_resolve_brief, 0))
+		if (!mio_svc_dnc_resolve(dnc, "google.com", MIO_DNS_RRT_SOA, MIO_SVC_DNC_RESOLVE_FLAG_BRIEF, on_dnc_resolve_brief, 0))
+		//if (!mio_svc_dnc_resolve(dnc, "google.com", MIO_DNS_RRT_NS, MIO_SVC_DNC_RESOLVE_FLAG_BRIEF, on_dnc_resolve_brief, 0))
+		{
+			printf ("resolve attempt failure ---> code.miflux.com\n");
+		}
+		#endif
+	}
 
 #if 0
 {
@@ -1342,7 +1390,7 @@ for (i = 0; i < 20; i++)
 
 	/* TODO: let mio close it ... dnc is svc. sck is dev. */
 	if (htts) mio_svc_htts_stop (htts);
-	mio_svc_dnc_stop (dnc);
+	if (dnc) mio_svc_dnc_stop (dnc);
 }
 
 	g_mio = MIO_NULL;

@@ -414,6 +414,29 @@ typedef enum mio_svc_dnc_resolve_flag_t  mio_svc_dnc_resolve_flag_t;
 
 /* ---------------------------------------------------------------- */
 
+#define MIO_DNS_COOKIE_CLIENT_LEN (8)
+#define MIO_DNS_COOKIE_SERVER_MIN_LEN (16)
+#define MIO_DNS_COOKIE_SERVER_MAX_LEN (40)
+#define MIO_DNS_COOKIE_MAX_LEN (MIO_DNS_COOKIE_CLIENT_LEN + MIO_DNS_COOKIE_SERVER_MAX_LEN)
+
+typedef struct mio_dns_cookie_data_t mio_dns_cookie_data_t;
+#include <mio-pac1.h>
+struct mio_dns_cookie_data_t
+{
+	mio_uint8_t client[MIO_DNS_COOKIE_CLIENT_LEN];
+	mio_uint8_t server[MIO_DNS_COOKIE_SERVER_MAX_LEN];
+};
+#include <mio-upac.h>
+
+typedef struct mio_dns_cookie_t mio_dns_cookie_t;
+struct mio_dns_cookie_t
+{
+	mio_dns_cookie_data_t data;
+	mio_uint8_t client_len;
+	mio_uint8_t server_len;
+};
+
+/* ---------------------------------------------------------------- */
 
 struct mio_dns_pkt_info_t
 {
@@ -433,6 +456,8 @@ struct mio_dns_pkt_info_t
 		mio_uint16_t uplen; /* udp payload len - will be placed in the qclass field of RR. */
 		mio_uint8_t  version; 
 		mio_uint8_t  dnssecok;
+		mio_dns_cookie_t cookie;
+		int cookie_verified; /* UGLY: set via mio_svc_dnc_resolve() only. mio_dns_make_packet_info() doesn't set this */
 	} edns;
 
 	mio_uint16_t qdcount; /* number of questions */
@@ -447,6 +472,7 @@ struct mio_dns_pkt_info_t
 		mio_dns_brr_t* ns;
 		mio_dns_brr_t* ar;
 	} rr;
+
 };
 typedef struct mio_dns_pkt_info_t mio_dns_pkt_info_t;
 

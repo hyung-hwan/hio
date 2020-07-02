@@ -56,6 +56,8 @@ struct mio_svc_dnc_t
 	 * regardless of max_tries. */ 
 	mio_oow_t max_tries; 
 
+	mio_dns_cookie_t cookie;
+
 	mio_oow_t seq;
 	mio_dns_msg_t* pending_req;
 };
@@ -843,6 +845,7 @@ struct dnc_dns_msg_resolve_xtn_t
 {
 	mio_dns_rrt_t qtype;
 	int flags;
+	mio_uint8_t client_cookie[MIO_DNS_COOKIE_CLIENT_LEN];
 	mio_svc_dnc_on_resolve_t on_resolve;
 };
 typedef struct dnc_dns_msg_resolve_xtn_t dnc_dns_msg_resolve_xtn_t;
@@ -857,14 +860,7 @@ static void on_dnc_resolve (mio_svc_dnc_t* dnc, mio_dns_msg_t* reqmsg, mio_errnu
 {
 	mio_t* mio = mio_svc_dnc_getmio(dnc);
 	mio_dns_pkt_info_t* pi = MIO_NULL;
-	dnc_dns_msg_resolve_xtn_t* reqmsgxtn = dnc_dns_msg_resolve_getxtn(reqmsg);
-
-	if (!(reqmsgxtn->flags & MIO_SVC_DNC_RESOLVE_FLAG_BRIEF))
-	{
-		/* the full reply packet is requested. no transformation is required */
-		if (reqmsgxtn->on_resolve) reqmsgxtn->on_resolve (dnc, reqmsg, status, data, dlen);
-		return;
-	}
+	dnc_dns_msg_resolve_xtn_t* resolxtn = dnc_dns_msg_resolve_getxtn(reqmsg);
 
 	if (data)
 	{
@@ -879,12 +875,46 @@ static void on_dnc_resolve (mio_svc_dnc_t* dnc, mio_dns_msg_t* reqmsg, mio_errnu
 			goto no_data;
 		}
 
-/*
-if (pi->hdr.code == MIO_DNS_RCODE_BADCOOKIE)
-{
-// retry with server cookie received....
-}
-*/
+		if (resolxtn->flags & MIO_SVC_DNC_RESOLVE_FLAG_COOKIE)
+		{
+			/* ------------------------------------------------- */
+			if (pi->edns.cookie.client_len > 0)
+			{
+				if (MIO_MEMCMP(resolxtn->client_cookie, pi->edns.cookie.data.client, pi->edns.cookie.client_len) == 0)
+				{
+					pi->edns.cookie_verified = 1; /*  UGLY to set data in mio_dns_pkt_info_t */
+				}
+			}
+
+			if (pi->edns.cookie.server_len > 0)
+			{
+				MIO_MEMCPY (dnc->cookie.data.server, pi->edns.cookie.data.server, pi->edns.cookie.server_len);
+				dnc->cookie.server_len = pi->edns.cookie.server_len;
+			}
+	
+				
+#if 0
+			if (pi->hdr.rcode == MIO_DNS_RCODE_BADCOOKIE)
+			{
+				/* TODO: retry it */
+#if 0
+				if (mio_svc_dnc_resolve(dnc, qname, resolxtn->qtype, resolxtn->flags, on_dnc_resolve, resolxtn->xtnsize) <= -1)
+				{
+				}
+#endif
+				/*how to retry?*/
+			}
+#endif
+			/* ------------------------------------------------- */
+
+		}
+
+		if (!(resolxtn->flags & MIO_SVC_DNC_RESOLVE_FLAG_BRIEF))
+		{
+			/* the full reply packet is requested. */
+			if (resolxtn->on_resolve) resolxtn->on_resolve (dnc, reqmsg, status, pi, 0);
+			goto done;
+		}
 
 		if (pi->hdr.rcode != MIO_DNS_RCODE_NOERROR) 
 		{
@@ -895,7 +925,7 @@ if (pi->hdr.code == MIO_DNS_RCODE_BADCOOKIE)
 		if (pi->ancount < 0) goto no_data;
 
 		/* in the brief mode, we inspect the answer section only */
-		if (reqmsgxtn->qtype == MIO_DNS_RRT_Q_ANY)
+		if (resolxtn->qtype == MIO_DNS_RRT_Q_ANY)
 		{
 			/* return A or AAAA for ANY in the brief mode */
 			for (i = 0; i < pi->ancount; i++)
@@ -903,7 +933,7 @@ if (pi->hdr.code == MIO_DNS_RCODE_BADCOOKIE)
 				if (pi->rr.an[i].rrtype == MIO_DNS_RRT_A || pi->rr.an[i].rrtype == MIO_DNS_RRT_AAAA)
 				{
 				match_found:
-					if (reqmsgxtn->on_resolve) reqmsgxtn->on_resolve (dnc, reqmsg, status, &pi->rr.an[i], MIO_SIZEOF(pi->rr.an[i]));
+					if (resolxtn->on_resolve) resolxtn->on_resolve (dnc, reqmsg, status, &pi->rr.an[i], MIO_SIZEOF(pi->rr.an[i]));
 					goto done;
 				}
 			}
@@ -914,7 +944,7 @@ if (pi->hdr.code == MIO_DNS_RCODE_BADCOOKIE)
 			/* it is a bit time taking to retreive the query type from the packet
 			 * bundled in reqmsg as it requires parsing of the packet. let me use
 			 * the query type i stored in the extension space. */
-			switch (reqmsgxtn->qtype)
+			switch (resolxtn->qtype)
 			{
 				case MIO_DNS_RRT_Q_ANY: 
 				case MIO_DNS_RRT_Q_AFXR: /* AFXR doesn't make sense in the brief mode. just treat it like ANY */
@@ -933,7 +963,7 @@ if (pi->hdr.code == MIO_DNS_RCODE_BADCOOKIE)
 					break;
 
 				default:
-					if (pi->rr.an[i].rrtype == reqmsgxtn->qtype) goto match_found;
+					if (pi->rr.an[i].rrtype == resolxtn->qtype) goto match_found;
 					break;
 			}
 		}
@@ -942,7 +972,7 @@ if (pi->hdr.code == MIO_DNS_RCODE_BADCOOKIE)
 	else
 	{
 	no_data:
-		if (reqmsgxtn->on_resolve) reqmsgxtn->on_resolve (dnc, reqmsg, status, MIO_NULL, 0);
+		if (resolxtn->on_resolve) resolxtn->on_resolve (dnc, reqmsg, status, MIO_NULL, 0);
 	}
 
 done:
@@ -988,10 +1018,10 @@ mio_dns_msg_t* mio_svc_dnc_resolve (mio_svc_dnc_t* dnc, const mio_bch_t* qname, 
 
 	if (resolve_flags & MIO_SVC_DNC_RESOLVE_FLAG_COOKIE)
 	{
-		static mio_uint8_t dummy[48];
 		beopt_cookie.code = MIO_DNS_EOPT_COOKIE;
-		beopt_cookie.dlen = MIO_COUNTOF(dummy);
-		beopt_cookie.dptr = dummy;
+		beopt_cookie.dlen = MIO_DNS_COOKIE_CLIENT_LEN; 
+		if (dnc->cookie.server_len > 0) beopt_cookie.dlen += dnc->cookie.server_len;
+		beopt_cookie.dptr = &dnc->cookie.data;
 
 		qedns.beonum = 1;
 		qedns.beoptr = &beopt_cookie;
@@ -1002,9 +1032,12 @@ mio_dns_msg_t* mio_svc_dnc_resolve (mio_svc_dnc_t* dnc, const mio_bch_t* qname, 
 	{
 		int send_flags;
 
-		if (resolve_flags & MIO_SVC_DNC_RESOLVE_FLAG_COOKIE)
+#if 0
+		if ((resolve_flags & MIO_SVC_DNC_RESOLVE_FLAG_COOKIE) && dnc->cookie.server_len == 0)
 		{
-			/* ASSUMPTIONS:
+			/* Exclude the server cookie from the packet when the server cookie is not available.
+			 *
+			 * ASSUMPTIONS:
 			 *  the eopt entries are at the back of the packet.
 			 *  only 1 eopt entry(MIO_DNS_EOPT_COOKIE) has been added. 
 			 * 
@@ -1014,25 +1047,25 @@ mio_dns_msg_t* mio_svc_dnc_resolve (mio_svc_dnc_t* dnc, const mio_bch_t* qname, 
 			mio_dns_rrtr_t* edns_rrtr;
 			mio_dns_eopt_t* eopt;
 
-/* TODO: generate the client cookie and copy it */
-/* if the server cookie is available, copy it to the packet. but the server cookike may still be shorter than 40. so some manipulation is still needed
- * if not, manipualte the length like below */
 			edns_rrtr = (mio_dns_rrtr_t*)((mio_uint8_t*)mio_dns_msg_to_pkt(reqmsg) + reqmsg->ednsrrtroff);
-			reqmsg->pktlen -= 40; /* maximum server cookie space */
+			reqmsg->pktlen -= MIO_DNS_COOKIE_SERVER_MAX_LEN;
 
 			MIO_ASSERT (dnc->mio, edns_rrtr->rrtype == MIO_CONST_HTON16(MIO_DNS_RRT_OPT));
-			MIO_ASSERT (dnc->mio, edns_rrtr->dlen == MIO_CONST_HTON16(52));
+			MIO_ASSERT (dnc->mio, edns_rrtr->dlen == MIO_CONST_HTON16(MIO_SIZEOF(mio_dns_eopt_t) + MIO_DNS_COOKIE_MAX_LEN));
+			edns_rrtr->dlen = MIO_CONST_HTON16(MIO_SIZEOF(mio_dns_eopt_t) + MIO_DNS_COOKIE_CLIENT_LEN);
 
-			edns_rrtr->dlen = MIO_CONST_HTON16(12);
 			eopt = (mio_dns_eopt_t*)(edns_rrtr + 1);
-			MIO_ASSERT (dnc->mio, eopt->dlen == MIO_CONST_HTON16(48));
-			eopt->dlen = MIO_CONST_HTON16(8);
+			MIO_ASSERT (dnc->mio, eopt->dlen == MIO_CONST_HTON16(MIO_DNS_COOKIE_MAX_LEN));
+			eopt->dlen = MIO_CONST_HTON16(MIO_DNS_COOKIE_CLIENT_LEN);
 		}
+#endif
 
 		resolxtn = dnc_dns_msg_resolve_getxtn(reqmsg);
 		resolxtn->on_resolve = on_resolve;
 		resolxtn->qtype = qtype;
 		resolxtn->flags = resolve_flags;
+		/* store in the extension area the client cookie set in the packet */
+		MIO_MEMCPY (resolxtn->client_cookie, dnc->cookie.data.client, MIO_DNS_COOKIE_CLIENT_LEN);
 
 		send_flags = (resolve_flags & MIO_SVC_DNC_SEND_FLAG_ALL);
 		if (MIO_UNLIKELY(qtype == MIO_DNS_RRT_Q_AFXR)) send_flags |= MIO_SVC_DNC_SEND_FLAG_PREFER_TCP;

@@ -1,3 +1,4 @@
+#if defined(MIO_ENABLE_MARIADB)
 
 #include <mio.h>
 #include <mio-mar.h>
@@ -286,3 +287,16 @@ printf ("about to close mio...\n");
 	if (mio) mio_close (mio);
 	return 0;
 }
+
+
+
+
+#else
+
+#include <stdio.h>
+int main (int argc, char* argv[])
+{
+	printf ("mariadb not enabled\n");
+	return 0;
+}
+#endif
