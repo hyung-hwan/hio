@@ -161,7 +161,7 @@ void mio_sip_hash_24 (const mio_uint8_t key[16], mio_uint8_t *dptr, mio_oow_t dl
 	for (; dptr != end; dptr += 8) 
 	{
 		m = U8TO64_LE(dptr);
-		SIP_2_ROUND(m, v0, v1, v2, v3);
+		SIP_2_ROUND (m, v0, v1, v2, v3);
 	}
 
 #if (MIO_SIZEOF_UINT64_T > 0)
@@ -183,16 +183,16 @@ void mio_sip_hash_24 (const mio_uint8_t key[16], mio_uint8_t *dptr, mio_oow_t dl
 		case 7: OR_BYTE (6);
 		case 6: OR_BYTE (5);
 		case 5: OR_BYTE (4);
-		case 4: OR_BYTE(3);
-		case 3: OR_BYTE(2);
-		case 2: OR_BYTE(1);
-		case 1: OR_BYTE(0);
+		case 4: OR_BYTE (3);
+		case 3: OR_BYTE (2);
+		case 2: OR_BYTE (1);
+		case 1: OR_BYTE (0);
 		case 0: break;
 	}
 
-	SIP_2_ROUND(last, v0, v1, v2, v3);
+	SIP_2_ROUND (last, v0, v1, v2, v3);
 
-	XOR64_INT(v2, 0xff);
+	XOR64_INT (v2, 0xff);
 
 	SIP_COMPRESS (v0, v1, v2, v3);
 	SIP_COMPRESS (v0, v1, v2, v3);
