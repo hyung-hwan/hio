@@ -1,5 +1,30 @@
-#include <mio-utl.h>
+/*
+ * $Id$
+ *
+    Copyright (c) 2016-2020 Chung, Hyung-Hwan. All rights reserved.
 
+    Redistribution and use in source and binary forms, with or without
+    modification, are permitted provided that the following conditions
+    are met:
+    1. Redistributions of source code must retain the above copyright
+       notice, this list of conditions and the following disclaimer.
+    2. Redistributions in binary form must reproduce the above copyright
+       notice, this list of conditions and the following disclaimer in the
+       documentation and/or other materials provided with the distribution.
+
+    THIS SOFTWARE IS PROVIDED BY THE AUTHOR "AS IS" AND ANY EXPRESS OR
+    IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE IMPLIED WAfRRANTIES
+    OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE ARE DISCLAIMED.
+    IN NO EVENT SHALL THE AUTHOR BE LIABLE FOR ANY DIRECT, INDIRECT,
+    INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL DAMAGES (INCLUDING, BUT
+    NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS OR SERVICES; LOSS OF USE,
+    DATA, OR PROFITS; OR BUSINESS INTERRUPTION) HOWEVER CAUSED AND ON ANY
+    THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT LIABILITY, OR TORT
+    (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF
+    THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
+ */
+
+#include <mio-utl.h>
 
 /* 
  * This code is based on https://github.com/emboss/siphash-c/blob/master/src/siphash.c
@@ -111,14 +136,14 @@ static MIO_INLINE sip_uint64_t* xor64_to (sip_uint64_t* v, sip_uint64_t s)
 #endif /* (MIO_SIZEOF_UINT64_T > 0) */
 
 
-static const char sip_init_state_bin[] = 
+static const mio_uint8_t sip_init_v_bin[] = 
 {
 	0x75, 0x65, 0x73, 0x70, 0x65, 0x6d, 0x6f, 0x73, 
 	0x6d, 0x6f, 0x64, 0x6e, 0x61, 0x72, 0x6f, 0x64,
 	0x61, 0x72, 0x65, 0x6e, 0x65, 0x67, 0x79, 0x6c,
 	0x73, 0x65, 0x74, 0x79, 0x62, 0x64, 0x65, 0x74
 };
-#define sip_init_state (*(sip_uint64_t(*)[4])sip_init_state_bin)
+#define sip_init_v (*(sip_uint64_t(*)[4])sip_init_v_bin)
 
 #define SIP_COMPRESS(v0, v1, v2, v3) do {\
 	ADD64_TO((v0), (v1)); \
@@ -148,7 +173,7 @@ void mio_sip_hash_24 (const mio_uint8_t key[16], mio_uint8_t *dptr, mio_oow_t dl
 {
 	sip_uint64_t k0, k1;
 	sip_uint64_t v0, v1, v2, v3;
-	sip_uint64_t m, last;
+	sip_uint64_t m, b;
 
 	mio_oow_t rem;
 	mio_uint8_t* end;
@@ -159,10 +184,10 @@ void mio_sip_hash_24 (const mio_uint8_t key[16], mio_uint8_t *dptr, mio_oow_t dl
 	k0 = U8TO64_LE(key);
 	k1 = U8TO64_LE(key + 8);
 
-	v0 = k0; XOR64_TO(v0, sip_init_state[0]);
-	v1 = k1; XOR64_TO(v1, sip_init_state[1]);
-	v2 = k0; XOR64_TO(v2, sip_init_state[2]);
-	v3 = k1; XOR64_TO(v3, sip_init_state[3]);
+	v0 = k0; XOR64_TO(v0, sip_init_v[0]);
+	v1 = k1; XOR64_TO(v1, sip_init_v[1]);
+	v2 = k0; XOR64_TO(v2, sip_init_v[2]);
+	v3 = k1; XOR64_TO(v3, sip_init_v[3]);
 
 	for (; dptr != end; dptr += 8) 
 	{
@@ -171,32 +196,33 @@ void mio_sip_hash_24 (const mio_uint8_t key[16], mio_uint8_t *dptr, mio_oow_t dl
 	}
 
 #if (MIO_SIZEOF_UINT64_T > 0)
-	last = (mio_uint64_t)dlen << 56;
+	b = (mio_uint64_t)dlen << 56;
 
-#define OR_BYTE(n) (last |= ((mio_uint64_t)end[n]) << ((n) * 8))
+#define OR_BYTE_HI(n) (b |= ((mio_uint64_t)end[n]) << ((n) * 8))
+#define OR_BYTE_LO(n) (b |= ((mio_uint64_t)end[n]) << ((n) * 8))
 
 #else
-	last.hi = (mio_uint32_t)dlen << 24;
-	last.lo = 0;
-#define OR_BYTE(n) do { \
-	if (n >= 4) last.hi |= ((mio_uint32_t)end[n]) << ((n) >= 4 ? (n) * 8 - 32 : 0); \
-	else last.lo |= ((mio_uint32_t)end[n]) << ((n) >= 4 ? 0 : (n) * 8); \
-} while (0)
+	b.hi = (mio_uint32_t)dlen << 24;
+	b.lo = 0;
+
+#define OR_BYTE_HI(n) (b.hi |= ((mio_uint32_t)end[n]) << ((n) * 8 - 32)) /* n: 4 to 7 */
+#define OR_BYTE_LO(n) (b.lo |= ((mio_uint32_t)end[n]) << ((n) * 8)) /* n: 0 to 3 */
+
 #endif
 
 	switch (rem)
 	{
-		case 7: OR_BYTE (6);
-		case 6: OR_BYTE (5);
-		case 5: OR_BYTE (4);
-		case 4: OR_BYTE (3);
-		case 3: OR_BYTE (2);
-		case 2: OR_BYTE (1);
-		case 1: OR_BYTE (0); break;
+		case 7: OR_BYTE_HI (6);
+		case 6: OR_BYTE_HI (5);
+		case 5: OR_BYTE_HI (4);
+		case 4: OR_BYTE_LO (3);
+		case 3: OR_BYTE_LO (2);
+		case 2: OR_BYTE_LO (1);
+		case 1: OR_BYTE_LO (0); break;
 		case 0: break;
 	}
 
-	SIP_2_ROUND (last, v0, v1, v2, v3);
+	SIP_2_ROUND (b, v0, v1, v2, v3);
 
 	XOR64_INT (v2, 0xff);
 
