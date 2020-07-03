@@ -89,7 +89,7 @@ POST_UNINSTALL = :
 build_triplet = @build@
 host_triplet = @host@
 bin_PROGRAMS = mio-execd$(EXEEXT) mio-t01$(EXEEXT) mio-t02$(EXEEXT) \
-	mio-t03$(EXEEXT) mio-t04$(EXEEXT)
+	mio-t03$(EXEEXT) mio-t04$(EXEEXT) mio-t05$(EXEEXT)
 subdir = bin
 ACLOCAL_M4 = $(top_srcdir)/aclocal.m4
 am__aclocal_m4_deps = $(top_srcdir)/m4/ax_check_sign.m4 \
@@ -148,6 +148,13 @@ mio_t04_DEPENDENCIES = $(am__DEPENDENCIES_2) $(am__DEPENDENCIES_1) \
 mio_t04_LINK = $(LIBTOOL) $(AM_V_lt) --tag=CC $(AM_LIBTOOLFLAGS) \
 	$(LIBTOOLFLAGS) --mode=link $(CCLD) $(AM_CFLAGS) $(CFLAGS) \
 	$(mio_t04_LDFLAGS) $(LDFLAGS) -o $@
+am_mio_t05_OBJECTS = mio_t05-t05.$(OBJEXT)
+mio_t05_OBJECTS = $(am_mio_t05_OBJECTS)
+mio_t05_DEPENDENCIES = $(am__DEPENDENCIES_2) $(am__DEPENDENCIES_1) \
+	$(am__DEPENDENCIES_1) $(am__DEPENDENCIES_1)
+mio_t05_LINK = $(LIBTOOL) $(AM_V_lt) --tag=CC $(AM_LIBTOOLFLAGS) \
+	$(LIBTOOLFLAGS) --mode=link $(CCLD) $(AM_CFLAGS) $(CFLAGS) \
+	$(mio_t05_LDFLAGS) $(LDFLAGS) -o $@
 AM_V_P = $(am__v_P_@AM_V@)
 am__v_P_ = $(am__v_P_@AM_DEFAULT_V@)
 am__v_P_0 = false
@@ -165,7 +172,8 @@ depcomp = $(SHELL) $(top_srcdir)/ac/depcomp
 am__maybe_remake_depfiles = depfiles
 am__depfiles_remade = ./$(DEPDIR)/mio_execd-execd.Po \
 	./$(DEPDIR)/mio_t01-t01.Po ./$(DEPDIR)/mio_t02-t02.Po \
-	./$(DEPDIR)/mio_t03-t03.Po ./$(DEPDIR)/mio_t04-t04.Po
+	./$(DEPDIR)/mio_t03-t03.Po ./$(DEPDIR)/mio_t04-t04.Po \
+	./$(DEPDIR)/mio_t05-t05.Po
 am__mv = mv -f
 COMPILE = $(CC) $(DEFS) $(DEFAULT_INCLUDES) $(INCLUDES) $(AM_CPPFLAGS) \
 	$(CPPFLAGS) $(AM_CFLAGS) $(CFLAGS)
@@ -186,9 +194,10 @@ am__v_CCLD_ = $(am__v_CCLD_@AM_DEFAULT_V@)
 am__v_CCLD_0 = @echo "  CCLD    " $@;
 am__v_CCLD_1 = 
 SOURCES = $(mio_execd_SOURCES) $(mio_t01_SOURCES) $(mio_t02_SOURCES) \
-	$(mio_t03_SOURCES) $(mio_t04_SOURCES)
+	$(mio_t03_SOURCES) $(mio_t04_SOURCES) $(mio_t05_SOURCES)
 DIST_SOURCES = $(mio_execd_SOURCES) $(mio_t01_SOURCES) \
-	$(mio_t02_SOURCES) $(mio_t03_SOURCES) $(mio_t04_SOURCES)
+	$(mio_t02_SOURCES) $(mio_t03_SOURCES) $(mio_t04_SOURCES) \
+	$(mio_t05_SOURCES)
 am__can_run_installinfo = \
   case $$AM_UPDATE_INFO_DIR in \
     n|no|NO) false;; \
@@ -398,6 +407,10 @@ mio_t04_SOURCES = t04.c
 mio_t04_CPPFLAGS = $(CPPFLAGS_LIB_COMMON)
 mio_t04_LDFLAGS = $(LDFLAGS_LIB_COMMON)
 mio_t04_LDADD = $(LIBADD_LIB_COMMON) -lmio $(SSL_LIBS) $(SOCKET_LIBS) $(SENDFILE_LIBS)
+mio_t05_SOURCES = t05.c
+mio_t05_CPPFLAGS = $(CPPFLAGS_LIB_COMMON)
+mio_t05_LDFLAGS = $(LDFLAGS_LIB_COMMON)
+mio_t05_LDADD = $(LIBADD_LIB_COMMON) -lmio $(SSL_LIBS) $(SOCKET_LIBS) $(SENDFILE_LIBS)
 all: all-am
 
 .SUFFIXES:
@@ -501,6 +514,10 @@ mio-t04$(EXEEXT): $(mio_t04_OBJECTS) $(mio_t04_DEPENDENCIES) $(EXTRA_mio_t04_DEP
 	@rm -f mio-t04$(EXEEXT)
 	$(AM_V_CCLD)$(mio_t04_LINK) $(mio_t04_OBJECTS) $(mio_t04_LDADD) $(LIBS)
 
+mio-t05$(EXEEXT): $(mio_t05_OBJECTS) $(mio_t05_DEPENDENCIES) $(EXTRA_mio_t05_DEPENDENCIES) 
+	@rm -f mio-t05$(EXEEXT)
+	$(AM_V_CCLD)$(mio_t05_LINK) $(mio_t05_OBJECTS) $(mio_t05_LDADD) $(LIBS)
+
 mostlyclean-compile:
 	-rm -f *.$(OBJEXT)
 
@@ -512,6 +529,7 @@ distclean-compile:
 @AMDEP_TRUE@@am__include@ @am__quote@./$(DEPDIR)/mio_t02-t02.Po@am__quote@ # am--include-marker
 @AMDEP_TRUE@@am__include@ @am__quote@./$(DEPDIR)/mio_t03-t03.Po@am__quote@ # am--include-marker
 @AMDEP_TRUE@@am__include@ @am__quote@./$(DEPDIR)/mio_t04-t04.Po@am__quote@ # am--include-marker
+@AMDEP_TRUE@@am__include@ @am__quote@./$(DEPDIR)/mio_t05-t05.Po@am__quote@ # am--include-marker
 
 $(am__depfiles_remade):
 	@$(MKDIR_P) $(@D)
@@ -612,6 +630,20 @@ mio_t04-t04.obj: t04.c
 @AMDEP_TRUE@@am__fastdepCC_FALSE@	$(AM_V_CC)source='t04.c' object='mio_t04-t04.obj' libtool=no @AMDEPBACKSLASH@
 @AMDEP_TRUE@@am__fastdepCC_FALSE@	DEPDIR=$(DEPDIR) $(CCDEPMODE) $(depcomp) @AMDEPBACKSLASH@
 @am__fastdepCC_FALSE@	$(AM_V_CC@am__nodep@)$(CC) $(DEFS) $(DEFAULT_INCLUDES) $(INCLUDES) $(mio_t04_CPPFLAGS) $(CPPFLAGS) $(AM_CFLAGS) $(CFLAGS) -c -o mio_t04-t04.obj `if test -f 't04.c'; then $(CYGPATH_W) 't04.c'; else $(CYGPATH_W) '$(srcdir)/t04.c'; fi`
+
+mio_t05-t05.o: t05.c
+@am__fastdepCC_TRUE@	$(AM_V_CC)$(CC) $(DEFS) $(DEFAULT_INCLUDES) $(INCLUDES) $(mio_t05_CPPFLAGS) $(CPPFLAGS) $(AM_CFLAGS) $(CFLAGS) -MT mio_t05-t05.o -MD -MP -MF $(DEPDIR)/mio_t05-t05.Tpo -c -o mio_t05-t05.o `test -f 't05.c' || echo '$(srcdir)/'`t05.c
+@am__fastdepCC_TRUE@	$(AM_V_at)$(am__mv) $(DEPDIR)/mio_t05-t05.Tpo $(DEPDIR)/mio_t05-t05.Po
+@AMDEP_TRUE@@am__fastdepCC_FALSE@	$(AM_V_CC)source='t05.c' object='mio_t05-t05.o' libtool=no @AMDEPBACKSLASH@
+@AMDEP_TRUE@@am__fastdepCC_FALSE@	DEPDIR=$(DEPDIR) $(CCDEPMODE) $(depcomp) @AMDEPBACKSLASH@
+@am__fastdepCC_FALSE@	$(AM_V_CC@am__nodep@)$(CC) $(DEFS) $(DEFAULT_INCLUDES) $(INCLUDES) $(mio_t05_CPPFLAGS) $(CPPFLAGS) $(AM_CFLAGS) $(CFLAGS) -c -o mio_t05-t05.o `test -f 't05.c' || echo '$(srcdir)/'`t05.c
+
+mio_t05-t05.obj: t05.c
+@am__fastdepCC_TRUE@	$(AM_V_CC)$(CC) $(DEFS) $(DEFAULT_INCLUDES) $(INCLUDES) $(mio_t05_CPPFLAGS) $(CPPFLAGS) $(AM_CFLAGS) $(CFLAGS) -MT mio_t05-t05.obj -MD -MP -MF $(DEPDIR)/mio_t05-t05.Tpo -c -o mio_t05-t05.obj `if test -f 't05.c'; then $(CYGPATH_W) 't05.c'; else $(CYGPATH_W) '$(srcdir)/t05.c'; fi`
+@am__fastdepCC_TRUE@	$(AM_V_at)$(am__mv) $(DEPDIR)/mio_t05-t05.Tpo $(DEPDIR)/mio_t05-t05.Po
+@AMDEP_TRUE@@am__fastdepCC_FALSE@	$(AM_V_CC)source='t05.c' object='mio_t05-t05.obj' libtool=no @AMDEPBACKSLASH@
+@AMDEP_TRUE@@am__fastdepCC_FALSE@	DEPDIR=$(DEPDIR) $(CCDEPMODE) $(depcomp) @AMDEPBACKSLASH@
+@am__fastdepCC_FALSE@	$(AM_V_CC@am__nodep@)$(CC) $(DEFS) $(DEFAULT_INCLUDES) $(INCLUDES) $(mio_t05_CPPFLAGS) $(CPPFLAGS) $(AM_CFLAGS) $(CFLAGS) -c -o mio_t05-t05.obj `if test -f 't05.c'; then $(CYGPATH_W) 't05.c'; else $(CYGPATH_W) '$(srcdir)/t05.c'; fi`
 
 mostlyclean-libtool:
 	-rm -f *.lo
@@ -751,6 +783,7 @@ distclean: distclean-am
 	-rm -f ./$(DEPDIR)/mio_t02-t02.Po
 	-rm -f ./$(DEPDIR)/mio_t03-t03.Po
 	-rm -f ./$(DEPDIR)/mio_t04-t04.Po
+	-rm -f ./$(DEPDIR)/mio_t05-t05.Po
 	-rm -f Makefile
 distclean-am: clean-am distclean-compile distclean-generic \
 	distclean-tags
@@ -801,6 +834,7 @@ maintainer-clean: maintainer-clean-am
 	-rm -f ./$(DEPDIR)/mio_t02-t02.Po
 	-rm -f ./$(DEPDIR)/mio_t03-t03.Po
 	-rm -f ./$(DEPDIR)/mio_t04-t04.Po
+	-rm -f ./$(DEPDIR)/mio_t05-t05.Po
 	-rm -f Makefile
 maintainer-clean-am: distclean-am maintainer-clean-generic
 
