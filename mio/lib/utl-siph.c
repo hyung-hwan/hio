@@ -171,12 +171,12 @@ void mio_sip_hash_24 (const mio_uint8_t key[16], mio_uint8_t *dptr, mio_oow_t dl
 	}
 
 #if (MIO_SIZEOF_UINT64_T > 0)
-	last = dlen << 56;
+	last = (mio_uint64_t)dlen << 56;
 
 #define OR_BYTE(n) (last |= ((mio_uint64_t)end[n]) << ((n) * 8))
 
 #else
-	last.hi = dlen << 24;
+	last.hi = (mio_uint32_t)dlen << 24;
 	last.lo = 0;
 #define OR_BYTE(n) do { \
 	if (n >= 4) last.hi |= ((mio_uint32_t)end[n]) << ((n) >= 4 ? (n) * 8 - 32 : 0); \
@@ -192,7 +192,7 @@ void mio_sip_hash_24 (const mio_uint8_t key[16], mio_uint8_t *dptr, mio_oow_t dl
 		case 4: OR_BYTE (3);
 		case 3: OR_BYTE (2);
 		case 2: OR_BYTE (1);
-		case 1: OR_BYTE (0);
+		case 1: OR_BYTE (0); break;
 		case 0: break;
 	}
 
