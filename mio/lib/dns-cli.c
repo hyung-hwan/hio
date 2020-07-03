@@ -725,6 +725,7 @@ mio_svc_dnc_t* mio_svc_dnc_start (mio_t* mio, const mio_skad_t* serv_addr, const
 	mio_svc_dnc_t* dnc = MIO_NULL;
 	mio_dev_sck_make_t mkinfo;
 	dnc_sck_xtn_t* sckxtn;
+	mio_ntime_t now;
 
 	dnc = (mio_svc_dnc_t*)mio_callocmem(mio, MIO_SIZEOF(*dnc));
 	if (MIO_UNLIKELY(!dnc)) goto oops;
@@ -768,6 +769,12 @@ mio_svc_dnc_t* mio_svc_dnc_start (mio_t* mio, const mio_skad_t* serv_addr, const
 		bi.localaddr = *bind_addr;
 		if (mio_dev_sck_bind(dnc->udp_sck, &bi) <= -1) goto oops;
 	}
+
+
+	/* initialize the dns cookie key */
+	mio_gettime (mio, &now);
+	MIO_MEMCPY (&dnc->cookie.key[0], &now.sec, (MIO_SIZEOF(now.sec) < 8? MIO_SIZEOF(now.sec): 8));
+	MIO_MEMCPY (&dnc->cookie.key[8], &now.nsec, (MIO_SIZEOF(now.nsec) < 8? MIO_SIZEOF(now.nsec): 8));
 
 	MIO_SVCL_APPEND_SVC (&mio->actsvc, (mio_svc_t*)dnc);
 	MIO_DEBUG1 (mio, "DNC - STARTED SERVICE %p\n", dnc);
@@ -1019,9 +1026,14 @@ mio_dns_msg_t* mio_svc_dnc_resolve (mio_svc_dnc_t* dnc, const mio_bch_t* qname, 
 	if (resolve_flags & MIO_SVC_DNC_RESOLVE_FLAG_COOKIE)
 	{
 		beopt_cookie.code = MIO_DNS_EOPT_COOKIE;
+		beopt_cookie.dptr = &dnc->cookie.data;
+
 		beopt_cookie.dlen = MIO_DNS_COOKIE_CLIENT_LEN; 
 		if (dnc->cookie.server_len > 0) beopt_cookie.dlen += dnc->cookie.server_len;
-		beopt_cookie.dptr = &dnc->cookie.data;
+
+		/* compute the client cookie */
+		MIO_STATIC_ASSERT (MIO_SIZEOF(dnc->cookie.data.client) == MIO_DNS_COOKIE_CLIENT_LEN);
+		mio_sip_hash_24 (dnc->cookie.key, &dnc->serv_addr, MIO_SIZEOF(dnc->serv_addr), dnc->cookie.data.client);
 
 		qedns.beonum = 1;
 		qedns.beoptr = &beopt_cookie;

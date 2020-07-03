@@ -974,10 +974,10 @@ static MIO_INLINE mio_uint128_t mio_bswap128 (mio_uint128_t x)
  * SIP-HASH-PRF
  * ========================================================================= */
 MIO_EXPORT void mio_sip_hash_24 (
-	const mio_uint8_t key[16],
-	mio_uint8_t*      dptr,
-	mio_oow_t         dlen,
-	mio_uint8_t       out[8]
+	const mio_uint8_t   key[16],
+	const void*         dptr,
+	mio_oow_t           dlen,
+	mio_uint8_t         out[8]
 );
 
 #ifdef __cplusplus
