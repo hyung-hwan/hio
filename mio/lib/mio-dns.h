@@ -434,6 +434,7 @@ struct mio_dns_cookie_t
 	mio_dns_cookie_data_t data;
 	mio_uint8_t client_len;
 	mio_uint8_t server_len;
+	mio_uint8_t key[16];
 };
 
 /* ---------------------------------------------------------------- */

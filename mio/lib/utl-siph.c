@@ -169,17 +169,17 @@ static const mio_uint8_t sip_init_v_bin[] =
 	XOR64_TO((v0), (m)); \
 } while (0)
 
-void mio_sip_hash_24 (const mio_uint8_t key[16], mio_uint8_t *dptr, mio_oow_t dlen, mio_uint8_t out[8])
+void mio_sip_hash_24 (const mio_uint8_t key[16], const void* dptr, mio_oow_t dlen, mio_uint8_t out[8])
 {
 	sip_uint64_t k0, k1;
 	sip_uint64_t v0, v1, v2, v3;
 	sip_uint64_t m, b;
-
 	mio_oow_t rem;
-	mio_uint8_t* end;
+	const mio_uint8_t* ptr, * end;
 
 	rem = dlen & 7; /* dlen % 8 */
-	end = dptr + dlen - rem;
+	ptr = (const mio_uint8_t*)dptr;
+	end = ptr + dlen - rem;
 
 	k0 = U8TO64_LE(key);
 	k1 = U8TO64_LE(key + 8);
@@ -189,9 +189,9 @@ void mio_sip_hash_24 (const mio_uint8_t key[16], mio_uint8_t *dptr, mio_oow_t dl
 	v2 = k0; XOR64_TO(v2, sip_init_v[2]);
 	v3 = k1; XOR64_TO(v3, sip_init_v[3]);
 
-	for (; dptr != end; dptr += 8) 
+	for (; ptr != end; ptr += 8) 
 	{
-		m = U8TO64_LE(dptr);
+		m = U8TO64_LE(ptr);
 		SIP_2_ROUND (m, v0, v1, v2, v3);
 	}
 
