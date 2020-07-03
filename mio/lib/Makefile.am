@@ -82,7 +82,8 @@ libmio_la_SOURCES = \
 	uch-prop.h \
 	tmr.c \
 	utf8.c \
-	utl.c
+	utl.c \
+	utl-siph.c
 
 
 libmio_la_CPPFLAGS = $(CPPFLAGS_LIB_COMMON)
