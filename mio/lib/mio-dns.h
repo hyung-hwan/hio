@@ -407,8 +407,9 @@ enum mio_svc_dnc_resolve_flag_t
 	/* the following flag bits are resolver specific. it must not overlap with send flag bits */
 	MIO_SVC_DNC_RESOLVE_FLAG_BRIEF      = (1 << 8),
 	MIO_SVC_DNC_RESOLVE_FLAG_COOKIE     = (1 << 9),
+	MIO_SVC_DNC_RESOLVE_FLAG_DNSSEC     = (1 << 10),
 
-	MIO_SVC_DNC_RESOLVE_FLAG_ALL = (MIO_SVC_DNC_RESOLVE_FLAG_PREFER_TCP | MIO_SVC_DNC_RESOLVE_FLAG_TCP_IF_TC | MIO_SVC_DNC_RESOLVE_FLAG_BRIEF | MIO_SVC_DNC_RESOLVE_FLAG_COOKIE)
+	MIO_SVC_DNC_RESOLVE_FLAG_ALL = (MIO_SVC_DNC_RESOLVE_FLAG_PREFER_TCP | MIO_SVC_DNC_RESOLVE_FLAG_TCP_IF_TC | MIO_SVC_DNC_RESOLVE_FLAG_BRIEF | MIO_SVC_DNC_RESOLVE_FLAG_COOKIE | MIO_SVC_DNC_RESOLVE_FLAG_DNSSEC)
 };
 typedef enum mio_svc_dnc_resolve_flag_t  mio_svc_dnc_resolve_flag_t;
 

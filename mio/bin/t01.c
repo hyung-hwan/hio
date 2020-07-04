@@ -709,6 +709,7 @@ static void on_dnc_resolve(mio_svc_dnc_t* dnc, mio_dns_msg_t* reqmsg, mio_errnum
 		if (pi->hdr.rcode == MIO_DNS_RCODE_BADCOOKIE)
 		{
 			/* TODO: must retry?? there shoudl be no RRs in the payload */
+			//if (mio_svc_dnc_resolve(dnc, mio_svc_dnc_getqnamefromreqmsg(reqmsg), mio_svc_dnc_getqtypefromreqmsg(qtype), mio_svc_dnc_getresolflagsfromreqmsg(resolve_flags), on_dnc_resolve, 0) >= 0) return;
 		}
 
 		if (mio_svc_dnc_checkclientcookie(dnc, reqmsg, pi) == 0)
@@ -1003,12 +1004,12 @@ static int schedule_timer_job_after (mio_t* mio, const mio_ntime_t* fire_after, 
 static void send_test_query (mio_t* mio, const mio_ntime_t* now, mio_tmrjob_t* job)
 {
 	//if (!mio_svc_dnc_resolve((mio_svc_dnc_t*)job->ctx, "www.microsoft.com", MIO_DNS_RRT_CNAME, MIO_SVC_DNC_RESOLVE_FLAG_COOKIE, on_dnc_resolve, 0))
-	if (!mio_svc_dnc_resolve((mio_svc_dnc_t*)job->ctx, "mailserver.manyhost.net", MIO_DNS_RRT_A, MIO_SVC_DNC_RESOLVE_FLAG_COOKIE, on_dnc_resolve, 0))
+	if (!mio_svc_dnc_resolve((mio_svc_dnc_t*)job->ctx, "mailserver.manyhost.net", MIO_DNS_RRT_A, MIO_SVC_DNC_RESOLVE_FLAG_COOKIE | MIO_SVC_DNC_RESOLVE_FLAG_DNSSEC, on_dnc_resolve, 0))
 	{
 		printf ("resolve attempt failure ---> mailserver.manyhost.net\n");
 	}
 
-	if (!mio_svc_dnc_resolve((mio_svc_dnc_t*)job->ctx, "ns2.switch.ch", MIO_DNS_RRT_A, MIO_SVC_DNC_RESOLVE_FLAG_COOKIE, on_dnc_resolve, 0))
+	if (!mio_svc_dnc_resolve((mio_svc_dnc_t*)job->ctx, "ns2.switch.ch", MIO_DNS_RRT_A, MIO_SVC_DNC_RESOLVE_FLAG_COOKIE | MIO_SVC_DNC_RESOLVE_FLAG_DNSSEC, on_dnc_resolve, 0))
 	{
 		printf ("resolve attempt failure ---> ns2.switch.ch\n");
 	}
@@ -1227,7 +1228,8 @@ for (i = 0; i < 5; i++)
 	reply_tmout.nsec = 0;
 
 	//mio_bcstrtoskad (mio, "8.8.8.8:53", &servaddr);
-	mio_bcstrtoskad (mio, "130.59.31.29:53", &servaddr); // ns2.switch.ch
+	mio_bcstrtoskad (mio, "198.41.0.4:53", &servaddr); // a.root-servers.net
+	//mio_bcstrtoskad (mio, "130.59.31.29:53", &servaddr); // ns2.switch.ch
 	//mio_bcstrtoskad (mio, "134.119.216.86:53", &servaddr); // ns.manyhost.net
 	//mio_bcstrtoskad (mio, "[fe80::c7e2:bd6e:1209:ac1b]:1153", &servaddr);
 	//mio_bcstrtoskad (mio, "[fe80::c7e2:bd6e:1209:ac1b%eno1]:1153", &servaddr);
