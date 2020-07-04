@@ -884,28 +884,12 @@ static void on_dnc_resolve (mio_svc_dnc_t* dnc, mio_dns_msg_t* reqmsg, mio_errnu
 
 		if (resolxtn->flags & MIO_SVC_DNC_RESOLVE_FLAG_COOKIE)
 		{
-			/* ------------------------------------------------- */
 			if (pi->edns.cookie.server_len > 0)
 			{
-				/* remember the server cookie received to use it with other new requests */
+				/* remember the received server cookie to use it with other new requests */
 				MIO_MEMCPY (dnc->cookie.data.server, pi->edns.cookie.data.server, pi->edns.cookie.server_len);
 				dnc->cookie.server_len = pi->edns.cookie.server_len;
 			}
-
-#if 0
-			if (pi->hdr.rcode == MIO_DNS_RCODE_BADCOOKIE)
-			{
-				/* TODO: retry it */
-#if 0
-				if (mio_svc_dnc_resolve(dnc, qname, resolxtn->qtype, resolxtn->flags, on_dnc_resolve, resolxtn->xtnsize) <= -1)
-				{
-				}
-#endif
-				/*how to retry?*/
-			}
-#endif
-			/* ------------------------------------------------- */
-
 		}
 
 		if (!(resolxtn->flags & MIO_SVC_DNC_RESOLVE_FLAG_BRIEF))
@@ -1029,6 +1013,11 @@ mio_dns_msg_t* mio_svc_dnc_resolve (mio_svc_dnc_t* dnc, const mio_bch_t* qname, 
 
 		qedns.beonum = 1;
 		qedns.beoptr = &beopt_cookie;
+	}
+
+	if (resolve_flags & MIO_SVC_DNC_RESOLVE_FLAG_DNSSEC)
+	{
+		qedns.dnssecok = 1;
 	}
 
 	reqmsg = make_dns_msg(dnc, &qhdr, &qr, 1, MIO_NULL, 0, &qedns, on_dnc_resolve, MIO_SIZEOF(*resolxtn) + xtnsize);
