@@ -463,7 +463,7 @@ oops:
 	return -1;
 }
 
-mio_dns_pkt_info_t* mio_dns_make_packet_info (mio_t* mio, const mio_dns_pkt_t* pkt, mio_oow_t len)
+mio_dns_pkt_info_t* mio_dns_make_pkt_info (mio_t* mio, const mio_dns_pkt_t* pkt, mio_oow_t len)
 {
 	mio_uint16_t i;
 	mio_dns_pkt_info_t pib, * pii;
@@ -544,7 +544,7 @@ oops:
 	return MIO_NULL;
 }
 
-void mio_dns_free_packet_info (mio_t* mio, mio_dns_pkt_info_t* pi)
+void mio_dns_free_pkt_info (mio_t* mio, mio_dns_pkt_info_t* pi)
 {
 /* TODO: better management */
 	mio_freemem (mio, pi);
@@ -873,4 +873,72 @@ void mio_dns_free_msg (mio_t* mio, mio_dns_msg_t* msg)
 {
 /* TODO: better management */
 	mio_freemem (mio, msg);
+}
+
+mio_uint8_t* mio_dns_find_client_cookie_in_msg (mio_dns_msg_t* reqmsg, mio_uint8_t (*cookie)[MIO_DNS_COOKIE_CLIENT_LEN])
+{
+	mio_dns_rrtr_t* edns_rrtr;
+	mio_dns_eopt_t* eopt;
+	mio_uint16_t rem, dlen;
+
+	/* this function doesn't check malformed packet assuming
+	 * reqmsg points to the packet message created with mio_dns_make_msg().
+	 * such a packet message must be well-formed */
+	if (reqmsg->ednsrrtroff <= 0) return MIO_NULL; /* doesn't exist */
+
+	edns_rrtr = (mio_dns_rrtr_t*)((mio_uint8_t*)mio_dns_msg_to_pkt(reqmsg) + reqmsg->ednsrrtroff);
+	rem = mio_ntoh16(edns_rrtr->dlen);
+
+	eopt = (mio_dns_eopt_t*)(edns_rrtr + 1);
+	while (rem >= MIO_SIZEOF(mio_dns_eopt_t))
+	{
+		dlen = mio_ntoh16(eopt->dlen);
+		if (eopt->code == MIO_CONST_HTON16(MIO_DNS_EOPT_COOKIE))
+		{
+			if (cookie) MIO_MEMCPY (cookie, eopt + 1, MIO_DNS_COOKIE_CLIENT_LEN);
+			return (mio_uint8_t*)(eopt + 1);
+		}
+
+		rem -= dlen;
+		eopt = (mio_dns_eopt_t*)((mio_uint8_t*)(eopt + 1) + dlen);
+	}
+
+	return MIO_NULL;
+}
+
+
+mio_bch_t* mio_dns_rcode_to_bcstr (mio_dns_rcode_t rcode)
+{
+	mio_bch_t* _errmsg[] =
+	{
+		"NOERR",
+		"FORMERR",
+		"SERVFAIL",
+		"NXDOMAIN",
+		"NOTIMPL",
+		"REFUSED",
+		"YXDOMAIN",
+		"YXRRSET",
+		"NXRRSET",
+		"NOAUTH",
+		"NOTZONE", /* 10 */
+
+		"UNKNOWNERR",
+		"UNKNOWNERR",
+		"UNKNOWNERR",
+		"UNKNOWNERR",
+		"UNKNOWNERR",
+		"UNKNOWNERR",
+
+		"BADVERS", /* 16 */
+		"BADSIG",
+		"BADTIME",
+		"BADMODE",
+		"BADNAME",
+		"BADALG",
+		"BADTRUNC",
+		"BADCOOKIE"
+	};
+
+	return rcode < MIO_COUNTOF(_errmsg)? _errmsg[rcode]: "UNKNOWNERR";
 }

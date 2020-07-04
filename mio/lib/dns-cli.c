@@ -875,7 +875,7 @@ static void on_dnc_resolve (mio_svc_dnc_t* dnc, mio_dns_msg_t* reqmsg, mio_errnu
 
 		MIO_ASSERT (mio, status == MIO_ENOERR);
 
-		pi = mio_dns_make_packet_info(mio, data, dlen);
+		pi = mio_dns_make_pkt_info(mio, data, dlen);
 		if (!pi)
 		{
 			status = mio_geterrnum(mio);
@@ -885,21 +885,13 @@ static void on_dnc_resolve (mio_svc_dnc_t* dnc, mio_dns_msg_t* reqmsg, mio_errnu
 		if (resolxtn->flags & MIO_SVC_DNC_RESOLVE_FLAG_COOKIE)
 		{
 			/* ------------------------------------------------- */
-			if (pi->edns.cookie.client_len > 0)
-			{
-				if (MIO_MEMCMP(resolxtn->client_cookie, pi->edns.cookie.data.client, pi->edns.cookie.client_len) == 0)
-				{
-					pi->edns.cookie_verified = 1; /*  UGLY to set data in mio_dns_pkt_info_t */
-				}
-			}
-
 			if (pi->edns.cookie.server_len > 0)
 			{
+				/* remember the server cookie received to use it with other new requests */
 				MIO_MEMCPY (dnc->cookie.data.server, pi->edns.cookie.data.server, pi->edns.cookie.server_len);
 				dnc->cookie.server_len = pi->edns.cookie.server_len;
 			}
-	
-				
+
 #if 0
 			if (pi->hdr.rcode == MIO_DNS_RCODE_BADCOOKIE)
 			{
@@ -983,7 +975,7 @@ static void on_dnc_resolve (mio_svc_dnc_t* dnc, mio_dns_msg_t* reqmsg, mio_errnu
 	}
 
 done:
-	if (pi) mio_dns_free_packet_info(mio_svc_dnc_getmio(dnc), pi);
+	if (pi) mio_dns_free_pkt_info(mio_svc_dnc_getmio(dnc), pi);
 }
 
 mio_dns_msg_t* mio_svc_dnc_resolve (mio_svc_dnc_t* dnc, const mio_bch_t* qname, mio_dns_rrt_t qtype, int resolve_flags, mio_svc_dnc_on_resolve_t on_resolve, mio_oow_t xtnsize)
@@ -1091,6 +1083,29 @@ mio_dns_msg_t* mio_svc_dnc_resolve (mio_svc_dnc_t* dnc, const mio_bch_t* qname, 
 	return reqmsg;
 }
 
+int mio_svc_dnc_checkclientcookie (mio_svc_dnc_t* dnc, mio_dns_msg_t* reqmsg, mio_dns_pkt_info_t* respi)
+{
+	mio_uint8_t xb[MIO_DNS_COOKIE_CLIENT_LEN];
+	mio_uint8_t* x;
+
+	x = mio_dns_find_client_cookie_in_msg(reqmsg, &xb);
+	if (x)
+	{
+		/* there is a client cookie in the request. */
+		if (respi->edns.cookie.client_len > 0)
+		{
+			MIO_ASSERT (dnc->mio, respi->edns.cookie.client_len == MIO_DNS_COOKIE_CLIENT_LEN);
+			return MIO_MEMCMP(x, respi->edns.cookie.data.client, MIO_DNS_COOKIE_CLIENT_LEN) == 0; /* 1 if ok, 0 if not */
+		}
+		else
+		{
+			/* no client cookie in the response - the server doesn't support cookie? */
+			return -1;
+		}
+	}
+
+	return 2; /* ok because the request doesn't include the client cookie */
+}
 
 /* TODO: upon startup, read /etc/hosts. setup inotify or find a way to detect file changes..
  *       in resolve, add an option to use entries from /etc/hosts */
