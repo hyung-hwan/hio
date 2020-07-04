@@ -705,16 +705,20 @@ static void on_dnc_resolve(mio_svc_dnc_t* dnc, mio_dns_msg_t* reqmsg, mio_errnum
 
 
 		printf (">>>>>>>> RRDLEN = %d\n", (int)pi->_rrdlen);
-		printf (">>>>>>>> RCODE %d EDNS exist %d uplen %d version %d dnssecok %d\n", pi->hdr.rcode, pi->edns.exist, pi->edns.uplen, pi->edns.version, pi->edns.dnssecok);
+		printf (">>>>>>>> RCODE %s(%d) EDNS exist %d uplen %d version %d dnssecok %d\n", mio_dns_rcode_to_bcstr(pi->hdr.rcode), pi->hdr.rcode, pi->edns.exist, pi->edns.uplen, pi->edns.version, pi->edns.dnssecok);
 		if (pi->hdr.rcode == MIO_DNS_RCODE_BADCOOKIE)
 		{
-			/* TODO: must retry */
+			/* TODO: must retry?? there shoudl be no RRs in the payload */
 		}
 
-		if (pi->edns.cookie.client_len > 0 && !pi->edns.cookie_verified) /* TODO: do i need to check if cookie.server_len > 0? */
+		if (mio_svc_dnc_checkclientcookie(dnc, reqmsg, pi) == 0)
 		{
 			/* client cookie is bad.. */
-			printf ("CLIENT COOKIE IS BAD>>>>>>>>>>>>>>>>>>>\n");
+			printf ("CLIENT COOKIE IS BAD>>>>>>>>>>>>>>>>>>>%d\n", mio_svc_dnc_checkclientcookie(dnc, reqmsg, pi));
+		}
+		else
+		{
+			printf ("CLIENT COOKIE IS OK>>>>>>>>>>>>>>>>>>>%d\n", mio_svc_dnc_checkclientcookie(dnc, reqmsg, pi));
 		}
 
 		//if (pi->hdr.rcode != MIO_DNS_RCODE_NOERROR) goto no_data;
@@ -1003,6 +1007,11 @@ static void send_test_query (mio_t* mio, const mio_ntime_t* now, mio_tmrjob_t* j
 	{
 		printf ("resolve attempt failure ---> mailserver.manyhost.net\n");
 	}
+
+	if (!mio_svc_dnc_resolve((mio_svc_dnc_t*)job->ctx, "ns2.switch.ch", MIO_DNS_RRT_A, MIO_SVC_DNC_RESOLVE_FLAG_COOKIE, on_dnc_resolve, 0))
+	{
+		printf ("resolve attempt failure ---> ns2.switch.ch\n");
+	}
 }
 
 int main (int argc, char* argv[])
@@ -1218,8 +1227,8 @@ for (i = 0; i < 5; i++)
 	reply_tmout.nsec = 0;
 
 	//mio_bcstrtoskad (mio, "8.8.8.8:53", &servaddr);
-	//mio_bcstrtoskad (mio, "130.59.31.29:53", &servaddr); // ns2.switch.ch
-	mio_bcstrtoskad (mio, "134.119.216.86:53", &servaddr); // ns.manyhost.net
+	mio_bcstrtoskad (mio, "130.59.31.29:53", &servaddr); // ns2.switch.ch
+	//mio_bcstrtoskad (mio, "134.119.216.86:53", &servaddr); // ns.manyhost.net
 	//mio_bcstrtoskad (mio, "[fe80::c7e2:bd6e:1209:ac1b]:1153", &servaddr);
 	//mio_bcstrtoskad (mio, "[fe80::c7e2:bd6e:1209:ac1b%eno1]:1153", &servaddr);
 
@@ -1331,6 +1340,11 @@ for (i = 0; i < 5; i++)
 		if (!mio_svc_dnc_resolve(dnc, "www.microsoft.com", MIO_DNS_RRT_CNAME, MIO_SVC_DNC_RESOLVE_FLAG_COOKIE, on_dnc_resolve, 0))
 		{
 			printf ("resolve attempt failure ---> www.microsoft.com\n");
+		}
+
+		if (!mio_svc_dnc_resolve(dnc, "ns2.switch.ch", MIO_DNS_RRT_CNAME, MIO_SVC_DNC_RESOLVE_FLAG_COOKIE, on_dnc_resolve, 0))
+		{
+			printf ("resolve attempt failure ---> ns2.switch.ch\n");
 		}
 		
 		

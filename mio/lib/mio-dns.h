@@ -458,7 +458,6 @@ struct mio_dns_pkt_info_t
 		mio_uint8_t  version; 
 		mio_uint8_t  dnssecok;
 		mio_dns_cookie_t cookie;
-		int cookie_verified; /* UGLY: set via mio_svc_dnc_resolve() only. mio_dns_make_packet_info() doesn't set this */
 	} edns;
 
 	mio_uint16_t qdcount; /* number of questions */
@@ -540,15 +539,27 @@ MIO_EXPORT mio_dns_msg_t* mio_svc_dnc_resolve (
 	mio_oow_t                xtnsize
 );
 
+/*
+ * -1: cookie in the request but no client cookie in the response. this may be ok or not ok depending on your policy 
+ * 0: client cookie mismatch in the request in the response
+ * 1: client cookie match in the request in the response
+ * 2: no client cookie in the requset. so it deson't case about the response 
+ */
+MIO_EXPORT int mio_svc_dnc_checkclientcookie (
+	mio_svc_dnc_t*      dnc,
+	mio_dns_msg_t*      reqmsg,
+	mio_dns_pkt_info_t* respi
+);
+
 /* ---------------------------------------------------------------- */
 
-MIO_EXPORT mio_dns_pkt_info_t* mio_dns_make_packet_info (
+MIO_EXPORT mio_dns_pkt_info_t* mio_dns_make_pkt_info (
 	mio_t*                mio,
 	const mio_dns_pkt_t*  pkt,
 	mio_oow_t             len
 );
 
-MIO_EXPORT void mio_dns_free_packet_info (
+MIO_EXPORT void mio_dns_free_pkt_info (
 	mio_t*                mio,
 	mio_dns_pkt_info_t*   pi
 );
@@ -577,6 +588,18 @@ MIO_EXPORT void mio_dns_free_msg (
 	mio_dns_msg_t*        msg
 );
 
+/* 
+ * return the pointer to the client cookie data in the packet.
+ * if cookie is not MIO_NULL, it copies the client cookie there.
+ */
+MIO_EXPORT mio_uint8_t* mio_dns_find_client_cookie_in_msg (
+	mio_dns_msg_t* reqmsg,
+	mio_uint8_t  (*cookie)[MIO_DNS_COOKIE_CLIENT_LEN]
+);
+
+MIO_EXPORT mio_bch_t* mio_dns_rcode_to_bcstr (
+	mio_dns_rcode_t rcode
+);
 
 #if defined(__cplusplus)
 }
