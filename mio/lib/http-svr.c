@@ -429,41 +429,6 @@ static MIO_INLINE void* mio_svc_htts_rsrc_getxtn (mio_svc_htts_rsrc_t* rsrc) { r
 
 /* ----------------------------------------------------------------- */
 
-int mio_svc_htts_dofile (mio_svc_htts_t* htts, mio_dev_sck_t* csck, mio_htre_t* req, const mio_bch_t* docroot, const mio_bch_t* file)
-{
-	switch (mio_htre_getqmethodtype(req))
-	{
-		case MIO_HTTP_OPTIONS:
-			mio_htre_discardcontent (req);
-			/* TODO: return 200 with Allow: OPTIONS, HEAD, GET, POST, PUT, DELETE... */
-			/* However, if there is access configuration, the item list must reflect it */
-			break;
-
-		case MIO_HTTP_HEAD:
-		case MIO_HTTP_GET:
-		case MIO_HTTP_POST:
-			mio_htre_discardcontent (req);
-			break;
-
-		case MIO_HTTP_PUT:
-			break;
-
-		case MIO_HTTP_DELETE:
-			mio_htre_discardcontent (req);
-			break;
-
-		default:
-			/* method not allowed */
-			mio_htre_discardcontent (req);
-			/* schedule to send 405  */
-			break;
-	}
-
-	return 0;
-}
-
-/* ----------------------------------------------------------------- */
-
 int mio_svc_htts_doproxy (mio_svc_htts_t* htts, mio_dev_sck_t* csck, mio_htre_t* req, const mio_bch_t* upstream)
 {
 #if 0

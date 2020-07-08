@@ -58,6 +58,7 @@ libmio_la_SOURCES = \
 	htre.c \
 	http.c \
 	http-cgi.c \
+	http-fil.c \
 	http-svr.c \
 	http-thr.c \
 	http-txt.c \

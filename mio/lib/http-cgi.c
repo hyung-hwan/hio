@@ -111,6 +111,7 @@ static int cgi_state_write_to_client (cgi_state_t* cgi_state, const void* data, 
 
 	if (cgi_state->num_pending_writes_to_client > CGI_STATE_PENDING_IO_THRESHOLD)
 	{
+		/* disable reading on the output stream of the peer */
 		if (mio_dev_pro_read(cgi_state->peer, MIO_DEV_PRO_OUT, 0) <= -1) return -1;
 	}
 	return 0;
@@ -242,7 +243,10 @@ printf ("DETACHING FROM THE MAIN CLIENT RSRC... state -> %p\n", cgi_state->clien
 
 static void cgi_state_on_kill (cgi_state_t* cgi_state)
 {
-printf ("**** CGI_STATE_ON_KILL \n");
+	mio_t* mio = cgi_state->htts->mio;
+
+	MIO_DEBUG2 (mio, "HTTS(%p) - killing cgi_state client(%p)\n", cgi_state->htts, cgi_state->client->sck);
+
 	if (cgi_state->peer)
 	{
 		cgi_peer_xtn_t* cgi_peer = mio_dev_pro_getxtn(cgi_state->peer);
@@ -273,7 +277,6 @@ printf ("**** CGI_STATE_ON_KILL \n");
 		cgi_state->client_org_on_write = MIO_NULL;
 	}
 
-
 	if (cgi_state->client_org_on_disconnect)
 	{
 		cgi_state->client->sck->on_disconnect = cgi_state->client_org_on_disconnect;
@@ -288,15 +291,15 @@ printf ("**** CGI_STATE_ON_KILL \n");
 
 	if (!cgi_state->client_disconnected)
 	{
-printf ("ENABLING INPUT WATCHING on CLIENT %p. \n", cgi_state->client->sck);
+/*printf ("ENABLING INPUT WATCHING on CLIENT %p. \n", cgi_state->client->sck);*/
 		if (!cgi_state->keep_alive || mio_dev_sck_read(cgi_state->client->sck, 1) <= -1)
 		{
-			MIO_DEBUG2 (cgi_state->htts->mio, "HTTS(%p) - halting client(%p) for failure to enable input watching\n", cgi_state->htts, cgi_state->client->sck);
+			MIO_DEBUG2 (mio, "HTTS(%p) - halting client(%p) for failure to enable input watching\n", cgi_state->htts, cgi_state->client->sck);
 			mio_dev_sck_halt (cgi_state->client->sck);
 		}
 	}
 
-printf ("**** CGI_STATE_ON_KILL DONE\n");
+/*printf ("**** CGI_STATE_ON_KILL DONE\n");*/
 }
 
 static void cgi_peer_on_close (mio_dev_pro_t* pro, mio_dev_pro_sid_t sid)

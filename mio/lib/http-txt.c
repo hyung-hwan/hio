@@ -155,7 +155,10 @@ printf ("DETACHING FROM THE MAIN CLIENT RSRC... state -> %p\n", txt_state->clien
 
 static void txt_state_on_kill (txt_state_t* txt_state)
 {
-printf ("**** TXT_STATE_ON_KILL \n");
+	mio_t* mio = txt_state->htts->mio;
+
+	MIO_DEBUG2 (mio, "HTTS(%p) - killing txt_state client(%p)\n", txt_state->htts, txt_state->client->sck);
+
 	if (txt_state->client_org_on_read)
 	{
 		txt_state->client->sck->on_read = txt_state->client_org_on_read;
@@ -182,15 +185,15 @@ printf ("**** TXT_STATE_ON_KILL \n");
 
 	if (!txt_state->client_disconnected)
 	{
-printf ("ENABLING INPUT WATCHING on CLIENT %p. \n", txt_state->client->sck);
+/*printf ("ENABLING INPUT WATCHING on CLIENT %p. \n", txt_state->client->sck);*/
 		if (!txt_state->keep_alive || mio_dev_sck_read(txt_state->client->sck, 1) <= -1)
 		{
-			MIO_DEBUG2 (txt_state->htts->mio, "HTTS(%p) - halting client(%p) for failure to enable input watching\n", txt_state->htts, txt_state->client->sck);
+			MIO_DEBUG2 (mio, "HTTS(%p) - halting client(%p) for failure to enable input watching\n", txt_state->htts, txt_state->client->sck);
 			mio_dev_sck_halt (txt_state->client->sck);
 		}
 	}
 
-printf ("**** TXT_STATE_ON_KILL DONE\n");
+/*printf ("**** TXT_STATE_ON_KILL DONE\n");*/
 }
 
 static int txt_client_htrd_poke (mio_htrd_t* htrd, mio_htre_t* req)
