@@ -250,7 +250,10 @@ printf ("DETACHING FROM THE MAIN CLIENT RSRC... state -> %p\n", thr_state->clien
 
 static void thr_state_on_kill (thr_state_t* thr_state)
 {
-printf ("**** THR_STATE_ON_KILL \n");
+	mio_t* mio = thr_state->htts->mio;
+
+	MIO_DEBUG2 (mio, "HTTS(%p) - killing thr_state client(%p)\n", thr_state->htts, thr_state->client->sck);
+
 	if (thr_state->peer)
 	{
 		thr_peer_xtn_t* thr_peer = mio_dev_thr_getxtn(thr_state->peer);
@@ -296,15 +299,15 @@ printf ("**** THR_STATE_ON_KILL \n");
 
 	if (!thr_state->client_disconnected)
 	{
-printf ("ENABLING INPUT WATCHING on CLIENT %p. \n", thr_state->client->sck);
+/*printf ("ENABLING INPUT WATCHING on CLIENT %p. \n", thr_state->client->sck);*/
 		if (!thr_state->keep_alive || mio_dev_sck_read(thr_state->client->sck, 1) <= -1)
 		{
-			MIO_DEBUG2 (thr_state->htts->mio, "HTTS(%p) - halting client(%p) for failure to enable input watching\n", thr_state->htts, thr_state->client->sck);
+			MIO_DEBUG2 (mio, "HTTS(%p) - halting client(%p) for failure to enable input watching\n", thr_state->htts, thr_state->client->sck);
 			mio_dev_sck_halt (thr_state->client->sck);
 		}
 	}
 
-printf ("**** THR_STATE_ON_KILL DONE\n");
+/*printf ("**** THR_STATE_ON_KILL DONE\n");*/
 }
 
 static void thr_peer_on_close (mio_dev_thr_t* thr, mio_dev_thr_sid_t sid)
