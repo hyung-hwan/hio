@@ -293,6 +293,14 @@ MIO_EXPORT int mio_svc_htts_docgi (
 	const mio_bch_t* script
 );
 
+MIO_EXPORT int mio_svc_htts_dofile (
+	mio_svc_htts_t*  htts,
+	mio_dev_sck_t*   csck,
+	mio_htre_t*      req,
+	const mio_bch_t* docroot,
+	const mio_bch_t* script
+);
+
 MIO_EXPORT int mio_svc_htts_dothr (
 	mio_svc_htts_t*         htts,
 	mio_dev_sck_t*          csck,

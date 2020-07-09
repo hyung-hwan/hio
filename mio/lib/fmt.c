@@ -1092,16 +1092,16 @@ static int fmt_outv (mio_fmtout_t* fmtout, va_list ap)
 			    (MIO_SIZEOF_UINTMAX_T > MIO_SIZEOF_OOW_T) && \
 			    (MIO_SIZEOF_UINTMAX_T != MIO_SIZEOF_LONG_LONG) && \
 			    (MIO_SIZEOF_UINTMAX_T != MIO_SIZEOF_LONG)
-				/* GCC-compiled binaries crashed when getting mio_uintmax_t with va_arg.
+				/* Binaries by some GCC compilers crashed when getting mio_uintmax_t with va_arg.
 				 * This is just a work-around for it */
 				int i;
 				for (i = 0, num = 0; i < MIO_SIZEOF(mio_uintmax_t) / MIO_SIZEOF(mio_oow_t); i++)
 				{
 				#if defined(MIO_ENDIAN_BIG)
-					num = num << (8 * MIO_SIZEOF(mio_oow_t)) | (va_arg (ap, mio_oow_t));
+					num = num << (8 * MIO_SIZEOF(mio_oow_t)) | (va_arg(ap, mio_oow_t));
 				#else
 					register int shift = i * MIO_SIZEOF(mio_oow_t);
-					mio_oow_t x = va_arg (ap, mio_oow_t);
+					mio_oow_t x = va_arg(ap, mio_oow_t);
 					num |= (mio_uintmax_t)x << (shift * MIO_BITS_PER_BYTE);
 				#endif
 				}

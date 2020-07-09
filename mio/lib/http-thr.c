@@ -235,7 +235,6 @@ static MIO_INLINE void thr_state_mark_over (thr_state_t* thr_state, int over_bit
 			/* how to arrange to delete this thr_state object and put the socket back to the normal waiting state??? */
 			MIO_ASSERT (thr_state->htts->mio, thr_state->client->rsrc == (mio_svc_htts_rsrc_t*)thr_state);
 
-printf ("DETACHING FROM THE MAIN CLIENT RSRC... state -> %p\n", thr_state->client->rsrc);
 			MIO_SVC_HTTS_RSRC_DETACH (thr_state->client->rsrc);
 			/* thr_state must not be access from here down as it could have been destroyed */
 		}
@@ -325,7 +324,6 @@ static void thr_peer_on_close (mio_dev_thr_t* thr, mio_dev_thr_sid_t sid)
 			thr_state->peer = MIO_NULL; /* clear this peer from the state */
 
 			MIO_ASSERT (mio, thr_peer->state != MIO_NULL);
-printf ("DETACHING FROM THR PEER DEVICE.....................%p   %d\n", thr_peer->state, (int)thr_peer->state->rsrc_refcnt);
 			MIO_SVC_HTTS_RSRC_DETACH (thr_peer->state);
 
 			if (thr_state->peer_htrd)
@@ -334,7 +332,6 @@ printf ("DETACHING FROM THR PEER DEVICE.....................%p   %d\n", thr_peer
 				 * it's safe to detach the extra information attached on the htrd object. */
 				thr_peer = mio_htrd_getxtn(thr_state->peer_htrd);
 				MIO_ASSERT (mio, thr_peer->state != MIO_NULL);
-printf ("DETACHING FROM THR PEER HTRD.....................%p   %d\n", thr_peer->state, (int)thr_peer->state->rsrc_refcnt);
 				MIO_SVC_HTTS_RSRC_DETACH (thr_peer->state);
 			}
 
@@ -478,7 +475,6 @@ static int thr_peer_htrd_peek (mio_htrd_t* htrd, mio_htre_t* req)
 		if (*endptr == '\0' && is_sober && v > 0  && v <= MIO_TYPE_MAX(int)) status_code = v;
 	}
 
-printf ("THR PEER HTRD PEEK...\n");
 	mio_svc_htts_fmtgmtime (cli->htts, MIO_NULL, dtbuf, MIO_COUNTOF(dtbuf));
 
 	if (mio_becs_fmt(cli->sbuf, "HTTP/%d.%d %d %hs\r\nServer: %hs\r\nDate: %hs\r\n",
@@ -513,8 +509,6 @@ static int thr_peer_htrd_poke (mio_htrd_t* htrd, mio_htre_t* req)
 	/* client request got completed */
 	thr_peer_xtn_t* thr_peer = mio_htrd_getxtn(htrd);
 	thr_state_t* thr_state = thr_peer->state;
-
-printf (">> PEER RESPONSE COMPLETED\n");
 
 	if (thr_state_write_last_chunk_to_client(thr_state) <= -1) return -1;
 
@@ -585,8 +579,6 @@ static int thr_client_htrd_poke (mio_htrd_t* htrd, mio_htre_t* req)
 	mio_dev_sck_t* sck = htrdxtn->sck;
 	mio_svc_htts_cli_t* cli = mio_dev_sck_getxtn(sck);
 	thr_state_t* thr_state = (thr_state_t*)cli->rsrc;
-
-printf (">> CLIENT REQUEST COMPLETED\n");
 
 	/* indicate EOF to the client peer */
 	if (thr_state_write_to_peer(thr_state, MIO_NULL, 0) <= -1) return -1;
