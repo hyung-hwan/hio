@@ -32,7 +32,7 @@
 #include <unistd.h> /* TODO: move file operations to sys-file.XXX */
 #include <fcntl.h>
 #include <sys/stat.h>
-#include <stdlib.h> /* setenv, clearenv */
+#include <errno.h>
 
 #define FILE_ALLOW_UNLIMITED_REQ_CONTENT_LENGTH
 
@@ -59,6 +59,7 @@ struct file_state_t
 	mio_oow_t num_pending_writes_to_client;
 	mio_oow_t num_pending_writes_to_peer;
 	int peer;
+	mio_uintmax_t part_size;
 
 	mio_svc_htts_cli_t* client;
 	mio_http_version_t req_version; /* client request */
@@ -87,7 +88,6 @@ static void file_state_halt_participating_devices (file_state_t* file_state)
 	MIO_ASSERT (file_state->client->htts->mio, file_state->client->sck != MIO_NULL);
 
 	MIO_DEBUG4 (file_state->client->htts->mio, "HTTS(%p) - Halting participating devices in file state %p(client=%p,peer=%d)\n", file_state->client->htts, file_state, file_state->client->sck, (int)file_state->peer);
-
 
 	mio_dev_sck_halt (file_state->client->sck);
 }
@@ -170,15 +170,22 @@ static int file_state_write_last_chunk_to_client (file_state_t* file_state)
 	if (!file_state->keep_alive && file_state_write_to_client(file_state, MIO_NULL, 0) <= -1) return -1;
 	return 0;
 }
+#endif
 
 static int file_state_write_to_peer (file_state_t* file_state, const void* data, mio_iolen_t dlen)
 {
 	file_state->num_pending_writes_to_peer++;
+
+#if 0
 	if (mio_dev_pro_write(file_state->peer, data, dlen, MIO_NULL) <= -1) 
 	{
 		file_state->num_pending_writes_to_peer--;
 		return -1;
 	}
+#else
+	write(file_state->peer, data, dlen); // error check. also buffering if not all are written
+#endif
+
 
 /* TODO: check if it's already finished or something.. */
 	if (file_state->num_pending_writes_to_peer > FILE_STATE_PENDING_IO_THRESHOLD)
@@ -197,6 +204,7 @@ static MIO_INLINE void file_state_mark_over (file_state_t* file_state, int over_
 
 	MIO_DEBUG5 (file_state->htts->mio, "HTTS(%p) - client=%p peer=%p new-bits=%x over=%x\n", file_state->htts, file_state->client->sck, file_state->peer, (int)over_bits, (int)file_state->over);
 
+#if 0
 	if (!(old_over & FILE_STATE_OVER_READ_FROM_CLIENT) && (file_state->over & FILE_STATE_OVER_READ_FROM_CLIENT))
 	{
 		if (mio_dev_sck_read(file_state->client->sck, 0) <= -1) 
@@ -240,9 +248,10 @@ printf ("DETACHING FROM THE MAIN CLIENT RSRC... state -> %p\n", file_state->clie
 			mio_dev_sck_halt (file_state->client->sck);
 		}
 	}
+#endif
 }
 
-#endif
+
 
 static void file_state_on_kill (file_state_t* file_state)
 {
@@ -376,34 +385,33 @@ static int file_client_on_write (mio_dev_sck_t* sck, mio_iolen_t wrlen, void* wr
 	{
 		/* if the connect is keep-alive, this part may not be called */
 		file_state->num_pending_writes_to_client--;
+printf ("QQQQQQQQQQQQQ  %lu\n", (long)file_state->num_pending_writes_to_client);
 		MIO_ASSERT (mio, file_state->num_pending_writes_to_client == 0);
 		MIO_DEBUG3 (mio, "HTTS(%p) - indicated EOF to client %p(%d)\n", file_state->client->htts, sck, (int)sck->hnd);
 		/* since EOF has been indicated to the client, it must not write to the client any further.
 		 * this also means that i don't need any data from the peer side either.
 		 * i don't need to enable input watching on the peer side */
-#if 0
-XXXXXXX
+
 		file_state_mark_over (file_state, FILE_STATE_OVER_WRITE_TO_CLIENT);
-#endif
 	}
 	else
 	{
 		MIO_ASSERT (mio, file_state->num_pending_writes_to_client > 0);
+		file_state->num_pending_writes_to_client--;
 
 #if 0
 XXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXX
-		file_state->num_pending_writes_to_client--;
 		if (file_state->peer && file_state->num_pending_writes_to_client == FILE_STATE_PENDING_IO_THRESHOLD)
 		{
 			if (!(file_state->over & FILE_STATE_OVER_READ_FROM_PEER) &&
 			    mio_dev_pro_read(file_state->peer, MIO_DEV_PRO_OUT, 1) <= -1) goto oops;
 		}
+#endif
 
 		if ((file_state->over & FILE_STATE_OVER_READ_FROM_PEER) && file_state->num_pending_writes_to_client <= 0)
 		{
 			file_state_mark_over (file_state, FILE_STATE_OVER_WRITE_TO_CLIENT);
 		}
-#endif
 	}
 
 	return 0;
@@ -449,6 +457,66 @@ int mio_svc_htts_dofile (mio_svc_htts_t* htts, mio_dev_sck_t* csck, mio_htre_t* 
 }
 #endif
 
+static int file_state_send_header_to_client (file_state_t* file_state, int status_code, int force_close)
+{
+	mio_svc_htts_cli_t* cli = file_state->client;
+	mio_bch_t dtbuf[64];
+
+	mio_svc_htts_fmtgmtime (cli->htts, MIO_NULL, dtbuf, MIO_COUNTOF(dtbuf));
+
+	if (!force_close) force_close = !file_state->keep_alive;
+
+	if (mio_becs_fmt(cli->sbuf, "HTTP/%d.%d %d %hs\r\nServer: %hs\r\nDate: %s\r\nConnection: %hs\r\nContent-Length: %ju\r\n\r\n",
+		file_state->req_version.major, file_state->req_version.minor,
+		status_code, mio_http_status_to_bcstr(status_code),
+		cli->htts->server_name, dtbuf,
+		(force_close? "close": "keep-alive"),
+		file_state->part_size) == (mio_oow_t)-1) return -1;
+
+	return file_state_write_to_client(file_state, MIO_BECS_PTR(cli->sbuf), MIO_BECS_LEN(cli->sbuf));
+}
+
+static int file_state_send_contents_to_client (file_state_t* file_state)
+{
+/* TODO: implement mio_dev_sck_sendfile(0 or enhance mio_dev_sck_write() to emulate sendfile
+ * 
+ *      mio_dev_sck_setsendfile (ON);
+ *      mio_dev_sck_write(sck, data_required_for_sendfile_operation, 0, MIO_NULL);....
+ */
+
+	mio_bch_t buf[8192]; /* TODO: declare this in file_state?? */
+	int i;
+	ssize_t n;
+
+	for (i = 0; i < FILE_STATE_PENDING_IO_THRESHOLD; i++)
+	{
+		n = read(file_state->peer, buf, MIO_SIZEOF(buf));
+		if (n == -1)
+		{
+			if (errno == EAGAIN)
+			{
+			}
+			else if (errno == EINTR)
+			{
+			}
+		}
+		else if (n == 0)
+		{
+			/* no more data to read */
+			file_state_mark_over (file_state, FILE_STATE_OVER_READ_FROM_CLIENT);
+			break;
+		}
+		
+		if (file_state_write_to_client(file_state, buf, n) <= -1) 
+		{
+			return -1;
+		}
+	}
+
+
+	return 0;
+}
+
 int mio_svc_htts_dofile (mio_svc_htts_t* htts, mio_dev_sck_t* csck, mio_htre_t* req, const mio_bch_t* docroot, const mio_bch_t* file)
 {
 	mio_t* mio = htts->mio;
@@ -488,8 +556,17 @@ int mio_svc_htts_dofile (mio_svc_htts_t* htts, mio_dev_sck_t* csck, mio_htre_t* 
 	}
 
 /* TODO: if method is for download... open it in the read mode. if PUT or POST, open it in RDWR mode? */
-	file_state->peer = open(actual_file, O_RDONLY | O_NONBLOCK);
+	file_state->peer = open(actual_file, O_RDONLY | O_NONBLOCK | O_CLOEXEC);
 	if (MIO_UNLIKELY(file_state->peer <= -1)) goto oops;
+
+
+	{
+		struct stat st;
+		if (fstat(file_state->peer, &st) <= -1) goto oops;
+		file_state->part_size = st.st_size;
+file_state->part_size = MIO_TYPE_MAX(mio_intmax_t);
+	}
+
 /*
 	file_peer = mio_dev_pro_getxtn(file_state->peer);
 	MIO_SVC_HTTS_RSRC_ATTACH (file_state, file_peer->state);
@@ -585,13 +662,16 @@ XXXXXXXXXXXX
 	{
 		file_state->keep_alive = 1;
 		file_state->res_mode_to_cli = FILE_STATE_RES_MODE_CHUNKED; 
-		/* the mode still can get switched to FILE_STATE_RES_MODE_LENGTH if the file file emits Content-Length */
+		/* the mode still can get switched to FILE_STATE_RES_MODE_LENGTH if the file emits Content-Length */
 	}
 	else
 	{
 		file_state->keep_alive = 0;
 		file_state->res_mode_to_cli = FILE_STATE_RES_MODE_CLOSE;
 	}
+
+	if (file_state_send_header_to_client(file_state, 200, 0) <= -1) goto oops;
+	if (file_state_send_contents_to_client(file_state) <= -1) goto oops;
 
 	/* TODO: store current input watching state and use it when destroying the file_state data */
 	if (mio_dev_sck_read(csck, !(file_state->over & FILE_STATE_OVER_READ_FROM_CLIENT)) <= -1) goto oops;
