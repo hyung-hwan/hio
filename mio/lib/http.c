@@ -225,7 +225,7 @@ int mio_parse_http_range_bcstr (const mio_bch_t* str, mio_http_range_t* range)
 	
 	str += 6;
 
-	from = 0;
+	from = to = 0;
 	if (mio_is_bch_digit(*str))
 	{
 		do
@@ -249,10 +249,10 @@ int mio_parse_http_range_bcstr (const mio_bch_t* str, mio_http_range_t* range)
 			str++;
 		}
 		while (mio_is_bch_digit(*str));
-	}
-	else to = MIO_TYPE_MAX(mio_http_range_int_t); 
 
-	if (from > to) return -1;
+		if (from > to) return -1;
+	}
+	else type = MIO_HTTP_RANGE_PREFIX;
 
 	range->type = type;
 	range->from = from;

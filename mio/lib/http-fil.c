@@ -38,7 +38,6 @@
 
 enum file_state_res_mode_t
 {
-	FILE_STATE_RES_MODE_CHUNKED,
 	FILE_STATE_RES_MODE_CLOSE,
 	FILE_STATE_RES_MODE_LENGTH
 };
@@ -58,8 +57,12 @@ struct file_state_t
 
 	mio_oow_t num_pending_writes_to_client;
 	mio_oow_t num_pending_writes_to_peer;
+
 	int peer;
-	mio_uintmax_t part_size;
+	mio_uintmax_t total_size;
+	mio_uintmax_t start_offset;
+	mio_uintmax_t end_offset;
+	mio_uintmax_t cur_offset;
 
 	mio_svc_htts_cli_t* client;
 	mio_http_version_t req_version; /* client request */
@@ -80,6 +83,8 @@ struct file_state_t
 
 };
 typedef struct file_state_t file_state_t;
+
+static int file_state_send_contents_to_client (file_state_t* file_state);
 
 
 static void file_state_halt_participating_devices (file_state_t* file_state)
@@ -160,11 +165,6 @@ static int file_state_write_last_chunk_to_client (file_state_t* file_state)
 	if (!file_state->ever_attempted_to_write_to_client)
 	{
 		if (file_state_send_final_status_to_client(file_state, 500, 0) <= -1) return -1;
-	}
-	else
-	{
-		if (file_state->res_mode_to_cli == FILE_STATE_RES_MODE_CHUNKED &&
-		    file_state_write_to_client(file_state, "0\r\n\r\n", 5) <= -1) return -1;
 	}
 
 	if (!file_state->keep_alive && file_state_write_to_client(file_state, MIO_NULL, 0) <= -1) return -1;
@@ -385,7 +385,6 @@ static int file_client_on_write (mio_dev_sck_t* sck, mio_iolen_t wrlen, void* wr
 	{
 		/* if the connect is keep-alive, this part may not be called */
 		file_state->num_pending_writes_to_client--;
-printf ("QQQQQQQQQQQQQ  %lu\n", (long)file_state->num_pending_writes_to_client);
 		MIO_ASSERT (mio, file_state->num_pending_writes_to_client == 0);
 		MIO_DEBUG3 (mio, "HTTS(%p) - indicated EOF to client %p(%d)\n", file_state->client->htts, sck, (int)sck->hnd);
 		/* since EOF has been indicated to the client, it must not write to the client any further.
@@ -407,6 +406,7 @@ XXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXX
 			    mio_dev_pro_read(file_state->peer, MIO_DEV_PRO_OUT, 1) <= -1) goto oops;
 		}
 #endif
+		file_state_send_contents_to_client (file_state);
 
 		if ((file_state->over & FILE_STATE_OVER_READ_FROM_PEER) && file_state->num_pending_writes_to_client <= 0)
 		{
@@ -461,17 +461,24 @@ static int file_state_send_header_to_client (file_state_t* file_state, int statu
 {
 	mio_svc_htts_cli_t* cli = file_state->client;
 	mio_bch_t dtbuf[64];
+	mio_uintmax_t content_length;
 
 	mio_svc_htts_fmtgmtime (cli->htts, MIO_NULL, dtbuf, MIO_COUNTOF(dtbuf));
 
 	if (!force_close) force_close = !file_state->keep_alive;
 
-	if (mio_becs_fmt(cli->sbuf, "HTTP/%d.%d %d %hs\r\nServer: %hs\r\nDate: %s\r\nConnection: %hs\r\nContent-Length: %ju\r\n\r\n",
+	content_length = file_state->end_offset - file_state->start_offset + 1;
+	if (status_code == 200 && file_state->total_size != content_length) status_code = 206;
+
+	if (mio_becs_fmt(cli->sbuf, "HTTP/%d.%d %d %hs\r\nServer: %hs\r\nDate: %s\r\nConnection: %hs\r\nAccept-Ranges: bytes\r\n",
 		file_state->req_version.major, file_state->req_version.minor,
 		status_code, mio_http_status_to_bcstr(status_code),
 		cli->htts->server_name, dtbuf,
 		(force_close? "close": "keep-alive"),
-		file_state->part_size) == (mio_oow_t)-1) return -1;
+		content_length) == (mio_oow_t)-1) return -1;
+
+	if (status_code == 206 && mio_becs_fcat(cli->sbuf, "Content-Ranges: bytes %ju-%ju/%ju\r\n", file_state->start_offset, file_state->end_offset, file_state->total_size) == (mio_oow_t)-1) return -1;
+	if (mio_becs_fcat(cli->sbuf, "Content-Length: %ju\r\n\r\n", content_length) == (mio_oow_t)-1) return -1;
 
 	return file_state_write_to_client(file_state, MIO_BECS_PTR(cli->sbuf), MIO_BECS_LEN(cli->sbuf));
 }
@@ -485,34 +492,50 @@ static int file_state_send_contents_to_client (file_state_t* file_state)
  */
 
 	mio_bch_t buf[8192]; /* TODO: declare this in file_state?? */
-	int i;
+	mio_uintmax_t lim;
 	ssize_t n;
+	
 
-	for (i = 0; i < FILE_STATE_PENDING_IO_THRESHOLD; i++)
+	if (file_state->cur_offset > file_state->end_offset)
 	{
-		n = read(file_state->peer, buf, MIO_SIZEOF(buf));
-		if (n == -1)
-		{
-			if (errno == EAGAIN)
-			{
-			}
-			else if (errno == EINTR)
-			{
-			}
-		}
-		else if (n == 0)
-		{
-			/* no more data to read */
-			file_state_mark_over (file_state, FILE_STATE_OVER_READ_FROM_CLIENT);
-			break;
-		}
-		
-		if (file_state_write_to_client(file_state, buf, n) <= -1) 
-		{
-			return -1;
-		}
+		/* reached the end */
+		file_state_mark_over (file_state, FILE_STATE_OVER_READ_FROM_PEER);
+		return 0;
 	}
 
+	lim = file_state->end_offset - file_state->cur_offset + 1;
+	n = read(file_state->peer, buf, (lim < MIO_SIZEOF(buf)? lim: MIO_SIZEOF(buf)));
+	if (n == -1)
+	{
+		if (errno == EAGAIN || errno == EINTR)
+		{
+/* TODO: arrange to invoke on data writable? */
+			/*mio_dev_sck_watch (file_state->client->sck, MIO_DEV_WATCH_UPDATE, */
+			return 0;
+		}
+		else if (errno == EINTR)
+		{
+			return 0; /* interrupted */
+		}
+
+		return -1;
+	}
+	else if (n == 0)
+	{
+		/* no more data to read - this must not happend unless file size changed while the file is open. */
+/* TODO: I probably must close the connection by force??? */
+		file_state_mark_over (file_state, FILE_STATE_OVER_READ_FROM_PEER); 
+		return -1;
+	}
+
+	if (file_state_write_to_client(file_state, buf, n) <= -1) 
+	{
+		return -1;
+	}
+
+	file_state->cur_offset += n;
+/*	if (file_state->cur_offset > file_state->end_offset) 
+		file_state_mark_over (file_state, FILE_STATE_OVER_READ_FROM_PEER);*/
 
 	return 0;
 }
@@ -557,20 +580,69 @@ int mio_svc_htts_dofile (mio_svc_htts_t* htts, mio_dev_sck_t* csck, mio_htre_t* 
 
 /* TODO: if method is for download... open it in the read mode. if PUT or POST, open it in RDWR mode? */
 	file_state->peer = open(actual_file, O_RDONLY | O_NONBLOCK | O_CLOEXEC);
-	if (MIO_UNLIKELY(file_state->peer <= -1)) goto oops;
-
+	if (MIO_UNLIKELY(file_state->peer <= -1)) 
+	{
+		file_state_send_final_status_to_client (file_state, 500, 1);
+		goto oops;
+	}
 
 	{
 		struct stat st;
-		if (fstat(file_state->peer, &st) <= -1) goto oops;
-		file_state->part_size = st.st_size;
-file_state->part_size = MIO_TYPE_MAX(mio_intmax_t);
-	}
+		const mio_htre_hdrval_t* tmp;
 
-/*
-	file_peer = mio_dev_pro_getxtn(file_state->peer);
-	MIO_SVC_HTTS_RSRC_ATTACH (file_state, file_peer->state);
-*/
+		if (fstat(file_state->peer, &st) <= -1) goto oops;
+		file_state->end_offset = st.st_size;
+
+		tmp = mio_htre_getheaderval(req, "Range"); /* TODO: support multiple ranges? */
+		if (tmp)
+		{
+			mio_http_range_t range;
+
+
+			if (mio_parse_http_range_bcstr(tmp->ptr, &range) <= -1)
+			{
+			range_not_satisifiable:
+				file_state_send_final_status_to_client (file_state, 416, 1); /* 406 Requested Range Not Satisfiable */
+				goto oops;
+			}
+
+			switch (range.type)
+			{
+				case MIO_HTTP_RANGE_PROPER:
+					/* Range XXXX-YYYY */
+					if (range.to >= st.st_size) goto range_not_satisifiable;
+					file_state->start_offset = range.from;
+					file_state->end_offset = range.to;
+					break;
+
+				case MIO_HTTP_RANGE_PREFIX:
+					/* Range: XXXX- */
+					if (range.from >= st.st_size) goto range_not_satisifiable;
+					file_state->start_offset = range.from;
+					file_state->end_offset = st.st_size - 1;
+					break;
+
+				case MIO_HTTP_RANGE_SUFFIX:
+					/* Range: -XXXX */
+					if (range.to >= st.st_size) goto range_not_satisifiable;
+					file_state->start_offset = st.st_size - range.to;
+					file_state->end_offset = st.st_size - 1;
+					break;
+			}
+
+			if (file_state->start_offset > 0) 
+				lseek(file_state->peer, file_state->start_offset, SEEK_SET);
+
+		}
+		else
+		{
+			file_state->start_offset = 0;
+			file_state->end_offset = st.st_size - 1;
+		}
+
+		file_state->cur_offset = file_state->start_offset;
+		file_state->total_size = st.st_size;
+	}
 
 
 #if !defined(FILE_ALLOW_UNLIMITED_REQ_CONTENT_LENGTH)
@@ -661,8 +733,7 @@ XXXXXXXXXXXX
 	if (req->flags & MIO_HTRE_ATTR_KEEPALIVE)
 	{
 		file_state->keep_alive = 1;
-		file_state->res_mode_to_cli = FILE_STATE_RES_MODE_CHUNKED; 
-		/* the mode still can get switched to FILE_STATE_RES_MODE_LENGTH if the file emits Content-Length */
+		file_state->res_mode_to_cli = FILE_STATE_RES_MODE_LENGTH;
 	}
 	else
 	{
