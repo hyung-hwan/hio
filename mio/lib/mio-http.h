@@ -47,8 +47,8 @@ typedef mio_uintmax_t mio_http_range_int_t;
 
 enum mio_http_range_type_t
 {
-	MIO_HTTP_RANGE_NONE,
 	MIO_HTTP_RANGE_PROPER,
+	MIO_HTTP_RANGE_PREFIX,
 	MIO_HTTP_RANGE_SUFFIX
 };
 typedef enum mio_http_range_type_t mio_http_range_type_t;
@@ -56,18 +56,13 @@ typedef enum mio_http_range_type_t mio_http_range_type_t;
  * The mio_http_range_t type defines a structure that can represent
  * a value for the \b Range: http header. 
  *
- * If type is #MIO_HTTP_RANGE_NONE, this range is not valid.
+ * If type is #MIO_HTTP_RANGE_PREFIX, 'to' is meaningless and 'from' indicates 
+ * the number of bytes from the start. 
+ *  - 500-    => from the 501st bytes all the way to the back.
  * 
- * If type is #MIO_HTTP_RANGE_SUFFIX, 'from' is meaningleass and 'to' indicates 
+ * If type is #MIO_HTTP_RANGE_SUFFIX, 'from' is meaningless and 'to' indicates 
  * the number of bytes from the back. 
  *  - -500    => last 500 bytes
- *
- * You should adjust a range when the size that this range belongs to is 
- * made known. See this code:
- * \code
- *  range.from = total_size - range.to;
- *  range.to = range.to + range.from - 1;
- * \endcode
  *
  * If type is #MIO_HTTP_RANGE_PROPER, 'from' and 'to' represents a proper range
  * where the value of 0 indicates the first byte. This doesn't require any 
