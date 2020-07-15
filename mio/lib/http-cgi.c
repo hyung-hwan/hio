@@ -709,7 +709,7 @@ static int cgi_client_on_read (mio_dev_sck_t* sck, const void* buf, mio_iolen_t 
 		if (rem > 0)
 		{
 			/* TODO store this to client buffer. once the current resource is completed, arrange to call on_read() with it */
-printf ("UUUUUUUUUUUUUUUUUUUUUUUUUUGGGGGHHHHHHHHHHHH .......... CGI CLIENT GIVING EXCESSIVE DATA AFTER CONTENTS...\n");
+			MIO_DEBUG3 (mio, "HTTPS(%p) - excessive data after contents by cgi client %p(%d)\n", sck->mio, sck, (int)sck->hnd);
 		}
 	}
 

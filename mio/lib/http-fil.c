@@ -63,9 +63,12 @@ struct file_state_t
 	mio_uintmax_t start_offset;
 	mio_uintmax_t end_offset;
 	mio_uintmax_t cur_offset;
+	mio_bch_t peer_buf[8192];
+	mio_tmridx_t peer_tmridx;
 
 	mio_svc_htts_cli_t* client;
 	mio_http_version_t req_version; /* client request */
+	mio_http_method_t req_method;
 
 	unsigned int over: 4; /* must be large enough to accomodate FILE_STATE_OVER_ALL */
 	unsigned int keep_alive: 1;
@@ -116,29 +119,6 @@ static int file_state_write_to_client (file_state_t* file_state, const void* dat
 	return 0;
 }
 
-
-#if 0
-
-static int file_state_writev_to_client (file_state_t* file_state, mio_iovec_t* iov, mio_iolen_t iovcnt)
-{
-	file_state->ever_attempted_to_write_to_client = 1;
-
-	file_state->num_pending_writes_to_client++;
-	if (mio_dev_sck_writev(file_state->client->sck, iov, iovcnt, MIO_NULL, MIO_NULL) <= -1) 
-	{
-		file_state->num_pending_writes_to_client--;
-		return -1;
-	}
-
-	if (file_state->num_pending_writes_to_client > FILE_STATE_PENDING_IO_THRESHOLD)
-	{
-		if (mio_dev_pro_read(file_state->peer, MIO_DEV_PRO_OUT, 0) <= -1) return -1;
-	}
-	return 0;
-}
-
-#endif
-
 static int file_state_send_final_status_to_client (file_state_t* file_state, int status_code, int force_close)
 {
 	mio_svc_htts_cli_t* cli = file_state->client;
@@ -159,7 +139,6 @@ static int file_state_send_final_status_to_client (file_state_t* file_state, int
 
 
 #if 0
-
 static int file_state_write_last_chunk_to_client (file_state_t* file_state)
 {
 	if (!file_state->ever_attempted_to_write_to_client)
@@ -172,30 +151,24 @@ static int file_state_write_last_chunk_to_client (file_state_t* file_state)
 }
 #endif
 
-static int file_state_write_to_peer (file_state_t* file_state, const void* data, mio_iolen_t dlen)
+static void file_state_close_peer (file_state_t* file_state)
 {
-	file_state->num_pending_writes_to_peer++;
+	mio_t* mio = file_state->htts->mio;
 
-#if 0
-	if (mio_dev_pro_write(file_state->peer, data, dlen, MIO_NULL) <= -1) 
+	if (file_state->peer_tmridx != MIO_TMRIDX_INVALID)
 	{
-		file_state->num_pending_writes_to_peer--;
-		return -1;
+		mio_deltmrjob (mio, file_state->peer_tmridx);
+		MIO_ASSERT (mio, file_state->peer_tmridx == MIO_TMRIDX_INVALID);
 	}
-#else
-	write(file_state->peer, data, dlen); // error check. also buffering if not all are written
-#endif
 
-
-/* TODO: check if it's already finished or something.. */
-	if (file_state->num_pending_writes_to_peer > FILE_STATE_PENDING_IO_THRESHOLD)
+	if (file_state->peer >= 0)
 	{
-		if (mio_dev_sck_read(file_state->client->sck, 0) <= -1) return -1;
+		close (file_state->peer);
+		file_state->peer = -1;
 	}
-	return 0;
 }
 
-static MIO_INLINE void file_state_mark_over (file_state_t* file_state, int over_bits)
+static void file_state_mark_over (file_state_t* file_state, int over_bits)
 {
 	unsigned int old_over;
 
@@ -204,7 +177,6 @@ static MIO_INLINE void file_state_mark_over (file_state_t* file_state, int over_
 
 	MIO_DEBUG5 (file_state->htts->mio, "HTTS(%p) - client=%p peer=%p new-bits=%x over=%x\n", file_state->htts, file_state->client->sck, file_state->peer, (int)over_bits, (int)file_state->over);
 
-#if 0
 	if (!(old_over & FILE_STATE_OVER_READ_FROM_CLIENT) && (file_state->over & FILE_STATE_OVER_READ_FROM_CLIENT))
 	{
 		if (mio_dev_sck_read(file_state->client->sck, 0) <= -1) 
@@ -214,32 +186,26 @@ static MIO_INLINE void file_state_mark_over (file_state_t* file_state, int over_
 		}
 	}
 
+#if 0
 	if (!(old_over & FILE_STATE_OVER_READ_FROM_PEER) && (file_state->over & FILE_STATE_OVER_READ_FROM_PEER))
 	{
-		if (file_state->peer && mio_dev_pro_read(file_state->peer, MIO_DEV_PRO_OUT, 0) <= -1) 
-		{
-			MIO_DEBUG2 (file_state->htts->mio, "HTTS(%p) - halting peer(%p) for failure to disable input watching\n", file_state->htts, file_state->peer);
-			mio_dev_pro_halt (file_state->peer);
-		}
+		/* there is no partial close... keep it open */
 	}
+#endif
 
 	if (old_over != FILE_STATE_OVER_ALL && file_state->over == FILE_STATE_OVER_ALL)
 	{
 		/* ready to stop */
-		if (file_state->peer) 
-		{
-			MIO_DEBUG2 (file_state->htts->mio, "HTTS(%p) - halting peer(%p) as it is unneeded\n", file_state->htts, file_state->peer);
-			mio_dev_pro_halt (file_state->peer);
-		}
+		MIO_DEBUG2 (file_state->htts->mio, "HTTS(%p) - halting peer(%p) as it is unneeded\n", file_state->htts, file_state->peer);
+		file_state_close_peer (file_state);
 
 		if (file_state->keep_alive) 
 		{
 			/* how to arrange to delete this file_state object and put the socket back to the normal waiting state??? */
 			MIO_ASSERT (file_state->htts->mio, file_state->client->rsrc == (mio_svc_htts_rsrc_t*)file_state);
 
-printf ("DETACHING FROM THE MAIN CLIENT RSRC... state -> %p\n", file_state->client->rsrc);
 			MIO_SVC_HTTS_RSRC_DETACH (file_state->client->rsrc);
-			/* file_state must not be access from here down as it could have been destroyed */
+			/* file_state must not be accessed from here down as it could have been destroyed */
 		}
 		else
 		{
@@ -248,10 +214,27 @@ printf ("DETACHING FROM THE MAIN CLIENT RSRC... state -> %p\n", file_state->clie
 			mio_dev_sck_halt (file_state->client->sck);
 		}
 	}
-#endif
 }
 
 
+static int file_state_write_to_peer (file_state_t* file_state, const void* data, mio_iolen_t dlen)
+{
+	mio_t* mio = file_state->htts->mio;
+
+	if (dlen <= 0)
+	{
+		file_state_mark_over (file_state, FILE_STATE_OVER_WRITE_TO_PEER);
+	}
+	else
+	{
+		if (file_state->req_method == MIO_HTTP_GET) return 0; 
+
+		MIO_ASSERT (mio, file_state->peer >= 0);
+		return write(file_state->peer, data, dlen) <= -1? -1: 0;
+	}
+
+	return 0;
+}
 
 static void file_state_on_kill (file_state_t* file_state)
 {
@@ -259,12 +242,7 @@ static void file_state_on_kill (file_state_t* file_state)
 
 	MIO_DEBUG2 (mio, "HTTS(%p) - killing file_state client(%p)\n", file_state->htts, file_state->client->sck);
 
-	if (file_state->peer >= 0)
-	{
-		close (file_state->peer);
-		file_state->peer = -1;
-	}
-
+	file_state_close_peer (file_state);
 
 	if (file_state->client_org_on_read)
 	{
@@ -292,15 +270,12 @@ static void file_state_on_kill (file_state_t* file_state)
 
 	if (!file_state->client_disconnected)
 	{
-/*printf ("ENABLING INPUT WATCHING on CLIENT %p. \n", file_state->client->sck);*/
 		if (!file_state->keep_alive || mio_dev_sck_read(file_state->client->sck, 1) <= -1)
 		{
 			MIO_DEBUG2 (mio, "HTTS(%p) - halting client(%p) for failure to enable input watching\n", file_state->htts, file_state->client->sck);
 			mio_dev_sck_halt (file_state->client->sck);
 		}
 	}
-
-/*printf ("**** FILE_STATE_ON_KILL DONE\n");*/
 }
 
 
@@ -327,8 +302,6 @@ static int file_client_on_read (mio_dev_sck_t* sck, const void* buf, mio_iolen_t
 		goto oops;
 	}
 
-#if 0
-XXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXX
 	if (!file_state->peer)
 	{
 		/* the peer is gone */
@@ -357,10 +330,9 @@ XXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXX
 		if (rem > 0)
 		{
 			/* TODO store this to client buffer. once the current resource is completed, arrange to call on_read() with it */
-printf ("UUUUUUUUUUUUUUUUUUUUUUUUUUGGGGGHHHHHHHHHHHH .......... FILE CLIENT GIVING EXCESSIVE DATA AFTER CONTENTS...\n");
+			MIO_DEBUG3 (mio, "HTTPS(%p) - excessive data after contents by file client %p(%d)\n", sck->mio, sck, (int)sck->hnd);
 		}
 	}
-#endif
 
 	return 0;
 
@@ -422,40 +394,47 @@ oops:
 }
 
 
-#if 0
-int mio_svc_htts_dofile (mio_svc_htts_t* htts, mio_dev_sck_t* csck, mio_htre_t* req, const mio_bch_t* docroot, const mio_bch_t* file)
+/* --------------------------------------------------------------------- */
+
+static int file_client_htrd_poke (mio_htrd_t* htrd, mio_htre_t* req)
 {
-	switch (mio_htre_getqmethodtype(req))
+	/* client request got completed */
+	mio_svc_htts_cli_htrd_xtn_t* htrdxtn = (mio_svc_htts_cli_htrd_xtn_t*)mio_htrd_getxtn(htrd);
+	mio_dev_sck_t* sck = htrdxtn->sck;
+	mio_svc_htts_cli_t* cli = mio_dev_sck_getxtn(sck);
+	file_state_t* file_state = (file_state_t*)cli->rsrc;
+
+	/* indicate EOF to the client peer */
+	if (file_state_write_to_peer(file_state, MIO_NULL, 0) <= -1) return -1;
+
+	if (file_state->req_method != MIO_HTTP_GET)
 	{
-		case MIO_HTTP_OPTIONS:
-			mio_htre_discardcontent (req);
-			/* TODO: return 200 with Allow: OPTIONS, HEAD, GET, POST, PUT, DELETE... */
-			/* However, if there is access configuration, the item list must reflect it */
-			break;
-
-		case MIO_HTTP_HEAD:
-		case MIO_HTTP_GET:
-		case MIO_HTTP_POST:
-			mio_htre_discardcontent (req);
-			break;
-
-		case MIO_HTTP_PUT:
-			break;
-
-		case MIO_HTTP_DELETE:
-			mio_htre_discardcontent (req);
-			break;
-
-		default:
-			/* method not allowed */
-			mio_htre_discardcontent (req);
-			/* schedule to send 405  */
-			break;
+		if (file_state_send_final_status_to_client(file_state, 200, 0) <= -1) return -1;
 	}
 
+	file_state_mark_over (file_state, FILE_STATE_OVER_READ_FROM_CLIENT);
 	return 0;
 }
-#endif
+
+static int file_client_htrd_push_content (mio_htrd_t* htrd, mio_htre_t* req, const mio_bch_t* data, mio_oow_t dlen)
+{
+	mio_svc_htts_cli_htrd_xtn_t* htrdxtn = (mio_svc_htts_cli_htrd_xtn_t*)mio_htrd_getxtn(htrd);
+	mio_dev_sck_t* sck = htrdxtn->sck;
+	mio_svc_htts_cli_t* cli = mio_dev_sck_getxtn(sck);
+	file_state_t* file_state = (file_state_t*)cli->rsrc;
+
+	MIO_ASSERT (sck->mio, cli->sck == sck);
+	return file_state_write_to_peer(file_state, data, dlen);
+}
+
+static mio_htrd_recbs_t file_client_htrd_recbs =
+{
+	MIO_NULL,
+	file_client_htrd_poke,
+	file_client_htrd_push_content
+};
+
+/* --------------------------------------------------------------------- */
 
 static int file_state_send_header_to_client (file_state_t* file_state, int status_code, int force_close)
 {
@@ -483,6 +462,15 @@ static int file_state_send_header_to_client (file_state_t* file_state, int statu
 	return file_state_write_to_client(file_state, MIO_BECS_PTR(cli->sbuf), MIO_BECS_LEN(cli->sbuf));
 }
 
+static void send_contents_to_client_later (mio_t* mio, const mio_ntime_t* now, mio_tmrjob_t* tmrjob)
+{
+	file_state_t* file_state = (file_state_t*)tmrjob->ctx;
+	if (file_state_send_contents_to_client(file_state) <= -1)
+	{
+		file_state_halt_participating_devices (file_state);
+	}
+}
+
 static int file_state_send_contents_to_client (file_state_t* file_state)
 {
 /* TODO: implement mio_dev_sck_sendfile(0 or enhance mio_dev_sck_write() to emulate sendfile
@@ -490,11 +478,9 @@ static int file_state_send_contents_to_client (file_state_t* file_state)
  *      mio_dev_sck_setsendfile (ON);
  *      mio_dev_sck_write(sck, data_required_for_sendfile_operation, 0, MIO_NULL);....
  */
-
-	mio_bch_t buf[8192]; /* TODO: declare this in file_state?? */
+	mio_t* mio = file_state->htts->mio;
 	mio_uintmax_t lim;
 	ssize_t n;
-	
 
 	if (file_state->cur_offset > file_state->end_offset)
 	{
@@ -504,18 +490,19 @@ static int file_state_send_contents_to_client (file_state_t* file_state)
 	}
 
 	lim = file_state->end_offset - file_state->cur_offset + 1;
-	n = read(file_state->peer, buf, (lim < MIO_SIZEOF(buf)? lim: MIO_SIZEOF(buf)));
+	n = read(file_state->peer, file_state->peer_buf, (lim < MIO_SIZEOF(file_state->peer_buf)? lim: MIO_SIZEOF(file_state->peer_buf)));
 	if (n == -1)
 	{
-		if (errno == EAGAIN || errno == EINTR)
+		if ((errno == EAGAIN || errno == EINTR) && file_state->peer_tmridx == MIO_TMRIDX_INVALID)
 		{
-/* TODO: arrange to invoke on data writable? */
-			/*mio_dev_sck_watch (file_state->client->sck, MIO_DEV_WATCH_UPDATE, */
-			return 0;
-		}
-		else if (errno == EINTR)
-		{
-			return 0; /* interrupted */
+			mio_tmrjob_t tmrjob;
+			/* use a timer job for a new sending attempt */
+			MIO_MEMSET (&tmrjob, 0, MIO_SIZEOF(tmrjob));
+			tmrjob.ctx = file_state;
+			/*tmrjob.when = leave it at 0 for immediate firing.*/
+			tmrjob.handler = send_contents_to_client_later;
+			tmrjob.idxptr = &file_state->peer_tmridx;
+			return mio_instmrjob(mio, &tmrjob) == MIO_TMRIDX_INVALID? -1: 0;
 		}
 
 		return -1;
@@ -528,16 +515,132 @@ static int file_state_send_contents_to_client (file_state_t* file_state)
 		return -1;
 	}
 
-	if (file_state_write_to_client(file_state, buf, n) <= -1) 
-	{
-		return -1;
-	}
+	if (file_state_write_to_client(file_state, file_state->peer_buf, n) <= -1) return -1;
 
 	file_state->cur_offset += n;
-/*	if (file_state->cur_offset > file_state->end_offset) 
+
+/*	if (file_state->cur_offset > file_state->end_offset)  should i check this or wait until this function is invoked?
 		file_state_mark_over (file_state, FILE_STATE_OVER_READ_FROM_PEER);*/
 
 	return 0;
+}
+
+static int process_range_header (file_state_t* file_state, mio_htre_t* req)
+{
+	struct stat st;
+	const mio_htre_hdrval_t* tmp;
+
+	if (fstat(file_state->peer, &st) <= -1) 
+	{
+		file_state_send_final_status_to_client (file_state, 500, 1);
+		return -1;
+	}
+	file_state->end_offset = st.st_size;
+
+	tmp = mio_htre_getheaderval(req, "Range"); /* TODO: support multiple ranges? */
+	if (tmp)
+	{
+		mio_http_range_t range;
+
+		if (mio_parse_http_range_bcstr(tmp->ptr, &range) <= -1)
+		{
+		range_not_satisifiable:
+			file_state_send_final_status_to_client (file_state, 416, 1); /* 406 Requested Range Not Satisfiable */
+			return -1;
+		}
+
+		switch (range.type)
+		{
+			case MIO_HTTP_RANGE_PROPER:
+				/* Range XXXX-YYYY */
+				if (range.to >= st.st_size) goto range_not_satisifiable;
+				file_state->start_offset = range.from;
+				file_state->end_offset = range.to;
+				break;
+
+			case MIO_HTTP_RANGE_PREFIX:
+				/* Range: XXXX- */
+				if (range.from >= st.st_size) goto range_not_satisifiable;
+				file_state->start_offset = range.from;
+				file_state->end_offset = st.st_size - 1;
+				break;
+
+			case MIO_HTTP_RANGE_SUFFIX:
+				/* Range: -XXXX */
+				if (range.to >= st.st_size) goto range_not_satisifiable;
+				file_state->start_offset = st.st_size - range.to;
+				file_state->end_offset = st.st_size - 1;
+				break;
+		}
+
+		if (file_state->start_offset > 0) 
+			lseek(file_state->peer, file_state->start_offset, SEEK_SET);
+
+	}
+	else
+	{
+		file_state->start_offset = 0;
+		file_state->end_offset = st.st_size - 1;
+	}
+
+	file_state->cur_offset = file_state->start_offset;
+	file_state->total_size = st.st_size;
+	return 0;
+}
+
+#define ERRNO_TO_STATUS_CODE(x) ( \
+	((x) == ENOENT)? 404: \
+	((x) == EPERM || (x) == EACCES)? 403: 500 \
+)
+
+static int open_peer (file_state_t* file_state, const mio_bch_t* actual_file)
+{
+	switch (file_state->req_method)
+	{
+		case MIO_HTTP_GET:
+			if (access(actual_file, R_OK) == -1)
+			{
+				file_state_send_final_status_to_client (file_state, ERRNO_TO_STATUS_CODE(errno), 1); /* 404 not found 403 Forbidden */
+				return -1;
+			}
+
+			file_state->peer = open(actual_file, O_RDONLY | O_NONBLOCK | O_CLOEXEC);
+			if (MIO_UNLIKELY(file_state->peer <= -1)) 
+			{
+				file_state_send_final_status_to_client (file_state, ERRNO_TO_STATUS_CODE(errno), 1);
+				return -1;
+			}
+			return 0;
+
+		case MIO_HTTP_PUT:
+		case MIO_HTTP_POST:
+/* TOOD: this is destructive. jump to default if not allowed by flags... */
+			file_state->peer = open(actual_file, O_WRONLY | O_TRUNC | O_CREAT | O_NONBLOCK | O_CLOEXEC, 0644);
+			if (MIO_UNLIKELY(file_state->peer <= -1)) 
+			{
+				file_state_send_final_status_to_client (file_state, ERRNO_TO_STATUS_CODE(errno), 1);
+				return -1;
+			}
+			return 0;
+
+		case MIO_HTTP_PATCH:
+/* TOOD: this is destructive. jump to default if not allowed by flags... */
+			file_state->peer = open(actual_file, O_WRONLY | O_NONBLOCK | O_CLOEXEC, 0644);
+			if (MIO_UNLIKELY(file_state->peer <= -1)) 
+			{
+				file_state_send_final_status_to_client (file_state, ERRNO_TO_STATUS_CODE(errno), 1);
+				return -1;
+			}
+			return 0;
+
+#if 0
+		case MIO_HTTP_DELETE:
+			/* TODO: */
+#endif
+	}
+
+	file_state_send_final_status_to_client (file_state, 405, 1); /* 405: method not allowed */
+	return -1;
 }
 
 int mio_svc_htts_dofile (mio_svc_htts_t* htts, mio_dev_sck_t* csck, mio_htre_t* req, const mio_bch_t* docroot, const mio_bch_t* file)
@@ -560,6 +663,7 @@ int mio_svc_htts_dofile (mio_svc_htts_t* htts, mio_dev_sck_t* csck, mio_htre_t* 
 	/*file_state->num_pending_writes_to_client = 0;
 	file_state->num_pending_writes_to_peer = 0;*/
 	file_state->req_version = *mio_htre_getversion(req);
+	file_state->req_method = mio_htre_getqmethodtype(req);
 	file_state->req_content_length_unlimited = mio_htre_getreqcontentlen(req, &file_state->req_content_length);
 
 	file_state->client_org_on_read = csck->on_read;
@@ -572,78 +676,11 @@ int mio_svc_htts_dofile (mio_svc_htts_t* htts, mio_dev_sck_t* csck, mio_htre_t* 
 	MIO_ASSERT (mio, cli->rsrc == MIO_NULL);
 	MIO_SVC_HTTS_RSRC_ATTACH (file_state, cli->rsrc);
 
-	if (access(actual_file, R_OK) == -1)
-	{
-		file_state_send_final_status_to_client (file_state, 403, 1); /* 403 Forbidden */
-		goto oops; /* TODO: must not go to oops.  just destroy the file_state and finalize the request .. */
-	}
+	file_state->peer_tmridx = MIO_TMRIDX_INVALID;
+	file_state->peer = -1;
 
-/* TODO: if method is for download... open it in the read mode. if PUT or POST, open it in RDWR mode? */
-	file_state->peer = open(actual_file, O_RDONLY | O_NONBLOCK | O_CLOEXEC);
-	if (MIO_UNLIKELY(file_state->peer <= -1)) 
-	{
-		file_state_send_final_status_to_client (file_state, 500, 1);
-		goto oops;
-	}
-
-	{
-		struct stat st;
-		const mio_htre_hdrval_t* tmp;
-
-		if (fstat(file_state->peer, &st) <= -1) goto oops;
-		file_state->end_offset = st.st_size;
-
-		tmp = mio_htre_getheaderval(req, "Range"); /* TODO: support multiple ranges? */
-		if (tmp)
-		{
-			mio_http_range_t range;
-
-
-			if (mio_parse_http_range_bcstr(tmp->ptr, &range) <= -1)
-			{
-			range_not_satisifiable:
-				file_state_send_final_status_to_client (file_state, 416, 1); /* 406 Requested Range Not Satisfiable */
-				goto oops;
-			}
-
-			switch (range.type)
-			{
-				case MIO_HTTP_RANGE_PROPER:
-					/* Range XXXX-YYYY */
-					if (range.to >= st.st_size) goto range_not_satisifiable;
-					file_state->start_offset = range.from;
-					file_state->end_offset = range.to;
-					break;
-
-				case MIO_HTTP_RANGE_PREFIX:
-					/* Range: XXXX- */
-					if (range.from >= st.st_size) goto range_not_satisifiable;
-					file_state->start_offset = range.from;
-					file_state->end_offset = st.st_size - 1;
-					break;
-
-				case MIO_HTTP_RANGE_SUFFIX:
-					/* Range: -XXXX */
-					if (range.to >= st.st_size) goto range_not_satisifiable;
-					file_state->start_offset = st.st_size - range.to;
-					file_state->end_offset = st.st_size - 1;
-					break;
-			}
-
-			if (file_state->start_offset > 0) 
-				lseek(file_state->peer, file_state->start_offset, SEEK_SET);
-
-		}
-		else
-		{
-			file_state->start_offset = 0;
-			file_state->end_offset = st.st_size - 1;
-		}
-
-		file_state->cur_offset = file_state->start_offset;
-		file_state->total_size = st.st_size;
-	}
-
+	if (open_peer(file_state, actual_file) <= -1 || 
+	    process_range_header(file_state, req) <= -1) goto oops;
 
 #if !defined(FILE_ALLOW_UNLIMITED_REQ_CONTENT_LENGTH)
 	if (file_state->req_content_length_unlimited)
@@ -696,27 +733,21 @@ int mio_svc_htts_dofile (mio_svc_htts_t* htts, mio_dev_sck_t* csck, mio_htre_t* 
 	if (file_state->req_content_length_unlimited)
 	{
 		/* change the callbacks to subscribe to contents to be uploaded */
-#if 0
-XXXXXXXXXXXX
 		file_state->client_htrd_org_recbs = *mio_htrd_getrecbs(file_state->client->htrd);
 		file_client_htrd_recbs.peek = file_state->client_htrd_org_recbs.peek;
 		mio_htrd_setrecbs (file_state->client->htrd, &file_client_htrd_recbs);
 		file_state->client_htrd_recbs_changed = 1;
-#endif
 	}
 	else
 	{
 #endif
 		if (file_state->req_content_length > 0)
 		{
-#if 0
-XXXXXXXXXXXX
 			/* change the callbacks to subscribe to contents to be uploaded */
 			file_state->client_htrd_org_recbs = *mio_htrd_getrecbs(file_state->client->htrd);
 			file_client_htrd_recbs.peek = file_state->client_htrd_org_recbs.peek;
 			mio_htrd_setrecbs (file_state->client->htrd, &file_client_htrd_recbs);
 			file_state->client_htrd_recbs_changed = 1;
-#endif
 		}
 		else
 		{
@@ -741,8 +772,11 @@ XXXXXXXXXXXX
 		file_state->res_mode_to_cli = FILE_STATE_RES_MODE_CLOSE;
 	}
 
-	if (file_state_send_header_to_client(file_state, 200, 0) <= -1) goto oops;
-	if (file_state_send_contents_to_client(file_state) <= -1) goto oops;
+	if (file_state->req_method == MIO_HTTP_GET)
+	{
+		if (file_state_send_header_to_client(file_state, 200, 0) <= -1 ||
+		    file_state_send_contents_to_client(file_state) <= -1) goto oops;
+	}
 
 	/* TODO: store current input watching state and use it when destroying the file_state data */
 	if (mio_dev_sck_read(csck, !(file_state->over & FILE_STATE_OVER_READ_FROM_CLIENT)) <= -1) goto oops;
