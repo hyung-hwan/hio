@@ -713,8 +713,10 @@ int mio_exec (mio_t* mio)
 	 * multiplexer. the scheduled jobs can safely destroy the devices */
 	mio_firetmrjobs (mio, MIO_NULL, MIO_NULL);
 
-	/* execute callbacks for completed write operations again in case there were some jobs initiaated in the timer jobs */
-	/*fire_cwq_handlers (mio);   <-- this may not be needed as it's called inside handle_event(). keep this line commented for now until i have new findings */
+	/* execute callbacks for completed write operations again in case 
+	 * some works initiated in the timer jobs have complted and added to CWQ. 
+	 * e.g. write() in a timer job gets completed immediately. */
+	fire_cwq_handlers (mio);
 
 	if (!MIO_DEVL_IS_EMPTY(&mio->actdev))
 	{

@@ -137,6 +137,7 @@ static struct mtab_t mtab[] =
 	{ "GET",     MIO_HTTP_GET },
 	{ "HEAD",    MIO_HTTP_HEAD },
 	{ "OPTIONS", MIO_HTTP_OPTIONS },
+	{ "PATCH",   MIO_HTTP_PATCH },
 	{ "POST",    MIO_HTTP_POST },
 	{ "PUT",     MIO_HTTP_PUT },
 	{ "TRACE",   MIO_HTTP_TRACE }
@@ -253,6 +254,9 @@ int mio_parse_http_range_bcstr (const mio_bch_t* str, mio_http_range_t* range)
 		if (from > to) return -1;
 	}
 	else type = MIO_HTTP_RANGE_PREFIX;
+
+	while (mio_is_bch_space(*str)) str++;
+	if (*str != '\0') return -1;
 
 	range->type = type;
 	range->from = from;
