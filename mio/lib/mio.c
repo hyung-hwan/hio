@@ -234,7 +234,6 @@ void mio_fini (mio_t* mio)
 	mio_cleartmrjobs (mio);
 	mio_freemem (mio, mio->tmr.jobs);
 
-printf ("BEGINNING CFMB CLEARANCE........\n");
 	/* clear unneeded cfmbs insistently - a misbehaving checker will make this cleaning step loop forever*/
 	while (!MIO_CFMBL_IS_EMPTY(&mio->cfmb)) clear_unneeded_cfmbs (mio);
 

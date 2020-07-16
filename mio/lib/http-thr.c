@@ -396,7 +396,7 @@ static int thr_peer_on_read (mio_dev_thr_t* thr, const void* data, mio_iolen_t d
 
 		if (mio_htrd_feed(thr_state->peer_htrd, data, dlen, &rem) <= -1) 
 		{
-			MIO_DEBUG2 (mio, "HTTPS(%p) - unable to feed peer into to htrd - peer %p\n", thr_state->htts, thr);
+			MIO_DEBUG2 (mio, "HTTPS(%p) - unable to feed peer htrd - peer %p\n", thr_state->htts, thr);
 
 			if (!thr_state->ever_attempted_to_write_to_client &&
 			    !(thr_state->over & THR_STATE_OVER_WRITE_TO_CLIENT))
@@ -544,19 +544,28 @@ static int thr_peer_htrd_push_content (mio_htrd_t* htrd, mio_htre_t* req, const 
 			iov[2].iov_ptr = "\r\n";
 			iov[2].iov_len = 2;
 
-			if (thr_state_writev_to_client(thr_state, iov, MIO_COUNTOF(iov)) <= -1) goto oops;
+			if (thr_state_writev_to_client(thr_state, iov, MIO_COUNTOF(iov)) <= -1) 
+			{
+				goto oops;
+			}
 			break;
 		}
 
 		case THR_STATE_RES_MODE_CLOSE:
 		case THR_STATE_RES_MODE_LENGTH:
-			if (thr_state_write_to_client(thr_state, data, dlen) <= -1) goto oops;
+			if (thr_state_write_to_client(thr_state, data, dlen) <= -1) 
+			{
+				goto oops;
+			}
 			break;
 	}
 
 	if (thr_state->num_pending_writes_to_client > THR_STATE_PENDING_IO_THRESHOLD)
 	{
-		if (mio_dev_thr_read(thr_state->peer, 0) <= -1) goto oops;
+		if (mio_dev_thr_read(thr_state->peer, 0) <= -1) 
+		{
+			goto oops;
+		}
 	}
 
 	return 0;

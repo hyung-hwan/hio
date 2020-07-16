@@ -271,14 +271,12 @@ static int dev_thr_kill_master (mio_dev_t* dev, int force)
 
 	if (ti->thr_done) 
 	{
-printf ("THREAD DONE>...111\n");
 		pthread_detach (ti->thr_hnd); /* pthread_join() may be blocking. */
 		free_thr_info_resources (mio, ti);
 		mio_freemem (mio, ti);
 	}
 	else
 	{
-printf ("THREAD NOT DONE>...111\n");
 		mio_addcfmb (mio, ti, ready_to_free_thr_info);
 	}
 	rdev->thr_info = MIO_NULL;

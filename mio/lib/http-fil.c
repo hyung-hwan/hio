@@ -240,7 +240,7 @@ static void file_state_on_kill (file_state_t* file_state)
 {
 	mio_t* mio = file_state->htts->mio;
 
-	MIO_DEBUG2 (mio, "HTTS(%p) - killing file_state client(%p)\n", file_state->htts, file_state->client->sck);
+	MIO_DEBUG2 (mio, "HTTS(%p) - killing file client(%p)\n", file_state->htts, file_state->client->sck);
 
 	file_state_close_peer (file_state);
 
