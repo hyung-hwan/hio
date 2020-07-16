@@ -1147,7 +1147,10 @@ int mio_htrd_feed (mio_htrd_t* htrd, const mio_bch_t* req, mio_oow_t len, mio_oo
 					/* reset the raw request length */
 					htrd->fed.s.plen = 0;
 
-					if (parse_initial_line_and_headers (htrd, req, ptr - req) <= -1) return -1;
+					if (parse_initial_line_and_headers (htrd, req, ptr - req) <= -1) 
+					{
+						return -1;
+					}
 
 					/* compelete request header is received */
 					header_completed_during_this_feed = 1;
@@ -1289,7 +1292,10 @@ XXXXXXXX
 						else if (avail < htrd->fed.s.need)
 						{
 							/* the data is not as large as needed */
-							if (push_content (htrd, ptr, avail) <= -1) return -1;
+							if (push_content(htrd, ptr, avail) <= -1) 
+							{
+								return -1;
+							}
 
 							if (!(htrd->fed.s.flags & CONSUME_UNTIL_CLOSE)) 
 							{
@@ -1307,7 +1313,10 @@ XXXXXXXX
 						else 
 						{
 							/* we got all or more than needed */
-							if (push_content (htrd, ptr, htrd->fed.s.need) <= -1) return -1;
+							if (push_content (htrd, ptr, htrd->fed.s.need) <= -1) 
+							{
+								return -1;
+							}
 							ptr += htrd->fed.s.need;
 							if (!(htrd->fed.s.flags & CONSUME_UNTIL_CLOSE)) 
 								htrd->fed.s.need = 0;
@@ -1461,7 +1470,10 @@ mio_printf (MIO_T("CONTENT_LENGTH %d, RAW HEADER LENGTH %d\n"),
 	if (ptr > req)
 	{
 		/* enbuffer the incomplete request */
-		if (push_to_buffer(htrd, &htrd->fed.b.raw, req, ptr - req) <= -1) return -1;
+		if (push_to_buffer(htrd, &htrd->fed.b.raw, req, ptr - req) <= -1) 
+		{
+			return -1;
+		}
 	}
 
 feedme_more:

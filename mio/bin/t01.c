@@ -71,11 +71,13 @@ static void* mmgr_alloc (mio_mmgr_t* mmgr, mio_oow_t size)
 {
 	void* x;
 
+#if 0
 	if (((mmgr_stat_t*)mmgr->ctx)->total_count > 3000)
 	{
 printf ("CRITICAL ERROR ---> too many heap chunks...\n");
 		return MIO_NULL;
 	}
+#endif
 
 	x = malloc (size);
 	if (x)

@@ -50,6 +50,14 @@ static int init_client (mio_svc_htts_cli_t* cli, mio_dev_sck_t* sck)
 	MIO_ASSERT (sck->mio, cli->sck == cli->htts->lsck); /* the field should still point to the listner socket */
 	MIO_ASSERT (sck->mio, sck->mio == cli->htts->mio);
 
+	cli->sck = sck;
+	cli->htrd = MIO_NULL;
+	cli->sbuf = MIO_NULL;
+	cli->rsrc = MIO_NULL;
+	/* keep this linked regardless of success or failure because the disconnect() callback 
+	 * will call fini_client(). the error handler code after 'oops:' doesn't get this unlinked */
+	MIO_SVC_HTTS_CLIL_APPEND_CLI (&cli->htts->cli, cli);
+
 	cli->htrd = mio_htrd_open(sck->mio, MIO_SIZEOF(*htrdxtn));
 	if (MIO_UNLIKELY(!cli->htrd)) goto oops;
 
@@ -65,12 +73,12 @@ static int init_client (mio_svc_htts_cli_t* cli, mio_dev_sck_t* sck)
 
 	mio_htrd_setrecbs (cli->htrd, &client_htrd_recbs);
 
-	cli->sck = sck;
-	MIO_SVC_HTTS_CLIL_APPEND_CLI (&cli->htts->cli, cli);
 MIO_DEBUG3 (sck->mio, "HTTS(%p) - initialized client %p socket %p\n", cli->htts, cli, sck);
 	return 0;
 
 oops:
+	/* since this function is called in the on_connect() callback,
+	 * fini_client() is eventually called by on_disconnect(). i don't do clean-up here.
 	if (cli->sbuf) 
 	{
 		mio_becs_close(cli->sbuf);
@@ -80,7 +88,7 @@ oops:
 	{
 		mio_htrd_close (cli->htrd);
 		cli->htrd = MIO_NULL;
-	}
+	}*/
 	return -1;
 }
 
@@ -412,7 +420,6 @@ mio_svc_htts_rsrc_t* mio_svc_htts_rsrc_make (mio_svc_htts_t* htts, mio_oow_t rsr
 
 void mio_svc_htts_rsrc_kill (mio_svc_htts_rsrc_t* rsrc)
 {
-printf ("RSRC KILL >>>>> htts=> %p\n", rsrc->htts);
 	mio_t* mio = rsrc->htts->mio;
 	if (rsrc->rsrc_on_kill) rsrc->rsrc_on_kill (rsrc);
 	mio_freemem (mio, rsrc);
@@ -484,160 +491,3 @@ mio_bch_t* mio_svc_htts_dupmergepaths (mio_svc_htts_t* htts, const mio_bch_t* ba
 	return xpath;
 }
 
-/* ----------------------------------------------------------------- */
-
-#if 0
-/* ----------------------------------------------------------------- */
-
-int mio_svc_htts_sendrsrc (mio_svc_htts_t* htts, mio_dev_sck_t* csck, mio_svc_htts_rsrc_t* rsrc, int status_code, mio_http_method_t method, const mio_http_version_t* version, int keepalive)
-{
-	mio_svc_htts_cli_t* cli = mio_dev_sck_getxtn(csck);
-	mio_bch_t dtbuf[64];
-	mio_oow_t x;
-
-#if 0
-	if ((req->flags & MIO_HTRE_ATTR_EXPECT) && 
-	    mio_comp_http_version_numbers(&req->version, 1, 1) >= 0 &&
-	    mio_htre_getcontentlen(req) <= 0)
-	{
-		if (req->flags & MIO_HTRE_ATTR_EXPECT100)
-		{
-			mio_dev_sck_write(csck, "HTTP/1.1 100 Continue\r\n", 23, MIO_NULL, MIO_NULL);
-		}
-		else
-		{
-		}
-	}
-#endif
-
-	mio_svc_htts_fmtgmtime(htts, MIO_NULL, dtbuf, MIO_COUNTOF(dtbuf));
-
-	x = mio_becs_fmt(cli->sbuf, "HTTP/%d.%d %d %hs\r\nServer: %hs\r\nDate: %hs\r\nConnection: %s\r\n",
-		(int)version->major, (int)version->minor,
-		(int)status_code, mio_http_status_to_bcstr(status_code), 
-		htts->server_name,
-		dtbuf, /* Date */
-		(keepalive? "keep-alive": "close") /* Connection */
-	);
-	if (MIO_UNLIKELY(x == (mio_oow_t)-1)) return -1;
-
-	if (rsrc->content_type)
-	{
-		x = mio_becs_fcat(cli->sbuf, "Content-Type: %hs\r\n", rsrc->content_type);
-		if (MIO_UNLIKELY(x == (mio_oow_t)-1)) return -1;
-	}
-
-	if (rsrc->flags & MIO_SVC_HTTS_RSRC_FLAG_CONTENT_LENGTH_SET)
-	{
-		x = mio_becs_fcat(cli->sbuf, "Content-Length: %ju\r\n", (mio_uintmax_t)rsrc->content_length);
-		if (MIO_UNLIKELY(x == (mio_oow_t)-1)) return -1;
-	}
-
-	x = mio_becs_fcat(cli->sbuf, "\r\n", rsrc->content_length);
-	if (MIO_UNLIKELY(x == (mio_oow_t)-1)) return -1;
-
-/* TODO: handle METHOD HEAD... should abort after header trasmission... */
-
-/* TODO: allow extra header items */
-
-/* TODO: use timedwrite? */
-	if (mio_dev_sck_write(csck, MIO_BECS_PTR(cli->sbuf), MIO_BECS_LEN(cli->sbuf), rsrc, MIO_NULL) <= -1)
-	{
-		mio_dev_sck_halt (csck);
-		return -1;
-	}
-
-	return 0;
-}
-
-/* ----------------------------------------------------------------- */
-
-
-struct rsrc_file_xtn_t
-{
-	int fd;
-	mio_foff_t range_offset;
-	mio_foff_t range_start;
-	mio_foff_t range_end;
-	mio_bch_t rbuf[4096];
-};
-typedef struct rsrc_file_xtn_t rsrc_file_xtn_t;
-
-static int rsrc_file_on_write (mio_svc_htts_rsrc_t* rsrc, mio_dev_sck_t* sck)
-{
-	rsrc_file_xtn_t* file = (rsrc_file_xtn_t*)mio_svc_htts_rsrc_getxtn(rsrc);
-	ssize_t n;
-
-	if (file->range_offset >= file->range_end) return 0; /* transmitted as long as content-length. end of the resource */
-
-	if (file->range_offset < file->range_start)
-	{
-		if (lseek(file->fd, SEEK_SET, file->range_start) == (off_t)-1) return -1;
-		file->range_offset = file->range_start;
-	}
-
-	n = read(file->fd, file->rbuf, MIO_SIZEOF(file->rbuf));
-	if (n <= 0) return -1; 
-
-	if (n > file->range_end - file->range_start)
-	{
-		/* TODO: adjust */
-		n = file->range_end - file->range_start;
-	}
-
-	file->range_offset += n;
-	if (mio_dev_sck_write(sck, file->rbuf, n, rsrc, MIO_NULL) <= -1) return -1; /* failure */
-
-	return 1; /* keep calling me */
-}
-
-static void rsrc_file_on_kill (mio_svc_htts_rsrc_t* rsrc)
-{
-	rsrc_file_xtn_t* file = (rsrc_file_xtn_t*)mio_svc_htts_rsrc_getxtn(rsrc);
-
-	if (file->fd >= 0)
-	{
-		close (file->fd);
-		file->fd = -1;
-	}
-}
-
-int mio_svc_htts_sendfile (mio_svc_htts_t* htts, mio_dev_sck_t* csck, const mio_bch_t* file_path, int status_code, mio_http_method_t method, const mio_http_version_t* version, int keepalive)
-{
-	//mio_svc_htts_cli_t* cli = (mio_svc_htts_cli_t*)mio_dev_sck_getxtn(csck);
-	int fd;
-	struct stat st;
-	mio_svc_htts_rsrc_t* rsrc = MIO_NULL;
-	rsrc_file_xtn_t* rsrc_file;
-
-	fd = open(file_path, O_RDONLY, 0);
-	if (fd <= -1) 
-	{
-/* TODO: divert to writing status code not found... */
-		goto oops; /* write error status instead */
-	}
-
-	if (fstat(fd, &st) <= -1) goto oops; /* TODO: write error status instead. probably 500 internal server error???*/
-
-	rsrc = mio_svc_htts_rsrc_make(htts, csck, rsrc_file_on_write, rsrc_file_on_kill, MIO_SIZEOF(*rsrc_file));
-	if (MIO_UNLIKELY(!rsrc)) goto oops;
-
-	rsrc->flags = MIO_SVC_HTTS_RSRC_FLAG_CONTENT_LENGTH_SET;
-	rsrc->content_length = st.st_size;
-	rsrc->content_type = "text/plain";
-
-	rsrc_file = mio_svc_htts_rsrc_getxtn(rsrc);
-	rsrc_file->fd = fd;
-	rsrc_file->range_start = 0;
-	rsrc_file->range_end = st.st_size;
-
-	if (mio_svc_htts_sendrsrc(htts, csck, rsrc, 200, method, version, keepalive) <= -1) goto oops;
-	return 0;
-
-oops:
-	if (rsrc) mio_svc_htts_rsrc_kill (rsrc);
-	if (fd >= 0) close (fd);
-	return -1;
-}
-
-#endif
