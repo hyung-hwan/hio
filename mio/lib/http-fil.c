@@ -610,6 +610,7 @@ static int open_peer (file_state_t* file_state, const mio_bch_t* actual_file)
 				file_state_send_final_status_to_client (file_state, ERRNO_TO_STATUS_CODE(errno), 1);
 				return -1;
 			}
+
 			return 0;
 
 		case MIO_HTTP_PUT:
@@ -641,6 +642,14 @@ static int open_peer (file_state_t* file_state, const mio_bch_t* actual_file)
 
 	file_state_send_final_status_to_client (file_state, 405, 1); /* 405: method not allowed */
 	return -1;
+}
+
+static MIO_INLINE void fadvise_on_peer (file_state_t* file_state)
+{
+#if defined(HAVE_POSIX_FADVISE)
+	if (file_state->req_method == MIO_HTTP_GET)
+		posix_fadvise (file_state->peer, file_state->start_offset, file_state->end_offset - file_state->start_offset + 1, POSIX_FADV_SEQUENTIAL);
+#endif
 }
 
 int mio_svc_htts_dofile (mio_svc_htts_t* htts, mio_dev_sck_t* csck, mio_htre_t* req, const mio_bch_t* docroot, const mio_bch_t* file)
@@ -681,6 +690,8 @@ int mio_svc_htts_dofile (mio_svc_htts_t* htts, mio_dev_sck_t* csck, mio_htre_t* 
 
 	if (open_peer(file_state, actual_file) <= -1 || 
 	    process_range_header(file_state, req) <= -1) goto oops;
+
+	fadvise_on_peer (file_state);
 
 #if !defined(FILE_ALLOW_UNLIMITED_REQ_CONTENT_LENGTH)
 	if (file_state->req_content_length_unlimited)
