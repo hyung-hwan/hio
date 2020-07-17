@@ -34,17 +34,6 @@
  * This file provides basic data types and functions for the http protocol.
  */
 
-/** 
- * The #mio_http_range_int_t type defines an integer that can represent
- * a range offset. Depening on the size of #mio_foff_t, it is defined to
- * either #mio_foff_t or #mio_ulong_t.
- */
-#if defined(MIO_SIZEOF_FOFF_T) && defined(MIO_SIZEOF_UINTMAX_T) && (MIO_SIZEOF_FOFF_T > MIO_SIZEOF_UINTMAX_T)
-typedef mio_foff_t mio_http_range_int_t;
-#else
-typedef mio_uintmax_t mio_http_range_int_t;
-#endif
-
 enum mio_http_range_type_t
 {
 	MIO_HTTP_RANGE_PROPER,
@@ -73,8 +62,8 @@ typedef enum mio_http_range_type_t mio_http_range_type_t;
 struct mio_http_range_t
 {
 	mio_http_range_type_t type; /**< type indicator */
-	mio_http_range_int_t from;  /**< starting offset */
-	mio_http_range_int_t to;    /**< ending offset */
+	mio_foff_t            from;  /**< starting offset */
+	mio_foff_t            to;    /**< ending offset */
 };
 typedef struct mio_http_range_t mio_http_range_t;
 

@@ -942,4 +942,33 @@ struct mio_cmgr_t
 
 #define MIO_STATIC_ASSERT_EXPR(expr) ((void)MIO_SIZEOF(char[(expr)? 1: -1]))
 
+
+/* =========================================================================
+ * FILE OFFSET TYPE
+ * =========================================================================*/
+/**
+ * The #mio_foff_t type defines an integer that can represent a file offset.
+ * Depending on your system, it's defined to one of #mio_int64_t, #mio_int32_t,
+ * and #mio_int16_t.
+ */
+#if defined(MIO_HAVE_INT64_T) && (MIO_SIZEOF_OFF64_T==8)
+	typedef mio_int64_t mio_foff_t;
+#	define MIO_SIZEOF_FOFF_T MIO_SIZEOF_INT64_T
+#elif defined(MIO_HAVE_INT64_T) && (MIO_SIZEOF_OFF_T==8)
+	typedef mio_int64_t mio_foff_t;
+#	define MIO_SIZEOF_FOFF_T MIO_SIZEOF_INT64_T
+#elif defined(MIO_HAVE_INT32_T) && (MIO_SIZEOF_OFF_T==4)
+	typedef mio_int32_t mio_foff_t;
+#	define MIO_SIZEOF_FOFF_T MIO_SIZEOF_INT32_T
+#elif defined(MIO_HAVE_INT16_T) && (MIO_SIZEOF_OFF_T==2)
+	typedef mio_int16_t mio_foff_t;
+#	define MIO_SIZEOF_FOFF_T MIO_SIZEOF_INT16_T
+#elif defined(MIO_HAVE_INT8_T) && (MIO_SIZEOF_OFF_T==1)
+	typedef mio_int8_t mio_foff_t;
+#	define MIO_SIZEOF_FOFF_T MIO_SIZEOF_INT16_T
+#else
+	typedef mio_int32_t mio_foff_t; /* this line is for doxygen */
+#	error Unsupported platform
+#endif
+
 #endif

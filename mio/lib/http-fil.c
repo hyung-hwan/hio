@@ -59,10 +59,10 @@ struct file_state_t
 	mio_oow_t num_pending_writes_to_peer;
 
 	int peer;
-	mio_uintmax_t total_size;
-	mio_uintmax_t start_offset;
-	mio_uintmax_t end_offset;
-	mio_uintmax_t cur_offset;
+	mio_foff_t total_size;
+	mio_foff_t start_offset;
+	mio_foff_t end_offset;
+	mio_foff_t cur_offset;
 	mio_bch_t peer_buf[8192];
 	mio_tmridx_t peer_tmridx;
 
@@ -433,7 +433,7 @@ static int file_state_send_header_to_client (file_state_t* file_state, int statu
 {
 	mio_svc_htts_cli_t* cli = file_state->client;
 	mio_bch_t dtbuf[64];
-	mio_uintmax_t content_length;
+	mio_foff_t content_length;
 
 	mio_svc_htts_fmtgmtime (cli->htts, MIO_NULL, dtbuf, MIO_COUNTOF(dtbuf));
 
@@ -449,8 +449,8 @@ static int file_state_send_header_to_client (file_state_t* file_state, int statu
 		(force_close? "close": "keep-alive"),
 		content_length) == (mio_oow_t)-1) return -1;
 
-	if (status_code == 206 && mio_becs_fcat(cli->sbuf, "Content-Ranges: bytes %ju-%ju/%ju\r\n", file_state->start_offset, file_state->end_offset, file_state->total_size) == (mio_oow_t)-1) return -1;
-	if (mio_becs_fcat(cli->sbuf, "Content-Length: %ju\r\n\r\n", content_length) == (mio_oow_t)-1) return -1;
+	if (status_code == 206 && mio_becs_fcat(cli->sbuf, "Content-Ranges: bytes %ju-%ju/%ju\r\n", (mio_uintmax_t)file_state->start_offset, (mio_uintmax_t)file_state->end_offset, (mio_uintmax_t)file_state->total_size) == (mio_oow_t)-1) return -1;
+	if (mio_becs_fcat(cli->sbuf, "Content-Length: %ju\r\n\r\n", (mio_uintmax_t)content_length) == (mio_oow_t)-1) return -1;
 
 	return file_state_write_to_client(file_state, MIO_BECS_PTR(cli->sbuf), MIO_BECS_LEN(cli->sbuf));
 }
@@ -472,7 +472,7 @@ static int file_state_send_contents_to_client (file_state_t* file_state)
  *      mio_dev_sck_write(sck, data_required_for_sendfile_operation, 0, MIO_NULL);....
  */
 	mio_t* mio = file_state->htts->mio;
-	mio_uintmax_t lim;
+	mio_foff_t lim;
 	ssize_t n;
 
 	if (file_state->cur_offset > file_state->end_offset)
