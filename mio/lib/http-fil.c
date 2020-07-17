@@ -370,15 +370,8 @@ static int file_client_on_write (mio_dev_sck_t* sck, mio_iolen_t wrlen, void* wr
 		MIO_ASSERT (mio, file_state->num_pending_writes_to_client > 0);
 		file_state->num_pending_writes_to_client--;
 
-#if 0
-XXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXX
-		if (file_state->peer && file_state->num_pending_writes_to_client == FILE_STATE_PENDING_IO_THRESHOLD)
-		{
-			if (!(file_state->over & FILE_STATE_OVER_READ_FROM_PEER) &&
-			    mio_dev_pro_read(file_state->peer, MIO_DEV_PRO_OUT, 1) <= -1) goto oops;
-		}
-#endif
-		file_state_send_contents_to_client (file_state);
+		if (file_state->req_method == MIO_HTTP_GET)
+			file_state_send_contents_to_client (file_state);
 
 		if ((file_state->over & FILE_STATE_OVER_READ_FROM_PEER) && file_state->num_pending_writes_to_client <= 0)
 		{
@@ -598,6 +591,7 @@ static int open_peer (file_state_t* file_state, const mio_bch_t* actual_file)
 	switch (file_state->req_method)
 	{
 		case MIO_HTTP_GET:
+		case MIO_HTTP_HEAD:
 			if (access(actual_file, R_OK) == -1)
 			{
 				file_state_send_final_status_to_client (file_state, ERRNO_TO_STATUS_CODE(errno), 1); /* 404 not found 403 Forbidden */
@@ -613,6 +607,7 @@ static int open_peer (file_state_t* file_state, const mio_bch_t* actual_file)
 
 			return 0;
 
+#if 0
 		case MIO_HTTP_PUT:
 		case MIO_HTTP_POST:
 /* TOOD: this is destructive. jump to default if not allowed by flags... */
@@ -633,6 +628,7 @@ static int open_peer (file_state_t* file_state, const mio_bch_t* actual_file)
 				return -1;
 			}
 			return 0;
+#endif
 
 #if 0
 		case MIO_HTTP_DELETE:
@@ -654,6 +650,8 @@ static MIO_INLINE void fadvise_on_peer (file_state_t* file_state)
 
 int mio_svc_htts_dofile (mio_svc_htts_t* htts, mio_dev_sck_t* csck, mio_htre_t* req, const mio_bch_t* docroot, const mio_bch_t* file)
 {
+/* TODO: ETag, Last-Modified... */
+
 	mio_t* mio = htts->mio;
 	mio_svc_htts_cli_t* cli = mio_dev_sck_getxtn(csck);
 	file_state_t* file_state = MIO_NULL;
@@ -708,23 +706,10 @@ int mio_svc_htts_dofile (mio_svc_htts_t* htts, mio_dev_sck_t* csck, mio_htre_t* 
 
 	if (req->flags & MIO_HTRE_ATTR_EXPECT100)
 	{
-/* TODO: check method. if GET, file contents can be transmitted without 100 continue ... */
 		if (mio_comp_http_version_numbers(&req->version, 1, 1) >= 0 && 
-		   (file_state->req_content_length_unlimited || file_state->req_content_length > 0)) 
+		   (file_state->req_content_length_unlimited || file_state->req_content_length > 0) &&
+		   (file_state->req_method != MIO_HTTP_GET && file_state->req_method != MIO_HTTP_HEAD))  
 		{
-			/* 
-			 * Don't send 100 Continue if http verions is lower than 1.1
-			 * [RFC7231] 
-			 *  A server that receives a 100-continue expectation in an HTTP/1.0
-			 *  request MUST ignore that expectation.
-			 *
-			 * Don't send 100 Continue if expected content lenth is 0. 
-			 * [RFC7231]
-			 *  A server MAY omit sending a 100 (Continue) response if it has
-			 *  already received some or all of the message body for the
-			 *  corresponding request, or if the framing indicates that there is
-			 *  no message body.
-			 */
 			mio_bch_t msgbuf[64];
 			mio_oow_t msglen;
 
@@ -787,6 +772,11 @@ int mio_svc_htts_dofile (mio_svc_htts_t* htts, mio_dev_sck_t* csck, mio_htre_t* 
 	{
 		if (file_state_send_header_to_client(file_state, 200, 0) <= -1 ||
 		    file_state_send_contents_to_client(file_state) <= -1) goto oops;
+	}
+	else if (file_state->req_method == MIO_HTTP_HEAD)
+	{
+		if (file_state_send_header_to_client(file_state, 200, 0) <= -1) goto oops;
+		file_state_mark_over (file_state, FILE_STATE_OVER_READ_FROM_PEER | FILE_STATE_OVER_WRITE_TO_PEER);
 	}
 
 	/* TODO: store current input watching state and use it when destroying the file_state data */

@@ -879,7 +879,7 @@ int mio_svc_htts_dothr (mio_svc_htts_t* htts, mio_dev_sck_t* csck, mio_htre_t* r
 	MIO_SVC_HTTS_RSRC_ATTACH (thr_state, cli->rsrc);
 
 	thr_state->peer = mio_dev_thr_make(mio, MIO_SIZEOF(*thr_peer), &mi);
-	if (MIO_UNLIKELY(!thr_state->peer)) goto oops;
+	if (MIO_UNLIKELY(!thr_state->peer)) { printf ("dev thr make failure. \n"); goto oops; }
 
 	tfs = MIO_NULL; /* mark that tfs is delegated to the thread */
 

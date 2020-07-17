@@ -1231,14 +1231,130 @@ static void on_write_timeout (mio_t* mio, const mio_ntime_t* now, mio_tmrjob_t* 
 	if (x <= -1) mio_dev_halt (dev);
 }
 
+static MIO_INLINE int __enqueue_completed_write (mio_dev_t* dev, mio_iolen_t len, void* wrctx, const mio_devaddr_t* dstaddr)
+{
+	mio_t* mio = dev->mio;
+	mio_cwq_t* cwq;
+	mio_oow_t cwq_extra_aligned, cwqfl_index;
+
+	cwq_extra_aligned = (dstaddr? dstaddr->len: 0);
+	cwq_extra_aligned = MIO_ALIGN_POW2(cwq_extra_aligned, MIO_CWQFL_ALIGN);
+	cwqfl_index = cwq_extra_aligned / MIO_CWQFL_SIZE;
+
+	if (cwqfl_index < MIO_COUNTOF(mio->cwqfl) && mio->cwqfl[cwqfl_index])
+	{
+		/* take an available cwq object from the free cwq list */
+		cwq = dev->mio->cwqfl[cwqfl_index];
+		dev->mio->cwqfl[cwqfl_index] = cwq->q_next;
+	}
+	else
+	{
+		cwq = (mio_cwq_t*)mio_allocmem(mio, MIO_SIZEOF(*cwq) + cwq_extra_aligned);
+		if (MIO_UNLIKELY(!cwq)) return -1;
+	}
+
+	MIO_MEMSET (cwq, 0, MIO_SIZEOF(*cwq));
+	cwq->dev = dev;
+	cwq->ctx = wrctx;
+	if (dstaddr)
+	{
+		cwq->dstaddr.ptr = (mio_uint8_t*)(cwq + 1);
+		cwq->dstaddr.len = dstaddr->len;
+		MIO_MEMCPY (cwq->dstaddr.ptr, dstaddr->ptr, dstaddr->len);
+	}
+	else
+	{
+		cwq->dstaddr.len = 0;
+	}
+
+	cwq->olen = len;
+
+	MIO_CWQ_ENQ (&dev->mio->cwq, cwq);
+	dev->cw_count++; /* increment the number of complete write operations */
+	return 0;
+}
+
+static MIO_INLINE int __enqueue_pending_write (mio_dev_t* dev, mio_iolen_t olen, mio_iolen_t urem, mio_iovec_t* iov, mio_iolen_t iov_cnt, mio_iolen_t iov_index, const mio_ntime_t* tmout, void* wrctx, const mio_devaddr_t* dstaddr)
+{
+	mio_t* mio = dev->mio;
+	mio_wq_t* q;
+	mio_iolen_t i, j;
+
+	if (dev->dev_cap & MIO_DEV_CAP_OUT_UNQUEUEABLE)
+	{
+		/* writing queuing is not requested. so return failure */
+		mio_seterrbfmt (mio, MIO_ENOCAPA, "device incapable of queuing");
+		return -1;
+	}
+
+	/* queue the remaining data*/
+	q = (mio_wq_t*)mio_allocmem(mio, MIO_SIZEOF(*q) + (dstaddr? dstaddr->len: 0) + urem);
+	if (MIO_UNLIKELY(!q)) return -1;
+
+	q->tmridx = MIO_TMRIDX_INVALID;
+	q->dev = dev;
+	q->ctx = wrctx;
+
+	if (dstaddr)
+	{
+		q->dstaddr.ptr = (mio_uint8_t*)(q + 1);
+		q->dstaddr.len = dstaddr->len;
+		MIO_MEMCPY (q->dstaddr.ptr, dstaddr->ptr, dstaddr->len);
+	}
+	else
+	{
+		q->dstaddr.len = 0;
+	}
+
+	q->ptr = (mio_uint8_t*)(q + 1) + q->dstaddr.len;
+	q->len = urem;
+	q->olen = olen; /* original length to use when invoking on_write() */
+	for (i = iov_index, j = 0; i < iov_cnt; i++)
+	{
+		MIO_MEMCPY (&q->ptr[j], iov[i].iov_ptr, iov[i].iov_len);
+		j += iov[i].iov_len;
+	}
+
+	if (tmout && MIO_IS_POS_NTIME(tmout))
+	{
+		mio_tmrjob_t tmrjob;
+
+		MIO_MEMSET (&tmrjob, 0, MIO_SIZEOF(tmrjob));
+		tmrjob.ctx = q;
+		mio_gettime (mio, &tmrjob.when);
+		MIO_ADD_NTIME (&tmrjob.when, &tmrjob.when, tmout);
+		tmrjob.handler = on_write_timeout;
+		tmrjob.idxptr = &q->tmridx;
+
+		q->tmridx = mio_instmrjob(mio, &tmrjob);
+		if (q->tmridx == MIO_TMRIDX_INVALID) 
+		{
+			mio_freemem (mio, q);
+			return -1;
+		}
+	}
+
+	MIO_WQ_ENQ (&dev->wq, q);
+	if (!(dev->dev_cap & MIO_DEV_CAP_OUT_WATCHED))
+	{
+		/* if output is not being watched, arrange to do so */
+		if (mio_dev_watch(dev, MIO_DEV_WATCH_RENEW, MIO_DEV_EVENT_IN) <= -1)
+		{
+			unlink_wq (mio, q);
+			mio_freemem (mio, q);
+			return -1;
+		}
+	}
+
+	return 0; /* request pused to a write queue. */
+}
+
 static int __dev_write (mio_dev_t* dev, const void* data, mio_iolen_t len, const mio_ntime_t* tmout, void* wrctx, const mio_devaddr_t* dstaddr)
 {
 	mio_t* mio = dev->mio;
 	const mio_uint8_t* uptr;
 	mio_iolen_t urem, ulen;
-	mio_wq_t* q;
-	mio_cwq_t* cwq;
-	mio_oow_t cwq_extra_aligned, cwqfl_index;
+	mio_iovec_t iov;
 	int x;
 
 	if (dev->dev_cap & MIO_DEV_CAP_OUT_CLOSED)
@@ -1317,120 +1433,22 @@ static int __dev_write (mio_dev_t* dev, const void* data, mio_iolen_t len, const
 		goto enqueue_completed_write;
 	}
 
-	return 1; /* written immediately and called on_write callback */
+	return 1; /* written immediately and called on_write callback. but this line will never be reached */
 
 enqueue_data:
-	if (dev->dev_cap & MIO_DEV_CAP_OUT_UNQUEUEABLE)
-	{
-		/* writing queuing is not requested. so return failure */
-		mio_seterrbfmt (mio, MIO_ENOCAPA, "device incapable of queuing");
-		return -1;
-	}
-
-	/* queue the remaining data*/
-	q = (mio_wq_t*)mio_allocmem(mio, MIO_SIZEOF(*q) + (dstaddr? dstaddr->len: 0) + urem);
-	if (!q) return -1;
-
-	q->tmridx = MIO_TMRIDX_INVALID;
-	q->dev = dev;
-	q->ctx = wrctx;
-
-	if (dstaddr)
-	{
-		q->dstaddr.ptr = (mio_uint8_t*)(q + 1);
-		q->dstaddr.len = dstaddr->len;
-		MIO_MEMCPY (q->dstaddr.ptr, dstaddr->ptr, dstaddr->len);
-	}
-	else
-	{
-		q->dstaddr.len = 0;
-	}
-
-	q->ptr = (mio_uint8_t*)(q + 1) + q->dstaddr.len;
-	q->len = urem;
-	q->olen = len;
-	MIO_MEMCPY (q->ptr, uptr, urem);
-
-	if (tmout && MIO_IS_POS_NTIME(tmout))
-	{
-		mio_tmrjob_t tmrjob;
-
-		MIO_MEMSET (&tmrjob, 0, MIO_SIZEOF(tmrjob));
-		tmrjob.ctx = q;
-		mio_gettime (mio, &tmrjob.when);
-		MIO_ADD_NTIME (&tmrjob.when, &tmrjob.when, tmout);
-		tmrjob.handler = on_write_timeout;
-		tmrjob.idxptr = &q->tmridx;
-
-		q->tmridx = mio_instmrjob(mio, &tmrjob);
-		if (q->tmridx == MIO_TMRIDX_INVALID) 
-		{
-			mio_freemem (mio, q);
-			return -1;
-		}
-	}
-
-	MIO_WQ_ENQ (&dev->wq, q);
-	if (!(dev->dev_cap & MIO_DEV_CAP_OUT_WATCHED))
-	{
-		/* if output is not being watched, arrange to do so */
-		if (mio_dev_watch(dev, MIO_DEV_WATCH_RENEW, MIO_DEV_EVENT_IN) <= -1)
-		{
-			unlink_wq (mio, q);
-			mio_freemem (mio, q);
-			return -1;
-		}
-	}
-
-	return 0; /* request pused to a write queue. */
+	iov.iov_ptr = (void*)uptr;
+	iov.iov_len = urem;
+	return __enqueue_pending_write(dev, len, urem, &iov, 1, 0, tmout, wrctx, dstaddr);
 
 enqueue_completed_write:
-	/* queue the remaining data*/
-	cwq_extra_aligned = (dstaddr? dstaddr->len: 0);
-	cwq_extra_aligned = MIO_ALIGN_POW2(cwq_extra_aligned, MIO_CWQFL_ALIGN);
-	cwqfl_index = cwq_extra_aligned / MIO_CWQFL_SIZE;
-
-	if (cwqfl_index < MIO_COUNTOF(mio->cwqfl) && mio->cwqfl[cwqfl_index])
-	{
-		/* take an available cwq object from the free cwq list */
-		cwq = dev->mio->cwqfl[cwqfl_index];
-		dev->mio->cwqfl[cwqfl_index] = cwq->q_next;
-	}
-	else
-	{
-		cwq = (mio_cwq_t*)mio_allocmem(mio, MIO_SIZEOF(*cwq) + cwq_extra_aligned);
-		if (MIO_UNLIKELY(!cwq)) return -1;
-	}
-
-	MIO_MEMSET (cwq, 0, MIO_SIZEOF(*cwq));
-	cwq->dev = dev;
-	cwq->ctx = wrctx;
-	if (dstaddr)
-	{
-		cwq->dstaddr.ptr = (mio_uint8_t*)(cwq + 1);
-		cwq->dstaddr.len = dstaddr->len;
-		MIO_MEMCPY (cwq->dstaddr.ptr, dstaddr->ptr, dstaddr->len);
-	}
-	else
-	{
-		cwq->dstaddr.len = 0;
-	}
-
-	cwq->olen = len;
-
-	MIO_CWQ_ENQ (&dev->mio->cwq, cwq);
-	dev->cw_count++; /* increment the number of complete write operations */
-	return 0;
+	return __enqueue_completed_write(dev, len, wrctx, dstaddr);
 }
 
 static int __dev_writev (mio_dev_t* dev, mio_iovec_t* iov, mio_iolen_t iovcnt, const mio_ntime_t* tmout, void* wrctx, const mio_devaddr_t* dstaddr)
 {
 	mio_t* mio = dev->mio;
 	mio_iolen_t urem, len;
-	mio_iolen_t index = 0, i, j;
-	mio_wq_t* q;
-	mio_cwq_t* cwq;
-	mio_oow_t cwq_extra_aligned, cwqfl_index;
+	mio_iolen_t index = 0, i;
 	int x;
 
 	if (dev->dev_cap & MIO_DEV_CAP_OUT_CLOSED)
@@ -1522,116 +1540,40 @@ static int __dev_writev (mio_dev_t* dev, mio_iovec_t* iov, mio_iolen_t iovcnt, c
 		goto enqueue_completed_write;
 	}
 
-	return 1; /* written immediately and called on_write callback */
+	return 1; /* written immediately and called on_write callback. but this line will never be reached */
 
 enqueue_data:
-	if (dev->dev_cap & MIO_DEV_CAP_OUT_UNQUEUEABLE)
+	return __enqueue_pending_write(dev, len, urem, iov, iovcnt, index, tmout, wrctx, dstaddr);
+
+enqueue_completed_write:
+	return __enqueue_completed_write(dev, len, wrctx, dstaddr);
+}
+
+static int __dev_sendfile (mio_dev_t* dev, mio_syshnd_t in_fd, mio_uintmax_t offset, mio_iolen_t len, const mio_ntime_t* tmout, void* wrctx, const mio_devaddr_t* dstaddr)
+{
+	mio_t* mio = dev->mio;
+
+	if (dev->dev_cap & MIO_DEV_CAP_OUT_CLOSED)
 	{
-		/* writing queuing is not requested. so return failure */
-		mio_seterrbfmt (mio, MIO_ENOCAPA, "device incapable of queuing");
+		mio_seterrbfmt (mio, MIO_ENOCAPA, "unable to write to closed device");
 		return -1;
 	}
 
-	/* queue the remaining data*/
-	q = (mio_wq_t*)mio_allocmem(mio, MIO_SIZEOF(*q) + (dstaddr? dstaddr->len: 0) + urem);
-	if (MIO_UNLIKELY(!q)) return -1;
-
-	q->tmridx = MIO_TMRIDX_INVALID;
-	q->dev = dev;
-	q->ctx = wrctx;
-
-	if (dstaddr)
+	if (!MIO_WQ_IS_EMPTY(&dev->wq)) 
 	{
-		q->dstaddr.ptr = (mio_uint8_t*)(q + 1);
-		q->dstaddr.len = dstaddr->len;
-		MIO_MEMCPY (q->dstaddr.ptr, dstaddr->ptr, dstaddr->len);
-	}
-	else
-	{
-		q->dstaddr.len = 0;
+		/* if the writing queue is not empty, enqueue this request immediately */
+		goto enqueue_data;
 	}
 
-	q->ptr = (mio_uint8_t*)(q + 1) + q->dstaddr.len;
-	q->len = urem;
-	q->olen = len; /* original length to use when invoking on_write() */
-	for (i = index, j = 0; i < iovcnt; i++)
-	{
-		MIO_MEMCPY (&q->ptr[j], iov[i].iov_ptr, iov[i].iov_len);
-		j += iov[i].iov_len;
-	}
+	return 1; 
 
-	if (tmout && MIO_IS_POS_NTIME(tmout))
-	{
-		mio_tmrjob_t tmrjob;
-
-		MIO_MEMSET (&tmrjob, 0, MIO_SIZEOF(tmrjob));
-		tmrjob.ctx = q;
-		mio_gettime (mio, &tmrjob.when);
-		MIO_ADD_NTIME (&tmrjob.when, &tmrjob.when, tmout);
-		tmrjob.handler = on_write_timeout;
-		tmrjob.idxptr = &q->tmridx;
-
-		q->tmridx = mio_instmrjob(mio, &tmrjob);
-		if (q->tmridx == MIO_TMRIDX_INVALID) 
-		{
-			mio_freemem (mio, q);
-			return -1;
-		}
-	}
-
-	MIO_WQ_ENQ (&dev->wq, q);
-	if (!(dev->dev_cap & MIO_DEV_CAP_OUT_WATCHED))
-	{
-		/* if output is not being watched, arrange to do so */
-		if (mio_dev_watch(dev, MIO_DEV_WATCH_RENEW, MIO_DEV_EVENT_IN) <= -1)
-		{
-			unlink_wq (mio, q);
-			mio_freemem (mio, q);
-			return -1;
-		}
-	}
-
-	return 0; /* request pused to a write queue. */
+enqueue_data:
+	/*return __enqueue_pending_write(dev, len, urem, iov, iovcnt, index, tmout, wrctx, dstaddr);*/
 
 enqueue_completed_write:
-	/* queue the remaining data*/
-	cwq_extra_aligned = (dstaddr? dstaddr->len: 0);
-	cwq_extra_aligned = MIO_ALIGN_POW2(cwq_extra_aligned, MIO_CWQFL_ALIGN);
-	cwqfl_index = cwq_extra_aligned / MIO_CWQFL_SIZE;
-
-	if (cwqfl_index < MIO_COUNTOF(mio->cwqfl) && mio->cwqfl[cwqfl_index])
-	{
-		/* take an available cwq object from the free cwq list */
-		cwq = dev->mio->cwqfl[cwqfl_index];
-		dev->mio->cwqfl[cwqfl_index] = cwq->q_next;
-	}
-	else
-	{
-		cwq = (mio_cwq_t*)mio_allocmem(mio, MIO_SIZEOF(*cwq) + cwq_extra_aligned);
-		if (!cwq) return -1;
-	}
-
-	MIO_MEMSET (cwq, 0, MIO_SIZEOF(*cwq));
-	cwq->dev = dev;
-	cwq->ctx = wrctx;
-	if (dstaddr)
-	{
-		cwq->dstaddr.ptr = (mio_uint8_t*)(cwq + 1);
-		cwq->dstaddr.len = dstaddr->len;
-		MIO_MEMCPY (cwq->dstaddr.ptr, dstaddr->ptr, dstaddr->len);
-	}
-	else
-	{
-		cwq->dstaddr.len = 0;
-	}
-
-	cwq->olen = len;
-
-	MIO_CWQ_ENQ (&dev->mio->cwq, cwq);
-	dev->cw_count++; /* increment the number of complete write operations */
+	/*return __enqueue_completed_write(dev, len, wrctx, dstaddr);*/
 	return 0;
 }
-
 
 int mio_dev_write (mio_dev_t* dev, const void* data, mio_iolen_t len, void* wrctx, const mio_devaddr_t* dstaddr)
 {
