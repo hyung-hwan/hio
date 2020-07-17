@@ -153,7 +153,6 @@ static int listener_on_read (mio_dev_sck_t* sck, const void* buf, mio_iolen_t le
 
 	if ((x = mio_htrd_feed(cli->htrd, buf, len, &rem)) <= -1) 
 	{
-printf ("** HTTS - client htrd feed failure socket(%p) - %d\n", sck, x);
 		goto oops;
 	}
 
@@ -172,7 +171,6 @@ printf ("** HTTS - client htrd feed failure socket(%p) - %d\n", sck, x);
 	return 0;
 
 oops:
-printf ("HALTING CLIENT SOCKEXXT %p\n", sck);
 	mio_dev_sck_halt (sck);
 	return 0;
 }
