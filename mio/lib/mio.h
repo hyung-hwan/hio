@@ -195,6 +195,7 @@ struct mio_dev_mth_t
 	/* ------------------------------------------------------------------ */
 	int           (*write)        (mio_dev_t* dev, const void* data, mio_iolen_t* len, const mio_devaddr_t* dstaddr);
 	int           (*writev)       (mio_dev_t* dev, const mio_iovec_t* iov, mio_iolen_t* iovcnt, const mio_devaddr_t* dstaddr);
+	int           (*sendfile)     (mio_dev_t* dev, mio_syshnd_t in_fd, mio_foff_t foff, mio_iolen_t* len);
 
 	/* ------------------------------------------------------------------ */
 	int           (*ioctl)        (mio_dev_t* dev, int cmd, void* arg);

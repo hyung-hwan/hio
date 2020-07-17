@@ -1549,30 +1549,98 @@ enqueue_completed_write:
 	return __enqueue_completed_write(dev, len, wrctx, dstaddr);
 }
 
-static int __dev_sendfile (mio_dev_t* dev, mio_syshnd_t in_fd, mio_uintmax_t offset, mio_iolen_t len, const mio_ntime_t* tmout, void* wrctx, const mio_devaddr_t* dstaddr)
+static int __dev_sendfile (mio_dev_t* dev, mio_syshnd_t in_fd, mio_foff_t foff, mio_iolen_t len, const mio_ntime_t* tmout, void* wrctx)
 {
+#if 1
 	mio_t* mio = dev->mio;
+	mio_foff_t uoff;
+	mio_iolen_t urem, ulen;
+	int x;
 
 	if (dev->dev_cap & MIO_DEV_CAP_OUT_CLOSED)
 	{
-		mio_seterrbfmt (mio, MIO_ENOCAPA, "unable to write to closed device");
+		mio_seterrbfmt (mio, MIO_ENOCAPA, "unable to sendfile to closed device");
 		return -1;
 	}
 
+	uoff = foff;
+	urem = len;
+
 	if (!MIO_WQ_IS_EMPTY(&dev->wq)) 
 	{
-		/* if the writing queue is not empty, enqueue this request immediately */
+		/* the writing queue is not empty. 
+		 * enqueue this request immediately */
 		goto enqueue_data;
 	}
 
-	return 1; 
+	if (dev->dev_cap & MIO_DEV_CAP_STREAM)
+	{
+		/* use the do..while() loop to be able to send a zero-length data */
+		do
+		{
+			ulen = urem;
+			x = dev->dev_mth->sendfile(dev, in_fd, foff, &ulen);
+			if (x <= -1) return -1;
+			else if (x == 0) 
+			{
+				/* [NOTE] 
+				 * the write queue is empty at this moment. a zero-length 
+				 * request for a stream device can still get enqueued if the
+				 * write callback returns 0 though i can't figure out if there
+				 * is a compelling reason to do so 
+				 */
+				goto enqueue_data; /* enqueue remaining data */
+			}
+			else 
+			{
+				/* the write callback should return at most the number of requested
+				 * bytes. but returning more is harmless as urem is of a signed type.
+				 * for a zero-length request, it's necessary to return at least 1
+				 * to indicate successful acknowlegement. otherwise, it gets enqueued
+				 * as shown in the 'if' block right above. */
+				urem -= ulen;
+				uoff += ulen;
+			}
+		}
+		while (urem > 0);
+
+		if (len <= 0) /* original length */
+		{
+			/* a zero-length writing request is to close the writing end. this causes further write request to fail */
+			dev->dev_cap |= MIO_DEV_CAP_OUT_CLOSED;
+		}
+
+		/* if i trigger the write completion callback here, the performance
+		 * may increase, but there can be annoying recursion issues if the 
+		 * callback requests another writing operation. it's imperative to
+		 * delay the callback until this write function is finished.
+		 * ---> if (dev->dev_evcb->on_write(dev, len, wrctx, dstaddr) <= -1) return -1; */
+		goto enqueue_completed_write;
+	}
+	else
+	{
+		mio_seterrbfmt (mio, MIO_ENOCAPA, "unable to sendfile over a non-stream device");
+		return -1;
+	}
+
+	return 1; /* written immediately and called on_write callback. but this line will never be reached */
 
 enqueue_data:
-	/*return __enqueue_pending_write(dev, len, urem, iov, iovcnt, index, tmout, wrctx, dstaddr);*/
+#if 0
+	iov.iov_ptr = (void*)uptr;
+	iov.iov_len = urem;
+	return __enqueue_pending_write(dev, len, urem, &iov, 1, 0, tmout, wrctx, dstaddr);
+#else
+	/* TODO: */
+	return -1;
+#endif
+
 
 enqueue_completed_write:
-	/*return __enqueue_completed_write(dev, len, wrctx, dstaddr);*/
+	return __enqueue_completed_write(dev, len, wrctx, dstaddr);
+#else
 	return 0;
+#endif
 }
 
 int mio_dev_write (mio_dev_t* dev, const void* data, mio_iolen_t len, void* wrctx, const mio_devaddr_t* dstaddr)

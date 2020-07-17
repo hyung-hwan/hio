@@ -214,7 +214,7 @@ int mio_parse_http_range_bcstr (const mio_bch_t* str, mio_http_range_t* range)
 	/* NOTE: this function does not support a range set 
 	 *       like bytes=1-20,30-50 */
 
-	mio_http_range_int_t from, to;
+	mio_foff_t from, to;
 	int type = MIO_HTTP_RANGE_PROPER;
 
 	if (str[0] != 'b' ||
