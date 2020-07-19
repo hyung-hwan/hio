@@ -329,6 +329,7 @@ static mio_dev_mth_t dev_mar_methods =
 	MIO_NULL,
 	MIO_NULL,
 	MIO_NULL,
+	MIO_NULL, /* sendfile */
 	dev_mar_ioctl
 };
 

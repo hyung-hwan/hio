@@ -44,6 +44,9 @@
 #	include <net/if_dl.h>
 #endif
 
+#if defined(HAVE_SYS_SENDFILE_H)
+#	include <sys/sendfile.h>
+#endif
 
 #if defined(__linux__)
 #	include <limits.h>
@@ -409,6 +412,7 @@ static mio_syshnd_t dev_sck_getsyshnd (mio_dev_t* dev)
 	mio_dev_sck_t* rdev = (mio_dev_sck_t*)dev;
 	return (mio_syshnd_t)rdev->hnd;
 }
+/* ------------------------------------------------------------------------------ */
 
 static int dev_sck_read_stateful (mio_dev_t* dev, void* buf, mio_iolen_t* len, mio_devaddr_t* srcaddr)
 {
@@ -476,6 +480,7 @@ static int dev_sck_read_stateless (mio_dev_t* dev, void* buf, mio_iolen_t* len, 
 	return 1;
 }
 
+/* ------------------------------------------------------------------------------ */
 
 static int dev_sck_write_stateful (mio_dev_t* dev, const void* data, mio_iolen_t* len, const mio_devaddr_t* dstaddr)
 {
@@ -643,6 +648,8 @@ static int dev_sck_writev_stateful (mio_dev_t* dev, const mio_iovec_t* iov, mio_
 	return 1;
 }
 
+/* ------------------------------------------------------------------------------ */
+
 static int dev_sck_write_stateless (mio_dev_t* dev, const void* data, mio_iolen_t* len, const mio_devaddr_t* dstaddr)
 {
 	mio_t* mio = dev->mio;
@@ -690,6 +697,88 @@ static int dev_sck_writev_stateless (mio_dev_t* dev, const mio_iovec_t* iov, mio
 	*iovcnt = x;
 	return 1;
 }
+
+/* ------------------------------------------------------------------------------ */
+
+static int dev_sck_sendfile_stateful (mio_dev_t* dev, mio_syshnd_t in_fd, mio_foff_t foff, mio_iolen_t* len)
+{
+	mio_t* mio = dev->mio;
+	mio_dev_sck_t* rdev = (mio_dev_sck_t*)dev;
+
+#if 0 && defined(USE_SSL)
+/* TODO: ssl needs to read from the file... and send... */
+	if (rdev->ssl)
+	{
+		int x;
+
+		if (*len <= 0)
+		{
+			/* it's a writing finish indicator. close the writing end of
+			 * the socket, probably leaving it in the half-closed state */
+			if ((x = SSL_shutdown((SSL*)rdev->ssl)) == -1)
+			{
+				set_ssl_error (mio, SSL_get_error((SSL*)rdev->ssl, x));
+				return -1;
+			}
+			return 1;
+		}
+
+		x = SSL_write((SSL*)rdev->ssl, data, *len);
+		if (x <= -1)
+		{
+			int err = SSL_get_error ((SSL*)rdev->ssl, x);
+			if (err == SSL_ERROR_WANT_READ || err == SSL_ERROR_WANT_WRITE) return 0;
+			set_ssl_error (mio, err);
+			return -1;
+		}
+
+		*len = x;
+	}
+	else
+	{
+#endif
+		ssize_t x;
+
+		if (*len <= 0)
+		{
+			/* the write handler for a stream device must handle a zero-length 
+			 * writing request specially. it's a writing finish indicator. close
+			 * the writing end of the socket, probably leaving it in the half-closed state */
+			if (shutdown(rdev->hnd, SHUT_WR) == -1)
+			{
+				mio_seterrwithsyserr (mio, 0, errno);
+				return -1;
+			}
+
+			/* it must return a non-zero positive value. if it returns 0, this request 
+			 * gets enqueued by the core. we must aovid it */
+			return 1;
+		}
+
+#if defined(HAVE_SENDFILE)
+/* TODO: cater for other systems */
+		x = sendfile(rdev->hnd, in_fd, &foff, *len);
+		if (x == -1) 
+		{
+			if (errno == EINPROGRESS || errno == EWOULDBLOCK || errno == EAGAIN) return 0;  /* no data can be written */
+			if (errno == EINTR) return 0;
+			mio_seterrwithsyserr (mio, 0, errno);
+			return -1;
+		}
+		*len = x;
+#else
+		mio_seterrnum (mio, MIO_ENOIMPL);
+		return -1;
+#endif
+
+	
+#if 0 && defined(USE_SSL)
+	}
+#endif
+	return 1;
+}
+
+/* ------------------------------------------------------------------------------ */
 
 #if defined(USE_SSL)
 
@@ -1124,6 +1213,7 @@ static mio_dev_mth_t dev_sck_methods_stateless =
 	dev_sck_read_stateless,
 	dev_sck_write_stateless,
 	dev_sck_writev_stateless,
+	MIO_NULL,          /* sendfile */
 	dev_sck_ioctl,     /* ioctl */
 };
 
@@ -1137,6 +1227,7 @@ static mio_dev_mth_t dev_sck_methods_stateful =
 	dev_sck_read_stateful,
 	dev_sck_write_stateful,
 	dev_sck_writev_stateful,
+	dev_sck_sendfile_stateful,
 	dev_sck_ioctl,     /* ioctl */
 };
 
@@ -1149,6 +1240,7 @@ static mio_dev_mth_t dev_mth_clisck =
 	dev_sck_read_stateful,
 	dev_sck_write_stateful,
 	dev_sck_writev_stateful,
+	dev_sck_sendfile_stateful,
 	dev_sck_ioctl
 };
 /* ========================================================================= */
@@ -1709,7 +1801,6 @@ int mio_dev_sck_timedwritev (mio_dev_sck_t* dev, mio_iovec_t* iov, mio_iolen_t i
 	mio_devaddr_t devaddr;
 	return mio_dev_timedwritev((mio_dev_t*)dev, iov, iovcnt, tmout, wrctx, skad_to_devaddr(dev, dstaddr, &devaddr));
 }
-
 
 /* ========================================================================= */
 int mio_dev_sck_setsockopt (mio_dev_sck_t* dev, int level, int optname, void* optval, mio_scklen_t optlen)

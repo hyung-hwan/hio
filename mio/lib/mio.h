@@ -299,6 +299,7 @@ struct mio_wq_t
 	mio_wq_t*       q_next;
 	mio_wq_t*       q_prev;
 
+	int             sendfile;
 	mio_iolen_t     olen; /* original data length */
 	mio_uint8_t*    ptr;  /* pointer to data */
 	mio_iolen_t     len;  /* remaining data length */
@@ -899,6 +900,14 @@ MIO_EXPORT int mio_dev_writev (
 	const mio_devaddr_t*  dstaddr
 );
 
+MIO_EXPORT int mio_dev_sendfile (
+	mio_dev_t*            dev,
+	mio_syshnd_t          in_fd,
+	mio_foff_t            foff,
+	mio_iolen_t           len,
+	void*                 wrctx
+);
+
 MIO_EXPORT int mio_dev_timedwrite (
 	mio_dev_t*           dev,
 	const void*          data,
@@ -918,6 +927,14 @@ MIO_EXPORT int mio_dev_timedwritev (
 	const mio_devaddr_t*  dstaddr
 );
 
+MIO_EXPORT int mio_dev_timedsendfile (
+	mio_dev_t*            dev,
+	mio_syshnd_t          in_fd,
+	mio_foff_t            foff,
+	mio_iolen_t           len,
+	const mio_ntime_t*    tmout,
+	void*                 wrctx
+);
 /* =========================================================================
  * SERVICE 
  * ========================================================================= */
