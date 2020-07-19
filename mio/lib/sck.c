@@ -1837,6 +1837,15 @@ int mio_dev_sck_shutdown (mio_dev_sck_t* dev, int how)
 	return shutdown(dev->hnd, how);
 }
 
+int mio_dev_sck_sendfileok (mio_dev_sck_t* dev)
+{
+#if defined(USE_SSL)
+	return !(dev->ssl);
+#else
+	return 1;
+#endif
+}
+
 /* ========================================================================= */
 
 mio_uint16_t mio_checksum_ip (const void* hdr, mio_oow_t len)

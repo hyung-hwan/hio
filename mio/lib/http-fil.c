@@ -58,6 +58,7 @@ struct file_state_t
 	mio_oow_t num_pending_writes_to_client;
 	mio_oow_t num_pending_writes_to_peer;
 
+	int sendfile_ok;
 	int peer;
 	mio_foff_t total_size;
 	mio_foff_t start_offset;
@@ -471,11 +472,6 @@ static void send_contents_to_client_later (mio_t* mio, const mio_ntime_t* now, m
 
 static int file_state_send_contents_to_client (file_state_t* file_state)
 {
-/* TODO: implement mio_dev_sck_sendfile(0 or enhance mio_dev_sck_write() to emulate sendfile
- * 
- *      mio_dev_sck_setsendfile (ON);
- *      mio_dev_sck_write(sck, data_required_for_sendfile_operation, 0, MIO_NULL);....
- */
 	mio_t* mio = file_state->htts->mio;
 	mio_foff_t lim;
 
@@ -487,8 +483,7 @@ static int file_state_send_contents_to_client (file_state_t* file_state)
 	}
 
 	lim = file_state->end_offset - file_state->cur_offset + 1;
-
-	if (1 /*mio_dev_sck_sendfileok(file_state->client->sck)*/)
+	if (file_state->sendfile_ok)
 	{
 		if (lim > 0x7FFF0000) lim = 0x7FFF0000; /* TODO: change this... */
 		if (file_state_sendfile_to_client(file_state, file_state->cur_offset, lim) <= -1) return -1;
@@ -683,6 +678,7 @@ int mio_svc_htts_dofile (mio_svc_htts_t* htts, mio_dev_sck_t* csck, mio_htre_t* 
 	if (MIO_UNLIKELY(!file_state)) goto oops;
 
 	file_state->client = cli;
+	file_state->sendfile_ok = mio_dev_sck_sendfileok(cli->sck);
 	/*file_state->num_pending_writes_to_client = 0;
 	file_state->num_pending_writes_to_peer = 0;*/
 	file_state->req_version = *mio_htre_getversion(req);

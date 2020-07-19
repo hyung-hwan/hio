@@ -274,13 +274,12 @@ static void listener_on_disconnect (mio_dev_sck_t* sck)
 
 /* ------------------------------------------------------------------------ */
 
-mio_svc_htts_t* mio_svc_htts_start (mio_t* mio, const mio_skad_t* bind_addr, mio_svc_htts_proc_req_t proc_req)
+mio_svc_htts_t* mio_svc_htts_start (mio_t* mio, mio_dev_sck_bind_t* sck_bind, mio_svc_htts_proc_req_t proc_req)
 {
 	mio_svc_htts_t* htts = MIO_NULL;
 	union
 	{
 		mio_dev_sck_make_t m;
-		mio_dev_sck_bind_t b;
 		mio_dev_sck_listen_t l;
 	} info;
 	mio_svc_htts_cli_t* cli;
@@ -293,7 +292,7 @@ mio_svc_htts_t* mio_svc_htts_start (mio_t* mio, const mio_skad_t* bind_addr, mio
 	htts->proc_req = proc_req;
 
 	MIO_MEMSET (&info, 0, MIO_SIZEOF(info));
-	switch (mio_skad_family(bind_addr))
+	switch (mio_skad_family(&sck_bind->localaddr))
 	{
 		case MIO_AF_INET:
 			info.m.type = MIO_DEV_SCK_TCP4;
@@ -324,13 +323,7 @@ mio_svc_htts_t* mio_svc_htts_start (mio_t* mio, const mio_skad_t* bind_addr, mio
 	cli->htts = htts; 
 	cli->sck = htts->lsck;
 
-	MIO_MEMSET (&info, 0, MIO_SIZEOF(info));
-	info.b.localaddr = *bind_addr;
-	info.b.options = MIO_DEV_SCK_BIND_REUSEADDR | MIO_DEV_SCK_BIND_REUSEPORT | MIO_DEV_SCK_BIND_IGNERR;
-	/*info.b.options |= MIO_DEV_SCK_BIND_SSL; */
-	info.b.ssl_certfile = "localhost.crt";
-	info.b.ssl_keyfile = "localhost.key";
-	if (mio_dev_sck_bind(htts->lsck, &info.b) <= -1) goto oops;
+	if (mio_dev_sck_bind(htts->lsck, sck_bind) <= -1) goto oops;
 
 	MIO_MEMSET (&info, 0, MIO_SIZEOF(info));
 	info.l.options = MIO_DEV_SCK_LISTEN_LENIENT;

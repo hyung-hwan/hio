@@ -562,6 +562,10 @@ MIO_EXPORT int mio_dev_sck_shutdown (
 	int            how  /* bitwise-ORed of mio_dev_sck_shutdown_how_t enumerators */
 );
 
+MIO_EXPORT int mio_dev_sck_sendfileok (
+	mio_dev_sck_t* dev
+);
+
 MIO_EXPORT mio_uint16_t mio_checksum_ip (
 	const void* hdr,
 	mio_oow_t len

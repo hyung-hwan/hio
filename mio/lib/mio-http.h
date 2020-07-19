@@ -249,9 +249,9 @@ MIO_EXPORT int mio_scan_http_qparam (
 /* ------------------------------------------------------------------------- */
 
 MIO_EXPORT mio_svc_htts_t* mio_svc_htts_start (
-	mio_t*                   mio,
-	const mio_skad_t*        bind_addr,
-	mio_svc_htts_proc_req_t  proc_req
+	mio_t*                    mio,
+	mio_dev_sck_bind_t*       sck_bind,
+	mio_svc_htts_proc_req_t   proc_req
 );
 
 MIO_EXPORT void mio_svc_htts_stop (
