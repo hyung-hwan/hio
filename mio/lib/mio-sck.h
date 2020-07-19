@@ -475,6 +475,7 @@ MIO_EXPORT int mio_dev_sck_writev (
 	const mio_skad_t*     dstaddr
 );
 
+
 MIO_EXPORT int mio_dev_sck_timedwrite (
 	mio_dev_sck_t*        dev,
 	const void*           data,
@@ -516,13 +517,27 @@ static MIO_INLINE int mio_dev_sck_timedread (mio_dev_sck_t* sck, int enabled, mi
 {
 	return mio_dev_timedread((mio_dev_t*)sck, enabled, tmout);
 }
+
+static MIO_INLINE int mio_dev_sck_sendfile (mio_dev_sck_t* sck, mio_syshnd_t in_fd, mio_foff_t foff, mio_iolen_t len, void* wrctx)
+{
+	return mio_dev_sendfile((mio_dev_t*)sck, in_fd, foff, len, wrctx);
+}
+
+static MIO_INLINE int mio_dev_sck_timedsendfile (mio_dev_sck_t* sck, mio_syshnd_t in_fd, mio_foff_t foff, mio_iolen_t len, mio_ntime_t* tmout, void* wrctx)
+{
+	return mio_dev_timedsendfile((mio_dev_t*)sck, in_fd, foff, len, tmout, wrctx);
+}
+
 #else
 
 #define mio_dev_sck_kill(sck) mio_dev_kill((mio_dev_t*)sck)
 #define mio_dev_sck_halt(sck) mio_dev_halt((mio_dev_t*)sck)
+
 #define mio_dev_sck_read(sck,enabled) mio_dev_read((mio_dev_t*)sck, enabled)
 #define mio_dev_sck_timedread(sck,enabled,tmout) mio_dev_timedread((mio_dev_t*)sck, enabled, tmout)
 
+#define mio_dev_sck_sendfile(sck,in_fd,foff,len,wrctx) mio_dev_sendfile((mio_dev_t*)sck, in_fd, foff, len, wrctx)
+#define mio_dev_sck_timedsendfile(sck,in_fd,foff,len,tmout,wrctx) mio_dev_timedsendfile((mio_dev_t*)sck, in_fd, foff, len, tmout, wrctx)
 #endif
 
 

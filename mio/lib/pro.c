@@ -732,9 +732,10 @@ static mio_dev_mth_t dev_pro_methods =
 	dev_pro_kill_master,
 	dev_pro_getsyshnd,
 
-	MIO_NULL,
-	MIO_NULL,
-	MIO_NULL,
+	MIO_NULL, /* read */
+	MIO_NULL, /* write */
+	MIO_NULL, /* writev */
+	MIO_NULL, /* sendfile */
 	dev_pro_ioctl
 };
 
@@ -747,6 +748,7 @@ static mio_dev_mth_t dev_pro_methods_slave =
 	dev_pro_read_slave,
 	dev_pro_write_slave,
 	dev_pro_writev_slave,
+	MIO_NULL, /* sendfile */
 	dev_pro_ioctl
 };
 

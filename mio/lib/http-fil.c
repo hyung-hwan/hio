@@ -119,6 +119,25 @@ static int file_state_write_to_client (file_state_t* file_state, const void* dat
 	return 0;
 }
 
+static int file_state_sendfile_to_client (file_state_t* file_state, mio_foff_t foff, mio_iolen_t len)
+{
+	file_state->ever_attempted_to_write_to_client = 1;
+
+	file_state->num_pending_writes_to_client++;
+	if (mio_dev_sck_sendfile(file_state->client->sck, file_state->peer, foff, len, MIO_NULL) <= -1) 
+	{
+		file_state->num_pending_writes_to_client--;
+		return -1;
+	}
+
+	if (file_state->num_pending_writes_to_client > FILE_STATE_PENDING_IO_THRESHOLD)
+	{
+		/* STOP READING */
+		/*if (mio_dev_pro_read(file_state->peer, MIO_DEV_PRO_OUT, 0) <= -1) return -1;*/
+	}
+	return 0;
+}
+
 static int file_state_send_final_status_to_client (file_state_t* file_state, int status_code, int force_close)
 {
 	mio_svc_htts_cli_t* cli = file_state->client;
@@ -136,20 +155,6 @@ static int file_state_send_final_status_to_client (file_state_t* file_state, int
 	return (file_state_write_to_client(file_state, MIO_BECS_PTR(cli->sbuf), MIO_BECS_LEN(cli->sbuf)) <= -1 ||
 	        (force_close && file_state_write_to_client(file_state, MIO_NULL, 0) <= -1))? -1: 0;
 }
-
-
-#if 0
-static int file_state_write_last_chunk_to_client (file_state_t* file_state)
-{
-	if (!file_state->ever_attempted_to_write_to_client)
-	{
-		if (file_state_send_final_status_to_client(file_state, 500, 0) <= -1) return -1;
-	}
-
-	if (!file_state->keep_alive && file_state_write_to_client(file_state, MIO_NULL, 0) <= -1) return -1;
-	return 0;
-}
-#endif
 
 static void file_state_close_peer (file_state_t* file_state)
 {
@@ -473,7 +478,6 @@ static int file_state_send_contents_to_client (file_state_t* file_state)
  */
 	mio_t* mio = file_state->htts->mio;
 	mio_foff_t lim;
-	ssize_t n;
 
 	if (file_state->cur_offset > file_state->end_offset)
 	{
@@ -483,37 +487,49 @@ static int file_state_send_contents_to_client (file_state_t* file_state)
 	}
 
 	lim = file_state->end_offset - file_state->cur_offset + 1;
-	n = read(file_state->peer, file_state->peer_buf, (lim < MIO_SIZEOF(file_state->peer_buf)? lim: MIO_SIZEOF(file_state->peer_buf)));
-	if (n == -1)
+
+	if (1 /*mio_dev_sck_sendfileok(file_state->client->sck)*/)
 	{
-		if ((errno == EAGAIN || errno == EINTR) && file_state->peer_tmridx == MIO_TMRIDX_INVALID)
+		if (lim > 0xFFFF) lim = 0xFFFF; /* TODO: change this... */
+		if (file_state_sendfile_to_client(file_state, file_state->cur_offset, lim) <= -1) return -1;
+		file_state->cur_offset += lim;
+	}
+	else
+	{
+		ssize_t n;
+
+		n = read(file_state->peer, file_state->peer_buf, (lim < MIO_SIZEOF(file_state->peer_buf)? lim: MIO_SIZEOF(file_state->peer_buf)));
+		if (n == -1)
 		{
-			mio_tmrjob_t tmrjob;
-			/* use a timer job for a new sending attempt */
-			MIO_MEMSET (&tmrjob, 0, MIO_SIZEOF(tmrjob));
-			tmrjob.ctx = file_state;
-			/*tmrjob.when = leave it at 0 for immediate firing.*/
-			tmrjob.handler = send_contents_to_client_later;
-			tmrjob.idxptr = &file_state->peer_tmridx;
-			return mio_instmrjob(mio, &tmrjob) == MIO_TMRIDX_INVALID? -1: 0;
+			if ((errno == EAGAIN || errno == EINTR) && file_state->peer_tmridx == MIO_TMRIDX_INVALID)
+			{
+				mio_tmrjob_t tmrjob;
+				/* use a timer job for a new sending attempt */
+				MIO_MEMSET (&tmrjob, 0, MIO_SIZEOF(tmrjob));
+				tmrjob.ctx = file_state;
+				/*tmrjob.when = leave it at 0 for immediate firing.*/
+				tmrjob.handler = send_contents_to_client_later;
+				tmrjob.idxptr = &file_state->peer_tmridx;
+				return mio_instmrjob(mio, &tmrjob) == MIO_TMRIDX_INVALID? -1: 0;
+			}
+
+			return -1;
+		}
+		else if (n == 0)
+		{
+			/* no more data to read - this must not happend unless file size changed while the file is open. */
+	/* TODO: I probably must close the connection by force??? */
+			file_state_mark_over (file_state, FILE_STATE_OVER_READ_FROM_PEER); 
+			return -1;
 		}
 
-		return -1;
+		if (file_state_write_to_client(file_state, file_state->peer_buf, n) <= -1) return -1;
+
+		file_state->cur_offset += n;
+
+	/*	if (file_state->cur_offset > file_state->end_offset)  should i check this or wait until this function is invoked?
+			file_state_mark_over (file_state, FILE_STATE_OVER_READ_FROM_PEER);*/
 	}
-	else if (n == 0)
-	{
-		/* no more data to read - this must not happend unless file size changed while the file is open. */
-/* TODO: I probably must close the connection by force??? */
-		file_state_mark_over (file_state, FILE_STATE_OVER_READ_FROM_PEER); 
-		return -1;
-	}
-
-	if (file_state_write_to_client(file_state, file_state->peer_buf, n) <= -1) return -1;
-
-	file_state->cur_offset += n;
-
-/*	if (file_state->cur_offset > file_state->end_offset)  should i check this or wait until this function is invoked?
-		file_state_mark_over (file_state, FILE_STATE_OVER_READ_FROM_PEER);*/
 
 	return 0;
 }
