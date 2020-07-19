@@ -1224,7 +1224,7 @@ for (i = 0; i < 5; i++)
 	mio_svc_htts_t* htts;
 	mio_ntime_t send_tmout, reply_tmout;
 	mio_skad_t servaddr;
-	mio_skad_t htts_bind_addr;
+	mio_dev_sck_bind_t htts_bind_info;
 
 	send_tmout.sec = 0;
 	send_tmout.nsec = 0;
@@ -1238,8 +1238,13 @@ for (i = 0; i < 5; i++)
 	//mio_bcstrtoskad (mio, "[fe80::c7e2:bd6e:1209:ac1b]:1153", &servaddr);
 	//mio_bcstrtoskad (mio, "[fe80::c7e2:bd6e:1209:ac1b%eno1]:1153", &servaddr);
 
-	//mio_bcstrtoskad (mio, "[::]:9988", &htts_bind_addr);
-	mio_bcstrtoskad (mio, "0.0.0.0:9988", &htts_bind_addr);
+	memset (&htts_bind_info, 0, MIO_SIZEOF(htts_bind_info));
+	//mio_bcstrtoskad (mio, "[""]:9988", &htts_bind_info.localaddr);
+	mio_bcstrtoskad (mio, "0.0.0.0:9988", &htts_bind_info.localaddr);
+	htts_bind_info.options = MIO_DEV_SCK_BIND_REUSEADDR | MIO_DEV_SCK_BIND_REUSEPORT | MIO_DEV_SCK_BIND_IGNERR;
+        htts_bind_info.options |= MIO_DEV_SCK_BIND_SSL; 
+	htts_bind_info.ssl_certfile = "localhost.crt";
+	htts_bind_info.ssl_keyfile = "localhost.key";
 
 	dnc = mio_svc_dnc_start(mio, &servaddr, MIO_NULL, &send_tmout, &reply_tmout, 2); /* option - send to all, send one by one */
 	if (!dnc)
@@ -1247,7 +1252,7 @@ for (i = 0; i < 5; i++)
 		MIO_INFO1 (mio, "UNABLE TO START DNC - %js\n", mio_geterrmsg(mio));
 	}
 
-	htts = mio_svc_htts_start(mio, &htts_bind_addr, process_http_request);
+	htts = mio_svc_htts_start(mio, &htts_bind_info, process_http_request);
 	if (htts) mio_svc_htts_setservernamewithbcstr (htts, "MIO-HTTP");
 	else MIO_INFO1 (mio, "UNABLE TO START HTTS - %js\n", mio_geterrmsg(mio));
 
