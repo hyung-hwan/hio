@@ -468,13 +468,20 @@ static MIO_INLINE void handle_event (mio_t* mio, mio_dev_t* dev, int events, int
 			else if (x == 0)
 			{
 				/* keep the left-over */
-				MIO_MEMMOVE (q->ptr, uptr, urem);
+				if (!q->sendfile) MIO_MEMMOVE (q->ptr, uptr, urem);
 				q->len = urem;
 				break;
 			}
 			else
 			{
-				uptr += ulen;
+				if (q->sendfile)
+				{
+					((wq_sendfile_data_t*)(q->ptr))->foff += ulen;
+				}
+				else
+				{
+					uptr += ulen;
+				}
 				urem -= ulen;
 
 				if (urem <= 0)
@@ -1720,7 +1727,6 @@ static int __dev_sendfile (mio_dev_t* dev, mio_syshnd_t in_fd, mio_foff_t foff, 
 	return 1; /* written immediately and called on_write callback. but this line will never be reached */
 
 enqueue_data:
-printf ("queueing sendfiel...\n");
 	return __enqueue_pending_sendfile(dev, len, urem, uoff, in_fd, tmout, wrctx, MIO_NULL);
 
 enqueue_completed_write:

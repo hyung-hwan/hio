@@ -490,7 +490,7 @@ static int file_state_send_contents_to_client (file_state_t* file_state)
 
 	if (1 /*mio_dev_sck_sendfileok(file_state->client->sck)*/)
 	{
-		if (lim > 0xFFFF) lim = 0xFFFF; /* TODO: change this... */
+		if (lim > 0x7FFF0000) lim = 0x7FFF0000; /* TODO: change this... */
 		if (file_state_sendfile_to_client(file_state, file_state->cur_offset, lim) <= -1) return -1;
 		file_state->cur_offset += lim;
 	}
