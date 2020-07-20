@@ -1242,7 +1242,7 @@ for (i = 0; i < 5; i++)
 	//mio_bcstrtoskad (mio, "[""]:9988", &htts_bind_info.localaddr);
 	mio_bcstrtoskad (mio, "0.0.0.0:9988", &htts_bind_info.localaddr);
 	htts_bind_info.options = MIO_DEV_SCK_BIND_REUSEADDR | MIO_DEV_SCK_BIND_REUSEPORT | MIO_DEV_SCK_BIND_IGNERR;
-        htts_bind_info.options |= MIO_DEV_SCK_BIND_SSL; 
+	//htts_bind_info.options |= MIO_DEV_SCK_BIND_SSL; 
 	htts_bind_info.ssl_certfile = "localhost.crt";
 	htts_bind_info.ssl_keyfile = "localhost.key";
 
