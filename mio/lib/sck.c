@@ -624,6 +624,9 @@ static int dev_sck_writev_stateful (mio_dev_t* dev, const mio_iovec_t* iov, mio_
 	#if defined(MSG_NOSIGNAL)
 		flags |= MSG_NOSIGNAL;
 	#endif
+	#if defined(MSG_DONTWAIT)
+		flags |= MSG_DONTWAIT;
+	#endif
 
 	#if defined(HAVE_SENDMSG)
 		MIO_MEMSET (&msg, 0, MIO_SIZEOF(msg));
@@ -675,6 +678,7 @@ static int dev_sck_writev_stateless (mio_dev_t* dev, const mio_iovec_t* iov, mio
 	mio_dev_sck_t* rdev = (mio_dev_sck_t*)dev;
 	struct msghdr msg;
 	ssize_t x;
+	int flags = 0;
 
 	MIO_MEMSET (&msg, 0, MIO_SIZEOF(msg));
 	if (MIO_LIKELY(dstaddr))
@@ -685,7 +689,15 @@ static int dev_sck_writev_stateless (mio_dev_t* dev, const mio_iovec_t* iov, mio
 	msg.msg_iov = (struct iovec*)iov;
 	msg.msg_iovlen = *iovcnt;
 
-	x = sendmsg(rdev->hnd, &msg, 0);
+
+#if defined(MSG_NOSIGNAL)
+	flags |= MSG_NOSIGNAL;
+#endif
+#if defined(MSG_DONTWAIT)
+	flags |= MSG_DONTWAIT;
+#endif
+
+	x = sendmsg(rdev->hnd, &msg, flags);
 	if (x <= -1) 
 	{
 		if (errno == EINPROGRESS || errno == EWOULDBLOCK || errno == EAGAIN) return 0;  /* no data can be written */

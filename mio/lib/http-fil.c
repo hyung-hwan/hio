@@ -33,6 +33,7 @@
 #include <fcntl.h>
 #include <sys/stat.h>
 #include <errno.h>
+#include <netinet/tcp.h>
 
 #define FILE_ALLOW_UNLIMITED_REQ_CONTENT_LENGTH
 
@@ -66,6 +67,7 @@ struct file_state_t
 	mio_foff_t cur_offset;
 	mio_bch_t peer_buf[8192];
 	mio_tmridx_t peer_tmridx;
+	mio_bch_t peer_etag[128];
 
 	mio_svc_htts_cli_t* client;
 	mio_http_version_t req_version; /* client request */
@@ -77,6 +79,7 @@ struct file_state_t
 	unsigned int ever_attempted_to_write_to_client: 1;
 	unsigned int client_disconnected: 1;
 	unsigned int client_htrd_recbs_changed: 1;
+	unsigned int etag_match: 1;
 	mio_oow_t req_content_length; /* client request content length */
 	file_state_res_mode_t res_mode_to_cli;
 
@@ -207,9 +210,15 @@ static void file_state_mark_over (file_state_t* file_state, int over_bits)
 
 		if (file_state->keep_alive) 
 		{
+		#if defined(TCP_CORK)
+			int tcp_cork = 0;
+			mio_dev_sck_setsockopt(file_state->client->sck, SOL_TCP, TCP_CORK, &tcp_cork, MIO_SIZEOF(tcp_cork));
+		#endif
+
 			/* how to arrange to delete this file_state object and put the socket back to the normal waiting state??? */
 			MIO_ASSERT (file_state->htts->mio, file_state->client->rsrc == (mio_svc_htts_rsrc_t*)file_state);
 
+		
 			MIO_SVC_HTTS_RSRC_DETACH (file_state->client->rsrc);
 			/* file_state must not be accessed from here down as it could have been destroyed */
 		}
@@ -452,9 +461,11 @@ static int file_state_send_header_to_client (file_state_t* file_state, int statu
 		file_state->req_version.major, file_state->req_version.minor,
 		status_code, mio_http_status_to_bcstr(status_code),
 		cli->htts->server_name, dtbuf,
-		(force_close? "close": "keep-alive"),
-		content_length) == (mio_oow_t)-1) return -1;
+		(force_close? "close": "keep-alive")) == (mio_oow_t)-1) return -1;
 
+/* TODO: content_type */
+
+	if (file_state->req_method == MIO_HTTP_GET && mio_becs_fcat(cli->sbuf, "ETag: %hs\r\n", file_state->peer_etag) == (mio_oow_t)-1) return -1;
 	if (status_code == 206 && mio_becs_fcat(cli->sbuf, "Content-Ranges: bytes %ju-%ju/%ju\r\n", (mio_uintmax_t)file_state->start_offset, (mio_uintmax_t)file_state->end_offset, (mio_uintmax_t)file_state->total_size) == (mio_oow_t)-1) return -1;
 	if (mio_becs_fcat(cli->sbuf, "Content-Length: %ju\r\n\r\n", (mio_uintmax_t)content_length) == (mio_oow_t)-1) return -1;
 
@@ -529,15 +540,32 @@ static int file_state_send_contents_to_client (file_state_t* file_state)
 	return 0;
 }
 
-static int process_range_header (file_state_t* file_state, mio_htre_t* req)
+static MIO_INLINE int process_range_header (file_state_t* file_state, mio_htre_t* req)
 {
 	struct stat st;
 	const mio_htre_hdrval_t* tmp;
+	mio_oow_t etag_len;
 
 	if (fstat(file_state->peer, &st) <= -1) 
 	{
 		file_state_send_final_status_to_client (file_state, 500, 1);
 		return -1;
+	}
+
+	if (file_state->req_method == MIO_HTTP_GET)
+	{
+		etag_len = mio_fmt_uintmax_to_bcstr(&file_state->peer_etag[0], MIO_COUNTOF(file_state->peer_etag), st.st_mtim.tv_sec, 16, -1, '\0', MIO_NULL);
+		file_state->peer_etag[etag_len++] = '-';
+		etag_len += mio_fmt_uintmax_to_bcstr(&file_state->peer_etag[etag_len], MIO_COUNTOF(file_state->peer_etag), st.st_mtim.tv_nsec, 16, -1, '\0', MIO_NULL);
+		file_state->peer_etag[etag_len++] = '-';
+		etag_len += mio_fmt_uintmax_to_bcstr(&file_state->peer_etag[etag_len], MIO_COUNTOF(file_state->peer_etag) - etag_len, st.st_size, 16, -1, '\0', MIO_NULL);
+		file_state->peer_etag[etag_len++] = '-';
+		etag_len += mio_fmt_uintmax_to_bcstr(&file_state->peer_etag[etag_len], MIO_COUNTOF(file_state->peer_etag) - etag_len, st.st_ino, 16, -1, '\0', MIO_NULL);
+		file_state->peer_etag[etag_len++] = '-';
+		mio_fmt_uintmax_to_bcstr (&file_state->peer_etag[etag_len], MIO_COUNTOF(file_state->peer_etag) - etag_len, st.st_dev, 16, -1, '\0', MIO_NULL);
+
+		tmp = mio_htre_getheaderval(req, "If-None-Match");
+		if (tmp && mio_comp_bcstr(file_state->peer_etag, tmp->ptr, 0) == 0) file_state->etag_match = 1;
 	}
 	file_state->end_offset = st.st_size;
 
@@ -733,7 +761,7 @@ int mio_svc_htts_dofile (mio_svc_htts_t* htts, mio_dev_sck_t* csck, mio_htre_t* 
 	else if (req->flags & MIO_HTRE_ATTR_EXPECT)
 	{
 		/* 417 Expectation Failed */
-		file_state_send_final_status_to_client(file_state, 417, 1);
+		file_state_send_final_status_to_client (file_state, 417, 1);
 		goto oops;
 	}
 
@@ -782,11 +810,27 @@ int mio_svc_htts_dofile (mio_svc_htts_t* htts, mio_dev_sck_t* csck, mio_htre_t* 
 
 	if (file_state->req_method == MIO_HTTP_GET)
 	{
-		if (file_state_send_header_to_client(file_state, 200, 0) <= -1 ||
-		    file_state_send_contents_to_client(file_state) <= -1) goto oops;
+		if (file_state->etag_match)
+		{
+			/* 304 not modified */
+			if (file_state_send_final_status_to_client(file_state, 304, 0) <= -1) goto oops;
+			file_state_mark_over (file_state, FILE_STATE_OVER_READ_FROM_PEER | FILE_STATE_OVER_WRITE_TO_PEER);
+		}
+		else
+		{
+			/* normal full transfer */
+		#if defined(TCP_CORK)
+			int tcp_cork = 1;
+			mio_dev_sck_setsockopt(file_state->client->sck, SOL_TCP, TCP_CORK, &tcp_cork, MIO_SIZEOF(tcp_cork));
+		#endif
+
+			if (file_state_send_header_to_client(file_state, 200, 0) <= -1 ||
+			    file_state_send_contents_to_client(file_state) <= -1) goto oops;
+		}
 	}
 	else if (file_state->req_method == MIO_HTTP_HEAD)
 	{
+
 		if (file_state_send_header_to_client(file_state, 200, 0) <= -1) goto oops;
 		file_state_mark_over (file_state, FILE_STATE_OVER_READ_FROM_PEER | FILE_STATE_OVER_WRITE_TO_PEER);
 	}
