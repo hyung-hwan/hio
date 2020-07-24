@@ -969,7 +969,7 @@ if (mio_htre_getcontentlen(req) > 0)
 			else if (mio_comp_bcstr_limited(qpath, "/cgi/", 5, 1) == 0)
 				x = mio_svc_htts_docgi(htts, csck, req, "", mio_htre_getqpath(req));
 			else
-				x = mio_svc_htts_dofile(htts, csck, req, "", mio_htre_getqpath(req));
+				x = mio_svc_htts_dofile(htts, csck, req, "", mio_htre_getqpath(req), "text/plain");
 			if (x <= -1) goto oops;
 
 	return 0;

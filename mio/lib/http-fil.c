@@ -444,7 +444,7 @@ static mio_htrd_recbs_t file_client_htrd_recbs =
 
 /* --------------------------------------------------------------------- */
 
-static int file_state_send_header_to_client (file_state_t* file_state, int status_code, int force_close)
+static int file_state_send_header_to_client (file_state_t* file_state, int status_code, int force_close, const mio_bch_t* mime_type)
 {
 	mio_svc_htts_cli_t* cli = file_state->client;
 	mio_bch_t dtbuf[64];
@@ -457,11 +457,11 @@ static int file_state_send_header_to_client (file_state_t* file_state, int statu
 	content_length = file_state->end_offset - file_state->start_offset + 1;
 	if (status_code == 200 && file_state->total_size != content_length) status_code = 206;
 
-	if (mio_becs_fmt(cli->sbuf, "HTTP/%d.%d %d %hs\r\nServer: %hs\r\nDate: %s\r\nConnection: %hs\r\nAccept-Ranges: bytes\r\n",
+	if (mio_becs_fmt(cli->sbuf, "HTTP/%d.%d %d %hs\r\nServer: %hs\r\nDate: %s\r\nConnection: %hs\r\nAccept-Ranges: bytes\r\nContent-Type: %hs\r\n",
 		file_state->req_version.major, file_state->req_version.minor,
 		status_code, mio_http_status_to_bcstr(status_code),
 		cli->htts->server_name, dtbuf,
-		(force_close? "close": "keep-alive")) == (mio_oow_t)-1) return -1;
+		(force_close? "close": "keep-alive"), mime_type) == (mio_oow_t)-1) return -1;
 
 /* TODO: content_type */
 
@@ -687,7 +687,7 @@ static MIO_INLINE void fadvise_on_peer (file_state_t* file_state)
 #endif
 }
 
-int mio_svc_htts_dofile (mio_svc_htts_t* htts, mio_dev_sck_t* csck, mio_htre_t* req, const mio_bch_t* docroot, const mio_bch_t* file)
+int mio_svc_htts_dofile (mio_svc_htts_t* htts, mio_dev_sck_t* csck, mio_htre_t* req, const mio_bch_t* docroot, const mio_bch_t* file, const mio_bch_t* mime_type)
 {
 /* TODO: ETag, Last-Modified... */
 
@@ -824,14 +824,13 @@ int mio_svc_htts_dofile (mio_svc_htts_t* htts, mio_dev_sck_t* csck, mio_htre_t* 
 			mio_dev_sck_setsockopt(file_state->client->sck, SOL_TCP, TCP_CORK, &tcp_cork, MIO_SIZEOF(tcp_cork));
 		#endif
 
-			if (file_state_send_header_to_client(file_state, 200, 0) <= -1 ||
+			if (file_state_send_header_to_client(file_state, 200, 0, mime_type) <= -1 ||
 			    file_state_send_contents_to_client(file_state) <= -1) goto oops;
 		}
 	}
 	else if (file_state->req_method == MIO_HTTP_HEAD)
 	{
-
-		if (file_state_send_header_to_client(file_state, 200, 0) <= -1) goto oops;
+		if (file_state_send_header_to_client(file_state, 200, 0, mime_type) <= -1) goto oops;
 		file_state_mark_over (file_state, FILE_STATE_OVER_READ_FROM_PEER | FILE_STATE_OVER_WRITE_TO_PEER);
 	}
 

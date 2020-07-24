@@ -68,7 +68,7 @@ struct mio_sys_mux_t
 struct mio_sys_mux_t
 {
 	int hnd;
-	struct epoll_event revs[128]; /* TODO: is it a good size? */
+	struct epoll_event revs[1024]; /* TODO: is it a good size? */
 };
 
 #endif

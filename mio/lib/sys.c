@@ -90,3 +90,22 @@ int mio_makesyshndasync (mio_t* mio, mio_syshnd_t hnd)
 	return -1;
 #endif
 }
+
+int mio_makesyshndcloexec (mio_t* mio, mio_syshnd_t hnd)
+{
+#if defined(F_GETFL) && defined(F_SETFL) && defined(FD_CLOEXEC)
+	int flags;
+
+	if ((flags = fcntl(hnd, F_GETFD)) <= -1 ||
+	    (flags = fcntl(hnd, F_SETFD, flags | FD_CLOEXEC)) <= -1)
+	{
+		mio_seterrwithsyserr (mio, 0, errno);
+		return -1;
+	}
+
+	return 0;
+#else
+	mio_seterrnum (mio, MIO_ENOIMPL);
+	return -1;
+#endif
+}
