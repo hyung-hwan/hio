@@ -186,23 +186,6 @@ typedef struct mio_icmphdr_t mio_icmphdr_t;
 	typedef int mio_scklen_t;
 #endif
 
-#if defined(_WIN32)
-#	define MIO_IOCP_KEY 1
-	/*
-	typedef HANDLE mio_syshnd_t;
-	typedef SOCKET mio_sckhnd_t;
-#	define MIO_SCKHND_INVALID (INVALID_SOCKET)
-	*/
-
-	typedef mio_uintptr_t mio_sckhnd_t;
-#	define MIO_SCKHND_INVALID (~(mio_sck_hnd_t)0)
-
-#else
-	typedef int mio_sckhnd_t;
-#	define MIO_SCKHND_INVALID (-1)
-	
-#endif
-
 
 /* ========================================================================= */
 
@@ -270,8 +253,16 @@ typedef void (*mio_dev_sck_on_connect_t) (
 	mio_dev_sck_t* dev
 );
 
+typedef void (*mio_dev_sck_on_raw_accept_t) (
+	mio_dev_sck_t* dev,
+	mio_syshnd_t   syshnd
+);
+
 enum mio_dev_sck_type_t
 {
+	MIO_DEV_SCK_QX,
+
+
 	MIO_DEV_SCK_TCP4,
 	MIO_DEV_SCK_TCP6,
 	MIO_DEV_SCK_UDP4,
@@ -285,22 +276,33 @@ enum mio_dev_sck_type_t
 	MIO_DEV_SCK_ICMP4,
 
 	/* ICMP at the IPv6 layer */
-	MIO_DEV_SCK_ICMP6
+	MIO_DEV_SCK_ICMP6,
 
-#if 0
-	MIO_DEV_SCK_RAW,  /* raw L2-level packet */
-#endif
+	/* raw L2-level packet */
+	MIO_DEV_SCK_PACKET
 };
 typedef enum mio_dev_sck_type_t mio_dev_sck_type_t;
+
+enum mio_dev_sck_make_option_t
+{
+	/* import the system handle specified in the hnd field */
+	MIO_DEV_SCK_MAKE_IMPSYSHND = (1 << 0) 
+};
+typedef enum mio_dev_sck_make_option_t mio_dev_sck_make_option_t;
 
 typedef struct mio_dev_sck_make_t mio_dev_sck_make_t;
 struct mio_dev_sck_make_t
 {
 	mio_dev_sck_type_t type;
+
+	int options;
+	mio_syshnd_t syshnd;
+
 	mio_dev_sck_on_write_t on_write;
 	mio_dev_sck_on_read_t on_read;
 	mio_dev_sck_on_connect_t on_connect;
 	mio_dev_sck_on_disconnect_t on_disconnect;
+	mio_dev_sck_on_raw_accept_t on_raw_accept; /* optional */
 };
 
 enum mio_dev_sck_bind_option_t
@@ -362,7 +364,7 @@ struct mio_dev_sck_t
 	MIO_DEV_HEADER;
 
 	mio_dev_sck_type_t type;
-	mio_sckhnd_t hnd;
+	mio_syshnd_t hnd;
 
 	int state;
 
@@ -387,11 +389,11 @@ struct mio_dev_sck_t
 	mio_dev_sck_on_write_t on_write;
 	mio_dev_sck_on_read_t on_read;
 
-	/* return 0 on succes, -1 on failure.
-	 * called on a new tcp device for an accepted client or
+	/* called on a new tcp device for an accepted client or
 	 *        on a tcp device conntected to a remote server */
 	mio_dev_sck_on_connect_t on_connect;
 	mio_dev_sck_on_disconnect_t on_disconnect;
+	mio_dev_sck_on_raw_accept_t on_raw_accept;
 
 	/* timer job index for handling
 	 *  - connect() timeout for a connecting socket.
@@ -406,6 +408,7 @@ struct mio_dev_sck_t
 	void* ssl_ctx;
 	void* ssl;
 
+	mio_syshnd_t side_chan; /* side-channel for MIO_DEV_SCK_QX */
 };
 
 enum mio_dev_sck_shutdown_how_t
@@ -415,14 +418,25 @@ enum mio_dev_sck_shutdown_how_t
 };
 typedef enum mio_dev_sck_shutdown_how_t mio_dev_sck_shutdown_how_t;
 
+enum mio_dev_sck_qxmsg_cmd_t
+{
+	MIO_DEV_SCK_QXMSG_NEWCONN = 0
+};
+typedef enum mio_dev_sck_qxmsg_cmd_t mio_dev_sck_qxmsg_cmd_t;
+
+struct mio_dev_sck_qxmsg_t
+{
+	mio_dev_sck_qxmsg_cmd_t cmd;
+	mio_dev_sck_type_t scktype;
+	mio_syshnd_t syshnd;
+	mio_skad_t remoteaddr;
+};
+typedef struct mio_dev_sck_qxmsg_t mio_dev_sck_qxmsg_t;
+
+
 #ifdef __cplusplus
 extern "C" {
 #endif
-
-MIO_EXPORT int mio_makesckasync (
-	mio_t*       mio,
-	mio_sckhnd_t sck
-);
 
 /* ========================================================================= */
 
@@ -434,14 +448,14 @@ MIO_EXPORT mio_dev_sck_t* mio_dev_sck_make (
 
 #if defined(MIO_HAVE_INLINE)
 static MIO_INLINE mio_t* mio_dev_sck_getmio (mio_dev_sck_t* sck) { return mio_dev_getmio((mio_dev_t*)sck); }
+static MIO_INLINE void* mio_dev_sck_getxtn (mio_dev_sck_t* sck) { return (void*)(sck + 1); }
+static MIO_INLINE mio_dev_sck_type_t mio_dev_sck_gettype (mio_dev_sck_t* sck) { return sck->type; }
+static MIO_INLINE mio_syshnd_t mio_dev_sck_getsyshnd (mio_dev_sck_t* sck) { return sck->hnd; }
 #else
 #	define mio_dev_sck_getmio(sck) mio_dev_getmio(sck)
-#endif
-
-#if defined(MIO_HAVE_INLINE)
-static MIO_INLINE void* mio_dev_sck_getxtn (mio_dev_sck_t* sck) { return (void*)(sck + 1); }
-#else
 #	define mio_dev_sck_getxtn(sck) ((void*)(((mio_dev_sck_t*)sck) + 1))
+#	define mio_dev_sck_gettype(sck) (((mio_dev_sck_t*)sck)->type)
+#	define mio_dev_sck_getsyshnd(sck) (((mio_dev_sck_t*)sck)->hnd)
 #endif
 
 MIO_EXPORT int mio_dev_sck_bind (
@@ -566,9 +580,16 @@ MIO_EXPORT int mio_dev_sck_sendfileok (
 	mio_dev_sck_t* dev
 );
 
+MIO_EXPORT int mio_dev_sck_writetosidechan (
+	mio_dev_sck_t* htts,
+	const void*    dptr,
+	mio_oow_t      dlen
+);
+
+
 MIO_EXPORT mio_uint16_t mio_checksum_ip (
 	const void* hdr,
-	mio_oow_t len
+	mio_oow_t   len
 );
 
 #ifdef __cplusplus

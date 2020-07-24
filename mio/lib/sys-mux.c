@@ -41,13 +41,36 @@ int mio_sys_initmux (mio_t* mio)
 	mio_sys_mux_t* mux = &mio->sysdep->mux;
 
 #if defined(USE_EPOLL)
-	mux->hnd = epoll_create(1000); /* TODO: choose proper initial size? */
+
+#if defined(HAVE_EPOLL_CREATE1)
+	mux->hnd = epoll_create1(O_CLOEXEC);
+	if (mux->hnd == -1)
+	{
+		if (errno == ENOSYS) goto normal_epoll_create; /* kernel doesn't support it */
+		mio_seterrwithsyserr (mio, 0, errno);
+		return -1;
+	}
+	goto epoll_create_done;
+
+normal_epoll_create:
+#endif
+
+	mux->hnd = epoll_create(16384); /* TODO: choose proper initial size? */
 	if (mux->hnd == -1)
 	{
 		mio_seterrwithsyserr (mio, 0, errno);
 		return -1;
 	}
-#endif
+
+#if defined(FD_CLOEXEC)
+	{
+		int flags = fcntl(mux->hnd, F_GETFD, 0);
+		if (flags >= 0) fcntl(mux->hnd, F_SETFD, flags | FD_CLOEXEC);
+	}
+#endif /* FD_CLOEXEC */
+
+epoll_create_done:
+#endif /* USE_EPOLL */
 
 	return 0;
 }
@@ -254,7 +277,7 @@ int mio_sys_ctrlmux (mio_t* mio, mio_sys_mux_cmd_t cmd, mio_dev_t* dev, int dev_
 	}
 	if (dev_cap & MIO_DEV_CAP_OUT_WATCHED) events |= EPOLLOUT;
 
-	ev.events = events | EPOLLHUP | EPOLLERR /*| EPOLLET*/;
+	ev.events = events | EPOLLHUP | EPOLLERR /*| EPOLLET*/; /* TODO: ready to support edge-trigger? */
 	ev.data.ptr = dev;
 
 	switch (cmd)

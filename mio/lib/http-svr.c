@@ -25,6 +25,7 @@
  */
 
 #include "http-prv.h"
+#include <mio-path.h>
 
 /* ------------------------------------------------------------------------ */
 static int client_htrd_peek_request (mio_htrd_t* htrd, mio_htre_t* req)
@@ -481,4 +482,10 @@ mio_bch_t* mio_svc_htts_dupmergepaths (mio_svc_htts_t* htts, const mio_bch_t* ba
 	mio_canon_bcstr_path (xpath, xpath, 0);
 	return xpath;
 }
+
+int mio_svc_htts_writetosidechan (mio_svc_htts_t* htts, const void* dptr, mio_oow_t dlen)
+{
+	return mio_dev_sck_writetosidechan(htts->lsck, dptr, dlen);
+}
+
 

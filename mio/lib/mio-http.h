@@ -264,6 +264,12 @@ static MIO_INLINE mio_t* mio_svc_htts_getmio(mio_svc_htts_t* svc) { return mio_s
 #	define mio_svc_htts_getmio(svc) mio_svc_getmio(svc)
 #endif
 
+MIO_EXPORT int mio_svc_htts_writetosidechan (
+	mio_svc_htts_t* htts,
+	const void*     dptr,
+	mio_oow_t       dlen
+);
+
 MIO_EXPORT int mio_svc_htts_setservernamewithbcstr (
 	mio_svc_htts_t*  htts,
 	const mio_bch_t* server_name
@@ -282,7 +288,8 @@ MIO_EXPORT int mio_svc_htts_dofile (
 	mio_dev_sck_t*   csck,
 	mio_htre_t*      req,
 	const mio_bch_t* docroot,
-	const mio_bch_t* script
+	const mio_bch_t* file,
+	const mio_bch_t* mime_type
 );
 
 MIO_EXPORT int mio_svc_htts_dothr (

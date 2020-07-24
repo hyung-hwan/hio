@@ -35,6 +35,7 @@
 
 #include <netinet/in.h>
 #include <arpa/inet.h>
+#include <netinet/if_ether.h>
 
 #if defined(HAVE_NETPACKET_PACKET_H)
 #	include <netpacket/packet.h>
@@ -78,28 +79,22 @@
 
 /* ========================================================================= */
 
-int mio_makesckasync (mio_t* mio, mio_sckhnd_t sck)
-{
-	return mio_makesyshndasync (mio, (mio_syshnd_t)sck);
-}
-
-static void close_async_socket (mio_t* mio, mio_sckhnd_t sck)
+static void close_async_socket (mio_t* mio, mio_syshnd_t sck)
 {
 	close (sck);
 }
 
-static mio_sckhnd_t open_async_socket (mio_t* mio, int domain, int type, int proto)
+static mio_syshnd_t open_async_socket (mio_t* mio, int domain, int type, int proto)
 {
-	mio_sckhnd_t sck = MIO_SCKHND_INVALID;
+	mio_syshnd_t sck = MIO_SYSHND_INVALID;
 	int flags;
 
 #if defined(SOCK_NONBLOCK) && defined(SOCK_CLOEXEC)
-	type |= SOCK_NONBLOCK;
-	type |= SOCK_CLOEXEC;
+	type |= SOCK_NONBLOCK | SOCK_CLOEXEC;
 open_socket:
 #endif
 	sck = socket(domain, type, proto); 
-	if (sck == MIO_SCKHND_INVALID) 
+	if (sck == MIO_SYSHND_INVALID) 
 	{
 	#if defined(SOCK_NONBLOCK) && defined(SOCK_CLOEXEC)
 		if (errno == EINVAL && (type & (SOCK_NONBLOCK | SOCK_CLOEXEC)))
@@ -117,23 +112,96 @@ open_socket:
 	#endif
 	}
 
-	flags = fcntl(sck, F_GETFD, 0);
-	if (flags == -1) goto oops;
-#if defined(FD_CLOEXEC)
-	flags |= FD_CLOEXEC;
-#endif
-#if defined(O_NONBLOCK)
-	flags |= O_NONBLOCK;
-#endif
-	if (fcntl(sck, F_SETFD, flags) == -1) goto oops;
+	if (mio_makesyshndasync(mio, sck) <= -1 ||
+	    mio_makesyshndcloexec(mio, sck) <= -1) goto oops;
 
 done:
 	return sck;
 
 oops:
-	if (sck != MIO_SCKHND_INVALID) close (sck);
+	if (sck != MIO_SYSHND_INVALID) close (sck);
 	mio_seterrwithsyserr (mio, 0, errno);
-	return MIO_SCKHND_INVALID;
+	return MIO_SYSHND_INVALID;
+}
+
+static mio_syshnd_t open_async_qx (mio_t* mio, mio_syshnd_t* side_chan)
+{
+	int fd[2];
+
+#if 1
+	int type = SOCK_DGRAM;
+
+#if defined(SOCK_NONBLOCK) && defined(SOCK_CLOEXEC)
+	type |= SOCK_NONBLOCK | SOCK_CLOEXEC;
+open_socket:
+#endif
+	if (socketpair(AF_UNIX, type, 0, fd) <= -1)
+	{
+	#if defined(SOCK_NONBLOCK) && defined(SOCK_CLOEXEC)
+		if (errno == EINVAL && (type & (SOCK_NONBLOCK | SOCK_CLOEXEC)))
+		{
+			type &= ~(SOCK_NONBLOCK | SOCK_CLOEXEC);
+			goto open_socket;
+		}
+	#endif
+		return MIO_SYSHND_INVALID;
+	}
+	else
+	{
+	#if defined(SOCK_NONBLOCK) && defined(SOCK_CLOEXEC)
+		if (type & (SOCK_NONBLOCK | SOCK_CLOEXEC)) goto done;
+	#endif
+	}
+
+	if (mio_makesyshndasync(mio, fd[0]) <= -1 ||
+	    mio_makesyshndasync(mio, fd[1]) <= -1 ||
+	    mio_makesyshndcloexec(mio, fd[0]) <= -1 ||
+	    mio_makesyshndcloexec(mio, fd[1]) <= -1) 
+	{
+		close (fd[0]);
+		close (fd[1]);
+		return MIO_SYSHND_INVALID;
+	}
+
+done:
+	*side_chan = fd[1]; /* write end of the pipe */
+	return fd[0]; /* read end of the pipe */
+#else
+
+#if defined(HAVE_PIPE2)
+	/* in linux 3.4 or higher, O_DIRECT can make the pipes work in the packet mode if the data size is <= PIPE_BUF */
+	if (pipe2(fd, O_CLOEXEC | O_NONBLOCK) <= -1)
+	{
+		if  (errno == ENOSYS) goto normal_pipe;
+		mio_seterrwithsyserr (mio, 0, errno);
+		return MIO_SYSHND_INVALID;
+	}
+	goto done;
+
+normal_pipe:
+#endif
+	if (pipe(fd) <= -1)
+	{
+		mio_seterrwithsyserr (mio, 0, errno);
+		return MIO_SYSHND_INVALID;
+	}
+
+	if (mio_makesyshndasync(mio, fd[0]) <= -1 ||
+	    mio_makesyshndasync(mio, fd[1]) <= -1 ||
+	    mio_makesyshndcloexec(mio, fd[0]) <= -1 ||
+	    mio_makesyshndcloexec(mio, fd[1]) <= -1) 
+	{
+		close (fd[0]);
+		close (fd[1]);
+		return MIO_SYSHND_INVALID;
+	}
+
+#if defined(HAVE_PIPE2)
+done:
+#endif
+	*side_chan = fd[1]; /* write end of the pipe */
+	return fd[0]; /* read end of the pipe */
+#endif
 }
 
 /* ========================================================================= */
@@ -167,8 +235,13 @@ struct sck_type_map_t
 	int extra_dev_cap;
 };
 
+#define __AF_QX 999999
+
 static struct sck_type_map_t sck_type_map[] =
 {
+	/* MIO_DEV_SCK_QX */
+	{ __AF_QX,    0,              0,                         0 },
+
 	/* MIO_DEV_SCK_TCP4 */
 	{ AF_INET,    SOCK_STREAM,    0,                         MIO_DEV_CAP_STREAM },
 
@@ -176,10 +249,10 @@ static struct sck_type_map_t sck_type_map[] =
 	{ AF_INET6,   SOCK_STREAM,    0,                         MIO_DEV_CAP_STREAM },
 
 	/* MIO_DEV_SCK_UPD4 */
-	{ AF_INET,    SOCK_DGRAM,     0,                         0                                                },
+	{ AF_INET,    SOCK_DGRAM,     0,                         0                                             },
 
 	/* MIO_DEV_SCK_UDP6 */
-	{ AF_INET6,   SOCK_DGRAM,     0,                         0                                                },
+	{ AF_INET6,   SOCK_DGRAM,     0,                         0                                             },
 
 
 #if defined(AF_PACKET) && (MIO_SIZEOF_STRUCT_SOCKADDR_LL > 0)
@@ -196,15 +269,26 @@ static struct sck_type_map_t sck_type_map[] =
 	/* MIO_DEV_SCK_ARP_DGRAM */
 	{ AF_LINK,  SOCK_DGRAM,       MIO_CONST_HTON16(MIO_ETHHDR_PROTO_ARP), 0                                 },
 #else
-	{ -1,       0,                0,                            0                                             },
-	{ -1,       0,                0,                            0                                             },
+	{ -1,       0,                0,                         0                                              },
+	{ -1,       0,                0,                         0                                              },
 #endif
 
 	/* MIO_DEV_SCK_ICMP4 - IP protocol field is 1 byte only. no byte order conversion is needed */
-	{ AF_INET,    SOCK_RAW,       IPPROTO_ICMP,              0,                                               },
+	{ AF_INET,    SOCK_RAW,       IPPROTO_ICMP,              0,                                             },
 
 	/* MIO_DEV_SCK_ICMP6 - IP protocol field is 1 byte only. no byte order conversion is needed */
-	{ AF_INET6,   SOCK_RAW,       IPPROTO_ICMP,              0,                                               }
+	{ AF_INET6,   SOCK_RAW,       IPPROTO_ICMP,              0,                                             },
+
+
+#if defined(AF_PACKET) && (MIO_SIZEOF_STRUCT_SOCKADDR_LL > 0)
+	/* MIO_DEV_SCK_PACKET */
+	{ AF_PACKET,  SOCK_RAW,       MIO_CONST_HTON16(ETH_P_ALL),            0                                 },
+#elif defined(AF_LINK) && (MIO_SIZEOF_STRUCT_SOCKADDR_DL > 0)
+	/* MIO_DEV_SCK_PACKET */
+	{ AF_PACKET,  SOCK_RAW,       MIO_CONST_HTON16(ETH_P_ALL),            0                                 },
+#else
+	{ -1,       0,                0,                         0                                              },
+#endif
 };
 
 /* ======================================================================== */
@@ -294,6 +378,8 @@ static int dev_sck_make (mio_dev_t* dev, void* ctx)
 	mio_t* mio = dev->mio;
 	mio_dev_sck_t* rdev = (mio_dev_sck_t*)dev;
 	mio_dev_sck_make_t* arg = (mio_dev_sck_make_t*)ctx;
+	mio_syshnd_t hnd = MIO_SYSHND_INVALID;
+	mio_syshnd_t side_chan = MIO_SYSHND_INVALID;
 
 	MIO_ASSERT (mio, arg->type >= 0 && arg->type < MIO_COUNTOF(sck_type_map));
 
@@ -303,9 +389,38 @@ static int dev_sck_make (mio_dev_t* dev, void* ctx)
 		return -1;
 	}
 
-	rdev->hnd = open_async_socket(mio, sck_type_map[arg->type].domain, sck_type_map[arg->type].type, sck_type_map[arg->type].proto);
-	if (rdev->hnd == MIO_SCKHND_INVALID) goto oops;
+	if (arg->options & MIO_DEV_SCK_MAKE_IMPSYSHND)
+	{
+		/* Make sure to pass a proper type for a given socket handle when you use MIO_DEV_SCK_MAKE_IMPSYSHND.
+		 * Otherwise, some innerworking of the library may go wrong */
+		if (sck_type_map[arg->type].domain == __AF_QX)
+		{
+			/* can't import a handle of this type */
+			mio_seterrnum (mio, MIO_EINVAL); 
+			goto oops;
+		}
 
+		hnd = arg->syshnd;
+		if (hnd == MIO_SYSHND_INVALID)
+		{
+			mio_seterrnum (mio, MIO_EINVAL); 
+			goto oops;
+		}
+		if (mio_makesyshndasync(mio, hnd) <= -1) goto oops;
+	}
+	else if (sck_type_map[arg->type].domain == __AF_QX)
+	{
+		hnd = open_async_qx(mio, &side_chan);
+		if (hnd == MIO_SYSHND_INVALID) goto oops;
+	}
+	else
+	{
+		hnd = open_async_socket(mio, sck_type_map[arg->type].domain, sck_type_map[arg->type].type, sck_type_map[arg->type].proto);
+		if (hnd == MIO_SYSHND_INVALID) goto oops;
+	}
+
+	rdev->hnd = hnd;
+	rdev->side_chan = side_chan;
 	rdev->dev_cap = MIO_DEV_CAP_IN | MIO_DEV_CAP_OUT | sck_type_map[arg->type].extra_dev_cap;
 	rdev->on_write = arg->on_write;
 	rdev->on_read = arg->on_read;
@@ -317,11 +432,8 @@ static int dev_sck_make (mio_dev_t* dev, void* ctx)
 	return 0;
 
 oops:
-	if (rdev->hnd != MIO_SCKHND_INVALID)
-	{
-		close_async_socket (mio, rdev->hnd);
-		rdev->hnd = MIO_SCKHND_INVALID;
-	}
+	if (hnd != MIO_SYSHND_INVALID) close_async_socket (mio, hnd);
+	if (side_chan != MIO_SYSHND_INVALID) close (rdev->side_chan);
 	return -1;
 }
 
@@ -340,18 +452,8 @@ static int dev_sck_make_client (mio_dev_t* dev, void* ctx)
 	rdev->hnd = *clisckhnd;
 	rdev->tmrjob_index = MIO_TMRIDX_INVALID;
 
-	if (mio_makesckasync(mio, rdev->hnd) <= -1) return -1;
-#if defined(FD_CLOEXEC)
-	{
-		int flags = fcntl(rdev->hnd, F_GETFD, 0);
-		if (fcntl(rdev->hnd, F_SETFD, flags | FD_CLOEXEC) == -1)
-		{
-			mio_seterrbfmtwithsyserr (mio, 0, errno, "unable to set FD_CLOEXEC");
-			return -1;
-		}
-	}
-#endif
-
+	if (mio_makesyshndasync(mio, rdev->hnd) <= -1 ||
+	    mio_makesyshndcloexec(mio, rdev->hnd) <= -1) return -1;
 	return 0;
 }
 
@@ -398,12 +500,17 @@ static int dev_sck_kill (mio_dev_t* dev, int force)
 	}
 #endif
 
-	if (rdev->hnd != MIO_SCKHND_INVALID) 
+	if (rdev->hnd != MIO_SYSHND_INVALID) 
 	{
 		close_async_socket (mio, rdev->hnd);
-		rdev->hnd = MIO_SCKHND_INVALID;
+		rdev->hnd = MIO_SYSHND_INVALID;
 	}
 
+	if (rdev->side_chan != MIO_SYSHND_INVALID)
+	{
+		close (rdev->hnd);
+		rdev->hnd = MIO_SYSHND_INVALID;
+	}
 	return 0;
 }
 
@@ -1255,6 +1362,7 @@ static mio_dev_mth_t dev_mth_clisck =
 	dev_sck_sendfile_stateful,
 	dev_sck_ioctl
 };
+
 /* ========================================================================= */
 
 static int harvest_outgoing_connection (mio_dev_sck_t* rdev)
@@ -1349,55 +1457,23 @@ static int harvest_outgoing_connection (mio_dev_sck_t* rdev)
 	}
 }
 
-static int accept_incoming_connection (mio_dev_sck_t* rdev)
+static int make_accepted_client_connection (mio_dev_sck_t* rdev, mio_syshnd_t clisck, mio_skad_t* remoteaddr)
 {
 	mio_t* mio = rdev->mio;
-	mio_sckhnd_t clisck;
-	mio_skad_t remoteaddr;
-	mio_scklen_t addrlen;
 	mio_dev_sck_t* clidev;
-	int flags;
+	mio_scklen_t addrlen;
 
-	/* this is a server(lisening) socket */
-
-#if defined(SOCK_NONBLOCK) && defined(SOCK_CLOEXEC) && defined(HAVE_ACCEPT4)
-	flags = SOCK_NONBLOCK | SOCK_CLOEXEC;
-
-	addrlen = MIO_SIZEOF(remoteaddr);
-	clisck = accept4(rdev->hnd, (struct sockaddr*)&remoteaddr, &addrlen, flags);
-	if (clisck == MIO_SCKHND_INVALID)
+	if (rdev->on_raw_accept)
 	{
-		 if (errno != ENOSYS)
-		 {
-			if (errno == EINPROGRESS || errno == EWOULDBLOCK || errno == EAGAIN) return 0;
-			if (errno == EINTR) return 0; /* if interrupted by a signal, treat it as if it's EINPROGRESS */
-
-			mio_seterrwithsyserr (mio, 0, errno);
-			return -1;
-		 }
-
-		 // go on for the normal 3-parameter accept
-	}
-	else
-	{
-		 goto accept_done;
+		/* this is a special optional callback. If you don't want a client socket device 
+		 * to be created upon accept, you may implement the on_raw_accept() handler. 
+		 * the socket handle is delated to the callback. */
+		rdev->on_raw_accept (rdev, clisck);
+		return 0;
 	}
 
-#endif
-	addrlen = MIO_SIZEOF(remoteaddr);
-	clisck = accept(rdev->hnd, (struct sockaddr*)&remoteaddr, &addrlen);
-	if (clisck == MIO_SCKHND_INVALID)
-	{
-		if (errno == EINPROGRESS || errno == EWOULDBLOCK || errno == EAGAIN) return 0;
-		if (errno == EINTR) return 0; /* if interrupted by a signal, treat it as if it's EINPROGRESS */
-
-		mio_seterrwithsyserr (mio, 0, errno);
-		return -1;
-	}
-
-accept_done:
 	/* use rdev->dev_size when instantiating a client sck device
-	 * instead of MIO_SIZEOF(mio_dev_sck_t). therefore, the 
+	 * instead of MIO_SIZEOF(mio_dev_sck_t). therefore, the  
 	 * extension area as big as that of the master sck device
 	 * is created in the client sck device */
 	clidev = (mio_dev_sck_t*)mio_dev_make(mio, rdev->dev_size, &dev_mth_clisck, rdev->dev_evcb, &clisck); 
@@ -1407,10 +1483,14 @@ accept_done:
 		return -1;
 	}
 
+// TODO:
+//if (clidev->type == MIO_DEV_SCK_QX) change it to the specified type..
+// TODO:
+
 	MIO_ASSERT (mio, clidev->hnd == clisck);
 
 	clidev->dev_cap |= MIO_DEV_CAP_IN | MIO_DEV_CAP_OUT | MIO_DEV_CAP_STREAM;
-	clidev->remoteaddr = remoteaddr;
+	clidev->remoteaddr = *remoteaddr;
 
 	addrlen = MIO_SIZEOF(clidev->localaddr);
 	if (getsockname(clisck, (struct sockaddr*)&clidev->localaddr, &addrlen) == -1) clidev->localaddr = rdev->localaddr;
@@ -1489,6 +1569,55 @@ accept_done:
 	}
 
 	return 0;
+}
+
+static int accept_incoming_connection (mio_dev_sck_t* rdev)
+{
+	mio_t* mio = rdev->mio;
+	mio_syshnd_t clisck;
+	mio_skad_t remoteaddr;
+	mio_scklen_t addrlen;
+	int flags;
+
+	/* this is a server(lisening) socket */
+
+#if defined(SOCK_NONBLOCK) && defined(SOCK_CLOEXEC) && defined(HAVE_ACCEPT4)
+	flags = SOCK_NONBLOCK | SOCK_CLOEXEC;
+
+	addrlen = MIO_SIZEOF(remoteaddr);
+	clisck = accept4(rdev->hnd, (struct sockaddr*)&remoteaddr, &addrlen, flags);
+	if (clisck <= -1)
+	{
+		 if (errno != ENOSYS)
+		 {
+			if (errno == EINPROGRESS || errno == EWOULDBLOCK || errno == EAGAIN) return 0;
+			if (errno == EINTR) return 0; /* if interrupted by a signal, treat it as if it's EINPROGRESS */
+
+			mio_seterrwithsyserr (mio, 0, errno);
+			return -1;
+		 }
+
+		 /* go on for the normal 3-parameter accept */
+	}
+	else
+	{
+		 goto accept_done;
+	}
+
+#endif
+	addrlen = MIO_SIZEOF(remoteaddr);
+	clisck = accept(rdev->hnd, (struct sockaddr*)&remoteaddr, &addrlen);
+	if (clisck <=  -1)
+	{
+		if (errno == EINPROGRESS || errno == EWOULDBLOCK || errno == EAGAIN) return 0;
+		if (errno == EINTR) return 0; /* if interrupted by a signal, treat it as if it's EINPROGRESS */
+
+		mio_seterrwithsyserr (mio, 0, errno);
+		return -1;
+	}
+
+accept_done:
+	return make_accepted_client_connection (rdev, clisck, &remoteaddr);
 }
 
 static int dev_evcb_sck_ready_stateful (mio_dev_t* dev, int events)
@@ -1686,7 +1815,7 @@ static int dev_evcb_sck_ready_stateless (mio_dev_t* dev, int events)
 		mio_scklen_t len;
 
 		len = MIO_SIZEOF(errcode);
-		if (getsockopt (rdev->hnd, SOL_SOCKET, SO_ERROR, (char*)&errcode, &len) == -1)
+		if (getsockopt(rdev->hnd, SOL_SOCKET, SO_ERROR, (char*)&errcode, &len) == -1)
 		{
 			/* the error number is set to the socket error code.
 			 * errno resulting from getsockopt() doesn't reflect the actual
@@ -1733,6 +1862,8 @@ static int dev_evcb_sck_on_write_stateless (mio_dev_t* dev, mio_iolen_t wrlen, v
 	return rdev->on_write(rdev, wrlen, wrctx, dstaddr->ptr);
 }
 
+/* ========================================================================= */
+
 static mio_dev_evcb_t dev_sck_event_callbacks_stateful =
 {
 	dev_evcb_sck_ready_stateful,
@@ -1745,6 +1876,86 @@ static mio_dev_evcb_t dev_sck_event_callbacks_stateless =
 	dev_evcb_sck_ready_stateless,
 	dev_evcb_sck_on_read_stateless,
 	dev_evcb_sck_on_write_stateless
+};
+/* ========================================================================= */
+
+static int dev_evcb_sck_ready_qx (mio_dev_t* dev, int events)
+{
+	mio_t* mio = dev->mio;
+	mio_dev_sck_t* rdev = (mio_dev_sck_t*)dev;
+
+	if (events & MIO_DEV_EVENT_ERR)
+	{
+		int errcode;
+		mio_scklen_t len;
+
+		len = MIO_SIZEOF(errcode);
+		if (getsockopt(rdev->hnd, SOL_SOCKET, SO_ERROR, (char*)&errcode, &len) == -1)
+		{
+			/* the error number is set to the socket error code.
+			 * errno resulting from getsockopt() doesn't reflect the actual
+			 * socket error. so errno is not used to set the error number.
+			 * instead, the generic device error MIO_EDEVERRR is used */
+			mio_seterrbfmt (mio, MIO_EDEVERR, "device error - unable to get SO_ERROR");
+		}
+		else
+		{
+			mio_seterrwithsyserr (rdev->mio, 0, errcode);
+		}
+		return -1;
+	}
+	else if (events & MIO_DEV_EVENT_HUP)
+	{
+		mio_seterrnum (mio, MIO_EDEVHUP);
+		return -1;
+	}
+
+	return 1; /* the device is ok. carry on reading or writing */
+}
+
+
+static int dev_evcb_sck_on_read_qx (mio_dev_t* dev, const void* data, mio_iolen_t dlen, const mio_devaddr_t* srcaddr)
+{
+	mio_t* mio = dev->mio;
+	mio_dev_sck_t* rdev = (mio_dev_sck_t*)dev;
+	mio_dev_sck_qxmsg_t* qxmsg;
+
+	if (dlen != MIO_SIZEOF(*qxmsg))
+	{
+		mio_seterrbfmt (mio, MIO_EINVAL, "wrong qx packet size");
+		return -1;
+	}
+
+	qxmsg = (mio_dev_sck_qxmsg_t*)data;
+	if (qxmsg->cmd == MIO_DEV_SCK_QXMSG_NEWCONN)
+	{
+		if (make_accepted_client_connection(rdev, qxmsg->syshnd, &qxmsg->remoteaddr) <= -1) 
+		{
+			close (qxmsg->syshnd);
+			return -1;
+		}
+	}
+	else
+	{
+		mio_seterrbfmt (mio, MIO_EINVAL, "wrong qx command code");
+		return -1;
+	}
+
+	return 0;
+}
+
+static int dev_evcb_sck_on_write_qx (mio_dev_t* dev, mio_iolen_t wrlen, void* wrctx, const mio_devaddr_t* dstaddr)
+{
+	/*mio_dev_sck_t* rdev = (mio_dev_sck_t*)dev;*/
+	/* this should not be called */
+	return 0;
+}
+
+static mio_dev_evcb_t dev_sck_event_callbacks_qx =
+{
+	dev_evcb_sck_ready_qx,
+	dev_evcb_sck_on_read_qx,
+	dev_evcb_sck_on_write_qx
 };
 
 /* ========================================================================= */
@@ -1759,7 +1970,13 @@ mio_dev_sck_t* mio_dev_sck_make (mio_t* mio, mio_oow_t xtnsize, const mio_dev_sc
 		return MIO_NULL;
 	}
 
-	if (sck_type_map[info->type].extra_dev_cap & MIO_DEV_CAP_STREAM) /* can't use the IS_STATEFUL() macro yet */
+	if (info->type == MIO_DEV_SCK_QX)
+	{
+		rdev = (mio_dev_sck_t*)mio_dev_make(
+			mio, MIO_SIZEOF(mio_dev_sck_t) + xtnsize,
+			&dev_sck_methods_stateless, &dev_sck_event_callbacks_qx, (void*)info);
+	}
+	else if (sck_type_map[info->type].extra_dev_cap & MIO_DEV_CAP_STREAM) /* can't use the IS_STATEFUL() macro yet */
 	{
 		rdev = (mio_dev_sck_t*)mio_dev_make(
 			mio, MIO_SIZEOF(mio_dev_sck_t) + xtnsize,
@@ -1856,6 +2073,18 @@ int mio_dev_sck_sendfileok (mio_dev_sck_t* dev)
 #else
 	return 1;
 #endif
+}
+
+int mio_dev_sck_writetosidechan (mio_dev_sck_t* dev, const void* dptr, mio_oow_t dlen)
+{
+	if (dev->side_chan == MIO_SYSHND_INVALID)
+	{
+		mio_seterrnum (dev->mio, MIO_ENOCAPA);
+		return -1;
+	}
+
+	write (dev->side_chan, dptr, dlen);
+	return 0;
 }
 
 /* ========================================================================= */

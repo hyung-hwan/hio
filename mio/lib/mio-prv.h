@@ -114,6 +114,11 @@ int mio_makesyshndasync (
 	mio_syshnd_t hnd
 );
 
+int mio_makesyshndcloexec (
+	mio_t*       mio,
+	mio_syshnd_t hnd
+);
+
 void mio_cleartmrjobs (
 	mio_t* mio
 );
