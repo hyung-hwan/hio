@@ -127,8 +127,6 @@ oops:
 static mio_syshnd_t open_async_qx (mio_t* mio, mio_syshnd_t* side_chan)
 {
 	int fd[2];
-
-#if 1
 	int type = SOCK_DGRAM;
 
 #if defined(SOCK_NONBLOCK) && defined(SOCK_CLOEXEC)
@@ -166,42 +164,6 @@ open_socket:
 done:
 	*side_chan = fd[1]; /* write end of the pipe */
 	return fd[0]; /* read end of the pipe */
-#else
-
-#if defined(HAVE_PIPE2)
-	/* in linux 3.4 or higher, O_DIRECT can make the pipes work in the packet mode if the data size is <= PIPE_BUF */
-	if (pipe2(fd, O_CLOEXEC | O_NONBLOCK) <= -1)
-	{
-		if  (errno == ENOSYS) goto normal_pipe;
-		mio_seterrwithsyserr (mio, 0, errno);
-		return MIO_SYSHND_INVALID;
-	}
-	goto done;
-
-normal_pipe:
-#endif
-	if (pipe(fd) <= -1)
-	{
-		mio_seterrwithsyserr (mio, 0, errno);
-		return MIO_SYSHND_INVALID;
-	}
-
-	if (mio_makesyshndasync(mio, fd[0]) <= -1 ||
-	    mio_makesyshndasync(mio, fd[1]) <= -1 ||
-	    mio_makesyshndcloexec(mio, fd[0]) <= -1 ||
-	    mio_makesyshndcloexec(mio, fd[1]) <= -1) 
-	{
-		close (fd[0]);
-		close (fd[1]);
-		return MIO_SYSHND_INVALID;
-	}
-
-#if defined(HAVE_PIPE2)
-done:
-#endif
-	*side_chan = fd[1]; /* write end of the pipe */
-	return fd[0]; /* read end of the pipe */
-#endif
 }
 
 /* ========================================================================= */
@@ -383,6 +345,7 @@ static int dev_sck_make (mio_dev_t* dev, void* ctx)
 
 	MIO_ASSERT (mio, arg->type >= 0 && arg->type < MIO_COUNTOF(sck_type_map));
 
+	/* initialize some fields first where 0 is not somthing initial or invalid. */
 	rdev->hnd = MIO_SYSHND_INVALID;
 	rdev->side_chan = MIO_SYSHND_INVALID;
 	rdev->tmrjob_index = MIO_TMRIDX_INVALID;
@@ -390,7 +353,7 @@ static int dev_sck_make (mio_dev_t* dev, void* ctx)
 	if (sck_type_map[arg->type].domain <= -1)
 	{
 		mio_seterrnum (mio, MIO_ENOIMPL); /* TODO: better error info? */
-		return -1;
+		goto oops;
 	}
 
 	if (arg->options & MIO_DEV_SCK_MAKE_IMPSYSHND)
