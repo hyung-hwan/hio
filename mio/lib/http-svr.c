@@ -304,11 +304,12 @@ mio_svc_htts_t* mio_svc_htts_start (mio_t* mio, mio_dev_sck_bind_t* sck_bind, mi
 			break;
 
 		default:
-			mio_seterrnum (mio, MIO_EINVAL);
-			goto oops;
-	}
+			/*mio_seterrnum (mio, MIO_EINVAL);
+			goto oops;*/
+			info.m.type = MIO_DEV_SCK_QX;
+			break;
 
-	MIO_MEMSET (&info, 0, MIO_SIZEOF(info));
+	}
 	info.m.on_write = listener_on_write;
 	info.m.on_read = listener_on_read;
 	info.m.on_connect = listener_on_connect;
@@ -324,13 +325,16 @@ mio_svc_htts_t* mio_svc_htts_start (mio_t* mio, mio_dev_sck_bind_t* sck_bind, mi
 	cli->htts = htts; 
 	cli->sck = htts->lsck;
 
-	if (mio_dev_sck_bind(htts->lsck, sck_bind) <= -1) goto oops;
+	if (htts->lsck->type != MIO_DEV_SCK_QX)
+	{
+		if (mio_dev_sck_bind(htts->lsck, sck_bind) <= -1) goto oops;
 
-	MIO_MEMSET (&info, 0, MIO_SIZEOF(info));
-	info.l.options = MIO_DEV_SCK_LISTEN_LENIENT;
-	info.l.backlogs = 255;
-	MIO_INIT_NTIME (&info.l.accept_tmout, 5, 1);
-	if (mio_dev_sck_listen(htts->lsck, &info.l) <= -1) goto oops;
+		MIO_MEMSET (&info, 0, MIO_SIZEOF(info));
+		info.l.options = MIO_DEV_SCK_LISTEN_LENIENT;
+		info.l.backlogs = 4096;
+		MIO_INIT_NTIME (&info.l.accept_tmout, 5, 1);
+		if (mio_dev_sck_listen(htts->lsck, &info.l) <= -1) goto oops;
+	}
 
 	mio_fmttobcstr (htts->mio, htts->server_name_buf, MIO_COUNTOF(htts->server_name_buf), "%s-%d.%d.%d", 
 		MIO_PACKAGE_NAME, (int)MIO_PACKAGE_VERSION_MAJOR, (int)MIO_PACKAGE_VERSION_MINOR, (int)MIO_PACKAGE_VERSION_PATCH);

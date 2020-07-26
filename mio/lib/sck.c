@@ -383,6 +383,10 @@ static int dev_sck_make (mio_dev_t* dev, void* ctx)
 
 	MIO_ASSERT (mio, arg->type >= 0 && arg->type < MIO_COUNTOF(sck_type_map));
 
+	rdev->hnd = MIO_SYSHND_INVALID;
+	rdev->side_chan = MIO_SYSHND_INVALID;
+	rdev->tmrjob_index = MIO_TMRIDX_INVALID;
+
 	if (sck_type_map[arg->type].domain <= -1)
 	{
 		mio_seterrnum (mio, MIO_ENOIMPL); /* TODO: better error info? */
@@ -426,14 +430,14 @@ static int dev_sck_make (mio_dev_t* dev, void* ctx)
 	rdev->on_read = arg->on_read;
 	rdev->on_connect = arg->on_connect;
 	rdev->on_disconnect = arg->on_disconnect;
+	rdev->on_raw_accept = arg->on_raw_accept;
 	rdev->type = arg->type;
-	rdev->tmrjob_index = MIO_TMRIDX_INVALID;
 
 	return 0;
 
 oops:
 	if (hnd != MIO_SYSHND_INVALID) close_async_socket (mio, hnd);
-	if (side_chan != MIO_SYSHND_INVALID) close (rdev->side_chan);
+	if (side_chan != MIO_SYSHND_INVALID) close (side_chan);
 	return -1;
 }
 
@@ -451,6 +455,7 @@ static int dev_sck_make_client (mio_dev_t* dev, void* ctx)
 
 	rdev->hnd = *clisckhnd;
 	rdev->tmrjob_index = MIO_TMRIDX_INVALID;
+	rdev->side_chan = MIO_SYSHND_INVALID;
 
 	if (mio_makesyshndasync(mio, rdev->hnd) <= -1 ||
 	    mio_makesyshndcloexec(mio, rdev->hnd) <= -1) return -1;
@@ -508,8 +513,8 @@ static int dev_sck_kill (mio_dev_t* dev, int force)
 
 	if (rdev->side_chan != MIO_SYSHND_INVALID)
 	{
-		close (rdev->hnd);
-		rdev->hnd = MIO_SYSHND_INVALID;
+		close (rdev->side_chan);
+		rdev->side_chan = MIO_SYSHND_INVALID;
 	}
 	return 0;
 }
@@ -1001,6 +1006,17 @@ static int dev_sck_ioctl (mio_dev_t* dev, int cmd, void* arg)
 				return -1;
 			}
 
+			if (mio_skad_family(&bnd->localaddr) == MIO_AF_INET6) /* getsockopt(rdev->hnd, SO_DOMAIN, ...) may return the domain but it's kernel specific as well */
+			{
+				/* TODO: should i make it into bnd->options? MIO_DEV_SCK_BIND_IPV6ONLY? applicable to ipv6 though. */
+				int v = 1;
+				if (setsockopt(rdev->hnd, IPPROTO_IPV6, IPV6_V6ONLY, &v, MIO_SIZEOF(v)) == -1)
+				{
+					mio_seterrbfmtwithsyserr (mio, 0, errno, "unable to set IPV6_V6ONLY");
+					return -1;
+				}
+			}
+
 			if (bnd->options & MIO_DEV_SCK_BIND_BROADCAST)
 			{
 				int v = 1;
@@ -1457,7 +1473,7 @@ static int harvest_outgoing_connection (mio_dev_sck_t* rdev)
 	}
 }
 
-static int make_accepted_client_connection (mio_dev_sck_t* rdev, mio_syshnd_t clisck, mio_skad_t* remoteaddr)
+static int make_accepted_client_connection (mio_dev_sck_t* rdev, mio_syshnd_t clisck, mio_skad_t* remoteaddr, mio_dev_sck_type_t clisck_type)
 {
 	mio_t* mio = rdev->mio;
 	mio_dev_sck_t* clidev;
@@ -1468,7 +1484,7 @@ static int make_accepted_client_connection (mio_dev_sck_t* rdev, mio_syshnd_t cl
 		/* this is a special optional callback. If you don't want a client socket device 
 		 * to be created upon accept, you may implement the on_raw_accept() handler. 
 		 * the socket handle is delated to the callback. */
-		rdev->on_raw_accept (rdev, clisck);
+		rdev->on_raw_accept (rdev, clisck, remoteaddr);
 		return 0;
 	}
 
@@ -1486,7 +1502,7 @@ static int make_accepted_client_connection (mio_dev_sck_t* rdev, mio_syshnd_t cl
 // TODO:
 //if (clidev->type == MIO_DEV_SCK_QX) change it to the specified type..
 // TODO:
-
+	clidev->type = clisck_type;
 	MIO_ASSERT (mio, clidev->hnd == clisck);
 
 	clidev->dev_cap |= MIO_DEV_CAP_IN | MIO_DEV_CAP_OUT | MIO_DEV_CAP_STREAM;
@@ -1536,6 +1552,7 @@ static int make_accepted_client_connection (mio_dev_sck_t* rdev, mio_syshnd_t cl
 	 * you can still change them inside the on_connect handler */
 	clidev->on_connect = rdev->on_connect;
 	clidev->on_disconnect = rdev->on_disconnect; 
+	clidev->on_raw_accept = MIO_NULL; /* don't inherit this */
 	clidev->on_write = rdev->on_write;
 	clidev->on_read = rdev->on_read;
 
@@ -1617,7 +1634,7 @@ static int accept_incoming_connection (mio_dev_sck_t* rdev)
 	}
 
 accept_done:
-	return make_accepted_client_connection (rdev, clisck, &remoteaddr);
+	return make_accepted_client_connection (rdev, clisck, &remoteaddr, rdev->type);
 }
 
 static int dev_evcb_sck_ready_stateful (mio_dev_t* dev, int events)
@@ -1918,37 +1935,51 @@ static int dev_evcb_sck_on_read_qx (mio_dev_t* dev, const void* data, mio_iolen_
 {
 	mio_t* mio = dev->mio;
 	mio_dev_sck_t* rdev = (mio_dev_sck_t*)dev;
-	mio_dev_sck_qxmsg_t* qxmsg;
 
-	if (dlen != MIO_SIZEOF(*qxmsg))
+	if (rdev->type == MIO_DEV_SCK_QX)
 	{
-		mio_seterrbfmt (mio, MIO_EINVAL, "wrong qx packet size");
-		return -1;
-	}
+		mio_dev_sck_qxmsg_t* qxmsg;
 
-	qxmsg = (mio_dev_sck_qxmsg_t*)data;
-	if (qxmsg->cmd == MIO_DEV_SCK_QXMSG_NEWCONN)
-	{
-		if (make_accepted_client_connection(rdev, qxmsg->syshnd, &qxmsg->remoteaddr) <= -1) 
+		if (dlen != MIO_SIZEOF(*qxmsg))
 		{
-			close (qxmsg->syshnd);
+			mio_seterrbfmt (mio, MIO_EINVAL, "wrong qx packet size");
 			return -1;
 		}
-	}
-	else
-	{
-		mio_seterrbfmt (mio, MIO_EINVAL, "wrong qx command code");
-		return -1;
+
+		qxmsg = (mio_dev_sck_qxmsg_t*)data;
+		if (qxmsg->cmd == MIO_DEV_SCK_QXMSG_NEWCONN)
+		{
+			if (make_accepted_client_connection(rdev, qxmsg->syshnd, &qxmsg->remoteaddr, qxmsg->scktype) <= -1) 
+			{
+				close (qxmsg->syshnd);
+				return -1;
+			}
+		}
+		else
+		{
+			mio_seterrbfmt (mio, MIO_EINVAL, "wrong qx command code");
+			return -1;
+		}
+
+		return 0;
 	}
 
-	return 0;
+
+	/* this is not for a qx socket */
+	return rdev->on_read(rdev, data, dlen, MIO_NULL);
 }
 
 static int dev_evcb_sck_on_write_qx (mio_dev_t* dev, mio_iolen_t wrlen, void* wrctx, const mio_devaddr_t* dstaddr)
 {
-	/*mio_dev_sck_t* rdev = (mio_dev_sck_t*)dev;*/
-	/* this should not be called */
-	return 0;
+	mio_dev_sck_t* rdev = (mio_dev_sck_t*)dev;
+
+	if (rdev->type == MIO_DEV_SCK_QX)
+	{
+		/* this should not be called */
+		return 0;
+	}
+	
+	return rdev->on_write(rdev, wrlen, wrctx, MIO_NULL);
 }
 
 static mio_dev_evcb_t dev_sck_event_callbacks_qx =
@@ -2077,13 +2108,7 @@ int mio_dev_sck_sendfileok (mio_dev_sck_t* dev)
 
 int mio_dev_sck_writetosidechan (mio_dev_sck_t* dev, const void* dptr, mio_oow_t dlen)
 {
-	if (dev->side_chan == MIO_SYSHND_INVALID)
-	{
-		mio_seterrnum (dev->mio, MIO_ENOCAPA);
-		return -1;
-	}
-
-	write (dev->side_chan, dptr, dlen);
+	if (write(dev->side_chan, dptr, dlen) <= -1) return -1; /* this doesn't set the error information. if you may check errno, though */
 	return 0;
 }
 
