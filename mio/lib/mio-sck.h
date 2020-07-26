@@ -255,7 +255,8 @@ typedef void (*mio_dev_sck_on_connect_t) (
 
 typedef void (*mio_dev_sck_on_raw_accept_t) (
 	mio_dev_sck_t* dev,
-	mio_syshnd_t   syshnd
+	mio_syshnd_t   syshnd,
+	mio_skad_t*    peeradr
 );
 
 enum mio_dev_sck_type_t

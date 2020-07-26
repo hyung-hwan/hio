@@ -1181,7 +1181,6 @@ int main (int argc, char* argv[])
 		goto oops;
 	}
 
-
 	//mio_dev_sck_sendfile (tcp[2], fd, offset, count);
 
 	setup_arp_tester(mio);
