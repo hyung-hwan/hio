@@ -847,7 +847,7 @@ int mio_svc_htts_dothr (mio_svc_htts_t* htts, mio_dev_sck_t* csck, mio_htre_t* r
 	}
 
 	tfs->tfi.req_x_http_method_override = -1;
-	if (mio_htre_walkheaders(req, thr_capture_request_header, tfs) <= -1) return -1;
+	if (mio_htre_walkheaders(req, thr_capture_request_header, tfs) <= -1) goto oops;
 
 	tfs->tfi.server_addr = cli->sck->localaddr;
 	tfs->tfi.client_addr = cli->sck->remoteaddr;

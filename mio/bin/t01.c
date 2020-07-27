@@ -859,7 +859,7 @@ static void on_htts_thr_request (mio_t* mio, mio_dev_thr_iopair_t* iop, mio_svc_
 		return;
 	}
 
-	fprintf (fp, "Status: 201\r\n");
+	fprintf (fp, "Status: 200\r\n");
 	fprintf (fp, "Content-Type: text/html\r\n\r\n");
 
 	fprintf (fp, "request path = %s\n", tfi->req_path);
