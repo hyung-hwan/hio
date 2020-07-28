@@ -268,6 +268,7 @@ static void connect_timedout (mio_t* mio, const mio_ntime_t* now, mio_tmrjob_t* 
 		 * doesn't need to be deleted when it gets connected for this check 
 		 * here. this libarary, however, deletes the job when it gets 
 		 * connected. */
+		MIO_DEBUG1 (mio, "SCK(%p) - connect timed out. halting\n", rdev);
 		mio_dev_sck_halt (rdev);
 	}
 }
@@ -280,6 +281,7 @@ static void ssl_accept_timedout (mio_t* mio, const mio_ntime_t* now, mio_tmrjob_
 
 	if (rdev->state & MIO_DEV_SCK_ACCEPTING_SSL)
 	{
+		MIO_DEBUG1 (mio, "SCK(%p) - ssl-accept timed out. halting\n", rdev);
 		mio_dev_sck_halt(rdev);
 	}
 }
@@ -292,6 +294,7 @@ static void ssl_connect_timedout (mio_t* mio, const mio_ntime_t* now, mio_tmrjob
 
 	if (rdev->state & MIO_DEV_SCK_CONNECTING_SSL)
 	{
+		MIO_DEBUG1 (mio, "SCK(%p) - ssl-connect timed out. halting\n", rdev);
 		mio_dev_sck_halt(rdev);
 	}
 }
@@ -420,8 +423,11 @@ static int dev_sck_make_client (mio_dev_t* dev, void* ctx)
 	rdev->tmrjob_index = MIO_TMRIDX_INVALID;
 	rdev->side_chan = MIO_SYSHND_INVALID;
 
-	if (mio_makesyshndasync(mio, rdev->hnd) <= -1 ||
-	    mio_makesyshndcloexec(mio, rdev->hnd) <= -1) return -1;
+/*if (mio_makesyshndasync(mio, rdev->hnd) <= -1 ||
+    mio_makesyshndcloexec(mio, rdev->hnd) <= -1) { printf ("cannot make sysnhnd async or cloexec %d\n", rdev->hnd); return -1; }
+ */
+	mio_makesyshndasync(mio, rdev->hnd);
+	mio_makesyshndcloexec(mio, rdev->hnd);
 	return 0;
 }
 
@@ -542,9 +548,13 @@ static int dev_sck_read_stateless (mio_dev_t* dev, void* buf, mio_iolen_t* len, 
 	x = recvfrom(rdev->hnd, buf, *len, 0, (struct sockaddr*)&rdev->remoteaddr, &srcaddrlen);
 	if (x <= -1)
 	{
-		if (errno == EINPROGRESS || errno == EWOULDBLOCK || errno == EAGAIN) return 0;  /* no data available */
-		if (errno == EINTR) return 0;
-		mio_seterrwithsyserr (mio, 0, errno);
+		int eno = errno;
+		if (eno == EINPROGRESS || eno == EWOULDBLOCK || eno == EAGAIN) return 0;  /* no data available */
+		if (eno == EINTR) return 0;
+
+		mio_seterrwithsyserr (mio, 0, eno);
+
+		MIO_DEBUG2 (mio, "SCK(%p) - recvfrom failure - %hs", rdev, strerror(eno)); 
 		return -1;
 	}
 
@@ -1402,7 +1412,8 @@ static int harvest_outgoing_connection (mio_dev_sck_t* rdev)
 				if (MIO_IS_POS_NTIME(&rdev->tmout) &&
 				    schedule_timer_job_at(rdev, &rdev->tmout, ssl_connect_timedout) <= -1)
 				{
-					mio_dev_halt ((mio_dev_t*)rdev);
+					MIO_DEBUG1 (mio, "SCK(%p) - ssl-connect timeout scheduling failed. halting\n", rdev);
+					mio_dev_sck_halt (rdev);
 				}
 
 				return 0;
@@ -1458,13 +1469,11 @@ static int make_accepted_client_connection (mio_dev_sck_t* rdev, mio_syshnd_t cl
 	clidev = (mio_dev_sck_t*)mio_dev_make(mio, rdev->dev_size, &dev_mth_clisck, rdev->dev_evcb, &clisck); 
 	if (MIO_UNLIKELY(!clidev))
 	{
+		MIO_DEBUG3 (mio, "SCK(%p) - unable to make a new accepted device for %d - %js\n", rdev, (int)clisck, mio_geterrmsg(mio));
 		close (clisck);
 		return -1;
 	}
 
-// TODO:
-//if (clidev->type == MIO_DEV_SCK_QX) change it to the specified type..
-// TODO:
 	clidev->type = clisck_type;
 	MIO_ASSERT (mio, clidev->hnd == clisck);
 
@@ -1538,7 +1547,8 @@ static int make_accepted_client_connection (mio_dev_sck_t* rdev, mio_syshnd_t cl
 		    schedule_timer_job_after(clidev, &rdev->tmout, ssl_accept_timedout) <= -1)
 		{
 			/* timer job scheduling failed. halt the device */
-			mio_dev_halt ((mio_dev_t*)clidev);
+			MIO_DEBUG1 (mio, "SCK(%p) - ssl-accept timeout scheduling failed. halting\n", rdev);
+			mio_dev_sck_halt (clidev);
 		}
 	}
 	else
@@ -1597,7 +1607,7 @@ static int accept_incoming_connection (mio_dev_sck_t* rdev)
 	}
 
 accept_done:
-	return make_accepted_client_connection (rdev, clisck, &remoteaddr, rdev->type);
+	return make_accepted_client_connection(rdev, clisck, &remoteaddr, rdev->type);
 }
 
 static int dev_evcb_sck_ready_stateful (mio_dev_t* dev, int events)
@@ -1906,7 +1916,8 @@ static int dev_evcb_sck_on_read_qx (mio_dev_t* dev, const void* data, mio_iolen_
 		if (dlen != MIO_SIZEOF(*qxmsg))
 		{
 			mio_seterrbfmt (mio, MIO_EINVAL, "wrong qx packet size");
-			return -1;
+printf ("unable wrong packet size... \n");
+			return 0;
 		}
 
 		qxmsg = (mio_dev_sck_qxmsg_t*)data;
@@ -1914,14 +1925,16 @@ static int dev_evcb_sck_on_read_qx (mio_dev_t* dev, const void* data, mio_iolen_
 		{
 			if (make_accepted_client_connection(rdev, qxmsg->syshnd, &qxmsg->remoteaddr, qxmsg->scktype) <= -1) 
 			{
+printf ("unable to accept new client connection\n");
 				close (qxmsg->syshnd);
 				return -1;
 			}
 		}
 		else
 		{
+printf ("unknown qx xommand code\n");
 			mio_seterrbfmt (mio, MIO_EINVAL, "wrong qx command code");
-			return -1;
+			return 0;
 		}
 
 		return 0;

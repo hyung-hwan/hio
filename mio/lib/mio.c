@@ -324,7 +324,6 @@ static void fire_cwq_handlers (mio_t* mio)
 		cwq = MIO_CWQ_HEAD(&mio->cwq);
 		if (cwq->dev->dev_evcb->on_write(cwq->dev, cwq->olen, cwq->ctx, &cwq->dstaddr) <= -1) 
 		{
-			MIO_DEBUG1 (mio, "MIO - Error returned by on_write() of device %p in cwq\n", cwq->dev);
 			dev_to_halt = cwq->dev;
 		}
 		else
@@ -347,7 +346,11 @@ static void fire_cwq_handlers (mio_t* mio)
 			mio_freemem (mio, cwq);
 		}
 
-		if (dev_to_halt) mio_dev_halt (dev_to_halt);
+		if (dev_to_halt) 
+		{
+			MIO_DEBUG1 (mio, "DEV(%p) - halting a device for on_write error upon write completion[1]\n", dev_to_halt);
+			mio_dev_halt (dev_to_halt);
+		}
 	}
 }
 
@@ -368,7 +371,6 @@ static void fire_cwq_handlers_for_dev (mio_t* mio, mio_dev_t* dev, int for_kill)
 
 			if (cwq->dev->dev_evcb->on_write(cwq->dev, cwq->olen, cwq->ctx, &cwq->dstaddr) <= -1) 
 			{
-				MIO_DEBUG1 (mio, "MIO - Error returned by on_write() of device %p in cwq\n", cwq->dev);
 				dev_to_halt = cwq->dev;
 			}
 			else
@@ -392,7 +394,11 @@ static void fire_cwq_handlers_for_dev (mio_t* mio, mio_dev_t* dev, int for_kill)
 				mio_freemem (mio, cwq);
 			}
 
-			if (!for_kill && dev_to_halt) mio_dev_halt (dev_to_halt);
+			if (!for_kill && dev_to_halt)
+			{
+				MIO_DEBUG1 (mio, "DEV(%p) - halting a device for on_write error upon write completion[2]\n", dev_to_halt);
+			       	mio_dev_halt (dev_to_halt);
+			}
 		}
 		cwq = next;
 	}
@@ -420,7 +426,8 @@ static MIO_INLINE void handle_event (mio_t* mio, mio_dev_t* dev, int events, int
 		 *   >= 1 - everything is ok. */
 		x = dev->dev_evcb->ready(dev, xevents);
 		if (x <= -1)
-		{
+		{ 
+			MIO_DEBUG1 (mio, "DEV(%p) - halting a device for ready callback error\n", dev);
 			mio_dev_halt (dev);
 			return;
 		}
@@ -461,6 +468,7 @@ static MIO_INLINE void handle_event (mio_t* mio, mio_dev_t* dev, int events, int
 			}
 			if (x <= -1)
 			{
+				MIO_DEBUG1 (mio, "DEV(%p) - halting a device for write failure\n", dev);
 				mio_dev_halt (dev);
 				dev = MIO_NULL;
 				break;
@@ -504,7 +512,7 @@ static MIO_INLINE void handle_event (mio_t* mio, mio_dev_t* dev, int events, int
 
 					if (y <= -1)
 					{
-						MIO_DEBUG1 (mio, "MIO - Error returned by on_write() of device %p\n", dev);
+						MIO_DEBUG1 (mio, "DEV(%p) - halting a device for on_write error\n", dev);
 						mio_dev_halt (dev);
 						dev = MIO_NULL;
 						break;
@@ -532,6 +540,7 @@ static MIO_INLINE void handle_event (mio_t* mio, mio_dev_t* dev, int events, int
 			/* no pending request to write */
 			if ((dev->dev_cap & MIO_DEV_CAP_IN_CLOSED) && (dev->dev_cap & MIO_DEV_CAP_OUT_CLOSED))
 			{
+				MIO_DEBUG1 (mio, "DEV(%p) - halting a device for closed input and output in output handler\n", dev);
 				mio_dev_halt (dev);
 				dev = MIO_NULL;
 			}
@@ -557,6 +566,7 @@ static MIO_INLINE void handle_event (mio_t* mio, mio_dev_t* dev, int events, int
 			x = dev->dev_mth->read(dev, mio->bigbuf, &len, &srcaddr);
 			if (x <= -1)
 			{
+				MIO_DEBUG1 (mio, "DEV(%p) - halting a device for read failure\n", dev);
 				mio_dev_halt (dev);
 				dev = MIO_NULL;
 				break;
@@ -620,6 +630,7 @@ static MIO_INLINE void handle_event (mio_t* mio, mio_dev_t* dev, int events, int
 					{
 						/* 1. input ended and its reporting failed or 
 						 * 2. input ended and no writing is possible */
+						MIO_DEBUG1 (mio, "DEV(%p) - halting a stream device for on_read failure while output is closed\n", dev);
 						mio_dev_halt (dev);
 						dev = MIO_NULL;
 					}
@@ -637,6 +648,7 @@ static MIO_INLINE void handle_event (mio_t* mio, mio_dev_t* dev, int events, int
 					y = dev->dev_evcb->on_read(dev, mio->bigbuf, len, &srcaddr);
 					if (y <= -1)
 					{
+						MIO_DEBUG1 (mio, "DEV(%p) - halting a non-stream device for on_read failure while output is closed\n", dev);
 						mio_dev_halt (dev);
 						dev = MIO_NULL;
 						break;
@@ -689,6 +701,7 @@ static MIO_INLINE void handle_event (mio_t* mio, mio_dev_t* dev, int events, int
 		if ((dev->dev_cap & MIO_DEV_CAP_IN_CLOSED) &&
 		    (dev->dev_cap & MIO_DEV_CAP_OUT_CLOSED))
 		{
+			MIO_DEBUG1 (mio, "DEV(%p) - halting a device for closed input and output\n", dev);
 			mio_dev_halt (dev);
 			dev = MIO_NULL;
 		}
@@ -697,6 +710,7 @@ static MIO_INLINE void handle_event (mio_t* mio, mio_dev_t* dev, int events, int
 skip_evcb:
 	if (dev && (dev->dev_cap & MIO_DEV_CAP_RENEW_REQUIRED) && mio_dev_watch(dev, MIO_DEV_WATCH_RENEW, MIO_DEV_EVENT_IN) <= -1)
 	{
+		MIO_DEBUG1 (mio, "DEV(%p) - halting a device for wathcer renewal failure\n", dev);
 		mio_dev_halt (dev);
 		dev = MIO_NULL;
 	}
@@ -1162,7 +1176,11 @@ static void on_read_timeout (mio_t* mio, const mio_ntime_t* now, mio_tmrjob_t* j
 
 	MIO_ASSERT (mio, dev->rtmridx == MIO_TMRIDX_INVALID);
 
-	if (x <= -1) mio_dev_halt (dev);
+	if (x <= -1) 
+	{
+		MIO_DEBUG1 (mio, "DEV(%p) - halting a device for on_read error upon timeout\n", dev);
+		mio_dev_halt (dev);
+	}
 }
 
 static int __dev_read (mio_dev_t* dev, int enabled, const mio_ntime_t* tmout, void* rdctx)
@@ -1249,7 +1267,11 @@ static void on_write_timeout (mio_t* mio, const mio_ntime_t* now, mio_tmrjob_t* 
 	MIO_WQ_UNLINK(q);
 	mio_freemem (mio, q);
 
-	if (x <= -1) mio_dev_halt (dev);
+	if (x <= -1) 
+	{
+		MIO_DEBUG1 (mio, "DEV(%p) - halting a device for on_write error upon timeout\n", dev);
+		mio_dev_halt (dev);
+	}
 }
 
 static MIO_INLINE int __enqueue_completed_write (mio_dev_t* dev, mio_iolen_t len, void* wrctx, const mio_devaddr_t* dstaddr)
