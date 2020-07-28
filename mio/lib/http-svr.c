@@ -154,6 +154,7 @@ static int listener_on_read (mio_dev_sck_t* sck, const void* buf, mio_iolen_t le
 
 	if ((x = mio_htrd_feed(cli->htrd, buf, len, &rem)) <= -1) 
 	{
+		MIO_DEBUG3 (mio, "HTTS(%p) - feed error onto client htrd %p(%d)\n", cli->htts, sck, (int)sck->hnd);
 		goto oops;
 	}
 
@@ -173,7 +174,7 @@ static int listener_on_read (mio_dev_sck_t* sck, const void* buf, mio_iolen_t le
 
 oops:
 	mio_dev_sck_halt (sck);
-	return 0;
+	return 0; /* still return success here. instead call halt() */
 }
 
 static int listener_on_write (mio_dev_sck_t* sck, mio_iolen_t wrlen, void* wrctx, const mio_skad_t* dstaddr)
@@ -261,6 +262,7 @@ static void listener_on_disconnect (mio_dev_sck_t* sck)
 		MIO_ASSERT (mio, cli->sbuf == MIO_NULL);
 
 		MIO_DEBUG2 (mio, "HTTS(%p) - listener socket disconnect %p\n", cli->htts, sck);
+printf ("listener socket disconnect..................sck %p %d\n", sck, sck->hnd);
 		cli->htts->lsck = MIO_NULL; /* let the htts service forget about this listening socket */
 	}
 	else
@@ -318,7 +320,7 @@ mio_svc_htts_t* mio_svc_htts_start (mio_t* mio, mio_dev_sck_bind_t* sck_bind, mi
 	if (!htts->lsck) goto oops;
 
 	/* the name 'cli' for the listening socket is awkard.
-	 * the listing socket will use the htts and sck fields for tracking only.
+	 * the listening socket will use the htts and sck fields for tracking only.
 	 * each accepted client socket gets the extension size for this size as well.
 	 * most of other fields are used for client management */
 	cli = (mio_svc_htts_cli_t*)mio_dev_sck_getxtn(htts->lsck);
