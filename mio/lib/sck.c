@@ -355,7 +355,7 @@ static int dev_sck_make (mio_dev_t* dev, void* ctx)
 		goto oops;
 	}
 
-	if (sck_type_map[arg->type].domain == __AF_QX)
+	if (MIO_UNLIKELY(sck_type_map[arg->type].domain == __AF_QX))
 	{
 		hnd = open_async_qx(mio, &side_chan);
 		if (hnd == MIO_SYSHND_INVALID) goto oops;
@@ -1909,7 +1909,6 @@ static int dev_evcb_sck_on_read_qx (mio_dev_t* dev, const void* data, mio_iolen_
 		if (dlen != MIO_SIZEOF(*qxmsg))
 		{
 			mio_seterrbfmt (mio, MIO_EINVAL, "wrong qx packet size");
-printf ("unable wrong packet size... \n");
 			return 0;
 		}
 
@@ -1924,7 +1923,6 @@ printf ("unable to accept new client connection %d\n", qxmsg->syshnd);
 		}
 		else
 		{
-printf ("unknown qx xommand code\n");
 			mio_seterrbfmt (mio, MIO_EINVAL, "wrong qx command code");
 			return 0;
 		}
