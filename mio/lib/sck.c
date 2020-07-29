@@ -80,11 +80,6 @@
 
 /* ========================================================================= */
 
-static MIO_INLINE void close_async_socket (mio_t* mio, mio_syshnd_t sck)
-{
-	close (sck);
-}
-
 static mio_syshnd_t open_async_socket (mio_t* mio, int domain, int type, int proto)
 {
 	mio_syshnd_t sck = MIO_SYSHND_INVALID;
@@ -360,26 +355,7 @@ static int dev_sck_make (mio_dev_t* dev, void* ctx)
 		goto oops;
 	}
 
-	if (arg->options & MIO_DEV_SCK_MAKE_IMPSYSHND)
-	{
-		/* Make sure to pass a proper type for a given socket handle when you use MIO_DEV_SCK_MAKE_IMPSYSHND.
-		 * Otherwise, some innerworking of the library may go wrong */
-		if (sck_type_map[arg->type].domain == __AF_QX)
-		{
-			/* can't import a handle of this type */
-			mio_seterrnum (mio, MIO_EINVAL); 
-			goto oops;
-		}
-
-		hnd = arg->syshnd;
-		if (hnd == MIO_SYSHND_INVALID)
-		{
-			mio_seterrnum (mio, MIO_EINVAL); 
-			goto oops;
-		}
-		if (mio_makesyshndasync(mio, hnd) <= -1) goto oops;
-	}
-	else if (sck_type_map[arg->type].domain == __AF_QX)
+	if (sck_type_map[arg->type].domain == __AF_QX)
 	{
 		hnd = open_async_qx(mio, &side_chan);
 		if (hnd == MIO_SYSHND_INVALID) goto oops;
@@ -405,7 +381,7 @@ static int dev_sck_make (mio_dev_t* dev, void* ctx)
 	return 0;
 
 oops:
-	if (hnd != MIO_SYSHND_INVALID) close_async_socket (mio, hnd);
+	if (hnd != MIO_SYSHND_INVALID) close (hnd);
 	if (side_chan != MIO_SYSHND_INVALID) close (side_chan);
 	return -1;
 }
@@ -491,7 +467,7 @@ static int dev_sck_kill (mio_dev_t* dev, int force)
 
 	if (rdev->hnd != MIO_SYSHND_INVALID) 
 	{
-		close_async_socket (mio, rdev->hnd);
+		close (rdev->hnd);
 		rdev->hnd = MIO_SYSHND_INVALID;
 	}
 
