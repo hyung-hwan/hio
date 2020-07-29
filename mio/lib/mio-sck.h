@@ -286,11 +286,8 @@ typedef enum mio_dev_sck_type_t mio_dev_sck_type_t;
 
 enum mio_dev_sck_make_option_t
 {
-	/* import the system handle specified in the hnd field */
-	MIO_DEV_SCK_MAKE_IMPSYSHND = (1 << 0),
-
 	/* for now, accept failure doesn't affect the listing socket if this is set */
-	MIO_DEV_SCK_MAKE_LENIENT = (1 << 1)
+	MIO_DEV_SCK_MAKE_LENIENT = (1 << 0)
 };
 typedef enum mio_dev_sck_make_option_t mio_dev_sck_make_option_t;
 
