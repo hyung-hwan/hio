@@ -730,6 +730,7 @@ static mio_dev_mth_t dev_pro_methods =
 {
 	dev_pro_make_master,
 	dev_pro_kill_master,
+	MIO_NULL,
 	dev_pro_getsyshnd,
 
 	MIO_NULL, /* read */
@@ -743,6 +744,7 @@ static mio_dev_mth_t dev_pro_methods_slave =
 {
 	dev_pro_make_slave,
 	dev_pro_kill_slave,
+	MIO_NULL,
 	dev_pro_getsyshnd_slave,
 
 	dev_pro_read_slave,

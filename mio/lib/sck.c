@@ -32,6 +32,7 @@
 #include <fcntl.h>
 #include <unistd.h>
 #include <errno.h>
+#include <string.h> /* strerror */
 
 #include <netinet/in.h>
 #include <arpa/inet.h>
@@ -79,7 +80,7 @@
 
 /* ========================================================================= */
 
-static void close_async_socket (mio_t* mio, mio_syshnd_t sck)
+static MIO_INLINE void close_async_socket (mio_t* mio, mio_syshnd_t sck)
 {
 	close (sck);
 }
@@ -399,6 +400,8 @@ static int dev_sck_make (mio_dev_t* dev, void* ctx)
 	rdev->on_raw_accept = arg->on_raw_accept;
 	rdev->type = arg->type;
 
+	if (arg->options & MIO_DEV_SCK_MAKE_LENIENT) rdev->state |= MIO_DEV_SCK_LENIENT;
+
 	return 0;
 
 oops:
@@ -423,12 +426,24 @@ static int dev_sck_make_client (mio_dev_t* dev, void* ctx)
 	rdev->tmrjob_index = MIO_TMRIDX_INVALID;
 	rdev->side_chan = MIO_SYSHND_INVALID;
 
-/*if (mio_makesyshndasync(mio, rdev->hnd) <= -1 ||
-    mio_makesyshndcloexec(mio, rdev->hnd) <= -1) { printf ("cannot make sysnhnd async or cloexec %d\n", rdev->hnd); return -1; }
- */
-	mio_makesyshndasync(mio, rdev->hnd);
-	mio_makesyshndcloexec(mio, rdev->hnd);
+	if (mio_makesyshndasync(mio, rdev->hnd) <= -1 ||
+	    mio_makesyshndcloexec(mio, rdev->hnd) <= -1) goto oops;
+
 	return 0;
+
+oops:
+	if (rdev->hnd != MIO_SYSHND_INVALID)
+	{
+		close (rdev->hnd);
+		rdev->hnd = MIO_SYSHND_INVALID;
+	}
+	return -1;
+}
+
+static void dev_sck_fail_before_make_client (void* ctx)
+{
+	mio_syshnd_t* clisckhnd = (mio_syshnd_t*)ctx;
+	close (*clisckhnd);
 }
 
 static int dev_sck_kill (mio_dev_t* dev, int force)
@@ -1302,7 +1317,6 @@ fcntl (rdev->hnd, F_SETFL, flags | O_NONBLOCK);
 			}
 
 			rdev->tmout = lstn->accept_tmout;
-			if (lstn->options & MIO_DEV_SCK_LISTEN_LENIENT) rdev->state |= MIO_DEV_SCK_LENIENT;
 
 			MIO_DEV_SCK_SET_PROGRESS (rdev, MIO_DEV_SCK_LISTENING);
 			return 0;
@@ -1316,6 +1330,7 @@ static mio_dev_mth_t dev_sck_methods_stateless =
 {
 	dev_sck_make,
 	dev_sck_kill,
+	MIO_NULL,
 	dev_sck_getsyshnd,
 
 	dev_sck_read_stateless,
@@ -1330,6 +1345,7 @@ static mio_dev_mth_t dev_sck_methods_stateful =
 {
 	dev_sck_make,
 	dev_sck_kill,
+	MIO_NULL,
 	dev_sck_getsyshnd,
 
 	dev_sck_read_stateful,
@@ -1343,6 +1359,7 @@ static mio_dev_mth_t dev_mth_clisck =
 {
 	dev_sck_make_client,
 	dev_sck_kill,
+	dev_sck_fail_before_make_client,
 	dev_sck_getsyshnd,
 
 	dev_sck_read_stateful,
@@ -1469,8 +1486,8 @@ static int make_accepted_client_connection (mio_dev_sck_t* rdev, mio_syshnd_t cl
 	clidev = (mio_dev_sck_t*)mio_dev_make(mio, rdev->dev_size, &dev_mth_clisck, rdev->dev_evcb, &clisck); 
 	if (MIO_UNLIKELY(!clidev))
 	{
+		/* [NOTE] 'clisck' is closed by callback methods called by mio_dev_make() upon failure */
 		MIO_DEBUG3 (mio, "SCK(%p) - unable to make a new accepted device for %d - %js\n", rdev, (int)clisck, mio_geterrmsg(mio));
-		close (clisck);
 		return -1;
 	}
 
@@ -1923,11 +1940,10 @@ printf ("unable wrong packet size... \n");
 		qxmsg = (mio_dev_sck_qxmsg_t*)data;
 		if (qxmsg->cmd == MIO_DEV_SCK_QXMSG_NEWCONN)
 		{
-			if (make_accepted_client_connection(rdev, qxmsg->syshnd, &qxmsg->remoteaddr, qxmsg->scktype) <= -1) 
+			if (make_accepted_client_connection(rdev, qxmsg->syshnd, &qxmsg->remoteaddr, qxmsg->scktype) <= -1)
 			{
-printf ("unable to accept new client connection\n");
-				close (qxmsg->syshnd);
-				return -1;
+printf ("unable to accept new client connection %d\n", qxmsg->syshnd);
+				return (rdev->state & MIO_DEV_SCK_LENIENT)? 0: -1;
 			}
 		}
 		else

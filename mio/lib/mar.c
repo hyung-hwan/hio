@@ -324,6 +324,7 @@ static mio_dev_mth_t dev_mar_methods =
 {
 	dev_mar_make,
 	dev_mar_kill,
+	MIO_NULL,
 	dev_mar_getsyshnd,
 
 	MIO_NULL,

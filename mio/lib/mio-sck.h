@@ -287,7 +287,10 @@ typedef enum mio_dev_sck_type_t mio_dev_sck_type_t;
 enum mio_dev_sck_make_option_t
 {
 	/* import the system handle specified in the hnd field */
-	MIO_DEV_SCK_MAKE_IMPSYSHND = (1 << 0) 
+	MIO_DEV_SCK_MAKE_IMPSYSHND = (1 << 0),
+
+	/* for now, accept failure doesn't affect the listing socket if this is set */
+	MIO_DEV_SCK_MAKE_LENIENT = (1 << 1)
 };
 typedef enum mio_dev_sck_make_option_t mio_dev_sck_make_option_t;
 
@@ -346,16 +349,17 @@ struct mio_dev_sck_connect_t
 	mio_ntime_t connect_tmout;
 };
 
+#if 0
 enum mio_dev_sck_listen_option_t
 {
-	MIO_DEV_SCK_LISTEN_LENIENT     = (1 << 0) /* for now, accept failure doesn't affect the listing socket if this is set */
 };
 typedef enum mio_dev_sck_listen_option_t mio_dev_sck_listen_option_t;
+#endif
 
 typedef struct mio_dev_sck_listen_t mio_dev_sck_listen_t;
 struct mio_dev_sck_listen_t
 {
-	int options;
+	int options; /* no options as of now. set it to 0 */
 	int backlogs;
 	mio_ntime_t accept_tmout;
 };

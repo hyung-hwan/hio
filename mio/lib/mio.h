@@ -182,9 +182,11 @@ struct mio_dev_mth_t
 	 */
 	int           (*kill)         (mio_dev_t* dev, int force); 
 
+	/* optional. called if mio_dev_make() fails before the make() method is called */
+	void          (*fail_before_make)     (void* ctx);
+
 	/* ------------------------------------------------------------------ */
 	mio_syshnd_t (*getsyshnd)    (mio_dev_t* dev); /* mandatory. called in mio_dev_make() after successful make() */
-
 
 	/* ------------------------------------------------------------------ */
 	/* return -1 on failure, 0 if no data is availble, 1 otherwise.
