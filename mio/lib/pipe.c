@@ -350,6 +350,7 @@ static mio_dev_mth_t dev_pipe_methods =
 {
 	dev_pipe_make_master,
 	dev_pipe_kill_master,
+	MIO_NULL,
 	dev_pipe_getsyshnd,
 
 	MIO_NULL,
@@ -362,6 +363,7 @@ static mio_dev_mth_t dev_pipe_methods_slave =
 {
 	dev_pipe_make_slave,
 	dev_pipe_kill_slave,
+	MIO_NULL,
 	dev_pipe_getsyshnd_slave,
 
 	dev_pipe_read_slave,

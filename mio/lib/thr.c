@@ -510,6 +510,7 @@ static mio_dev_mth_t dev_thr_methods =
 {
 	dev_thr_make_master,
 	dev_thr_kill_master,
+	MIO_NULL,
 	dev_thr_getsyshnd,
 
 	MIO_NULL,
@@ -522,6 +523,7 @@ static mio_dev_mth_t dev_thr_methods_slave =
 {
 	dev_thr_make_slave,
 	dev_thr_kill_slave,
+	MIO_NULL,
 	dev_thr_getsyshnd_slave,
 
 	dev_thr_read_slave,

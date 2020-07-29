@@ -80,7 +80,7 @@ int mio_makesyshndasync (mio_t* mio, mio_syshnd_t hnd)
 	if ((flags = fcntl(hnd, F_GETFL, 0)) <= -1 ||
 	    fcntl(hnd, F_SETFL, flags | O_NONBLOCK) <= -1)
 	{
-printf ("make sysnhd async error (%d)\n", hnd);
+printf ("make sysnhd async error (%d) - errno %d\n", hnd, errno);
 		mio_seterrwithsyserr (mio, 0, errno);
 		return -1;
 	}
@@ -100,7 +100,7 @@ int mio_makesyshndcloexec (mio_t* mio, mio_syshnd_t hnd)
 	if ((flags = fcntl(hnd, F_GETFD, 0)) <= -1 ||
 	    fcntl(hnd, F_SETFD, flags | FD_CLOEXEC) <= -1)
 	{
-printf ("make sysnhd cloexec error (%d)\n", hnd);
+printf ("make sysnhd cloexec error (%d) - errno %d\n", hnd, errno);
 		mio_seterrwithsyserr (mio, 0, errno);
 		return -1;
 	}

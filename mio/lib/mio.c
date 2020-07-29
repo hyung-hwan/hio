@@ -809,16 +809,21 @@ int mio_loop (mio_t* mio)
 
 mio_dev_t* mio_dev_make (mio_t* mio, mio_oow_t dev_size, mio_dev_mth_t* dev_mth, mio_dev_evcb_t* dev_evcb, void* make_ctx)
 {
-	mio_dev_t* dev;
+	mio_dev_t* dev = MIO_NULL;
 
 	if (dev_size < MIO_SIZEOF(mio_dev_t)) 
 	{
 		mio_seterrnum (mio, MIO_EINVAL);
-		return MIO_NULL;
+		if (dev_mth->fail_before_make) dev_mth->fail_before_make (make_ctx);
+		goto oops;
 	}
 
 	dev = (mio_dev_t*)mio_callocmem(mio, dev_size);
-	if (MIO_UNLIKELY(!dev)) return MIO_NULL;
+	if (MIO_UNLIKELY(!dev)) 
+	{
+		if (dev_mth->fail_before_make) dev_mth->fail_before_make (make_ctx);
+		goto oops;
+	}
 
 	dev->mio = mio;
 	dev->dev_size = dev_size;
@@ -833,12 +838,7 @@ mio_dev_t* mio_dev_make (mio_t* mio, mio_oow_t dev_size, mio_dev_mth_t* dev_mth,
 	dev->cw_count = 0;
 
 	/* call the callback function first */
-	mio_seterrnum (mio, MIO_ENOERR);
-	if (dev->dev_mth->make(dev, make_ctx) <= -1)
-	{
-		if (mio->errnum == MIO_ENOERR) mio_seterrnum (mio, MIO_EDEVMAKE);
-		goto oops;
-	}
+	if (dev->dev_mth->make(dev, make_ctx) <= -1) goto oops;
 
 	/* the make callback must not change these fields */
 	MIO_ASSERT (mio, dev->dev_mth == dev_mth);
@@ -883,13 +883,12 @@ oops_after_make:
 				}
 			}
 		}
-
-		return MIO_NULL;
 	}
+
 	return MIO_NULL;
 
 oops:
-	mio_freemem (mio, dev);
+	if (dev) mio_freemem (mio, dev);
 	return MIO_NULL;
 }
 

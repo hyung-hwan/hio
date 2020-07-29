@@ -312,6 +312,7 @@ mio_svc_htts_t* mio_svc_htts_start (mio_t* mio, mio_dev_sck_bind_t* sck_bind, mi
 			break;
 
 	}
+	info.m.options = MIO_DEV_SCK_MAKE_LENIENT;
 	info.m.on_write = listener_on_write;
 	info.m.on_read = listener_on_read;
 	info.m.on_connect = listener_on_connect;
@@ -332,7 +333,6 @@ mio_svc_htts_t* mio_svc_htts_start (mio_t* mio, mio_dev_sck_bind_t* sck_bind, mi
 		if (mio_dev_sck_bind(htts->lsck, sck_bind) <= -1) goto oops;
 
 		MIO_MEMSET (&info, 0, MIO_SIZEOF(info));
-		info.l.options = MIO_DEV_SCK_LISTEN_LENIENT;
 		info.l.backlogs = 4096;
 		MIO_INIT_NTIME (&info.l.accept_tmout, 5, 1);
 		if (mio_dev_sck_listen(htts->lsck, &info.l) <= -1) goto oops;
