@@ -381,8 +381,14 @@ static int dev_sck_make (mio_dev_t* dev, void* ctx)
 	return 0;
 
 oops:
-	if (hnd != MIO_SYSHND_INVALID) close (hnd);
-	if (side_chan != MIO_SYSHND_INVALID) close (side_chan);
+	if (hnd != MIO_SYSHND_INVALID) 
+	{
+		close (hnd);
+	}
+	if (side_chan != MIO_SYSHND_INVALID) 
+	{
+		close (side_chan);
+	}
 	return -1;
 }
 

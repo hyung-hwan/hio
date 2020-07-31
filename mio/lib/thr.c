@@ -32,6 +32,7 @@
 #include <sys/uio.h>
 #include <pthread.h>
 
+#include <stdio.h>
 /* ========================================================================= */
 
 struct mio_dev_thr_info_t
@@ -64,13 +65,21 @@ static void free_thr_info_resources (mio_t* mio, mio_dev_thr_info_t* ti)
 {
 	if (ti->thr_iop.rfd != MIO_SYSHND_INVALID) 
 	{
-		close (ti->thr_iop.rfd);
-		ti->thr_iop.rfd = MIO_SYSHND_INVALID;
+		/* this function is called at the end of run_thr_func() and
+		 * close() can be a thread cancellation point.
+		 *
+		 * i must invalidate ti->thr_iop.rfd calling close() with it. 
+		 * if resetting is done after close() and close() becomes a cancellation point, 
+		 * the invalidation operation gets skipped. */
+		mio_syshnd_t tmp = ti->thr_iop.rfd;
+		ti->thr_iop.rfd = MIO_SYSHND_INVALID;  
+		close (tmp);
 	}
 	if (ti->thr_iop.wfd != MIO_SYSHND_INVALID) 
 	{
-		close (ti->thr_iop.wfd);
+		mio_syshnd_t tmp = ti->thr_iop.wfd;
 		ti->thr_iop.wfd = MIO_SYSHND_INVALID;
+		close (tmp);
 	}
 }
 
@@ -119,9 +128,7 @@ static void* run_thr_func (void* ctx)
 
 	ti->thr_func (ti->mio, &ti->thr_iop, ti->thr_ctx);
 
-	/* This part may get partially executed or not executed if the thread is cancelled */
-	free_thr_info_resources (ti->mio, ti); /* TODO: check if the close() call inside this call completes when it becomes a cancellation point. if so, the code must get changed */
-	/* ---------------------------------------------------------- */
+	free_thr_info_resources (ti->mio, ti); 
 
 	pthread_cleanup_pop (1);
 	pthread_exit (MIO_NULL);
@@ -137,8 +144,20 @@ static int dev_thr_make_master (mio_dev_t* dev, void* ctx)
 	slave_info_t si;
 	int i;
 
+#if defined(HAVE_PIPE2) && defined(O_CLOEXEC) && defined(O_NONBLOCK)
+	if (pipe2(&pfds[0], O_CLOEXEC | O_NONBLOCK) == -1 ||
+	    pipe2(&pfds[2], O_CLOEXEC | O_NONBLOCK) == -1)
+	{
+		if (errno != ENOSYS) goto pipe_error;
+	}
+	else goto pipe_done;
+#endif
+
 	if (pipe(&pfds[0]) == -1 || pipe(&pfds[2]) == -1)
 	{
+#if defined(HAVE_PIPE2) && defined(O_CLOEXEC) && defined(O_NONBLOCK)
+	pipe_error:
+#endif
 		mio_seterrwithsyserr (mio, 0, errno);
 		goto oops;
 	}
@@ -146,26 +165,36 @@ static int dev_thr_make_master (mio_dev_t* dev, void* ctx)
 	if (mio_makesyshndasync(mio, pfds[1]) <= -1 ||
 	    mio_makesyshndasync(mio, pfds[2]) <= -1) goto oops;
 
+	if (mio_makesyshndcloexec(mio, pfds[0]) <= -1 ||
+	    mio_makesyshndcloexec(mio, pfds[1]) <= -1 ||
+	    mio_makesyshndcloexec(mio, pfds[2]) <= -1 ||
+	    mio_makesyshndcloexec(mio, pfds[1]) <= -1) goto oops;
+
+#if defined(HAVE_PIPE2) && defined(O_CLOEXEC) && defined(O_NONBLOCK)
+pipe_done:
+#endif
 	si.mi = info;
 	si.pfd = pfds[1];
 	si.dev_cap = MIO_DEV_CAP_OUT | MIO_DEV_CAP_STREAM;
 	si.id = MIO_DEV_THR_IN;
 
+	/* invalidate pfds[1] before calling make_slave() because when it fails, the 
+	 * fail_before_make(dev_thr_fail_before_make_slave) and kill(dev_thr_kill_slave) callbacks close si.pfd */
+	pfds[1] = MIO_SYSHND_INVALID;
+					
 	rdev->slave[MIO_DEV_THR_IN] = make_slave(mio, &si);
 	if (!rdev->slave[MIO_DEV_THR_IN]) goto oops;
-
-	pfds[1] = MIO_SYSHND_INVALID;
 	rdev->slave_count++;
 
 	si.mi = info;
 	si.pfd = pfds[2];
 	si.dev_cap = MIO_DEV_CAP_IN | MIO_DEV_CAP_STREAM;
 	si.id = MIO_DEV_THR_OUT;
-
+	/* invalidate pfds[2] before calling make_slave() because when it fails, the 
+	 * fail_before_make(dev_thr_fail_before_make_slave) and kill(dev_thr_kill_slave) callbacks close si.pfd */
+	pfds[2] = MIO_SYSHND_INVALID;
 	rdev->slave[MIO_DEV_THR_OUT] = make_slave(mio, &si);
 	if (!rdev->slave[MIO_DEV_THR_OUT]) goto oops;
-
-	pfds[2] = MIO_SYSHND_INVALID;
 	rdev->slave_count++;
 
 	for (i = 0; i < MIO_COUNTOF(rdev->slave); i++) 
@@ -200,6 +229,10 @@ static int dev_thr_make_master (mio_dev_t* dev, void* ctx)
 			mio_freemem (mio, ti);
 			goto oops;
 		}
+
+		/* the thread function is in charge of these two file descriptors */
+		pfds[0] = MIO_SYSHND_INVALID;
+		pfds[3] = MIO_SYSHND_INVALID;
 	}
 	/* ---------------------------------------------------------- */
 
@@ -209,7 +242,10 @@ static int dev_thr_make_master (mio_dev_t* dev, void* ctx)
 oops:
 	for (i = 0; i < MIO_COUNTOF(pfds); i++)
 	{
-		if (pfds[i] != MIO_SYSHND_INVALID) close (pfds[i]);
+		if (pfds[i] != MIO_SYSHND_INVALID) 
+		{
+			close (pfds[i]);
+		}
 	}
 
 	for (i = MIO_COUNTOF(rdev->slave); i > 0; )
@@ -248,7 +284,10 @@ static int dev_thr_kill_master (mio_dev_t* dev, int force)
 	int i;
 
 	ti = rdev->thr_info;
-	pthread_cancel (ti->thr_hnd);
+	/* pthread_cancel() seems to create some dangling file descriptors not closed properly.
+	 * i don't seem to get it working correctly as of now. proper cancellation point management
+	 * is very difficult. without pthread_cancel() here, higher pressure on cfmb is expected */
+	/*pthread_cancel (ti->thr_hnd); */
 
 	if (rdev->slave_count > 0)
 	{
@@ -269,17 +308,26 @@ static int dev_thr_kill_master (mio_dev_t* dev, int force)
 		}
 	}
 
+	rdev->thr_info = MIO_NULL;
 	if (ti->thr_done) 
 	{
-		pthread_detach (ti->thr_hnd); /* pthread_join() may be blocking. */
+		pthread_detach (ti->thr_hnd); /* pthread_join() may be blocking. detach the thread instead */
 		free_thr_info_resources (mio, ti);
 		mio_freemem (mio, ti);
 	}
 	else
 	{
+	#if 0
+		/* since pthread_join can be blocking, i'd schedule a resource destroyer with mio_addcfmb(). 
+		 * see after #else */
+		pthread_join (ti->thr_hnd, MIO_NULL);
+		free_thr_info_resources (mio, ti);
+		mio_freemem (mio, ti);
+	#else
+		/* schedule a resource destroyer */
 		mio_addcfmb (mio, ti, ready_to_free_thr_info);
+	#endif
 	}
-	rdev->thr_info = MIO_NULL;
 
 	if (rdev->on_close) rdev->on_close (rdev, MIO_DEV_THR_MASTER);
 	return 0;
@@ -332,6 +380,14 @@ static int dev_thr_kill_slave (mio_dev_t* dev, int force)
 	return 0;
 }
 
+static void dev_thr_fail_before_make_slave (void* ctx)
+{
+	slave_info_t* si = (slave_info_t*)ctx;
+	/* mio_dev_make() failed before it called the make() callback.
+	 * i will close the pipe fd here instead of in the caller of mio_dev_make() */
+	close (si->pfd);
+}
+
 static int dev_thr_read_slave (mio_dev_t* dev, void* buf, mio_iolen_t* len, mio_devaddr_t* srcaddr)
 {
 	mio_dev_thr_slave_t* thr = (mio_dev_thr_slave_t*)dev;
@@ -377,7 +433,7 @@ static int dev_thr_write_slave (mio_dev_t* dev, const void* data, mio_iolen_t* l
 	if (MIO_UNLIKELY(*len <= 0))
 	{
 		/* this is an EOF indicator */
-		/* It isn't apthrpriate to call mio_dev_halt(thr) or mio_dev_thr_close(thr->master, MIO_DEV_THR_IN)
+		/* It isn't appropriate to call mio_dev_halt(thr) or mio_dev_thr_close(thr->master, MIO_DEV_THR_IN)
 		 * as those functions destroy the device itself */
 		if (MIO_LIKELY(thr->pfd != MIO_SYSHND_INVALID))
 		{
@@ -523,7 +579,7 @@ static mio_dev_mth_t dev_thr_methods_slave =
 {
 	dev_thr_make_slave,
 	dev_thr_kill_slave,
-	MIO_NULL,
+	dev_thr_fail_before_make_slave,
 	dev_thr_getsyshnd_slave,
 
 	dev_thr_read_slave,
