@@ -81,10 +81,8 @@ struct thr_state_t
 	mio_dev_sck_on_write_t client_org_on_write;
 	mio_dev_sck_on_disconnect_t client_org_on_disconnect;
 	mio_htrd_recbs_t client_htrd_org_recbs;
-	
-
-
 };
+
 typedef struct thr_state_t thr_state_t;
 
 struct thr_peer_xtn_t
@@ -99,7 +97,6 @@ static void thr_state_halt_participating_devices (thr_state_t* thr_state)
 	MIO_ASSERT (thr_state->client->htts->mio, thr_state->client->sck != MIO_NULL);
 
 	MIO_DEBUG4 (thr_state->client->htts->mio, "HTTS(%p) - Halting participating devices in thr state %p(client=%p,peer=%p)\n", thr_state->client->htts, thr_state, thr_state->client->sck, thr_state->peer);
-
 
 	mio_dev_sck_halt (thr_state->client->sck);
 	/* check for peer as it may not have been started */

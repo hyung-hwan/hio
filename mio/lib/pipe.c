@@ -58,8 +58,19 @@ static int dev_pipe_make_master (mio_dev_t* dev, void* ctx)
 
 /* TODO: support a named pipe. use mkfifo()?
  *       support socketpair */
+
+#if defined(HAVE_PIPE2) && defined(O_CLOEXEC) && defined(O_NONBLOCK)
+	if (pipe2(pfds, O_CLOEXEC | O_NONBLOCK) == -1)
+	{
+		if (errno != ENOSYS) goto pipe_error;
+	}
+	else goto pipe_done;
+#endif
 	if (pipe(pfds) == -1)
 	{
+#if defined(HAVE_PIPE2) && defined(O_CLOEXEC) && defined(O_NONBLOCK)
+	pipe_error:
+#endif
 		mio_seterrwithsyserr (mio, 0, errno);
 		goto oops;
 	}
@@ -67,11 +78,17 @@ static int dev_pipe_make_master (mio_dev_t* dev, void* ctx)
 	if (mio_makesyshndasync(mio, pfds[0]) <= -1 ||
 	    mio_makesyshndasync(mio, pfds[1]) <= -1) goto oops;
 
+	if (mio_makesyshndcloexec(mio, pfds[0]) <= -1 ||
+	    mio_makesyshndcloexec(mio, pfds[1]) <= -1) goto oops;
+
+#if defined(HAVE_PIPE2) && defined(O_CLOEXEC) && defined(O_NONBLOCK)
+pipe_done:
+#endif
 	si.mi = info;
 	si.pfd = pfds[0];
 	si.dev_cap = MIO_DEV_CAP_IN | MIO_DEV_CAP_STREAM;
 	si.id = MIO_DEV_PIPE_IN;
-
+	pfds[0] = MIO_SYSHND_INVALID;
 	rdev->slave[MIO_DEV_PIPE_IN] = make_slave(mio, &si);
 	if (!rdev->slave[MIO_DEV_PIPE_IN]) goto oops;
 	rdev->slave_count++;
@@ -80,7 +97,7 @@ static int dev_pipe_make_master (mio_dev_t* dev, void* ctx)
 	si.pfd = pfds[1];
 	si.dev_cap = MIO_DEV_CAP_OUT | MIO_DEV_CAP_STREAM;
 	si.id = MIO_DEV_PIPE_OUT;
-
+	pfds[1] = MIO_SYSHND_INVALID;
 	rdev->slave[MIO_DEV_PIPE_OUT] = make_slave(mio, &si);
 	if (!rdev->slave[MIO_DEV_PIPE_OUT]) goto oops;
 	rdev->slave_count++;
@@ -97,20 +114,21 @@ static int dev_pipe_make_master (mio_dev_t* dev, void* ctx)
 	return 0;
 
 oops:
-	for (i = 0; i < MIO_COUNTOF(rdev->slave); i++)
-	{
-		if (rdev->slave[i])
-		{
-			mio_dev_kill ((mio_dev_t*)rdev->slave[i]);
-			rdev->slave[i] = MIO_NULL;
-		}
-		else if (pfds[i] != MIO_SYSHND_INVALID) 
-		{
-			close (pfds[i]);
-		}
-	}
-	rdev->slave_count = 0;
+	if (pfds[0] != MIO_SYSHND_INVALID) close (pfds[0]);
+	if (pfds[1] != MIO_SYSHND_INVALID) close (pfds[0]);
 
+	if (rdev->slave[0])
+	{
+		mio_dev_kill ((mio_dev_t*)rdev->slave[0]);
+		rdev->slave[0] = MIO_NULL;
+	}
+	if (rdev->slave[1])
+	{
+		mio_dev_kill ((mio_dev_t*)rdev->slave[1]);
+		rdev->slave[1] = MIO_NULL;
+	}
+
+	rdev->slave_count = 0;
 	return -1;
 }
 
@@ -204,6 +222,12 @@ static int dev_pipe_kill_slave (mio_dev_t* dev, int force)
 	return 0;
 }
 
+static void dev_pipe_fail_before_make_slave (void* ctx)
+{
+	slave_info_t* si = (slave_info_t*)ctx;
+	close (si->pfd);
+}
+
 static int dev_pipe_read_slave (mio_dev_t* dev, void* buf, mio_iolen_t* len, mio_devaddr_t* srcaddr)
 {
 	mio_dev_pipe_slave_t* pipe = (mio_dev_pipe_slave_t*)dev;
@@ -242,7 +266,7 @@ static int dev_pipe_write_slave (mio_dev_t* dev, const void* data, mio_iolen_t* 
 	if (MIO_UNLIKELY(*len <= 0))
 	{
 		/* this is an EOF indicator */
-		//mio_dev_halt (dev); /* halt this slave device to indicate EOF on the lower-level handle */*
+		/*mio_dev_halt (dev);*/ /* halt this slave device to indicate EOF on the lower-level handle */
 		if (MIO_LIKELY(pipe->pfd != MIO_SYSHND_INVALID)) /* halt() doesn't close the pipe immediately. so close the underlying pipe */
 		{
 			mio_dev_watch (dev, MIO_DEV_WATCH_STOP, 0);
@@ -363,7 +387,7 @@ static mio_dev_mth_t dev_pipe_methods_slave =
 {
 	dev_pipe_make_slave,
 	dev_pipe_kill_slave,
-	MIO_NULL,
+	dev_pipe_fail_before_make_slave,
 	dev_pipe_getsyshnd_slave,
 
 	dev_pipe_read_slave,

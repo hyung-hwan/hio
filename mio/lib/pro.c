@@ -346,10 +346,10 @@ static int dev_pro_make_master (mio_dev_t* dev, void* ctx)
 		si.dev_cap = MIO_DEV_CAP_OUT | MIO_DEV_CAP_STREAM;
 		si.id = MIO_DEV_PRO_IN;
 
+		pfds[1] = MIO_SYSHND_INVALID;
 		rdev->slave[MIO_DEV_PRO_IN] = make_slave(mio, &si);
 		if (!rdev->slave[MIO_DEV_PRO_IN]) goto oops;
 
-		pfds[1] = MIO_SYSHND_INVALID;
 		rdev->slave_count++;
 	}
 
@@ -363,10 +363,10 @@ static int dev_pro_make_master (mio_dev_t* dev, void* ctx)
 		si.dev_cap = MIO_DEV_CAP_IN | MIO_DEV_CAP_STREAM;
 		si.id = MIO_DEV_PRO_OUT;
 
+		pfds[2] = MIO_SYSHND_INVALID;
 		rdev->slave[MIO_DEV_PRO_OUT] = make_slave(mio, &si);
 		if (!rdev->slave[MIO_DEV_PRO_OUT]) goto oops;
 
-		pfds[2] = MIO_SYSHND_INVALID;
 		rdev->slave_count++;
 	}
 
@@ -380,10 +380,10 @@ static int dev_pro_make_master (mio_dev_t* dev, void* ctx)
 		si.dev_cap = MIO_DEV_CAP_IN | MIO_DEV_CAP_STREAM;
 		si.id = MIO_DEV_PRO_ERR;
 
+		pfds[4] = MIO_SYSHND_INVALID;
 		rdev->slave[MIO_DEV_PRO_ERR] = make_slave(mio, &si);
 		if (!rdev->slave[MIO_DEV_PRO_ERR]) goto oops;
 
-		pfds[4] = MIO_SYSHND_INVALID;
 		rdev->slave_count++;
 	}
 
@@ -423,20 +423,6 @@ oops:
 	rdev->slave_count = 0;
 
 	return -1;
-}
-
-static int dev_pro_make_slave (mio_dev_t* dev, void* ctx)
-{
-	mio_dev_pro_slave_t* rdev = (mio_dev_pro_slave_t*)dev;
-	slave_info_t* si = (slave_info_t*)ctx;
-
-	rdev->dev_cap = si->dev_cap;
-	rdev->id = si->id;
-	rdev->pfd = si->pfd;
-	/* keep rdev->master to MIO_NULL. it's set to the right master
-	 * device in dev_pro_make() */
-
-	return 0;
 }
 
 static int dev_pro_kill_master (mio_dev_t* dev, int force)
@@ -507,6 +493,20 @@ static int dev_pro_kill_master (mio_dev_t* dev, int force)
 	return 0;
 }
 
+static int dev_pro_make_slave (mio_dev_t* dev, void* ctx)
+{
+	mio_dev_pro_slave_t* rdev = (mio_dev_pro_slave_t*)dev;
+	slave_info_t* si = (slave_info_t*)ctx;
+
+	rdev->dev_cap = si->dev_cap;
+	rdev->id = si->id;
+	rdev->pfd = si->pfd;
+	/* keep rdev->master to MIO_NULL. it's set to the right master
+	 * device in dev_pro_make() */
+
+	return 0;
+}
+
 static int dev_pro_kill_slave (mio_dev_t* dev, int force)
 {
 	mio_t* mio = dev->mio;
@@ -552,6 +552,12 @@ static int dev_pro_kill_slave (mio_dev_t* dev, int force)
 	}
 
 	return 0;
+}
+
+static void dev_pro_fail_before_make_slave (void* ctx)
+{
+	slave_info_t* si = (slave_info_t*)ctx;
+	close (si->pfd);
 }
 
 static int dev_pro_read_slave (mio_dev_t* dev, void* buf, mio_iolen_t* len, mio_devaddr_t* srcaddr)
