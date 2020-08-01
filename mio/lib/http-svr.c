@@ -274,6 +274,7 @@ printf ("listener socket disconnect..................sck %p %d\n", sck, sck->hnd
 	}
 }
 
+/* ------------------------------------------------------------------------ */
 
 /* ------------------------------------------------------------------------ */
 
@@ -334,7 +335,7 @@ mio_svc_htts_t* mio_svc_htts_start (mio_t* mio, mio_dev_sck_bind_t* sck_bind, mi
 
 		MIO_MEMSET (&info, 0, MIO_SIZEOF(info));
 		info.l.backlogs = 4096;
-		MIO_INIT_NTIME (&info.l.accept_tmout, 5, 1);
+		MIO_INIT_NTIME (&info.l.accept_tmout, 5, 1); /* usedd for ssl accept */
 		if (mio_dev_sck_listen(htts->lsck, &info.l) <= -1) goto oops;
 	}
 

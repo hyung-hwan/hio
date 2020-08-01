@@ -342,6 +342,7 @@ struct xx_mq_t
 
 static xx_mq_t xx_mq;
 
+#if 0
 static int schedule_timer_job_at (mio_dev_sck_t* dev, const mio_ntime_t* fire_at, mio_tmrjob_handler_t handler, mio_tmridx_t* tmridx)
 {
 	mio_tmrjob_t tmrjob;
@@ -355,6 +356,7 @@ static int schedule_timer_job_at (mio_dev_sck_t* dev, const mio_ntime_t* fire_at
 
 	return mio_instmrjob(dev->mio, &tmrjob);
 }
+#endif
 
 static void enable_accept (mio_t* mio, const mio_ntime_t* now, mio_tmrjob_t* job)
 {
@@ -408,7 +410,7 @@ static int try_to_accept (mio_dev_sck_t* sck, mio_dev_sck_qxmsg_t* qxmsg, int in
 			}
 
 			if (xx_tmridx == MIO_TMRIDX_INVALID)
-				schedule_timer_job_at (sck, MIO_NULL, enable_accept, &xx_tmridx);
+				mio_schedtmrjobat (mio, MIO_NULL, enable_accept, &xx_tmridx, sck);
 
 			return 0; /* enqueued for later writing */
 		}
@@ -488,6 +490,7 @@ static int add_listener (mio_t* mio, mio_bch_t* addrstr)
 
 	memset (&mi, 0, MIO_SIZEOF(mi));
 	mi.type = (mio_skad_family(&bi.localaddr) == MIO_AF_INET? MIO_DEV_SCK_TCP4: MIO_DEV_SCK_TCP6);
+	mi.options = MIO_DEV_SCK_MAKE_LENIENT;
 	mi.on_write = tcp_sck_on_write;
 	mi.on_read = tcp_sck_on_read;
 	mi.on_connect = tcp_sck_on_connect; /* this is invoked on a client accept as well */

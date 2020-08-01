@@ -988,23 +988,6 @@ static void handle_signal (int sig)
 	if (g_mio) mio_stop (g_mio, MIO_STOPREQ_TERMINATION);
 }
 
-static int schedule_timer_job_after (mio_t* mio, const mio_ntime_t* fire_after, mio_tmrjob_handler_t handler, void* ctx)
-{
-	mio_tmrjob_t tmrjob;
-
-	memset (&tmrjob, 0, MIO_SIZEOF(tmrjob));
-	tmrjob.ctx = ctx;
-
-	mio_gettime (mio, &tmrjob.when);
-	MIO_ADD_NTIME (&tmrjob.when, &tmrjob.when, fire_after);
-
-	tmrjob.handler = handler;
-	tmrjob.idxptr = MIO_NULL;
-
-	return mio_instmrjob(mio, &tmrjob);
-}
-
-
 static void send_test_query (mio_t* mio, const mio_ntime_t* now, mio_tmrjob_t* job)
 {
 	//if (!mio_svc_dnc_resolve((mio_svc_dnc_t*)job->ctx, "www.microsoft.com", MIO_DNS_RRT_CNAME, MIO_SVC_DNC_RESOLVE_FLAG_COOKIE, on_dnc_resolve, 0))
@@ -1340,7 +1323,7 @@ for (i = 0; i < 5; i++)
 	{
 		mio_ntime_t x;
 		MIO_INIT_NTIME (&x, 5, 0);
-		schedule_timer_job_after (mio, &x, send_test_query, dnc);
+		mio_schedtmrjobafter (mio, &x, send_test_query, MIO_NULL, dnc);
 
 		if (!mio_svc_dnc_resolve(dnc, "b.wild.com", MIO_DNS_RRT_A, MIO_SVC_DNC_RESOLVE_FLAG_PREFER_TCP, on_dnc_resolve, 0))
 		{

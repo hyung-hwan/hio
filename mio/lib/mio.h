@@ -989,6 +989,24 @@ MIO_EXPORT int mio_gettmrjobdeadline (
 	mio_ntime_t*      deadline
 );
 
+
+MIO_EXPORT int mio_schedtmrjobat (
+	mio_t*               mio,
+	const mio_ntime_t*   fire_at,
+	mio_tmrjob_handler_t handler,
+	mio_tmridx_t*        tmridx,
+	void*                ctx
+);
+
+
+MIO_EXPORT int mio_schedtmrjobafter (
+	mio_t*               mio,
+	const mio_ntime_t*   fire_after,
+	mio_tmrjob_handler_t handler,
+	mio_tmridx_t*        tmridx,
+	void*                ctx
+);
+
 /* =========================================================================
  * TIME
  * ========================================================================= */

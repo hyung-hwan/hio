@@ -295,8 +295,11 @@ static void ssl_connect_timedout (mio_t* mio, const mio_ntime_t* now, mio_tmrjob
 	}
 }
 
-static int schedule_timer_job_at (mio_dev_sck_t* dev, const mio_ntime_t* fire_at, mio_tmrjob_handler_t handler)
+static MIO_INLINE int schedule_timer_job_at (mio_dev_sck_t* dev, const mio_ntime_t* fire_at, mio_tmrjob_handler_t handler)
 {
+#if 1
+	return mio_schedtmrjobat(dev->mio, fire_at, handler, &dev->tmrjob_index, dev);
+#else
 	mio_tmrjob_t tmrjob;
 
 	MIO_MEMSET (&tmrjob, 0, MIO_SIZEOF(tmrjob));
@@ -309,10 +312,14 @@ static int schedule_timer_job_at (mio_dev_sck_t* dev, const mio_ntime_t* fire_at
 	MIO_ASSERT (dev->mio, dev->tmrjob_index == MIO_TMRIDX_INVALID);
 	dev->tmrjob_index = mio_instmrjob(dev->mio, &tmrjob);
 	return dev->tmrjob_index == MIO_TMRIDX_INVALID? -1: 0;
+#endif
 }
 
-static int schedule_timer_job_after (mio_dev_sck_t* dev, const mio_ntime_t* fire_after, mio_tmrjob_handler_t handler)
+static MIO_INLINE int schedule_timer_job_after (mio_dev_sck_t* dev, const mio_ntime_t* fire_after, mio_tmrjob_handler_t handler)
 {
+#if 1
+	return mio_schedtmrjobafter(dev->mio, fire_after, handler, &dev->tmrjob_index, dev);
+#else
 	mio_t* mio = dev->mio;
 	mio_ntime_t fire_at;
 
@@ -322,6 +329,7 @@ static int schedule_timer_job_after (mio_dev_sck_t* dev, const mio_ntime_t* fire
 	MIO_ADD_NTIME (&fire_at, &fire_at, fire_after);
 
 	return schedule_timer_job_at(dev, &fire_at, handler);
+#endif
 }
 
 /* ======================================================================== */
@@ -1577,27 +1585,22 @@ static int accept_incoming_connection (mio_dev_sck_t* rdev)
 	clisck = accept4(rdev->hnd, (struct sockaddr*)&remoteaddr, &addrlen, flags);
 	if (clisck <= -1)
 	{
-		 if (errno != ENOSYS)
-		 {
-			if (errno == EINPROGRESS || errno == EWOULDBLOCK || errno == EAGAIN) return 0;
-			if (errno == EINTR) return 0; /* if interrupted by a signal, treat it as if it's EINPROGRESS */
-
-			mio_seterrwithsyserr (mio, 0, errno);
-			return -1;
-		 }
-
+		 if (errno != ENOSYS) goto accept_error;
 		 /* go on for the normal 3-parameter accept */
 	}
 	else
 	{
 		 goto accept_done;
 	}
-
 #endif
+
 	addrlen = MIO_SIZEOF(remoteaddr);
 	clisck = accept(rdev->hnd, (struct sockaddr*)&remoteaddr, &addrlen);
 	if (clisck <=  -1)
 	{
+#if defined(SOCK_NONBLOCK) && defined(SOCK_CLOEXEC) && defined(HAVE_ACCEPT4)
+	accept_error:
+#endif
 		if (errno == EINPROGRESS || errno == EWOULDBLOCK || errno == EAGAIN) return 0;
 		if (errno == EINTR) return 0; /* if interrupted by a signal, treat it as if it's EINPROGRESS */
 
@@ -1605,7 +1608,9 @@ static int accept_incoming_connection (mio_dev_sck_t* rdev)
 		return -1;
 	}
 
+#if defined(SOCK_NONBLOCK) && defined(SOCK_CLOEXEC) && defined(HAVE_ACCEPT4)
 accept_done:
+#endif
 	return make_accepted_client_connection(rdev, clisck, &remoteaddr, rdev->type);
 }
 

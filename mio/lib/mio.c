@@ -348,7 +348,7 @@ static void fire_cwq_handlers (mio_t* mio)
 
 		if (dev_to_halt) 
 		{
-			MIO_DEBUG1 (mio, "DEV(%p) - halting a device for on_write error upon write completion[1]\n", dev_to_halt);
+			MIO_DEBUG2 (mio, "DEV(%p) - halting a device for on_write error upon write completion[1] - %js\n", dev_to_halt, mio_geterrmsg(mio));
 			mio_dev_halt (dev_to_halt);
 		}
 	}
@@ -396,7 +396,7 @@ static void fire_cwq_handlers_for_dev (mio_t* mio, mio_dev_t* dev, int for_kill)
 
 			if (!for_kill && dev_to_halt)
 			{
-				MIO_DEBUG1 (mio, "DEV(%p) - halting a device for on_write error upon write completion[2]\n", dev_to_halt);
+				MIO_DEBUG2 (mio, "DEV(%p) - halting a device for on_write error upon write completion[2] - %js\n", dev_to_halt, mio_geterrmsg(mio));
 			       	mio_dev_halt (dev_to_halt);
 			}
 		}
@@ -427,7 +427,7 @@ static MIO_INLINE void handle_event (mio_t* mio, mio_dev_t* dev, int events, int
 		x = dev->dev_evcb->ready(dev, xevents);
 		if (x <= -1)
 		{ 
-			MIO_DEBUG1 (mio, "DEV(%p) - halting a device for ready callback error\n", dev);
+			MIO_DEBUG2 (mio, "DEV(%p) - halting a device for ready callback error - %js\n", dev, mio_geterrmsg(mio));
 			mio_dev_halt (dev);
 			return;
 		}
@@ -468,7 +468,7 @@ static MIO_INLINE void handle_event (mio_t* mio, mio_dev_t* dev, int events, int
 			}
 			if (x <= -1)
 			{
-				MIO_DEBUG1 (mio, "DEV(%p) - halting a device for write failure\n", dev);
+				MIO_DEBUG2 (mio, "DEV(%p) - halting a device for write failure - %js\n", dev, mio_geterrmsg(mio));
 				mio_dev_halt (dev);
 				dev = MIO_NULL;
 				break;
@@ -512,7 +512,7 @@ static MIO_INLINE void handle_event (mio_t* mio, mio_dev_t* dev, int events, int
 
 					if (y <= -1)
 					{
-						MIO_DEBUG1 (mio, "DEV(%p) - halting a device for on_write error\n", dev);
+						MIO_DEBUG2 (mio, "DEV(%p) - halting a device for on_write error - %js\n", dev, mio_geterrmsg(mio));
 						mio_dev_halt (dev);
 						dev = MIO_NULL;
 						break;
@@ -566,7 +566,7 @@ static MIO_INLINE void handle_event (mio_t* mio, mio_dev_t* dev, int events, int
 			x = dev->dev_mth->read(dev, mio->bigbuf, &len, &srcaddr);
 			if (x <= -1)
 			{
-				MIO_DEBUG1 (mio, "DEV(%p) - halting a device for read failure\n", dev);
+				MIO_DEBUG2 (mio, "DEV(%p) - halting a device for read failure - %js\n", dev, mio_geterrmsg(mio));
 				mio_dev_halt (dev);
 				dev = MIO_NULL;
 				break;
@@ -630,7 +630,7 @@ static MIO_INLINE void handle_event (mio_t* mio, mio_dev_t* dev, int events, int
 					{
 						/* 1. input ended and its reporting failed or 
 						 * 2. input ended and no writing is possible */
-						MIO_DEBUG1 (mio, "DEV(%p) - halting a stream device for on_read failure while output is closed\n", dev);
+						MIO_DEBUG2 (mio, "DEV(%p) - halting a stream device for on_read failure while output is closed - %js\n", dev, mio_geterrmsg(mio));
 						mio_dev_halt (dev);
 						dev = MIO_NULL;
 					}
@@ -648,7 +648,7 @@ static MIO_INLINE void handle_event (mio_t* mio, mio_dev_t* dev, int events, int
 					y = dev->dev_evcb->on_read(dev, mio->bigbuf, len, &srcaddr);
 					if (y <= -1)
 					{
-						MIO_DEBUG1 (mio, "DEV(%p) - halting a non-stream device for on_read failure while output is closed\n", dev);
+						MIO_DEBUG2 (mio, "DEV(%p) - halting a non-stream device for on_read failure while output is closed - %js\n", dev, mio_geterrmsg(mio));
 						mio_dev_halt (dev);
 						dev = MIO_NULL;
 						break;
@@ -1177,7 +1177,7 @@ static void on_read_timeout (mio_t* mio, const mio_ntime_t* now, mio_tmrjob_t* j
 
 	if (x <= -1) 
 	{
-		MIO_DEBUG1 (mio, "DEV(%p) - halting a device for on_read error upon timeout\n", dev);
+		MIO_DEBUG2 (mio, "DEV(%p) - halting a device for on_read error upon timeout - %js\n", dev, mio_geterrmsg(mio));
 		mio_dev_halt (dev);
 	}
 }
@@ -1268,7 +1268,7 @@ static void on_write_timeout (mio_t* mio, const mio_ntime_t* now, mio_tmrjob_t* 
 
 	if (x <= -1) 
 	{
-		MIO_DEBUG1 (mio, "DEV(%p) - halting a device for on_write error upon timeout\n", dev);
+		MIO_DEBUG2 (mio, "DEV(%p) - halting a device for on_write error upon timeout - %js\n", dev, mio_geterrmsg(mio));
 		mio_dev_halt (dev);
 	}
 }
