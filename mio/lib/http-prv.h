@@ -47,6 +47,7 @@ struct mio_svc_htts_cli_t
 	mio_becs_t* sbuf; /* temporary buffer for status line formatting */
 
 	mio_svc_htts_rsrc_t* rsrc;
+	mio_ntime_t last_active;
 };
 
 struct mio_svc_htts_cli_htrd_xtn_t
@@ -63,6 +64,7 @@ struct mio_svc_htts_t
 
 	mio_dev_sck_t* lsck;
 	mio_svc_htts_cli_t cli; /* list head for client list */
+	mio_tmridx_t idle_tmridx;
 
 	mio_bch_t* server_name;
 	mio_bch_t server_name_buf[64];
