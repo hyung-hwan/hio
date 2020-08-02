@@ -74,7 +74,8 @@ static int init_client (mio_svc_htts_cli_t* cli, mio_dev_sck_t* sck)
 
 	mio_htrd_setrecbs (cli->htrd, &client_htrd_recbs);
 
-MIO_DEBUG3 (sck->mio, "HTTS(%p) - initialized client %p socket %p\n", cli->htts, cli, sck);
+	mio_gettime (sck->mio, &cli->last_active);
+	MIO_DEBUG3 (sck->mio, "HTTS(%p) - initialized client %p socket %p\n", cli->htts, cli, sck);
 	return 0;
 
 oops:
@@ -152,6 +153,7 @@ static int listener_on_read (mio_dev_sck_t* sck, const void* buf, mio_iolen_t le
 		goto oops;
 	}
 
+	mio_gettime (mio, &cli->last_active);
 	if ((x = mio_htrd_feed(cli->htrd, buf, len, &rem)) <= -1) 
 	{
 		MIO_DEBUG3 (mio, "HTTS(%p) - feed error onto client htrd %p(%d)\n", cli->htts, sck, (int)sck->hnd);
@@ -275,6 +277,42 @@ printf ("listener socket disconnect..................sck %p %d\n", sck, sck->hnd
 }
 
 /* ------------------------------------------------------------------------ */
+#define MAX_CLIENT_IDLE 10
+
+
+static void halt_idle_clients (mio_t* mio, const mio_ntime_t* now, mio_tmrjob_t* job)
+{
+/* TODO: this idle client detector is far away from being accurate.
+ *       enhance htrd to specify timeout on feed() and utilize it... 
+ *       and remove this timer job */
+	mio_svc_htts_t* htts = (mio_svc_htts_t*)job->ctx;
+	mio_svc_htts_cli_t* cli;
+	mio_ntime_t t;
+
+	static mio_ntime_t max_client_idle = { MAX_CLIENT_IDLE, 0 };
+
+	for (cli = MIO_SVC_HTTS_CLIL_FIRST_CLI(&htts->cli); !MIO_SVC_HTTS_CLIL_IS_NIL_CLI(&htts->cli, cli); cli = cli->cli_next)
+	{
+		if (!cli->rsrc)
+		{
+			mio_ntime_t t;
+			MIO_SUB_NTIME(&t, now, &cli->last_active);
+
+			if (MIO_CMP_NTIME(&t, &max_client_idle) >= 0) 
+			{
+				MIO_DEBUG3 (mio, "HTTS(%p) - Halting idle client socket %p(client=%p)\n", htts, cli->sck, cli);
+				mio_dev_sck_halt (cli->sck);
+			}
+		}
+	}
+
+	MIO_INIT_NTIME (&t, MAX_CLIENT_IDLE, 0);
+	MIO_ADD_NTIME (&t, &t, now);
+	if (mio_schedtmrjobat(mio, &t, halt_idle_clients, &htts->idle_tmridx, htts) <= -1)
+	{
+		MIO_INFO1 (mio, "HTTS(%p) - unable to reschedule idle client detector. continuting\n", htts);
+	}
+}
 
 /* ------------------------------------------------------------------------ */
 
@@ -294,6 +332,7 @@ mio_svc_htts_t* mio_svc_htts_start (mio_t* mio, mio_dev_sck_bind_t* sck_bind, mi
 	htts->mio = mio;
 	htts->svc_stop = mio_svc_htts_stop;
 	htts->proc_req = proc_req;
+	htts->idle_tmridx = MIO_TMRIDX_INVALID;
 
 	MIO_MEMSET (&info, 0, MIO_SIZEOF(info));
 	switch (mio_skad_family(&sck_bind->localaddr))
@@ -343,10 +382,23 @@ mio_svc_htts_t* mio_svc_htts_start (mio_t* mio, mio_dev_sck_bind_t* sck_bind, mi
 		MIO_PACKAGE_NAME, (int)MIO_PACKAGE_VERSION_MAJOR, (int)MIO_PACKAGE_VERSION_MINOR, (int)MIO_PACKAGE_VERSION_PATCH);
 	htts->server_name = htts->server_name_buf;
 
+
 	MIO_SVCL_APPEND_SVC (&mio->actsvc, (mio_svc_t*)htts);
 	MIO_SVC_HTTS_CLIL_INIT (&htts->cli);
 
 	MIO_DEBUG3 (mio, "HTTS - STARTED SERVICE %p - LISTENER SOCKET %p(%d)\n", htts, htts->lsck, (int)htts->lsck->hnd);
+
+	{
+		mio_ntime_t t;
+
+		MIO_INIT_NTIME (&t, MAX_CLIENT_IDLE, 0);
+		if (mio_schedtmrjobafter(mio, &t, halt_idle_clients, &htts->idle_tmridx, htts) <= -1)
+		{
+			MIO_INFO1 (mio, "HTTS(%p) - unable to schedule idle client detector. continuting\n", htts);
+			/* don't care about failure */
+		}
+	}
+
 	return htts;
 
 oops:
@@ -376,6 +428,9 @@ void mio_svc_htts_stop (mio_svc_htts_t* htts)
 
 	MIO_SVCL_UNLINK_SVC (htts);
 	if (htts->server_name && htts->server_name != htts->server_name_buf) mio_freemem (mio, htts->server_name);
+
+	if (htts->idle_tmridx != MIO_TMRIDX_INVALID) mio_deltmrjob (mio, htts->idle_tmridx);
+
 	mio_freemem (mio, htts);
 }
 

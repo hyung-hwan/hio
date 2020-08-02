@@ -342,22 +342,6 @@ struct xx_mq_t
 
 static xx_mq_t xx_mq;
 
-#if 0
-static int schedule_timer_job_at (mio_dev_sck_t* dev, const mio_ntime_t* fire_at, mio_tmrjob_handler_t handler, mio_tmridx_t* tmridx)
-{
-	mio_tmrjob_t tmrjob;
-
-	memset (&tmrjob, 0, MIO_SIZEOF(tmrjob));
-	tmrjob.ctx = dev;
-	if (fire_at) tmrjob.when = *fire_at;
-
-	tmrjob.handler = handler;
-	tmrjob.idxptr = tmridx;
-
-	return mio_instmrjob(dev->mio, &tmrjob);
-}
-#endif
-
 static void enable_accept (mio_t* mio, const mio_ntime_t* now, mio_tmrjob_t* job)
 {
 	mio_dev_sck_t* rdev = (mio_dev_sck_t*)job->ctx;
@@ -452,7 +436,6 @@ static void tcp_sck_on_raw_accept (mio_dev_sck_t* sck, mio_syshnd_t syshnd, mio_
 	qxmsg.syshnd = syshnd;
 	qxmsg.remoteaddr = *remoteaddr;
 
-//printf ("A %d\n", qxmsg.syshnd);
 	try_to_accept (sck, &qxmsg, 0);
 }
 

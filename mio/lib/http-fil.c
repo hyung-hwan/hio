@@ -218,7 +218,6 @@ static void file_state_mark_over (file_state_t* file_state, int over_bits)
 			/* how to arrange to delete this file_state object and put the socket back to the normal waiting state??? */
 			MIO_ASSERT (file_state->htts->mio, file_state->client->rsrc == (mio_svc_htts_rsrc_t*)file_state);
 
-		
 			MIO_SVC_HTTS_RSRC_DETACH (file_state->client->rsrc);
 			/* file_state must not be accessed from here down as it could have been destroyed */
 		}
@@ -292,7 +291,6 @@ static void file_state_on_kill (file_state_t* file_state)
 		}
 	}
 }
-
 
 static void file_client_on_disconnect (mio_dev_sck_t* sck)
 {
@@ -463,8 +461,6 @@ static int file_state_send_header_to_client (file_state_t* file_state, int statu
 		cli->htts->server_name, dtbuf,
 		(force_close? "close": "keep-alive"), mime_type) == (mio_oow_t)-1) return -1;
 
-/* TODO: content_type */
-
 	if (file_state->req_method == MIO_HTTP_GET && mio_becs_fcat(cli->sbuf, "ETag: %hs\r\n", file_state->peer_etag) == (mio_oow_t)-1) return -1;
 	if (status_code == 206 && mio_becs_fcat(cli->sbuf, "Content-Ranges: bytes %ju-%ju/%ju\r\n", (mio_uintmax_t)file_state->start_offset, (mio_uintmax_t)file_state->end_offset, (mio_uintmax_t)file_state->total_size) == (mio_oow_t)-1) return -1;
 	if (mio_becs_fcat(cli->sbuf, "Content-Length: %ju\r\n\r\n", (mio_uintmax_t)content_length) == (mio_oow_t)-1) return -1;
@@ -552,6 +548,13 @@ static MIO_INLINE int process_range_header (file_state_t* file_state, mio_htre_t
 		return -1;
 	}
 
+	if ((st.st_mode & S_IFMT) == S_IFREG)
+	{
+		/* TODO: support directory listing if S_IFDIR? still disallow special files. */
+		file_state_send_final_status_to_client (file_state, 403, 1); /* forbidden */
+		return -1;
+	}
+
 	if (file_state->req_method == MIO_HTTP_GET)
 	{
 		etag_len = mio_fmt_uintmax_to_bcstr(&file_state->peer_etag[0], MIO_COUNTOF(file_state->peer_etag), st.st_mtim.tv_sec, 16, -1, '\0', MIO_NULL);
@@ -631,13 +634,24 @@ static int open_peer (file_state_t* file_state, const mio_bch_t* actual_file)
 	{
 		case MIO_HTTP_GET:
 		case MIO_HTTP_HEAD:
+		{
+			int flags;
+
 			if (access(actual_file, R_OK) == -1)
 			{
 				file_state_send_final_status_to_client (file_state, ERRNO_TO_STATUS_CODE(errno), 1); /* 404 not found 403 Forbidden */
 				return -1;
 			}
 
-			file_state->peer = open(actual_file, O_RDONLY | O_NONBLOCK | O_CLOEXEC);
+			flags = O_RDONLY | O_NONBLOCK;
+		#if defined(O_CLOEXEC)
+			flags |= O_CLOEXEC;
+		#endif
+		#if defined(O_LARGEFILE)
+			flags |= O_LARGEFILE;
+		#endif
+			file_state->peer = open(actual_file, flags);
+
 			if (MIO_UNLIKELY(file_state->peer <= -1)) 
 			{
 				file_state_send_final_status_to_client (file_state, ERRNO_TO_STATUS_CODE(errno), 1);
@@ -645,6 +659,7 @@ static int open_peer (file_state_t* file_state, const mio_bch_t* actual_file)
 			}
 
 			return 0;
+		}
 
 #if 0
 		case MIO_HTTP_PUT:
@@ -720,7 +735,7 @@ int mio_svc_htts_dofile (mio_svc_htts_t* htts, mio_dev_sck_t* csck, mio_htre_t* 
 	csck->on_write = file_client_on_write;
 	csck->on_disconnect = file_client_on_disconnect;
 
-	MIO_ASSERT (mio, cli->rsrc == MIO_NULL);
+	MIO_ASSERT (mio, cli->rsrc == MIO_NULL); /* you must not call this function while cli->rsrc is not MIO_NULL */
 	MIO_SVC_HTTS_RSRC_ATTACH (file_state, cli->rsrc);
 
 	file_state->peer_tmridx = MIO_TMRIDX_INVALID;
