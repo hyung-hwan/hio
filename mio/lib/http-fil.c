@@ -463,6 +463,13 @@ static int file_state_send_header_to_client (file_state_t* file_state, int statu
 
 	if (file_state->req_method == MIO_HTTP_GET && mio_becs_fcat(cli->sbuf, "ETag: %hs\r\n", file_state->peer_etag) == (mio_oow_t)-1) return -1;
 	if (status_code == 206 && mio_becs_fcat(cli->sbuf, "Content-Ranges: bytes %ju-%ju/%ju\r\n", (mio_uintmax_t)file_state->start_offset, (mio_uintmax_t)file_state->end_offset, (mio_uintmax_t)file_state->total_size) == (mio_oow_t)-1) return -1;
+
+/* ----- */
+// TODO: Allow-Contents
+// Allow-Headers... support custom headers...
+	if (mio_becs_fcat(cli->sbuf, "Access-Control-Allow-Origin: *\r\n", (mio_uintmax_t)content_length) == (mio_oow_t)-1) return -1;
+/* ----- */
+
 	if (mio_becs_fcat(cli->sbuf, "Content-Length: %ju\r\n\r\n", (mio_uintmax_t)content_length) == (mio_oow_t)-1) return -1;
 
 	return file_state_write_to_client(file_state, MIO_BECS_PTR(cli->sbuf), MIO_BECS_LEN(cli->sbuf));
@@ -548,7 +555,7 @@ static MIO_INLINE int process_range_header (file_state_t* file_state, mio_htre_t
 		return -1;
 	}
 
-	if ((st.st_mode & S_IFMT) == S_IFREG)
+	if ((st.st_mode & S_IFMT) != S_IFREG)
 	{
 		/* TODO: support directory listing if S_IFDIR? still disallow special files. */
 		file_state_send_final_status_to_client (file_state, 403, 1); /* forbidden */
