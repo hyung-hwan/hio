@@ -1147,7 +1147,7 @@ int mio_htrd_feed (mio_htrd_t* htrd, const mio_bch_t* req, mio_oow_t len, mio_oo
 					/* reset the raw request length */
 					htrd->fed.s.plen = 0;
 
-					if (parse_initial_line_and_headers (htrd, req, ptr - req) <= -1) 
+					if (parse_initial_line_and_headers(htrd, req, ptr - req) <= -1) 
 					{
 						return -1;
 					}

@@ -9,9 +9,10 @@
 #include <errno.h>
 #include <assert.h>
 
-#define NUM_THRS 8
+#define MAX_NUM_THRS 256
 static int  g_reuse_port = 0;
-static mio_svc_htts_t* g_htts[NUM_THRS];
+static int g_num_thrs = 2;
+static mio_svc_htts_t* g_htts[MAX_NUM_THRS];
 static int g_htts_no = 0;
 static pthread_mutex_t g_htts_mutex = PTHREAD_MUTEX_INITIALIZER;
 
@@ -243,7 +244,7 @@ void* thr_func (void* arg)
 	pthread_mutex_lock (&g_htts_mutex);
 	g_htts[g_htts_no] = htts;
 printf ("starting the loop for %d\n", g_htts_no);
-	g_htts_no = (g_htts_no + 1) % MIO_COUNTOF(g_htts);
+	g_htts_no = (g_htts_no + 1) % g_num_thrs;
 	pthread_mutex_unlock (&g_htts_mutex);
 
 	mio_loop (mio);
@@ -371,7 +372,7 @@ static int try_to_accept (mio_dev_sck_t* sck, mio_dev_sck_qxmsg_t* qxmsg, int in
 
 	pthread_mutex_lock (&g_htts_mutex);
 	htts = g_htts[g_htts_no];
-	g_htts_no = (g_htts_no + 1) % MIO_COUNTOF(g_htts);
+	g_htts_no = (g_htts_no + 1) % g_num_thrs;
 	pthread_mutex_unlock (&g_htts_mutex);
 
 	if (mio_svc_htts_writetosidechan(htts, qxmsg, MIO_SIZEOF(*qxmsg)) <= -1)
@@ -512,13 +513,42 @@ static int add_listener (mio_t* mio, mio_bch_t* addrstr)
 int main (int argc, char* argv[])
 {
 	mio_t* mio = MIO_NULL;
-	pthread_t t[NUM_THRS];
+	pthread_t t[MAX_NUM_THRS];
 	mio_oow_t i;
 	struct sigaction sigact;
 
-	if (argc >= 2 && strcmp(argv[1], "-r") == 0)
+
+// TODO: use getopt() or something similar
+	for (i = 1; i < argc; )
 	{
-		g_reuse_port = 1;
+		if (strcmp(argv[i], "-r") == 0)
+		{
+			g_reuse_port = 1;
+			i++;
+		}
+		else if (strcmp(argv[i], "-t") == 0)
+		{
+			i++;
+			if (i < argc)
+			{
+				g_num_thrs = atoi(argv[i]);
+				if (g_num_thrs < 1 || g_num_thrs > MAX_NUM_THRS)
+				{
+					printf ("Error: %s not allowed for -t\n", argv[i]);
+					return -1;
+				}
+				i++;
+			}
+			else
+			{
+				g_num_thrs = 2;
+			}
+		}
+		else
+		{
+			printf ("Error: invalid argument %s\n", argv[i]);
+			return -1;
+		}
 	}
 
 	memset (&sigact, 0, MIO_SIZEOF(sigact));
@@ -535,7 +565,7 @@ int main (int argc, char* argv[])
 		goto oops;
 	}
 
-	for (i = 0; i < MIO_COUNTOF(t); i++)
+	for (i = 0; i < g_num_thrs; i++)
 		pthread_create (&t[i], MIO_NULL, thr_func, mio);
 
 	sleep (1); /* TODO: use pthread_cond_wait()/pthread_cond_signal() or a varialble to see if all threads are up */
