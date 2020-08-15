@@ -24,15 +24,6 @@ dnl m4_ifdef([AM_SILENT_RULES], [AM_SILENT_RULES([yes])])
 dnl determine a C compiler to use
 AC_PROG_CC
 
-dnl determine a C++ compiler to use
-AC_PROG_CXX
-
-dnl check if the C++ compiler exists in PATH
-AC_CHECK_PROG(HAVE_CXX, $CXX, yes, no)
-
-dnl check if the C++ compiler supports namespace
-AX_CXX_NAMESPACE_STD
-
 dnl determine some key programs
 AC_PROG_INSTALL
 AC_PROG_EGREP
@@ -52,21 +43,11 @@ then
 	fi
 fi
 
-if test "$ac_test_CXXFLAGS" != "set"
-then
-	if test "$GCC" = "yes"
-	then
-		CXXFLAGS="$CXXFLAGS -Wall"
-	fi
-fi
-
 dnl indicate the existence of config.h
 CFLAGS="$CFLAGS -DMIO_HAVE_CFG_H"
-CXXFLAGS="$CXXFLAGS -DMIO_HAVE_CFG_H"
 
 dnl make visible the 64-bit interface to the file system
-CFLAGS="$CFLAGS -D_LARGEFILE64_SOURCE"
-CXXFLAGS="$CXXFLAGS -D_LARGEFILE64_SOURCE"
+AC_SYS_LARGEFILE()
 
 dnl define the WIN32 conditional if necessary
 case "$host" in
@@ -262,6 +243,14 @@ then
 fi
 
 AC_CHECK_FUNCS([kqueue kqueue1 kevent])
+
+AX_PTHREAD()
+AC_CHECK_LIB([pthread], [pthread_mutex_timedlock],  [
+	AC_DEFINE([HAVE_PTHREAD_MUTEX_TIMEDLOCK],1,[pthreads has pthread_mutex_timedlock()])
+])
+AC_CHECK_LIB([pthread], [pthread_mutex_trylock],  [
+	AC_DEFINE([HAVE_PTHREAD_MUTEX_TRYLOCK],1,[pthreads has pthread_mutex_trylock()])
+])
 
 dnl check is the import library for unicows.dll exists
 dnl this check doesn't look for a particular symbol
@@ -758,11 +747,9 @@ AC_ARG_ENABLE([debug], [AS_HELP_STRING([--enable-debug],[build the library in th
 if test "$enable_debug_is" = "yes"
 then
 	[CFLAGS="$CFLAGS -g -D_DEBUG -UNDEBUG -DMIO_BUILD_DEBUG -U_FORTIFY_SOURCE"]
-	[CXXFLAGS="$CXXFLAGS -g -D_DEBUG -UNDEBUG -DMIO_BUILD_DEBUG -U_FORTIFY_SOURCE"]
 	AC_SUBST(BUILD_MODE, "debug")
 else
 	[CFLAGS="$CFLAGS -DNDEBUG -U_DEBUG -DMIO_BUILD_RELEASE -U_FORTIFY_SOURCE"]
-	[CXXFLAGS="$CXXFLAGS -DNDEBUG -U_DEBUG -DMIO_BUILD_RELEASE -U_FORTIFY_SOURCE"]
 	AC_SUBST(BUILD_MODE, "release")
 fi
 
@@ -778,7 +765,6 @@ then
 	if test "${platform_win32}" = "yes"
 	then
 		[CFLAGS="$CFLAGS -DUNICODE -D_UNICODE"]
-		[CXXFLAGS="$CXXFLAGS -DUNICODE -D_UNICODE"]
 	fi 
 elif test "${enable_unicode}" = "yes:2"
 then
@@ -787,7 +773,6 @@ then
 	if test "${platform_win32}" = "yes"
 	then
 		[CFLAGS="$CFLAGS -DUNICODE -D_UNICODE"]
-		[CXXFLAGS="$CXXFLAGS -DUNICODE -D_UNICODE"]
 	fi
 elif test "${enable_unicode}" = "yes"
 then
@@ -796,7 +781,6 @@ then
 	if test "${platform_win32}" = "yes"
 	then
 		[CFLAGS="$CFLAGS -DUNICODE -D_UNICODE"]
-		[CXXFLAGS="$CXXFLAGS -DUNICODE -D_UNICODE"]
 	fi
 elif test "${enable_unicode}" = "no:4"
 then
@@ -807,18 +791,6 @@ then
 else
 	AC_DEFINE([MIO_UNICODE_SIZE],[1],[Unicode character type size])
 fi
-
-AC_ARG_ENABLE([cxx], 
-	[AS_HELP_STRING([--enable-cxx],[build the library for C++ if a C++ compiler is available (default. yes)])],
-	enable_cxx_is=$enableval,
-	enable_cxx_is=yes
-)
-dnl disable c++ if no c++ compiler was found
-test "${HAVE_CXX}" = "yes" || enable_cxx_is="no"
-dnl disable c++ if the compiler is too old.
-test "${ax_cv_cxx_have_std_namespace}" = "yes" || enable_cxx_is="no"
-AM_CONDITIONAL(ENABLE_CXX, test "${enable_cxx_is}" = "yes" )
-
 
 AC_ARG_ENABLE([libunwind],
         [AS_HELP_STRING([--enable-libunwind],[use libunwind(default. no)])],
@@ -835,6 +807,17 @@ then
         fi
 fi
 AM_CONDITIONAL(ENABLE_LIBUNWIND, test "x${enable_libunwind_is}" = "xyes")
+
+dnl ==== include pthread options to the default flags ====
+dnl keep this as  the last option as it changes the default compile flags.
+dnl otherwise, other tests may get affected if this option is on.
+AC_ARG_ENABLE([pthread-flags], [AS_HELP_STRING([--enable-pthread-flags],[add thread flags to CFLAGS, LIBS(default. yes)])],
+	enable_pthread_flags_is=$enableval,enable_pthread_flags_is=yes)
+if test "$enable_pthread_flags_is" = "yes"
+then
+	[CFLAGS="$CFLAGS $PTHREAD_CFLAGS"]
+	[LIBS="$LIBS $PTHREAD_LIBS"]
+fi
 
 AC_SUBST(MIO_SIZEOF_WCHAR_T, $ac_cv_sizeof_wchar_t)
 AC_SUBST(MIO_SIZEOF_LONG_LONG, $ac_cv_sizeof_long_long)
@@ -867,8 +850,6 @@ echo "  Build mode : ${BUILD_MODE}"
 echo "  Source directory: ${srcdir}"
 echo "  Installation directory: ${prefix}"
 echo "  C compiler: ${CC} ${CFLAGS}"
-echo "  C++ compiler: ${CXX} ${CXXFLAGS}"
-echo "  C++ support: ${enable_cxx_is}"
 echo "  Math library: ${LIBM}"
 echo "  Socket library: ${SOCKET_LIBS}"
 echo "  Sendfile library: ${SENDFILE_LIBS}"

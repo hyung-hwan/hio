@@ -114,9 +114,6 @@
 /* Define to 1 if you have the `CRYPTO_cleanup_all_ex_data' function. */
 #undef HAVE_CRYPTO_CLEANUP_ALL_EX_DATA
 
-/* Define if c++ supports namespace std. */
-#undef HAVE_CXX_NAMESPACE_STD
-
 /* Define to 1 if you have the <dirent.h> header file, and it defines `DIR'.
    */
 #undef HAVE_DIRENT_H
@@ -399,6 +396,18 @@
 
 /* Define to 1 if you have the `prctl' function. */
 #undef HAVE_PRCTL
+
+/* Define if you have POSIX threads libraries and header files. */
+#undef HAVE_PTHREAD
+
+/* pthreads has pthread_mutex_timedlock() */
+#undef HAVE_PTHREAD_MUTEX_TIMEDLOCK
+
+/* pthreads has pthread_mutex_trylock() */
+#undef HAVE_PTHREAD_MUTEX_TRYLOCK
+
+/* Have PTHREAD_PRIO_INHERIT. */
+#undef HAVE_PTHREAD_PRIO_INHERIT
 
 /* Define to 1 if you have the <quadmath.h> header file. */
 #undef HAVE_QUADMATH_H
@@ -951,6 +960,10 @@
 /* Define to the version of this package. */
 #undef PACKAGE_VERSION
 
+/* Define to necessary symbol if this constant uses a non-standard name on
+   your system. */
+#undef PTHREAD_CREATE_JOINABLE
+
 /* The size of `char', as computed by sizeof. */
 #undef SIZEOF_CHAR
 
@@ -1064,3 +1077,14 @@
 #  undef WORDS_BIGENDIAN
 # endif
 #endif
+
+/* Enable large inode numbers on Mac OS X 10.5.  */
+#ifndef _DARWIN_USE_64_BIT_INODE
+# define _DARWIN_USE_64_BIT_INODE 1
+#endif
+
+/* Number of bits in a file offset, on hosts where this is settable. */
+#undef _FILE_OFFSET_BITS
+
+/* Define for large files, on AIX-style hosts. */
+#undef _LARGE_FILES
