@@ -259,6 +259,7 @@ dnl the existence of the libaray.
 AC_CHECK_LIB([unicows], [main], [UNICOWS_LIBS="-lunicows"])
 AC_SUBST(UNICOWS_LIBS)
 
+dnl ===== enable-ssl =====
 AC_ARG_ENABLE([ssl], [AS_HELP_STRING([--enable-ssl],[build the library in the ssl mode (default. yes)])],
 	enable_ssl_is=$enableval,enable_ssl_is=yes)
 if test "x$enable_ssl_is" = "xyes"
@@ -297,6 +298,7 @@ then
 	LIBS="$OLDLIBS"
 fi
 AC_SUBST(SSL_LIBS)
+AM_CONDITIONAL(ENABLE_SSL, test "${enable_ssl_is}" = "yes")
 
 dnl ===== enable-mariadb =====
 AC_ARG_ENABLE([mariadb],
@@ -321,6 +323,9 @@ then
 	)
 	AC_SUBST(UNWIND_LIBS)
 fi
+
+dnl libmysqlclient
+AX_LIB_MYSQL
 
 AC_STRUCT_DIRENT_D_TYPE
 AC_CHECK_MEMBERS([DIR.d_fd, DIR.dd_fd],,,[[#include <dirent.h>]])
@@ -753,43 +758,43 @@ else
 	AC_SUBST(BUILD_MODE, "release")
 fi
 
-AC_ARG_ENABLE([unicode], 
-	[AS_HELP_STRING([--enable-unicode],[Use the unicode character type as the default character type. one of yes, no, yes:2, yes:4, no:2, no:4 (default. yes)])],
-	enable_unicode=$enableval,
-	enable_unicode=yes
+AC_ARG_ENABLE([wide-char], 
+	[AS_HELP_STRING([--enable-wide-char],[Use the wide-character type as the default character type. one of yes, no, yes:2, yes:4, no:2, no:4 (default. yes)])],
+	enable_wide_char=$enableval,
+	enable_wide_char=yes
 )
-if test "${enable_unicode}" = "yes:4"
+if test "${enable_wide_char}" = "yes:4"
 then
-	AC_DEFINE([MIO_UNICODE_SIZE],[4],[Unicode character type size])
-	AC_DEFINE([MIO_ENABLE_UNICODE],[1],[Use the unicode character type as the default character type])
+	AC_DEFINE([MIO_WIDE_CHAR_SIZE],[4],[Wide-character type size])
+	AC_DEFINE([MIO_ENABLE_WIDE_CHAR],[1],[Use the wide-character type as the default character type])
 	if test "${platform_win32}" = "yes"
 	then
 		[CFLAGS="$CFLAGS -DUNICODE -D_UNICODE"]
 	fi 
-elif test "${enable_unicode}" = "yes:2"
+elif test "${enable_wide_char}" = "yes:2"
 then
-	AC_DEFINE([MIO_UNICODE_SIZE],[2],[Unicode character type size])
-	AC_DEFINE([MIO_ENABLE_UNICODE],[1],[Use the unicode character type as the default character type])
+	AC_DEFINE([MIO_WIDE_CHAR_SIZE],[2],[Wide-character type size])
+	AC_DEFINE([MIO_ENABLE_WIDE_CHAR],[1],[Use the wide-character type as the default character type])
 	if test "${platform_win32}" = "yes"
 	then
 		[CFLAGS="$CFLAGS -DUNICODE -D_UNICODE"]
 	fi
-elif test "${enable_unicode}" = "yes"
+elif test "${enable_wide_char}" = "yes"
 then
-	AC_DEFINE([MIO_UNICODE_SIZE],[1],[Unicode character type size])
-	AC_DEFINE([MIO_ENABLE_UNICODE],[1],[Use the unicode character type as the default character type])
+	AC_DEFINE([MIO_WIDE_CHAR_SIZE],[1],[Wide-character type size])
+	AC_DEFINE([MIO_ENABLE_WIDE_CHAR],[1],[Use the wide-character type as the default character type])
 	if test "${platform_win32}" = "yes"
 	then
 		[CFLAGS="$CFLAGS -DUNICODE -D_UNICODE"]
 	fi
-elif test "${enable_unicode}" = "no:4"
+elif test "${enable_wide_char}" = "no:4"
 then
-	AC_DEFINE([MIO_UNICODE_SIZE],[4],[Unicode character type size])
-elif test "${enable_unicode}" = "no:2"
+	AC_DEFINE([MIO_WIDE_CHAR_SIZE],[4],[Wide-character type size])
+elif test "${enable_wide_char}" = "no:2"
 then
-	AC_DEFINE([MIO_UNICODE_SIZE],[2],[Unicode character type size])
+	AC_DEFINE([MIO_WIDE_CHAR_SIZE],[2],[Wide-character type size])
 else
-	AC_DEFINE([MIO_UNICODE_SIZE],[1],[Unicode character type size])
+	AC_DEFINE([MIO_WIDE_CHAR_SIZE],[1],[Wide-character type size])
 fi
 
 AC_ARG_ENABLE([libunwind],

@@ -27,8 +27,13 @@
 #include <mio-mar.h>
 #include "mio-prv.h"
 
+#if 0
 #include <mariadb/mysql.h>
 #include <mariadb/errmsg.h>
+#else
+#include <mysql.h>
+#include <errmsg.h>
+#endif
 
 typedef struct sess_t sess_t;
 typedef struct sess_qry_t sess_qry_t;

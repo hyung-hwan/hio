@@ -27,8 +27,14 @@
 #include <mio-mar.h>
 #include "mio-prv.h"
 
+#if 0
 #include <mariadb/mysql.h>
 #include <mariadb/errmsg.h>
+#else
+#include <mysql.h>
+#include <errmsg.h>
+#endif
+
 #include <sys/socket.h>
 
 /* ========================================================================= */

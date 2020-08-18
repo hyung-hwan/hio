@@ -353,7 +353,7 @@ typedef unsigned char           mio_bchu_t; /* unsigned version of mio_bch_t for
 #define MIO_SIZEOF_BCH_T MIO_SIZEOF_CHAR
 #define MIO_SIZEOF_BCI_T MIO_SIZEOF_INT
 
-#if defined(MIO_UNICODE_SIZE) && (MIO_UNICODE_SIZE >= 4)
+#if defined(MIO_WIDE_CHAR_SIZE) && (MIO_WIDE_CHAR_SIZE >= 4)
 #	if defined(__GNUC__) && defined(__CHAR32_TYPE__)
 	typedef __CHAR32_TYPE__    mio_uch_t;
 #	else
@@ -407,7 +407,7 @@ struct mio_bcs_t
 };
 typedef struct mio_bcs_t mio_bcs_t;
 
-#if defined(MIO_ENABLE_UNICODE)
+#if defined(MIO_ENABLE_WIDE_CHAR)
 	typedef mio_uch_t               mio_ooch_t;
 	typedef mio_uchu_t              mio_oochu_t;
 	typedef mio_uci_t               mio_ooci_t;

@@ -88,14 +88,20 @@ libmio_la_SOURCES = \
 
 
 libmio_la_CPPFLAGS = $(CPPFLAGS_LIB_COMMON)
+libmio_la_CFLAGS =
 libmio_la_LDFLAGS = $(LDFLAGS_LIB_COMMON)
 libmio_la_LIBADD = $(LIBADD_LIB_COMMON) $(SSL_LIBS) $(SOCKET_LIBS) $(SENDFILE_LIBS)
 
 if ENABLE_MARIADB
 include_HEADERS += mio-mar.h
 libmio_la_SOURCES += mar.c mar-cli.c
-libmio_la_LDFLAGS +=
-libmio_la_LIBADD += -lmariadb
+libmio_la_CFLAGS += $(MYSQL_CFLAGS)
+libmio_la_LDFLAGS += $(MYSQL_LDFLAGS)
+libmio_la_LIBADD += $(MYSQL_LIBS)
+endif
+
+if ENABLE_SSL
+libmio_la_LIBADD += $(SSL_LIBS)
 endif
 
 install-data-hook:
