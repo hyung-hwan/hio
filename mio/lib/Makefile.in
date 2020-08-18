@@ -91,15 +91,18 @@ build_triplet = @build@
 host_triplet = @host@
 @ENABLE_MARIADB_TRUE@am__append_1 = mio-mar.h
 @ENABLE_MARIADB_TRUE@am__append_2 = mar.c mar-cli.c
-@ENABLE_MARIADB_TRUE@am__append_3 = 
-@ENABLE_MARIADB_TRUE@am__append_4 = -lmariadb
+@ENABLE_MARIADB_TRUE@am__append_3 = $(MYSQL_CFLAGS)
+@ENABLE_MARIADB_TRUE@am__append_4 = $(MYSQL_LDFLAGS)
+@ENABLE_MARIADB_TRUE@am__append_5 = $(MYSQL_LIBS)
+@ENABLE_SSL_TRUE@am__append_6 = $(SSL_LIBS)
 subdir = lib
 ACLOCAL_M4 = $(top_srcdir)/aclocal.m4
 am__aclocal_m4_deps = $(top_srcdir)/m4/ax_check_sign.m4 \
-	$(top_srcdir)/m4/ax_numval.m4 $(top_srcdir)/m4/ax_pthread.m4 \
-	$(top_srcdir)/m4/libtool.m4 $(top_srcdir)/m4/ltoptions.m4 \
-	$(top_srcdir)/m4/ltsugar.m4 $(top_srcdir)/m4/ltversion.m4 \
-	$(top_srcdir)/m4/lt~obsolete.m4 $(top_srcdir)/configure.ac
+	$(top_srcdir)/m4/ax_lib_mysql.m4 $(top_srcdir)/m4/ax_numval.m4 \
+	$(top_srcdir)/m4/ax_pthread.m4 $(top_srcdir)/m4/libtool.m4 \
+	$(top_srcdir)/m4/ltoptions.m4 $(top_srcdir)/m4/ltsugar.m4 \
+	$(top_srcdir)/m4/ltversion.m4 $(top_srcdir)/m4/lt~obsolete.m4 \
+	$(top_srcdir)/configure.ac
 am__configure_deps = $(am__aclocal_m4_deps) $(CONFIGURE_DEPENDENCIES) \
 	$(ACLOCAL_M4)
 DIST_COMMON = $(srcdir)/Makefile.am $(am__include_HEADERS_DIST) \
@@ -139,9 +142,11 @@ am__installdirs = "$(DESTDIR)$(libdir)" "$(DESTDIR)$(includedir)"
 LTLIBRARIES = $(lib_LTLIBRARIES)
 am__DEPENDENCIES_1 =
 am__DEPENDENCIES_2 = $(am__DEPENDENCIES_1)
+@ENABLE_MARIADB_TRUE@am__DEPENDENCIES_3 = $(am__DEPENDENCIES_1)
+@ENABLE_SSL_TRUE@am__DEPENDENCIES_4 = $(am__DEPENDENCIES_1)
 libmio_la_DEPENDENCIES = $(am__DEPENDENCIES_2) $(am__DEPENDENCIES_1) \
 	$(am__DEPENDENCIES_1) $(am__DEPENDENCIES_1) \
-	$(am__DEPENDENCIES_1)
+	$(am__DEPENDENCIES_3) $(am__DEPENDENCIES_4)
 am__libmio_la_SOURCES_DIST = chr.c dns.c dns-cli.c ecs.c ecs-imp.h \
 	err.c fmt.c fmt-imp.h htb.c htrd.c htre.c http.c http-cgi.c \
 	http-fil.c http-svr.c http-thr.c http-txt.c json.c mio-prv.h \
@@ -170,8 +175,8 @@ am__v_lt_ = $(am__v_lt_@AM_DEFAULT_V@)
 am__v_lt_0 = --silent
 am__v_lt_1 = 
 libmio_la_LINK = $(LIBTOOL) $(AM_V_lt) --tag=CC $(AM_LIBTOOLFLAGS) \
-	$(LIBTOOLFLAGS) --mode=link $(CCLD) $(AM_CFLAGS) $(CFLAGS) \
-	$(libmio_la_LDFLAGS) $(LDFLAGS) -o $@
+	$(LIBTOOLFLAGS) --mode=link $(CCLD) $(libmio_la_CFLAGS) \
+	$(CFLAGS) $(libmio_la_LDFLAGS) $(LDFLAGS) -o $@
 AM_V_P = $(am__v_P_@AM_V@)
 am__v_P_ = $(am__v_P_@AM_DEFAULT_V@)
 am__v_P_0 = false
@@ -328,6 +333,11 @@ MIO_SIZEOF_SHORT = @MIO_SIZEOF_SHORT@
 MIO_SIZEOF_VOID_P = @MIO_SIZEOF_VOID_P@
 MIO_SIZEOF_WCHAR_T = @MIO_SIZEOF_WCHAR_T@
 MKDIR_P = @MKDIR_P@
+MYSQL_CFLAGS = @MYSQL_CFLAGS@
+MYSQL_CONFIG = @MYSQL_CONFIG@
+MYSQL_LDFLAGS = @MYSQL_LDFLAGS@
+MYSQL_LIBS = @MYSQL_LIBS@
+MYSQL_VERSION = @MYSQL_VERSION@
 NM = @NM@
 NMEDIT = @NMEDIT@
 OBJDUMP = @OBJDUMP@
@@ -405,7 +415,6 @@ pdfdir = @pdfdir@
 prefix = @prefix@
 program_transform_name = @program_transform_name@
 psdir = @psdir@
-runstatedir = @runstatedir@
 sbindir = @sbindir@
 sharedstatedir = @sharedstatedir@
 srcdir = @srcdir@
@@ -445,9 +454,10 @@ libmio_la_SOURCES = chr.c dns.c dns-cli.c ecs.c ecs-imp.h err.c fmt.c \
 	sys-log.c sys-mux.c sys-prv.h sys-tim.c thr.c uch-case.h \
 	uch-prop.h tmr.c utf8.c utl.c utl-siph.c $(am__append_2)
 libmio_la_CPPFLAGS = $(CPPFLAGS_LIB_COMMON)
-libmio_la_LDFLAGS = $(LDFLAGS_LIB_COMMON) $(am__append_3)
+libmio_la_CFLAGS = $(am__append_3)
+libmio_la_LDFLAGS = $(LDFLAGS_LIB_COMMON) $(am__append_4)
 libmio_la_LIBADD = $(LIBADD_LIB_COMMON) $(SSL_LIBS) $(SOCKET_LIBS) \
-	$(SENDFILE_LIBS) $(am__append_4)
+	$(SENDFILE_LIBS) $(am__append_5) $(am__append_6)
 all: mio-cfg.h
 	$(MAKE) $(AM_MAKEFLAGS) all-am
 
@@ -610,256 +620,256 @@ am--depfiles: $(am__depfiles_remade)
 @am__fastdepCC_FALSE@	$(AM_V_CC@am__nodep@)$(LTCOMPILE) -c -o $@ $<
 
 libmio_la-chr.lo: chr.c
-@am__fastdepCC_TRUE@	$(AM_V_CC)$(LIBTOOL) $(AM_V_lt) --tag=CC $(AM_LIBTOOLFLAGS) $(LIBTOOLFLAGS) --mode=compile $(CC) $(DEFS) $(DEFAULT_INCLUDES) $(INCLUDES) $(libmio_la_CPPFLAGS) $(CPPFLAGS) $(AM_CFLAGS) $(CFLAGS) -MT libmio_la-chr.lo -MD -MP -MF $(DEPDIR)/libmio_la-chr.Tpo -c -o libmio_la-chr.lo `test -f 'chr.c' || echo '$(srcdir)/'`chr.c
+@am__fastdepCC_TRUE@	$(AM_V_CC)$(LIBTOOL) $(AM_V_lt) --tag=CC $(AM_LIBTOOLFLAGS) $(LIBTOOLFLAGS) --mode=compile $(CC) $(DEFS) $(DEFAULT_INCLUDES) $(INCLUDES) $(libmio_la_CPPFLAGS) $(CPPFLAGS) $(libmio_la_CFLAGS) $(CFLAGS) -MT libmio_la-chr.lo -MD -MP -MF $(DEPDIR)/libmio_la-chr.Tpo -c -o libmio_la-chr.lo `test -f 'chr.c' || echo '$(srcdir)/'`chr.c
 @am__fastdepCC_TRUE@	$(AM_V_at)$(am__mv) $(DEPDIR)/libmio_la-chr.Tpo $(DEPDIR)/libmio_la-chr.Plo
 @AMDEP_TRUE@@am__fastdepCC_FALSE@	$(AM_V_CC)source='chr.c' object='libmio_la-chr.lo' libtool=yes @AMDEPBACKSLASH@
 @AMDEP_TRUE@@am__fastdepCC_FALSE@	DEPDIR=$(DEPDIR) $(CCDEPMODE) $(depcomp) @AMDEPBACKSLASH@
-@am__fastdepCC_FALSE@	$(AM_V_CC@am__nodep@)$(LIBTOOL) $(AM_V_lt) --tag=CC $(AM_LIBTOOLFLAGS) $(LIBTOOLFLAGS) --mode=compile $(CC) $(DEFS) $(DEFAULT_INCLUDES) $(INCLUDES) $(libmio_la_CPPFLAGS) $(CPPFLAGS) $(AM_CFLAGS) $(CFLAGS) -c -o libmio_la-chr.lo `test -f 'chr.c' || echo '$(srcdir)/'`chr.c
+@am__fastdepCC_FALSE@	$(AM_V_CC@am__nodep@)$(LIBTOOL) $(AM_V_lt) --tag=CC $(AM_LIBTOOLFLAGS) $(LIBTOOLFLAGS) --mode=compile $(CC) $(DEFS) $(DEFAULT_INCLUDES) $(INCLUDES) $(libmio_la_CPPFLAGS) $(CPPFLAGS) $(libmio_la_CFLAGS) $(CFLAGS) -c -o libmio_la-chr.lo `test -f 'chr.c' || echo '$(srcdir)/'`chr.c
 
 libmio_la-dns.lo: dns.c
-@am__fastdepCC_TRUE@	$(AM_V_CC)$(LIBTOOL) $(AM_V_lt) --tag=CC $(AM_LIBTOOLFLAGS) $(LIBTOOLFLAGS) --mode=compile $(CC) $(DEFS) $(DEFAULT_INCLUDES) $(INCLUDES) $(libmio_la_CPPFLAGS) $(CPPFLAGS) $(AM_CFLAGS) $(CFLAGS) -MT libmio_la-dns.lo -MD -MP -MF $(DEPDIR)/libmio_la-dns.Tpo -c -o libmio_la-dns.lo `test -f 'dns.c' || echo '$(srcdir)/'`dns.c
+@am__fastdepCC_TRUE@	$(AM_V_CC)$(LIBTOOL) $(AM_V_lt) --tag=CC $(AM_LIBTOOLFLAGS) $(LIBTOOLFLAGS) --mode=compile $(CC) $(DEFS) $(DEFAULT_INCLUDES) $(INCLUDES) $(libmio_la_CPPFLAGS) $(CPPFLAGS) $(libmio_la_CFLAGS) $(CFLAGS) -MT libmio_la-dns.lo -MD -MP -MF $(DEPDIR)/libmio_la-dns.Tpo -c -o libmio_la-dns.lo `test -f 'dns.c' || echo '$(srcdir)/'`dns.c
 @am__fastdepCC_TRUE@	$(AM_V_at)$(am__mv) $(DEPDIR)/libmio_la-dns.Tpo $(DEPDIR)/libmio_la-dns.Plo
 @AMDEP_TRUE@@am__fastdepCC_FALSE@	$(AM_V_CC)source='dns.c' object='libmio_la-dns.lo' libtool=yes @AMDEPBACKSLASH@
 @AMDEP_TRUE@@am__fastdepCC_FALSE@	DEPDIR=$(DEPDIR) $(CCDEPMODE) $(depcomp) @AMDEPBACKSLASH@
-@am__fastdepCC_FALSE@	$(AM_V_CC@am__nodep@)$(LIBTOOL) $(AM_V_lt) --tag=CC $(AM_LIBTOOLFLAGS) $(LIBTOOLFLAGS) --mode=compile $(CC) $(DEFS) $(DEFAULT_INCLUDES) $(INCLUDES) $(libmio_la_CPPFLAGS) $(CPPFLAGS) $(AM_CFLAGS) $(CFLAGS) -c -o libmio_la-dns.lo `test -f 'dns.c' || echo '$(srcdir)/'`dns.c
+@am__fastdepCC_FALSE@	$(AM_V_CC@am__nodep@)$(LIBTOOL) $(AM_V_lt) --tag=CC $(AM_LIBTOOLFLAGS) $(LIBTOOLFLAGS) --mode=compile $(CC) $(DEFS) $(DEFAULT_INCLUDES) $(INCLUDES) $(libmio_la_CPPFLAGS) $(CPPFLAGS) $(libmio_la_CFLAGS) $(CFLAGS) -c -o libmio_la-dns.lo `test -f 'dns.c' || echo '$(srcdir)/'`dns.c
 
 libmio_la-dns-cli.lo: dns-cli.c
-@am__fastdepCC_TRUE@	$(AM_V_CC)$(LIBTOOL) $(AM_V_lt) --tag=CC $(AM_LIBTOOLFLAGS) $(LIBTOOLFLAGS) --mode=compile $(CC) $(DEFS) $(DEFAULT_INCLUDES) $(INCLUDES) $(libmio_la_CPPFLAGS) $(CPPFLAGS) $(AM_CFLAGS) $(CFLAGS) -MT libmio_la-dns-cli.lo -MD -MP -MF $(DEPDIR)/libmio_la-dns-cli.Tpo -c -o libmio_la-dns-cli.lo `test -f 'dns-cli.c' || echo '$(srcdir)/'`dns-cli.c
+@am__fastdepCC_TRUE@	$(AM_V_CC)$(LIBTOOL) $(AM_V_lt) --tag=CC $(AM_LIBTOOLFLAGS) $(LIBTOOLFLAGS) --mode=compile $(CC) $(DEFS) $(DEFAULT_INCLUDES) $(INCLUDES) $(libmio_la_CPPFLAGS) $(CPPFLAGS) $(libmio_la_CFLAGS) $(CFLAGS) -MT libmio_la-dns-cli.lo -MD -MP -MF $(DEPDIR)/libmio_la-dns-cli.Tpo -c -o libmio_la-dns-cli.lo `test -f 'dns-cli.c' || echo '$(srcdir)/'`dns-cli.c
 @am__fastdepCC_TRUE@	$(AM_V_at)$(am__mv) $(DEPDIR)/libmio_la-dns-cli.Tpo $(DEPDIR)/libmio_la-dns-cli.Plo
 @AMDEP_TRUE@@am__fastdepCC_FALSE@	$(AM_V_CC)source='dns-cli.c' object='libmio_la-dns-cli.lo' libtool=yes @AMDEPBACKSLASH@
 @AMDEP_TRUE@@am__fastdepCC_FALSE@	DEPDIR=$(DEPDIR) $(CCDEPMODE) $(depcomp) @AMDEPBACKSLASH@
-@am__fastdepCC_FALSE@	$(AM_V_CC@am__nodep@)$(LIBTOOL) $(AM_V_lt) --tag=CC $(AM_LIBTOOLFLAGS) $(LIBTOOLFLAGS) --mode=compile $(CC) $(DEFS) $(DEFAULT_INCLUDES) $(INCLUDES) $(libmio_la_CPPFLAGS) $(CPPFLAGS) $(AM_CFLAGS) $(CFLAGS) -c -o libmio_la-dns-cli.lo `test -f 'dns-cli.c' || echo '$(srcdir)/'`dns-cli.c
+@am__fastdepCC_FALSE@	$(AM_V_CC@am__nodep@)$(LIBTOOL) $(AM_V_lt) --tag=CC $(AM_LIBTOOLFLAGS) $(LIBTOOLFLAGS) --mode=compile $(CC) $(DEFS) $(DEFAULT_INCLUDES) $(INCLUDES) $(libmio_la_CPPFLAGS) $(CPPFLAGS) $(libmio_la_CFLAGS) $(CFLAGS) -c -o libmio_la-dns-cli.lo `test -f 'dns-cli.c' || echo '$(srcdir)/'`dns-cli.c
 
 libmio_la-ecs.lo: ecs.c
-@am__fastdepCC_TRUE@	$(AM_V_CC)$(LIBTOOL) $(AM_V_lt) --tag=CC $(AM_LIBTOOLFLAGS) $(LIBTOOLFLAGS) --mode=compile $(CC) $(DEFS) $(DEFAULT_INCLUDES) $(INCLUDES) $(libmio_la_CPPFLAGS) $(CPPFLAGS) $(AM_CFLAGS) $(CFLAGS) -MT libmio_la-ecs.lo -MD -MP -MF $(DEPDIR)/libmio_la-ecs.Tpo -c -o libmio_la-ecs.lo `test -f 'ecs.c' || echo '$(srcdir)/'`ecs.c
+@am__fastdepCC_TRUE@	$(AM_V_CC)$(LIBTOOL) $(AM_V_lt) --tag=CC $(AM_LIBTOOLFLAGS) $(LIBTOOLFLAGS) --mode=compile $(CC) $(DEFS) $(DEFAULT_INCLUDES) $(INCLUDES) $(libmio_la_CPPFLAGS) $(CPPFLAGS) $(libmio_la_CFLAGS) $(CFLAGS) -MT libmio_la-ecs.lo -MD -MP -MF $(DEPDIR)/libmio_la-ecs.Tpo -c -o libmio_la-ecs.lo `test -f 'ecs.c' || echo '$(srcdir)/'`ecs.c
 @am__fastdepCC_TRUE@	$(AM_V_at)$(am__mv) $(DEPDIR)/libmio_la-ecs.Tpo $(DEPDIR)/libmio_la-ecs.Plo
 @AMDEP_TRUE@@am__fastdepCC_FALSE@	$(AM_V_CC)source='ecs.c' object='libmio_la-ecs.lo' libtool=yes @AMDEPBACKSLASH@
 @AMDEP_TRUE@@am__fastdepCC_FALSE@	DEPDIR=$(DEPDIR) $(CCDEPMODE) $(depcomp) @AMDEPBACKSLASH@
-@am__fastdepCC_FALSE@	$(AM_V_CC@am__nodep@)$(LIBTOOL) $(AM_V_lt) --tag=CC $(AM_LIBTOOLFLAGS) $(LIBTOOLFLAGS) --mode=compile $(CC) $(DEFS) $(DEFAULT_INCLUDES) $(INCLUDES) $(libmio_la_CPPFLAGS) $(CPPFLAGS) $(AM_CFLAGS) $(CFLAGS) -c -o libmio_la-ecs.lo `test -f 'ecs.c' || echo '$(srcdir)/'`ecs.c
+@am__fastdepCC_FALSE@	$(AM_V_CC@am__nodep@)$(LIBTOOL) $(AM_V_lt) --tag=CC $(AM_LIBTOOLFLAGS) $(LIBTOOLFLAGS) --mode=compile $(CC) $(DEFS) $(DEFAULT_INCLUDES) $(INCLUDES) $(libmio_la_CPPFLAGS) $(CPPFLAGS) $(libmio_la_CFLAGS) $(CFLAGS) -c -o libmio_la-ecs.lo `test -f 'ecs.c' || echo '$(srcdir)/'`ecs.c
 
 libmio_la-err.lo: err.c
-@am__fastdepCC_TRUE@	$(AM_V_CC)$(LIBTOOL) $(AM_V_lt) --tag=CC $(AM_LIBTOOLFLAGS) $(LIBTOOLFLAGS) --mode=compile $(CC) $(DEFS) $(DEFAULT_INCLUDES) $(INCLUDES) $(libmio_la_CPPFLAGS) $(CPPFLAGS) $(AM_CFLAGS) $(CFLAGS) -MT libmio_la-err.lo -MD -MP -MF $(DEPDIR)/libmio_la-err.Tpo -c -o libmio_la-err.lo `test -f 'err.c' || echo '$(srcdir)/'`err.c
+@am__fastdepCC_TRUE@	$(AM_V_CC)$(LIBTOOL) $(AM_V_lt) --tag=CC $(AM_LIBTOOLFLAGS) $(LIBTOOLFLAGS) --mode=compile $(CC) $(DEFS) $(DEFAULT_INCLUDES) $(INCLUDES) $(libmio_la_CPPFLAGS) $(CPPFLAGS) $(libmio_la_CFLAGS) $(CFLAGS) -MT libmio_la-err.lo -MD -MP -MF $(DEPDIR)/libmio_la-err.Tpo -c -o libmio_la-err.lo `test -f 'err.c' || echo '$(srcdir)/'`err.c
 @am__fastdepCC_TRUE@	$(AM_V_at)$(am__mv) $(DEPDIR)/libmio_la-err.Tpo $(DEPDIR)/libmio_la-err.Plo
 @AMDEP_TRUE@@am__fastdepCC_FALSE@	$(AM_V_CC)source='err.c' object='libmio_la-err.lo' libtool=yes @AMDEPBACKSLASH@
 @AMDEP_TRUE@@am__fastdepCC_FALSE@	DEPDIR=$(DEPDIR) $(CCDEPMODE) $(depcomp) @AMDEPBACKSLASH@
-@am__fastdepCC_FALSE@	$(AM_V_CC@am__nodep@)$(LIBTOOL) $(AM_V_lt) --tag=CC $(AM_LIBTOOLFLAGS) $(LIBTOOLFLAGS) --mode=compile $(CC) $(DEFS) $(DEFAULT_INCLUDES) $(INCLUDES) $(libmio_la_CPPFLAGS) $(CPPFLAGS) $(AM_CFLAGS) $(CFLAGS) -c -o libmio_la-err.lo `test -f 'err.c' || echo '$(srcdir)/'`err.c
+@am__fastdepCC_FALSE@	$(AM_V_CC@am__nodep@)$(LIBTOOL) $(AM_V_lt) --tag=CC $(AM_LIBTOOLFLAGS) $(LIBTOOLFLAGS) --mode=compile $(CC) $(DEFS) $(DEFAULT_INCLUDES) $(INCLUDES) $(libmio_la_CPPFLAGS) $(CPPFLAGS) $(libmio_la_CFLAGS) $(CFLAGS) -c -o libmio_la-err.lo `test -f 'err.c' || echo '$(srcdir)/'`err.c
 
 libmio_la-fmt.lo: fmt.c
-@am__fastdepCC_TRUE@	$(AM_V_CC)$(LIBTOOL) $(AM_V_lt) --tag=CC $(AM_LIBTOOLFLAGS) $(LIBTOOLFLAGS) --mode=compile $(CC) $(DEFS) $(DEFAULT_INCLUDES) $(INCLUDES) $(libmio_la_CPPFLAGS) $(CPPFLAGS) $(AM_CFLAGS) $(CFLAGS) -MT libmio_la-fmt.lo -MD -MP -MF $(DEPDIR)/libmio_la-fmt.Tpo -c -o libmio_la-fmt.lo `test -f 'fmt.c' || echo '$(srcdir)/'`fmt.c
+@am__fastdepCC_TRUE@	$(AM_V_CC)$(LIBTOOL) $(AM_V_lt) --tag=CC $(AM_LIBTOOLFLAGS) $(LIBTOOLFLAGS) --mode=compile $(CC) $(DEFS) $(DEFAULT_INCLUDES) $(INCLUDES) $(libmio_la_CPPFLAGS) $(CPPFLAGS) $(libmio_la_CFLAGS) $(CFLAGS) -MT libmio_la-fmt.lo -MD -MP -MF $(DEPDIR)/libmio_la-fmt.Tpo -c -o libmio_la-fmt.lo `test -f 'fmt.c' || echo '$(srcdir)/'`fmt.c
 @am__fastdepCC_TRUE@	$(AM_V_at)$(am__mv) $(DEPDIR)/libmio_la-fmt.Tpo $(DEPDIR)/libmio_la-fmt.Plo
 @AMDEP_TRUE@@am__fastdepCC_FALSE@	$(AM_V_CC)source='fmt.c' object='libmio_la-fmt.lo' libtool=yes @AMDEPBACKSLASH@
 @AMDEP_TRUE@@am__fastdepCC_FALSE@	DEPDIR=$(DEPDIR) $(CCDEPMODE) $(depcomp) @AMDEPBACKSLASH@
-@am__fastdepCC_FALSE@	$(AM_V_CC@am__nodep@)$(LIBTOOL) $(AM_V_lt) --tag=CC $(AM_LIBTOOLFLAGS) $(LIBTOOLFLAGS) --mode=compile $(CC) $(DEFS) $(DEFAULT_INCLUDES) $(INCLUDES) $(libmio_la_CPPFLAGS) $(CPPFLAGS) $(AM_CFLAGS) $(CFLAGS) -c -o libmio_la-fmt.lo `test -f 'fmt.c' || echo '$(srcdir)/'`fmt.c
+@am__fastdepCC_FALSE@	$(AM_V_CC@am__nodep@)$(LIBTOOL) $(AM_V_lt) --tag=CC $(AM_LIBTOOLFLAGS) $(LIBTOOLFLAGS) --mode=compile $(CC) $(DEFS) $(DEFAULT_INCLUDES) $(INCLUDES) $(libmio_la_CPPFLAGS) $(CPPFLAGS) $(libmio_la_CFLAGS) $(CFLAGS) -c -o libmio_la-fmt.lo `test -f 'fmt.c' || echo '$(srcdir)/'`fmt.c
 
 libmio_la-htb.lo: htb.c
-@am__fastdepCC_TRUE@	$(AM_V_CC)$(LIBTOOL) $(AM_V_lt) --tag=CC $(AM_LIBTOOLFLAGS) $(LIBTOOLFLAGS) --mode=compile $(CC) $(DEFS) $(DEFAULT_INCLUDES) $(INCLUDES) $(libmio_la_CPPFLAGS) $(CPPFLAGS) $(AM_CFLAGS) $(CFLAGS) -MT libmio_la-htb.lo -MD -MP -MF $(DEPDIR)/libmio_la-htb.Tpo -c -o libmio_la-htb.lo `test -f 'htb.c' || echo '$(srcdir)/'`htb.c
+@am__fastdepCC_TRUE@	$(AM_V_CC)$(LIBTOOL) $(AM_V_lt) --tag=CC $(AM_LIBTOOLFLAGS) $(LIBTOOLFLAGS) --mode=compile $(CC) $(DEFS) $(DEFAULT_INCLUDES) $(INCLUDES) $(libmio_la_CPPFLAGS) $(CPPFLAGS) $(libmio_la_CFLAGS) $(CFLAGS) -MT libmio_la-htb.lo -MD -MP -MF $(DEPDIR)/libmio_la-htb.Tpo -c -o libmio_la-htb.lo `test -f 'htb.c' || echo '$(srcdir)/'`htb.c
 @am__fastdepCC_TRUE@	$(AM_V_at)$(am__mv) $(DEPDIR)/libmio_la-htb.Tpo $(DEPDIR)/libmio_la-htb.Plo
 @AMDEP_TRUE@@am__fastdepCC_FALSE@	$(AM_V_CC)source='htb.c' object='libmio_la-htb.lo' libtool=yes @AMDEPBACKSLASH@
 @AMDEP_TRUE@@am__fastdepCC_FALSE@	DEPDIR=$(DEPDIR) $(CCDEPMODE) $(depcomp) @AMDEPBACKSLASH@
-@am__fastdepCC_FALSE@	$(AM_V_CC@am__nodep@)$(LIBTOOL) $(AM_V_lt) --tag=CC $(AM_LIBTOOLFLAGS) $(LIBTOOLFLAGS) --mode=compile $(CC) $(DEFS) $(DEFAULT_INCLUDES) $(INCLUDES) $(libmio_la_CPPFLAGS) $(CPPFLAGS) $(AM_CFLAGS) $(CFLAGS) -c -o libmio_la-htb.lo `test -f 'htb.c' || echo '$(srcdir)/'`htb.c
+@am__fastdepCC_FALSE@	$(AM_V_CC@am__nodep@)$(LIBTOOL) $(AM_V_lt) --tag=CC $(AM_LIBTOOLFLAGS) $(LIBTOOLFLAGS) --mode=compile $(CC) $(DEFS) $(DEFAULT_INCLUDES) $(INCLUDES) $(libmio_la_CPPFLAGS) $(CPPFLAGS) $(libmio_la_CFLAGS) $(CFLAGS) -c -o libmio_la-htb.lo `test -f 'htb.c' || echo '$(srcdir)/'`htb.c
 
 libmio_la-htrd.lo: htrd.c
-@am__fastdepCC_TRUE@	$(AM_V_CC)$(LIBTOOL) $(AM_V_lt) --tag=CC $(AM_LIBTOOLFLAGS) $(LIBTOOLFLAGS) --mode=compile $(CC) $(DEFS) $(DEFAULT_INCLUDES) $(INCLUDES) $(libmio_la_CPPFLAGS) $(CPPFLAGS) $(AM_CFLAGS) $(CFLAGS) -MT libmio_la-htrd.lo -MD -MP -MF $(DEPDIR)/libmio_la-htrd.Tpo -c -o libmio_la-htrd.lo `test -f 'htrd.c' || echo '$(srcdir)/'`htrd.c
+@am__fastdepCC_TRUE@	$(AM_V_CC)$(LIBTOOL) $(AM_V_lt) --tag=CC $(AM_LIBTOOLFLAGS) $(LIBTOOLFLAGS) --mode=compile $(CC) $(DEFS) $(DEFAULT_INCLUDES) $(INCLUDES) $(libmio_la_CPPFLAGS) $(CPPFLAGS) $(libmio_la_CFLAGS) $(CFLAGS) -MT libmio_la-htrd.lo -MD -MP -MF $(DEPDIR)/libmio_la-htrd.Tpo -c -o libmio_la-htrd.lo `test -f 'htrd.c' || echo '$(srcdir)/'`htrd.c
 @am__fastdepCC_TRUE@	$(AM_V_at)$(am__mv) $(DEPDIR)/libmio_la-htrd.Tpo $(DEPDIR)/libmio_la-htrd.Plo
 @AMDEP_TRUE@@am__fastdepCC_FALSE@	$(AM_V_CC)source='htrd.c' object='libmio_la-htrd.lo' libtool=yes @AMDEPBACKSLASH@
 @AMDEP_TRUE@@am__fastdepCC_FALSE@	DEPDIR=$(DEPDIR) $(CCDEPMODE) $(depcomp) @AMDEPBACKSLASH@
-@am__fastdepCC_FALSE@	$(AM_V_CC@am__nodep@)$(LIBTOOL) $(AM_V_lt) --tag=CC $(AM_LIBTOOLFLAGS) $(LIBTOOLFLAGS) --mode=compile $(CC) $(DEFS) $(DEFAULT_INCLUDES) $(INCLUDES) $(libmio_la_CPPFLAGS) $(CPPFLAGS) $(AM_CFLAGS) $(CFLAGS) -c -o libmio_la-htrd.lo `test -f 'htrd.c' || echo '$(srcdir)/'`htrd.c
+@am__fastdepCC_FALSE@	$(AM_V_CC@am__nodep@)$(LIBTOOL) $(AM_V_lt) --tag=CC $(AM_LIBTOOLFLAGS) $(LIBTOOLFLAGS) --mode=compile $(CC) $(DEFS) $(DEFAULT_INCLUDES) $(INCLUDES) $(libmio_la_CPPFLAGS) $(CPPFLAGS) $(libmio_la_CFLAGS) $(CFLAGS) -c -o libmio_la-htrd.lo `test -f 'htrd.c' || echo '$(srcdir)/'`htrd.c
 
 libmio_la-htre.lo: htre.c
-@am__fastdepCC_TRUE@	$(AM_V_CC)$(LIBTOOL) $(AM_V_lt) --tag=CC $(AM_LIBTOOLFLAGS) $(LIBTOOLFLAGS) --mode=compile $(CC) $(DEFS) $(DEFAULT_INCLUDES) $(INCLUDES) $(libmio_la_CPPFLAGS) $(CPPFLAGS) $(AM_CFLAGS) $(CFLAGS) -MT libmio_la-htre.lo -MD -MP -MF $(DEPDIR)/libmio_la-htre.Tpo -c -o libmio_la-htre.lo `test -f 'htre.c' || echo '$(srcdir)/'`htre.c
+@am__fastdepCC_TRUE@	$(AM_V_CC)$(LIBTOOL) $(AM_V_lt) --tag=CC $(AM_LIBTOOLFLAGS) $(LIBTOOLFLAGS) --mode=compile $(CC) $(DEFS) $(DEFAULT_INCLUDES) $(INCLUDES) $(libmio_la_CPPFLAGS) $(CPPFLAGS) $(libmio_la_CFLAGS) $(CFLAGS) -MT libmio_la-htre.lo -MD -MP -MF $(DEPDIR)/libmio_la-htre.Tpo -c -o libmio_la-htre.lo `test -f 'htre.c' || echo '$(srcdir)/'`htre.c
 @am__fastdepCC_TRUE@	$(AM_V_at)$(am__mv) $(DEPDIR)/libmio_la-htre.Tpo $(DEPDIR)/libmio_la-htre.Plo
 @AMDEP_TRUE@@am__fastdepCC_FALSE@	$(AM_V_CC)source='htre.c' object='libmio_la-htre.lo' libtool=yes @AMDEPBACKSLASH@
 @AMDEP_TRUE@@am__fastdepCC_FALSE@	DEPDIR=$(DEPDIR) $(CCDEPMODE) $(depcomp) @AMDEPBACKSLASH@
-@am__fastdepCC_FALSE@	$(AM_V_CC@am__nodep@)$(LIBTOOL) $(AM_V_lt) --tag=CC $(AM_LIBTOOLFLAGS) $(LIBTOOLFLAGS) --mode=compile $(CC) $(DEFS) $(DEFAULT_INCLUDES) $(INCLUDES) $(libmio_la_CPPFLAGS) $(CPPFLAGS) $(AM_CFLAGS) $(CFLAGS) -c -o libmio_la-htre.lo `test -f 'htre.c' || echo '$(srcdir)/'`htre.c
+@am__fastdepCC_FALSE@	$(AM_V_CC@am__nodep@)$(LIBTOOL) $(AM_V_lt) --tag=CC $(AM_LIBTOOLFLAGS) $(LIBTOOLFLAGS) --mode=compile $(CC) $(DEFS) $(DEFAULT_INCLUDES) $(INCLUDES) $(libmio_la_CPPFLAGS) $(CPPFLAGS) $(libmio_la_CFLAGS) $(CFLAGS) -c -o libmio_la-htre.lo `test -f 'htre.c' || echo '$(srcdir)/'`htre.c
 
 libmio_la-http.lo: http.c
-@am__fastdepCC_TRUE@	$(AM_V_CC)$(LIBTOOL) $(AM_V_lt) --tag=CC $(AM_LIBTOOLFLAGS) $(LIBTOOLFLAGS) --mode=compile $(CC) $(DEFS) $(DEFAULT_INCLUDES) $(INCLUDES) $(libmio_la_CPPFLAGS) $(CPPFLAGS) $(AM_CFLAGS) $(CFLAGS) -MT libmio_la-http.lo -MD -MP -MF $(DEPDIR)/libmio_la-http.Tpo -c -o libmio_la-http.lo `test -f 'http.c' || echo '$(srcdir)/'`http.c
+@am__fastdepCC_TRUE@	$(AM_V_CC)$(LIBTOOL) $(AM_V_lt) --tag=CC $(AM_LIBTOOLFLAGS) $(LIBTOOLFLAGS) --mode=compile $(CC) $(DEFS) $(DEFAULT_INCLUDES) $(INCLUDES) $(libmio_la_CPPFLAGS) $(CPPFLAGS) $(libmio_la_CFLAGS) $(CFLAGS) -MT libmio_la-http.lo -MD -MP -MF $(DEPDIR)/libmio_la-http.Tpo -c -o libmio_la-http.lo `test -f 'http.c' || echo '$(srcdir)/'`http.c
 @am__fastdepCC_TRUE@	$(AM_V_at)$(am__mv) $(DEPDIR)/libmio_la-http.Tpo $(DEPDIR)/libmio_la-http.Plo
 @AMDEP_TRUE@@am__fastdepCC_FALSE@	$(AM_V_CC)source='http.c' object='libmio_la-http.lo' libtool=yes @AMDEPBACKSLASH@
 @AMDEP_TRUE@@am__fastdepCC_FALSE@	DEPDIR=$(DEPDIR) $(CCDEPMODE) $(depcomp) @AMDEPBACKSLASH@
-@am__fastdepCC_FALSE@	$(AM_V_CC@am__nodep@)$(LIBTOOL) $(AM_V_lt) --tag=CC $(AM_LIBTOOLFLAGS) $(LIBTOOLFLAGS) --mode=compile $(CC) $(DEFS) $(DEFAULT_INCLUDES) $(INCLUDES) $(libmio_la_CPPFLAGS) $(CPPFLAGS) $(AM_CFLAGS) $(CFLAGS) -c -o libmio_la-http.lo `test -f 'http.c' || echo '$(srcdir)/'`http.c
+@am__fastdepCC_FALSE@	$(AM_V_CC@am__nodep@)$(LIBTOOL) $(AM_V_lt) --tag=CC $(AM_LIBTOOLFLAGS) $(LIBTOOLFLAGS) --mode=compile $(CC) $(DEFS) $(DEFAULT_INCLUDES) $(INCLUDES) $(libmio_la_CPPFLAGS) $(CPPFLAGS) $(libmio_la_CFLAGS) $(CFLAGS) -c -o libmio_la-http.lo `test -f 'http.c' || echo '$(srcdir)/'`http.c
 
 libmio_la-http-cgi.lo: http-cgi.c
-@am__fastdepCC_TRUE@	$(AM_V_CC)$(LIBTOOL) $(AM_V_lt) --tag=CC $(AM_LIBTOOLFLAGS) $(LIBTOOLFLAGS) --mode=compile $(CC) $(DEFS) $(DEFAULT_INCLUDES) $(INCLUDES) $(libmio_la_CPPFLAGS) $(CPPFLAGS) $(AM_CFLAGS) $(CFLAGS) -MT libmio_la-http-cgi.lo -MD -MP -MF $(DEPDIR)/libmio_la-http-cgi.Tpo -c -o libmio_la-http-cgi.lo `test -f 'http-cgi.c' || echo '$(srcdir)/'`http-cgi.c
+@am__fastdepCC_TRUE@	$(AM_V_CC)$(LIBTOOL) $(AM_V_lt) --tag=CC $(AM_LIBTOOLFLAGS) $(LIBTOOLFLAGS) --mode=compile $(CC) $(DEFS) $(DEFAULT_INCLUDES) $(INCLUDES) $(libmio_la_CPPFLAGS) $(CPPFLAGS) $(libmio_la_CFLAGS) $(CFLAGS) -MT libmio_la-http-cgi.lo -MD -MP -MF $(DEPDIR)/libmio_la-http-cgi.Tpo -c -o libmio_la-http-cgi.lo `test -f 'http-cgi.c' || echo '$(srcdir)/'`http-cgi.c
 @am__fastdepCC_TRUE@	$(AM_V_at)$(am__mv) $(DEPDIR)/libmio_la-http-cgi.Tpo $(DEPDIR)/libmio_la-http-cgi.Plo
 @AMDEP_TRUE@@am__fastdepCC_FALSE@	$(AM_V_CC)source='http-cgi.c' object='libmio_la-http-cgi.lo' libtool=yes @AMDEPBACKSLASH@
 @AMDEP_TRUE@@am__fastdepCC_FALSE@	DEPDIR=$(DEPDIR) $(CCDEPMODE) $(depcomp) @AMDEPBACKSLASH@
-@am__fastdepCC_FALSE@	$(AM_V_CC@am__nodep@)$(LIBTOOL) $(AM_V_lt) --tag=CC $(AM_LIBTOOLFLAGS) $(LIBTOOLFLAGS) --mode=compile $(CC) $(DEFS) $(DEFAULT_INCLUDES) $(INCLUDES) $(libmio_la_CPPFLAGS) $(CPPFLAGS) $(AM_CFLAGS) $(CFLAGS) -c -o libmio_la-http-cgi.lo `test -f 'http-cgi.c' || echo '$(srcdir)/'`http-cgi.c
+@am__fastdepCC_FALSE@	$(AM_V_CC@am__nodep@)$(LIBTOOL) $(AM_V_lt) --tag=CC $(AM_LIBTOOLFLAGS) $(LIBTOOLFLAGS) --mode=compile $(CC) $(DEFS) $(DEFAULT_INCLUDES) $(INCLUDES) $(libmio_la_CPPFLAGS) $(CPPFLAGS) $(libmio_la_CFLAGS) $(CFLAGS) -c -o libmio_la-http-cgi.lo `test -f 'http-cgi.c' || echo '$(srcdir)/'`http-cgi.c
 
 libmio_la-http-fil.lo: http-fil.c
-@am__fastdepCC_TRUE@	$(AM_V_CC)$(LIBTOOL) $(AM_V_lt) --tag=CC $(AM_LIBTOOLFLAGS) $(LIBTOOLFLAGS) --mode=compile $(CC) $(DEFS) $(DEFAULT_INCLUDES) $(INCLUDES) $(libmio_la_CPPFLAGS) $(CPPFLAGS) $(AM_CFLAGS) $(CFLAGS) -MT libmio_la-http-fil.lo -MD -MP -MF $(DEPDIR)/libmio_la-http-fil.Tpo -c -o libmio_la-http-fil.lo `test -f 'http-fil.c' || echo '$(srcdir)/'`http-fil.c
+@am__fastdepCC_TRUE@	$(AM_V_CC)$(LIBTOOL) $(AM_V_lt) --tag=CC $(AM_LIBTOOLFLAGS) $(LIBTOOLFLAGS) --mode=compile $(CC) $(DEFS) $(DEFAULT_INCLUDES) $(INCLUDES) $(libmio_la_CPPFLAGS) $(CPPFLAGS) $(libmio_la_CFLAGS) $(CFLAGS) -MT libmio_la-http-fil.lo -MD -MP -MF $(DEPDIR)/libmio_la-http-fil.Tpo -c -o libmio_la-http-fil.lo `test -f 'http-fil.c' || echo '$(srcdir)/'`http-fil.c
 @am__fastdepCC_TRUE@	$(AM_V_at)$(am__mv) $(DEPDIR)/libmio_la-http-fil.Tpo $(DEPDIR)/libmio_la-http-fil.Plo
 @AMDEP_TRUE@@am__fastdepCC_FALSE@	$(AM_V_CC)source='http-fil.c' object='libmio_la-http-fil.lo' libtool=yes @AMDEPBACKSLASH@
 @AMDEP_TRUE@@am__fastdepCC_FALSE@	DEPDIR=$(DEPDIR) $(CCDEPMODE) $(depcomp) @AMDEPBACKSLASH@
-@am__fastdepCC_FALSE@	$(AM_V_CC@am__nodep@)$(LIBTOOL) $(AM_V_lt) --tag=CC $(AM_LIBTOOLFLAGS) $(LIBTOOLFLAGS) --mode=compile $(CC) $(DEFS) $(DEFAULT_INCLUDES) $(INCLUDES) $(libmio_la_CPPFLAGS) $(CPPFLAGS) $(AM_CFLAGS) $(CFLAGS) -c -o libmio_la-http-fil.lo `test -f 'http-fil.c' || echo '$(srcdir)/'`http-fil.c
+@am__fastdepCC_FALSE@	$(AM_V_CC@am__nodep@)$(LIBTOOL) $(AM_V_lt) --tag=CC $(AM_LIBTOOLFLAGS) $(LIBTOOLFLAGS) --mode=compile $(CC) $(DEFS) $(DEFAULT_INCLUDES) $(INCLUDES) $(libmio_la_CPPFLAGS) $(CPPFLAGS) $(libmio_la_CFLAGS) $(CFLAGS) -c -o libmio_la-http-fil.lo `test -f 'http-fil.c' || echo '$(srcdir)/'`http-fil.c
 
 libmio_la-http-svr.lo: http-svr.c
-@am__fastdepCC_TRUE@	$(AM_V_CC)$(LIBTOOL) $(AM_V_lt) --tag=CC $(AM_LIBTOOLFLAGS) $(LIBTOOLFLAGS) --mode=compile $(CC) $(DEFS) $(DEFAULT_INCLUDES) $(INCLUDES) $(libmio_la_CPPFLAGS) $(CPPFLAGS) $(AM_CFLAGS) $(CFLAGS) -MT libmio_la-http-svr.lo -MD -MP -MF $(DEPDIR)/libmio_la-http-svr.Tpo -c -o libmio_la-http-svr.lo `test -f 'http-svr.c' || echo '$(srcdir)/'`http-svr.c
+@am__fastdepCC_TRUE@	$(AM_V_CC)$(LIBTOOL) $(AM_V_lt) --tag=CC $(AM_LIBTOOLFLAGS) $(LIBTOOLFLAGS) --mode=compile $(CC) $(DEFS) $(DEFAULT_INCLUDES) $(INCLUDES) $(libmio_la_CPPFLAGS) $(CPPFLAGS) $(libmio_la_CFLAGS) $(CFLAGS) -MT libmio_la-http-svr.lo -MD -MP -MF $(DEPDIR)/libmio_la-http-svr.Tpo -c -o libmio_la-http-svr.lo `test -f 'http-svr.c' || echo '$(srcdir)/'`http-svr.c
 @am__fastdepCC_TRUE@	$(AM_V_at)$(am__mv) $(DEPDIR)/libmio_la-http-svr.Tpo $(DEPDIR)/libmio_la-http-svr.Plo
 @AMDEP_TRUE@@am__fastdepCC_FALSE@	$(AM_V_CC)source='http-svr.c' object='libmio_la-http-svr.lo' libtool=yes @AMDEPBACKSLASH@
 @AMDEP_TRUE@@am__fastdepCC_FALSE@	DEPDIR=$(DEPDIR) $(CCDEPMODE) $(depcomp) @AMDEPBACKSLASH@
-@am__fastdepCC_FALSE@	$(AM_V_CC@am__nodep@)$(LIBTOOL) $(AM_V_lt) --tag=CC $(AM_LIBTOOLFLAGS) $(LIBTOOLFLAGS) --mode=compile $(CC) $(DEFS) $(DEFAULT_INCLUDES) $(INCLUDES) $(libmio_la_CPPFLAGS) $(CPPFLAGS) $(AM_CFLAGS) $(CFLAGS) -c -o libmio_la-http-svr.lo `test -f 'http-svr.c' || echo '$(srcdir)/'`http-svr.c
+@am__fastdepCC_FALSE@	$(AM_V_CC@am__nodep@)$(LIBTOOL) $(AM_V_lt) --tag=CC $(AM_LIBTOOLFLAGS) $(LIBTOOLFLAGS) --mode=compile $(CC) $(DEFS) $(DEFAULT_INCLUDES) $(INCLUDES) $(libmio_la_CPPFLAGS) $(CPPFLAGS) $(libmio_la_CFLAGS) $(CFLAGS) -c -o libmio_la-http-svr.lo `test -f 'http-svr.c' || echo '$(srcdir)/'`http-svr.c
 
 libmio_la-http-thr.lo: http-thr.c
-@am__fastdepCC_TRUE@	$(AM_V_CC)$(LIBTOOL) $(AM_V_lt) --tag=CC $(AM_LIBTOOLFLAGS) $(LIBTOOLFLAGS) --mode=compile $(CC) $(DEFS) $(DEFAULT_INCLUDES) $(INCLUDES) $(libmio_la_CPPFLAGS) $(CPPFLAGS) $(AM_CFLAGS) $(CFLAGS) -MT libmio_la-http-thr.lo -MD -MP -MF $(DEPDIR)/libmio_la-http-thr.Tpo -c -o libmio_la-http-thr.lo `test -f 'http-thr.c' || echo '$(srcdir)/'`http-thr.c
+@am__fastdepCC_TRUE@	$(AM_V_CC)$(LIBTOOL) $(AM_V_lt) --tag=CC $(AM_LIBTOOLFLAGS) $(LIBTOOLFLAGS) --mode=compile $(CC) $(DEFS) $(DEFAULT_INCLUDES) $(INCLUDES) $(libmio_la_CPPFLAGS) $(CPPFLAGS) $(libmio_la_CFLAGS) $(CFLAGS) -MT libmio_la-http-thr.lo -MD -MP -MF $(DEPDIR)/libmio_la-http-thr.Tpo -c -o libmio_la-http-thr.lo `test -f 'http-thr.c' || echo '$(srcdir)/'`http-thr.c
 @am__fastdepCC_TRUE@	$(AM_V_at)$(am__mv) $(DEPDIR)/libmio_la-http-thr.Tpo $(DEPDIR)/libmio_la-http-thr.Plo
 @AMDEP_TRUE@@am__fastdepCC_FALSE@	$(AM_V_CC)source='http-thr.c' object='libmio_la-http-thr.lo' libtool=yes @AMDEPBACKSLASH@
 @AMDEP_TRUE@@am__fastdepCC_FALSE@	DEPDIR=$(DEPDIR) $(CCDEPMODE) $(depcomp) @AMDEPBACKSLASH@
-@am__fastdepCC_FALSE@	$(AM_V_CC@am__nodep@)$(LIBTOOL) $(AM_V_lt) --tag=CC $(AM_LIBTOOLFLAGS) $(LIBTOOLFLAGS) --mode=compile $(CC) $(DEFS) $(DEFAULT_INCLUDES) $(INCLUDES) $(libmio_la_CPPFLAGS) $(CPPFLAGS) $(AM_CFLAGS) $(CFLAGS) -c -o libmio_la-http-thr.lo `test -f 'http-thr.c' || echo '$(srcdir)/'`http-thr.c
+@am__fastdepCC_FALSE@	$(AM_V_CC@am__nodep@)$(LIBTOOL) $(AM_V_lt) --tag=CC $(AM_LIBTOOLFLAGS) $(LIBTOOLFLAGS) --mode=compile $(CC) $(DEFS) $(DEFAULT_INCLUDES) $(INCLUDES) $(libmio_la_CPPFLAGS) $(CPPFLAGS) $(libmio_la_CFLAGS) $(CFLAGS) -c -o libmio_la-http-thr.lo `test -f 'http-thr.c' || echo '$(srcdir)/'`http-thr.c
 
 libmio_la-http-txt.lo: http-txt.c
-@am__fastdepCC_TRUE@	$(AM_V_CC)$(LIBTOOL) $(AM_V_lt) --tag=CC $(AM_LIBTOOLFLAGS) $(LIBTOOLFLAGS) --mode=compile $(CC) $(DEFS) $(DEFAULT_INCLUDES) $(INCLUDES) $(libmio_la_CPPFLAGS) $(CPPFLAGS) $(AM_CFLAGS) $(CFLAGS) -MT libmio_la-http-txt.lo -MD -MP -MF $(DEPDIR)/libmio_la-http-txt.Tpo -c -o libmio_la-http-txt.lo `test -f 'http-txt.c' || echo '$(srcdir)/'`http-txt.c
+@am__fastdepCC_TRUE@	$(AM_V_CC)$(LIBTOOL) $(AM_V_lt) --tag=CC $(AM_LIBTOOLFLAGS) $(LIBTOOLFLAGS) --mode=compile $(CC) $(DEFS) $(DEFAULT_INCLUDES) $(INCLUDES) $(libmio_la_CPPFLAGS) $(CPPFLAGS) $(libmio_la_CFLAGS) $(CFLAGS) -MT libmio_la-http-txt.lo -MD -MP -MF $(DEPDIR)/libmio_la-http-txt.Tpo -c -o libmio_la-http-txt.lo `test -f 'http-txt.c' || echo '$(srcdir)/'`http-txt.c
 @am__fastdepCC_TRUE@	$(AM_V_at)$(am__mv) $(DEPDIR)/libmio_la-http-txt.Tpo $(DEPDIR)/libmio_la-http-txt.Plo
 @AMDEP_TRUE@@am__fastdepCC_FALSE@	$(AM_V_CC)source='http-txt.c' object='libmio_la-http-txt.lo' libtool=yes @AMDEPBACKSLASH@
 @AMDEP_TRUE@@am__fastdepCC_FALSE@	DEPDIR=$(DEPDIR) $(CCDEPMODE) $(depcomp) @AMDEPBACKSLASH@
-@am__fastdepCC_FALSE@	$(AM_V_CC@am__nodep@)$(LIBTOOL) $(AM_V_lt) --tag=CC $(AM_LIBTOOLFLAGS) $(LIBTOOLFLAGS) --mode=compile $(CC) $(DEFS) $(DEFAULT_INCLUDES) $(INCLUDES) $(libmio_la_CPPFLAGS) $(CPPFLAGS) $(AM_CFLAGS) $(CFLAGS) -c -o libmio_la-http-txt.lo `test -f 'http-txt.c' || echo '$(srcdir)/'`http-txt.c
+@am__fastdepCC_FALSE@	$(AM_V_CC@am__nodep@)$(LIBTOOL) $(AM_V_lt) --tag=CC $(AM_LIBTOOLFLAGS) $(LIBTOOLFLAGS) --mode=compile $(CC) $(DEFS) $(DEFAULT_INCLUDES) $(INCLUDES) $(libmio_la_CPPFLAGS) $(CPPFLAGS) $(libmio_la_CFLAGS) $(CFLAGS) -c -o libmio_la-http-txt.lo `test -f 'http-txt.c' || echo '$(srcdir)/'`http-txt.c
 
 libmio_la-json.lo: json.c
-@am__fastdepCC_TRUE@	$(AM_V_CC)$(LIBTOOL) $(AM_V_lt) --tag=CC $(AM_LIBTOOLFLAGS) $(LIBTOOLFLAGS) --mode=compile $(CC) $(DEFS) $(DEFAULT_INCLUDES) $(INCLUDES) $(libmio_la_CPPFLAGS) $(CPPFLAGS) $(AM_CFLAGS) $(CFLAGS) -MT libmio_la-json.lo -MD -MP -MF $(DEPDIR)/libmio_la-json.Tpo -c -o libmio_la-json.lo `test -f 'json.c' || echo '$(srcdir)/'`json.c
+@am__fastdepCC_TRUE@	$(AM_V_CC)$(LIBTOOL) $(AM_V_lt) --tag=CC $(AM_LIBTOOLFLAGS) $(LIBTOOLFLAGS) --mode=compile $(CC) $(DEFS) $(DEFAULT_INCLUDES) $(INCLUDES) $(libmio_la_CPPFLAGS) $(CPPFLAGS) $(libmio_la_CFLAGS) $(CFLAGS) -MT libmio_la-json.lo -MD -MP -MF $(DEPDIR)/libmio_la-json.Tpo -c -o libmio_la-json.lo `test -f 'json.c' || echo '$(srcdir)/'`json.c
 @am__fastdepCC_TRUE@	$(AM_V_at)$(am__mv) $(DEPDIR)/libmio_la-json.Tpo $(DEPDIR)/libmio_la-json.Plo
 @AMDEP_TRUE@@am__fastdepCC_FALSE@	$(AM_V_CC)source='json.c' object='libmio_la-json.lo' libtool=yes @AMDEPBACKSLASH@
 @AMDEP_TRUE@@am__fastdepCC_FALSE@	DEPDIR=$(DEPDIR) $(CCDEPMODE) $(depcomp) @AMDEPBACKSLASH@
-@am__fastdepCC_FALSE@	$(AM_V_CC@am__nodep@)$(LIBTOOL) $(AM_V_lt) --tag=CC $(AM_LIBTOOLFLAGS) $(LIBTOOLFLAGS) --mode=compile $(CC) $(DEFS) $(DEFAULT_INCLUDES) $(INCLUDES) $(libmio_la_CPPFLAGS) $(CPPFLAGS) $(AM_CFLAGS) $(CFLAGS) -c -o libmio_la-json.lo `test -f 'json.c' || echo '$(srcdir)/'`json.c
+@am__fastdepCC_FALSE@	$(AM_V_CC@am__nodep@)$(LIBTOOL) $(AM_V_lt) --tag=CC $(AM_LIBTOOLFLAGS) $(LIBTOOLFLAGS) --mode=compile $(CC) $(DEFS) $(DEFAULT_INCLUDES) $(INCLUDES) $(libmio_la_CPPFLAGS) $(CPPFLAGS) $(libmio_la_CFLAGS) $(CFLAGS) -c -o libmio_la-json.lo `test -f 'json.c' || echo '$(srcdir)/'`json.c
 
 libmio_la-mio.lo: mio.c
-@am__fastdepCC_TRUE@	$(AM_V_CC)$(LIBTOOL) $(AM_V_lt) --tag=CC $(AM_LIBTOOLFLAGS) $(LIBTOOLFLAGS) --mode=compile $(CC) $(DEFS) $(DEFAULT_INCLUDES) $(INCLUDES) $(libmio_la_CPPFLAGS) $(CPPFLAGS) $(AM_CFLAGS) $(CFLAGS) -MT libmio_la-mio.lo -MD -MP -MF $(DEPDIR)/libmio_la-mio.Tpo -c -o libmio_la-mio.lo `test -f 'mio.c' || echo '$(srcdir)/'`mio.c
+@am__fastdepCC_TRUE@	$(AM_V_CC)$(LIBTOOL) $(AM_V_lt) --tag=CC $(AM_LIBTOOLFLAGS) $(LIBTOOLFLAGS) --mode=compile $(CC) $(DEFS) $(DEFAULT_INCLUDES) $(INCLUDES) $(libmio_la_CPPFLAGS) $(CPPFLAGS) $(libmio_la_CFLAGS) $(CFLAGS) -MT libmio_la-mio.lo -MD -MP -MF $(DEPDIR)/libmio_la-mio.Tpo -c -o libmio_la-mio.lo `test -f 'mio.c' || echo '$(srcdir)/'`mio.c
 @am__fastdepCC_TRUE@	$(AM_V_at)$(am__mv) $(DEPDIR)/libmio_la-mio.Tpo $(DEPDIR)/libmio_la-mio.Plo
 @AMDEP_TRUE@@am__fastdepCC_FALSE@	$(AM_V_CC)source='mio.c' object='libmio_la-mio.lo' libtool=yes @AMDEPBACKSLASH@
 @AMDEP_TRUE@@am__fastdepCC_FALSE@	DEPDIR=$(DEPDIR) $(CCDEPMODE) $(depcomp) @AMDEPBACKSLASH@
-@am__fastdepCC_FALSE@	$(AM_V_CC@am__nodep@)$(LIBTOOL) $(AM_V_lt) --tag=CC $(AM_LIBTOOLFLAGS) $(LIBTOOLFLAGS) --mode=compile $(CC) $(DEFS) $(DEFAULT_INCLUDES) $(INCLUDES) $(libmio_la_CPPFLAGS) $(CPPFLAGS) $(AM_CFLAGS) $(CFLAGS) -c -o libmio_la-mio.lo `test -f 'mio.c' || echo '$(srcdir)/'`mio.c
+@am__fastdepCC_FALSE@	$(AM_V_CC@am__nodep@)$(LIBTOOL) $(AM_V_lt) --tag=CC $(AM_LIBTOOLFLAGS) $(LIBTOOLFLAGS) --mode=compile $(CC) $(DEFS) $(DEFAULT_INCLUDES) $(INCLUDES) $(libmio_la_CPPFLAGS) $(CPPFLAGS) $(libmio_la_CFLAGS) $(CFLAGS) -c -o libmio_la-mio.lo `test -f 'mio.c' || echo '$(srcdir)/'`mio.c
 
 libmio_la-nwif.lo: nwif.c
-@am__fastdepCC_TRUE@	$(AM_V_CC)$(LIBTOOL) $(AM_V_lt) --tag=CC $(AM_LIBTOOLFLAGS) $(LIBTOOLFLAGS) --mode=compile $(CC) $(DEFS) $(DEFAULT_INCLUDES) $(INCLUDES) $(libmio_la_CPPFLAGS) $(CPPFLAGS) $(AM_CFLAGS) $(CFLAGS) -MT libmio_la-nwif.lo -MD -MP -MF $(DEPDIR)/libmio_la-nwif.Tpo -c -o libmio_la-nwif.lo `test -f 'nwif.c' || echo '$(srcdir)/'`nwif.c
+@am__fastdepCC_TRUE@	$(AM_V_CC)$(LIBTOOL) $(AM_V_lt) --tag=CC $(AM_LIBTOOLFLAGS) $(LIBTOOLFLAGS) --mode=compile $(CC) $(DEFS) $(DEFAULT_INCLUDES) $(INCLUDES) $(libmio_la_CPPFLAGS) $(CPPFLAGS) $(libmio_la_CFLAGS) $(CFLAGS) -MT libmio_la-nwif.lo -MD -MP -MF $(DEPDIR)/libmio_la-nwif.Tpo -c -o libmio_la-nwif.lo `test -f 'nwif.c' || echo '$(srcdir)/'`nwif.c
 @am__fastdepCC_TRUE@	$(AM_V_at)$(am__mv) $(DEPDIR)/libmio_la-nwif.Tpo $(DEPDIR)/libmio_la-nwif.Plo
 @AMDEP_TRUE@@am__fastdepCC_FALSE@	$(AM_V_CC)source='nwif.c' object='libmio_la-nwif.lo' libtool=yes @AMDEPBACKSLASH@
 @AMDEP_TRUE@@am__fastdepCC_FALSE@	DEPDIR=$(DEPDIR) $(CCDEPMODE) $(depcomp) @AMDEPBACKSLASH@
-@am__fastdepCC_FALSE@	$(AM_V_CC@am__nodep@)$(LIBTOOL) $(AM_V_lt) --tag=CC $(AM_LIBTOOLFLAGS) $(LIBTOOLFLAGS) --mode=compile $(CC) $(DEFS) $(DEFAULT_INCLUDES) $(INCLUDES) $(libmio_la_CPPFLAGS) $(CPPFLAGS) $(AM_CFLAGS) $(CFLAGS) -c -o libmio_la-nwif.lo `test -f 'nwif.c' || echo '$(srcdir)/'`nwif.c
+@am__fastdepCC_FALSE@	$(AM_V_CC@am__nodep@)$(LIBTOOL) $(AM_V_lt) --tag=CC $(AM_LIBTOOLFLAGS) $(LIBTOOLFLAGS) --mode=compile $(CC) $(DEFS) $(DEFAULT_INCLUDES) $(INCLUDES) $(libmio_la_CPPFLAGS) $(CPPFLAGS) $(libmio_la_CFLAGS) $(CFLAGS) -c -o libmio_la-nwif.lo `test -f 'nwif.c' || echo '$(srcdir)/'`nwif.c
 
 libmio_la-path.lo: path.c
-@am__fastdepCC_TRUE@	$(AM_V_CC)$(LIBTOOL) $(AM_V_lt) --tag=CC $(AM_LIBTOOLFLAGS) $(LIBTOOLFLAGS) --mode=compile $(CC) $(DEFS) $(DEFAULT_INCLUDES) $(INCLUDES) $(libmio_la_CPPFLAGS) $(CPPFLAGS) $(AM_CFLAGS) $(CFLAGS) -MT libmio_la-path.lo -MD -MP -MF $(DEPDIR)/libmio_la-path.Tpo -c -o libmio_la-path.lo `test -f 'path.c' || echo '$(srcdir)/'`path.c
+@am__fastdepCC_TRUE@	$(AM_V_CC)$(LIBTOOL) $(AM_V_lt) --tag=CC $(AM_LIBTOOLFLAGS) $(LIBTOOLFLAGS) --mode=compile $(CC) $(DEFS) $(DEFAULT_INCLUDES) $(INCLUDES) $(libmio_la_CPPFLAGS) $(CPPFLAGS) $(libmio_la_CFLAGS) $(CFLAGS) -MT libmio_la-path.lo -MD -MP -MF $(DEPDIR)/libmio_la-path.Tpo -c -o libmio_la-path.lo `test -f 'path.c' || echo '$(srcdir)/'`path.c
 @am__fastdepCC_TRUE@	$(AM_V_at)$(am__mv) $(DEPDIR)/libmio_la-path.Tpo $(DEPDIR)/libmio_la-path.Plo
 @AMDEP_TRUE@@am__fastdepCC_FALSE@	$(AM_V_CC)source='path.c' object='libmio_la-path.lo' libtool=yes @AMDEPBACKSLASH@
 @AMDEP_TRUE@@am__fastdepCC_FALSE@	DEPDIR=$(DEPDIR) $(CCDEPMODE) $(depcomp) @AMDEPBACKSLASH@
-@am__fastdepCC_FALSE@	$(AM_V_CC@am__nodep@)$(LIBTOOL) $(AM_V_lt) --tag=CC $(AM_LIBTOOLFLAGS) $(LIBTOOLFLAGS) --mode=compile $(CC) $(DEFS) $(DEFAULT_INCLUDES) $(INCLUDES) $(libmio_la_CPPFLAGS) $(CPPFLAGS) $(AM_CFLAGS) $(CFLAGS) -c -o libmio_la-path.lo `test -f 'path.c' || echo '$(srcdir)/'`path.c
+@am__fastdepCC_FALSE@	$(AM_V_CC@am__nodep@)$(LIBTOOL) $(AM_V_lt) --tag=CC $(AM_LIBTOOLFLAGS) $(LIBTOOLFLAGS) --mode=compile $(CC) $(DEFS) $(DEFAULT_INCLUDES) $(INCLUDES) $(libmio_la_CPPFLAGS) $(CPPFLAGS) $(libmio_la_CFLAGS) $(CFLAGS) -c -o libmio_la-path.lo `test -f 'path.c' || echo '$(srcdir)/'`path.c
 
 libmio_la-pipe.lo: pipe.c
-@am__fastdepCC_TRUE@	$(AM_V_CC)$(LIBTOOL) $(AM_V_lt) --tag=CC $(AM_LIBTOOLFLAGS) $(LIBTOOLFLAGS) --mode=compile $(CC) $(DEFS) $(DEFAULT_INCLUDES) $(INCLUDES) $(libmio_la_CPPFLAGS) $(CPPFLAGS) $(AM_CFLAGS) $(CFLAGS) -MT libmio_la-pipe.lo -MD -MP -MF $(DEPDIR)/libmio_la-pipe.Tpo -c -o libmio_la-pipe.lo `test -f 'pipe.c' || echo '$(srcdir)/'`pipe.c
+@am__fastdepCC_TRUE@	$(AM_V_CC)$(LIBTOOL) $(AM_V_lt) --tag=CC $(AM_LIBTOOLFLAGS) $(LIBTOOLFLAGS) --mode=compile $(CC) $(DEFS) $(DEFAULT_INCLUDES) $(INCLUDES) $(libmio_la_CPPFLAGS) $(CPPFLAGS) $(libmio_la_CFLAGS) $(CFLAGS) -MT libmio_la-pipe.lo -MD -MP -MF $(DEPDIR)/libmio_la-pipe.Tpo -c -o libmio_la-pipe.lo `test -f 'pipe.c' || echo '$(srcdir)/'`pipe.c
 @am__fastdepCC_TRUE@	$(AM_V_at)$(am__mv) $(DEPDIR)/libmio_la-pipe.Tpo $(DEPDIR)/libmio_la-pipe.Plo
 @AMDEP_TRUE@@am__fastdepCC_FALSE@	$(AM_V_CC)source='pipe.c' object='libmio_la-pipe.lo' libtool=yes @AMDEPBACKSLASH@
 @AMDEP_TRUE@@am__fastdepCC_FALSE@	DEPDIR=$(DEPDIR) $(CCDEPMODE) $(depcomp) @AMDEPBACKSLASH@
-@am__fastdepCC_FALSE@	$(AM_V_CC@am__nodep@)$(LIBTOOL) $(AM_V_lt) --tag=CC $(AM_LIBTOOLFLAGS) $(LIBTOOLFLAGS) --mode=compile $(CC) $(DEFS) $(DEFAULT_INCLUDES) $(INCLUDES) $(libmio_la_CPPFLAGS) $(CPPFLAGS) $(AM_CFLAGS) $(CFLAGS) -c -o libmio_la-pipe.lo `test -f 'pipe.c' || echo '$(srcdir)/'`pipe.c
+@am__fastdepCC_FALSE@	$(AM_V_CC@am__nodep@)$(LIBTOOL) $(AM_V_lt) --tag=CC $(AM_LIBTOOLFLAGS) $(LIBTOOLFLAGS) --mode=compile $(CC) $(DEFS) $(DEFAULT_INCLUDES) $(INCLUDES) $(libmio_la_CPPFLAGS) $(CPPFLAGS) $(libmio_la_CFLAGS) $(CFLAGS) -c -o libmio_la-pipe.lo `test -f 'pipe.c' || echo '$(srcdir)/'`pipe.c
 
 libmio_la-pro.lo: pro.c
-@am__fastdepCC_TRUE@	$(AM_V_CC)$(LIBTOOL) $(AM_V_lt) --tag=CC $(AM_LIBTOOLFLAGS) $(LIBTOOLFLAGS) --mode=compile $(CC) $(DEFS) $(DEFAULT_INCLUDES) $(INCLUDES) $(libmio_la_CPPFLAGS) $(CPPFLAGS) $(AM_CFLAGS) $(CFLAGS) -MT libmio_la-pro.lo -MD -MP -MF $(DEPDIR)/libmio_la-pro.Tpo -c -o libmio_la-pro.lo `test -f 'pro.c' || echo '$(srcdir)/'`pro.c
+@am__fastdepCC_TRUE@	$(AM_V_CC)$(LIBTOOL) $(AM_V_lt) --tag=CC $(AM_LIBTOOLFLAGS) $(LIBTOOLFLAGS) --mode=compile $(CC) $(DEFS) $(DEFAULT_INCLUDES) $(INCLUDES) $(libmio_la_CPPFLAGS) $(CPPFLAGS) $(libmio_la_CFLAGS) $(CFLAGS) -MT libmio_la-pro.lo -MD -MP -MF $(DEPDIR)/libmio_la-pro.Tpo -c -o libmio_la-pro.lo `test -f 'pro.c' || echo '$(srcdir)/'`pro.c
 @am__fastdepCC_TRUE@	$(AM_V_at)$(am__mv) $(DEPDIR)/libmio_la-pro.Tpo $(DEPDIR)/libmio_la-pro.Plo
 @AMDEP_TRUE@@am__fastdepCC_FALSE@	$(AM_V_CC)source='pro.c' object='libmio_la-pro.lo' libtool=yes @AMDEPBACKSLASH@
 @AMDEP_TRUE@@am__fastdepCC_FALSE@	DEPDIR=$(DEPDIR) $(CCDEPMODE) $(depcomp) @AMDEPBACKSLASH@
-@am__fastdepCC_FALSE@	$(AM_V_CC@am__nodep@)$(LIBTOOL) $(AM_V_lt) --tag=CC $(AM_LIBTOOLFLAGS) $(LIBTOOLFLAGS) --mode=compile $(CC) $(DEFS) $(DEFAULT_INCLUDES) $(INCLUDES) $(libmio_la_CPPFLAGS) $(CPPFLAGS) $(AM_CFLAGS) $(CFLAGS) -c -o libmio_la-pro.lo `test -f 'pro.c' || echo '$(srcdir)/'`pro.c
+@am__fastdepCC_FALSE@	$(AM_V_CC@am__nodep@)$(LIBTOOL) $(AM_V_lt) --tag=CC $(AM_LIBTOOLFLAGS) $(LIBTOOLFLAGS) --mode=compile $(CC) $(DEFS) $(DEFAULT_INCLUDES) $(INCLUDES) $(libmio_la_CPPFLAGS) $(CPPFLAGS) $(libmio_la_CFLAGS) $(CFLAGS) -c -o libmio_la-pro.lo `test -f 'pro.c' || echo '$(srcdir)/'`pro.c
 
 libmio_la-sck.lo: sck.c
-@am__fastdepCC_TRUE@	$(AM_V_CC)$(LIBTOOL) $(AM_V_lt) --tag=CC $(AM_LIBTOOLFLAGS) $(LIBTOOLFLAGS) --mode=compile $(CC) $(DEFS) $(DEFAULT_INCLUDES) $(INCLUDES) $(libmio_la_CPPFLAGS) $(CPPFLAGS) $(AM_CFLAGS) $(CFLAGS) -MT libmio_la-sck.lo -MD -MP -MF $(DEPDIR)/libmio_la-sck.Tpo -c -o libmio_la-sck.lo `test -f 'sck.c' || echo '$(srcdir)/'`sck.c
+@am__fastdepCC_TRUE@	$(AM_V_CC)$(LIBTOOL) $(AM_V_lt) --tag=CC $(AM_LIBTOOLFLAGS) $(LIBTOOLFLAGS) --mode=compile $(CC) $(DEFS) $(DEFAULT_INCLUDES) $(INCLUDES) $(libmio_la_CPPFLAGS) $(CPPFLAGS) $(libmio_la_CFLAGS) $(CFLAGS) -MT libmio_la-sck.lo -MD -MP -MF $(DEPDIR)/libmio_la-sck.Tpo -c -o libmio_la-sck.lo `test -f 'sck.c' || echo '$(srcdir)/'`sck.c
 @am__fastdepCC_TRUE@	$(AM_V_at)$(am__mv) $(DEPDIR)/libmio_la-sck.Tpo $(DEPDIR)/libmio_la-sck.Plo
 @AMDEP_TRUE@@am__fastdepCC_FALSE@	$(AM_V_CC)source='sck.c' object='libmio_la-sck.lo' libtool=yes @AMDEPBACKSLASH@
 @AMDEP_TRUE@@am__fastdepCC_FALSE@	DEPDIR=$(DEPDIR) $(CCDEPMODE) $(depcomp) @AMDEPBACKSLASH@
-@am__fastdepCC_FALSE@	$(AM_V_CC@am__nodep@)$(LIBTOOL) $(AM_V_lt) --tag=CC $(AM_LIBTOOLFLAGS) $(LIBTOOLFLAGS) --mode=compile $(CC) $(DEFS) $(DEFAULT_INCLUDES) $(INCLUDES) $(libmio_la_CPPFLAGS) $(CPPFLAGS) $(AM_CFLAGS) $(CFLAGS) -c -o libmio_la-sck.lo `test -f 'sck.c' || echo '$(srcdir)/'`sck.c
+@am__fastdepCC_FALSE@	$(AM_V_CC@am__nodep@)$(LIBTOOL) $(AM_V_lt) --tag=CC $(AM_LIBTOOLFLAGS) $(LIBTOOLFLAGS) --mode=compile $(CC) $(DEFS) $(DEFAULT_INCLUDES) $(INCLUDES) $(libmio_la_CPPFLAGS) $(CPPFLAGS) $(libmio_la_CFLAGS) $(CFLAGS) -c -o libmio_la-sck.lo `test -f 'sck.c' || echo '$(srcdir)/'`sck.c
 
 libmio_la-skad.lo: skad.c
-@am__fastdepCC_TRUE@	$(AM_V_CC)$(LIBTOOL) $(AM_V_lt) --tag=CC $(AM_LIBTOOLFLAGS) $(LIBTOOLFLAGS) --mode=compile $(CC) $(DEFS) $(DEFAULT_INCLUDES) $(INCLUDES) $(libmio_la_CPPFLAGS) $(CPPFLAGS) $(AM_CFLAGS) $(CFLAGS) -MT libmio_la-skad.lo -MD -MP -MF $(DEPDIR)/libmio_la-skad.Tpo -c -o libmio_la-skad.lo `test -f 'skad.c' || echo '$(srcdir)/'`skad.c
+@am__fastdepCC_TRUE@	$(AM_V_CC)$(LIBTOOL) $(AM_V_lt) --tag=CC $(AM_LIBTOOLFLAGS) $(LIBTOOLFLAGS) --mode=compile $(CC) $(DEFS) $(DEFAULT_INCLUDES) $(INCLUDES) $(libmio_la_CPPFLAGS) $(CPPFLAGS) $(libmio_la_CFLAGS) $(CFLAGS) -MT libmio_la-skad.lo -MD -MP -MF $(DEPDIR)/libmio_la-skad.Tpo -c -o libmio_la-skad.lo `test -f 'skad.c' || echo '$(srcdir)/'`skad.c
 @am__fastdepCC_TRUE@	$(AM_V_at)$(am__mv) $(DEPDIR)/libmio_la-skad.Tpo $(DEPDIR)/libmio_la-skad.Plo
 @AMDEP_TRUE@@am__fastdepCC_FALSE@	$(AM_V_CC)source='skad.c' object='libmio_la-skad.lo' libtool=yes @AMDEPBACKSLASH@
 @AMDEP_TRUE@@am__fastdepCC_FALSE@	DEPDIR=$(DEPDIR) $(CCDEPMODE) $(depcomp) @AMDEPBACKSLASH@
-@am__fastdepCC_FALSE@	$(AM_V_CC@am__nodep@)$(LIBTOOL) $(AM_V_lt) --tag=CC $(AM_LIBTOOLFLAGS) $(LIBTOOLFLAGS) --mode=compile $(CC) $(DEFS) $(DEFAULT_INCLUDES) $(INCLUDES) $(libmio_la_CPPFLAGS) $(CPPFLAGS) $(AM_CFLAGS) $(CFLAGS) -c -o libmio_la-skad.lo `test -f 'skad.c' || echo '$(srcdir)/'`skad.c
+@am__fastdepCC_FALSE@	$(AM_V_CC@am__nodep@)$(LIBTOOL) $(AM_V_lt) --tag=CC $(AM_LIBTOOLFLAGS) $(LIBTOOLFLAGS) --mode=compile $(CC) $(DEFS) $(DEFAULT_INCLUDES) $(INCLUDES) $(libmio_la_CPPFLAGS) $(CPPFLAGS) $(libmio_la_CFLAGS) $(CFLAGS) -c -o libmio_la-skad.lo `test -f 'skad.c' || echo '$(srcdir)/'`skad.c
 
 libmio_la-sys.lo: sys.c
-@am__fastdepCC_TRUE@	$(AM_V_CC)$(LIBTOOL) $(AM_V_lt) --tag=CC $(AM_LIBTOOLFLAGS) $(LIBTOOLFLAGS) --mode=compile $(CC) $(DEFS) $(DEFAULT_INCLUDES) $(INCLUDES) $(libmio_la_CPPFLAGS) $(CPPFLAGS) $(AM_CFLAGS) $(CFLAGS) -MT libmio_la-sys.lo -MD -MP -MF $(DEPDIR)/libmio_la-sys.Tpo -c -o libmio_la-sys.lo `test -f 'sys.c' || echo '$(srcdir)/'`sys.c
+@am__fastdepCC_TRUE@	$(AM_V_CC)$(LIBTOOL) $(AM_V_lt) --tag=CC $(AM_LIBTOOLFLAGS) $(LIBTOOLFLAGS) --mode=compile $(CC) $(DEFS) $(DEFAULT_INCLUDES) $(INCLUDES) $(libmio_la_CPPFLAGS) $(CPPFLAGS) $(libmio_la_CFLAGS) $(CFLAGS) -MT libmio_la-sys.lo -MD -MP -MF $(DEPDIR)/libmio_la-sys.Tpo -c -o libmio_la-sys.lo `test -f 'sys.c' || echo '$(srcdir)/'`sys.c
 @am__fastdepCC_TRUE@	$(AM_V_at)$(am__mv) $(DEPDIR)/libmio_la-sys.Tpo $(DEPDIR)/libmio_la-sys.Plo
 @AMDEP_TRUE@@am__fastdepCC_FALSE@	$(AM_V_CC)source='sys.c' object='libmio_la-sys.lo' libtool=yes @AMDEPBACKSLASH@
 @AMDEP_TRUE@@am__fastdepCC_FALSE@	DEPDIR=$(DEPDIR) $(CCDEPMODE) $(depcomp) @AMDEPBACKSLASH@
-@am__fastdepCC_FALSE@	$(AM_V_CC@am__nodep@)$(LIBTOOL) $(AM_V_lt) --tag=CC $(AM_LIBTOOLFLAGS) $(LIBTOOLFLAGS) --mode=compile $(CC) $(DEFS) $(DEFAULT_INCLUDES) $(INCLUDES) $(libmio_la_CPPFLAGS) $(CPPFLAGS) $(AM_CFLAGS) $(CFLAGS) -c -o libmio_la-sys.lo `test -f 'sys.c' || echo '$(srcdir)/'`sys.c
+@am__fastdepCC_FALSE@	$(AM_V_CC@am__nodep@)$(LIBTOOL) $(AM_V_lt) --tag=CC $(AM_LIBTOOLFLAGS) $(LIBTOOLFLAGS) --mode=compile $(CC) $(DEFS) $(DEFAULT_INCLUDES) $(INCLUDES) $(libmio_la_CPPFLAGS) $(CPPFLAGS) $(libmio_la_CFLAGS) $(CFLAGS) -c -o libmio_la-sys.lo `test -f 'sys.c' || echo '$(srcdir)/'`sys.c
 
 libmio_la-sys-ass.lo: sys-ass.c
-@am__fastdepCC_TRUE@	$(AM_V_CC)$(LIBTOOL) $(AM_V_lt) --tag=CC $(AM_LIBTOOLFLAGS) $(LIBTOOLFLAGS) --mode=compile $(CC) $(DEFS) $(DEFAULT_INCLUDES) $(INCLUDES) $(libmio_la_CPPFLAGS) $(CPPFLAGS) $(AM_CFLAGS) $(CFLAGS) -MT libmio_la-sys-ass.lo -MD -MP -MF $(DEPDIR)/libmio_la-sys-ass.Tpo -c -o libmio_la-sys-ass.lo `test -f 'sys-ass.c' || echo '$(srcdir)/'`sys-ass.c
+@am__fastdepCC_TRUE@	$(AM_V_CC)$(LIBTOOL) $(AM_V_lt) --tag=CC $(AM_LIBTOOLFLAGS) $(LIBTOOLFLAGS) --mode=compile $(CC) $(DEFS) $(DEFAULT_INCLUDES) $(INCLUDES) $(libmio_la_CPPFLAGS) $(CPPFLAGS) $(libmio_la_CFLAGS) $(CFLAGS) -MT libmio_la-sys-ass.lo -MD -MP -MF $(DEPDIR)/libmio_la-sys-ass.Tpo -c -o libmio_la-sys-ass.lo `test -f 'sys-ass.c' || echo '$(srcdir)/'`sys-ass.c
 @am__fastdepCC_TRUE@	$(AM_V_at)$(am__mv) $(DEPDIR)/libmio_la-sys-ass.Tpo $(DEPDIR)/libmio_la-sys-ass.Plo
 @AMDEP_TRUE@@am__fastdepCC_FALSE@	$(AM_V_CC)source='sys-ass.c' object='libmio_la-sys-ass.lo' libtool=yes @AMDEPBACKSLASH@
 @AMDEP_TRUE@@am__fastdepCC_FALSE@	DEPDIR=$(DEPDIR) $(CCDEPMODE) $(depcomp) @AMDEPBACKSLASH@
-@am__fastdepCC_FALSE@	$(AM_V_CC@am__nodep@)$(LIBTOOL) $(AM_V_lt) --tag=CC $(AM_LIBTOOLFLAGS) $(LIBTOOLFLAGS) --mode=compile $(CC) $(DEFS) $(DEFAULT_INCLUDES) $(INCLUDES) $(libmio_la_CPPFLAGS) $(CPPFLAGS) $(AM_CFLAGS) $(CFLAGS) -c -o libmio_la-sys-ass.lo `test -f 'sys-ass.c' || echo '$(srcdir)/'`sys-ass.c
+@am__fastdepCC_FALSE@	$(AM_V_CC@am__nodep@)$(LIBTOOL) $(AM_V_lt) --tag=CC $(AM_LIBTOOLFLAGS) $(LIBTOOLFLAGS) --mode=compile $(CC) $(DEFS) $(DEFAULT_INCLUDES) $(INCLUDES) $(libmio_la_CPPFLAGS) $(CPPFLAGS) $(libmio_la_CFLAGS) $(CFLAGS) -c -o libmio_la-sys-ass.lo `test -f 'sys-ass.c' || echo '$(srcdir)/'`sys-ass.c
 
 libmio_la-sys-err.lo: sys-err.c
-@am__fastdepCC_TRUE@	$(AM_V_CC)$(LIBTOOL) $(AM_V_lt) --tag=CC $(AM_LIBTOOLFLAGS) $(LIBTOOLFLAGS) --mode=compile $(CC) $(DEFS) $(DEFAULT_INCLUDES) $(INCLUDES) $(libmio_la_CPPFLAGS) $(CPPFLAGS) $(AM_CFLAGS) $(CFLAGS) -MT libmio_la-sys-err.lo -MD -MP -MF $(DEPDIR)/libmio_la-sys-err.Tpo -c -o libmio_la-sys-err.lo `test -f 'sys-err.c' || echo '$(srcdir)/'`sys-err.c
+@am__fastdepCC_TRUE@	$(AM_V_CC)$(LIBTOOL) $(AM_V_lt) --tag=CC $(AM_LIBTOOLFLAGS) $(LIBTOOLFLAGS) --mode=compile $(CC) $(DEFS) $(DEFAULT_INCLUDES) $(INCLUDES) $(libmio_la_CPPFLAGS) $(CPPFLAGS) $(libmio_la_CFLAGS) $(CFLAGS) -MT libmio_la-sys-err.lo -MD -MP -MF $(DEPDIR)/libmio_la-sys-err.Tpo -c -o libmio_la-sys-err.lo `test -f 'sys-err.c' || echo '$(srcdir)/'`sys-err.c
 @am__fastdepCC_TRUE@	$(AM_V_at)$(am__mv) $(DEPDIR)/libmio_la-sys-err.Tpo $(DEPDIR)/libmio_la-sys-err.Plo
 @AMDEP_TRUE@@am__fastdepCC_FALSE@	$(AM_V_CC)source='sys-err.c' object='libmio_la-sys-err.lo' libtool=yes @AMDEPBACKSLASH@
 @AMDEP_TRUE@@am__fastdepCC_FALSE@	DEPDIR=$(DEPDIR) $(CCDEPMODE) $(depcomp) @AMDEPBACKSLASH@
-@am__fastdepCC_FALSE@	$(AM_V_CC@am__nodep@)$(LIBTOOL) $(AM_V_lt) --tag=CC $(AM_LIBTOOLFLAGS) $(LIBTOOLFLAGS) --mode=compile $(CC) $(DEFS) $(DEFAULT_INCLUDES) $(INCLUDES) $(libmio_la_CPPFLAGS) $(CPPFLAGS) $(AM_CFLAGS) $(CFLAGS) -c -o libmio_la-sys-err.lo `test -f 'sys-err.c' || echo '$(srcdir)/'`sys-err.c
+@am__fastdepCC_FALSE@	$(AM_V_CC@am__nodep@)$(LIBTOOL) $(AM_V_lt) --tag=CC $(AM_LIBTOOLFLAGS) $(LIBTOOLFLAGS) --mode=compile $(CC) $(DEFS) $(DEFAULT_INCLUDES) $(INCLUDES) $(libmio_la_CPPFLAGS) $(CPPFLAGS) $(libmio_la_CFLAGS) $(CFLAGS) -c -o libmio_la-sys-err.lo `test -f 'sys-err.c' || echo '$(srcdir)/'`sys-err.c
 
 libmio_la-sys-log.lo: sys-log.c
-@am__fastdepCC_TRUE@	$(AM_V_CC)$(LIBTOOL) $(AM_V_lt) --tag=CC $(AM_LIBTOOLFLAGS) $(LIBTOOLFLAGS) --mode=compile $(CC) $(DEFS) $(DEFAULT_INCLUDES) $(INCLUDES) $(libmio_la_CPPFLAGS) $(CPPFLAGS) $(AM_CFLAGS) $(CFLAGS) -MT libmio_la-sys-log.lo -MD -MP -MF $(DEPDIR)/libmio_la-sys-log.Tpo -c -o libmio_la-sys-log.lo `test -f 'sys-log.c' || echo '$(srcdir)/'`sys-log.c
+@am__fastdepCC_TRUE@	$(AM_V_CC)$(LIBTOOL) $(AM_V_lt) --tag=CC $(AM_LIBTOOLFLAGS) $(LIBTOOLFLAGS) --mode=compile $(CC) $(DEFS) $(DEFAULT_INCLUDES) $(INCLUDES) $(libmio_la_CPPFLAGS) $(CPPFLAGS) $(libmio_la_CFLAGS) $(CFLAGS) -MT libmio_la-sys-log.lo -MD -MP -MF $(DEPDIR)/libmio_la-sys-log.Tpo -c -o libmio_la-sys-log.lo `test -f 'sys-log.c' || echo '$(srcdir)/'`sys-log.c
 @am__fastdepCC_TRUE@	$(AM_V_at)$(am__mv) $(DEPDIR)/libmio_la-sys-log.Tpo $(DEPDIR)/libmio_la-sys-log.Plo
 @AMDEP_TRUE@@am__fastdepCC_FALSE@	$(AM_V_CC)source='sys-log.c' object='libmio_la-sys-log.lo' libtool=yes @AMDEPBACKSLASH@
 @AMDEP_TRUE@@am__fastdepCC_FALSE@	DEPDIR=$(DEPDIR) $(CCDEPMODE) $(depcomp) @AMDEPBACKSLASH@
-@am__fastdepCC_FALSE@	$(AM_V_CC@am__nodep@)$(LIBTOOL) $(AM_V_lt) --tag=CC $(AM_LIBTOOLFLAGS) $(LIBTOOLFLAGS) --mode=compile $(CC) $(DEFS) $(DEFAULT_INCLUDES) $(INCLUDES) $(libmio_la_CPPFLAGS) $(CPPFLAGS) $(AM_CFLAGS) $(CFLAGS) -c -o libmio_la-sys-log.lo `test -f 'sys-log.c' || echo '$(srcdir)/'`sys-log.c
+@am__fastdepCC_FALSE@	$(AM_V_CC@am__nodep@)$(LIBTOOL) $(AM_V_lt) --tag=CC $(AM_LIBTOOLFLAGS) $(LIBTOOLFLAGS) --mode=compile $(CC) $(DEFS) $(DEFAULT_INCLUDES) $(INCLUDES) $(libmio_la_CPPFLAGS) $(CPPFLAGS) $(libmio_la_CFLAGS) $(CFLAGS) -c -o libmio_la-sys-log.lo `test -f 'sys-log.c' || echo '$(srcdir)/'`sys-log.c
 
 libmio_la-sys-mux.lo: sys-mux.c
-@am__fastdepCC_TRUE@	$(AM_V_CC)$(LIBTOOL) $(AM_V_lt) --tag=CC $(AM_LIBTOOLFLAGS) $(LIBTOOLFLAGS) --mode=compile $(CC) $(DEFS) $(DEFAULT_INCLUDES) $(INCLUDES) $(libmio_la_CPPFLAGS) $(CPPFLAGS) $(AM_CFLAGS) $(CFLAGS) -MT libmio_la-sys-mux.lo -MD -MP -MF $(DEPDIR)/libmio_la-sys-mux.Tpo -c -o libmio_la-sys-mux.lo `test -f 'sys-mux.c' || echo '$(srcdir)/'`sys-mux.c
+@am__fastdepCC_TRUE@	$(AM_V_CC)$(LIBTOOL) $(AM_V_lt) --tag=CC $(AM_LIBTOOLFLAGS) $(LIBTOOLFLAGS) --mode=compile $(CC) $(DEFS) $(DEFAULT_INCLUDES) $(INCLUDES) $(libmio_la_CPPFLAGS) $(CPPFLAGS) $(libmio_la_CFLAGS) $(CFLAGS) -MT libmio_la-sys-mux.lo -MD -MP -MF $(DEPDIR)/libmio_la-sys-mux.Tpo -c -o libmio_la-sys-mux.lo `test -f 'sys-mux.c' || echo '$(srcdir)/'`sys-mux.c
 @am__fastdepCC_TRUE@	$(AM_V_at)$(am__mv) $(DEPDIR)/libmio_la-sys-mux.Tpo $(DEPDIR)/libmio_la-sys-mux.Plo
 @AMDEP_TRUE@@am__fastdepCC_FALSE@	$(AM_V_CC)source='sys-mux.c' object='libmio_la-sys-mux.lo' libtool=yes @AMDEPBACKSLASH@
 @AMDEP_TRUE@@am__fastdepCC_FALSE@	DEPDIR=$(DEPDIR) $(CCDEPMODE) $(depcomp) @AMDEPBACKSLASH@
-@am__fastdepCC_FALSE@	$(AM_V_CC@am__nodep@)$(LIBTOOL) $(AM_V_lt) --tag=CC $(AM_LIBTOOLFLAGS) $(LIBTOOLFLAGS) --mode=compile $(CC) $(DEFS) $(DEFAULT_INCLUDES) $(INCLUDES) $(libmio_la_CPPFLAGS) $(CPPFLAGS) $(AM_CFLAGS) $(CFLAGS) -c -o libmio_la-sys-mux.lo `test -f 'sys-mux.c' || echo '$(srcdir)/'`sys-mux.c
+@am__fastdepCC_FALSE@	$(AM_V_CC@am__nodep@)$(LIBTOOL) $(AM_V_lt) --tag=CC $(AM_LIBTOOLFLAGS) $(LIBTOOLFLAGS) --mode=compile $(CC) $(DEFS) $(DEFAULT_INCLUDES) $(INCLUDES) $(libmio_la_CPPFLAGS) $(CPPFLAGS) $(libmio_la_CFLAGS) $(CFLAGS) -c -o libmio_la-sys-mux.lo `test -f 'sys-mux.c' || echo '$(srcdir)/'`sys-mux.c
 
 libmio_la-sys-tim.lo: sys-tim.c
-@am__fastdepCC_TRUE@	$(AM_V_CC)$(LIBTOOL) $(AM_V_lt) --tag=CC $(AM_LIBTOOLFLAGS) $(LIBTOOLFLAGS) --mode=compile $(CC) $(DEFS) $(DEFAULT_INCLUDES) $(INCLUDES) $(libmio_la_CPPFLAGS) $(CPPFLAGS) $(AM_CFLAGS) $(CFLAGS) -MT libmio_la-sys-tim.lo -MD -MP -MF $(DEPDIR)/libmio_la-sys-tim.Tpo -c -o libmio_la-sys-tim.lo `test -f 'sys-tim.c' || echo '$(srcdir)/'`sys-tim.c
+@am__fastdepCC_TRUE@	$(AM_V_CC)$(LIBTOOL) $(AM_V_lt) --tag=CC $(AM_LIBTOOLFLAGS) $(LIBTOOLFLAGS) --mode=compile $(CC) $(DEFS) $(DEFAULT_INCLUDES) $(INCLUDES) $(libmio_la_CPPFLAGS) $(CPPFLAGS) $(libmio_la_CFLAGS) $(CFLAGS) -MT libmio_la-sys-tim.lo -MD -MP -MF $(DEPDIR)/libmio_la-sys-tim.Tpo -c -o libmio_la-sys-tim.lo `test -f 'sys-tim.c' || echo '$(srcdir)/'`sys-tim.c
 @am__fastdepCC_TRUE@	$(AM_V_at)$(am__mv) $(DEPDIR)/libmio_la-sys-tim.Tpo $(DEPDIR)/libmio_la-sys-tim.Plo
 @AMDEP_TRUE@@am__fastdepCC_FALSE@	$(AM_V_CC)source='sys-tim.c' object='libmio_la-sys-tim.lo' libtool=yes @AMDEPBACKSLASH@
 @AMDEP_TRUE@@am__fastdepCC_FALSE@	DEPDIR=$(DEPDIR) $(CCDEPMODE) $(depcomp) @AMDEPBACKSLASH@
-@am__fastdepCC_FALSE@	$(AM_V_CC@am__nodep@)$(LIBTOOL) $(AM_V_lt) --tag=CC $(AM_LIBTOOLFLAGS) $(LIBTOOLFLAGS) --mode=compile $(CC) $(DEFS) $(DEFAULT_INCLUDES) $(INCLUDES) $(libmio_la_CPPFLAGS) $(CPPFLAGS) $(AM_CFLAGS) $(CFLAGS) -c -o libmio_la-sys-tim.lo `test -f 'sys-tim.c' || echo '$(srcdir)/'`sys-tim.c
+@am__fastdepCC_FALSE@	$(AM_V_CC@am__nodep@)$(LIBTOOL) $(AM_V_lt) --tag=CC $(AM_LIBTOOLFLAGS) $(LIBTOOLFLAGS) --mode=compile $(CC) $(DEFS) $(DEFAULT_INCLUDES) $(INCLUDES) $(libmio_la_CPPFLAGS) $(CPPFLAGS) $(libmio_la_CFLAGS) $(CFLAGS) -c -o libmio_la-sys-tim.lo `test -f 'sys-tim.c' || echo '$(srcdir)/'`sys-tim.c
 
 libmio_la-thr.lo: thr.c
-@am__fastdepCC_TRUE@	$(AM_V_CC)$(LIBTOOL) $(AM_V_lt) --tag=CC $(AM_LIBTOOLFLAGS) $(LIBTOOLFLAGS) --mode=compile $(CC) $(DEFS) $(DEFAULT_INCLUDES) $(INCLUDES) $(libmio_la_CPPFLAGS) $(CPPFLAGS) $(AM_CFLAGS) $(CFLAGS) -MT libmio_la-thr.lo -MD -MP -MF $(DEPDIR)/libmio_la-thr.Tpo -c -o libmio_la-thr.lo `test -f 'thr.c' || echo '$(srcdir)/'`thr.c
+@am__fastdepCC_TRUE@	$(AM_V_CC)$(LIBTOOL) $(AM_V_lt) --tag=CC $(AM_LIBTOOLFLAGS) $(LIBTOOLFLAGS) --mode=compile $(CC) $(DEFS) $(DEFAULT_INCLUDES) $(INCLUDES) $(libmio_la_CPPFLAGS) $(CPPFLAGS) $(libmio_la_CFLAGS) $(CFLAGS) -MT libmio_la-thr.lo -MD -MP -MF $(DEPDIR)/libmio_la-thr.Tpo -c -o libmio_la-thr.lo `test -f 'thr.c' || echo '$(srcdir)/'`thr.c
 @am__fastdepCC_TRUE@	$(AM_V_at)$(am__mv) $(DEPDIR)/libmio_la-thr.Tpo $(DEPDIR)/libmio_la-thr.Plo
 @AMDEP_TRUE@@am__fastdepCC_FALSE@	$(AM_V_CC)source='thr.c' object='libmio_la-thr.lo' libtool=yes @AMDEPBACKSLASH@
 @AMDEP_TRUE@@am__fastdepCC_FALSE@	DEPDIR=$(DEPDIR) $(CCDEPMODE) $(depcomp) @AMDEPBACKSLASH@
-@am__fastdepCC_FALSE@	$(AM_V_CC@am__nodep@)$(LIBTOOL) $(AM_V_lt) --tag=CC $(AM_LIBTOOLFLAGS) $(LIBTOOLFLAGS) --mode=compile $(CC) $(DEFS) $(DEFAULT_INCLUDES) $(INCLUDES) $(libmio_la_CPPFLAGS) $(CPPFLAGS) $(AM_CFLAGS) $(CFLAGS) -c -o libmio_la-thr.lo `test -f 'thr.c' || echo '$(srcdir)/'`thr.c
+@am__fastdepCC_FALSE@	$(AM_V_CC@am__nodep@)$(LIBTOOL) $(AM_V_lt) --tag=CC $(AM_LIBTOOLFLAGS) $(LIBTOOLFLAGS) --mode=compile $(CC) $(DEFS) $(DEFAULT_INCLUDES) $(INCLUDES) $(libmio_la_CPPFLAGS) $(CPPFLAGS) $(libmio_la_CFLAGS) $(CFLAGS) -c -o libmio_la-thr.lo `test -f 'thr.c' || echo '$(srcdir)/'`thr.c
 
 libmio_la-tmr.lo: tmr.c
-@am__fastdepCC_TRUE@	$(AM_V_CC)$(LIBTOOL) $(AM_V_lt) --tag=CC $(AM_LIBTOOLFLAGS) $(LIBTOOLFLAGS) --mode=compile $(CC) $(DEFS) $(DEFAULT_INCLUDES) $(INCLUDES) $(libmio_la_CPPFLAGS) $(CPPFLAGS) $(AM_CFLAGS) $(CFLAGS) -MT libmio_la-tmr.lo -MD -MP -MF $(DEPDIR)/libmio_la-tmr.Tpo -c -o libmio_la-tmr.lo `test -f 'tmr.c' || echo '$(srcdir)/'`tmr.c
+@am__fastdepCC_TRUE@	$(AM_V_CC)$(LIBTOOL) $(AM_V_lt) --tag=CC $(AM_LIBTOOLFLAGS) $(LIBTOOLFLAGS) --mode=compile $(CC) $(DEFS) $(DEFAULT_INCLUDES) $(INCLUDES) $(libmio_la_CPPFLAGS) $(CPPFLAGS) $(libmio_la_CFLAGS) $(CFLAGS) -MT libmio_la-tmr.lo -MD -MP -MF $(DEPDIR)/libmio_la-tmr.Tpo -c -o libmio_la-tmr.lo `test -f 'tmr.c' || echo '$(srcdir)/'`tmr.c
 @am__fastdepCC_TRUE@	$(AM_V_at)$(am__mv) $(DEPDIR)/libmio_la-tmr.Tpo $(DEPDIR)/libmio_la-tmr.Plo
 @AMDEP_TRUE@@am__fastdepCC_FALSE@	$(AM_V_CC)source='tmr.c' object='libmio_la-tmr.lo' libtool=yes @AMDEPBACKSLASH@
 @AMDEP_TRUE@@am__fastdepCC_FALSE@	DEPDIR=$(DEPDIR) $(CCDEPMODE) $(depcomp) @AMDEPBACKSLASH@
-@am__fastdepCC_FALSE@	$(AM_V_CC@am__nodep@)$(LIBTOOL) $(AM_V_lt) --tag=CC $(AM_LIBTOOLFLAGS) $(LIBTOOLFLAGS) --mode=compile $(CC) $(DEFS) $(DEFAULT_INCLUDES) $(INCLUDES) $(libmio_la_CPPFLAGS) $(CPPFLAGS) $(AM_CFLAGS) $(CFLAGS) -c -o libmio_la-tmr.lo `test -f 'tmr.c' || echo '$(srcdir)/'`tmr.c
+@am__fastdepCC_FALSE@	$(AM_V_CC@am__nodep@)$(LIBTOOL) $(AM_V_lt) --tag=CC $(AM_LIBTOOLFLAGS) $(LIBTOOLFLAGS) --mode=compile $(CC) $(DEFS) $(DEFAULT_INCLUDES) $(INCLUDES) $(libmio_la_CPPFLAGS) $(CPPFLAGS) $(libmio_la_CFLAGS) $(CFLAGS) -c -o libmio_la-tmr.lo `test -f 'tmr.c' || echo '$(srcdir)/'`tmr.c
 
 libmio_la-utf8.lo: utf8.c
-@am__fastdepCC_TRUE@	$(AM_V_CC)$(LIBTOOL) $(AM_V_lt) --tag=CC $(AM_LIBTOOLFLAGS) $(LIBTOOLFLAGS) --mode=compile $(CC) $(DEFS) $(DEFAULT_INCLUDES) $(INCLUDES) $(libmio_la_CPPFLAGS) $(CPPFLAGS) $(AM_CFLAGS) $(CFLAGS) -MT libmio_la-utf8.lo -MD -MP -MF $(DEPDIR)/libmio_la-utf8.Tpo -c -o libmio_la-utf8.lo `test -f 'utf8.c' || echo '$(srcdir)/'`utf8.c
+@am__fastdepCC_TRUE@	$(AM_V_CC)$(LIBTOOL) $(AM_V_lt) --tag=CC $(AM_LIBTOOLFLAGS) $(LIBTOOLFLAGS) --mode=compile $(CC) $(DEFS) $(DEFAULT_INCLUDES) $(INCLUDES) $(libmio_la_CPPFLAGS) $(CPPFLAGS) $(libmio_la_CFLAGS) $(CFLAGS) -MT libmio_la-utf8.lo -MD -MP -MF $(DEPDIR)/libmio_la-utf8.Tpo -c -o libmio_la-utf8.lo `test -f 'utf8.c' || echo '$(srcdir)/'`utf8.c
 @am__fastdepCC_TRUE@	$(AM_V_at)$(am__mv) $(DEPDIR)/libmio_la-utf8.Tpo $(DEPDIR)/libmio_la-utf8.Plo
 @AMDEP_TRUE@@am__fastdepCC_FALSE@	$(AM_V_CC)source='utf8.c' object='libmio_la-utf8.lo' libtool=yes @AMDEPBACKSLASH@
 @AMDEP_TRUE@@am__fastdepCC_FALSE@	DEPDIR=$(DEPDIR) $(CCDEPMODE) $(depcomp) @AMDEPBACKSLASH@
-@am__fastdepCC_FALSE@	$(AM_V_CC@am__nodep@)$(LIBTOOL) $(AM_V_lt) --tag=CC $(AM_LIBTOOLFLAGS) $(LIBTOOLFLAGS) --mode=compile $(CC) $(DEFS) $(DEFAULT_INCLUDES) $(INCLUDES) $(libmio_la_CPPFLAGS) $(CPPFLAGS) $(AM_CFLAGS) $(CFLAGS) -c -o libmio_la-utf8.lo `test -f 'utf8.c' || echo '$(srcdir)/'`utf8.c
+@am__fastdepCC_FALSE@	$(AM_V_CC@am__nodep@)$(LIBTOOL) $(AM_V_lt) --tag=CC $(AM_LIBTOOLFLAGS) $(LIBTOOLFLAGS) --mode=compile $(CC) $(DEFS) $(DEFAULT_INCLUDES) $(INCLUDES) $(libmio_la_CPPFLAGS) $(CPPFLAGS) $(libmio_la_CFLAGS) $(CFLAGS) -c -o libmio_la-utf8.lo `test -f 'utf8.c' || echo '$(srcdir)/'`utf8.c
 
 libmio_la-utl.lo: utl.c
-@am__fastdepCC_TRUE@	$(AM_V_CC)$(LIBTOOL) $(AM_V_lt) --tag=CC $(AM_LIBTOOLFLAGS) $(LIBTOOLFLAGS) --mode=compile $(CC) $(DEFS) $(DEFAULT_INCLUDES) $(INCLUDES) $(libmio_la_CPPFLAGS) $(CPPFLAGS) $(AM_CFLAGS) $(CFLAGS) -MT libmio_la-utl.lo -MD -MP -MF $(DEPDIR)/libmio_la-utl.Tpo -c -o libmio_la-utl.lo `test -f 'utl.c' || echo '$(srcdir)/'`utl.c
+@am__fastdepCC_TRUE@	$(AM_V_CC)$(LIBTOOL) $(AM_V_lt) --tag=CC $(AM_LIBTOOLFLAGS) $(LIBTOOLFLAGS) --mode=compile $(CC) $(DEFS) $(DEFAULT_INCLUDES) $(INCLUDES) $(libmio_la_CPPFLAGS) $(CPPFLAGS) $(libmio_la_CFLAGS) $(CFLAGS) -MT libmio_la-utl.lo -MD -MP -MF $(DEPDIR)/libmio_la-utl.Tpo -c -o libmio_la-utl.lo `test -f 'utl.c' || echo '$(srcdir)/'`utl.c
 @am__fastdepCC_TRUE@	$(AM_V_at)$(am__mv) $(DEPDIR)/libmio_la-utl.Tpo $(DEPDIR)/libmio_la-utl.Plo
 @AMDEP_TRUE@@am__fastdepCC_FALSE@	$(AM_V_CC)source='utl.c' object='libmio_la-utl.lo' libtool=yes @AMDEPBACKSLASH@
 @AMDEP_TRUE@@am__fastdepCC_FALSE@	DEPDIR=$(DEPDIR) $(CCDEPMODE) $(depcomp) @AMDEPBACKSLASH@
-@am__fastdepCC_FALSE@	$(AM_V_CC@am__nodep@)$(LIBTOOL) $(AM_V_lt) --tag=CC $(AM_LIBTOOLFLAGS) $(LIBTOOLFLAGS) --mode=compile $(CC) $(DEFS) $(DEFAULT_INCLUDES) $(INCLUDES) $(libmio_la_CPPFLAGS) $(CPPFLAGS) $(AM_CFLAGS) $(CFLAGS) -c -o libmio_la-utl.lo `test -f 'utl.c' || echo '$(srcdir)/'`utl.c
+@am__fastdepCC_FALSE@	$(AM_V_CC@am__nodep@)$(LIBTOOL) $(AM_V_lt) --tag=CC $(AM_LIBTOOLFLAGS) $(LIBTOOLFLAGS) --mode=compile $(CC) $(DEFS) $(DEFAULT_INCLUDES) $(INCLUDES) $(libmio_la_CPPFLAGS) $(CPPFLAGS) $(libmio_la_CFLAGS) $(CFLAGS) -c -o libmio_la-utl.lo `test -f 'utl.c' || echo '$(srcdir)/'`utl.c
 
 libmio_la-utl-siph.lo: utl-siph.c
-@am__fastdepCC_TRUE@	$(AM_V_CC)$(LIBTOOL) $(AM_V_lt) --tag=CC $(AM_LIBTOOLFLAGS) $(LIBTOOLFLAGS) --mode=compile $(CC) $(DEFS) $(DEFAULT_INCLUDES) $(INCLUDES) $(libmio_la_CPPFLAGS) $(CPPFLAGS) $(AM_CFLAGS) $(CFLAGS) -MT libmio_la-utl-siph.lo -MD -MP -MF $(DEPDIR)/libmio_la-utl-siph.Tpo -c -o libmio_la-utl-siph.lo `test -f 'utl-siph.c' || echo '$(srcdir)/'`utl-siph.c
+@am__fastdepCC_TRUE@	$(AM_V_CC)$(LIBTOOL) $(AM_V_lt) --tag=CC $(AM_LIBTOOLFLAGS) $(LIBTOOLFLAGS) --mode=compile $(CC) $(DEFS) $(DEFAULT_INCLUDES) $(INCLUDES) $(libmio_la_CPPFLAGS) $(CPPFLAGS) $(libmio_la_CFLAGS) $(CFLAGS) -MT libmio_la-utl-siph.lo -MD -MP -MF $(DEPDIR)/libmio_la-utl-siph.Tpo -c -o libmio_la-utl-siph.lo `test -f 'utl-siph.c' || echo '$(srcdir)/'`utl-siph.c
 @am__fastdepCC_TRUE@	$(AM_V_at)$(am__mv) $(DEPDIR)/libmio_la-utl-siph.Tpo $(DEPDIR)/libmio_la-utl-siph.Plo
 @AMDEP_TRUE@@am__fastdepCC_FALSE@	$(AM_V_CC)source='utl-siph.c' object='libmio_la-utl-siph.lo' libtool=yes @AMDEPBACKSLASH@
 @AMDEP_TRUE@@am__fastdepCC_FALSE@	DEPDIR=$(DEPDIR) $(CCDEPMODE) $(depcomp) @AMDEPBACKSLASH@
-@am__fastdepCC_FALSE@	$(AM_V_CC@am__nodep@)$(LIBTOOL) $(AM_V_lt) --tag=CC $(AM_LIBTOOLFLAGS) $(LIBTOOLFLAGS) --mode=compile $(CC) $(DEFS) $(DEFAULT_INCLUDES) $(INCLUDES) $(libmio_la_CPPFLAGS) $(CPPFLAGS) $(AM_CFLAGS) $(CFLAGS) -c -o libmio_la-utl-siph.lo `test -f 'utl-siph.c' || echo '$(srcdir)/'`utl-siph.c
+@am__fastdepCC_FALSE@	$(AM_V_CC@am__nodep@)$(LIBTOOL) $(AM_V_lt) --tag=CC $(AM_LIBTOOLFLAGS) $(LIBTOOLFLAGS) --mode=compile $(CC) $(DEFS) $(DEFAULT_INCLUDES) $(INCLUDES) $(libmio_la_CPPFLAGS) $(CPPFLAGS) $(libmio_la_CFLAGS) $(CFLAGS) -c -o libmio_la-utl-siph.lo `test -f 'utl-siph.c' || echo '$(srcdir)/'`utl-siph.c
 
 libmio_la-mar.lo: mar.c
-@am__fastdepCC_TRUE@	$(AM_V_CC)$(LIBTOOL) $(AM_V_lt) --tag=CC $(AM_LIBTOOLFLAGS) $(LIBTOOLFLAGS) --mode=compile $(CC) $(DEFS) $(DEFAULT_INCLUDES) $(INCLUDES) $(libmio_la_CPPFLAGS) $(CPPFLAGS) $(AM_CFLAGS) $(CFLAGS) -MT libmio_la-mar.lo -MD -MP -MF $(DEPDIR)/libmio_la-mar.Tpo -c -o libmio_la-mar.lo `test -f 'mar.c' || echo '$(srcdir)/'`mar.c
+@am__fastdepCC_TRUE@	$(AM_V_CC)$(LIBTOOL) $(AM_V_lt) --tag=CC $(AM_LIBTOOLFLAGS) $(LIBTOOLFLAGS) --mode=compile $(CC) $(DEFS) $(DEFAULT_INCLUDES) $(INCLUDES) $(libmio_la_CPPFLAGS) $(CPPFLAGS) $(libmio_la_CFLAGS) $(CFLAGS) -MT libmio_la-mar.lo -MD -MP -MF $(DEPDIR)/libmio_la-mar.Tpo -c -o libmio_la-mar.lo `test -f 'mar.c' || echo '$(srcdir)/'`mar.c
 @am__fastdepCC_TRUE@	$(AM_V_at)$(am__mv) $(DEPDIR)/libmio_la-mar.Tpo $(DEPDIR)/libmio_la-mar.Plo
 @AMDEP_TRUE@@am__fastdepCC_FALSE@	$(AM_V_CC)source='mar.c' object='libmio_la-mar.lo' libtool=yes @AMDEPBACKSLASH@
 @AMDEP_TRUE@@am__fastdepCC_FALSE@	DEPDIR=$(DEPDIR) $(CCDEPMODE) $(depcomp) @AMDEPBACKSLASH@
-@am__fastdepCC_FALSE@	$(AM_V_CC@am__nodep@)$(LIBTOOL) $(AM_V_lt) --tag=CC $(AM_LIBTOOLFLAGS) $(LIBTOOLFLAGS) --mode=compile $(CC) $(DEFS) $(DEFAULT_INCLUDES) $(INCLUDES) $(libmio_la_CPPFLAGS) $(CPPFLAGS) $(AM_CFLAGS) $(CFLAGS) -c -o libmio_la-mar.lo `test -f 'mar.c' || echo '$(srcdir)/'`mar.c
+@am__fastdepCC_FALSE@	$(AM_V_CC@am__nodep@)$(LIBTOOL) $(AM_V_lt) --tag=CC $(AM_LIBTOOLFLAGS) $(LIBTOOLFLAGS) --mode=compile $(CC) $(DEFS) $(DEFAULT_INCLUDES) $(INCLUDES) $(libmio_la_CPPFLAGS) $(CPPFLAGS) $(libmio_la_CFLAGS) $(CFLAGS) -c -o libmio_la-mar.lo `test -f 'mar.c' || echo '$(srcdir)/'`mar.c
 
 libmio_la-mar-cli.lo: mar-cli.c
-@am__fastdepCC_TRUE@	$(AM_V_CC)$(LIBTOOL) $(AM_V_lt) --tag=CC $(AM_LIBTOOLFLAGS) $(LIBTOOLFLAGS) --mode=compile $(CC) $(DEFS) $(DEFAULT_INCLUDES) $(INCLUDES) $(libmio_la_CPPFLAGS) $(CPPFLAGS) $(AM_CFLAGS) $(CFLAGS) -MT libmio_la-mar-cli.lo -MD -MP -MF $(DEPDIR)/libmio_la-mar-cli.Tpo -c -o libmio_la-mar-cli.lo `test -f 'mar-cli.c' || echo '$(srcdir)/'`mar-cli.c
+@am__fastdepCC_TRUE@	$(AM_V_CC)$(LIBTOOL) $(AM_V_lt) --tag=CC $(AM_LIBTOOLFLAGS) $(LIBTOOLFLAGS) --mode=compile $(CC) $(DEFS) $(DEFAULT_INCLUDES) $(INCLUDES) $(libmio_la_CPPFLAGS) $(CPPFLAGS) $(libmio_la_CFLAGS) $(CFLAGS) -MT libmio_la-mar-cli.lo -MD -MP -MF $(DEPDIR)/libmio_la-mar-cli.Tpo -c -o libmio_la-mar-cli.lo `test -f 'mar-cli.c' || echo '$(srcdir)/'`mar-cli.c
 @am__fastdepCC_TRUE@	$(AM_V_at)$(am__mv) $(DEPDIR)/libmio_la-mar-cli.Tpo $(DEPDIR)/libmio_la-mar-cli.Plo
 @AMDEP_TRUE@@am__fastdepCC_FALSE@	$(AM_V_CC)source='mar-cli.c' object='libmio_la-mar-cli.lo' libtool=yes @AMDEPBACKSLASH@
 @AMDEP_TRUE@@am__fastdepCC_FALSE@	DEPDIR=$(DEPDIR) $(CCDEPMODE) $(depcomp) @AMDEPBACKSLASH@
-@am__fastdepCC_FALSE@	$(AM_V_CC@am__nodep@)$(LIBTOOL) $(AM_V_lt) --tag=CC $(AM_LIBTOOLFLAGS) $(LIBTOOLFLAGS) --mode=compile $(CC) $(DEFS) $(DEFAULT_INCLUDES) $(INCLUDES) $(libmio_la_CPPFLAGS) $(CPPFLAGS) $(AM_CFLAGS) $(CFLAGS) -c -o libmio_la-mar-cli.lo `test -f 'mar-cli.c' || echo '$(srcdir)/'`mar-cli.c
+@am__fastdepCC_FALSE@	$(AM_V_CC@am__nodep@)$(LIBTOOL) $(AM_V_lt) --tag=CC $(AM_LIBTOOLFLAGS) $(LIBTOOLFLAGS) --mode=compile $(CC) $(DEFS) $(DEFAULT_INCLUDES) $(INCLUDES) $(libmio_la_CPPFLAGS) $(CPPFLAGS) $(libmio_la_CFLAGS) $(CFLAGS) -c -o libmio_la-mar-cli.lo `test -f 'mar-cli.c' || echo '$(srcdir)/'`mar-cli.c
 
 mostlyclean-libtool:
 	-rm -f *.lo
