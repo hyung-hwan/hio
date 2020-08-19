@@ -164,8 +164,8 @@ am__DIST_COMMON = $(srcdir)/Makefile.in $(top_srcdir)/ac/ar-lib \
 	$(top_srcdir)/ac/compile $(top_srcdir)/ac/config.guess \
 	$(top_srcdir)/ac/config.sub $(top_srcdir)/ac/install-sh \
 	$(top_srcdir)/ac/ltmain.sh $(top_srcdir)/ac/missing ac/ar-lib \
-	ac/compile ac/config.guess ac/config.sub ac/install-sh \
-	ac/ltmain.sh ac/missing
+	ac/compile ac/config.guess ac/config.sub ac/depcomp \
+	ac/install-sh ac/ltmain.sh ac/missing
 DISTFILES = $(DIST_COMMON) $(DIST_SOURCES) $(TEXINFOS) $(EXTRA_DIST)
 distdir = $(PACKAGE)-$(VERSION)
 top_distdir = $(distdir)
@@ -255,18 +255,6 @@ MAKEINFO = @MAKEINFO@
 MANIFEST_TOOL = @MANIFEST_TOOL@
 MIO_PROJECT_AUTHOR = @MIO_PROJECT_AUTHOR@
 MIO_PROJECT_URL = @MIO_PROJECT_URL@
-MIO_SIZEOF_CHAR = @MIO_SIZEOF_CHAR@
-MIO_SIZEOF_DOUBLE = @MIO_SIZEOF_DOUBLE@
-MIO_SIZEOF_FLOAT = @MIO_SIZEOF_FLOAT@
-MIO_SIZEOF_INT = @MIO_SIZEOF_INT@
-MIO_SIZEOF_LONG = @MIO_SIZEOF_LONG@
-MIO_SIZEOF_LONG_DOUBLE = @MIO_SIZEOF_LONG_DOUBLE@
-MIO_SIZEOF_LONG_LONG = @MIO_SIZEOF_LONG_LONG@
-MIO_SIZEOF_OFF64_T = @MIO_SIZEOF_OFF64_T@
-MIO_SIZEOF_OFF_T = @MIO_SIZEOF_OFF_T@
-MIO_SIZEOF_SHORT = @MIO_SIZEOF_SHORT@
-MIO_SIZEOF_VOID_P = @MIO_SIZEOF_VOID_P@
-MIO_SIZEOF_WCHAR_T = @MIO_SIZEOF_WCHAR_T@
 MKDIR_P = @MKDIR_P@
 MYSQL_CFLAGS = @MYSQL_CFLAGS@
 MYSQL_CONFIG = @MYSQL_CONFIG@
