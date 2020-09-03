@@ -757,7 +757,7 @@ int mio_exec (mio_t* mio)
 		/* wait on the multiplexer only if there is at least 1 active device */
 		mio_ntime_t tmout;
 
-		if (mio_gettmrtmout(mio, MIO_NULL, &tmout) <= -1)
+		if (mio_gettmrtmout(mio, MIO_NULL, &tmout) <= 0)
 		{
 			/* defaults to 0 or 1 second if timeout can't be acquired.
 			 * if this timeout affects how fast the halted device will get killed.

@@ -764,6 +764,35 @@ MIO_EXPORT mio_oow_t mio_utf8_to_uc (
 );
 
 /* =========================================================================
+ * TIME CALCULATION WITH OVERFLOW/UNDERFLOW DETECTION
+ * ========================================================================= */
+
+/** 
+ * The mio_add_ntime() function adds two time structures pointed to by \a x and \a y
+ * and stores the result in the structure pointed to by \a z. If it detects overflow/
+ * underflow, it stores the largest/least possible value respectively.
+ * You may use the MIO_ADD_NTIME() macro if overflow/underflow check isn't needed.
+ */
+MIO_EXPORT void mio_add_ntime (
+	mio_ntime_t*       z, 
+	const mio_ntime_t* x,
+	const mio_ntime_t* y
+);
+
+/** 
+ * The mio_sub_ntime() function subtracts the time value \a y from the time value \a x
+ * and stores the result in the structure pointed to by \a z. If it detects overflow/
+ * underflow, it stores the largest/least possible value respectively.
+ * You may use the MIO_SUB_NTIME() macro if overflow/underflow check isn't needed.
+ */
+MIO_EXPORT void mio_sub_ntime (
+	mio_ntime_t*       z,
+	const mio_ntime_t* x,
+	const mio_ntime_t* y
+);
+
+
+/* =========================================================================
  * BIT SWAP
  * ========================================================================= */
 #if defined(MIO_HAVE_INLINE)
