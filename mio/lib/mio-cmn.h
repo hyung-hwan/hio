@@ -478,11 +478,18 @@ struct mio_ptl_t
 #define MIO_SEC_TO_USEC(sec) ((sec) * MIO_USECS_PER_SEC)
 #define MIO_USEC_TO_SEC(usec) ((usec) / MIO_USECS_PER_SEC)
 
+#if defined(MIO_SIZEOF_INT64_T) && (MIO_SIZEOF_INT64_T > 0)
+typedef mio_int64_t mio_ntime_sec_t;
+#else
+typedef mio_int32_t mio_ntime_sec_t;
+#endif
+typedef mio_int32_t mio_ntime_nsec_t;
+
 typedef struct mio_ntime_t mio_ntime_t;
 struct mio_ntime_t
 {
-	mio_intptr_t  sec;
-	mio_int32_t   nsec; /* nanoseconds */
+	mio_ntime_sec_t  sec;
+	mio_ntime_nsec_t   nsec; /* nanoseconds */
 };
 
 #define MIO_INIT_NTIME(c,s,ns) (((c)->sec = (s)), ((c)->nsec = (ns)))

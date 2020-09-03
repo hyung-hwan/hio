@@ -2103,3 +2103,113 @@ mio_bch_t* mio_dupbcstrs (mio_t* mio, const mio_bch_t* bcs[], mio_oow_t* bcslen)
 	return ptr;
 }
 /* ========================================================================= */
+
+void mio_add_ntime (mio_ntime_t* z, const mio_ntime_t* x, const mio_ntime_t* y)
+{
+	mio_ntime_sec_t xs, ys;
+	mio_ntime_nsec_t ns;
+
+	/*MIO_ASSERT (x->nsec >= 0 && x->nsec < MIO_NSECS_PER_SEC);
+	MIO_ASSERT (y->nsec >= 0 && y->nsec < MIO_NSECS_PER_SEC);*/
+
+	ns = x->nsec + y->nsec;
+	if (ns >= MIO_NSECS_PER_SEC)
+	{
+		ns = ns - MIO_NSECS_PER_SEC;
+		if (x->sec == MIO_TYPE_MAX(mio_ntime_sec_t))
+		{
+			if (y->sec >= 0) goto overflow;
+			xs = x->sec;
+			ys = y->sec + 1; /* this won't overflow */
+		}
+		else
+		{
+			xs = x->sec + 1; /* this won't overflow */
+			ys = y->sec;
+		}
+	}
+	else
+	{
+		xs = x->sec;
+		ys = y->sec;
+	}
+
+	if ((ys >= 1 && xs > MIO_TYPE_MAX(mio_ntime_sec_t) - ys) ||
+	    (ys <= -1 && xs < MIO_TYPE_MIN(mio_ntime_sec_t) - ys))
+	{
+		if (xs >= 0)
+		{
+		overflow:
+			xs = MIO_TYPE_MAX(mio_ntime_sec_t);
+			ns = MIO_NSECS_PER_SEC - 1;
+		}
+		else
+		{
+			xs = MIO_TYPE_MIN(mio_ntime_sec_t);
+			ns = 0;
+		}
+	}
+	else
+	{
+		xs = xs + ys;
+	}
+
+	z->sec = xs;
+	z->nsec = ns;
+}
+
+void mio_sub_ntime (mio_ntime_t* z, const mio_ntime_t* x, const mio_ntime_t* y)
+{
+	mio_ntime_sec_t xs, ys;
+	mio_ntime_nsec_t ns;
+
+	/*MIO_ASSERT (x->nsec >= 0 && x->nsec < MIO_NSECS_PER_SEC);
+	MIO_ASSERT (y->nsec >= 0 && y->nsec < MIO_NSECS_PER_SEC);*/
+
+	ns = x->nsec - y->nsec;
+	if (ns < 0)
+	{
+		ns = ns + MIO_NSECS_PER_SEC;
+		if (x->sec == MIO_TYPE_MIN(mio_ntime_sec_t))
+		{
+			if (y->sec <= 0) goto underflow;
+			xs = x->sec;
+			ys = y->sec - 1; /* this won't underflow */
+		}
+		else
+		{
+			xs = x->sec - 1; /* this won't underflow */
+			ys = y->sec;
+		}
+	}
+	else
+	{
+		xs = x->sec;
+		ys = y->sec;
+	}
+
+	if ((ys >= 1 && xs < MIO_TYPE_MIN(mio_ntime_sec_t) + ys) ||
+	    (ys <= -1 && xs > MIO_TYPE_MAX(mio_ntime_sec_t) + ys))
+	{
+		if (xs >= 0)
+		{
+			xs = MIO_TYPE_MAX(mio_ntime_sec_t);
+			ns = MIO_NSECS_PER_SEC - 1;
+		}
+		else
+		{
+		underflow:
+			xs = MIO_TYPE_MIN(mio_ntime_sec_t);
+			ns = 0;
+		}
+	} 
+	else
+	{
+		xs = xs - ys;
+	}
+
+	z->sec = xs;
+	z->nsec = ns;
+}
+
+/* ========================================================================= */

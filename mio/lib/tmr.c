@@ -190,11 +190,7 @@ int mio_gettmrtmout (mio_t* mio, const mio_ntime_t* tm, mio_ntime_t* tmout)
 	mio_ntime_t now;
 
 	/* time-out can't be calculated when there's no job scheduled */
-	if (mio->tmr.size <= 0) 
-	{
-		mio_seterrbfmt (mio, MIO_ENOENT, "unable to compute timeout as no job is scheduled");
-		return -1;
-	}
+	if (mio->tmr.size <= 0) return 0; /* no scheduled job */
 
 	/* if the current time is not specified, get it from the system */
 	if (tm) now = *tm;
@@ -202,8 +198,7 @@ int mio_gettmrtmout (mio_t* mio, const mio_ntime_t* tm, mio_ntime_t* tmout)
 
 	MIO_SUB_NTIME (tmout, &mio->tmr.jobs[0].when, &now);
 	if (tmout->sec < 0) MIO_CLEAR_NTIME (tmout);
-
-	return 0;
+	return 1; /* tmout is set */
 }
 
 mio_tmrjob_t* mio_gettmrjob (mio_t* mio, mio_tmridx_t index)

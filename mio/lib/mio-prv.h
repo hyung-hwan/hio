@@ -130,9 +130,15 @@ void mio_firetmrjobs (
 );
 
 
+/**
+ * The mio_gettmrtmout() function gets the remaining time until the first 
+ * scheduled job is to be triggered. It stores in \a tmout the difference between 
+ * the given time \a tm and the scheduled time and returns 1. If there is no
+ * job scheduled, it returns 0.
+ */
 int mio_gettmrtmout (
 	mio_t*             mio,
-	const mio_ntime_t* tmbase,
+	const mio_ntime_t* tm,
 	mio_ntime_t*       tmout
 );
 
