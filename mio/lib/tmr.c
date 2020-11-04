@@ -158,7 +158,7 @@ mio_tmridx_t mio_updtmrjob (mio_t* mio, mio_tmridx_t index, const mio_tmrjob_t* 
 	item = mio->tmr.jobs[index];
 	mio->tmr.jobs[index] = *job;
 	if (mio->tmr.jobs[index].idxptr) *mio->tmr.jobs[index].idxptr = index;
-	return YOUNGER_THAN(job, &item)? sift_up (mio, index): sift_down (mio, index);
+	return YOUNGER_THAN(job, &item)? sift_up(mio, index): sift_down(mio, index);
 }
 
 void mio_firetmrjobs (mio_t* mio, const mio_ntime_t* tm, mio_oow_t* firecnt)

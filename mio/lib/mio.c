@@ -733,6 +733,17 @@ static void clear_unneeded_cfmbs (mio_t* mio)
 	}
 }
 
+static void kill_all_halted_devices (mio_t* mio)
+{
+	/* kill all halted devices */
+	while (!MIO_DEVL_IS_EMPTY(&mio->hltdev)) 
+	{
+		mio_dev_t* dev = MIO_DEVL_FIRST_DEV(&mio->hltdev);
+		MIO_DEBUG1 (mio, "MIO - Killing HALTED device %p\n", dev);
+		mio_dev_kill (dev);
+	}
+}
+
 int mio_exec (mio_t* mio)
 {
 	int ret = 0;
@@ -757,6 +768,8 @@ int mio_exec (mio_t* mio)
 		/* wait on the multiplexer only if there is at least 1 active device */
 		mio_ntime_t tmout;
 
+		kill_all_halted_devices (mio);
+
 		if (mio_gettmrtmout(mio, MIO_NULL, &tmout) <= 0)
 		{
 			/* defaults to 0 or 1 second if timeout can't be acquired.
@@ -773,14 +786,7 @@ int mio_exec (mio_t* mio)
 		}
 	}
 
-	/* kill all halted devices */
-	while (!MIO_DEVL_IS_EMPTY(&mio->hltdev)) 
-	{
-		mio_dev_t* dev = MIO_DEVL_FIRST_DEV(&mio->hltdev);
-		MIO_DEBUG1 (mio, "MIO - Killing HALTED device %p\n", dev);
-		mio_dev_kill (dev);
-	}
-
+	kill_all_halted_devices (mio);
 	return ret;
 }
 
