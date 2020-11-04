@@ -95,9 +95,9 @@ libmio_la_LIBADD = $(LIBADD_LIB_COMMON) $(SSL_LIBS) $(SOCKET_LIBS) $(SENDFILE_LI
 if ENABLE_MARIADB
 include_HEADERS += mio-mar.h
 libmio_la_SOURCES += mar.c mar-cli.c
-libmio_la_CFLAGS += $(MYSQL_CFLAGS)
-libmio_la_LDFLAGS += $(MYSQL_LDFLAGS)
-libmio_la_LIBADD += $(MYSQL_LIBS)
+libmio_la_CFLAGS += $(MARIADB_CFLAGS)
+libmio_la_LDFLAGS += $(MARIADB_LDFLAGS)
+libmio_la_LIBADD += $(MARIADB_LIBS)
 endif
 
 if ENABLE_SSL

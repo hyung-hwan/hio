@@ -91,18 +91,18 @@ build_triplet = @build@
 host_triplet = @host@
 @ENABLE_MARIADB_TRUE@am__append_1 = mio-mar.h
 @ENABLE_MARIADB_TRUE@am__append_2 = mar.c mar-cli.c
-@ENABLE_MARIADB_TRUE@am__append_3 = $(MYSQL_CFLAGS)
-@ENABLE_MARIADB_TRUE@am__append_4 = $(MYSQL_LDFLAGS)
-@ENABLE_MARIADB_TRUE@am__append_5 = $(MYSQL_LIBS)
+@ENABLE_MARIADB_TRUE@am__append_3 = $(MARIADB_CFLAGS)
+@ENABLE_MARIADB_TRUE@am__append_4 = $(MARIADB_LDFLAGS)
+@ENABLE_MARIADB_TRUE@am__append_5 = $(MARIADB_LIBS)
 @ENABLE_SSL_TRUE@am__append_6 = $(SSL_LIBS)
 subdir = lib
 ACLOCAL_M4 = $(top_srcdir)/aclocal.m4
 am__aclocal_m4_deps = $(top_srcdir)/m4/ax_check_sign.m4 \
-	$(top_srcdir)/m4/ax_lib_mysql.m4 $(top_srcdir)/m4/ax_numval.m4 \
-	$(top_srcdir)/m4/ax_pthread.m4 $(top_srcdir)/m4/libtool.m4 \
-	$(top_srcdir)/m4/ltoptions.m4 $(top_srcdir)/m4/ltsugar.m4 \
-	$(top_srcdir)/m4/ltversion.m4 $(top_srcdir)/m4/lt~obsolete.m4 \
-	$(top_srcdir)/configure.ac
+	$(top_srcdir)/m4/ax_lib_mariadb.m4 \
+	$(top_srcdir)/m4/ax_numval.m4 $(top_srcdir)/m4/ax_pthread.m4 \
+	$(top_srcdir)/m4/libtool.m4 $(top_srcdir)/m4/ltoptions.m4 \
+	$(top_srcdir)/m4/ltsugar.m4 $(top_srcdir)/m4/ltversion.m4 \
+	$(top_srcdir)/m4/lt~obsolete.m4 $(top_srcdir)/configure.ac
 am__configure_deps = $(am__aclocal_m4_deps) $(CONFIGURE_DEPENDENCIES) \
 	$(ACLOCAL_M4)
 DIST_COMMON = $(srcdir)/Makefile.am $(am__include_HEADERS_DIST) \
@@ -318,14 +318,14 @@ LTLIBOBJS = @LTLIBOBJS@
 LT_SYS_LIBRARY_PATH = @LT_SYS_LIBRARY_PATH@
 MAKEINFO = @MAKEINFO@
 MANIFEST_TOOL = @MANIFEST_TOOL@
+MARIADB_CFLAGS = @MARIADB_CFLAGS@
+MARIADB_CONFIG = @MARIADB_CONFIG@
+MARIADB_LDFLAGS = @MARIADB_LDFLAGS@
+MARIADB_LIBS = @MARIADB_LIBS@
+MARIADB_VERSION = @MARIADB_VERSION@
 MIO_PROJECT_AUTHOR = @MIO_PROJECT_AUTHOR@
 MIO_PROJECT_URL = @MIO_PROJECT_URL@
 MKDIR_P = @MKDIR_P@
-MYSQL_CFLAGS = @MYSQL_CFLAGS@
-MYSQL_CONFIG = @MYSQL_CONFIG@
-MYSQL_LDFLAGS = @MYSQL_LDFLAGS@
-MYSQL_LIBS = @MYSQL_LIBS@
-MYSQL_VERSION = @MYSQL_VERSION@
 NM = @NM@
 NMEDIT = @NMEDIT@
 OBJDUMP = @OBJDUMP@

@@ -8,6 +8,7 @@
 #include <signal.h>
 #include <errno.h>
 #include <assert.h>
+#include <stdlib.h>
 
 #define MAX_NUM_THRS 256
 static int  g_reuse_port = 0;
