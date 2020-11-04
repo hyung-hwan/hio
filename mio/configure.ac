@@ -324,8 +324,8 @@ then
 	AC_SUBST(UNWIND_LIBS)
 fi
 
-dnl libmysqlclient
-AX_LIB_MYSQL
+dnl libmariadb
+AX_LIB_MARIADB
 
 AC_STRUCT_DIRENT_D_TYPE
 AC_CHECK_MEMBERS([DIR.d_fd, DIR.dd_fd],,,[[#include <dirent.h>]])
