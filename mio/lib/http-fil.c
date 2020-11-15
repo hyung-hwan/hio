@@ -33,6 +33,7 @@
 #include <fcntl.h>
 #include <sys/stat.h>
 #include <errno.h>
+#include <netinet/in.h>
 #include <netinet/tcp.h>
 
 #define FILE_ALLOW_UNLIMITED_REQ_CONTENT_LENGTH
@@ -212,7 +213,11 @@ static void file_state_mark_over (file_state_t* file_state, int over_bits)
 		{
 		#if defined(TCP_CORK)
 			int tcp_cork = 0;
+			#if defined(SOL_TCP)
 			mio_dev_sck_setsockopt(file_state->client->sck, SOL_TCP, TCP_CORK, &tcp_cork, MIO_SIZEOF(tcp_cork));
+			#elif defined(IPPROTO_TCP)
+			mio_dev_sck_setsockopt(file_state->client->sck, IPPROTO_TCP, TCP_CORK, &tcp_cork, MIO_SIZEOF(tcp_cork));
+			#endif
 		#endif
 
 			/* how to arrange to delete this file_state object and put the socket back to the normal waiting state??? */
@@ -843,7 +848,11 @@ int mio_svc_htts_dofile (mio_svc_htts_t* htts, mio_dev_sck_t* csck, mio_htre_t* 
 			/* normal full transfer */
 		#if defined(TCP_CORK)
 			int tcp_cork = 1;
+			#if defined(SOL_TCP)
 			mio_dev_sck_setsockopt(file_state->client->sck, SOL_TCP, TCP_CORK, &tcp_cork, MIO_SIZEOF(tcp_cork));
+			#elif defined(IPPROTO_TCP)
+			mio_dev_sck_setsockopt(file_state->client->sck, IPPROTO_TCP, TCP_CORK, &tcp_cork, MIO_SIZEOF(tcp_cork));
+			#endif
 		#endif
 
 			if (file_state_send_header_to_client(file_state, 200, 0, mime_type) <= -1 ||

@@ -36,6 +36,7 @@
 
 #include <netinet/in.h>
 #include <arpa/inet.h>
+#include <net/if.h>
 #include <netinet/if_ether.h>
 
 #if defined(HAVE_NETPACKET_PACKET_H)
