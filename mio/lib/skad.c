@@ -379,7 +379,8 @@ int mio_ucharstoskad (mio_t* mio, const mio_uch_t* str, mio_oow_t len, mio_skad_
 		return -1;
 	}
 
-	MIO_MEMSET (skad, 0, MIO_SIZEOF(*skad));
+	/* use MIO_SIZEOF(*_skad) instead of MIO_SIZEOF(*skad) in case they are different */
+	MIO_MEMSET (skad, 0, MIO_SIZEOF(*_skad)); 
 
 #if defined(AF_UNIX)
 	if (*p == '/' && len >= 2)
@@ -592,7 +593,8 @@ int mio_bcharstoskad (mio_t* mio, const mio_bch_t* str, mio_oow_t len, mio_skad_
 		return -1;
 	}
 
-	MIO_MEMSET (skad, 0, MIO_SIZEOF(*skad));
+	/* use MIO_SIZEOF(*_skad) instead of MIO_SIZEOF(*skad) in case they are different */
+	MIO_MEMSET (skad, 0, MIO_SIZEOF(*_skad));
 
 #if defined(AF_UNIX)
 	if (*p == '/' && len >= 2)
@@ -1457,7 +1459,8 @@ void mio_clear_skad (mio_skad_t* _skad)
 {
 	mio_skad_alt_t* skad = (mio_skad_alt_t*)_skad;
 	/*MIO_STATIC_ASSERT (MIO_SIZEOF(*_skad) >= MIO_SIZEOF(*skad));*/
-	MIO_MEMSET (skad, 0, MIO_SIZEOF(*skad));
+	/* use MIO_SIZEOF(*_skad) instead of MIO_SIZEOF(*skad) in case they are different */
+	MIO_MEMSET (skad, 0, MIO_SIZEOF(*_skad));
 	skad->sa.sa_family = MIO_AF_UNSPEC;
 }
 
