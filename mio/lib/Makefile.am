@@ -5,6 +5,7 @@ CPPFLAGS_ALL_COMMON = \
 	-I$(abs_srcdir) \
 	-I$(includedir)	
 
+CFLAGS_ALL_COMMON  =
 LDFLAGS_ALL_COMMON = -L$(abs_builddir) -L$(libdir)
 
 ##################################################
@@ -12,6 +13,7 @@ LDFLAGS_ALL_COMMON = -L$(abs_builddir) -L$(libdir)
 ##################################################
 
 CPPFLAGS_LIB_COMMON = $(CPPFLAGS_ALL_COMMON)
+CFLAGS_LIB_COMMON = $(CFLAGS_ALL_COMMON)
 LDFLAGS_LIB_COMMON = $(LDFLAGS_ALL_COMMON) -version-info 1:0:0 -no-undefined
 
 # $(LIBM) here for quadmath_snprintf() in libquadmath
@@ -91,7 +93,7 @@ libmio_la_SOURCES = \
 
 
 libmio_la_CPPFLAGS = $(CPPFLAGS_LIB_COMMON)
-libmio_la_CFLAGS =
+libmio_la_CFLAGS = $(CFLAGS_LIB_COMMON)
 libmio_la_LDFLAGS = $(LDFLAGS_LIB_COMMON)
 libmio_la_LIBADD = $(LIBADD_LIB_COMMON) $(SSL_LIBS) $(SOCKET_LIBS) $(SENDFILE_LIBS)
 

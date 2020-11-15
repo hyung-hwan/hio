@@ -117,44 +117,44 @@ am__v_lt_ = $(am__v_lt_@AM_DEFAULT_V@)
 am__v_lt_0 = --silent
 am__v_lt_1 = 
 mio_execd_LINK = $(LIBTOOL) $(AM_V_lt) --tag=CC $(AM_LIBTOOLFLAGS) \
-	$(LIBTOOLFLAGS) --mode=link $(CCLD) $(AM_CFLAGS) $(CFLAGS) \
-	$(mio_execd_LDFLAGS) $(LDFLAGS) -o $@
+	$(LIBTOOLFLAGS) --mode=link $(CCLD) $(mio_execd_CFLAGS) \
+	$(CFLAGS) $(mio_execd_LDFLAGS) $(LDFLAGS) -o $@
 am_mio_t01_OBJECTS = mio_t01-t01.$(OBJEXT)
 mio_t01_OBJECTS = $(am_mio_t01_OBJECTS)
 mio_t01_DEPENDENCIES = $(am__DEPENDENCIES_1)
 mio_t01_LINK = $(LIBTOOL) $(AM_V_lt) --tag=CC $(AM_LIBTOOLFLAGS) \
-	$(LIBTOOLFLAGS) --mode=link $(CCLD) $(AM_CFLAGS) $(CFLAGS) \
-	$(mio_t01_LDFLAGS) $(LDFLAGS) -o $@
+	$(LIBTOOLFLAGS) --mode=link $(CCLD) $(mio_t01_CFLAGS) \
+	$(CFLAGS) $(mio_t01_LDFLAGS) $(LDFLAGS) -o $@
 am_mio_t02_OBJECTS = mio_t02-t02.$(OBJEXT)
 mio_t02_OBJECTS = $(am_mio_t02_OBJECTS)
 mio_t02_DEPENDENCIES = $(am__DEPENDENCIES_1)
 mio_t02_LINK = $(LIBTOOL) $(AM_V_lt) --tag=CC $(AM_LIBTOOLFLAGS) \
-	$(LIBTOOLFLAGS) --mode=link $(CCLD) $(AM_CFLAGS) $(CFLAGS) \
-	$(mio_t02_LDFLAGS) $(LDFLAGS) -o $@
+	$(LIBTOOLFLAGS) --mode=link $(CCLD) $(mio_t02_CFLAGS) \
+	$(CFLAGS) $(mio_t02_LDFLAGS) $(LDFLAGS) -o $@
 am_mio_t03_OBJECTS = mio_t03-t03.$(OBJEXT)
 mio_t03_OBJECTS = $(am_mio_t03_OBJECTS)
 mio_t03_DEPENDENCIES = $(am__DEPENDENCIES_1)
 mio_t03_LINK = $(LIBTOOL) $(AM_V_lt) --tag=CC $(AM_LIBTOOLFLAGS) \
-	$(LIBTOOLFLAGS) --mode=link $(CCLD) $(AM_CFLAGS) $(CFLAGS) \
-	$(mio_t03_LDFLAGS) $(LDFLAGS) -o $@
+	$(LIBTOOLFLAGS) --mode=link $(CCLD) $(mio_t03_CFLAGS) \
+	$(CFLAGS) $(mio_t03_LDFLAGS) $(LDFLAGS) -o $@
 am_mio_t04_OBJECTS = mio_t04-t04.$(OBJEXT)
 mio_t04_OBJECTS = $(am_mio_t04_OBJECTS)
 mio_t04_DEPENDENCIES = $(am__DEPENDENCIES_1)
 mio_t04_LINK = $(LIBTOOL) $(AM_V_lt) --tag=CC $(AM_LIBTOOLFLAGS) \
-	$(LIBTOOLFLAGS) --mode=link $(CCLD) $(AM_CFLAGS) $(CFLAGS) \
-	$(mio_t04_LDFLAGS) $(LDFLAGS) -o $@
+	$(LIBTOOLFLAGS) --mode=link $(CCLD) $(mio_t04_CFLAGS) \
+	$(CFLAGS) $(mio_t04_LDFLAGS) $(LDFLAGS) -o $@
 am_mio_t05_OBJECTS = mio_t05-t05.$(OBJEXT)
 mio_t05_OBJECTS = $(am_mio_t05_OBJECTS)
 mio_t05_DEPENDENCIES = $(am__DEPENDENCIES_1)
 mio_t05_LINK = $(LIBTOOL) $(AM_V_lt) --tag=CC $(AM_LIBTOOLFLAGS) \
-	$(LIBTOOLFLAGS) --mode=link $(CCLD) $(AM_CFLAGS) $(CFLAGS) \
-	$(mio_t05_LDFLAGS) $(LDFLAGS) -o $@
+	$(LIBTOOLFLAGS) --mode=link $(CCLD) $(mio_t05_CFLAGS) \
+	$(CFLAGS) $(mio_t05_LDFLAGS) $(LDFLAGS) -o $@
 am_mio_t06_OBJECTS = mio_t06-t06.$(OBJEXT)
 mio_t06_OBJECTS = $(am_mio_t06_OBJECTS)
 mio_t06_DEPENDENCIES = $(am__DEPENDENCIES_1)
 mio_t06_LINK = $(LIBTOOL) $(AM_V_lt) --tag=CC $(AM_LIBTOOLFLAGS) \
-	$(LIBTOOLFLAGS) --mode=link $(CCLD) $(AM_CFLAGS) $(CFLAGS) \
-	$(mio_t06_LDFLAGS) $(LDFLAGS) -o $@
+	$(LIBTOOLFLAGS) --mode=link $(CCLD) $(mio_t06_CFLAGS) \
+	$(CFLAGS) $(mio_t06_LDFLAGS) $(LDFLAGS) -o $@
 AM_V_P = $(am__v_P_@AM_V@)
 am__v_P_ = $(am__v_P_@AM_DEFAULT_V@)
 am__v_P_0 = false
@@ -365,49 +365,51 @@ top_build_prefix = @top_build_prefix@
 top_builddir = @top_builddir@
 top_srcdir = @top_srcdir@
 AUTOMAKE_OPTIONS = nostdinc
-CPPFLAGS_ALL_COMMON = \
+CPPFLAGS_COMMON = \
 	-I$(abs_builddir) \
 	-I$(abs_builddir)/../lib  \
 	-I$(abs_srcdir) \
 	-I$(abs_srcdir)/../lib \
 	-I$(includedir)	
 
-LDFLAGS_ALL_COMMON = -L$(abs_builddir) -L$(abs_builddir)/../lib -L$(libdir)
-
-##################################################
-# MAIN LIBRARY 
-##################################################
-CPPFLAGS_LIB_COMMON = $(CPPFLAGS_ALL_COMMON)
-LDFLAGS_LIB_COMMON = $(LDFLAGS_ALL_COMMON) -no-undefined
-LIBADD_LIB_COMMON = -lmio
+CFLAGS_COMMON = 
+LDFLAGS_COMMON = -L$(abs_builddir)/../lib -L$(libdir)
+LIBADD_COMMON = -lmio
 mio_execd_SOURCES = execd.c
-mio_execd_CPPFLAGS = $(CPPFLAGS_LIB_COMMON)
-mio_execd_LDFLAGS = $(LDFLAGS_LIB_COMMON)
-mio_execd_LDADD = $(LIBADD_LIB_COMMON)
+mio_execd_CPPFLAGS = $(CPPFLAGS_COMMON)
+mio_execd_CFLAGS = $(CFLAGS_COMMON)
+mio_execd_LDFLAGS = $(LDFLAGS_COMMON)
+mio_execd_LDADD = $(LIBADD_COMMON)
 mio_t01_SOURCES = t01.c
-mio_t01_CPPFLAGS = $(CPPFLAGS_LIB_COMMON)
-mio_t01_LDFLAGS = $(LDFLAGS_LIB_COMMON)
-mio_t01_LDADD = $(LIBADD_LIB_COMMON) 
+mio_t01_CPPFLAGS = $(CPPFLAGS_COMMON)
+mio_t01_CFLAGS = $(CFLAGS_COMMON)
+mio_t01_LDFLAGS = $(LDFLAGS_COMMON)
+mio_t01_LDADD = $(LIBADD_COMMON) 
 mio_t02_SOURCES = t02.c
-mio_t02_CPPFLAGS = $(CPPFLAGS_LIB_COMMON)
-mio_t02_LDFLAGS = $(LDFLAGS_LIB_COMMON)
-mio_t02_LDADD = $(LIBADD_LIB_COMMON)
+mio_t02_CPPFLAGS = $(CPPFLAGS_COMMON)
+mio_t02_CFLAGS = $(CFLAGS_COMMON)
+mio_t02_LDFLAGS = $(LDFLAGS_COMMON)
+mio_t02_LDADD = $(LIBADD_COMMON)
 mio_t03_SOURCES = t03.c
-mio_t03_CPPFLAGS = $(CPPFLAGS_LIB_COMMON)
-mio_t03_LDFLAGS = $(LDFLAGS_LIB_COMMON)
-mio_t03_LDADD = $(LIBADD_LIB_COMMON)
+mio_t03_CPPFLAGS = $(CPPFLAGS_COMMON)
+mio_t03_CFLAGS = $(CFLAGS_COMMON)
+mio_t03_LDFLAGS = $(LDFLAGS_COMMON)
+mio_t03_LDADD = $(LIBADD_COMMON)
 mio_t04_SOURCES = t04.c
-mio_t04_CPPFLAGS = $(CPPFLAGS_LIB_COMMON)
-mio_t04_LDFLAGS = $(LDFLAGS_LIB_COMMON)
-mio_t04_LDADD = $(LIBADD_LIB_COMMON)
+mio_t04_CPPFLAGS = $(CPPFLAGS_COMMON)
+mio_t04_CFLAGS = $(CFLAGS_COMMON)
+mio_t04_LDFLAGS = $(LDFLAGS_COMMON)
+mio_t04_LDADD = $(LIBADD_COMMON)
 mio_t05_SOURCES = t05.c
-mio_t05_CPPFLAGS = $(CPPFLAGS_LIB_COMMON)
-mio_t05_LDFLAGS = $(LDFLAGS_LIB_COMMON)
-mio_t05_LDADD = $(LIBADD_LIB_COMMON)
+mio_t05_CPPFLAGS = $(CPPFLAGS_COMMON)
+mio_t05_CFLAGS = $(CFLAGS_COMMON)
+mio_t05_LDFLAGS = $(LDFLAGS_COMMON)
+mio_t05_LDADD = $(LIBADD_COMMON)
 mio_t06_SOURCES = t06.c
-mio_t06_CPPFLAGS = $(CPPFLAGS_LIB_COMMON)
-mio_t06_LDFLAGS = $(LDFLAGS_LIB_COMMON)
-mio_t06_LDADD = $(LIBADD_LIB_COMMON)
+mio_t06_CPPFLAGS = $(CPPFLAGS_COMMON)
+mio_t06_CFLAGS = $(CFLAGS_COMMON)
+mio_t06_LDFLAGS = $(LDFLAGS_COMMON)
+mio_t06_LDADD = $(LIBADD_COMMON)
 all: all-am
 
 .SUFFIXES:
@@ -564,102 +566,102 @@ am--depfiles: $(am__depfiles_remade)
 @am__fastdepCC_FALSE@	$(AM_V_CC@am__nodep@)$(LTCOMPILE) -c -o $@ $<
 
 mio_execd-execd.o: execd.c
-@am__fastdepCC_TRUE@	$(AM_V_CC)$(CC) $(DEFS) $(DEFAULT_INCLUDES) $(INCLUDES) $(mio_execd_CPPFLAGS) $(CPPFLAGS) $(AM_CFLAGS) $(CFLAGS) -MT mio_execd-execd.o -MD -MP -MF $(DEPDIR)/mio_execd-execd.Tpo -c -o mio_execd-execd.o `test -f 'execd.c' || echo '$(srcdir)/'`execd.c
+@am__fastdepCC_TRUE@	$(AM_V_CC)$(CC) $(DEFS) $(DEFAULT_INCLUDES) $(INCLUDES) $(mio_execd_CPPFLAGS) $(CPPFLAGS) $(mio_execd_CFLAGS) $(CFLAGS) -MT mio_execd-execd.o -MD -MP -MF $(DEPDIR)/mio_execd-execd.Tpo -c -o mio_execd-execd.o `test -f 'execd.c' || echo '$(srcdir)/'`execd.c
 @am__fastdepCC_TRUE@	$(AM_V_at)$(am__mv) $(DEPDIR)/mio_execd-execd.Tpo $(DEPDIR)/mio_execd-execd.Po
 @AMDEP_TRUE@@am__fastdepCC_FALSE@	$(AM_V_CC)source='execd.c' object='mio_execd-execd.o' libtool=no @AMDEPBACKSLASH@
 @AMDEP_TRUE@@am__fastdepCC_FALSE@	DEPDIR=$(DEPDIR) $(CCDEPMODE) $(depcomp) @AMDEPBACKSLASH@
-@am__fastdepCC_FALSE@	$(AM_V_CC@am__nodep@)$(CC) $(DEFS) $(DEFAULT_INCLUDES) $(INCLUDES) $(mio_execd_CPPFLAGS) $(CPPFLAGS) $(AM_CFLAGS) $(CFLAGS) -c -o mio_execd-execd.o `test -f 'execd.c' || echo '$(srcdir)/'`execd.c
+@am__fastdepCC_FALSE@	$(AM_V_CC@am__nodep@)$(CC) $(DEFS) $(DEFAULT_INCLUDES) $(INCLUDES) $(mio_execd_CPPFLAGS) $(CPPFLAGS) $(mio_execd_CFLAGS) $(CFLAGS) -c -o mio_execd-execd.o `test -f 'execd.c' || echo '$(srcdir)/'`execd.c
 
 mio_execd-execd.obj: execd.c
-@am__fastdepCC_TRUE@	$(AM_V_CC)$(CC) $(DEFS) $(DEFAULT_INCLUDES) $(INCLUDES) $(mio_execd_CPPFLAGS) $(CPPFLAGS) $(AM_CFLAGS) $(CFLAGS) -MT mio_execd-execd.obj -MD -MP -MF $(DEPDIR)/mio_execd-execd.Tpo -c -o mio_execd-execd.obj `if test -f 'execd.c'; then $(CYGPATH_W) 'execd.c'; else $(CYGPATH_W) '$(srcdir)/execd.c'; fi`
+@am__fastdepCC_TRUE@	$(AM_V_CC)$(CC) $(DEFS) $(DEFAULT_INCLUDES) $(INCLUDES) $(mio_execd_CPPFLAGS) $(CPPFLAGS) $(mio_execd_CFLAGS) $(CFLAGS) -MT mio_execd-execd.obj -MD -MP -MF $(DEPDIR)/mio_execd-execd.Tpo -c -o mio_execd-execd.obj `if test -f 'execd.c'; then $(CYGPATH_W) 'execd.c'; else $(CYGPATH_W) '$(srcdir)/execd.c'; fi`
 @am__fastdepCC_TRUE@	$(AM_V_at)$(am__mv) $(DEPDIR)/mio_execd-execd.Tpo $(DEPDIR)/mio_execd-execd.Po
 @AMDEP_TRUE@@am__fastdepCC_FALSE@	$(AM_V_CC)source='execd.c' object='mio_execd-execd.obj' libtool=no @AMDEPBACKSLASH@
 @AMDEP_TRUE@@am__fastdepCC_FALSE@	DEPDIR=$(DEPDIR) $(CCDEPMODE) $(depcomp) @AMDEPBACKSLASH@
-@am__fastdepCC_FALSE@	$(AM_V_CC@am__nodep@)$(CC) $(DEFS) $(DEFAULT_INCLUDES) $(INCLUDES) $(mio_execd_CPPFLAGS) $(CPPFLAGS) $(AM_CFLAGS) $(CFLAGS) -c -o mio_execd-execd.obj `if test -f 'execd.c'; then $(CYGPATH_W) 'execd.c'; else $(CYGPATH_W) '$(srcdir)/execd.c'; fi`
+@am__fastdepCC_FALSE@	$(AM_V_CC@am__nodep@)$(CC) $(DEFS) $(DEFAULT_INCLUDES) $(INCLUDES) $(mio_execd_CPPFLAGS) $(CPPFLAGS) $(mio_execd_CFLAGS) $(CFLAGS) -c -o mio_execd-execd.obj `if test -f 'execd.c'; then $(CYGPATH_W) 'execd.c'; else $(CYGPATH_W) '$(srcdir)/execd.c'; fi`
 
 mio_t01-t01.o: t01.c
-@am__fastdepCC_TRUE@	$(AM_V_CC)$(CC) $(DEFS) $(DEFAULT_INCLUDES) $(INCLUDES) $(mio_t01_CPPFLAGS) $(CPPFLAGS) $(AM_CFLAGS) $(CFLAGS) -MT mio_t01-t01.o -MD -MP -MF $(DEPDIR)/mio_t01-t01.Tpo -c -o mio_t01-t01.o `test -f 't01.c' || echo '$(srcdir)/'`t01.c
+@am__fastdepCC_TRUE@	$(AM_V_CC)$(CC) $(DEFS) $(DEFAULT_INCLUDES) $(INCLUDES) $(mio_t01_CPPFLAGS) $(CPPFLAGS) $(mio_t01_CFLAGS) $(CFLAGS) -MT mio_t01-t01.o -MD -MP -MF $(DEPDIR)/mio_t01-t01.Tpo -c -o mio_t01-t01.o `test -f 't01.c' || echo '$(srcdir)/'`t01.c
 @am__fastdepCC_TRUE@	$(AM_V_at)$(am__mv) $(DEPDIR)/mio_t01-t01.Tpo $(DEPDIR)/mio_t01-t01.Po
 @AMDEP_TRUE@@am__fastdepCC_FALSE@	$(AM_V_CC)source='t01.c' object='mio_t01-t01.o' libtool=no @AMDEPBACKSLASH@
 @AMDEP_TRUE@@am__fastdepCC_FALSE@	DEPDIR=$(DEPDIR) $(CCDEPMODE) $(depcomp) @AMDEPBACKSLASH@
-@am__fastdepCC_FALSE@	$(AM_V_CC@am__nodep@)$(CC) $(DEFS) $(DEFAULT_INCLUDES) $(INCLUDES) $(mio_t01_CPPFLAGS) $(CPPFLAGS) $(AM_CFLAGS) $(CFLAGS) -c -o mio_t01-t01.o `test -f 't01.c' || echo '$(srcdir)/'`t01.c
+@am__fastdepCC_FALSE@	$(AM_V_CC@am__nodep@)$(CC) $(DEFS) $(DEFAULT_INCLUDES) $(INCLUDES) $(mio_t01_CPPFLAGS) $(CPPFLAGS) $(mio_t01_CFLAGS) $(CFLAGS) -c -o mio_t01-t01.o `test -f 't01.c' || echo '$(srcdir)/'`t01.c
 
 mio_t01-t01.obj: t01.c
-@am__fastdepCC_TRUE@	$(AM_V_CC)$(CC) $(DEFS) $(DEFAULT_INCLUDES) $(INCLUDES) $(mio_t01_CPPFLAGS) $(CPPFLAGS) $(AM_CFLAGS) $(CFLAGS) -MT mio_t01-t01.obj -MD -MP -MF $(DEPDIR)/mio_t01-t01.Tpo -c -o mio_t01-t01.obj `if test -f 't01.c'; then $(CYGPATH_W) 't01.c'; else $(CYGPATH_W) '$(srcdir)/t01.c'; fi`
+@am__fastdepCC_TRUE@	$(AM_V_CC)$(CC) $(DEFS) $(DEFAULT_INCLUDES) $(INCLUDES) $(mio_t01_CPPFLAGS) $(CPPFLAGS) $(mio_t01_CFLAGS) $(CFLAGS) -MT mio_t01-t01.obj -MD -MP -MF $(DEPDIR)/mio_t01-t01.Tpo -c -o mio_t01-t01.obj `if test -f 't01.c'; then $(CYGPATH_W) 't01.c'; else $(CYGPATH_W) '$(srcdir)/t01.c'; fi`
 @am__fastdepCC_TRUE@	$(AM_V_at)$(am__mv) $(DEPDIR)/mio_t01-t01.Tpo $(DEPDIR)/mio_t01-t01.Po
 @AMDEP_TRUE@@am__fastdepCC_FALSE@	$(AM_V_CC)source='t01.c' object='mio_t01-t01.obj' libtool=no @AMDEPBACKSLASH@
 @AMDEP_TRUE@@am__fastdepCC_FALSE@	DEPDIR=$(DEPDIR) $(CCDEPMODE) $(depcomp) @AMDEPBACKSLASH@
-@am__fastdepCC_FALSE@	$(AM_V_CC@am__nodep@)$(CC) $(DEFS) $(DEFAULT_INCLUDES) $(INCLUDES) $(mio_t01_CPPFLAGS) $(CPPFLAGS) $(AM_CFLAGS) $(CFLAGS) -c -o mio_t01-t01.obj `if test -f 't01.c'; then $(CYGPATH_W) 't01.c'; else $(CYGPATH_W) '$(srcdir)/t01.c'; fi`
+@am__fastdepCC_FALSE@	$(AM_V_CC@am__nodep@)$(CC) $(DEFS) $(DEFAULT_INCLUDES) $(INCLUDES) $(mio_t01_CPPFLAGS) $(CPPFLAGS) $(mio_t01_CFLAGS) $(CFLAGS) -c -o mio_t01-t01.obj `if test -f 't01.c'; then $(CYGPATH_W) 't01.c'; else $(CYGPATH_W) '$(srcdir)/t01.c'; fi`
 
 mio_t02-t02.o: t02.c
-@am__fastdepCC_TRUE@	$(AM_V_CC)$(CC) $(DEFS) $(DEFAULT_INCLUDES) $(INCLUDES) $(mio_t02_CPPFLAGS) $(CPPFLAGS) $(AM_CFLAGS) $(CFLAGS) -MT mio_t02-t02.o -MD -MP -MF $(DEPDIR)/mio_t02-t02.Tpo -c -o mio_t02-t02.o `test -f 't02.c' || echo '$(srcdir)/'`t02.c
+@am__fastdepCC_TRUE@	$(AM_V_CC)$(CC) $(DEFS) $(DEFAULT_INCLUDES) $(INCLUDES) $(mio_t02_CPPFLAGS) $(CPPFLAGS) $(mio_t02_CFLAGS) $(CFLAGS) -MT mio_t02-t02.o -MD -MP -MF $(DEPDIR)/mio_t02-t02.Tpo -c -o mio_t02-t02.o `test -f 't02.c' || echo '$(srcdir)/'`t02.c
 @am__fastdepCC_TRUE@	$(AM_V_at)$(am__mv) $(DEPDIR)/mio_t02-t02.Tpo $(DEPDIR)/mio_t02-t02.Po
 @AMDEP_TRUE@@am__fastdepCC_FALSE@	$(AM_V_CC)source='t02.c' object='mio_t02-t02.o' libtool=no @AMDEPBACKSLASH@
 @AMDEP_TRUE@@am__fastdepCC_FALSE@	DEPDIR=$(DEPDIR) $(CCDEPMODE) $(depcomp) @AMDEPBACKSLASH@
-@am__fastdepCC_FALSE@	$(AM_V_CC@am__nodep@)$(CC) $(DEFS) $(DEFAULT_INCLUDES) $(INCLUDES) $(mio_t02_CPPFLAGS) $(CPPFLAGS) $(AM_CFLAGS) $(CFLAGS) -c -o mio_t02-t02.o `test -f 't02.c' || echo '$(srcdir)/'`t02.c
+@am__fastdepCC_FALSE@	$(AM_V_CC@am__nodep@)$(CC) $(DEFS) $(DEFAULT_INCLUDES) $(INCLUDES) $(mio_t02_CPPFLAGS) $(CPPFLAGS) $(mio_t02_CFLAGS) $(CFLAGS) -c -o mio_t02-t02.o `test -f 't02.c' || echo '$(srcdir)/'`t02.c
 
 mio_t02-t02.obj: t02.c
-@am__fastdepCC_TRUE@	$(AM_V_CC)$(CC) $(DEFS) $(DEFAULT_INCLUDES) $(INCLUDES) $(mio_t02_CPPFLAGS) $(CPPFLAGS) $(AM_CFLAGS) $(CFLAGS) -MT mio_t02-t02.obj -MD -MP -MF $(DEPDIR)/mio_t02-t02.Tpo -c -o mio_t02-t02.obj `if test -f 't02.c'; then $(CYGPATH_W) 't02.c'; else $(CYGPATH_W) '$(srcdir)/t02.c'; fi`
+@am__fastdepCC_TRUE@	$(AM_V_CC)$(CC) $(DEFS) $(DEFAULT_INCLUDES) $(INCLUDES) $(mio_t02_CPPFLAGS) $(CPPFLAGS) $(mio_t02_CFLAGS) $(CFLAGS) -MT mio_t02-t02.obj -MD -MP -MF $(DEPDIR)/mio_t02-t02.Tpo -c -o mio_t02-t02.obj `if test -f 't02.c'; then $(CYGPATH_W) 't02.c'; else $(CYGPATH_W) '$(srcdir)/t02.c'; fi`
 @am__fastdepCC_TRUE@	$(AM_V_at)$(am__mv) $(DEPDIR)/mio_t02-t02.Tpo $(DEPDIR)/mio_t02-t02.Po
 @AMDEP_TRUE@@am__fastdepCC_FALSE@	$(AM_V_CC)source='t02.c' object='mio_t02-t02.obj' libtool=no @AMDEPBACKSLASH@
 @AMDEP_TRUE@@am__fastdepCC_FALSE@	DEPDIR=$(DEPDIR) $(CCDEPMODE) $(depcomp) @AMDEPBACKSLASH@
-@am__fastdepCC_FALSE@	$(AM_V_CC@am__nodep@)$(CC) $(DEFS) $(DEFAULT_INCLUDES) $(INCLUDES) $(mio_t02_CPPFLAGS) $(CPPFLAGS) $(AM_CFLAGS) $(CFLAGS) -c -o mio_t02-t02.obj `if test -f 't02.c'; then $(CYGPATH_W) 't02.c'; else $(CYGPATH_W) '$(srcdir)/t02.c'; fi`
+@am__fastdepCC_FALSE@	$(AM_V_CC@am__nodep@)$(CC) $(DEFS) $(DEFAULT_INCLUDES) $(INCLUDES) $(mio_t02_CPPFLAGS) $(CPPFLAGS) $(mio_t02_CFLAGS) $(CFLAGS) -c -o mio_t02-t02.obj `if test -f 't02.c'; then $(CYGPATH_W) 't02.c'; else $(CYGPATH_W) '$(srcdir)/t02.c'; fi`
 
 mio_t03-t03.o: t03.c
-@am__fastdepCC_TRUE@	$(AM_V_CC)$(CC) $(DEFS) $(DEFAULT_INCLUDES) $(INCLUDES) $(mio_t03_CPPFLAGS) $(CPPFLAGS) $(AM_CFLAGS) $(CFLAGS) -MT mio_t03-t03.o -MD -MP -MF $(DEPDIR)/mio_t03-t03.Tpo -c -o mio_t03-t03.o `test -f 't03.c' || echo '$(srcdir)/'`t03.c
+@am__fastdepCC_TRUE@	$(AM_V_CC)$(CC) $(DEFS) $(DEFAULT_INCLUDES) $(INCLUDES) $(mio_t03_CPPFLAGS) $(CPPFLAGS) $(mio_t03_CFLAGS) $(CFLAGS) -MT mio_t03-t03.o -MD -MP -MF $(DEPDIR)/mio_t03-t03.Tpo -c -o mio_t03-t03.o `test -f 't03.c' || echo '$(srcdir)/'`t03.c
 @am__fastdepCC_TRUE@	$(AM_V_at)$(am__mv) $(DEPDIR)/mio_t03-t03.Tpo $(DEPDIR)/mio_t03-t03.Po
 @AMDEP_TRUE@@am__fastdepCC_FALSE@	$(AM_V_CC)source='t03.c' object='mio_t03-t03.o' libtool=no @AMDEPBACKSLASH@
 @AMDEP_TRUE@@am__fastdepCC_FALSE@	DEPDIR=$(DEPDIR) $(CCDEPMODE) $(depcomp) @AMDEPBACKSLASH@
-@am__fastdepCC_FALSE@	$(AM_V_CC@am__nodep@)$(CC) $(DEFS) $(DEFAULT_INCLUDES) $(INCLUDES) $(mio_t03_CPPFLAGS) $(CPPFLAGS) $(AM_CFLAGS) $(CFLAGS) -c -o mio_t03-t03.o `test -f 't03.c' || echo '$(srcdir)/'`t03.c
+@am__fastdepCC_FALSE@	$(AM_V_CC@am__nodep@)$(CC) $(DEFS) $(DEFAULT_INCLUDES) $(INCLUDES) $(mio_t03_CPPFLAGS) $(CPPFLAGS) $(mio_t03_CFLAGS) $(CFLAGS) -c -o mio_t03-t03.o `test -f 't03.c' || echo '$(srcdir)/'`t03.c
 
 mio_t03-t03.obj: t03.c
-@am__fastdepCC_TRUE@	$(AM_V_CC)$(CC) $(DEFS) $(DEFAULT_INCLUDES) $(INCLUDES) $(mio_t03_CPPFLAGS) $(CPPFLAGS) $(AM_CFLAGS) $(CFLAGS) -MT mio_t03-t03.obj -MD -MP -MF $(DEPDIR)/mio_t03-t03.Tpo -c -o mio_t03-t03.obj `if test -f 't03.c'; then $(CYGPATH_W) 't03.c'; else $(CYGPATH_W) '$(srcdir)/t03.c'; fi`
+@am__fastdepCC_TRUE@	$(AM_V_CC)$(CC) $(DEFS) $(DEFAULT_INCLUDES) $(INCLUDES) $(mio_t03_CPPFLAGS) $(CPPFLAGS) $(mio_t03_CFLAGS) $(CFLAGS) -MT mio_t03-t03.obj -MD -MP -MF $(DEPDIR)/mio_t03-t03.Tpo -c -o mio_t03-t03.obj `if test -f 't03.c'; then $(CYGPATH_W) 't03.c'; else $(CYGPATH_W) '$(srcdir)/t03.c'; fi`
 @am__fastdepCC_TRUE@	$(AM_V_at)$(am__mv) $(DEPDIR)/mio_t03-t03.Tpo $(DEPDIR)/mio_t03-t03.Po
 @AMDEP_TRUE@@am__fastdepCC_FALSE@	$(AM_V_CC)source='t03.c' object='mio_t03-t03.obj' libtool=no @AMDEPBACKSLASH@
 @AMDEP_TRUE@@am__fastdepCC_FALSE@	DEPDIR=$(DEPDIR) $(CCDEPMODE) $(depcomp) @AMDEPBACKSLASH@
-@am__fastdepCC_FALSE@	$(AM_V_CC@am__nodep@)$(CC) $(DEFS) $(DEFAULT_INCLUDES) $(INCLUDES) $(mio_t03_CPPFLAGS) $(CPPFLAGS) $(AM_CFLAGS) $(CFLAGS) -c -o mio_t03-t03.obj `if test -f 't03.c'; then $(CYGPATH_W) 't03.c'; else $(CYGPATH_W) '$(srcdir)/t03.c'; fi`
+@am__fastdepCC_FALSE@	$(AM_V_CC@am__nodep@)$(CC) $(DEFS) $(DEFAULT_INCLUDES) $(INCLUDES) $(mio_t03_CPPFLAGS) $(CPPFLAGS) $(mio_t03_CFLAGS) $(CFLAGS) -c -o mio_t03-t03.obj `if test -f 't03.c'; then $(CYGPATH_W) 't03.c'; else $(CYGPATH_W) '$(srcdir)/t03.c'; fi`
 
 mio_t04-t04.o: t04.c
-@am__fastdepCC_TRUE@	$(AM_V_CC)$(CC) $(DEFS) $(DEFAULT_INCLUDES) $(INCLUDES) $(mio_t04_CPPFLAGS) $(CPPFLAGS) $(AM_CFLAGS) $(CFLAGS) -MT mio_t04-t04.o -MD -MP -MF $(DEPDIR)/mio_t04-t04.Tpo -c -o mio_t04-t04.o `test -f 't04.c' || echo '$(srcdir)/'`t04.c
+@am__fastdepCC_TRUE@	$(AM_V_CC)$(CC) $(DEFS) $(DEFAULT_INCLUDES) $(INCLUDES) $(mio_t04_CPPFLAGS) $(CPPFLAGS) $(mio_t04_CFLAGS) $(CFLAGS) -MT mio_t04-t04.o -MD -MP -MF $(DEPDIR)/mio_t04-t04.Tpo -c -o mio_t04-t04.o `test -f 't04.c' || echo '$(srcdir)/'`t04.c
 @am__fastdepCC_TRUE@	$(AM_V_at)$(am__mv) $(DEPDIR)/mio_t04-t04.Tpo $(DEPDIR)/mio_t04-t04.Po
 @AMDEP_TRUE@@am__fastdepCC_FALSE@	$(AM_V_CC)source='t04.c' object='mio_t04-t04.o' libtool=no @AMDEPBACKSLASH@
 @AMDEP_TRUE@@am__fastdepCC_FALSE@	DEPDIR=$(DEPDIR) $(CCDEPMODE) $(depcomp) @AMDEPBACKSLASH@
-@am__fastdepCC_FALSE@	$(AM_V_CC@am__nodep@)$(CC) $(DEFS) $(DEFAULT_INCLUDES) $(INCLUDES) $(mio_t04_CPPFLAGS) $(CPPFLAGS) $(AM_CFLAGS) $(CFLAGS) -c -o mio_t04-t04.o `test -f 't04.c' || echo '$(srcdir)/'`t04.c
+@am__fastdepCC_FALSE@	$(AM_V_CC@am__nodep@)$(CC) $(DEFS) $(DEFAULT_INCLUDES) $(INCLUDES) $(mio_t04_CPPFLAGS) $(CPPFLAGS) $(mio_t04_CFLAGS) $(CFLAGS) -c -o mio_t04-t04.o `test -f 't04.c' || echo '$(srcdir)/'`t04.c
 
 mio_t04-t04.obj: t04.c
-@am__fastdepCC_TRUE@	$(AM_V_CC)$(CC) $(DEFS) $(DEFAULT_INCLUDES) $(INCLUDES) $(mio_t04_CPPFLAGS) $(CPPFLAGS) $(AM_CFLAGS) $(CFLAGS) -MT mio_t04-t04.obj -MD -MP -MF $(DEPDIR)/mio_t04-t04.Tpo -c -o mio_t04-t04.obj `if test -f 't04.c'; then $(CYGPATH_W) 't04.c'; else $(CYGPATH_W) '$(srcdir)/t04.c'; fi`
+@am__fastdepCC_TRUE@	$(AM_V_CC)$(CC) $(DEFS) $(DEFAULT_INCLUDES) $(INCLUDES) $(mio_t04_CPPFLAGS) $(CPPFLAGS) $(mio_t04_CFLAGS) $(CFLAGS) -MT mio_t04-t04.obj -MD -MP -MF $(DEPDIR)/mio_t04-t04.Tpo -c -o mio_t04-t04.obj `if test -f 't04.c'; then $(CYGPATH_W) 't04.c'; else $(CYGPATH_W) '$(srcdir)/t04.c'; fi`
 @am__fastdepCC_TRUE@	$(AM_V_at)$(am__mv) $(DEPDIR)/mio_t04-t04.Tpo $(DEPDIR)/mio_t04-t04.Po
 @AMDEP_TRUE@@am__fastdepCC_FALSE@	$(AM_V_CC)source='t04.c' object='mio_t04-t04.obj' libtool=no @AMDEPBACKSLASH@
 @AMDEP_TRUE@@am__fastdepCC_FALSE@	DEPDIR=$(DEPDIR) $(CCDEPMODE) $(depcomp) @AMDEPBACKSLASH@
-@am__fastdepCC_FALSE@	$(AM_V_CC@am__nodep@)$(CC) $(DEFS) $(DEFAULT_INCLUDES) $(INCLUDES) $(mio_t04_CPPFLAGS) $(CPPFLAGS) $(AM_CFLAGS) $(CFLAGS) -c -o mio_t04-t04.obj `if test -f 't04.c'; then $(CYGPATH_W) 't04.c'; else $(CYGPATH_W) '$(srcdir)/t04.c'; fi`
+@am__fastdepCC_FALSE@	$(AM_V_CC@am__nodep@)$(CC) $(DEFS) $(DEFAULT_INCLUDES) $(INCLUDES) $(mio_t04_CPPFLAGS) $(CPPFLAGS) $(mio_t04_CFLAGS) $(CFLAGS) -c -o mio_t04-t04.obj `if test -f 't04.c'; then $(CYGPATH_W) 't04.c'; else $(CYGPATH_W) '$(srcdir)/t04.c'; fi`
 
 mio_t05-t05.o: t05.c
-@am__fastdepCC_TRUE@	$(AM_V_CC)$(CC) $(DEFS) $(DEFAULT_INCLUDES) $(INCLUDES) $(mio_t05_CPPFLAGS) $(CPPFLAGS) $(AM_CFLAGS) $(CFLAGS) -MT mio_t05-t05.o -MD -MP -MF $(DEPDIR)/mio_t05-t05.Tpo -c -o mio_t05-t05.o `test -f 't05.c' || echo '$(srcdir)/'`t05.c
+@am__fastdepCC_TRUE@	$(AM_V_CC)$(CC) $(DEFS) $(DEFAULT_INCLUDES) $(INCLUDES) $(mio_t05_CPPFLAGS) $(CPPFLAGS) $(mio_t05_CFLAGS) $(CFLAGS) -MT mio_t05-t05.o -MD -MP -MF $(DEPDIR)/mio_t05-t05.Tpo -c -o mio_t05-t05.o `test -f 't05.c' || echo '$(srcdir)/'`t05.c
 @am__fastdepCC_TRUE@	$(AM_V_at)$(am__mv) $(DEPDIR)/mio_t05-t05.Tpo $(DEPDIR)/mio_t05-t05.Po
 @AMDEP_TRUE@@am__fastdepCC_FALSE@	$(AM_V_CC)source='t05.c' object='mio_t05-t05.o' libtool=no @AMDEPBACKSLASH@
 @AMDEP_TRUE@@am__fastdepCC_FALSE@	DEPDIR=$(DEPDIR) $(CCDEPMODE) $(depcomp) @AMDEPBACKSLASH@
-@am__fastdepCC_FALSE@	$(AM_V_CC@am__nodep@)$(CC) $(DEFS) $(DEFAULT_INCLUDES) $(INCLUDES) $(mio_t05_CPPFLAGS) $(CPPFLAGS) $(AM_CFLAGS) $(CFLAGS) -c -o mio_t05-t05.o `test -f 't05.c' || echo '$(srcdir)/'`t05.c
+@am__fastdepCC_FALSE@	$(AM_V_CC@am__nodep@)$(CC) $(DEFS) $(DEFAULT_INCLUDES) $(INCLUDES) $(mio_t05_CPPFLAGS) $(CPPFLAGS) $(mio_t05_CFLAGS) $(CFLAGS) -c -o mio_t05-t05.o `test -f 't05.c' || echo '$(srcdir)/'`t05.c
 
 mio_t05-t05.obj: t05.c
-@am__fastdepCC_TRUE@	$(AM_V_CC)$(CC) $(DEFS) $(DEFAULT_INCLUDES) $(INCLUDES) $(mio_t05_CPPFLAGS) $(CPPFLAGS) $(AM_CFLAGS) $(CFLAGS) -MT mio_t05-t05.obj -MD -MP -MF $(DEPDIR)/mio_t05-t05.Tpo -c -o mio_t05-t05.obj `if test -f 't05.c'; then $(CYGPATH_W) 't05.c'; else $(CYGPATH_W) '$(srcdir)/t05.c'; fi`
+@am__fastdepCC_TRUE@	$(AM_V_CC)$(CC) $(DEFS) $(DEFAULT_INCLUDES) $(INCLUDES) $(mio_t05_CPPFLAGS) $(CPPFLAGS) $(mio_t05_CFLAGS) $(CFLAGS) -MT mio_t05-t05.obj -MD -MP -MF $(DEPDIR)/mio_t05-t05.Tpo -c -o mio_t05-t05.obj `if test -f 't05.c'; then $(CYGPATH_W) 't05.c'; else $(CYGPATH_W) '$(srcdir)/t05.c'; fi`
 @am__fastdepCC_TRUE@	$(AM_V_at)$(am__mv) $(DEPDIR)/mio_t05-t05.Tpo $(DEPDIR)/mio_t05-t05.Po
 @AMDEP_TRUE@@am__fastdepCC_FALSE@	$(AM_V_CC)source='t05.c' object='mio_t05-t05.obj' libtool=no @AMDEPBACKSLASH@
 @AMDEP_TRUE@@am__fastdepCC_FALSE@	DEPDIR=$(DEPDIR) $(CCDEPMODE) $(depcomp) @AMDEPBACKSLASH@
-@am__fastdepCC_FALSE@	$(AM_V_CC@am__nodep@)$(CC) $(DEFS) $(DEFAULT_INCLUDES) $(INCLUDES) $(mio_t05_CPPFLAGS) $(CPPFLAGS) $(AM_CFLAGS) $(CFLAGS) -c -o mio_t05-t05.obj `if test -f 't05.c'; then $(CYGPATH_W) 't05.c'; else $(CYGPATH_W) '$(srcdir)/t05.c'; fi`
+@am__fastdepCC_FALSE@	$(AM_V_CC@am__nodep@)$(CC) $(DEFS) $(DEFAULT_INCLUDES) $(INCLUDES) $(mio_t05_CPPFLAGS) $(CPPFLAGS) $(mio_t05_CFLAGS) $(CFLAGS) -c -o mio_t05-t05.obj `if test -f 't05.c'; then $(CYGPATH_W) 't05.c'; else $(CYGPATH_W) '$(srcdir)/t05.c'; fi`
 
 mio_t06-t06.o: t06.c
-@am__fastdepCC_TRUE@	$(AM_V_CC)$(CC) $(DEFS) $(DEFAULT_INCLUDES) $(INCLUDES) $(mio_t06_CPPFLAGS) $(CPPFLAGS) $(AM_CFLAGS) $(CFLAGS) -MT mio_t06-t06.o -MD -MP -MF $(DEPDIR)/mio_t06-t06.Tpo -c -o mio_t06-t06.o `test -f 't06.c' || echo '$(srcdir)/'`t06.c
+@am__fastdepCC_TRUE@	$(AM_V_CC)$(CC) $(DEFS) $(DEFAULT_INCLUDES) $(INCLUDES) $(mio_t06_CPPFLAGS) $(CPPFLAGS) $(mio_t06_CFLAGS) $(CFLAGS) -MT mio_t06-t06.o -MD -MP -MF $(DEPDIR)/mio_t06-t06.Tpo -c -o mio_t06-t06.o `test -f 't06.c' || echo '$(srcdir)/'`t06.c
 @am__fastdepCC_TRUE@	$(AM_V_at)$(am__mv) $(DEPDIR)/mio_t06-t06.Tpo $(DEPDIR)/mio_t06-t06.Po
 @AMDEP_TRUE@@am__fastdepCC_FALSE@	$(AM_V_CC)source='t06.c' object='mio_t06-t06.o' libtool=no @AMDEPBACKSLASH@
 @AMDEP_TRUE@@am__fastdepCC_FALSE@	DEPDIR=$(DEPDIR) $(CCDEPMODE) $(depcomp) @AMDEPBACKSLASH@
-@am__fastdepCC_FALSE@	$(AM_V_CC@am__nodep@)$(CC) $(DEFS) $(DEFAULT_INCLUDES) $(INCLUDES) $(mio_t06_CPPFLAGS) $(CPPFLAGS) $(AM_CFLAGS) $(CFLAGS) -c -o mio_t06-t06.o `test -f 't06.c' || echo '$(srcdir)/'`t06.c
+@am__fastdepCC_FALSE@	$(AM_V_CC@am__nodep@)$(CC) $(DEFS) $(DEFAULT_INCLUDES) $(INCLUDES) $(mio_t06_CPPFLAGS) $(CPPFLAGS) $(mio_t06_CFLAGS) $(CFLAGS) -c -o mio_t06-t06.o `test -f 't06.c' || echo '$(srcdir)/'`t06.c
 
 mio_t06-t06.obj: t06.c
-@am__fastdepCC_TRUE@	$(AM_V_CC)$(CC) $(DEFS) $(DEFAULT_INCLUDES) $(INCLUDES) $(mio_t06_CPPFLAGS) $(CPPFLAGS) $(AM_CFLAGS) $(CFLAGS) -MT mio_t06-t06.obj -MD -MP -MF $(DEPDIR)/mio_t06-t06.Tpo -c -o mio_t06-t06.obj `if test -f 't06.c'; then $(CYGPATH_W) 't06.c'; else $(CYGPATH_W) '$(srcdir)/t06.c'; fi`
+@am__fastdepCC_TRUE@	$(AM_V_CC)$(CC) $(DEFS) $(DEFAULT_INCLUDES) $(INCLUDES) $(mio_t06_CPPFLAGS) $(CPPFLAGS) $(mio_t06_CFLAGS) $(CFLAGS) -MT mio_t06-t06.obj -MD -MP -MF $(DEPDIR)/mio_t06-t06.Tpo -c -o mio_t06-t06.obj `if test -f 't06.c'; then $(CYGPATH_W) 't06.c'; else $(CYGPATH_W) '$(srcdir)/t06.c'; fi`
 @am__fastdepCC_TRUE@	$(AM_V_at)$(am__mv) $(DEPDIR)/mio_t06-t06.Tpo $(DEPDIR)/mio_t06-t06.Po
 @AMDEP_TRUE@@am__fastdepCC_FALSE@	$(AM_V_CC)source='t06.c' object='mio_t06-t06.obj' libtool=no @AMDEPBACKSLASH@
 @AMDEP_TRUE@@am__fastdepCC_FALSE@	DEPDIR=$(DEPDIR) $(CCDEPMODE) $(depcomp) @AMDEPBACKSLASH@
-@am__fastdepCC_FALSE@	$(AM_V_CC@am__nodep@)$(CC) $(DEFS) $(DEFAULT_INCLUDES) $(INCLUDES) $(mio_t06_CPPFLAGS) $(CPPFLAGS) $(AM_CFLAGS) $(CFLAGS) -c -o mio_t06-t06.obj `if test -f 't06.c'; then $(CYGPATH_W) 't06.c'; else $(CYGPATH_W) '$(srcdir)/t06.c'; fi`
+@am__fastdepCC_FALSE@	$(AM_V_CC@am__nodep@)$(CC) $(DEFS) $(DEFAULT_INCLUDES) $(INCLUDES) $(mio_t06_CPPFLAGS) $(CPPFLAGS) $(mio_t06_CFLAGS) $(CFLAGS) -c -o mio_t06-t06.obj `if test -f 't06.c'; then $(CYGPATH_W) 't06.c'; else $(CYGPATH_W) '$(srcdir)/t06.c'; fi`
 
 mostlyclean-libtool:
 	-rm -f *.lo
