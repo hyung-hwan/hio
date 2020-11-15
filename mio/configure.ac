@@ -663,15 +663,6 @@ then
 			QUADMATH_LIBS="$LIBM"
 		fi
 	fi
-
-	if test ${ac_cv_sizeof___float128} -gt 0
-	then
-		OLDLIBS="$LIBS"
-		LIBS="$LIBM $LIBS"
-		AC_CHECK_FUNCS([powq fmodq sinq cosq tanq sinhq coshq tanhq asinq acosq atanq atan2q logq log10q expq sqrtq ceilq floorq roundq])
-		AC_CHECK_FUNCS([strtoflt128])
-		LIBS="$OLDLIBS"
-	fi
 fi
 AC_SUBST(QUADMATH_LIBS)
 

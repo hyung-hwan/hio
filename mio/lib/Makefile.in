@@ -149,11 +149,11 @@ libmio_la_DEPENDENCIES = $(am__DEPENDENCIES_2) $(am__DEPENDENCIES_1) \
 	$(am__DEPENDENCIES_3) $(am__DEPENDENCIES_4)
 am__libmio_la_SOURCES_DIST = chr.c dns.c dns-cli.c ecs.c ecs-imp.h \
 	err.c fmt.c fmt-imp.h htb.c htrd.c htre.c http.c http-cgi.c \
-	http-fil.c http-svr.c http-thr.c http-txt.c json.c mio-prv.h \
-	mio.c nwif.c path.c pipe.c pro.c sck.c skad.c sys.c sys-ass.c \
-	sys-err.c sys-log.c sys-mux.c sys-prv.h sys-tim.c thr.c \
-	uch-case.h uch-prop.h tmr.c utf8.c utl.c utl-siph.c mar.c \
-	mar-cli.c
+	http-fil.c http-prv.h http-svr.c http-thr.c http-txt.c json.c \
+	mio-prv.h mio.c nwif.c path.c pipe.c pro.c sck.c skad.c sys.c \
+	sys-ass.c sys-err.c sys-log.c sys-mux.c sys-prv.h sys-tim.c \
+	thr.c uch-case.h uch-prop.h tmr.c utf8.c utl.c utl-siph.c \
+	mar.c mar-cli.c
 @ENABLE_MARIADB_TRUE@am__objects_1 = libmio_la-mar.lo \
 @ENABLE_MARIADB_TRUE@	libmio_la-mar-cli.lo
 am_libmio_la_OBJECTS = libmio_la-chr.lo libmio_la-dns.lo \
@@ -443,10 +443,11 @@ include_HEADERS = mio-cfg.h mio-chr.h mio-cmn.h mio-dns.h mio-ecs.h \
 lib_LTLIBRARIES = libmio.la
 libmio_la_SOURCES = chr.c dns.c dns-cli.c ecs.c ecs-imp.h err.c fmt.c \
 	fmt-imp.h htb.c htrd.c htre.c http.c http-cgi.c http-fil.c \
-	http-svr.c http-thr.c http-txt.c json.c mio-prv.h mio.c nwif.c \
-	path.c pipe.c pro.c sck.c skad.c sys.c sys-ass.c sys-err.c \
-	sys-log.c sys-mux.c sys-prv.h sys-tim.c thr.c uch-case.h \
-	uch-prop.h tmr.c utf8.c utl.c utl-siph.c $(am__append_2)
+	http-prv.h http-svr.c http-thr.c http-txt.c json.c mio-prv.h \
+	mio.c nwif.c path.c pipe.c pro.c sck.c skad.c sys.c sys-ass.c \
+	sys-err.c sys-log.c sys-mux.c sys-prv.h sys-tim.c thr.c \
+	uch-case.h uch-prop.h tmr.c utf8.c utl.c utl-siph.c \
+	$(am__append_2)
 libmio_la_CPPFLAGS = $(CPPFLAGS_LIB_COMMON)
 libmio_la_CFLAGS = $(CFLAGS_LIB_COMMON) $(am__append_3)
 libmio_la_LDFLAGS = $(LDFLAGS_LIB_COMMON) $(am__append_4)
