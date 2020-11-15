@@ -68,7 +68,8 @@
 #include "mio-prv.h"
 
 
-#if 0
+#if defined(MIO_ENABLE_FLTFMT)
+
 #include <stdio.h> /* for snrintf(). used for floating-point number formatting */
 #if defined(_MSC_VER) || defined(__BORLANDC__) || (defined(__WATCOMC__) && (__WATCOMC__ < 1200))
 #	define snprintf _snprintf 
@@ -79,6 +80,7 @@
 #if defined(HAVE_QUADMATH_H)
 #	include <quadmath.h> /* for quadmath_snprintf() */
 #endif
+
 #endif
 
 /* Max number conversion buffer length: 
@@ -287,10 +289,25 @@ static int fmt_outv (mio_fmtout_t* fmtout, va_list ap)
 	mio_bch_t nbuf[MAXNBUF];
 	const mio_bch_t* nbufp;
 	int stop = 0;
-#if 0
-	mio_bchbuf_t* fltfmt;
-	mio_oochbuf_t* fltout;
+
+#if defined(MIO_ENABLE_FLTFMT)
+	struct
+	{
+		struct
+		{
+			mio_bch_t  sbuf[32];
+			mio_bch_t* ptr;
+			mio_oow_t  capa;
+		} fmt;
+		struct
+		{
+			mio_bch_t  sbuf[64];
+			mio_bch_t* ptr;
+			mio_oow_t  capa;
+		} out;
+	} fb; /* some buffers for handling float-point number formatting */
 #endif
+
 	mio_bch_t* (*sprintn) (mio_bch_t* nbuf, mio_uintmax_t num, int base, mio_ooi_t* lenp);
 
 	fmtptr = (const mio_uint8_t*)fmtout->fmt_str;
@@ -306,16 +323,11 @@ static int fmt_outv (mio_fmtout_t* fmtout, va_list ap)
 
 	/* this is an internal function. it doesn't reset count to 0 */
 	/* fmtout->count = 0; */
-
-#if 0
-	fltfmt = &mio->d->fltfmt;
-	fltout = &mio->d->fltout;
-
-	fltfmt->ptr  = fltfmt->buf;
-	fltfmt->capa = MIO_COUNTOF(fltfmt->buf) - 1;
-
-	fltout->ptr  = fltout->buf;
-	fltout->capa = MIO_COUNTOF(fltout->buf) - 1;
+#if defined(MIO_ENABLE_FLTFMT)
+	fb.fmt.ptr = fb.fmt.sbuf;
+	fb.fmt.capa = MIO_COUNTOF(fb.fmt.sbuf) - 1;
+	fb.out.ptr = fb.out.sbuf;
+	fb.out.capa = MIO_COUNTOF(fb.out.sbuf) - 1;
 #endif
 
 	while (1)
@@ -429,7 +441,6 @@ static int fmt_outv (mio_fmtout_t* fmtout, va_list ap)
 					flagc &= ~FLAGC_ZEROPAD;
 				}
 			}
-			
 			goto reswitch;
 
 		case '*': /* take the length from the parameter */
@@ -515,7 +526,7 @@ static int fmt_outv (mio_fmtout_t* fmtout, va_list ap)
 		case 'q': /* long long int */
 		case 'j': /* mio_intmax_t/mio_uintmax_t */
 		case 'z': /* mio_ooi_t/mio_oow_t */
-		case 't': /* ptrdiff_t */
+		case 't': /* ptrdiff_t - usually mio_intptr_t */
 			if (lm_flag & (LF_LD | LF_QD)) goto invalid_format;
 
 			flagc |= FLAGC_LENMOD;
@@ -874,6 +885,13 @@ static int fmt_outv (mio_fmtout_t* fmtout, va_list ap)
 		}
 
 #if 0
+		case 'O': /* object - ignore precision, width, adjustment */
+			if (!fmtout->putobj) goto invalid_format;
+			if (fmtout->putobj(fmtout, va_arg(ap, mio_oop_t)) <= -1) goto oops;
+			break;
+#endif
+
+#if defined(MIO_ENABLE_FLTFMT)
 		case 'e':
 		case 'E':
 		case 'f':
@@ -888,23 +906,27 @@ static int fmt_outv (mio_fmtout_t* fmtout, va_list ap)
 			/* let me rely on snprintf until i implement float-point to string conversion */
 			int q;
 			mio_oow_t fmtlen;
-		#if (MIO_SIZEOF___FLOAT128 > 0) && defined(HAVE_QUADMATH_SNPRINTF)
-			__float128 v_qd;
-		#endif
-			long double v_ld;
-			double v_d;
+			union
+			{
+			#if (MIO_SIZEOF___FLOAT128 > 0) && defined(HAVE_QUADMATH_SNPRINTF)
+				__float128 qd;
+			#endif
+				long double ld;
+				double d;
+			} v;
 			int dtype = 0;
 			mio_oow_t newcapa;
+			mio_bch_t* bsp;
 
 			if (lm_flag & LF_J)
 			{
 			#if (MIO_SIZEOF___FLOAT128 > 0) && defined(HAVE_QUADMATH_SNPRINTF) && (MIO_SIZEOF_FLTMAX_T == MIO_SIZEOF___FLOAT128)
-				v_qd = va_arg (ap, mio_fltmax_t);
+				v.qd = va_arg(ap, mio_fltmax_t);
 				dtype = LF_QD;
 			#elif MIO_SIZEOF_FLTMAX_T == MIO_SIZEOF_DOUBLE
-				v_d = va_arg(ap, mio_fltmax_t);
+				v.d = va_arg(ap, mio_fltmax_t);
 			#elif MIO_SIZEOF_FLTMAX_T == MIO_SIZEOF_LONG_DOUBLE
-				v_ld = va_arg(ap, mio_fltmax_t);
+				v.ld = va_arg(ap, mio_fltmax_t);
 				dtype = LF_LD;
 			#else
 				#error Unsupported mio_flt_t
@@ -919,9 +941,9 @@ static int fmt_outv (mio_fmtout_t* fmtout, va_list ap)
 				 * so i prefer the format specifier with no modifier.
 				 */
 			#if MIO_SIZEOF_FLT_T == MIO_SIZEOF_DOUBLE
-				v_d = va_arg(ap, mio_flt_t);
+				v.d = va_arg(ap, mio_flt_t);
 			#elif MIO_SIZEOF_FLT_T == MIO_SIZEOF_LONG_DOUBLE
-				v_ld = va_arg(ap, mio_flt_t);
+				v.ld = va_arg(ap, mio_flt_t);
 				dtype = LF_LD;
 			#else
 				#error Unsupported mio_flt_t
@@ -929,13 +951,13 @@ static int fmt_outv (mio_fmtout_t* fmtout, va_list ap)
 			}
 			else if (lm_flag & (LF_LD | LF_L))
 			{
-				v_ld = va_arg (ap, long double);
+				v.ld = va_arg(ap, long double);
 				dtype = LF_LD;
 			}
 		#if (MIO_SIZEOF___FLOAT128 > 0) && defined(HAVE_QUADMATH_SNPRINTF)
 			else if (lm_flag & (LF_QD | LF_Q))
 			{
-				v_qd = va_arg(ap, __float128);
+				v.qd = va_arg(ap, __float128);
 				dtype = LF_QD;
 			}
 		#endif
@@ -945,63 +967,63 @@ static int fmt_outv (mio_fmtout_t* fmtout, va_list ap)
 			}
 			else
 			{
-				v_d = va_arg (ap, double);
+				v.d = va_arg(ap, double);
 			}
 
-			fmtlen = fmt - percent;
-			if (fmtlen > fltfmt->capa)
+			fmtlen = fmtptr - percent;
+			if (fmtlen > fb.fmt.capa)
 			{
-				if (fltfmt->ptr == fltfmt->buf)
+				if (fb.fmt.ptr == fb.fmt.sbuf)
 				{
-					fltfmt->ptr = MIO_MMGR_ALLOC(MIO_MMGR_GETDFL(), MIO_SIZEOF(*fltfmt->ptr) * (fmtlen + 1));
-					if (!fltfmt->ptr) goto oops;
+					fb.fmt.ptr = (mio_bch_t*)MIO_MMGR_ALLOC(fmtout->mmgr, MIO_SIZEOF(*fb.fmt.ptr) * (fmtlen + 1));
+					if (!fb.fmt.ptr) goto oops;
 				}
 				else
 				{
 					mio_bch_t* tmpptr;
 
-					tmpptr = MIO_MMGR_REALLOC(MIO_MMGR_GETDFL(), fltfmt->ptr, MIO_SIZEOF(*fltfmt->ptr) * (fmtlen + 1));
+					tmpptr = (mio_bch_t*)MIO_MMGR_REALLOC(fmtout->mmgr, fb.fmt.ptr, MIO_SIZEOF(*fb.fmt.ptr) * (fmtlen + 1));
 					if (!tmpptr) goto oops;
-					fltfmt->ptr = tmpptr;
+					fb.fmt.ptr = tmpptr;
 				}
 
-				fltfmt->capa = fmtlen;
+				fb.fmt.capa = fmtlen;
 			}
 
 			/* compose back the format specifier */
 			fmtlen = 0;
-			fltfmt->ptr[fmtlen++] = '%';
-			if (flagc & FLAGC_SPACE) fltfmt->ptr[fmtlen++] = ' ';
-			if (flagc & FLAGC_SHARP) fltfmt->ptr[fmtlen++] = '#';
-			if (flagc & FLAGC_SIGN) fltfmt->ptr[fmtlen++] = '+';
-			if (flagc & FLAGC_LEFTADJ) fltfmt->ptr[fmtlen++] = '-';
-			if (flagc & FLAGC_ZEROPAD) fltfmt->ptr[fmtlen++] = '0';
+			fb.fmt.ptr[fmtlen++] = '%';
+			if (flagc & FLAGC_SPACE) fb.fmt.ptr[fmtlen++] = ' ';
+			if (flagc & FLAGC_SHARP) fb.fmt.ptr[fmtlen++] = '#';
+			if (flagc & FLAGC_SIGN) fb.fmt.ptr[fmtlen++] = '+';
+			if (flagc & FLAGC_LEFTADJ) fb.fmt.ptr[fmtlen++] = '-';
+			if (flagc & FLAGC_ZEROPAD) fb.fmt.ptr[fmtlen++] = '0';
 
-			if (flagc & FLAGC_STAR1) fltfmt->ptr[fmtlen++] = '*';
+			if (flagc & FLAGC_STAR1) fb.fmt.ptr[fmtlen++] = '*';
 			else if (flagc & FLAGC_WIDTH) 
 			{
-				fmtlen += mio_fmtuintmaxtombs (
-					&fltfmt->ptr[fmtlen], fltfmt->capa - fmtlen, 
+				fmtlen += mio_fmt_uintmax_to_bcstr(
+					&fb.fmt.ptr[fmtlen], fb.fmt.capa - fmtlen, 
 					width, 10, -1, '\0', MIO_NULL);
 			}
-			if (flagc & FLAGC_DOT) fltfmt->ptr[fmtlen++] = '.';
-			if (flagc & FLAGC_STAR2) fltfmt->ptr[fmtlen++] = '*';
+			if (flagc & FLAGC_DOT) fb.fmt.ptr[fmtlen++] = '.';
+			if (flagc & FLAGC_STAR2) fb.fmt.ptr[fmtlen++] = '*';
 			else if (flagc & FLAGC_PRECISION) 
 			{
-				fmtlen += mio_fmtuintmaxtombs (
-					&fltfmt->ptr[fmtlen], fltfmt->capa - fmtlen, 
+				fmtlen += mio_fmt_uintmax_to_bcstr(
+					&fb.fmt.ptr[fmtlen], fb.fmt.capa - fmtlen, 
 					precision, 10, -1, '\0', MIO_NULL);
 			}
 
 			if (dtype == LF_LD)
-				fltfmt->ptr[fmtlen++] = 'L';
+				fb.fmt.ptr[fmtlen++] = 'L';
 		#if (MIO_SIZEOF___FLOAT128 > 0)
 			else if (dtype == LF_QD)
-				fltfmt->ptr[fmtlen++] = 'Q';
+				fb.fmt.ptr[fmtlen++] = 'Q';
 		#endif
 
-			fltfmt->ptr[fmtlen++] = ch;
-			fltfmt->ptr[fmtlen] = '\0';
+			fb.fmt.ptr[fmtlen++] = uch;
+			fb.fmt.ptr[fmtlen] = '\0';
 
 		#if defined(HAVE_SNPRINTF)
 			/* nothing special here */
@@ -1009,78 +1031,64 @@ static int fmt_outv (mio_fmtout_t* fmtout, va_list ap)
 			/* best effort to avoid buffer overflow when no snprintf is available. 
 			 * i really can't do much if it happens. */
 			newcapa = precision + width + 32;
-			if (fltout->capa < newcapa)
+			if (fb.out.capa < newcapa)
 			{
-				MIO_ASSERT (mio, fltout->ptr == fltout->buf);
-
-				fltout->ptr = MIO_MMGR_ALLOC(MIO_MMGR_GETDFL(), MIO_SIZEOF(char_t) * (newcapa + 1));
-				if (!fltout->ptr) goto oops;
-				fltout->capa = newcapa;
+				/*MIO_ASSERT (mio, fb.out.ptr == fb.out.sbuf);*/
+				fb.out.ptr = MIO_MMGR_ALLOC(fmtout->mmgr, MIO_SIZEOF(mio_bch_t) * (newcapa + 1));
+				if (!fb.out.ptr) goto oops;
+				fb.out.capa = newcapa;
 			}
 		#endif
 
 			while (1)
 			{
-
 				if (dtype == LF_LD)
 				{
 				#if defined(HAVE_SNPRINTF)
-					q = snprintf ((mio_bch_t*)fltout->ptr, fltout->capa + 1, fltfmt->ptr, v_ld);
+					q = snprintf((mio_bch_t*)fb.out.ptr, fb.out.capa + 1, fb.fmt.ptr, v.ld);
 				#else
-					q = sprintf ((mio_bch_t*)fltout->ptr, fltfmt->ptr, v_ld);
+					q = sprintf((mio_bch_t*)fb.out.ptr, fb.fmt.ptr, v.ld);
 				#endif
 				}
 			#if (MIO_SIZEOF___FLOAT128 > 0) && defined(HAVE_QUADMATH_SNPRINTF)
 				else if (dtype == LF_QD)
 				{
-					q = quadmath_snprintf((mio_bch_t*)fltout->ptr, fltout->capa + 1, fltfmt->ptr, v_qd);
+					q = quadmath_snprintf((mio_bch_t*)fb.out.ptr, fb.out.capa + 1, fb.fmt.ptr, v.qd);
 				}
 			#endif
 				else
 				{
 				#if defined(HAVE_SNPRINTF)
-					q = snprintf ((mio_bch_t*)fltout->ptr, fltout->capa + 1, fltfmt->ptr, v_d);
+					q = snprintf((mio_bch_t*)fb.out.ptr, fb.out.capa + 1, fb.fmt.ptr, v.d);
 				#else
-					q = sprintf ((mio_bch_t*)fltout->ptr, fltfmt->ptr, v_d);
+					q = sprintf((mio_bch_t*)fb.out.ptr, fb.fmt.ptr, v.d);
 				#endif
 				}
 				if (q <= -1) goto oops;
-				if (q <= fltout->capa) break;
+				if (q <= fb.out.capa) break;
 
-				newcapa = fltout->capa * 2;
+				newcapa = fb.out.capa * 2;
 				if (newcapa < q) newcapa = q;
 
-				if (fltout->ptr == fltout->sbuf)
+				if (fb.out.ptr == fb.out.sbuf)
 				{
-					fltout->ptr = MIO_MMGR_ALLOC(MIO_MMGR_GETDFL(), MIO_SIZEOF(char_t) * (newcapa + 1));
-					if (!fltout->ptr) goto oops;
+					fb.out.ptr = (mio_bch_t*)MIO_MMGR_ALLOC(fmtout->mmgr, MIO_SIZEOF(mio_bch_t) * (newcapa + 1));
+					if (!fb.out.ptr) goto oops;
 				}
 				else
 				{
-					char_t* tmpptr;
-
-					tmpptr = MIO_MMGR_REALLOC(MIO_MMGR_GETDFL(), fltout->ptr, MIO_SIZEOF(char_t) * (newcapa + 1));
+					mio_bch_t* tmpptr;
+					tmpptr = (mio_bch_t*)MIO_MMGR_REALLOC(fmtout->mmgr, fb.out.ptr, MIO_SIZEOF(mio_bch_t) * (newcapa + 1));
 					if (!tmpptr) goto oops;
-					fltout->ptr = tmpptr;
+					fb.out.ptr = tmpptr;
 				}
-				fltout->capa = newcapa;
+				fb.out.capa = newcapa;
 			}
 
-			if (MIO_SIZEOF(char_t) != MIO_SIZEOF(mio_bch_t))
-			{
-				fltout->ptr[q] = '\0';
-				while (q > 0)
-				{
-					q--;
-					fltout->ptr[q] = ((mio_bch_t*)fltout->ptr)[q];
-				}
-			}
-
-			sp = fltout->ptr;
-			flagc &= ~FLAGC_DOT;
-			width = 0;
-			precision = 0;
-			goto print_lowercase_s;
+			bsp = fb.out.ptr;
+			n = 0; while (bsp[n] != '\0') n++;
+			PUT_BCS (fmtout, bsp, n);
+			break;
 		}
 #endif
 
@@ -1092,7 +1100,7 @@ static int fmt_outv (mio_fmtout_t* fmtout, va_list ap)
 			    (MIO_SIZEOF_UINTMAX_T > MIO_SIZEOF_OOW_T) && \
 			    (MIO_SIZEOF_UINTMAX_T != MIO_SIZEOF_LONG_LONG) && \
 			    (MIO_SIZEOF_UINTMAX_T != MIO_SIZEOF_LONG)
-				/* Binaries by some GCC compilers crashed when getting mio_uintmax_t with va_arg.
+				/* GCC-compiled binaries crashed when getting mio_uintmax_t with va_arg.
 				 * This is just a work-around for it */
 				int i;
 				for (i = 0, num = 0; i < MIO_SIZEOF(mio_uintmax_t) / MIO_SIZEOF(mio_oow_t); i++)
@@ -1109,10 +1117,8 @@ static int fmt_outv (mio_fmtout_t* fmtout, va_list ap)
 				num = va_arg(ap, mio_uintmax_t);
 			#endif
 			}
-#if 0
 			else if (lm_flag & LF_T)
-				num = va_arg(ap, mio_ptrdiff_t);
-#endif
+				num = va_arg(ap, mio_intptr_t/*mio_ptrdiff_t*/);
 			else if (lm_flag & LF_Z)
 				num = va_arg(ap, mio_oow_t);
 			#if (MIO_SIZEOF_LONG_LONG > 0)
@@ -1154,10 +1160,8 @@ static int fmt_outv (mio_fmtout_t* fmtout, va_list ap)
 			#endif
 			}
 
-#if 0
 			else if (lm_flag & LF_T)
-				num = va_arg(ap, mio_ptrdiff_t);
-#endif
+				num = va_arg(ap, mio_intptr_t/*mio_ptrdiff_t*/);
 			else if (lm_flag & LF_Z)
 				num = va_arg(ap, mio_ooi_t);
 			#if (MIO_SIZEOF_LONG_LONG > 0)
@@ -1236,7 +1240,6 @@ static int fmt_outv (mio_fmtout_t* fmtout, va_list ap)
 				PUT_OOCH (fmtout, padc, width);
 			}
 
-			
 			while (*nbufp) PUT_OOCH (fmtout, *nbufp--, 1); /* output actual digits */
 
 			if ((flagc & FLAGC_LEFTADJ) && width > 0 && (width -= tmp) > 0)
@@ -1279,9 +1282,17 @@ static int fmt_outv (mio_fmtout_t* fmtout, va_list ap)
 	}
 
 done:
+#if defined(MIO_ENABLE_FLTFMT)
+	if (fb.fmt.ptr != fb.fmt.sbuf) MIO_MMGR_FREE (fmtout->mmgr, fb.fmt.ptr);
+	if (fb.out.ptr != fb.out.sbuf) MIO_MMGR_FREE (fmtout->mmgr, fb.out.ptr);
+#endif
 	return 0;
 
 oops:
+#if defined(MIO_ENABLE_FLTFMT)
+	if (fb.fmt.ptr != fb.fmt.sbuf) MIO_MMGR_FREE (fmtout->mmgr, fb.fmt.ptr);
+	if (fb.out.ptr != fb.out.sbuf) MIO_MMGR_FREE (fmtout->mmgr, fb.out.ptr);
+#endif
 	return -1;
 }
 
@@ -1538,6 +1549,7 @@ mio_ooi_t mio_logbfmtv (mio_t* mio, mio_bitmask_t mask, const mio_bch_t* fmt, va
 	fo.fmt_str = fmt;
 	fo.ctx = mio;
 	fo.mask = mask;
+	fo.mmgr = mio_getmmgr(mio);
 	fo.putbchars = log_bcs;
 	fo.putuchars = log_ucs;
 
@@ -1591,6 +1603,7 @@ mio_ooi_t mio_logufmtv (mio_t* mio, mio_bitmask_t mask, const mio_uch_t* fmt, va
 	fo.fmt_str = fmt;
 	fo.ctx = mio;
 	fo.mask = mask;
+	fo.mmgr = mio_getmmgr(mio);
 	fo.putbchars = log_bcs;
 	fo.putuchars = log_ucs;
 
@@ -1601,6 +1614,7 @@ mio_ooi_t mio_logufmtv (mio_t* mio, mio_bitmask_t mask, const mio_uch_t* fmt, va
 		prim_write_log (mio, mio->log.last_mask, mio->log.ptr, mio->log.len);
 		mio->log.len = 0;
 	}
+
 	return (x <= -1)? -1: fo.count;
 }
 

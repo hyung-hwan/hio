@@ -13,6 +13,9 @@ LDFLAGS_ALL_COMMON = -L$(abs_builddir) -L$(libdir)
 
 CPPFLAGS_LIB_COMMON = $(CPPFLAGS_ALL_COMMON)
 LDFLAGS_LIB_COMMON = $(LDFLAGS_ALL_COMMON) -version-info 1:0:0 -no-undefined
+
+# $(LIBM) here for quadmath_snprintf() in libquadmath
+# TODO: make this selective by moving MIO_ENABLE_FLTFMT to configure.ac
 LIBADD_LIB_COMMON = $(LIBM)
 
 #pkgincludedir = $(includedir)

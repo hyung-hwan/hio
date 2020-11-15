@@ -30,6 +30,9 @@
 #include <mio.h>
 #include <mio-utl.h>
 
+/* enable floating-point support in basic formatting functions */
+#define MIO_ENABLE_FLTFMT
+
 #if defined(__has_builtin)
 
 #	if (!__has_builtin(__builtin_memset) || !__has_builtin(__builtin_memcpy) || !__has_builtin(__builtin_memmove) || !__has_builtin(__builtin_memcmp))

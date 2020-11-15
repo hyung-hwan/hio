@@ -63,6 +63,7 @@ struct mio_fmtout_t
 {
 	mio_oow_t             count; /* out */
 
+	mio_mmgr_t*            mmgr; /* in */
 	mio_fmtout_putbchars_t putbchars; /* in */
 	mio_fmtout_putuchars_t putuchars; /* in */
 	mio_bitmask_t          mask;   /* in */
