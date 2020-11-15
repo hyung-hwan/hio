@@ -337,6 +337,50 @@
 #endif
 
 /* =========================================================================
+ * FLOATING-POINT TYPE
+ * ========================================================================= */
+/** \typedef mio_fltbas_t
+ * The mio_fltbas_t type defines the largest floating-pointer number type
+ * naturally supported.
+ */
+#if defined(__FreeBSD__) || defined(__MINGW32__)
+	/* TODO: check if the support for long double is complete.
+	 *       if so, use long double for mio_flt_t */
+	typedef double mio_fltbas_t;
+#	define MIO_SIZEOF_FLTBAS_T MIO_SIZEOF_DOUBLE
+#elif MIO_SIZEOF_LONG_DOUBLE > MIO_SIZEOF_DOUBLE
+	typedef long double mio_fltbas_t;
+#	define MIO_SIZEOF_FLTBAS_T MIO_SIZEOF_LONG_DOUBLE
+#else
+	typedef double mio_fltbas_t;
+#	define MIO_SIZEOF_FLTBAS_T MIO_SIZEOF_DOUBLE
+#endif
+
+/** \typedef mio_fltmax_t
+ * The mio_fltmax_t type defines the largest floating-pointer number type
+ * ever supported.
+ */
+#if MIO_SIZEOF___FLOAT128 >= MIO_SIZEOF_FLTBAS_T
+	/* the size of long double may be equal to the size of __float128
+	 * for alignment on some platforms */
+	typedef __float128 mio_fltmax_t;
+#	define MIO_SIZEOF_FLTMAX_T MIO_SIZEOF___FLOAT128
+#	define MIO_FLTMAX_REQUIRE_QUADMATH 1
+#else
+	typedef mio_fltbas_t mio_fltmax_t;
+#	define MIO_SIZEOF_FLTMAX_T MIO_SIZEOF_FLTBAS_T
+#	undef MIO_FLTMAX_REQUIRE_QUADMATH
+#endif
+
+#if defined(MIO_USE_FLTMAX)
+typedef mio_fltmax_t mio_flt_t;
+#define MIO_SIZEOF_FLT_T MIO_SIZEOF_FLTMAX_T
+#else
+typedef mio_fltbas_t mio_flt_t;
+#define MIO_SIZEOF_FLT_T MIO_SIZEOF_FLTBAS_T
+#endif
+
+/* =========================================================================
  * BASIC HARD-CODED DEFINES
  * ========================================================================= */
 #define MIO_BITS_PER_BYTE (8)

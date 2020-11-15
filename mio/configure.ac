@@ -143,14 +143,6 @@ AC_CHECK_FUNCS([makecontext swapcontext getcontext setcontext])
 AC_CHECK_FUNCS([snprintf _vsnprintf _vsnwprintf])
 AC_CHECK_FUNCS([pipe2 accept4 sendmsg recvmsg writev readv])
 AC_CHECK_FUNCS([isatty mmap munmap])
-
-OLDLIBS="$LIBS"
-LIBS="$LIBM $LIBS"
-AC_CHECK_FUNCS([powl fmodl sinl cosl tanl sinhl coshl tanhl asinl acosl atanl atan2l logl log10l expl sqrtl ceill floorl roundl])
-AC_CHECK_FUNCS([pow fmod sin cos tan sinh cosh tanh asin acos atan atan2 log log10 exp sqrt ceil floor round])
-AC_CHECK_FUNCS([powf fmodf sinf cosf tanf sinhf coshf tanhf asinf acosf atanf atan2f logf log10f expf sqrtf ceilf floorf roundf])
-LIBS="$OLDLIBS"
- 
 AC_CHECK_LIB([rt], [clock_gettime], [LIBS="$LIBS -lrt"])
 
 dnl OLDLIBS="$LIBS"

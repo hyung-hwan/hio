@@ -42,8 +42,8 @@ int mio_sys_initmux (mio_t* mio)
 
 #if defined(USE_EPOLL)
 
-#if defined(HAVE_EPOLL_CREATE1)
-	mux->hnd = epoll_create1(O_CLOEXEC);
+#if defined(HAVE_EPOLL_CREATE1) && defined(EPOLL_CLOEXEC)
+	mux->hnd = epoll_create1(EPOLL_CLOEXEC);
 	if (mux->hnd == -1)
 	{
 		if (errno == ENOSYS) goto normal_epoll_create; /* kernel doesn't support it */
@@ -61,11 +61,11 @@ normal_epoll_create:
 		mio_seterrwithsyserr (mio, 0, errno);
 		return -1;
 	}
-
 #if defined(FD_CLOEXEC)
+	else
 	{
 		int flags = fcntl(mux->hnd, F_GETFD, 0);
-		if (flags >= 0) fcntl(mux->hnd, F_SETFD, flags | FD_CLOEXEC);
+		if (flags >= 0 && !(flags & FD_CLOEXEC)) fcntl(mux->hnd, F_SETFD, flags | FD_CLOEXEC);
 	}
 #endif /* FD_CLOEXEC */
 

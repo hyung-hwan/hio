@@ -15,7 +15,7 @@ LDFLAGS_ALL_COMMON = -L$(abs_builddir) -L$(abs_builddir)/../lib -L$(libdir)
 
 CPPFLAGS_LIB_COMMON = $(CPPFLAGS_ALL_COMMON)
 LDFLAGS_LIB_COMMON = $(LDFLAGS_ALL_COMMON) -no-undefined
-LIBADD_LIB_COMMON = $(LIBM)
+LIBADD_LIB_COMMON =
 
 bin_PROGRAMS = mio-execd
 mio_execd_SOURCES = execd.c
