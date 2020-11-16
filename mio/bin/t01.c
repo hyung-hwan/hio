@@ -419,7 +419,9 @@ static int setup_arp_tester (mio_t* mio)
 	//mio_bcstrtoifindex (mio, "enp0s25.3", &ifindex);
 	//mio_skad_init_for_eth (&ethdst, ifindex, (mio_ethaddr_t*)"\xFF\xFF\xFF\xFF\xFF\xFF");
 	//mio_skad_init_for_eth (&ethdst, ifindex, (mio_ethaddr_t*)"\xAA\xBB\xFF\xCC\xDD\xFF");
-	mio_bcstrtoifindex (mio, "eno1", &ifindex);
+	//mio_bcstrtoifindex (mio, "eno1", &ifindex);
+	//mio_skad_init_for_eth (&ethdst, ifindex, (mio_ethaddr_t*)"\xAA\xBB\xFF\xCC\xDD\xFF");
+	mio_bcstrtoifindex (mio, "bce0", &ifindex);
 	mio_skad_init_for_eth (&ethdst, ifindex, (mio_ethaddr_t*)"\xAA\xBB\xFF\xCC\xDD\xFF");
 
 	memset (&etharp, 0, MIO_SIZEOF(etharp));
@@ -467,7 +469,8 @@ static void send_icmp (mio_dev_sck_t* dev, mio_uint16_t seq)
 	mio_icmphdr_t* icmphdr;
 	mio_uint8_t buf[512];
 
-	mio_bcstrtoskad (mio, "192.168.9.1", &dstaddr); 
+	//mio_bcstrtoskad (mio, "192.168.9.1", &dstaddr); 
+	mio_bcstrtoskad (mio, "192.168.1.1", &dstaddr); 
 
 	memset(buf, 0, MIO_SIZEOF(buf));
 	icmphdr = (mio_icmphdr_t*)buf;

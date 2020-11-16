@@ -51,6 +51,12 @@
 #	include <sys/sendfile.h>
 #endif
 
+#if defined(HAVE_SYS_IOCTL_H)
+#	include <sys/ioctl.h>
+#endif
+
+#include <net/bpf.h>
+
 #if defined(__linux__)
 #	include <limits.h>
 #	if defined(HAVE_LINUX_NETFILTER_IPV4_H)
@@ -77,7 +83,6 @@
 #	endif
 #	define USE_SSL
 #endif
-
 
 /* ========================================================================= */
 
@@ -116,8 +121,8 @@ done:
 	return sck;
 
 oops:
-	if (sck != MIO_SYSHND_INVALID) close (sck);
 	mio_seterrwithsyserr (mio, 0, errno);
+	if (sck != MIO_SYSHND_INVALID) close (sck);
 	return MIO_SYSHND_INVALID;
 }
 
@@ -139,6 +144,7 @@ open_socket:
 			goto open_socket;
 		}
 	#endif
+		mio_seterrwithsyserr (mio, 0, errno);
 		return MIO_SYSHND_INVALID;
 	}
 	else
@@ -153,6 +159,7 @@ open_socket:
 	    mio_makesyshndcloexec(mio, fd[0]) <= -1 ||
 	    mio_makesyshndcloexec(mio, fd[1]) <= -1) 
 	{
+		mio_seterrwithsyserr (mio, 0, errno);
 		close (fd[0]);
 		close (fd[1]);
 		return MIO_SYSHND_INVALID;
@@ -161,6 +168,25 @@ open_socket:
 done:
 	*side_chan = fd[1]; /* write end of the pipe */
 	return fd[0]; /* read end of the pipe */
+}
+
+static mio_syshnd_t open_async_bpf (mio_t* mio)
+{
+	mio_syshnd_t fd = MIO_SYSHND_INVALID;
+	int tmp;
+	unsigned int bufsize;
+
+	fd = open("/dev/bpf", O_RDWR);
+	if (fd == MIO_SYSHND_INVALID) goto oops;
+
+	if (ioctl(fd, BIOCIMMEDIATE, &tmp) == -1) goto oops;
+	if (ioctl(fd, BIOCGBLEN, &bufsize) == -1) goto oops;
+
+	return fd;
+oops:
+	mio_seterrwithsyserr (mio, 0, errno);
+	if (fd != MIO_SYSHND_INVALID) close (fd);
+	return MIO_SYSHND_INVALID;
 }
 
 /* ========================================================================= */
@@ -195,6 +221,7 @@ struct sck_type_map_t
 };
 
 #define __AF_QX 999999
+#define __AF_BPF 999998
 
 static struct sck_type_map_t sck_type_map[] =
 {
@@ -213,12 +240,17 @@ static struct sck_type_map_t sck_type_map[] =
 	/* MIO_DEV_SCK_UDP6 */
 	{ AF_INET6,   SOCK_DGRAM,     0,                         0                                             },
 
+	/* MIO_DEV_SCK_ICMP4 - IP protocol field is 1 byte only. no byte order conversion is needed */
+	{ AF_INET,    SOCK_RAW,       IPPROTO_ICMP,              0,                                             },
+
+	/* MIO_DEV_SCK_ICMP6 - IP protocol field is 1 byte only. no byte order conversion is needed */
+	{ AF_INET6,   SOCK_RAW,       IPPROTO_ICMP,              0,                                             },
 
 #if defined(AF_PACKET) && (MIO_SIZEOF_STRUCT_SOCKADDR_LL > 0)
 	/* MIO_DEV_SCK_ARP - Ethernet type is 2 bytes long. Protocol must be specified in the network byte order */
 	{ AF_PACKET,  SOCK_RAW,       MIO_CONST_HTON16(MIO_ETHHDR_PROTO_ARP), 0                                 },
 
-	/* MIO_DEV_SCK_ARP_DGRAM */
+	/* MIO_DEV_SCK_ARP_DGRAM - link-level header removed*/
 	{ AF_PACKET,  SOCK_DGRAM,     MIO_CONST_HTON16(MIO_ETHHDR_PROTO_ARP), 0                                 },
 
 #elif defined(AF_LINK) && (MIO_SIZEOF_STRUCT_SOCKADDR_DL > 0)
@@ -232,22 +264,19 @@ static struct sck_type_map_t sck_type_map[] =
 	{ -1,       0,                0,                         0                                              },
 #endif
 
-	/* MIO_DEV_SCK_ICMP4 - IP protocol field is 1 byte only. no byte order conversion is needed */
-	{ AF_INET,    SOCK_RAW,       IPPROTO_ICMP,              0,                                             },
-
-	/* MIO_DEV_SCK_ICMP6 - IP protocol field is 1 byte only. no byte order conversion is needed */
-	{ AF_INET6,   SOCK_RAW,       IPPROTO_ICMP,              0,                                             },
-
-
 #if defined(AF_PACKET) && (MIO_SIZEOF_STRUCT_SOCKADDR_LL > 0)
 	/* MIO_DEV_SCK_PACKET */
-	{ AF_PACKET,  SOCK_RAW,       MIO_CONST_HTON16(ETH_P_ALL),            0                                 },
+	{ AF_PACKET,  SOCK_RAW,       MIO_CONST_HTON16(ETH_P_ALL), 0                                            },
 #elif defined(AF_LINK) && (MIO_SIZEOF_STRUCT_SOCKADDR_DL > 0)
 	/* MIO_DEV_SCK_PACKET */
-	{ AF_PACKET,  SOCK_RAW,       MIO_CONST_HTON16(ETH_P_ALL),            0                                 },
+	{ AF_LINK,    SOCK_RAW,       MIO_CONST_HTON16(0),       0                                              },
 #else
 	{ -1,       0,                0,                         0                                              },
 #endif
+
+
+	/* MIO_DEV_SCK_BPF - arp */
+	{ __AF_BPF, 0, 0, 0 } /* not implemented yet */
 };
 
 /* ======================================================================== */
@@ -571,6 +600,14 @@ static int dev_sck_read_stateless (mio_dev_t* dev, void* buf, mio_iolen_t* len, 
 	return 1;
 }
 
+static int dev_sck_read_bpf (mio_dev_t* dev, void* buf, mio_iolen_t* len, mio_devaddr_t* srcaddr)
+{
+	mio_t* mio = dev->mio;
+	mio_dev_sck_t* rdev = (mio_dev_sck_t*)dev;
+	mio_seterrwithsyserr (mio, 0, MIO_ENOIMPL);
+	return -1;
+}
+
 /* ------------------------------------------------------------------------------ */
 
 static int dev_sck_write_stateful (mio_dev_t* dev, const void* data, mio_iolen_t* len, const mio_devaddr_t* dstaddr)
@@ -800,6 +837,24 @@ static int dev_sck_writev_stateless (mio_dev_t* dev, const mio_iovec_t* iov, mio
 	*iovcnt = x;
 	return 1;
 }
+
+/* ------------------------------------------------------------------------------ */
+static int dev_sck_write_bpf (mio_dev_t* dev, const void* data, mio_iolen_t* len, const mio_devaddr_t* dstaddr)
+{
+	mio_t* mio = dev->mio;
+	mio_dev_sck_t* rdev = (mio_dev_sck_t*)dev;
+	mio_seterrwithsyserr (mio, 0, MIO_ENOIMPL);
+	return -1;
+}
+
+static int dev_sck_writev_bpf (mio_dev_t* dev, const mio_iovec_t* iov, mio_iolen_t* iovcnt, const mio_devaddr_t* dstaddr)
+{
+	mio_t* mio = dev->mio;
+	mio_dev_sck_t* rdev = (mio_dev_sck_t*)dev;
+	mio_seterrwithsyserr (mio, 0, MIO_ENOIMPL);
+	return -1;
+}
+
 
 /* ------------------------------------------------------------------------------ */
 
@@ -1317,7 +1372,7 @@ fcntl (rdev->hnd, F_SETFL, flags | O_NONBLOCK);
 	return 0;
 }
 
-static mio_dev_mth_t dev_sck_methods_stateless = 
+static mio_dev_mth_t dev_mth_sck_stateless = 
 {
 	dev_sck_make,
 	dev_sck_kill,
@@ -1332,7 +1387,7 @@ static mio_dev_mth_t dev_sck_methods_stateless =
 };
 
 
-static mio_dev_mth_t dev_sck_methods_stateful = 
+static mio_dev_mth_t dev_mth_sck_stateful = 
 {
 	dev_sck_make,
 	dev_sck_kill,
@@ -1358,6 +1413,20 @@ static mio_dev_mth_t dev_mth_clisck =
 	dev_sck_writev_stateful,
 	dev_sck_sendfile_stateful,
 	dev_sck_ioctl
+};
+
+static mio_dev_mth_t dev_mth_sck_bpf = 
+{
+	dev_sck_make,
+	dev_sck_kill,
+	MIO_NULL,
+	dev_sck_getsyshnd,
+
+	dev_sck_read_bpf,
+	dev_sck_write_bpf,
+	dev_sck_writev_bpf,
+	MIO_NULL,          /* sendfile */
+	dev_sck_ioctl,     /* ioctl */
 };
 
 /* ========================================================================= */
@@ -1969,6 +2038,39 @@ static mio_dev_evcb_t dev_sck_event_callbacks_qx =
 
 /* ========================================================================= */
 
+static int dev_evcb_sck_ready_bpf (mio_dev_t* dev, int events)
+{
+	mio_t* mio = dev->mio;
+	mio_dev_sck_t* rdev = (mio_dev_sck_t*)dev;
+	mio_seterrnum (mio, MIO_ENOIMPL);
+	return -1;
+}
+
+static int dev_evcb_sck_on_read_bpf (mio_dev_t* dev, const void* data, mio_iolen_t dlen, const mio_devaddr_t* srcaddr)
+{
+	mio_t* mio = dev->mio;
+	mio_dev_sck_t* rdev = (mio_dev_sck_t*)dev;
+	mio_seterrnum (mio, MIO_ENOIMPL);
+	return -1;
+}
+
+static int dev_evcb_sck_on_write_bpf (mio_dev_t* dev, mio_iolen_t wrlen, void* wrctx, const mio_devaddr_t* dstaddr)
+{
+	mio_t* mio = dev->mio;
+	mio_dev_sck_t* rdev = (mio_dev_sck_t*)dev;
+	mio_seterrnum (mio, MIO_ENOIMPL);
+	return -1;
+}
+
+static mio_dev_evcb_t dev_sck_event_callbacks_bpf =
+{
+	dev_evcb_sck_ready_bpf,
+	dev_evcb_sck_on_read_bpf,
+	dev_evcb_sck_on_write_bpf
+};
+
+/* ========================================================================= */
+
 mio_dev_sck_t* mio_dev_sck_make (mio_t* mio, mio_oow_t xtnsize, const mio_dev_sck_make_t* info)
 {
 	mio_dev_sck_t* rdev;
@@ -1983,19 +2085,25 @@ mio_dev_sck_t* mio_dev_sck_make (mio_t* mio, mio_oow_t xtnsize, const mio_dev_sc
 	{
 		rdev = (mio_dev_sck_t*)mio_dev_make(
 			mio, MIO_SIZEOF(mio_dev_sck_t) + xtnsize,
-			&dev_sck_methods_stateless, &dev_sck_event_callbacks_qx, (void*)info);
+			&dev_mth_sck_stateless, &dev_sck_event_callbacks_qx, (void*)info);
+	}
+	else if (info->type == MIO_DEV_SCK_BPF)
+	{
+		rdev = (mio_dev_sck_t*)mio_dev_make(
+			mio, MIO_SIZEOF(mio_dev_sck_t) + xtnsize,
+			&dev_mth_sck_bpf, &dev_sck_event_callbacks_bpf, (void*)info);
 	}
 	else if (sck_type_map[info->type].extra_dev_cap & MIO_DEV_CAP_STREAM) /* can't use the IS_STATEFUL() macro yet */
 	{
 		rdev = (mio_dev_sck_t*)mio_dev_make(
 			mio, MIO_SIZEOF(mio_dev_sck_t) + xtnsize,
-			&dev_sck_methods_stateful, &dev_sck_event_callbacks_stateful, (void*)info);
+			&dev_mth_sck_stateful, &dev_sck_event_callbacks_stateful, (void*)info);
 	}
 	else
 	{
 		rdev = (mio_dev_sck_t*)mio_dev_make(
 			mio, MIO_SIZEOF(mio_dev_sck_t) + xtnsize,
-			&dev_sck_methods_stateless, &dev_sck_event_callbacks_stateless, (void*)info);
+			&dev_mth_sck_stateless, &dev_sck_event_callbacks_stateless, (void*)info);
 	}
 
 	return rdev;
