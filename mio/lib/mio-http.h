@@ -288,7 +288,7 @@ MIO_EXPORT int mio_svc_htts_dofile (
 	mio_dev_sck_t*   csck,
 	mio_htre_t*      req,
 	const mio_bch_t* docroot,
-	const mio_bch_t* file,
+	const mio_bch_t* filepath,
 	const mio_bch_t* mime_type
 );
 
