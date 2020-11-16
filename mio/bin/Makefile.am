@@ -8,7 +8,7 @@ CPPFLAGS_COMMON = \
 	-I$(includedir)	
 CFLAGS_COMMON =
 LDFLAGS_COMMON = -L$(abs_builddir)/../lib -L$(libdir)
-LIBADD_COMMON = -lmio
+LIBADD_COMMON = ../lib/libmio.la
 
 bin_PROGRAMS = mio-execd
 mio_execd_SOURCES = execd.c
