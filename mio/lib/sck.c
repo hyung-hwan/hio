@@ -55,7 +55,9 @@
 #	include <sys/ioctl.h>
 #endif
 
-#include <net/bpf.h>
+#if defined(HAVE_NET_BPF_H)
+#	include <net/bpf.h>
+#endif
 
 #if defined(__linux__)
 #	include <limits.h>
@@ -179,8 +181,10 @@ static mio_syshnd_t open_async_bpf (mio_t* mio)
 	fd = open("/dev/bpf", O_RDWR);
 	if (fd == MIO_SYSHND_INVALID) goto oops;
 
+#if 0
 	if (ioctl(fd, BIOCIMMEDIATE, &tmp) == -1) goto oops;
 	if (ioctl(fd, BIOCGBLEN, &bufsize) == -1) goto oops;
+#endif
 
 	return fd;
 oops:

@@ -13997,7 +13997,7 @@ fi
 
 done
 
-for ac_header in net/if.h net/if_dl.h netpacket/packet.h
+for ac_header in net/if.h net/if_dl.h netpacket/packet.h net/bpf.h
 do :
   as_ac_Header=`$as_echo "ac_cv_header_$ac_header" | $as_tr_sh`
 ac_fn_c_check_header_compile "$LINENO" "$ac_header" "$as_ac_Header" "
