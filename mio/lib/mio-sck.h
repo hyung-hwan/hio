@@ -31,7 +31,7 @@
 #include <mio-skad.h>
 
 /* ========================================================================= */
-/* TOOD: move these to a separte file */
+/* TOOD: move these to a separate file */
 
 #define MIO_ETHHDR_PROTO_IP4   0x0800
 #define MIO_ETHHDR_PROTO_ARP   0x0806
@@ -269,18 +269,21 @@ enum mio_dev_sck_type_t
 	MIO_DEV_SCK_UDP4,
 	MIO_DEV_SCK_UDP6,
 
-	/* ARP at the ethernet layer */
-	MIO_DEV_SCK_ARP,
-	MIO_DEV_SCK_ARP_DGRAM,
-
 	/* ICMP at the IPv4 layer */
 	MIO_DEV_SCK_ICMP4,
 
 	/* ICMP at the IPv6 layer */
 	MIO_DEV_SCK_ICMP6,
 
+	/* ARP at the ethernet layer */
+	MIO_DEV_SCK_ARP,
+	MIO_DEV_SCK_ARP_DGRAM,
+
 	/* raw L2-level packet */
-	MIO_DEV_SCK_PACKET
+	MIO_DEV_SCK_PACKET,
+
+	/* bpf socket */
+	MIO_DEV_SCK_BPF
 };
 typedef enum mio_dev_sck_type_t mio_dev_sck_type_t;
 
