@@ -1156,7 +1156,7 @@ mio_oow_t mio_byte_to_bcstr (mio_uint8_t byte, mio_bch_t* buf, mio_oow_t size, i
 /* ========================================================================= */
 
 #define HANDLE_E() \
-	if (*p == 'E') \
+	if (*p == 'E' || *p == 'e') \
 	{ \
 		mio_uintmax_t e = 0, i; \
 		int e_neg = 0; \
