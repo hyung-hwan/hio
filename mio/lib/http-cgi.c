@@ -468,7 +468,7 @@ static int cgi_peer_htrd_peek (mio_htrd_t* htrd, mio_htre_t* req)
 		const mio_bch_t* endptr;
 		mio_intmax_t v;
 
-		v = mio_bchars_to_intmax(req->attr.status, mio_count_bcstr(req->attr.status), MIO_BCHARS_TO_INTMAX_MAKE_OPTION(0,0,10), &endptr, &is_sober);
+		v = mio_bchars_to_intmax(req->attr.status, mio_count_bcstr(req->attr.status), MIO_BCHARS_TO_INTMAX_MAKE_OPTION(0,0,0,10), &endptr, &is_sober);
 		if (*endptr == '\0' && is_sober && v > 0 && v <= MIO_TYPE_MAX(int)) status_code = v;
 	}
 

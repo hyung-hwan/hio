@@ -1155,6 +1155,33 @@ mio_oow_t mio_byte_to_bcstr (mio_uint8_t byte, mio_bch_t* buf, mio_oow_t size, i
  
 /* ========================================================================= */
 
+#define HANDLE_E() \
+	if (*p == 'E') \
+	{ \
+		mio_uintmax_t e = 0, i; \
+		int e_neg = 0; \
+		p++; \
+		if (*p == '+') \
+		{ \
+			p++; \
+		} \
+		else if (*p == '-') \
+		{ \
+			p++; e_neg = 1; \
+		} \
+		while (p < end) \
+		{ \
+			digit = MIO_ZDIGIT_TO_NUM(*p, base); \
+			if (digit >= base) break; \
+			e = e * base + digit; \
+			p++; \
+		} \
+		if (e_neg) \
+			for (i = 0; i < e; i++) n /= 10; \
+		else \
+			for (i = 0; i < e; i++) n *= 10; \
+	}
+
 mio_intmax_t mio_uchars_to_intmax (const mio_uch_t* str, mio_oow_t len, int option, const mio_uch_t** endptr, int* is_sober)
 {
 	mio_intmax_t n = 0;
@@ -1225,6 +1252,11 @@ mio_intmax_t mio_uchars_to_intmax (const mio_uch_t* str, mio_oow_t len, int opti
 		if (digit >= base) break;
 		n = n * base + digit;
 		p++;
+	}
+
+	if (MIO_UCHARS_TO_INTMAX_GET_OPTION_E(option))
+	{
+		HANDLE_E();
 	}
 
 	/* base 8: at least a zero digit has been seen.
@@ -1313,6 +1345,11 @@ mio_intmax_t mio_bchars_to_intmax (const mio_bch_t* str, mio_oow_t len, int opti
 		p++;
 	}
 
+	if (MIO_BCHARS_TO_INTMAX_GET_OPTION_E(option))
+	{
+		HANDLE_E();
+	}
+
 	/* base 8: at least a zero digit has been seen.
 	 * other case: p > pp to be able to have at least 1 meaningful digit. */
 	if (is_sober) *is_sober = (base == 8 || p > pp);
@@ -1395,6 +1432,11 @@ mio_uintmax_t mio_uchars_to_uintmax (const mio_uch_t* str, mio_oow_t len, int op
 		p++;
 	}
 
+	if (MIO_UCHARS_TO_UINTMAX_GET_OPTION_E(option))
+	{
+		HANDLE_E();
+	}
+
 	/* base 8: at least a zero digit has been seen.
 	 * other case: p > pp to be able to have at least 1 meaningful digit. */
 	if (is_sober) *is_sober = (base == 8 || p > pp); 
@@ -1474,6 +1516,11 @@ mio_uintmax_t mio_bchars_to_uintmax (const mio_bch_t* str, mio_oow_t len, int op
 		if (digit >= base) break;
 		n = n * base + digit;
 		p++;
+	}
+
+	if (MIO_BCHARS_TO_UINTMAX_GET_OPTION_E(option))
+	{
+		HANDLE_E();
 	}
 
 	/* base 8: at least a zero digit has been seen.
