@@ -3,7 +3,7 @@ ACLOCAL_AMFLAGS = -I m4
 
 EXTRA_DIST =
 
-SUBDIRS = lib bin
+SUBDIRS = lib bin t
 DIST_SUBDIRS = $(SUBDIRS) 
 
 distclean-local:

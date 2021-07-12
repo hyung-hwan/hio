@@ -548,32 +548,38 @@ MIO_EXPORT mio_oow_t mio_byte_to_bcstr (
 );
 
 /* ------------------------------------------------------------------------- */
-#define MIO_OOCHARS_TO_INTMAX_MAKE_OPTION(ltrim,rtrim,base) (((!!(ltrim)) << 2) | ((!!(rtrim)) << 4) | ((base) << 8))
+#define MIO_OOCHARS_TO_INTMAX_MAKE_OPTION(e,ltrim,rtrim,base) (((!!(e)) << 0) | ((!!(ltrim)) << 2) | ((!!(rtrim)) << 3) | ((base) << 8))
+#define MIO_OOCHARS_TO_INTMAX_GET_OPTION_E(option) ((option) & 1)
 #define MIO_OOCHARS_TO_INTMAX_GET_OPTION_LTRIM(option) ((option) & 4)
 #define MIO_OOCHARS_TO_INTMAX_GET_OPTION_RTRIM(option) ((option) & 8)
 #define MIO_OOCHARS_TO_INTMAX_GET_OPTION_BASE(option) ((option) >> 8)
 
-#define MIO_OOCHARS_TO_UINTMAX_MAKE_OPTION(ltrim,rtrim,base) (((!!(ltrim)) << 2) | ((!!(rtrim)) << 4) | ((base) << 8))
+#define MIO_OOCHARS_TO_UINTMAX_MAKE_OPTION(e,ltrim,rtrim,base) (((!!(e)) << 0) | ((!!(ltrim)) << 2) | ((!!(rtrim)) << 3) | ((base) << 8))
+#define MIO_OOCHARS_TO_UINTMAX_GET_OPTION_E(option) ((option) & 1)
 #define MIO_OOCHARS_TO_UINTMAX_GET_OPTION_LTRIM(option) ((option) & 4)
 #define MIO_OOCHARS_TO_UINTMAX_GET_OPTION_RTRIM(option) ((option) & 8)
 #define MIO_OOCHARS_TO_UINTMAX_GET_OPTION_BASE(option) ((option) >> 8)
 
-#define MIO_UCHARS_TO_INTMAX_MAKE_OPTION(ltrim,rtrim,base) MIO_OOCHARS_TO_INTMAX_MAKE_OPTION(ltrim,rtrim,base)
+#define MIO_UCHARS_TO_INTMAX_MAKE_OPTION(e,ltrim,rtrim,base) MIO_OOCHARS_TO_INTMAX_MAKE_OPTION(e,ltrim,rtrim,base)
+#define MIO_UCHARS_TO_INTMAX_GET_OPTION_E(option) MIO_OOCHARS_TO_INTMAX_GET_OPTION_E(option)
 #define MIO_UCHARS_TO_INTMAX_GET_OPTION_LTRIM(option) MIO_OOCHARS_TO_INTMAX_GET_OPTION_LTRIM(option)
 #define MIO_UCHARS_TO_INTMAX_GET_OPTION_RTRIM(option) MIO_OOCHARS_TO_INTMAX_GET_OPTION_RTRIM(option)
 #define MIO_UCHARS_TO_INTMAX_GET_OPTION_BASE(option) MIO_OOCHARS_TO_INTMAX_GET_OPTION_BASE(option)
 
-#define MIO_BCHARS_TO_INTMAX_MAKE_OPTION(ltrim,rtrim,base) MIO_OOCHARS_TO_INTMAX_MAKE_OPTION(ltrim,rtrim,base)
+#define MIO_BCHARS_TO_INTMAX_MAKE_OPTION(e,ltrim,rtrim,base) MIO_OOCHARS_TO_INTMAX_MAKE_OPTION(e,ltrim,rtrim,base)
+#define MIO_BCHARS_TO_INTMAX_GET_OPTION_E(option) MIO_OOCHARS_TO_INTMAX_GET_OPTION_E(option)
 #define MIO_BCHARS_TO_INTMAX_GET_OPTION_LTRIM(option) MIO_OOCHARS_TO_INTMAX_GET_OPTION_LTRIM(option)
 #define MIO_BCHARS_TO_INTMAX_GET_OPTION_RTRIM(option) MIO_OOCHARS_TO_INTMAX_GET_OPTION_RTRIM(option)
 #define MIO_BCHARS_TO_INTMAX_GET_OPTION_BASE(option) MIO_OOCHARS_TO_INTMAX_GET_OPTION_BASE(option)
 
-#define MIO_UCHARS_TO_UINTMAX_MAKE_OPTION(ltrim,rtrim,base) MIO_OOCHARS_TO_UINTMAX_MAKE_OPTION(ltrim,rtrim,base)
+#define MIO_UCHARS_TO_UINTMAX_MAKE_OPTION(e,ltrim,rtrim,base) MIO_OOCHARS_TO_UINTMAX_MAKE_OPTION(e,ltrim,rtrim,base)
+#define MIO_UCHARS_TO_UINTMAX_GET_OPTION_E(option) MIO_OOCHARS_TO_UINTMAX_GET_OPTION_E(option)
 #define MIO_UCHARS_TO_UINTMAX_GET_OPTION_LTRIM(option) MIO_OOCHARS_TO_UINTMAX_GET_OPTION_LTRIM(option)
 #define MIO_UCHARS_TO_UINTMAX_GET_OPTION_RTRIM(option) MIO_OOCHARS_TO_UINTMAX_GET_OPTION_RTRIM(option)
 #define MIO_UCHARS_TO_UINTMAX_GET_OPTION_BASE(option) MIO_OOCHARS_TO_UINTMAX_GET_OPTION_BASE(option)
 
-#define MIO_BCHARS_TO_UINTMAX_MAKE_OPTION(ltrim,rtrim,base) MIO_OOCHARS_TO_UINTMAX_MAKE_OPTION(ltrim,rtrim,base)
+#define MIO_BCHARS_TO_UINTMAX_MAKE_OPTION(e,ltrim,rtrim,base) MIO_OOCHARS_TO_UINTMAX_MAKE_OPTION(e,ltrim,rtrim,base)
+#define MIO_BCHARS_TO_UINTMAX_GET_OPTION_E(option) MIO_OOCHARS_TO_UINTMAX_GET_OPTION_E(option)
 #define MIO_BCHARS_TO_UINTMAX_GET_OPTION_LTRIM(option) MIO_OOCHARS_TO_UINTMAX_GET_OPTION_LTRIM(option)
 #define MIO_BCHARS_TO_UINTMAX_GET_OPTION_RTRIM(option) MIO_OOCHARS_TO_UINTMAX_GET_OPTION_RTRIM(option)
 #define MIO_BCHARS_TO_UINTMAX_GET_OPTION_BASE(option) MIO_OOCHARS_TO_UINTMAX_GET_OPTION_BASE(option)
