@@ -8,7 +8,7 @@ static int on_json_inst (mio_json_t* json, mio_json_inst_t inst, mio_oow_t level
 {
 	mio_t* mio = mio_json_getmio(json);
 	mio_oow_t i;
-
+	int* pending = (int*)ctx;
 
 	switch (inst)
 	{
@@ -19,12 +19,14 @@ static int on_json_inst (mio_json_t* json, mio_json_inst_t inst, mio_oow_t level
 				for (i = 0; i < level; i++) mio_logbfmt (mio, MIO_LOG_STDOUT, "\t"); 
 			}
 			mio_logbfmt (mio, MIO_LOG_STDOUT, "[\n"); 
+			(*pending)++;
 			break;
 
 		case MIO_JSON_INST_END_ARRAY:
 			mio_logbfmt (mio, MIO_LOG_STDOUT, "\n"); 
 			for (i = 0; i < level; i++) mio_logbfmt (mio, MIO_LOG_STDOUT, "\t"); 
 			mio_logbfmt (mio, MIO_LOG_STDOUT, "]"); 
+			(*pending)--;
 			break;
 
 		case MIO_JSON_INST_START_OBJECT:
@@ -34,12 +36,14 @@ static int on_json_inst (mio_json_t* json, mio_json_inst_t inst, mio_oow_t level
 				for (i = 0; i < level; i++) mio_logbfmt (mio, MIO_LOG_STDOUT, "\t"); 
 			}
 			mio_logbfmt (mio, MIO_LOG_STDOUT, "{\n"); 
+			(*pending)++;
 			break;
 
 		case MIO_JSON_INST_END_OBJECT:
 			mio_logbfmt (mio, MIO_LOG_STDOUT, "\n"); 
 			for (i = 0; i < level; i++) mio_logbfmt (mio, MIO_LOG_STDOUT, "\t");
 			mio_logbfmt (mio, MIO_LOG_STDOUT, "}"); 
+			(*pending)--;
 			break;
 
 		case MIO_JSON_INST_KEY:
@@ -123,10 +127,11 @@ int main (int argc, char* argv[])
 		char buf[128];
 		mio_oow_t rem;
 		size_t size;
+		int pending = 0;
 
 		json = mio_json_open(mio, 0);
 
-		mio_json_setinstcb (json, on_json_inst, MIO_NULL);
+		mio_json_setinstcb (json, on_json_inst, &pending);
 
 		rem = 0;
 		while (!feof(stdin) || rem > 0)
@@ -152,7 +157,8 @@ int main (int argc, char* argv[])
 
 			if (x > 0)
 			{
-				/* document completed */
+				/* document completed.
+				 * if only whitespaces are given, x is still greater 0. */
 				mio_logbfmt (mio, MIO_LOG_STDOUT, "\n-----------------------------------\n");
 			}
 
@@ -161,6 +167,7 @@ int main (int argc, char* argv[])
 		}
 
 mio_logbfmt (mio, MIO_LOG_STDOUT, "\n");
+		if (pending) mio_logbfmt (mio, MIO_LOG_STDOUT, "**** ERROR - incomplete ****\n");
 		mio_json_close (json);
 	}
 
