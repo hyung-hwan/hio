@@ -889,7 +889,7 @@ int mio_svc_htts_dothr (mio_svc_htts_t* htts, mio_dev_sck_t* csck, mio_htre_t* r
 
 	thr_state->peer_htrd = mio_htrd_open(mio, MIO_SIZEOF(*thr_peer));
 	if (MIO_UNLIKELY(!thr_state->peer_htrd)) goto oops;
-	mio_htrd_setopt (thr_state->peer_htrd, MIO_HTRD_SKIPINITIALLINE | MIO_HTRD_RESPONSE);
+	mio_htrd_setoption (thr_state->peer_htrd, MIO_HTRD_SKIPINITIALLINE | MIO_HTRD_RESPONSE);
 	mio_htrd_setrecbs (thr_state->peer_htrd, &thr_peer_htrd_recbs);
 
 	thr_peer = mio_htrd_getxtn(thr_state->peer_htrd);

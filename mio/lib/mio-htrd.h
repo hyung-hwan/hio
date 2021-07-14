@@ -52,13 +52,13 @@ typedef enum mio_htrd_errnum_t mio_htrd_errnum_t;
  */
 enum mio_htrd_option_t
 {
-	MIO_HTRD_SKIPEMPTYLINES  = (1 << 0), /**< skip leading empty lines before the initial line */
-	MIO_HTRD_SKIPINITIALLINE = (1 << 1), /**< skip processing an initial line */
-	MIO_HTRD_CANONQPATH      = (1 << 2), /**< canonicalize the query path */
-	MIO_HTRD_REQUEST         = (1 << 3), /**< parse input as a request */
-	MIO_HTRD_RESPONSE        = (1 << 4), /**< parse input as a response */
-	MIO_HTRD_TRAILERS        = (1 << 5), /**< store trailers in a separate table */
-	MIO_HTRD_STRICT          = (1 << 6)  /**< be more picky */
+	MIO_HTRD_SKIPEMPTYLINES  = ((mio_bitmask_t)1 << 0), /**< skip leading empty lines before the initial line */
+	MIO_HTRD_SKIPINITIALLINE = ((mio_bitmask_t)1 << 1), /**< skip processing an initial line */
+	MIO_HTRD_CANONQPATH      = ((mio_bitmask_t)1 << 2), /**< canonicalize the query path */
+	MIO_HTRD_REQUEST         = ((mio_bitmask_t)1 << 3), /**< parse input as a request */
+	MIO_HTRD_RESPONSE        = ((mio_bitmask_t)1 << 4), /**< parse input as a response */
+	MIO_HTRD_TRAILERS        = ((mio_bitmask_t)1 << 5), /**< store trailers in a separate table */
+	MIO_HTRD_STRICT          = ((mio_bitmask_t)1 << 6)  /**< be more picky */
 };
 
 typedef enum mio_htrd_option_t mio_htrd_option_t;
@@ -76,7 +76,7 @@ struct mio_htrd_t
 {
 	mio_t* mio;
 	mio_htrd_errnum_t errnum;
-	int option;
+	mio_bitmask_t option;
 	int flags;
 
 	mio_htrd_recbs_t recbs;
@@ -153,13 +153,13 @@ MIO_EXPORT void mio_htrd_clear (
 	mio_htrd_t* htrd
 );
 
-MIO_EXPORT int mio_htrd_getopt (
+MIO_EXPORT mio_bitmask_t mio_htrd_getoption (
 	mio_htrd_t* htrd
 );
 
-MIO_EXPORT void mio_htrd_setopt (
-	mio_htrd_t* htrd,
-	int         opts
+MIO_EXPORT void mio_htrd_setoption (
+	mio_htrd_t*   htrd,
+	mio_bitmask_t mask
 );
 
 MIO_EXPORT const mio_htrd_recbs_t* mio_htrd_getrecbs (

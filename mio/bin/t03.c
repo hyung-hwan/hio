@@ -114,6 +114,13 @@ static int write_json_element (mio_jsonwr_t* jsonwr, const mio_bch_t* dptr, mio_
 int main (int argc, char* argv[])
 {
 	mio_t* mio = MIO_NULL;
+	mio_bitmask_t o = 0;
+	int i;
+
+	for (i = 1; i < argc; i++)
+	{
+		if (strcmp(argv[i], "--permit-word-key") == 0) o |= MIO_JSON_PERMITWORDKEY;
+	}
 
 	mio = mio_open(MIO_NULL, 0, MIO_NULL, 512, MIO_NULL);
 	if (!mio)
@@ -131,6 +138,7 @@ int main (int argc, char* argv[])
 
 		json = mio_json_open(mio, 0);
 
+		mio_json_setoption (json, o);
 		mio_json_setinstcb (json, on_json_inst, &pending);
 
 		rem = 0;
@@ -152,7 +160,7 @@ int main (int argc, char* argv[])
 			if ((x = mio_json_feed(json, buf, size + rem, &rem, 1)) <= -1) 
 			{
 				mio_logbfmt (mio, MIO_LOG_STDOUT, "**** ERROR - %js ****\n", mio_geterrmsg(mio));
-				break;
+				goto done;
 			}
 
 			if (x > 0)
@@ -167,7 +175,10 @@ int main (int argc, char* argv[])
 		}
 
 mio_logbfmt (mio, MIO_LOG_STDOUT, "\n");
-		if (pending) mio_logbfmt (mio, MIO_LOG_STDOUT, "**** ERROR - incomplete ****\n");
+		//if (pending) mio_logbfmt (mio, MIO_LOG_STDOUT, "**** ERROR - incomplete ****\n");
+		if (json->state_stack != &json->state_top) mio_logbfmt (mio, MIO_LOG_STDOUT, "**** ERROR - incomplete ****\n");
+
+	done:
 		mio_json_close (json);
 	}
 
