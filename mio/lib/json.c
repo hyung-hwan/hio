@@ -418,7 +418,33 @@ static int handle_word_value_char (mio_json_t* json, mio_ooci_t c)
 
 static int handle_start_char (mio_json_t* json, mio_ooci_t c)
 {
-	if (c == '[')
+	if (mio_is_ooch_space(c))
+	{
+		/* do nothing */
+		return 1;
+	}
+	else if (c == '\"')
+	{
+		if (push_read_state(json, MIO_JSON_STATE_IN_STRING_VALUE) <= -1) return -1;
+		clear_token (json);
+		return 1; /* the quote dosn't form a string. so no start-over */
+	}
+	/* TOOD: else if (c == '#') MIO radixed number
+	 */
+	else if (mio_is_ooch_digit(c) || c == '+' || c == '-')
+	{
+		if (push_read_state(json, MIO_JSON_STATE_IN_NUMERIC_VALUE) <= -1) return -1;
+		clear_token (json);
+		json->state_stack->u.nv.progress = 0;
+		return 0; /* start over to process c under the new state */
+	}
+	else if (mio_is_ooch_alpha(c))
+	{
+		if (push_read_state(json, MIO_JSON_STATE_IN_WORD_VALUE) <= -1) return -1;
+		clear_token (json);
+		return 0; /* start over to process c under the new state */
+	}
+	else if (c == '[')
 	{
 		if (invoke_data_inst(json, MIO_JSON_INST_START_ARRAY) <= -1) return -1;
 		return 1;
@@ -428,24 +454,21 @@ static int handle_start_char (mio_json_t* json, mio_ooci_t c)
 		if (invoke_data_inst(json, MIO_JSON_INST_START_OBJECT) <= -1) return -1;
 		return 1;
 	}
-#if 0
-/* this check is not needed for screening in feed_json_data() */
-	else if (mio_is_ooch_space(c)) 
-	{
-		/* do nothing */
-		return 1;
-	}
-#endif
 	else
 	{
-		mio_seterrbfmt (json->mio, MIO_EINVAL, "not starting with [ or { - %jc", (mio_ooch_t)c);
+		mio_seterrbfmt (json->mio, MIO_EINVAL, "not starting with an allowed initial character - %jc", (mio_ooch_t)c);
 		return -1;
 	}
 }
 
 static int handle_char_in_array (mio_json_t* json, mio_ooci_t c)
 {
-	if (c == ']')
+	if (mio_is_ooch_space(c))
+	{
+		/* do nothing */
+		return 1;
+	}
+	else if (c == ']')
 	{
 		pop_read_state (json);
 		/* START_ARRAY incremented index by 1. so subtract 1 from index before invoking instcb for END_ARRAY. */
@@ -460,11 +483,6 @@ static int handle_char_in_array (mio_json_t* json, mio_ooci_t c)
 			return -1;
 		}
 		json->state_stack->u.ia.got_value = 0;
-		return 1;
-	}
-	else if (mio_is_ooch_space(c))
-	{
-		/* do nothing */
 		return 1;
 	}
 	else
@@ -516,7 +534,12 @@ static int handle_char_in_array (mio_json_t* json, mio_ooci_t c)
 
 static int handle_char_in_object (mio_json_t* json, mio_ooci_t c)
 {
-	if (c == '}')
+	if (mio_is_ooch_space(c))
+	{
+		/* do nothing */
+		return 1;
+	}
+	else if (c == '}')
 	{
 		pop_read_state (json);
 		/* START_OBJECT incremented index by 1. so subtract 1 from index before invoking instcb for END_OBJECT. */
@@ -541,11 +564,6 @@ static int handle_char_in_object (mio_json_t* json, mio_ooci_t c)
 			return -1;
 		}
 		json->state_stack->u.io.state = 0;
-		return 1;
-	}
-	else if (mio_is_ooch_space(c))
-	{
-		/* do nothing */
 		return 1;
 	}
 	else
@@ -703,6 +721,7 @@ static int feed_json_data (mio_json_t* json, const mio_bch_t* data, mio_oow_t le
 	#endif
 
 		if (json->state_stack->state == MIO_JSON_STATE_START && mio_is_ooch_space(c)) continue; /* skip white space */
+
 		if (stop_if_ever_completed && ever_completed) 
 		{
 			*xlen = optr - data;
@@ -1293,4 +1312,3 @@ int mio_jsonwr_writerawbcstr (mio_jsonwr_t* jsonwr, const mio_bch_t* dptr)
 	WRITE_BYTES_NOESC (jsonwr, dptr, mio_count_bcstr(dptr));
 	return 0;
 }
-
