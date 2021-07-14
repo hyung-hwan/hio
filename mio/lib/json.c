@@ -176,10 +176,9 @@ static int invoke_data_inst (mio_json_t* json, mio_json_inst_t inst)
 
 	if (ss->state == MIO_JSON_STATE_IN_OBJECT)
 	{
-		if (ss->u.io.state == 1) /* got colon */
+		if (ss->u.io.state == 1) 
 		{
-			/* this is called after the reader has seen a colon. 
-			 * the data item must be used as a key */
+			/* just got the key part. the colon has not been seen.  */
 
 			if (inst != MIO_JSON_INST_STRING && inst != __INST_WORD_STRING)
 			{
@@ -189,10 +188,13 @@ static int invoke_data_inst (mio_json_t* json, mio_json_inst_t inst)
 
 			inst = MIO_JSON_INST_KEY;
 		}
-		else
+		else 
 		{
-			/* if this variable is non-zero, level is set to 0 regardless of actual level */
-			is_obj_val = 1;
+			/* if this variable is non-zero, level is set to 0 regardless of actual level.
+			 * this helps the callback to print the value without indentation immediately
+			 * after the key */
+			//is_obj_val = 1;
+			is_obj_val = (ss->u.io.state >= 2);
 		}
 	}
 
@@ -205,23 +207,49 @@ static int invoke_data_inst (mio_json_t* json, mio_json_inst_t inst)
 	switch (inst)
 	{
 		case MIO_JSON_INST_START_ARRAY:
+		{
+			mio_json_state_node_t* nss;
 			if (push_read_state(json, MIO_JSON_STATE_IN_ARRAY) <= -1) return -1;
-			json->state_stack->u.ia.got_value = 0;
-			json->state_stack->level++;
-			if (ss->state != MIO_JSON_STATE_IN_OBJECT || ss->u.io.state == 1) ss->index++;
-			return json->instcb(json, inst, (is_obj_val? 0: json->state_stack->level - 1), ss->index - 1, ss->state, MIO_NULL, json->rctx);
+			nss = json->state_stack;
+			nss->u.ia.got_value = 0;
+			nss->level++;
+
+			MIO_ASSERT (json->mio, nss->level == ss->level + 1);
+			return json->instcb(json, inst, (is_obj_val? 0: ss->level), ss->index, ss->state, MIO_NULL, json->rctx);
+			/* no increment on ss->index here. incremented on END */
+		}
+
+		case MIO_JSON_INST_END_ARRAY:
+			if (json->instcb(json, MIO_JSON_INST_END_ARRAY, ss->level, ss->index, ss->state, MIO_NULL, json->rctx) <= -1) return -1;
+			if (ss->state != MIO_JSON_STATE_IN_OBJECT || ss->u.io.state == 3) ss->index++;
+			break;
 
 		case MIO_JSON_INST_START_OBJECT:
+		{
+			mio_json_state_node_t* nss;
+
 			if (push_read_state(json, MIO_JSON_STATE_IN_OBJECT) <= -1) return -1;
-			json->state_stack->u.io.state = 0;
-			json->state_stack->level++;
-			if (ss->state != MIO_JSON_STATE_IN_OBJECT || ss->u.io.state == 1) ss->index++;
-			return json->instcb(json, inst, (is_obj_val? 0: json->state_stack->level - 1), ss->index - 1, ss->state, MIO_NULL, json->rctx);
+			nss = json->state_stack;
+			nss->u.io.state = 0;
+			nss->level++;
+
+			MIO_ASSERT (json->mio, nss->level == ss->level + 1);
+			return json->instcb(json, inst, (is_obj_val? 0: ss->level), ss->index, ss->state, MIO_NULL, json->rctx);
+			/* no increment on ss->index here. incremented on END */
+		}
+
+		case MIO_JSON_INST_END_OBJECT:
+			if (json->instcb(json, MIO_JSON_INST_END_OBJECT, ss->level, ss->index, ss->state, MIO_NULL, json->rctx) <= -1) return -1;
+			if (ss->state != MIO_JSON_STATE_IN_OBJECT || ss->u.io.state == 3) ss->index++;
+			break;
 
 		default:
-			if (ss->state != MIO_JSON_STATE_IN_OBJECT || ss->u.io.state == 1) ss->index++;
-			return json->instcb(json, inst, (is_obj_val? 0: json->state_stack->level), ss->index - 1, ss->state, &json->tok, json->rctx);
+			if (json->instcb(json, inst, (is_obj_val? 0: ss->level), ss->index, ss->state, &json->tok, json->rctx) <= -1) return -1;
+			if (ss->state != MIO_JSON_STATE_IN_OBJECT || ss->u.io.state == 3) ss->index++;
+			break;
 	}
+
+	return 0;
 }
 
 static int handle_string_value_char (mio_json_t* json, mio_ooci_t c)
@@ -485,8 +513,7 @@ static int handle_char_in_array (mio_json_t* json, mio_ooci_t c)
 	else if (c == ']')
 	{
 		pop_read_state (json);
-		/* START_ARRAY incremented index by 1. so subtract 1 from index before invoking instcb for END_ARRAY. */
-		if (json->instcb(json, MIO_JSON_INST_END_ARRAY, json->state_stack->level, json->state_stack->index - 1, json->state_stack->state, MIO_NULL, json->rctx) <= -1) return -1;
+		if (invoke_data_inst(json, MIO_JSON_INST_END_ARRAY) <= -1) return -1;
 		return 1;
 	}
 	else if (c == ',')
@@ -562,9 +589,15 @@ static int handle_char_in_object (mio_json_t* json, mio_ooci_t c)
 	}
 	else if (c == '}')
 	{
+		/* 0 - initial, 1 - got key, 2 -> got colon, 3 -> got value, 0 -> after comma */
+		if (json->state_stack->u.io.state == 1 || json->state_stack->u.io.state == 2)
+		{
+			mio_seterrbfmt (json->mio, MIO_EINVAL, "no value for a key in object");
+			return -1;
+		}
+
 		pop_read_state (json);
-		/* START_OBJECT incremented index by 1. so subtract 1 from index before invoking instcb for END_OBJECT. */
-		if (json->instcb(json, MIO_JSON_INST_END_OBJECT, json->state_stack->level, json->state_stack->index - 1, json->state_stack->state, MIO_NULL, json->rctx) <= -1) return -1;
+		if (invoke_data_inst(json, MIO_JSON_INST_END_OBJECT) <= -1) return -1;
 		return 1;
 	}
 	else if (c == ':')
@@ -581,7 +614,7 @@ static int handle_char_in_object (mio_json_t* json, mio_ooci_t c)
 	{
 		if (json->state_stack->u.io.state != 3)
 		{
-			mio_seterrbfmt (json->mio, MIO_EINVAL, "redundant comma in object - %jc", (mio_ooch_t)c);
+			mio_seterrbfmt (json->mio, MIO_EINVAL, "comma without value or redundant comma in object - %jc", (mio_ooch_t)c);
 			return -1;
 		}
 		json->state_stack->u.io.state = 0;
@@ -1155,7 +1188,7 @@ static int write_uchars (mio_jsonwr_t* jsonwr, int escape, const mio_uch_t* ptr,
 
 #define WRITE_COMMA(jsonwr) do { WRITE_BYTES_NOESC(jsonwr, ",", 1); if (jsonwr->flags & MIO_JSONWR_FLAG_PRETTY) WRITE_LINE_BREAK(jsonwr); } while(0)
 
-#define PREACTION_FOR_VLAUE(jsonwr,sn) do { \
+#define PREACTION_FOR_VALUE(jsonwr,sn) do { \
 	if (sn->state != MIO_JSON_STATE_IN_ARRAY && !(sn->state == MIO_JSON_STATE_IN_OBJECT && sn->obj_awaiting_val)) goto incompatible_inst; \
 	if (sn->index > 0 && sn->state == MIO_JSON_STATE_IN_ARRAY) WRITE_COMMA (jsonwr); \
 	sn->index++; \
@@ -1251,22 +1284,22 @@ int mio_jsonwr_write (mio_jsonwr_t* jsonwr, mio_json_inst_t inst, int is_uchars,
 			break;
 
 		case MIO_JSON_INST_NIL:
-			PREACTION_FOR_VLAUE (jsonwr, sn);
+			PREACTION_FOR_VALUE (jsonwr, sn);
 			WRITE_BYTES_NOESC (jsonwr, "nil", 3);
 			break;
 
 		case MIO_JSON_INST_TRUE:
-			PREACTION_FOR_VLAUE (jsonwr, sn);
+			PREACTION_FOR_VALUE (jsonwr, sn);
 			WRITE_BYTES_NOESC (jsonwr, "true", 4);
 			break;
 			
 		case MIO_JSON_INST_FALSE:
-			PREACTION_FOR_VLAUE (jsonwr, sn);
+			PREACTION_FOR_VALUE (jsonwr, sn);
 			WRITE_BYTES_NOESC (jsonwr, "false", 5);
 			break;
 
 		case MIO_JSON_INST_NUMBER:
-			PREACTION_FOR_VLAUE (jsonwr, sn);
+			PREACTION_FOR_VALUE (jsonwr, sn);
 			if (is_uchars)
 				WRITE_UCHARS (jsonwr, 0, dptr, dlen);
 			else
@@ -1274,7 +1307,7 @@ int mio_jsonwr_write (mio_jsonwr_t* jsonwr, mio_json_inst_t inst, int is_uchars,
 			break;
 
 		case MIO_JSON_INST_STRING:
-			PREACTION_FOR_VLAUE (jsonwr, sn);
+			PREACTION_FOR_VALUE (jsonwr, sn);
 			WRITE_BYTES_NOESC (jsonwr, "\"", 1);
 			if (is_uchars) WRITE_UCHARS (jsonwr, 1, dptr, dlen);
 			else WRITE_BYTES_ESC (jsonwr, dptr, dlen);
@@ -1298,7 +1331,7 @@ int mio_jsonwr_writeintmax (mio_jsonwr_t* jsonwr, mio_intmax_t v)
 	mio_bch_t tmp[((MIO_SIZEOF_UINTMAX_T * MIO_BITS_PER_BYTE) / 3) + 3]; /* there can be a sign. so +3 instead of +2 */
 	mio_oow_t len;
 
-	PREACTION_FOR_VLAUE (jsonwr, sn);
+	PREACTION_FOR_VALUE (jsonwr, sn);
 	len = mio_fmt_intmax_to_bcstr(tmp, MIO_COUNTOF(tmp), v, 10, 0, '\0', MIO_NULL);
 	WRITE_BYTES_NOESC (jsonwr, tmp, len);
 	return 0;
@@ -1315,7 +1348,7 @@ int mio_jsonwr_writeuintmax (mio_jsonwr_t* jsonwr, mio_uintmax_t v)
 	mio_bch_t tmp[((MIO_SIZEOF_UINTMAX_T * MIO_BITS_PER_BYTE) / 3) + 2];
 	mio_oow_t len;
 
-	PREACTION_FOR_VLAUE (jsonwr, sn);
+	PREACTION_FOR_VALUE (jsonwr, sn);
 	len = mio_fmt_uintmax_to_bcstr(tmp, MIO_COUNTOF(tmp), v, 10, 0, '\0', MIO_NULL);
 	WRITE_BYTES_NOESC (jsonwr, tmp, len);
 	return 0;
