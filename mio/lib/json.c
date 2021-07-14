@@ -874,12 +874,12 @@ int mio_json_feed (mio_json_t* json, const void* ptr, mio_oow_t len, mio_oow_t* 
 
 		if (stop_if_ever_completed && x >= 2) 
 		{
-			*rem = len - total;
+			if (rem) *rem = len - total;
 			return 1;
 		}
 	}
 
-	*rem = len - total;
+	if (rem) *rem = len - total;
 	return 0;
 }
 
