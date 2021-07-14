@@ -133,6 +133,7 @@ static int push_read_state (mio_json_t* json, mio_json_state_t state)
 	ss->state = state;
 	ss->level = json->state_stack->level; /* copy from the parent */
 	ss->index  = 0;
+	ss->in_comment = 0;
 	ss->next = json->state_stack;
 	
 	json->state_stack = ss;
@@ -470,14 +471,18 @@ static int handle_start_char (mio_json_t* json, mio_ooci_t c)
 		/* do nothing */
 		return 1;
 	}
+	else if ((json->option & MIO_JSON_LINE_COMMENT) && c == '#')
+	{
+		/* line comment */
+		json->state_stack->in_comment = 1;
+		return 1;
+	}
 	else if (c == '\"')
 	{
 		if (push_read_state(json, MIO_JSON_STATE_IN_STRING_VALUE) <= -1) return -1;
 		clear_token (json);
 		return 1; /* the quote dosn't form a string. so no start-over */
 	}
-	/* TOOD: else if (c == '#') MIO radixed number
-	 */
 	else if (mio_is_ooch_digit(c) || c == '+' || c == '-')
 	{
 		if (push_read_state(json, MIO_JSON_STATE_IN_NUMERIC_VALUE) <= -1) return -1;
@@ -513,6 +518,12 @@ static int handle_char_in_array (mio_json_t* json, mio_ooci_t c)
 	if (mio_is_ooch_space(c))
 	{
 		/* do nothing */
+		return 1;
+	}
+	else if ((json->option & MIO_JSON_LINE_COMMENT) && c == '#')
+	{
+		/* line comment */
+		json->state_stack->in_comment = 1;
 		return 1;
 	}
 	else if (c == ']')
@@ -552,8 +563,6 @@ static int handle_char_in_array (mio_json_t* json, mio_ooci_t c)
 			clear_token (json);
 			return 1;
 		}
-		/* TOOD: else if (c == '#') MIO radixed number
-		 */
 		else if (mio_is_ooch_digit(c) || c == '+' || c == '-')
 		{
 			if (push_read_state(json, MIO_JSON_STATE_IN_NUMERIC_VALUE) <= -1) return -1;
@@ -590,6 +599,12 @@ static int handle_char_in_object (mio_json_t* json, mio_ooci_t c)
 	if (mio_is_ooch_space(c))
 	{
 		/* do nothing */
+		return 1;
+	}
+	else if ((json->option & MIO_JSON_LINE_COMMENT) && c == '#')
+	{
+		/* line comment */
+		json->state_stack->in_comment = 1;
 		return 1;
 	}
 	else if (c == '}')
@@ -650,8 +665,6 @@ static int handle_char_in_object (mio_json_t* json, mio_ooci_t c)
 			clear_token (json);
 			return 1;
 		}
-		/* TOOD: else if (c == '#') MIO radixed number
-		 */
 		else if (mio_is_ooch_digit(c) || c == '+' || c == '-')
 		{
 			if (push_read_state(json, MIO_JSON_STATE_IN_NUMERIC_VALUE) <= -1) return -1;
@@ -785,6 +798,11 @@ static int feed_json_data (mio_json_t* json, const mio_bch_t* data, mio_oow_t le
 		c = *ptr++;
 	#endif
 
+		if (json->state_stack->in_comment) 
+		{
+			if (c == '\n') json->state_stack->in_comment = 0;
+			continue;
+		}
 		if (json->state_stack->state == MIO_JSON_STATE_START && mio_is_ooch_space(c)) continue; /* skip white space */
 
 		if (stop_if_ever_completed && ever_completed) 

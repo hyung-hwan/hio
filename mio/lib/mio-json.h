@@ -83,6 +83,7 @@ struct mio_json_state_node_t
 	mio_json_state_t state;
 	mio_oow_t level;
 	mio_oow_t index;
+	int in_comment;
 	union
 	{
 		struct
@@ -124,7 +125,12 @@ enum mio_json_option_t
 {
 	/* allow an unquoted word as an object key */
 	MIO_JSON_PERMIT_WORD_KEY  = ((mio_bitmask_t)1 << 0), 
-	MIO_JSON_OPTIONAL_COMMA   = ((mio_bitmask_t)1 << 1)
+
+	/* a comma as a separator is not mandatory */
+	MIO_JSON_OPTIONAL_COMMA   = ((mio_bitmask_t)1 << 1),
+
+	/* support the line comment. the text beginning with # is a comment to the end of the line */
+	MIO_JSON_LINE_COMMENT   = ((mio_bitmask_t)1 << 2)
 };
 
 typedef enum mio_json_option_t mio_json_option_t;

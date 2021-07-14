@@ -158,6 +158,7 @@ int main (int argc, char* argv[])
 	{
 		if (strcmp(argv[i], "--permit-word-key") == 0) o |= MIO_JSON_PERMIT_WORD_KEY;
 		if (strcmp(argv[i], "--optional-comma") == 0) o |= MIO_JSON_OPTIONAL_COMMA;
+		if (strcmp(argv[i], "--line-comment") == 0) o |= MIO_JSON_LINE_COMMENT;
 	}
 
 	mio = mio_open(MIO_NULL, 0, MIO_NULL, 512, MIO_NULL);
