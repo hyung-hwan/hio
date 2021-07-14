@@ -963,7 +963,7 @@ int mio_svc_htts_docgi (mio_svc_htts_t* htts, mio_dev_sck_t* csck, mio_htre_t* r
 
 	cgi->peer_htrd = mio_htrd_open(mio, MIO_SIZEOF(*cgi_peer));
 	if (MIO_UNLIKELY(!cgi->peer_htrd)) goto oops;
-	mio_htrd_setoption (cgi->peer_htrd, MIO_HTRD_SKIPINITIALLINE | MIO_HTRD_RESPONSE);
+	mio_htrd_setoption (cgi->peer_htrd, MIO_HTRD_SKIP_INITIAL_LINE | MIO_HTRD_RESPONSE);
 	mio_htrd_setrecbs (cgi->peer_htrd, &cgi_peer_htrd_recbs);
 
 	cgi_peer = mio_htrd_getxtn(cgi->peer_htrd);

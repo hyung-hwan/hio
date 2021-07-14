@@ -871,7 +871,7 @@ static MIO_INLINE int parse_initial_line_and_headers (mio_htrd_t* htrd, const mi
 	p = MIO_BECS_PTR(&htrd->fed.b.raw);
 
 #if 0
-	if (htrd->option & MIO_HTRD_SKIPEMPTYLINES)
+	if (htrd->option & MIO_HTRD_SKIP_EMPTY_LINES)
 		while (is_whspace_octet(*p)) p++;
 	else
 #endif
@@ -880,7 +880,7 @@ static MIO_INLINE int parse_initial_line_and_headers (mio_htrd_t* htrd, const mi
 	MIO_ASSERT (htrd->mio, *p != '\0');
 
 	/* parse the initial line */
-	if (!(htrd->option & MIO_HTRD_SKIPINITIALLINE))
+	if (!(htrd->option & MIO_HTRD_SKIP_INITIAL_LINE))
 	{
 		p = parse_initial_line(htrd, p);
 		if (MIO_UNLIKELY(!p)) return -1;
@@ -1100,7 +1100,7 @@ int mio_htrd_feed (mio_htrd_t* htrd, const mio_bch_t* req, mio_oow_t len, mio_oo
 		register mio_bch_t b = *ptr++;
 
 #if 0
-		if (htrd->option & MIO_HTRD_SKIPEMPTYLINES &&
+		if (htrd->option & MIO_HTRD_SKIP_EMPTY_LINES &&
 		    htrd->fed.s.plen <= 0 && is_whspace_octet(b)) 
 		{
 			/* let's drop leading whitespaces across multiple
@@ -1445,7 +1445,7 @@ mio_printf (MIO_T("CONTENT_LENGTH %d, RAW HEADER LENGTH %d\n"),
 
 					/* since there are more to handle, i mark that
 					 * htrd is in need of some data. this may
-					 * not be really compatible with SKIPEMPTYLINES. 
+					 * not be really compatible with SKIP_EMPTY_LINES. 
 					 * SHOULD I simply remove the option? */
 					htrd->clean = 0; 
 				}

@@ -52,13 +52,13 @@ typedef enum mio_htrd_errnum_t mio_htrd_errnum_t;
  */
 enum mio_htrd_option_t
 {
-	MIO_HTRD_SKIPEMPTYLINES  = ((mio_bitmask_t)1 << 0), /**< skip leading empty lines before the initial line */
-	MIO_HTRD_SKIPINITIALLINE = ((mio_bitmask_t)1 << 1), /**< skip processing an initial line */
-	MIO_HTRD_CANONQPATH      = ((mio_bitmask_t)1 << 2), /**< canonicalize the query path */
-	MIO_HTRD_REQUEST         = ((mio_bitmask_t)1 << 3), /**< parse input as a request */
-	MIO_HTRD_RESPONSE        = ((mio_bitmask_t)1 << 4), /**< parse input as a response */
-	MIO_HTRD_TRAILERS        = ((mio_bitmask_t)1 << 5), /**< store trailers in a separate table */
-	MIO_HTRD_STRICT          = ((mio_bitmask_t)1 << 6)  /**< be more picky */
+	MIO_HTRD_SKIP_EMPTY_LINES  = ((mio_bitmask_t)1 << 0), /**< skip leading empty lines before the initial line */
+	MIO_HTRD_SKIP_INITIAL_LINE = ((mio_bitmask_t)1 << 1), /**< skip processing an initial line */
+	MIO_HTRD_CANONQPATH        = ((mio_bitmask_t)1 << 2), /**< canonicalize the query path */
+	MIO_HTRD_REQUEST           = ((mio_bitmask_t)1 << 3), /**< parse input as a request */
+	MIO_HTRD_RESPONSE          = ((mio_bitmask_t)1 << 4), /**< parse input as a response */
+	MIO_HTRD_TRAILERS          = ((mio_bitmask_t)1 << 5), /**< store trailers in a separate table */
+	MIO_HTRD_STRICT            = ((mio_bitmask_t)1 << 6)  /**< be more picky */
 };
 
 typedef enum mio_htrd_option_t mio_htrd_option_t;
