@@ -31,6 +31,9 @@
 
 #define MIO_JSON_TOKEN_NAME_ALIGN 64
 
+/* this must not overlap with MIO_JSON_INST_XXXX enumerators in mio-json.h */
+#define __INST_WORD_STRING  9999
+
 /* ========================================================================= */
 
 static void clear_token (mio_json_t* json)
@@ -178,7 +181,7 @@ static int invoke_data_inst (mio_json_t* json, mio_json_inst_t inst)
 			/* this is called after the reader has seen a colon. 
 			 * the data item must be used as a key */
 
-			if (inst != MIO_JSON_INST_STRING)
+			if (inst != MIO_JSON_INST_STRING && inst != __INST_WORD_STRING)
 			{
 				mio_seterrbfmt (json->mio, MIO_EINVAL, "object key not a string - %.*js", json->tok.len, json->tok.ptr);
 				return -1;
@@ -191,6 +194,12 @@ static int invoke_data_inst (mio_json_t* json, mio_json_inst_t inst)
 			/* if this variable is non-zero, level is set to 0 regardless of actual level */
 			is_obj_val = 1;
 		}
+	}
+
+	if (inst == __INST_WORD_STRING) 
+	{
+		mio_seterrbfmt (json->mio, MIO_EINVAL, "invalid word value - %.*js", json->tok.len, json->tok.ptr);
+		return -1;
 	}
 
 	switch (inst)
@@ -392,8 +401,12 @@ static int handle_numeric_value_char (mio_json_t* json, mio_ooci_t c)
 static int handle_word_value_char (mio_json_t* json, mio_ooci_t c)
 {
 	mio_json_inst_t inst;
+	int ok;
 
-	if (mio_is_ooch_alpha(c))
+	ok = (json->option & MIO_JSON_PERMITWORDKEY)?
+		(mio_is_ooch_alpha(c) || mio_is_ooch_digit(c) || c == '_'):
+		mio_is_ooch_alpha(c);
+	if (ok)
 	{
 		if (add_char_to_token(json, c, 0) <= -1) return -1;
 		return 1;
@@ -404,6 +417,7 @@ static int handle_word_value_char (mio_json_t* json, mio_ooci_t c)
 	if (mio_comp_oochars_bcstr(json->tok.ptr, json->tok.len, "null", 0) == 0) inst = MIO_JSON_INST_NIL;
 	else if (mio_comp_oochars_bcstr(json->tok.ptr, json->tok.len, "true", 0) == 0) inst = MIO_JSON_INST_TRUE;
 	else if (mio_comp_oochars_bcstr(json->tok.ptr, json->tok.len, "false", 0) == 0) inst = MIO_JSON_INST_FALSE;
+	else if (json->option & MIO_JSON_PERMITWORDKEY) inst = __INST_WORD_STRING; /* internal only */
 	else
 	{
 		mio_seterrbfmt (json->mio, MIO_EINVAL, "invalid word value - %.*js", json->tok.len, json->tok.ptr);
@@ -800,6 +814,16 @@ void mio_json_fini (mio_json_t* json)
 	}
 }
 /* ========================================================================= */
+
+mio_bitmask_t mio_json_getoption (mio_json_t* json)
+{
+	return json->option;
+}
+
+void mio_json_setoption (mio_json_t* json, mio_bitmask_t mask)
+{
+	json->option = mask;
+}
 
 void mio_json_setinstcb (mio_json_t* json, mio_json_instcb_t instcb, void* ctx)
 {

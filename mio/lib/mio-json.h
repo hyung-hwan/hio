@@ -120,16 +120,27 @@ struct mio_json_state_node_t
 	mio_json_state_node_t* next;
 };
 
+enum mio_json_option_t
+{
+	/* allow an unquoted word as an object key */
+        MIO_JSON_PERMITWORDKEY  = ((mio_bitmask_t)1 << 0), 
+};
+
+typedef enum mio_json_option_t mio_json_option_t;
+
+
 struct mio_json_t
 {
 	mio_t* mio;
 	mio_json_instcb_t instcb;
 	void* rctx;
+	mio_bitmask_t option;
 
 	mio_json_state_node_t state_top;
 	mio_json_state_node_t* state_stack;
 	mio_oocs_t tok;
 	mio_oow_t tok_capa;
+
 };
 
 /* ========================================================================= */
@@ -207,6 +218,15 @@ static MIO_INLINE void* mio_json_getxtn (mio_json_t* json) { return (void*)(json
 #else
 #define mio_json_getxtn(json) ((void*)((mio_json_t*)(json) + 1))
 #endif
+
+MIO_EXPORT mio_bitmask_t mio_json_getoption (
+	mio_json_t*       json
+);
+
+MIO_EXPORT void mio_json_setoption (
+	mio_json_t*       json,
+	mio_bitmask_t     mask
+);
 
 MIO_EXPORT void mio_json_setinstcb (
 	mio_json_t*       json,

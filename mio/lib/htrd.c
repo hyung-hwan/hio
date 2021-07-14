@@ -434,14 +434,14 @@ mio_htrd_errnum_t mio_htrd_geterrnum (mio_htrd_t* htrd)
 	return htrd->errnum;
 }
 
-int mio_htrd_getopt (mio_htrd_t* htrd)
+mio_bitmask_t mio_htrd_getoption (mio_htrd_t* htrd)
 {
 	return htrd->option;
 }
 
-void mio_htrd_setopt (mio_htrd_t* htrd, int opts)
+void mio_htrd_setoption (mio_htrd_t* htrd, mio_bitmask_t mask)
 {
-	htrd->option = opts;
+	htrd->option = mask;
 }
 
 const mio_htrd_recbs_t* mio_htrd_getrecbs (mio_htrd_t* htrd)

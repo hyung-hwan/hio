@@ -64,7 +64,7 @@ static int init_client (mio_svc_htts_cli_t* cli, mio_dev_sck_t* sck)
 
 	/* With MIO_HTRD_TRAILERS, htrd stores trailers in a separate place.
 	 * Otherwise, it is merged to the headers. */
-	/*mio_htrd_setopt (cli->htrd, MIO_HTRD_REQUEST | MIO_HTRD_TRAILERS);*/
+	/*mio_htrd_setoption (cli->htrd, MIO_HTRD_REQUEST | MIO_HTRD_TRAILERS);*/
 
 	cli->sbuf = mio_becs_open(sck->mio, 0, 2048);
 	if (MIO_UNLIKELY(!cli->sbuf)) goto oops;
