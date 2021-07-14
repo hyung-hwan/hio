@@ -182,7 +182,12 @@ static int invoke_data_inst (mio_json_t* json, mio_json_inst_t inst)
 
 			if (inst != MIO_JSON_INST_STRING && inst != __INST_WORD_STRING)
 			{
-				mio_seterrbfmt (json->mio, MIO_EINVAL, "object key not a string - %.*js", json->tok.len, json->tok.ptr);
+				if (inst == MIO_JSON_INST_END_ARRAY)
+					mio_seterrbfmt (json->mio, MIO_EINVAL, "object key not a string - <array>");
+				else if (inst == MIO_JSON_INST_END_OBJECT)
+					mio_seterrbfmt (json->mio, MIO_EINVAL, "object key not a string - <object>");
+				else
+					mio_seterrbfmt (json->mio, MIO_EINVAL, "object key not a string - %.*js", json->tok.len, json->tok.ptr);
 				return -1;
 			}
 
