@@ -503,8 +503,15 @@ static int handle_char_in_array (mio_json_t* json, mio_ooci_t c)
 	{
 		if (json->state_stack->u.ia.got_value)
 		{
-			mio_seterrbfmt (json->mio, MIO_EINVAL, "comma required in array - %jc", (mio_ooch_t)c);
-			return -1;
+			if (json->option & MIO_JSON_OPTIONAL_COMMA)
+			{
+				json->state_stack->u.ia.got_value = 0;
+			}
+			else
+			{
+				mio_seterrbfmt (json->mio, MIO_EINVAL, "comma required in array - %jc", (mio_ooch_t)c);
+				return -1;
+			}
 		}
 
 		if (c == '\"')
@@ -589,8 +596,14 @@ static int handle_char_in_object (mio_json_t* json, mio_ooci_t c)
 		}
 		else if (json->state_stack->u.io.state == 3)
 		{
-			mio_seterrbfmt (json->mio, MIO_EINVAL, "comma required in object - %jc", (mio_ooch_t)c);
-			return -1;
+			if (json->option & MIO_JSON_OPTIONAL_COMMA)
+			{
+				json->state_stack->u.io.state = 0;
+			}
+			else
+			{
+				mio_seterrbfmt (json->mio, MIO_EINVAL, "comma required in object - %jc", (mio_ooch_t)c);
+			}
 		}
 
 		if (c == '\"')
