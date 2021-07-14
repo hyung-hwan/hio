@@ -123,7 +123,8 @@ struct mio_json_state_node_t
 enum mio_json_option_t
 {
 	/* allow an unquoted word as an object key */
-        MIO_JSON_PERMITWORDKEY  = ((mio_bitmask_t)1 << 0), 
+	MIO_JSON_PERMIT_WORD_KEY  = ((mio_bitmask_t)1 << 0), 
+	MIO_JSON_OPTIONAL_COMMA   = ((mio_bitmask_t)1 << 1)
 };
 
 typedef enum mio_json_option_t mio_json_option_t;

@@ -403,7 +403,7 @@ static int handle_word_value_char (mio_json_t* json, mio_ooci_t c)
 	mio_json_inst_t inst;
 	int ok;
 
-	ok = (json->option & MIO_JSON_PERMITWORDKEY)?
+	ok = (json->option & MIO_JSON_PERMIT_WORD_KEY)?
 		(mio_is_ooch_alpha(c) || mio_is_ooch_digit(c) || c == '_'):
 		mio_is_ooch_alpha(c);
 	if (ok)
@@ -417,7 +417,7 @@ static int handle_word_value_char (mio_json_t* json, mio_ooci_t c)
 	if (mio_comp_oochars_bcstr(json->tok.ptr, json->tok.len, "null", 0) == 0) inst = MIO_JSON_INST_NIL;
 	else if (mio_comp_oochars_bcstr(json->tok.ptr, json->tok.len, "true", 0) == 0) inst = MIO_JSON_INST_TRUE;
 	else if (mio_comp_oochars_bcstr(json->tok.ptr, json->tok.len, "false", 0) == 0) inst = MIO_JSON_INST_FALSE;
-	else if (json->option & MIO_JSON_PERMITWORDKEY) inst = __INST_WORD_STRING; /* internal only */
+	else if (json->option & MIO_JSON_PERMIT_WORD_KEY) inst = __INST_WORD_STRING; /* internal only */
 	else
 	{
 		mio_seterrbfmt (json->mio, MIO_EINVAL, "invalid word value - %.*js", json->tok.len, json->tok.ptr);

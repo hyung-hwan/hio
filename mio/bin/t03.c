@@ -119,7 +119,7 @@ int main (int argc, char* argv[])
 
 	for (i = 1; i < argc; i++)
 	{
-		if (strcmp(argv[i], "--permit-word-key") == 0) o |= MIO_JSON_PERMITWORDKEY;
+		if (strcmp(argv[i], "--permit-word-key") == 0) o |= MIO_JSON_PERMIT_WORD_KEY;
 	}
 
 	mio = mio_open(MIO_NULL, 0, MIO_NULL, 512, MIO_NULL);
