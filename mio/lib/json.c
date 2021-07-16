@@ -802,8 +802,12 @@ static int feed_json_data (mio_json_t* json, const mio_bch_t* data, mio_oow_t le
 
 		if (c == '\n')
 		{
-			json->c_col = 1;
+			json->c_col = 0;
 			json->c_line++;
+		}
+		else
+		{
+			json->c_col++;
 		}
 
 		if (json->state_stack->in_comment) 
@@ -879,7 +883,7 @@ int mio_json_init (mio_json_t* json, mio_t* mio)
 	json->state_stack = &json->state_top;
 
 	json->c_line = 1;
-	json->c_col = 1;
+	json->c_col = 0;
 
 	return 0;
 }
@@ -921,6 +925,12 @@ void mio_json_resetstates (mio_json_t* json)
 	pop_all_read_states (json);
 	MIO_ASSERT (json->mio, json->state_stack == &json->state_top);
 	json->state_stack->state = MIO_JSON_STATE_START;
+}
+
+void mio_json_resetfeedloc (mio_json_t* json)
+{
+	json->c_line = 1;
+	json->c_col = 0;
 }
 
 int mio_json_feed (mio_json_t* json, const void* ptr, mio_oow_t len, mio_oow_t* rem, int stop_if_ever_completed)

@@ -253,6 +253,10 @@ MIO_EXPORT void mio_json_resetstates (
 	mio_json_t*   json
 );
 
+MIO_EXPORT void mio_json_resetfeedloc (
+	mio_json_t*   json
+);
+
 /**
  * The mio_json_feed() function processes the raw data.
  *
