@@ -638,8 +638,92 @@ const mio_uch_t* mio_find_ucstr_word_in_ucstr (const mio_uch_t* str, const mio_u
 }
 
 /* ========================================================================= */
-#define IS_UCH_SPACE(x) ((x) ==' ' || (x) == '\t' || (x) == '\n' || (x) == '\r')
-#define IS_BCH_SPACE(x) ((x) ==' ' || (x) == '\t' || (x) == '\n' || (x) == '\r')
+
+mio_uch_t* mio_trim_uchars (mio_uch_t* str, mio_oow_t* len, int flags)
+{
+	mio_uch_t* p = str, * end = str + *len;
+
+	if (p < end)
+	{
+		mio_uch_t* s = MIO_NULL, * e = MIO_NULL;
+
+		do
+		{
+			if (!mio_is_uch_space(*p))
+			{
+				if (s == MIO_NULL) s = p;
+				e = p;
+			}
+			p++;
+		}
+		while (p < end);
+
+		if (e)
+		{
+			if (flags & MIO_TRIM_UCHARS_RIGHT) 
+			{
+				*len -= end - e - 1;
+			}
+			if (flags & MIO_TRIM_UCHARS_LEFT) 
+			{
+				*len -= s - str;
+				str = s;
+			}
+		}
+		else
+		{
+			/* the entire string need to be deleted */
+			if ((flags & MIO_TRIM_UCHARS_RIGHT) || 
+			    (flags & MIO_TRIM_UCHARS_LEFT)) *len = 0;
+		}
+	}
+
+	return str;
+}
+
+mio_bch_t* mio_trim_bchars (mio_bch_t* str, mio_oow_t* len, int flags)
+{
+	mio_bch_t* p = str, * end = str + *len;
+
+	if (p < end)
+	{
+		mio_bch_t* s = MIO_NULL, * e = MIO_NULL;
+
+		do
+		{
+			if (!mio_is_bch_space(*p))
+			{
+				if (s == MIO_NULL) s = p;
+				e = p;
+			}
+			p++;
+		}
+		while (p < end);
+
+		if (e)
+		{
+			if (flags & MIO_TRIM_BCHARS_RIGHT) 
+			{
+				*len -= end - e - 1;
+			}
+			if (flags & MIO_TRIM_BCHARS_LEFT) 
+			{
+				*len -= s - str;
+				str = s;
+			}
+		}
+		else
+		{
+			/* the entire string need to be deleted */
+			if ((flags & MIO_TRIM_BCHARS_RIGHT) || 
+			    (flags & MIO_TRIM_BCHARS_LEFT)) *len = 0;
+		}
+	}
+
+	return str;
+}
+
+/* ========================================================================= */
 
 int mio_split_ucstr (mio_uch_t* s, const mio_uch_t* delim, mio_uch_t lquote, mio_uch_t rquote, mio_uch_t escape)
 {
@@ -653,13 +737,13 @@ int mio_split_ucstr (mio_uch_t* s, const mio_uch_t* delim, mio_uch_t lquote, mio
 	{
 		delim_mode = 1;
 		for (d = (mio_uch_t*)delim; *d != '\0'; d++)
-			if (!IS_UCH_SPACE(*d)) delim_mode = 2;
+			if (!mio_is_uch_space(*d)) delim_mode = 2;
 	}
 
 	if (delim_mode == 0) 
 	{
 		/* skip preceding space characters */
-		while (IS_UCH_SPACE(*p)) p++;
+		while (mio_is_uch_space(*p)) p++;
 
 		/* when 0 is given as "delim", it has an effect of cutting
 		   preceding and trailing space characters off "s". */
@@ -688,7 +772,7 @@ int mio_split_ucstr (mio_uch_t* s, const mio_uch_t* delim, mio_uch_t lquote, mio
 				ep = p;
 				p++;
 			}
-			while (IS_UCH_SPACE(*p)) p++;
+			while (mio_is_uch_space(*p)) p++;
 			if (*p != '\0') return -1;
 
 			if (sp == 0 && ep == 0) s[0] = '\0';
@@ -703,7 +787,7 @@ int mio_split_ucstr (mio_uch_t* s, const mio_uch_t* delim, mio_uch_t lquote, mio
 		{
 			while (*p) 
 			{
-				if (!IS_UCH_SPACE(*p)) 
+				if (!mio_is_uch_space(*p)) 
 				{
 					if (sp == 0) sp = p;
 					ep = p;
@@ -727,7 +811,7 @@ int mio_split_ucstr (mio_uch_t* s, const mio_uch_t* delim, mio_uch_t lquote, mio
 		while (*p) 
 		{
 			o = p;
-			while (IS_UCH_SPACE(*p)) p++;
+			while (mio_is_uch_space(*p)) p++;
 			if (o != p) { mio_copy_ucstr_unlimited (o, p); p = o; }
 
 			if (lquote != '\0' && *p == lquote) 
@@ -764,7 +848,7 @@ int mio_split_ucstr (mio_uch_t* s, const mio_uch_t* delim, mio_uch_t lquote, mio
 						if (o != p) cnt++;
 						break;
 					}
-					if (IS_UCH_SPACE (*p)) 
+					if (mio_is_uch_space(*p)) 
 					{
 						*p++ = '\0';
 						cnt++;
@@ -783,7 +867,7 @@ int mio_split_ucstr (mio_uch_t* s, const mio_uch_t* delim, mio_uch_t lquote, mio
 		while (*p != '\0') 
 		{
 			o = p;
-			while (IS_UCH_SPACE(*p)) p++;
+			while (mio_is_uch_space(*p)) p++;
 			if (o != p) { mio_copy_ucstr_unlimited (o, p); p = o; }
 
 			if (lquote != '\0' && *p == lquote) 
@@ -811,7 +895,7 @@ int mio_split_ucstr (mio_uch_t* s, const mio_uch_t* delim, mio_uch_t lquote, mio
 				}
 
 				ok = 0;
-				while (IS_UCH_SPACE(*p)) p++;
+				while (mio_is_uch_space(*p)) p++;
 				if (*p == '\0') ok = 1;
 				for (d = (mio_uch_t*)delim; *d != '\0'; d++) 
 				{
@@ -863,7 +947,7 @@ int mio_split_ucstr (mio_uch_t* s, const mio_uch_t* delim, mio_uch_t lquote, mio
 						}
 					}
 
-					if (!IS_UCH_SPACE (*p)) 
+					if (!mio_is_uch_space(*p)) 
 					{
 						if (sp == MIO_NULL) sp = p;
 						ep = p;
@@ -891,13 +975,13 @@ int mio_split_bcstr (mio_bch_t* s, const mio_bch_t* delim, mio_bch_t lquote, mio
 	{
 		delim_mode = 1;
 		for (d = (mio_bch_t*)delim; *d != '\0'; d++)
-			if (!IS_BCH_SPACE(*d)) delim_mode = 2;
+			if (!mio_is_bch_space(*d)) delim_mode = 2;
 	}
 
 	if (delim_mode == 0) 
 	{
 		/* skip preceding space characters */
-		while (IS_BCH_SPACE(*p)) p++;
+		while (mio_is_bch_space(*p)) p++;
 
 		/* when 0 is given as "delim", it has an effect of cutting
 		   preceding and trailing space characters off "s". */
@@ -926,7 +1010,7 @@ int mio_split_bcstr (mio_bch_t* s, const mio_bch_t* delim, mio_bch_t lquote, mio
 				ep = p;
 				p++;
 			}
-			while (IS_BCH_SPACE(*p)) p++;
+			while (mio_is_bch_space(*p)) p++;
 			if (*p != '\0') return -1;
 
 			if (sp == 0 && ep == 0) s[0] = '\0';
@@ -941,7 +1025,7 @@ int mio_split_bcstr (mio_bch_t* s, const mio_bch_t* delim, mio_bch_t lquote, mio
 		{
 			while (*p) 
 			{
-				if (!IS_BCH_SPACE(*p)) 
+				if (!mio_is_bch_space(*p)) 
 				{
 					if (sp == 0) sp = p;
 					ep = p;
@@ -965,7 +1049,7 @@ int mio_split_bcstr (mio_bch_t* s, const mio_bch_t* delim, mio_bch_t lquote, mio
 		while (*p) 
 		{
 			o = p;
-			while (IS_BCH_SPACE(*p)) p++;
+			while (mio_is_bch_space(*p)) p++;
 			if (o != p) { mio_copy_bcstr_unlimited (o, p); p = o; }
 
 			if (lquote != '\0' && *p == lquote) 
@@ -1002,7 +1086,7 @@ int mio_split_bcstr (mio_bch_t* s, const mio_bch_t* delim, mio_bch_t lquote, mio
 						if (o != p) cnt++;
 						break;
 					}
-					if (IS_BCH_SPACE (*p)) 
+					if (mio_is_bch_space(*p)) 
 					{
 						*p++ = '\0';
 						cnt++;
@@ -1021,7 +1105,7 @@ int mio_split_bcstr (mio_bch_t* s, const mio_bch_t* delim, mio_bch_t lquote, mio
 		while (*p != '\0') 
 		{
 			o = p;
-			while (IS_BCH_SPACE(*p)) p++;
+			while (mio_is_bch_space(*p)) p++;
 			if (o != p) { mio_copy_bcstr_unlimited (o, p); p = o; }
 
 			if (lquote != '\0' && *p == lquote) 
@@ -1049,7 +1133,7 @@ int mio_split_bcstr (mio_bch_t* s, const mio_bch_t* delim, mio_bch_t lquote, mio
 				}
 
 				ok = 0;
-				while (IS_BCH_SPACE(*p)) p++;
+				while (mio_is_bch_space(*p)) p++;
 				if (*p == '\0') ok = 1;
 				for (d = (mio_bch_t*)delim; *d != '\0'; d++) 
 				{
@@ -1101,7 +1185,7 @@ int mio_split_bcstr (mio_bch_t* s, const mio_bch_t* delim, mio_bch_t lquote, mio
 						}
 					}
 
-					if (!IS_BCH_SPACE (*p)) 
+					if (!mio_is_bch_space(*p)) 
 					{
 						if (sp == MIO_NULL) sp = p;
 						ep = p;

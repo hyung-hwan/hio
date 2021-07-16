@@ -225,6 +225,21 @@
 #define MIO_HASH_UCSTR(hv, ptr) MIO_HASH_VPTR(hv, ptr, const mio_uch_t)
 #define MIO_HASH_MORE_UCSTR(hv, ptr) MIO_HASH_MORE_VPTR(hv, ptr, const mio_uch_t)
 
+/* =========================================================================
+ * STRING
+ * ========================================================================= */
+
+enum mio_trim_oochars_flag_t
+{
+        MIO_TRIM_OOCHARS_LEFT  = (1 << 0), /**< trim leading spaces */
+#define MIO_TRIM_OOCHARS_LEFT MIO_TRIM_OOCHARS_LEFT
+#define MIO_TRIM_UCHARS_LEFT MIO_TRIM_OOCHARS_LEFT
+#define MIO_TRIM_BCHARS_LEFT MIO_TRIM_OOCHARS_LEFT
+        MIO_TRIM_OOCHARS_RIGHT = (1 << 1)  /**< trim trailing spaces */
+#define MIO_TRIM_OOCHARS_RIGHT MIO_TRIM_OOCHARS_RIGHT
+#define MIO_TRIM_UCHARS_RIGHT MIO_TRIM_OOCHARS_RIGHT
+#define MIO_TRIM_BCHARS_RIGHT MIO_TRIM_OOCHARS_RIGHT
+};
 
 #ifdef __cplusplus
 extern "C" {
@@ -453,6 +468,19 @@ MIO_EXPORT mio_bch_t* mio_find_bchar_in_bcstr (
 	mio_bch_t        c
 );
 
+MIO_EXPORT mio_uch_t* mio_trim_uchars (
+	mio_uch_t* str,
+	mio_oow_t* len,
+	int        flags
+);
+
+MIO_EXPORT mio_bch_t* mio_trim_bchars (
+	mio_bch_t* str,
+	mio_oow_t* len,
+	int        flags
+);
+
+
 MIO_EXPORT int mio_split_ucstr (
 	mio_uch_t*       s,
 	const mio_uch_t* delim,
@@ -503,6 +531,7 @@ MIO_EXPORT mio_oow_t mio_count_bcstr (
 #	define mio_rfind_oochar mio_rfind_uchar
 #	define mio_find_oochar_in_oocstr mio_find_uchar_in_ucstr
 
+#	define mio_trim_oochars mio_trim_uchars
 #	define mio_split_oocstr mio_split_ucstr
 #	define mio_count_oocstr mio_count_ucstr
 #else
@@ -531,6 +560,7 @@ MIO_EXPORT mio_oow_t mio_count_bcstr (
 #	define mio_rfind_oochar mio_rfind_bchar
 #	define mio_find_oochar_in_oocstr mio_find_bchar_in_bcstr
 
+#	define mio_trim_oochars mio_trim_bchars
 #	define mio_split_oocstr mio_split_bcstr
 #	define mio_count_oocstr mio_count_bcstr
 #endif
