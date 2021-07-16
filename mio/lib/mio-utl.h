@@ -469,17 +469,16 @@ MIO_EXPORT mio_bch_t* mio_find_bchar_in_bcstr (
 );
 
 MIO_EXPORT mio_uch_t* mio_trim_uchars (
-	mio_uch_t* str,
-	mio_oow_t* len,
-	int        flags
+	const mio_uch_t* str,
+	mio_oow_t*       len,
+	int              flags
 );
 
 MIO_EXPORT mio_bch_t* mio_trim_bchars (
-	mio_bch_t* str,
-	mio_oow_t* len,
-	int        flags
+	const mio_bch_t* str,
+	mio_oow_t*       len,
+	int              flags
 );
-
 
 MIO_EXPORT int mio_split_ucstr (
 	mio_uch_t*       s,
