@@ -639,9 +639,9 @@ const mio_uch_t* mio_find_ucstr_word_in_ucstr (const mio_uch_t* str, const mio_u
 
 /* ========================================================================= */
 
-mio_uch_t* mio_trim_uchars (mio_uch_t* str, mio_oow_t* len, int flags)
+mio_uch_t* mio_trim_uchars (const mio_uch_t* str, mio_oow_t* len, int flags)
 {
-	mio_uch_t* p = str, * end = str + *len;
+	const mio_uch_t* p = str, * end = str + *len;
 
 	if (p < end)
 	{
@@ -678,12 +678,12 @@ mio_uch_t* mio_trim_uchars (mio_uch_t* str, mio_oow_t* len, int flags)
 		}
 	}
 
-	return str;
+	return (mio_uch_t*)str;
 }
 
-mio_bch_t* mio_trim_bchars (mio_bch_t* str, mio_oow_t* len, int flags)
+mio_bch_t* mio_trim_bchars (const mio_bch_t* str, mio_oow_t* len, int flags)
 {
-	mio_bch_t* p = str, * end = str + *len;
+	const mio_bch_t* p = str, * end = str + *len;
 
 	if (p < end)
 	{
@@ -720,7 +720,7 @@ mio_bch_t* mio_trim_bchars (mio_bch_t* str, mio_oow_t* len, int flags)
 		}
 	}
 
-	return str;
+	return (mio_bch_t*)str;
 }
 
 /* ========================================================================= */
