@@ -101,7 +101,7 @@
 
 /* i don't want an error raised inside the callback to override 
  * the existing error number and message. */
-#define prim_write_log(mio,mask,ptr,len) do { \
+#define MIO_SYS_WRITE_LOG(mio,mask,ptr,len) do { \
 		int __shuterr = (mio)->_shuterr; \
 		(mio)->_shuterr = 1; \
 		mio_sys_writelog (mio, mask, ptr, len); \
