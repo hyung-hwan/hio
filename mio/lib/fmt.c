@@ -1399,7 +1399,7 @@ static int log_oocs (mio_fmtout_t* fmtout, const mio_ooch_t* ptr, mio_oow_t len)
 			mio->log.ptr[mio->log.len++] = '\n';
 		}
 
-		prim_write_log (mio, mio->log.last_mask, mio->log.ptr, mio->log.len);
+		MIO_SYS_WRITE_LOG (mio, mio->log.last_mask, mio->log.ptr, mio->log.len);
 		mio->log.len = 0;
 	}
 
@@ -1443,7 +1443,7 @@ redo:
 					/* no line ending - append a line terminator */
 					mio->log.ptr[mio->log.len++] = '\n';
 				}
-				prim_write_log (mio, mio->log.last_mask, mio->log.ptr, mio->log.len);
+				MIO_SYS_WRITE_LOG (mio, mio->log.last_mask, mio->log.ptr, mio->log.len);
 				mio->log.len = 0;
 			}
 
@@ -1557,7 +1557,7 @@ mio_ooi_t mio_logbfmtv (mio_t* mio, mio_bitmask_t mask, const mio_bch_t* fmt, va
 
 	if (mio->log.len > 0 && mio->log.ptr[mio->log.len - 1] == '\n')
 	{
-		prim_write_log (mio, mio->log.last_mask, mio->log.ptr, mio->log.len);
+		MIO_SYS_WRITE_LOG (mio, mio->log.last_mask, mio->log.ptr, mio->log.len);
 		mio->log.len = 0;
 	}
 
@@ -1611,7 +1611,7 @@ mio_ooi_t mio_logufmtv (mio_t* mio, mio_bitmask_t mask, const mio_uch_t* fmt, va
 
 	if (mio->log.len > 0 && mio->log.ptr[mio->log.len - 1] == '\n')
 	{
-		prim_write_log (mio, mio->log.last_mask, mio->log.ptr, mio->log.len);
+		MIO_SYS_WRITE_LOG (mio, mio->log.last_mask, mio->log.ptr, mio->log.len);
 		mio->log.len = 0;
 	}
 

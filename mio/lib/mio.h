@@ -588,6 +588,14 @@ typedef enum mio_log_mask_t mio_log_mask_t;
 #define MIO_INFO5(mio,fmt,a1,a2,a3,a4,a5) MIO_LOG5(mio, MIO_LOG_INFO | MIO_LOG_UNTYPED, fmt, a1, a2, a3, a4, a5)
 #define MIO_INFO6(mio,fmt,a1,a2,a3,a4,a5,a6) MIO_LOG6(mio, MIO_LOG_INFO | MIO_LOG_UNTYPED, fmt, a1, a2, a3, a4, a5, a6)
 
+#define MIO_ERROR0(mio,fmt) MIO_LOG0(mio, MIO_LOG_ERROR | MIO_LOG_UNTYPED, fmt)
+#define MIO_ERROR1(mio,fmt,a1) MIO_LOG1(mio, MIO_LOG_ERROR | MIO_LOG_UNTYPED, fmt, a1)
+#define MIO_ERROR2(mio,fmt,a1,a2) MIO_LOG2(mio, MIO_LOG_ERROR | MIO_LOG_UNTYPED, fmt, a1, a2)
+#define MIO_ERROR3(mio,fmt,a1,a2,a3) MIO_LOG3(mio, MIO_LOG_ERROR | MIO_LOG_UNTYPED, fmt, a1, a2, a3)
+#define MIO_ERROR4(mio,fmt,a1,a2,a3,a4) MIO_LOG4(mio, MIO_LOG_ERROR | MIO_LOG_UNTYPED, fmt, a1, a2, a3, a4)
+#define MIO_ERROR5(mio,fmt,a1,a2,a3,a4,a5) MIO_LOG5(mio, MIO_LOG_ERROR | MIO_LOG_UNTYPED, fmt, a1, a2, a3, a4, a5)
+#define MIO_ERROR6(mio,fmt,a1,a2,a3,a4,a5,a6) MIO_LOG6(mio, MIO_LOG_ERROR | MIO_LOG_UNTYPED, fmt, a1, a2, a3, a4, a5, a6)
+
 /* ========================================================================= */
 
 enum mio_sys_mux_cmd_t
