@@ -275,6 +275,11 @@ MIO_EXPORT int mio_svc_htts_setservernamewithbcstr (
 	const mio_bch_t* server_name
 );
 
+MIO_EXPORT int mio_svc_htts_getsockaddr (
+	mio_svc_htts_t*  htts,
+	mio_skad_t*      skad
+);
+
 MIO_EXPORT int mio_svc_htts_docgi (
 	mio_svc_htts_t*  htts,
 	mio_dev_sck_t*   csck,

@@ -360,7 +360,7 @@ mio_svc_htts_t* mio_svc_htts_start (mio_t* mio, mio_dev_sck_bind_t* sck_bind, mi
 	htts->lsck = mio_dev_sck_make(mio, MIO_SIZEOF(*cli), &info.m);
 	if (!htts->lsck) goto oops;
 
-	/* the name 'cli' for the listening socket is awkard.
+	/* the name 'cli' for the listening socket is awkward.
 	 * the listening socket will use the htts and sck fields for tracking only.
 	 * each accepted client socket gets the extension size for this size as well.
 	 * most of other fields are used for client management */
@@ -373,7 +373,7 @@ mio_svc_htts_t* mio_svc_htts_start (mio_t* mio, mio_dev_sck_bind_t* sck_bind, mi
 		if (mio_dev_sck_bind(htts->lsck, sck_bind) <= -1) goto oops;
 
 		MIO_MEMSET (&info, 0, MIO_SIZEOF(info));
-		info.l.backlogs = 4096;
+		info.l.backlogs = 4096; /* TODO: use configuration? */
 		MIO_INIT_NTIME (&info.l.accept_tmout, 5, 1); /* usedd for ssl accept */
 		if (mio_dev_sck_listen(htts->lsck, &info.l) <= -1) goto oops;
 	}
@@ -452,6 +452,12 @@ int mio_svc_htts_setservernamewithbcstr (mio_svc_htts_t* htts, const mio_bch_t* 
 	if (htts->server_name && htts->server_name != htts->server_name_buf) mio_freemem (mio, htts->server_name);
 	htts->server_name = tmp;
 	return 0;
+}
+
+int mio_svc_htts_getsockaddr (mio_svc_htts_t* htts, mio_skad_t* skad)
+{
+	/* return the socket address of the listening socket. */
+	return mio_dev_sck_getsockaddr(htts->lsck, skad);
 }
 
 /* ----------------------------------------------------------------- */

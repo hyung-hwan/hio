@@ -576,6 +576,17 @@ MIO_EXPORT int mio_dev_sck_getsockopt (
 	mio_scklen_t*  optlen
 );
 
+
+MIO_EXPORT int mio_dev_sck_getsockaddr (
+	mio_dev_sck_t* dev,
+	mio_skad_t*    skad
+);
+
+MIO_EXPORT int mio_dev_sck_getpeeraddr (
+	mio_dev_sck_t* dev,
+	mio_skad_t*    skad
+);
+
 MIO_EXPORT int mio_dev_sck_shutdown (
 	mio_dev_sck_t* dev,
 	int            how  /* bitwise-ORed of mio_dev_sck_shutdown_how_t enumerators */

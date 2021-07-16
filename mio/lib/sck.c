@@ -1538,7 +1538,7 @@ static int make_accepted_client_connection (mio_dev_sck_t* rdev, mio_syshnd_t cl
 	{
 		/* this is a special optional callback. If you don't want a client socket device 
 		 * to be created upon accept, you may implement the on_raw_accept() handler. 
-		 * the socket handle is delated to the callback. */
+		 * the socket handle is delegated to the callback. */
 		rdev->on_raw_accept (rdev, clisck, remoteaddr);
 		return 0;
 	}
@@ -2163,6 +2163,28 @@ int mio_dev_sck_getsockopt (mio_dev_sck_t* dev, int level, int optname, void* op
 	return getsockopt(dev->hnd, level, optname, optval, optlen);
 }
 
+int mio_dev_sck_getsockaddr (mio_dev_sck_t* dev, mio_skad_t* skad)
+{
+	mio_scklen_t addrlen = MIO_SIZEOF(*skad);
+	if (getsockname(dev->hnd, (struct sockaddr*)skad, &addrlen) <= -1)
+	{
+		mio_seterrwithsyserr (dev->mio, 0, errno);
+		return -1;
+	}
+	return 0;
+}
+
+int mio_dev_sck_getpeeraddr (mio_dev_sck_t* dev, mio_skad_t* skad)
+{
+	mio_scklen_t addrlen = MIO_SIZEOF(*skad);
+	if (getpeername(dev->hnd, (struct sockaddr*)skad, &addrlen) <= -1)
+	{
+		mio_seterrwithsyserr (dev->mio, 0, errno);
+		return -1;
+	}
+	return 0;
+}
+
 int mio_dev_sck_shutdown (mio_dev_sck_t* dev, int how)
 {
 	switch (how & (MIO_DEV_SCK_SHUTDOWN_READ | MIO_DEV_SCK_SHUTDOWN_WRITE))
@@ -2184,7 +2206,13 @@ int mio_dev_sck_shutdown (mio_dev_sck_t* dev, int how)
 			return -1;
 	}
 
-	return shutdown(dev->hnd, how);
+	if (shutdown(dev->hnd, how) <= -1)
+	{
+		mio_seterrwithsyserr (dev->mio, 0, errno);
+		return -1;
+	}
+
+	return 0;
 }
 
 int mio_dev_sck_sendfileok (mio_dev_sck_t* dev)
