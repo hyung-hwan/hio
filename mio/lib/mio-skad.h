@@ -66,11 +66,20 @@ typedef struct mio_skad_t mio_skad_t;
 #define MIO_SKAD_TO_BCSTR_ADDR MIO_SKAD_TO_OOCSTR_ADDR
 #define MIO_SKAD_TO_BCSTR_PORT MIO_SKAD_TO_OOCSTR_PORT
 
+#define MIO_IP4ADDR_STRLEN (15) /* not including the terminating '\0' */
+#define MIO_IP6ADDR_STRLEN (45) /* not including the terminating '\0'. pure IPv6 address, not including the scope(e.g. %10, %eth0) */
+
+/* size large enough to hold the ip address plus port number. 
+ * [IPV6ADDR%SCOPE]:PORT -> 9 for [] % : and PORT 
+ * Let's reserve 16 for SCOPE and not include the terminting '\0'
+ */
+#define MIO_SKAD_IP_STRLEN (MIO_IP6ADDR_STRLEN + 25)
+
 /* -------------------------------------------------------------------- */
 
-#define MIO_ETHADDR_LEN 6
-#define MIO_IP4ADDR_LEN 4
-#define MIO_IP6ADDR_LEN 16 
+#define MIO_ETHADDR_LEN (6)
+#define MIO_IP4ADDR_LEN (4)
+#define MIO_IP6ADDR_LEN (16)
 
 #include <mio-pac1.h>
 struct MIO_PACKED mio_ethaddr_t
