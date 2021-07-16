@@ -39,6 +39,8 @@
 static void clear_token (mio_json_t* json)
 {
 	json->tok.len = 0;
+	json->tok_line = json->c_line;
+	json->tok_col = json->c_col;
 	if (json->tok_capa > 0) json->tok.ptr[json->tok.len] = '\0';
 }
 
@@ -184,11 +186,11 @@ static int invoke_data_inst (mio_json_t* json, mio_json_inst_t inst)
 			if (inst != MIO_JSON_INST_STRING && inst != __INST_WORD_STRING)
 			{
 				if (inst == MIO_JSON_INST_END_ARRAY)
-					mio_seterrbfmt (json->mio, MIO_EINVAL, "object key not a string - <array>");
+					mio_seterrbfmt (json->mio, MIO_EINVAL, "object key not a string - <array> at %zu:%zu", json->c_line, json->c_col);
 				else if (inst == MIO_JSON_INST_END_OBJECT)
-					mio_seterrbfmt (json->mio, MIO_EINVAL, "object key not a string - <object>");
+					mio_seterrbfmt (json->mio, MIO_EINVAL, "object key not a string - <object> at %zu:%zu", json->c_line, json->c_col);
 				else
-					mio_seterrbfmt (json->mio, MIO_EINVAL, "object key not a string - %.*js", json->tok.len, json->tok.ptr);
+					mio_seterrbfmt (json->mio, MIO_EINVAL, "object key not a string - %.*js at %zu:%zu", json->tok.len, json->tok.ptr, json->tok_line, json->tok_col);
 				return -1;
 			}
 
@@ -206,7 +208,7 @@ static int invoke_data_inst (mio_json_t* json, mio_json_inst_t inst)
 
 	if (inst == __INST_WORD_STRING) 
 	{
-		mio_seterrbfmt (json->mio, MIO_EINVAL, "invalid word value - %.*js", json->tok.len, json->tok.ptr);
+		mio_seterrbfmt (json->mio, MIO_EINVAL, "invalid word value - %.*js at line %zu:%zu", json->tok.len, json->tok.ptr, json->tok_line, json->tok_col);
 		return -1;
 	}
 
@@ -438,7 +440,7 @@ static int handle_word_value_char (mio_json_t* json, mio_ooci_t c)
 	int ok;
 
 	ok = (json->option & MIO_JSON_PERMIT_WORD_KEY)?
-		(mio_is_ooch_alpha(c) || mio_is_ooch_digit(c) || c == '_'):
+		(mio_is_ooch_alpha(c) || mio_is_ooch_digit(c) || c == '_' || c == '-'):
 		mio_is_ooch_alpha(c);
 	if (ok)
 	{
@@ -508,7 +510,7 @@ static int handle_start_char (mio_json_t* json, mio_ooci_t c)
 	}
 	else
 	{
-		mio_seterrbfmt (json->mio, MIO_EINVAL, "not starting with an allowed initial character - %jc", (mio_ooch_t)c);
+		mio_seterrbfmt (json->mio, MIO_EINVAL, "not starting with an allowed initial character - %jc at %zu:%zu", (mio_ooch_t)c, json->c_line,json->c_col);
 		return -1;
 	}
 }
@@ -536,7 +538,7 @@ static int handle_char_in_array (mio_json_t* json, mio_ooci_t c)
 	{
 		if (!json->state_stack->u.ia.got_value)
 		{
-			mio_seterrbfmt (json->mio, MIO_EINVAL, "redundant comma in array - %jc", (mio_ooch_t)c);
+			mio_seterrbfmt (json->mio, MIO_EINVAL, "redundant comma in array - %jc at %zu:%zu", (mio_ooch_t)c, json->c_line, json->c_col);
 			return -1;
 		}
 		json->state_stack->u.ia.got_value = 0;
@@ -552,7 +554,7 @@ static int handle_char_in_array (mio_json_t* json, mio_ooci_t c)
 			}
 			else
 			{
-				mio_seterrbfmt (json->mio, MIO_EINVAL, "comma required in array - %jc", (mio_ooch_t)c);
+				mio_seterrbfmt (json->mio, MIO_EINVAL, "comma required in array - %jc at %zu:%zu", (mio_ooch_t)c, json->c_line, json->c_col);
 				return -1;
 			}
 		}
@@ -588,7 +590,7 @@ static int handle_char_in_array (mio_json_t* json, mio_ooci_t c)
 		}
 		else
 		{
-			mio_seterrbfmt (json->mio, MIO_EINVAL, "wrong character inside array - %jc[%d]", (mio_ooch_t)c, (int)c);
+			mio_seterrbfmt (json->mio, MIO_EINVAL, "wrong character inside array - %jc[%d] at %zu:%zu", (mio_ooch_t)c, (int)c, json->c_line, json->c_col);
 			return -1;
 		}
 	}
@@ -612,7 +614,7 @@ static int handle_char_in_object (mio_json_t* json, mio_ooci_t c)
 		/* 0 - initial, 1 - got key, 2 -> got colon, 3 -> got value, 0 -> after comma */
 		if (json->state_stack->u.io.state == 1 || json->state_stack->u.io.state == 2)
 		{
-			mio_seterrbfmt (json->mio, MIO_EINVAL, "no value for a key in object");
+			mio_seterrbfmt (json->mio, MIO_EINVAL, "no value for a key in object at %zu:%zu", json->c_line, json->c_col);
 			return -1;
 		}
 
@@ -624,7 +626,7 @@ static int handle_char_in_object (mio_json_t* json, mio_ooci_t c)
 	{
 		if (json->state_stack->u.io.state != 1)
 		{
-			mio_seterrbfmt (json->mio, MIO_EINVAL, "redundant colon in object - %jc", (mio_ooch_t)c);
+			mio_seterrbfmt (json->mio, MIO_EINVAL, "redundant colon in object - %jc at %zu:%zu", (mio_ooch_t)c, json->c_line, json->c_col);
 			return -1;
 		}
 		json->state_stack->u.io.state++;
@@ -634,7 +636,7 @@ static int handle_char_in_object (mio_json_t* json, mio_ooci_t c)
 	{
 		if (json->state_stack->u.io.state != 3)
 		{
-			mio_seterrbfmt (json->mio, MIO_EINVAL, "comma without value or redundant comma in object - %jc", (mio_ooch_t)c);
+			mio_seterrbfmt (json->mio, MIO_EINVAL, "comma without value or redundant comma in object - %jc at %zu:%zu", (mio_ooch_t)c, json->c_line, json->c_col);
 			return -1;
 		}
 		json->state_stack->u.io.state = 0;
@@ -644,7 +646,7 @@ static int handle_char_in_object (mio_json_t* json, mio_ooci_t c)
 	{
 		if (json->state_stack->u.io.state == 1)
 		{
-			mio_seterrbfmt (json->mio, MIO_EINVAL, "colon required in object - %jc", (mio_ooch_t)c);
+			mio_seterrbfmt (json->mio, MIO_EINVAL, "colon required in object - %jc at %zu:%zu", (mio_ooch_t)c, json->c_line, json->c_col);
 			return -1;
 		}
 		else if (json->state_stack->u.io.state == 3)
@@ -655,7 +657,7 @@ static int handle_char_in_object (mio_json_t* json, mio_ooci_t c)
 			}
 			else
 			{
-				mio_seterrbfmt (json->mio, MIO_EINVAL, "comma required in object - %jc", (mio_ooch_t)c);
+				mio_seterrbfmt (json->mio, MIO_EINVAL, "comma required in object - %jc at %zu:%zu", (mio_ooch_t)c, json->c_line, json->c_col);
 			}
 		}
 
@@ -690,7 +692,7 @@ static int handle_char_in_object (mio_json_t* json, mio_ooci_t c)
 		}
 		else
 		{
-			mio_seterrbfmt (json->mio, MIO_EINVAL, "wrong character inside object - %jc[%d]", (mio_ooch_t)c, (int)c);
+			mio_seterrbfmt (json->mio, MIO_EINVAL, "wrong character inside object - %jc[%d] at %zu:%zu", (mio_ooch_t)c, (int)c, json->c_line, json->c_col);
 			return -1;
 		}
 	}
@@ -712,7 +714,7 @@ start_over:
 		}
 		else
 		{
-			mio_seterrbfmt (json->mio, MIO_EBADRE, "unexpected end of data");
+			mio_seterrbfmt (json->mio, MIO_EBADRE, "unexpected end of data at %zu:%zu", json->c_line, json->c_col);
 			return -1;
 		}
 	}
@@ -798,6 +800,12 @@ static int feed_json_data (mio_json_t* json, const mio_bch_t* data, mio_oow_t le
 		c = *ptr++;
 	#endif
 
+		if (c == '\n')
+		{
+			json->c_col = 1;
+			json->c_line++;
+		}
+
 		if (json->state_stack->in_comment) 
 		{
 			if (c == '\n') json->state_stack->in_comment = 0;
@@ -870,6 +878,9 @@ int mio_json_init (mio_json_t* json, mio_t* mio)
 	json->state_top.next = MIO_NULL;
 	json->state_stack = &json->state_top;
 
+	json->c_line = 1;
+	json->c_col = 1;
+
 	return 0;
 }
 
@@ -938,7 +949,6 @@ int mio_json_feed (mio_json_t* json, const void* ptr, mio_oow_t len, mio_oow_t* 
 	if (rem) *rem = len - total;
 	return 0;
 }
-
 
 /* ========================================================================= */
 
