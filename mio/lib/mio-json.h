@@ -135,7 +135,6 @@ enum mio_json_option_t
 
 typedef enum mio_json_option_t mio_json_option_t;
 
-
 struct mio_json_t
 {
 	mio_t* mio;
@@ -145,9 +144,14 @@ struct mio_json_t
 
 	mio_json_state_node_t state_top;
 	mio_json_state_node_t* state_stack;
+
 	mio_oocs_t tok;
 	mio_oow_t tok_capa;
+	mio_oow_t tok_line;
+	mio_oow_t tok_col;
 
+	mio_oow_t c_line;
+	mio_oow_t c_col;
 };
 
 /* ========================================================================= */
