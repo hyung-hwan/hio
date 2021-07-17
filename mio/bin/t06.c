@@ -218,7 +218,7 @@ void* thr_func (void* arg)
 	mio_svc_htts_t* htts = MIO_NULL;
 	mio_dev_sck_bind_t htts_bind_info;
 
-	mio = mio_open(MIO_NULL, 0, MIO_NULL, 512, MIO_NULL);
+	mio = mio_open(MIO_NULL, 0, MIO_NULL, MIO_FEATURE_ALL, 512, MIO_NULL);
 	if (!mio)
 	{
 		printf ("Cannot open mio\n");
@@ -570,7 +570,7 @@ int main (int argc, char* argv[])
 	XX_MQ_INIT (&xx_mq);
 	xx_tmridx = MIO_TMRIDX_INVALID;
 
-	mio = mio_open(MIO_NULL, 0, MIO_NULL, 512, MIO_NULL);
+	mio = mio_open(MIO_NULL, 0, MIO_NULL, MIO_FEATURE_ALL, 512, MIO_NULL);
 	if (!mio)
 	{
 		printf ("Cannot open mio\n");
