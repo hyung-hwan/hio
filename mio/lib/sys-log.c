@@ -319,7 +319,6 @@ void mio_sys_writelog (mio_t* mio, mio_bitmask_t mask, const mio_ooch_t* msg, mi
 int mio_sys_initlog (mio_t* mio)
 {
 	mio_sys_log_t* log = &mio->sysdep->log;
-	mio_bitmask_t logmask;
 	/*mio_oow_t pathlen;*/
 
 /* TODO: */
@@ -340,9 +339,13 @@ int mio_sys_initlog (mio_t* mio)
 	if (isatty(log->fd)) log->fd_flag |= LOGFD_TTY;
 #endif
 
+/*
+	mio_bitmask_t logmask;
 	logmask = MIO_LOG_ALL_TYPES | MIO_LOG_ALL_LEVELS;
 	mio_setoption (mio, MIO_LOG_MASK, &logmask);
+*/
 
+	pthread_mutex_init (&log->mtx, MIO_NULL);
 	return 0;
 }
 
@@ -350,10 +353,22 @@ void mio_sys_finilog (mio_t* mio)
 {
 	mio_sys_log_t* log = &mio->sysdep->log;
 
+	pthread_mutex_destroy (&log->mtx);
+
 	if ((log->fd_flag & LOGFD_OPENED_HERE) && log->fd >= 0) 
 	{
 		close (log->fd);
 		log->fd = -1;
 		log->fd_flag = 0;
 	}
+}
+
+void mio_sys_locklog (mio_t* mio)
+{
+	pthread_mutex_lock (&mio->sysdep->log.mtx);
+}
+
+void mio_sys_unlocklog (mio_t* mio)
+{
+	pthread_mutex_unlock (&mio->sysdep->log.mtx);
 }
