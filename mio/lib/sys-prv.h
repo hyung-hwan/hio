@@ -63,6 +63,8 @@ struct mio_sys_mux_t
 		mio_oow_t size;
 		mio_oow_t capa;
 	} pd; /* poll data */
+
+	int ctrlp[2];
 };
 
 #elif defined(USE_EPOLL)
@@ -71,6 +73,8 @@ struct mio_sys_mux_t
 {
 	int hnd;
 	struct epoll_event revs[1024]; /* TODO: is it a good size? */
+
+	int ctrlp[2];
 };
 
 #endif

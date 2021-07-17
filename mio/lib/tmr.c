@@ -224,8 +224,6 @@ int mio_gettmrjobdeadline (mio_t* mio, mio_tmridx_t index, mio_ntime_t* deadline
 	return 0;
 }
 
-
-
 int mio_schedtmrjobat (mio_t* mio, const mio_ntime_t* fire_at, mio_tmrjob_handler_t handler, mio_tmridx_t* tmridx, void* ctx)
 {
 	mio_tmrjob_t tmrjob;

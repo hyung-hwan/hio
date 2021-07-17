@@ -179,6 +179,10 @@ void mio_sys_writelog (
 	mio_oow_t         len
 );
 
+void mio_sys_intrmux  (
+	mio_t*            mio
+);
+
 int mio_sys_ctrlmux (
 	mio_t*            mio,
 	mio_sys_mux_cmd_t cmd,
