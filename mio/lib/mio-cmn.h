@@ -588,6 +588,9 @@ struct mio_ntime_t
 #define MIO_COUNTOF(x) (sizeof(x) / sizeof(x[0]))
 #define MIO_BITSOF(x) (sizeof(x) * MIO_BITS_PER_BYTE)
 
+
+#define MIO_EOL ('\n')
+
 /**
  * The MIO_OFFSETOF() macro returns the offset of a field from the beginning
  * of a structure.

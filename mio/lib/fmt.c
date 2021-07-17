@@ -1393,10 +1393,10 @@ static int log_oocs (mio_fmtout_t* fmtout, const mio_ooch_t* ptr, mio_oow_t len)
 	{
 		/* the mask has changed. commit the buffered text */
 /* TODO: HANDLE LINE ENDING CONVENTION BETTER... */
-		if (mio->log.ptr[mio->log.len - 1] != '\n')
+		if (mio->log.ptr[mio->log.len - 1] != MIO_EOL)
 		{
 			/* no line ending - append a line terminator */
-			mio->log.ptr[mio->log.len++] = '\n';
+			mio->log.ptr[mio->log.len++] = MIO_EOL;
 		}
 
 		MIO_SYS_WRITE_LOG (mio, mio->log.last_mask, mio->log.ptr, mio->log.len);
@@ -1438,10 +1438,10 @@ redo:
 			{
 				/* can't expand the buffer. just flush the existing contents */
 				/* TODO: HANDLE LINE ENDING CONVENTION BETTER... */
-				if (mio->log.ptr[mio->log.len - 1] != '\n')
+				if (mio->log.ptr[mio->log.len - 1] != MIO_EOL)
 				{
 					/* no line ending - append a line terminator */
-					mio->log.ptr[mio->log.len++] = '\n';
+					mio->log.ptr[mio->log.len++] = MIO_EOL;
 				}
 				MIO_SYS_WRITE_LOG (mio, mio->log.last_mask, mio->log.ptr, mio->log.len);
 				mio->log.len = 0;
@@ -1555,7 +1555,7 @@ mio_ooi_t mio_logbfmtv (mio_t* mio, mio_bitmask_t mask, const mio_bch_t* fmt, va
 
 	x = fmt_outv(&fo, ap);
 
-	if (mio->log.len > 0 && mio->log.ptr[mio->log.len - 1] == '\n')
+	if (mio->log.len > 0 && mio->log.ptr[mio->log.len - 1] == MIO_EOL)
 	{
 		MIO_SYS_WRITE_LOG (mio, mio->log.last_mask, mio->log.ptr, mio->log.len);
 		mio->log.len = 0;
@@ -1609,7 +1609,7 @@ mio_ooi_t mio_logufmtv (mio_t* mio, mio_bitmask_t mask, const mio_uch_t* fmt, va
 
 	x = fmt_outv(&fo, ap);
 
-	if (mio->log.len > 0 && mio->log.ptr[mio->log.len - 1] == '\n')
+	if (mio->log.len > 0 && mio->log.ptr[mio->log.len - 1] == MIO_EOL)
 	{
 		MIO_SYS_WRITE_LOG (mio, mio->log.last_mask, mio->log.ptr, mio->log.len);
 		mio->log.len = 0;
