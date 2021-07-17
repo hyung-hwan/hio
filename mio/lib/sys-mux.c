@@ -40,6 +40,30 @@ int mio_sys_initmux (mio_t* mio)
 {
 	mio_sys_mux_t* mux = &mio->sysdep->mux;
 
+	/* create a pipe for internal signalling -  interrupt the multiplexer wait */
+#if defined(HAVE_PIPE2) && defined(O_CLOEXEC) && defined(O_NONBLOCK)
+	if (pipe2(mux->ctrlp, O_CLOEXEC | O_NONBLOCK) <= -1)
+	{
+		mux->ctrlp[0] = MIO_SYSHND_INVALID;
+		mux->ctrlp[1] = MIO_SYSHND_INVALID;
+	}
+#else
+	if (pipe(mux->ctrlp) <= -1)
+	{
+		mux->ctrlp[0] = MIO_SYSHND_INVALID;
+		mux->ctrlp[1] = MIO_SYSHND_INVALID;
+	}
+	else
+	{
+		mio_makesyshndasync(mio, mux->ctrlp[0]);
+		mio_makesyshndcloexec(mio, mux->ctrlp[0]);
+		mio_makesyshndasync(mio, mux->ctrlp[1]);
+		mio_makesyshndcloexec(mio, mux->ctrlp[1]);
+	}
+#endif
+
+
+
 #if defined(USE_EPOLL)
 
 #if defined(HAVE_EPOLL_CREATE1) && defined(EPOLL_CLOEXEC)
@@ -70,6 +94,13 @@ normal_epoll_create:
 #endif /* FD_CLOEXEC */
 
 epoll_create_done:
+	if (mux->ctrlp[0] != MIO_SYSHND_INVALID)
+	{
+		struct epoll_event ev;
+		ev.events = EPOLLIN | EPOLLHUP | EPOLLERR;
+		ev.data.ptr = MIO_NULL;
+		epoll_ctl(mux->hnd, EPOLL_CTL_ADD, mux->ctrlp[0], &ev);
+	}
 #endif /* USE_EPOLL */
 
 	return 0;
@@ -99,9 +130,36 @@ void mio_sys_finimux (mio_t* mio)
 	mux->pd.capa = 0;
 
 #elif defined(USE_EPOLL)
+	if (mux->ctrlp[0] != MIO_SYSHND_INVALID)
+	{
+		struct epoll_event ev;
+		ev.events = EPOLLIN | EPOLLHUP | EPOLLERR;
+		ev.data.ptr = MIO_NULL;
+		epoll_ctl(mux->hnd, EPOLL_CTL_DEL, mux->ctrlp[0], &ev);
+	}
+
 	close (mux->hnd);
 	mux->hnd = MIO_SYSHND_INVALID;
 #endif
+
+	if (mux->ctrlp[1] != MIO_SYSHND_INVALID)
+	{
+		close (mux->ctrlp[1]); 
+		mux->ctrlp[1] = MIO_SYSHND_INVALID;
+	}
+
+	if (mux->ctrlp[0] != MIO_SYSHND_INVALID)
+	{
+		close (mux->ctrlp[0]);
+		mux->ctrlp[0] = MIO_SYSHND_INVALID;
+	}
+}
+
+void mio_sys_intrmux (mio_t* mio)
+{
+	mio_sys_mux_t* mux = &mio->sysdep->mux;
+	/* for now, thie only use of the control pipe is to interrupt the multiplexer */
+	if (mux->ctrlp[1] != MIO_SYSHND_INVALID) write (mux->ctrlp[1], "Q", 1);
 }
 
 int mio_sys_ctrlmux (mio_t* mio, mio_sys_mux_cmd_t cmd, mio_dev_t* dev, int dev_cap)
@@ -404,17 +462,25 @@ int mio_sys_waitmux (mio_t* mio, const mio_ntime_t* tmout, mio_sys_mux_evtcb_t e
 		mio_dev_t* dev;
 
 		dev = mux->revs[i].data.ptr;
+		if (MIO_LIKELY(dev))
+		{
+			if (mux->revs[i].events & EPOLLIN) events |= MIO_DEV_EVENT_IN;
+			if (mux->revs[i].events & EPOLLOUT) events |= MIO_DEV_EVENT_OUT;
+			if (mux->revs[i].events & EPOLLPRI) events |= MIO_DEV_EVENT_PRI;
+			if (mux->revs[i].events & EPOLLERR) events |= MIO_DEV_EVENT_ERR;
+			if (mux->revs[i].events & EPOLLHUP) events |= MIO_DEV_EVENT_HUP;
+		#if defined(EPOLLRDHUP)
+			else if (mux->revs[i].events & EPOLLRDHUP) rdhup = 1;
+		#endif
 
-		if (mux->revs[i].events & EPOLLIN) events |= MIO_DEV_EVENT_IN;
-		if (mux->revs[i].events & EPOLLOUT) events |= MIO_DEV_EVENT_OUT;
-		if (mux->revs[i].events & EPOLLPRI) events |= MIO_DEV_EVENT_PRI;
-		if (mux->revs[i].events & EPOLLERR) events |= MIO_DEV_EVENT_ERR;
-		if (mux->revs[i].events & EPOLLHUP) events |= MIO_DEV_EVENT_HUP;
-	#if defined(EPOLLRDHUP)
-		else if (mux->revs[i].events & EPOLLRDHUP) rdhup = 1;
-	#endif
-
-		event_handler (mio, dev, events, rdhup);
+			event_handler (mio, dev, events, rdhup);
+		}
+		else if (mux->ctrlp[0] != MIO_SYSHND_INVALID)
+		{
+			/* internal pipe for signaling */
+			mio_uint8_t tmp[16];
+			while (read(mux->ctrlp[0], tmp, MIO_SIZEOF(tmp)) > 0) ;
+		}
 	}
 #else
 

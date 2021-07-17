@@ -793,6 +793,7 @@ int mio_exec (mio_t* mio)
 void mio_stop (mio_t* mio, mio_stopreq_t stopreq)
 {
 	mio->stopreq = stopreq;
+	mio_sys_intrmux (mio);
 }
 
 int mio_loop (mio_t* mio)
