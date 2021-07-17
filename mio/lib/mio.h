@@ -120,6 +120,15 @@ struct mio_errinf_t
 };
 typedef struct mio_errinf_t mio_errinf_t;
 
+enum mio_feature_t
+{
+	MIO_FEATURE_LOG = ((mio_bitmask_t)1 << 0),
+	MIO_FEATURE_MUX = ((mio_bitmask_t)1 << 1),
+
+	MIO_FEATURE_ALL = (MIO_FEATURE_LOG | MIO_FEATURE_MUX)
+};
+typedef enum mio_feature_t mio_feature_t;
+
 enum mio_option_t
 {
 	MIO_TRAIT,
@@ -634,6 +643,8 @@ struct mio_t
 		mio_oow_t len;
 	} errmsg;
 
+	mio_bitmask_t _features;
+
 	unsigned short int _shuterr;
 	unsigned short int _fini_in_progress;
 
@@ -699,6 +710,7 @@ MIO_EXPORT mio_t* mio_open (
 	mio_mmgr_t*   mmgr,
 	mio_oow_t     xtnsize,
 	mio_cmgr_t*   cmgr,
+	mio_bitmask_t features,
 	mio_oow_t     tmrcapa,  /**< initial timer capacity */
 	mio_errinf_t* errinf
 );
@@ -711,6 +723,7 @@ MIO_EXPORT int mio_init (
 	mio_t*       mio,
 	mio_mmgr_t*  mmgr,
 	mio_cmgr_t*  cmgr,
+	mio_bitmask_t features,
 	mio_oow_t    tmrcapa
 );
 

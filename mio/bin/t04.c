@@ -73,7 +73,7 @@ int main (int argc, char* argv[])
 		return -1;
 	}
 
-	mio = mio_open(MIO_NULL, 0, MIO_NULL, 512, MIO_NULL);
+	mio = mio_open(MIO_NULL, 0, MIO_NULL, MIO_FEATURE_ALL, 512, MIO_NULL);
 	if (!mio)
 	{
 		printf ("Cannot open mio\n");

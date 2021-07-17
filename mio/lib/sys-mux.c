@@ -157,8 +157,8 @@ void mio_sys_finimux (mio_t* mio)
 
 void mio_sys_intrmux (mio_t* mio)
 {
-	mio_sys_mux_t* mux = &mio->sysdep->mux;
 	/* for now, thie only use of the control pipe is to interrupt the multiplexer */
+	mio_sys_mux_t* mux = &mio->sysdep->mux;
 	if (mux->ctrlp[1] != MIO_SYSHND_INVALID) write (mux->ctrlp[1], "Q", 1);
 }
 

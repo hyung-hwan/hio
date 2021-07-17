@@ -1527,6 +1527,10 @@ mio_ooi_t mio_logbfmtv (mio_t* mio, mio_bitmask_t mask, const mio_bch_t* fmt, va
 	int x;
 	mio_fmtout_t fo;
 
+	/* there may internal log calls even if this feature is disabled. 
+	 * the explicit check is required */
+	if (MIO_UNLIKELY(!(mio->_features & MIO_FEATURE_LOG))) return -1; 
+
 	if (mio->log.default_type_mask & MIO_LOG_ALL_TYPES) 
 	{
 		/* if a type is given, it's not untyped any more.
@@ -1593,6 +1597,10 @@ mio_ooi_t mio_logufmtv (mio_t* mio, mio_bitmask_t mask, const mio_uch_t* fmt, va
 {
 	int x;
 	mio_fmtout_t fo;
+
+	/* there may internal log calls even if this feature is disabled. 
+	 * the explicit check is required */
+	if (MIO_UNLIKELY(!(mio->_features & MIO_FEATURE_LOG))) return -1;
 
 	if (mio->log.default_type_mask & MIO_LOG_ALL_TYPES) 
 	{

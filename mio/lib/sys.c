@@ -35,11 +35,17 @@ int mio_sys_init (mio_t* mio)
 	mio->sysdep = (mio_sys_t*)mio_callocmem(mio, MIO_SIZEOF(*mio->sysdep));
 	if (!mio->sysdep) return -1;
 
-	if (mio_sys_initlog(mio) <= -1) goto oops;
-	log_inited = 1;
+	if (mio->_features & MIO_FEATURE_LOG)
+	{
+		if (mio_sys_initlog(mio) <= -1) goto oops;
+		log_inited = 1;
+	}
 
-	if (mio_sys_initmux(mio) <= -1) goto oops;
-	mux_inited = 1;
+	if (mio->_features & MIO_FEATURE_MUX)
+	{
+		if (mio_sys_initmux(mio) <= -1) goto oops;
+		mux_inited = 1;
+	}
 
 	if (mio_sys_inittime(mio) <= -1) goto oops;
 	time_inited = 1;
@@ -61,8 +67,8 @@ oops:
 void mio_sys_fini (mio_t* mio)
 {
 	mio_sys_finitime (mio);
-	mio_sys_finimux (mio);
-	mio_sys_finilog (mio);
+	if (mio->_features & MIO_FEATURE_MUX) mio_sys_finimux (mio);
+	if (mio->_features & MIO_FEATURE_LOG) mio_sys_finilog (mio);
 
 	mio_freemem (mio, mio->sysdep);
 	mio->sysdep = MIO_NULL;

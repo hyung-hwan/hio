@@ -71,7 +71,7 @@ static mio_mmgr_t default_mmgr =
 
 /* ========================================================================= */
 
-mio_t* mio_open (mio_mmgr_t* mmgr, mio_oow_t xtnsize, mio_cmgr_t* cmgr, mio_oow_t tmrcapa, mio_errinf_t* errinfo)
+mio_t* mio_open (mio_mmgr_t* mmgr, mio_oow_t xtnsize, mio_cmgr_t* cmgr, mio_bitmask_t features, mio_oow_t tmrcapa, mio_errinf_t* errinfo)
 {
 	mio_t* mio;
 
@@ -81,7 +81,7 @@ mio_t* mio_open (mio_mmgr_t* mmgr, mio_oow_t xtnsize, mio_cmgr_t* cmgr, mio_oow_
 	mio = (mio_t*)MIO_MMGR_ALLOC(mmgr, MIO_SIZEOF(mio_t) + xtnsize);
 	if (mio)
 	{
-		if (mio_init(mio, mmgr, cmgr, tmrcapa) <= -1)
+		if (mio_init(mio, mmgr, cmgr, features, tmrcapa) <= -1)
 		{
 			if (errinfo) mio_geterrinf (mio, errinfo);
 			MIO_MMGR_FREE (mmgr, mio);
@@ -104,7 +104,7 @@ void mio_close (mio_t* mio)
 	MIO_MMGR_FREE (mio->_mmgr, mio);
 }
 
-int mio_init (mio_t* mio, mio_mmgr_t* mmgr, mio_cmgr_t* cmgr, mio_oow_t tmrcapa)
+int mio_init (mio_t* mio, mio_mmgr_t* mmgr, mio_cmgr_t* cmgr, mio_bitmask_t features, mio_oow_t tmrcapa)
 {
 	int sys_inited = 0;
 
@@ -112,6 +112,7 @@ int mio_init (mio_t* mio, mio_mmgr_t* mmgr, mio_cmgr_t* cmgr, mio_oow_t tmrcapa)
 	mio->_instsize = MIO_SIZEOF(*mio);
 	mio->_mmgr = mmgr;
 	mio->_cmgr = cmgr;
+	mio->_features = features;
 
 	/* initialize data for logging support */
 	mio->option.log_mask = MIO_LOG_ALL_LEVELS | MIO_LOG_ALL_TYPES;
@@ -744,7 +745,7 @@ static void kill_all_halted_devices (mio_t* mio)
 	}
 }
 
-int mio_exec (mio_t* mio)
+static MIO_INLINE int __exec (mio_t* mio)
 {
 	int ret = 0;
 
@@ -790,14 +791,23 @@ int mio_exec (mio_t* mio)
 	return ret;
 }
 
+int mio_exec (mio_t* mio)
+{
+	MIO_ASSERT (mio, (MIO_FEATURE_ALL & MIO_FEATURE_MUX)); /* never call this if you disableed this feature */
+	return __exec(mio);
+}
+
 void mio_stop (mio_t* mio, mio_stopreq_t stopreq)
 {
+	MIO_ASSERT (mio, (MIO_FEATURE_ALL & MIO_FEATURE_MUX)); /* never call this if you disableed this feature */
 	mio->stopreq = stopreq;
 	mio_sys_intrmux (mio);
 }
 
 int mio_loop (mio_t* mio)
 {
+	MIO_ASSERT (mio, (MIO_FEATURE_ALL & MIO_FEATURE_MUX)); /* never call this if you disableed this feature */
+
 	if (MIO_DEVL_IS_EMPTY(&mio->actdev)) return 0;
 
 	mio->stopreq = MIO_STOPREQ_NONE;
@@ -806,7 +816,7 @@ int mio_loop (mio_t* mio)
 
 	while (mio->stopreq == MIO_STOPREQ_NONE && !MIO_DEVL_IS_EMPTY(&mio->actdev))
 	{
-		if (mio_exec(mio) <= -1) break;
+		if (__exec(mio) <= -1) break;
 		/* you can do other things here */
 	}
 
