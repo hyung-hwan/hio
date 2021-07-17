@@ -511,13 +511,19 @@ static int add_listener (mio_t* mio, mio_bch_t* addrstr)
 }
 
 
+static mio_t* g_mio = MIO_NULL;
+
+static void handle_sigint (int sig)
+{
+	if (g_mio) mio_stop (g_mio, MIO_STOPREQ_TERMINATION);
+}
+
 int main (int argc, char* argv[])
 {
 	mio_t* mio = MIO_NULL;
 	pthread_t t[MAX_NUM_THRS];
 	mio_oow_t i;
 	struct sigaction sigact;
-
 
 // TODO: use getopt() or something similar
 	for (i = 1; i < argc; )
@@ -556,6 +562,11 @@ int main (int argc, char* argv[])
 	sigact.sa_handler = SIG_IGN;
 	sigaction (SIGPIPE, &sigact, MIO_NULL);
 
+	memset (&sigact, 0, MIO_SIZEOF(sigact));
+	sigact.sa_handler = handle_sigint;
+	sigaction (SIGINT, &sigact, MIO_NULL);
+	
+
 	XX_MQ_INIT (&xx_mq);
 	xx_tmridx = MIO_TMRIDX_INVALID;
 
@@ -565,6 +576,8 @@ int main (int argc, char* argv[])
 		printf ("Cannot open mio\n");
 		goto oops;
 	}
+
+	g_mio = mio;
 
 	for (i = 0; i < g_num_thrs; i++)
 		pthread_create (&t[i], MIO_NULL, thr_func, mio);
@@ -580,11 +593,17 @@ printf ("starting the main loop\n");
 
 	/* close all threaded mios here */
 printf ("TERMINATING..NORMALLY \n");
+	memset (&sigact, 0, MIO_SIZEOF(sigact));
+	sigact.sa_handler = SIG_IGN;
+	sigaction (SIGINT, &sigact, MIO_NULL);
 	mio_close (mio);
 	return 0;
 
 oops:
 printf ("TERMINATING..ABNORMALLY \n");
+	memset (&sigact, 0, MIO_SIZEOF(sigact));
+	sigact.sa_handler = SIG_IGN;
+	sigaction (SIGINT, &sigact, MIO_NULL);
 	if (mio) mio_close (mio);
 	return -1;
 }
