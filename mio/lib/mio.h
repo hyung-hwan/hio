@@ -542,6 +542,7 @@ enum mio_log_mask_t
 	MIO_LOG_ALL_LEVELS = (MIO_LOG_DEBUG  | MIO_LOG_INFO | MIO_LOG_WARN | MIO_LOG_ERROR | MIO_LOG_FATAL),
 	MIO_LOG_ALL_TYPES  = (MIO_LOG_UNTYPED | MIO_LOG_CORE | MIO_LOG_DEV | MIO_LOG_TIMER),
 
+	MIO_LOG_GUARDED    = (1u << 13), /* make logging thread-safe */
 	MIO_LOG_STDOUT     = (1u << 14), /* write log messages to stdout without timestamp. MIO_LOG_STDOUT wins over MIO_LOG_STDERR. */
 	MIO_LOG_STDERR     = (1u << 15)  /* write log messages to stderr without timestamp. */
 };

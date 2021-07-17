@@ -41,6 +41,8 @@
 #	error NO SUPPORTED MULTIPLEXER
 #endif
 
+#include <pthread.h>
+
 /* -------------------------------------------------------------------------- */
 
 #if defined(USE_POLL)
@@ -87,6 +89,8 @@ struct mio_sys_log_t
 		mio_bch_t buf[4096];
 		mio_oow_t len;
 	} out;
+
+	pthread_mutex_t mtx;
 };
 typedef struct mio_sys_log_t mio_sys_log_t;
 
@@ -132,6 +136,15 @@ int mio_sys_initlog (
 void mio_sys_finilog (
 	mio_t* mio
 );
+
+void mio_sys_locklog (
+	mio_t* mio
+);
+
+void mio_sys_locklog (
+	mio_t* mio
+);
+
 
 int mio_sys_initmux (
 	mio_t* mio

@@ -1553,12 +1553,25 @@ mio_ooi_t mio_logbfmtv (mio_t* mio, mio_bitmask_t mask, const mio_bch_t* fmt, va
 	fo.putbchars = log_bcs;
 	fo.putuchars = log_ucs;
 
-	x = fmt_outv(&fo, ap);
-
-	if (mio->log.len > 0 && mio->log.ptr[mio->log.len - 1] == MIO_EOL)
+	if (mio->option.log_mask & MIO_LOG_GUARDED) 
 	{
-		MIO_SYS_WRITE_LOG (mio, mio->log.last_mask, mio->log.ptr, mio->log.len);
-		mio->log.len = 0;
+		mio_sys_locklog (mio);
+		x = fmt_outv(&fo, ap);
+		if (mio->log.len > 0 && mio->log.ptr[mio->log.len - 1] == MIO_EOL)
+		{
+			MIO_SYS_WRITE_LOG (mio, mio->log.last_mask, mio->log.ptr, mio->log.len);
+			mio->log.len = 0;
+		}
+		mio_sys_unlocklog (mio);
+	}
+	else
+	{
+		x = fmt_outv(&fo, ap);
+		if (mio->log.len > 0 && mio->log.ptr[mio->log.len - 1] == MIO_EOL)
+		{
+			MIO_SYS_WRITE_LOG (mio, mio->log.last_mask, mio->log.ptr, mio->log.len);
+			mio->log.len = 0;
+		}
 	}
 
 	return (x <= -1)? -1: fo.count;
@@ -1607,12 +1620,25 @@ mio_ooi_t mio_logufmtv (mio_t* mio, mio_bitmask_t mask, const mio_uch_t* fmt, va
 	fo.putbchars = log_bcs;
 	fo.putuchars = log_ucs;
 
-	x = fmt_outv(&fo, ap);
-
-	if (mio->log.len > 0 && mio->log.ptr[mio->log.len - 1] == MIO_EOL)
+	if (mio->option.log_mask & MIO_LOG_GUARDED) 
 	{
-		MIO_SYS_WRITE_LOG (mio, mio->log.last_mask, mio->log.ptr, mio->log.len);
-		mio->log.len = 0;
+		mio_sys_locklog (mio);
+		x = fmt_outv(&fo, ap);
+		if (mio->log.len > 0 && mio->log.ptr[mio->log.len - 1] == MIO_EOL)
+		{
+			MIO_SYS_WRITE_LOG (mio, mio->log.last_mask, mio->log.ptr, mio->log.len);
+			mio->log.len = 0;
+		}
+		mio_sys_unlocklog (mio);
+	}
+	else
+	{
+		x = fmt_outv(&fo, ap);
+		if (mio->log.len > 0 && mio->log.ptr[mio->log.len - 1] == MIO_EOL)
+		{
+			MIO_SYS_WRITE_LOG (mio, mio->log.last_mask, mio->log.ptr, mio->log.len);
+			mio->log.len = 0;
+		}
 	}
 
 	return (x <= -1)? -1: fo.count;
