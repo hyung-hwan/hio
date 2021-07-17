@@ -264,7 +264,6 @@ static void listener_on_disconnect (mio_dev_sck_t* sck)
 		MIO_ASSERT (mio, cli->sbuf == MIO_NULL);
 
 		MIO_DEBUG2 (mio, "HTTS(%p) - listener socket disconnect %p\n", cli->htts, sck);
-printf ("listener socket disconnect..................sck %p %d\n", sck, sck->hnd);
 		cli->htts->lsck = MIO_NULL; /* let the htts service forget about this listening socket */
 	}
 	else
