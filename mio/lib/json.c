@@ -800,7 +800,7 @@ static int feed_json_data (mio_json_t* json, const mio_bch_t* data, mio_oow_t le
 		c = *ptr++;
 	#endif
 
-		if (c == '\n')
+		if (c == MIO_EOL)
 		{
 			json->c_col = 0;
 			json->c_line++;
@@ -812,7 +812,7 @@ static int feed_json_data (mio_json_t* json, const mio_bch_t* data, mio_oow_t le
 
 		if (json->state_stack->in_comment) 
 		{
-			if (c == '\n') json->state_stack->in_comment = 0;
+			if (c == MIO_EOL) json->state_stack->in_comment = 0;
 			continue;
 		}
 		if (json->state_stack->state == MIO_JSON_STATE_START && mio_is_ooch_space(c)) continue; /* skip white space */
