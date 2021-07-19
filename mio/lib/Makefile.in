@@ -150,10 +150,10 @@ libmio_la_DEPENDENCIES = $(am__DEPENDENCIES_2) $(am__DEPENDENCIES_1) \
 am__libmio_la_SOURCES_DIST = chr.c dns.c dns-cli.c ecs.c ecs-imp.h \
 	err.c fmt.c fmt-imp.h htb.c htrd.c htre.c http.c http-cgi.c \
 	http-fil.c http-prv.h http-svr.c http-thr.c http-txt.c json.c \
-	mio-prv.h mio.c nwif.c path.c pipe.c pro.c sck.c skad.c sys.c \
-	sys-ass.c sys-err.c sys-log.c sys-mux.c sys-prv.h sys-tim.c \
-	thr.c uch-case.h uch-prop.h tmr.c utf8.c utl.c utl-siph.c \
-	mar.c mar-cli.c
+	mio-prv.h mio.c nwif.c opt.c opt-imp.h path.c pipe.c pro.c \
+	sck.c skad.c sys.c sys-ass.c sys-err.c sys-log.c sys-mux.c \
+	sys-prv.h sys-tim.c thr.c uch-case.h uch-prop.h tmr.c utf8.c \
+	utl.c utl-siph.c mar.c mar-cli.c
 @ENABLE_MARIADB_TRUE@am__objects_1 = libmio_la-mar.lo \
 @ENABLE_MARIADB_TRUE@	libmio_la-mar-cli.lo
 am_libmio_la_OBJECTS = libmio_la-chr.lo libmio_la-dns.lo \
@@ -162,13 +162,13 @@ am_libmio_la_OBJECTS = libmio_la-chr.lo libmio_la-dns.lo \
 	libmio_la-htre.lo libmio_la-http.lo libmio_la-http-cgi.lo \
 	libmio_la-http-fil.lo libmio_la-http-svr.lo \
 	libmio_la-http-thr.lo libmio_la-http-txt.lo libmio_la-json.lo \
-	libmio_la-mio.lo libmio_la-nwif.lo libmio_la-path.lo \
-	libmio_la-pipe.lo libmio_la-pro.lo libmio_la-sck.lo \
-	libmio_la-skad.lo libmio_la-sys.lo libmio_la-sys-ass.lo \
-	libmio_la-sys-err.lo libmio_la-sys-log.lo libmio_la-sys-mux.lo \
-	libmio_la-sys-tim.lo libmio_la-thr.lo libmio_la-tmr.lo \
-	libmio_la-utf8.lo libmio_la-utl.lo libmio_la-utl-siph.lo \
-	$(am__objects_1)
+	libmio_la-mio.lo libmio_la-nwif.lo libmio_la-opt.lo \
+	libmio_la-path.lo libmio_la-pipe.lo libmio_la-pro.lo \
+	libmio_la-sck.lo libmio_la-skad.lo libmio_la-sys.lo \
+	libmio_la-sys-ass.lo libmio_la-sys-err.lo libmio_la-sys-log.lo \
+	libmio_la-sys-mux.lo libmio_la-sys-tim.lo libmio_la-thr.lo \
+	libmio_la-tmr.lo libmio_la-utf8.lo libmio_la-utl.lo \
+	libmio_la-utl-siph.lo $(am__objects_1)
 libmio_la_OBJECTS = $(am_libmio_la_OBJECTS)
 AM_V_lt = $(am__v_lt_@AM_V@)
 am__v_lt_ = $(am__v_lt_@AM_DEFAULT_V@)
@@ -206,9 +206,10 @@ am__depfiles_remade = ./$(DEPDIR)/libmio_la-chr.Plo \
 	./$(DEPDIR)/libmio_la-http.Plo ./$(DEPDIR)/libmio_la-json.Plo \
 	./$(DEPDIR)/libmio_la-mar-cli.Plo \
 	./$(DEPDIR)/libmio_la-mar.Plo ./$(DEPDIR)/libmio_la-mio.Plo \
-	./$(DEPDIR)/libmio_la-nwif.Plo ./$(DEPDIR)/libmio_la-path.Plo \
-	./$(DEPDIR)/libmio_la-pipe.Plo ./$(DEPDIR)/libmio_la-pro.Plo \
-	./$(DEPDIR)/libmio_la-sck.Plo ./$(DEPDIR)/libmio_la-skad.Plo \
+	./$(DEPDIR)/libmio_la-nwif.Plo ./$(DEPDIR)/libmio_la-opt.Plo \
+	./$(DEPDIR)/libmio_la-path.Plo ./$(DEPDIR)/libmio_la-pipe.Plo \
+	./$(DEPDIR)/libmio_la-pro.Plo ./$(DEPDIR)/libmio_la-sck.Plo \
+	./$(DEPDIR)/libmio_la-skad.Plo \
 	./$(DEPDIR)/libmio_la-sys-ass.Plo \
 	./$(DEPDIR)/libmio_la-sys-err.Plo \
 	./$(DEPDIR)/libmio_la-sys-log.Plo \
@@ -246,9 +247,9 @@ am__can_run_installinfo = \
   esac
 am__include_HEADERS_DIST = mio-cfg.h mio-chr.h mio-cmn.h mio-dns.h \
 	mio-ecs.h mio-fmt.h mio-htb.h mio-htrd.h mio-htre.h mio-http.h \
-	mio-json.h mio-nwif.h mio-pac1.h mio-path.h mio-pipe.h \
-	mio-pro.h mio-sck.h mio-skad.h mio-thr.h mio-upac.h mio-utl.h \
-	mio.h mio-mar.h
+	mio-json.h mio-nwif.h mio-opt.h mio-pac1.h mio-path.h \
+	mio-pipe.h mio-pro.h mio-sck.h mio-skad.h mio-thr.h mio-upac.h \
+	mio-utl.h mio.h mio-mar.h
 HEADERS = $(include_HEADERS)
 am__tagged_files = $(HEADERS) $(SOURCES) $(TAGS_FILES) $(LISP) \
 	mio-cfg.h.in
@@ -436,17 +437,17 @@ LIBADD_LIB_COMMON = $(LIBM)
 #pkgbindir = $(bindir)
 include_HEADERS = mio-cfg.h mio-chr.h mio-cmn.h mio-dns.h mio-ecs.h \
 	mio-fmt.h mio-htb.h mio-htrd.h mio-htre.h mio-http.h \
-	mio-json.h mio-nwif.h mio-pac1.h mio-path.h mio-pipe.h \
-	mio-pro.h mio-sck.h mio-skad.h mio-thr.h mio-upac.h mio-utl.h \
-	mio.h $(am__append_1)
+	mio-json.h mio-nwif.h mio-opt.h mio-pac1.h mio-path.h \
+	mio-pipe.h mio-pro.h mio-sck.h mio-skad.h mio-thr.h mio-upac.h \
+	mio-utl.h mio.h $(am__append_1)
 lib_LTLIBRARIES = libmio.la
 libmio_la_SOURCES = chr.c dns.c dns-cli.c ecs.c ecs-imp.h err.c fmt.c \
 	fmt-imp.h htb.c htrd.c htre.c http.c http-cgi.c http-fil.c \
 	http-prv.h http-svr.c http-thr.c http-txt.c json.c mio-prv.h \
-	mio.c nwif.c path.c pipe.c pro.c sck.c skad.c sys.c sys-ass.c \
-	sys-err.c sys-log.c sys-mux.c sys-prv.h sys-tim.c thr.c \
-	uch-case.h uch-prop.h tmr.c utf8.c utl.c utl-siph.c \
-	$(am__append_2)
+	mio.c nwif.c opt.c opt-imp.h path.c pipe.c pro.c sck.c skad.c \
+	sys.c sys-ass.c sys-err.c sys-log.c sys-mux.c sys-prv.h \
+	sys-tim.c thr.c uch-case.h uch-prop.h tmr.c utf8.c utl.c \
+	utl-siph.c $(am__append_2)
 libmio_la_CPPFLAGS = $(CPPFLAGS_LIB_COMMON)
 libmio_la_CFLAGS = $(CFLAGS_LIB_COMMON) $(am__append_3)
 libmio_la_LDFLAGS = $(LDFLAGS_LIB_COMMON) $(am__append_4)
@@ -566,6 +567,7 @@ distclean-compile:
 @AMDEP_TRUE@@am__include@ @am__quote@./$(DEPDIR)/libmio_la-mar.Plo@am__quote@ # am--include-marker
 @AMDEP_TRUE@@am__include@ @am__quote@./$(DEPDIR)/libmio_la-mio.Plo@am__quote@ # am--include-marker
 @AMDEP_TRUE@@am__include@ @am__quote@./$(DEPDIR)/libmio_la-nwif.Plo@am__quote@ # am--include-marker
+@AMDEP_TRUE@@am__include@ @am__quote@./$(DEPDIR)/libmio_la-opt.Plo@am__quote@ # am--include-marker
 @AMDEP_TRUE@@am__include@ @am__quote@./$(DEPDIR)/libmio_la-path.Plo@am__quote@ # am--include-marker
 @AMDEP_TRUE@@am__include@ @am__quote@./$(DEPDIR)/libmio_la-pipe.Plo@am__quote@ # am--include-marker
 @AMDEP_TRUE@@am__include@ @am__quote@./$(DEPDIR)/libmio_la-pro.Plo@am__quote@ # am--include-marker
@@ -738,6 +740,13 @@ libmio_la-nwif.lo: nwif.c
 @AMDEP_TRUE@@am__fastdepCC_FALSE@	$(AM_V_CC)source='nwif.c' object='libmio_la-nwif.lo' libtool=yes @AMDEPBACKSLASH@
 @AMDEP_TRUE@@am__fastdepCC_FALSE@	DEPDIR=$(DEPDIR) $(CCDEPMODE) $(depcomp) @AMDEPBACKSLASH@
 @am__fastdepCC_FALSE@	$(AM_V_CC@am__nodep@)$(LIBTOOL) $(AM_V_lt) --tag=CC $(AM_LIBTOOLFLAGS) $(LIBTOOLFLAGS) --mode=compile $(CC) $(DEFS) $(DEFAULT_INCLUDES) $(INCLUDES) $(libmio_la_CPPFLAGS) $(CPPFLAGS) $(libmio_la_CFLAGS) $(CFLAGS) -c -o libmio_la-nwif.lo `test -f 'nwif.c' || echo '$(srcdir)/'`nwif.c
+
+libmio_la-opt.lo: opt.c
+@am__fastdepCC_TRUE@	$(AM_V_CC)$(LIBTOOL) $(AM_V_lt) --tag=CC $(AM_LIBTOOLFLAGS) $(LIBTOOLFLAGS) --mode=compile $(CC) $(DEFS) $(DEFAULT_INCLUDES) $(INCLUDES) $(libmio_la_CPPFLAGS) $(CPPFLAGS) $(libmio_la_CFLAGS) $(CFLAGS) -MT libmio_la-opt.lo -MD -MP -MF $(DEPDIR)/libmio_la-opt.Tpo -c -o libmio_la-opt.lo `test -f 'opt.c' || echo '$(srcdir)/'`opt.c
+@am__fastdepCC_TRUE@	$(AM_V_at)$(am__mv) $(DEPDIR)/libmio_la-opt.Tpo $(DEPDIR)/libmio_la-opt.Plo
+@AMDEP_TRUE@@am__fastdepCC_FALSE@	$(AM_V_CC)source='opt.c' object='libmio_la-opt.lo' libtool=yes @AMDEPBACKSLASH@
+@AMDEP_TRUE@@am__fastdepCC_FALSE@	DEPDIR=$(DEPDIR) $(CCDEPMODE) $(depcomp) @AMDEPBACKSLASH@
+@am__fastdepCC_FALSE@	$(AM_V_CC@am__nodep@)$(LIBTOOL) $(AM_V_lt) --tag=CC $(AM_LIBTOOLFLAGS) $(LIBTOOLFLAGS) --mode=compile $(CC) $(DEFS) $(DEFAULT_INCLUDES) $(INCLUDES) $(libmio_la_CPPFLAGS) $(CPPFLAGS) $(libmio_la_CFLAGS) $(CFLAGS) -c -o libmio_la-opt.lo `test -f 'opt.c' || echo '$(srcdir)/'`opt.c
 
 libmio_la-path.lo: path.c
 @am__fastdepCC_TRUE@	$(AM_V_CC)$(LIBTOOL) $(AM_V_lt) --tag=CC $(AM_LIBTOOLFLAGS) $(LIBTOOLFLAGS) --mode=compile $(CC) $(DEFS) $(DEFAULT_INCLUDES) $(INCLUDES) $(libmio_la_CPPFLAGS) $(CPPFLAGS) $(libmio_la_CFLAGS) $(CFLAGS) -MT libmio_la-path.lo -MD -MP -MF $(DEPDIR)/libmio_la-path.Tpo -c -o libmio_la-path.lo `test -f 'path.c' || echo '$(srcdir)/'`path.c
@@ -1040,6 +1049,7 @@ distclean: distclean-am
 	-rm -f ./$(DEPDIR)/libmio_la-mar.Plo
 	-rm -f ./$(DEPDIR)/libmio_la-mio.Plo
 	-rm -f ./$(DEPDIR)/libmio_la-nwif.Plo
+	-rm -f ./$(DEPDIR)/libmio_la-opt.Plo
 	-rm -f ./$(DEPDIR)/libmio_la-path.Plo
 	-rm -f ./$(DEPDIR)/libmio_la-pipe.Plo
 	-rm -f ./$(DEPDIR)/libmio_la-pro.Plo
@@ -1122,6 +1132,7 @@ maintainer-clean: maintainer-clean-am
 	-rm -f ./$(DEPDIR)/libmio_la-mar.Plo
 	-rm -f ./$(DEPDIR)/libmio_la-mio.Plo
 	-rm -f ./$(DEPDIR)/libmio_la-nwif.Plo
+	-rm -f ./$(DEPDIR)/libmio_la-opt.Plo
 	-rm -f ./$(DEPDIR)/libmio_la-path.Plo
 	-rm -f ./$(DEPDIR)/libmio_la-pipe.Plo
 	-rm -f ./$(DEPDIR)/libmio_la-pro.Plo

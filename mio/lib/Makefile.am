@@ -37,6 +37,7 @@ include_HEADERS = \
 	mio-http.h \
 	mio-json.h \
 	mio-nwif.h \
+	mio-opt.h \
 	mio-pac1.h \
 	mio-path.h \
 	mio-pipe.h \
@@ -72,6 +73,8 @@ libmio_la_SOURCES = \
 	mio-prv.h \
 	mio.c \
 	nwif.c \
+	opt.c \
+	opt-imp.h \
 	path.c \
 	pipe.c \
 	pro.c \
