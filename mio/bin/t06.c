@@ -217,6 +217,7 @@ void* thr_func (void* arg)
 	mio_t* mio = MIO_NULL;
 	mio_svc_htts_t* htts = MIO_NULL;
 	mio_dev_sck_bind_t htts_bind_info;
+	int htts_no = -1;
 
 	mio = mio_open(MIO_NULL, 0, MIO_NULL, MIO_FEATURE_ALL, 512, MIO_NULL);
 	if (!mio)
@@ -224,6 +225,8 @@ void* thr_func (void* arg)
 		printf ("Cannot open mio\n");
 		goto oops;
 	}
+
+	mio_setoption (mio, MIO_LOG_TARGET_B, "/dev/stderr");
 
 	memset (&htts_bind_info, 0, MIO_SIZEOF(htts_bind_info));
 	if (g_reuse_port)
@@ -243,15 +246,23 @@ void* thr_func (void* arg)
 	}
 
 	pthread_mutex_lock (&g_htts_mutex);
-	g_htts[g_htts_no] = htts;
-printf ("starting the loop for %d\n", g_htts_no);
+	htts_no = g_htts_no;
+	g_htts[htts_no] = htts;
 	g_htts_no = (g_htts_no + 1) % g_num_thrs;
 	pthread_mutex_unlock (&g_htts_mutex);
 
+printf ("entering the loop for %d\n", htts_no);
 	mio_loop (mio);
+printf ("exiting the loop for %d\n", htts_no);
 
 oops:
-	if (htts) mio_svc_htts_stop (htts);
+	pthread_mutex_lock (&g_htts_mutex);
+	if (htts) 
+	{
+		mio_svc_htts_stop (htts);
+		g_htts[htts_no] = MIO_NULL;
+	}
+	pthread_mutex_unlock (&g_htts_mutex);
 	if (mio) mio_close (mio);
 
 	pthread_exit (MIO_NULL);
@@ -524,6 +535,7 @@ int main (int argc, char* argv[])
 	pthread_t t[MAX_NUM_THRS];
 	mio_oow_t i;
 	struct sigaction sigact;
+	int xret = -1;
 
 // TODO: use getopt() or something similar
 	for (i = 1; i < argc; )
@@ -577,6 +589,8 @@ int main (int argc, char* argv[])
 		goto oops;
 	}
 
+	mio_setoption (mio, MIO_LOG_TARGET_B, "/dev/stderr");
+
 	g_mio = mio;
 
 	for (i = 0; i < g_num_thrs; i++)
@@ -588,23 +602,32 @@ int main (int argc, char* argv[])
 	if (add_listener(mio, "[::]:9987") <= -1 ||
 	    add_listener(mio, "0.0.0.0:9987") <= -1) goto oops;
 
-printf ("starting the main loop\n");
+printf ("entering the main loop\n");
 	mio_loop (mio);
+printf ("exiting the main loop\n");
 
-	/* close all threaded mios here */
-printf ("TERMINATING..NORMALLY \n");
-	memset (&sigact, 0, MIO_SIZEOF(sigact));
-	sigact.sa_handler = SIG_IGN;
-	sigaction (SIGINT, &sigact, MIO_NULL);
-	mio_close (mio);
-	return 0;
+	xret = 0;
 
 oops:
-printf ("TERMINATING..ABNORMALLY \n");
+
 	memset (&sigact, 0, MIO_SIZEOF(sigact));
 	sigact.sa_handler = SIG_IGN;
 	sigaction (SIGINT, &sigact, MIO_NULL);
+
+	pthread_mutex_lock (&g_htts_mutex);
+	for (i = 0; i < g_num_thrs; i++)
+	{
+		if (g_htts[i]) mio_stop (mio_svc_htts_getmio(g_htts[i]), MIO_STOPREQ_TERMINATION);
+	}
+	pthread_mutex_unlock (&g_htts_mutex);
+
+	for (i = 0; i < g_num_thrs; i++)
+	{
+		pthread_join (t[i], MIO_NULL);
+	}
+
+
 	if (mio) mio_close (mio);
-	return -1;
+	return xret;
 }
 

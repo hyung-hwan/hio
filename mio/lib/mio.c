@@ -247,7 +247,23 @@ void mio_fini (mio_t* mio)
 
 	mio_sys_fini (mio); /* finalize the system dependent data */
 
-	mio_freemem (mio, mio->log.ptr);
+	if (mio->log.ptr)
+	{
+		mio_freemem (mio, mio->log.ptr);
+		mio->log.ptr = MIO_NULL;
+	}
+
+	if (mio->option.log_target_u)
+	{
+		mio_freemem (mio, mio->option.log_target_u);
+		mio->option.log_target_u = MIO_NULL;
+	}
+
+	if (mio->option.log_target_b)
+	{
+		mio_freemem (mio, mio->option.log_target_b);
+		mio->option.log_target_b = MIO_NULL;
+	}
 }
 
 int mio_setoption (mio_t* mio, mio_option_t id, const void* value)
@@ -265,6 +281,50 @@ int mio_setoption (mio_t* mio, mio_option_t id, const void* value)
 		case MIO_LOG_MAXCAPA:
 			mio->option.log_maxcapa = *(mio_oow_t*)value;
 			return 0;
+
+		case MIO_LOG_TARGET_B:
+		{
+			mio_bch_t* v1;
+			mio_uch_t* v2;
+
+			v1 = mio_dupbcstr(mio, value, MIO_NULL);
+			if (MIO_UNLIKELY(!v1)) return -1;
+			
+			v2 = mio_dupbtoucstr(mio, value, MIO_NULL, 1);
+			if (MIO_UNLIKELY(!v2))
+			{
+				mio_freemem (mio, v1);
+				return -1;
+			}
+
+			mio->option.log_target_u = v2;
+			mio->option.log_target_b = v1;
+
+			mio_sys_resetlog (mio);
+			return 0;
+		}
+
+		case MIO_LOG_TARGET_U:
+		{
+			mio_uch_t* v1;
+			mio_bch_t* v2;
+
+			v1 = mio_dupucstr(mio, value, MIO_NULL);
+			if (MIO_UNLIKELY(!v1)) return -1;
+
+			v2 = mio_duputobcstr(mio, value, MIO_NULL);
+			if (MIO_UNLIKELY(!v2))
+			{
+				mio_freemem (mio, v1);
+				return -1;
+			}
+
+			mio->option.log_target_u = v1;
+			mio->option.log_target_b = v2;
+
+			mio_sys_resetlog (mio);
+			return 0;
+		}
 
 		case MIO_LOG_WRITER:
 			mio->option.log_writer = (mio_log_writer_t)value;
@@ -289,6 +349,14 @@ int mio_getoption (mio_t* mio, mio_option_t id, void* value)
 
 		case MIO_LOG_MAXCAPA:
 			*(mio_oow_t*)value = mio->option.log_maxcapa;
+			return 0;
+
+		case MIO_LOG_TARGET_B:
+			*(mio_bch_t**)value = mio->option.log_target_b;
+			return 0;
+
+		case MIO_LOG_TARGET_U:
+			*(mio_uch_t**)value = mio->option.log_target_u;
 			return 0;
 
 		case MIO_LOG_WRITER:
