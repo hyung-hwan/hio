@@ -265,6 +265,10 @@ int mio_setoption (mio_t* mio, mio_option_t id, const void* value)
 		case MIO_LOG_MAXCAPA:
 			mio->option.log_maxcapa = *(mio_oow_t*)value;
 			return 0;
+
+		case MIO_LOG_WRITER:
+			mio->option.log_writer = (mio_log_writer_t)value;
+			return 0;
 	}
 
 	mio_seterrnum (mio, MIO_EINVAL);
@@ -285,6 +289,10 @@ int mio_getoption (mio_t* mio, mio_option_t id, void* value)
 
 		case MIO_LOG_MAXCAPA:
 			*(mio_oow_t*)value = mio->option.log_maxcapa;
+			return 0;
+
+		case MIO_LOG_WRITER:
+			*(mio_log_writer_t*)value = mio->option.log_writer;
 			return 0;
 	};
 

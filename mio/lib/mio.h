@@ -122,10 +122,11 @@ typedef struct mio_errinf_t mio_errinf_t;
 
 enum mio_feature_t
 {
-	MIO_FEATURE_LOG = ((mio_bitmask_t)1 << 0),
-	MIO_FEATURE_MUX = ((mio_bitmask_t)1 << 1),
+	MIO_FEATURE_MUX        = ((mio_bitmask_t)1 << 0),
+	MIO_FEATURE_LOG        = ((mio_bitmask_t)1 << 1),
+	MIO_FEATURE_LOG_WRITER = ((mio_bitmask_t)1 << 2),
 
-	MIO_FEATURE_ALL = (MIO_FEATURE_LOG | MIO_FEATURE_MUX)
+	MIO_FEATURE_ALL = (MIO_FEATURE_MUX | MIO_FEATURE_LOG | MIO_FEATURE_LOG_WRITER)
 };
 typedef enum mio_feature_t mio_feature_t;
 
@@ -133,10 +134,10 @@ enum mio_option_t
 {
 	MIO_TRAIT,
 	MIO_LOG_MASK,
-	MIO_LOG_MAXCAPA
+	MIO_LOG_MAXCAPA,
+	MIO_LOG_WRITER
 };
 typedef enum mio_option_t mio_option_t;
-
 
 enum mio_stopreq_t
 {
@@ -145,6 +146,15 @@ enum mio_stopreq_t
 	MIO_STOPREQ_WATCHER_ERROR
 };
 typedef enum mio_stopreq_t mio_stopreq_t;
+
+/* ========================================================================= */
+
+typedef int (*mio_log_writer_t) (
+	mio_t*                 mio,
+	mio_bitmask_t          mask,
+	const mio_bch_t*       dptr,
+	mio_oow_t              dlen
+);	
 
 /* ========================================================================= */
 
@@ -653,6 +663,7 @@ struct mio_t
 		mio_bitmask_t trait;
 		mio_bitmask_t log_mask;
 		mio_oow_t log_maxcapa;
+		mio_log_writer_t log_writer;
 	} option;
 
 	struct
