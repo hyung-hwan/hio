@@ -564,23 +564,23 @@ struct mio_svc_t
 
 enum mio_log_mask_t
 {
-	MIO_LOG_DEBUG      = (1u << 0),
-	MIO_LOG_INFO       = (1u << 1),
-	MIO_LOG_WARN       = (1u << 2),
-	MIO_LOG_ERROR      = (1u << 3),
-	MIO_LOG_FATAL      = (1u << 4),
+	MIO_LOG_DEBUG      = ((mio_bitmask_t)1 << 0),
+	MIO_LOG_INFO       = ((mio_bitmask_t)1 << 1),
+	MIO_LOG_WARN       = ((mio_bitmask_t)1 << 2),
+	MIO_LOG_ERROR      = ((mio_bitmask_t)1 << 3),
+	MIO_LOG_FATAL      = ((mio_bitmask_t)1 << 4),
 
-	MIO_LOG_UNTYPED    = (1u << 6), /* only to be used by MIO_DEBUGx() and MIO_INFOx() */
-	MIO_LOG_CORE       = (1u << 7),
-	MIO_LOG_DEV        = (1u << 8),
-	MIO_LOG_TIMER      = (1u << 9),
+	MIO_LOG_UNTYPED    = ((mio_bitmask_t)1 << 6), /* only to be used by MIO_DEBUGx() and MIO_INFOx() */
+	MIO_LOG_CORE       = ((mio_bitmask_t)1 << 7),
+	MIO_LOG_DEV        = ((mio_bitmask_t)1 << 8),
+	MIO_LOG_TIMER      = ((mio_bitmask_t)1 << 9),
 
 	MIO_LOG_ALL_LEVELS = (MIO_LOG_DEBUG  | MIO_LOG_INFO | MIO_LOG_WARN | MIO_LOG_ERROR | MIO_LOG_FATAL),
 	MIO_LOG_ALL_TYPES  = (MIO_LOG_UNTYPED | MIO_LOG_CORE | MIO_LOG_DEV | MIO_LOG_TIMER),
 
-	MIO_LOG_GUARDED    = (1u << 13), /* make logging thread-safe */
-	MIO_LOG_STDOUT     = (1u << 14), /* write log messages to stdout without timestamp. MIO_LOG_STDOUT wins over MIO_LOG_STDERR. */
-	MIO_LOG_STDERR     = (1u << 15)  /* write log messages to stderr without timestamp. */
+	MIO_LOG_GUARDED    = ((mio_bitmask_t)1 << 13), /* make logging thread-safe */
+	MIO_LOG_STDOUT     = ((mio_bitmask_t)1 << 14), /* write log messages to stdout without timestamp. MIO_LOG_STDOUT wins over MIO_LOG_STDERR. */
+	MIO_LOG_STDERR     = ((mio_bitmask_t)1 << 15)  /* write log messages to stderr without timestamp. */
 };
 typedef enum mio_log_mask_t mio_log_mask_t;
 
