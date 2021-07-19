@@ -339,12 +339,6 @@ int mio_sys_initlog (mio_t* mio)
 	if (isatty(log->fd)) log->fd_flag |= LOGFD_TTY;
 #endif
 
-/*
-	mio_bitmask_t logmask;
-	logmask = MIO_LOG_ALL_TYPES | MIO_LOG_ALL_LEVELS;
-	mio_setoption (mio, MIO_LOG_MASK, &logmask);
-*/
-
 	pthread_mutex_init (&log->mtx, MIO_NULL);
 	return 0;
 }

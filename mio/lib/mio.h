@@ -1323,11 +1323,27 @@ MIO_EXPORT mio_ooi_t mio_logufmt (
 	const mio_uch_t*  fmt,
 	...
 );
+
+MIO_EXPORT mio_ooi_t mio_logbfmtv (
+	mio_t*           mio,
+	mio_bitmask_t    mask,
+	const mio_bch_t* fmt,
+	va_list           ap
+);
+
+MIO_EXPORT mio_ooi_t mio_logufmtv (
+	mio_t*            mio,
+	mio_bitmask_t     mask,
+	const mio_uch_t*  fmt,
+	va_list           ap
+);
  
 #if defined(MIO_OOCH_IS_UCH)
 #	define mio_logoofmt mio_logufmt
+#	define mio_logoofmtv mio_logufmtv
 #else
 #	define mio_logoofmt mio_logbfmt
+#	define mio_logoofmtv mio_logbfmtv
 #endif
 
 /* =========================================================================
