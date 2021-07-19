@@ -272,17 +272,17 @@ int mio_setoption (mio_t* mio, mio_option_t id, const void* value)
 	{
 		case MIO_TRAIT:
 			mio->option.trait = *(mio_bitmask_t*)value;
-			return 0;
+			break;
 
 		case MIO_LOG_MASK:
 			mio->option.log_mask = *(mio_bitmask_t*)value;
-			return 0;
+			break;
 
 		case MIO_LOG_MAXCAPA:
 			mio->option.log_maxcapa = *(mio_oow_t*)value;
-			return 0;
+			break;
 
-		case MIO_LOG_TARGET_B:
+		case MIO_LOG_TARGET_BCSTR:
 		{
 			mio_bch_t* v1;
 			mio_uch_t* v2;
@@ -301,10 +301,10 @@ int mio_setoption (mio_t* mio, mio_option_t id, const void* value)
 			mio->option.log_target_b = v1;
 
 			mio_sys_resetlog (mio);
-			return 0;
+			break;
 		}
 
-		case MIO_LOG_TARGET_U:
+		case MIO_LOG_TARGET_UCSTR:
 		{
 			mio_uch_t* v1;
 			mio_bch_t* v2;
@@ -323,14 +323,66 @@ int mio_setoption (mio_t* mio, mio_option_t id, const void* value)
 			mio->option.log_target_b = v2;
 
 			mio_sys_resetlog (mio);
-			return 0;
+			break;
+		}
+
+		case MIO_LOG_TARGET_BCS:
+		{
+			mio_bch_t* v1;
+			mio_uch_t* v2;
+			mio_bcs_t* v = (mio_bcs_t*)value;
+
+			v1 = mio_dupbchars(mio, v->ptr, v->len);
+			if (MIO_UNLIKELY(!v1)) return -1;
+
+			v2 = mio_dupbtouchars(mio, v->ptr, v->len, MIO_NULL, 0);
+			if (MIO_UNLIKELY(!v2))
+			{
+				mio_freemem (mio, v1);
+				return -1;
+			}
+
+			mio->option.log_target_u = v2;
+			mio->option.log_target_b = v1;
+
+			mio_sys_resetlog (mio);
+			break;
+		}
+
+		case MIO_LOG_TARGET_UCS:
+		{
+			mio_uch_t* v1;
+			mio_bch_t* v2;
+			mio_ucs_t* v = (mio_bcs_t*)value;
+
+			v1 = mio_dupuchars(mio, v->ptr, v->len);
+			if (MIO_UNLIKELY(!v1)) return -1;
+
+			v2 = mio_duputobchars(mio, v->ptr, v->len, MIO_NULL);
+			if (MIO_UNLIKELY(!v2))
+			{
+				mio_freemem (mio, v1);
+				return -1;
+			}
+
+			mio->option.log_target_u = v1;
+			mio->option.log_target_b = v2;
+
+			mio_sys_resetlog (mio);
+			break;
 		}
 
 		case MIO_LOG_WRITER:
 			mio->option.log_writer = (mio_log_writer_t)value;
-			return 0;
+			break;
+
+		default:
+			goto einval;
 	}
 
+	return 0;
+
+einval:
 	mio_seterrnum (mio, MIO_EINVAL);
 	return -1;
 }
@@ -351,12 +403,22 @@ int mio_getoption (mio_t* mio, mio_option_t id, void* value)
 			*(mio_oow_t*)value = mio->option.log_maxcapa;
 			return 0;
 
-		case MIO_LOG_TARGET_B:
+		case MIO_LOG_TARGET_BCSTR:
 			*(mio_bch_t**)value = mio->option.log_target_b;
 			return 0;
 
-		case MIO_LOG_TARGET_U:
+		case MIO_LOG_TARGET_UCSTR:
 			*(mio_uch_t**)value = mio->option.log_target_u;
+			return 0;
+
+		case MIO_LOG_TARGET_BCS:
+			((mio_bcs_t*)value)->ptr = mio->option.log_target_b;
+			((mio_bcs_t*)value)->len = mio_count_bcstr(mio->option.log_target_b);
+			return 0;
+
+		case MIO_LOG_TARGET_UCS:
+			((mio_ucs_t*)value)->ptr = mio->option.log_target_u;
+			((mio_ucs_t*)value)->len = mio_count_ucstr(mio->option.log_target_u);
 			return 0;
 
 		case MIO_LOG_WRITER:

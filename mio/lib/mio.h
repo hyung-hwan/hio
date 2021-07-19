@@ -137,14 +137,21 @@ enum mio_option_t
 	MIO_LOG_MAXCAPA,
 
 	/* log target for the builtin writer */
-	MIO_LOG_TARGET_B,
-	MIO_LOG_TARGET_U,
+	MIO_LOG_TARGET_BCSTR,
+	MIO_LOG_TARGET_UCSTR,
+	MIO_LOG_TARGET_BCS,
+	MIO_LOG_TARGET_UCS,
 #if defined(MIO_OOCH_IS_UCH)
-#	define MIO_LOG_TARGET MIO_LOG_TARGET_U
+#	define MIO_LOG_TARGET MIO_LOG_TARGET_UCSTR
+#	define MIO_LOG_TARGET_OOCSTR MIO_LOG_TARGET_UCSTR
+#	define MIO_LOG_TARGET_OOCS MIO_LOG_TARGET_UCS
 #else
-#	define MIO_LOG_TARGET MIO_LOG_TARGET_B
+#	define MIO_LOG_TARGET MIO_LOG_TARGET_BCSTR
+#	define MIO_LOG_TARGET_OOCSTR MIO_LOG_TARGET_BCSTR
+#	define MIO_LOG_TARGET_OOCS MIO_LOG_TARGET_BCS
 #endif
 
+	/* user-defined log writer */
 	MIO_LOG_WRITER
 };
 typedef enum mio_option_t mio_option_t;
