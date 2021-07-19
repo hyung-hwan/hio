@@ -329,23 +329,8 @@ int mio_sys_initlog (mio_t* mio)
 
 	if (mio->_features & MIO_FEATURE_LOG_WRITER)
 	{
-/* TODO: different file? */
-	#define LOG_FILE "/dev/stderr"
-		log->fd = open(LOG_FILE, O_CREAT | O_WRONLY | O_APPEND , 0644);
-		if (log->fd == -1)
-		{
-			/*mio_seterrbfmtwithsyserr (mio, 0, errno, "cannot open log file %hs", LOG_FILE);*/
-			log->fd = 2;
-			log->fd_flag = 0;
-		}
-		else
-		{
-			log->fd_flag |= LOGFD_OPENED_HERE;
-		}
-
-	#if defined(HAVE_ISATTY)
-		if (isatty(log->fd)) log->fd_flag |= LOGFD_TTY;
-	#endif
+		log->fd = 2;
+		log->fd_flag = 0;
 	}
 	else
 	{
@@ -370,6 +355,40 @@ void mio_sys_finilog (mio_t* mio)
 			log->fd = -1;
 			log->fd_flag = 0;
 		}
+	}
+}
+
+void mio_sys_resetlog (mio_t* mio)
+{
+	mio_sys_log_t* log = &mio->sysdep->log;
+
+	if (mio->_features & MIO_FEATURE_LOG_WRITER)
+	{
+		int fd;
+		int fd_flag = 0;
+		int kill_fd = -1;
+
+		fd = open(mio->option.log_target_b, O_CREAT | O_WRONLY | O_APPEND , 0644);
+		if (fd == -1)
+		{
+			fd = 2;
+			fd_flag = 0;
+		}
+		else
+		{
+			fd_flag |= LOGFD_OPENED_HERE;
+		#if defined(HAVE_ISATTY)
+			if (isatty(fd)) fd_flag |= LOGFD_TTY;
+		#endif
+		}
+
+		if ((log->fd_flag & LOGFD_OPENED_HERE) && log->fd >= 0) kill_fd = log->fd;
+
+		/* swap - risk of race condition depite this late swap */
+		log->fd = fd;
+		log->fd_flag = fd_flag;
+
+		if (kill_fd >= 0) close (kill_fd);
 	}
 }
 

@@ -172,6 +172,10 @@ mio_errnum_t mio_sys_syserrstrb (
 	mio_oow_t         len
 );
 
+void mio_sys_resetlog (
+	mio_t*            mio
+);
+
 void mio_sys_writelog (
 	mio_t*            mio,
 	mio_bitmask_t     mask,

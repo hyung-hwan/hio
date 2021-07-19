@@ -493,7 +493,7 @@ static int dev_sck_kill (mio_dev_t* dev, int force)
 	}
 	else
 	{
-		MIO_ASSERT (mio, rdev->state == 0);
+		MIO_ASSERT (mio, (rdev->state & MIO_DEV_SCK_ALL_PROGRESS_BITS) == 0);
 		MIO_ASSERT (mio, rdev->tmrjob_index == MIO_TMRIDX_INVALID);
 
 		if (rdev->on_disconnect) rdev->on_disconnect (rdev);

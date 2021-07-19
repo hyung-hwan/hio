@@ -135,6 +135,16 @@ enum mio_option_t
 	MIO_TRAIT,
 	MIO_LOG_MASK,
 	MIO_LOG_MAXCAPA,
+
+	/* log target for the builtin writer */
+	MIO_LOG_TARGET_B,
+	MIO_LOG_TARGET_U,
+#if defined(MIO_OOCH_IS_UCH)
+#	define MIO_LOG_TARGET MIO_LOG_TARGET_U
+#else
+#	define MIO_LOG_TARGET MIO_LOG_TARGET_B
+#endif
+
 	MIO_LOG_WRITER
 };
 typedef enum mio_option_t mio_option_t;
@@ -663,6 +673,8 @@ struct mio_t
 		mio_bitmask_t trait;
 		mio_bitmask_t log_mask;
 		mio_oow_t log_maxcapa;
+		mio_uch_t* log_target_u;
+		mio_bch_t* log_target_b;
 		mio_log_writer_t log_writer;
 	} option;
 
