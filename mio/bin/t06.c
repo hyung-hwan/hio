@@ -226,7 +226,7 @@ void* thr_func (void* arg)
 		goto oops;
 	}
 
-	mio_setoption (mio, MIO_LOG_TARGET_B, "/dev/stderr");
+	mio_setoption (mio, MIO_LOG_TARGET_BCSTR, "/dev/stderr");
 
 	memset (&htts_bind_info, 0, MIO_SIZEOF(htts_bind_info));
 	if (g_reuse_port)
@@ -589,7 +589,7 @@ int main (int argc, char* argv[])
 		goto oops;
 	}
 
-	mio_setoption (mio, MIO_LOG_TARGET_B, "/dev/stderr");
+	mio_setoption (mio, MIO_LOG_TARGET_BCSTR, "/dev/stderr");
 
 	g_mio = mio;
 
