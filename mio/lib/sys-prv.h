@@ -141,15 +141,6 @@ void mio_sys_finilog (
 	mio_t* mio
 );
 
-void mio_sys_locklog (
-	mio_t* mio
-);
-
-void mio_sys_locklog (
-	mio_t* mio
-);
-
-
 int mio_sys_initmux (
 	mio_t* mio
 );

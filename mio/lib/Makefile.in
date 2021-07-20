@@ -153,7 +153,7 @@ am__libmio_la_SOURCES_DIST = chr.c dns.c dns-cli.c ecs.c ecs-imp.h \
 	mio-prv.h mio.c nwif.c opt.c opt-imp.h path.c pipe.c pro.c \
 	sck.c skad.c sys.c sys-ass.c sys-err.c sys-log.c sys-mux.c \
 	sys-prv.h sys-tim.c thr.c uch-case.h uch-prop.h tmr.c utf8.c \
-	utl.c utl-siph.c mar.c mar-cli.c
+	utl.c utl-siph.c utl-str.c mar.c mar-cli.c
 @ENABLE_MARIADB_TRUE@am__objects_1 = libmio_la-mar.lo \
 @ENABLE_MARIADB_TRUE@	libmio_la-mar-cli.lo
 am_libmio_la_OBJECTS = libmio_la-chr.lo libmio_la-dns.lo \
@@ -168,7 +168,7 @@ am_libmio_la_OBJECTS = libmio_la-chr.lo libmio_la-dns.lo \
 	libmio_la-sys-ass.lo libmio_la-sys-err.lo libmio_la-sys-log.lo \
 	libmio_la-sys-mux.lo libmio_la-sys-tim.lo libmio_la-thr.lo \
 	libmio_la-tmr.lo libmio_la-utf8.lo libmio_la-utl.lo \
-	libmio_la-utl-siph.lo $(am__objects_1)
+	libmio_la-utl-siph.lo libmio_la-utl-str.lo $(am__objects_1)
 libmio_la_OBJECTS = $(am_libmio_la_OBJECTS)
 AM_V_lt = $(am__v_lt_@AM_V@)
 am__v_lt_ = $(am__v_lt_@AM_DEFAULT_V@)
@@ -218,6 +218,7 @@ am__depfiles_remade = ./$(DEPDIR)/libmio_la-chr.Plo \
 	./$(DEPDIR)/libmio_la-sys.Plo ./$(DEPDIR)/libmio_la-thr.Plo \
 	./$(DEPDIR)/libmio_la-tmr.Plo ./$(DEPDIR)/libmio_la-utf8.Plo \
 	./$(DEPDIR)/libmio_la-utl-siph.Plo \
+	./$(DEPDIR)/libmio_la-utl-str.Plo \
 	./$(DEPDIR)/libmio_la-utl.Plo
 am__mv = mv -f
 COMPILE = $(CC) $(DEFS) $(DEFAULT_INCLUDES) $(INCLUDES) $(AM_CPPFLAGS) \
@@ -420,6 +421,7 @@ CPPFLAGS_ALL_COMMON = \
 
 CFLAGS_ALL_COMMON = 
 LDFLAGS_ALL_COMMON = -L$(abs_builddir) -L$(libdir)
+EXTRA_DIST = utl-str.c.m4
 
 ##################################################
 # MAIN LIBRARY 
@@ -447,7 +449,7 @@ libmio_la_SOURCES = chr.c dns.c dns-cli.c ecs.c ecs-imp.h err.c fmt.c \
 	mio.c nwif.c opt.c opt-imp.h path.c pipe.c pro.c sck.c skad.c \
 	sys.c sys-ass.c sys-err.c sys-log.c sys-mux.c sys-prv.h \
 	sys-tim.c thr.c uch-case.h uch-prop.h tmr.c utf8.c utl.c \
-	utl-siph.c $(am__append_2)
+	utl-siph.c utl-str.c $(am__append_2)
 libmio_la_CPPFLAGS = $(CPPFLAGS_LIB_COMMON)
 libmio_la_CFLAGS = $(CFLAGS_LIB_COMMON) $(am__append_3)
 libmio_la_LDFLAGS = $(LDFLAGS_LIB_COMMON) $(am__append_4)
@@ -583,6 +585,7 @@ distclean-compile:
 @AMDEP_TRUE@@am__include@ @am__quote@./$(DEPDIR)/libmio_la-tmr.Plo@am__quote@ # am--include-marker
 @AMDEP_TRUE@@am__include@ @am__quote@./$(DEPDIR)/libmio_la-utf8.Plo@am__quote@ # am--include-marker
 @AMDEP_TRUE@@am__include@ @am__quote@./$(DEPDIR)/libmio_la-utl-siph.Plo@am__quote@ # am--include-marker
+@AMDEP_TRUE@@am__include@ @am__quote@./$(DEPDIR)/libmio_la-utl-str.Plo@am__quote@ # am--include-marker
 @AMDEP_TRUE@@am__include@ @am__quote@./$(DEPDIR)/libmio_la-utl.Plo@am__quote@ # am--include-marker
 
 $(am__depfiles_remade):
@@ -860,6 +863,13 @@ libmio_la-utl-siph.lo: utl-siph.c
 @AMDEP_TRUE@@am__fastdepCC_FALSE@	DEPDIR=$(DEPDIR) $(CCDEPMODE) $(depcomp) @AMDEPBACKSLASH@
 @am__fastdepCC_FALSE@	$(AM_V_CC@am__nodep@)$(LIBTOOL) $(AM_V_lt) --tag=CC $(AM_LIBTOOLFLAGS) $(LIBTOOLFLAGS) --mode=compile $(CC) $(DEFS) $(DEFAULT_INCLUDES) $(INCLUDES) $(libmio_la_CPPFLAGS) $(CPPFLAGS) $(libmio_la_CFLAGS) $(CFLAGS) -c -o libmio_la-utl-siph.lo `test -f 'utl-siph.c' || echo '$(srcdir)/'`utl-siph.c
 
+libmio_la-utl-str.lo: utl-str.c
+@am__fastdepCC_TRUE@	$(AM_V_CC)$(LIBTOOL) $(AM_V_lt) --tag=CC $(AM_LIBTOOLFLAGS) $(LIBTOOLFLAGS) --mode=compile $(CC) $(DEFS) $(DEFAULT_INCLUDES) $(INCLUDES) $(libmio_la_CPPFLAGS) $(CPPFLAGS) $(libmio_la_CFLAGS) $(CFLAGS) -MT libmio_la-utl-str.lo -MD -MP -MF $(DEPDIR)/libmio_la-utl-str.Tpo -c -o libmio_la-utl-str.lo `test -f 'utl-str.c' || echo '$(srcdir)/'`utl-str.c
+@am__fastdepCC_TRUE@	$(AM_V_at)$(am__mv) $(DEPDIR)/libmio_la-utl-str.Tpo $(DEPDIR)/libmio_la-utl-str.Plo
+@AMDEP_TRUE@@am__fastdepCC_FALSE@	$(AM_V_CC)source='utl-str.c' object='libmio_la-utl-str.lo' libtool=yes @AMDEPBACKSLASH@
+@AMDEP_TRUE@@am__fastdepCC_FALSE@	DEPDIR=$(DEPDIR) $(CCDEPMODE) $(depcomp) @AMDEPBACKSLASH@
+@am__fastdepCC_FALSE@	$(AM_V_CC@am__nodep@)$(LIBTOOL) $(AM_V_lt) --tag=CC $(AM_LIBTOOLFLAGS) $(LIBTOOLFLAGS) --mode=compile $(CC) $(DEFS) $(DEFAULT_INCLUDES) $(INCLUDES) $(libmio_la_CPPFLAGS) $(CPPFLAGS) $(libmio_la_CFLAGS) $(CFLAGS) -c -o libmio_la-utl-str.lo `test -f 'utl-str.c' || echo '$(srcdir)/'`utl-str.c
+
 libmio_la-mar.lo: mar.c
 @am__fastdepCC_TRUE@	$(AM_V_CC)$(LIBTOOL) $(AM_V_lt) --tag=CC $(AM_LIBTOOLFLAGS) $(LIBTOOLFLAGS) --mode=compile $(CC) $(DEFS) $(DEFAULT_INCLUDES) $(INCLUDES) $(libmio_la_CPPFLAGS) $(CPPFLAGS) $(libmio_la_CFLAGS) $(CFLAGS) -MT libmio_la-mar.lo -MD -MP -MF $(DEPDIR)/libmio_la-mar.Tpo -c -o libmio_la-mar.lo `test -f 'mar.c' || echo '$(srcdir)/'`mar.c
 @am__fastdepCC_TRUE@	$(AM_V_at)$(am__mv) $(DEPDIR)/libmio_la-mar.Tpo $(DEPDIR)/libmio_la-mar.Plo
@@ -1065,6 +1075,7 @@ distclean: distclean-am
 	-rm -f ./$(DEPDIR)/libmio_la-tmr.Plo
 	-rm -f ./$(DEPDIR)/libmio_la-utf8.Plo
 	-rm -f ./$(DEPDIR)/libmio_la-utl-siph.Plo
+	-rm -f ./$(DEPDIR)/libmio_la-utl-str.Plo
 	-rm -f ./$(DEPDIR)/libmio_la-utl.Plo
 	-rm -f Makefile
 distclean-am: clean-am distclean-compile distclean-generic \
@@ -1148,6 +1159,7 @@ maintainer-clean: maintainer-clean-am
 	-rm -f ./$(DEPDIR)/libmio_la-tmr.Plo
 	-rm -f ./$(DEPDIR)/libmio_la-utf8.Plo
 	-rm -f ./$(DEPDIR)/libmio_la-utl-siph.Plo
+	-rm -f ./$(DEPDIR)/libmio_la-utl-str.Plo
 	-rm -f ./$(DEPDIR)/libmio_la-utl.Plo
 	-rm -f Makefile
 maintainer-clean-am: distclean-am maintainer-clean-generic
@@ -1199,6 +1211,9 @@ install-data-hook:
 
 uninstall-hook:
 	@rm -f "$(DESTDIR)$(includedir)/mio-cfg.h"
+
+utl-str.c: utl-str.c.m4
+	m4 $(abs_srcdir)/utl-str.c.m4 > $(abs_srcdir)/utl-str.c
 
 # Tell versions [3.59,3.63) of GNU make to not export all variables.
 # Otherwise a system limit (for SysV at least) may be exceeded.
