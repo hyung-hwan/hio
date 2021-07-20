@@ -8,6 +8,8 @@ CPPFLAGS_ALL_COMMON = \
 CFLAGS_ALL_COMMON  =
 LDFLAGS_ALL_COMMON = -L$(abs_builddir) -L$(libdir)
 
+EXTRA_DIST = utl-str.c.m4
+
 ##################################################
 # MAIN LIBRARY 
 ##################################################
@@ -93,7 +95,8 @@ libmio_la_SOURCES = \
 	tmr.c \
 	utf8.c \
 	utl.c \
-	utl-siph.c
+	utl-siph.c \
+	utl-str.c
 
 
 libmio_la_CPPFLAGS = $(CPPFLAGS_LIB_COMMON)
@@ -124,3 +127,5 @@ install-data-hook:
 uninstall-hook:
 	@rm -f "$(DESTDIR)$(includedir)/mio-cfg.h"
 
+utl-str.c: utl-str.c.m4
+	m4 $(abs_srcdir)/utl-str.c.m4 > $(abs_srcdir)/utl-str.c

@@ -176,6 +176,14 @@ void mio_sys_resetlog (
 	mio_t*            mio
 );
 
+void mio_sys_locklog (
+	mio_t*            mio
+);
+
+void mio_sys_unlocklog (
+	mio_t*            mio
+);
+
 void mio_sys_writelog (
 	mio_t*            mio,
 	mio_bitmask_t     mask,
