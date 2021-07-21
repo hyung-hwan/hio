@@ -34,6 +34,9 @@
 #if defined(USE_POLL)
 #	define MUX_INDEX_INVALID MIO_TYPE_MAX(mio_oow_t)
 #	define MUX_INDEX_SUSPENDED (MUX_INDEX_INVALID - 1)
+
+static int secure_poll_map_slot_for_hnd (mio_t* mio, mio_syshnd_t hnd);
+static int secure_poll_data_slot_for_insert (mio_t* mio);
 #endif
 
 int mio_sys_initmux (mio_t* mio)
@@ -63,8 +66,29 @@ int mio_sys_initmux (mio_t* mio)
 #endif
 
 
+#if defined(USE_POLL)
+	if (secure_poll_map_slot_for_hnd(mio, mux->ctrlp[0]) <= -1 ||
+	    secure_poll_data_slot_for_insert(mio) <= -1)
+	{
+		/* no control pipes if registration fails */
+		close (mux->ctrlp[1]); 
+		mux->ctrlp[1] = MIO_SYSHND_INVALID;
+		close (mux->ctrlp[0]);
+		mux->ctrlp[0] = MIO_SYSHND_INVALID;
+	}
+	else
+	{
+		mio_oow_t idx;
+		idx = mux->pd.size++;
+		mux->pd.pfd[idx].fd = mux->ctrlp[0];
+		mux->pd.pfd[idx].events = POLLIN;
+		mux->pd.pfd[idx].revents = 0;
+		mux->pd.dptr[idx] = MIO_NULL;
+		mux->map.ptr[mux->ctrlp[0]] = idx;
+	}
 
-#if defined(USE_EPOLL)
+
+#elif defined(USE_EPOLL)
 
 #if defined(HAVE_EPOLL_CREATE1) && defined(EPOLL_CLOEXEC)
 	mux->hnd = epoll_create1(EPOLL_CLOEXEC);
@@ -99,7 +123,14 @@ epoll_create_done:
 		struct epoll_event ev;
 		ev.events = EPOLLIN | EPOLLHUP | EPOLLERR;
 		ev.data.ptr = MIO_NULL;
-		epoll_ctl(mux->hnd, EPOLL_CTL_ADD, mux->ctrlp[0], &ev);
+		if (epoll_ctl(mux->hnd, EPOLL_CTL_ADD, mux->ctrlp[0], &ev) == -1)
+		{
+			/* if ADD fails, close the control pipes and forget them */
+			close (mux->ctrlp[1]); 
+			mux->ctrlp[1] = MIO_SYSHND_INVALID;
+			close (mux->ctrlp[0]);
+			mux->ctrlp[0] = MIO_SYSHND_INVALID;
+		}
 	}
 #endif /* USE_EPOLL */
 
@@ -162,6 +193,62 @@ void mio_sys_intrmux (mio_t* mio)
 	if (mux->ctrlp[1] != MIO_SYSHND_INVALID) write (mux->ctrlp[1], "Q", 1);
 }
 
+#if defined(USE_POLL)
+static int secure_poll_map_slot_for_hnd (mio_t* mio, mio_syshnd_t hnd)
+{
+	mio_sys_mux_t* mux = &mio->sysdep->mux;
+
+	if (hnd >= mux->map.capa)
+	{
+		mio_oow_t new_capa;
+		mio_oow_t* tmp;
+		mio_oow_t idx;
+
+		new_capa = MIO_ALIGN_POW2((hnd + 1), 256);
+
+		tmp = mio_reallocmem(mio, mux->map.ptr, new_capa * MIO_SIZEOF(*tmp));
+		if (MIO_UNLIKELY(!tmp)) return -1;
+
+		for (idx = mux->map.capa; idx < new_capa; idx++) tmp[idx] = MUX_INDEX_INVALID;
+
+		mux->map.ptr = tmp;
+		mux->map.capa = new_capa;
+	}
+
+	return 0;
+}
+
+static int secure_poll_data_slot_for_insert (mio_t* mio)
+{
+	mio_sys_mux_t* mux = &mio->sysdep->mux;
+
+	if (mux->pd.size >= mux->pd.capa)
+	{
+		mio_oow_t new_capa;
+		struct pollfd* tmp1;
+		mio_dev_t** tmp2;
+
+		new_capa = MIO_ALIGN_POW2(mux->pd.size + 1, 256);
+
+		tmp1 = mio_reallocmem(mio, mux->pd.pfd, new_capa * MIO_SIZEOF(*tmp1));
+		if (MIO_UNLIKELY(!tmp1)) return -1;
+
+		tmp2 = mio_reallocmem(mio, mux->pd.dptr, new_capa * MIO_SIZEOF(*tmp2));
+		if (MIO_UNLIKELY(!tmp2))
+		{
+			mio_freemem (mio, tmp1);
+			return -1;
+		}
+
+		mux->pd.pfd = tmp1;
+		mux->pd.dptr = tmp2;
+		mux->pd.capa = new_capa;
+	}
+
+	return 0;
+}
+#endif
+
 int mio_sys_ctrlmux (mio_t* mio, mio_sys_mux_cmd_t cmd, mio_dev_t* dev, int dev_cap)
 {
 #if defined(USE_POLL)
@@ -171,6 +258,20 @@ int mio_sys_ctrlmux (mio_t* mio, mio_sys_mux_cmd_t cmd, mio_dev_t* dev, int dev_
 
 	hnd = dev->dev_mth->getsyshnd(dev);
 
+#if 1
+	if (cmd == MIO_SYS_MUX_CMD_INSERT)
+	{
+		if (secure_poll_map_slot_for_hnd(mio, hnd) <=  -1) return -1;
+	}
+	else
+	{
+		if (hnd >= mux->map.capa)
+		{
+			mio_seterrnum (mio, MIO_ENOENT);
+			return -1;
+		}
+	}
+#else
 	if (hnd >= mux->map.capa)
 	{
 		mio_oow_t new_capa;
@@ -185,14 +286,14 @@ int mio_sys_ctrlmux (mio_t* mio, mio_sys_mux_cmd_t cmd, mio_dev_t* dev, int dev_
 		new_capa = MIO_ALIGN_POW2((hnd + 1), 256);
 
 		tmp = mio_reallocmem(mio, mux->map.ptr, new_capa * MIO_SIZEOF(*tmp));
-		if (!tmp) return -1;
+		if (MIO_UNLIKELY(!tmp)) return -1;
 
-		for (idx = mux->map.capa; idx < new_capa; idx++) 
-			tmp[idx] = MUX_INDEX_INVALID;
+		for (idx = mux->map.capa; idx < new_capa; idx++) tmp[idx] = MUX_INDEX_INVALID;
 
 		mux->map.ptr = tmp;
 		mux->map.capa = new_capa;
 	}
+#endif
 
 	idx = mux->map.ptr[hnd];
 
@@ -206,6 +307,10 @@ int mio_sys_ctrlmux (mio_t* mio, mio_sys_mux_cmd_t cmd, mio_dev_t* dev, int dev_
 			}
 
 		do_insert:
+#if 1
+			if (MIO_UNLIKELY(secure_poll_data_slot_for_insert(mio) <=  -1)) return -1;
+#else
+
 			if (mux->pd.size >= mux->pd.capa)
 			{
 				mio_oow_t new_capa;
@@ -215,10 +320,10 @@ int mio_sys_ctrlmux (mio_t* mio, mio_sys_mux_cmd_t cmd, mio_dev_t* dev, int dev_
 				new_capa = MIO_ALIGN_POW2(mux->pd.size + 1, 256);
 
 				tmp1 = mio_reallocmem(mio, mux->pd.pfd, new_capa * MIO_SIZEOF(*tmp1));
-				if (!tmp1) return -1;
+				if (MIO_UNLIKELY(!tmp1)) return -1;
 
 				tmp2 = mio_reallocmem(mio, mux->pd.dptr, new_capa * MIO_SIZEOF(*tmp2));
-				if (!tmp2)
+				if (MIO_UNLIKELY(!tmp2))
 				{
 					mio_freemem (mio, tmp1);
 					return -1;
@@ -228,6 +333,7 @@ int mio_sys_ctrlmux (mio_t* mio, mio_sys_mux_cmd_t cmd, mio_dev_t* dev, int dev_
 				mux->pd.dptr = tmp2;
 				mux->pd.capa = new_capa;
 			}
+#endif
 
 			idx = mux->pd.size++;
 
@@ -422,7 +528,15 @@ int mio_sys_waitmux (mio_t* mio, const mio_ntime_t* tmout, mio_sys_mux_evtcb_t e
 
 	for (i = 0; i < mux->pd.size; i++)
 	{
-		if (mux->pd.pfd[i].fd >= 0 && mux->pd.pfd[i].revents)
+		if (MIO_UNLIKELY(mux->ctrlp[0] != MIO_SYSHND_INVALID && mux->pd.pfd[i].fd == mux->ctrlp[0]))
+		{
+			/* internal pipe for signaling */
+
+			/* mux->pd.dptr[i] must be MIO_NULL */
+			mio_uint8_t tmp[16];
+			while (read(mux->ctrlp[0], tmp, MIO_SIZEOF(tmp)) > 0) ;
+		}
+		else if (mux->pd.pfd[i].fd >= 0 && mux->pd.pfd[i].revents)
 		{
 			int events = 0;
 			mio_dev_t* dev;
