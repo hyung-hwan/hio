@@ -1250,12 +1250,12 @@ int mio_jsonwr_write (mio_jsonwr_t* jsonwr, mio_json_inst_t inst, int is_uchars,
 		case MIO_JSON_INST_START_ARRAY:
 			if (sn->state != MIO_JSON_STATE_START && sn->state != MIO_JSON_STATE_IN_ARRAY &&
 			    !(sn->state == MIO_JSON_STATE_IN_OBJECT && sn->obj_awaiting_val)) goto incompatible_inst;
-			if (sn->index > 0) WRITE_COMMA (jsonwr);
+			if (sn->index > 0 && sn->state == MIO_JSON_STATE_IN_ARRAY) WRITE_COMMA (jsonwr);
 			sn->index++;
 			if ((jsonwr->flags & MIO_JSONWR_FLAG_PRETTY) &&
 			    !(sn->state == MIO_JSON_STATE_IN_OBJECT && sn->obj_awaiting_val))
 			{
-					WRITE_INDENT (jsonwr);
+				WRITE_INDENT (jsonwr);
 			}
 			sn->obj_awaiting_val = 0;
 			WRITE_BYTES_NOESC (jsonwr, "[", 1); 
@@ -1267,7 +1267,7 @@ int mio_jsonwr_write (mio_jsonwr_t* jsonwr, mio_json_inst_t inst, int is_uchars,
 		case MIO_JSON_INST_START_OBJECT:
 			if (sn->state != MIO_JSON_STATE_START && sn->state != MIO_JSON_STATE_IN_ARRAY &&
 			    !(sn->state == MIO_JSON_STATE_IN_OBJECT && sn->obj_awaiting_val)) goto incompatible_inst; 
-			if (sn->index > 0) WRITE_COMMA (jsonwr);
+			if (sn->index > 0 && sn->state == MIO_JSON_STATE_IN_ARRAY) WRITE_COMMA (jsonwr);
 			sn->index++;
 			if ((jsonwr->flags & MIO_JSONWR_FLAG_PRETTY) &&
 			    !(sn->state == MIO_JSON_STATE_IN_OBJECT && sn->obj_awaiting_val))
