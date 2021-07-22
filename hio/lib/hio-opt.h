@@ -24,72 +24,72 @@
     THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  */
 
-#ifndef _MIO_OPT_H_
-#define _MIO_OPT_H_
+#ifndef _HIO_OPT_H_
+#define _HIO_OPT_H_
 
-#include "mio-cmn.h"
+#include "hio-cmn.h"
 
 /** \file
  * This file defines functions and data structures to process 
  * command-line arguments. 
  */
 
-typedef struct mio_uopt_t mio_uopt_t;
-typedef struct mio_uopt_lng_t mio_uopt_lng_t;
+typedef struct hio_uopt_t hio_uopt_t;
+typedef struct hio_uopt_lng_t hio_uopt_lng_t;
 
-struct mio_uopt_lng_t
+struct hio_uopt_lng_t
 {
-	const mio_uch_t* str;
-	mio_uci_t        val;
+	const hio_uch_t* str;
+	hio_uci_t        val;
 };
 
-struct mio_uopt_t
+struct hio_uopt_t
 {
 	/* input */
-	const mio_uch_t* str; /* option string  */
-	mio_uopt_lng_t*  lng; /* long options */
+	const hio_uch_t* str; /* option string  */
+	hio_uopt_lng_t*  lng; /* long options */
 
 	/* output */
-	mio_uci_t        opt; /* character checked for validity */
-	mio_uch_t*       arg; /* argument associated with an option */
+	hio_uci_t        opt; /* character checked for validity */
+	hio_uch_t*       arg; /* argument associated with an option */
 
 	/* output */
-	const mio_uch_t* lngopt; 
+	const hio_uch_t* lngopt; 
 
 	/* input + output */
 	int              ind; /* index into parent argv vector */
 
 	/* input + output - internal*/
-	mio_uch_t*       cur;
+	hio_uch_t*       cur;
 };
 
-typedef struct mio_bopt_t mio_bopt_t;
-typedef struct mio_bopt_lng_t mio_bopt_lng_t;
+typedef struct hio_bopt_t hio_bopt_t;
+typedef struct hio_bopt_lng_t hio_bopt_lng_t;
 
-struct mio_bopt_lng_t
+struct hio_bopt_lng_t
 {
-	const mio_bch_t* str;
-	mio_bci_t        val;
+	const hio_bch_t* str;
+	hio_bci_t        val;
 };
 
-struct mio_bopt_t
+struct hio_bopt_t
 {
 	/* input */
-	const mio_bch_t* str; /* option string  */
-	mio_bopt_lng_t*  lng; /* long options */
+	const hio_bch_t* str; /* option string  */
+	hio_bopt_lng_t*  lng; /* long options */
 
 	/* output */
-	mio_bci_t        opt; /* character checked for validity */
-	mio_bch_t*       arg; /* argument associated with an option */
+	hio_bci_t        opt; /* character checked for validity */
+	hio_bch_t*       arg; /* argument associated with an option */
 
 	/* output */
-	const mio_bch_t* lngopt; 
+	const hio_bch_t* lngopt; 
 
 	/* input + output */
 	int              ind; /* index into parent argv vector */
 
 	/* input + output - internal*/
-	mio_bch_t*       cur;
+	hio_bch_t*       cur;
 };
 
 #if defined(__cplusplus)
@@ -97,7 +97,7 @@ extern "C" {
 #endif
 
 /**
- * The mio_getopt() function processes the \a argc command-line arguments
+ * The hio_getopt() function processes the \a argc command-line arguments
  * pointed to by \a argv as configured in \a opt. It can process two 
  * different option styles: a single character starting with '-', and a 
  * long name starting with '--'. 
@@ -109,29 +109,29 @@ extern "C" {
  * - \b ? indicates a bad option stored in the \a opt->opt field.
  * - \b : indicates a bad parameter for an option stored in the \a opt->opt field.
  *
- * @return an option character on success, MIO_CHAR_EOF on no more options.
+ * @return an option character on success, HIO_CHAR_EOF on no more options.
  */
-MIO_EXPORT mio_uci_t mio_getuopt (
+HIO_EXPORT hio_uci_t hio_getuopt (
 	int                argc, /* argument count */ 
-	mio_uch_t* const*  argv, /* argument array */
-	mio_uopt_t*        opt   /* option configuration */
+	hio_uch_t* const*  argv, /* argument array */
+	hio_uopt_t*        opt   /* option configuration */
 );
 
-MIO_EXPORT mio_bci_t mio_getbopt (
+HIO_EXPORT hio_bci_t hio_getbopt (
 	int                argc, /* argument count */ 
-	mio_bch_t* const*  argv, /* argument array */
-	mio_bopt_t*        opt   /* option configuration */
+	hio_bch_t* const*  argv, /* argument array */
+	hio_bopt_t*        opt   /* option configuration */
 );
 
 
-#if defined(MIO_OOCH_IS_UCH)
-#	define mio_opt_t mio_uopt_t
-#	define mio_opt_lng_t mio_uopt_lng_t
-#	define mio_getopt(argc,argv,opt) mio_getuopt(argc,argv,opt)
+#if defined(HIO_OOCH_IS_UCH)
+#	define hio_opt_t hio_uopt_t
+#	define hio_opt_lng_t hio_uopt_lng_t
+#	define hio_getopt(argc,argv,opt) hio_getuopt(argc,argv,opt)
 #else
-#	define mio_opt_t mio_bopt_t
-#	define mio_opt_lng_t mio_bopt_lng_t
-#	define mio_getopt(argc,argv,opt) mio_getbopt(argc,argv,opt)
+#	define hio_opt_t hio_bopt_t
+#	define hio_opt_lng_t hio_bopt_lng_t
+#	define hio_getopt(argc,argv,opt) hio_getbopt(argc,argv,opt)
 #endif
 
 #if defined(__cplusplus)

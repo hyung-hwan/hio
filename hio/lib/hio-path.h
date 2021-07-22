@@ -24,68 +24,68 @@
     THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  */
 
-#ifndef _MIO_PATH_H_
-#define _MIO_PATH_H_
+#ifndef _HIO_PATH_H_
+#define _HIO_PATH_H_
 
-#include <mio.h>
-#include <mio-utl.h>
+#include <hio.h>
+#include <hio-utl.h>
 
-enum mio_canon_path_flag_t
+enum hio_canon_path_flag_t
 {
 	/** if the final output is . logically, return an empty path */
-	MIO_CANON_PATH_EMPTY_SINGLE_DOT    = (1 << 0),
+	HIO_CANON_PATH_EMPTY_SINGLE_DOT    = (1 << 0),
 
 	/** keep the .. segment in the path name */
-	MIO_CANON_PATH_KEEP_DOUBLE_DOTS    = (1 << 1),
+	HIO_CANON_PATH_KEEP_DOUBLE_DOTS    = (1 << 1),
 
 	/** drop a trailing separator even if the source contains one */
-	MIO_CANON_PATH_DROP_TRAILING_SEP   = (1 << 2)
+	HIO_CANON_PATH_DROP_TRAILING_SEP   = (1 << 2)
 };
 
-typedef enum mio_canon_path_flag_t mio_canon_path_flag_t;
+typedef enum hio_canon_path_flag_t hio_canon_path_flag_t;
 
-#define MIO_CANON_OOCSTR_PATH_EMPTY_SINGLE_DOT MIO_CANON_PATH_EMPTY_SINGLE_DOT
-#define MIO_CANON_OOCSTR_PATH_KEEP_DOUBLE_DOTS MIO_CANON_PATH_KEEP_DOUBLE_DOTS
-#define MIO_CANON_OOCSTR_PATH_DROP_TRAILING_SEP MIO_CANON_PATH_DROP_TRAILING_SEP
+#define HIO_CANON_OOCSTR_PATH_EMPTY_SINGLE_DOT HIO_CANON_PATH_EMPTY_SINGLE_DOT
+#define HIO_CANON_OOCSTR_PATH_KEEP_DOUBLE_DOTS HIO_CANON_PATH_KEEP_DOUBLE_DOTS
+#define HIO_CANON_OOCSTR_PATH_DROP_TRAILING_SEP HIO_CANON_PATH_DROP_TRAILING_SEP
 
-#define MIO_CANON_UCSTR_PATH_EMPTY_SINGLE_DOT MIO_CANON_PATH_EMPTY_SINGLE_DOT
-#define MIO_CANON_UCSTR_PATH_KEEP_DOUBLE_DOTS MIO_CANON_PATH_KEEP_DOUBLE_DOTS
-#define MIO_CANON_UCSTR_PATH_DROP_TRAILING_SEP MIO_CANON_PATH_DROP_TRAILING_SEP
+#define HIO_CANON_UCSTR_PATH_EMPTY_SINGLE_DOT HIO_CANON_PATH_EMPTY_SINGLE_DOT
+#define HIO_CANON_UCSTR_PATH_KEEP_DOUBLE_DOTS HIO_CANON_PATH_KEEP_DOUBLE_DOTS
+#define HIO_CANON_UCSTR_PATH_DROP_TRAILING_SEP HIO_CANON_PATH_DROP_TRAILING_SEP
 
-#define MIO_CANON_BCSTR_PATH_EMPTY_SINGLE_DOT MIO_CANON_PATH_EMPTY_SINGLE_DOT
-#define MIO_CANON_BCSTR_PATH_KEEP_DOUBLE_DOTS MIO_CANON_PATH_KEEP_DOUBLE_DOTS
-#define MIO_CANON_BCSTR_PATH_DROP_TRAILING_SEP MIO_CANON_PATH_DROP_TRAILING_SEP
+#define HIO_CANON_BCSTR_PATH_EMPTY_SINGLE_DOT HIO_CANON_PATH_EMPTY_SINGLE_DOT
+#define HIO_CANON_BCSTR_PATH_KEEP_DOUBLE_DOTS HIO_CANON_PATH_KEEP_DOUBLE_DOTS
+#define HIO_CANON_BCSTR_PATH_DROP_TRAILING_SEP HIO_CANON_PATH_DROP_TRAILING_SEP
 
 
 #if defined(_WIN32) || defined(__OS2__) || defined(__DOS__)
 
-#	define MIO_IS_PATH_SEP(c) ((c) == '/' || (c) == '\\')
+#	define HIO_IS_PATH_SEP(c) ((c) == '/' || (c) == '\\')
 
 #else
-#	define MIO_IS_PATH_SEP(c) ((c) == '/')
+#	define HIO_IS_PATH_SEP(c) ((c) == '/')
 #endif
 
-#define MIO_IS_PATH_DRIVE(s) \
+#define HIO_IS_PATH_DRIVE(s) \
 	(((s[0] >= 'A' && s[0] <= 'Z') || \
 	  (s[0] >= 'a' && s[0] <= 'z')) && \
 	 s[1] == ':')
 
-#define MIO_IS_PATH_SEP_OR_NIL(c) (MIO_IS_PATH_SEP(c) || (c) == '\0')
+#define HIO_IS_PATH_SEP_OR_NIL(c) (HIO_IS_PATH_SEP(c) || (c) == '\0')
 
 
 #if defined(__cplusplus)
 extern "C" {
 #endif
 
-MIO_EXPORT mio_oow_t mio_canon_ucstr_path (
-	const mio_uch_t* path,
-	mio_uch_t*       canon,
+HIO_EXPORT hio_oow_t hio_canon_ucstr_path (
+	const hio_uch_t* path,
+	hio_uch_t*       canon,
 	int              flags
 );
 
-MIO_EXPORT mio_oow_t mio_canon_bcstr_path (
-	const mio_bch_t* path,
-	mio_bch_t*       canon,
+HIO_EXPORT hio_oow_t hio_canon_bcstr_path (
+	const hio_bch_t* path,
+	hio_bch_t*       canon,
 	int              flags
 );
 
