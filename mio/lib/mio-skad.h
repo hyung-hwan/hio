@@ -66,37 +66,37 @@ typedef struct mio_skad_t mio_skad_t;
 #define MIO_SKAD_TO_BCSTR_ADDR MIO_SKAD_TO_OOCSTR_ADDR
 #define MIO_SKAD_TO_BCSTR_PORT MIO_SKAD_TO_OOCSTR_PORT
 
-#define MIO_IP4ADDR_STRLEN (15) /* not including the terminating '\0' */
-#define MIO_IP6ADDR_STRLEN (45) /* not including the terminating '\0'. pure IPv6 address, not including the scope(e.g. %10, %eth0) */
+#define MIO_IP4AD_STRLEN (15) /* not including the terminating '\0' */
+#define MIO_IP6AD_STRLEN (45) /* not including the terminating '\0'. pure IPv6 address, not including the scope(e.g. %10, %eth0) */
 
 /* size large enough to hold the ip address plus port number. 
  * [IPV6ADDR%SCOPE]:PORT -> 9 for [] % : and PORT 
  * Let's reserve 16 for SCOPE and not include the terminting '\0'
  */
-#define MIO_SKAD_IP_STRLEN (MIO_IP6ADDR_STRLEN + 25)
+#define MIO_SKAD_IP_STRLEN (MIO_IP6AD_STRLEN + 25)
 
 /* -------------------------------------------------------------------- */
 
-#define MIO_ETHADDR_LEN (6)
-#define MIO_IP4ADDR_LEN (4)
-#define MIO_IP6ADDR_LEN (16)
+#define MIO_ETHAD_LEN (6)
+#define MIO_IP4AD_LEN (4)
+#define MIO_IP6AD_LEN (16)
 
 #include <mio-pac1.h>
-struct MIO_PACKED mio_ethaddr_t
+struct MIO_PACKED mio_ethad_t
 {
-	mio_uint8_t v[MIO_ETHADDR_LEN]; 
+	mio_uint8_t v[MIO_ETHAD_LEN]; 
 };
-typedef struct mio_ethaddr_t mio_ethaddr_t;
+typedef struct mio_ethad_t mio_ethad_t;
 
 struct MIO_PACKED mio_ip4ad_t
 {
-	mio_uint8_t v[MIO_IP4ADDR_LEN];
+	mio_uint8_t v[MIO_IP4AD_LEN];
 };
 typedef struct mio_ip4ad_t mio_ip4ad_t;
 
 struct MIO_PACKED mio_ip6ad_t
 {
-	mio_uint8_t v[MIO_IP6ADDR_LEN]; 
+	mio_uint8_t v[MIO_IP6AD_LEN]; 
 };
 typedef struct mio_ip6ad_t mio_ip6ad_t;
 #include <mio-upac.h>
@@ -170,7 +170,7 @@ MIO_EXPORT void mio_skad_init_for_ip_with_bytes (
 MIO_EXPORT void mio_skad_init_for_eth (
 	mio_skad_t*        skad,
 	int                ifindex,
-	mio_ethaddr_t*     ethaddr
+	mio_ethad_t*       ethad
 );
 
 MIO_EXPORT int mio_skad_family (
@@ -199,14 +199,14 @@ MIO_EXPORT int mio_equal_skads (
 	int               strict
 );
 
-MIO_EXPORT mio_oow_t mio_ipaddr_bytes_to_ucstr (
+MIO_EXPORT mio_oow_t mio_ipad_bytes_to_ucstr (
 	const mio_uint8_t* iptr,
 	mio_oow_t          ilen,
 	mio_uch_t*         buf,
 	mio_oow_t          blen
 );
 
-MIO_EXPORT mio_oow_t mio_ipaddr_bytes_to_bcstr (
+MIO_EXPORT mio_oow_t mio_ipad_bytes_to_bcstr (
 	const mio_uint8_t* iptr,
 	mio_oow_t          ilen,
 	mio_bch_t*         buf,
@@ -214,14 +214,14 @@ MIO_EXPORT mio_oow_t mio_ipaddr_bytes_to_bcstr (
 );
 
 
-MIO_EXPORT int mio_uchars_to_ipaddr_bytes (
+MIO_EXPORT int mio_uchars_to_ipad_bytes (
 	const mio_uch_t*   str,
 	mio_oow_t          slen,
 	mio_uint8_t*       buf,
 	mio_oow_t          blen
 );
 
-MIO_EXPORT int mio_bchars_to_ipaddr_bytes (
+MIO_EXPORT int mio_bchars_to_ipad_bytes (
 	const mio_bch_t*   str,
 	mio_oow_t          slen,
 	mio_uint8_t*       buf,

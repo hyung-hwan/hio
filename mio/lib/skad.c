@@ -859,11 +859,11 @@ static mio_oow_t ip6ad_to_ucstr (const struct in6_addr* ipad, mio_uch_t* buf, mi
 	 * to use pointer overlays.  All the world's not a VAX.
 	 */
 
-#define IP6ADDR_NWORDS (MIO_SIZEOF(ipad->s6_addr) / MIO_SIZEOF(mio_uint16_t))
+#define IP6AD_NWORDS (MIO_SIZEOF(ipad->s6_addr) / MIO_SIZEOF(mio_uint16_t))
 
 	mio_uch_t tmp[MIO_COUNTOF("ffff:ffff:ffff:ffff:ffff:ffff:255.255.255.255")], *tp;
 	struct { int base, len; } best, cur;
-	mio_uint16_t words[IP6ADDR_NWORDS];
+	mio_uint16_t words[IP6AD_NWORDS];
 	int i;
 
 	if (size <= 0) return 0;
@@ -881,7 +881,7 @@ static mio_oow_t ip6ad_to_ucstr (const struct in6_addr* ipad, mio_uch_t* buf, mi
 	cur.base = -1;
 	cur.len = 0;
 
-	for (i = 0; i < IP6ADDR_NWORDS; i++) 
+	for (i = 0; i < IP6AD_NWORDS; i++) 
 	{
 		if (words[i] == 0) 
 		{
@@ -914,7 +914,7 @@ static mio_oow_t ip6ad_to_ucstr (const struct in6_addr* ipad, mio_uch_t* buf, mi
 	 * Format the result.
 	 */
 	tp = tmp;
-	for (i = 0; i < IP6ADDR_NWORDS; i++) 
+	for (i = 0; i < IP6AD_NWORDS; i++) 
 	{
 		/* Are we inside the best run of 0x00's? */
 		if (best.base != -1 && i >= best.base &&
@@ -940,12 +940,12 @@ static mio_oow_t ip6ad_to_ucstr (const struct in6_addr* ipad, mio_uch_t* buf, mi
 	}
 
 	/* Was it a trailing run of 0x00's? */
-	if (best.base != -1 && (best.base + best.len) == IP6ADDR_NWORDS) *tp++ = ':';
+	if (best.base != -1 && (best.base + best.len) == IP6AD_NWORDS) *tp++ = ':';
 	*tp++ = '\0';
 
 	return mio_copy_ucstr(buf, size, tmp);
 
-#undef IP6ADDR_NWORDS
+#undef IP6AD_NWORDS
 }
 
 
@@ -1105,11 +1105,11 @@ static mio_oow_t ip6ad_to_bcstr (const struct in6_addr* ipad, mio_bch_t* buf, mi
 	 * to use pointer overlays.  All the world's not a VAX.
 	 */
 
-#define IP6ADDR_NWORDS (MIO_SIZEOF(ipad->s6_addr) / MIO_SIZEOF(mio_uint16_t))
+#define IP6AD_NWORDS (MIO_SIZEOF(ipad->s6_addr) / MIO_SIZEOF(mio_uint16_t))
 
 	mio_bch_t tmp[MIO_COUNTOF("ffff:ffff:ffff:ffff:ffff:ffff:255.255.255.255")], *tp;
 	struct { int base, len; } best, cur;
-	mio_uint16_t words[IP6ADDR_NWORDS];
+	mio_uint16_t words[IP6AD_NWORDS];
 	int i;
 
 	if (size <= 0) return 0;
@@ -1127,7 +1127,7 @@ static mio_oow_t ip6ad_to_bcstr (const struct in6_addr* ipad, mio_bch_t* buf, mi
 	cur.base = -1;
 	cur.len = 0;
 
-	for (i = 0; i < IP6ADDR_NWORDS; i++) 
+	for (i = 0; i < IP6AD_NWORDS; i++) 
 	{
 		if (words[i] == 0) 
 		{
@@ -1160,7 +1160,7 @@ static mio_oow_t ip6ad_to_bcstr (const struct in6_addr* ipad, mio_bch_t* buf, mi
 	 * Format the result.
 	 */
 	tp = tmp;
-	for (i = 0; i < IP6ADDR_NWORDS; i++) 
+	for (i = 0; i < IP6AD_NWORDS; i++) 
 	{
 		/* Are we inside the best run of 0x00's? */
 		if (best.base != -1 && i >= best.base &&
@@ -1186,12 +1186,12 @@ static mio_oow_t ip6ad_to_bcstr (const struct in6_addr* ipad, mio_bch_t* buf, mi
 	}
 
 	/* Was it a trailing run of 0x00's? */
-	if (best.base != -1 && (best.base + best.len) == IP6ADDR_NWORDS) *tp++ = ':';
+	if (best.base != -1 && (best.base + best.len) == IP6AD_NWORDS) *tp++ = ':';
 	*tp++ = '\0';
 
 	return mio_copy_bcstr(buf, size, tmp);
 
-#undef IP6ADDR_NWORDS
+#undef IP6AD_NWORDS
 }
 
 
@@ -1378,7 +1378,7 @@ void mio_skad_init_for_ip4 (mio_skad_t* skad, mio_uint16_t port, mio_ip4ad_t* ip
 	MIO_MEMSET (sin, 0, MIO_SIZEOF(*sin));
 	sin->sin_family = AF_INET;
 	sin->sin_port = mio_hton16(port);
-	if (ip4ad) MIO_MEMCPY (&sin->sin_addr, ip4ad->v, MIO_IP4ADDR_LEN);
+	if (ip4ad) MIO_MEMCPY (&sin->sin_addr, ip4ad->v, MIO_IP4AD_LEN);
 #endif
 }
 
@@ -1390,7 +1390,7 @@ void mio_skad_init_for_ip6 (mio_skad_t* skad, mio_uint16_t port, mio_ip6ad_t* ip
 	sin->sin6_family = AF_INET6;
 	sin->sin6_port = mio_hton16(port);
 	sin->sin6_scope_id = scope_id;
-	if (ip6ad) MIO_MEMCPY (&sin->sin6_addr, ip6ad->v, MIO_IP6ADDR_LEN);
+	if (ip6ad) MIO_MEMCPY (&sin->sin6_addr, ip6ad->v, MIO_IP6AD_LEN);
 #endif
 }
 
@@ -1399,7 +1399,7 @@ void mio_skad_init_for_ip_with_bytes (mio_skad_t* skad, mio_uint16_t port, const
 	switch (len)
 	{
 	#if (MIO_SIZEOF_STRUCT_SOCKADDR_IN > 0)
-		case MIO_IP4ADDR_LEN:
+		case MIO_IP4AD_LEN:
 		{
 			struct sockaddr_in* sin = (struct sockaddr_in*)skad;
 			MIO_MEMSET (sin, 0, MIO_SIZEOF(*sin));
@@ -1410,7 +1410,7 @@ void mio_skad_init_for_ip_with_bytes (mio_skad_t* skad, mio_uint16_t port, const
 		}
 	#endif
 	#if (MIO_SIZEOF_STRUCT_SOCKADDR_IN6 > 0)
-		case MIO_IP6ADDR_LEN:
+		case MIO_IP6AD_LEN:
 		{
 			struct sockaddr_in6* sin = (struct sockaddr_in6*)skad;
 			MIO_MEMSET (sin, 0, MIO_SIZEOF(*sin));
@@ -1426,17 +1426,17 @@ void mio_skad_init_for_ip_with_bytes (mio_skad_t* skad, mio_uint16_t port, const
 }
 
 
-void mio_skad_init_for_eth (mio_skad_t* skad, int ifindex, mio_ethaddr_t* ethaddr)
+void mio_skad_init_for_eth (mio_skad_t* skad, int ifindex, mio_ethad_t* ethad)
 {
 #if defined(AF_PACKET) && (MIO_SIZEOF_STRUCT_SOCKADDR_LL > 0)
 	struct sockaddr_ll* sll = (struct sockaddr_ll*)skad;
 	MIO_MEMSET (sll, 0, MIO_SIZEOF(*sll));
 	sll->sll_family = AF_PACKET;
 	sll->sll_ifindex = ifindex;
-	if (ethaddr)
+	if (ethad)
 	{
-		sll->sll_halen = MIO_ETHADDR_LEN;
-		MIO_MEMCPY (sll->sll_addr, ethaddr, MIO_ETHADDR_LEN);
+		sll->sll_halen = MIO_ETHAD_LEN;
+		MIO_MEMCPY (sll->sll_addr, ethad, MIO_ETHAD_LEN);
 	}
 
 #elif defined(AF_LINK) && (MIO_SIZEOF_STRUCT_SOCKADDR_DL > 0)
@@ -1444,10 +1444,10 @@ void mio_skad_init_for_eth (mio_skad_t* skad, int ifindex, mio_ethaddr_t* ethadd
 	MIO_MEMSET (sll, 0, MIO_SIZEOF(*sll));
 	sll->sdl_family = AF_LINK;
 	sll->sdl_index = ifindex;
-	if (ethaddr)
+	if (ethad)
 	{
-		sll->sdl_alen = MIO_ETHADDR_LEN;
-		MIO_MEMCPY (sll->sdl_data, ethaddr, MIO_ETHADDR_LEN);
+		sll->sdl_alen = MIO_ETHAD_LEN;
+		MIO_MEMCPY (sll->sdl_data, ethad, MIO_ETHAD_LEN);
 	}
 #else
 #	error UNSUPPORTED DATALINK SOCKET ADDRESS
@@ -1505,18 +1505,18 @@ int mio_equal_skads (const mio_skad_t* addr1, const mio_skad_t* addr2, int stric
 	}
 }
 
-mio_oow_t mio_ipaddr_bytes_to_ucstr (const mio_uint8_t* iptr, mio_oow_t ilen, mio_uch_t* buf, mio_oow_t blen)
+mio_oow_t mio_ipad_bytes_to_ucstr (const mio_uint8_t* iptr, mio_oow_t ilen, mio_uch_t* buf, mio_oow_t blen)
 {
 	switch (ilen)
 	{
-		case MIO_IP4ADDR_LEN:
+		case MIO_IP4AD_LEN:
 		{
 			struct in_addr ip4ad;
 			MIO_MEMCPY (&ip4ad.s_addr, iptr, ilen);
 			return ip4ad_to_ucstr(&ip4ad, buf, blen);
 		}
 
-		case MIO_IP6ADDR_LEN:
+		case MIO_IP6AD_LEN:
 		{
 			struct in6_addr ip6ad;
 			MIO_MEMCPY (&ip6ad.s6_addr, iptr, ilen);
@@ -1529,18 +1529,18 @@ mio_oow_t mio_ipaddr_bytes_to_ucstr (const mio_uint8_t* iptr, mio_oow_t ilen, mi
 	}
 }
 
-mio_oow_t mio_ipaddr_bytes_to_bcstr (const mio_uint8_t* iptr, mio_oow_t ilen, mio_bch_t* buf, mio_oow_t blen)
+mio_oow_t mio_ipad_bytes_to_bcstr (const mio_uint8_t* iptr, mio_oow_t ilen, mio_bch_t* buf, mio_oow_t blen)
 {
 	switch (ilen)
 	{
-		case MIO_IP4ADDR_LEN:
+		case MIO_IP4AD_LEN:
 		{
 			struct in_addr ip4ad;
 			MIO_MEMCPY (&ip4ad.s_addr, iptr, ilen);
 			return ip4ad_to_bcstr(&ip4ad, buf, blen);
 		}
 
-		case MIO_IP6ADDR_LEN:
+		case MIO_IP6AD_LEN:
 		{
 			struct in6_addr ip6ad;
 			MIO_MEMCPY (&ip6ad.s6_addr, iptr, ilen);
@@ -1553,43 +1553,43 @@ mio_oow_t mio_ipaddr_bytes_to_bcstr (const mio_uint8_t* iptr, mio_oow_t ilen, mi
 	}
 }
 
-int mio_uchars_to_ipaddr_bytes (const mio_uch_t* str, mio_oow_t slen, mio_uint8_t* buf, mio_oow_t blen)
+int mio_uchars_to_ipad_bytes (const mio_uch_t* str, mio_oow_t slen, mio_uint8_t* buf, mio_oow_t blen)
 {
-	if (blen >= MIO_IP6ADDR_LEN)
+	if (blen >= MIO_IP6AD_LEN)
 	{
 		struct in6_addr i6;
 		if (uchars_to_ipv6(str, slen, &i6) <= -1) goto ipv4;
 		MIO_MEMCPY (buf, i6.s6_addr, 16);
-		return MIO_IP6ADDR_LEN;
+		return MIO_IP6AD_LEN;
 	}
-	else if (blen >= MIO_IP4ADDR_LEN)
+	else if (blen >= MIO_IP4AD_LEN)
 	{
 		struct in_addr i4;
 	ipv4:
 		if (uchars_to_ipv4(str, slen, &i4) <= -1) return -1;
 		MIO_MEMCPY (buf, &i4.s_addr, 4);
-		return MIO_IP4ADDR_LEN;
+		return MIO_IP4AD_LEN;
 	}
 
 	return -1;
 }
 
-int mio_bchars_to_ipaddr_bytes (const mio_bch_t* str, mio_oow_t slen, mio_uint8_t* buf, mio_oow_t blen)
+int mio_bchars_to_ipad_bytes (const mio_bch_t* str, mio_oow_t slen, mio_uint8_t* buf, mio_oow_t blen)
 {
-	if (blen >= MIO_IP6ADDR_LEN)
+	if (blen >= MIO_IP6AD_LEN)
 	{
 		struct in6_addr i6;
 		if (bchars_to_ipv6(str, slen, &i6) <= -1) goto ipv4;
 		MIO_MEMCPY (buf, i6.s6_addr, 16);
-		return MIO_IP6ADDR_LEN;
+		return MIO_IP6AD_LEN;
 	}
-	else if (blen >= MIO_IP4ADDR_LEN)
+	else if (blen >= MIO_IP4AD_LEN)
 	{
 		struct in_addr i4;
 	ipv4:
 		if (bchars_to_ipv4(str, slen, &i4) <= -1) return -1;
 		MIO_MEMCPY (buf, &i4.s_addr, 4);
-		return MIO_IP4ADDR_LEN;
+		return MIO_IP4AD_LEN;
 	}
 
 	return -1;
