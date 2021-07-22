@@ -1,4 +1,4 @@
-/* lib/mio-cfg.h.in.  Generated from configure.ac by autoheader.  */
+/* lib/hio-cfg.h.in.  Generated from configure.ac by autoheader.  */
 
 /* Define if building universal (internal helper macro) */
 #undef AC_APPLE_UNIVERSAL_BUILD
@@ -534,9 +534,6 @@
 /* __va_copy is available */
 #undef HAVE___VA_COPY
 
-/* Define to the sub-directory where libtool stores uninstalled libraries. */
-#undef LT_OBJDIR
-
 /* AF_INET */
 #undef HIO_AF_INET
 
@@ -689,6 +686,9 @@
 
 /* Wide-character type size */
 #undef HIO_WIDE_CHAR_SIZE
+
+/* Define to the sub-directory where libtool stores uninstalled libraries. */
+#undef LT_OBJDIR
 
 /* The size of `AF_INET', as computed by valueof. */
 #undef NUMVALOF_AF_INET
