@@ -812,6 +812,7 @@ AC_CONFIG_FILES([
 	lib/Makefile 
 	bin/Makefile
 	t/Makefile
+	pkgs/hio.spec
 ])
 AC_OUTPUT
 

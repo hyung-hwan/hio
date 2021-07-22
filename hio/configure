@@ -18963,7 +18963,7 @@ HIO_PROJECT_AUTHOR="${PACKAGE_BUGREPORT}"
 HIO_PROJECT_URL="${PACKAGE_URL}"
 
 
-ac_config_files="$ac_config_files Makefile lib/Makefile bin/Makefile t/Makefile"
+ac_config_files="$ac_config_files Makefile lib/Makefile bin/Makefile t/Makefile pkgs/hio.spec"
 
 cat >confcache <<\_ACEOF
 # This file is a shell script that caches the results of configure
@@ -20006,6 +20006,7 @@ do
     "lib/Makefile") CONFIG_FILES="$CONFIG_FILES lib/Makefile" ;;
     "bin/Makefile") CONFIG_FILES="$CONFIG_FILES bin/Makefile" ;;
     "t/Makefile") CONFIG_FILES="$CONFIG_FILES t/Makefile" ;;
+    "pkgs/hio.spec") CONFIG_FILES="$CONFIG_FILES pkgs/hio.spec" ;;
 
   *) as_fn_error $? "invalid argument: \`$ac_config_target'" "$LINENO" 5;;
   esac
