@@ -24,7 +24,7 @@
     THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  */
 
-#include "mio-prv.h"
+#include "hio-prv.h"
 
 #if defined(_WIN32)
 #	include <windows.h>
@@ -75,18 +75,18 @@
 #	include <stdlib.h>
 #endif
 
-#if defined(MIO_BUILD_RELEASE)
+#if defined(HIO_BUILD_RELEASE)
 
-void mio_sys_assertfail (mio_t* mio, const mio_bch_t* expr, const mio_bch_t* file, mio_oow_t line)
+void hio_sys_assertfail (hio_t* hio, const hio_bch_t* expr, const hio_bch_t* file, hio_oow_t line)
 {
 	/* do nothing */
 }
 
-#else /* defined(MIO_BUILD_RELEASE) */
+#else /* defined(HIO_BUILD_RELEASE) */
 
-#if defined(MIO_ENABLE_LIBUNWIND)
+#if defined(HIO_ENABLE_LIBUNWIND)
 #include <libunwind.h>
-static void backtrace_stack_frames (mio_t* mio)
+static void backtrace_stack_frames (hio_t* hio)
 {
 	unw_cursor_t cursor;
 	unw_context_t context;
@@ -95,7 +95,7 @@ static void backtrace_stack_frames (mio_t* mio)
 	unw_getcontext(&context);
 	unw_init_local(&cursor, &context);
 
-	mio_logbfmt (mio, MIO_LOG_UNTYPED | MIO_LOG_DEBUG, "[BACKTRACE]\n");
+	hio_logbfmt (hio, HIO_LOG_UNTYPED | HIO_LOG_DEBUG, "[BACKTRACE]\n");
 	for (n = 0; unw_step(&cursor) > 0; n++) 
 	{
 		unw_word_t ip, sp, off;
@@ -104,49 +104,49 @@ static void backtrace_stack_frames (mio_t* mio)
 		unw_get_reg (&cursor, UNW_REG_IP, &ip);
 		unw_get_reg (&cursor, UNW_REG_SP, &sp);
 
-		if (unw_get_proc_name(&cursor, symbol, MIO_COUNTOF(symbol), &off)) 
+		if (unw_get_proc_name(&cursor, symbol, HIO_COUNTOF(symbol), &off)) 
 		{
-			mio_copy_bcstr (symbol, MIO_COUNTOF(symbol), "<unknown>");
+			hio_copy_bcstr (symbol, HIO_COUNTOF(symbol), "<unknown>");
 		}
 
-		mio_logbfmt (mio, MIO_LOG_UNTYPED | MIO_LOG_DEBUG, 
+		hio_logbfmt (hio, HIO_LOG_UNTYPED | HIO_LOG_DEBUG, 
 			"#%02d ip=0x%*p sp=0x%*p %s+0x%zu\n", 
-			n, MIO_SIZEOF(void*) * 2, (void*)ip, MIO_SIZEOF(void*) * 2, (void*)sp, symbol, (mio_oow_t)off);
+			n, HIO_SIZEOF(void*) * 2, (void*)ip, HIO_SIZEOF(void*) * 2, (void*)sp, symbol, (hio_oow_t)off);
 	}
 }
 #elif defined(HAVE_BACKTRACE)
 #include <execinfo.h>
-static void backtrace_stack_frames (mio_t* mio)
+static void backtrace_stack_frames (hio_t* hio)
 {
 	void* btarray[128];
-	mio_oow_t btsize;
+	hio_oow_t btsize;
 	char** btsyms;
 
-	btsize = backtrace (btarray, MIO_COUNTOF(btarray));
+	btsize = backtrace (btarray, HIO_COUNTOF(btarray));
 	btsyms = backtrace_symbols (btarray, btsize);
 	if (btsyms)
 	{
-		mio_oow_t i;
-		mio_logbfmt (mio, MIO_LOG_UNTYPED | MIO_LOG_DEBUG, "[BACKTRACE]\n");
+		hio_oow_t i;
+		hio_logbfmt (hio, HIO_LOG_UNTYPED | HIO_LOG_DEBUG, "[BACKTRACE]\n");
 
 		for (i = 0; i < btsize; i++)
 		{
-			mio_logbfmt(mio, MIO_LOG_UNTYPED | MIO_LOG_DEBUG, "  %s\n", btsyms[i]);
+			hio_logbfmt(hio, HIO_LOG_UNTYPED | HIO_LOG_DEBUG, "  %s\n", btsyms[i]);
 		}
 		free (btsyms);
 	}
 }
 #else
-static void backtrace_stack_frames (mio_t* mio)
+static void backtrace_stack_frames (hio_t* hio)
 {
 	/* do nothing. not supported */
 }
-#endif /* defined(MIO_ENABLE_LIBUNWIND) */
+#endif /* defined(HIO_ENABLE_LIBUNWIND) */
 
-void mio_sys_assertfail (mio_t* mio, const mio_bch_t* expr, const mio_bch_t* file, mio_oow_t line)
+void hio_sys_assertfail (hio_t* hio, const hio_bch_t* expr, const hio_bch_t* file, hio_oow_t line)
 {
-	mio_logbfmt (mio, MIO_LOG_UNTYPED | MIO_LOG_FATAL, "ASSERTION FAILURE: %s at %s:%zu\n", expr, file, line);
-	backtrace_stack_frames (mio);
+	hio_logbfmt (hio, HIO_LOG_UNTYPED | HIO_LOG_FATAL, "ASSERTION FAILURE: %s at %s:%zu\n", expr, file, line);
+	backtrace_stack_frames (hio);
 
 #if defined(_WIN32)
 	ExitProcess (249);
@@ -175,4 +175,4 @@ void mio_sys_assertfail (mio_t* mio, const mio_bch_t* expr, const mio_bch_t* fil
 #endif
 }
 
-#endif /* defined(MIO_BUILD_RELEASE) */
+#endif /* defined(HIO_BUILD_RELEASE) */

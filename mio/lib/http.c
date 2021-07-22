@@ -22,27 +22,27 @@
     THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  */
 
-#include <mio-http.h>
-#include <mio-chr.h>
-#include <mio-utl.h>
-#include "mio-prv.h"
+#include <hio-http.h>
+#include <hio-chr.h>
+#include <hio-utl.h>
+#include "hio-prv.h"
 #include <time.h>
 
-int mio_comp_http_versions (const mio_http_version_t* v1, const mio_http_version_t* v2)
+int hio_comp_http_versions (const hio_http_version_t* v1, const hio_http_version_t* v2)
 {
 	if (v1->major == v2->major) return v1->minor - v2->minor;
 	return v1->major - v2->major;
 }
 
-int mio_comp_http_version_numbers (const mio_http_version_t* v1, int v2_major, int v2_minor)
+int hio_comp_http_version_numbers (const hio_http_version_t* v1, int v2_major, int v2_minor)
 {
 	if (v1->major == v2_major) return v1->minor - v2_minor;
 	return v1->major - v2_major;
 }
 
-const mio_bch_t* mio_http_status_to_bcstr (int code)
+const hio_bch_t* hio_http_status_to_bcstr (int code)
 {
-	const mio_bch_t* msg;
+	const hio_bch_t* msg;
 
 	switch (code)
 	{
@@ -102,10 +102,10 @@ const mio_bch_t* mio_http_status_to_bcstr (int code)
 	return msg;
 }
 
-const mio_bch_t* mio_http_method_to_bcstr (mio_http_method_t type)
+const hio_bch_t* hio_http_method_to_bcstr (hio_http_method_t type)
 {
-	/* keep this table in the same order as mio_httpd_method_t enumerators */
-	static mio_bch_t* names[]  =
+	/* keep this table in the same order as hio_httpd_method_t enumerators */
+	static hio_bch_t* names[]  =
 	{
 		"OTHER",
 
@@ -120,36 +120,36 @@ const mio_bch_t* mio_http_method_to_bcstr (mio_http_method_t type)
 		"CONNECT"
 	}; 
 
-	return (type < 0 || type >= MIO_COUNTOF(names))? MIO_NULL: names[type];
+	return (type < 0 || type >= HIO_COUNTOF(names))? HIO_NULL: names[type];
 }
 
 struct mtab_t
 {
-	const mio_bch_t* name;
-	mio_http_method_t type;
+	const hio_bch_t* name;
+	hio_http_method_t type;
 };
 
 static struct mtab_t mtab[] =
 {
 	/* keep this table sorted by name for binary search */
-	{ "CONNECT", MIO_HTTP_CONNECT },
-	{ "DELETE",  MIO_HTTP_DELETE },
-	{ "GET",     MIO_HTTP_GET },
-	{ "HEAD",    MIO_HTTP_HEAD },
-	{ "OPTIONS", MIO_HTTP_OPTIONS },
-	{ "PATCH",   MIO_HTTP_PATCH },
-	{ "POST",    MIO_HTTP_POST },
-	{ "PUT",     MIO_HTTP_PUT },
-	{ "TRACE",   MIO_HTTP_TRACE }
+	{ "CONNECT", HIO_HTTP_CONNECT },
+	{ "DELETE",  HIO_HTTP_DELETE },
+	{ "GET",     HIO_HTTP_GET },
+	{ "HEAD",    HIO_HTTP_HEAD },
+	{ "OPTIONS", HIO_HTTP_OPTIONS },
+	{ "PATCH",   HIO_HTTP_PATCH },
+	{ "POST",    HIO_HTTP_POST },
+	{ "PUT",     HIO_HTTP_PUT },
+	{ "TRACE",   HIO_HTTP_TRACE }
 };
 
-mio_http_method_t mio_bcstr_to_http_method (const mio_bch_t* name)
+hio_http_method_t hio_bcstr_to_http_method (const hio_bch_t* name)
 {
 	/* perform binary search */
 
 	/* declaring left, right, mid to be of int is ok
 	 * because we know mtab is small enough. */
-	int left = 0, right = MIO_COUNTOF(mtab) - 1, mid;
+	int left = 0, right = HIO_COUNTOF(mtab) - 1, mid;
 
 	while (left <= right)
 	{
@@ -160,10 +160,10 @@ mio_http_method_t mio_bcstr_to_http_method (const mio_bch_t* name)
 		mid = left + (right - left) / 2;
 		entry = &mtab[mid];
 
-		n = mio_comp_bcstr(name, entry->name, 1);
+		n = hio_comp_bcstr(name, entry->name, 1);
 		if (n < 0) 
 		{
-			/* if left, right, mid were of mio_oow_t,
+			/* if left, right, mid were of hio_oow_t,
 			 * you would need the following line. 
 			if (mid == 0) break;
 			 */
@@ -173,16 +173,16 @@ mio_http_method_t mio_bcstr_to_http_method (const mio_bch_t* name)
 		else return entry->type;
 	}
 
-	return MIO_HTTP_OTHER;
+	return HIO_HTTP_OTHER;
 }
 
-mio_http_method_t mio_bchars_to_http_method (const mio_bch_t* nameptr, mio_oow_t namelen)
+hio_http_method_t hio_bchars_to_http_method (const hio_bch_t* nameptr, hio_oow_t namelen)
 {
 	/* perform binary search */
 
 	/* declaring left, right, mid to be of int is ok
 	 * because we know mtab is small enough. */
-	int left = 0, right = MIO_COUNTOF(mtab) - 1, mid;
+	int left = 0, right = HIO_COUNTOF(mtab) - 1, mid;
 
 	while (left <= right)
 	{
@@ -193,10 +193,10 @@ mio_http_method_t mio_bchars_to_http_method (const mio_bch_t* nameptr, mio_oow_t
 		mid = left + (right - left) / 2;
 		entry = &mtab[mid];
 
-		n = mio_comp_bchars_bcstr(nameptr, namelen, entry->name, 1);
+		n = hio_comp_bchars_bcstr(nameptr, namelen, entry->name, 1);
 		if (n < 0) 
 		{
-			/* if left, right, mid were of mio_oow_t,
+			/* if left, right, mid were of hio_oow_t,
 			 * you would need the following line. 
 			if (mid == 0) break;
 			 */
@@ -206,16 +206,16 @@ mio_http_method_t mio_bchars_to_http_method (const mio_bch_t* nameptr, mio_oow_t
 		else return entry->type;
 	}
 
-	return MIO_HTTP_OTHER;
+	return HIO_HTTP_OTHER;
 }
 
-int mio_parse_http_range_bcstr (const mio_bch_t* str, mio_http_range_t* range)
+int hio_parse_http_range_bcstr (const hio_bch_t* str, hio_http_range_t* range)
 {
 	/* NOTE: this function does not support a range set 
 	 *       like bytes=1-20,30-50 */
 
-	mio_foff_t from, to;
-	int type = MIO_HTTP_RANGE_PROPER;
+	hio_foff_t from, to;
+	int type = HIO_HTTP_RANGE_PROPER;
 
 	if (str[0] != 'b' ||
 	    str[1] != 'y' ||
@@ -227,21 +227,21 @@ int mio_parse_http_range_bcstr (const mio_bch_t* str, mio_http_range_t* range)
 	str += 6;
 
 	from = to = 0;
-	if (mio_is_bch_digit(*str))
+	if (hio_is_bch_digit(*str))
 	{
 		do
 		{
 			from = from * 10 + (*str - '0');
 			str++;
 		}
-		while (mio_is_bch_digit(*str));
+		while (hio_is_bch_digit(*str));
 	}
-	else type = MIO_HTTP_RANGE_SUFFIX;
+	else type = HIO_HTTP_RANGE_SUFFIX;
 
 	if (*str != '-') return -1;
 	str++;
 
-	if (mio_is_bch_digit(*str))
+	if (hio_is_bch_digit(*str))
 	{
 		to = 0;
 		do
@@ -249,13 +249,13 @@ int mio_parse_http_range_bcstr (const mio_bch_t* str, mio_http_range_t* range)
 			to = to * 10 + (*str - '0');
 			str++;
 		}
-		while (mio_is_bch_digit(*str));
+		while (hio_is_bch_digit(*str));
 
 		if (from > to) return -1;
 	}
-	else type = MIO_HTTP_RANGE_PREFIX;
+	else type = HIO_HTTP_RANGE_PREFIX;
 
-	while (mio_is_bch_space(*str)) str++;
+	while (hio_is_bch_space(*str)) str++;
 	if (*str != '\0') return -1;
 
 	range->type = type;
@@ -267,8 +267,8 @@ int mio_parse_http_range_bcstr (const mio_bch_t* str, mio_http_range_t* range)
 typedef struct mname_t mname_t;
 struct mname_t
 {
-	const mio_bch_t* s;
-	const mio_bch_t* l;
+	const hio_bch_t* s;
+	const hio_bch_t* l;
 };
 	
 static mname_t wday_name[] =
@@ -298,85 +298,85 @@ static mname_t mon_name[] =
 	{ "Dec", "December" }
 };
 
-int mio_parse_http_time_bcstr (const mio_bch_t* str, mio_ntime_t* nt)
+int hio_parse_http_time_bcstr (const hio_bch_t* str, hio_ntime_t* nt)
 {
 	struct tm bt;
-	const mio_bch_t* word;
-	mio_oow_t wlen, i;
+	const hio_bch_t* word;
+	hio_oow_t wlen, i;
 
 	/* TODO: support more formats */
 
-	MIO_MEMSET (&bt, 0, MIO_SIZEOF(bt));
+	HIO_MEMSET (&bt, 0, HIO_SIZEOF(bt));
 
 	/* weekday */
-	while (mio_is_bch_space(*str)) str++;
-	for (word = str; mio_is_bch_alpha(*str); str++);
+	while (hio_is_bch_space(*str)) str++;
+	for (word = str; hio_is_bch_alpha(*str); str++);
 	wlen = str - word;
-	for (i = 0; i < MIO_COUNTOF(wday_name); i++)
+	for (i = 0; i < HIO_COUNTOF(wday_name); i++)
 	{
-		if (mio_comp_bchars_bcstr(word, wlen, wday_name[i].s, 1) == 0)
+		if (hio_comp_bchars_bcstr(word, wlen, wday_name[i].s, 1) == 0)
 		{
 			bt.tm_wday = i;
 			break;
 		}
 	}
-	if (i >= MIO_COUNTOF(wday_name)) return -1;
+	if (i >= HIO_COUNTOF(wday_name)) return -1;
 
 	/* comma - i'm just loose as i don't care if it doesn't exist */
-	while (mio_is_bch_space(*str)) str++;
+	while (hio_is_bch_space(*str)) str++;
 	if (*str == ',') str++;
 
 	/* day */
-	while (mio_is_bch_space(*str)) str++;
-	if (!mio_is_bch_digit(*str)) return -1;
-	do bt.tm_mday = bt.tm_mday * 10 + *str++ - '0'; while (mio_is_bch_digit(*str));
+	while (hio_is_bch_space(*str)) str++;
+	if (!hio_is_bch_digit(*str)) return -1;
+	do bt.tm_mday = bt.tm_mday * 10 + *str++ - '0'; while (hio_is_bch_digit(*str));
 
 	/* month */
-	while (mio_is_bch_space(*str)) str++;
-	for (word = str; mio_is_bch_alpha(*str); str++);
+	while (hio_is_bch_space(*str)) str++;
+	for (word = str; hio_is_bch_alpha(*str); str++);
 	wlen = str - word;
-	for (i = 0; i < MIO_COUNTOF(mon_name); i++)
+	for (i = 0; i < HIO_COUNTOF(mon_name); i++)
 	{
-		if (mio_comp_bchars_bcstr(word, wlen, mon_name[i].s, 1) == 0)
+		if (hio_comp_bchars_bcstr(word, wlen, mon_name[i].s, 1) == 0)
 		{
 			bt.tm_mon = i;
 			break;
 		}
 	}
-	if (i >= MIO_COUNTOF(mon_name)) return -1;
+	if (i >= HIO_COUNTOF(mon_name)) return -1;
 
 	/* year */
-	while (mio_is_bch_space(*str)) str++;
-	if (!mio_is_bch_digit(*str)) return -1;
-	do bt.tm_year = bt.tm_year * 10 + *str++ - '0'; while (mio_is_bch_digit(*str));
+	while (hio_is_bch_space(*str)) str++;
+	if (!hio_is_bch_digit(*str)) return -1;
+	do bt.tm_year = bt.tm_year * 10 + *str++ - '0'; while (hio_is_bch_digit(*str));
 	bt.tm_year -= 1900;
 
 	/* hour */
-	while (mio_is_bch_space(*str)) str++;
-	if (!mio_is_bch_digit(*str)) return -1;
-	do bt.tm_hour = bt.tm_hour * 10 + *str++ - '0'; while (mio_is_bch_digit(*str));
+	while (hio_is_bch_space(*str)) str++;
+	if (!hio_is_bch_digit(*str)) return -1;
+	do bt.tm_hour = bt.tm_hour * 10 + *str++ - '0'; while (hio_is_bch_digit(*str));
 	if (*str != ':')  return -1;
 	str++;
 
 	/* min */
-	while (mio_is_bch_space(*str)) str++;
-	if (!mio_is_bch_digit(*str)) return -1;
-	do bt.tm_min = bt.tm_min * 10 + *str++ - '0'; while (mio_is_bch_digit(*str));
+	while (hio_is_bch_space(*str)) str++;
+	if (!hio_is_bch_digit(*str)) return -1;
+	do bt.tm_min = bt.tm_min * 10 + *str++ - '0'; while (hio_is_bch_digit(*str));
 	if (*str != ':')  return -1;
 	str++;
 
 	/* sec */
-	while (mio_is_bch_space(*str)) str++;
-	if (!mio_is_bch_digit(*str)) return -1;
-	do bt.tm_sec = bt.tm_sec * 10 + *str++ - '0'; while (mio_is_bch_digit(*str));
+	while (hio_is_bch_space(*str)) str++;
+	if (!hio_is_bch_digit(*str)) return -1;
+	do bt.tm_sec = bt.tm_sec * 10 + *str++ - '0'; while (hio_is_bch_digit(*str));
 
 	/* GMT */
-	while (mio_is_bch_space(*str)) str++;
-	for (word = str; mio_is_bch_alpha(*str); str++);
+	while (hio_is_bch_space(*str)) str++;
+	for (word = str; hio_is_bch_alpha(*str); str++);
 	wlen = str - word;
-	if (mio_comp_bchars_bcstr(word, wlen, "GMT", 1) != 0) return -1;
+	if (hio_comp_bchars_bcstr(word, wlen, "GMT", 1) != 0) return -1;
 
-	while (mio_is_bch_space(*str)) str++;
+	while (hio_is_bch_space(*str)) str++;
 	if (*str != '\0') return -1;
 
 	nt->sec = timegm(&bt);
@@ -385,15 +385,15 @@ int mio_parse_http_time_bcstr (const mio_bch_t* str, mio_ntime_t* nt)
 	return 0;
 }
 
-mio_bch_t* mio_fmt_http_time_to_bcstr (const mio_ntime_t* nt, mio_bch_t* buf, mio_oow_t bufsz)
+hio_bch_t* hio_fmt_http_time_to_bcstr (const hio_ntime_t* nt, hio_bch_t* buf, hio_oow_t bufsz)
 {
 	time_t t;
 	struct tm bt;
 
 	t = nt->sec;
-	gmtime_r (&t, &bt); /* TODO: create mio_sys_gmtime() and make it system dependent */
+	gmtime_r (&t, &bt); /* TODO: create hio_sys_gmtime() and make it system dependent */
 
-	mio_fmttobcstr (MIO_NULL, buf, bufsz, 
+	hio_fmttobcstr (HIO_NULL, buf, bufsz, 
 		"%hs, %d %hs %d %02d:%02d:%02d GMT",
 		wday_name[bt.tm_wday].s,
 		bt.tm_mday,
@@ -405,19 +405,19 @@ mio_bch_t* mio_fmt_http_time_to_bcstr (const mio_ntime_t* nt, mio_bch_t* buf, mi
 	return buf;
 }
 
-int mio_is_perenced_http_bcstr (const mio_bch_t* str)
+int hio_is_perenced_http_bcstr (const hio_bch_t* str)
 {
-	const mio_bch_t* p = str;
+	const hio_bch_t* p = str;
 
 	while (*p != '\0')
 	{
 		if (*p == '%' && *(p + 1) != '\0' && *(p + 2) != '\0')
 		{
-			int q = MIO_XDIGIT_TO_NUM(*(p + 1));
+			int q = HIO_XDIGIT_TO_NUM(*(p + 1));
 			if (q >= 0)
 			{
 				/* return true if the first valid percent-encoded sequence is found */
-				int w = MIO_XDIGIT_TO_NUM(*(p + 2));
+				int w = HIO_XDIGIT_TO_NUM(*(p + 2));
 				if (w >= 0) return 1; 
 			}
 		}
@@ -428,20 +428,20 @@ int mio_is_perenced_http_bcstr (const mio_bch_t* str)
 	return 1;
 }
 
-mio_oow_t mio_perdec_http_bcstr (const mio_bch_t* str, mio_bch_t* buf, mio_oow_t* ndecs)
+hio_oow_t hio_perdec_http_bcstr (const hio_bch_t* str, hio_bch_t* buf, hio_oow_t* ndecs)
 {
-	const mio_bch_t* p = str;
-	mio_bch_t* out = buf;
-	mio_oow_t dec_count = 0;
+	const hio_bch_t* p = str;
+	hio_bch_t* out = buf;
+	hio_oow_t dec_count = 0;
 
 	while (*p != '\0')
 	{
 		if (*p == '%' && *(p + 1) != '\0' && *(p + 2) != '\0')
 		{
-			int q = MIO_XDIGIT_TO_NUM(*(p + 1));
+			int q = HIO_XDIGIT_TO_NUM(*(p + 1));
 			if (q >= 0)
 			{
-				int w = MIO_XDIGIT_TO_NUM(*(p + 2));
+				int w = HIO_XDIGIT_TO_NUM(*(p + 2));
 				if (w >= 0)
 				{
 					/* we don't care if it contains a null character */
@@ -461,21 +461,21 @@ mio_oow_t mio_perdec_http_bcstr (const mio_bch_t* str, mio_bch_t* buf, mio_oow_t
 	return out - buf;
 }
 
-mio_oow_t mio_perdec_http_bcs (const mio_bcs_t* str, mio_bch_t* buf, mio_oow_t* ndecs)
+hio_oow_t hio_perdec_http_bcs (const hio_bcs_t* str, hio_bch_t* buf, hio_oow_t* ndecs)
 {
-	const mio_bch_t* p = str->ptr;
-	const mio_bch_t* end = str->ptr + str->len;
-	mio_bch_t* out = buf;
-	mio_oow_t dec_count = 0;
+	const hio_bch_t* p = str->ptr;
+	const hio_bch_t* end = str->ptr + str->len;
+	hio_bch_t* out = buf;
+	hio_oow_t dec_count = 0;
 
 	while (p < end)
 	{
 		if (*p == '%' && (p + 2) < end)
 		{
-			int q = MIO_XDIGIT_TO_NUM(*(p + 1));
+			int q = HIO_XDIGIT_TO_NUM(*(p + 1));
 			if (q >= 0)
 			{
-				int w = MIO_XDIGIT_TO_NUM(*(p + 2));
+				int w = HIO_XDIGIT_TO_NUM(*(p + 2));
 				if (w >= 0)
 				{
 					/* we don't care if it contains a null character */
@@ -505,16 +505,16 @@ mio_oow_t mio_perdec_http_bcs (const mio_bcs_t* str, mio_bch_t* buf, mio_oow_t* 
 
 #define TO_HEX(v) ("0123456789ABCDEF"[(v) & 15])
 
-mio_oow_t mio_perenc_http_bcstr (int opt, const mio_bch_t* str, mio_bch_t* buf, mio_oow_t* nencs)
+hio_oow_t hio_perenc_http_bcstr (int opt, const hio_bch_t* str, hio_bch_t* buf, hio_oow_t* nencs)
 {
-	const mio_bch_t* p = str;
-	mio_bch_t* out = buf;
-	mio_oow_t enc_count = 0;
+	const hio_bch_t* p = str;
+	hio_bch_t* out = buf;
+	hio_oow_t enc_count = 0;
 
 	/* this function doesn't accept the size of the buffer. the caller must 
 	 * ensure that the buffer is large enough */
 
-	if (opt & MIO_PERENC_HTTP_KEEP_SLASH)
+	if (opt & HIO_PERENC_HTTP_KEEP_SLASH)
 	{
 		while (*p != '\0')
 		{
@@ -550,14 +550,14 @@ mio_oow_t mio_perenc_http_bcstr (int opt, const mio_bch_t* str, mio_bch_t* buf, 
 }
 
 #if 0
-mio_bch_t* mio_perenc_http_bcstrdup (int opt, const mio_bch_t* str, mio_mmgr_t* mmgr)
+hio_bch_t* hio_perenc_http_bcstrdup (int opt, const hio_bch_t* str, hio_mmgr_t* mmgr)
 {
-	mio_bch_t* buf;
-	mio_oow_t len = 0;
-	mio_oow_t count = 0;
+	hio_bch_t* buf;
+	hio_oow_t len = 0;
+	hio_oow_t count = 0;
 	
 	/* count the number of characters that should be encoded */
-	if (opt & MIO_PERENC_HTTP_KEEP_SLASH)
+	if (opt & HIO_PERENC_HTTP_KEEP_SLASH)
 	{
 		for (len = 0; str[len] != '\0'; len++)
 		{
@@ -573,30 +573,30 @@ mio_bch_t* mio_perenc_http_bcstrdup (int opt, const mio_bch_t* str, mio_mmgr_t* 
 	}
 
 	/* if there are no characters to escape, just return the original string */
-	if (count <= 0) return (mio_bch_t*)str;
+	if (count <= 0) return (hio_bch_t*)str;
 
 	/* allocate a buffer of an optimal size for escaping, otherwise */
-	buf = MIO_MMGR_ALLOC(mmgr, (len  + (count * 2) + 1)  * MIO_SIZEOF(*buf));
-	if (!buf) return MIO_NULL;
+	buf = HIO_MMGR_ALLOC(mmgr, (len  + (count * 2) + 1)  * HIO_SIZEOF(*buf));
+	if (!buf) return HIO_NULL;
 
 	/* perform actual escaping */
-	mio_perenc_http_bcstr (opt, str, buf, MIO_NULL);
+	hio_perenc_http_bcstr (opt, str, buf, HIO_NULL);
 
 	return buf;
 }
 #endif
 
 
-int mio_scan_http_qparam (mio_bch_t* qparam, int (*qparamcb) (mio_bcs_t* key, mio_bcs_t* val, void* ctx), void* ctx)
+int hio_scan_http_qparam (hio_bch_t* qparam, int (*qparamcb) (hio_bcs_t* key, hio_bcs_t* val, void* ctx), void* ctx)
 {
-	mio_bcs_t key, val;
-	mio_bch_t* p, * end;
+	hio_bcs_t key, val;
+	hio_bch_t* p, * end;
 
 	p = qparam;
-	end = p + mio_count_bcstr(qparam);
+	end = p + hio_count_bcstr(qparam);
 
 	key.ptr = p; key.len = 0;
-	val.ptr = MIO_NULL; val.len = 0;
+	val.ptr = HIO_NULL; val.len = 0;
 
 	do
 	{
@@ -620,7 +620,7 @@ int mio_scan_http_qparam (mio_bch_t* qparam, int (*qparamcb) (mio_bcs_t* key, mi
 			p++;
 
 			key.ptr = p; key.len = 0;
-			val.ptr = MIO_NULL; val.len = 0;
+			val.ptr = HIO_NULL; val.len = 0;
 		}
 		else if (*p == '=')
 		{

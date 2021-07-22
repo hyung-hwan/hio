@@ -11,7 +11,7 @@ LDFLAGS_COMMON=-L$(abs_builddir)/../lib  -L$(libdir)
 ## place $(LIBM)  here as all programs below are C only programs linked
 ## against the C/C++ hybrid library. Read comments in ../bin/Makefile.am
 ## for more information.
-LIBADD_COMMON = ../lib/libmio.la $(LIBM)
+LIBADD_COMMON = ../lib/libhio.la $(LIBM)
 
 check_SCRIPTS = 
 ##noinst_SCRIPTS = $(check_SCRIPTS)

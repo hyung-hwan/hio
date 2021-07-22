@@ -24,8 +24,8 @@
     THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  */
 
-#include <mio-mar.h>
-#include "mio-prv.h"
+#include <hio-mar.h>
+#include "hio-prv.h"
 
 #if 0
 #include <mariadb/mysql.h>
@@ -38,42 +38,42 @@
 typedef struct sess_t sess_t;
 typedef struct sess_qry_t sess_qry_t;
 
-struct mio_svc_marc_t
+struct hio_svc_marc_t
 {
-	MIO_SVC_HEADER;
+	HIO_SVC_HEADER;
 
 	int stopping;
 	int tmout_set;
 
-	mio_svc_marc_connect_t ci;
-	mio_svc_marc_tmout_t tmout;
+	hio_svc_marc_connect_t ci;
+	hio_svc_marc_tmout_t tmout;
 
 	MYSQL* edev;
 
 	struct
 	{
 		sess_t* ptr;
-		mio_oow_t capa;
+		hio_oow_t capa;
 	} sess;
 };
 
 struct sess_qry_t
 {
-	mio_bch_t*   qptr;
-	mio_oow_t    qlen;
+	hio_bch_t*   qptr;
+	hio_oow_t    qlen;
 	void*        qctx;
 	unsigned int sent: 1;
 	unsigned int need_fetch: 1;
 
-	mio_svc_marc_on_result_t on_result;
+	hio_svc_marc_on_result_t on_result;
 	sess_qry_t*  sq_next;
 };
 
 struct sess_t
 {
-	mio_oow_t sid;
-	mio_svc_marc_t* svc;
-	mio_dev_mar_t* dev;
+	hio_oow_t sid;
+	hio_svc_marc_t* svc;
+	hio_dev_mar_t* dev;
 	int connected;
 
 	sess_qry_t* q_head;
@@ -88,18 +88,18 @@ struct dev_xtn_t
 };
 
 
-mio_svc_marc_t* mio_svc_marc_start (mio_t* mio, const mio_svc_marc_connect_t* ci, const mio_svc_marc_tmout_t* tmout)
+hio_svc_marc_t* hio_svc_marc_start (hio_t* hio, const hio_svc_marc_connect_t* ci, const hio_svc_marc_tmout_t* tmout)
 {
-	mio_svc_marc_t* marc = MIO_NULL;
+	hio_svc_marc_t* marc = HIO_NULL;
 
-	marc = (mio_svc_marc_t*)mio_callocmem(mio, MIO_SIZEOF(*marc));
-	if (MIO_UNLIKELY(!marc)) goto oops;
+	marc = (hio_svc_marc_t*)hio_callocmem(hio, HIO_SIZEOF(*marc));
+	if (HIO_UNLIKELY(!marc)) goto oops;
 
-	marc->edev = mysql_init(MIO_NULL);
-	if (MIO_UNLIKELY(!marc->edev)) goto oops;
+	marc->edev = mysql_init(HIO_NULL);
+	if (HIO_UNLIKELY(!marc->edev)) goto oops;
 
-	marc->mio = mio;
-	marc->svc_stop = mio_svc_marc_stop;
+	marc->hio = hio;
+	marc->svc_stop = hio_svc_marc_stop;
 	marc->ci = *ci;
 	if (tmout) 
 	{
@@ -107,79 +107,79 @@ mio_svc_marc_t* mio_svc_marc_start (mio_t* mio, const mio_svc_marc_connect_t* ci
 		marc->tmout_set = 1;
 	}
 
-	MIO_SVCL_APPEND_SVC (&mio->actsvc, (mio_svc_t*)marc);
+	HIO_SVCL_APPEND_SVC (&hio->actsvc, (hio_svc_t*)marc);
 	return marc;
 
 oops:
 	if (marc->edev) mysql_close (marc->edev);
-	if (marc) mio_freemem (mio, marc);
-	return MIO_NULL;
+	if (marc) hio_freemem (hio, marc);
+	return HIO_NULL;
 }
 
-void mio_svc_marc_stop (mio_svc_marc_t* marc)
+void hio_svc_marc_stop (hio_svc_marc_t* marc)
 {
-	mio_t* mio = marc->mio;
-	mio_oow_t i;
+	hio_t* hio = marc->hio;
+	hio_oow_t i;
 
 	marc->stopping = 1;
 
 	for (i = 0; i < marc->sess.capa; i++)
 	{
-		if (marc->sess.ptr[i].dev) mio_dev_mar_kill (marc->sess.ptr[i].dev);
+		if (marc->sess.ptr[i].dev) hio_dev_mar_kill (marc->sess.ptr[i].dev);
 	}
-	mio_freemem (mio, marc->sess.ptr);
+	hio_freemem (hio, marc->sess.ptr);
 
-	MIO_SVCL_UNLINK_SVC (marc);
+	HIO_SVCL_UNLINK_SVC (marc);
 
 	mysql_close (marc->edev);
-	mio_freemem (mio, marc);
+	hio_freemem (hio, marc);
 }
 
 /* ------------------------------------------------------------------- */
 
-static sess_qry_t* make_session_query (mio_t* mio, mio_svc_marc_qtype_t qtype, const mio_bch_t* qptr, mio_oow_t qlen, void* qctx, mio_svc_marc_on_result_t on_result)
+static sess_qry_t* make_session_query (hio_t* hio, hio_svc_marc_qtype_t qtype, const hio_bch_t* qptr, hio_oow_t qlen, void* qctx, hio_svc_marc_on_result_t on_result)
 {
 	sess_qry_t* sq;
 
-	sq = mio_allocmem(mio, MIO_SIZEOF(*sq) + (MIO_SIZEOF(*qptr) * qlen));
-	if (MIO_UNLIKELY(!sq)) return MIO_NULL;
+	sq = hio_allocmem(hio, HIO_SIZEOF(*sq) + (HIO_SIZEOF(*qptr) * qlen));
+	if (HIO_UNLIKELY(!sq)) return HIO_NULL;
 
-	MIO_MEMCPY (sq + 1, qptr, (MIO_SIZEOF(*qptr) * qlen));
+	HIO_MEMCPY (sq + 1, qptr, (HIO_SIZEOF(*qptr) * qlen));
 
 	sq->sent = 0;
-	sq->need_fetch = (qtype == MIO_SVC_MARC_QTYPE_SELECT);
-	sq->qptr = (mio_bch_t*)(sq + 1);
+	sq->need_fetch = (qtype == HIO_SVC_MARC_QTYPE_SELECT);
+	sq->qptr = (hio_bch_t*)(sq + 1);
 	sq->qlen = qlen;
 	sq->qctx = qctx;
 	sq->on_result = on_result;
-	sq->sq_next = MIO_NULL;
+	sq->sq_next = HIO_NULL;
 
 	return sq;
 }
 
-static MIO_INLINE void free_session_query (mio_t* mio, sess_qry_t* sq)
+static HIO_INLINE void free_session_query (hio_t* hio, sess_qry_t* sq)
 {
-	mio_freemem (mio, sq);
+	hio_freemem (hio, sq);
 }
 
-static MIO_INLINE void enqueue_session_query (sess_t* sess, sess_qry_t* sq)
+static HIO_INLINE void enqueue_session_query (sess_t* sess, sess_qry_t* sq)
 {
 	/* the initialization creates a place holder. so no need to check if q_tail is NULL */
 	sess->q_tail->sq_next = sq;
 	sess->q_tail = sq;
 }
 
-static MIO_INLINE void dequeue_session_query (mio_t* mio, sess_t* sess)
+static HIO_INLINE void dequeue_session_query (hio_t* hio, sess_t* sess)
 {
 	sess_qry_t* sq;
 
 	sq = sess->q_head;
-	MIO_ASSERT (mio, sq->sq_next != MIO_NULL); /* must not be empty */
+	HIO_ASSERT (hio, sq->sq_next != HIO_NULL); /* must not be empty */
 	sess->q_head = sq->sq_next;
-	free_session_query (mio, sq);
+	free_session_query (hio, sq);
 }
 
-static MIO_INLINE sess_qry_t* get_first_session_query (sess_t* sess)
+static HIO_INLINE sess_qry_t* get_first_session_query (sess_t* sess)
 {
 	return sess->q_head->sq_next;
 }
@@ -195,11 +195,11 @@ static int send_pending_query_if_any (sess_t* sess)
 	{
 		sq->sent = 1;
 printf ("sending... %.*s\n", (int)sq->qlen, sq->qptr);
-		if (mio_dev_mar_querywithbchars(sess->dev, sq->qptr, sq->qlen) <= -1) 
+		if (hio_dev_mar_querywithbchars(sess->dev, sq->qptr, sq->qlen) <= -1) 
 		{
-MIO_DEBUG1 (sess->svc->mio, "QQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQ SEND FAIL %js\n", mio_geterrmsg(sess->svc->mio));
+HIO_DEBUG1 (sess->svc->hio, "QQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQ SEND FAIL %js\n", hio_geterrmsg(sess->svc->hio));
 			sq->sent = 0;
-			mio_dev_mar_halt (sess->dev); /* this device can't carray on */
+			hio_dev_mar_halt (sess->dev); /* this device can't carray on */
 			return -1; /* halted the device for failure */
 		}
 
@@ -211,28 +211,28 @@ MIO_DEBUG1 (sess->svc->mio, "QQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQ SEND FAIL %j
 }
 
 /* ------------------------------------------------------------------- */
-static mio_dev_mar_t* alloc_device (mio_svc_marc_t* marc, sess_t* sess);
+static hio_dev_mar_t* alloc_device (hio_svc_marc_t* marc, sess_t* sess);
 
-static void mar_on_disconnect (mio_dev_mar_t* dev)
+static void mar_on_disconnect (hio_dev_mar_t* dev)
 {
-	mio_t* mio = dev->mio;
-	dev_xtn_t* xtn = (dev_xtn_t*)mio_dev_mar_getxtn(dev);
+	hio_t* hio = dev->hio;
+	dev_xtn_t* xtn = (dev_xtn_t*)hio_dev_mar_getxtn(dev);
 	sess_t* sess = xtn->sess;
 
-	MIO_DEBUG6 (mio, "MARC(%p) - device disconnected - sid %lu session %p session-connected %d device %p device-broken %d\n", sess->svc, (unsigned long int)sess->sid, sess, (int)sess->connected, dev, (int)dev->broken); 
-	MIO_ASSERT (mio, dev == sess->dev);
+	HIO_DEBUG6 (hio, "MARC(%p) - device disconnected - sid %lu session %p session-connected %d device %p device-broken %d\n", sess->svc, (unsigned long int)sess->sid, sess, (int)sess->connected, dev, (int)dev->broken); 
+	HIO_ASSERT (hio, dev == sess->dev);
 
-	if (MIO_UNLIKELY(!sess->svc->stopping && mio->stopreq == MIO_STOPREQ_NONE))
+	if (HIO_UNLIKELY(!sess->svc->stopping && hio->stopreq == HIO_STOPREQ_NONE))
 	{
 		if (sess->connected && sess->dev->broken) /* risk of infinite cycle if the underlying db suffers never-ending 'broken' issue after getting connected */
 		{
 			/* restart the dead device */
-			mio_dev_mar_t* dev;
+			hio_dev_mar_t* dev;
 
 			sess->connected = 0;
 
 			dev = alloc_device(sess->svc, sess);
-			if (MIO_LIKELY(dev))
+			if (HIO_LIKELY(dev))
 			{
 				sess->dev = dev;
 				/* the pending query will be sent in on_connect() */
@@ -248,7 +248,7 @@ static void mar_on_disconnect (mio_dev_mar_t* dev)
 	while (1)
 	{
 		sess_qry_t* sq;
-		mio_svc_marc_dev_error_t err;
+		hio_svc_marc_dev_error_t err;
 
 		sq = get_first_session_query(sess);
 		if (!sq) break;
@@ -256,47 +256,47 @@ static void mar_on_disconnect (mio_dev_mar_t* dev)
 		/* what is the best error code and message to use for this? */
 		err.mar_errcode = CR_SERVER_LOST;
 		err.mar_errmsg = "server lost";
-		sq->on_result (sess->svc, sess->sid, MIO_SVC_MARC_RCODE_ERROR, &err, sq->qctx);
-		dequeue_session_query (mio, sess);
+		sq->on_result (sess->svc, sess->sid, HIO_SVC_MARC_RCODE_ERROR, &err, sq->qctx);
+		dequeue_session_query (hio, sess);
 	}
 
 	/* it should point to a placeholder node(either the initial one or the transited one after dequeing */
-	MIO_ASSERT (mio, sess->q_head == sess->q_tail);
-	MIO_ASSERT (mio, sess->q_head->sq_next == MIO_NULL);
-	free_session_query (mio, sess->q_head);
-	sess->q_head = sess->q_tail = MIO_NULL;
+	HIO_ASSERT (hio, sess->q_head == sess->q_tail);
+	HIO_ASSERT (hio, sess->q_head->sq_next == HIO_NULL);
+	free_session_query (hio, sess->q_head);
+	sess->q_head = sess->q_tail = HIO_NULL;
 
-	sess->dev = MIO_NULL;
+	sess->dev = HIO_NULL;
 }
 
-static void mar_on_connect (mio_dev_mar_t* dev)
+static void mar_on_connect (hio_dev_mar_t* dev)
 {
-	mio_t* mio = dev->mio;
-	dev_xtn_t* xtn = (dev_xtn_t*)mio_dev_mar_getxtn(dev);
+	hio_t* hio = dev->hio;
+	dev_xtn_t* xtn = (dev_xtn_t*)hio_dev_mar_getxtn(dev);
 	sess_t* sess = xtn->sess;
 
-	MIO_DEBUG5 (mio, "MARC(%p) - device connected - sid %lu session %p device %p device-broken %d\n", sess->svc, (unsigned long int)sess->sid, sess, dev, dev->broken); 
+	HIO_DEBUG5 (hio, "MARC(%p) - device connected - sid %lu session %p device %p device-broken %d\n", sess->svc, (unsigned long int)sess->sid, sess, dev, dev->broken); 
 
 	sess->connected = 1;
 	send_pending_query_if_any (sess);
 }
 
-static void mar_on_query_started (mio_dev_mar_t* dev, int mar_ret, const mio_bch_t* mar_errmsg)
+static void mar_on_query_started (hio_dev_mar_t* dev, int mar_ret, const hio_bch_t* mar_errmsg)
 {
-	dev_xtn_t* xtn = (dev_xtn_t*)mio_dev_mar_getxtn(dev);
+	dev_xtn_t* xtn = (dev_xtn_t*)hio_dev_mar_getxtn(dev);
 	sess_t* sess = xtn->sess;
 	sess_qry_t* sq = get_first_session_query(sess);
 
 	if (mar_ret)
 	{
-		mio_svc_marc_dev_error_t err;
+		hio_svc_marc_dev_error_t err;
 printf ("QUERY FAILED...%d -> %s\n", mar_ret, mar_errmsg);
 
 		err.mar_errcode = mar_ret;
 		err.mar_errmsg = mar_errmsg;
-		sq->on_result(sess->svc, sess->sid, MIO_SVC_MARC_RCODE_ERROR, &err, sq->qctx);
+		sq->on_result(sess->svc, sess->sid, HIO_SVC_MARC_RCODE_ERROR, &err, sq->qctx);
 
-		dequeue_session_query (sess->svc->mio, sess);
+		dequeue_session_query (sess->svc->hio, sess);
 		send_pending_query_if_any (sess);
 	}
 	else
@@ -304,47 +304,47 @@ printf ("QUERY FAILED...%d -> %s\n", mar_ret, mar_errmsg);
 printf ("QUERY STARTED\n");
 		if (sq->need_fetch)
 		{
-			if (mio_dev_mar_fetchrows(dev) <= -1)
+			if (hio_dev_mar_fetchrows(dev) <= -1)
 			{
 //printf ("FETCH ROW FAILURE - %s\n", mysql_error(dev->hnd));
-				mio_dev_mar_halt (dev);
+				hio_dev_mar_halt (dev);
 			}
 		}
 		else
 		{
-			sq->on_result (sess->svc, sess->sid, MIO_SVC_MARC_RCODE_DONE, MIO_NULL, sq->qctx);
-			dequeue_session_query (sess->svc->mio, sess);
+			sq->on_result (sess->svc, sess->sid, HIO_SVC_MARC_RCODE_DONE, HIO_NULL, sq->qctx);
+			dequeue_session_query (sess->svc->hio, sess);
 			send_pending_query_if_any (sess);
 		}
 	}
 }
 
-static void mar_on_row_fetched (mio_dev_mar_t* dev, void* data)
+static void mar_on_row_fetched (hio_dev_mar_t* dev, void* data)
 {
-	dev_xtn_t* xtn = (dev_xtn_t*)mio_dev_mar_getxtn(dev);
+	dev_xtn_t* xtn = (dev_xtn_t*)hio_dev_mar_getxtn(dev);
 	sess_t* sess = xtn->sess;
 	sess_qry_t* sq = get_first_session_query(sess);
 
-	sq->on_result (sess->svc, sess->sid, (data? MIO_SVC_MARC_RCODE_ROW: MIO_SVC_MARC_RCODE_DONE), data, sq->qctx);
+	sq->on_result (sess->svc, sess->sid, (data? HIO_SVC_MARC_RCODE_ROW: HIO_SVC_MARC_RCODE_DONE), data, sq->qctx);
 
 	if (!data) 
 	{
-		dequeue_session_query (sess->svc->mio, sess);
+		dequeue_session_query (sess->svc->hio, sess);
 		send_pending_query_if_any (sess);
 	}
 }
 
-static mio_dev_mar_t* alloc_device (mio_svc_marc_t* marc, sess_t* sess)
+static hio_dev_mar_t* alloc_device (hio_svc_marc_t* marc, sess_t* sess)
 {
-	mio_t* mio = (mio_t*)marc->mio;
-	mio_dev_mar_t* mar;
-	mio_dev_mar_make_t mi;
+	hio_t* hio = (hio_t*)marc->hio;
+	hio_dev_mar_t* mar;
+	hio_dev_mar_make_t mi;
 	dev_xtn_t* xtn;
 
-	MIO_MEMSET (&mi, 0, MIO_SIZEOF(mi));
+	HIO_MEMSET (&mi, 0, HIO_SIZEOF(mi));
 	if (marc->tmout_set)
 	{
-		mi.flags = MIO_DEV_MAR_USE_TMOUT;
+		mi.flags = HIO_DEV_MAR_USE_TMOUT;
 		mi.tmout = marc->tmout;
 	}
 
@@ -353,37 +353,37 @@ static mio_dev_mar_t* alloc_device (mio_svc_marc_t* marc, sess_t* sess)
 	mi.on_query_started = mar_on_query_started;
 	mi.on_row_fetched = mar_on_row_fetched;
 
-	mar = mio_dev_mar_make(mio, MIO_SIZEOF(*xtn), &mi);
-	if (!mar) return MIO_NULL;
+	mar = hio_dev_mar_make(hio, HIO_SIZEOF(*xtn), &mi);
+	if (!mar) return HIO_NULL;
 
-	xtn = (dev_xtn_t*)mio_dev_mar_getxtn(mar);
+	xtn = (dev_xtn_t*)hio_dev_mar_getxtn(mar);
 	xtn->sess = sess;
 
-	if (mio_dev_mar_connect(mar, &marc->ci) <= -1) return MIO_NULL;
+	if (hio_dev_mar_connect(mar, &marc->ci) <= -1) return HIO_NULL;
 
 	return mar;
 }
 
 /* ------------------------------------------------------------------- */
 
-static sess_t* get_session (mio_svc_marc_t* marc, mio_oow_t sid)
+static sess_t* get_session (hio_svc_marc_t* marc, hio_oow_t sid)
 {
-	mio_t* mio = marc->mio;
+	hio_t* hio = marc->hio;
 	sess_t* sess;
 
 	if (sid >= marc->sess.capa)
 	{
 		sess_t* tmp;
-		mio_oow_t newcapa, i;
+		hio_oow_t newcapa, i;
 
 		newcapa = marc->sess.capa + 16;
 		if (newcapa <= sid) newcapa = sid + 1;
-		newcapa = MIO_ALIGN_POW2(newcapa, 16);
+		newcapa = HIO_ALIGN_POW2(newcapa, 16);
 
-		tmp = mio_reallocmem(mio, marc->sess.ptr, MIO_SIZEOF(sess_t) * newcapa);
-		if (MIO_UNLIKELY(!tmp)) return MIO_NULL;
+		tmp = hio_reallocmem(hio, marc->sess.ptr, HIO_SIZEOF(sess_t) * newcapa);
+		if (HIO_UNLIKELY(!tmp)) return HIO_NULL;
 
-		MIO_MEMSET (&tmp[marc->sess.capa], 0, MIO_SIZEOF(sess_t) * (newcapa - marc->sess.capa));
+		HIO_MEMSET (&tmp[marc->sess.capa], 0, HIO_SIZEOF(sess_t) * (newcapa - marc->sess.capa));
 		for (i = marc->sess.capa; i < newcapa; i++)
 		{
 			tmp[i].svc = marc;
@@ -395,21 +395,21 @@ static sess_t* get_session (mio_svc_marc_t* marc, mio_oow_t sid)
 	}
 
 	sess = &marc->sess.ptr[sid];
-	MIO_ASSERT (mio, sess->sid == sid);
-	MIO_ASSERT (mio, sess->svc == marc);
+	HIO_ASSERT (hio, sess->sid == sid);
+	HIO_ASSERT (hio, sess->svc == marc);
 
 	if (!sess->dev)
 	{
 		sess_qry_t* sq;
 
-		sq = make_session_query(mio, MIO_SVC_MARC_QTYPE_ACTION, "", 0, MIO_NULL, 0); /* this is a place holder */
-		if (MIO_UNLIKELY(!sq)) return MIO_NULL;
+		sq = make_session_query(hio, HIO_SVC_MARC_QTYPE_ACTION, "", 0, HIO_NULL, 0); /* this is a place holder */
+		if (HIO_UNLIKELY(!sq)) return HIO_NULL;
 
 		sess->dev = alloc_device(marc, sess);
-		if (MIO_UNLIKELY(!sess->dev)) 
+		if (HIO_UNLIKELY(!sess->dev)) 
 		{
-			free_session_query (mio, sq);
-			return MIO_NULL;
+			free_session_query (hio, sq);
+			return HIO_NULL;
 		}
 
 		/* queue initialization with a place holder. the queue maintains a placeholder node. 
@@ -439,17 +439,17 @@ static sess_t* get_session (mio_svc_marc_t* marc, mio_oow_t sid)
 }
 
 
-int mio_svc_marc_querywithbchars (mio_svc_marc_t* marc, mio_oow_t sid, mio_svc_marc_qtype_t qtype, const mio_bch_t* qptr, mio_oow_t qlen, mio_svc_marc_on_result_t on_result, void* qctx)
+int hio_svc_marc_querywithbchars (hio_svc_marc_t* marc, hio_oow_t sid, hio_svc_marc_qtype_t qtype, const hio_bch_t* qptr, hio_oow_t qlen, hio_svc_marc_on_result_t on_result, void* qctx)
 {
-	mio_t* mio = marc->mio;
+	hio_t* hio = marc->hio;
 	sess_t* sess;
 	sess_qry_t* sq;
 
 	sess = get_session(marc, sid);
-	if (MIO_UNLIKELY(!sess)) return -1;
+	if (HIO_UNLIKELY(!sess)) return -1;
 
-	sq = make_session_query(mio, qtype, qptr, qlen, qctx, on_result);
-	if (MIO_UNLIKELY(!sq)) return -1;
+	sq = make_session_query(hio, qtype, qptr, qlen, qctx, on_result);
+	if (HIO_UNLIKELY(!sq)) return -1;
 
 	if (get_first_session_query(sess) || !sess->connected)
 	{
@@ -463,19 +463,19 @@ int mio_svc_marc_querywithbchars (mio_svc_marc_t* marc, mio_oow_t sid, mio_svc_m
 
 		enqueue_session_query (sess, sq);
 
-		MIO_ASSERT (mio, sq->sent == 0);
+		HIO_ASSERT (hio, sq->sent == 0);
 
 		sq->sent = 1;
-		if (mio_dev_mar_querywithbchars(sess->dev, sq->qptr, sq->qlen) <= -1) 
+		if (hio_dev_mar_querywithbchars(sess->dev, sq->qptr, sq->qlen) <= -1) 
 		{
 			sq->sent = 0;
 			if (!sess->dev->broken)
 			{
 				/* unlink the the last item added */
-				old_q_tail->sq_next = MIO_NULL;
+				old_q_tail->sq_next = HIO_NULL;
 				sess->q_tail = old_q_tail;
 
-				free_session_query (mio, sq);
+				free_session_query (hio, sq);
 				return -1;
 			}
 
@@ -488,7 +488,7 @@ int mio_svc_marc_querywithbchars (mio_svc_marc_t* marc, mio_oow_t sid, mio_svc_m
 	return 0;
 }
 
-mio_oow_t mio_svc_marc_escapebchars (mio_svc_marc_t* marc, const mio_bch_t* qptr, mio_oow_t qlen, mio_bch_t* buf)
+hio_oow_t hio_svc_marc_escapebchars (hio_svc_marc_t* marc, const hio_bch_t* qptr, hio_oow_t qlen, hio_bch_t* buf)
 {
 	return mysql_real_escape_string(marc->edev, buf, qptr, qlen);
 }

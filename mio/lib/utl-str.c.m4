@@ -31,17 +31,17 @@
  *   $ m4 utl-str.c.m4 > utl-str.c  
  */
 
-#include "mio-prv.h"
-#include <mio-chr.h>
+#include "hio-prv.h"
+#include <hio-chr.h>
 
 dnl ---------------------------------------------------------------------------
 changequote(`[[', `]]')
 
 dnl ---------------------------------------------------------------------------
 define([[fn_equal_chars]], [[ define([[fn_name]], $1) define([[char_type]], $2)
-int fn_name (const char_type* str1, const char_type* str2, mio_oow_t len)
+int fn_name (const char_type* str1, const char_type* str2, hio_oow_t len)
 {
-	mio_oow_t i;
+	hio_oow_t i;
 
 	/* NOTE: you should call this function after having ensured that
 	 *       str1 and str2 are in the same length */
@@ -54,12 +54,12 @@ int fn_name (const char_type* str1, const char_type* str2, mio_oow_t len)
 	return 1;
 }
 ]])
-fn_equal_chars(mio_equal_uchars, mio_uch_t)
-fn_equal_chars(mio_equal_bchars, mio_bch_t)
+fn_equal_chars(hio_equal_uchars, hio_uch_t)
+fn_equal_chars(hio_equal_bchars, hio_bch_t)
 
 dnl ---------------------------------------------------------------------------
 define([[fn_comp_chars]], [[ define([[fn_name]], $1) define([[char_type]], $2) define([[chau_type]], $3)
-int fn_name (const char_type* str1, mio_oow_t len1, const char_type* str2, mio_oow_t len2, int ignorecase)
+int fn_name (const char_type* str1, hio_oow_t len1, const char_type* str2, hio_oow_t len2, int ignorecase)
 {
 	chau_type c1, c2;
 	const char_type* end1 = str1 + len1;
@@ -99,8 +99,8 @@ int fn_name (const char_type* str1, mio_oow_t len1, const char_type* str2, mio_o
 	return (str2 < end2)? -1: 0;
 }
 ]])
-fn_comp_chars(mio_comp_uchars, mio_uch_t, mio_uchu_t, mio_to_uch_lower)
-fn_comp_chars(mio_comp_bchars, mio_bch_t, mio_bchu_t, mio_to_bch_lower)
+fn_comp_chars(hio_comp_uchars, hio_uch_t, hio_uchu_t, hio_to_uch_lower)
+fn_comp_chars(hio_comp_bchars, hio_bch_t, hio_bchu_t, hio_to_bch_lower)
 
 
 dnl ---------------------------------------------------------------------------
@@ -129,35 +129,35 @@ int fn_name (const char_type* str1, const char_type* str2, int ignorecase)
 	}
 }
 ]])
-fn_comp_cstr(mio_comp_ucstr, mio_uch_t, mio_uchu_t, mio_to_uch_lower)
-fn_comp_cstr(mio_comp_bcstr, mio_bch_t, mio_bchu_t, mio_to_bch_lower)
+fn_comp_cstr(hio_comp_ucstr, hio_uch_t, hio_uchu_t, hio_to_uch_lower)
+fn_comp_cstr(hio_comp_bcstr, hio_bch_t, hio_bchu_t, hio_to_bch_lower)
 
 dnl ---------------------------------------------------------------------------
 define([[fn_fill_chars]], [[ define([[fn_name]], $1) define([[char_type]], $2)
-void fn_name (char_type* dst, char_type ch, mio_oow_t len)
+void fn_name (char_type* dst, char_type ch, hio_oow_t len)
 {
-        mio_oow_t i;
+        hio_oow_t i;
         for (i = 0; i < len; i++) dst[i] = ch;
 }
 ]])
-fn_fill_chars(mio_fill_uchars, mio_uch_t)
-fn_fill_chars(mio_fill_bchars, mio_bch_t)
+fn_fill_chars(hio_fill_uchars, hio_uch_t)
+fn_fill_chars(hio_fill_bchars, hio_bch_t)
 
 dnl ---------------------------------------------------------------------------
 define([[fn_count_cstr]], [[ define([[fn_name]], $1) define([[char_type]], $2)
-mio_oow_t fn_name (const char_type* str)
+hio_oow_t fn_name (const char_type* str)
 {
 	const char_type* ptr = str;
 	while (*ptr != '\0') ptr++;
 	return ptr - str;
 } 
 ]])
-fn_count_cstr(mio_count_ucstr, mio_uch_t)
-fn_count_cstr(mio_count_bcstr, mio_bch_t)
+fn_count_cstr(hio_count_ucstr, hio_uch_t)
+fn_count_cstr(hio_count_bcstr, hio_bch_t)
 
 dnl ---------------------------------------------------------------------------
 define([[fn_find_char]], [[ define([[fn_name]], $1) define([[char_type]], $2)
-char_type* fn_name (const char_type* ptr, mio_oow_t len, char_type c)
+char_type* fn_name (const char_type* ptr, hio_oow_t len, char_type c)
 {
 	const char_type* end;
 
@@ -168,15 +168,15 @@ char_type* fn_name (const char_type* ptr, mio_oow_t len, char_type c)
 		ptr++;
 	}
 
-	return MIO_NULL;
+	return HIO_NULL;
 }
 ]])
-fn_find_char(mio_find_uchar, mio_uch_t)
-fn_find_char(mio_find_bchar, mio_bch_t)
+fn_find_char(hio_find_uchar, hio_uch_t)
+fn_find_char(hio_find_bchar, hio_bch_t)
 
 dnl ---------------------------------------------------------------------------
 define([[fn_rfind_char]], [[ define([[fn_name]], $1) define([[char_type]], $2)
-char_type* fn_name (const char_type* ptr, mio_oow_t len, char_type c)
+char_type* fn_name (const char_type* ptr, hio_oow_t len, char_type c)
 {
 	const char_type* cur;
 
@@ -187,11 +187,11 @@ char_type* fn_name (const char_type* ptr, mio_oow_t len, char_type c)
 		if (*cur == c) return (char_type*)cur;
 	}
 
-	return MIO_NULL;
+	return HIO_NULL;
 }
 ]])
-fn_rfind_char(mio_rfind_uchar, mio_uch_t)
-fn_rfind_char(mio_rfind_bchar, mio_bch_t)
+fn_rfind_char(hio_rfind_uchar, hio_uch_t)
+fn_rfind_char(hio_rfind_bchar, hio_bch_t)
 
 
 dnl ---------------------------------------------------------------------------
@@ -204,29 +204,29 @@ char_type* fn_name (const char_type* ptr, char_type c)
 		ptr++;
 	}
 
-	return MIO_NULL;
+	return HIO_NULL;
 }
 ]])
-fn_find_char_in_cstr(mio_find_uchar_in_ucstr, mio_uch_t)
-fn_find_char_in_cstr(mio_find_bchar_in_bcstr, mio_bch_t)
+fn_find_char_in_cstr(hio_find_uchar_in_ucstr, hio_uch_t)
+fn_find_char_in_cstr(hio_find_bchar_in_bcstr, hio_bch_t)
 
 
 dnl ---------------------------------------------------------------------------
 define([[fn_trim_chars]], [[define([[fn_name]], $1) define([[char_type]], $2) dnl $3: is_space $4: prefix for option values
 
-char_type* fn_name (const char_type* str, mio_oow_t* len, int flags)
+char_type* fn_name (const char_type* str, hio_oow_t* len, int flags)
 {
 	const char_type* p = str, * end = str + *len;
 
 	if (p < end)
 	{
-		const char_type* s = MIO_NULL, * e = MIO_NULL;
+		const char_type* s = HIO_NULL, * e = HIO_NULL;
 
 		do
 		{
 			if (!$3(*p))
 			{
-				if (s == MIO_NULL) s = p;
+				if (s == HIO_NULL) s = p;
 				e = p;
 			}
 			p++;
@@ -256,8 +256,8 @@ char_type* fn_name (const char_type* str, mio_oow_t* len, int flags)
 	return (char_type*)str;
 }
 ]])
-fn_trim_chars(mio_trim_uchars, mio_uch_t, mio_is_uch_space, MIO_TRIM_UCHARS)
-fn_trim_chars(mio_trim_bchars, mio_bch_t, mio_is_bch_space, MIO_TRIM_BCHARS)
+fn_trim_chars(hio_trim_uchars, hio_uch_t, hio_is_uch_space, HIO_TRIM_UCHARS)
+fn_trim_chars(hio_trim_bchars, hio_bch_t, hio_is_bch_space, HIO_TRIM_BCHARS)
 
 
 dnl ---------------------------------------------------------------------------
@@ -266,11 +266,11 @@ define([[fn_split_cstr]], [[ define([[fn_name]], $1) define([[char_type]], $2) d
 int fn_name (char_type* s, const char_type* delim, char_type lquote, char_type rquote, char_type escape)
 {
 	char_type* p = s, *d;
-	char_type* sp = MIO_NULL, * ep = MIO_NULL;
+	char_type* sp = HIO_NULL, * ep = HIO_NULL;
 	int delim_mode;
 	int cnt = 0;
 
-	if (delim == MIO_NULL) delim_mode = 0;
+	if (delim == HIO_NULL) delim_mode = 0;
 	else 
 	{
 		delim_mode = 1;
@@ -466,7 +466,7 @@ int fn_name (char_type* s, const char_type* delim, char_type lquote, char_type r
 					{
 						if (*p == *d)  
 						{
-							if (sp == MIO_NULL) 
+							if (sp == HIO_NULL) 
 							{
 								$4 (o, p); p = o;
 								*p++ = '\0';
@@ -487,7 +487,7 @@ int fn_name (char_type* s, const char_type* delim, char_type lquote, char_type r
 
 					if (!$3(*p)) 
 					{
-						if (sp == MIO_NULL) sp = p;
+						if (sp == HIO_NULL) sp = p;
 						ep = p;
 					}
 					p++;
@@ -501,19 +501,19 @@ exit_point:
 	return cnt;
 }
 ]])
-fn_split_cstr(mio_split_ucstr, mio_uch_t, mio_is_uch_space, mio_copy_ucstr_unlimited)
-fn_split_cstr(mio_split_bcstr, mio_bch_t, mio_is_bch_space, mio_copy_bcstr_unlimited)
+fn_split_cstr(hio_split_ucstr, hio_uch_t, hio_is_uch_space, hio_copy_ucstr_unlimited)
+fn_split_cstr(hio_split_bcstr, hio_bch_t, hio_is_bch_space, hio_copy_bcstr_unlimited)
 
 
 
 dnl ---------------------------------------------------------------------------
 define([[fn_chars_to_int]], [[ define([[fn_name]], $1) define([[char_type]], $2) define([[int_type]], $3)
-int_type fn_name (const char_type* str, mio_oow_t len, int option, const char_type** endptr, int* is_sober)
+int_type fn_name (const char_type* str, hio_oow_t len, int option, const char_type** endptr, int* is_sober)
 {
 	int_type n = 0;
 	const char_type* p, * pp;
 	const char_type* end;
-	mio_oow_t rem;
+	hio_oow_t rem;
 	int digit, negative = 0;
 	int base = $5_GET_OPTION_BASE(option);
 
@@ -574,7 +574,7 @@ int_type fn_name (const char_type* str, mio_oow_t len, int option, const char_ty
 	pp = p;
 	while (p < end)
 	{
-		digit = MIO_ZDIGIT_TO_NUM(*p, base);
+		digit = HIO_ZDIGIT_TO_NUM(*p, base);
 		if (digit >= base) break;
 		n = n * base + digit;
 		p++;
@@ -597,7 +597,7 @@ int_type fn_name (const char_type* str, mio_oow_t len, int option, const char_ty
 			}
 			while (p < end)
 			{
-				digit = MIO_ZDIGIT_TO_NUM(*p, base);
+				digit = HIO_ZDIGIT_TO_NUM(*p, base);
 				if (digit >= base) break;
 				e = e * base + digit;
 				p++;
@@ -623,19 +623,19 @@ int_type fn_name (const char_type* str, mio_oow_t len, int option, const char_ty
 	return (negative)? -n: n;
 }
 ]])
-fn_chars_to_int(mio_uchars_to_intmax, mio_uch_t, mio_intmax_t, mio_is_uch_space, MIO_UCHARS_TO_INTMAX)
-fn_chars_to_int(mio_bchars_to_intmax, mio_bch_t, mio_intmax_t, mio_is_bch_space, MIO_BCHARS_TO_INTMAX)
+fn_chars_to_int(hio_uchars_to_intmax, hio_uch_t, hio_intmax_t, hio_is_uch_space, HIO_UCHARS_TO_INTMAX)
+fn_chars_to_int(hio_bchars_to_intmax, hio_bch_t, hio_intmax_t, hio_is_bch_space, HIO_BCHARS_TO_INTMAX)
 
 
 
 dnl ---------------------------------------------------------------------------
 define([[fn_chars_to_uint]], [[ define([[fn_name]], $1) define([[char_type]], $2) define([[int_type]], $3)
-int_type fn_name (const char_type* str, mio_oow_t len, int option, const char_type** endptr, int* is_sober)
+int_type fn_name (const char_type* str, hio_oow_t len, int option, const char_type** endptr, int* is_sober)
 {
 	int_type n = 0;
 	const char_type* p, * pp;
 	const char_type* end;
-	mio_oow_t rem;
+	hio_oow_t rem;
 	int digit;
 	int base = $5_GET_OPTION_BASE(option);
 
@@ -691,7 +691,7 @@ int_type fn_name (const char_type* str, mio_oow_t len, int option, const char_ty
 	pp = p;
 	while (p < end)
 	{
-		digit = MIO_ZDIGIT_TO_NUM(*p, base);
+		digit = HIO_ZDIGIT_TO_NUM(*p, base);
 		if (digit >= base) break;
 		n = n * base + digit;
 		p++;
@@ -714,7 +714,7 @@ int_type fn_name (const char_type* str, mio_oow_t len, int option, const char_ty
 			}
 			while (p < end)
 			{
-				digit = MIO_ZDIGIT_TO_NUM(*p, base);
+				digit = HIO_ZDIGIT_TO_NUM(*p, base);
 				if (digit >= base) break;
 				e = e * base + digit;
 				p++;
@@ -740,5 +740,5 @@ int_type fn_name (const char_type* str, mio_oow_t len, int option, const char_ty
 	return n;
 }
 ]])
-fn_chars_to_uint(mio_uchars_to_uintmax, mio_uch_t, mio_uintmax_t, mio_is_uch_space, MIO_UCHARS_TO_UINTMAX)
-fn_chars_to_uint(mio_bchars_to_uintmax, mio_bch_t, mio_uintmax_t, mio_is_bch_space, MIO_BCHARS_TO_UINTMAX)
+fn_chars_to_uint(hio_uchars_to_uintmax, hio_uch_t, hio_uintmax_t, hio_is_uch_space, HIO_UCHARS_TO_UINTMAX)
+fn_chars_to_uint(hio_bchars_to_uintmax, hio_bch_t, hio_uintmax_t, hio_is_bch_space, HIO_BCHARS_TO_UINTMAX)

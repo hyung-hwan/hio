@@ -24,7 +24,7 @@
     THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  */
 
-#include <mio-utl.h>
+#include <hio-utl.h>
 
 /* 
  * This code is based on https://github.com/emboss/siphash-c/blob/master/src/siphash.c
@@ -32,24 +32,24 @@
  * See https://131002.net/siphash/siphash24.c for a reference implementation by the inventor.
  */
 
-#define U8TO32_LE(p) (((mio_uint32_t)((p)[0])) | ((mio_uint32_t)((p)[1]) <<  8) | ((mio_uint32_t)((p)[2]) <<  16) | ((mio_uint32_t)((p)[3]) << 24))
+#define U8TO32_LE(p) (((hio_uint32_t)((p)[0])) | ((hio_uint32_t)((p)[1]) <<  8) | ((hio_uint32_t)((p)[2]) <<  16) | ((hio_uint32_t)((p)[3]) << 24))
 
 #define U32TO8_LE(p, v) do { \
-	(p)[0] = (mio_uint8_t)((v)); \
-	(p)[1] = (mio_uint8_t)((v) >>  8); \
-	(p)[2] = (mio_uint8_t)((v) >> 16); \
-	(p)[3] = (mio_uint8_t)((v) >> 24); \
+	(p)[0] = (hio_uint8_t)((v)); \
+	(p)[1] = (hio_uint8_t)((v) >>  8); \
+	(p)[2] = (hio_uint8_t)((v) >> 16); \
+	(p)[3] = (hio_uint8_t)((v) >> 24); \
 } while (0)
 
 
-#if (MIO_SIZEOF_UINT64_T > 0)
-typedef mio_uint64_t sip_uint64_t;
+#if (HIO_SIZEOF_UINT64_T > 0)
+typedef hio_uint64_t sip_uint64_t;
 
-#define U8TO64_LE(p) ((mio_uint64_t)U8TO32_LE(p) | ((mio_uint64_t)U8TO32_LE((p) + 4)) << 32 )
+#define U8TO64_LE(p) ((hio_uint64_t)U8TO32_LE(p) | ((hio_uint64_t)U8TO32_LE((p) + 4)) << 32 )
 
 #define U64TO8_LE(p, v) do { \
-	U32TO8_LE((p), (mio_uint32_t)((v))); \
-	U32TO8_LE((p) + 4, (mio_uint32_t)((v) >> 32)); \
+	U32TO8_LE((p), (hio_uint32_t)((v))); \
+	U32TO8_LE((p) + 4, (hio_uint32_t)((v) >> 32)); \
 } while (0)
 
 #define ROTATE_LEFT_64(v, s) ((v) << (s)) | ((v) >> (64 - (s)))
@@ -59,18 +59,18 @@ typedef mio_uint64_t sip_uint64_t;
 #define XOR64_TO(v, s) ((v) ^= (s))
 #define XOR64_INT(v, x) ((v) ^= (x))
 
-#else /* (MIO_SIZEOF_UINT64_T > 0) */
+#else /* (HIO_SIZEOF_UINT64_T > 0) */
 
 struct sip_uint64_t
 {
-	mio_uint32_t _u32[2];
+	hio_uint32_t _u32[2];
 }; 
 typedef struct sip_uint64_t sip_uint64_t;
 
-#if defined(MIO_ENDIAN_LITTLE)
+#if defined(HIO_ENDIAN_LITTLE)
 #	define lo _u32[0]
 #	define hi _u32[1]
-#elif defined(MIO_ENDIAN_BIG)
+#elif defined(HIO_ENDIAN_BIG)
 #	define hi _u32[0]
 #	define lo _u32[1]
 #else
@@ -79,7 +79,7 @@ typedef struct sip_uint64_t sip_uint64_t;
 
 
 #define U8TO64_LE(p) u8to64_le(p)
-static MIO_INLINE sip_uint64_t u8to64_le (const mio_uint8_t* p)
+static HIO_INLINE sip_uint64_t u8to64_le (const hio_uint8_t* p)
 {
 	sip_uint64_t ret;
 	ret.lo = U8TO32_LE(p);
@@ -88,7 +88,7 @@ static MIO_INLINE sip_uint64_t u8to64_le (const mio_uint8_t* p)
 }
 
 #define U64TO8_LE(p, v) u64to8_le(p, v)
-static MIO_INLINE void u64to8_le (mio_uint8_t* p, sip_uint64_t v)
+static HIO_INLINE void u64to8_le (hio_uint8_t* p, sip_uint64_t v)
 {
 	U32TO8_LE (p, v.lo);
 	U32TO8_LE (p + 4, v.hi);
@@ -97,25 +97,25 @@ static MIO_INLINE void u64to8_le (mio_uint8_t* p, sip_uint64_t v)
 #define ROTATE_LEFT_64_TO(v, s) \
 	((s) > 32? rotl64_swap(rotl64_to(&(v), (s) - 32)) : \
 	 (s) == 32? rotl64_swap(&(v)): rotl64_to(&(v), (s)))
-static MIO_INLINE sip_uint64_t* rotl64_to (sip_uint64_t* v, unsigned int s)
+static HIO_INLINE sip_uint64_t* rotl64_to (sip_uint64_t* v, unsigned int s)
 {
-	mio_uint32_t uhi = (v->hi << s) | (v->lo >> (32 - s));
-	mio_uint32_t ulo = (v->lo << s) | (v->hi >> (32 - s));
+	hio_uint32_t uhi = (v->hi << s) | (v->lo >> (32 - s));
+	hio_uint32_t ulo = (v->lo << s) | (v->hi >> (32 - s));
 	v->hi = uhi;
 	v->lo = ulo;
 	return v;
 }
 
-static MIO_INLINE sip_uint64_t* rotl64_swap (sip_uint64_t *v)
+static HIO_INLINE sip_uint64_t* rotl64_swap (sip_uint64_t *v)
 {
-	mio_uint32_t t = v->lo;
+	hio_uint32_t t = v->lo;
 	v->lo = v->hi;
 	v->hi = t;
 	return v;
 }
 
 #define ADD64_TO(v, s) add64_to(&(v), (s))
-static MIO_INLINE sip_uint64_t* add64_to (sip_uint64_t* v, sip_uint64_t s)
+static HIO_INLINE sip_uint64_t* add64_to (sip_uint64_t* v, sip_uint64_t s)
 {
 	v->lo += s.lo;
 	v->hi += s.hi;
@@ -124,7 +124,7 @@ static MIO_INLINE sip_uint64_t* add64_to (sip_uint64_t* v, sip_uint64_t s)
 }
 
 #define XOR64_TO(v, s) xor64_to(&(v), (s))
-static MIO_INLINE sip_uint64_t* xor64_to (sip_uint64_t* v, sip_uint64_t s)
+static HIO_INLINE sip_uint64_t* xor64_to (sip_uint64_t* v, sip_uint64_t s)
 {
 	v->lo ^= s.lo;
 	v->hi ^= s.hi;
@@ -133,10 +133,10 @@ static MIO_INLINE sip_uint64_t* xor64_to (sip_uint64_t* v, sip_uint64_t s)
 
 #define XOR64_INT(v, x) ((v).lo ^= (x))
 
-#endif /* (MIO_SIZEOF_UINT64_T > 0) */
+#endif /* (HIO_SIZEOF_UINT64_T > 0) */
 
 
-static const mio_uint8_t sip_init_v_bin[] = 
+static const hio_uint8_t sip_init_v_bin[] = 
 {
 	0x75, 0x65, 0x73, 0x70, 0x65, 0x6d, 0x6f, 0x73, 
 	0x6d, 0x6f, 0x64, 0x6e, 0x61, 0x72, 0x6f, 0x64,
@@ -169,16 +169,16 @@ static const mio_uint8_t sip_init_v_bin[] =
 	XOR64_TO((v0), (m)); \
 } while (0)
 
-void mio_sip_hash_24 (const mio_uint8_t key[16], const void* dptr, mio_oow_t dlen, mio_uint8_t out[8])
+void hio_sip_hash_24 (const hio_uint8_t key[16], const void* dptr, hio_oow_t dlen, hio_uint8_t out[8])
 {
 	sip_uint64_t k0, k1;
 	sip_uint64_t v0, v1, v2, v3;
 	sip_uint64_t m, b;
-	mio_oow_t rem;
-	const mio_uint8_t* ptr, * end;
+	hio_oow_t rem;
+	const hio_uint8_t* ptr, * end;
 
 	rem = dlen & 7; /* dlen % 8 */
-	ptr = (const mio_uint8_t*)dptr;
+	ptr = (const hio_uint8_t*)dptr;
 	end = ptr + dlen - rem;
 
 	k0 = U8TO64_LE(key);
@@ -195,18 +195,18 @@ void mio_sip_hash_24 (const mio_uint8_t key[16], const void* dptr, mio_oow_t dle
 		SIP_2_ROUND (m, v0, v1, v2, v3);
 	}
 
-#if (MIO_SIZEOF_UINT64_T > 0)
-	b = (mio_uint64_t)dlen << 56;
+#if (HIO_SIZEOF_UINT64_T > 0)
+	b = (hio_uint64_t)dlen << 56;
 
-#define OR_BYTE_HI(n) (b |= ((mio_uint64_t)end[n]) << ((n) * 8))
-#define OR_BYTE_LO(n) (b |= ((mio_uint64_t)end[n]) << ((n) * 8))
+#define OR_BYTE_HI(n) (b |= ((hio_uint64_t)end[n]) << ((n) * 8))
+#define OR_BYTE_LO(n) (b |= ((hio_uint64_t)end[n]) << ((n) * 8))
 
 #else
-	b.hi = (mio_uint32_t)dlen << 24;
+	b.hi = (hio_uint32_t)dlen << 24;
 	b.lo = 0;
 
-#define OR_BYTE_HI(n) (b.hi |= ((mio_uint32_t)end[n]) << ((n) * 8 - 32)) /* n: 4 to 7 */
-#define OR_BYTE_LO(n) (b.lo |= ((mio_uint32_t)end[n]) << ((n) * 8)) /* n: 0 to 3 */
+#define OR_BYTE_HI(n) (b.hi |= ((hio_uint32_t)end[n]) << ((n) * 8 - 32)) /* n: 4 to 7 */
+#define OR_BYTE_LO(n) (b.lo |= ((hio_uint32_t)end[n]) << ((n) * 8)) /* n: 0 to 3 */
 
 #endif
 

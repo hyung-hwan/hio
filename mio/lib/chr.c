@@ -24,92 +24,92 @@
     THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  */
 
-#include <mio-chr.h>
-#include <mio-utl.h>
+#include <hio-chr.h>
+#include <hio-utl.h>
 
 /* ---------------------------------------------------------- */
 #include "uch-prop.h"
 #include "uch-case.h"
 /* ---------------------------------------------------------- */
 
-#define UCH_PROP_MAP_INDEX(c) ((c) / MIO_COUNTOF(uch_prop_page_0000))
-#define UCH_PROP_PAGE_INDEX(c) ((c) % MIO_COUNTOF(uch_prop_page_0000))
+#define UCH_PROP_MAP_INDEX(c) ((c) / HIO_COUNTOF(uch_prop_page_0000))
+#define UCH_PROP_PAGE_INDEX(c) ((c) % HIO_COUNTOF(uch_prop_page_0000))
 
-#define UCH_CASE_MAP_INDEX(c) ((c) / MIO_COUNTOF(uch_case_page_0000))
-#define UCH_CASE_PAGE_INDEX(c) ((c) % MIO_COUNTOF(uch_case_page_0000))
+#define UCH_CASE_MAP_INDEX(c) ((c) / HIO_COUNTOF(uch_case_page_0000))
+#define UCH_CASE_PAGE_INDEX(c) ((c) % HIO_COUNTOF(uch_case_page_0000))
 
 #define UCH_IS_TYPE(c,type) \
 	((c) >= 0 && (c) <= UCH_PROP_MAX && \
 	 (uch_prop_map[UCH_PROP_MAP_INDEX(c)][UCH_PROP_PAGE_INDEX(c)] & (type)) != 0)
 
-int mio_is_uch_type (mio_uch_t c, mio_uch_prop_t type)
+int hio_is_uch_type (hio_uch_t c, hio_uch_prop_t type)
 {
-	return UCH_IS_TYPE((mio_uchu_t)c, type);
+	return UCH_IS_TYPE((hio_uchu_t)c, type);
 }
 
-int mio_is_uch_upper (mio_uch_t c)
+int hio_is_uch_upper (hio_uch_t c)
 {
-	return UCH_IS_TYPE((mio_uchu_t)c, MIO_UCH_PROP_UPPER);
+	return UCH_IS_TYPE((hio_uchu_t)c, HIO_UCH_PROP_UPPER);
 }
 
-int mio_is_uch_lower (mio_uch_t c)
+int hio_is_uch_lower (hio_uch_t c)
 {
-	return UCH_IS_TYPE((mio_uchu_t)c, MIO_UCH_PROP_LOWER);
+	return UCH_IS_TYPE((hio_uchu_t)c, HIO_UCH_PROP_LOWER);
 }
 
-int mio_is_uch_alpha (mio_uch_t c)
+int hio_is_uch_alpha (hio_uch_t c)
 {
-	return UCH_IS_TYPE((mio_uchu_t)c, MIO_UCH_PROP_ALPHA);
+	return UCH_IS_TYPE((hio_uchu_t)c, HIO_UCH_PROP_ALPHA);
 }
 
-int mio_is_uch_digit (mio_uch_t c)
+int hio_is_uch_digit (hio_uch_t c)
 {
-	return UCH_IS_TYPE((mio_uchu_t)c, MIO_UCH_PROP_DIGIT);
+	return UCH_IS_TYPE((hio_uchu_t)c, HIO_UCH_PROP_DIGIT);
 }
 
-int mio_is_uch_xdigit (mio_uch_t c)
+int hio_is_uch_xdigit (hio_uch_t c)
 {
-	return UCH_IS_TYPE((mio_uchu_t)c, MIO_UCH_PROP_XDIGIT);
+	return UCH_IS_TYPE((hio_uchu_t)c, HIO_UCH_PROP_XDIGIT);
 }
 
-int mio_is_uch_alnum (mio_uch_t c)
+int hio_is_uch_alnum (hio_uch_t c)
 {
-	return UCH_IS_TYPE((mio_uchu_t)c, MIO_UCH_PROP_ALNUM);
+	return UCH_IS_TYPE((hio_uchu_t)c, HIO_UCH_PROP_ALNUM);
 }
 
-int mio_is_uch_space (mio_uch_t c)
+int hio_is_uch_space (hio_uch_t c)
 {
-	return UCH_IS_TYPE((mio_uchu_t)c, MIO_UCH_PROP_SPACE);
+	return UCH_IS_TYPE((hio_uchu_t)c, HIO_UCH_PROP_SPACE);
 }
 
-int mio_is_uch_print (mio_uch_t c)
+int hio_is_uch_print (hio_uch_t c)
 {
-	return UCH_IS_TYPE((mio_uchu_t)c, MIO_UCH_PROP_PRINT);
+	return UCH_IS_TYPE((hio_uchu_t)c, HIO_UCH_PROP_PRINT);
 }
 
-int mio_is_uch_graph (mio_uch_t c)
+int hio_is_uch_graph (hio_uch_t c)
 {
-	return UCH_IS_TYPE((mio_uchu_t)c, MIO_UCH_PROP_GRAPH);
+	return UCH_IS_TYPE((hio_uchu_t)c, HIO_UCH_PROP_GRAPH);
 }
 
-int mio_is_uch_cntrl (mio_uch_t c)
+int hio_is_uch_cntrl (hio_uch_t c)
 {
-	return UCH_IS_TYPE((mio_uchu_t)c, MIO_UCH_PROP_CNTRL);
+	return UCH_IS_TYPE((hio_uchu_t)c, HIO_UCH_PROP_CNTRL);
 }
 
-int mio_is_uch_punct (mio_uch_t c)
+int hio_is_uch_punct (hio_uch_t c)
 {
-	return UCH_IS_TYPE((mio_uchu_t)c, MIO_UCH_PROP_PUNCT);
+	return UCH_IS_TYPE((hio_uchu_t)c, HIO_UCH_PROP_PUNCT);
 }
 
-int mio_is_uch_blank (mio_uch_t c)
+int hio_is_uch_blank (hio_uch_t c)
 {
-	return UCH_IS_TYPE((mio_uchu_t)c, MIO_UCH_PROP_BLANK);
+	return UCH_IS_TYPE((hio_uchu_t)c, HIO_UCH_PROP_BLANK);
 }
 
-mio_uch_t mio_to_uch_upper (mio_uch_t c)
+hio_uch_t hio_to_uch_upper (hio_uch_t c)
 {
-	mio_uchu_t uc = (mio_uchu_t)c;
+	hio_uchu_t uc = (hio_uchu_t)c;
 	if (uc >= 0 && uc <= UCH_CASE_MAX) 
 	{
 	 	uch_case_page_t* page;
@@ -119,9 +119,9 @@ mio_uch_t mio_to_uch_upper (mio_uch_t c)
 	return c;
 }
 
-mio_uch_t mio_to_uch_lower (mio_uch_t c)
+hio_uch_t hio_to_uch_lower (hio_uch_t c)
 {
-	mio_uchu_t uc = (mio_uchu_t)c;
+	hio_uchu_t uc = (hio_uchu_t)c;
 	if (uc >= 0 && uc <= UCH_CASE_MAX) 
 	{
 	 	uch_case_page_t* page;
@@ -133,52 +133,52 @@ mio_uch_t mio_to_uch_lower (mio_uch_t c)
 
 /* ---------------------------------------------------------- */
 
-int mio_is_bch_type (mio_bch_t c, mio_bch_prop_t type)
+int hio_is_bch_type (hio_bch_t c, hio_bch_prop_t type)
 {
 	switch (type)
 	{
-		case MIO_OOCH_PROP_UPPER:
-			return mio_is_bch_upper(c);
-		case MIO_OOCH_PROP_LOWER:
-			return mio_is_bch_lower(c);
-		case MIO_OOCH_PROP_ALPHA:
-			return mio_is_bch_alpha(c);
-		case MIO_OOCH_PROP_DIGIT:
-			return mio_is_bch_digit(c);
-		case MIO_OOCH_PROP_XDIGIT:
-			return mio_is_bch_xdigit(c);
-		case MIO_OOCH_PROP_ALNUM:
-			return mio_is_bch_alnum(c);
-		case MIO_OOCH_PROP_SPACE:
-			return mio_is_bch_space(c);
-		case MIO_OOCH_PROP_PRINT:
-			return mio_is_bch_print(c);
-		case MIO_OOCH_PROP_GRAPH:
-			return mio_is_bch_graph(c);
-		case MIO_OOCH_PROP_CNTRL:
-			return mio_is_bch_cntrl(c);
-		case MIO_OOCH_PROP_PUNCT:
-			return mio_is_bch_punct(c);
-		case MIO_OOCH_PROP_BLANK:
-			return mio_is_bch_blank(c);
+		case HIO_OOCH_PROP_UPPER:
+			return hio_is_bch_upper(c);
+		case HIO_OOCH_PROP_LOWER:
+			return hio_is_bch_lower(c);
+		case HIO_OOCH_PROP_ALPHA:
+			return hio_is_bch_alpha(c);
+		case HIO_OOCH_PROP_DIGIT:
+			return hio_is_bch_digit(c);
+		case HIO_OOCH_PROP_XDIGIT:
+			return hio_is_bch_xdigit(c);
+		case HIO_OOCH_PROP_ALNUM:
+			return hio_is_bch_alnum(c);
+		case HIO_OOCH_PROP_SPACE:
+			return hio_is_bch_space(c);
+		case HIO_OOCH_PROP_PRINT:
+			return hio_is_bch_print(c);
+		case HIO_OOCH_PROP_GRAPH:
+			return hio_is_bch_graph(c);
+		case HIO_OOCH_PROP_CNTRL:
+			return hio_is_bch_cntrl(c);
+		case HIO_OOCH_PROP_PUNCT:
+			return hio_is_bch_punct(c);
+		case HIO_OOCH_PROP_BLANK:
+			return hio_is_bch_blank(c);
 	}
 
 	/* must not reach here */
 	return 0;
 }
 
-#if !defined(mio_to_bch_upper)
-mio_bch_t mio_to_bch_upper (mio_bch_t c)
+#if !defined(hio_to_bch_upper)
+hio_bch_t hio_to_bch_upper (hio_bch_t c)
 {
-	if(mio_is_bch_lower(c)) return c & 95;
+	if(hio_is_bch_lower(c)) return c & 95;
 	return c;
 }
 #endif
 
-#if !defined(mio_to_bch_lower)
-mio_bch_t mio_to_bch_lower (mio_bch_t c)
+#if !defined(hio_to_bch_lower)
+hio_bch_t hio_to_bch_lower (hio_bch_t c)
 {
-	if(mio_is_bch_upper(c)) return c | 32;
+	if(hio_is_bch_upper(c)) return c | 32;
 	return c;
 }
 #endif
@@ -188,29 +188,29 @@ mio_bch_t mio_to_bch_lower (mio_bch_t c)
 
 static struct prop_tab_t
 {
-	const mio_bch_t* name;
+	const hio_bch_t* name;
 	int class;
 } prop_tab[] =
 {
-	{ "alnum",  MIO_OOCH_PROP_ALNUM },
-	{ "alpha",  MIO_OOCH_PROP_ALPHA },
-	{ "blank",  MIO_OOCH_PROP_BLANK },
-	{ "cntrl",  MIO_OOCH_PROP_CNTRL },
-	{ "digit",  MIO_OOCH_PROP_DIGIT },
-	{ "graph",  MIO_OOCH_PROP_GRAPH },
-	{ "lower",  MIO_OOCH_PROP_LOWER },
-	{ "print",  MIO_OOCH_PROP_PRINT },
-	{ "punct",  MIO_OOCH_PROP_PUNCT },
-	{ "space",  MIO_OOCH_PROP_SPACE },
-	{ "upper",  MIO_OOCH_PROP_UPPER },
-	{ "xdigit", MIO_OOCH_PROP_XDIGIT }
+	{ "alnum",  HIO_OOCH_PROP_ALNUM },
+	{ "alpha",  HIO_OOCH_PROP_ALPHA },
+	{ "blank",  HIO_OOCH_PROP_BLANK },
+	{ "cntrl",  HIO_OOCH_PROP_CNTRL },
+	{ "digit",  HIO_OOCH_PROP_DIGIT },
+	{ "graph",  HIO_OOCH_PROP_GRAPH },
+	{ "lower",  HIO_OOCH_PROP_LOWER },
+	{ "print",  HIO_OOCH_PROP_PRINT },
+	{ "punct",  HIO_OOCH_PROP_PUNCT },
+	{ "space",  HIO_OOCH_PROP_SPACE },
+	{ "upper",  HIO_OOCH_PROP_UPPER },
+	{ "xdigit", HIO_OOCH_PROP_XDIGIT }
 };
 
 /* ---------------------------------------------------------- */
 
-int mio_ucstr_to_uch_prop (const mio_uch_t* name, mio_uch_prop_t* id)
+int hio_ucstr_to_uch_prop (const hio_uch_t* name, hio_uch_prop_t* id)
 {
-	int left = 0, right = MIO_COUNTOF(prop_tab) - 1, mid;
+	int left = 0, right = HIO_COUNTOF(prop_tab) - 1, mid;
 	while (left <= right)
 	{
 		int n;
@@ -220,10 +220,10 @@ int mio_ucstr_to_uch_prop (const mio_uch_t* name, mio_uch_prop_t* id)
 		mid = left + (right - left) / 2;
 		kwp = &prop_tab[mid];
 
-		n = mio_comp_ucstr_bcstr(name, kwp->name, 0);
+		n = hio_comp_ucstr_bcstr(name, kwp->name, 0);
 		if (n > 0) 
 		{
-			/* if left, right, mid were of mio_oow_t,
+			/* if left, right, mid were of hio_oow_t,
 			 * you would need the following line. 
 			if (mid == 0) break;
 			 */
@@ -240,9 +240,9 @@ int mio_ucstr_to_uch_prop (const mio_uch_t* name, mio_uch_prop_t* id)
 	return -1;
 }
 
-int mio_uchars_to_uch_prop (const mio_uch_t* name, mio_oow_t len, mio_uch_prop_t* id)
+int hio_uchars_to_uch_prop (const hio_uch_t* name, hio_oow_t len, hio_uch_prop_t* id)
 {
-	int left = 0, right = MIO_COUNTOF(prop_tab) - 1, mid;
+	int left = 0, right = HIO_COUNTOF(prop_tab) - 1, mid;
 	while (left <= right)
 	{
 		int n;
@@ -252,10 +252,10 @@ int mio_uchars_to_uch_prop (const mio_uch_t* name, mio_oow_t len, mio_uch_prop_t
 		mid = left + (right - left) / 2;
 		kwp = &prop_tab[mid];
 
-		n = mio_comp_uchars_bcstr(name, len, kwp->name, 0);
+		n = hio_comp_uchars_bcstr(name, len, kwp->name, 0);
 		if (n < 0) 
 		{
-			/* if left, right, mid were of mio_oow_t,
+			/* if left, right, mid were of hio_oow_t,
 			 * you would need the following line. 
 			if (mid == 0) break;
 			 */
@@ -274,9 +274,9 @@ int mio_uchars_to_uch_prop (const mio_uch_t* name, mio_oow_t len, mio_uch_prop_t
 
 /* ---------------------------------------------------------- */
 
-int mio_bcstr_to_bch_prop (const mio_bch_t* name, mio_bch_prop_t* id)
+int hio_bcstr_to_bch_prop (const hio_bch_t* name, hio_bch_prop_t* id)
 {
-	int left = 0, right = MIO_COUNTOF(prop_tab) - 1, mid;
+	int left = 0, right = HIO_COUNTOF(prop_tab) - 1, mid;
 	while (left <= right)
 	{
 		int n;
@@ -286,10 +286,10 @@ int mio_bcstr_to_bch_prop (const mio_bch_t* name, mio_bch_prop_t* id)
 		mid = left + (right - left) / 2;
 		kwp = &prop_tab[mid];
 
-		n = mio_comp_bcstr(name, kwp->name, 0);
+		n = hio_comp_bcstr(name, kwp->name, 0);
 		if (n > 0) 
 		{
-			/* if left, right, mid were of mio_oow_t,
+			/* if left, right, mid were of hio_oow_t,
 			 * you would need the following line. 
 			if (mid == 0) break;
 			 */
@@ -306,9 +306,9 @@ int mio_bcstr_to_bch_prop (const mio_bch_t* name, mio_bch_prop_t* id)
 	return -1;
 }
 
-int mio_bchars_to_bch_prop (const mio_bch_t* name, mio_oow_t len, mio_bch_prop_t* id)
+int hio_bchars_to_bch_prop (const hio_bch_t* name, hio_oow_t len, hio_bch_prop_t* id)
 {
-	int left = 0, right = MIO_COUNTOF(prop_tab) - 1, mid;
+	int left = 0, right = HIO_COUNTOF(prop_tab) - 1, mid;
 	while (left <= right)
 	{
 		int n;
@@ -318,10 +318,10 @@ int mio_bchars_to_bch_prop (const mio_bch_t* name, mio_oow_t len, mio_bch_prop_t
 		mid = left + (right - left) / 2;
 		kwp = &prop_tab[mid];
 
-		n = mio_comp_bchars_bcstr(name, len, kwp->name, 0);
+		n = hio_comp_bchars_bcstr(name, len, kwp->name, 0);
 		if (n < 0) 
 		{
-			/* if left, right, mid were of mio_oow_t,
+			/* if left, right, mid were of hio_oow_t,
 			 * you would need the following line. 
 			if (mid == 0) break;
 			 */
@@ -350,7 +350,7 @@ struct interval
 };
 
 /* auxiliary function for binary search in interval table */
-static int bisearch(mio_uch_t ucs, const struct interval *table, int max) 
+static int bisearch(hio_uch_t ucs, const struct interval *table, int max) 
 {
 	int min = 0;
 	int mid;
@@ -399,7 +399,7 @@ static int bisearch(mio_uch_t ucs, const struct interval *table, int max)
  * in ISO 10646.
  */
 
-int mio_get_ucwidth (mio_uch_t uc)
+int hio_get_ucwidth (hio_uch_t uc)
 {
 	/* sorted list of non-overlapping intervals of non-spacing characters */
 	/* generated by "uniset +cat=Me +cat=Mn +cat=Cf -00AD +1160-11FF +200B c" */
@@ -474,7 +474,7 @@ int mio_get_ucwidth (mio_uch_t uc)
 		    (uc >= 0xfe30 && uc <= 0xfe6f) || /* CJK Compatibility Forms */
 		    (uc >= 0xff00 && uc <= 0xff60) || /* Fullwidth Forms */
 		    (uc >= 0xffe0 && uc <= 0xffe6)
-		#if (MIO_SIZEOF_UCH_T > 2)
+		#if (HIO_SIZEOF_UCH_T > 2)
 		    || 
 		    (uc >= 0x20000 && uc <= 0x2fffd) ||
 		    (uc >= 0x30000 && uc <= 0x3fffd)

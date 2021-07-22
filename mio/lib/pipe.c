@@ -24,8 +24,8 @@
     THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  */
 
-#include <mio-pipe.h>
-#include "mio-prv.h"
+#include <hio-pipe.h>
+#include "hio-prv.h"
 
 #include <unistd.h>
 #include <errno.h>
@@ -35,24 +35,24 @@
 
 struct slave_info_t
 {
-	mio_dev_pipe_make_t* mi;
-	mio_syshnd_t pfd;
+	hio_dev_pipe_make_t* mi;
+	hio_syshnd_t pfd;
 	int dev_cap;
-	mio_dev_pipe_sid_t id;
+	hio_dev_pipe_sid_t id;
 };
 
 typedef struct slave_info_t slave_info_t;
 
-static mio_dev_pipe_slave_t* make_slave (mio_t* mio, slave_info_t* si);
+static hio_dev_pipe_slave_t* make_slave (hio_t* hio, slave_info_t* si);
 
 /* ========================================================================= */
 
-static int dev_pipe_make_master (mio_dev_t* dev, void* ctx)
+static int dev_pipe_make_master (hio_dev_t* dev, void* ctx)
 {
-	mio_t* mio = dev->mio;
-	mio_dev_pipe_t* rdev = (mio_dev_pipe_t*)dev;
-	mio_dev_pipe_make_t* info = (mio_dev_pipe_make_t*)ctx;
-	mio_syshnd_t pfds[2] = { MIO_SYSHND_INVALID, MIO_SYSHND_INVALID };
+	hio_t* hio = dev->hio;
+	hio_dev_pipe_t* rdev = (hio_dev_pipe_t*)dev;
+	hio_dev_pipe_make_t* info = (hio_dev_pipe_make_t*)ctx;
+	hio_syshnd_t pfds[2] = { HIO_SYSHND_INVALID, HIO_SYSHND_INVALID };
 	slave_info_t si;
 	int i;
 
@@ -71,126 +71,126 @@ static int dev_pipe_make_master (mio_dev_t* dev, void* ctx)
 #if defined(HAVE_PIPE2) && defined(O_CLOEXEC) && defined(O_NONBLOCK)
 	pipe_error:
 #endif
-		mio_seterrwithsyserr (mio, 0, errno);
+		hio_seterrwithsyserr (hio, 0, errno);
 		goto oops;
 	}
 
-	if (mio_makesyshndasync(mio, pfds[0]) <= -1 ||
-	    mio_makesyshndasync(mio, pfds[1]) <= -1) goto oops;
+	if (hio_makesyshndasync(hio, pfds[0]) <= -1 ||
+	    hio_makesyshndasync(hio, pfds[1]) <= -1) goto oops;
 
-	if (mio_makesyshndcloexec(mio, pfds[0]) <= -1 ||
-	    mio_makesyshndcloexec(mio, pfds[1]) <= -1) goto oops;
+	if (hio_makesyshndcloexec(hio, pfds[0]) <= -1 ||
+	    hio_makesyshndcloexec(hio, pfds[1]) <= -1) goto oops;
 
 #if defined(HAVE_PIPE2) && defined(O_CLOEXEC) && defined(O_NONBLOCK)
 pipe_done:
 #endif
 	si.mi = info;
 	si.pfd = pfds[0];
-	si.dev_cap = MIO_DEV_CAP_IN | MIO_DEV_CAP_STREAM;
-	si.id = MIO_DEV_PIPE_IN;
-	pfds[0] = MIO_SYSHND_INVALID;
-	rdev->slave[MIO_DEV_PIPE_IN] = make_slave(mio, &si);
-	if (!rdev->slave[MIO_DEV_PIPE_IN]) goto oops;
+	si.dev_cap = HIO_DEV_CAP_IN | HIO_DEV_CAP_STREAM;
+	si.id = HIO_DEV_PIPE_IN;
+	pfds[0] = HIO_SYSHND_INVALID;
+	rdev->slave[HIO_DEV_PIPE_IN] = make_slave(hio, &si);
+	if (!rdev->slave[HIO_DEV_PIPE_IN]) goto oops;
 	rdev->slave_count++;
 
 	si.mi = info;
 	si.pfd = pfds[1];
-	si.dev_cap = MIO_DEV_CAP_OUT | MIO_DEV_CAP_STREAM;
-	si.id = MIO_DEV_PIPE_OUT;
-	pfds[1] = MIO_SYSHND_INVALID;
-	rdev->slave[MIO_DEV_PIPE_OUT] = make_slave(mio, &si);
-	if (!rdev->slave[MIO_DEV_PIPE_OUT]) goto oops;
+	si.dev_cap = HIO_DEV_CAP_OUT | HIO_DEV_CAP_STREAM;
+	si.id = HIO_DEV_PIPE_OUT;
+	pfds[1] = HIO_SYSHND_INVALID;
+	rdev->slave[HIO_DEV_PIPE_OUT] = make_slave(hio, &si);
+	if (!rdev->slave[HIO_DEV_PIPE_OUT]) goto oops;
 	rdev->slave_count++;
 
-	for (i = 0; i < MIO_COUNTOF(rdev->slave); i++) 
+	for (i = 0; i < HIO_COUNTOF(rdev->slave); i++) 
 	{
 		if (rdev->slave[i]) rdev->slave[i]->master = rdev;
 	}
 
-	rdev->dev_cap = MIO_DEV_CAP_VIRTUAL; /* the master device doesn't perform I/O */
+	rdev->dev_cap = HIO_DEV_CAP_VIRTUAL; /* the master device doesn't perform I/O */
 	rdev->on_read = info->on_read;
 	rdev->on_write = info->on_write;
 	rdev->on_close = info->on_close;
 	return 0;
 
 oops:
-	if (pfds[0] != MIO_SYSHND_INVALID) close (pfds[0]);
-	if (pfds[1] != MIO_SYSHND_INVALID) close (pfds[0]);
+	if (pfds[0] != HIO_SYSHND_INVALID) close (pfds[0]);
+	if (pfds[1] != HIO_SYSHND_INVALID) close (pfds[0]);
 
 	if (rdev->slave[0])
 	{
-		mio_dev_kill ((mio_dev_t*)rdev->slave[0]);
-		rdev->slave[0] = MIO_NULL;
+		hio_dev_kill ((hio_dev_t*)rdev->slave[0]);
+		rdev->slave[0] = HIO_NULL;
 	}
 	if (rdev->slave[1])
 	{
-		mio_dev_kill ((mio_dev_t*)rdev->slave[1]);
-		rdev->slave[1] = MIO_NULL;
+		hio_dev_kill ((hio_dev_t*)rdev->slave[1]);
+		rdev->slave[1] = HIO_NULL;
 	}
 
 	rdev->slave_count = 0;
 	return -1;
 }
 
-static int dev_pipe_make_slave (mio_dev_t* dev, void* ctx)
+static int dev_pipe_make_slave (hio_dev_t* dev, void* ctx)
 {
-	mio_dev_pipe_slave_t* rdev = (mio_dev_pipe_slave_t*)dev;
+	hio_dev_pipe_slave_t* rdev = (hio_dev_pipe_slave_t*)dev;
 	slave_info_t* si = (slave_info_t*)ctx;
 
 	rdev->dev_cap = si->dev_cap;
 	rdev->id = si->id;
 	rdev->pfd = si->pfd;
-	/* keep rdev->master to MIO_NULL. it's set to the right master
+	/* keep rdev->master to HIO_NULL. it's set to the right master
 	 * device in dev_pipe_make() */
 
 	return 0;
 }
 
-static int dev_pipe_kill_master (mio_dev_t* dev, int force)
+static int dev_pipe_kill_master (hio_dev_t* dev, int force)
 {
-	/*mio_t* mio = dev->mio;*/
-	mio_dev_pipe_t* rdev = (mio_dev_pipe_t*)dev;
+	/*hio_t* hio = dev->hio;*/
+	hio_dev_pipe_t* rdev = (hio_dev_pipe_t*)dev;
 	int i;
 
 	if (rdev->slave_count > 0)
 	{
-		for (i = 0; i < MIO_COUNTOF(rdev->slave); i++)
+		for (i = 0; i < HIO_COUNTOF(rdev->slave); i++)
 		{
 			if (rdev->slave[i])
 			{
-				mio_dev_pipe_slave_t* sdev = rdev->slave[i];
+				hio_dev_pipe_slave_t* sdev = rdev->slave[i];
 
 				/* nullify the pointer to the slave device
-				 * before calling mio_dev_kill() on the slave device.
+				 * before calling hio_dev_kill() on the slave device.
 				 * the slave device can check this pointer to tell from
 				 * self-initiated termination or master-driven termination */
-				rdev->slave[i] = MIO_NULL;
+				rdev->slave[i] = HIO_NULL;
 
-				mio_dev_kill ((mio_dev_t*)sdev);
+				hio_dev_kill ((hio_dev_t*)sdev);
 			}
 		}
 	}
 
-	if (rdev->on_close) rdev->on_close (rdev, MIO_DEV_PIPE_MASTER);
+	if (rdev->on_close) rdev->on_close (rdev, HIO_DEV_PIPE_MASTER);
 	return 0;
 }
 
-static int dev_pipe_kill_slave (mio_dev_t* dev, int force)
+static int dev_pipe_kill_slave (hio_dev_t* dev, int force)
 {
-	mio_t* mio = dev->mio;
-	mio_dev_pipe_slave_t* rdev = (mio_dev_pipe_slave_t*)dev;
+	hio_t* hio = dev->hio;
+	hio_dev_pipe_slave_t* rdev = (hio_dev_pipe_slave_t*)dev;
 
 	if (rdev->master)
 	{
-		mio_dev_pipe_t* master;
+		hio_dev_pipe_t* master;
 
 		master = rdev->master;
-		rdev->master = MIO_NULL;
+		rdev->master = HIO_NULL;
 
 		/* indicate EOF */
 		if (master->on_close) master->on_close (master, rdev->id);
 
-		MIO_ASSERT (mio, master->slave_count > 0);
+		HIO_ASSERT (hio, master->slave_count > 0);
 		master->slave_count--;
 
 		if (master->slave[rdev->id])
@@ -199,24 +199,24 @@ static int dev_pipe_kill_slave (mio_dev_t* dev, int force)
 			 * if this is the last slave, kill the master also */
 			if (master->slave_count <= 0) 
 			{
-				mio_dev_kill ((mio_dev_t*)master);
+				hio_dev_kill ((hio_dev_t*)master);
 				/* the master pointer is not valid from this point onwards
-				 * as the actual master device object is freed in mio_dev_kill() */
+				 * as the actual master device object is freed in hio_dev_kill() */
 			}
 			else
 			{
 				/* this call is initiated by this slave device itself.
-				 * if it were by the master device, it would be MIO_NULL as
+				 * if it were by the master device, it would be HIO_NULL as
 				 * nullified by the dev_pipe_kill() */
-				master->slave[rdev->id] = MIO_NULL;
+				master->slave[rdev->id] = HIO_NULL;
 			}
 		}
 	}
 
-	if (rdev->pfd != MIO_SYSHND_INVALID)
+	if (rdev->pfd != HIO_SYSHND_INVALID)
 	{
 		close (rdev->pfd);
-		rdev->pfd = MIO_SYSHND_INVALID;
+		rdev->pfd = HIO_SYSHND_INVALID;
 	}
 
 	return 0;
@@ -228,14 +228,14 @@ static void dev_pipe_fail_before_make_slave (void* ctx)
 	close (si->pfd);
 }
 
-static int dev_pipe_read_slave (mio_dev_t* dev, void* buf, mio_iolen_t* len, mio_devaddr_t* srcaddr)
+static int dev_pipe_read_slave (hio_dev_t* dev, void* buf, hio_iolen_t* len, hio_devaddr_t* srcaddr)
 {
-	mio_dev_pipe_slave_t* pipe = (mio_dev_pipe_slave_t*)dev;
+	hio_dev_pipe_slave_t* pipe = (hio_dev_pipe_slave_t*)dev;
 	ssize_t x;
 
-	if (MIO_UNLIKELY(pipe->pfd == MIO_SYSHND_INVALID))
+	if (HIO_UNLIKELY(pipe->pfd == HIO_SYSHND_INVALID))
 	{
-		mio_seterrnum (pipe->mio, MIO_EBADHND);
+		hio_seterrnum (pipe->hio, HIO_EBADHND);
 		return -1;
 	}
 
@@ -244,7 +244,7 @@ static int dev_pipe_read_slave (mio_dev_t* dev, void* buf, mio_iolen_t* len, mio
 	{
 		if (errno == EINPROGRESS || errno == EWOULDBLOCK || errno == EAGAIN) return 0;  /* no data available */
 		if (errno == EINTR) return 0;
-		mio_seterrwithsyserr (pipe->mio, 0, errno);
+		hio_seterrwithsyserr (pipe->hio, 0, errno);
 		return -1;
 	}
 
@@ -252,26 +252,26 @@ static int dev_pipe_read_slave (mio_dev_t* dev, void* buf, mio_iolen_t* len, mio
 	return 1;
 }
 
-static int dev_pipe_write_slave (mio_dev_t* dev, const void* data, mio_iolen_t* len, const mio_devaddr_t* dstaddr)
+static int dev_pipe_write_slave (hio_dev_t* dev, const void* data, hio_iolen_t* len, const hio_devaddr_t* dstaddr)
 {
-	mio_dev_pipe_slave_t* pipe = (mio_dev_pipe_slave_t*)dev;
+	hio_dev_pipe_slave_t* pipe = (hio_dev_pipe_slave_t*)dev;
 	ssize_t x;
 
-	if (MIO_UNLIKELY(pipe->pfd == MIO_SYSHND_INVALID))
+	if (HIO_UNLIKELY(pipe->pfd == HIO_SYSHND_INVALID))
 	{
-		mio_seterrnum (pipe->mio, MIO_EBADHND);
+		hio_seterrnum (pipe->hio, HIO_EBADHND);
 		return -1;
 	}
 
-	if (MIO_UNLIKELY(*len <= 0))
+	if (HIO_UNLIKELY(*len <= 0))
 	{
 		/* this is an EOF indicator */
-		/*mio_dev_halt (dev);*/ /* halt this slave device to indicate EOF on the lower-level handle */
-		if (MIO_LIKELY(pipe->pfd != MIO_SYSHND_INVALID)) /* halt() doesn't close the pipe immediately. so close the underlying pipe */
+		/*hio_dev_halt (dev);*/ /* halt this slave device to indicate EOF on the lower-level handle */
+		if (HIO_LIKELY(pipe->pfd != HIO_SYSHND_INVALID)) /* halt() doesn't close the pipe immediately. so close the underlying pipe */
 		{
-			mio_dev_watch (dev, MIO_DEV_WATCH_STOP, 0);
+			hio_dev_watch (dev, HIO_DEV_WATCH_STOP, 0);
 			close (pipe->pfd);
-			pipe->pfd = MIO_SYSHND_INVALID;
+			pipe->pfd = HIO_SYSHND_INVALID;
 		}
 		return 1; /* indicate that the operation got successful. the core will execute on_write() with 0. */
 	}
@@ -281,7 +281,7 @@ static int dev_pipe_write_slave (mio_dev_t* dev, const void* data, mio_iolen_t* 
 	{
 		if (errno == EINPROGRESS || errno == EWOULDBLOCK || errno == EAGAIN) return 0;  /* no data can be written */
 		if (errno == EINTR) return 0;
-		mio_seterrwithsyserr (pipe->mio, 0, errno);
+		hio_seterrwithsyserr (pipe->hio, 0, errno);
 		return -1;
 	}
 
@@ -289,26 +289,26 @@ static int dev_pipe_write_slave (mio_dev_t* dev, const void* data, mio_iolen_t* 
 	return 1;
 }
 
-static int dev_pipe_writev_slave (mio_dev_t* dev, const mio_iovec_t* iov, mio_iolen_t* iovcnt, const mio_devaddr_t* dstaddr)
+static int dev_pipe_writev_slave (hio_dev_t* dev, const hio_iovec_t* iov, hio_iolen_t* iovcnt, const hio_devaddr_t* dstaddr)
 {
-	mio_dev_pipe_slave_t* pipe = (mio_dev_pipe_slave_t*)dev;
+	hio_dev_pipe_slave_t* pipe = (hio_dev_pipe_slave_t*)dev;
 	ssize_t x;
 
-	if (MIO_UNLIKELY(pipe->pfd == MIO_SYSHND_INVALID))
+	if (HIO_UNLIKELY(pipe->pfd == HIO_SYSHND_INVALID))
 	{
-		mio_seterrnum (pipe->mio, MIO_EBADHND);
+		hio_seterrnum (pipe->hio, HIO_EBADHND);
 		return -1;
 	}
 
-	if (MIO_UNLIKELY(*iovcnt <= 0))
+	if (HIO_UNLIKELY(*iovcnt <= 0))
 	{
 		/* this is an EOF indicator */
-		/*mio_dev_halt (dev);*/ /* halt this slave device to indicate EOF on the lower-level handle  */
-		if (MIO_LIKELY(pipe->pfd != MIO_SYSHND_INVALID)) /* halt() doesn't close the pipe immediately. so close the underlying pipe */
+		/*hio_dev_halt (dev);*/ /* halt this slave device to indicate EOF on the lower-level handle  */
+		if (HIO_LIKELY(pipe->pfd != HIO_SYSHND_INVALID)) /* halt() doesn't close the pipe immediately. so close the underlying pipe */
 		{
-			mio_dev_watch (dev, MIO_DEV_WATCH_STOP, 0);
+			hio_dev_watch (dev, HIO_DEV_WATCH_STOP, 0);
 			close (pipe->pfd);
-			pipe->pfd = MIO_SYSHND_INVALID;
+			pipe->pfd = HIO_SYSHND_INVALID;
 		}
 		return 1; /* indicate that the operation got successful. the core will execute on_write() with 0. */
 	}
@@ -318,7 +318,7 @@ static int dev_pipe_writev_slave (mio_dev_t* dev, const mio_iovec_t* iov, mio_io
 	{
 		if (errno == EINPROGRESS || errno == EWOULDBLOCK || errno == EAGAIN) return 0;  /* no data can be written */
 		if (errno == EINTR) return 0;
-		mio_seterrwithsyserr (pipe->mio, 0, errno);
+		hio_seterrwithsyserr (pipe->hio, 0, errno);
 		return -1;
 	}
 
@@ -326,31 +326,31 @@ static int dev_pipe_writev_slave (mio_dev_t* dev, const mio_iovec_t* iov, mio_io
 	return 1;
 }
 
-static mio_syshnd_t dev_pipe_getsyshnd (mio_dev_t* dev)
+static hio_syshnd_t dev_pipe_getsyshnd (hio_dev_t* dev)
 {
-	return MIO_SYSHND_INVALID;
+	return HIO_SYSHND_INVALID;
 }
 
-static mio_syshnd_t dev_pipe_getsyshnd_slave (mio_dev_t* dev)
+static hio_syshnd_t dev_pipe_getsyshnd_slave (hio_dev_t* dev)
 {
-	mio_dev_pipe_slave_t* pipe = (mio_dev_pipe_slave_t*)dev;
-	return (mio_syshnd_t)pipe->pfd;
+	hio_dev_pipe_slave_t* pipe = (hio_dev_pipe_slave_t*)dev;
+	return (hio_syshnd_t)pipe->pfd;
 }
 
-static int dev_pipe_ioctl (mio_dev_t* dev, int cmd, void* arg)
+static int dev_pipe_ioctl (hio_dev_t* dev, int cmd, void* arg)
 {
-	mio_t* mio = dev->mio;
-	mio_dev_pipe_t* rdev = (mio_dev_pipe_t*)dev;
+	hio_t* hio = dev->hio;
+	hio_dev_pipe_t* rdev = (hio_dev_pipe_t*)dev;
 
 	switch (cmd)
 	{
-		case MIO_DEV_PIPE_CLOSE:
+		case HIO_DEV_PIPE_CLOSE:
 		{
-			mio_dev_pipe_sid_t sid = *(mio_dev_pipe_sid_t*)arg;
+			hio_dev_pipe_sid_t sid = *(hio_dev_pipe_sid_t*)arg;
 
-			if (sid != MIO_DEV_PIPE_IN && sid != MIO_DEV_PIPE_OUT)
+			if (sid != HIO_DEV_PIPE_IN && sid != HIO_DEV_PIPE_OUT)
 			{
-				mio_seterrnum (mio, MIO_EINVAL);
+				hio_seterrnum (hio, HIO_EINVAL);
 				return -1;
 			}
 
@@ -359,31 +359,31 @@ static int dev_pipe_ioctl (mio_dev_t* dev, int cmd, void* arg)
 				/* unlike dev_pipe_kill_master(), i don't nullify rdev->slave[sid].
 				 * so i treat the closing ioctl as if it's a kill request 
 				 * initiated by the slave device itself. */
-				mio_dev_kill ((mio_dev_t*)rdev->slave[sid]);
+				hio_dev_kill ((hio_dev_t*)rdev->slave[sid]);
 			}
 			return 0;
 		}
 
 		default:
-			mio_seterrnum (mio, MIO_EINVAL);
+			hio_seterrnum (hio, HIO_EINVAL);
 			return -1;
 	}
 }
 
-static mio_dev_mth_t dev_pipe_methods = 
+static hio_dev_mth_t dev_pipe_methods = 
 {
 	dev_pipe_make_master,
 	dev_pipe_kill_master,
-	MIO_NULL,
+	HIO_NULL,
 	dev_pipe_getsyshnd,
 
-	MIO_NULL,
-	MIO_NULL,
-	MIO_NULL,
+	HIO_NULL,
+	HIO_NULL,
+	HIO_NULL,
 	dev_pipe_ioctl
 };
 
-static mio_dev_mth_t dev_pipe_methods_slave =
+static hio_dev_mth_t dev_pipe_methods_slave =
 {
 	dev_pipe_make_slave,
 	dev_pipe_kill_slave,
@@ -398,28 +398,28 @@ static mio_dev_mth_t dev_pipe_methods_slave =
 
 /* ========================================================================= */
 
-static int pipe_ready (mio_dev_t* dev, int events)
+static int pipe_ready (hio_dev_t* dev, int events)
 {
 	/* virtual device. no I/O */
-	mio_seterrnum (dev->mio, MIO_EINTERN);
+	hio_seterrnum (dev->hio, HIO_EINTERN);
 	return -1;
 }
 
-static int pipe_on_read (mio_dev_t* dev, const void* data, mio_iolen_t len, const mio_devaddr_t* srcaddr)
+static int pipe_on_read (hio_dev_t* dev, const void* data, hio_iolen_t len, const hio_devaddr_t* srcaddr)
 {
 	/* virtual device. no I/O */
-	mio_seterrnum (dev->mio, MIO_EINTERN);
+	hio_seterrnum (dev->hio, HIO_EINTERN);
 	return -1;
 }
 
-static int pipe_on_write (mio_dev_t* dev, mio_iolen_t wrlen, void* wrctx, const mio_devaddr_t* dstaddr)
+static int pipe_on_write (hio_dev_t* dev, hio_iolen_t wrlen, void* wrctx, const hio_devaddr_t* dstaddr)
 {
 	/* virtual device. no I/O */
-	mio_seterrnum (dev->mio, MIO_EINTERN);
+	hio_seterrnum (dev->hio, HIO_EINTERN);
 	return -1;
 }
 
-static mio_dev_evcb_t dev_pipe_event_callbacks =
+static hio_dev_evcb_t dev_pipe_event_callbacks =
 {
 	pipe_ready,
 	pipe_on_read,
@@ -428,151 +428,151 @@ static mio_dev_evcb_t dev_pipe_event_callbacks =
 
 /* ========================================================================= */
 
-static int pipe_ready_slave (mio_dev_t* dev, int events)
+static int pipe_ready_slave (hio_dev_t* dev, int events)
 {
-	mio_t* mio = dev->mio;
-	/*mio_dev_pipe_t* pipe = (mio_dev_pipe_t*)dev;*/
+	hio_t* hio = dev->hio;
+	/*hio_dev_pipe_t* pipe = (hio_dev_pipe_t*)dev;*/
 
-	if (events & MIO_DEV_EVENT_ERR)
+	if (events & HIO_DEV_EVENT_ERR)
 	{
-		mio_seterrnum (mio, MIO_EDEVERR);
+		hio_seterrnum (hio, HIO_EDEVERR);
 		return -1;
 	}
 
-	if (events & MIO_DEV_EVENT_HUP)
+	if (events & HIO_DEV_EVENT_HUP)
 	{
-		if (events & (MIO_DEV_EVENT_PRI | MIO_DEV_EVENT_IN | MIO_DEV_EVENT_OUT)) 
+		if (events & (HIO_DEV_EVENT_PRI | HIO_DEV_EVENT_IN | HIO_DEV_EVENT_OUT)) 
 		{
 			/* pipebably half-open? */
 			return 1;
 		}
 
-		mio_seterrnum (mio, MIO_EDEVHUP);
+		hio_seterrnum (hio, HIO_EDEVHUP);
 		return -1;
 	}
 
 	return 1; /* the device is ok. carry on reading or writing */
 }
 
-static int pipe_on_read_slave (mio_dev_t* dev, const void* data, mio_iolen_t len, const mio_devaddr_t* srcaddr)
+static int pipe_on_read_slave (hio_dev_t* dev, const void* data, hio_iolen_t len, const hio_devaddr_t* srcaddr)
 {
-	mio_dev_pipe_slave_t* pipe = (mio_dev_pipe_slave_t*)dev;
+	hio_dev_pipe_slave_t* pipe = (hio_dev_pipe_slave_t*)dev;
 	return pipe->master->on_read(pipe->master, data, len);
 }
 
-static int pipe_on_write_slave (mio_dev_t* dev, mio_iolen_t wrlen, void* wrctx, const mio_devaddr_t* dstaddr)
+static int pipe_on_write_slave (hio_dev_t* dev, hio_iolen_t wrlen, void* wrctx, const hio_devaddr_t* dstaddr)
 {
-	mio_dev_pipe_slave_t* pipe = (mio_dev_pipe_slave_t*)dev;
+	hio_dev_pipe_slave_t* pipe = (hio_dev_pipe_slave_t*)dev;
 	return pipe->master->on_write(pipe->master, wrlen, wrctx);
 }
 
-static mio_dev_evcb_t dev_pipe_event_callbacks_slave_in =
+static hio_dev_evcb_t dev_pipe_event_callbacks_slave_in =
 {
 	pipe_ready_slave,
 	pipe_on_read_slave,
-	MIO_NULL
+	HIO_NULL
 };
 
-static mio_dev_evcb_t dev_pipe_event_callbacks_slave_out =
+static hio_dev_evcb_t dev_pipe_event_callbacks_slave_out =
 {
 	pipe_ready_slave,
-	MIO_NULL,
+	HIO_NULL,
 	pipe_on_write_slave
 };
 
 /* ========================================================================= */
 
-static mio_dev_pipe_slave_t* make_slave (mio_t* mio, slave_info_t* si)
+static hio_dev_pipe_slave_t* make_slave (hio_t* hio, slave_info_t* si)
 {
 	switch (si->id)
 	{
-		case MIO_DEV_PIPE_IN:
-			return (mio_dev_pipe_slave_t*)mio_dev_make(
-				mio, MIO_SIZEOF(mio_dev_pipe_t), 
+		case HIO_DEV_PIPE_IN:
+			return (hio_dev_pipe_slave_t*)hio_dev_make(
+				hio, HIO_SIZEOF(hio_dev_pipe_t), 
 				&dev_pipe_methods_slave, &dev_pipe_event_callbacks_slave_in, si);
 
-		case MIO_DEV_PIPE_OUT:
-			return (mio_dev_pipe_slave_t*)mio_dev_make(
-				mio, MIO_SIZEOF(mio_dev_pipe_t), 
+		case HIO_DEV_PIPE_OUT:
+			return (hio_dev_pipe_slave_t*)hio_dev_make(
+				hio, HIO_SIZEOF(hio_dev_pipe_t), 
 				&dev_pipe_methods_slave, &dev_pipe_event_callbacks_slave_out, si);
 
 		default:
-			mio_seterrnum (mio, MIO_EINVAL);
-			return MIO_NULL;
+			hio_seterrnum (hio, HIO_EINVAL);
+			return HIO_NULL;
 	}
 }
 
-mio_dev_pipe_t* mio_dev_pipe_make (mio_t* mio, mio_oow_t xtnsize, const mio_dev_pipe_make_t* info)
+hio_dev_pipe_t* hio_dev_pipe_make (hio_t* hio, hio_oow_t xtnsize, const hio_dev_pipe_make_t* info)
 {
-	return (mio_dev_pipe_t*)mio_dev_make(
-		mio, MIO_SIZEOF(mio_dev_pipe_t) + xtnsize, 
+	return (hio_dev_pipe_t*)hio_dev_make(
+		hio, HIO_SIZEOF(hio_dev_pipe_t) + xtnsize, 
 		&dev_pipe_methods, &dev_pipe_event_callbacks, (void*)info);
 }
 
-void mio_dev_pipe_kill (mio_dev_pipe_t* dev)
+void hio_dev_pipe_kill (hio_dev_pipe_t* dev)
 {
-	mio_dev_kill ((mio_dev_t*)dev);
+	hio_dev_kill ((hio_dev_t*)dev);
 }
 
-void mio_dev_pipe_halt (mio_dev_pipe_t* dev)
+void hio_dev_pipe_halt (hio_dev_pipe_t* dev)
 {
-	mio_dev_halt ((mio_dev_t*)dev);
+	hio_dev_halt ((hio_dev_t*)dev);
 }
 
 
-int mio_dev_pipe_read (mio_dev_pipe_t* dev, int enabled)
+int hio_dev_pipe_read (hio_dev_pipe_t* dev, int enabled)
 {
-	if (dev->slave[MIO_DEV_PIPE_IN])
+	if (dev->slave[HIO_DEV_PIPE_IN])
 	{
-		return mio_dev_read((mio_dev_t*)dev->slave[MIO_DEV_PIPE_IN], enabled);
+		return hio_dev_read((hio_dev_t*)dev->slave[HIO_DEV_PIPE_IN], enabled);
 	}
 	else
 	{
-		mio_seterrnum (dev->mio, MIO_ENOCAPA); /* TODO: is it the right error number? */
+		hio_seterrnum (dev->hio, HIO_ENOCAPA); /* TODO: is it the right error number? */
 		return -1;
 	}
 }
 
-int mio_dev_pipe_timedread (mio_dev_pipe_t* dev, int enabled, const mio_ntime_t* tmout)
+int hio_dev_pipe_timedread (hio_dev_pipe_t* dev, int enabled, const hio_ntime_t* tmout)
 {
-	if (dev->slave[MIO_DEV_PIPE_IN])
+	if (dev->slave[HIO_DEV_PIPE_IN])
 	{
-		return mio_dev_timedread((mio_dev_t*)dev->slave[MIO_DEV_PIPE_IN], enabled, tmout);
+		return hio_dev_timedread((hio_dev_t*)dev->slave[HIO_DEV_PIPE_IN], enabled, tmout);
 	}
 	else
 	{
-		mio_seterrnum (dev->mio, MIO_ENOCAPA); /* TODO: is it the right error number? */
+		hio_seterrnum (dev->hio, HIO_ENOCAPA); /* TODO: is it the right error number? */
 		return -1;
 	}
 }
 
-int mio_dev_pipe_write (mio_dev_pipe_t* dev, const void* data, mio_iolen_t dlen, void* wrctx)
+int hio_dev_pipe_write (hio_dev_pipe_t* dev, const void* data, hio_iolen_t dlen, void* wrctx)
 {
-	if (dev->slave[MIO_DEV_PIPE_OUT])
+	if (dev->slave[HIO_DEV_PIPE_OUT])
 	{
-		return mio_dev_write((mio_dev_t*)dev->slave[MIO_DEV_PIPE_OUT], data, dlen, wrctx, MIO_NULL);
+		return hio_dev_write((hio_dev_t*)dev->slave[HIO_DEV_PIPE_OUT], data, dlen, wrctx, HIO_NULL);
 	}
 	else
 	{
-		mio_seterrnum (dev->mio, MIO_ENOCAPA); /* TODO: is it the right error number? */
+		hio_seterrnum (dev->hio, HIO_ENOCAPA); /* TODO: is it the right error number? */
 		return -1;
 	}
 }
 
-int mio_dev_pipe_timedwrite (mio_dev_pipe_t* dev, const void* data, mio_iolen_t dlen, const mio_ntime_t* tmout, void* wrctx)
+int hio_dev_pipe_timedwrite (hio_dev_pipe_t* dev, const void* data, hio_iolen_t dlen, const hio_ntime_t* tmout, void* wrctx)
 {
-	if (dev->slave[MIO_DEV_PIPE_OUT])
+	if (dev->slave[HIO_DEV_PIPE_OUT])
 	{
-		return mio_dev_timedwrite((mio_dev_t*)dev->slave[MIO_DEV_PIPE_OUT], data, dlen, tmout, wrctx, MIO_NULL);
+		return hio_dev_timedwrite((hio_dev_t*)dev->slave[HIO_DEV_PIPE_OUT], data, dlen, tmout, wrctx, HIO_NULL);
 	}
 	else
 	{
-		mio_seterrnum (dev->mio, MIO_ENOCAPA); /* TODO: is it the right error number? */
+		hio_seterrnum (dev->hio, HIO_ENOCAPA); /* TODO: is it the right error number? */
 		return -1;
 	}
 }
 
-int mio_dev_pipe_close (mio_dev_pipe_t* dev, mio_dev_pipe_sid_t sid)
+int hio_dev_pipe_close (hio_dev_pipe_t* dev, hio_dev_pipe_sid_t sid)
 {
-	return mio_dev_ioctl((mio_dev_t*)dev, MIO_DEV_PIPE_CLOSE, &sid);
+	return hio_dev_ioctl((hio_dev_t*)dev, HIO_DEV_PIPE_CLOSE, &sid);
 }

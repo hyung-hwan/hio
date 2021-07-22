@@ -24,7 +24,7 @@
     THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  */
 
-#include "mio-prv.h"
+#include "hio-prv.h"
 
 /*
  * from RFC 2279 UTF-8, a transformation format of ISO 10646
@@ -40,11 +40,11 @@
 
 struct __utf8_t
 {
-	mio_uint32_t  lower;
-	mio_uint32_t  upper;
-	mio_uint8_t   fbyte;  /* mask to the first utf8 byte */
-	mio_uint8_t   mask;
-	mio_uint8_t   fmask;
+	hio_uint32_t  lower;
+	hio_uint32_t  upper;
+	hio_uint8_t   fbyte;  /* mask to the first utf8 byte */
+	hio_uint8_t   mask;
+	hio_uint8_t   fmask;
 	int           length; /* number of bytes */
 };
 
@@ -60,14 +60,14 @@ static __utf8_t utf8_table[] =
 	{0x04000000ul, 0x7FFFFFFFul, 0xFC, 0xFE, 0x01, 6}
 };
 
-static MIO_INLINE __utf8_t* get_utf8_slot (mio_uch_t uc)
+static HIO_INLINE __utf8_t* get_utf8_slot (hio_uch_t uc)
 {
 	__utf8_t* cur, * end;
 
-	/*MIO_ASSERT (mio, MIO_SIZEOF(mio_bch_t) == 1);
-	MIO_ASSERT (mio, MIO_SIZEOF(mio_uch_t) >= 2);*/
+	/*HIO_ASSERT (hio, HIO_SIZEOF(hio_bch_t) == 1);
+	HIO_ASSERT (hio, HIO_SIZEOF(hio_uch_t) >= 2);*/
 
-	end = utf8_table + MIO_COUNTOF(utf8_table);
+	end = utf8_table + HIO_COUNTOF(utf8_table);
 	cur = utf8_table;
 
 	while (cur < end) 
@@ -76,14 +76,14 @@ static MIO_INLINE __utf8_t* get_utf8_slot (mio_uch_t uc)
 		cur++;
 	}
 
-	return MIO_NULL; /* invalid character */
+	return HIO_NULL; /* invalid character */
 }
 
-mio_oow_t mio_uc_to_utf8 (mio_uch_t uc, mio_bch_t* utf8, mio_oow_t size)
+hio_oow_t hio_uc_to_utf8 (hio_uch_t uc, hio_bch_t* utf8, hio_oow_t size)
 {
 	__utf8_t* cur = get_utf8_slot (uc);
 
-	if (cur == MIO_NULL) return 0; /* illegal character */
+	if (cur == HIO_NULL) return 0; /* illegal character */
 
 	if (utf8 && cur->length <= size)
 	{
@@ -103,19 +103,19 @@ mio_oow_t mio_uc_to_utf8 (mio_uch_t uc, mio_bch_t* utf8, mio_oow_t size)
 
 	/* small buffer is also indicated by this return value
 	 * greater than 'size'. */
-	return (mio_oow_t)cur->length;
+	return (hio_oow_t)cur->length;
 }
 
-mio_oow_t mio_utf8_to_uc (const mio_bch_t* utf8, mio_oow_t size, mio_uch_t* uc)
+hio_oow_t hio_utf8_to_uc (const hio_bch_t* utf8, hio_oow_t size, hio_uch_t* uc)
 {
 	__utf8_t* cur, * end;
 
-	/*MIO_ASSERT (mio, utf8 != MIO_NULL);
-	MIO_ASSERT (mio, size > 0);
-	MIO_ASSERT (mio, MIO_SIZEOF(mio_bch_t) == 1);
-	MIO_ASSERT (mio, MIO_SIZEOF(mio_uch_t) >= 2);*/
+	/*HIO_ASSERT (hio, utf8 != HIO_NULL);
+	HIO_ASSERT (hio, size > 0);
+	HIO_ASSERT (hio, HIO_SIZEOF(hio_bch_t) == 1);
+	HIO_ASSERT (hio, HIO_SIZEOF(hio_uch_t) >= 2);*/
 
-	end = utf8_table + MIO_COUNTOF(utf8_table);
+	end = utf8_table + HIO_COUNTOF(utf8_table);
 	cur = utf8_table;
 
 	while (cur < end) 
@@ -133,7 +133,7 @@ mio_oow_t mio_utf8_to_uc (const mio_bch_t* utf8, mio_oow_t size, mio_uch_t* uc)
 
 				if (uc)
 				{
-					mio_uch_t w;
+					hio_uch_t w;
 
 					w = utf8[0] & cur->fmask;
 					for (i = 1; i < cur->length; i++)
@@ -169,7 +169,7 @@ mio_oow_t mio_utf8_to_uc (const mio_bch_t* utf8, mio_oow_t size, mio_uch_t* uc)
 			 * and 
 			 *    the incomplete seqeunce error (size < cur->length).
 			 */
-			return (mio_oow_t)cur->length;
+			return (hio_oow_t)cur->length;
 		}
 		cur++;
 	}

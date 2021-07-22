@@ -19,7 +19,7 @@ CFLAGS_LIB_COMMON = $(CFLAGS_ALL_COMMON)
 LDFLAGS_LIB_COMMON = $(LDFLAGS_ALL_COMMON) -version-info 1:0:0 -no-undefined
 
 # $(LIBM) here for quadmath_snprintf() in libquadmath
-# TODO: make this selective by moving MIO_ENABLE_FLTFMT to configure.ac
+# TODO: make this selective by moving HIO_ENABLE_FLTFMT to configure.ac
 LIBADD_LIB_COMMON = $(LIBM)
 
 #pkgincludedir = $(includedir)
@@ -27,32 +27,32 @@ LIBADD_LIB_COMMON = $(LIBM)
 #pkgbindir = $(bindir)
 
 include_HEADERS = \
-	mio-cfg.h \
-	mio-chr.h \
-	mio-cmn.h \
-	mio-dns.h \
-	mio-ecs.h \
-	mio-fmt.h \
-	mio-htb.h \
-	mio-htrd.h \
-	mio-htre.h \
-	mio-http.h \
-	mio-json.h \
-	mio-nwif.h \
-	mio-opt.h \
-	mio-pac1.h \
-	mio-path.h \
-	mio-pipe.h \
-	mio-pro.h \
-	mio-sck.h \
-	mio-skad.h \
-	mio-thr.h \
-	mio-upac.h \
-	mio-utl.h \
-	mio.h
+	hio-cfg.h \
+	hio-chr.h \
+	hio-cmn.h \
+	hio-dns.h \
+	hio-ecs.h \
+	hio-fmt.h \
+	hio-htb.h \
+	hio-htrd.h \
+	hio-htre.h \
+	hio-http.h \
+	hio-json.h \
+	hio-nwif.h \
+	hio-opt.h \
+	hio-pac1.h \
+	hio-path.h \
+	hio-pipe.h \
+	hio-pro.h \
+	hio-sck.h \
+	hio-skad.h \
+	hio-thr.h \
+	hio-upac.h \
+	hio-utl.h \
+	hio.h
 
-lib_LTLIBRARIES = libmio.la
-libmio_la_SOURCES = \
+lib_LTLIBRARIES = libhio.la
+libhio_la_SOURCES = \
 	chr.c \
 	dns.c \
 	dns-cli.c \
@@ -72,8 +72,8 @@ libmio_la_SOURCES = \
 	http-thr.c \
 	http-txt.c \
 	json.c \
-	mio-prv.h \
-	mio.c \
+	hio-prv.h \
+	hio.c \
 	nwif.c \
 	opt.c \
 	opt-imp.h \
@@ -99,33 +99,33 @@ libmio_la_SOURCES = \
 	utl-str.c
 
 
-libmio_la_CPPFLAGS = $(CPPFLAGS_LIB_COMMON)
-libmio_la_CFLAGS = $(CFLAGS_LIB_COMMON)
-libmio_la_LDFLAGS = $(LDFLAGS_LIB_COMMON)
-libmio_la_LIBADD = $(LIBADD_LIB_COMMON) $(SSL_LIBS) $(SOCKET_LIBS) $(SENDFILE_LIBS)
+libhio_la_CPPFLAGS = $(CPPFLAGS_LIB_COMMON)
+libhio_la_CFLAGS = $(CFLAGS_LIB_COMMON)
+libhio_la_LDFLAGS = $(LDFLAGS_LIB_COMMON)
+libhio_la_LIBADD = $(LIBADD_LIB_COMMON) $(SSL_LIBS) $(SOCKET_LIBS) $(SENDFILE_LIBS)
 
 if ENABLE_MARIADB
-include_HEADERS += mio-mar.h
-libmio_la_SOURCES += mar.c mar-cli.c
-libmio_la_CFLAGS += $(MARIADB_CFLAGS)
-libmio_la_LDFLAGS += $(MARIADB_LDFLAGS)
-libmio_la_LIBADD += $(MARIADB_LIBS)
+include_HEADERS += hio-mar.h
+libhio_la_SOURCES += mar.c mar-cli.c
+libhio_la_CFLAGS += $(MARIADB_CFLAGS)
+libhio_la_LDFLAGS += $(MARIADB_LDFLAGS)
+libhio_la_LIBADD += $(MARIADB_LIBS)
 endif
 
 if ENABLE_SSL
-libmio_la_LIBADD += $(SSL_LIBS)
+libhio_la_LIBADD += $(SSL_LIBS)
 endif
 
 install-data-hook:
-	@echo "#ifndef _MIO_CFG_H_" > "$(DESTDIR)$(includedir)/mio-cfg.h"
-	@echo "#define _MIO_CFG_H_" >> "$(DESTDIR)$(includedir)/mio-cfg.h"
-	@$(EGREP) "#define[ ]+MIO_" "$(abs_builddir)/mio-cfg.h" >> "$(DESTDIR)$(includedir)/mio-cfg.h" 
-	@echo "#endif" >> "$(DESTDIR)$(includedir)/mio-cfg.h"
-	@rm -f "$(DESTDIR)$(includedir)/mio-cfg.h.in"
-	@$(SED) 's|/\*#define MIO_HAVE_CFG_H\*/|#define MIO_HAVE_CFG_H|' "$(srcdir)/mio-cmn.h" > "$(DESTDIR)$(includedir)/mio-cmn.h"
+	@echo "#ifndef _HIO_CFG_H_" > "$(DESTDIR)$(includedir)/hio-cfg.h"
+	@echo "#define _HIO_CFG_H_" >> "$(DESTDIR)$(includedir)/hio-cfg.h"
+	@$(EGREP) "#define[ ]+HIO_" "$(abs_builddir)/hio-cfg.h" >> "$(DESTDIR)$(includedir)/hio-cfg.h" 
+	@echo "#endif" >> "$(DESTDIR)$(includedir)/hio-cfg.h"
+	@rm -f "$(DESTDIR)$(includedir)/hio-cfg.h.in"
+	@$(SED) 's|/\*#define HIO_HAVE_CFG_H\*/|#define HIO_HAVE_CFG_H|' "$(srcdir)/hio-cmn.h" > "$(DESTDIR)$(includedir)/hio-cmn.h"
 
 uninstall-hook:
-	@rm -f "$(DESTDIR)$(includedir)/mio-cfg.h"
+	@rm -f "$(DESTDIR)$(includedir)/hio-cfg.h"
 
 utl-str.c: utl-str.c.m4
 	m4 $(abs_srcdir)/utl-str.c.m4 > $(abs_srcdir)/utl-str.c

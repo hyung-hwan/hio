@@ -24,8 +24,8 @@
     THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  */
 
-#include <mio-nwif.h>
-#include "mio-prv.h"
+#include <hio-nwif.h>
+#include "hio-prv.h"
 
 #if defined(_WIN32)
 	/* TODO: */
@@ -52,7 +52,7 @@
 #endif
 
 #if defined(SIOCGIFCONF) && (defined(SIOCGIFANUM) || defined(SIOCGIFNUM))
-static int get_sco_ifconf (mio_t* mio, struct ifconf* ifc)
+static int get_sco_ifconf (hio_t* hio, struct ifconf* ifc)
 {
 	/* SCO doesn't have have any IFINDEX thing.
 	 * i emultate it using IFCONF */
@@ -62,23 +62,23 @@ static int get_sco_ifconf (mio_t* mio, struct ifconf* ifc)
 	h = socket(AF_INET, SOCK_DGRAM, 0); 
 	if (h <= -1) 
 	{
-		mio_seterrwithsyserr (mio, 0, errno);
+		hio_seterrwithsyserr (hio, 0, errno);
 		return -1;
 	}
 
 	ifc->ifc_len = 0;
-	ifc->ifc_buf = MIO_NULL;
+	ifc->ifc_buf = HIO_NULL;
 
 	#if defined(SIOCGIFANUM)
 	if (ioctl(h, SIOCGIFANUM, &num) <= -1)
 	{
-		mio_seterrwithsyserr (mio, 0, errno);
+		hio_seterrwithsyserr (hio, 0, errno);
 		goto oops;
 	}
 	#else
 	if (ioctl(h, SIOCGIFNUM, &num) <= -1)
 	{
-		mio_seterrwithsyserr (mio, 0, errno);
+		hio_seterrwithsyserr (hio, 0, errno);
 		goto oops;
 	}
 	#endif
@@ -90,13 +90,13 @@ static int get_sco_ifconf (mio_t* mio, struct ifconf* ifc)
 	 * if the buffer is not large enough unlike some other OSes
 	 * like opensolaris which truncates the configuration. */
 
-	ifc->ifc_len = num * MIO_SIZEOF(*ifr);
-	ifc->ifc_buf = mio_allocmem(mio, ifc->ifc_len);
-	if (ifc->ifc_buf == MIO_NULL) goto oops;
+	ifc->ifc_len = num * HIO_SIZEOF(*ifr);
+	ifc->ifc_buf = hio_allocmem(hio, ifc->ifc_len);
+	if (ifc->ifc_buf == HIO_NULL) goto oops;
 
 	if (ioctl(h, SIOCGIFCONF, ifc) <= -1) 
 	{
-		mio_seterrwithsyserr (mio, 0, errno);
+		hio_seterrwithsyserr (hio, 0, errno);
 		goto oops;
 	}
 	close (h); h = -1;
@@ -104,47 +104,47 @@ static int get_sco_ifconf (mio_t* mio, struct ifconf* ifc)
 	return 0;
 
 oops:
-	if (ifc->ifc_buf) mio_freemem (mio, ifc->ifc_buf);
+	if (ifc->ifc_buf) hio_freemem (hio, ifc->ifc_buf);
 	if (h >= 0) close (h);
 	return -1;
 }
 
-static MIO_INLINE void free_sco_ifconf (mio_t* mio, struct ifconf* ifc)
+static HIO_INLINE void free_sco_ifconf (hio_t* hio, struct ifconf* ifc)
 {
-	mio_freemem (mio, ifc->ifc_buf);
+	hio_freemem (hio, ifc->ifc_buf);
 }
 #endif
 
 
-int mio_bcstrtoifindex (mio_t* mio, const mio_bch_t* ptr, unsigned int* index)
+int hio_bcstrtoifindex (hio_t* hio, const hio_bch_t* ptr, unsigned int* index)
 {
 #if defined(_WIN32)
 	/* TODO: */
-	mio_seterrnum (mio, MIO_ENOIMPL);
+	hio_seterrnum (hio, HIO_ENOIMPL);
 	return -1;
 #elif defined(__OS2__)
 	/* TODO: */
-	mio_seterrnum (mio, MIO_ENOIMPL);
+	hio_seterrnum (hio, HIO_ENOIMPL);
 	return -1;
 #elif defined(__DOS__)
 	/* TODO: */
-	mio_seterrnum (mio, MIO_ENOIMPL);
+	hio_seterrnum (hio, HIO_ENOIMPL);
 	return -1;
 
 #elif defined(SIOCGIFINDEX)
 	int h, x;
-	mio_oow_t len;
+	hio_oow_t len;
 	struct ifreq ifr;
 
 	h = socket(AF_INET, SOCK_DGRAM, 0); 
 	if (h <= -1)
 	{
-		mio_seterrwithsyserr (mio, 0, errno);
+		hio_seterrwithsyserr (hio, 0, errno);
 		return -1;
 	}
 
-	MIO_MEMSET (&ifr, 0, MIO_SIZEOF(ifr));
-	len = mio_copy_bcstr(ifr.ifr_name, MIO_COUNTOF(ifr.ifr_name), ptr);
+	HIO_MEMSET (&ifr, 0, HIO_SIZEOF(ifr));
+	len = hio_copy_bcstr(ifr.ifr_name, HIO_COUNTOF(ifr.ifr_name), ptr);
 	if (ptr[len] != '\0') return -1; /* name too long */
 
 	x = ioctl(h, SIOCGIFINDEX, &ifr);
@@ -162,17 +162,17 @@ int mio_bcstrtoifindex (mio_t* mio, const mio_bch_t* ptr, unsigned int* index)
 	return x;
 
 #elif defined(HAVE_IF_NAMETOINDEX)
-	mio_bch_t tmp[IF_NAMESIZE + 1];
-	mio_oow_t len;
+	hio_bch_t tmp[IF_NAMESIZE + 1];
+	hio_oow_t len;
 	unsigned int tmpidx;
 
-	len = mio_copy_bcstr(tmp, MIO_COUNTOF(tmp), ptr);
+	len = hio_copy_bcstr(tmp, HIO_COUNTOF(tmp), ptr);
 	if (ptr[len] != '\0') return -1; /* name too long */
 
 	tmpidx = if_nametoindex(tmp);
 	if (tmpidx == 0)
 	{
-		mio_seterrwithsyserr (mio, 0, errno);
+		hio_seterrwithsyserr (hio, 0, errno);
 		return -1;
 	}
 	*index = tmpidx;
@@ -183,20 +183,20 @@ int mio_bcstrtoifindex (mio_t* mio, const mio_bch_t* ptr, unsigned int* index)
 	struct ifconf ifc;
 	int num, i;
 
-	if (get_sco_ifconf(mio, &ifc) <= -1) return -1;
+	if (get_sco_ifconf(hio, &ifc) <= -1) return -1;
 
-	num = ifc.ifc_len / MIO_SIZEOF(struct ifreq);
+	num = ifc.ifc_len / HIO_SIZEOF(struct ifreq);
 	for (i = 0; i < num; i++)
 	{
-		if (mio_comp_bcstr(ptr, ifc.ifc_req[i].ifr_name, 0) == 0) 
+		if (hio_comp_bcstr(ptr, ifc.ifc_req[i].ifr_name, 0) == 0) 
 		{
-			free_sco_ifconf (mio, &ifc);
+			free_sco_ifconf (hio, &ifc);
 			*index = i + 1;
 			return 0;
 		}
 	}
 
-	free_sco_ifconf (mio, &ifc);
+	free_sco_ifconf (hio, &ifc);
 	return -1;
 
 #else
@@ -204,19 +204,19 @@ int mio_bcstrtoifindex (mio_t* mio, const mio_bch_t* ptr, unsigned int* index)
 #endif
 }
 
-int mio_bcharstoifindex (mio_t* mio, const mio_bch_t* ptr, mio_oow_t len, unsigned int* index)
+int hio_bcharstoifindex (hio_t* hio, const hio_bch_t* ptr, hio_oow_t len, unsigned int* index)
 {
 #if defined(_WIN32)
 	/* TODO: */
-	mio_seterrnum (mio, MIO_ENOIMPL);
+	hio_seterrnum (hio, HIO_ENOIMPL);
 	return -1;
 #elif defined(__OS2__)
 	/* TODO: */
-	mio_seterrnum (mio, MIO_ENOIMPL);
+	hio_seterrnum (hio, HIO_ENOIMPL);
 	return -1;
 #elif defined(__DOS__)
 	/* TODO: */
-	mio_seterrnum (mio, MIO_ENOIMPL);
+	hio_seterrnum (hio, HIO_ENOIMPL);
 	return -1;
 
 #elif defined(SIOCGIFINDEX)
@@ -226,12 +226,12 @@ int mio_bcharstoifindex (mio_t* mio, const mio_bch_t* ptr, mio_oow_t len, unsign
 	h = socket(AF_INET, SOCK_DGRAM, 0); 
 	if (h <= -1) 
 	{
-		mio_seterrwithsyserr (mio, 0, errno);
+		hio_seterrwithsyserr (hio, 0, errno);
 		return -1;
 	}
 
-	MIO_MEMSET (&ifr, 0, MIO_SIZEOF(ifr));
-	if (mio_copy_bchars_to_bcstr(ifr.ifr_name, MIO_COUNTOF(ifr.ifr_name), ptr, len) < len) return -1; /* name too long */
+	HIO_MEMSET (&ifr, 0, HIO_SIZEOF(ifr));
+	if (hio_copy_bchars_to_bcstr(ifr.ifr_name, HIO_COUNTOF(ifr.ifr_name), ptr, len) < len) return -1; /* name too long */
 
 	x = ioctl(h, SIOCGIFINDEX, &ifr);
 	close (h);
@@ -248,15 +248,15 @@ int mio_bcharstoifindex (mio_t* mio, const mio_bch_t* ptr, mio_oow_t len, unsign
 	return x;
 
 #elif defined(HAVE_IF_NAMETOINDEX)
-	mio_bch_t tmp[IF_NAMESIZE + 1];
+	hio_bch_t tmp[IF_NAMESIZE + 1];
 	unsigned int tmpidx;
 
-	if (mio_copy_bchars_to_bcstr(tmp, MIO_COUNTOF(tmp), ptr, len) < len) return -1;
+	if (hio_copy_bchars_to_bcstr(tmp, HIO_COUNTOF(tmp), ptr, len) < len) return -1;
 
 	tmpidx = if_nametoindex(tmp);
 	if (tmpidx == 0)
 	{
-		mio_seterrwithsyserr (mio, 0, errno);
+		hio_seterrwithsyserr (hio, 0, errno);
 		return -1;
 	}
 	*index = tmpidx;
@@ -266,20 +266,20 @@ int mio_bcharstoifindex (mio_t* mio, const mio_bch_t* ptr, mio_oow_t len, unsign
 	struct ifconf ifc;
 	int num, i;
 
-	if (get_sco_ifconf(mio, &ifc) <= -1) return -1;
+	if (get_sco_ifconf(hio, &ifc) <= -1) return -1;
 
-	num = ifc.ifc_len / MIO_SIZEOF(struct ifreq);
+	num = ifc.ifc_len / HIO_SIZEOF(struct ifreq);
 	for (i = 0; i < num; i++)
 	{
-		if (mio_comp_bchars_bcstr(ptr, len, ifc.ifc_req[i].ifr_name) == 0) 
+		if (hio_comp_bchars_bcstr(ptr, len, ifc.ifc_req[i].ifr_name) == 0) 
 		{
-			free_sco_ifconf (mio, &ifc);
+			free_sco_ifconf (hio, &ifc);
 			*index = i + 1;
 			return 0;
 		}
 	}
 
-	free_sco_ifconf (mio, &ifc);
+	free_sco_ifconf (hio, &ifc);
 	return -1;
 
 #else
@@ -287,35 +287,35 @@ int mio_bcharstoifindex (mio_t* mio, const mio_bch_t* ptr, mio_oow_t len, unsign
 #endif
 }
 
-int mio_ucstrtoifindex (mio_t* mio, const mio_uch_t* ptr, unsigned int* index)
+int hio_ucstrtoifindex (hio_t* hio, const hio_uch_t* ptr, unsigned int* index)
 {
 #if defined(_WIN32)
 	/* TODO: */
-	mio_seterrnum (mio, MIO_ENOIMPL);
+	hio_seterrnum (hio, HIO_ENOIMPL);
 	return -1;
 #elif defined(__OS2__)
 	/* TODO: */
-	mio_seterrnum (mio, MIO_ENOIMPL);
+	hio_seterrnum (hio, HIO_ENOIMPL);
 	return -1;
 #elif defined(__DOS__)
 	/* TODO: */
-	mio_seterrnum (mio, MIO_ENOIMPL);
+	hio_seterrnum (hio, HIO_ENOIMPL);
 	return -1;
 
 #elif defined(SIOCGIFINDEX)
 	int h, x;
 	struct ifreq ifr;
-	mio_oow_t wl, ml;
+	hio_oow_t wl, ml;
 
 	h = socket(AF_INET, SOCK_DGRAM, 0); 
 	if (h <= -1) 
 	{
-		mio_seterrwithsyserr (mio, 0, errno);
+		hio_seterrwithsyserr (hio, 0, errno);
 		return -1;
 	}
 
-	ml = MIO_COUNTOF(ifr.ifr_name);
-	if (mio_convutobcstr(mio, ptr, &wl, ifr.ifr_name, &ml) <= -1) return -1;
+	ml = HIO_COUNTOF(ifr.ifr_name);
+	if (hio_convutobcstr(hio, ptr, &wl, ifr.ifr_name, &ml) <= -1) return -1;
 
 	x = ioctl(h, SIOCGIFINDEX, &ifr);
 	close (h);
@@ -332,17 +332,17 @@ int mio_ucstrtoifindex (mio_t* mio, const mio_uch_t* ptr, unsigned int* index)
 	return x;
 
 #elif defined(HAVE_IF_NAMETOINDEX)
-	mio_bch_t tmp[IF_NAMESIZE + 1];
-	mio_oow_t wl, ml;
+	hio_bch_t tmp[IF_NAMESIZE + 1];
+	hio_oow_t wl, ml;
 	unsigned int tmpidx;
 
-	ml = MIO_COUNTOF(tmp);
-	if (mio_convutobcstr(mio, ptr, &wl, tmp, &ml) <= -1) return -1;
+	ml = HIO_COUNTOF(tmp);
+	if (hio_convutobcstr(hio, ptr, &wl, tmp, &ml) <= -1) return -1;
 
 	tmpidx = if_nametoindex(tmp);
 	if (tmpidx == 0) 
 	{
-		mio_seterrwithsyserr (mio, 0, errno);
+		hio_seterrwithsyserr (hio, 0, errno);
 		return -1;
 	}
 	*index = tmpidx;
@@ -352,26 +352,26 @@ int mio_ucstrtoifindex (mio_t* mio, const mio_uch_t* ptr, unsigned int* index)
 
 	struct ifconf ifc;
 	int num, i;
-	mio_bch_t tmp[IF_NAMESIZE + 1];
-	mio_oow_t wl, ml;
+	hio_bch_t tmp[IF_NAMESIZE + 1];
+	hio_oow_t wl, ml;
 
-	ml = MIO_COUNTOF(tmp);
-	if (mio_convutobcstr(mio, ptr, &wl, tmp, &ml) <= -1) return -1;
+	ml = HIO_COUNTOF(tmp);
+	if (hio_convutobcstr(hio, ptr, &wl, tmp, &ml) <= -1) return -1;
 
-	if (get_sco_ifconf(mio, &ifc) <= -1) return -1;
+	if (get_sco_ifconf(hio, &ifc) <= -1) return -1;
 
-	num = ifc.ifc_len / MIO_SIZEOF(struct ifreq);
+	num = ifc.ifc_len / HIO_SIZEOF(struct ifreq);
 	for (i = 0; i < num; i++)
 	{
-		if (mio_comp_bcstr(tmp, ifc.ifc_req[i].ifr_name, 0) == 0) 
+		if (hio_comp_bcstr(tmp, ifc.ifc_req[i].ifr_name, 0) == 0) 
 		{
-			free_sco_ifconf (mio, &ifc);
+			free_sco_ifconf (hio, &ifc);
 			*index = i + 1;
 			return 0;
 		}
 	}
 
-	free_sco_ifconf (mio, &ifc);
+	free_sco_ifconf (hio, &ifc);
 	return -1;
 
 #else
@@ -379,35 +379,35 @@ int mio_ucstrtoifindex (mio_t* mio, const mio_uch_t* ptr, unsigned int* index)
 #endif
 }
 
-int mio_ucharstoifindex (mio_t* mio, const mio_uch_t* ptr, mio_oow_t len, unsigned int* index)
+int hio_ucharstoifindex (hio_t* hio, const hio_uch_t* ptr, hio_oow_t len, unsigned int* index)
 {
 #if defined(_WIN32)
 	/* TODO: */
-	mio_seterrnum (mio, MIO_ENOIMPL);
+	hio_seterrnum (hio, HIO_ENOIMPL);
 	return -1;
 #elif defined(__OS2__)
 	/* TODO: */
-	mio_seterrnum (mio, MIO_ENOIMPL);
+	hio_seterrnum (hio, HIO_ENOIMPL);
 	return -1;
 #elif defined(__DOS__)
 	/* TODO: */
-	mio_seterrnum (mio, MIO_ENOIMPL);
+	hio_seterrnum (hio, HIO_ENOIMPL);
 	return -1;
 
 #elif defined(SIOCGIFINDEX)
 	int h, x;
 	struct ifreq ifr;
-	mio_oow_t wl, ml;
+	hio_oow_t wl, ml;
 
 	h = socket(AF_INET, SOCK_DGRAM, 0); 
 	if (h <= -1) 
 	{
-		mio_seterrwithsyserr (mio, 0, errno);
+		hio_seterrwithsyserr (hio, 0, errno);
 		return -1;
 	}
 
-	wl = len; ml = MIO_COUNTOF(ifr.ifr_name) - 1;
-	if (mio_convutobchars(mio, ptr, &wl, ifr.ifr_name, &ml) <= -1) return -1;
+	wl = len; ml = HIO_COUNTOF(ifr.ifr_name) - 1;
+	if (hio_convutobchars(hio, ptr, &wl, ifr.ifr_name, &ml) <= -1) return -1;
 	ifr.ifr_name[ml] = '\0';
 
 	x = ioctl(h, SIOCGIFINDEX, &ifr);
@@ -425,18 +425,18 @@ int mio_ucharstoifindex (mio_t* mio, const mio_uch_t* ptr, mio_oow_t len, unsign
 	return x;
 
 #elif defined(HAVE_IF_NAMETOINDEX)
-	mio_bch_t tmp[IF_NAMESIZE + 1];
-	mio_oow_t wl, ml;
+	hio_bch_t tmp[IF_NAMESIZE + 1];
+	hio_oow_t wl, ml;
 	unsigned int tmpidx;
 
-	wl = len; ml = MIO_COUNTOF(tmp) - 1;
-	if (mio_convutobchars(mio, ptr, &wl, tmp, &ml) <= -1) return -1;
+	wl = len; ml = HIO_COUNTOF(tmp) - 1;
+	if (hio_convutobchars(hio, ptr, &wl, tmp, &ml) <= -1) return -1;
 	tmp[ml] = '\0';
 
 	tmpidx = if_nametoindex(tmp);
 	if (tmpidx == 0) 
 	{
-		mio_seterrwithsyserr (mio, 0, errno);
+		hio_seterrwithsyserr (hio, 0, errno);
 		return -1;
 	}
 	*index = tmpidx;
@@ -445,27 +445,27 @@ int mio_ucharstoifindex (mio_t* mio, const mio_uch_t* ptr, mio_oow_t len, unsign
 #elif defined(SIOCGIFCONF) && (defined(SIOCGIFANUM) || defined(SIOCGIFNUM))
 	struct ifconf ifc;
 	int num, i;
-	mio_bch_t tmp[IF_NAMESIZE + 1];
-	mio_oow_t wl, ml;
+	hio_bch_t tmp[IF_NAMESIZE + 1];
+	hio_oow_t wl, ml;
 
-	wl = len; ml = MIO_COUNTOF(tmp) - 1;
-	if (mio_convutobchars(ptr, &wl, tmp, &ml) <= -1) return -1;
+	wl = len; ml = HIO_COUNTOF(tmp) - 1;
+	if (hio_convutobchars(ptr, &wl, tmp, &ml) <= -1) return -1;
 	tmp[ml] = '\0';
 
-	if (get_sco_ifconf(mio, &ifc) <= -1) return -1;
+	if (get_sco_ifconf(hio, &ifc) <= -1) return -1;
 
-	num = ifc.ifc_len / MIO_SIZEOF(struct ifreq);
+	num = ifc.ifc_len / HIO_SIZEOF(struct ifreq);
 	for (i = 0; i < num; i++)
 	{
-		if (mio_comp_bcstr(tmp, ifc.ifc_req[i].ifr_name, 0) == 0) 
+		if (hio_comp_bcstr(tmp, ifc.ifc_req[i].ifr_name, 0) == 0) 
 		{
-			free_sco_ifconf (mio, &ifc);
+			free_sco_ifconf (hio, &ifc);
 			*index = i + 1;
 			return 0;
 		}
 	}
 
-	free_sco_ifconf (mio, &ifc);
+	free_sco_ifconf (hio, &ifc);
 	return -1;
 #else
 	return -1;
@@ -474,19 +474,19 @@ int mio_ucharstoifindex (mio_t* mio, const mio_uch_t* ptr, mio_oow_t len, unsign
 
 /* ---------------------------------------------------------- */
 
-int mio_ifindextobcstr (mio_t* mio, unsigned int index, mio_bch_t* buf, mio_oow_t len)
+int hio_ifindextobcstr (hio_t* hio, unsigned int index, hio_bch_t* buf, hio_oow_t len)
 {
 #if defined(_WIN32)
 	/* TODO: */
-	mio_seterrnum (mio, MIO_ENOIMPL);
+	hio_seterrnum (hio, HIO_ENOIMPL);
 	return -1;
 #elif defined(__OS2__)
 	/* TODO: */
-	mio_seterrnum (mio, MIO_ENOIMPL);
+	hio_seterrnum (hio, HIO_ENOIMPL);
 	return -1;
 #elif defined(__DOS__)
 	/* TODO: */
-	mio_seterrnum (mio, MIO_ENOIMPL);
+	hio_seterrnum (hio, HIO_ENOIMPL);
 	return -1;
 
 #elif defined(SIOCGIFNAME)
@@ -497,11 +497,11 @@ int mio_ifindextobcstr (mio_t* mio, unsigned int index, mio_bch_t* buf, mio_oow_
 	h = socket(AF_INET, SOCK_DGRAM, 0); 
 	if (h <= -1) 
 	{
-		mio_seterrwithsyserr (mio, 0, errno);
+		hio_seterrwithsyserr (hio, 0, errno);
 		return -1;
 	}
 
-	MIO_MEMSET (&ifr, 0, MIO_SIZEOF(ifr));
+	HIO_MEMSET (&ifr, 0, HIO_SIZEOF(ifr));
 	#if defined(HAVE_STRUCT_IFREQ_IFR_IFINDEX)
 	ifr.ifr_ifindex = index;
 	#else
@@ -513,40 +513,40 @@ int mio_ifindextobcstr (mio_t* mio, unsigned int index, mio_bch_t* buf, mio_oow_
 
 	if (x <= -1)
 	{
-		mio_seterrwithsyserr (mio, 0, errno);
+		hio_seterrwithsyserr (hio, 0, errno);
 		return -1;
 	}
 
-	return mio_copy_bcstr(buf, len, ifr.ifr_name);
+	return hio_copy_bcstr(buf, len, ifr.ifr_name);
 
 #elif defined(HAVE_IF_INDEXTONAME)
-	mio_bch_t tmp[IF_NAMESIZE + 1];
-	if (if_indextoname (index, tmp) == MIO_NULL) 
+	hio_bch_t tmp[IF_NAMESIZE + 1];
+	if (if_indextoname (index, tmp) == HIO_NULL) 
 	{
-		mio_seterrwithsyserr (mio, 0, errno);
+		hio_seterrwithsyserr (hio, 0, errno);
 		return -1;
 	}
-	return mio_copy_bcstr(buf, len, tmp);
+	return hio_copy_bcstr(buf, len, tmp);
 
 #elif defined(SIOCGIFCONF) && (defined(SIOCGIFANUM) || defined(SIOCGIFNUM))
 
 	struct ifconf ifc;
-	mio_oow_t ml;
+	hio_oow_t ml;
 	int num;
 
 	if (index <= 0) return -1;
-	if (get_sco_ifconf(mio, &ifc) <= -1) return -1;
+	if (get_sco_ifconf(hio, &ifc) <= -1) return -1;
 
-	num = ifc.ifc_len / MIO_SIZEOF(struct ifreq);
+	num = ifc.ifc_len / HIO_SIZEOF(struct ifreq);
 	if (index > num) 
 	{
-		mio_seterrnum (mio, MIO_ENOENT);
-		free_sco_ifconf (mio, &ifc);
+		hio_seterrnum (hio, HIO_ENOENT);
+		free_sco_ifconf (hio, &ifc);
 		return -1;
 	}
 
-	ml = mio_copy_bcstr(buf, len, ifc.ifc_req[index - 1].ifr_name);
-	free_sco_ifconf (mio, &ifc);
+	ml = hio_copy_bcstr(buf, len, ifc.ifc_req[index - 1].ifr_name);
+	free_sco_ifconf (hio, &ifc);
 	return ml;
 
 #else
@@ -554,35 +554,35 @@ int mio_ifindextobcstr (mio_t* mio, unsigned int index, mio_bch_t* buf, mio_oow_
 #endif
 }
 
-int mio_ifindextoucstr (mio_t* mio, unsigned int index, mio_uch_t* buf, mio_oow_t len)
+int hio_ifindextoucstr (hio_t* hio, unsigned int index, hio_uch_t* buf, hio_oow_t len)
 {
 #if defined(_WIN32)
 	/* TODO: */
-	mio_seterrnum (mio, MIO_ENOIMPL);
+	hio_seterrnum (hio, HIO_ENOIMPL);
 	return -1;
 #elif defined(__OS2__)
 	/* TODO: */
-	mio_seterrnum (mio, MIO_ENOIMPL);
+	hio_seterrnum (hio, HIO_ENOIMPL);
 	return -1;
 #elif defined(__DOS__)
 	/* TODO: */
-	mio_seterrnum (mio, MIO_ENOIMPL);
+	hio_seterrnum (hio, HIO_ENOIMPL);
 	return -1;
 
 #elif defined(SIOCGIFNAME)
 
 	int h, x;
 	struct ifreq ifr;
-	mio_oow_t wl, ml;
+	hio_oow_t wl, ml;
 
 	h = socket(AF_INET, SOCK_DGRAM, 0); 
 	if (h <= -1)
 	{
-		mio_seterrwithsyserr (mio, 0, errno);
+		hio_seterrwithsyserr (hio, 0, errno);
 		return -1;
 	}
 
-	MIO_MEMSET (&ifr, 0, MIO_SIZEOF(ifr));
+	HIO_MEMSET (&ifr, 0, HIO_SIZEOF(ifr));
 	#if defined(HAVE_STRUCT_IFREQ_IFR_IFINDEX)
 	ifr.ifr_ifindex = index;
 	#else
@@ -594,28 +594,28 @@ int mio_ifindextoucstr (mio_t* mio, unsigned int index, mio_uch_t* buf, mio_oow_
 
 	if (x <= -1)
 	{
-		mio_seterrwithsyserr (mio, 0, errno);
+		hio_seterrwithsyserr (hio, 0, errno);
 		return -1;
 	}
 
 	wl = len;
-	x = mio_convbtoucstr(mio, ifr.ifr_name, &ml, buf, &wl, 0);
+	x = hio_convbtoucstr(hio, ifr.ifr_name, &ml, buf, &wl, 0);
 	if (x == -2 && wl > 1) buf[wl - 1] = '\0';
 	else if (x != 0) return -1;
 	return wl;
 
 #elif defined(HAVE_IF_INDEXTONAME)
-	mio_bch_t tmp[IF_NAMESIZE + 1];
-	mio_oow_t ml, wl;
+	hio_bch_t tmp[IF_NAMESIZE + 1];
+	hio_oow_t ml, wl;
 	int x;
 
-	if (if_indextoname(index, tmp) == MIO_NULL) 
+	if (if_indextoname(index, tmp) == HIO_NULL) 
 	{
-		mio_seterrwithsyserr (mio, 0, errno);
+		hio_seterrwithsyserr (hio, 0, errno);
 		return -1;
 	}
 	wl = len;
-	x = mio_convbtoucstr(mio, tmp, &ml, buf, &wl, 0);
+	x = hio_convbtoucstr(hio, tmp, &ml, buf, &wl, 0);
 	if (x == -2 && wl > 1) buf[wl - 1] = '\0';
 	else if (x != 0) return -1;
 	return wl;
@@ -623,22 +623,22 @@ int mio_ifindextoucstr (mio_t* mio, unsigned int index, mio_uch_t* buf, mio_oow_
 #elif defined(SIOCGIFCONF) && (defined(SIOCGIFANUM) || defined(SIOCGIFNUM))
 
 	struct ifconf ifc;
-	mio_oow_t wl, ml;
+	hio_oow_t wl, ml;
 	int num, x;
 
 	if (index <= 0) return -1;
-	if (get_sco_ifconf(mio, &ifc) <= -1) return -1;
+	if (get_sco_ifconf(hio, &ifc) <= -1) return -1;
 
-	num = ifc.ifc_len / MIO_SIZEOF(struct ifreq);
+	num = ifc.ifc_len / HIO_SIZEOF(struct ifreq);
 	if (index > num) 
 	{
-		free_sco_ifconf (mio, &ifc);
+		free_sco_ifconf (hio, &ifc);
 		return -1;
 	}
 
 	wl = len;
-	x = mio_convbtoucstr(ifc.ifc_req[index - 1].ifr_name, &ml, buf, &wl, 0);
-	free_sco_ifconf (mio, &ifc);
+	x = hio_convbtoucstr(ifc.ifc_req[index - 1].ifr_name, &ml, buf, &wl, 0);
+	free_sco_ifconf (hio, &ifc);
 
 	if (x == -2 && wl > 1) buf[wl - 1] = '\0';
 	else if (x != 0) return -1;

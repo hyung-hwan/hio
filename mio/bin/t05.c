@@ -1,4 +1,4 @@
-#include <mio-utl.h>
+#include <hio-utl.h>
 #include <string.h>
 #include <stdio.h>
 
@@ -185,7 +185,7 @@ int siphash(const uint8_t *in, const size_t inlen, const uint8_t *k,
    ...
    in = 00 01 02 ... 3e (63 bytes)
 */
-mio_uint8_t vectors[64][8] =
+hio_uint8_t vectors[64][8] =
 {
 	{ 0x31, 0x0e, 0x0e, 0xdd, 0x47, 0xdb, 0x6f, 0x72, },
 	{ 0xfd, 0x67, 0xdc, 0x93, 0xc5, 0x39, 0xf8, 0x74, },
@@ -258,7 +258,7 @@ int test_vectors()
 {
 #define MAXLEN 64
 
-	mio_uint8_t in[MAXLEN], out[8], k[16];
+	hio_uint8_t in[MAXLEN], out[8], k[16];
 	int i;
 	int ok = 1;
 
@@ -267,7 +267,7 @@ int test_vectors()
 	for( i = 0; i < MAXLEN; ++i )
 	{
 		in[i] = i;
-		mio_sip_hash_24(k, in, i, out);
+		hio_sip_hash_24(k, in, i, out);
 	//	siphash(in, i, k, out, 8);
 
 		if ( memcmp( out, vectors[i], 8 ) )

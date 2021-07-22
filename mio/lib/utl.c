@@ -24,24 +24,24 @@
     THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  */
 
-#include "mio-prv.h"
-#include <mio-chr.h>
+#include "hio-prv.h"
+#include <hio-chr.h>
 
 /* ========================================================================= */
 
-int mio_comp_ucstr_limited (const mio_uch_t* str1, const mio_uch_t* str2, mio_oow_t maxlen, int ignorecase)
+int hio_comp_ucstr_limited (const hio_uch_t* str1, const hio_uch_t* str2, hio_oow_t maxlen, int ignorecase)
 {
 	if (maxlen == 0) return 0;
 
 	if (ignorecase)
 	{
-		while (mio_to_uch_lower(*str1) == mio_to_uch_lower(*str2))
+		while (hio_to_uch_lower(*str1) == hio_to_uch_lower(*str2))
 		{
 			 if (*str1 == '\0' || maxlen == 1) return 0;
 			 str1++; str2++; maxlen--;
 		}
 
-		return ((mio_uchu_t)mio_to_uch_lower(*str1) > (mio_uchu_t)mio_to_uch_lower(*str2))? 1: -1;
+		return ((hio_uchu_t)hio_to_uch_lower(*str1) > (hio_uchu_t)hio_to_uch_lower(*str2))? 1: -1;
 	}
 	else
 	{
@@ -51,23 +51,23 @@ int mio_comp_ucstr_limited (const mio_uch_t* str1, const mio_uch_t* str2, mio_oo
 			 str1++; str2++; maxlen--;
 		}
 
-		return ((mio_uchu_t)*str1 > (mio_uchu_t)*str2)? 1: -1;
+		return ((hio_uchu_t)*str1 > (hio_uchu_t)*str2)? 1: -1;
 	}
 }
 
-int mio_comp_bcstr_limited (const mio_bch_t* str1, const mio_bch_t* str2, mio_oow_t maxlen, int ignorecase)
+int hio_comp_bcstr_limited (const hio_bch_t* str1, const hio_bch_t* str2, hio_oow_t maxlen, int ignorecase)
 {
 	if (maxlen == 0) return 0;
 
 	if (ignorecase)
 	{
-		while (mio_to_uch_lower(*str1) == mio_to_uch_lower(*str2))
+		while (hio_to_uch_lower(*str1) == hio_to_uch_lower(*str2))
 		{
 			 if (*str1 == '\0' || maxlen == 1) return 0;
 			 str1++; str2++; maxlen--;
 		}
 
-		return ((mio_bchu_t)mio_to_uch_lower(*str1) > (mio_bchu_t)mio_to_uch_lower(*str2))? 1: -1;
+		return ((hio_bchu_t)hio_to_uch_lower(*str1) > (hio_bchu_t)hio_to_uch_lower(*str2))? 1: -1;
 	}
 	else
 	{
@@ -77,21 +77,21 @@ int mio_comp_bcstr_limited (const mio_bch_t* str1, const mio_bch_t* str2, mio_oo
 			 str1++; str2++; maxlen--;
 		}
 
-		return ((mio_bchu_t)*str1 > (mio_bchu_t)*str2)? 1: -1;
+		return ((hio_bchu_t)*str1 > (hio_bchu_t)*str2)? 1: -1;
 	}
 }
 
-int mio_comp_ucstr_bcstr (const mio_uch_t* str1, const mio_bch_t* str2, int ignorecase)
+int hio_comp_ucstr_bcstr (const hio_uch_t* str1, const hio_bch_t* str2, int ignorecase)
 {
 	if (ignorecase)
 	{
-		while (mio_to_uch_lower(*str1) == mio_to_bch_lower(*str2))
+		while (hio_to_uch_lower(*str1) == hio_to_bch_lower(*str2))
 		{
 			if (*str1 == '\0') return 0;
 			str1++; str2++;
 		}
 
-		return ((mio_uchu_t)mio_to_uch_lower(*str1) > (mio_bchu_t)mio_to_bch_lower(*str2))? 1: -1;
+		return ((hio_uchu_t)hio_to_uch_lower(*str1) > (hio_bchu_t)hio_to_bch_lower(*str2))? 1: -1;
 	}
 	else
 	{
@@ -101,11 +101,11 @@ int mio_comp_ucstr_bcstr (const mio_uch_t* str1, const mio_bch_t* str2, int igno
 			str1++; str2++;
 		}
 
-		return ((mio_uchu_t)*str1 > (mio_bchu_t)*str2)? 1: -1;
+		return ((hio_uchu_t)*str1 > (hio_bchu_t)*str2)? 1: -1;
 	}
 }
 
-int mio_comp_uchars_ucstr (const mio_uch_t* str1, mio_oow_t len, const mio_uch_t* str2, int ignorecase)
+int hio_comp_uchars_ucstr (const hio_uch_t* str1, hio_oow_t len, const hio_uch_t* str2, int ignorecase)
 {
 	/* for "abc\0" of length 4 vs "abc", the fourth character
 	 * of the first string is equal to the terminating null of
@@ -113,108 +113,108 @@ int mio_comp_uchars_ucstr (const mio_uch_t* str1, mio_oow_t len, const mio_uch_t
 	 * bigger */
 	if (ignorecase)
 	{
-		const mio_uch_t* end = str1 + len;
-		mio_uch_t c1;
-		mio_uch_t c2;
+		const hio_uch_t* end = str1 + len;
+		hio_uch_t c1;
+		hio_uch_t c2;
 		while (str1 < end && *str2 != '\0') 
 		{
-			c1 = mio_to_uch_lower(*str1);
-			c2 = mio_to_uch_lower(*str2);
-			if (c1 != c2) return ((mio_uchu_t)c1 > (mio_uchu_t)c2)? 1: -1;
+			c1 = hio_to_uch_lower(*str1);
+			c2 = hio_to_uch_lower(*str2);
+			if (c1 != c2) return ((hio_uchu_t)c1 > (hio_uchu_t)c2)? 1: -1;
 			str1++; str2++;
 		}
 		return (str1 < end)? 1: (*str2 == '\0'? 0: -1);
 	}
 	else
 	{
-		const mio_uch_t* end = str1 + len;
+		const hio_uch_t* end = str1 + len;
 		while (str1 < end && *str2 != '\0') 
 		{
-			if (*str1 != *str2) return ((mio_uchu_t)*str1 > (mio_uchu_t)*str2)? 1: -1;
+			if (*str1 != *str2) return ((hio_uchu_t)*str1 > (hio_uchu_t)*str2)? 1: -1;
 			str1++; str2++;
 		}
 		return (str1 < end)? 1: (*str2 == '\0'? 0: -1);
 	}
 }
 
-int mio_comp_uchars_bcstr (const mio_uch_t* str1, mio_oow_t len, const mio_bch_t* str2, int ignorecase)
+int hio_comp_uchars_bcstr (const hio_uch_t* str1, hio_oow_t len, const hio_bch_t* str2, int ignorecase)
 {
 	if (ignorecase)
 	{
-		const mio_uch_t* end = str1 + len;
-		mio_uch_t c1;
-		mio_bch_t c2;
+		const hio_uch_t* end = str1 + len;
+		hio_uch_t c1;
+		hio_bch_t c2;
 		while (str1 < end && *str2 != '\0') 
 		{
-			c1 = mio_to_uch_lower(*str1);
-			c2 = mio_to_bch_lower(*str2);
-			if (c1 != c2) return ((mio_uchu_t)c1 > (mio_bchu_t)c2)? 1: -1;
+			c1 = hio_to_uch_lower(*str1);
+			c2 = hio_to_bch_lower(*str2);
+			if (c1 != c2) return ((hio_uchu_t)c1 > (hio_bchu_t)c2)? 1: -1;
 			str1++; str2++;
 		}
 		return (str1 < end)? 1: (*str2 == '\0'? 0: -1);
 	}
 	else
 	{
-		const mio_uch_t* end = str1 + len;
+		const hio_uch_t* end = str1 + len;
 		while (str1 < end && *str2 != '\0') 
 		{
-			if (*str1 != *str2) return ((mio_uchu_t)*str1 > (mio_bchu_t)*str2)? 1: -1;
+			if (*str1 != *str2) return ((hio_uchu_t)*str1 > (hio_bchu_t)*str2)? 1: -1;
 			str1++; str2++;
 		}
 		return (str1 < end)? 1: (*str2 == '\0'? 0: -1);
 	}
 }
 
-int mio_comp_bchars_bcstr (const mio_bch_t* str1, mio_oow_t len, const mio_bch_t* str2, int ignorecase)
+int hio_comp_bchars_bcstr (const hio_bch_t* str1, hio_oow_t len, const hio_bch_t* str2, int ignorecase)
 {
 	if (ignorecase)
 	{
-		const mio_bch_t* end = str1 + len;
-		mio_bch_t c1;
-		mio_bch_t c2;
+		const hio_bch_t* end = str1 + len;
+		hio_bch_t c1;
+		hio_bch_t c2;
 		while (str1 < end && *str2 != '\0') 
 		{
-			c1 = mio_to_bch_lower(*str1);
-			c2 = mio_to_bch_lower(*str2);
-			if (c1 != c2) return ((mio_bchu_t)c1 > (mio_bchu_t)c2)? 1: -1;
+			c1 = hio_to_bch_lower(*str1);
+			c2 = hio_to_bch_lower(*str2);
+			if (c1 != c2) return ((hio_bchu_t)c1 > (hio_bchu_t)c2)? 1: -1;
 			str1++; str2++;
 		}
 		return (str1 < end)? 1: (*str2 == '\0'? 0: -1);	
 	}
 	else
 	{
-		const mio_bch_t* end = str1 + len;
+		const hio_bch_t* end = str1 + len;
 		while (str1 < end && *str2 != '\0') 
 		{
-			if (*str1 != *str2) return ((mio_bchu_t)*str1 > (mio_bchu_t)*str2)? 1: -1;
+			if (*str1 != *str2) return ((hio_bchu_t)*str1 > (hio_bchu_t)*str2)? 1: -1;
 			str1++; str2++;
 		}
 		return (str1 < end)? 1: (*str2 == '\0'? 0: -1);
 	}
 }
 
-int mio_comp_bchars_ucstr (const mio_bch_t* str1, mio_oow_t len, const mio_uch_t* str2, int ignorecase)
+int hio_comp_bchars_ucstr (const hio_bch_t* str1, hio_oow_t len, const hio_uch_t* str2, int ignorecase)
 {
 	if (ignorecase)
 	{
-		const mio_bch_t* end = str1 + len;
-		mio_bch_t c1;
-		mio_uch_t c2;
+		const hio_bch_t* end = str1 + len;
+		hio_bch_t c1;
+		hio_uch_t c2;
 		while (str1 < end && *str2 != '\0') 
 		{
-			c1 = mio_to_bch_lower(*str1);
-			c2 = mio_to_uch_lower(*str2);
-			if (c1 != c2) return ((mio_bchu_t)c1 > (mio_uchu_t)c2)? 1: -1;
+			c1 = hio_to_bch_lower(*str1);
+			c2 = hio_to_uch_lower(*str2);
+			if (c1 != c2) return ((hio_bchu_t)c1 > (hio_uchu_t)c2)? 1: -1;
 			str1++; str2++;
 		}
 		return (str1 < end)? 1: (*str2 == '\0'? 0: -1);
 	}
 	else
 	{
-		const mio_bch_t* end = str1 + len;
+		const hio_bch_t* end = str1 + len;
 		while (str1 < end && *str2 != '\0') 
 		{
-			if (*str1 != *str2) return ((mio_bchu_t)*str1 > (mio_uchu_t)*str2)? 1: -1;
+			if (*str1 != *str2) return ((hio_bchu_t)*str1 > (hio_uchu_t)*str2)? 1: -1;
 			str1++; str2++;
 		}
 		return (str1 < end)? 1: (*str2 == '\0'? 0: -1);
@@ -223,39 +223,39 @@ int mio_comp_bchars_ucstr (const mio_bch_t* str1, mio_oow_t len, const mio_uch_t
 
 /* ========================================================================= */
 
-void mio_copy_uchars (mio_uch_t* dst, const mio_uch_t* src, mio_oow_t len)
+void hio_copy_uchars (hio_uch_t* dst, const hio_uch_t* src, hio_oow_t len)
 {
 	/* take note of no forced null termination */
-	mio_oow_t i;
+	hio_oow_t i;
 	for (i = 0; i < len; i++) dst[i] = src[i];
 }
 
-void mio_copy_bchars (mio_bch_t* dst, const mio_bch_t* src, mio_oow_t len)
+void hio_copy_bchars (hio_bch_t* dst, const hio_bch_t* src, hio_oow_t len)
 {
 	/* take note of no forced null termination */
-	mio_oow_t i;
+	hio_oow_t i;
 	for (i = 0; i < len; i++) dst[i] = src[i];
 }
 
-void mio_copy_bchars_to_uchars (mio_uch_t* dst, const mio_bch_t* src, mio_oow_t len)
+void hio_copy_bchars_to_uchars (hio_uch_t* dst, const hio_bch_t* src, hio_oow_t len)
 {
 	/* copy without conversions.
-	 * use mio_convbtouchars() for conversion encoding */
-	mio_oow_t i;
+	 * use hio_convbtouchars() for conversion encoding */
+	hio_oow_t i;
 	for (i = 0; i < len; i++) dst[i] = src[i];
 }
 
-void mio_copy_uchars_to_bchars (mio_bch_t* dst, const mio_uch_t* src, mio_oow_t len)
+void hio_copy_uchars_to_bchars (hio_bch_t* dst, const hio_uch_t* src, hio_oow_t len)
 {
 	/* copy without conversions.
-	 * use mio_convutobchars() for conversion encoding */
-	mio_oow_t i;
+	 * use hio_convutobchars() for conversion encoding */
+	hio_oow_t i;
 	for (i = 0; i < len; i++) dst[i] = src[i];
 }
 
-mio_oow_t mio_copy_uchars_to_ucstr (mio_uch_t* dst, mio_oow_t dlen, const mio_uch_t* src, mio_oow_t slen)
+hio_oow_t hio_copy_uchars_to_ucstr (hio_uch_t* dst, hio_oow_t dlen, const hio_uch_t* src, hio_oow_t slen)
 {
-	mio_oow_t i;
+	hio_oow_t i;
 	if (dlen <= 0) return 0;
 	if (dlen <= slen) slen = dlen - 1;
 	for (i = 0; i < slen; i++) dst[i] = src[i];
@@ -263,9 +263,9 @@ mio_oow_t mio_copy_uchars_to_ucstr (mio_uch_t* dst, mio_oow_t dlen, const mio_uc
 	return i;
 }
 
-mio_oow_t mio_copy_bchars_to_bcstr (mio_bch_t* dst, mio_oow_t dlen, const mio_bch_t* src, mio_oow_t slen)
+hio_oow_t hio_copy_bchars_to_bcstr (hio_bch_t* dst, hio_oow_t dlen, const hio_bch_t* src, hio_oow_t slen)
 {
-	mio_oow_t i;
+	hio_oow_t i;
 	if (dlen <= 0) return 0;
 	if (dlen <= slen) slen = dlen - 1;
 	for (i = 0; i < slen; i++) dst[i] = src[i];
@@ -273,25 +273,25 @@ mio_oow_t mio_copy_bchars_to_bcstr (mio_bch_t* dst, mio_oow_t dlen, const mio_bc
 	return i;
 }
 
-mio_oow_t mio_copy_uchars_to_ucstr_unlimited (mio_uch_t* dst, const mio_uch_t* src, mio_oow_t len)
+hio_oow_t hio_copy_uchars_to_ucstr_unlimited (hio_uch_t* dst, const hio_uch_t* src, hio_oow_t len)
 {
-	mio_oow_t i;
+	hio_oow_t i;
 	for (i = 0; i < len; i++) dst[i] = src[i];
 	dst[i] = '\0';
 	return i;
 }
 
-mio_oow_t mio_copy_bchars_to_bcstr_unlimited (mio_bch_t* dst, const mio_bch_t* src, mio_oow_t len)
+hio_oow_t hio_copy_bchars_to_bcstr_unlimited (hio_bch_t* dst, const hio_bch_t* src, hio_oow_t len)
 {
-	mio_oow_t i;
+	hio_oow_t i;
 	for (i = 0; i < len; i++) dst[i] = src[i];
 	dst[i] = '\0';
 	return i;
 }
 
-mio_oow_t mio_copy_ucstr (mio_uch_t* dst, mio_oow_t len, const mio_uch_t* src)
+hio_oow_t hio_copy_ucstr (hio_uch_t* dst, hio_oow_t len, const hio_uch_t* src)
 {
-	mio_uch_t* p, * p2;
+	hio_uch_t* p, * p2;
 
 	p = dst; p2 = dst + len - 1;
 
@@ -305,9 +305,9 @@ mio_oow_t mio_copy_ucstr (mio_uch_t* dst, mio_oow_t len, const mio_uch_t* src)
 	return p - dst;
 }
 
-mio_oow_t mio_copy_bcstr (mio_bch_t* dst, mio_oow_t len, const mio_bch_t* src)
+hio_oow_t hio_copy_bcstr (hio_bch_t* dst, hio_oow_t len, const hio_bch_t* src)
 {
-	mio_bch_t* p, * p2;
+	hio_bch_t* p, * p2;
 
 	p = dst; p2 = dst + len - 1;
 
@@ -322,89 +322,89 @@ mio_oow_t mio_copy_bcstr (mio_bch_t* dst, mio_oow_t len, const mio_bch_t* src)
 }
 
 
-mio_oow_t mio_copy_ucstr_unlimited (mio_uch_t* dst, const mio_uch_t* src)
+hio_oow_t hio_copy_ucstr_unlimited (hio_uch_t* dst, const hio_uch_t* src)
 {
-	mio_uch_t* org = dst;
+	hio_uch_t* org = dst;
 	while ((*dst++ = *src++) != '\0');
 	return dst - org - 1;
 }
 
-mio_oow_t mio_copy_bcstr_unlimited (mio_bch_t* dst, const mio_bch_t* src)
+hio_oow_t hio_copy_bcstr_unlimited (hio_bch_t* dst, const hio_bch_t* src)
 {
-	mio_bch_t* org = dst;
+	hio_bch_t* org = dst;
 	while ((*dst++ = *src++) != '\0');
 	return dst - org - 1;
 }
 
 /* ========================================================================= */
 
-#define IS_BCH_WORD_DELIM(x,delim) (mio_is_bch_space(x) || (x) == delim)
-#define IS_UCH_WORD_DELIM(x,delim) (mio_is_uch_space(x) || (x) == delim)
+#define IS_BCH_WORD_DELIM(x,delim) (hio_is_bch_space(x) || (x) == delim)
+#define IS_UCH_WORD_DELIM(x,delim) (hio_is_uch_space(x) || (x) == delim)
 
-const mio_bch_t* mio_find_bcstr_word_in_bcstr (const mio_bch_t* str, const mio_bch_t* word, mio_bch_t extra_delim, int ignorecase)
+const hio_bch_t* hio_find_bcstr_word_in_bcstr (const hio_bch_t* str, const hio_bch_t* word, hio_bch_t extra_delim, int ignorecase)
 {
 	/* find a full word in a string */
 
-	const mio_bch_t* ptr = str;
+	const hio_bch_t* ptr = str;
 
 	if (extra_delim == '\0') extra_delim = ' ';
 	do
 	{
-		const mio_bch_t* s;
+		const hio_bch_t* s;
 
 		while (IS_BCH_WORD_DELIM(*ptr,extra_delim)) ptr++;
-		if (*ptr == '\0') return MIO_NULL;
+		if (*ptr == '\0') return HIO_NULL;
 
 		s = ptr;
 		while (*ptr != '\0' && !IS_BCH_WORD_DELIM(*ptr,extra_delim)) ptr++;
 
-		if (mio_comp_bchars_bcstr(s, ptr - s, word, ignorecase) == 0) return s;
+		if (hio_comp_bchars_bcstr(s, ptr - s, word, ignorecase) == 0) return s;
 	}
 	while (*ptr != '\0');
 
-	return MIO_NULL;
+	return HIO_NULL;
 }
 
-const mio_uch_t* mio_find_ucstr_word_in_ucstr (const mio_uch_t* str, const mio_uch_t* word, mio_uch_t extra_delim, int ignorecase)
+const hio_uch_t* hio_find_ucstr_word_in_ucstr (const hio_uch_t* str, const hio_uch_t* word, hio_uch_t extra_delim, int ignorecase)
 {
 	/* find a full word in a string */
 
-	const mio_uch_t* ptr = str;
+	const hio_uch_t* ptr = str;
 
 	if (extra_delim == '\0') extra_delim = ' ';
 	do
 	{
-		const mio_uch_t* s;
+		const hio_uch_t* s;
 
 		while (IS_UCH_WORD_DELIM(*ptr,extra_delim)) ptr++;
-		if (*ptr == '\0') return MIO_NULL;
+		if (*ptr == '\0') return HIO_NULL;
 
 		s = ptr;
 		while (*ptr != '\0' && !IS_UCH_WORD_DELIM(*ptr,extra_delim)) ptr++;
 
-		if (mio_comp_uchars_ucstr(s, ptr - s, word, ignorecase) == 0) return s;
+		if (hio_comp_uchars_ucstr(s, ptr - s, word, ignorecase) == 0) return s;
 	}
 	while (*ptr != '\0');
 
-	return MIO_NULL;
+	return HIO_NULL;
 }
 
 /* ========================================================================= */
 
-mio_oow_t mio_byte_to_bcstr (mio_uint8_t byte, mio_bch_t* buf, mio_oow_t size, int flagged_radix, mio_bch_t fill)
+hio_oow_t hio_byte_to_bcstr (hio_uint8_t byte, hio_bch_t* buf, hio_oow_t size, int flagged_radix, hio_bch_t fill)
 {
-	mio_bch_t tmp[(MIO_SIZEOF(mio_uint8_t) * MIO_BITS_PER_BYTE)];
-	mio_bch_t* p = tmp, * bp = buf, * be = buf + size - 1;
+	hio_bch_t tmp[(HIO_SIZEOF(hio_uint8_t) * HIO_BITS_PER_BYTE)];
+	hio_bch_t* p = tmp, * bp = buf, * be = buf + size - 1;
 	int radix;
-	mio_bch_t radix_char;
+	hio_bch_t radix_char;
  
-	radix = (flagged_radix & MIO_BYTE_TO_BCSTR_RADIXMASK);
-	radix_char = (flagged_radix & MIO_BYTE_TO_BCSTR_LOWERCASE)? 'a': 'A';
+	radix = (flagged_radix & HIO_BYTE_TO_BCSTR_RADIXMASK);
+	radix_char = (flagged_radix & HIO_BYTE_TO_BCSTR_LOWERCASE)? 'a': 'A';
 	if (radix < 2 || radix > 36 || size <= 0) return 0;
  
 	do 
 	{
-		mio_uint8_t digit = byte % radix;
+		hio_uint8_t digit = byte % radix;
 		if (digit < 10) *p++ = digit + '0';
 		else *p++ = digit + radix_char - 10;
 		byte /= radix;
@@ -427,20 +427,20 @@ mio_oow_t mio_byte_to_bcstr (mio_uint8_t byte, mio_bch_t* buf, mio_oow_t size, i
  
 /* ========================================================================= */
 
-MIO_INLINE int mio_conv_bchars_to_uchars_with_cmgr (
-	const mio_bch_t* bcs, mio_oow_t* bcslen,
-	mio_uch_t* ucs, mio_oow_t* ucslen, mio_cmgr_t* cmgr, int all)
+HIO_INLINE int hio_conv_bchars_to_uchars_with_cmgr (
+	const hio_bch_t* bcs, hio_oow_t* bcslen,
+	hio_uch_t* ucs, hio_oow_t* ucslen, hio_cmgr_t* cmgr, int all)
 {
-	const mio_bch_t* p;
+	const hio_bch_t* p;
 	int ret = 0;
-	mio_oow_t mlen;
+	hio_oow_t mlen;
 
 	if (ucs)
 	{
 		/* destination buffer is specified. 
 		 * copy the conversion result to the buffer */
 
-		mio_uch_t* q, * qend;
+		hio_uch_t* q, * qend;
 
 		p = bcs;
 		q = ucs;
@@ -449,7 +449,7 @@ MIO_INLINE int mio_conv_bchars_to_uchars_with_cmgr (
 
 		while (mlen > 0)
 		{
-			mio_oow_t n;
+			hio_oow_t n;
 
 			if (q >= qend)
 			{
@@ -504,15 +504,15 @@ MIO_INLINE int mio_conv_bchars_to_uchars_with_cmgr (
 		 * a buffer with the size and call this function again with 
 		 * the buffer. */
 
-		mio_uch_t w;
-		mio_oow_t wlen = 0;
+		hio_uch_t w;
+		hio_oow_t wlen = 0;
 
 		p = bcs;
 		mlen = *bcslen;
 
 		while (mlen > 0)
 		{
-			mio_oow_t n;
+			hio_oow_t n;
 
 			n = cmgr->bctouc(p, mlen, &w);
 			if (n == 0)
@@ -548,18 +548,18 @@ MIO_INLINE int mio_conv_bchars_to_uchars_with_cmgr (
 	return ret;
 }
 
-MIO_INLINE int mio_conv_bcstr_to_ucstr_with_cmgr (
-	const mio_bch_t* bcs, mio_oow_t* bcslen,
-	mio_uch_t* ucs, mio_oow_t* ucslen, mio_cmgr_t* cmgr, int all)
+HIO_INLINE int hio_conv_bcstr_to_ucstr_with_cmgr (
+	const hio_bch_t* bcs, hio_oow_t* bcslen,
+	hio_uch_t* ucs, hio_oow_t* ucslen, hio_cmgr_t* cmgr, int all)
 {
-	const mio_bch_t* bp;
-	mio_oow_t mlen, wlen;
+	const hio_bch_t* bp;
+	hio_oow_t mlen, wlen;
 	int n;
 
 	for (bp = bcs; *bp != '\0'; bp++) /* nothing */ ;
 
 	mlen = bp - bcs; wlen = *ucslen;
-	n = mio_conv_bchars_to_uchars_with_cmgr (bcs, &mlen, ucs, &wlen, cmgr, all);
+	n = hio_conv_bchars_to_uchars_with_cmgr (bcs, &mlen, ucs, &wlen, cmgr, all);
 	if (ucs)
 	{
 		/* null-terminate the target buffer if it has room for it. */
@@ -571,21 +571,21 @@ MIO_INLINE int mio_conv_bcstr_to_ucstr_with_cmgr (
 	return n;
 }
 
-MIO_INLINE int mio_conv_uchars_to_bchars_with_cmgr (
-	const mio_uch_t* ucs, mio_oow_t* ucslen,
-	mio_bch_t* bcs, mio_oow_t* bcslen, mio_cmgr_t* cmgr)
+HIO_INLINE int hio_conv_uchars_to_bchars_with_cmgr (
+	const hio_uch_t* ucs, hio_oow_t* ucslen,
+	hio_bch_t* bcs, hio_oow_t* bcslen, hio_cmgr_t* cmgr)
 {
-	const mio_uch_t* p = ucs;
-	const mio_uch_t* end = ucs + *ucslen;
+	const hio_uch_t* p = ucs;
+	const hio_uch_t* end = ucs + *ucslen;
 	int ret = 0; 
 
 	if (bcs)
 	{
-		mio_oow_t rem = *bcslen;
+		hio_oow_t rem = *bcslen;
 
 		while (p < end) 
 		{
-			mio_oow_t n;
+			hio_oow_t n;
 
 			if (rem <= 0)
 			{
@@ -611,14 +611,14 @@ MIO_INLINE int mio_conv_uchars_to_bchars_with_cmgr (
 	}
 	else
 	{
-		mio_bch_t bcsbuf[MIO_BCSIZE_MAX];
-		mio_oow_t mlen = 0;
+		hio_bch_t bcsbuf[HIO_BCSIZE_MAX];
+		hio_oow_t mlen = 0;
 
 		while (p < end)
 		{
-			mio_oow_t n;
+			hio_oow_t n;
 
-			n = cmgr->uctobc(*p, bcsbuf, MIO_COUNTOF(bcsbuf));
+			n = cmgr->uctobc(*p, bcsbuf, HIO_COUNTOF(bcsbuf));
 			if (n == 0) 
 			{
 				ret = -1;
@@ -626,7 +626,7 @@ MIO_INLINE int mio_conv_uchars_to_bchars_with_cmgr (
 			}
 
 			/* it assumes that bcsbuf is large enough to hold a character */
-			/*MIO_ASSERT (mio, n <= MIO_COUNTOF(bcsbuf));*/
+			/*HIO_ASSERT (hio, n <= HIO_COUNTOF(bcsbuf));*/
 
 			p++; mlen += n;
 		}
@@ -640,20 +640,20 @@ MIO_INLINE int mio_conv_uchars_to_bchars_with_cmgr (
 	return ret;
 }
 
-MIO_INLINE int mio_conv_ucstr_to_bcstr_with_cmgr (
-	const mio_uch_t* ucs, mio_oow_t* ucslen,
-	mio_bch_t* bcs, mio_oow_t* bcslen, mio_cmgr_t* cmgr)
+HIO_INLINE int hio_conv_ucstr_to_bcstr_with_cmgr (
+	const hio_uch_t* ucs, hio_oow_t* ucslen,
+	hio_bch_t* bcs, hio_oow_t* bcslen, hio_cmgr_t* cmgr)
 {
-	const mio_uch_t* p = ucs;
+	const hio_uch_t* p = ucs;
 	int ret = 0;
 
 	if (bcs)
 	{
-		mio_oow_t rem = *bcslen;
+		hio_oow_t rem = *bcslen;
 
 		while (*p != '\0')
 		{
-			mio_oow_t n;
+			hio_oow_t n;
 
 			if (rem <= 0)
 			{
@@ -692,14 +692,14 @@ MIO_INLINE int mio_conv_ucstr_to_bcstr_with_cmgr (
 	}
 	else
 	{
-		mio_bch_t bcsbuf[MIO_BCSIZE_MAX];
-		mio_oow_t mlen = 0;
+		hio_bch_t bcsbuf[HIO_BCSIZE_MAX];
+		hio_oow_t mlen = 0;
 
 		while (*p != '\0')
 		{
-			mio_oow_t n;
+			hio_oow_t n;
 
-			n = cmgr->uctobc(*p, bcsbuf, MIO_COUNTOF(bcsbuf));
+			n = cmgr->uctobc(*p, bcsbuf, HIO_COUNTOF(bcsbuf));
 			if (n == 0) 
 			{
 				ret = -1;
@@ -707,7 +707,7 @@ MIO_INLINE int mio_conv_ucstr_to_bcstr_with_cmgr (
 			}
 
 			/* it assumes that bcs is large enough to hold a character */
-			/*MIO_ASSERT (mio, n <= MIO_COUNTOF(bcs));*/
+			/*HIO_ASSERT (hio, n <= HIO_COUNTOF(bcs));*/
 
 			p++; mlen += n;
 		}
@@ -723,99 +723,99 @@ MIO_INLINE int mio_conv_ucstr_to_bcstr_with_cmgr (
 
 /* ----------------------------------------------------------------------- */
 
-static mio_cmgr_t utf8_cmgr =
+static hio_cmgr_t utf8_cmgr =
 {
-	mio_utf8_to_uc,
-	mio_uc_to_utf8
+	hio_utf8_to_uc,
+	hio_uc_to_utf8
 };
 
-mio_cmgr_t* mio_get_utf8_cmgr (void)
+hio_cmgr_t* hio_get_utf8_cmgr (void)
 {
 	return &utf8_cmgr;
 }
 
-int mio_conv_utf8_to_uchars (const mio_bch_t* bcs, mio_oow_t* bcslen, mio_uch_t* ucs, mio_oow_t* ucslen)
+int hio_conv_utf8_to_uchars (const hio_bch_t* bcs, hio_oow_t* bcslen, hio_uch_t* ucs, hio_oow_t* ucslen)
 {
 	/* the source is length bound */
-	return mio_conv_bchars_to_uchars_with_cmgr(bcs, bcslen, ucs, ucslen, &utf8_cmgr, 0);
+	return hio_conv_bchars_to_uchars_with_cmgr(bcs, bcslen, ucs, ucslen, &utf8_cmgr, 0);
 }
 
-int mio_conv_uchars_to_utf8 (const mio_uch_t* ucs, mio_oow_t* ucslen, mio_bch_t* bcs, mio_oow_t* bcslen)
+int hio_conv_uchars_to_utf8 (const hio_uch_t* ucs, hio_oow_t* ucslen, hio_bch_t* bcs, hio_oow_t* bcslen)
 {
 	/* length bound */
-	return mio_conv_uchars_to_bchars_with_cmgr(ucs, ucslen, bcs, bcslen, &utf8_cmgr);
+	return hio_conv_uchars_to_bchars_with_cmgr(ucs, ucslen, bcs, bcslen, &utf8_cmgr);
 }
 
-int mio_conv_utf8_to_ucstr (const mio_bch_t* bcs, mio_oow_t* bcslen, mio_uch_t* ucs, mio_oow_t* ucslen)
+int hio_conv_utf8_to_ucstr (const hio_bch_t* bcs, hio_oow_t* bcslen, hio_uch_t* ucs, hio_oow_t* ucslen)
 {
 	/* null-terminated. */
-	return mio_conv_bcstr_to_ucstr_with_cmgr(bcs, bcslen, ucs, ucslen, &utf8_cmgr, 0);
+	return hio_conv_bcstr_to_ucstr_with_cmgr(bcs, bcslen, ucs, ucslen, &utf8_cmgr, 0);
 }
 
-int mio_conv_ucstr_to_utf8 (const mio_uch_t* ucs, mio_oow_t* ucslen, mio_bch_t* bcs, mio_oow_t* bcslen)
+int hio_conv_ucstr_to_utf8 (const hio_uch_t* ucs, hio_oow_t* ucslen, hio_bch_t* bcs, hio_oow_t* bcslen)
 {
 	/* null-terminated */
-	return mio_conv_ucstr_to_bcstr_with_cmgr(ucs, ucslen, bcs, bcslen, &utf8_cmgr);
+	return hio_conv_ucstr_to_bcstr_with_cmgr(ucs, ucslen, bcs, bcslen, &utf8_cmgr);
 }
 
 /* ----------------------------------------------------------------------- */
 
-int mio_convbtouchars (mio_t* mio, const mio_bch_t* bcs, mio_oow_t* bcslen, mio_uch_t* ucs, mio_oow_t* ucslen, int all)
+int hio_convbtouchars (hio_t* hio, const hio_bch_t* bcs, hio_oow_t* bcslen, hio_uch_t* ucs, hio_oow_t* ucslen, int all)
 {
 	/* length bound */
 	int n;
 
-	n = mio_conv_bchars_to_uchars_with_cmgr(bcs, bcslen, ucs, ucslen, mio_getcmgr(mio), all);
+	n = hio_conv_bchars_to_uchars_with_cmgr(bcs, bcslen, ucs, ucslen, hio_getcmgr(hio), all);
 
 	if (n <= -1)
 	{
 		/* -1: illegal character, -2: buffer too small, -3: incomplete sequence */
-		mio_seterrnum (mio, (n == -2)? MIO_EBUFFULL: MIO_EECERR);
+		hio_seterrnum (hio, (n == -2)? HIO_EBUFFULL: HIO_EECERR);
 	}
 
 	return n;
 }
 
-int mio_convutobchars (mio_t* mio, const mio_uch_t* ucs, mio_oow_t* ucslen, mio_bch_t* bcs, mio_oow_t* bcslen)
+int hio_convutobchars (hio_t* hio, const hio_uch_t* ucs, hio_oow_t* ucslen, hio_bch_t* bcs, hio_oow_t* bcslen)
 {
 	/* length bound */
 	int n;
 
-	n = mio_conv_uchars_to_bchars_with_cmgr(ucs, ucslen, bcs, bcslen, mio_getcmgr(mio));
+	n = hio_conv_uchars_to_bchars_with_cmgr(ucs, ucslen, bcs, bcslen, hio_getcmgr(hio));
 
 	if (n <= -1)
 	{
-		mio_seterrnum (mio, (n == -2)? MIO_EBUFFULL: MIO_EECERR);
+		hio_seterrnum (hio, (n == -2)? HIO_EBUFFULL: HIO_EECERR);
 	}
 
 	return n;
 }
 
-int mio_convbtoucstr (mio_t* mio, const mio_bch_t* bcs, mio_oow_t* bcslen, mio_uch_t* ucs, mio_oow_t* ucslen, int all)
+int hio_convbtoucstr (hio_t* hio, const hio_bch_t* bcs, hio_oow_t* bcslen, hio_uch_t* ucs, hio_oow_t* ucslen, int all)
 {
 	/* null-terminated. */
 	int n;
 
-	n = mio_conv_bcstr_to_ucstr_with_cmgr(bcs, bcslen, ucs, ucslen, mio_getcmgr(mio), all);
+	n = hio_conv_bcstr_to_ucstr_with_cmgr(bcs, bcslen, ucs, ucslen, hio_getcmgr(hio), all);
 
 	if (n <= -1)
 	{
-		mio_seterrnum (mio, (n == -2)? MIO_EBUFFULL: MIO_EECERR);
+		hio_seterrnum (hio, (n == -2)? HIO_EBUFFULL: HIO_EECERR);
 	}
 
 	return n;
 }
 
-int mio_convutobcstr (mio_t* mio, const mio_uch_t* ucs, mio_oow_t* ucslen, mio_bch_t* bcs, mio_oow_t* bcslen)
+int hio_convutobcstr (hio_t* hio, const hio_uch_t* ucs, hio_oow_t* ucslen, hio_bch_t* bcs, hio_oow_t* bcslen)
 {
 	/* null-terminated */
 	int n;
 
-	n = mio_conv_ucstr_to_bcstr_with_cmgr(ucs, ucslen, bcs, bcslen, mio_getcmgr(mio));
+	n = hio_conv_ucstr_to_bcstr_with_cmgr(ucs, ucslen, bcs, bcslen, hio_getcmgr(hio));
 
 	if (n <= -1)
 	{
-		mio_seterrnum (mio, (n == -2)? MIO_EBUFFULL: MIO_EECERR);
+		hio_seterrnum (hio, (n == -2)? HIO_EBUFFULL: HIO_EECERR);
 	}
 
 	return n;
@@ -823,214 +823,214 @@ int mio_convutobcstr (mio_t* mio, const mio_uch_t* ucs, mio_oow_t* ucslen, mio_b
 
 /* ----------------------------------------------------------------------- */
 
-MIO_INLINE mio_uch_t* mio_dupbtoucharswithheadroom (mio_t* mio, mio_oow_t headroom_bytes, const mio_bch_t* bcs, mio_oow_t bcslen, mio_oow_t* ucslen, int all)
+HIO_INLINE hio_uch_t* hio_dupbtoucharswithheadroom (hio_t* hio, hio_oow_t headroom_bytes, const hio_bch_t* bcs, hio_oow_t bcslen, hio_oow_t* ucslen, int all)
 {
-	mio_oow_t inlen, outlen;
-	mio_uch_t* ptr;
+	hio_oow_t inlen, outlen;
+	hio_uch_t* ptr;
 
 	inlen = bcslen;
-	if (mio_convbtouchars(mio, bcs, &inlen, MIO_NULL, &outlen, all) <= -1) 
+	if (hio_convbtouchars(hio, bcs, &inlen, HIO_NULL, &outlen, all) <= -1) 
 	{
 		/* note it's also an error if no full conversion is made in this function */
-		return MIO_NULL;
+		return HIO_NULL;
 	}
 
-	ptr = (mio_uch_t*)mio_allocmem(mio, headroom_bytes + ((outlen + 1) * MIO_SIZEOF(mio_uch_t)));
-	if (!ptr) return MIO_NULL;
+	ptr = (hio_uch_t*)hio_allocmem(hio, headroom_bytes + ((outlen + 1) * HIO_SIZEOF(hio_uch_t)));
+	if (!ptr) return HIO_NULL;
 
 	inlen = bcslen;
 
-	ptr = (mio_uch_t*)((mio_oob_t*)ptr + headroom_bytes);
-	mio_convbtouchars (mio, bcs, &inlen, ptr, &outlen, all);
+	ptr = (hio_uch_t*)((hio_oob_t*)ptr + headroom_bytes);
+	hio_convbtouchars (hio, bcs, &inlen, ptr, &outlen, all);
 
-	/* mio_convbtouchars() doesn't null-terminate the target. 
-	 * but in mio_dupbtouchars(), i allocate space. so i don't mind
+	/* hio_convbtouchars() doesn't null-terminate the target. 
+	 * but in hio_dupbtouchars(), i allocate space. so i don't mind
 	 * null-terminating it with 1 extra character overhead */
 	ptr[outlen] = '\0'; 
 	if (ucslen) *ucslen = outlen;
 	return ptr;
 }
 
-mio_uch_t* mio_dupbtouchars (mio_t* mio, const mio_bch_t* bcs, mio_oow_t bcslen, mio_oow_t* ucslen, int all)
+hio_uch_t* hio_dupbtouchars (hio_t* hio, const hio_bch_t* bcs, hio_oow_t bcslen, hio_oow_t* ucslen, int all)
 {
-	return mio_dupbtoucharswithheadroom (mio, 0, bcs, bcslen, ucslen, all);
+	return hio_dupbtoucharswithheadroom (hio, 0, bcs, bcslen, ucslen, all);
 }
 
-MIO_INLINE mio_bch_t* mio_duputobcharswithheadroom (mio_t* mio, mio_oow_t headroom_bytes, const mio_uch_t* ucs, mio_oow_t ucslen, mio_oow_t* bcslen)
+HIO_INLINE hio_bch_t* hio_duputobcharswithheadroom (hio_t* hio, hio_oow_t headroom_bytes, const hio_uch_t* ucs, hio_oow_t ucslen, hio_oow_t* bcslen)
 {
-	mio_oow_t inlen, outlen;
-	mio_bch_t* ptr;
+	hio_oow_t inlen, outlen;
+	hio_bch_t* ptr;
 
 	inlen = ucslen;
-	if (mio_convutobchars(mio, ucs, &inlen, MIO_NULL, &outlen) <= -1) 
+	if (hio_convutobchars(hio, ucs, &inlen, HIO_NULL, &outlen) <= -1) 
 	{
 		/* note it's also an error if no full conversion is made in this function */
-		return MIO_NULL;
+		return HIO_NULL;
 	}
 
-	ptr = (mio_bch_t*)mio_allocmem(mio, headroom_bytes + ((outlen + 1) * MIO_SIZEOF(mio_bch_t)));
-	if (!ptr) return MIO_NULL;
+	ptr = (hio_bch_t*)hio_allocmem(hio, headroom_bytes + ((outlen + 1) * HIO_SIZEOF(hio_bch_t)));
+	if (!ptr) return HIO_NULL;
 
 	inlen = ucslen;
-	ptr = (mio_bch_t*)((mio_oob_t*)ptr + headroom_bytes);
-	mio_convutobchars (mio, ucs, &inlen, ptr, &outlen);
+	ptr = (hio_bch_t*)((hio_oob_t*)ptr + headroom_bytes);
+	hio_convutobchars (hio, ucs, &inlen, ptr, &outlen);
 
 	ptr[outlen] = '\0';
 	if (bcslen) *bcslen = outlen;
 	return ptr;
 }
 
-mio_bch_t* mio_duputobchars (mio_t* mio, const mio_uch_t* ucs, mio_oow_t ucslen, mio_oow_t* bcslen)
+hio_bch_t* hio_duputobchars (hio_t* hio, const hio_uch_t* ucs, hio_oow_t ucslen, hio_oow_t* bcslen)
 {
-	return mio_duputobcharswithheadroom (mio, 0, ucs, ucslen, bcslen);
+	return hio_duputobcharswithheadroom (hio, 0, ucs, ucslen, bcslen);
 }
 
 
 /* ----------------------------------------------------------------------- */
 
-MIO_INLINE mio_uch_t* mio_dupbtoucstrwithheadroom (mio_t* mio, mio_oow_t headroom_bytes, const mio_bch_t* bcs, mio_oow_t* ucslen, int all)
+HIO_INLINE hio_uch_t* hio_dupbtoucstrwithheadroom (hio_t* hio, hio_oow_t headroom_bytes, const hio_bch_t* bcs, hio_oow_t* ucslen, int all)
 {
-	mio_oow_t inlen, outlen;
-	mio_uch_t* ptr;
+	hio_oow_t inlen, outlen;
+	hio_uch_t* ptr;
 
-	if (mio_convbtoucstr(mio, bcs, &inlen, MIO_NULL, &outlen, all) <= -1) 
+	if (hio_convbtoucstr(hio, bcs, &inlen, HIO_NULL, &outlen, all) <= -1) 
 	{
 		/* note it's also an error if no full conversion is made in this function */
-		return MIO_NULL;
+		return HIO_NULL;
 	}
 
 	outlen++;
-	ptr = (mio_uch_t*)mio_allocmem(mio, headroom_bytes + (outlen * MIO_SIZEOF(mio_uch_t)));
-	if (!ptr) return MIO_NULL;
+	ptr = (hio_uch_t*)hio_allocmem(hio, headroom_bytes + (outlen * HIO_SIZEOF(hio_uch_t)));
+	if (!ptr) return HIO_NULL;
 
-	mio_convbtoucstr (mio, bcs, &inlen, ptr, &outlen, all);
+	hio_convbtoucstr (hio, bcs, &inlen, ptr, &outlen, all);
 	if (ucslen) *ucslen = outlen;
 	return ptr;
 }
 
-mio_uch_t* mio_dupbtoucstr (mio_t* mio, const mio_bch_t* bcs, mio_oow_t* ucslen, int all)
+hio_uch_t* hio_dupbtoucstr (hio_t* hio, const hio_bch_t* bcs, hio_oow_t* ucslen, int all)
 {
-	return mio_dupbtoucstrwithheadroom (mio, 0, bcs, ucslen, all);
+	return hio_dupbtoucstrwithheadroom (hio, 0, bcs, ucslen, all);
 }
 
-MIO_INLINE mio_bch_t* mio_duputobcstrwithheadroom (mio_t* mio, mio_oow_t headroom_bytes, const mio_uch_t* ucs, mio_oow_t* bcslen)
+HIO_INLINE hio_bch_t* hio_duputobcstrwithheadroom (hio_t* hio, hio_oow_t headroom_bytes, const hio_uch_t* ucs, hio_oow_t* bcslen)
 {
-	mio_oow_t inlen, outlen;
-	mio_bch_t* ptr;
+	hio_oow_t inlen, outlen;
+	hio_bch_t* ptr;
 
-	if (mio_convutobcstr(mio, ucs, &inlen, MIO_NULL, &outlen) <= -1) 
+	if (hio_convutobcstr(hio, ucs, &inlen, HIO_NULL, &outlen) <= -1) 
 	{
 		/* note it's also an error if no full conversion is made in this function */
-		return MIO_NULL;
+		return HIO_NULL;
 	}
 
 	outlen++;
-	ptr = (mio_bch_t*)mio_allocmem(mio, headroom_bytes + (outlen * MIO_SIZEOF(mio_bch_t)));
-	if (!ptr) return MIO_NULL;
+	ptr = (hio_bch_t*)hio_allocmem(hio, headroom_bytes + (outlen * HIO_SIZEOF(hio_bch_t)));
+	if (!ptr) return HIO_NULL;
 
-	ptr = (mio_bch_t*)((mio_oob_t*)ptr + headroom_bytes);
+	ptr = (hio_bch_t*)((hio_oob_t*)ptr + headroom_bytes);
 
-	mio_convutobcstr (mio, ucs, &inlen, ptr, &outlen);
+	hio_convutobcstr (hio, ucs, &inlen, ptr, &outlen);
 	if (bcslen) *bcslen = outlen;
 	return ptr;
 }
 
-mio_bch_t* mio_duputobcstr (mio_t* mio, const mio_uch_t* ucs, mio_oow_t* bcslen)
+hio_bch_t* hio_duputobcstr (hio_t* hio, const hio_uch_t* ucs, hio_oow_t* bcslen)
 {
-	return mio_duputobcstrwithheadroom (mio, 0, ucs, bcslen);
+	return hio_duputobcstrwithheadroom (hio, 0, ucs, bcslen);
 }
 /* ----------------------------------------------------------------------- */
 
-mio_uch_t* mio_dupuchars (mio_t* mio, const mio_uch_t* ucs, mio_oow_t ucslen)
+hio_uch_t* hio_dupuchars (hio_t* hio, const hio_uch_t* ucs, hio_oow_t ucslen)
 {
-	mio_uch_t* ptr;
+	hio_uch_t* ptr;
 
-	ptr = (mio_uch_t*)mio_allocmem(mio, (ucslen + 1) * MIO_SIZEOF(mio_uch_t));
-	if (!ptr) return MIO_NULL;
+	ptr = (hio_uch_t*)hio_allocmem(hio, (ucslen + 1) * HIO_SIZEOF(hio_uch_t));
+	if (!ptr) return HIO_NULL;
 
-	mio_copy_uchars (ptr, ucs, ucslen);
+	hio_copy_uchars (ptr, ucs, ucslen);
 	ptr[ucslen] = '\0';
 	return ptr;
 }
 
-mio_bch_t* mio_dupbchars (mio_t* mio, const mio_bch_t* bcs, mio_oow_t bcslen)
+hio_bch_t* hio_dupbchars (hio_t* hio, const hio_bch_t* bcs, hio_oow_t bcslen)
 {
-	mio_bch_t* ptr;
+	hio_bch_t* ptr;
 
-	ptr = (mio_bch_t*)mio_allocmem(mio, (bcslen + 1) * MIO_SIZEOF(mio_bch_t));
-	if (!ptr) return MIO_NULL;
+	ptr = (hio_bch_t*)hio_allocmem(hio, (bcslen + 1) * HIO_SIZEOF(hio_bch_t));
+	if (!ptr) return HIO_NULL;
 
-	mio_copy_bchars (ptr, bcs, bcslen);
+	hio_copy_bchars (ptr, bcs, bcslen);
 	ptr[bcslen] = '\0';
 	return ptr;
 }
 
 
 /* ========================================================================= */
-mio_uch_t* mio_dupucstr (mio_t* mio, const mio_uch_t* ucs, mio_oow_t* ucslen)
+hio_uch_t* hio_dupucstr (hio_t* hio, const hio_uch_t* ucs, hio_oow_t* ucslen)
 {
-	mio_uch_t* ptr;
-	mio_oow_t len;
+	hio_uch_t* ptr;
+	hio_oow_t len;
 
-	len = mio_count_ucstr(ucs);
+	len = hio_count_ucstr(ucs);
 
-	ptr = (mio_uch_t*)mio_allocmem(mio, (len + 1) * MIO_SIZEOF(mio_uch_t));
-	if (!ptr) return MIO_NULL;
+	ptr = (hio_uch_t*)hio_allocmem(hio, (len + 1) * HIO_SIZEOF(hio_uch_t));
+	if (!ptr) return HIO_NULL;
 
-	mio_copy_uchars (ptr, ucs, len);
+	hio_copy_uchars (ptr, ucs, len);
 	ptr[len] = '\0';
 
 	if (ucslen) *ucslen = len;
 	return ptr;
 }
 
-mio_bch_t* mio_dupbcstr (mio_t* mio, const mio_bch_t* bcs, mio_oow_t* bcslen)
+hio_bch_t* hio_dupbcstr (hio_t* hio, const hio_bch_t* bcs, hio_oow_t* bcslen)
 {
-	mio_bch_t* ptr;
-	mio_oow_t len;
+	hio_bch_t* ptr;
+	hio_oow_t len;
 
-	len = mio_count_bcstr(bcs);
+	len = hio_count_bcstr(bcs);
 
-	ptr = (mio_bch_t*)mio_allocmem(mio, (len + 1) * MIO_SIZEOF(mio_bch_t));
-	if (!ptr) return MIO_NULL;
+	ptr = (hio_bch_t*)hio_allocmem(hio, (len + 1) * HIO_SIZEOF(hio_bch_t));
+	if (!ptr) return HIO_NULL;
 
-	mio_copy_bchars (ptr, bcs, len);
+	hio_copy_bchars (ptr, bcs, len);
 	ptr[len] = '\0';
 
 	if (bcslen) *bcslen = len;
 	return ptr;
 }
 
-mio_uch_t* mio_dupucstrs (mio_t* mio, const mio_uch_t* ucs[], mio_oow_t* ucslen)
+hio_uch_t* hio_dupucstrs (hio_t* hio, const hio_uch_t* ucs[], hio_oow_t* ucslen)
 {
-	mio_uch_t* ptr;
-	mio_oow_t len, i;
+	hio_uch_t* ptr;
+	hio_oow_t len, i;
 
-	for (i = 0, len = 0; ucs[i]; i++) len += mio_count_ucstr(ucs[i]);
+	for (i = 0, len = 0; ucs[i]; i++) len += hio_count_ucstr(ucs[i]);
 
-	ptr = (mio_uch_t*)mio_allocmem(mio, (len + 1) * MIO_SIZEOF(mio_uch_t));
-	if (!ptr) return MIO_NULL;
+	ptr = (hio_uch_t*)hio_allocmem(hio, (len + 1) * HIO_SIZEOF(hio_uch_t));
+	if (!ptr) return HIO_NULL;
 
 	for (i = 0, len = 0; ucs[i]; i++) 
-		len += mio_copy_ucstr_unlimited(&ptr[len], ucs[i]);
+		len += hio_copy_ucstr_unlimited(&ptr[len], ucs[i]);
 	ptr[len] = '\0';
 
 	if (ucslen) *ucslen = len;
 	return ptr;
 }
 
-mio_bch_t* mio_dupbcstrs (mio_t* mio, const mio_bch_t* bcs[], mio_oow_t* bcslen)
+hio_bch_t* hio_dupbcstrs (hio_t* hio, const hio_bch_t* bcs[], hio_oow_t* bcslen)
 {
-	mio_bch_t* ptr;
-	mio_oow_t len, i;
+	hio_bch_t* ptr;
+	hio_oow_t len, i;
 
-	for (i = 0, len = 0; bcs[i]; i++) len += mio_count_bcstr(bcs[i]);
+	for (i = 0, len = 0; bcs[i]; i++) len += hio_count_bcstr(bcs[i]);
 
-	ptr = (mio_bch_t*)mio_allocmem(mio, (len + 1) * MIO_SIZEOF(mio_bch_t));
-	if (!ptr) return MIO_NULL;
+	ptr = (hio_bch_t*)hio_allocmem(hio, (len + 1) * HIO_SIZEOF(hio_bch_t));
+	if (!ptr) return HIO_NULL;
 
 	for (i = 0, len = 0; bcs[i]; i++) 
-		len += mio_copy_bcstr_unlimited(&ptr[len], bcs[i]);
+		len += hio_copy_bcstr_unlimited(&ptr[len], bcs[i]);
 	ptr[len] = '\0';
 
 	if (bcslen) *bcslen = len;
@@ -1038,19 +1038,19 @@ mio_bch_t* mio_dupbcstrs (mio_t* mio, const mio_bch_t* bcs[], mio_oow_t* bcslen)
 }
 /* ========================================================================= */
 
-void mio_add_ntime (mio_ntime_t* z, const mio_ntime_t* x, const mio_ntime_t* y)
+void hio_add_ntime (hio_ntime_t* z, const hio_ntime_t* x, const hio_ntime_t* y)
 {
-	mio_ntime_sec_t xs, ys;
-	mio_ntime_nsec_t ns;
+	hio_ntime_sec_t xs, ys;
+	hio_ntime_nsec_t ns;
 
-	/*MIO_ASSERT (x->nsec >= 0 && x->nsec < MIO_NSECS_PER_SEC);
-	MIO_ASSERT (y->nsec >= 0 && y->nsec < MIO_NSECS_PER_SEC);*/
+	/*HIO_ASSERT (x->nsec >= 0 && x->nsec < HIO_NSECS_PER_SEC);
+	HIO_ASSERT (y->nsec >= 0 && y->nsec < HIO_NSECS_PER_SEC);*/
 
 	ns = x->nsec + y->nsec;
-	if (ns >= MIO_NSECS_PER_SEC)
+	if (ns >= HIO_NSECS_PER_SEC)
 	{
-		ns = ns - MIO_NSECS_PER_SEC;
-		if (x->sec == MIO_TYPE_MAX(mio_ntime_sec_t))
+		ns = ns - HIO_NSECS_PER_SEC;
+		if (x->sec == HIO_TYPE_MAX(hio_ntime_sec_t))
 		{
 			if (y->sec >= 0) goto overflow;
 			xs = x->sec;
@@ -1068,18 +1068,18 @@ void mio_add_ntime (mio_ntime_t* z, const mio_ntime_t* x, const mio_ntime_t* y)
 		ys = y->sec;
 	}
 
-	if ((ys >= 1 && xs > MIO_TYPE_MAX(mio_ntime_sec_t) - ys) ||
-	    (ys <= -1 && xs < MIO_TYPE_MIN(mio_ntime_sec_t) - ys))
+	if ((ys >= 1 && xs > HIO_TYPE_MAX(hio_ntime_sec_t) - ys) ||
+	    (ys <= -1 && xs < HIO_TYPE_MIN(hio_ntime_sec_t) - ys))
 	{
 		if (xs >= 0)
 		{
 		overflow:
-			xs = MIO_TYPE_MAX(mio_ntime_sec_t);
-			ns = MIO_NSECS_PER_SEC - 1;
+			xs = HIO_TYPE_MAX(hio_ntime_sec_t);
+			ns = HIO_NSECS_PER_SEC - 1;
 		}
 		else
 		{
-			xs = MIO_TYPE_MIN(mio_ntime_sec_t);
+			xs = HIO_TYPE_MIN(hio_ntime_sec_t);
 			ns = 0;
 		}
 	}
@@ -1092,19 +1092,19 @@ void mio_add_ntime (mio_ntime_t* z, const mio_ntime_t* x, const mio_ntime_t* y)
 	z->nsec = ns;
 }
 
-void mio_sub_ntime (mio_ntime_t* z, const mio_ntime_t* x, const mio_ntime_t* y)
+void hio_sub_ntime (hio_ntime_t* z, const hio_ntime_t* x, const hio_ntime_t* y)
 {
-	mio_ntime_sec_t xs, ys;
-	mio_ntime_nsec_t ns;
+	hio_ntime_sec_t xs, ys;
+	hio_ntime_nsec_t ns;
 
-	/*MIO_ASSERT (x->nsec >= 0 && x->nsec < MIO_NSECS_PER_SEC);
-	MIO_ASSERT (y->nsec >= 0 && y->nsec < MIO_NSECS_PER_SEC);*/
+	/*HIO_ASSERT (x->nsec >= 0 && x->nsec < HIO_NSECS_PER_SEC);
+	HIO_ASSERT (y->nsec >= 0 && y->nsec < HIO_NSECS_PER_SEC);*/
 
 	ns = x->nsec - y->nsec;
 	if (ns < 0)
 	{
-		ns = ns + MIO_NSECS_PER_SEC;
-		if (x->sec == MIO_TYPE_MIN(mio_ntime_sec_t))
+		ns = ns + HIO_NSECS_PER_SEC;
+		if (x->sec == HIO_TYPE_MIN(hio_ntime_sec_t))
 		{
 			if (y->sec <= 0) goto underflow;
 			xs = x->sec;
@@ -1122,18 +1122,18 @@ void mio_sub_ntime (mio_ntime_t* z, const mio_ntime_t* x, const mio_ntime_t* y)
 		ys = y->sec;
 	}
 
-	if ((ys >= 1 && xs < MIO_TYPE_MIN(mio_ntime_sec_t) + ys) ||
-	    (ys <= -1 && xs > MIO_TYPE_MAX(mio_ntime_sec_t) + ys))
+	if ((ys >= 1 && xs < HIO_TYPE_MIN(hio_ntime_sec_t) + ys) ||
+	    (ys <= -1 && xs > HIO_TYPE_MAX(hio_ntime_sec_t) + ys))
 	{
 		if (xs >= 0)
 		{
-			xs = MIO_TYPE_MAX(mio_ntime_sec_t);
-			ns = MIO_NSECS_PER_SEC - 1;
+			xs = HIO_TYPE_MAX(hio_ntime_sec_t);
+			ns = HIO_NSECS_PER_SEC - 1;
 		}
 		else
 		{
 		underflow:
-			xs = MIO_TYPE_MIN(mio_ntime_sec_t);
+			xs = HIO_TYPE_MIN(hio_ntime_sec_t);
 			ns = 0;
 		}
 	} 
