@@ -849,7 +849,6 @@ static mio_oow_t ip4ad_to_ucstr (const struct in_addr* ipad, mio_uch_t* buf, mio
 	return p - buf;
 }
 
-
 static mio_oow_t ip6ad_to_ucstr (const struct in6_addr* ipad, mio_uch_t* buf, mio_oow_t size)
 {
 	/*
@@ -1506,7 +1505,7 @@ int mio_equal_skads (const mio_skad_t* addr1, const mio_skad_t* addr2, int stric
 	}
 }
 
-mio_oow_t mio_ipad_bytes_to_ucstr (const mio_uint8_t* iptr, mio_oow_t ilen, mio_uch_t* buf, mio_oow_t blen)
+mio_oow_t mio_ipaddr_bytes_to_ucstr (const mio_uint8_t* iptr, mio_oow_t ilen, mio_uch_t* buf, mio_oow_t blen)
 {
 	switch (ilen)
 	{
@@ -1530,7 +1529,7 @@ mio_oow_t mio_ipad_bytes_to_ucstr (const mio_uint8_t* iptr, mio_oow_t ilen, mio_
 	}
 }
 
-mio_oow_t mio_ipad_bytes_to_bcstr (const mio_uint8_t* iptr, mio_oow_t ilen, mio_bch_t* buf, mio_oow_t blen)
+mio_oow_t mio_ipaddr_bytes_to_bcstr (const mio_uint8_t* iptr, mio_oow_t ilen, mio_bch_t* buf, mio_oow_t blen)
 {
 	switch (ilen)
 	{
@@ -1554,7 +1553,7 @@ mio_oow_t mio_ipad_bytes_to_bcstr (const mio_uint8_t* iptr, mio_oow_t ilen, mio_
 	}
 }
 
-int mio_uchars_to_ipad_bytes (const mio_uch_t* str, mio_oow_t slen, mio_uint8_t* buf, mio_oow_t blen)
+int mio_uchars_to_ipaddr_bytes (const mio_uch_t* str, mio_oow_t slen, mio_uint8_t* buf, mio_oow_t blen)
 {
 	if (blen >= MIO_IP6ADDR_LEN)
 	{
@@ -1575,7 +1574,7 @@ int mio_uchars_to_ipad_bytes (const mio_uch_t* str, mio_oow_t slen, mio_uint8_t*
 	return -1;
 }
 
-int mio_bchars_to_ipad_bytes (const mio_bch_t* str, mio_oow_t slen, mio_uint8_t* buf, mio_oow_t blen)
+int mio_bchars_to_ipaddr_bytes (const mio_bch_t* str, mio_oow_t slen, mio_uint8_t* buf, mio_oow_t blen)
 {
 	if (blen >= MIO_IP6ADDR_LEN)
 	{
