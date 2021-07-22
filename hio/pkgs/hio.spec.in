@@ -51,7 +51,7 @@ make
 make install DESTDIR=$RPM_BUILD_ROOT
 rm -f $RPM_BUILD_ROOT%{_libdir}/*.la
 rm -rf $RPM_BUILD_ROOT%{_libdir}/pkgconfig
-rm -f $RPM_BUILD_ROOT%{_bindir}/hio[0-9][0-9]  ## delete binaries from the samples directory
+### rm -f $RPM_BUILD_ROOT%{_bindir}/hio-*  ## delete binaries from the bin directory.
 
 %check
 make check
