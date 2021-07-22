@@ -24,8 +24,8 @@
     THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  */
 
-#include <mio-path.h>
-#include "mio-prv.h"
+#include <hio-path.h>
+#include "hio-prv.h"
 
 /* TODO: support the \\?\ prefix and the \\.\ prefix on windows 
  *       support \\?\UNC\server\path which is equivalent to \\server\path. 
@@ -35,52 +35,52 @@
 /* ------------------------------------------------------------------ */
 
 #if 0
-int mio_is_ucstr_path_absolute (const mio_uch_t* path)
+int hio_is_ucstr_path_absolute (const hio_uch_t* path)
 {
-	if (MIO_IS_PATH_SEP(path[0])) return 1;
+	if (HIO_IS_PATH_SEP(path[0])) return 1;
 #if defined(_WIN32) || defined(__OS2__) || defined(__DOS__)
 	/* a drive like c:tmp is absolute in positioning the drive.
 	 * but the path within the drive is kind of relative */
-	if (MIO_IS_PATH_DRIVE(path)) return 1;
+	if (HIO_IS_PATH_DRIVE(path)) return 1;
 #endif
      return 0;
 }
 
-int mio_is_ucstr_path_drive (const mio_uch_t* path)
+int hio_is_ucstr_path_drive (const hio_uch_t* path)
 {
 #if defined(_WIN32) || defined(__OS2__) || defined(__DOS__)
-	if (MIO_IS_PATH_DRIVE(path)) return 1;
+	if (HIO_IS_PATH_DRIVE(path)) return 1;
 #endif
 	return 0;
 }
 
-int mio_is_ucstr_path_drive_absolute (const mio_uch_t* path)
+int hio_is_ucstr_path_drive_absolute (const hio_uch_t* path)
 {
 #if defined(_WIN32) || defined(__OS2__) || defined(__DOS__)
-	if (MIO_IS_PATH_DRIVE(path) && MIO_IS_PATH_SEP(path[2])) return 1;
+	if (HIO_IS_PATH_DRIVE(path) && HIO_IS_PATH_SEP(path[2])) return 1;
 #endif
 	return 0;
 }
 
-int mio_is_ucstr_path_drive_current (const mio_uch_t* path)
+int hio_is_ucstr_path_drive_current (const hio_uch_t* path)
 {
 #if defined(_WIN32) || defined(__OS2__) || defined(__DOS__)
-	if (MIO_IS_PATH_DRIVE(path) && path[2] == '\0') return 1;
+	if (HIO_IS_PATH_DRIVE(path) && path[2] == '\0') return 1;
 #endif
 	return 0;
 }
 #endif
 
-mio_oow_t mio_canon_ucstr_path (const mio_uch_t* path, mio_uch_t* canon, int flags)
+hio_oow_t hio_canon_ucstr_path (const hio_uch_t* path, hio_uch_t* canon, int flags)
 {
-	const mio_uch_t* ptr;
-	mio_uch_t* dst;
-	mio_uch_t* non_root_start;
+	const hio_uch_t* ptr;
+	hio_uch_t* dst;
+	hio_uch_t* non_root_start;
 	int has_root = 0;
 #if defined(_WIN32) || defined(__OS2__) || defined(__DOS__)
 	int is_drive = 0;
 #endif
-	mio_oow_t canon_len;
+	hio_oow_t canon_len;
 
 	if (path[0] == '\0') 
 	{
@@ -93,31 +93,31 @@ mio_oow_t mio_canon_ucstr_path (const mio_uch_t* path, mio_uch_t* canon, int fla
 	dst = canon;
 
 #if defined(_WIN32) || defined(__OS2__) || defined(__DOS__)
-	if (MIO_IS_PATH_DRIVE(ptr))
+	if (HIO_IS_PATH_DRIVE(ptr))
 	{
 		/* handle drive letter */
 		*dst++ = *ptr++; /* drive letter */
 		*dst++ = *ptr++; /* colon */
 
 		is_drive = 1;
-		if (MIO_IS_PATH_SEP(*ptr)) 
+		if (HIO_IS_PATH_SEP(*ptr)) 
 		{
 			*dst++ = *ptr++; /* root directory */
 			has_root = 1;
 		}
 	}
-	else if (MIO_IS_PATH_SEP(*ptr)) 
+	else if (HIO_IS_PATH_SEP(*ptr)) 
 	{
 		*dst++ = *ptr++; /* root directory */
 		has_root = 1;
 
 	#if defined(_WIN32)
 		/* handle UNC path for Windows */
-		if (MIO_IS_PATH_SEP(*ptr)) 
+		if (HIO_IS_PATH_SEP(*ptr)) 
 		{
 			*dst++ = *ptr++;
 
-			if (MIO_IS_PATH_SEP_OR_NIL(*ptr))
+			if (HIO_IS_PATH_SEP_OR_NIL(*ptr))
 			{
 				/* if there is another separator after \\,
 				 * it's not an UNC path. */
@@ -126,14 +126,14 @@ mio_oow_t mio_canon_ucstr_path (const mio_uch_t* path, mio_uch_t* canon, int fla
 			else
 			{
 				/* if it starts with \\, process host name */
-				do { *dst++ = *ptr++; } while (!MIO_IS_PATH_SEP_OR_NIL(*ptr));
-				if (MIO_IS_PATH_SEP(*ptr)) *dst++ = *ptr++;
+				do { *dst++ = *ptr++; } while (!HIO_IS_PATH_SEP_OR_NIL(*ptr));
+				if (HIO_IS_PATH_SEP(*ptr)) *dst++ = *ptr++;
 			}
 		}
 	#endif
 	}
 #else
-	if (MIO_IS_PATH_SEP(*ptr)) 
+	if (HIO_IS_PATH_SEP(*ptr)) 
 	{
 		*dst++ = *ptr++; /* root directory */
 		has_root = 1;
@@ -146,18 +146,18 @@ mio_oow_t mio_canon_ucstr_path (const mio_uch_t* path, mio_uch_t* canon, int fla
 
 	do
 	{
-		const mio_uch_t* seg;
-		mio_oow_t seglen;
+		const hio_uch_t* seg;
+		hio_oow_t seglen;
 
 		/* skip duplicate separators */
-		while (MIO_IS_PATH_SEP(*ptr)) ptr++;
+		while (HIO_IS_PATH_SEP(*ptr)) ptr++;
 
 		/* end of path reached */
 		if (*ptr == '\0') break;
 
 		/* find the next segment */
 		seg = ptr;
-		while (!MIO_IS_PATH_SEP_OR_NIL(*ptr)) ptr++;
+		while (!HIO_IS_PATH_SEP_OR_NIL(*ptr)) ptr++;
 		seglen = ptr - seg;
 
 		/* handle the segment */
@@ -165,11 +165,11 @@ mio_oow_t mio_canon_ucstr_path (const mio_uch_t* path, mio_uch_t* canon, int fla
 		{
 			/* eat up . */
 		}
-		else if (!(flags & MIO_CANON_UCSTR_PATH_KEEP_DOUBLE_DOTS) &&
+		else if (!(flags & HIO_CANON_UCSTR_PATH_KEEP_DOUBLE_DOTS) &&
 		         seglen == 2 && seg[0] == '.' && seg[1] == '.')
 		{
 			/* eat up the previous segment */
-			mio_uch_t* tmp;
+			hio_uch_t* tmp;
 
 			tmp = dst;
 			if (tmp > non_root_start) 
@@ -182,7 +182,7 @@ mio_oow_t mio_canon_ucstr_path (const mio_uch_t* path, mio_uch_t* canon, int fla
 				while (tmp > non_root_start)
 				{
 					tmp--;
-					if (MIO_IS_PATH_SEP(*tmp)) 
+					if (HIO_IS_PATH_SEP(*tmp)) 
 					{
 						tmp++; /* position it next to the separator */
 						break; 
@@ -211,7 +211,7 @@ mio_oow_t mio_canon_ucstr_path (const mio_uch_t* path, mio_uch_t* canon, int fla
 			}
 			else
 			{
-				mio_oow_t prevlen;
+				hio_oow_t prevlen;
 
 				prevlen = dst - tmp;
 
@@ -243,7 +243,7 @@ mio_oow_t mio_canon_ucstr_path (const mio_uch_t* path, mio_uch_t* canon, int fla
 		{
 		normal:
 			while (seg < ptr) *dst++ = *seg++;
-			if (MIO_IS_PATH_SEP(*ptr)) 
+			if (HIO_IS_PATH_SEP(*ptr)) 
 			{
 				/* this segment ended with a separator */
 				*dst++ = *seg++; /* copy the separator */
@@ -253,20 +253,20 @@ mio_oow_t mio_canon_ucstr_path (const mio_uch_t* path, mio_uch_t* canon, int fla
 	}
 	while (1);
 
-	if (dst > non_root_start && MIO_IS_PATH_SEP(dst[-1]) && 
-	    ((flags & MIO_CANON_BCSTR_PATH_DROP_TRAILING_SEP) || !MIO_IS_PATH_SEP(ptr[-1]))) 
+	if (dst > non_root_start && HIO_IS_PATH_SEP(dst[-1]) && 
+	    ((flags & HIO_CANON_BCSTR_PATH_DROP_TRAILING_SEP) || !HIO_IS_PATH_SEP(ptr[-1]))) 
 	{
 		/* if the canoncal path composed so far ends with a separator
 		 * and the original path didn't end with the separator, delete
 		 * the ending separator. 
-		 * also delete it if MIO_CANON_BCSTR_PATH_DROP_TRAILING_SEP is set.
+		 * also delete it if HIO_CANON_BCSTR_PATH_DROP_TRAILING_SEP is set.
 		 *
 		 *   dst > non_root_start:
 		 *     there is at least 1 character after the root directory 
 		 *     part.
-		 *   MIO_IS_PATH_SEP(dst[-1]):
+		 *   HIO_IS_PATH_SEP(dst[-1]):
 		 *     the canonical path ends with a separator.
-		 *   MIO_IS_PATH_SEP(ptr[-1]):
+		 *   HIO_IS_PATH_SEP(ptr[-1]):
 		 *     the origial path ends with a separator.
 		 */
 		dst[-1] = '\0';
@@ -281,7 +281,7 @@ mio_oow_t mio_canon_ucstr_path (const mio_uch_t* path, mio_uch_t* canon, int fla
 
 	if (canon_len <= 0) 
 	{
-		if (!(flags & MIO_CANON_UCSTR_PATH_EMPTY_SINGLE_DOT))
+		if (!(flags & HIO_CANON_UCSTR_PATH_EMPTY_SINGLE_DOT))
 		{
 			/* when resolving to a single dot, a trailing separator is not
 			 * retained though the orignal path name contains it. */
@@ -313,17 +313,17 @@ mio_oow_t mio_canon_ucstr_path (const mio_uch_t* path, mio_uch_t* canon, int fla
 			 * the double slahses indicate a directory obviously */
 			if (canon[canon_len-3] == '.' &&
 			    canon[canon_len-2] == '.' &&
-			    MIO_IS_PATH_SEP(canon[canon_len-1]))
+			    HIO_IS_PATH_SEP(canon[canon_len-1]))
 			{
 				canon[--canon_len] = '\0';
 			}
 		}
 		else if (canon_len > adj_base_len)
 		{
-			if (MIO_IS_PATH_SEP(canon[canon_len-4]) &&
+			if (HIO_IS_PATH_SEP(canon[canon_len-4]) &&
 			    canon[canon_len-3] == '.' &&
 			    canon[canon_len-2] == '.' &&
-			    MIO_IS_PATH_SEP(canon[canon_len-1]))
+			    HIO_IS_PATH_SEP(canon[canon_len-1]))
 			{
 				canon[--canon_len] = '\0';
 			}
@@ -339,53 +339,53 @@ mio_oow_t mio_canon_ucstr_path (const mio_uch_t* path, mio_uch_t* canon, int fla
 /* ------------------------------------------------------------------ */
 
 #if 0
-int mio_is_bcstr_path_absolute (const mio_bch_t* path)
+int hio_is_bcstr_path_absolute (const hio_bch_t* path)
 {
-	if (MIO_IS_PATH_SEP(path[0])) return 1;
+	if (HIO_IS_PATH_SEP(path[0])) return 1;
 #if defined(_WIN32) || defined(__OS2__) || defined(__DOS__)
 	/* a drive like c:tmp is absolute in positioning the drive.
 	 * but the path within the drive is kind of relative */
-	if (MIO_IS_PATH_DRIVE(path)) return 1;
+	if (HIO_IS_PATH_DRIVE(path)) return 1;
 #endif
 	return 0;
 }
 
-int mio_is_bcstr_path_drive (const mio_bch_t* path)
+int hio_is_bcstr_path_drive (const hio_bch_t* path)
 {
 #if defined(_WIN32) || defined(__OS2__) || defined(__DOS__)
-	if (MIO_IS_PATH_DRIVE(path)) return 1;
+	if (HIO_IS_PATH_DRIVE(path)) return 1;
 #endif
 	return 0;
 }
 
-int mio_is_bcstr_path_drive_absolute (const mio_bch_t* path)
+int hio_is_bcstr_path_drive_absolute (const hio_bch_t* path)
 {
 #if defined(_WIN32) || defined(__OS2__) || defined(__DOS__)
-	if (MIO_IS_PATH_DRIVE(path) && MIO_IS_PATH_SEP(path[2])) return 1;
+	if (HIO_IS_PATH_DRIVE(path) && HIO_IS_PATH_SEP(path[2])) return 1;
 #endif
 	return 0;
 }
 
-int mio_is_bcstr_path_drive_current (const mio_bch_t* path)
+int hio_is_bcstr_path_drive_current (const hio_bch_t* path)
 {
 #if defined(_WIN32) || defined(__OS2__) || defined(__DOS__)
-	if (MIO_IS_PATH_DRIVE(path) && path[2] == '\0') return 1;
+	if (HIO_IS_PATH_DRIVE(path) && path[2] == '\0') return 1;
 #endif
 	return 0;
 }
 
 #endif
 
-mio_oow_t mio_canon_bcstr_path (const mio_bch_t* path, mio_bch_t* canon, int flags)
+hio_oow_t hio_canon_bcstr_path (const hio_bch_t* path, hio_bch_t* canon, int flags)
 {
-	const mio_bch_t* ptr;
-	mio_bch_t* dst;
-	mio_bch_t* non_root_start;
+	const hio_bch_t* ptr;
+	hio_bch_t* dst;
+	hio_bch_t* non_root_start;
 	int has_root = 0;
 #if defined(_WIN32) || defined(__OS2__) || defined(__DOS__)
 	int is_drive = 0;
 #endif
-	mio_oow_t canon_len;
+	hio_oow_t canon_len;
 
 	if (path[0] == '\0') 
 	{
@@ -398,31 +398,31 @@ mio_oow_t mio_canon_bcstr_path (const mio_bch_t* path, mio_bch_t* canon, int fla
 	dst = canon;
 
 #if defined(_WIN32) || defined(__OS2__) || defined(__DOS__)
-	if (MIO_IS_PATH_DRIVE(ptr))
+	if (HIO_IS_PATH_DRIVE(ptr))
 	{
 		/* handle drive letter */
 		*dst++ = *ptr++; /* drive letter */
 		*dst++ = *ptr++; /* colon */
 
 		is_drive = 1;
-		if (MIO_IS_PATH_SEP(*ptr)) 
+		if (HIO_IS_PATH_SEP(*ptr)) 
 		{
 			*dst++ = *ptr++; /* root directory */
 			has_root = 1;
 		}
 	}
-	else if (MIO_IS_PATH_SEP(*ptr)) 
+	else if (HIO_IS_PATH_SEP(*ptr)) 
 	{
 		*dst++ = *ptr++; /* root directory */
 		has_root = 1;
 
 	#if defined(_WIN32)
 		/* handle UNC path for Windows */
-		if (MIO_IS_PATH_SEP(*ptr)) 
+		if (HIO_IS_PATH_SEP(*ptr)) 
 		{
 			*dst++ = *ptr++;
 
-			if (MIO_IS_PATH_SEP_OR_NIL(*ptr))
+			if (HIO_IS_PATH_SEP_OR_NIL(*ptr))
 			{
 				/* if there is another separator after \\,
 				 * it's not an UNC path. */
@@ -431,14 +431,14 @@ mio_oow_t mio_canon_bcstr_path (const mio_bch_t* path, mio_bch_t* canon, int fla
 			else
 			{
 				/* if it starts with \\, process host name */
-				do { *dst++ = *ptr++; } while (!MIO_IS_PATH_SEP_OR_NIL(*ptr));
-				if (MIO_IS_PATH_SEP(*ptr)) *dst++ = *ptr++;
+				do { *dst++ = *ptr++; } while (!HIO_IS_PATH_SEP_OR_NIL(*ptr));
+				if (HIO_IS_PATH_SEP(*ptr)) *dst++ = *ptr++;
 			}
 		}
 	#endif
 	}
 #else
-	if (MIO_IS_PATH_SEP(*ptr)) 
+	if (HIO_IS_PATH_SEP(*ptr)) 
 	{
 		*dst++ = *ptr++; /* root directory */
 		has_root = 1;
@@ -451,18 +451,18 @@ mio_oow_t mio_canon_bcstr_path (const mio_bch_t* path, mio_bch_t* canon, int fla
 
 	do
 	{
-		const mio_bch_t* seg;
-		mio_oow_t seglen;
+		const hio_bch_t* seg;
+		hio_oow_t seglen;
 
 		/* skip duplicate separators */
-		while (MIO_IS_PATH_SEP(*ptr)) ptr++;
+		while (HIO_IS_PATH_SEP(*ptr)) ptr++;
 
 		/* end of path reached */
 		if (*ptr == '\0') break;
 
 		/* find the next segment */
 		seg = ptr;
-		while (!MIO_IS_PATH_SEP_OR_NIL(*ptr)) ptr++;
+		while (!HIO_IS_PATH_SEP_OR_NIL(*ptr)) ptr++;
 		seglen = ptr - seg;
 
 		/* handle the segment */
@@ -470,11 +470,11 @@ mio_oow_t mio_canon_bcstr_path (const mio_bch_t* path, mio_bch_t* canon, int fla
 		{
 			/* eat up . */
 		}
-		else if (!(flags & MIO_CANON_BCSTR_PATH_KEEP_DOUBLE_DOTS) &&
+		else if (!(flags & HIO_CANON_BCSTR_PATH_KEEP_DOUBLE_DOTS) &&
 		         seglen == 2 && seg[0] == '.' && seg[1] == '.')
 		{
 			/* eat up the previous segment */
-			mio_bch_t* tmp;
+			hio_bch_t* tmp;
 
 			tmp = dst;
 			if (tmp > non_root_start) 
@@ -487,7 +487,7 @@ mio_oow_t mio_canon_bcstr_path (const mio_bch_t* path, mio_bch_t* canon, int fla
 				while (tmp > non_root_start)
 				{
 					tmp--;
-					if (MIO_IS_PATH_SEP(*tmp)) 
+					if (HIO_IS_PATH_SEP(*tmp)) 
 					{
 						tmp++; /* position it next to the separator */
 						break; 
@@ -516,7 +516,7 @@ mio_oow_t mio_canon_bcstr_path (const mio_bch_t* path, mio_bch_t* canon, int fla
 			}
 			else
 			{
-				mio_oow_t prevlen;
+				hio_oow_t prevlen;
 
 				prevlen = dst - tmp;
 
@@ -548,7 +548,7 @@ mio_oow_t mio_canon_bcstr_path (const mio_bch_t* path, mio_bch_t* canon, int fla
 		{
 		normal:
 			while (seg < ptr) *dst++ = *seg++;
-			if (MIO_IS_PATH_SEP(*ptr)) 
+			if (HIO_IS_PATH_SEP(*ptr)) 
 			{
 				/* this segment ended with a separator */
 				*dst++ = *seg++; /* copy the separator */
@@ -558,20 +558,20 @@ mio_oow_t mio_canon_bcstr_path (const mio_bch_t* path, mio_bch_t* canon, int fla
 	}
 	while (1);
 
-	if (dst > non_root_start && MIO_IS_PATH_SEP(dst[-1]) && 
-	    ((flags & MIO_CANON_BCSTR_PATH_DROP_TRAILING_SEP) || !MIO_IS_PATH_SEP(ptr[-1]))) 
+	if (dst > non_root_start && HIO_IS_PATH_SEP(dst[-1]) && 
+	    ((flags & HIO_CANON_BCSTR_PATH_DROP_TRAILING_SEP) || !HIO_IS_PATH_SEP(ptr[-1]))) 
 	{
 		/* if the canoncal path composed so far ends with a separator
 		 * and the original path didn't end with the separator, delete
 		 * the ending separator. 
-		 * also delete it if MIO_CANON_BCSTR_PATH_DROP_TRAILING_SEP is set.
+		 * also delete it if HIO_CANON_BCSTR_PATH_DROP_TRAILING_SEP is set.
 		 *
 		 *   dst > non_root_start:
 		 *     there is at least 1 character after the root directory 
 		 *     part.
-		 *   MIO_IS_PATH_SEP(dst[-1]):
+		 *   HIO_IS_PATH_SEP(dst[-1]):
 		 *     the canonical path ends with a separator.
-		 *   MIO_IS_PATH_SEP(ptr[-1]):
+		 *   HIO_IS_PATH_SEP(ptr[-1]):
 		 *     the origial path ends with a separator.
 		 */
 		dst[-1] = '\0';
@@ -586,7 +586,7 @@ mio_oow_t mio_canon_bcstr_path (const mio_bch_t* path, mio_bch_t* canon, int fla
 
 	if (canon_len <= 0) 
 	{
-		if (!(flags & MIO_CANON_BCSTR_PATH_EMPTY_SINGLE_DOT))
+		if (!(flags & HIO_CANON_BCSTR_PATH_EMPTY_SINGLE_DOT))
 		{
 			/* when resolving to a single dot, a trailing separator is not
 			 * retained though the orignal path name contains it. */
@@ -618,17 +618,17 @@ mio_oow_t mio_canon_bcstr_path (const mio_bch_t* path, mio_bch_t* canon, int fla
 			 * the double slahses indicate a directory obviously */
 			if (canon[canon_len-3] == '.' &&
 			    canon[canon_len-2] == '.' &&
-			    MIO_IS_PATH_SEP(canon[canon_len-1]))
+			    HIO_IS_PATH_SEP(canon[canon_len-1]))
 			{
 				canon[--canon_len] = '\0';
 			}
 		}
 		else if (canon_len > adj_base_len)
 		{
-			if (MIO_IS_PATH_SEP(canon[canon_len-4]) &&
+			if (HIO_IS_PATH_SEP(canon[canon_len-4]) &&
 			    canon[canon_len-3] == '.' &&
 			    canon[canon_len-2] == '.' &&
-			    MIO_IS_PATH_SEP(canon[canon_len-1]))
+			    HIO_IS_PATH_SEP(canon[canon_len-1]))
 			{
 				canon[--canon_len] = '\0';
 			}

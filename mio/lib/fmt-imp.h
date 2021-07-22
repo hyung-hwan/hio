@@ -26,25 +26,25 @@
 
 static int fmt_uintmax (
 	char_t* buf, int size, 
-	mio_uintmax_t value, int base_and_flags, int prec,
+	hio_uintmax_t value, int base_and_flags, int prec,
 	char_t fillchar, char_t signchar, const char_t* prefix)
 {
-	char_t tmp[(MIO_SIZEOF(mio_uintmax_t) * 8)];
+	char_t tmp[(HIO_SIZEOF(hio_uintmax_t) * 8)];
 	int reslen, base, fillsize, reqlen, pflen, preczero;
 	char_t* p, * bp, * be;
-	const mio_bch_t* xbasestr;
+	const hio_bch_t* xbasestr;
 
 	base = base_and_flags & 0x3F;
 	if (base < 2 || base > 36) return -1;
 
-	xbasestr = (base_and_flags & MIO_FMT_INTMAX_UPPERCASE)?
+	xbasestr = (base_and_flags & HIO_FMT_INTMAX_UPPERCASE)?
 		"0123456789ABCDEFGHIJKLMNOPQRSTUVWXYZ":
 		"0123456789abcdefghijklmnopqrstuvwxyz";
 
-	if ((base_and_flags & MIO_FMT_INTMAX_NOZERO) && value == 0) 
+	if ((base_and_flags & HIO_FMT_INTMAX_NOZERO) && value == 0) 
 	{
 		p = tmp; 
-		if (base_and_flags & MIO_FMT_INTMAX_ZEROLEAD) 
+		if (base_and_flags & HIO_FMT_INTMAX_ZEROLEAD) 
 		{
 			/* NOZERO emits no digit, ZEROLEAD emits 1 digit.
 			 * so it emits '0' */
@@ -60,7 +60,7 @@ static int fmt_uintmax (
 	}
 	else
 	{
-		mio_uintmax_t v = value;
+		hio_uintmax_t v = value;
 
 		/* store the resulting numeric string into 'tmp' first */
 		p = tmp; 
@@ -89,7 +89,7 @@ static int fmt_uintmax (
 		else 
 		{
 			preczero = 0;
-			if ((base_and_flags & MIO_FMT_INTMAX_ZEROLEAD) && value != 0) 
+			if ((base_and_flags & HIO_FMT_INTMAX_ZEROLEAD) && value != 0) 
 			{
 				/* if value is zero, 0 is emitted from it. 
 				 * so ZEROLEAD don't need to add another 0. */
@@ -112,23 +112,23 @@ static int fmt_uintmax (
 	else pflen = 0;
 
 	/* get the required buffer size for lossless formatting */
-	reqlen = (base_and_flags & MIO_FMT_INTMAX_NONULL)? reslen: (reslen + 1);
+	reqlen = (base_and_flags & HIO_FMT_INTMAX_NONULL)? reslen: (reslen + 1);
 
 	if (size <= 0 ||
-	    ((base_and_flags & MIO_FMT_INTMAX_NOTRUNC) && size < reqlen))
+	    ((base_and_flags & HIO_FMT_INTMAX_NOTRUNC) && size < reqlen))
 	{
 		return -reqlen;
 	}
 
 	/* get the size to fill with fill characters */
-	fillsize = (base_and_flags & MIO_FMT_INTMAX_NONULL)? size: (size - 1);
+	fillsize = (base_and_flags & HIO_FMT_INTMAX_NONULL)? size: (size - 1);
 	bp = buf;
 	be = buf + fillsize;
 
 	/* fill space */
 	if (fillchar != '\0')
 	{
-		if (base_and_flags & MIO_FMT_INTMAX_FILLRIGHT)
+		if (base_and_flags & HIO_FMT_INTMAX_FILLRIGHT)
 		{
 			/* emit sign */
 			if (signchar && bp < be) *bp++ = signchar;
@@ -153,7 +153,7 @@ static int fmt_uintmax (
 				fillsize--;
 			}
 		}
-		else if (base_and_flags & MIO_FMT_INTMAX_FILLCENTER)
+		else if (base_and_flags & HIO_FMT_INTMAX_FILLCENTER)
 		{
 			/* emit sign */
 			if (signchar && bp < be) *bp++ = signchar;
@@ -223,6 +223,6 @@ static int fmt_uintmax (
 		while (p > tmp && bp < be) *bp++ = *--p;
 	}
 
-	if (!(base_and_flags & MIO_FMT_INTMAX_NONULL)) *bp = '\0';
+	if (!(base_and_flags & HIO_FMT_INTMAX_NONULL)) *bp = '\0';
 	return bp - buf;
 }

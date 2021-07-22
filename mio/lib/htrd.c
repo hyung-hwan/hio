@@ -22,12 +22,12 @@
     THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  */
 
-#include <mio-htrd.h>
-#include <mio-chr.h>
-#include <mio-path.h>
-#include "mio-prv.h"
+#include <hio-htrd.h>
+#include <hio-chr.h>
+#include <hio-path.h>
+#include "hio-prv.h"
 
-static const mio_bch_t NUL = '\0';
+static const hio_bch_t NUL = '\0';
 
 /* for htrd->fed.s.flags */
 #define CONSUME_UNTIL_CLOSE (1 << 0)
@@ -36,137 +36,137 @@ static const mio_bch_t NUL = '\0';
 #define FEEDING_SUSPENDED   (1 << 0)
 #define FEEDING_DUMMIFIED   (1 << 1)
 
-static MIO_INLINE int is_whspace_octet (mio_bch_t c)
+static HIO_INLINE int is_whspace_octet (hio_bch_t c)
 {
 	return c == ' ' || c == '\t' || c == '\r' || c == '\n';
 }
 
-static MIO_INLINE int is_space_octet (mio_bch_t c)
+static HIO_INLINE int is_space_octet (hio_bch_t c)
 {
 	return c == ' ' || c == '\t' || c == '\r';
 }
 
-static MIO_INLINE int is_purespace_octet (mio_bch_t c)
+static HIO_INLINE int is_purespace_octet (hio_bch_t c)
 {
 	return c == ' ' || c == '\t';
 }
 
-static MIO_INLINE int is_upalpha_octet (mio_bch_t c)
+static HIO_INLINE int is_upalpha_octet (hio_bch_t c)
 {
 	return c >= 'A' && c <= 'Z';
 }
 
-static MIO_INLINE int is_loalpha_octet (mio_bch_t c)
+static HIO_INLINE int is_loalpha_octet (hio_bch_t c)
 {
 	return c >= 'a' && c <= 'z';
 }
 
-static MIO_INLINE int is_alpha_octet (mio_bch_t c)
+static HIO_INLINE int is_alpha_octet (hio_bch_t c)
 {
 	return (c >= 'A' && c <= 'Z') || (c >= 'a' && c <= 'z');
 }
 
-static MIO_INLINE int is_digit_octet (mio_bch_t c)
+static HIO_INLINE int is_digit_octet (hio_bch_t c)
 {
 	return c >= '0' && c <= '9';
 }
 
-static MIO_INLINE int is_xdigit_octet (mio_bch_t c)
+static HIO_INLINE int is_xdigit_octet (hio_bch_t c)
 {
 	return (c >= '0' && c <= '9') || (c >= 'A' && c <= 'F') || (c >= 'a' && c <= 'f');
 }
 
-static MIO_INLINE int digit_to_num (mio_bch_t c)
+static HIO_INLINE int digit_to_num (hio_bch_t c)
 {
-	return MIO_DIGIT_TO_NUM(c);
+	return HIO_DIGIT_TO_NUM(c);
 }
 
-static MIO_INLINE int xdigit_to_num (mio_bch_t c)
+static HIO_INLINE int xdigit_to_num (hio_bch_t c)
 {
-	return MIO_XDIGIT_TO_NUM(c);
+	return HIO_XDIGIT_TO_NUM(c);
 }
 
-static MIO_INLINE int push_to_buffer (mio_htrd_t* htrd, mio_becs_t* octb, const mio_bch_t* ptr, mio_oow_t len)
+static HIO_INLINE int push_to_buffer (hio_htrd_t* htrd, hio_becs_t* octb, const hio_bch_t* ptr, hio_oow_t len)
 {
-	if (mio_becs_ncat(octb, ptr, len) == (mio_oow_t)-1) 
+	if (hio_becs_ncat(octb, ptr, len) == (hio_oow_t)-1) 
 	{
-		htrd->errnum = MIO_HTRD_ENOMEM;
+		htrd->errnum = HIO_HTRD_ENOMEM;
 		return -1;
 	}
 	return 0;
 }
 
-static MIO_INLINE int push_content (mio_htrd_t* htrd, const mio_bch_t* ptr, mio_oow_t len)
+static HIO_INLINE int push_content (hio_htrd_t* htrd, const hio_bch_t* ptr, hio_oow_t len)
 {
-	MIO_ASSERT (htrd->mio, len > 0);
+	HIO_ASSERT (htrd->hio, len > 0);
 
 	if (htrd->recbs.push_content) return htrd->recbs.push_content(htrd, &htrd->re, ptr, len);
 
-	if (mio_htre_addcontent(&htrd->re, ptr, len) <= -1) 
+	if (hio_htre_addcontent(&htrd->re, ptr, len) <= -1) 
 	{
-		htrd->errnum = MIO_HTRD_ENOMEM;
+		htrd->errnum = HIO_HTRD_ENOMEM;
 		return -1;
 	}
 
-	/* mio_htre_addcontent() returns 1 on full success and 0 if adding is 
+	/* hio_htre_addcontent() returns 1 on full success and 0 if adding is 
 	 * skipped. i treat both as success */
 	return 0;
 }
 
-static MIO_INLINE void clear_feed (mio_htrd_t* htrd)
+static HIO_INLINE void clear_feed (hio_htrd_t* htrd)
 {
 	/* clear necessary part of the request/response before 
 	 * reading the next request/response */
 	htrd->clean = 1;
-	mio_htre_clear (&htrd->re);
+	hio_htre_clear (&htrd->re);
 
-	mio_becs_clear (&htrd->fed.b.tra);
-	mio_becs_clear (&htrd->fed.b.raw);
+	hio_becs_clear (&htrd->fed.b.tra);
+	hio_becs_clear (&htrd->fed.b.raw);
 
-	MIO_MEMSET (&htrd->fed.s, 0, MIO_SIZEOF(htrd->fed.s));
+	HIO_MEMSET (&htrd->fed.s, 0, HIO_SIZEOF(htrd->fed.s));
 }
 
-mio_htrd_t* mio_htrd_open (mio_t* mio, mio_oow_t xtnsize)
+hio_htrd_t* hio_htrd_open (hio_t* hio, hio_oow_t xtnsize)
 {
-	mio_htrd_t* htrd;
+	hio_htrd_t* htrd;
 
-	htrd = (mio_htrd_t*)mio_allocmem(mio, MIO_SIZEOF(mio_htrd_t) + xtnsize);
-	if (MIO_LIKELY(htrd))
+	htrd = (hio_htrd_t*)hio_allocmem(hio, HIO_SIZEOF(hio_htrd_t) + xtnsize);
+	if (HIO_LIKELY(htrd))
 	{
-		if (MIO_UNLIKELY(mio_htrd_init(htrd, mio) <= -1))
+		if (HIO_UNLIKELY(hio_htrd_init(htrd, hio) <= -1))
 		{
-			mio_freemem (mio, htrd);
-			return MIO_NULL;
+			hio_freemem (hio, htrd);
+			return HIO_NULL;
 		}
-		else MIO_MEMSET (htrd + 1, 0, xtnsize);
+		else HIO_MEMSET (htrd + 1, 0, xtnsize);
 	}
 	return htrd;
 }
 
-void mio_htrd_close (mio_htrd_t* htrd)
+void hio_htrd_close (hio_htrd_t* htrd)
 {
-	mio_htrd_fini (htrd);
-	mio_freemem (htrd->mio, htrd);
+	hio_htrd_fini (htrd);
+	hio_freemem (htrd->hio, htrd);
 }
 
-int mio_htrd_init (mio_htrd_t* htrd, mio_t* mio)
+int hio_htrd_init (hio_htrd_t* htrd, hio_t* hio)
 {
-	MIO_MEMSET (htrd, 0, MIO_SIZEOF(*htrd));
-	htrd->mio = mio;
-	htrd->option = MIO_HTRD_REQUEST | MIO_HTRD_RESPONSE;
+	HIO_MEMSET (htrd, 0, HIO_SIZEOF(*htrd));
+	htrd->hio = hio;
+	htrd->option = HIO_HTRD_REQUEST | HIO_HTRD_RESPONSE;
 
 #if 0
-	mio_becs_init (&htrd->tmp.qparam, htrd->mio, 0);
+	hio_becs_init (&htrd->tmp.qparam, htrd->hio, 0);
 #endif
-	mio_becs_init (&htrd->fed.b.raw, htrd->mio, 0);
-	mio_becs_init (&htrd->fed.b.tra, htrd->mio, 0);
+	hio_becs_init (&htrd->fed.b.raw, htrd->hio, 0);
+	hio_becs_init (&htrd->fed.b.tra, htrd->hio, 0);
 
-	if (mio_htre_init(&htrd->re, mio) <= -1)
+	if (hio_htre_init(&htrd->re, hio) <= -1)
 	{
-		mio_becs_fini (&htrd->fed.b.tra);
-		mio_becs_fini (&htrd->fed.b.raw);
+		hio_becs_fini (&htrd->fed.b.tra);
+		hio_becs_fini (&htrd->fed.b.raw);
 #if 0
-		mio_becs_fini (&htrd->tmp.qparam);
+		hio_becs_fini (&htrd->tmp.qparam);
 #endif
 		return -1;
 	}
@@ -175,21 +175,21 @@ int mio_htrd_init (mio_htrd_t* htrd, mio_t* mio)
 	return 0;
 }
 
-void mio_htrd_fini (mio_htrd_t* htrd)
+void hio_htrd_fini (hio_htrd_t* htrd)
 {
-	mio_htre_fini (&htrd->re);
+	hio_htre_fini (&htrd->re);
 
-	mio_becs_fini (&htrd->fed.b.tra);
-	mio_becs_fini (&htrd->fed.b.raw);
+	hio_becs_fini (&htrd->fed.b.tra);
+	hio_becs_fini (&htrd->fed.b.raw);
 #if 0
-	mio_becs_fini (&htrd->tmp.qparam);
+	hio_becs_fini (&htrd->tmp.qparam);
 #endif
 }
 
-static mio_bch_t* parse_initial_line (mio_htrd_t* htrd, mio_bch_t* line)
+static hio_bch_t* parse_initial_line (hio_htrd_t* htrd, hio_bch_t* line)
 {
-	mio_bch_t* p = line;
-	mio_bcs_t tmp;
+	hio_bch_t* p = line;
+	hio_bcs_t tmp;
 
 #if 0
 	/* ignore leading spaces excluding crlf */
@@ -204,25 +204,25 @@ static mio_bch_t* parse_initial_line (mio_htrd_t* htrd, mio_bch_t* line)
 	do { p++; } while (is_alpha_octet(*p));
 	tmp.len = p - tmp.ptr;
 
-	htrd->re.type = MIO_HTRE_Q;
-	if (htrd->option & MIO_HTRD_REQUEST)
+	htrd->re.type = HIO_HTRE_Q;
+	if (htrd->option & HIO_HTRD_REQUEST)
 	{
 		/* method name must be followed by space */
 		if (!is_space_octet(*p)) goto badre;
 
 		*p = '\0'; /* null-terminate the method name */
 
-		htrd->re.u.q.method.type = mio_bchars_to_http_method(tmp.ptr, tmp.len);
+		htrd->re.u.q.method.type = hio_bchars_to_http_method(tmp.ptr, tmp.len);
 		htrd->re.u.q.method.name = tmp.ptr;
 	}
-	else if ((htrd->option & MIO_HTRD_RESPONSE) && mio_comp_bchars_bcstr(tmp.ptr, tmp.len, "HTTP", 1) == 0)
+	else if ((htrd->option & HIO_HTRD_RESPONSE) && hio_comp_bchars_bcstr(tmp.ptr, tmp.len, "HTTP", 1) == 0)
 	{
 		/* it begins with HTTP. it may be a response */
-		htrd->re.type = MIO_HTRE_S;
+		htrd->re.type = HIO_HTRE_S;
 	}
 	else goto badre;
 
-	if (htrd->re.type == MIO_HTRE_S)
+	if (htrd->re.type == HIO_HTRE_S)
 	{
 		/* response */
 		int n, status;
@@ -287,25 +287,25 @@ static mio_bch_t* parse_initial_line (mio_htrd_t* htrd, mio_bch_t* line)
 		if (*p != '\n') goto badre;
 
 		/* null-terminate the message */
-		((mio_bch_t*)tmp.ptr)[tmp.len] = '\0';
+		((hio_bch_t*)tmp.ptr)[tmp.len] = '\0';
 		htrd->re.u.s.mesg = tmp.ptr;
 	}
 	else
 	{
-		mio_bcs_t param;
-		mio_bcs_t anchor;
+		hio_bcs_t param;
+		hio_bcs_t anchor;
 
 		/* skip spaces */
 		do p++; while (is_space_octet(*p));
 
 		/* process the url part */
 		tmp.ptr = p; tmp.len = 0;
-		param.ptr = MIO_NULL; param.len = 0;
-		anchor.ptr = MIO_NULL; anchor.len = 0;
+		param.ptr = HIO_NULL; param.len = 0;
+		anchor.ptr = HIO_NULL; anchor.len = 0;
 
 		while (1)
 		{
-			if (MIO_UNLIKELY(*p == '\0')) goto badre;
+			if (HIO_UNLIKELY(*p == '\0')) goto badre;
 			else if (is_space_octet(*p) || *p == '?' || *p == '#')
 			{
 				tmp.len = p - tmp.ptr; 
@@ -320,7 +320,7 @@ static mio_bch_t* parse_initial_line (mio_htrd_t* htrd, mio_bch_t* line)
 			param.ptr = ++p;
 			while (1)
 			{
-				if (MIO_UNLIKELY(*p == '\0')) goto badre;
+				if (HIO_UNLIKELY(*p == '\0')) goto badre;
 				else if (is_space_octet(*p) || *p == '#')
 				{
 					param.len = p - param.ptr;
@@ -335,7 +335,7 @@ static mio_bch_t* parse_initial_line (mio_htrd_t* htrd, mio_bch_t* line)
 			anchor.ptr = ++p;
 			while (1)
 			{
-				if (MIO_UNLIKELY(*p == '\0')) goto badre;
+				if (HIO_UNLIKELY(*p == '\0')) goto badre;
 				else if (is_space_octet(*p))
 				{
 					anchor.len = p - anchor.ptr;
@@ -353,23 +353,23 @@ static mio_bch_t* parse_initial_line (mio_htrd_t* htrd, mio_bch_t* line)
 		htrd->re.u.q.param = param;
 		htrd->re.u.q.anchor = anchor;
 
-		if (htrd->option & MIO_HTRD_CANONQPATH)
+		if (htrd->option & HIO_HTRD_CANONQPATH)
 		{
-			mio_bch_t* qpath = htrd->re.u.q.path.ptr;
+			hio_bch_t* qpath = htrd->re.u.q.path.ptr;
 
 			/* if the url begins with xxx://,
 			 * skip xxx:/ and canonicalize from the second slash */
 			while (is_alpha_octet(*qpath)) qpath++;
-			if (mio_comp_bcstr_limited(qpath, "://", 3, 1) == 0)
+			if (hio_comp_bcstr_limited(qpath, "://", 3, 1) == 0)
 			{
 				qpath = qpath + 2; /* set the position to the second / in :// */
-				htrd->re.u.q.path.len = mio_canon_bcstr_path(qpath, qpath, 0);
+				htrd->re.u.q.path.len = hio_canon_bcstr_path(qpath, qpath, 0);
 				htrd->re.u.q.path.len += qpath - htrd->re.u.q.path.ptr;
 			}
 			else
 			{
 				qpath = htrd->re.u.q.path.ptr;
-				htrd->re.u.q.path.len = mio_canon_bcstr_path(qpath, qpath, 0);
+				htrd->re.u.q.path.len = hio_canon_bcstr_path(qpath, qpath, 0);
 			}
 		}
 	
@@ -404,7 +404,7 @@ static mio_bch_t* parse_initial_line (mio_htrd_t* htrd, mio_bch_t* line)
 		/* if the line does not end with a new line, it is a bad request */
 		if (*p != '\n') goto badre;
 
-		((mio_bch_t*)tmp.ptr)[tmp.len] = '\0';
+		((hio_bch_t*)tmp.ptr)[tmp.len] = '\0';
 		htrd->re.verstr = tmp.ptr;
 	}
 	
@@ -413,66 +413,66 @@ static mio_bch_t* parse_initial_line (mio_htrd_t* htrd, mio_bch_t* line)
 	if (htrd->re.version.major > 1 || 
 	    (htrd->re.version.major == 1 && htrd->re.version.minor >= 1))
 	{
-		htrd->re.flags |= MIO_HTRE_ATTR_KEEPALIVE;
+		htrd->re.flags |= HIO_HTRE_ATTR_KEEPALIVE;
 	}
 
 	return ++p;
 
 badre:
-	htrd->errnum = MIO_HTRD_EBADRE;
-	return MIO_NULL;
+	htrd->errnum = HIO_HTRD_EBADRE;
+	return HIO_NULL;
 }
 
-void mio_htrd_clear (mio_htrd_t* htrd)
+void hio_htrd_clear (hio_htrd_t* htrd)
 {
 	clear_feed (htrd);
 	htrd->flags = 0;
 }
 
-mio_htrd_errnum_t mio_htrd_geterrnum (mio_htrd_t* htrd)
+hio_htrd_errnum_t hio_htrd_geterrnum (hio_htrd_t* htrd)
 {
 	return htrd->errnum;
 }
 
-mio_bitmask_t mio_htrd_getoption (mio_htrd_t* htrd)
+hio_bitmask_t hio_htrd_getoption (hio_htrd_t* htrd)
 {
 	return htrd->option;
 }
 
-void mio_htrd_setoption (mio_htrd_t* htrd, mio_bitmask_t mask)
+void hio_htrd_setoption (hio_htrd_t* htrd, hio_bitmask_t mask)
 {
 	htrd->option = mask;
 }
 
-const mio_htrd_recbs_t* mio_htrd_getrecbs (mio_htrd_t* htrd)
+const hio_htrd_recbs_t* hio_htrd_getrecbs (hio_htrd_t* htrd)
 {
 	return &htrd->recbs;
 }
 
-void mio_htrd_setrecbs (mio_htrd_t* htrd, const mio_htrd_recbs_t* recbs)
+void hio_htrd_setrecbs (hio_htrd_t* htrd, const hio_htrd_recbs_t* recbs)
 {
 	htrd->recbs = *recbs;
 }
 
-static int capture_connection (mio_htrd_t* htrd, mio_htb_pair_t* pair)
+static int capture_connection (hio_htrd_t* htrd, hio_htb_pair_t* pair)
 {
-	mio_htre_hdrval_t* val;
+	hio_htre_hdrval_t* val;
 
-	val = MIO_HTB_VPTR(pair);
+	val = HIO_HTB_VPTR(pair);
 	while (val->next) val = val->next;
 
 	/* The value for Connection: may get comma-separated. 
-	 * so use mio_find_bcstr_word_in_bcstr() instead of mio_comp_bcstr(). */
+	 * so use hio_find_bcstr_word_in_bcstr() instead of hio_comp_bcstr(). */
 
-	if (mio_find_bcstr_word_in_bcstr(val->ptr, "close", ',', 1))
+	if (hio_find_bcstr_word_in_bcstr(val->ptr, "close", ',', 1))
 	{
-		htrd->re.flags &= ~MIO_HTRE_ATTR_KEEPALIVE;
+		htrd->re.flags &= ~HIO_HTRE_ATTR_KEEPALIVE;
 		return 0;
 	}
 
-	if (mio_find_bcstr_word_in_bcstr(val->ptr, "keep-alive", ',', 1))
+	if (hio_find_bcstr_word_in_bcstr(val->ptr, "keep-alive", ',', 1))
 	{
-		htrd->re.flags |= MIO_HTRE_ATTR_KEEPALIVE;
+		htrd->re.flags |= HIO_HTRE_ATTR_KEEPALIVE;
 		return 0;
 	}
 
@@ -487,19 +487,19 @@ static int capture_connection (mio_htrd_t* htrd, mio_htb_pair_t* pair)
 	 */
 	if (htrd->re.version.major < 1  || (htrd->re.version.major == 1 && htrd->re.version.minor <= 0))
 	{
-		htrd->re.flags &= ~MIO_HTRE_ATTR_KEEPALIVE;
+		htrd->re.flags &= ~HIO_HTRE_ATTR_KEEPALIVE;
 	}
 	return 0;
 }
 
-static int capture_content_length (mio_htrd_t* htrd, mio_htb_pair_t* pair)
+static int capture_content_length (hio_htrd_t* htrd, hio_htb_pair_t* pair)
 {
-	mio_oow_t len = 0, off = 0, tmp;
-	const mio_bch_t* ptr;
-	mio_htre_hdrval_t* val;
+	hio_oow_t len = 0, off = 0, tmp;
+	const hio_bch_t* ptr;
+	hio_htre_hdrval_t* val;
 
 	/* get the last content_length */
-	val = MIO_HTB_VPTR(pair);
+	val = HIO_HTB_VPTR(pair);
 	while (val->next) val = val->next;
 
 	ptr = val->ptr;
@@ -509,7 +509,7 @@ static int capture_content_length (mio_htrd_t* htrd, mio_htb_pair_t* pair)
 		if (num <= -1)
 		{
 			/* the length contains a non-digit */
-			htrd->errnum = MIO_HTRD_EBADRE;
+			htrd->errnum = HIO_HTRD_EBADRE;
 			return -1;
 		}
 
@@ -517,7 +517,7 @@ static int capture_content_length (mio_htrd_t* htrd, mio_htb_pair_t* pair)
 		if (tmp < len)
 		{
 			/* the length has overflown */
-			htrd->errnum = MIO_HTRD_EBADRE;
+			htrd->errnum = HIO_HTRD_EBADRE;
 			return -1;
 		}
 
@@ -528,87 +528,87 @@ static int capture_content_length (mio_htrd_t* htrd, mio_htb_pair_t* pair)
 	if (off == 0)
 	{
 		/* no length was provided */
-		htrd->errnum = MIO_HTRD_EBADRE;
+		htrd->errnum = HIO_HTRD_EBADRE;
 		return -1;
 	}
 
-	if ((htrd->re.flags & MIO_HTRE_ATTR_CHUNKED) && len > 0)
+	if ((htrd->re.flags & HIO_HTRE_ATTR_CHUNKED) && len > 0)
 	{
 		/* content-length is greater than 0 
 		 * while transfer-encoding: chunked is specified. */
-		htrd->errnum = MIO_HTRD_EBADRE;
+		htrd->errnum = HIO_HTRD_EBADRE;
 		return -1;
 	}
 
-	htrd->re.flags |= MIO_HTRE_ATTR_LENGTH;
+	htrd->re.flags |= HIO_HTRE_ATTR_LENGTH;
 	htrd->re.attr.content_length = len;
 	return 0;
 }
 
-static int capture_expect (mio_htrd_t* htrd, mio_htb_pair_t* pair)
+static int capture_expect (hio_htrd_t* htrd, hio_htb_pair_t* pair)
 {
-	mio_htre_hdrval_t* val;
+	hio_htre_hdrval_t* val;
 
 	/* Expect is included */
-	htrd->re.flags |= MIO_HTRE_ATTR_EXPECT; 
+	htrd->re.flags |= HIO_HTRE_ATTR_EXPECT; 
 
-	val = MIO_HTB_VPTR(pair);
+	val = HIO_HTB_VPTR(pair);
 	while (val) 
 	{	
 		/* Expect: 100-continue is included */
-		if (mio_comp_bcstr(val->ptr, "100-continue", 1) == 0) htrd->re.flags |= MIO_HTRE_ATTR_EXPECT100; 
+		if (hio_comp_bcstr(val->ptr, "100-continue", 1) == 0) htrd->re.flags |= HIO_HTRE_ATTR_EXPECT100; 
 		val = val->next;
 	}
 
 	return 0;
 }
 
-static int capture_status (mio_htrd_t* htrd, mio_htb_pair_t* pair)
+static int capture_status (hio_htrd_t* htrd, hio_htb_pair_t* pair)
 {
-	mio_htre_hdrval_t* val;
+	hio_htre_hdrval_t* val;
 
-	val = MIO_HTB_VPTR(pair);
+	val = HIO_HTB_VPTR(pair);
 	while (val->next) val = val->next;
 
 	htrd->re.attr.status = val->ptr;
 	return 0;
 }
 
-static int capture_transfer_encoding (mio_htrd_t* htrd, mio_htb_pair_t* pair)
+static int capture_transfer_encoding (hio_htrd_t* htrd, hio_htb_pair_t* pair)
 {
 	int n;
-	mio_htre_hdrval_t* val;
+	hio_htre_hdrval_t* val;
 
-	val = MIO_HTB_VPTR(pair);
+	val = HIO_HTB_VPTR(pair);
 	while (val->next) val = val->next;
 
-	n = mio_comp_bcstr(val->ptr, "chunked", 1);
+	n = hio_comp_bcstr(val->ptr, "chunked", 1);
 	if (n == 0)
 	{
 		/* if (htrd->re.attr.content_length > 0) */
-		if (htrd->re.flags & MIO_HTRE_ATTR_LENGTH)
+		if (htrd->re.flags & HIO_HTRE_ATTR_LENGTH)
 		{
 			/* both content-length and 'transfer-encoding: chunked' are specified. */
 			goto badre;
 		}
 
-		htrd->re.flags |= MIO_HTRE_ATTR_CHUNKED;
+		htrd->re.flags |= HIO_HTRE_ATTR_CHUNKED;
 		return 0;
 	}
 
 	/* other encoding type not supported yet */
 badre:
-	htrd->errnum = MIO_HTRD_EBADRE;
+	htrd->errnum = HIO_HTRD_EBADRE;
 	return -1;
 }
 
-static MIO_INLINE int capture_key_header (mio_htrd_t* htrd, mio_htb_pair_t* pair)
+static HIO_INLINE int capture_key_header (hio_htrd_t* htrd, hio_htb_pair_t* pair)
 {
 	static struct
 	{
-		const mio_bch_t* ptr;
-		mio_oow_t        len;
-		int (*handler) (mio_htrd_t*, mio_htb_pair_t*);
+		const hio_bch_t* ptr;
+		hio_oow_t        len;
+		int (*handler) (hio_htrd_t*, hio_htb_pair_t*);
 	} hdrtab[] = 
 	{
 		{ "Connection",         10, capture_connection },
@@ -619,14 +619,14 @@ static MIO_INLINE int capture_key_header (mio_htrd_t* htrd, mio_htb_pair_t* pair
 	};
 
 	int n;
-	mio_oow_t mid, count, base = 0;
+	hio_oow_t mid, count, base = 0;
 
 	/* perform binary search */
-	for (count = MIO_COUNTOF(hdrtab); count > 0; count /= 2)
+	for (count = HIO_COUNTOF(hdrtab); count > 0; count /= 2)
 	{
 		mid = base + count / 2;
 
-		n = mio_comp_bchars(MIO_HTB_KPTR(pair), MIO_HTB_KLEN(pair), hdrtab[mid].ptr, hdrtab[mid].len, 1);
+		n = hio_comp_bchars(HIO_HTB_KPTR(pair), HIO_HTB_KLEN(pair), hdrtab[mid].ptr, hdrtab[mid].len, 1);
 		if (n == 0)
 		{
 			/* bingo! */
@@ -642,40 +642,40 @@ static MIO_INLINE int capture_key_header (mio_htrd_t* htrd, mio_htb_pair_t* pair
 
 struct hdr_cbserter_ctx_t
 {
-	mio_htrd_t* htrd;
+	hio_htrd_t* htrd;
 	void*       vptr;
-	mio_oow_t  vlen;
+	hio_oow_t  vlen;
 };
 
-static mio_htb_pair_t* hdr_cbserter (
-	mio_htb_t* htb, mio_htb_pair_t* pair, 
-	void* kptr, mio_oow_t klen, void* ctx)
+static hio_htb_pair_t* hdr_cbserter (
+	hio_htb_t* htb, hio_htb_pair_t* pair, 
+	void* kptr, hio_oow_t klen, void* ctx)
 {
 	struct hdr_cbserter_ctx_t* tx = (struct hdr_cbserter_ctx_t*)ctx;
 
-	if (pair == MIO_NULL)
+	if (pair == HIO_NULL)
 	{
 		/* the key is new. let's create a new pair. */
-		mio_htb_pair_t* p; 
-		mio_htre_hdrval_t *val;
+		hio_htb_pair_t* p; 
+		hio_htre_hdrval_t *val;
 
-		val = mio_allocmem(htb->mio, MIO_SIZEOF(*val));
-		if (MIO_UNLIKELY(!val))
+		val = hio_allocmem(htb->hio, HIO_SIZEOF(*val));
+		if (HIO_UNLIKELY(!val))
 		{
-			tx->htrd->errnum = MIO_HTRD_ENOMEM;
-			return MIO_NULL;
+			tx->htrd->errnum = HIO_HTRD_ENOMEM;
+			return HIO_NULL;
 		}
 
-		MIO_MEMSET (val, 0, MIO_SIZEOF(*val));
+		HIO_MEMSET (val, 0, HIO_SIZEOF(*val));
 		val->ptr = tx->vptr;
 		val->len = tx->vlen;
-		val->next = MIO_NULL;
+		val->next = HIO_NULL;
 
-		p = mio_htb_allocpair(htb, kptr, klen, val, 0);
-		if (MIO_UNLIKELY(!p)) 
+		p = hio_htb_allocpair(htb, kptr, klen, val, 0);
+		if (HIO_UNLIKELY(!p)) 
 		{
-			mio_freemem (htb->mio, val);
-			tx->htrd->errnum = MIO_HTRD_ENOMEM;
+			hio_freemem (htb->hio, val);
+			tx->htrd->errnum = HIO_HTRD_ENOMEM;
 		}
 		else 
 		{
@@ -683,8 +683,8 @@ static mio_htb_pair_t* hdr_cbserter (
 			{
 				/* Destroy the pair created here
 				 * as it is not added to the hash table yet */
-				mio_htb_freepair (htb, p);
-				p = MIO_NULL;
+				hio_htb_freepair (htb, p);
+				p = HIO_NULL;
 			}
 		}
 
@@ -720,42 +720,42 @@ static mio_htb_pair_t* hdr_cbserter (
 		 * folding them.
 		 */
 
-		mio_htre_hdrval_t* val;
-		mio_htre_hdrval_t* tmp;
+		hio_htre_hdrval_t* val;
+		hio_htre_hdrval_t* tmp;
 
-		val = (mio_htre_hdrval_t*)mio_allocmem(tx->htrd->mio, MIO_SIZEOF(*val));
-		if (MIO_UNLIKELY(!val))
+		val = (hio_htre_hdrval_t*)hio_allocmem(tx->htrd->hio, HIO_SIZEOF(*val));
+		if (HIO_UNLIKELY(!val))
 		{
-			tx->htrd->errnum = MIO_HTRD_ENOMEM;
-			return MIO_NULL;
+			tx->htrd->errnum = HIO_HTRD_ENOMEM;
+			return HIO_NULL;
 		}
 
-		MIO_MEMSET (val, 0, MIO_SIZEOF(*val));
+		HIO_MEMSET (val, 0, HIO_SIZEOF(*val));
 		val->ptr = tx->vptr;
 		val->len = tx->vlen;
-		val->next = MIO_NULL;
+		val->next = HIO_NULL;
 
 /* TODO: doubly linked list for speed-up??? */
-		tmp = MIO_HTB_VPTR(pair);
-		MIO_ASSERT (tx->htrd->mio, tmp != MIO_NULL);
+		tmp = HIO_HTB_VPTR(pair);
+		HIO_ASSERT (tx->htrd->hio, tmp != HIO_NULL);
 
 		/* find the tail */
 		while (tmp->next) tmp = tmp->next;
 		/* append it to the list*/
 		tmp->next = val; 
 
-		if (capture_key_header(tx->htrd, pair) <= -1) return MIO_NULL;
+		if (capture_key_header(tx->htrd, pair) <= -1) return HIO_NULL;
 		return pair;
 	}
 }
 
-mio_bch_t* parse_header_field (mio_htrd_t* htrd, mio_bch_t* line, mio_htb_t* tab)
+hio_bch_t* parse_header_field (hio_htrd_t* htrd, hio_bch_t* line, hio_htb_t* tab)
 {
-	mio_bch_t* p = line, * last;
+	hio_bch_t* p = line, * last;
 	struct
 	{
-		mio_bch_t* ptr;
-		mio_oow_t   len;
+		hio_bch_t* ptr;
+		hio_oow_t   len;
 	} name, value;
 
 #if 0
@@ -763,7 +763,7 @@ mio_bch_t* parse_header_field (mio_htrd_t* htrd, mio_bch_t* line, mio_htb_t* tab
 	while (is_space_octet(*p)) p++;
 #endif
 
-	MIO_ASSERT (htrd->mio, !is_whspace_octet(*p));
+	HIO_ASSERT (htrd->hio, !is_whspace_octet(*p));
 
 	/* check the field name */
 	name.ptr = last = p;
@@ -775,7 +775,7 @@ mio_bch_t* parse_header_field (mio_htrd_t* htrd, mio_bch_t* line, mio_htb_t* tab
 
 	if (*p != ':') 
 	{
-		if (!(htrd->option & MIO_HTRD_STRICT))
+		if (!(htrd->option & HIO_HTRD_STRICT))
 		{
 			while (is_space_octet(*p)) p++;
 			if (*p == '\n') 
@@ -809,7 +809,7 @@ mio_bch_t* parse_header_field (mio_htrd_t* htrd, mio_bch_t* line, mio_htb_t* tab
 		 * each continuation line begins with a space or horizontal tab. 
 		 * All linear whitespace, including folding, has the same semantics 
 		 * as SP. */
-		mio_bch_t* cpydst;
+		hio_bch_t* cpydst;
 
 		cpydst = p - 1;
 		if (*(cpydst-1) == '\r') cpydst--;
@@ -840,27 +840,27 @@ mio_bch_t* parse_header_field (mio_htrd_t* htrd, mio_bch_t* line, mio_htb_t* tab
 		ctx.vptr = value.ptr;
 		ctx.vlen = value.len;
 
-		htrd->errnum = MIO_HTRD_ENOERR;
-		if (mio_htb_cbsert (
+		htrd->errnum = HIO_HTRD_ENOERR;
+		if (hio_htb_cbsert (
 			tab, name.ptr, name.len, 
-			hdr_cbserter, &ctx) == MIO_NULL)
+			hdr_cbserter, &ctx) == HIO_NULL)
 		{
-			if (htrd->errnum == MIO_HTRD_ENOERR) 
-				htrd->errnum = MIO_HTRD_ENOMEM;
-			return MIO_NULL;
+			if (htrd->errnum == HIO_HTRD_ENOERR) 
+				htrd->errnum = HIO_HTRD_ENOMEM;
+			return HIO_NULL;
 		}
 	}
 
 	return p;
 
 badhdr:
-	htrd->errnum = MIO_HTRD_EBADHDR;
-	return MIO_NULL;
+	htrd->errnum = HIO_HTRD_EBADHDR;
+	return HIO_NULL;
 }
 
-static MIO_INLINE int parse_initial_line_and_headers (mio_htrd_t* htrd, const mio_bch_t* req, mio_oow_t rlen)
+static HIO_INLINE int parse_initial_line_and_headers (hio_htrd_t* htrd, const hio_bch_t* req, hio_oow_t rlen)
 {
-	mio_bch_t* p;
+	hio_bch_t* p;
 
 	/* add the actual request */
 	if (push_to_buffer (htrd, &htrd->fed.b.raw, req, rlen) <= -1) return -1;
@@ -868,22 +868,22 @@ static MIO_INLINE int parse_initial_line_and_headers (mio_htrd_t* htrd, const mi
 	/* add the terminating null for easier parsing */
 	if (push_to_buffer (htrd, &htrd->fed.b.raw, &NUL, 1) <= -1) return -1;
 
-	p = MIO_BECS_PTR(&htrd->fed.b.raw);
+	p = HIO_BECS_PTR(&htrd->fed.b.raw);
 
 #if 0
-	if (htrd->option & MIO_HTRD_SKIP_EMPTY_LINES)
+	if (htrd->option & HIO_HTRD_SKIP_EMPTY_LINES)
 		while (is_whspace_octet(*p)) p++;
 	else
 #endif
 		while (is_space_octet(*p)) p++;
 	
-	MIO_ASSERT (htrd->mio, *p != '\0');
+	HIO_ASSERT (htrd->hio, *p != '\0');
 
 	/* parse the initial line */
-	if (!(htrd->option & MIO_HTRD_SKIP_INITIAL_LINE))
+	if (!(htrd->option & HIO_HTRD_SKIP_INITIAL_LINE))
 	{
 		p = parse_initial_line(htrd, p);
-		if (MIO_UNLIKELY(!p)) return -1;
+		if (HIO_UNLIKELY(!p)) return -1;
 	}
 
 	/* parse header fields */
@@ -896,7 +896,7 @@ static MIO_INLINE int parse_initial_line_and_headers (mio_htrd_t* htrd, const mi
 		 * HTTP/0.9 must not get headers... */
 
 		p = parse_header_field(htrd, p, &htrd->re.hdrtab);
-		if (MIO_UNLIKELY(!p)) return -1;
+		if (HIO_UNLIKELY(!p)) return -1;
 	}
 	while (1);
 
@@ -910,12 +910,12 @@ static MIO_INLINE int parse_initial_line_and_headers (mio_htrd_t* htrd, const mi
 #define GET_CHUNK_CRLF     3
 #define GET_CHUNK_TRAILERS 4
 
-static const mio_bch_t* getchunklen (mio_htrd_t* htrd, const mio_bch_t* ptr, mio_oow_t len)
+static const hio_bch_t* getchunklen (hio_htrd_t* htrd, const hio_bch_t* ptr, hio_oow_t len)
 {
-	const mio_bch_t* end = ptr + len;
+	const hio_bch_t* end = ptr + len;
 
 	/* this function must be called in the GET_CHUNK_LEN context */
-	MIO_ASSERT (htrd->mio, htrd->fed.s.chunk.phase == GET_CHUNK_LEN);
+	HIO_ASSERT (htrd->hio, htrd->fed.s.chunk.phase == GET_CHUNK_LEN);
 
 	if (htrd->fed.s.chunk.count <= 0)
 	{
@@ -965,28 +965,28 @@ static const mio_bch_t* getchunklen (mio_htrd_t* htrd, const mio_bch_t* ptr, mio
 		}
 		else
 		{
-			htrd->errnum = MIO_HTRD_EBADRE;
-			return MIO_NULL;
+			htrd->errnum = HIO_HTRD_EBADRE;
+			return HIO_NULL;
 		}
 	}
 
 	return ptr;
 }
 
-static const mio_bch_t* get_trailing_headers (mio_htrd_t* htrd, const mio_bch_t* req, const mio_bch_t* end)
+static const hio_bch_t* get_trailing_headers (hio_htrd_t* htrd, const hio_bch_t* req, const hio_bch_t* end)
 {
-	const mio_bch_t* ptr = req;
+	const hio_bch_t* ptr = req;
 
 	while (ptr < end)
 	{
-		register mio_bch_t b = *ptr++;
+		register hio_bch_t b = *ptr++;
 		switch (b)
 		{
 			case '\0':
 				/* guarantee that the request does not contain a null 
 				 * character */
-				htrd->errnum = MIO_HTRD_EBADRE;
-				return MIO_NULL;
+				htrd->errnum = HIO_HTRD_EBADRE;
+				return HIO_NULL;
 
 			case '\n':
 				if (htrd->fed.s.crlf <= 1) 
@@ -996,15 +996,15 @@ static const mio_bch_t* get_trailing_headers (mio_htrd_t* htrd, const mio_bch_t*
 				}
 				else
 				{
-					mio_bch_t* p;
+					hio_bch_t* p;
 
-					MIO_ASSERT (htrd->mio, htrd->fed.s.crlf <= 3);
+					HIO_ASSERT (htrd->hio, htrd->fed.s.crlf <= 3);
 					htrd->fed.s.crlf = 0;
 
 					if (push_to_buffer(htrd, &htrd->fed.b.tra, req, ptr - req) <= -1 ||
-					    push_to_buffer(htrd, &htrd->fed.b.tra, &NUL, 1) <= -1) return MIO_NULL;
+					    push_to_buffer(htrd, &htrd->fed.b.tra, &NUL, 1) <= -1) return HIO_NULL;
 
-					p = MIO_BECS_PTR(&htrd->fed.b.tra);
+					p = HIO_BECS_PTR(&htrd->fed.b.tra);
 
 					do
 					{
@@ -1014,8 +1014,8 @@ static const mio_bch_t* get_trailing_headers (mio_htrd_t* htrd, const mio_bch_t*
 						/* TODO: return error if protocol is 0.9.
 						 * HTTP/0.9 must not get headers... */
 
-						p = parse_header_field(htrd, p, ((htrd->option & MIO_HTRD_TRAILERS)? &htrd->re.trailers: &htrd->re.hdrtab));
-						if (MIO_UNLIKELY(!p)) return MIO_NULL;
+						p = parse_header_field(htrd, p, ((htrd->option & HIO_HTRD_TRAILERS)? &htrd->re.trailers: &htrd->re.hdrtab));
+						if (HIO_UNLIKELY(!p)) return HIO_NULL;
 					}
 					while (1);
 
@@ -1037,29 +1037,29 @@ static const mio_bch_t* get_trailing_headers (mio_htrd_t* htrd, const mio_bch_t*
 	}
 
 	if (push_to_buffer (htrd, &htrd->fed.b.tra, req, ptr - req) <= -1) 
-		return MIO_NULL;
+		return HIO_NULL;
 
 done:
 	return ptr;
 }
 
 /* feed the percent encoded string */
-int mio_htrd_feed (mio_htrd_t* htrd, const mio_bch_t* req, mio_oow_t len, mio_oow_t* rem)
+int hio_htrd_feed (hio_htrd_t* htrd, const hio_bch_t* req, hio_oow_t len, hio_oow_t* rem)
 {
-	const mio_bch_t* end = req + len;
-	const mio_bch_t* ptr = req;
+	const hio_bch_t* end = req + len;
+	const hio_bch_t* ptr = req;
 	int header_completed_during_this_feed = 0;
-	mio_oow_t avail;
+	hio_oow_t avail;
 
-	MIO_ASSERT (htrd->mio, len > 0);
+	HIO_ASSERT (htrd->hio, len > 0);
 
 	if (htrd->flags & FEEDING_SUSPENDED)
 	{
-		htrd->errnum = MIO_HTRD_ESUSPENDED;
+		htrd->errnum = HIO_HTRD_ESUSPENDED;
 		return -1;
 	}
 
-	/*if (htrd->option & MIO_HTRD_DUMMY)*/
+	/*if (htrd->option & HIO_HTRD_DUMMY)*/
 	if (htrd->flags & FEEDING_DUMMIFIED)
 	{
 		/* treat everything as contents.
@@ -1097,10 +1097,10 @@ int mio_htrd_feed (mio_htrd_t* htrd, const mio_bch_t* req, mio_oow_t len, mio_oo
 
 	while (ptr < end)
 	{
-		register mio_bch_t b = *ptr++;
+		register hio_bch_t b = *ptr++;
 
 #if 0
-		if (htrd->option & MIO_HTRD_SKIP_EMPTY_LINES &&
+		if (htrd->option & HIO_HTRD_SKIP_EMPTY_LINES &&
 		    htrd->fed.s.plen <= 0 && is_whspace_octet(b)) 
 		{
 			/* let's drop leading whitespaces across multiple
@@ -1115,7 +1115,7 @@ int mio_htrd_feed (mio_htrd_t* htrd, const mio_bch_t* req, mio_oow_t len, mio_oo
 			case '\0':
 				/* guarantee that the request does not contain
 				 * a null character */
-				htrd->errnum = MIO_HTRD_EBADRE;
+				htrd->errnum = HIO_HTRD_EBADRE;
 				return -1;
 
 			case '\n':
@@ -1140,7 +1140,7 @@ int mio_htrd_feed (mio_htrd_t* htrd, const mio_bch_t* req, mio_oow_t len, mio_oo
 					 */
 
 					/* we got a complete request header. */
-					MIO_ASSERT (htrd->mio, htrd->fed.s.crlf <= 3);
+					HIO_ASSERT (htrd->hio, htrd->fed.s.crlf <= 3);
 
 					/* reset the crlf state */
 					htrd->fed.s.crlf = 0;
@@ -1165,10 +1165,10 @@ int mio_htrd_feed (mio_htrd_t* htrd, const mio_bch_t* req, mio_oow_t len, mio_oo
 ////////////////////////////////////////////////////////////////////////////////////////////////////
 
 					/* carry on processing content body fed together with the header */
-					if (htrd->re.flags & MIO_HTRE_ATTR_CHUNKED)
+					if (htrd->re.flags & HIO_HTRE_ATTR_CHUNKED)
 					{
 						/* transfer-encoding: chunked */
-						/*MIO_ASSERT (htrd->mio, !(htrd->re.flags & MIO_HTRE_ATTR_LENGTH)); <- this assertion is wrong. non-conforming client may include content-length while transfer-encoding is chunked*/
+						/*HIO_ASSERT (htrd->hio, !(htrd->re.flags & HIO_HTRE_ATTR_LENGTH)); <- this assertion is wrong. non-conforming client may include content-length while transfer-encoding is chunked*/
 
 					dechunk_start:
 						htrd->fed.s.chunk.phase = GET_CHUNK_LEN;
@@ -1177,7 +1177,7 @@ int mio_htrd_feed (mio_htrd_t* htrd, const mio_bch_t* req, mio_oow_t len, mio_oo
 
 					dechunk_resume:
 						ptr = getchunklen(htrd, ptr, end - ptr);
-						if (MIO_UNLIKELY(!ptr)) return -1;
+						if (HIO_UNLIKELY(!ptr)) return -1;
 
 						if (htrd->fed.s.chunk.phase == GET_CHUNK_LEN)
 						{
@@ -1197,7 +1197,7 @@ int mio_htrd_feed (mio_htrd_t* htrd, const mio_bch_t* req, mio_oow_t len, mio_oo
 
 						dechunk_get_trailers:
 							ptr = get_trailing_headers(htrd, ptr, end);
-							if (!MIO_UNLIKELY(ptr)) return -1;
+							if (!HIO_UNLIKELY(ptr)) return -1;
 
 							if (htrd->fed.s.chunk.phase == GET_CHUNK_TRAILERS)
 							{
@@ -1211,9 +1211,9 @@ int mio_htrd_feed (mio_htrd_t* htrd, const mio_bch_t* req, mio_oow_t len, mio_oo
 					{
 						/* we need to read as many octets as
 						 * Content-Length */
-						if ((htrd->option & MIO_HTRD_RESPONSE) && 
-						    !(htrd->re.flags & MIO_HTRE_ATTR_LENGTH) &&
-						    !(htrd->re.flags & MIO_HTRE_ATTR_KEEPALIVE))
+						if ((htrd->option & HIO_HTRD_RESPONSE) && 
+						    !(htrd->re.flags & HIO_HTRE_ATTR_LENGTH) &&
+						    !(htrd->re.flags & HIO_HTRE_ATTR_KEEPALIVE))
 						{
 							/* for a response, no content-length and 
 							 * no chunk are specified and 'connection' 
@@ -1221,7 +1221,7 @@ int mio_htrd_feed (mio_htrd_t* htrd, const mio_bch_t* req, mio_oow_t len, mio_oo
 							 * connection is closed. however, there isn't 
 							 * any good way to know when to stop from 
 							 * within this function. so the caller
-							 * can call mio_htrd_halt() for this. */
+							 * can call hio_htrd_halt() for this. */
 
 							/* set this to the maximum in a type safe way
 							 * assuming it's unsigned. the problem of
@@ -1231,9 +1231,9 @@ int mio_htrd_feed (mio_htrd_t* htrd, const mio_bch_t* req, mio_oow_t len, mio_oo
 							htrd->fed.s.need = ~htrd->fed.s.need; 
 							htrd->fed.s.flags |= CONSUME_UNTIL_CLOSE;
 						}
-						else if ((htrd->option & MIO_HTRD_RESPONSE) &&
-						         !(htrd->re.flags & MIO_HTRE_ATTR_LENGTH) &&
-						          (htrd->re.flags & MIO_HTRE_ATTR_KEEPALIVE))
+						else if ((htrd->option & HIO_HTRD_RESPONSE) &&
+						         !(htrd->re.flags & HIO_HTRE_ATTR_LENGTH) &&
+						          (htrd->re.flags & HIO_HTRE_ATTR_KEEPALIVE))
 						{
 							/* 
 							 * what the hell! 
@@ -1325,7 +1325,7 @@ XXXXXXXX
 
 					if (htrd->fed.s.chunk.phase == GET_CHUNK_DATA)
 					{
-						MIO_ASSERT (htrd->mio, htrd->fed.s.need == 0);
+						HIO_ASSERT (htrd->hio, htrd->fed.s.need == 0);
 						htrd->fed.s.chunk.phase = GET_CHUNK_CRLF;
 
 					dechunk_crlf:
@@ -1356,7 +1356,7 @@ XXXXXXXX
 							else
 							{
 								/* redundant character ... */
-								htrd->errnum = MIO_HTRD_EBADRE;
+								htrd->errnum = HIO_HTRD_EBADRE;
 								return -1;
 							}
 						}
@@ -1368,7 +1368,7 @@ XXXXXXXX
 					}
 
 					/* the content has been received fully */
-					mio_htre_completecontent (&htrd->re);
+					hio_htre_completecontent (&htrd->re);
 
 #if 0 // XXXX
 					if (header_completed_during_this_feed && htrd->recbs.peek)
@@ -1404,9 +1404,9 @@ XXXXXXXX
 					}
 
 #if 0
-mio_printf (MIO_T("CONTENT_LENGTH %d, RAW HEADER LENGTH %d\n"), 
-	(int)MIO_BECS_LEN(&htrd->re.content),
-	(int)MIO_BECS_LEN(&htrd->fed.b.raw));
+hio_printf (HIO_T("CONTENT_LENGTH %d, RAW HEADER LENGTH %d\n"), 
+	(int)HIO_BECS_LEN(&htrd->re.content),
+	(int)HIO_BECS_LEN(&htrd->fed.b.raw));
 #endif
 					clear_feed (htrd);
 
@@ -1422,14 +1422,14 @@ mio_printf (MIO_T("CONTENT_LENGTH %d, RAW HEADER LENGTH %d\n"),
 						return 0;
 					}
 
-					if (htrd->flags & FEEDING_SUSPENDED) /* in case the callback called mio_htrd_suspend() */
+					if (htrd->flags & FEEDING_SUSPENDED) /* in case the callback called hio_htrd_suspend() */
 					{
-						htrd->errnum = MIO_HTRD_ESUSPENDED;
+						htrd->errnum = HIO_HTRD_ESUSPENDED;
 						return -1;
 					}
 
-					/*if (htrd->option & MIO_HTRD_DUMMY)*/
-					if (htrd->flags & FEEDING_DUMMIFIED) /* in case the callback called mio_htrd_dummify() */
+					/*if (htrd->option & HIO_HTRD_DUMMY)*/
+					if (htrd->flags & FEEDING_DUMMIFIED) /* in case the callback called hio_htrd_dummify() */
 					{
 						/* once the mode changes to RAW in a callback,
 						 * left-over is pushed as contents */
@@ -1495,11 +1495,11 @@ feedme_more:
 	return 0;
 }
 
-int mio_htrd_halt (mio_htrd_t* htrd)
+int hio_htrd_halt (hio_htrd_t* htrd)
 {
 	if ((htrd->fed.s.flags & CONSUME_UNTIL_CLOSE) || !htrd->clean)
 	{
-		mio_htre_completecontent (&htrd->re);
+		hio_htre_completecontent (&htrd->re);
 
 		if (htrd->recbs.poke)
 		{
@@ -1519,22 +1519,22 @@ int mio_htrd_halt (mio_htrd_t* htrd)
 	return 0;
 }
 
-void mio_htrd_suspend (mio_htrd_t* htrd)
+void hio_htrd_suspend (hio_htrd_t* htrd)
 {
 	htrd->flags |= FEEDING_SUSPENDED;
 }
 
-void mio_htrd_resume (mio_htrd_t* htrd)
+void hio_htrd_resume (hio_htrd_t* htrd)
 {
 	htrd->flags &= ~FEEDING_SUSPENDED;
 }
 
-void mio_htrd_dummify (mio_htrd_t* htrd)
+void hio_htrd_dummify (hio_htrd_t* htrd)
 {
 	htrd->flags |= FEEDING_DUMMIFIED;
 }
 
-void mio_htrd_undummify (mio_htrd_t* htrd)
+void hio_htrd_undummify (hio_htrd_t* htrd)
 {
 	htrd->flags &= ~FEEDING_DUMMIFIED;
 }

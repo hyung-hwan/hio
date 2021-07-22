@@ -25,67 +25,67 @@
  */
 
 
-#include "mio-prv.h"
+#include "hio-prv.h"
 
 #define HEAP_PARENT(x) (((x) - 1) / 2)
 #define HEAP_LEFT(x)   ((x) * 2 + 1)
 #define HEAP_RIGHT(x)  ((x) * 2 + 2)
 
-#define YOUNGER_THAN(x,y) (MIO_CMP_NTIME(&(x)->when, &(y)->when) < 0)
+#define YOUNGER_THAN(x,y) (HIO_CMP_NTIME(&(x)->when, &(y)->when) < 0)
 
-void mio_cleartmrjobs (mio_t* mio)
+void hio_cleartmrjobs (hio_t* hio)
 {
-	while (mio->tmr.size > 0) mio_deltmrjob (mio, 0);
+	while (hio->tmr.size > 0) hio_deltmrjob (hio, 0);
 }
 
-static mio_tmridx_t sift_up (mio_t* mio, mio_tmridx_t index)
+static hio_tmridx_t sift_up (hio_t* hio, hio_tmridx_t index)
 {
-	mio_tmridx_t parent;
+	hio_tmridx_t parent;
 
 	parent = HEAP_PARENT(index);
-	if (index > 0 && YOUNGER_THAN(&mio->tmr.jobs[index], &mio->tmr.jobs[parent]))
+	if (index > 0 && YOUNGER_THAN(&hio->tmr.jobs[index], &hio->tmr.jobs[parent]))
 	{
-		mio_tmrjob_t item;
+		hio_tmrjob_t item;
 
-		item = mio->tmr.jobs[index]; 
+		item = hio->tmr.jobs[index]; 
 
 		do
 		{
 			/* move down the parent to my current position */
-			mio->tmr.jobs[index] = mio->tmr.jobs[parent];
-			if (mio->tmr.jobs[index].idxptr) *mio->tmr.jobs[index].idxptr = index;
+			hio->tmr.jobs[index] = hio->tmr.jobs[parent];
+			if (hio->tmr.jobs[index].idxptr) *hio->tmr.jobs[index].idxptr = index;
 
 			/* traverse up */
 			index = parent;
 			parent = HEAP_PARENT(parent);
 		}
-		while (index > 0 && YOUNGER_THAN(&item, &mio->tmr.jobs[parent]));
+		while (index > 0 && YOUNGER_THAN(&item, &hio->tmr.jobs[parent]));
 
-		mio->tmr.jobs[index] = item;
-		if (mio->tmr.jobs[index].idxptr) *mio->tmr.jobs[index].idxptr = index;
+		hio->tmr.jobs[index] = item;
+		if (hio->tmr.jobs[index].idxptr) *hio->tmr.jobs[index].idxptr = index;
 	}
 
 	return index;
 }
 
-static mio_tmridx_t sift_down (mio_t* mio, mio_tmridx_t index)
+static hio_tmridx_t sift_down (hio_t* hio, hio_tmridx_t index)
 {
-	mio_oow_t base = mio->tmr.size / 2;
+	hio_oow_t base = hio->tmr.size / 2;
 
 	if (index < base) /* at least 1 child is under the 'index' position */
 	{
-		mio_tmrjob_t item;
+		hio_tmrjob_t item;
 
-		item = mio->tmr.jobs[index];
+		item = hio->tmr.jobs[index];
 
 		do
 		{
-			mio_tmridx_t left, right, younger;
+			hio_tmridx_t left, right, younger;
 
 			left = HEAP_LEFT(index);
 			right = HEAP_RIGHT(index);
 
-			if (right < mio->tmr.size && YOUNGER_THAN(&mio->tmr.jobs[right], &mio->tmr.jobs[left]))
+			if (right < hio->tmr.size && YOUNGER_THAN(&hio->tmr.jobs[right], &hio->tmr.jobs[left]))
 			{
 				younger = right;
 			}
@@ -94,158 +94,158 @@ static mio_tmridx_t sift_down (mio_t* mio, mio_tmridx_t index)
 				younger = left;
 			}
 
-			if (YOUNGER_THAN(&item, &mio->tmr.jobs[younger])) break;
+			if (YOUNGER_THAN(&item, &hio->tmr.jobs[younger])) break;
 
-			mio->tmr.jobs[index] = mio->tmr.jobs[younger];
-			if (mio->tmr.jobs[index].idxptr) *mio->tmr.jobs[index].idxptr = index;
+			hio->tmr.jobs[index] = hio->tmr.jobs[younger];
+			if (hio->tmr.jobs[index].idxptr) *hio->tmr.jobs[index].idxptr = index;
 
 			index = younger;
 		}
 		while (index < base);
 		
-		mio->tmr.jobs[index] = item;
-		if (mio->tmr.jobs[index].idxptr) *mio->tmr.jobs[index].idxptr = index;
+		hio->tmr.jobs[index] = item;
+		if (hio->tmr.jobs[index].idxptr) *hio->tmr.jobs[index].idxptr = index;
 	}
 
 	return index;
 }
 
-void mio_deltmrjob (mio_t* mio, mio_tmridx_t index)
+void hio_deltmrjob (hio_t* hio, hio_tmridx_t index)
 {
-	mio_tmrjob_t item;
+	hio_tmrjob_t item;
 
-	MIO_ASSERT (mio, index < mio->tmr.size);
+	HIO_ASSERT (hio, index < hio->tmr.size);
 
-	item = mio->tmr.jobs[index];
-	if (mio->tmr.jobs[index].idxptr) *mio->tmr.jobs[index].idxptr = MIO_TMRIDX_INVALID;
+	item = hio->tmr.jobs[index];
+	if (hio->tmr.jobs[index].idxptr) *hio->tmr.jobs[index].idxptr = HIO_TMRIDX_INVALID;
 
-	mio->tmr.size = mio->tmr.size - 1;
-	if (mio->tmr.size > 0 && index != mio->tmr.size)
+	hio->tmr.size = hio->tmr.size - 1;
+	if (hio->tmr.size > 0 && index != hio->tmr.size)
 	{
-		mio->tmr.jobs[index] = mio->tmr.jobs[mio->tmr.size];
-		if (mio->tmr.jobs[index].idxptr) *mio->tmr.jobs[index].idxptr = index;
-		YOUNGER_THAN(&mio->tmr.jobs[index], &item)? sift_up(mio, index): sift_down(mio, index);
+		hio->tmr.jobs[index] = hio->tmr.jobs[hio->tmr.size];
+		if (hio->tmr.jobs[index].idxptr) *hio->tmr.jobs[index].idxptr = index;
+		YOUNGER_THAN(&hio->tmr.jobs[index], &item)? sift_up(hio, index): sift_down(hio, index);
 	}
 }
 
-mio_tmridx_t mio_instmrjob (mio_t* mio, const mio_tmrjob_t* job)
+hio_tmridx_t hio_instmrjob (hio_t* hio, const hio_tmrjob_t* job)
 {
-	mio_tmridx_t index = mio->tmr.size;
+	hio_tmridx_t index = hio->tmr.size;
 
-	if (index >= mio->tmr.capa)
+	if (index >= hio->tmr.capa)
 	{
-		mio_tmrjob_t* tmp;
-		mio_oow_t new_capa;
+		hio_tmrjob_t* tmp;
+		hio_oow_t new_capa;
 
-		MIO_ASSERT (mio, mio->tmr.capa >= 1);
-		new_capa = mio->tmr.capa * 2;
-		tmp = (mio_tmrjob_t*)mio_reallocmem(mio, mio->tmr.jobs, new_capa * MIO_SIZEOF(*tmp));
-		if (!tmp) return MIO_TMRIDX_INVALID;
+		HIO_ASSERT (hio, hio->tmr.capa >= 1);
+		new_capa = hio->tmr.capa * 2;
+		tmp = (hio_tmrjob_t*)hio_reallocmem(hio, hio->tmr.jobs, new_capa * HIO_SIZEOF(*tmp));
+		if (!tmp) return HIO_TMRIDX_INVALID;
 
-		mio->tmr.jobs = tmp;
-		mio->tmr.capa = new_capa;
+		hio->tmr.jobs = tmp;
+		hio->tmr.capa = new_capa;
 	}
 
-	mio->tmr.size = mio->tmr.size + 1;
-	mio->tmr.jobs[index] = *job;
-	if (mio->tmr.jobs[index].idxptr) *mio->tmr.jobs[index].idxptr = index;
-	return sift_up(mio, index);
+	hio->tmr.size = hio->tmr.size + 1;
+	hio->tmr.jobs[index] = *job;
+	if (hio->tmr.jobs[index].idxptr) *hio->tmr.jobs[index].idxptr = index;
+	return sift_up(hio, index);
 }
 
-mio_tmridx_t mio_updtmrjob (mio_t* mio, mio_tmridx_t index, const mio_tmrjob_t* job)
+hio_tmridx_t hio_updtmrjob (hio_t* hio, hio_tmridx_t index, const hio_tmrjob_t* job)
 {
-	mio_tmrjob_t item;
-	item = mio->tmr.jobs[index];
-	mio->tmr.jobs[index] = *job;
-	if (mio->tmr.jobs[index].idxptr) *mio->tmr.jobs[index].idxptr = index;
-	return YOUNGER_THAN(job, &item)? sift_up(mio, index): sift_down(mio, index);
+	hio_tmrjob_t item;
+	item = hio->tmr.jobs[index];
+	hio->tmr.jobs[index] = *job;
+	if (hio->tmr.jobs[index].idxptr) *hio->tmr.jobs[index].idxptr = index;
+	return YOUNGER_THAN(job, &item)? sift_up(hio, index): sift_down(hio, index);
 }
 
-void mio_firetmrjobs (mio_t* mio, const mio_ntime_t* tm, mio_oow_t* firecnt)
+void hio_firetmrjobs (hio_t* hio, const hio_ntime_t* tm, hio_oow_t* firecnt)
 {
-	mio_ntime_t now;
-	mio_tmrjob_t tmrjob;
-	mio_oow_t count = 0;
+	hio_ntime_t now;
+	hio_tmrjob_t tmrjob;
+	hio_oow_t count = 0;
 
 	/* if the current time is not specified, get it from the system */
 	if (tm) now = *tm;
-	else mio_gettime (mio, &now);
+	else hio_gettime (hio, &now);
 
-	while (mio->tmr.size > 0)
+	while (hio->tmr.size > 0)
 	{
-		if (MIO_CMP_NTIME(&mio->tmr.jobs[0].when, &now) > 0) break;
+		if (HIO_CMP_NTIME(&hio->tmr.jobs[0].when, &now) > 0) break;
 
-		tmrjob = mio->tmr.jobs[0]; /* copy the scheduled job */
-		mio_deltmrjob (mio, 0); /* deschedule the job */
+		tmrjob = hio->tmr.jobs[0]; /* copy the scheduled job */
+		hio_deltmrjob (hio, 0); /* deschedule the job */
 
 		count++;
-		tmrjob.handler (mio, &now, &tmrjob); /* then fire the job */
+		tmrjob.handler (hio, &now, &tmrjob); /* then fire the job */
 	}
 
 	if (firecnt) *firecnt = count;
 }
 
-int mio_gettmrtmout (mio_t* mio, const mio_ntime_t* tm, mio_ntime_t* tmout)
+int hio_gettmrtmout (hio_t* hio, const hio_ntime_t* tm, hio_ntime_t* tmout)
 {
-	mio_ntime_t now;
+	hio_ntime_t now;
 
 	/* time-out can't be calculated when there's no job scheduled */
-	if (mio->tmr.size <= 0) return 0; /* no scheduled job */
+	if (hio->tmr.size <= 0) return 0; /* no scheduled job */
 
 	/* if the current time is not specified, get it from the system */
 	if (tm) now = *tm;
-	else mio_gettime (mio, &now);
+	else hio_gettime (hio, &now);
 
-	MIO_SUB_NTIME (tmout, &mio->tmr.jobs[0].when, &now);
-	if (tmout->sec < 0) MIO_CLEAR_NTIME (tmout);
+	HIO_SUB_NTIME (tmout, &hio->tmr.jobs[0].when, &now);
+	if (tmout->sec < 0) HIO_CLEAR_NTIME (tmout);
 	return 1; /* tmout is set */
 }
 
-mio_tmrjob_t* mio_gettmrjob (mio_t* mio, mio_tmridx_t index)
+hio_tmrjob_t* hio_gettmrjob (hio_t* hio, hio_tmridx_t index)
 {
-	if (index < 0 || index >= mio->tmr.size)
+	if (index < 0 || index >= hio->tmr.size)
 	{
-		mio_seterrbfmt (mio, MIO_ENOENT, "unable to get timer job as the given index is out of range");
-		return MIO_NULL;
+		hio_seterrbfmt (hio, HIO_ENOENT, "unable to get timer job as the given index is out of range");
+		return HIO_NULL;
 	}
 
-	return &mio->tmr.jobs[index];
+	return &hio->tmr.jobs[index];
 }
 
-int mio_gettmrjobdeadline (mio_t* mio, mio_tmridx_t index, mio_ntime_t* deadline)
+int hio_gettmrjobdeadline (hio_t* hio, hio_tmridx_t index, hio_ntime_t* deadline)
 {
-	if (index < 0 || index >= mio->tmr.size)
+	if (index < 0 || index >= hio->tmr.size)
 	{
-		mio_seterrbfmt (mio, MIO_ENOENT, "unable to get timer job deadline as the given index is out of range");
+		hio_seterrbfmt (hio, HIO_ENOENT, "unable to get timer job deadline as the given index is out of range");
 		return -1;
 	}
 
-	*deadline = mio->tmr.jobs[index].when;
+	*deadline = hio->tmr.jobs[index].when;
 	return 0;
 }
 
-int mio_schedtmrjobat (mio_t* mio, const mio_ntime_t* fire_at, mio_tmrjob_handler_t handler, mio_tmridx_t* tmridx, void* ctx)
+int hio_schedtmrjobat (hio_t* hio, const hio_ntime_t* fire_at, hio_tmrjob_handler_t handler, hio_tmridx_t* tmridx, void* ctx)
 {
-	mio_tmrjob_t tmrjob;
+	hio_tmrjob_t tmrjob;
 
-	MIO_MEMSET (&tmrjob, 0, MIO_SIZEOF(tmrjob));
+	HIO_MEMSET (&tmrjob, 0, HIO_SIZEOF(tmrjob));
 	tmrjob.ctx = ctx;
 	if (fire_at) tmrjob.when = *fire_at;
 
 	tmrjob.handler = handler;
 	tmrjob.idxptr = tmridx;
 
-	return mio_instmrjob(mio, &tmrjob) == MIO_TMRIDX_INVALID? -1: 0;
+	return hio_instmrjob(hio, &tmrjob) == HIO_TMRIDX_INVALID? -1: 0;
 }
 
-int mio_schedtmrjobafter (mio_t* mio, const mio_ntime_t* fire_after, mio_tmrjob_handler_t handler, mio_tmridx_t* tmridx, void* ctx)
+int hio_schedtmrjobafter (hio_t* hio, const hio_ntime_t* fire_after, hio_tmrjob_handler_t handler, hio_tmridx_t* tmridx, void* ctx)
 {
-	mio_ntime_t fire_at;
+	hio_ntime_t fire_at;
 
-	MIO_ASSERT (mio, MIO_IS_POS_NTIME(fire_after));
+	HIO_ASSERT (hio, HIO_IS_POS_NTIME(fire_after));
 
-	mio_gettime (mio, &fire_at);
-	MIO_ADD_NTIME (&fire_at, &fire_at, fire_after);
+	hio_gettime (hio, &fire_at);
+	HIO_ADD_NTIME (&fire_at, &fire_at, fire_after);
 
-	return mio_schedtmrjobat(mio, &fire_at, handler, tmridx, ctx);
+	return hio_schedtmrjobat(hio, &fire_at, handler, tmridx, ctx);
 }

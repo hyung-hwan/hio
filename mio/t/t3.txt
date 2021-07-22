@@ -1,4 +1,4 @@
-POST /home/hyung-hwan/projects/mio/t/b.sh HTTP/1.0
+POST /home/hyung-hwan/projects/hio/t/b.sh HTTP/1.0
 Host: abc.txt
 Content-Type: text/plain
 Transfer-Encoding: chunked

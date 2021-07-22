@@ -24,8 +24,8 @@
     THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  */
 
-#include <mio-thr.h>
-#include "mio-prv.h"
+#include <hio-thr.h>
+#include "hio-prv.h"
 
 #include <unistd.h>
 #include <errno.h>
@@ -35,12 +35,12 @@
 #include <stdio.h>
 /* ========================================================================= */
 
-struct mio_dev_thr_info_t
+struct hio_dev_thr_info_t
 {
-	MIO_CFMB_HEADER;
+	HIO_CFMB_HEADER;
 
-	mio_dev_thr_func_t thr_func;
-	mio_dev_thr_iopair_t thr_iop;
+	hio_dev_thr_func_t thr_func;
+	hio_dev_thr_iopair_t thr_iop;
 	void* thr_ctx;
 	pthread_t thr_hnd;
 	int thr_done;
@@ -48,22 +48,22 @@ struct mio_dev_thr_info_t
 
 struct slave_info_t
 {
-	mio_dev_thr_make_t* mi;
-	mio_syshnd_t pfd;
+	hio_dev_thr_make_t* mi;
+	hio_syshnd_t pfd;
 	int dev_cap;
-	mio_dev_thr_sid_t id;
+	hio_dev_thr_sid_t id;
 };
 
 typedef struct slave_info_t slave_info_t;
 
-static mio_dev_thr_slave_t* make_slave (mio_t* mio, slave_info_t* si);
+static hio_dev_thr_slave_t* make_slave (hio_t* hio, slave_info_t* si);
 
 /* ========================================================================= */
 
 
-static void free_thr_info_resources (mio_t* mio, mio_dev_thr_info_t* ti)
+static void free_thr_info_resources (hio_t* hio, hio_dev_thr_info_t* ti)
 {
-	if (ti->thr_iop.rfd != MIO_SYSHND_INVALID) 
+	if (ti->thr_iop.rfd != HIO_SYSHND_INVALID) 
 	{
 		/* this function is called at the end of run_thr_func() and
 		 * close() can be a thread cancellation point.
@@ -71,34 +71,34 @@ static void free_thr_info_resources (mio_t* mio, mio_dev_thr_info_t* ti)
 		 * i must invalidate ti->thr_iop.rfd calling close() with it. 
 		 * if resetting is done after close() and close() becomes a cancellation point, 
 		 * the invalidation operation gets skipped. */
-		mio_syshnd_t tmp = ti->thr_iop.rfd;
-		ti->thr_iop.rfd = MIO_SYSHND_INVALID;  
+		hio_syshnd_t tmp = ti->thr_iop.rfd;
+		ti->thr_iop.rfd = HIO_SYSHND_INVALID;  
 		close (tmp);
 	}
-	if (ti->thr_iop.wfd != MIO_SYSHND_INVALID) 
+	if (ti->thr_iop.wfd != HIO_SYSHND_INVALID) 
 	{
-		mio_syshnd_t tmp = ti->thr_iop.wfd;
-		ti->thr_iop.wfd = MIO_SYSHND_INVALID;
+		hio_syshnd_t tmp = ti->thr_iop.wfd;
+		ti->thr_iop.wfd = HIO_SYSHND_INVALID;
 		close (tmp);
 	}
 }
 
-static int ready_to_free_thr_info (mio_t* mio, mio_cfmb_t* cfmb)
+static int ready_to_free_thr_info (hio_t* hio, hio_cfmb_t* cfmb)
 {
-	mio_dev_thr_info_t* ti = (mio_dev_thr_info_t*)cfmb;
+	hio_dev_thr_info_t* ti = (hio_dev_thr_info_t*)cfmb;
 
 #if 1
-	if (MIO_UNLIKELY(mio->_fini_in_progress))
+	if (HIO_UNLIKELY(hio->_fini_in_progress))
 	{
-		pthread_join (ti->thr_hnd, MIO_NULL); /* BAD. blocking call in a non-blocking library. not useful to call pthread_tryjoin_np() here. */
-		free_thr_info_resources (mio, ti);
+		pthread_join (ti->thr_hnd, HIO_NULL); /* BAD. blocking call in a non-blocking library. not useful to call pthread_tryjoin_np() here. */
+		free_thr_info_resources (hio, ti);
 		return 1; /* free me */
 	}
 #endif
 
 	if (ti->thr_done)
 	{
-		free_thr_info_resources (mio, ti);
+		free_thr_info_resources (hio, ti);
 #if defined(HAVE_PTHREAD_TRYJOIN_NP)
 		if (pthread_tryjoin_np(ti->thr_hnd) != 0) /* not terminated yet - however, this isn't necessary. z*/
 #endif
@@ -111,13 +111,13 @@ static int ready_to_free_thr_info (mio_t* mio, mio_cfmb_t* cfmb)
 
 static void mark_thr_done (void* ctx)
 {
-	mio_dev_thr_info_t* ti = (mio_dev_thr_info_t*)ctx;
+	hio_dev_thr_info_t* ti = (hio_dev_thr_info_t*)ctx;
 	ti->thr_done = 1;
 }
 
 static void* run_thr_func (void* ctx)
 {
-	mio_dev_thr_info_t* ti = (mio_dev_thr_info_t*)ctx;
+	hio_dev_thr_info_t* ti = (hio_dev_thr_info_t*)ctx;
 
 	/* i assume the thread is cancellable, and of the deferred cancellation type by default */
 	/*int dummy;
@@ -126,21 +126,21 @@ static void* run_thr_func (void* ctx)
 
 	pthread_cleanup_push (mark_thr_done, ti);
 
-	ti->thr_func (ti->mio, &ti->thr_iop, ti->thr_ctx);
+	ti->thr_func (ti->hio, &ti->thr_iop, ti->thr_ctx);
 
-	free_thr_info_resources (ti->mio, ti); 
+	free_thr_info_resources (ti->hio, ti); 
 
 	pthread_cleanup_pop (1);
-	pthread_exit (MIO_NULL);
-	return MIO_NULL;
+	pthread_exit (HIO_NULL);
+	return HIO_NULL;
 }
 
-static int dev_thr_make_master (mio_dev_t* dev, void* ctx)
+static int dev_thr_make_master (hio_dev_t* dev, void* ctx)
 {
-	mio_t* mio = dev->mio;
-	mio_dev_thr_t* rdev = (mio_dev_thr_t*)dev;
-	mio_dev_thr_make_t* info = (mio_dev_thr_make_t*)ctx;
-	mio_syshnd_t pfds[4] = { MIO_SYSHND_INVALID, MIO_SYSHND_INVALID, MIO_SYSHND_INVALID, MIO_SYSHND_INVALID };
+	hio_t* hio = dev->hio;
+	hio_dev_thr_t* rdev = (hio_dev_thr_t*)dev;
+	hio_dev_thr_make_t* info = (hio_dev_thr_make_t*)ctx;
+	hio_syshnd_t pfds[4] = { HIO_SYSHND_INVALID, HIO_SYSHND_INVALID, HIO_SYSHND_INVALID, HIO_SYSHND_INVALID };
 	slave_info_t si;
 	int i;
 
@@ -158,51 +158,51 @@ static int dev_thr_make_master (mio_dev_t* dev, void* ctx)
 #if defined(HAVE_PIPE2) && defined(O_CLOEXEC) && defined(O_NONBLOCK)
 	pipe_error:
 #endif
-		mio_seterrwithsyserr (mio, 0, errno);
+		hio_seterrwithsyserr (hio, 0, errno);
 		goto oops;
 	}
 
-	if (mio_makesyshndasync(mio, pfds[1]) <= -1 ||
-	    mio_makesyshndasync(mio, pfds[2]) <= -1) goto oops;
+	if (hio_makesyshndasync(hio, pfds[1]) <= -1 ||
+	    hio_makesyshndasync(hio, pfds[2]) <= -1) goto oops;
 
-	if (mio_makesyshndcloexec(mio, pfds[0]) <= -1 ||
-	    mio_makesyshndcloexec(mio, pfds[1]) <= -1 ||
-	    mio_makesyshndcloexec(mio, pfds[2]) <= -1 ||
-	    mio_makesyshndcloexec(mio, pfds[1]) <= -1) goto oops;
+	if (hio_makesyshndcloexec(hio, pfds[0]) <= -1 ||
+	    hio_makesyshndcloexec(hio, pfds[1]) <= -1 ||
+	    hio_makesyshndcloexec(hio, pfds[2]) <= -1 ||
+	    hio_makesyshndcloexec(hio, pfds[1]) <= -1) goto oops;
 
 #if defined(HAVE_PIPE2) && defined(O_CLOEXEC) && defined(O_NONBLOCK)
 pipe_done:
 #endif
 	si.mi = info;
 	si.pfd = pfds[1];
-	si.dev_cap = MIO_DEV_CAP_OUT | MIO_DEV_CAP_STREAM;
-	si.id = MIO_DEV_THR_IN;
+	si.dev_cap = HIO_DEV_CAP_OUT | HIO_DEV_CAP_STREAM;
+	si.id = HIO_DEV_THR_IN;
 
 	/* invalidate pfds[1] before calling make_slave() because when it fails, the 
 	 * fail_before_make(dev_thr_fail_before_make_slave) and kill(dev_thr_kill_slave) callbacks close si.pfd */
-	pfds[1] = MIO_SYSHND_INVALID;
+	pfds[1] = HIO_SYSHND_INVALID;
 					
-	rdev->slave[MIO_DEV_THR_IN] = make_slave(mio, &si);
-	if (!rdev->slave[MIO_DEV_THR_IN]) goto oops;
+	rdev->slave[HIO_DEV_THR_IN] = make_slave(hio, &si);
+	if (!rdev->slave[HIO_DEV_THR_IN]) goto oops;
 	rdev->slave_count++;
 
 	si.mi = info;
 	si.pfd = pfds[2];
-	si.dev_cap = MIO_DEV_CAP_IN | MIO_DEV_CAP_STREAM;
-	si.id = MIO_DEV_THR_OUT;
+	si.dev_cap = HIO_DEV_CAP_IN | HIO_DEV_CAP_STREAM;
+	si.id = HIO_DEV_THR_OUT;
 	/* invalidate pfds[2] before calling make_slave() because when it fails, the 
 	 * fail_before_make(dev_thr_fail_before_make_slave) and kill(dev_thr_kill_slave) callbacks close si.pfd */
-	pfds[2] = MIO_SYSHND_INVALID;
-	rdev->slave[MIO_DEV_THR_OUT] = make_slave(mio, &si);
-	if (!rdev->slave[MIO_DEV_THR_OUT]) goto oops;
+	pfds[2] = HIO_SYSHND_INVALID;
+	rdev->slave[HIO_DEV_THR_OUT] = make_slave(hio, &si);
+	if (!rdev->slave[HIO_DEV_THR_OUT]) goto oops;
 	rdev->slave_count++;
 
-	for (i = 0; i < MIO_COUNTOF(rdev->slave); i++) 
+	for (i = 0; i < HIO_COUNTOF(rdev->slave); i++) 
 	{
 		if (rdev->slave[i]) rdev->slave[i]->master = rdev;
 	}
 
-	rdev->dev_cap = MIO_DEV_CAP_VIRTUAL; /* the master device doesn't perform I/O */
+	rdev->dev_cap = HIO_DEV_CAP_VIRTUAL; /* the master device doesn't perform I/O */
 	rdev->on_read = info->on_read;
 	rdev->on_write = info->on_write;
 	rdev->on_close = info->on_close;
@@ -210,29 +210,29 @@ pipe_done:
 	/* ---------------------------------------------------------- */
 	{
 		int n;
-		mio_dev_thr_info_t* ti;
+		hio_dev_thr_info_t* ti;
 
-		ti = mio_callocmem(mio, MIO_SIZEOF(*ti));
-		if (MIO_UNLIKELY(!ti)) goto oops;
+		ti = hio_callocmem(hio, HIO_SIZEOF(*ti));
+		if (HIO_UNLIKELY(!ti)) goto oops;
 
-		ti->mio = mio;
+		ti->hio = hio;
 		ti->thr_iop.rfd = pfds[0];
 		ti->thr_iop.wfd = pfds[3];
 		ti->thr_func = info->thr_func;
 		ti->thr_ctx = info->thr_ctx;
 
 		rdev->thr_info = ti;
-		n = pthread_create(&ti->thr_hnd, MIO_NULL, run_thr_func, ti);
+		n = pthread_create(&ti->thr_hnd, HIO_NULL, run_thr_func, ti);
 		if (n != 0) 
 		{
-			rdev->thr_info = MIO_NULL;
-			mio_freemem (mio, ti);
+			rdev->thr_info = HIO_NULL;
+			hio_freemem (hio, ti);
 			goto oops;
 		}
 
 		/* the thread function is in charge of these two file descriptors */
-		pfds[0] = MIO_SYSHND_INVALID;
-		pfds[3] = MIO_SYSHND_INVALID;
+		pfds[0] = HIO_SYSHND_INVALID;
+		pfds[3] = HIO_SYSHND_INVALID;
 	}
 	/* ---------------------------------------------------------- */
 
@@ -240,21 +240,21 @@ pipe_done:
 	return 0;
 
 oops:
-	for (i = 0; i < MIO_COUNTOF(pfds); i++)
+	for (i = 0; i < HIO_COUNTOF(pfds); i++)
 	{
-		if (pfds[i] != MIO_SYSHND_INVALID) 
+		if (pfds[i] != HIO_SYSHND_INVALID) 
 		{
 			close (pfds[i]);
 		}
 	}
 
-	for (i = MIO_COUNTOF(rdev->slave); i > 0; )
+	for (i = HIO_COUNTOF(rdev->slave); i > 0; )
 	{
 		i--;
 		if (rdev->slave[i])
 		{
-			mio_dev_kill ((mio_dev_t*)rdev->slave[i]);
-			rdev->slave[i] = MIO_NULL;
+			hio_dev_kill ((hio_dev_t*)rdev->slave[i]);
+			rdev->slave[i] = HIO_NULL;
 		}
 	}
 	rdev->slave_count = 0;
@@ -262,25 +262,25 @@ oops:
 	return -1;
 }
 
-static int dev_thr_make_slave (mio_dev_t* dev, void* ctx)
+static int dev_thr_make_slave (hio_dev_t* dev, void* ctx)
 {
-	mio_dev_thr_slave_t* rdev = (mio_dev_thr_slave_t*)dev;
+	hio_dev_thr_slave_t* rdev = (hio_dev_thr_slave_t*)dev;
 	slave_info_t* si = (slave_info_t*)ctx;
 
 	rdev->dev_cap = si->dev_cap;
 	rdev->id = si->id;
 	rdev->pfd = si->pfd;
-	/* keep rdev->master to MIO_NULL. it's set to the right master
+	/* keep rdev->master to HIO_NULL. it's set to the right master
 	 * device in dev_thr_make() */
 
 	return 0;
 }
 
-static int dev_thr_kill_master (mio_dev_t* dev, int force)
+static int dev_thr_kill_master (hio_dev_t* dev, int force)
 {
-	mio_t* mio = dev->mio;
-	mio_dev_thr_t* rdev = (mio_dev_thr_t*)dev;
-	mio_dev_thr_info_t* ti;
+	hio_t* hio = dev->hio;
+	hio_dev_thr_t* rdev = (hio_dev_thr_t*)dev;
+	hio_dev_thr_info_t* ti;
 	int i;
 
 	ti = rdev->thr_info;
@@ -291,64 +291,64 @@ static int dev_thr_kill_master (mio_dev_t* dev, int force)
 
 	if (rdev->slave_count > 0)
 	{
-		for (i = 0; i < MIO_COUNTOF(rdev->slave); i++)
+		for (i = 0; i < HIO_COUNTOF(rdev->slave); i++)
 		{
 			if (rdev->slave[i])
 			{
-				mio_dev_thr_slave_t* sdev = rdev->slave[i];
+				hio_dev_thr_slave_t* sdev = rdev->slave[i];
 
 				/* nullify the pointer to the slave device
-				 * before calling mio_dev_kill() on the slave device.
+				 * before calling hio_dev_kill() on the slave device.
 				 * the slave device can check this pointer to tell from
 				 * self-initiated termination or master-driven termination */
-				rdev->slave[i] = MIO_NULL;
+				rdev->slave[i] = HIO_NULL;
 
-				mio_dev_kill ((mio_dev_t*)sdev);
+				hio_dev_kill ((hio_dev_t*)sdev);
 			}
 		}
 	}
 
-	rdev->thr_info = MIO_NULL;
+	rdev->thr_info = HIO_NULL;
 	if (ti->thr_done) 
 	{
 		pthread_detach (ti->thr_hnd); /* pthread_join() may be blocking. detach the thread instead */
-		free_thr_info_resources (mio, ti);
-		mio_freemem (mio, ti);
+		free_thr_info_resources (hio, ti);
+		hio_freemem (hio, ti);
 	}
 	else
 	{
 	#if 0
-		/* since pthread_join can be blocking, i'd schedule a resource destroyer with mio_addcfmb(). 
+		/* since pthread_join can be blocking, i'd schedule a resource destroyer with hio_addcfmb(). 
 		 * see after #else */
-		pthread_join (ti->thr_hnd, MIO_NULL);
-		free_thr_info_resources (mio, ti);
-		mio_freemem (mio, ti);
+		pthread_join (ti->thr_hnd, HIO_NULL);
+		free_thr_info_resources (hio, ti);
+		hio_freemem (hio, ti);
 	#else
 		/* schedule a resource destroyer */
-		mio_addcfmb (mio, ti, ready_to_free_thr_info);
+		hio_addcfmb (hio, ti, ready_to_free_thr_info);
 	#endif
 	}
 
-	if (rdev->on_close) rdev->on_close (rdev, MIO_DEV_THR_MASTER);
+	if (rdev->on_close) rdev->on_close (rdev, HIO_DEV_THR_MASTER);
 	return 0;
 }
 
-static int dev_thr_kill_slave (mio_dev_t* dev, int force)
+static int dev_thr_kill_slave (hio_dev_t* dev, int force)
 {
-	mio_t* mio = dev->mio;
-	mio_dev_thr_slave_t* rdev = (mio_dev_thr_slave_t*)dev;
+	hio_t* hio = dev->hio;
+	hio_dev_thr_slave_t* rdev = (hio_dev_thr_slave_t*)dev;
 
 	if (rdev->master)
 	{
-		mio_dev_thr_t* master;
+		hio_dev_thr_t* master;
 
 		master = rdev->master;
-		rdev->master = MIO_NULL;
+		rdev->master = HIO_NULL;
 
 		/* indicate EOF */
 		if (master->on_close) master->on_close (master, rdev->id);
 
-		MIO_ASSERT (mio, master->slave_count > 0);
+		HIO_ASSERT (hio, master->slave_count > 0);
 		master->slave_count--;
 
 		if (master->slave[rdev->id])
@@ -357,24 +357,24 @@ static int dev_thr_kill_slave (mio_dev_t* dev, int force)
 			if (master->slave_count <= 0) 
 			{
 				/* if this is the last slave, kill the master also */
-				mio_dev_kill ((mio_dev_t*)master);
+				hio_dev_kill ((hio_dev_t*)master);
 				/* the master pointer is not valid from this point onwards
-				 * as the actual master device object is freed in mio_dev_kill() */
+				 * as the actual master device object is freed in hio_dev_kill() */
 			}
 			else
 			{
 				/* this call is initiated by this slave device itself.
-				 * if it were by the master device, it would be MIO_NULL as
+				 * if it were by the master device, it would be HIO_NULL as
 				 * nullified by the dev_thr_kill() */
-				master->slave[rdev->id] = MIO_NULL;
+				master->slave[rdev->id] = HIO_NULL;
 			}
 		}
 	}
 
-	if (rdev->pfd != MIO_SYSHND_INVALID)
+	if (rdev->pfd != HIO_SYSHND_INVALID)
 	{
 		close (rdev->pfd);
-		rdev->pfd = MIO_SYSHND_INVALID;
+		rdev->pfd = HIO_SYSHND_INVALID;
 	}
 
 	return 0;
@@ -383,31 +383,31 @@ static int dev_thr_kill_slave (mio_dev_t* dev, int force)
 static void dev_thr_fail_before_make_slave (void* ctx)
 {
 	slave_info_t* si = (slave_info_t*)ctx;
-	/* mio_dev_make() failed before it called the make() callback.
-	 * i will close the pipe fd here instead of in the caller of mio_dev_make() */
+	/* hio_dev_make() failed before it called the make() callback.
+	 * i will close the pipe fd here instead of in the caller of hio_dev_make() */
 	close (si->pfd);
 }
 
-static int dev_thr_read_slave (mio_dev_t* dev, void* buf, mio_iolen_t* len, mio_devaddr_t* srcaddr)
+static int dev_thr_read_slave (hio_dev_t* dev, void* buf, hio_iolen_t* len, hio_devaddr_t* srcaddr)
 {
-	mio_dev_thr_slave_t* thr = (mio_dev_thr_slave_t*)dev;
+	hio_dev_thr_slave_t* thr = (hio_dev_thr_slave_t*)dev;
 	ssize_t x;
 
 	/* the read and write operation happens on different slave devices.
 	 * the write EOF indication doesn't affect this device 
-	if (MIO_UNLIKELY(thr->pfd == MIO_SYSHND_INVALID))
+	if (HIO_UNLIKELY(thr->pfd == HIO_SYSHND_INVALID))
 	{
-		mio_seterrnum (thr->mio, MIO_EBADHND);
+		hio_seterrnum (thr->hio, HIO_EBADHND);
 		return -1;
 	}*/
-	MIO_ASSERT (thr->mio, thr->pfd != MIO_SYSHND_INVALID); /* use this assertion to check if my claim above is right */
+	HIO_ASSERT (thr->hio, thr->pfd != HIO_SYSHND_INVALID); /* use this assertion to check if my claim above is right */
 
 	x = read(thr->pfd, buf, *len);
 	if (x <= -1)
 	{
 		if (errno == EINPROGRESS || errno == EWOULDBLOCK || errno == EAGAIN) return 0;  /* no data available */
 		if (errno == EINTR) return 0;
-		mio_seterrwithsyserr (thr->mio, 0, errno);
+		hio_seterrwithsyserr (thr->hio, 0, errno);
 		return -1;
 	}
 
@@ -415,31 +415,31 @@ static int dev_thr_read_slave (mio_dev_t* dev, void* buf, mio_iolen_t* len, mio_
 	return 1;
 }
 
-static int dev_thr_write_slave (mio_dev_t* dev, const void* data, mio_iolen_t* len, const mio_devaddr_t* dstaddr)
+static int dev_thr_write_slave (hio_dev_t* dev, const void* data, hio_iolen_t* len, const hio_devaddr_t* dstaddr)
 {
-	mio_dev_thr_slave_t* thr = (mio_dev_thr_slave_t*)dev;
+	hio_dev_thr_slave_t* thr = (hio_dev_thr_slave_t*)dev;
 	ssize_t x;
 
-	/* this check is not needed because MIO_DEV_CAP_OUT_CLOSED is set on the device by the core
+	/* this check is not needed because HIO_DEV_CAP_OUT_CLOSED is set on the device by the core
 	 * when EOF indication is successful(return value 1 and *iovcnt 0).
-	 * If MIO_DEV_CAP_OUT_CLOSED, the core doesn't invoke the write method 
-	if (MIO_UNLIKELY(thr->pfd == MIO_SYSHND_INVALID))
+	 * If HIO_DEV_CAP_OUT_CLOSED, the core doesn't invoke the write method 
+	if (HIO_UNLIKELY(thr->pfd == HIO_SYSHND_INVALID))
 	{
-		mio_seterrnum (thr->mio, MIO_EBADHND);
+		hio_seterrnum (thr->hio, HIO_EBADHND);
 		return -1;
 	}*/
-	MIO_ASSERT (thr->mio, thr->pfd != MIO_SYSHND_INVALID); /* use this assertion to check if my claim above is right */
+	HIO_ASSERT (thr->hio, thr->pfd != HIO_SYSHND_INVALID); /* use this assertion to check if my claim above is right */
 
-	if (MIO_UNLIKELY(*len <= 0))
+	if (HIO_UNLIKELY(*len <= 0))
 	{
 		/* this is an EOF indicator */
-		/* It isn't appropriate to call mio_dev_halt(thr) or mio_dev_thr_close(thr->master, MIO_DEV_THR_IN)
+		/* It isn't appropriate to call hio_dev_halt(thr) or hio_dev_thr_close(thr->master, HIO_DEV_THR_IN)
 		 * as those functions destroy the device itself */
-		if (MIO_LIKELY(thr->pfd != MIO_SYSHND_INVALID))
+		if (HIO_LIKELY(thr->pfd != HIO_SYSHND_INVALID))
 		{
-			mio_dev_watch (dev, MIO_DEV_WATCH_STOP, 0);
+			hio_dev_watch (dev, HIO_DEV_WATCH_STOP, 0);
 			close (thr->pfd);
-			thr->pfd = MIO_SYSHND_INVALID;
+			thr->pfd = HIO_SYSHND_INVALID;
 		}
 		return 1; /* indicate that the operation got successful. the core will execute on_write() with the write length of 0. */
 	}
@@ -449,7 +449,7 @@ static int dev_thr_write_slave (mio_dev_t* dev, const void* data, mio_iolen_t* l
 	{
 		if (errno == EINPROGRESS || errno == EWOULDBLOCK || errno == EAGAIN) return 0;  /* no data can be written */
 		if (errno == EINTR) return 0;
-		mio_seterrwithsyserr (thr->mio, 0, errno);
+		hio_seterrwithsyserr (thr->hio, 0, errno);
 		return -1;
 	}
 
@@ -457,31 +457,31 @@ static int dev_thr_write_slave (mio_dev_t* dev, const void* data, mio_iolen_t* l
 	return 1;
 }
 
-static int dev_thr_writev_slave (mio_dev_t* dev, const mio_iovec_t* iov, mio_iolen_t* iovcnt, const mio_devaddr_t* dstaddr)
+static int dev_thr_writev_slave (hio_dev_t* dev, const hio_iovec_t* iov, hio_iolen_t* iovcnt, const hio_devaddr_t* dstaddr)
 {
-	mio_dev_thr_slave_t* thr = (mio_dev_thr_slave_t*)dev;
+	hio_dev_thr_slave_t* thr = (hio_dev_thr_slave_t*)dev;
 	ssize_t x;
 
-	/* this check is not needed because MIO_DEV_CAP_OUT_CLOSED is set on the device by the core
+	/* this check is not needed because HIO_DEV_CAP_OUT_CLOSED is set on the device by the core
 	 * when EOF indication is successful(return value 1 and *iovcnt 0).
-	 * If MIO_DEV_CAP_OUT_CLOSED, the core doesn't invoke the write method 
-	if (MIO_UNLIKELY(thr->pfd == MIO_SYSHND_INVALID))
+	 * If HIO_DEV_CAP_OUT_CLOSED, the core doesn't invoke the write method 
+	if (HIO_UNLIKELY(thr->pfd == HIO_SYSHND_INVALID))
 	{
-		mio_seterrnum (thr->mio, MIO_EBADHND);
+		hio_seterrnum (thr->hio, HIO_EBADHND);
 		return -1;
 	}*/
-	MIO_ASSERT (thr->mio, thr->pfd != MIO_SYSHND_INVALID); /* use this assertion to check if my claim above is right */
+	HIO_ASSERT (thr->hio, thr->pfd != HIO_SYSHND_INVALID); /* use this assertion to check if my claim above is right */
 
-	if (MIO_UNLIKELY(*iovcnt <= 0))
+	if (HIO_UNLIKELY(*iovcnt <= 0))
 	{
 		/* this is an EOF indicator */
-		/* It isn't apthrpriate to call mio_dev_halt(thr) or mio_dev_thr_close(thr->master, MIO_DEV_THR_IN)
+		/* It isn't apthrpriate to call hio_dev_halt(thr) or hio_dev_thr_close(thr->master, HIO_DEV_THR_IN)
 		 * as those functions destroy the device itself */
-		if (MIO_LIKELY(thr->pfd != MIO_SYSHND_INVALID))
+		if (HIO_LIKELY(thr->pfd != HIO_SYSHND_INVALID))
 		{
-			mio_dev_watch (dev, MIO_DEV_WATCH_STOP, 0);
+			hio_dev_watch (dev, HIO_DEV_WATCH_STOP, 0);
 			close (thr->pfd);
-			thr->pfd = MIO_SYSHND_INVALID;
+			thr->pfd = HIO_SYSHND_INVALID;
 		}
 		return 1; /* indicate that the operation got successful. the core will execute on_write() with 0. */
 	}
@@ -491,7 +491,7 @@ static int dev_thr_writev_slave (mio_dev_t* dev, const mio_iovec_t* iov, mio_iol
 	{
 		if (errno == EINPROGRESS || errno == EWOULDBLOCK || errno == EAGAIN) return 0;  /* no data can be written */
 		if (errno == EINTR) return 0;
-		mio_seterrwithsyserr (thr->mio, 0, errno);
+		hio_seterrwithsyserr (thr->hio, 0, errno);
 		return -1;
 	}
 
@@ -499,31 +499,31 @@ static int dev_thr_writev_slave (mio_dev_t* dev, const mio_iovec_t* iov, mio_iol
 	return 1;
 }
 
-static mio_syshnd_t dev_thr_getsyshnd (mio_dev_t* dev)
+static hio_syshnd_t dev_thr_getsyshnd (hio_dev_t* dev)
 {
-	return MIO_SYSHND_INVALID;
+	return HIO_SYSHND_INVALID;
 }
 
-static mio_syshnd_t dev_thr_getsyshnd_slave (mio_dev_t* dev)
+static hio_syshnd_t dev_thr_getsyshnd_slave (hio_dev_t* dev)
 {
-	mio_dev_thr_slave_t* thr = (mio_dev_thr_slave_t*)dev;
-	return (mio_syshnd_t)thr->pfd;
+	hio_dev_thr_slave_t* thr = (hio_dev_thr_slave_t*)dev;
+	return (hio_syshnd_t)thr->pfd;
 }
 
-static int dev_thr_ioctl (mio_dev_t* dev, int cmd, void* arg)
+static int dev_thr_ioctl (hio_dev_t* dev, int cmd, void* arg)
 {
-	mio_t* mio = dev->mio;
-	mio_dev_thr_t* rdev = (mio_dev_thr_t*)dev;
+	hio_t* hio = dev->hio;
+	hio_dev_thr_t* rdev = (hio_dev_thr_t*)dev;
 
 	switch (cmd)
 	{
-		case MIO_DEV_THR_CLOSE:
+		case HIO_DEV_THR_CLOSE:
 		{
-			mio_dev_thr_sid_t sid = *(mio_dev_thr_sid_t*)arg;
+			hio_dev_thr_sid_t sid = *(hio_dev_thr_sid_t*)arg;
 
-			if (MIO_UNLIKELY(sid != MIO_DEV_THR_IN && sid != MIO_DEV_THR_OUT))
+			if (HIO_UNLIKELY(sid != HIO_DEV_THR_IN && sid != HIO_DEV_THR_OUT))
 			{
-				mio_seterrnum (mio, MIO_EINVAL);
+				hio_seterrnum (hio, HIO_EINVAL);
 				return -1;
 			}
 
@@ -532,23 +532,23 @@ static int dev_thr_ioctl (mio_dev_t* dev, int cmd, void* arg)
 				/* unlike dev_thr_kill_master(), i don't nullify rdev->slave[sid].
 				 * so i treat the closing ioctl as if it's a kill request 
 				 * initiated by the slave device itself. */
-				mio_dev_kill ((mio_dev_t*)rdev->slave[sid]);
+				hio_dev_kill ((hio_dev_t*)rdev->slave[sid]);
 
 				/* if this is the last slave, the master is destroyed as well. 
 				 * therefore, using rdev is unsafe in the assertion below is unsafe.
-				 *MIO_ASSERT (mio, rdev->slave[sid] == MIO_NULL); */
+				 *HIO_ASSERT (hio, rdev->slave[sid] == HIO_NULL); */
 			}
 
 			return 0;
 		}
 
 #if 0
-		case MIO_DEV_THR_KILL_CHILD:
+		case HIO_DEV_THR_KILL_CHILD:
 			if (rdev->child_pid >= 0)
 			{
 				if (kill(rdev->child_pid, SIGKILL) == -1)
 				{
-					mio_seterrwithsyserr (mio, 0, errno);
+					hio_seterrwithsyserr (hio, 0, errno);
 					return -1;
 				}
 			}
@@ -557,25 +557,25 @@ static int dev_thr_ioctl (mio_dev_t* dev, int cmd, void* arg)
 			return 0;
 
 		default:
-			mio_seterrnum (mio, MIO_EINVAL);
+			hio_seterrnum (hio, HIO_EINVAL);
 			return -1;
 	}
 }
 
-static mio_dev_mth_t dev_thr_methods = 
+static hio_dev_mth_t dev_thr_methods = 
 {
 	dev_thr_make_master,
 	dev_thr_kill_master,
-	MIO_NULL,
+	HIO_NULL,
 	dev_thr_getsyshnd,
 
-	MIO_NULL,
-	MIO_NULL,
-	MIO_NULL,
+	HIO_NULL,
+	HIO_NULL,
+	HIO_NULL,
 	dev_thr_ioctl
 };
 
-static mio_dev_mth_t dev_thr_methods_slave =
+static hio_dev_mth_t dev_thr_methods_slave =
 {
 	dev_thr_make_slave,
 	dev_thr_kill_slave,
@@ -590,28 +590,28 @@ static mio_dev_mth_t dev_thr_methods_slave =
 
 /* ========================================================================= */
 
-static int thr_ready (mio_dev_t* dev, int events)
+static int thr_ready (hio_dev_t* dev, int events)
 {
 	/* virtual device. no I/O */
-	mio_seterrnum (dev->mio, MIO_EINTERN);
+	hio_seterrnum (dev->hio, HIO_EINTERN);
 	return -1;
 }
 
-static int thr_on_read (mio_dev_t* dev, const void* data, mio_iolen_t len, const mio_devaddr_t* srcaddr)
+static int thr_on_read (hio_dev_t* dev, const void* data, hio_iolen_t len, const hio_devaddr_t* srcaddr)
 {
 	/* virtual device. no I/O */
-	mio_seterrnum (dev->mio, MIO_EINTERN);
+	hio_seterrnum (dev->hio, HIO_EINTERN);
 	return -1;
 }
 
-static int thr_on_write (mio_dev_t* dev, mio_iolen_t wrlen, void* wrctx, const mio_devaddr_t* dstaddr)
+static int thr_on_write (hio_dev_t* dev, hio_iolen_t wrlen, void* wrctx, const hio_devaddr_t* dstaddr)
 {
 	/* virtual device. no I/O */
-	mio_seterrnum (dev->mio, MIO_EINTERN);
+	hio_seterrnum (dev->hio, HIO_EINTERN);
 	return -1;
 }
 
-static mio_dev_evcb_t dev_thr_event_callbacks =
+static hio_dev_evcb_t dev_thr_event_callbacks =
 {
 	thr_ready,
 	thr_on_read,
@@ -620,26 +620,26 @@ static mio_dev_evcb_t dev_thr_event_callbacks =
 
 /* ========================================================================= */
 
-static int thr_ready_slave (mio_dev_t* dev, int events)
+static int thr_ready_slave (hio_dev_t* dev, int events)
 {
-	mio_t* mio = dev->mio;
-	/*mio_dev_thr_t* thr = (mio_dev_thr_t*)dev;*/
+	hio_t* hio = dev->hio;
+	/*hio_dev_thr_t* thr = (hio_dev_thr_t*)dev;*/
 
-	if (events & MIO_DEV_EVENT_ERR)
+	if (events & HIO_DEV_EVENT_ERR)
 	{
-		mio_seterrnum (mio, MIO_EDEVERR);
+		hio_seterrnum (hio, HIO_EDEVERR);
 		return -1;
 	}
 
-	if (events & MIO_DEV_EVENT_HUP)
+	if (events & HIO_DEV_EVENT_HUP)
 	{
-		if (events & (MIO_DEV_EVENT_PRI | MIO_DEV_EVENT_IN | MIO_DEV_EVENT_OUT)) 
+		if (events & (HIO_DEV_EVENT_PRI | HIO_DEV_EVENT_IN | HIO_DEV_EVENT_OUT)) 
 		{
 			/* thrbably half-open? */
 			return 1;
 		}
 
-		mio_seterrnum (mio, MIO_EDEVHUP);
+		hio_seterrnum (hio, HIO_EDEVHUP);
 		return -1;
 	}
 
@@ -647,150 +647,150 @@ static int thr_ready_slave (mio_dev_t* dev, int events)
 }
 
 
-static int thr_on_read_slave (mio_dev_t* dev, const void* data, mio_iolen_t len, const mio_devaddr_t* srcaddr)
+static int thr_on_read_slave (hio_dev_t* dev, const void* data, hio_iolen_t len, const hio_devaddr_t* srcaddr)
 {
-	mio_dev_thr_slave_t* thr = (mio_dev_thr_slave_t*)dev;
+	hio_dev_thr_slave_t* thr = (hio_dev_thr_slave_t*)dev;
 	return thr->master->on_read(thr->master, data, len);
 }
 
-static int thr_on_write_slave (mio_dev_t* dev, mio_iolen_t wrlen, void* wrctx, const mio_devaddr_t* dstaddr)
+static int thr_on_write_slave (hio_dev_t* dev, hio_iolen_t wrlen, void* wrctx, const hio_devaddr_t* dstaddr)
 {
-	mio_dev_thr_slave_t* thr = (mio_dev_thr_slave_t*)dev;
+	hio_dev_thr_slave_t* thr = (hio_dev_thr_slave_t*)dev;
 	return thr->master->on_write(thr->master, wrlen, wrctx);
 }
 
-static mio_dev_evcb_t dev_thr_event_callbacks_slave_in =
+static hio_dev_evcb_t dev_thr_event_callbacks_slave_in =
 {
 	thr_ready_slave,
-	MIO_NULL,
+	HIO_NULL,
 	thr_on_write_slave
 };
 
-static mio_dev_evcb_t dev_thr_event_callbacks_slave_out =
+static hio_dev_evcb_t dev_thr_event_callbacks_slave_out =
 {
 	thr_ready_slave,
 	thr_on_read_slave,
-	MIO_NULL
+	HIO_NULL
 };
 
 /* ========================================================================= */
 
-static mio_dev_thr_slave_t* make_slave (mio_t* mio, slave_info_t* si)
+static hio_dev_thr_slave_t* make_slave (hio_t* hio, slave_info_t* si)
 {
 	switch (si->id)
 	{
-		case MIO_DEV_THR_IN:
-			return (mio_dev_thr_slave_t*)mio_dev_make(
-				mio, MIO_SIZEOF(mio_dev_thr_t), 
+		case HIO_DEV_THR_IN:
+			return (hio_dev_thr_slave_t*)hio_dev_make(
+				hio, HIO_SIZEOF(hio_dev_thr_t), 
 				&dev_thr_methods_slave, &dev_thr_event_callbacks_slave_in, si);
 
-		case MIO_DEV_THR_OUT:
-			return (mio_dev_thr_slave_t*)mio_dev_make(
-				mio, MIO_SIZEOF(mio_dev_thr_t), 
+		case HIO_DEV_THR_OUT:
+			return (hio_dev_thr_slave_t*)hio_dev_make(
+				hio, HIO_SIZEOF(hio_dev_thr_t), 
 				&dev_thr_methods_slave, &dev_thr_event_callbacks_slave_out, si);
 
 		default:
-			mio_seterrnum (mio, MIO_EINVAL);
-			return MIO_NULL;
+			hio_seterrnum (hio, HIO_EINVAL);
+			return HIO_NULL;
 	}
 }
 
-mio_dev_thr_t* mio_dev_thr_make (mio_t* mio, mio_oow_t xtnsize, const mio_dev_thr_make_t* info)
+hio_dev_thr_t* hio_dev_thr_make (hio_t* hio, hio_oow_t xtnsize, const hio_dev_thr_make_t* info)
 {
-	return (mio_dev_thr_t*)mio_dev_make(
-		mio, MIO_SIZEOF(mio_dev_thr_t) + xtnsize, 
+	return (hio_dev_thr_t*)hio_dev_make(
+		hio, HIO_SIZEOF(hio_dev_thr_t) + xtnsize, 
 		&dev_thr_methods, &dev_thr_event_callbacks, (void*)info);
 }
 
-void mio_dev_thr_kill (mio_dev_thr_t* dev)
+void hio_dev_thr_kill (hio_dev_thr_t* dev)
 {
-	mio_dev_kill ((mio_dev_t*)dev);
+	hio_dev_kill ((hio_dev_t*)dev);
 }
 
-void mio_dev_thr_halt (mio_dev_thr_t* dev)
+void hio_dev_thr_halt (hio_dev_thr_t* dev)
 {
-	mio_dev_halt ((mio_dev_t*)dev);
+	hio_dev_halt ((hio_dev_t*)dev);
 }
 
-int mio_dev_thr_read (mio_dev_thr_t* dev, int enabled)
+int hio_dev_thr_read (hio_dev_thr_t* dev, int enabled)
 {
-	if (dev->slave[MIO_DEV_THR_OUT])
+	if (dev->slave[HIO_DEV_THR_OUT])
 	{
-		return mio_dev_read((mio_dev_t*)dev->slave[MIO_DEV_THR_OUT], enabled);
+		return hio_dev_read((hio_dev_t*)dev->slave[HIO_DEV_THR_OUT], enabled);
 	}
 	else
 	{
-		mio_seterrnum (dev->mio, MIO_ENOCAPA); /* TODO: is it the right error number? */
+		hio_seterrnum (dev->hio, HIO_ENOCAPA); /* TODO: is it the right error number? */
 		return -1;
 	}
 }
 
-int mio_dev_thr_timedread (mio_dev_thr_t* dev, int enabled, const mio_ntime_t* tmout)
+int hio_dev_thr_timedread (hio_dev_thr_t* dev, int enabled, const hio_ntime_t* tmout)
 {
-	if (dev->slave[MIO_DEV_THR_OUT])
+	if (dev->slave[HIO_DEV_THR_OUT])
 	{
-		return mio_dev_timedread((mio_dev_t*)dev->slave[MIO_DEV_THR_OUT], enabled, tmout);
+		return hio_dev_timedread((hio_dev_t*)dev->slave[HIO_DEV_THR_OUT], enabled, tmout);
 	}
 	else
 	{
-		mio_seterrnum (dev->mio, MIO_ENOCAPA); /* TODO: is it the right error number? */
+		hio_seterrnum (dev->hio, HIO_ENOCAPA); /* TODO: is it the right error number? */
 		return -1;
 	}
 }
 
-int mio_dev_thr_write (mio_dev_thr_t* dev, const void* data, mio_iolen_t dlen, void* wrctx)
+int hio_dev_thr_write (hio_dev_thr_t* dev, const void* data, hio_iolen_t dlen, void* wrctx)
 {
-	if (dev->slave[MIO_DEV_THR_IN])
+	if (dev->slave[HIO_DEV_THR_IN])
 	{
-		return mio_dev_write((mio_dev_t*)dev->slave[MIO_DEV_THR_IN], data, dlen, wrctx, MIO_NULL);
+		return hio_dev_write((hio_dev_t*)dev->slave[HIO_DEV_THR_IN], data, dlen, wrctx, HIO_NULL);
 	}
 	else
 	{
-		mio_seterrnum (dev->mio, MIO_ENOCAPA); /* TODO: is it the right error number? */
+		hio_seterrnum (dev->hio, HIO_ENOCAPA); /* TODO: is it the right error number? */
 		return -1;
 	}
 }
 
-int mio_dev_thr_timedwrite (mio_dev_thr_t* dev, const void* data, mio_iolen_t dlen, const mio_ntime_t* tmout, void* wrctx)
+int hio_dev_thr_timedwrite (hio_dev_thr_t* dev, const void* data, hio_iolen_t dlen, const hio_ntime_t* tmout, void* wrctx)
 {
-	if (dev->slave[MIO_DEV_THR_IN])
+	if (dev->slave[HIO_DEV_THR_IN])
 	{
-		return mio_dev_timedwrite((mio_dev_t*)dev->slave[MIO_DEV_THR_IN], data, dlen, tmout, wrctx, MIO_NULL);
+		return hio_dev_timedwrite((hio_dev_t*)dev->slave[HIO_DEV_THR_IN], data, dlen, tmout, wrctx, HIO_NULL);
 	}
 	else
 	{
-		mio_seterrnum (dev->mio, MIO_ENOCAPA); /* TODO: is it the right error number? */
+		hio_seterrnum (dev->hio, HIO_ENOCAPA); /* TODO: is it the right error number? */
 		return -1;
 	}
 }
 
-int mio_dev_thr_close (mio_dev_thr_t* dev, mio_dev_thr_sid_t sid)
+int hio_dev_thr_close (hio_dev_thr_t* dev, hio_dev_thr_sid_t sid)
 {
-	return mio_dev_ioctl((mio_dev_t*)dev, MIO_DEV_THR_CLOSE, &sid);
+	return hio_dev_ioctl((hio_dev_t*)dev, HIO_DEV_THR_CLOSE, &sid);
 }
 
-void mio_dev_thr_haltslave (mio_dev_thr_t* dev, mio_dev_thr_sid_t sid)
+void hio_dev_thr_haltslave (hio_dev_thr_t* dev, hio_dev_thr_sid_t sid)
 {
-	if (sid >= 0 && sid < MIO_COUNTOF(dev->slave) && dev->slave[sid])
-		mio_dev_halt((mio_dev_t*)dev->slave[sid]);
+	if (sid >= 0 && sid < HIO_COUNTOF(dev->slave) && dev->slave[sid])
+		hio_dev_halt((hio_dev_t*)dev->slave[sid]);
 }
 
 #if 0
-mio_dev_thr_t* mio_dev_thr_getdev (mio_dev_thr_t* thr, mio_dev_thr_sid_t sid)
+hio_dev_thr_t* hio_dev_thr_getdev (hio_dev_thr_t* thr, hio_dev_thr_sid_t sid)
 {
 	switch (type)
 	{
-		case MIO_DEV_THR_IN:
+		case HIO_DEV_THR_IN:
 			return XXX;
 
-		case MIO_DEV_THR_OUT:
+		case HIO_DEV_THR_OUT:
 			return XXX;
 
-		case MIO_DEV_THR_ERR:
+		case HIO_DEV_THR_ERR:
 			return XXX;
 	}
 
-	thr->dev->mio = MIO_EINVAL;
-	return MIO_NULL;
+	thr->dev->hio = HIO_EINVAL;
+	return HIO_NULL;
 }
 #endif

@@ -24,11 +24,11 @@
     THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  */
 
-#include <mio-skad.h>
-#include <mio-nwif.h>
-#include <mio-fmt.h>
-#include <mio-chr.h>
-#include "mio-prv.h"
+#include <hio-skad.h>
+#include <hio-nwif.h>
+#include <hio-fmt.h>
+#include <hio-chr.h>
+#include "hio-prv.h"
 
 #include <sys/types.h>
 #include <sys/socket.h>
@@ -45,34 +45,34 @@
 #	include <net/if_dl.h>
 #endif
 
-union mio_skad_alt_t
+union hio_skad_alt_t
 {
 	struct sockaddr    sa;
-#if (MIO_SIZEOF_STRUCT_SOCKADDR_IN > 0)
+#if (HIO_SIZEOF_STRUCT_SOCKADDR_IN > 0)
 	struct sockaddr_in in4;
 #endif
-#if (MIO_SIZEOF_STRUCT_SOCKADDR_IN6 > 0)
+#if (HIO_SIZEOF_STRUCT_SOCKADDR_IN6 > 0)
 	struct sockaddr_in6 in6;
 #endif
-#if (MIO_SIZEOF_STRUCT_SOCKADDR_LL > 0)
+#if (HIO_SIZEOF_STRUCT_SOCKADDR_LL > 0)
 	struct sockaddr_ll ll;
 #endif
-#if (MIO_SIZEOF_STRUCT_SOCKADDR_DL > 0)
+#if (HIO_SIZEOF_STRUCT_SOCKADDR_DL > 0)
 	struct sockaddr_dl dl;
 #endif
-#if (MIO_SIZEOF_STRUCT_SOCKADDR_UN > 0)
+#if (HIO_SIZEOF_STRUCT_SOCKADDR_UN > 0)
 	struct sockaddr_un un;
 #endif
 };
-typedef union mio_skad_alt_t mio_skad_alt_t;
+typedef union hio_skad_alt_t hio_skad_alt_t;
 
 
-static int uchars_to_ipv4 (const mio_uch_t* str, mio_oow_t len, struct in_addr* inaddr)
+static int uchars_to_ipv4 (const hio_uch_t* str, hio_oow_t len, struct in_addr* inaddr)
 {
-	const mio_uch_t* end;
+	const hio_uch_t* end;
 	int dots = 0, digits = 0;
-	mio_uint32_t acc = 0, addr = 0;
-	mio_uch_t c;
+	hio_uint32_t acc = 0, addr = 0;
+	hio_uch_t c;
 
 	end = str + len;
 
@@ -104,17 +104,17 @@ static int uchars_to_ipv4 (const mio_uch_t* str, mio_oow_t len, struct in_addr* 
 	}
 	while (1);
 
-	inaddr->s_addr = mio_hton32(addr);
+	inaddr->s_addr = hio_hton32(addr);
 	return 0;
 
 }
 
-static int bchars_to_ipv4 (const mio_bch_t* str, mio_oow_t len, struct in_addr* inaddr)
+static int bchars_to_ipv4 (const hio_bch_t* str, hio_oow_t len, struct in_addr* inaddr)
 {
-	const mio_bch_t* end;
+	const hio_bch_t* end;
 	int dots = 0, digits = 0;
-	mio_uint32_t acc = 0, addr = 0;
-	mio_bch_t c;
+	hio_uint32_t acc = 0, addr = 0;
+	hio_bch_t c;
 
 	end = str + len;
 
@@ -146,27 +146,27 @@ static int bchars_to_ipv4 (const mio_bch_t* str, mio_oow_t len, struct in_addr* 
 	}
 	while (1);
 
-	inaddr->s_addr = mio_hton32(addr);
+	inaddr->s_addr = hio_hton32(addr);
 	return 0;
 
 }
 
-#if (MIO_SIZEOF_STRUCT_SOCKADDR_IN6 > 0)
-static int uchars_to_ipv6 (const mio_uch_t* src, mio_oow_t len, struct in6_addr* inaddr)
+#if (HIO_SIZEOF_STRUCT_SOCKADDR_IN6 > 0)
+static int uchars_to_ipv6 (const hio_uch_t* src, hio_oow_t len, struct in6_addr* inaddr)
 {
-	mio_uint8_t* tp, * endp, * colonp;
-	const mio_uch_t* curtok;
-	mio_uch_t ch;
+	hio_uint8_t* tp, * endp, * colonp;
+	const hio_uch_t* curtok;
+	hio_uch_t ch;
 	int saw_xdigit;
 	unsigned int val;
-	const mio_uch_t* src_end;
+	const hio_uch_t* src_end;
 
 	src_end = src + len;
 
-	MIO_MEMSET (inaddr, 0, MIO_SIZEOF(*inaddr));
+	HIO_MEMSET (inaddr, 0, HIO_SIZEOF(*inaddr));
 	tp = &inaddr->s6_addr[0];
-	endp = &inaddr->s6_addr[MIO_COUNTOF(inaddr->s6_addr)];
-	colonp = MIO_NULL;
+	endp = &inaddr->s6_addr[HIO_COUNTOF(inaddr->s6_addr)];
+	colonp = HIO_NULL;
 
 	/* Leading :: requires some special handling. */
 	if (src < src_end && *src == ':')
@@ -185,7 +185,7 @@ static int uchars_to_ipv6 (const mio_uch_t* src, mio_oow_t len, struct in6_addr*
 
 		ch = *src++;
 
-		v1 = MIO_XDIGIT_TO_NUM(ch);
+		v1 = HIO_XDIGIT_TO_NUM(ch);
 		if (v1 >= 0)
 		{
 			val <<= 4;
@@ -210,17 +210,17 @@ static int uchars_to_ipv6 (const mio_uch_t* src, mio_oow_t len, struct in6_addr*
 				return -1;
 			}
 
-			*tp++ = (mio_uint8_t)(val >> 8) & 0xff;
-			*tp++ = (mio_uint8_t)val & 0xff;
+			*tp++ = (hio_uint8_t)(val >> 8) & 0xff;
+			*tp++ = (hio_uint8_t)val & 0xff;
 			saw_xdigit = 0;
 			val = 0;
 			continue;
 		}
 
-		if (ch == '.' && ((tp + MIO_SIZEOF(struct in_addr)) <= endp) &&
+		if (ch == '.' && ((tp + HIO_SIZEOF(struct in_addr)) <= endp) &&
 		    uchars_to_ipv4(curtok, src_end - curtok, (struct in_addr*)tp) == 0) 
 		{
-			tp += MIO_SIZEOF(struct in_addr*);
+			tp += HIO_SIZEOF(struct in_addr*);
 			saw_xdigit = 0;
 			break; 
 		}
@@ -230,18 +230,18 @@ static int uchars_to_ipv6 (const mio_uch_t* src, mio_oow_t len, struct in6_addr*
 
 	if (saw_xdigit) 
 	{
-		if (tp + MIO_SIZEOF(mio_uint16_t) > endp) return -1;
-		*tp++ = (mio_uint8_t)(val >> 8) & 0xff;
-		*tp++ = (mio_uint8_t)val & 0xff;
+		if (tp + HIO_SIZEOF(hio_uint16_t) > endp) return -1;
+		*tp++ = (hio_uint8_t)(val >> 8) & 0xff;
+		*tp++ = (hio_uint8_t)val & 0xff;
 	}
-	if (colonp != MIO_NULL) 
+	if (colonp != HIO_NULL) 
 	{
 		/*
 		 * Since some memmove()'s erroneously fail to handle
 		 * overlapping regions, we'll do the shift by hand.
 		 */
-		mio_oow_t n = tp - colonp;
-		mio_oow_t i;
+		hio_oow_t n = tp - colonp;
+		hio_oow_t i;
  
 		for (i = 1; i <= n; i++) 
 		{
@@ -256,21 +256,21 @@ static int uchars_to_ipv6 (const mio_uch_t* src, mio_oow_t len, struct in6_addr*
 	return 0;
 }
 
-static int bchars_to_ipv6 (const mio_bch_t* src, mio_oow_t len, struct in6_addr* inaddr)
+static int bchars_to_ipv6 (const hio_bch_t* src, hio_oow_t len, struct in6_addr* inaddr)
 {
-	mio_uint8_t* tp, * endp, * colonp;
-	const mio_bch_t* curtok;
-	mio_bch_t ch;
+	hio_uint8_t* tp, * endp, * colonp;
+	const hio_bch_t* curtok;
+	hio_bch_t ch;
 	int saw_xdigit;
 	unsigned int val;
-	const mio_bch_t* src_end;
+	const hio_bch_t* src_end;
 
 	src_end = src + len;
 
-	MIO_MEMSET (inaddr, 0, MIO_SIZEOF(*inaddr));
+	HIO_MEMSET (inaddr, 0, HIO_SIZEOF(*inaddr));
 	tp = &inaddr->s6_addr[0];
-	endp = &inaddr->s6_addr[MIO_COUNTOF(inaddr->s6_addr)];
-	colonp = MIO_NULL;
+	endp = &inaddr->s6_addr[HIO_COUNTOF(inaddr->s6_addr)];
+	colonp = HIO_NULL;
 
 	/* Leading :: requires some special handling. */
 	if (src < src_end && *src == ':')
@@ -289,7 +289,7 @@ static int bchars_to_ipv6 (const mio_bch_t* src, mio_oow_t len, struct in6_addr*
 
 		ch = *src++;
 
-		v1 = MIO_XDIGIT_TO_NUM(ch);
+		v1 = HIO_XDIGIT_TO_NUM(ch);
 		if (v1 >= 0)
 		{
 			val <<= 4;
@@ -314,17 +314,17 @@ static int bchars_to_ipv6 (const mio_bch_t* src, mio_oow_t len, struct in6_addr*
 				return -1;
 			}
 
-			*tp++ = (mio_uint8_t)(val >> 8) & 0xff;
-			*tp++ = (mio_uint8_t)val & 0xff;
+			*tp++ = (hio_uint8_t)(val >> 8) & 0xff;
+			*tp++ = (hio_uint8_t)val & 0xff;
 			saw_xdigit = 0;
 			val = 0;
 			continue;
 		}
 
-		if (ch == '.' && ((tp + MIO_SIZEOF(struct in_addr)) <= endp) &&
+		if (ch == '.' && ((tp + HIO_SIZEOF(struct in_addr)) <= endp) &&
 		    bchars_to_ipv4(curtok, src_end - curtok, (struct in_addr*)tp) == 0) 
 		{
-			tp += MIO_SIZEOF(struct in_addr*);
+			tp += HIO_SIZEOF(struct in_addr*);
 			saw_xdigit = 0;
 			break; 
 		}
@@ -334,18 +334,18 @@ static int bchars_to_ipv6 (const mio_bch_t* src, mio_oow_t len, struct in6_addr*
 
 	if (saw_xdigit) 
 	{
-		if (tp + MIO_SIZEOF(mio_uint16_t) > endp) return -1;
-		*tp++ = (mio_uint8_t)(val >> 8) & 0xff;
-		*tp++ = (mio_uint8_t)val & 0xff;
+		if (tp + HIO_SIZEOF(hio_uint16_t) > endp) return -1;
+		*tp++ = (hio_uint8_t)(val >> 8) & 0xff;
+		*tp++ = (hio_uint8_t)val & 0xff;
 	}
-	if (colonp != MIO_NULL) 
+	if (colonp != HIO_NULL) 
 	{
 		/*
 		 * Since some memmove()'s erroneously fail to handle
 		 * overlapping regions, we'll do the shift by hand.
 		 */
-		mio_oow_t n = tp - colonp;
-		mio_oow_t i;
+		hio_oow_t n = tp - colonp;
+		hio_oow_t i;
  
 		for (i = 1; i <= n; i++) 
 		{
@@ -363,42 +363,42 @@ static int bchars_to_ipv6 (const mio_bch_t* src, mio_oow_t len, struct in6_addr*
 
 /* ---------------------------------------------------------- */
 
-int mio_ucharstoskad (mio_t* mio, const mio_uch_t* str, mio_oow_t len, mio_skad_t* _skad)
+int hio_ucharstoskad (hio_t* hio, const hio_uch_t* str, hio_oow_t len, hio_skad_t* _skad)
 {
-	mio_skad_alt_t* skad = (mio_skad_alt_t*)_skad;
-	const mio_uch_t* p;
-	const mio_uch_t* end;
-	mio_ucs_t tmp;
+	hio_skad_alt_t* skad = (hio_skad_alt_t*)_skad;
+	const hio_uch_t* p;
+	const hio_uch_t* end;
+	hio_ucs_t tmp;
 
 	p = str;
 	end = str + len;
 
 	if (p >= end) 
 	{
-		mio_seterrbfmt (mio, MIO_EINVAL, "blank address");
+		hio_seterrbfmt (hio, HIO_EINVAL, "blank address");
 		return -1;
 	}
 
-	/* use MIO_SIZEOF(*_skad) instead of MIO_SIZEOF(*skad) in case they are different */
-	MIO_MEMSET (skad, 0, MIO_SIZEOF(*_skad)); 
+	/* use HIO_SIZEOF(*_skad) instead of HIO_SIZEOF(*skad) in case they are different */
+	HIO_MEMSET (skad, 0, HIO_SIZEOF(*_skad)); 
 
 #if defined(AF_UNIX)
 	if (*p == '/' && len >= 2)
 	{
-		mio_oow_t dstlen;
-		dstlen = MIO_COUNTOF(skad->un.sun_path) - 1;
-		if (mio_convutobchars(mio, p, &len, skad->un.sun_path, &dstlen) <= -1) return -1;
+		hio_oow_t dstlen;
+		dstlen = HIO_COUNTOF(skad->un.sun_path) - 1;
+		if (hio_convutobchars(hio, p, &len, skad->un.sun_path, &dstlen) <= -1) return -1;
 		skad->un.sun_path[dstlen] = '\0';
 		skad->un.sun_family = AF_UNIX;
 		return 0;
 	}
 #endif
 
-#if (MIO_SIZEOF_STRUCT_SOCKADDR_IN6 > 0)
+#if (HIO_SIZEOF_STRUCT_SOCKADDR_IN6 > 0)
 	if (*p == '[')
 	{
 		/* IPv6 address */
-		tmp.ptr = (mio_uch_t*)++p; /* skip [ and remember the position */
+		tmp.ptr = (hio_uch_t*)++p; /* skip [ and remember the position */
 		while (p < end && *p != '%' && *p != ']') p++;
 
 		if (p >= end) goto no_rbrack;
@@ -407,14 +407,14 @@ int mio_ucharstoskad (mio_t* mio, const mio_uch_t* str, mio_oow_t len, mio_skad_
 		if (*p == '%')
 		{
 			/* handle scope id */
-			mio_uint32_t x;
+			hio_uint32_t x;
 
 			p++; /* skip % */
 
 			if (p >= end)
 			{
 				/* premature end */
-				mio_seterrbfmt (mio, MIO_EINVAL, "scope id blank");
+				hio_seterrbfmt (hio, HIO_EINVAL, "scope id blank");
 				return -1;
 			}
 
@@ -427,7 +427,7 @@ int mio_ucharstoskad (mio_t* mio, const mio_uch_t* str, mio_oow_t len, mio_skad_
 					x = skad->in6.sin6_scope_id * 10 + (*p - '0');
 					if (x < skad->in6.sin6_scope_id) 
 					{
-						mio_seterrbfmt (mio, MIO_EINVAL, "scope id too large");
+						hio_seterrbfmt (hio, HIO_EINVAL, "scope id too large");
 						return -1; /* overflow */
 					}
 					skad->in6.sin6_scope_id = x;
@@ -438,10 +438,10 @@ int mio_ucharstoskad (mio_t* mio, const mio_uch_t* str, mio_oow_t len, mio_skad_
 			else
 			{
 				/* interface name as a scope id? */
-				const mio_uch_t* stmp = p;
+				const hio_uch_t* stmp = p;
 				unsigned int index;
 				do p++; while (p < end && *p != ']');
-				if (mio_ucharstoifindex(mio, stmp, p - stmp, &index) <= -1) return -1;
+				if (hio_ucharstoifindex(hio, stmp, p - stmp, &index) <= -1) return -1;
 				skad->in6.sin6_scope_id = index;
 			}
 
@@ -456,13 +456,13 @@ int mio_ucharstoskad (mio_t* mio, const mio_uch_t* str, mio_oow_t len, mio_skad_
 	{
 #endif
 		/* IPv4 address */
-		tmp.ptr = (mio_uch_t*)p;
+		tmp.ptr = (hio_uch_t*)p;
 		while (p < end && *p != ':') p++;
 		tmp.len = p - tmp.ptr;
 
 		if (uchars_to_ipv4(tmp.ptr, tmp.len, &skad->in4.sin_addr) <= -1)
 		{
-		#if (MIO_SIZEOF_STRUCT_SOCKADDR_IN6 > 0)
+		#if (HIO_SIZEOF_STRUCT_SOCKADDR_IN6 > 0)
 			/* check if it is an IPv6 address not enclosed in []. 
 			 * the port number can't be specified in this format. */
 			if (p >= end || *p != ':') 
@@ -479,14 +479,14 @@ int mio_ucharstoskad (mio_t* mio, const mio_uch_t* str, mio_oow_t len, mio_skad_
 			if (p < end && *p == '%')
 			{
 				/* handle scope id */
-				mio_uint32_t x;
+				hio_uint32_t x;
 
 				p++; /* skip % */
 
 				if (p >= end)
 				{
 					/* premature end */
-					mio_seterrbfmt (mio, MIO_EINVAL, "scope id blank");
+					hio_seterrbfmt (hio, HIO_EINVAL, "scope id blank");
 					return -1;
 				}
 
@@ -499,7 +499,7 @@ int mio_ucharstoskad (mio_t* mio, const mio_uch_t* str, mio_oow_t len, mio_skad_
 						x = skad->in6.sin6_scope_id * 10 + (*p - '0');
 						if (x < skad->in6.sin6_scope_id) 
 						{
-							mio_seterrbfmt (mio, MIO_EINVAL, "scope id too large");
+							hio_seterrbfmt (hio, HIO_EINVAL, "scope id too large");
 							return -1; /* overflow */
 						}
 						skad->in6.sin6_scope_id = x;
@@ -510,10 +510,10 @@ int mio_ucharstoskad (mio_t* mio, const mio_uch_t* str, mio_oow_t len, mio_skad_
 				else
 				{
 					/* interface name as a scope id? */
-					const mio_uch_t* stmp = p;
+					const hio_uch_t* stmp = p;
 					unsigned int index;
 					do p++; while (p < end);
-					if (mio_ucharstoifindex(mio, stmp, p - stmp, &index) <= -1) return -1;
+					if (hio_ucharstoifindex(hio, stmp, p - stmp, &index) <= -1) return -1;
 					skad->in6.sin6_scope_id = index;
 				}
 			}
@@ -528,18 +528,18 @@ int mio_ucharstoskad (mio_t* mio, const mio_uch_t* str, mio_oow_t len, mio_skad_
 		}
 
 		skad->in4.sin_family = AF_INET;
-#if (MIO_SIZEOF_STRUCT_SOCKADDR_IN6 > 0)
+#if (HIO_SIZEOF_STRUCT_SOCKADDR_IN6 > 0)
 	}
 #endif
 
 	if (p < end && *p == ':') 
 	{
 		/* port number */
-		mio_uint32_t port = 0;
+		hio_uint32_t port = 0;
 
 		p++; /* skip : */
 
-		tmp.ptr = (mio_uch_t*)p;
+		tmp.ptr = (hio_uch_t*)p;
 		while (p < end && *p >= '0' && *p <= '9')
 		{
 			port = port * 10 + (*p - '0');
@@ -548,68 +548,68 @@ int mio_ucharstoskad (mio_t* mio, const mio_uch_t* str, mio_oow_t len, mio_skad_
 
 		tmp.len = p - tmp.ptr;
 		if (tmp.len <= 0 || tmp.len >= 6 || 
-		    port > MIO_TYPE_MAX(mio_uint16_t)) 
+		    port > HIO_TYPE_MAX(hio_uint16_t)) 
 		{
-			mio_seterrbfmt (mio, MIO_EINVAL, "port number blank or too large");
+			hio_seterrbfmt (hio, HIO_EINVAL, "port number blank or too large");
 			return -1;
 		}
 
-	#if (MIO_SIZEOF_STRUCT_SOCKADDR_IN6 > 0)
+	#if (HIO_SIZEOF_STRUCT_SOCKADDR_IN6 > 0)
 		if (skad->in4.sin_family == AF_INET)
-			skad->in4.sin_port = mio_hton16(port);
+			skad->in4.sin_port = hio_hton16(port);
 		else
-			skad->in6.sin6_port = mio_hton16(port);
+			skad->in6.sin6_port = hio_hton16(port);
 	#else
-		skad->in4.sin_port = mio_hton16(port);
+		skad->in4.sin_port = hio_hton16(port);
 	#endif
 	}
 
 	return 0;
 
 unrecog:
-	mio_seterrbfmt (mio, MIO_EINVAL, "unrecognized address");
+	hio_seterrbfmt (hio, HIO_EINVAL, "unrecognized address");
 	return -1;
 	
 no_rbrack:
-	mio_seterrbfmt (mio, MIO_EINVAL, "missing right bracket");
+	hio_seterrbfmt (hio, HIO_EINVAL, "missing right bracket");
 	return -1;
 }
 
 /* ---------------------------------------------------------- */
 
-int mio_bcharstoskad (mio_t* mio, const mio_bch_t* str, mio_oow_t len, mio_skad_t* _skad)
+int hio_bcharstoskad (hio_t* hio, const hio_bch_t* str, hio_oow_t len, hio_skad_t* _skad)
 {
-	mio_skad_alt_t* skad = (mio_skad_alt_t*)_skad;
-	const mio_bch_t* p;
-	const mio_bch_t* end;
-	mio_bcs_t tmp;
+	hio_skad_alt_t* skad = (hio_skad_alt_t*)_skad;
+	const hio_bch_t* p;
+	const hio_bch_t* end;
+	hio_bcs_t tmp;
 
 	p = str;
 	end = str + len;
 
 	if (p >= end) 
 	{
-		mio_seterrbfmt (mio, MIO_EINVAL, "blank address");
+		hio_seterrbfmt (hio, HIO_EINVAL, "blank address");
 		return -1;
 	}
 
-	/* use MIO_SIZEOF(*_skad) instead of MIO_SIZEOF(*skad) in case they are different */
-	MIO_MEMSET (skad, 0, MIO_SIZEOF(*_skad));
+	/* use HIO_SIZEOF(*_skad) instead of HIO_SIZEOF(*skad) in case they are different */
+	HIO_MEMSET (skad, 0, HIO_SIZEOF(*_skad));
 
 #if defined(AF_UNIX)
 	if (*p == '/' && len >= 2)
 	{
-		mio_copy_bcstr (skad->un.sun_path, MIO_COUNTOF(skad->un.sun_path), str);
+		hio_copy_bcstr (skad->un.sun_path, HIO_COUNTOF(skad->un.sun_path), str);
 		skad->un.sun_family = AF_UNIX;
 		return 0;
 	}
 #endif
 
-#if (MIO_SIZEOF_STRUCT_SOCKADDR_IN6 > 0)
+#if (HIO_SIZEOF_STRUCT_SOCKADDR_IN6 > 0)
 	if (*p == '[')
 	{
 		/* IPv6 address */
-		tmp.ptr = (mio_bch_t*)++p; /* skip [ and remember the position */
+		tmp.ptr = (hio_bch_t*)++p; /* skip [ and remember the position */
 		while (p < end && *p != '%' && *p != ']') p++;
 
 		if (p >= end) goto no_rbrack;
@@ -618,14 +618,14 @@ int mio_bcharstoskad (mio_t* mio, const mio_bch_t* str, mio_oow_t len, mio_skad_
 		if (*p == '%')
 		{
 			/* handle scope id */
-			mio_uint32_t x;
+			hio_uint32_t x;
 
 			p++; /* skip % */
 
 			if (p >= end)
 			{
 				/* premature end */
-				mio_seterrbfmt (mio, MIO_EINVAL, "scope id blank");
+				hio_seterrbfmt (hio, HIO_EINVAL, "scope id blank");
 				return -1;
 			}
 
@@ -638,7 +638,7 @@ int mio_bcharstoskad (mio_t* mio, const mio_bch_t* str, mio_oow_t len, mio_skad_
 					x = skad->in6.sin6_scope_id * 10 + (*p - '0');
 					if (x < skad->in6.sin6_scope_id) 
 					{
-						mio_seterrbfmt (mio, MIO_EINVAL, "scope id too large");
+						hio_seterrbfmt (hio, HIO_EINVAL, "scope id too large");
 						return -1; /* overflow */
 					}
 					skad->in6.sin6_scope_id = x;
@@ -649,10 +649,10 @@ int mio_bcharstoskad (mio_t* mio, const mio_bch_t* str, mio_oow_t len, mio_skad_
 			else
 			{
 				/* interface name as a scope id? */
-				const mio_bch_t* stmp = p;
+				const hio_bch_t* stmp = p;
 				unsigned int index;
 				do p++; while (p < end && *p != ']');
-				if (mio_bcharstoifindex(mio, stmp, p - stmp, &index) <= -1) return -1;
+				if (hio_bcharstoifindex(hio, stmp, p - stmp, &index) <= -1) return -1;
 				skad->in6.sin6_scope_id = index;
 			}
 
@@ -667,13 +667,13 @@ int mio_bcharstoskad (mio_t* mio, const mio_bch_t* str, mio_oow_t len, mio_skad_
 	{
 #endif
 		/* IPv4 address */
-		tmp.ptr = (mio_bch_t*)p;
+		tmp.ptr = (hio_bch_t*)p;
 		while (p < end && *p != ':') p++;
 		tmp.len = p - tmp.ptr;
 
 		if (bchars_to_ipv4(tmp.ptr, tmp.len, &skad->in4.sin_addr) <= -1)
 		{
-		#if (MIO_SIZEOF_STRUCT_SOCKADDR_IN6 > 0)
+		#if (HIO_SIZEOF_STRUCT_SOCKADDR_IN6 > 0)
 			/* check if it is an IPv6 address not enclosed in []. 
 			 * the port number can't be specified in this format. */
 			if (p >= end || *p != ':') 
@@ -691,14 +691,14 @@ int mio_bcharstoskad (mio_t* mio, const mio_bch_t* str, mio_oow_t len, mio_skad_
 			if (p < end && *p == '%')
 			{
 				/* handle scope id */
-				mio_uint32_t x;
+				hio_uint32_t x;
 
 				p++; /* skip % */
 
 				if (p >= end)
 				{
 					/* premature end */
-					mio_seterrbfmt (mio, MIO_EINVAL, "scope id blank");
+					hio_seterrbfmt (hio, HIO_EINVAL, "scope id blank");
 					return -1;
 				}
 
@@ -711,7 +711,7 @@ int mio_bcharstoskad (mio_t* mio, const mio_bch_t* str, mio_oow_t len, mio_skad_
 						x = skad->in6.sin6_scope_id * 10 + (*p - '0');
 						if (x < skad->in6.sin6_scope_id) 
 						{
-							mio_seterrbfmt (mio, MIO_EINVAL, "scope id too large");
+							hio_seterrbfmt (hio, HIO_EINVAL, "scope id too large");
 							return -1; /* overflow */
 						}
 						skad->in6.sin6_scope_id = x;
@@ -722,10 +722,10 @@ int mio_bcharstoskad (mio_t* mio, const mio_bch_t* str, mio_oow_t len, mio_skad_
 				else
 				{
 					/* interface name as a scope id? */
-					const mio_bch_t* stmp = p;
+					const hio_bch_t* stmp = p;
 					unsigned int index;
 					do p++; while (p < end);
-					if (mio_bcharstoifindex(mio, stmp, p - stmp, &index) <= -1) return -1;
+					if (hio_bcharstoifindex(hio, stmp, p - stmp, &index) <= -1) return -1;
 					skad->in6.sin6_scope_id = index;
 				}
 			}
@@ -740,18 +740,18 @@ int mio_bcharstoskad (mio_t* mio, const mio_bch_t* str, mio_oow_t len, mio_skad_
 		}
 
 		skad->in4.sin_family = AF_INET;
-#if (MIO_SIZEOF_STRUCT_SOCKADDR_IN6 > 0)
+#if (HIO_SIZEOF_STRUCT_SOCKADDR_IN6 > 0)
 	}
 #endif
 
 	if (p < end && *p == ':') 
 	{
 		/* port number */
-		mio_uint32_t port = 0;
+		hio_uint32_t port = 0;
 
 		p++; /* skip : */
 
-		tmp.ptr = (mio_bch_t*)p;
+		tmp.ptr = (hio_bch_t*)p;
 		while (p < end && *p >= '0' && *p <= '9')
 		{
 			port = port * 10 + (*p - '0');
@@ -760,30 +760,30 @@ int mio_bcharstoskad (mio_t* mio, const mio_bch_t* str, mio_oow_t len, mio_skad_
 
 		tmp.len = p - tmp.ptr;
 		if (tmp.len <= 0 || tmp.len >= 6 || 
-		    port > MIO_TYPE_MAX(mio_uint16_t)) 
+		    port > HIO_TYPE_MAX(hio_uint16_t)) 
 		{
-			mio_seterrbfmt (mio, MIO_EINVAL, "port number blank or too large");
+			hio_seterrbfmt (hio, HIO_EINVAL, "port number blank or too large");
 			return -1;
 		}
 
-	#if (MIO_SIZEOF_STRUCT_SOCKADDR_IN6 > 0)
+	#if (HIO_SIZEOF_STRUCT_SOCKADDR_IN6 > 0)
 		if (skad->in4.sin_family == AF_INET)
-			skad->in4.sin_port = mio_hton16(port);
+			skad->in4.sin_port = hio_hton16(port);
 		else
-			skad->in6.sin6_port = mio_hton16(port);
+			skad->in6.sin6_port = hio_hton16(port);
 	#else
-		skad->in4.sin_port = mio_hton16(port);
+		skad->in4.sin_port = hio_hton16(port);
 	#endif
 	}
 
 	return 0;
 
 unrecog:
-	mio_seterrbfmt (mio, MIO_EINVAL, "unrecognized address");
+	hio_seterrbfmt (hio, HIO_EINVAL, "unrecognized address");
 	return -1;
 
 no_rbrack:
-	mio_seterrbfmt (mio, MIO_EINVAL, "missing right bracket");
+	hio_seterrbfmt (hio, HIO_EINVAL, "missing right bracket");
 	return -1;
 }
 
@@ -818,11 +818,11 @@ no_rbrack:
 
 /* ---------------------------------------------------------- */
 
-static mio_oow_t ip4ad_to_ucstr (const struct in_addr* ipad, mio_uch_t* buf, mio_oow_t size)
+static hio_oow_t ip4ad_to_ucstr (const struct in_addr* ipad, hio_uch_t* buf, hio_oow_t size)
 {
-	mio_uint8_t b;
-	mio_uch_t* p, * end;
-	mio_uint32_t ip;
+	hio_uint8_t b;
+	hio_uch_t* p, * end;
+	hio_uint32_t ip;
 
 	if (size <= 0) return 0;
 
@@ -831,16 +831,16 @@ static mio_oow_t ip4ad_to_ucstr (const struct in_addr* ipad, mio_uch_t* buf, mio
 	p = buf;
 	end = buf + size - 1;
 
-#if defined(MIO_ENDIAN_BIG)
-	b = (ip >> 24) & 0xFF; __BTOA (mio_uch_t, b, p, end); __ADDDOT (p, end);
-	b = (ip >> 16) & 0xFF; __BTOA (mio_uch_t, b, p, end); __ADDDOT (p, end);
-	b = (ip >>  8) & 0xFF; __BTOA (mio_uch_t, b, p, end); __ADDDOT (p, end);
-	b = (ip >>  0) & 0xFF; __BTOA (mio_uch_t, b, p, end);
-#elif defined(MIO_ENDIAN_LITTLE)
-	b = (ip >>  0) & 0xFF; __BTOA (mio_uch_t, b, p, end); __ADDDOT (p, end);
-	b = (ip >>  8) & 0xFF; __BTOA (mio_uch_t, b, p, end); __ADDDOT (p, end);
-	b = (ip >> 16) & 0xFF; __BTOA (mio_uch_t, b, p, end); __ADDDOT (p, end);
-	b = (ip >> 24) & 0xFF; __BTOA (mio_uch_t, b, p, end);
+#if defined(HIO_ENDIAN_BIG)
+	b = (ip >> 24) & 0xFF; __BTOA (hio_uch_t, b, p, end); __ADDDOT (p, end);
+	b = (ip >> 16) & 0xFF; __BTOA (hio_uch_t, b, p, end); __ADDDOT (p, end);
+	b = (ip >>  8) & 0xFF; __BTOA (hio_uch_t, b, p, end); __ADDDOT (p, end);
+	b = (ip >>  0) & 0xFF; __BTOA (hio_uch_t, b, p, end);
+#elif defined(HIO_ENDIAN_LITTLE)
+	b = (ip >>  0) & 0xFF; __BTOA (hio_uch_t, b, p, end); __ADDDOT (p, end);
+	b = (ip >>  8) & 0xFF; __BTOA (hio_uch_t, b, p, end); __ADDDOT (p, end);
+	b = (ip >> 16) & 0xFF; __BTOA (hio_uch_t, b, p, end); __ADDDOT (p, end);
+	b = (ip >> 24) & 0xFF; __BTOA (hio_uch_t, b, p, end);
 #else
 #	error Unknown Endian
 #endif
@@ -849,7 +849,14 @@ static mio_oow_t ip4ad_to_ucstr (const struct in_addr* ipad, mio_uch_t* buf, mio
 	return p - buf;
 }
 
+<<<<<<< .mine
+static hio_oow_t ip6ad_to_ucstr (const struct in6_addr* ipad, hio_uch_t* buf, hio_oow_t size)
+||||||| .r361
+
 static mio_oow_t ip6ad_to_ucstr (const struct in6_addr* ipad, mio_uch_t* buf, mio_oow_t size)
+=======
+static mio_oow_t ip6ad_to_ucstr (const struct in6_addr* ipad, mio_uch_t* buf, mio_oow_t size)
+>>>>>>> .r366
 {
 	/*
 	 * Note that int32_t and int16_t need only be "at least" large enough
@@ -859,11 +866,23 @@ static mio_oow_t ip6ad_to_ucstr (const struct in6_addr* ipad, mio_uch_t* buf, mi
 	 * to use pointer overlays.  All the world's not a VAX.
 	 */
 
+<<<<<<< .mine
+#define IP6AD_NWORDS (HIO_SIZEOF(ipad->s6_addr) / HIO_SIZEOF(hio_uint16_t))
+||||||| .r361
+#define IP6ADDR_NWORDS (MIO_SIZEOF(ipad->s6_addr) / MIO_SIZEOF(mio_uint16_t))
+=======
 #define IP6AD_NWORDS (MIO_SIZEOF(ipad->s6_addr) / MIO_SIZEOF(mio_uint16_t))
+>>>>>>> .r366
 
-	mio_uch_t tmp[MIO_COUNTOF("ffff:ffff:ffff:ffff:ffff:ffff:255.255.255.255")], *tp;
+	hio_uch_t tmp[HIO_COUNTOF("ffff:ffff:ffff:ffff:ffff:ffff:255.255.255.255")], *tp;
 	struct { int base, len; } best, cur;
+<<<<<<< .mine
+	hio_uint16_t words[IP6AD_NWORDS];
+||||||| .r361
+	mio_uint16_t words[IP6ADDR_NWORDS];
+=======
 	mio_uint16_t words[IP6AD_NWORDS];
+>>>>>>> .r366
 	int i;
 
 	if (size <= 0) return 0;
@@ -873,8 +892,8 @@ static mio_oow_t ip6ad_to_ucstr (const struct in6_addr* ipad, mio_uch_t* buf, mi
 	 *	Copy the input (bytewise) array into a wordwise array.
 	 *	Find the longest run of 0x00's in src[] for :: shorthanding.
 	 */
-	MIO_MEMSET (words, 0, MIO_SIZEOF(words));
-	for (i = 0; i < MIO_SIZEOF(ipad->s6_addr); i++)
+	HIO_MEMSET (words, 0, HIO_SIZEOF(words));
+	for (i = 0; i < HIO_SIZEOF(ipad->s6_addr); i++)
 		words[i / 2] |= (ipad->s6_addr[i] << ((1 - (i % 2)) << 3));
 	best.base = -1;
 	best.len = 0;
@@ -931,62 +950,62 @@ static mio_oow_t ip6ad_to_ucstr (const struct in6_addr* ipad, mio_uch_t* buf, mi
 		if (i == 6 && best.base == 0 && (best.len == 6 || (best.len == 5 && words[5] == 0xffff))) 
 		{
 			struct in_addr ip4ad;
-			MIO_MEMCPY (&ip4ad.s_addr, ipad->s6_addr + 12, MIO_SIZEOF(ip4ad.s_addr));
-			tp += ip4ad_to_ucstr(&ip4ad, tp, MIO_COUNTOF(tmp) - (tp - tmp));
+			HIO_MEMCPY (&ip4ad.s_addr, ipad->s6_addr + 12, HIO_SIZEOF(ip4ad.s_addr));
+			tp += ip4ad_to_ucstr(&ip4ad, tp, HIO_COUNTOF(tmp) - (tp - tmp));
 			break;
 		}
 
-		tp += mio_fmt_uintmax_to_ucstr(tp, MIO_COUNTOF(tmp) - (tp - tmp), words[i], 16, 0, '\0', MIO_NULL);
+		tp += hio_fmt_uintmax_to_ucstr(tp, HIO_COUNTOF(tmp) - (tp - tmp), words[i], 16, 0, '\0', HIO_NULL);
 	}
 
 	/* Was it a trailing run of 0x00's? */
 	if (best.base != -1 && (best.base + best.len) == IP6AD_NWORDS) *tp++ = ':';
 	*tp++ = '\0';
 
-	return mio_copy_ucstr(buf, size, tmp);
+	return hio_copy_ucstr(buf, size, tmp);
 
 #undef IP6AD_NWORDS
 }
 
 
-mio_oow_t mio_skadtoucstr (mio_t* mio, const mio_skad_t* _skad, mio_uch_t* buf, mio_oow_t len, int flags)
+hio_oow_t hio_skadtoucstr (hio_t* hio, const hio_skad_t* _skad, hio_uch_t* buf, hio_oow_t len, int flags)
 {
-	const mio_skad_alt_t* skad = (const mio_skad_alt_t*)_skad;
-	mio_oow_t xlen = 0;
+	const hio_skad_alt_t* skad = (const hio_skad_alt_t*)_skad;
+	hio_oow_t xlen = 0;
 
 	/* unsupported types will result in an empty string */
 
-	switch (mio_skad_family(_skad))
+	switch (hio_skad_family(_skad))
 	{
-		case MIO_AF_INET:
-			if (flags & MIO_SKAD_TO_BCSTR_ADDR)
+		case HIO_AF_INET:
+			if (flags & HIO_SKAD_TO_BCSTR_ADDR)
 			{
 				if (xlen + 1 >= len) goto done;
 				xlen += ip4ad_to_ucstr(&skad->in4.sin_addr, buf, len);
 			}
 
-			if (flags & MIO_SKAD_TO_BCSTR_PORT)
+			if (flags & HIO_SKAD_TO_BCSTR_PORT)
 			{
-				if (!(flags & MIO_SKAD_TO_BCSTR_ADDR) || skad->in4.sin_port != 0)
+				if (!(flags & HIO_SKAD_TO_BCSTR_ADDR) || skad->in4.sin_port != 0)
 				{
-					if (flags & MIO_SKAD_TO_BCSTR_ADDR)
+					if (flags & HIO_SKAD_TO_BCSTR_ADDR)
 					{
 						if (xlen + 1 >= len) goto done;
 						buf[xlen++] = ':';
 					}
 
 					if (xlen + 1 >= len) goto done;
-					xlen += mio_fmt_uintmax_to_ucstr(&buf[xlen], len - xlen, mio_ntoh16(skad->in4.sin_port), 10, 0, '\0', MIO_NULL);
+					xlen += hio_fmt_uintmax_to_ucstr(&buf[xlen], len - xlen, hio_ntoh16(skad->in4.sin_port), 10, 0, '\0', HIO_NULL);
 				}
 			}
 			break;
 
-		case MIO_AF_INET6:
-			if (flags & MIO_SKAD_TO_BCSTR_PORT)
+		case HIO_AF_INET6:
+			if (flags & HIO_SKAD_TO_BCSTR_PORT)
 			{
-				if (!(flags & MIO_SKAD_TO_BCSTR_ADDR) || skad->in6.sin6_port != 0)
+				if (!(flags & HIO_SKAD_TO_BCSTR_ADDR) || skad->in6.sin6_port != 0)
 				{
-					if (flags & MIO_SKAD_TO_BCSTR_ADDR)
+					if (flags & HIO_SKAD_TO_BCSTR_ADDR)
 					{
 						if (xlen + 1 >= len) goto done;
 						buf[xlen++] = '[';
@@ -994,7 +1013,7 @@ mio_oow_t mio_skadtoucstr (mio_t* mio, const mio_skad_t* _skad, mio_uch_t* buf, 
 				}
 			}
 
-			if (flags & MIO_SKAD_TO_BCSTR_ADDR)
+			if (flags & HIO_SKAD_TO_BCSTR_ADDR)
 			{
 				if (xlen + 1 >= len) goto done;
 				xlen += ip6ad_to_ucstr(&skad->in6.sin6_addr, &buf[xlen], len - xlen);
@@ -1008,20 +1027,20 @@ mio_oow_t mio_skadtoucstr (mio_t* mio, const mio_skad_t* _skad, mio_uch_t* buf, 
 
 					if (xlen + 1 >= len) goto done;
 
-					tmp = mio_ifindextoucstr(mio, skad->in6.sin6_scope_id, &buf[xlen], len - xlen);
+					tmp = hio_ifindextoucstr(hio, skad->in6.sin6_scope_id, &buf[xlen], len - xlen);
 					if (tmp <= -1)
 					{
-						xlen += mio_fmt_uintmax_to_ucstr(&buf[xlen], len - xlen, skad->in6.sin6_scope_id, 10, 0, '\0', MIO_NULL);
+						xlen += hio_fmt_uintmax_to_ucstr(&buf[xlen], len - xlen, skad->in6.sin6_scope_id, 10, 0, '\0', HIO_NULL);
 					}
 					else xlen += tmp;
 				}
 			}
 
-			if (flags & MIO_SKAD_TO_BCSTR_PORT)
+			if (flags & HIO_SKAD_TO_BCSTR_PORT)
 			{
-				if (!(flags & MIO_SKAD_TO_BCSTR_ADDR) || skad->in6.sin6_port != 0) 
+				if (!(flags & HIO_SKAD_TO_BCSTR_ADDR) || skad->in6.sin6_port != 0) 
 				{
-					if (flags & MIO_SKAD_TO_BCSTR_ADDR)
+					if (flags & HIO_SKAD_TO_BCSTR_ADDR)
 					{
 						if (xlen + 1 >= len) goto done;
 						buf[xlen++] = ']';
@@ -1031,14 +1050,14 @@ mio_oow_t mio_skadtoucstr (mio_t* mio, const mio_skad_t* _skad, mio_uch_t* buf, 
 					}
 
 					if (xlen + 1 >= len) goto done;
-					xlen += mio_fmt_uintmax_to_ucstr(&buf[xlen], len - xlen, mio_ntoh16(skad->in6.sin6_port), 10, 0, '\0', MIO_NULL);
+					xlen += hio_fmt_uintmax_to_ucstr(&buf[xlen], len - xlen, hio_ntoh16(skad->in6.sin6_port), 10, 0, '\0', HIO_NULL);
 				}
 			}
 
 			break;
 
-		case MIO_AF_UNIX:
-			if (flags & MIO_SKAD_TO_BCSTR_ADDR)
+		case HIO_AF_UNIX:
+			if (flags & HIO_SKAD_TO_BCSTR_ADDR)
 			{
 				if (xlen + 1 >= len) goto done;
 				buf[xlen++] = '@';
@@ -1046,8 +1065,8 @@ mio_oow_t mio_skadtoucstr (mio_t* mio, const mio_skad_t* _skad, mio_uch_t* buf, 
 				if (xlen + 1 >= len) goto done;
 				else
 				{
-					mio_oow_t mbslen, wcslen = len - xlen;
-					mio_convbtoucstr (mio, skad->un.sun_path, &mbslen, &buf[xlen], &wcslen, 1);
+					hio_oow_t mbslen, wcslen = len - xlen;
+					hio_convbtoucstr (hio, skad->un.sun_path, &mbslen, &buf[xlen], &wcslen, 1);
 					/* i don't care about conversion errors */
 					xlen += wcslen;
 				}
@@ -1063,11 +1082,11 @@ done:
 
 /* ---------------------------------------------------------- */
 
-static mio_oow_t ip4ad_to_bcstr (const struct in_addr* ipad, mio_bch_t* buf, mio_oow_t size)
+static hio_oow_t ip4ad_to_bcstr (const struct in_addr* ipad, hio_bch_t* buf, hio_oow_t size)
 {
-	mio_uint8_t b;
-	mio_bch_t* p, * end;
-	mio_uint32_t ip;
+	hio_uint8_t b;
+	hio_bch_t* p, * end;
+	hio_uint32_t ip;
 
 	if (size <= 0) return 0;
 
@@ -1076,16 +1095,16 @@ static mio_oow_t ip4ad_to_bcstr (const struct in_addr* ipad, mio_bch_t* buf, mio
 	p = buf;
 	end = buf + size - 1;
 
-#if defined(MIO_ENDIAN_BIG)
-	b = (ip >> 24) & 0xFF; __BTOA (mio_bch_t, b, p, end); __ADDDOT (p, end);
-	b = (ip >> 16) & 0xFF; __BTOA (mio_bch_t, b, p, end); __ADDDOT (p, end);
-	b = (ip >>  8) & 0xFF; __BTOA (mio_bch_t, b, p, end); __ADDDOT (p, end);
-	b = (ip >>  0) & 0xFF; __BTOA (mio_bch_t, b, p, end);
-#elif defined(MIO_ENDIAN_LITTLE)
-	b = (ip >>  0) & 0xFF; __BTOA (mio_bch_t, b, p, end); __ADDDOT (p, end);
-	b = (ip >>  8) & 0xFF; __BTOA (mio_bch_t, b, p, end); __ADDDOT (p, end);
-	b = (ip >> 16) & 0xFF; __BTOA (mio_bch_t, b, p, end); __ADDDOT (p, end);
-	b = (ip >> 24) & 0xFF; __BTOA (mio_bch_t, b, p, end);
+#if defined(HIO_ENDIAN_BIG)
+	b = (ip >> 24) & 0xFF; __BTOA (hio_bch_t, b, p, end); __ADDDOT (p, end);
+	b = (ip >> 16) & 0xFF; __BTOA (hio_bch_t, b, p, end); __ADDDOT (p, end);
+	b = (ip >>  8) & 0xFF; __BTOA (hio_bch_t, b, p, end); __ADDDOT (p, end);
+	b = (ip >>  0) & 0xFF; __BTOA (hio_bch_t, b, p, end);
+#elif defined(HIO_ENDIAN_LITTLE)
+	b = (ip >>  0) & 0xFF; __BTOA (hio_bch_t, b, p, end); __ADDDOT (p, end);
+	b = (ip >>  8) & 0xFF; __BTOA (hio_bch_t, b, p, end); __ADDDOT (p, end);
+	b = (ip >> 16) & 0xFF; __BTOA (hio_bch_t, b, p, end); __ADDDOT (p, end);
+	b = (ip >> 24) & 0xFF; __BTOA (hio_bch_t, b, p, end);
 #else
 #	error Unknown Endian
 #endif
@@ -1095,7 +1114,7 @@ static mio_oow_t ip4ad_to_bcstr (const struct in_addr* ipad, mio_bch_t* buf, mio
 }
 
 
-static mio_oow_t ip6ad_to_bcstr (const struct in6_addr* ipad, mio_bch_t* buf, mio_oow_t size)
+static hio_oow_t ip6ad_to_bcstr (const struct in6_addr* ipad, hio_bch_t* buf, hio_oow_t size)
 {
 	/*
 	 * Note that int32_t and int16_t need only be "at least" large enough
@@ -1105,11 +1124,23 @@ static mio_oow_t ip6ad_to_bcstr (const struct in6_addr* ipad, mio_bch_t* buf, mi
 	 * to use pointer overlays.  All the world's not a VAX.
 	 */
 
+<<<<<<< .mine
+#define IP6AD_NWORDS (HIO_SIZEOF(ipad->s6_addr) / HIO_SIZEOF(hio_uint16_t))
+||||||| .r361
+#define IP6ADDR_NWORDS (MIO_SIZEOF(ipad->s6_addr) / MIO_SIZEOF(mio_uint16_t))
+=======
 #define IP6AD_NWORDS (MIO_SIZEOF(ipad->s6_addr) / MIO_SIZEOF(mio_uint16_t))
+>>>>>>> .r366
 
-	mio_bch_t tmp[MIO_COUNTOF("ffff:ffff:ffff:ffff:ffff:ffff:255.255.255.255")], *tp;
+	hio_bch_t tmp[HIO_COUNTOF("ffff:ffff:ffff:ffff:ffff:ffff:255.255.255.255")], *tp;
 	struct { int base, len; } best, cur;
+<<<<<<< .mine
+	hio_uint16_t words[IP6AD_NWORDS];
+||||||| .r361
+	mio_uint16_t words[IP6ADDR_NWORDS];
+=======
 	mio_uint16_t words[IP6AD_NWORDS];
+>>>>>>> .r366
 	int i;
 
 	if (size <= 0) return 0;
@@ -1119,8 +1150,8 @@ static mio_oow_t ip6ad_to_bcstr (const struct in6_addr* ipad, mio_bch_t* buf, mi
 	 *	Copy the input (bytewise) array into a wordwise array.
 	 *	Find the longest run of 0x00's in src[] for :: shorthanding.
 	 */
-	MIO_MEMSET (words, 0, MIO_SIZEOF(words));
-	for (i = 0; i < MIO_SIZEOF(ipad->s6_addr); i++)
+	HIO_MEMSET (words, 0, HIO_SIZEOF(words));
+	for (i = 0; i < HIO_SIZEOF(ipad->s6_addr); i++)
 		words[i / 2] |= (ipad->s6_addr[i] << ((1 - (i % 2)) << 3));
 	best.base = -1;
 	best.len = 0;
@@ -1177,62 +1208,62 @@ static mio_oow_t ip6ad_to_bcstr (const struct in6_addr* ipad, mio_bch_t* buf, mi
 		if (i == 6 && best.base == 0 && (best.len == 6 || (best.len == 5 && words[5] == 0xffff))) 
 		{
 			struct in_addr ip4ad;
-			MIO_MEMCPY (&ip4ad.s_addr, ipad->s6_addr + 12, MIO_SIZEOF(ip4ad.s_addr));
-			tp += ip4ad_to_bcstr(&ip4ad, tp, MIO_COUNTOF(tmp) - (tp - tmp));
+			HIO_MEMCPY (&ip4ad.s_addr, ipad->s6_addr + 12, HIO_SIZEOF(ip4ad.s_addr));
+			tp += ip4ad_to_bcstr(&ip4ad, tp, HIO_COUNTOF(tmp) - (tp - tmp));
 			break;
 		}
 
-		tp += mio_fmt_uintmax_to_bcstr(tp, MIO_COUNTOF(tmp) - (tp - tmp), words[i], 16, 0, '\0', MIO_NULL);
+		tp += hio_fmt_uintmax_to_bcstr(tp, HIO_COUNTOF(tmp) - (tp - tmp), words[i], 16, 0, '\0', HIO_NULL);
 	}
 
 	/* Was it a trailing run of 0x00's? */
 	if (best.base != -1 && (best.base + best.len) == IP6AD_NWORDS) *tp++ = ':';
 	*tp++ = '\0';
 
-	return mio_copy_bcstr(buf, size, tmp);
+	return hio_copy_bcstr(buf, size, tmp);
 
 #undef IP6AD_NWORDS
 }
 
 
-mio_oow_t mio_skadtobcstr (mio_t* mio, const mio_skad_t* _skad, mio_bch_t* buf, mio_oow_t len, int flags)
+hio_oow_t hio_skadtobcstr (hio_t* hio, const hio_skad_t* _skad, hio_bch_t* buf, hio_oow_t len, int flags)
 {
-	const mio_skad_alt_t* skad = (const mio_skad_alt_t*)_skad;
-	mio_oow_t xlen = 0;
+	const hio_skad_alt_t* skad = (const hio_skad_alt_t*)_skad;
+	hio_oow_t xlen = 0;
 
 	/* unsupported types will result in an empty string */
 
-	switch (mio_skad_family(_skad))
+	switch (hio_skad_family(_skad))
 	{
-		case MIO_AF_INET:
-			if (flags & MIO_SKAD_TO_BCSTR_ADDR)
+		case HIO_AF_INET:
+			if (flags & HIO_SKAD_TO_BCSTR_ADDR)
 			{
 				if (xlen + 1 >= len) goto done;
 				xlen += ip4ad_to_bcstr(&skad->in4.sin_addr, buf, len);
 			}
 
-			if (flags & MIO_SKAD_TO_BCSTR_PORT)
+			if (flags & HIO_SKAD_TO_BCSTR_PORT)
 			{
-				if (!(flags & MIO_SKAD_TO_BCSTR_ADDR) || skad->in4.sin_port != 0)
+				if (!(flags & HIO_SKAD_TO_BCSTR_ADDR) || skad->in4.sin_port != 0)
 				{
-					if (flags & MIO_SKAD_TO_BCSTR_ADDR)
+					if (flags & HIO_SKAD_TO_BCSTR_ADDR)
 					{
 						if (xlen + 1 >= len) goto done;
 						buf[xlen++] = ':';
 					}
 
 					if (xlen + 1 >= len) goto done;
-					xlen += mio_fmt_uintmax_to_bcstr(&buf[xlen], len - xlen, mio_ntoh16(skad->in4.sin_port), 10, 0, '\0', MIO_NULL);
+					xlen += hio_fmt_uintmax_to_bcstr(&buf[xlen], len - xlen, hio_ntoh16(skad->in4.sin_port), 10, 0, '\0', HIO_NULL);
 				}
 			}
 			break;
 
-		case MIO_AF_INET6:
-			if (flags & MIO_SKAD_TO_BCSTR_PORT)
+		case HIO_AF_INET6:
+			if (flags & HIO_SKAD_TO_BCSTR_PORT)
 			{
-				if (!(flags & MIO_SKAD_TO_BCSTR_ADDR) || skad->in6.sin6_port != 0)
+				if (!(flags & HIO_SKAD_TO_BCSTR_ADDR) || skad->in6.sin6_port != 0)
 				{
-					if (flags & MIO_SKAD_TO_BCSTR_ADDR)
+					if (flags & HIO_SKAD_TO_BCSTR_ADDR)
 					{
 						if (xlen + 1 >= len) goto done;
 						buf[xlen++] = '[';
@@ -1240,7 +1271,7 @@ mio_oow_t mio_skadtobcstr (mio_t* mio, const mio_skad_t* _skad, mio_bch_t* buf, 
 				}
 			}
 
-			if (flags & MIO_SKAD_TO_BCSTR_ADDR)
+			if (flags & HIO_SKAD_TO_BCSTR_ADDR)
 			{
 
 				if (xlen + 1 >= len) goto done;
@@ -1255,20 +1286,20 @@ mio_oow_t mio_skadtobcstr (mio_t* mio, const mio_skad_t* _skad, mio_bch_t* buf, 
 
 					if (xlen + 1 >= len) goto done;
 
-					tmp = mio_ifindextobcstr(mio, skad->in6.sin6_scope_id, &buf[xlen], len - xlen);
+					tmp = hio_ifindextobcstr(hio, skad->in6.sin6_scope_id, &buf[xlen], len - xlen);
 					if (tmp <= -1)
 					{
-						xlen += mio_fmt_uintmax_to_bcstr(&buf[xlen], len - xlen, skad->in6.sin6_scope_id, 10, 0, '\0', MIO_NULL);
+						xlen += hio_fmt_uintmax_to_bcstr(&buf[xlen], len - xlen, skad->in6.sin6_scope_id, 10, 0, '\0', HIO_NULL);
 					}
 					else xlen += tmp;
 				}
 			}
 
-			if (flags & MIO_SKAD_TO_BCSTR_PORT)
+			if (flags & HIO_SKAD_TO_BCSTR_PORT)
 			{
-				if (!(flags & MIO_SKAD_TO_BCSTR_ADDR) || skad->in6.sin6_port != 0) 
+				if (!(flags & HIO_SKAD_TO_BCSTR_ADDR) || skad->in6.sin6_port != 0) 
 				{
-					if (flags & MIO_SKAD_TO_BCSTR_ADDR)
+					if (flags & HIO_SKAD_TO_BCSTR_ADDR)
 					{
 						if (xlen + 1 >= len) goto done;
 						buf[xlen++] = ']';
@@ -1278,20 +1309,20 @@ mio_oow_t mio_skadtobcstr (mio_t* mio, const mio_skad_t* _skad, mio_bch_t* buf, 
 					}
 
 					if (xlen + 1 >= len) goto done;
-					xlen += mio_fmt_uintmax_to_bcstr(&buf[xlen], len - xlen, mio_ntoh16(skad->in6.sin6_port), 10, 0, '\0', MIO_NULL);
+					xlen += hio_fmt_uintmax_to_bcstr(&buf[xlen], len - xlen, hio_ntoh16(skad->in6.sin6_port), 10, 0, '\0', HIO_NULL);
 				}
 			}
 
 			break;
 
-		case MIO_AF_UNIX:
-			if (flags & MIO_SKAD_TO_BCSTR_ADDR)
+		case HIO_AF_UNIX:
+			if (flags & HIO_SKAD_TO_BCSTR_ADDR)
 			{
 				if (xlen + 1 >= len) goto done;
 				buf[xlen++] = '@';
 
 				if (xlen + 1 >= len) goto done;
-				xlen += mio_copy_bcstr(&buf[xlen], len - xlen, skad->un.sun_path);
+				xlen += hio_copy_bcstr(&buf[xlen], len - xlen, skad->un.sun_path);
 			}
 
 			break;
@@ -1306,64 +1337,64 @@ done:
 /* ------------------------------------------------------------------------- */
 
 
-int mio_skad_family (const mio_skad_t* _skad)
+int hio_skad_family (const hio_skad_t* _skad)
 {
-	const mio_skad_alt_t* skad = (const mio_skad_alt_t*)_skad;
-	/*MIO_STATIC_ASSERT (MIO_SIZEOF(*_skad) >= MIO_SIZEOF(*skad));*/
+	const hio_skad_alt_t* skad = (const hio_skad_alt_t*)_skad;
+	/*HIO_STATIC_ASSERT (HIO_SIZEOF(*_skad) >= HIO_SIZEOF(*skad));*/
 	return skad->sa.sa_family;
 }
 
-int mio_skad_size (const mio_skad_t* _skad)
+int hio_skad_size (const hio_skad_t* _skad)
 {
-	const mio_skad_alt_t* skad = (const mio_skad_alt_t*)_skad;
-	/*MIO_STATIC_ASSERT (MIO_SIZEOF(*_skad) >= MIO_SIZEOF(*skad));*/
+	const hio_skad_alt_t* skad = (const hio_skad_alt_t*)_skad;
+	/*HIO_STATIC_ASSERT (HIO_SIZEOF(*_skad) >= HIO_SIZEOF(*skad));*/
 
 	switch (skad->sa.sa_family)
 	{
-	#if defined(AF_INET) && (MIO_SIZEOF_STRUCT_SOCKADDR_IN > 0)
-		case AF_INET: return MIO_SIZEOF(struct sockaddr_in);
+	#if defined(AF_INET) && (HIO_SIZEOF_STRUCT_SOCKADDR_IN > 0)
+		case AF_INET: return HIO_SIZEOF(struct sockaddr_in);
 	#endif
-	#if defined(AF_INET6) && (MIO_SIZEOF_STRUCT_SOCKADDR_IN6 > 0)
-		case AF_INET6: return MIO_SIZEOF(struct sockaddr_in6);
+	#if defined(AF_INET6) && (HIO_SIZEOF_STRUCT_SOCKADDR_IN6 > 0)
+		case AF_INET6: return HIO_SIZEOF(struct sockaddr_in6);
 	#endif
-	#if defined(AF_PACKET) && (MIO_SIZEOF_STRUCT_SOCKADDR_LL > 0)
-		case AF_PACKET: return MIO_SIZEOF(struct sockaddr_ll);
+	#if defined(AF_PACKET) && (HIO_SIZEOF_STRUCT_SOCKADDR_LL > 0)
+		case AF_PACKET: return HIO_SIZEOF(struct sockaddr_ll);
 	#endif
-	#if defined(AF_LINK) && (MIO_SIZEOF_STRUCT_SOCKADDR_DL > 0)
-		case AF_LINK: return MIO_SIZEOF(struct sockaddr_dl);
+	#if defined(AF_LINK) && (HIO_SIZEOF_STRUCT_SOCKADDR_DL > 0)
+		case AF_LINK: return HIO_SIZEOF(struct sockaddr_dl);
 	#endif
-	#if defined(AF_UNIX) && (MIO_SIZEOF_STRUCT_SOCKADDR_UN > 0)
-		case AF_UNIX: return MIO_SIZEOF(struct sockaddr_un);
+	#if defined(AF_UNIX) && (HIO_SIZEOF_STRUCT_SOCKADDR_UN > 0)
+		case AF_UNIX: return HIO_SIZEOF(struct sockaddr_un);
 	#endif
 	}
 
 	return 0;
 }
 
-int mio_skad_port (const mio_skad_t* _skad)
+int hio_skad_port (const hio_skad_t* _skad)
 {
-	const mio_skad_alt_t* skad = (const mio_skad_alt_t*)_skad;
+	const hio_skad_alt_t* skad = (const hio_skad_alt_t*)_skad;
 
 	switch (skad->sa.sa_family)
 	{
-	#if defined(AF_INET) && (MIO_SIZEOF_STRUCT_SOCKADDR_IN > 0)
-		case AF_INET: return mio_ntoh16(((struct sockaddr_in*)skad)->sin_port);
+	#if defined(AF_INET) && (HIO_SIZEOF_STRUCT_SOCKADDR_IN > 0)
+		case AF_INET: return hio_ntoh16(((struct sockaddr_in*)skad)->sin_port);
 	#endif
-	#if defined(AF_INET6) && (MIO_SIZEOF_STRUCT_SOCKADDR_IN6 > 0)
-		case AF_INET6: return mio_ntoh16(((struct sockaddr_in6*)skad)->sin6_port);
+	#if defined(AF_INET6) && (HIO_SIZEOF_STRUCT_SOCKADDR_IN6 > 0)
+		case AF_INET6: return hio_ntoh16(((struct sockaddr_in6*)skad)->sin6_port);
 	#endif
 	}
 	return 0;
 }
 
-int mio_skad_ifindex (const mio_skad_t* _skad)
+int hio_skad_ifindex (const hio_skad_t* _skad)
 {
-	const mio_skad_alt_t* skad = (const mio_skad_alt_t*)_skad;
+	const hio_skad_alt_t* skad = (const hio_skad_alt_t*)_skad;
 
-#if defined(AF_PACKET) && (MIO_SIZEOF_STRUCT_SOCKADDR_LL > 0)
+#if defined(AF_PACKET) && (HIO_SIZEOF_STRUCT_SOCKADDR_LL > 0)
 	if (skad->sa.sa_family == AF_PACKET) return ((struct sockaddr_ll*)skad)->sll_ifindex;
 
-#elif defined(AF_LINK) && (MIO_SIZEOF_STRUCT_SOCKADDR_DL > 0)
+#elif defined(AF_LINK) && (HIO_SIZEOF_STRUCT_SOCKADDR_DL > 0)
 	if (skad->sa.sa_family == AF_LINK)  return ((struct sockaddr_dl*)skad)->sdl_index;
 #endif
 
@@ -1371,52 +1402,82 @@ int mio_skad_ifindex (const mio_skad_t* _skad)
 }
 
 
-void mio_skad_init_for_ip4 (mio_skad_t* skad, mio_uint16_t port, mio_ip4ad_t* ip4ad)
+void hio_skad_init_for_ip4 (hio_skad_t* skad, hio_uint16_t port, hio_ip4ad_t* ip4ad)
 {
-#if (MIO_SIZEOF_STRUCT_SOCKADDR_IN > 0)
+#if (HIO_SIZEOF_STRUCT_SOCKADDR_IN > 0)
 	struct sockaddr_in* sin = (struct sockaddr_in*)skad;
-	MIO_MEMSET (sin, 0, MIO_SIZEOF(*sin));
+	HIO_MEMSET (sin, 0, HIO_SIZEOF(*sin));
 	sin->sin_family = AF_INET;
+<<<<<<< .mine
+	sin->sin_port = hio_hton16(port);
+	if (ip4ad) HIO_MEMCPY (&sin->sin_addr, ip4ad->v, HIO_IP4AD_LEN);
+||||||| .r361
+	sin->sin_port = mio_hton16(port);
+	if (ip4ad) MIO_MEMCPY (&sin->sin_addr, ip4ad->v, MIO_IP4ADDR_LEN);
+=======
 	sin->sin_port = mio_hton16(port);
 	if (ip4ad) MIO_MEMCPY (&sin->sin_addr, ip4ad->v, MIO_IP4AD_LEN);
+>>>>>>> .r366
 #endif
 }
 
-void mio_skad_init_for_ip6 (mio_skad_t* skad, mio_uint16_t port, mio_ip6ad_t* ip6ad, int scope_id)
+void hio_skad_init_for_ip6 (hio_skad_t* skad, hio_uint16_t port, hio_ip6ad_t* ip6ad, int scope_id)
 {
-#if (MIO_SIZEOF_STRUCT_SOCKADDR_IN6 > 0)
+#if (HIO_SIZEOF_STRUCT_SOCKADDR_IN6 > 0)
 	struct sockaddr_in6* sin = (struct sockaddr_in6*)skad;
-	MIO_MEMSET (sin, 0, MIO_SIZEOF(*sin));
+	HIO_MEMSET (sin, 0, HIO_SIZEOF(*sin));
 	sin->sin6_family = AF_INET6;
-	sin->sin6_port = mio_hton16(port);
+	sin->sin6_port = hio_hton16(port);
 	sin->sin6_scope_id = scope_id;
+<<<<<<< .mine
+	if (ip6ad) HIO_MEMCPY (&sin->sin6_addr, ip6ad->v, HIO_IP6AD_LEN);
+||||||| .r361
+	if (ip6ad) MIO_MEMCPY (&sin->sin6_addr, ip6ad->v, MIO_IP6ADDR_LEN);
+=======
 	if (ip6ad) MIO_MEMCPY (&sin->sin6_addr, ip6ad->v, MIO_IP6AD_LEN);
+>>>>>>> .r366
 #endif
 }
 
-void mio_skad_init_for_ip_with_bytes (mio_skad_t* skad, mio_uint16_t port, const mio_uint8_t* bytes, mio_oow_t len)
+void hio_skad_init_for_ip_with_bytes (hio_skad_t* skad, hio_uint16_t port, const hio_uint8_t* bytes, hio_oow_t len)
 {
 	switch (len)
 	{
+<<<<<<< .mine
+	#if (HIO_SIZEOF_STRUCT_SOCKADDR_IN > 0)
+		case HIO_IP4AD_LEN:
+||||||| .r361
+	#if (MIO_SIZEOF_STRUCT_SOCKADDR_IN > 0)
+		case MIO_IP4ADDR_LEN:
+=======
 	#if (MIO_SIZEOF_STRUCT_SOCKADDR_IN > 0)
 		case MIO_IP4AD_LEN:
+>>>>>>> .r366
 		{
 			struct sockaddr_in* sin = (struct sockaddr_in*)skad;
-			MIO_MEMSET (sin, 0, MIO_SIZEOF(*sin));
+			HIO_MEMSET (sin, 0, HIO_SIZEOF(*sin));
 			sin->sin_family = AF_INET;
-			sin->sin_port = mio_hton16(port);
-			MIO_MEMCPY (&sin->sin_addr, bytes, len);
+			sin->sin_port = hio_hton16(port);
+			HIO_MEMCPY (&sin->sin_addr, bytes, len);
 			break;
 		}
 	#endif
+<<<<<<< .mine
+	#if (HIO_SIZEOF_STRUCT_SOCKADDR_IN6 > 0)
+		case HIO_IP6AD_LEN:
+||||||| .r361
+	#if (MIO_SIZEOF_STRUCT_SOCKADDR_IN6 > 0)
+		case MIO_IP6ADDR_LEN:
+=======
 	#if (MIO_SIZEOF_STRUCT_SOCKADDR_IN6 > 0)
 		case MIO_IP6AD_LEN:
+>>>>>>> .r366
 		{
 			struct sockaddr_in6* sin = (struct sockaddr_in6*)skad;
-			MIO_MEMSET (sin, 0, MIO_SIZEOF(*sin));
+			HIO_MEMSET (sin, 0, HIO_SIZEOF(*sin));
 			sin->sin6_family = AF_INET6;
-			sin->sin6_port = mio_hton16(port);
-			MIO_MEMCPY (&sin->sin6_addr, bytes, len);
+			sin->sin6_port = hio_hton16(port);
+			HIO_MEMCPY (&sin->sin6_addr, bytes, len);
 			break;
 		}
 	#endif
@@ -1426,100 +1487,134 @@ void mio_skad_init_for_ip_with_bytes (mio_skad_t* skad, mio_uint16_t port, const
 }
 
 
+<<<<<<< .mine
+void hio_skad_init_for_eth (hio_skad_t* skad, int ifindex, hio_ethad_t* ethad)
+||||||| .r361
+void mio_skad_init_for_eth (mio_skad_t* skad, int ifindex, mio_ethaddr_t* ethaddr)
+=======
 void mio_skad_init_for_eth (mio_skad_t* skad, int ifindex, mio_ethad_t* ethad)
+>>>>>>> .r366
 {
-#if defined(AF_PACKET) && (MIO_SIZEOF_STRUCT_SOCKADDR_LL > 0)
+#if defined(AF_PACKET) && (HIO_SIZEOF_STRUCT_SOCKADDR_LL > 0)
 	struct sockaddr_ll* sll = (struct sockaddr_ll*)skad;
-	MIO_MEMSET (sll, 0, MIO_SIZEOF(*sll));
+	HIO_MEMSET (sll, 0, HIO_SIZEOF(*sll));
 	sll->sll_family = AF_PACKET;
 	sll->sll_ifindex = ifindex;
 	if (ethad)
 	{
+<<<<<<< .mine
+		sll->sll_halen = HIO_ETHAD_LEN;
+		HIO_MEMCPY (sll->sll_addr, ethad, HIO_ETHAD_LEN);
+||||||| .r361
+		sll->sll_halen = MIO_ETHADDR_LEN;
+		MIO_MEMCPY (sll->sll_addr, ethaddr, MIO_ETHADDR_LEN);
+=======
 		sll->sll_halen = MIO_ETHAD_LEN;
 		MIO_MEMCPY (sll->sll_addr, ethad, MIO_ETHAD_LEN);
+>>>>>>> .r366
 	}
 
-#elif defined(AF_LINK) && (MIO_SIZEOF_STRUCT_SOCKADDR_DL > 0)
+#elif defined(AF_LINK) && (HIO_SIZEOF_STRUCT_SOCKADDR_DL > 0)
 	struct sockaddr_dl* sll = (struct sockaddr_dl*)skad;
-	MIO_MEMSET (sll, 0, MIO_SIZEOF(*sll));
+	HIO_MEMSET (sll, 0, HIO_SIZEOF(*sll));
 	sll->sdl_family = AF_LINK;
 	sll->sdl_index = ifindex;
 	if (ethad)
 	{
+<<<<<<< .mine
+		sll->sdl_alen = HIO_ETHAD_LEN;
+		HIO_MEMCPY (sll->sdl_data, ethad, HIO_ETHAD_LEN);
+||||||| .r361
+		sll->sdl_alen = MIO_ETHADDR_LEN;
+		MIO_MEMCPY (sll->sdl_data, ethaddr, MIO_ETHADDR_LEN);
+=======
 		sll->sdl_alen = MIO_ETHAD_LEN;
 		MIO_MEMCPY (sll->sdl_data, ethad, MIO_ETHAD_LEN);
+>>>>>>> .r366
 	}
 #else
 #	error UNSUPPORTED DATALINK SOCKET ADDRESS
 #endif
 }
 
-void mio_clear_skad (mio_skad_t* _skad)
+void hio_clear_skad (hio_skad_t* _skad)
 {
-	mio_skad_alt_t* skad = (mio_skad_alt_t*)_skad;
-	/*MIO_STATIC_ASSERT (MIO_SIZEOF(*_skad) >= MIO_SIZEOF(*skad));*/
-	/* use MIO_SIZEOF(*_skad) instead of MIO_SIZEOF(*skad) in case they are different */
-	MIO_MEMSET (skad, 0, MIO_SIZEOF(*_skad));
-	skad->sa.sa_family = MIO_AF_UNSPEC;
+	hio_skad_alt_t* skad = (hio_skad_alt_t*)_skad;
+	/*HIO_STATIC_ASSERT (HIO_SIZEOF(*_skad) >= HIO_SIZEOF(*skad));*/
+	/* use HIO_SIZEOF(*_skad) instead of HIO_SIZEOF(*skad) in case they are different */
+	HIO_MEMSET (skad, 0, HIO_SIZEOF(*_skad));
+	skad->sa.sa_family = HIO_AF_UNSPEC;
 }
 
-int mio_equal_skads (const mio_skad_t* addr1, const mio_skad_t* addr2, int strict)
+int hio_equal_skads (const hio_skad_t* addr1, const hio_skad_t* addr2, int strict)
 {
 	int f1;
 
-	if ((f1 = mio_skad_family(addr1)) != mio_skad_family(addr2) ||
-	    mio_skad_size(addr1) != mio_skad_size(addr2)) return 0;
+	if ((f1 = hio_skad_family(addr1)) != hio_skad_family(addr2) ||
+	    hio_skad_size(addr1) != hio_skad_size(addr2)) return 0;
 
 	switch (f1)
 	{
-	#if defined(AF_INET) && (MIO_SIZEOF_STRUCT_SOCKADDR_IN > 0)
+	#if defined(AF_INET) && (HIO_SIZEOF_STRUCT_SOCKADDR_IN > 0)
 		case AF_INET:
 			return ((struct sockaddr_in*)addr1)->sin_addr.s_addr == ((struct sockaddr_in*)addr2)->sin_addr.s_addr &&
 			       ((struct sockaddr_in*)addr1)->sin_port == ((struct sockaddr_in*)addr2)->sin_port;
 	#endif
 
-	#if defined(AF_INET6) && (MIO_SIZEOF_STRUCT_SOCKADDR_IN6 > 0)
+	#if defined(AF_INET6) && (HIO_SIZEOF_STRUCT_SOCKADDR_IN6 > 0)
 		case AF_INET6:
 			
 			if (strict)
 			{
 				/* don't care about scope id */
-				return MIO_MEMCMP(&((struct sockaddr_in6*)addr1)->sin6_addr, &((struct sockaddr_in6*)addr2)->sin6_addr, MIO_SIZEOF(((struct sockaddr_in6*)addr2)->sin6_addr)) == 0 &&
+				return HIO_MEMCMP(&((struct sockaddr_in6*)addr1)->sin6_addr, &((struct sockaddr_in6*)addr2)->sin6_addr, HIO_SIZEOF(((struct sockaddr_in6*)addr2)->sin6_addr)) == 0 &&
 				       ((struct sockaddr_in6*)addr1)->sin6_port == ((struct sockaddr_in6*)addr2)->sin6_port &&
 				       ((struct sockaddr_in6*)addr1)->sin6_scope_id == ((struct sockaddr_in6*)addr2)->sin6_scope_id;
 			}
 			else
 			{
-				return MIO_MEMCMP(&((struct sockaddr_in6*)addr1)->sin6_addr, &((struct sockaddr_in6*)addr2)->sin6_addr, MIO_SIZEOF(((struct sockaddr_in6*)addr2)->sin6_addr)) == 0 &&
+				return HIO_MEMCMP(&((struct sockaddr_in6*)addr1)->sin6_addr, &((struct sockaddr_in6*)addr2)->sin6_addr, HIO_SIZEOF(((struct sockaddr_in6*)addr2)->sin6_addr)) == 0 &&
 				       ((struct sockaddr_in6*)addr1)->sin6_port == ((struct sockaddr_in6*)addr2)->sin6_port;
 			}
 	#endif
 
-	#if defined(AF_UNIX) && (MIO_SIZEOF_STRUCT_SOCKADDR_UN > 0)
+	#if defined(AF_UNIX) && (HIO_SIZEOF_STRUCT_SOCKADDR_UN > 0)
 		case AF_UNIX:
-			return mio_comp_bcstr(((struct sockaddr_un*)addr1)->sun_path, ((struct sockaddr_un*)addr2)->sun_path, 0) == 0;
+			return hio_comp_bcstr(((struct sockaddr_un*)addr1)->sun_path, ((struct sockaddr_un*)addr2)->sun_path, 0) == 0;
 	#endif
 
 		default:
-			return MIO_MEMCMP(addr1, addr2, mio_skad_size(addr1)) == 0;
+			return HIO_MEMCMP(addr1, addr2, hio_skad_size(addr1)) == 0;
 	}
 }
 
-mio_oow_t mio_ipad_bytes_to_ucstr (const mio_uint8_t* iptr, mio_oow_t ilen, mio_uch_t* buf, mio_oow_t blen)
+hio_oow_t hio_ipad_bytes_to_ucstr (const hio_uint8_t* iptr, hio_oow_t ilen, hio_uch_t* buf, hio_oow_t blen)
 {
 	switch (ilen)
 	{
+<<<<<<< .mine
+		case HIO_IP4AD_LEN:
+||||||| .r361
+		case MIO_IP4ADDR_LEN:
+=======
 		case MIO_IP4AD_LEN:
+>>>>>>> .r366
 		{
 			struct in_addr ip4ad;
-			MIO_MEMCPY (&ip4ad.s_addr, iptr, ilen);
+			HIO_MEMCPY (&ip4ad.s_addr, iptr, ilen);
 			return ip4ad_to_ucstr(&ip4ad, buf, blen);
 		}
 
+<<<<<<< .mine
+		case HIO_IP6AD_LEN:
+||||||| .r361
+		case MIO_IP6ADDR_LEN:
+=======
 		case MIO_IP6AD_LEN:
+>>>>>>> .r366
 		{
 			struct in6_addr ip6ad;
-			MIO_MEMCPY (&ip6ad.s6_addr, iptr, ilen);
+			HIO_MEMCPY (&ip6ad.s6_addr, iptr, ilen);
 			return ip6ad_to_ucstr(&ip6ad, buf, blen);
 		}
 
@@ -1529,21 +1624,33 @@ mio_oow_t mio_ipad_bytes_to_ucstr (const mio_uint8_t* iptr, mio_oow_t ilen, mio_
 	}
 }
 
-mio_oow_t mio_ipad_bytes_to_bcstr (const mio_uint8_t* iptr, mio_oow_t ilen, mio_bch_t* buf, mio_oow_t blen)
+hio_oow_t hio_ipad_bytes_to_bcstr (const hio_uint8_t* iptr, hio_oow_t ilen, hio_bch_t* buf, hio_oow_t blen)
 {
 	switch (ilen)
 	{
+<<<<<<< .mine
+		case HIO_IP4AD_LEN:
+||||||| .r361
+		case MIO_IP4ADDR_LEN:
+=======
 		case MIO_IP4AD_LEN:
+>>>>>>> .r366
 		{
 			struct in_addr ip4ad;
-			MIO_MEMCPY (&ip4ad.s_addr, iptr, ilen);
+			HIO_MEMCPY (&ip4ad.s_addr, iptr, ilen);
 			return ip4ad_to_bcstr(&ip4ad, buf, blen);
 		}
 
+<<<<<<< .mine
+		case HIO_IP6AD_LEN:
+||||||| .r361
+		case MIO_IP6ADDR_LEN:
+=======
 		case MIO_IP6AD_LEN:
+>>>>>>> .r366
 		{
 			struct in6_addr ip6ad;
-			MIO_MEMCPY (&ip6ad.s6_addr, iptr, ilen);
+			HIO_MEMCPY (&ip6ad.s6_addr, iptr, ilen);
 			return ip6ad_to_bcstr(&ip6ad, buf, blen);
 		}
 
@@ -1553,43 +1660,99 @@ mio_oow_t mio_ipad_bytes_to_bcstr (const mio_uint8_t* iptr, mio_oow_t ilen, mio_
 	}
 }
 
-int mio_uchars_to_ipad_bytes (const mio_uch_t* str, mio_oow_t slen, mio_uint8_t* buf, mio_oow_t blen)
+int hio_uchars_to_ipad_bytes (const hio_uch_t* str, hio_oow_t slen, hio_uint8_t* buf, hio_oow_t blen)
 {
+<<<<<<< .mine
+	if (blen >= HIO_IP6AD_LEN)
+||||||| .r361
+	if (blen >= MIO_IP6ADDR_LEN)
+=======
 	if (blen >= MIO_IP6AD_LEN)
+>>>>>>> .r366
 	{
 		struct in6_addr i6;
 		if (uchars_to_ipv6(str, slen, &i6) <= -1) goto ipv4;
+<<<<<<< .mine
+		HIO_MEMCPY (buf, i6.s6_addr, 16);
+		return HIO_IP6AD_LEN;
+||||||| .r361
+		MIO_MEMCPY (buf, i6.s6_addr, 16);
+		return MIO_IP6ADDR_LEN;
+=======
 		MIO_MEMCPY (buf, i6.s6_addr, 16);
 		return MIO_IP6AD_LEN;
+>>>>>>> .r366
 	}
+<<<<<<< .mine
+	else if (blen >= HIO_IP4AD_LEN)
+||||||| .r361
+	else if (blen >= MIO_IP4ADDR_LEN)
+=======
 	else if (blen >= MIO_IP4AD_LEN)
+>>>>>>> .r366
 	{
 		struct in_addr i4;
 	ipv4:
 		if (uchars_to_ipv4(str, slen, &i4) <= -1) return -1;
+<<<<<<< .mine
+		HIO_MEMCPY (buf, &i4.s_addr, 4);
+		return HIO_IP4AD_LEN;
+||||||| .r361
+		MIO_MEMCPY (buf, &i4.s_addr, 4);
+		return MIO_IP4ADDR_LEN;
+=======
 		MIO_MEMCPY (buf, &i4.s_addr, 4);
 		return MIO_IP4AD_LEN;
+>>>>>>> .r366
 	}
 
 	return -1;
 }
 
-int mio_bchars_to_ipad_bytes (const mio_bch_t* str, mio_oow_t slen, mio_uint8_t* buf, mio_oow_t blen)
+int hio_bchars_to_ipad_bytes (const hio_bch_t* str, hio_oow_t slen, hio_uint8_t* buf, hio_oow_t blen)
 {
+<<<<<<< .mine
+	if (blen >= HIO_IP6AD_LEN)
+||||||| .r361
+	if (blen >= MIO_IP6ADDR_LEN)
+=======
 	if (blen >= MIO_IP6AD_LEN)
+>>>>>>> .r366
 	{
 		struct in6_addr i6;
 		if (bchars_to_ipv6(str, slen, &i6) <= -1) goto ipv4;
+<<<<<<< .mine
+		HIO_MEMCPY (buf, i6.s6_addr, 16);
+		return HIO_IP6AD_LEN;
+||||||| .r361
+		MIO_MEMCPY (buf, i6.s6_addr, 16);
+		return MIO_IP6ADDR_LEN;
+=======
 		MIO_MEMCPY (buf, i6.s6_addr, 16);
 		return MIO_IP6AD_LEN;
+>>>>>>> .r366
 	}
+<<<<<<< .mine
+	else if (blen >= HIO_IP4AD_LEN)
+||||||| .r361
+	else if (blen >= MIO_IP4ADDR_LEN)
+=======
 	else if (blen >= MIO_IP4AD_LEN)
+>>>>>>> .r366
 	{
 		struct in_addr i4;
 	ipv4:
 		if (bchars_to_ipv4(str, slen, &i4) <= -1) return -1;
+<<<<<<< .mine
+		HIO_MEMCPY (buf, &i4.s_addr, 4);
+		return HIO_IP4AD_LEN;
+||||||| .r361
+		MIO_MEMCPY (buf, &i4.s_addr, 4);
+		return MIO_IP4ADDR_LEN;
+=======
 		MIO_MEMCPY (buf, &i4.s_addr, 4);
 		return MIO_IP4AD_LEN;
+>>>>>>> .r366
 	}
 
 	return -1;

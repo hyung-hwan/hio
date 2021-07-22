@@ -24,12 +24,12 @@
     THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  */
 
-#ifndef _MIO_SYS_PRV_H_
-#define _MIO_SYS_PRV_H_
+#ifndef _HIO_SYS_PRV_H_
+#define _HIO_SYS_PRV_H_
 
 /* this is a private header file used by sys-XXX files */
 
-#include "mio-prv.h"
+#include "hio-prv.h"
 
 #if defined(HAVE_SYS_EPOLL_H)
 #	include <sys/epoll.h>
@@ -47,21 +47,21 @@
 
 #if defined(USE_POLL)
 
-struct mio_sys_mux_t
+struct hio_sys_mux_t
 {
 	struct
 	{
-		mio_oow_t* ptr;
-		mio_oow_t  size;
-		mio_oow_t  capa;
+		hio_oow_t* ptr;
+		hio_oow_t  size;
+		hio_oow_t  capa;
 	} map; /* handle to index */
 
 	struct
 	{
 		struct pollfd* pfd;
-		mio_dev_t** dptr;
-		mio_oow_t size;
-		mio_oow_t capa;
+		hio_dev_t** dptr;
+		hio_oow_t size;
+		hio_oow_t capa;
 	} pd; /* poll data */
 
 	int ctrlp[2];
@@ -69,7 +69,7 @@ struct mio_sys_mux_t
 
 #elif defined(USE_EPOLL)
 
-struct mio_sys_mux_t
+struct hio_sys_mux_t
 {
 	int hnd;
 	struct epoll_event revs[1024]; /* TODO: is it a good size? */
@@ -79,28 +79,28 @@ struct mio_sys_mux_t
 
 #endif
 
-typedef struct mio_sys_mux_t mio_sys_mux_t;
+typedef struct hio_sys_mux_t hio_sys_mux_t;
 
 /* -------------------------------------------------------------------------- */
 
-struct mio_sys_log_t
+struct hio_sys_log_t
 {
 	int fd;
 	int fd_flag; /* bitwise OR'ed of logfd_flag_t bits */
 
 	struct
 	{
-		mio_bch_t buf[4096];
-		mio_oow_t len;
+		hio_bch_t buf[4096];
+		hio_oow_t len;
 	} out;
 
 	pthread_mutex_t mtx;
 };
-typedef struct mio_sys_log_t mio_sys_log_t;
+typedef struct hio_sys_log_t hio_sys_log_t;
 
 /* -------------------------------------------------------------------------- */
 
-struct mio_sys_time_t
+struct hio_sys_time_t
 {
 #if defined(_WIN32)
 	HANDLE waitable_timer;
@@ -108,23 +108,23 @@ struct mio_sys_time_t
 	DWORD tc_overflow;
 #elif defined(__OS2__)
 	ULONG tc_last;
-	mio_ntime_t tc_last_ret;
+	hio_ntime_t tc_last_ret;
 #elif defined(__DOS__)
 	clock_t tc_last;
-	mio_ntime_t tc_last_ret;
+	hio_ntime_t tc_last_ret;
 #else
 	/* nothing */
 #endif
 };
 
-typedef struct mio_sys_time_t mio_sys_time_t;
+typedef struct hio_sys_time_t hio_sys_time_t;
 
 /* -------------------------------------------------------------------------- */
-struct mio_sys_t
+struct hio_sys_t
 {
-	mio_sys_log_t log;
-	mio_sys_mux_t mux;
-	mio_sys_time_t time;
+	hio_sys_log_t log;
+	hio_sys_mux_t mux;
+	hio_sys_time_t time;
 };
 
 /* -------------------------------------------------------------------------- */
@@ -133,28 +133,28 @@ struct mio_sys_t
 extern "C" {
 #endif
 
-int mio_sys_initlog (
-	mio_t* mio
+int hio_sys_initlog (
+	hio_t* hio
 );
 
-void mio_sys_finilog (
-	mio_t* mio
+void hio_sys_finilog (
+	hio_t* hio
 );
 
-int mio_sys_initmux (
-	mio_t* mio
+int hio_sys_initmux (
+	hio_t* hio
 );
 
-void mio_sys_finimux (
-	mio_t* mio
+void hio_sys_finimux (
+	hio_t* hio
 );
 
-int mio_sys_inittime (
-	mio_t* mio
+int hio_sys_inittime (
+	hio_t* hio
 );
 
-void mio_sys_finitime (
-	mio_t* mio
+void hio_sys_finitime (
+	hio_t* hio
 );
 
 #if defined(__cplusplus)

@@ -24,14 +24,14 @@
     THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  */
 
-#include "mio-opt.h"
-#include "mio-utl.h"
+#include "hio-opt.h"
+#include "hio-utl.h"
 
 #define BADCH   '?'
 #define BADARG  ':'
 
-static mio_uch_t EMSG_UCH[] = { '\0' };
-static mio_bch_t EMSG_BCH[] = { '\0' };
+static hio_uch_t EMSG_UCH[] = { '\0' };
+static hio_bch_t EMSG_BCH[] = { '\0' };
 
 /* ------------------------------------------------------------ */
 
@@ -46,14 +46,14 @@ static mio_bch_t EMSG_BCH[] = { '\0' };
 #undef XCI_EOF
 
 #define XEMSG EMSG_UCH
-#define xch_t mio_uch_t
-#define xci_t mio_uci_t
-#define xopt_t mio_uopt_t
-#define xopt_lng_t mio_uopt_lng_t
-#define xgetopt mio_getuopt
-#define xcompcharscstr mio_comp_uchars_ucstr
-#define xfindcharincstr mio_find_uchar_in_ucstr
-#define XCI_EOF MIO_BCI_EOF
+#define xch_t hio_uch_t
+#define xci_t hio_uci_t
+#define xopt_t hio_uopt_t
+#define xopt_lng_t hio_uopt_lng_t
+#define xgetopt hio_getuopt
+#define xcompcharscstr hio_comp_uchars_ucstr
+#define xfindcharincstr hio_find_uchar_in_ucstr
+#define XCI_EOF HIO_BCI_EOF
 #include "opt-imp.h"
 
 /* ------------------------------------------------------------ */
@@ -69,14 +69,14 @@ static mio_bch_t EMSG_BCH[] = { '\0' };
 #undef XCI_EOF
 
 #define XEMSG EMSG_BCH
-#define xch_t mio_bch_t
-#define xci_t mio_bci_t
-#define xopt_t mio_bopt_t
-#define xopt_lng_t mio_bopt_lng_t
-#define xgetopt mio_getbopt
-#define xcompcharscstr mio_comp_bchars_bcstr
-#define xfindcharincstr mio_find_bchar_in_bcstr
-#define XCI_EOF MIO_UCI_EOF
+#define xch_t hio_bch_t
+#define xci_t hio_bci_t
+#define xopt_t hio_bopt_t
+#define xopt_lng_t hio_bopt_lng_t
+#define xgetopt hio_getbopt
+#define xcompcharscstr hio_comp_bchars_bcstr
+#define xfindcharincstr hio_find_bchar_in_bcstr
+#define XCI_EOF HIO_UCI_EOF
 #include "opt-imp.h"
 
 /* ------------------------------------------------------------ */

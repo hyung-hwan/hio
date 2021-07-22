@@ -25,8 +25,8 @@
  */
 
 
-#include <mio-sck.h>
-#include "mio-prv.h"
+#include <hio-sck.h>
+#include "hio-prv.h"
 
 #include <sys/socket.h>
 #include <fcntl.h>
@@ -88,9 +88,9 @@
 
 /* ========================================================================= */
 
-static mio_syshnd_t open_async_socket (mio_t* mio, int domain, int type, int proto)
+static hio_syshnd_t open_async_socket (hio_t* hio, int domain, int type, int proto)
 {
-	mio_syshnd_t sck = MIO_SYSHND_INVALID;
+	hio_syshnd_t sck = HIO_SYSHND_INVALID;
 	int flags;
 
 #if defined(SOCK_NONBLOCK) && defined(SOCK_CLOEXEC)
@@ -98,7 +98,7 @@ static mio_syshnd_t open_async_socket (mio_t* mio, int domain, int type, int pro
 open_socket:
 #endif
 	sck = socket(domain, type, proto); 
-	if (sck == MIO_SYSHND_INVALID) 
+	if (sck == HIO_SYSHND_INVALID) 
 	{
 	#if defined(SOCK_NONBLOCK) && defined(SOCK_CLOEXEC)
 		if (errno == EINVAL && (type & (SOCK_NONBLOCK | SOCK_CLOEXEC)))
@@ -116,19 +116,19 @@ open_socket:
 	#endif
 	}
 
-	if (mio_makesyshndasync(mio, sck) <= -1 ||
-	    mio_makesyshndcloexec(mio, sck) <= -1) goto oops;
+	if (hio_makesyshndasync(hio, sck) <= -1 ||
+	    hio_makesyshndcloexec(hio, sck) <= -1) goto oops;
 
 done:
 	return sck;
 
 oops:
-	mio_seterrwithsyserr (mio, 0, errno);
-	if (sck != MIO_SYSHND_INVALID) close (sck);
-	return MIO_SYSHND_INVALID;
+	hio_seterrwithsyserr (hio, 0, errno);
+	if (sck != HIO_SYSHND_INVALID) close (sck);
+	return HIO_SYSHND_INVALID;
 }
 
-static mio_syshnd_t open_async_qx (mio_t* mio, mio_syshnd_t* side_chan)
+static hio_syshnd_t open_async_qx (hio_t* hio, hio_syshnd_t* side_chan)
 {
 	int fd[2];
 	int type = SOCK_DGRAM;
@@ -146,8 +146,8 @@ open_socket:
 			goto open_socket;
 		}
 	#endif
-		mio_seterrwithsyserr (mio, 0, errno);
-		return MIO_SYSHND_INVALID;
+		hio_seterrwithsyserr (hio, 0, errno);
+		return HIO_SYSHND_INVALID;
 	}
 	else
 	{
@@ -156,15 +156,15 @@ open_socket:
 	#endif
 	}
 
-	if (mio_makesyshndasync(mio, fd[0]) <= -1 ||
-	    mio_makesyshndasync(mio, fd[1]) <= -1 ||
-	    mio_makesyshndcloexec(mio, fd[0]) <= -1 ||
-	    mio_makesyshndcloexec(mio, fd[1]) <= -1) 
+	if (hio_makesyshndasync(hio, fd[0]) <= -1 ||
+	    hio_makesyshndasync(hio, fd[1]) <= -1 ||
+	    hio_makesyshndcloexec(hio, fd[0]) <= -1 ||
+	    hio_makesyshndcloexec(hio, fd[1]) <= -1) 
 	{
-		mio_seterrwithsyserr (mio, 0, errno);
+		hio_seterrwithsyserr (hio, 0, errno);
 		close (fd[0]);
 		close (fd[1]);
-		return MIO_SYSHND_INVALID;
+		return HIO_SYSHND_INVALID;
 	}
 
 done:
@@ -172,14 +172,14 @@ done:
 	return fd[0]; /* read end of the pipe */
 }
 
-static mio_syshnd_t open_async_bpf (mio_t* mio)
+static hio_syshnd_t open_async_bpf (hio_t* hio)
 {
-	mio_syshnd_t fd = MIO_SYSHND_INVALID;
+	hio_syshnd_t fd = HIO_SYSHND_INVALID;
 	int tmp;
 	unsigned int bufsize;
 
 	fd = open("/dev/bpf", O_RDWR);
-	if (fd == MIO_SYSHND_INVALID) goto oops;
+	if (fd == HIO_SYSHND_INVALID) goto oops;
 
 #if 0
 	if (ioctl(fd, BIOCIMMEDIATE, &tmp) == -1) goto oops;
@@ -188,33 +188,33 @@ static mio_syshnd_t open_async_bpf (mio_t* mio)
 
 	return fd;
 oops:
-	mio_seterrwithsyserr (mio, 0, errno);
-	if (fd != MIO_SYSHND_INVALID) close (fd);
-	return MIO_SYSHND_INVALID;
+	hio_seterrwithsyserr (hio, 0, errno);
+	if (fd != HIO_SYSHND_INVALID) close (fd);
+	return HIO_SYSHND_INVALID;
 }
 
 /* ========================================================================= */
 
-static mio_devaddr_t* skad_to_devaddr (mio_dev_sck_t* dev, const mio_skad_t* sckaddr, mio_devaddr_t* devaddr)
+static hio_devaddr_t* skad_to_devaddr (hio_dev_sck_t* dev, const hio_skad_t* sckaddr, hio_devaddr_t* devaddr)
 {
 	if (sckaddr)
 	{
 		devaddr->ptr = (void*)sckaddr;
-		devaddr->len = mio_skad_size(sckaddr);
+		devaddr->len = hio_skad_size(sckaddr);
 		return devaddr;
 	}
 
-	return MIO_NULL;
+	return HIO_NULL;
 }
 
-static MIO_INLINE mio_skad_t* devaddr_to_skad (mio_dev_sck_t* dev, const mio_devaddr_t* devaddr, mio_skad_t* sckaddr)
+static HIO_INLINE hio_skad_t* devaddr_to_skad (hio_dev_sck_t* dev, const hio_devaddr_t* devaddr, hio_skad_t* sckaddr)
 {
-	return (mio_skad_t*)devaddr->ptr;
+	return (hio_skad_t*)devaddr->ptr;
 }
 
 /* ========================================================================= */
 
-#define IS_STATEFUL(sck) ((sck)->dev_cap & MIO_DEV_CAP_STREAM)
+#define IS_STATEFUL(sck) ((sck)->dev_cap & HIO_DEV_CAP_STREAM)
 
 struct sck_type_map_t
 {
@@ -229,138 +229,138 @@ struct sck_type_map_t
 
 static struct sck_type_map_t sck_type_map[] =
 {
-	/* MIO_DEV_SCK_QX */
+	/* HIO_DEV_SCK_QX */
 	{ __AF_QX,    0,              0,                         0 },
 
-	/* MIO_DEV_SCK_TCP4 */
-	{ AF_INET,    SOCK_STREAM,    0,                         MIO_DEV_CAP_STREAM },
+	/* HIO_DEV_SCK_TCP4 */
+	{ AF_INET,    SOCK_STREAM,    0,                         HIO_DEV_CAP_STREAM },
 
-	/* MIO_DEV_SCK_TCP6 */
-	{ AF_INET6,   SOCK_STREAM,    0,                         MIO_DEV_CAP_STREAM },
+	/* HIO_DEV_SCK_TCP6 */
+	{ AF_INET6,   SOCK_STREAM,    0,                         HIO_DEV_CAP_STREAM },
 
-	/* MIO_DEV_SCK_UPD4 */
+	/* HIO_DEV_SCK_UPD4 */
 	{ AF_INET,    SOCK_DGRAM,     0,                         0                                             },
 
-	/* MIO_DEV_SCK_UDP6 */
+	/* HIO_DEV_SCK_UDP6 */
 	{ AF_INET6,   SOCK_DGRAM,     0,                         0                                             },
 
-	/* MIO_DEV_SCK_ICMP4 - IP protocol field is 1 byte only. no byte order conversion is needed */
+	/* HIO_DEV_SCK_ICMP4 - IP protocol field is 1 byte only. no byte order conversion is needed */
 	{ AF_INET,    SOCK_RAW,       IPPROTO_ICMP,              0,                                             },
 
-	/* MIO_DEV_SCK_ICMP6 - IP protocol field is 1 byte only. no byte order conversion is needed */
+	/* HIO_DEV_SCK_ICMP6 - IP protocol field is 1 byte only. no byte order conversion is needed */
 	{ AF_INET6,   SOCK_RAW,       IPPROTO_ICMP,              0,                                             },
 
-#if defined(AF_PACKET) && (MIO_SIZEOF_STRUCT_SOCKADDR_LL > 0)
-	/* MIO_DEV_SCK_ARP - Ethernet type is 2 bytes long. Protocol must be specified in the network byte order */
-	{ AF_PACKET,  SOCK_RAW,       MIO_CONST_HTON16(MIO_ETHHDR_PROTO_ARP), 0                                 },
+#if defined(AF_PACKET) && (HIO_SIZEOF_STRUCT_SOCKADDR_LL > 0)
+	/* HIO_DEV_SCK_ARP - Ethernet type is 2 bytes long. Protocol must be specified in the network byte order */
+	{ AF_PACKET,  SOCK_RAW,       HIO_CONST_HTON16(HIO_ETHHDR_PROTO_ARP), 0                                 },
 
-	/* MIO_DEV_SCK_ARP_DGRAM - link-level header removed*/
-	{ AF_PACKET,  SOCK_DGRAM,     MIO_CONST_HTON16(MIO_ETHHDR_PROTO_ARP), 0                                 },
+	/* HIO_DEV_SCK_ARP_DGRAM - link-level header removed*/
+	{ AF_PACKET,  SOCK_DGRAM,     HIO_CONST_HTON16(HIO_ETHHDR_PROTO_ARP), 0                                 },
 
-#elif defined(AF_LINK) && (MIO_SIZEOF_STRUCT_SOCKADDR_DL > 0)
-	/* MIO_DEV_SCK_ARP */
-	{ AF_LINK,  SOCK_RAW,         MIO_CONST_HTON16(MIO_ETHHDR_PROTO_ARP), 0                                 },
+#elif defined(AF_LINK) && (HIO_SIZEOF_STRUCT_SOCKADDR_DL > 0)
+	/* HIO_DEV_SCK_ARP */
+	{ AF_LINK,  SOCK_RAW,         HIO_CONST_HTON16(HIO_ETHHDR_PROTO_ARP), 0                                 },
 
-	/* MIO_DEV_SCK_ARP_DGRAM */
-	{ AF_LINK,  SOCK_DGRAM,       MIO_CONST_HTON16(MIO_ETHHDR_PROTO_ARP), 0                                 },
+	/* HIO_DEV_SCK_ARP_DGRAM */
+	{ AF_LINK,  SOCK_DGRAM,       HIO_CONST_HTON16(HIO_ETHHDR_PROTO_ARP), 0                                 },
 #else
 	{ -1,       0,                0,                         0                                              },
 	{ -1,       0,                0,                         0                                              },
 #endif
 
-#if defined(AF_PACKET) && (MIO_SIZEOF_STRUCT_SOCKADDR_LL > 0)
-	/* MIO_DEV_SCK_PACKET */
-	{ AF_PACKET,  SOCK_RAW,       MIO_CONST_HTON16(ETH_P_ALL), 0                                            },
-#elif defined(AF_LINK) && (MIO_SIZEOF_STRUCT_SOCKADDR_DL > 0)
-	/* MIO_DEV_SCK_PACKET */
-	{ AF_LINK,    SOCK_RAW,       MIO_CONST_HTON16(0),       0                                              },
+#if defined(AF_PACKET) && (HIO_SIZEOF_STRUCT_SOCKADDR_LL > 0)
+	/* HIO_DEV_SCK_PACKET */
+	{ AF_PACKET,  SOCK_RAW,       HIO_CONST_HTON16(ETH_P_ALL), 0                                            },
+#elif defined(AF_LINK) && (HIO_SIZEOF_STRUCT_SOCKADDR_DL > 0)
+	/* HIO_DEV_SCK_PACKET */
+	{ AF_LINK,    SOCK_RAW,       HIO_CONST_HTON16(0),       0                                              },
 #else
 	{ -1,       0,                0,                         0                                              },
 #endif
 
 
-	/* MIO_DEV_SCK_BPF - arp */
+	/* HIO_DEV_SCK_BPF - arp */
 	{ __AF_BPF, 0, 0, 0 } /* not implemented yet */
 };
 
 /* ======================================================================== */
 
-static void connect_timedout (mio_t* mio, const mio_ntime_t* now, mio_tmrjob_t* job)
+static void connect_timedout (hio_t* hio, const hio_ntime_t* now, hio_tmrjob_t* job)
 {
-	mio_dev_sck_t* rdev = (mio_dev_sck_t*)job->ctx;
+	hio_dev_sck_t* rdev = (hio_dev_sck_t*)job->ctx;
 
-	MIO_ASSERT (mio, IS_STATEFUL(rdev));
+	HIO_ASSERT (hio, IS_STATEFUL(rdev));
 
-	if (rdev->state & MIO_DEV_SCK_CONNECTING)
+	if (rdev->state & HIO_DEV_SCK_CONNECTING)
 	{
-		/* the state check for MIO_DEV_TCP_CONNECTING is actually redundant
+		/* the state check for HIO_DEV_TCP_CONNECTING is actually redundant
 		 * as it must not be fired  after it gets connected. the timer job 
 		 * doesn't need to be deleted when it gets connected for this check 
 		 * here. this libarary, however, deletes the job when it gets 
 		 * connected. */
-		MIO_DEBUG1 (mio, "SCK(%p) - connect timed out. halting\n", rdev);
-		mio_dev_sck_halt (rdev);
+		HIO_DEBUG1 (hio, "SCK(%p) - connect timed out. halting\n", rdev);
+		hio_dev_sck_halt (rdev);
 	}
 }
 
-static void ssl_accept_timedout (mio_t* mio, const mio_ntime_t* now, mio_tmrjob_t* job)
+static void ssl_accept_timedout (hio_t* hio, const hio_ntime_t* now, hio_tmrjob_t* job)
 {
-	mio_dev_sck_t* rdev = (mio_dev_sck_t*)job->ctx;
+	hio_dev_sck_t* rdev = (hio_dev_sck_t*)job->ctx;
 
-	MIO_ASSERT (mio, IS_STATEFUL(rdev));
+	HIO_ASSERT (hio, IS_STATEFUL(rdev));
 
-	if (rdev->state & MIO_DEV_SCK_ACCEPTING_SSL)
+	if (rdev->state & HIO_DEV_SCK_ACCEPTING_SSL)
 	{
-		MIO_DEBUG1 (mio, "SCK(%p) - ssl-accept timed out. halting\n", rdev);
-		mio_dev_sck_halt(rdev);
+		HIO_DEBUG1 (hio, "SCK(%p) - ssl-accept timed out. halting\n", rdev);
+		hio_dev_sck_halt(rdev);
 	}
 }
 
-static void ssl_connect_timedout (mio_t* mio, const mio_ntime_t* now, mio_tmrjob_t* job)
+static void ssl_connect_timedout (hio_t* hio, const hio_ntime_t* now, hio_tmrjob_t* job)
 {
-	mio_dev_sck_t* rdev = (mio_dev_sck_t*)job->ctx;
+	hio_dev_sck_t* rdev = (hio_dev_sck_t*)job->ctx;
 
-	MIO_ASSERT (mio, IS_STATEFUL(rdev));
+	HIO_ASSERT (hio, IS_STATEFUL(rdev));
 
-	if (rdev->state & MIO_DEV_SCK_CONNECTING_SSL)
+	if (rdev->state & HIO_DEV_SCK_CONNECTING_SSL)
 	{
-		MIO_DEBUG1 (mio, "SCK(%p) - ssl-connect timed out. halting\n", rdev);
-		mio_dev_sck_halt(rdev);
+		HIO_DEBUG1 (hio, "SCK(%p) - ssl-connect timed out. halting\n", rdev);
+		hio_dev_sck_halt(rdev);
 	}
 }
 
-static MIO_INLINE int schedule_timer_job_at (mio_dev_sck_t* dev, const mio_ntime_t* fire_at, mio_tmrjob_handler_t handler)
+static HIO_INLINE int schedule_timer_job_at (hio_dev_sck_t* dev, const hio_ntime_t* fire_at, hio_tmrjob_handler_t handler)
 {
 #if 1
-	return mio_schedtmrjobat(dev->mio, fire_at, handler, &dev->tmrjob_index, dev);
+	return hio_schedtmrjobat(dev->hio, fire_at, handler, &dev->tmrjob_index, dev);
 #else
-	mio_tmrjob_t tmrjob;
+	hio_tmrjob_t tmrjob;
 
-	MIO_MEMSET (&tmrjob, 0, MIO_SIZEOF(tmrjob));
+	HIO_MEMSET (&tmrjob, 0, HIO_SIZEOF(tmrjob));
 	tmrjob.ctx = dev;
 	tmrjob.when = *fire_at;
 
 	tmrjob.handler = handler;
 	tmrjob.idxptr = &dev->tmrjob_index;
 
-	MIO_ASSERT (dev->mio, dev->tmrjob_index == MIO_TMRIDX_INVALID);
-	dev->tmrjob_index = mio_instmrjob(dev->mio, &tmrjob);
-	return dev->tmrjob_index == MIO_TMRIDX_INVALID? -1: 0;
+	HIO_ASSERT (dev->hio, dev->tmrjob_index == HIO_TMRIDX_INVALID);
+	dev->tmrjob_index = hio_instmrjob(dev->hio, &tmrjob);
+	return dev->tmrjob_index == HIO_TMRIDX_INVALID? -1: 0;
 #endif
 }
 
-static MIO_INLINE int schedule_timer_job_after (mio_dev_sck_t* dev, const mio_ntime_t* fire_after, mio_tmrjob_handler_t handler)
+static HIO_INLINE int schedule_timer_job_after (hio_dev_sck_t* dev, const hio_ntime_t* fire_after, hio_tmrjob_handler_t handler)
 {
 #if 1
-	return mio_schedtmrjobafter(dev->mio, fire_after, handler, &dev->tmrjob_index, dev);
+	return hio_schedtmrjobafter(dev->hio, fire_after, handler, &dev->tmrjob_index, dev);
 #else
-	mio_t* mio = dev->mio;
-	mio_ntime_t fire_at;
+	hio_t* hio = dev->hio;
+	hio_ntime_t fire_at;
 
-	MIO_ASSERT (mio, MIO_IS_POS_NTIME(fire_after));
+	HIO_ASSERT (hio, HIO_IS_POS_NTIME(fire_after));
 
-	mio_gettime (mio, &fire_at);
-	MIO_ADD_NTIME (&fire_at, &fire_at, fire_after);
+	hio_gettime (hio, &fire_at);
+	HIO_ADD_NTIME (&fire_at, &fire_at, fire_after);
 
 	return schedule_timer_job_at(dev, &fire_at, handler);
 #endif
@@ -368,49 +368,49 @@ static MIO_INLINE int schedule_timer_job_after (mio_dev_sck_t* dev, const mio_nt
 
 /* ======================================================================== */
 #if defined(USE_SSL)
-static void set_ssl_error (mio_t* mio, int sslerr)
+static void set_ssl_error (hio_t* hio, int sslerr)
 {
-	mio_bch_t emsg[128];
-	ERR_error_string_n (sslerr, emsg, MIO_COUNTOF(emsg));
-	mio_seterrbfmt (mio, MIO_ESYSERR, "%hs", emsg);
+	hio_bch_t emsg[128];
+	ERR_error_string_n (sslerr, emsg, HIO_COUNTOF(emsg));
+	hio_seterrbfmt (hio, HIO_ESYSERR, "%hs", emsg);
 }
 #endif
 
-static int dev_sck_make (mio_dev_t* dev, void* ctx)
+static int dev_sck_make (hio_dev_t* dev, void* ctx)
 {
-	mio_t* mio = dev->mio;
-	mio_dev_sck_t* rdev = (mio_dev_sck_t*)dev;
-	mio_dev_sck_make_t* arg = (mio_dev_sck_make_t*)ctx;
-	mio_syshnd_t hnd = MIO_SYSHND_INVALID;
-	mio_syshnd_t side_chan = MIO_SYSHND_INVALID;
+	hio_t* hio = dev->hio;
+	hio_dev_sck_t* rdev = (hio_dev_sck_t*)dev;
+	hio_dev_sck_make_t* arg = (hio_dev_sck_make_t*)ctx;
+	hio_syshnd_t hnd = HIO_SYSHND_INVALID;
+	hio_syshnd_t side_chan = HIO_SYSHND_INVALID;
 
-	MIO_ASSERT (mio, arg->type >= 0 && arg->type < MIO_COUNTOF(sck_type_map));
+	HIO_ASSERT (hio, arg->type >= 0 && arg->type < HIO_COUNTOF(sck_type_map));
 
 	/* initialize some fields first where 0 is not somthing initial or invalid. */
-	rdev->hnd = MIO_SYSHND_INVALID;
-	rdev->side_chan = MIO_SYSHND_INVALID;
-	rdev->tmrjob_index = MIO_TMRIDX_INVALID;
+	rdev->hnd = HIO_SYSHND_INVALID;
+	rdev->side_chan = HIO_SYSHND_INVALID;
+	rdev->tmrjob_index = HIO_TMRIDX_INVALID;
 
 	if (sck_type_map[arg->type].domain <= -1)
 	{
-		mio_seterrnum (mio, MIO_ENOIMPL); /* TODO: better error info? */
+		hio_seterrnum (hio, HIO_ENOIMPL); /* TODO: better error info? */
 		goto oops;
 	}
 
-	if (MIO_UNLIKELY(sck_type_map[arg->type].domain == __AF_QX))
+	if (HIO_UNLIKELY(sck_type_map[arg->type].domain == __AF_QX))
 	{
-		hnd = open_async_qx(mio, &side_chan);
-		if (hnd == MIO_SYSHND_INVALID) goto oops;
+		hnd = open_async_qx(hio, &side_chan);
+		if (hnd == HIO_SYSHND_INVALID) goto oops;
 	}
 	else
 	{
-		hnd = open_async_socket(mio, sck_type_map[arg->type].domain, sck_type_map[arg->type].type, sck_type_map[arg->type].proto);
-		if (hnd == MIO_SYSHND_INVALID) goto oops;
+		hnd = open_async_socket(hio, sck_type_map[arg->type].domain, sck_type_map[arg->type].type, sck_type_map[arg->type].proto);
+		if (hnd == HIO_SYSHND_INVALID) goto oops;
 	}
 
 	rdev->hnd = hnd;
 	rdev->side_chan = side_chan;
-	rdev->dev_cap = MIO_DEV_CAP_IN | MIO_DEV_CAP_OUT | sck_type_map[arg->type].extra_dev_cap;
+	rdev->dev_cap = HIO_DEV_CAP_IN | HIO_DEV_CAP_OUT | sck_type_map[arg->type].extra_dev_cap;
 	rdev->on_write = arg->on_write;
 	rdev->on_read = arg->on_read;
 	rdev->on_connect = arg->on_connect;
@@ -418,27 +418,27 @@ static int dev_sck_make (mio_dev_t* dev, void* ctx)
 	rdev->on_raw_accept = arg->on_raw_accept;
 	rdev->type = arg->type;
 
-	if (arg->options & MIO_DEV_SCK_MAKE_LENIENT) rdev->state |= MIO_DEV_SCK_LENIENT;
+	if (arg->options & HIO_DEV_SCK_MAKE_LENIENT) rdev->state |= HIO_DEV_SCK_LENIENT;
 
 	return 0;
 
 oops:
-	if (hnd != MIO_SYSHND_INVALID) 
+	if (hnd != HIO_SYSHND_INVALID) 
 	{
 		close (hnd);
 	}
-	if (side_chan != MIO_SYSHND_INVALID) 
+	if (side_chan != HIO_SYSHND_INVALID) 
 	{
 		close (side_chan);
 	}
 	return -1;
 }
 
-static int dev_sck_make_client (mio_dev_t* dev, void* ctx)
+static int dev_sck_make_client (hio_dev_t* dev, void* ctx)
 {
-	mio_t* mio = dev->mio;
-	mio_dev_sck_t* rdev = (mio_dev_sck_t*)dev;
-	mio_syshnd_t* clisckhnd = (mio_syshnd_t*)ctx;
+	hio_t* hio = dev->hio;
+	hio_dev_sck_t* rdev = (hio_dev_sck_t*)dev;
+	hio_syshnd_t* clisckhnd = (hio_syshnd_t*)ctx;
 
 	/* create a socket device that is made of a socket connection
 	 * on a listening socket.
@@ -447,54 +447,54 @@ static int dev_sck_make_client (mio_dev_t* dev, void* ctx)
 	 * after a client socket has been created. */
 
 	rdev->hnd = *clisckhnd;
-	rdev->tmrjob_index = MIO_TMRIDX_INVALID;
-	rdev->side_chan = MIO_SYSHND_INVALID;
+	rdev->tmrjob_index = HIO_TMRIDX_INVALID;
+	rdev->side_chan = HIO_SYSHND_INVALID;
 
-	if (mio_makesyshndasync(mio, rdev->hnd) <= -1 ||
-	    mio_makesyshndcloexec(mio, rdev->hnd) <= -1) goto oops;
+	if (hio_makesyshndasync(hio, rdev->hnd) <= -1 ||
+	    hio_makesyshndcloexec(hio, rdev->hnd) <= -1) goto oops;
 
 	return 0;
 
 oops:
-	if (rdev->hnd != MIO_SYSHND_INVALID)
+	if (rdev->hnd != HIO_SYSHND_INVALID)
 	{
 		close (rdev->hnd);
-		rdev->hnd = MIO_SYSHND_INVALID;
+		rdev->hnd = HIO_SYSHND_INVALID;
 	}
 	return -1;
 }
 
 static void dev_sck_fail_before_make_client (void* ctx)
 {
-	mio_syshnd_t* clisckhnd = (mio_syshnd_t*)ctx;
+	hio_syshnd_t* clisckhnd = (hio_syshnd_t*)ctx;
 	close (*clisckhnd);
 }
 
-static int dev_sck_kill (mio_dev_t* dev, int force)
+static int dev_sck_kill (hio_dev_t* dev, int force)
 {
-	mio_t* mio = dev->mio;
-	mio_dev_sck_t* rdev = (mio_dev_sck_t*)dev;
+	hio_t* hio = dev->hio;
+	hio_dev_sck_t* rdev = (hio_dev_sck_t*)dev;
 
 	if (IS_STATEFUL(rdev))
 	{
-		/*if (MIO_DEV_SCK_GET_PROGRESS(rdev))
+		/*if (HIO_DEV_SCK_GET_PROGRESS(rdev))
 		{*/
-			/* for MIO_DEV_SCK_CONNECTING, MIO_DEV_SCK_CONNECTING_SSL, and MIO_DEV_SCK_ACCEPTING_SSL
+			/* for HIO_DEV_SCK_CONNECTING, HIO_DEV_SCK_CONNECTING_SSL, and HIO_DEV_SCK_ACCEPTING_SSL
 			 * on_disconnect() is called without corresponding on_connect(). 
 			 * it is the same if connect or accept has not been called. */
 			if (rdev->on_disconnect) rdev->on_disconnect (rdev);
 		/*}*/
 
-		if (rdev->tmrjob_index != MIO_TMRIDX_INVALID)
+		if (rdev->tmrjob_index != HIO_TMRIDX_INVALID)
 		{
-			mio_deltmrjob (mio, rdev->tmrjob_index);
-			MIO_ASSERT (mio, rdev->tmrjob_index == MIO_TMRIDX_INVALID);
+			hio_deltmrjob (hio, rdev->tmrjob_index);
+			HIO_ASSERT (hio, rdev->tmrjob_index == HIO_TMRIDX_INVALID);
 		}
 	}
 	else
 	{
-		MIO_ASSERT (mio, (rdev->state & MIO_DEV_SCK_ALL_PROGRESS_BITS) == 0);
-		MIO_ASSERT (mio, rdev->tmrjob_index == MIO_TMRIDX_INVALID);
+		HIO_ASSERT (hio, (rdev->state & HIO_DEV_SCK_ALL_PROGRESS_BITS) == 0);
+		HIO_ASSERT (hio, rdev->tmrjob_index == HIO_TMRIDX_INVALID);
 
 		if (rdev->on_disconnect) rdev->on_disconnect (rdev);
 	}
@@ -504,40 +504,40 @@ static int dev_sck_kill (mio_dev_t* dev, int force)
 	{
 		SSL_shutdown ((SSL*)rdev->ssl); /* is this needed? */
 		SSL_free ((SSL*)rdev->ssl);
-		rdev->ssl = MIO_NULL;
+		rdev->ssl = HIO_NULL;
 	}
-	if (!(rdev->state & (MIO_DEV_SCK_ACCEPTED | MIO_DEV_SCK_ACCEPTING_SSL)) && rdev->ssl_ctx)
+	if (!(rdev->state & (HIO_DEV_SCK_ACCEPTED | HIO_DEV_SCK_ACCEPTING_SSL)) && rdev->ssl_ctx)
 	{
 		SSL_CTX_free ((SSL_CTX*)rdev->ssl_ctx);
-		rdev->ssl_ctx = MIO_NULL;
+		rdev->ssl_ctx = HIO_NULL;
 	}
 #endif
 
-	if (rdev->hnd != MIO_SYSHND_INVALID) 
+	if (rdev->hnd != HIO_SYSHND_INVALID) 
 	{
 		close (rdev->hnd);
-		rdev->hnd = MIO_SYSHND_INVALID;
+		rdev->hnd = HIO_SYSHND_INVALID;
 	}
 
-	if (rdev->side_chan != MIO_SYSHND_INVALID)
+	if (rdev->side_chan != HIO_SYSHND_INVALID)
 	{
 		close (rdev->side_chan);
-		rdev->side_chan = MIO_SYSHND_INVALID;
+		rdev->side_chan = HIO_SYSHND_INVALID;
 	}
 	return 0;
 }
 
-static mio_syshnd_t dev_sck_getsyshnd (mio_dev_t* dev)
+static hio_syshnd_t dev_sck_getsyshnd (hio_dev_t* dev)
 {
-	mio_dev_sck_t* rdev = (mio_dev_sck_t*)dev;
-	return (mio_syshnd_t)rdev->hnd;
+	hio_dev_sck_t* rdev = (hio_dev_sck_t*)dev;
+	return (hio_syshnd_t)rdev->hnd;
 }
 /* ------------------------------------------------------------------------------ */
 
-static int dev_sck_read_stateful (mio_dev_t* dev, void* buf, mio_iolen_t* len, mio_devaddr_t* srcaddr)
+static int dev_sck_read_stateful (hio_dev_t* dev, void* buf, hio_iolen_t* len, hio_devaddr_t* srcaddr)
 {
-	mio_t* mio = dev->mio;
-	mio_dev_sck_t* rdev = (mio_dev_sck_t*)dev;
+	hio_t* hio = dev->hio;
+	hio_dev_sck_t* rdev = (hio_dev_sck_t*)dev;
 
 #if defined(USE_SSL)
 	if (rdev->ssl)
@@ -549,7 +549,7 @@ static int dev_sck_read_stateful (mio_dev_t* dev, void* buf, mio_iolen_t* len, m
 		{
 			int err = SSL_get_error((SSL*)rdev->ssl, x);
 			if (err == SSL_ERROR_WANT_READ || err == SSL_ERROR_WANT_WRITE) return 0;
-			set_ssl_error (mio, err);
+			set_ssl_error (hio, err);
 			return -1;
 		}
 
@@ -565,7 +565,7 @@ static int dev_sck_read_stateful (mio_dev_t* dev, void* buf, mio_iolen_t* len, m
 		{
 			if (errno == EINPROGRESS || errno == EWOULDBLOCK || errno == EAGAIN) return 0;  /* no data available */
 			if (errno == EINTR) return 0;
-			mio_seterrwithsyserr (mio, 0, errno);
+			hio_seterrwithsyserr (hio, 0, errno);
 			return -1;
 		}
 
@@ -576,14 +576,14 @@ static int dev_sck_read_stateful (mio_dev_t* dev, void* buf, mio_iolen_t* len, m
 	return 1;
 }
 
-static int dev_sck_read_stateless (mio_dev_t* dev, void* buf, mio_iolen_t* len, mio_devaddr_t* srcaddr)
+static int dev_sck_read_stateless (hio_dev_t* dev, void* buf, hio_iolen_t* len, hio_devaddr_t* srcaddr)
 {
-	mio_t* mio = dev->mio;
-	mio_dev_sck_t* rdev = (mio_dev_sck_t*)dev;
-	mio_scklen_t srcaddrlen;
+	hio_t* hio = dev->hio;
+	hio_dev_sck_t* rdev = (hio_dev_sck_t*)dev;
+	hio_scklen_t srcaddrlen;
 	ssize_t x;
 
-	srcaddrlen = MIO_SIZEOF(rdev->remoteaddr);
+	srcaddrlen = HIO_SIZEOF(rdev->remoteaddr);
 	x = recvfrom(rdev->hnd, buf, *len, 0, (struct sockaddr*)&rdev->remoteaddr, &srcaddrlen);
 	if (x <= -1)
 	{
@@ -591,9 +591,9 @@ static int dev_sck_read_stateless (mio_dev_t* dev, void* buf, mio_iolen_t* len, 
 		if (eno == EINPROGRESS || eno == EWOULDBLOCK || eno == EAGAIN) return 0;  /* no data available */
 		if (eno == EINTR) return 0;
 
-		mio_seterrwithsyserr (mio, 0, eno);
+		hio_seterrwithsyserr (hio, 0, eno);
 
-		MIO_DEBUG2 (mio, "SCK(%p) - recvfrom failure - %hs", rdev, strerror(eno)); 
+		HIO_DEBUG2 (hio, "SCK(%p) - recvfrom failure - %hs", rdev, strerror(eno)); 
 		return -1;
 	}
 
@@ -604,20 +604,20 @@ static int dev_sck_read_stateless (mio_dev_t* dev, void* buf, mio_iolen_t* len, 
 	return 1;
 }
 
-static int dev_sck_read_bpf (mio_dev_t* dev, void* buf, mio_iolen_t* len, mio_devaddr_t* srcaddr)
+static int dev_sck_read_bpf (hio_dev_t* dev, void* buf, hio_iolen_t* len, hio_devaddr_t* srcaddr)
 {
-	mio_t* mio = dev->mio;
-	mio_dev_sck_t* rdev = (mio_dev_sck_t*)dev;
-	mio_seterrwithsyserr (mio, 0, MIO_ENOIMPL);
+	hio_t* hio = dev->hio;
+	hio_dev_sck_t* rdev = (hio_dev_sck_t*)dev;
+	hio_seterrwithsyserr (hio, 0, HIO_ENOIMPL);
 	return -1;
 }
 
 /* ------------------------------------------------------------------------------ */
 
-static int dev_sck_write_stateful (mio_dev_t* dev, const void* data, mio_iolen_t* len, const mio_devaddr_t* dstaddr)
+static int dev_sck_write_stateful (hio_dev_t* dev, const void* data, hio_iolen_t* len, const hio_devaddr_t* dstaddr)
 {
-	mio_t* mio = dev->mio;
-	mio_dev_sck_t* rdev = (mio_dev_sck_t*)dev;
+	hio_t* hio = dev->hio;
+	hio_dev_sck_t* rdev = (hio_dev_sck_t*)dev;
 
 #if defined(USE_SSL)
 	if (rdev->ssl)
@@ -630,7 +630,7 @@ static int dev_sck_write_stateful (mio_dev_t* dev, const void* data, mio_iolen_t
 			 * the socket, probably leaving it in the half-closed state */
 			if ((x = SSL_shutdown((SSL*)rdev->ssl)) == -1)
 			{
-				set_ssl_error (mio, SSL_get_error((SSL*)rdev->ssl, x));
+				set_ssl_error (hio, SSL_get_error((SSL*)rdev->ssl, x));
 				return -1;
 			}
 			return 1;
@@ -641,7 +641,7 @@ static int dev_sck_write_stateful (mio_dev_t* dev, const void* data, mio_iolen_t
 		{
 			int err = SSL_get_error ((SSL*)rdev->ssl, x);
 			if (err == SSL_ERROR_WANT_READ || err == SSL_ERROR_WANT_WRITE) return 0;
-			set_ssl_error (mio, err);
+			set_ssl_error (hio, err);
 			return -1;
 		}
 
@@ -660,7 +660,7 @@ static int dev_sck_write_stateful (mio_dev_t* dev, const void* data, mio_iolen_t
 			 * the writing end of the socket, probably leaving it in the half-closed state */
 			if (shutdown(rdev->hnd, SHUT_WR) == -1)
 			{
-				mio_seterrwithsyserr (mio, 0, errno);
+				hio_seterrwithsyserr (hio, 0, errno);
 				return -1;
 			}
 
@@ -678,7 +678,7 @@ static int dev_sck_write_stateful (mio_dev_t* dev, const void* data, mio_iolen_t
 		{
 			if (errno == EINPROGRESS || errno == EWOULDBLOCK || errno == EAGAIN) return 0;  /* no data can be written */
 			if (errno == EINTR) return 0;
-			mio_seterrwithsyserr (mio, 0, errno);
+			hio_seterrwithsyserr (hio, 0, errno);
 			return -1;
 		}
 
@@ -690,16 +690,16 @@ static int dev_sck_write_stateful (mio_dev_t* dev, const void* data, mio_iolen_t
 }
 
 
-static int dev_sck_writev_stateful (mio_dev_t* dev, const mio_iovec_t* iov, mio_iolen_t* iovcnt, const mio_devaddr_t* dstaddr)
+static int dev_sck_writev_stateful (hio_dev_t* dev, const hio_iovec_t* iov, hio_iolen_t* iovcnt, const hio_devaddr_t* dstaddr)
 {
-	mio_t* mio = dev->mio;
-	mio_dev_sck_t* rdev = (mio_dev_sck_t*)dev;
+	hio_t* hio = dev->hio;
+	hio_dev_sck_t* rdev = (hio_dev_sck_t*)dev;
 
 #if defined(USE_SSL)
 	if (rdev->ssl)
 	{
 		int x;
-		mio_iolen_t i, nwritten;
+		hio_iolen_t i, nwritten;
 
 		if (*iovcnt <= 0)
 		{
@@ -707,7 +707,7 @@ static int dev_sck_writev_stateful (mio_dev_t* dev, const mio_iovec_t* iov, mio_
 			 * the socket, probably leaving it in the half-closed state */
 			if ((x = SSL_shutdown((SSL*)rdev->ssl)) == -1)
 			{
-				set_ssl_error (mio, SSL_get_error((SSL*)rdev->ssl, x));
+				set_ssl_error (hio, SSL_get_error((SSL*)rdev->ssl, x));
 				return -1;
 			}
 			return 1;
@@ -724,7 +724,7 @@ static int dev_sck_writev_stateful (mio_dev_t* dev, const mio_iovec_t* iov, mio_
 			{
 				int err = SSL_get_error ((SSL*)rdev->ssl, x);
 				if (err == SSL_ERROR_WANT_READ || err == SSL_ERROR_WANT_WRITE) return 0;
-				set_ssl_error (mio, err);
+				set_ssl_error (hio, err);
 				return -1;
 			}
 			nwritten += x;
@@ -745,7 +745,7 @@ static int dev_sck_writev_stateful (mio_dev_t* dev, const mio_iovec_t* iov, mio_
 			 * the socket, probably leaving it in the half-closed state */
 			if (shutdown(rdev->hnd, SHUT_WR) == -1)
 			{
-				mio_seterrwithsyserr (mio, 0, errno);
+				hio_seterrwithsyserr (hio, 0, errno);
 				return -1;
 			}
 
@@ -761,7 +761,7 @@ static int dev_sck_writev_stateful (mio_dev_t* dev, const mio_iovec_t* iov, mio_
 	#endif
 
 	#if defined(HAVE_SENDMSG)
-		MIO_MEMSET (&msg, 0, MIO_SIZEOF(msg));
+		HIO_MEMSET (&msg, 0, HIO_SIZEOF(msg));
 		msg.msg_iov = (struct iovec*)iov;
 		msg.msg_iovlen = *iovcnt;
 		x = sendmsg(rdev->hnd, &msg, flags);
@@ -772,7 +772,7 @@ static int dev_sck_writev_stateful (mio_dev_t* dev, const mio_iovec_t* iov, mio_
 		{
 			if (errno == EINPROGRESS || errno == EWOULDBLOCK || errno == EAGAIN) return 0;  /* no data can be written */
 			if (errno == EINTR) return 0;
-			mio_seterrwithsyserr (mio, 0, errno);
+			hio_seterrwithsyserr (hio, 0, errno);
 			return -1;
 		}
 
@@ -785,10 +785,10 @@ static int dev_sck_writev_stateful (mio_dev_t* dev, const mio_iovec_t* iov, mio_
 
 /* ------------------------------------------------------------------------------ */
 
-static int dev_sck_write_stateless (mio_dev_t* dev, const void* data, mio_iolen_t* len, const mio_devaddr_t* dstaddr)
+static int dev_sck_write_stateless (hio_dev_t* dev, const void* data, hio_iolen_t* len, const hio_devaddr_t* dstaddr)
 {
-	mio_t* mio = dev->mio;
-	mio_dev_sck_t* rdev = (mio_dev_sck_t*)dev;
+	hio_t* hio = dev->hio;
+	hio_dev_sck_t* rdev = (hio_dev_sck_t*)dev;
 	ssize_t x;
 
 	x = sendto(rdev->hnd, data, *len, 0, dstaddr->ptr, dstaddr->len);
@@ -796,7 +796,7 @@ static int dev_sck_write_stateless (mio_dev_t* dev, const void* data, mio_iolen_
 	{
 		if (errno == EINPROGRESS || errno == EWOULDBLOCK || errno == EAGAIN) return 0;  /* no data can be written */
 		if (errno == EINTR) return 0;
-		mio_seterrwithsyserr (mio, 0, errno);
+		hio_seterrwithsyserr (hio, 0, errno);
 		return -1;
 	}
 
@@ -804,16 +804,16 @@ static int dev_sck_write_stateless (mio_dev_t* dev, const void* data, mio_iolen_
 	return 1;
 }
 
-static int dev_sck_writev_stateless (mio_dev_t* dev, const mio_iovec_t* iov, mio_iolen_t* iovcnt, const mio_devaddr_t* dstaddr)
+static int dev_sck_writev_stateless (hio_dev_t* dev, const hio_iovec_t* iov, hio_iolen_t* iovcnt, const hio_devaddr_t* dstaddr)
 {
-	mio_t* mio = dev->mio;
-	mio_dev_sck_t* rdev = (mio_dev_sck_t*)dev;
+	hio_t* hio = dev->hio;
+	hio_dev_sck_t* rdev = (hio_dev_sck_t*)dev;
 	struct msghdr msg;
 	ssize_t x;
 	int flags = 0;
 
-	MIO_MEMSET (&msg, 0, MIO_SIZEOF(msg));
-	if (MIO_LIKELY(dstaddr))
+	HIO_MEMSET (&msg, 0, HIO_SIZEOF(msg));
+	if (HIO_LIKELY(dstaddr))
 	{
 		msg.msg_name = dstaddr->ptr;
 		msg.msg_namelen = dstaddr->len;
@@ -834,7 +834,7 @@ static int dev_sck_writev_stateless (mio_dev_t* dev, const mio_iovec_t* iov, mio
 	{
 		if (errno == EINPROGRESS || errno == EWOULDBLOCK || errno == EAGAIN) return 0;  /* no data can be written */
 		if (errno == EINTR) return 0;
-		mio_seterrwithsyserr (mio, 0, errno);
+		hio_seterrwithsyserr (hio, 0, errno);
 		return -1;
 	}
 
@@ -843,29 +843,29 @@ static int dev_sck_writev_stateless (mio_dev_t* dev, const mio_iovec_t* iov, mio
 }
 
 /* ------------------------------------------------------------------------------ */
-static int dev_sck_write_bpf (mio_dev_t* dev, const void* data, mio_iolen_t* len, const mio_devaddr_t* dstaddr)
+static int dev_sck_write_bpf (hio_dev_t* dev, const void* data, hio_iolen_t* len, const hio_devaddr_t* dstaddr)
 {
-	mio_t* mio = dev->mio;
-	mio_dev_sck_t* rdev = (mio_dev_sck_t*)dev;
-	mio_seterrwithsyserr (mio, 0, MIO_ENOIMPL);
+	hio_t* hio = dev->hio;
+	hio_dev_sck_t* rdev = (hio_dev_sck_t*)dev;
+	hio_seterrwithsyserr (hio, 0, HIO_ENOIMPL);
 	return -1;
 }
 
-static int dev_sck_writev_bpf (mio_dev_t* dev, const mio_iovec_t* iov, mio_iolen_t* iovcnt, const mio_devaddr_t* dstaddr)
+static int dev_sck_writev_bpf (hio_dev_t* dev, const hio_iovec_t* iov, hio_iolen_t* iovcnt, const hio_devaddr_t* dstaddr)
 {
-	mio_t* mio = dev->mio;
-	mio_dev_sck_t* rdev = (mio_dev_sck_t*)dev;
-	mio_seterrwithsyserr (mio, 0, MIO_ENOIMPL);
+	hio_t* hio = dev->hio;
+	hio_dev_sck_t* rdev = (hio_dev_sck_t*)dev;
+	hio_seterrwithsyserr (hio, 0, HIO_ENOIMPL);
 	return -1;
 }
 
 
 /* ------------------------------------------------------------------------------ */
 
-static int dev_sck_sendfile_stateful (mio_dev_t* dev, mio_syshnd_t in_fd, mio_foff_t foff, mio_iolen_t* len)
+static int dev_sck_sendfile_stateful (hio_dev_t* dev, hio_syshnd_t in_fd, hio_foff_t foff, hio_iolen_t* len)
 {
-	mio_t* mio = dev->mio;
-	mio_dev_sck_t* rdev = (mio_dev_sck_t*)dev;
+	hio_t* hio = dev->hio;
+	hio_dev_sck_t* rdev = (hio_dev_sck_t*)dev;
 
 #if 0 && defined(USE_SSL)
 /* TODO: ssl needs to read from the file... and send... */
@@ -879,7 +879,7 @@ static int dev_sck_sendfile_stateful (mio_dev_t* dev, mio_syshnd_t in_fd, mio_fo
 			 * the socket, probably leaving it in the half-closed state */
 			if ((x = SSL_shutdown((SSL*)rdev->ssl)) == -1)
 			{
-				set_ssl_error (mio, SSL_get_error((SSL*)rdev->ssl, x));
+				set_ssl_error (hio, SSL_get_error((SSL*)rdev->ssl, x));
 				return -1;
 			}
 			return 1;
@@ -890,7 +890,7 @@ static int dev_sck_sendfile_stateful (mio_dev_t* dev, mio_syshnd_t in_fd, mio_fo
 		{
 			int err = SSL_get_error ((SSL*)rdev->ssl, x);
 			if (err == SSL_ERROR_WANT_READ || err == SSL_ERROR_WANT_WRITE) return 0;
-			set_ssl_error (mio, err);
+			set_ssl_error (hio, err);
 			return -1;
 		}
 
@@ -908,7 +908,7 @@ static int dev_sck_sendfile_stateful (mio_dev_t* dev, mio_syshnd_t in_fd, mio_fo
 			 * the writing end of the socket, probably leaving it in the half-closed state */
 			if (shutdown(rdev->hnd, SHUT_WR) == -1)
 			{
-				mio_seterrwithsyserr (mio, 0, errno);
+				hio_seterrwithsyserr (hio, 0, errno);
 				return -1;
 			}
 
@@ -924,12 +924,12 @@ static int dev_sck_sendfile_stateful (mio_dev_t* dev, mio_syshnd_t in_fd, mio_fo
 		{
 			if (errno == EINPROGRESS || errno == EWOULDBLOCK || errno == EAGAIN) return 0;  /* no data can be written */
 			if (errno == EINTR) return 0;
-			mio_seterrwithsyserr (mio, 0, errno);
+			hio_seterrwithsyserr (hio, 0, errno);
 			return -1;
 		}
 		*len = x;
 #else
-		mio_seterrnum (mio, MIO_ENOIMPL);
+		hio_seterrnum (hio, HIO_ENOIMPL);
 		return -1;
 #endif
 
@@ -944,12 +944,12 @@ static int dev_sck_sendfile_stateful (mio_dev_t* dev, mio_syshnd_t in_fd, mio_fo
 
 #if defined(USE_SSL)
 
-static int do_ssl (mio_dev_sck_t* dev, int (*ssl_func)(SSL*))
+static int do_ssl (hio_dev_sck_t* dev, int (*ssl_func)(SSL*))
 {
-	mio_t* mio = dev->mio;
+	hio_t* hio = dev->hio;
 	int ret, watcher_cmd, watcher_events;
 
-	MIO_ASSERT (mio, dev->ssl_ctx);
+	HIO_ASSERT (hio, dev->ssl_ctx);
 
 	if (!dev->ssl)
 	{
@@ -958,13 +958,13 @@ static int do_ssl (mio_dev_sck_t* dev, int (*ssl_func)(SSL*))
 		ssl = SSL_new(dev->ssl_ctx);
 		if (!ssl)
 		{
-			set_ssl_error (mio, ERR_get_error());
+			set_ssl_error (hio, ERR_get_error());
 			return -1;
 		}
 
 		if (SSL_set_fd(ssl, dev->hnd) == 0)
 		{
-			set_ssl_error (mio, ERR_get_error());
+			set_ssl_error (hio, ERR_get_error());
 			return -1;
 		}
 
@@ -973,8 +973,8 @@ static int do_ssl (mio_dev_sck_t* dev, int (*ssl_func)(SSL*))
 		dev->ssl = ssl;
 	}
 
-	watcher_cmd = MIO_DEV_WATCH_RENEW;
-	watcher_events = MIO_DEV_EVENT_IN;
+	watcher_cmd = HIO_DEV_WATCH_RENEW;
+	watcher_events = HIO_DEV_EVENT_IN;
 
 	ret = ssl_func((SSL*)dev->ssl);
 	if (ret <= 0)
@@ -988,13 +988,13 @@ static int do_ssl (mio_dev_sck_t* dev, int (*ssl_func)(SSL*))
 		else if (err == SSL_ERROR_WANT_WRITE)
 		{
 			/* handshaking isn't complete */
-			watcher_cmd = MIO_DEV_WATCH_UPDATE;
-			watcher_events = MIO_DEV_EVENT_IN | MIO_DEV_EVENT_OUT;
+			watcher_cmd = HIO_DEV_WATCH_UPDATE;
+			watcher_events = HIO_DEV_EVENT_IN | HIO_DEV_EVENT_OUT;
 			ret = 0;
 		}
 		else
 		{
-			set_ssl_error (mio, err);
+			set_ssl_error (hio, err);
 			ret = -1;
 		}
 	}
@@ -1003,120 +1003,120 @@ static int do_ssl (mio_dev_sck_t* dev, int (*ssl_func)(SSL*))
 		ret = 1; /* accepted */
 	}
 
-	if (mio_dev_watch((mio_dev_t*)dev, watcher_cmd, watcher_events) <= -1)
+	if (hio_dev_watch((hio_dev_t*)dev, watcher_cmd, watcher_events) <= -1)
 	{
-		mio_stop (mio, MIO_STOPREQ_WATCHER_ERROR);
+		hio_stop (hio, HIO_STOPREQ_WATCHER_ERROR);
 		ret = -1;
 	}
 
 	return ret;
 }
 
-static MIO_INLINE int connect_ssl (mio_dev_sck_t* dev)
+static HIO_INLINE int connect_ssl (hio_dev_sck_t* dev)
 {
 	return do_ssl(dev, SSL_connect);
 }
 
-static MIO_INLINE int accept_ssl (mio_dev_sck_t* dev)
+static HIO_INLINE int accept_ssl (hio_dev_sck_t* dev)
 {
 	return do_ssl(dev, SSL_accept);
 }
 #endif
 
-static int dev_sck_ioctl (mio_dev_t* dev, int cmd, void* arg)
+static int dev_sck_ioctl (hio_dev_t* dev, int cmd, void* arg)
 {
-	mio_t* mio = dev->mio;
-	mio_dev_sck_t* rdev = (mio_dev_sck_t*)dev;
+	hio_t* hio = dev->hio;
+	hio_dev_sck_t* rdev = (hio_dev_sck_t*)dev;
 
 	switch (cmd)
 	{
-		case MIO_DEV_SCK_BIND:
+		case HIO_DEV_SCK_BIND:
 		{
-			mio_dev_sck_bind_t* bnd = (mio_dev_sck_bind_t*)arg;
+			hio_dev_sck_bind_t* bnd = (hio_dev_sck_bind_t*)arg;
 			int x;
 		#if defined(USE_SSL)
-			SSL_CTX* ssl_ctx = MIO_NULL;
+			SSL_CTX* ssl_ctx = HIO_NULL;
 		#endif
-			if (MIO_DEV_SCK_GET_PROGRESS(rdev))
+			if (HIO_DEV_SCK_GET_PROGRESS(rdev))
 			{
 				/* can't bind again */
-				mio_seterrbfmt (mio, MIO_EPERM, "operation in progress. not allowed to bind again");
+				hio_seterrbfmt (hio, HIO_EPERM, "operation in progress. not allowed to bind again");
 				return -1;
 			}
 
-			if (mio_skad_family(&bnd->localaddr) == MIO_AF_INET6) /* getsockopt(rdev->hnd, SO_DOMAIN, ...) may return the domain but it's kernel specific as well */
+			if (hio_skad_family(&bnd->localaddr) == HIO_AF_INET6) /* getsockopt(rdev->hnd, SO_DOMAIN, ...) may return the domain but it's kernel specific as well */
 			{
-				/* TODO: should i make it into bnd->options? MIO_DEV_SCK_BIND_IPV6ONLY? applicable to ipv6 though. */
+				/* TODO: should i make it into bnd->options? HIO_DEV_SCK_BIND_IPV6ONLY? applicable to ipv6 though. */
 				int v = 1;
-				if (setsockopt(rdev->hnd, IPPROTO_IPV6, IPV6_V6ONLY, &v, MIO_SIZEOF(v)) == -1)
+				if (setsockopt(rdev->hnd, IPPROTO_IPV6, IPV6_V6ONLY, &v, HIO_SIZEOF(v)) == -1)
 				{
-					mio_seterrbfmtwithsyserr (mio, 0, errno, "unable to set IPV6_V6ONLY");
+					hio_seterrbfmtwithsyserr (hio, 0, errno, "unable to set IPV6_V6ONLY");
 					return -1;
 				}
 			}
 
-			if (bnd->options & MIO_DEV_SCK_BIND_BROADCAST)
+			if (bnd->options & HIO_DEV_SCK_BIND_BROADCAST)
 			{
 				int v = 1;
-				if (setsockopt(rdev->hnd, SOL_SOCKET, SO_BROADCAST, &v, MIO_SIZEOF(v)) == -1)
+				if (setsockopt(rdev->hnd, SOL_SOCKET, SO_BROADCAST, &v, HIO_SIZEOF(v)) == -1)
 				{
-					mio_seterrbfmtwithsyserr (mio, 0, errno, "unable to set SO_BROADCAST");
+					hio_seterrbfmtwithsyserr (hio, 0, errno, "unable to set SO_BROADCAST");
 					return -1;
 				}
 			}
 
-			if (bnd->options & MIO_DEV_SCK_BIND_REUSEADDR)
+			if (bnd->options & HIO_DEV_SCK_BIND_REUSEADDR)
 			{
 			#if defined(SO_REUSEADDR)
 				int v = 1;
-				if (setsockopt(rdev->hnd, SOL_SOCKET, SO_REUSEADDR, &v, MIO_SIZEOF(v)) == -1)
+				if (setsockopt(rdev->hnd, SOL_SOCKET, SO_REUSEADDR, &v, HIO_SIZEOF(v)) == -1)
 				{
-					if (!(bnd->options & MIO_DEV_SCK_BIND_IGNERR))
+					if (!(bnd->options & HIO_DEV_SCK_BIND_IGNERR))
 					{
-						mio_seterrbfmtwithsyserr (mio, 0, errno, "unable to set SO_REUSEADDR");
+						hio_seterrbfmtwithsyserr (hio, 0, errno, "unable to set SO_REUSEADDR");
 						return -1;
 					}
 				}
 			/* ignore it if not available
 			#else
-				mio_seterrnum (mio, MIO_ENOIMPL);
+				hio_seterrnum (hio, HIO_ENOIMPL);
 				return -1;
 			*/
 			#endif
 			}
 
-			if (bnd->options & MIO_DEV_SCK_BIND_REUSEPORT)
+			if (bnd->options & HIO_DEV_SCK_BIND_REUSEPORT)
 			{
 			#if defined(SO_REUSEPORT)
 				int v = 1;
-				if (setsockopt(rdev->hnd, SOL_SOCKET, SO_REUSEPORT, &v, MIO_SIZEOF(v)) == -1)
+				if (setsockopt(rdev->hnd, SOL_SOCKET, SO_REUSEPORT, &v, HIO_SIZEOF(v)) == -1)
 				{
-					if (!(bnd->options & MIO_DEV_SCK_BIND_IGNERR))
+					if (!(bnd->options & HIO_DEV_SCK_BIND_IGNERR))
 					{
-						mio_seterrbfmtwithsyserr (mio, 0, errno, "unable to set SO_REUSEPORT");
+						hio_seterrbfmtwithsyserr (hio, 0, errno, "unable to set SO_REUSEPORT");
 						return -1;
 					}
 				}
 			/* ignore it if not available
 			#else
-				mio_seterrnum (mio, MIO_ENOIMPL);
+				hio_seterrnum (hio, HIO_ENOIMPL);
 				return -1;
 			*/
 			#endif
 			}
 
-			if (bnd->options & MIO_DEV_SCK_BIND_TRANSPARENT)
+			if (bnd->options & HIO_DEV_SCK_BIND_TRANSPARENT)
 			{
 			#if defined(IP_TRANSPARENT)
 				int v = 1;
-				if (setsockopt(rdev->hnd, SOL_IP, IP_TRANSPARENT, &v, MIO_SIZEOF(v)) == -1)
+				if (setsockopt(rdev->hnd, SOL_IP, IP_TRANSPARENT, &v, HIO_SIZEOF(v)) == -1)
 				{
-					mio_seterrbfmtwithsyserr (mio, 0, errno, "unable to set IP_TRANSPARENT");
+					hio_seterrbfmtwithsyserr (hio, 0, errno, "unable to set IP_TRANSPARENT");
 					return -1;
 				}
 			/* ignore it if not available
 			#else
-				mio_seterrnum (mio, MIO_ENOIMPL);
+				hio_seterrnum (hio, HIO_ENOIMPL);
 				return -1;
 			*/
 			#endif
@@ -1127,30 +1127,30 @@ static int dev_sck_ioctl (mio_dev_t* dev, int cmd, void* arg)
 			#if defined(USE_SSL)
 				SSL_CTX_free (rdev->ssl_ctx);
 			#endif
-				rdev->ssl_ctx = MIO_NULL;
+				rdev->ssl_ctx = HIO_NULL;
 
 				if (rdev->ssl)
 				{
 				#if defined(USE_SSL)
 					SSL_free (rdev->ssl);
 				#endif
-					rdev->ssl = MIO_NULL;
+					rdev->ssl = HIO_NULL;
 				}
 			}
 
-			if (bnd->options & MIO_DEV_SCK_BIND_SSL)
+			if (bnd->options & HIO_DEV_SCK_BIND_SSL)
 			{
 			#if defined(USE_SSL)
 				if (!bnd->ssl_certfile || !bnd->ssl_keyfile)
 				{
-					mio_seterrbfmt (mio, MIO_EINVAL, "SSL certficate/key file not set");
+					hio_seterrbfmt (hio, HIO_EINVAL, "SSL certficate/key file not set");
 					return -1;
 				}
 
 				ssl_ctx = SSL_CTX_new(SSLv23_server_method());
 				if (!ssl_ctx)
 				{
-					set_ssl_error (mio, ERR_get_error());
+					set_ssl_error (hio, ERR_get_error());
 					return -1;
 				}
 
@@ -1159,7 +1159,7 @@ static int dev_sck_ioctl (mio_dev_t* dev, int cmd, void* arg)
 				    SSL_CTX_check_private_key(ssl_ctx) == 0  /*||
 				    SSL_CTX_use_certificate_chain_file(ssl_ctx, bnd->chainfile) == 0*/)
 				{
-					set_ssl_error (mio, ERR_get_error());
+					set_ssl_error (hio, ERR_get_error());
 					SSL_CTX_free (ssl_ctx);
 					return -1;
 				}
@@ -1171,15 +1171,15 @@ static int dev_sck_ioctl (mio_dev_t* dev, int cmd, void* arg)
 
 				SSL_CTX_set_options(ssl_ctx, SSL_OP_NO_SSLv2); /* no outdated SSLv2 by default */
 			#else
-				mio_seterrnum (mio, MIO_ENOIMPL);
+				hio_seterrnum (hio, HIO_ENOIMPL);
 				return -1;
 			#endif
 			}
 
-			x = bind(rdev->hnd, (struct sockaddr*)&bnd->localaddr, mio_skad_size(&bnd->localaddr));
+			x = bind(rdev->hnd, (struct sockaddr*)&bnd->localaddr, hio_skad_size(&bnd->localaddr));
 			if (x == -1)
 			{
-				mio_seterrwithsyserr (mio, 0, errno);
+				hio_seterrwithsyserr (hio, 0, errno);
 			#if defined(USE_SSL)
 				if (ssl_ctx) SSL_CTX_free (ssl_ctx);
 			#endif
@@ -1195,34 +1195,34 @@ static int dev_sck_ioctl (mio_dev_t* dev, int cmd, void* arg)
 			return 0;
 		}
 
-		case MIO_DEV_SCK_CONNECT:
+		case HIO_DEV_SCK_CONNECT:
 		{
-			mio_dev_sck_connect_t* conn = (mio_dev_sck_connect_t*)arg;
+			hio_dev_sck_connect_t* conn = (hio_dev_sck_connect_t*)arg;
 			struct sockaddr* sa = (struct sockaddr*)&conn->remoteaddr;
-			mio_scklen_t sl;
+			hio_scklen_t sl;
 			int x;
 		#if defined(USE_SSL)
-			SSL_CTX* ssl_ctx = MIO_NULL;
+			SSL_CTX* ssl_ctx = HIO_NULL;
 		#endif
 
-			if (MIO_DEV_SCK_GET_PROGRESS(rdev))
+			if (HIO_DEV_SCK_GET_PROGRESS(rdev))
 			{
 				/* can't connect again */
-				mio_seterrbfmt (mio, MIO_EPERM, "operation in progress. disallowed to connect again");
+				hio_seterrbfmt (hio, HIO_EPERM, "operation in progress. disallowed to connect again");
 				return -1;
 			}
 
 			if (!IS_STATEFUL(rdev)) 
 			{
-				mio_seterrbfmt (mio, MIO_EPERM, "disallowed to connect stateless device");
+				hio_seterrbfmt (hio, HIO_EPERM, "disallowed to connect stateless device");
 				return -1;
 			}
 
-			if (sa->sa_family == AF_INET) sl = MIO_SIZEOF(struct sockaddr_in);
-			else if (sa->sa_family == AF_INET6) sl = MIO_SIZEOF(struct sockaddr_in6);
+			if (sa->sa_family == AF_INET) sl = HIO_SIZEOF(struct sockaddr_in);
+			else if (sa->sa_family == AF_INET6) sl = HIO_SIZEOF(struct sockaddr_in6);
 			else 
 			{
-				mio_seterrbfmt (mio, MIO_EINVAL, "unknown address family %d", sa->sa_family);
+				hio_seterrbfmt (hio, HIO_EINVAL, "unknown address family %d", sa->sa_family);
 				return -1;
 			}
 
@@ -1232,19 +1232,19 @@ static int dev_sck_ioctl (mio_dev_t* dev, int cmd, void* arg)
 				if (rdev->ssl)
 				{
 					SSL_free (rdev->ssl);
-					rdev->ssl = MIO_NULL;
+					rdev->ssl = HIO_NULL;
 				}
 
 				SSL_CTX_free (rdev->ssl_ctx);
-				rdev->ssl_ctx = MIO_NULL;
+				rdev->ssl_ctx = HIO_NULL;
 			}
 
-			if (conn->options & MIO_DEV_SCK_CONNECT_SSL)
+			if (conn->options & HIO_DEV_SCK_CONNECT_SSL)
 			{
 				ssl_ctx = SSL_CTX_new(SSLv23_client_method());
 				if (!ssl_ctx)
 				{
-					set_ssl_error (mio, ERR_get_error());
+					set_ssl_error (hio, ERR_get_error());
 					return -1;
 				}
 
@@ -1268,17 +1268,17 @@ fcntl (rdev->hnd, F_SETFL, flags | O_NONBLOCK);
 			{
 				if (errno == EINPROGRESS || errno == EWOULDBLOCK || errno == EAGAIN)
 				{
-					if (mio_dev_watch((mio_dev_t*)rdev, MIO_DEV_WATCH_UPDATE, MIO_DEV_EVENT_IN | MIO_DEV_EVENT_OUT) <= -1)
+					if (hio_dev_watch((hio_dev_t*)rdev, HIO_DEV_WATCH_UPDATE, HIO_DEV_EVENT_IN | HIO_DEV_EVENT_OUT) <= -1)
 					{
 						/* watcher update failure. it's critical */
-						mio_stop (mio, MIO_STOPREQ_WATCHER_ERROR);
+						hio_stop (hio, HIO_STOPREQ_WATCHER_ERROR);
 						goto oops_connect;
 					}
 					else
 					{
-						MIO_INIT_NTIME (&rdev->tmout, 0, 0); /* just in case */
+						HIO_INIT_NTIME (&rdev->tmout, 0, 0); /* just in case */
 
-						if (MIO_IS_POS_NTIME(&conn->connect_tmout))
+						if (HIO_IS_POS_NTIME(&conn->connect_tmout))
 						{
 							if (schedule_timer_job_after(rdev, &conn->connect_tmout, connect_timedout) <= -1) 
 							{
@@ -1287,8 +1287,8 @@ fcntl (rdev->hnd, F_SETFL, flags | O_NONBLOCK);
 							else
 							{
 								/* update rdev->tmout to the deadline of the connect timeout job */
-								MIO_ASSERT (mio, rdev->tmrjob_index != MIO_TMRIDX_INVALID);
-								mio_gettmrjobdeadline (mio, rdev->tmrjob_index, &rdev->tmout);
+								HIO_ASSERT (hio, rdev->tmrjob_index != HIO_TMRIDX_INVALID);
+								hio_gettmrjobdeadline (hio, rdev->tmrjob_index, &rdev->tmout);
 							}
 						}
 
@@ -1296,18 +1296,18 @@ fcntl (rdev->hnd, F_SETFL, flags | O_NONBLOCK);
 					#if defined(USE_SSL)
 						rdev->ssl_ctx = ssl_ctx;
 					#endif
-						MIO_DEV_SCK_SET_PROGRESS (rdev, MIO_DEV_SCK_CONNECTING);
+						HIO_DEV_SCK_SET_PROGRESS (rdev, HIO_DEV_SCK_CONNECTING);
 						return 0;
 					}
 				}
 
-				mio_seterrwithsyserr (mio, 0, errno);
+				hio_seterrwithsyserr (hio, 0, errno);
 
 			oops_connect:
-				if (mio_dev_watch((mio_dev_t*)rdev, MIO_DEV_WATCH_UPDATE, MIO_DEV_EVENT_IN) <= -1)
+				if (hio_dev_watch((hio_dev_t*)rdev, HIO_DEV_WATCH_UPDATE, HIO_DEV_EVENT_IN) <= -1)
 				{
 					/* watcher update failure. it's critical */
-					mio_stop (mio, MIO_STOPREQ_WATCHER_ERROR);
+					hio_stop (hio, HIO_STOPREQ_WATCHER_ERROR);
 				}
 
 			#if defined(USE_SSL)
@@ -1321,10 +1321,10 @@ fcntl (rdev->hnd, F_SETFL, flags | O_NONBLOCK);
 
 				/* don't call on_connect() callback even though the connection has been established.
 				 * i don't want on_connect() to be called within the this function. */
-				if (mio_dev_watch((mio_dev_t*)rdev, MIO_DEV_WATCH_UPDATE, MIO_DEV_EVENT_IN | MIO_DEV_EVENT_OUT) <= -1)
+				if (hio_dev_watch((hio_dev_t*)rdev, HIO_DEV_WATCH_UPDATE, HIO_DEV_EVENT_IN | HIO_DEV_EVENT_OUT) <= -1)
 				{
 					/* watcher update failure. it's critical */
-					mio_stop (mio, MIO_STOPREQ_WATCHER_ERROR);
+					hio_stop (hio, HIO_STOPREQ_WATCHER_ERROR);
 					goto oops_connect;
 				}
 
@@ -1336,39 +1336,39 @@ fcntl (rdev->hnd, F_SETFL, flags | O_NONBLOCK);
 				rdev->ssl_ctx = ssl_ctx;
 			#endif
 				/* set progress CONNECTING so that the ready handler invokes on_connect() */
-				MIO_DEV_SCK_SET_PROGRESS (rdev, MIO_DEV_SCK_CONNECTING);
+				HIO_DEV_SCK_SET_PROGRESS (rdev, HIO_DEV_SCK_CONNECTING);
 				return 0;
 			}
 		}
 
-		case MIO_DEV_SCK_LISTEN:
+		case HIO_DEV_SCK_LISTEN:
 		{
-			mio_dev_sck_listen_t* lstn = (mio_dev_sck_listen_t*)arg;
+			hio_dev_sck_listen_t* lstn = (hio_dev_sck_listen_t*)arg;
 			int x;
 
-			if (MIO_DEV_SCK_GET_PROGRESS(rdev))
+			if (HIO_DEV_SCK_GET_PROGRESS(rdev))
 			{
 				/* can't listen again */
-				mio_seterrbfmt (mio, MIO_EPERM, "operation in progress. disallowed to listen again");
+				hio_seterrbfmt (hio, HIO_EPERM, "operation in progress. disallowed to listen again");
 				return -1;
 			}
 
 			if (!IS_STATEFUL(rdev)) 
 			{
-				mio_seterrbfmt (mio, MIO_EPERM, "disallowed to listen on stateless device");
+				hio_seterrbfmt (hio, HIO_EPERM, "disallowed to listen on stateless device");
 				return -1;
 			}
 
 			x = listen(rdev->hnd, lstn->backlogs);
 			if (x == -1) 
 			{
-				mio_seterrwithsyserr (mio, 0, errno);
+				hio_seterrwithsyserr (hio, 0, errno);
 				return -1;
 			}
 
 			rdev->tmout = lstn->accept_tmout;
 
-			MIO_DEV_SCK_SET_PROGRESS (rdev, MIO_DEV_SCK_LISTENING);
+			HIO_DEV_SCK_SET_PROGRESS (rdev, HIO_DEV_SCK_LISTENING);
 			return 0;
 		}
 	}
@@ -1376,26 +1376,26 @@ fcntl (rdev->hnd, F_SETFL, flags | O_NONBLOCK);
 	return 0;
 }
 
-static mio_dev_mth_t dev_mth_sck_stateless = 
+static hio_dev_mth_t dev_mth_sck_stateless = 
 {
 	dev_sck_make,
 	dev_sck_kill,
-	MIO_NULL,
+	HIO_NULL,
 	dev_sck_getsyshnd,
 
 	dev_sck_read_stateless,
 	dev_sck_write_stateless,
 	dev_sck_writev_stateless,
-	MIO_NULL,          /* sendfile */
+	HIO_NULL,          /* sendfile */
 	dev_sck_ioctl,     /* ioctl */
 };
 
 
-static mio_dev_mth_t dev_mth_sck_stateful = 
+static hio_dev_mth_t dev_mth_sck_stateful = 
 {
 	dev_sck_make,
 	dev_sck_kill,
-	MIO_NULL,
+	HIO_NULL,
 	dev_sck_getsyshnd,
 
 	dev_sck_read_stateful,
@@ -1405,7 +1405,7 @@ static mio_dev_mth_t dev_mth_sck_stateful =
 	dev_sck_ioctl,     /* ioctl */
 };
 
-static mio_dev_mth_t dev_mth_clisck =
+static hio_dev_mth_t dev_mth_clisck =
 {
 	dev_sck_make_client,
 	dev_sck_kill,
@@ -1419,56 +1419,56 @@ static mio_dev_mth_t dev_mth_clisck =
 	dev_sck_ioctl
 };
 
-static mio_dev_mth_t dev_mth_sck_bpf = 
+static hio_dev_mth_t dev_mth_sck_bpf = 
 {
 	dev_sck_make,
 	dev_sck_kill,
-	MIO_NULL,
+	HIO_NULL,
 	dev_sck_getsyshnd,
 
 	dev_sck_read_bpf,
 	dev_sck_write_bpf,
 	dev_sck_writev_bpf,
-	MIO_NULL,          /* sendfile */
+	HIO_NULL,          /* sendfile */
 	dev_sck_ioctl,     /* ioctl */
 };
 
 /* ========================================================================= */
 
-static int harvest_outgoing_connection (mio_dev_sck_t* rdev)
+static int harvest_outgoing_connection (hio_dev_sck_t* rdev)
 {
-	mio_t* mio = rdev->mio;
+	hio_t* hio = rdev->hio;
 	int errcode;
-	mio_scklen_t len;
+	hio_scklen_t len;
 
-	MIO_ASSERT (mio, !(rdev->state & MIO_DEV_SCK_CONNECTED));
+	HIO_ASSERT (hio, !(rdev->state & HIO_DEV_SCK_CONNECTED));
 
-	len = MIO_SIZEOF(errcode);
+	len = HIO_SIZEOF(errcode);
 	if (getsockopt(rdev->hnd, SOL_SOCKET, SO_ERROR, (char*)&errcode, &len) == -1)
 	{
-		mio_seterrbfmtwithsyserr (mio, 0, errno, "unable to get SO_ERROR");
+		hio_seterrbfmtwithsyserr (hio, 0, errno, "unable to get SO_ERROR");
 		return -1;
 	}
 	else if (errcode == 0)
 	{
-		mio_skad_t localaddr;
-		mio_scklen_t addrlen;
+		hio_skad_t localaddr;
+		hio_scklen_t addrlen;
 
 		/* connected */
 
-		if (rdev->tmrjob_index != MIO_TMRIDX_INVALID)
+		if (rdev->tmrjob_index != HIO_TMRIDX_INVALID)
 		{
-			mio_deltmrjob (mio, rdev->tmrjob_index);
-			MIO_ASSERT (mio, rdev->tmrjob_index == MIO_TMRIDX_INVALID);
+			hio_deltmrjob (hio, rdev->tmrjob_index);
+			HIO_ASSERT (hio, rdev->tmrjob_index == HIO_TMRIDX_INVALID);
 		}
 
-		addrlen = MIO_SIZEOF(localaddr);
+		addrlen = HIO_SIZEOF(localaddr);
 		if (getsockname(rdev->hnd, (struct sockaddr*)&localaddr, &addrlen) == 0) rdev->localaddr = localaddr;
 
-		if (mio_dev_watch((mio_dev_t*)rdev, MIO_DEV_WATCH_RENEW, MIO_DEV_EVENT_IN) <= -1) 
+		if (hio_dev_watch((hio_dev_t*)rdev, HIO_DEV_WATCH_RENEW, HIO_DEV_EVENT_IN) <= -1) 
 		{
 			/* watcher update failure. it's critical */
-			mio_stop (mio, MIO_STOPREQ_WATCHER_ERROR);
+			hio_stop (hio, HIO_STOPREQ_WATCHER_ERROR);
 			return -1;
 		}
 
@@ -1476,25 +1476,25 @@ static int harvest_outgoing_connection (mio_dev_sck_t* rdev)
 		if (rdev->ssl_ctx)
 		{
 			int x;
-			MIO_ASSERT (mio, !rdev->ssl); /* must not be SSL-connected yet */
+			HIO_ASSERT (hio, !rdev->ssl); /* must not be SSL-connected yet */
 
 			x = connect_ssl(rdev);
 			if (x <= -1) return -1;
 			if (x == 0)
 			{
 				/* underlying socket connected but not SSL-connected */
-				MIO_DEV_SCK_SET_PROGRESS (rdev, MIO_DEV_SCK_CONNECTING_SSL);
+				HIO_DEV_SCK_SET_PROGRESS (rdev, HIO_DEV_SCK_CONNECTING_SSL);
 
-				MIO_ASSERT (mio, rdev->tmrjob_index == MIO_TMRIDX_INVALID);
+				HIO_ASSERT (hio, rdev->tmrjob_index == HIO_TMRIDX_INVALID);
 
 				/* rdev->tmout has been set to the deadline of the connect task
 				 * when the CONNECT IOCTL command has been executed. use the 
 				 * same deadline here */
-				if (MIO_IS_POS_NTIME(&rdev->tmout) &&
+				if (HIO_IS_POS_NTIME(&rdev->tmout) &&
 				    schedule_timer_job_at(rdev, &rdev->tmout, ssl_connect_timedout) <= -1)
 				{
-					MIO_DEBUG1 (mio, "SCK(%p) - ssl-connect timeout scheduling failed. halting\n", rdev);
-					mio_dev_sck_halt (rdev);
+					HIO_DEBUG1 (hio, "SCK(%p) - ssl-connect timeout scheduling failed. halting\n", rdev);
+					hio_dev_sck_halt (rdev);
 				}
 
 				return 0;
@@ -1508,7 +1508,7 @@ static int harvest_outgoing_connection (mio_dev_sck_t* rdev)
 		{
 		ssl_connected:
 	#endif
-			MIO_DEV_SCK_SET_PROGRESS (rdev, MIO_DEV_SCK_CONNECTED);
+			HIO_DEV_SCK_SET_PROGRESS (rdev, HIO_DEV_SCK_CONNECTED);
 			if (rdev->on_connect) rdev->on_connect (rdev);
 	#if defined(USE_SSL)
 		}
@@ -1523,16 +1523,16 @@ static int harvest_outgoing_connection (mio_dev_sck_t* rdev)
 	}
 	else
 	{
-		mio_seterrwithsyserr (mio, 0, errcode);
+		hio_seterrwithsyserr (hio, 0, errcode);
 		return -1;
 	}
 }
 
-static int make_accepted_client_connection (mio_dev_sck_t* rdev, mio_syshnd_t clisck, mio_skad_t* remoteaddr, mio_dev_sck_type_t clisck_type)
+static int make_accepted_client_connection (hio_dev_sck_t* rdev, hio_syshnd_t clisck, hio_skad_t* remoteaddr, hio_dev_sck_type_t clisck_type)
 {
-	mio_t* mio = rdev->mio;
-	mio_dev_sck_t* clidev;
-	mio_scklen_t addrlen;
+	hio_t* hio = rdev->hio;
+	hio_dev_sck_t* clidev;
+	hio_scklen_t addrlen;
 
 	if (rdev->on_raw_accept)
 	{
@@ -1544,24 +1544,24 @@ static int make_accepted_client_connection (mio_dev_sck_t* rdev, mio_syshnd_t cl
 	}
 
 	/* use rdev->dev_size when instantiating a client sck device
-	 * instead of MIO_SIZEOF(mio_dev_sck_t). therefore, the  
+	 * instead of HIO_SIZEOF(hio_dev_sck_t). therefore, the  
 	 * extension area as big as that of the master sck device
 	 * is created in the client sck device */
-	clidev = (mio_dev_sck_t*)mio_dev_make(mio, rdev->dev_size, &dev_mth_clisck, rdev->dev_evcb, &clisck); 
-	if (MIO_UNLIKELY(!clidev))
+	clidev = (hio_dev_sck_t*)hio_dev_make(hio, rdev->dev_size, &dev_mth_clisck, rdev->dev_evcb, &clisck); 
+	if (HIO_UNLIKELY(!clidev))
 	{
-		/* [NOTE] 'clisck' is closed by callback methods called by mio_dev_make() upon failure */
-		MIO_DEBUG3 (mio, "SCK(%p) - unable to make a new accepted device for %d - %js\n", rdev, (int)clisck, mio_geterrmsg(mio));
+		/* [NOTE] 'clisck' is closed by callback methods called by hio_dev_make() upon failure */
+		HIO_DEBUG3 (hio, "SCK(%p) - unable to make a new accepted device for %d - %js\n", rdev, (int)clisck, hio_geterrmsg(hio));
 		return -1;
 	}
 
 	clidev->type = clisck_type;
-	MIO_ASSERT (mio, clidev->hnd == clisck);
+	HIO_ASSERT (hio, clidev->hnd == clisck);
 
-	clidev->dev_cap |= MIO_DEV_CAP_IN | MIO_DEV_CAP_OUT | MIO_DEV_CAP_STREAM;
+	clidev->dev_cap |= HIO_DEV_CAP_IN | HIO_DEV_CAP_OUT | HIO_DEV_CAP_STREAM;
 	clidev->remoteaddr = *remoteaddr;
 
-	addrlen = MIO_SIZEOF(clidev->localaddr);
+	addrlen = HIO_SIZEOF(clidev->localaddr);
 	if (getsockname(clisck, (struct sockaddr*)&clidev->localaddr, &addrlen) == -1) clidev->localaddr = rdev->localaddr;
 
 #if defined(SO_ORIGINAL_DST)
@@ -1569,17 +1569,17 @@ static int make_accepted_client_connection (mio_dev_sck_t* rdev, mio_syshnd_t cl
 	 * destination address. When REDIRECT is not used, it returnes
 	 * the address of the local socket. In this case, it should
 	 * be same as the result of getsockname(). */
-	addrlen = MIO_SIZEOF(clidev->orgdstaddr);
+	addrlen = HIO_SIZEOF(clidev->orgdstaddr);
 	if (getsockopt(clisck, SOL_IP, SO_ORIGINAL_DST, &clidev->orgdstaddr, &addrlen) == -1) clidev->orgdstaddr = rdev->localaddr;
 #else
 	clidev->orgdstaddr = rdev->localaddr;
 #endif
 
-	if (!mio_equal_skads(&clidev->orgdstaddr, &clidev->localaddr, 0))
+	if (!hio_equal_skads(&clidev->orgdstaddr, &clidev->localaddr, 0))
 	{
-		clidev->state |= MIO_DEV_SCK_INTERCEPTED;
+		clidev->state |= HIO_DEV_SCK_INTERCEPTED;
 	}
-	else if (mio_skad_port(&clidev->localaddr) != mio_skad_port(&rdev->localaddr))
+	else if (hio_skad_port(&clidev->localaddr) != hio_skad_port(&rdev->localaddr))
 	{
 		/* When TPROXY is used, getsockname() and SO_ORIGNAL_DST return
 		 * the same addresses. however, the port number may be different
@@ -1590,14 +1590,14 @@ static int make_accepted_client_connection (mio_dev_sck_t* rdev, mio_syshnd_t cl
 		 * Take note that the above assumption gets wrong if the TPROXY
 		 * rule doesn't change the port number. so it won't be able
 		 * to handle such a TPROXYed packet without port transformation. */
-		clidev->state |= MIO_DEV_SCK_INTERCEPTED;
+		clidev->state |= HIO_DEV_SCK_INTERCEPTED;
 	}
 	#if 0
 	else if ((clidev->initial_ifindex = resolve_ifindex(fd, clidev->localaddr)) <= -1)
 	{
 		/* the local_address is not one of a local address.
 		 * it's probably proxied. */
-		clidev->state |= MIO_DEV_SCK_INTERCEPTED;
+		clidev->state |= HIO_DEV_SCK_INTERCEPTED;
 	}
 	#endif
 
@@ -1605,49 +1605,49 @@ static int make_accepted_client_connection (mio_dev_sck_t* rdev, mio_syshnd_t cl
 	 * you can still change them inside the on_connect handler */
 	clidev->on_connect = rdev->on_connect;
 	clidev->on_disconnect = rdev->on_disconnect; 
-	clidev->on_raw_accept = MIO_NULL; /* don't inherit this */
+	clidev->on_raw_accept = HIO_NULL; /* don't inherit this */
 	clidev->on_write = rdev->on_write;
 	clidev->on_read = rdev->on_read;
 
 	/* inherit the contents of the extension area */
-	MIO_ASSERT (mio, rdev->dev_size == clidev->dev_size);
-	MIO_MEMCPY (mio_dev_sck_getxtn(clidev), mio_dev_sck_getxtn(rdev), rdev->dev_size - MIO_SIZEOF(mio_dev_sck_t));
+	HIO_ASSERT (hio, rdev->dev_size == clidev->dev_size);
+	HIO_MEMCPY (hio_dev_sck_getxtn(clidev), hio_dev_sck_getxtn(rdev), rdev->dev_size - HIO_SIZEOF(hio_dev_sck_t));
 
-	MIO_ASSERT (mio, clidev->tmrjob_index == MIO_TMRIDX_INVALID);
+	HIO_ASSERT (hio, clidev->tmrjob_index == HIO_TMRIDX_INVALID);
 
 	if (rdev->ssl_ctx)
 	{
-		MIO_DEV_SCK_SET_PROGRESS (clidev, MIO_DEV_SCK_ACCEPTING_SSL);
-		MIO_ASSERT (mio, clidev->state & MIO_DEV_SCK_ACCEPTING_SSL);
+		HIO_DEV_SCK_SET_PROGRESS (clidev, HIO_DEV_SCK_ACCEPTING_SSL);
+		HIO_ASSERT (hio, clidev->state & HIO_DEV_SCK_ACCEPTING_SSL);
 		/* actual SSL acceptance must be completed in the client device */
 
 		/* let the client device know the SSL context to use */
 		clidev->ssl_ctx = rdev->ssl_ctx;
 
-		if (MIO_IS_POS_NTIME(&rdev->tmout) &&
+		if (HIO_IS_POS_NTIME(&rdev->tmout) &&
 		    schedule_timer_job_after(clidev, &rdev->tmout, ssl_accept_timedout) <= -1)
 		{
 			/* timer job scheduling failed. halt the device */
-			MIO_DEBUG1 (mio, "SCK(%p) - ssl-accept timeout scheduling failed. halting\n", rdev);
-			mio_dev_sck_halt (clidev);
+			HIO_DEBUG1 (hio, "SCK(%p) - ssl-accept timeout scheduling failed. halting\n", rdev);
+			hio_dev_sck_halt (clidev);
 		}
 	}
 	else
 	{
-		MIO_DEV_SCK_SET_PROGRESS (clidev, MIO_DEV_SCK_ACCEPTED);
-		/*if (clidev->on_connect(clidev) <= -1) mio_dev_sck_halt (clidev);*/
+		HIO_DEV_SCK_SET_PROGRESS (clidev, HIO_DEV_SCK_ACCEPTED);
+		/*if (clidev->on_connect(clidev) <= -1) hio_dev_sck_halt (clidev);*/
 		if (clidev->on_connect) clidev->on_connect (clidev);
 	}
 
 	return 0;
 }
 
-static int accept_incoming_connection (mio_dev_sck_t* rdev)
+static int accept_incoming_connection (hio_dev_sck_t* rdev)
 {
-	mio_t* mio = rdev->mio;
-	mio_syshnd_t clisck;
-	mio_skad_t remoteaddr;
-	mio_scklen_t addrlen;
+	hio_t* hio = rdev->hio;
+	hio_syshnd_t clisck;
+	hio_skad_t remoteaddr;
+	hio_scklen_t addrlen;
 	int flags;
 
 	/* this is a server(lisening) socket */
@@ -1655,7 +1655,7 @@ static int accept_incoming_connection (mio_dev_sck_t* rdev)
 #if defined(SOCK_NONBLOCK) && defined(SOCK_CLOEXEC) && defined(HAVE_ACCEPT4)
 	flags = SOCK_NONBLOCK | SOCK_CLOEXEC;
 
-	addrlen = MIO_SIZEOF(remoteaddr);
+	addrlen = HIO_SIZEOF(remoteaddr);
 	clisck = accept4(rdev->hnd, (struct sockaddr*)&remoteaddr, &addrlen, flags);
 	if (clisck <= -1)
 	{
@@ -1668,7 +1668,7 @@ static int accept_incoming_connection (mio_dev_sck_t* rdev)
 	}
 #endif
 
-	addrlen = MIO_SIZEOF(remoteaddr);
+	addrlen = HIO_SIZEOF(remoteaddr);
 	clisck = accept(rdev->hnd, (struct sockaddr*)&remoteaddr, &addrlen);
 	if (clisck <=  -1)
 	{
@@ -1678,7 +1678,7 @@ static int accept_incoming_connection (mio_dev_sck_t* rdev)
 		if (errno == EINPROGRESS || errno == EWOULDBLOCK || errno == EAGAIN) return 0;
 		if (errno == EINTR) return 0; /* if interrupted by a signal, treat it as if it's EINPROGRESS */
 
-		mio_seterrwithsyserr (mio, 0, errno);
+		hio_seterrwithsyserr (hio, 0, errno);
 		return -1;
 	}
 
@@ -1688,49 +1688,49 @@ accept_done:
 	return make_accepted_client_connection(rdev, clisck, &remoteaddr, rdev->type);
 }
 
-static int dev_evcb_sck_ready_stateful (mio_dev_t* dev, int events)
+static int dev_evcb_sck_ready_stateful (hio_dev_t* dev, int events)
 {
-	mio_t* mio = dev->mio;
-	mio_dev_sck_t* rdev = (mio_dev_sck_t*)dev;
+	hio_t* hio = dev->hio;
+	hio_dev_sck_t* rdev = (hio_dev_sck_t*)dev;
 
-	if (events & MIO_DEV_EVENT_ERR)
+	if (events & HIO_DEV_EVENT_ERR)
 	{
 		int errcode;
-		mio_scklen_t len;
+		hio_scklen_t len;
 
-		len = MIO_SIZEOF(errcode);
+		len = HIO_SIZEOF(errcode);
 		if (getsockopt(rdev->hnd, SOL_SOCKET, SO_ERROR, (char*)&errcode, &len) == -1)
 		{
 			/* the error number is set to the socket error code.
 			 * errno resulting from getsockopt() doesn't reflect the actual
 			 * socket error. so errno is not used to set the error number.
-			 * instead, the generic device error MIO_EDEVERRR is used */
-			mio_seterrbfmt (mio, MIO_EDEVERR, "device error - unable to get SO_ERROR");
+			 * instead, the generic device error HIO_EDEVERRR is used */
+			hio_seterrbfmt (hio, HIO_EDEVERR, "device error - unable to get SO_ERROR");
 		}
 		else
 		{
-			mio_seterrwithsyserr (mio, 0, errcode);
+			hio_seterrwithsyserr (hio, 0, errcode);
 		}
 		return -1;
 	}
 
 	/* this socket can connect */
-	switch (MIO_DEV_SCK_GET_PROGRESS(rdev))
+	switch (HIO_DEV_SCK_GET_PROGRESS(rdev))
 	{
-		case MIO_DEV_SCK_CONNECTING:
-			if (events & MIO_DEV_EVENT_HUP)
+		case HIO_DEV_SCK_CONNECTING:
+			if (events & HIO_DEV_EVENT_HUP)
 			{
 				/* device hang-up */
-				mio_seterrnum (mio, MIO_EDEVHUP);
+				hio_seterrnum (hio, HIO_EDEVHUP);
 				return -1;
 			}
-			else if (events & (MIO_DEV_EVENT_PRI | MIO_DEV_EVENT_IN))
+			else if (events & (HIO_DEV_EVENT_PRI | HIO_DEV_EVENT_IN))
 			{
 				/* invalid event masks. generic device error */
-				mio_seterrbfmt (mio, MIO_EDEVERR, "device error - invalid event mask");
+				hio_seterrbfmt (hio, HIO_EDEVERR, "device error - invalid event mask");
 				return -1;
 			}
-			else if (events & MIO_DEV_EVENT_OUT)
+			else if (events & HIO_DEV_EVENT_OUT)
 			{
 				/* when connected, the socket becomes writable */
 				return harvest_outgoing_connection(rdev);
@@ -1740,21 +1740,21 @@ static int dev_evcb_sck_ready_stateful (mio_dev_t* dev, int events)
 				return 0; /* success but don't invoke on_read() */ 
 			}
 
-		case MIO_DEV_SCK_CONNECTING_SSL:
+		case HIO_DEV_SCK_CONNECTING_SSL:
 		#if defined(USE_SSL)
-			if (events & MIO_DEV_EVENT_HUP)
+			if (events & HIO_DEV_EVENT_HUP)
 			{
 				/* device hang-up */
-				mio_seterrnum (mio, MIO_EDEVHUP);
+				hio_seterrnum (hio, HIO_EDEVHUP);
 				return -1;
 			}
-			else if (events & MIO_DEV_EVENT_PRI)
+			else if (events & HIO_DEV_EVENT_PRI)
 			{
 				/* invalid event masks. generic device error */
-				mio_seterrbfmt (mio, MIO_EDEVERR, "device error - invalid event mask");
+				hio_seterrbfmt (hio, HIO_EDEVERR, "device error - invalid event mask");
 				return -1;
 			}
-			else if (events & (MIO_DEV_EVENT_IN | MIO_DEV_EVENT_OUT))
+			else if (events & (HIO_DEV_EVENT_IN | HIO_DEV_EVENT_OUT))
 			{
 				int x;
 
@@ -1762,13 +1762,13 @@ static int dev_evcb_sck_ready_stateful (mio_dev_t* dev, int events)
 				if (x <= -1) return -1;
 				if (x == 0) return 0; /* not SSL-Connected */
 
-				if (rdev->tmrjob_index != MIO_TMRIDX_INVALID)
+				if (rdev->tmrjob_index != HIO_TMRIDX_INVALID)
 				{
-					mio_deltmrjob (rdev->mio, rdev->tmrjob_index);
-					rdev->tmrjob_index = MIO_TMRIDX_INVALID;
+					hio_deltmrjob (rdev->hio, rdev->tmrjob_index);
+					rdev->tmrjob_index = HIO_TMRIDX_INVALID;
 				}
 
-				MIO_DEV_SCK_SET_PROGRESS (rdev, MIO_DEV_SCK_CONNECTED);
+				HIO_DEV_SCK_SET_PROGRESS (rdev, HIO_DEV_SCK_CONNECTED);
 				if (rdev->on_connect) rdev->on_connect (rdev);
 				return 0;
 			}
@@ -1777,26 +1777,26 @@ static int dev_evcb_sck_ready_stateful (mio_dev_t* dev, int events)
 				return 0; /* success. no actual I/O yet */
 			}
 		#else
-			mio_seterrnum (mio, MIO_EINTERN);
+			hio_seterrnum (hio, HIO_EINTERN);
 			return -1;
 		#endif
 
-		case MIO_DEV_SCK_LISTENING:
+		case HIO_DEV_SCK_LISTENING:
 
-			if (events & MIO_DEV_EVENT_HUP)
+			if (events & HIO_DEV_EVENT_HUP)
 			{
 				/* device hang-up */
-				mio_seterrnum (mio, MIO_EDEVHUP);
+				hio_seterrnum (hio, HIO_EDEVHUP);
 				return -1;
 			}
-			else if (events & (MIO_DEV_EVENT_PRI | MIO_DEV_EVENT_OUT))
+			else if (events & (HIO_DEV_EVENT_PRI | HIO_DEV_EVENT_OUT))
 			{
-				mio_seterrbfmt (mio, MIO_EDEVERR, "device error - invalid event mask");
+				hio_seterrbfmt (hio, HIO_EDEVERR, "device error - invalid event mask");
 				return -1;
 			}
-			else if (events & MIO_DEV_EVENT_IN)
+			else if (events & HIO_DEV_EVENT_IN)
 			{
-				if (rdev->state & MIO_DEV_SCK_LENIENT)
+				if (rdev->state & HIO_DEV_SCK_LENIENT)
 				{
 					accept_incoming_connection(rdev);
 					return 0; /* return ok to the core regardless of accept()'s result */
@@ -1812,21 +1812,21 @@ static int dev_evcb_sck_ready_stateful (mio_dev_t* dev, int events)
 				return 0; /* success but don't invoke on_read() */ 
 			}
 
-		case MIO_DEV_SCK_ACCEPTING_SSL:
+		case HIO_DEV_SCK_ACCEPTING_SSL:
 		#if defined(USE_SSL)
-			if (events & MIO_DEV_EVENT_HUP)
+			if (events & HIO_DEV_EVENT_HUP)
 			{
 				/* device hang-up */
-				mio_seterrnum (mio, MIO_EDEVHUP);
+				hio_seterrnum (hio, HIO_EDEVHUP);
 				return -1;
 			}
-			else if (events & MIO_DEV_EVENT_PRI)
+			else if (events & HIO_DEV_EVENT_PRI)
 			{
 				/* invalid event masks. generic device error */
-				mio_seterrbfmt (mio, MIO_EDEVERR, "device error - invalid event mask");
+				hio_seterrbfmt (hio, HIO_EDEVERR, "device error - invalid event mask");
 				return -1;
 			}
-			else if (events & (MIO_DEV_EVENT_IN | MIO_DEV_EVENT_OUT))
+			else if (events & (HIO_DEV_EVENT_IN | HIO_DEV_EVENT_OUT))
 			{
 				int x;
 
@@ -1834,13 +1834,13 @@ static int dev_evcb_sck_ready_stateful (mio_dev_t* dev, int events)
 				if (x <= -1) return -1;
 				if (x == 0) return 0; /* not SSL-accepted yet */
 
-				if (rdev->tmrjob_index != MIO_TMRIDX_INVALID)
+				if (rdev->tmrjob_index != HIO_TMRIDX_INVALID)
 				{
-					mio_deltmrjob (rdev->mio, rdev->tmrjob_index);
-					rdev->tmrjob_index = MIO_TMRIDX_INVALID;
+					hio_deltmrjob (rdev->hio, rdev->tmrjob_index);
+					rdev->tmrjob_index = HIO_TMRIDX_INVALID;
 				}
 
-				MIO_DEV_SCK_SET_PROGRESS (rdev, MIO_DEV_SCK_ACCEPTED);
+				HIO_DEV_SCK_SET_PROGRESS (rdev, HIO_DEV_SCK_ACCEPTED);
 				if (rdev->on_connect) rdev->on_connect (rdev);
 
 				return 0;
@@ -1850,21 +1850,21 @@ static int dev_evcb_sck_ready_stateful (mio_dev_t* dev, int events)
 				return 0; /* no reading or writing yet */
 			}
 		#else
-			mio_seterrnum (mio, MIO_EINTERN);
+			hio_seterrnum (hio, HIO_EINTERN);
 			return -1;
 		#endif
 
 
 		default:
-			if (events & MIO_DEV_EVENT_HUP)
+			if (events & HIO_DEV_EVENT_HUP)
 			{
-				if (events & (MIO_DEV_EVENT_PRI | MIO_DEV_EVENT_IN | MIO_DEV_EVENT_OUT)) 
+				if (events & (HIO_DEV_EVENT_PRI | HIO_DEV_EVENT_IN | HIO_DEV_EVENT_OUT)) 
 				{
 					/* probably half-open? */
 					return 1;
 				}
 
-				mio_seterrnum (mio, MIO_EDEVHUP);
+				hio_seterrnum (hio, HIO_EDEVHUP);
 				return -1;
 			}
 
@@ -1872,74 +1872,74 @@ static int dev_evcb_sck_ready_stateful (mio_dev_t* dev, int events)
 	}
 }
 
-static int dev_evcb_sck_ready_stateless (mio_dev_t* dev, int events)
+static int dev_evcb_sck_ready_stateless (hio_dev_t* dev, int events)
 {
-	mio_t* mio = dev->mio;
-	mio_dev_sck_t* rdev = (mio_dev_sck_t*)dev;
+	hio_t* hio = dev->hio;
+	hio_dev_sck_t* rdev = (hio_dev_sck_t*)dev;
 
-	if (events & MIO_DEV_EVENT_ERR)
+	if (events & HIO_DEV_EVENT_ERR)
 	{
 		int errcode;
-		mio_scklen_t len;
+		hio_scklen_t len;
 
-		len = MIO_SIZEOF(errcode);
+		len = HIO_SIZEOF(errcode);
 		if (getsockopt(rdev->hnd, SOL_SOCKET, SO_ERROR, (char*)&errcode, &len) == -1)
 		{
 			/* the error number is set to the socket error code.
 			 * errno resulting from getsockopt() doesn't reflect the actual
 			 * socket error. so errno is not used to set the error number.
-			 * instead, the generic device error MIO_EDEVERRR is used */
-			mio_seterrbfmt (mio, MIO_EDEVERR, "device error - unable to get SO_ERROR");
+			 * instead, the generic device error HIO_EDEVERRR is used */
+			hio_seterrbfmt (hio, HIO_EDEVERR, "device error - unable to get SO_ERROR");
 		}
 		else
 		{
-			mio_seterrwithsyserr (rdev->mio, 0, errcode);
+			hio_seterrwithsyserr (rdev->hio, 0, errcode);
 		}
 		return -1;
 	}
-	else if (events & MIO_DEV_EVENT_HUP)
+	else if (events & HIO_DEV_EVENT_HUP)
 	{
-		mio_seterrnum (mio, MIO_EDEVHUP);
+		hio_seterrnum (hio, HIO_EDEVHUP);
 		return -1;
 	}
 
 	return 1; /* the device is ok. carry on reading or writing */
 }
 
-static int dev_evcb_sck_on_read_stateful (mio_dev_t* dev, const void* data, mio_iolen_t dlen, const mio_devaddr_t* srcaddr)
+static int dev_evcb_sck_on_read_stateful (hio_dev_t* dev, const void* data, hio_iolen_t dlen, const hio_devaddr_t* srcaddr)
 {
-	mio_dev_sck_t* rdev = (mio_dev_sck_t*)dev;
-	return rdev->on_read(rdev, data, dlen, MIO_NULL);
+	hio_dev_sck_t* rdev = (hio_dev_sck_t*)dev;
+	return rdev->on_read(rdev, data, dlen, HIO_NULL);
 }
 
-static int dev_evcb_sck_on_write_stateful (mio_dev_t* dev, mio_iolen_t wrlen, void* wrctx, const mio_devaddr_t* dstaddr)
+static int dev_evcb_sck_on_write_stateful (hio_dev_t* dev, hio_iolen_t wrlen, void* wrctx, const hio_devaddr_t* dstaddr)
 {
-	mio_dev_sck_t* rdev = (mio_dev_sck_t*)dev;
-	return rdev->on_write(rdev, wrlen, wrctx, MIO_NULL);
+	hio_dev_sck_t* rdev = (hio_dev_sck_t*)dev;
+	return rdev->on_write(rdev, wrlen, wrctx, HIO_NULL);
 }
 
-static int dev_evcb_sck_on_read_stateless (mio_dev_t* dev, const void* data, mio_iolen_t dlen, const mio_devaddr_t* srcaddr)
+static int dev_evcb_sck_on_read_stateless (hio_dev_t* dev, const void* data, hio_iolen_t dlen, const hio_devaddr_t* srcaddr)
 {
-	mio_dev_sck_t* rdev = (mio_dev_sck_t*)dev;
+	hio_dev_sck_t* rdev = (hio_dev_sck_t*)dev;
 	return rdev->on_read(rdev, data, dlen, srcaddr->ptr);
 }
 
-static int dev_evcb_sck_on_write_stateless (mio_dev_t* dev, mio_iolen_t wrlen, void* wrctx, const mio_devaddr_t* dstaddr)
+static int dev_evcb_sck_on_write_stateless (hio_dev_t* dev, hio_iolen_t wrlen, void* wrctx, const hio_devaddr_t* dstaddr)
 {
-	mio_dev_sck_t* rdev = (mio_dev_sck_t*)dev;
+	hio_dev_sck_t* rdev = (hio_dev_sck_t*)dev;
 	return rdev->on_write(rdev, wrlen, wrctx, dstaddr->ptr);
 }
 
 /* ========================================================================= */
 
-static mio_dev_evcb_t dev_sck_event_callbacks_stateful =
+static hio_dev_evcb_t dev_sck_event_callbacks_stateful =
 {
 	dev_evcb_sck_ready_stateful,
 	dev_evcb_sck_on_read_stateful,
 	dev_evcb_sck_on_write_stateful
 };
 
-static mio_dev_evcb_t dev_sck_event_callbacks_stateless =
+static hio_dev_evcb_t dev_sck_event_callbacks_stateless =
 {
 	dev_evcb_sck_ready_stateless,
 	dev_evcb_sck_on_read_stateless,
@@ -1947,34 +1947,34 @@ static mio_dev_evcb_t dev_sck_event_callbacks_stateless =
 };
 /* ========================================================================= */
 
-static int dev_evcb_sck_ready_qx (mio_dev_t* dev, int events)
+static int dev_evcb_sck_ready_qx (hio_dev_t* dev, int events)
 {
-	mio_t* mio = dev->mio;
-	mio_dev_sck_t* rdev = (mio_dev_sck_t*)dev;
+	hio_t* hio = dev->hio;
+	hio_dev_sck_t* rdev = (hio_dev_sck_t*)dev;
 
-	if (events & MIO_DEV_EVENT_ERR)
+	if (events & HIO_DEV_EVENT_ERR)
 	{
 		int errcode;
-		mio_scklen_t len;
+		hio_scklen_t len;
 
-		len = MIO_SIZEOF(errcode);
+		len = HIO_SIZEOF(errcode);
 		if (getsockopt(rdev->hnd, SOL_SOCKET, SO_ERROR, (char*)&errcode, &len) == -1)
 		{
 			/* the error number is set to the socket error code.
 			 * errno resulting from getsockopt() doesn't reflect the actual
 			 * socket error. so errno is not used to set the error number.
-			 * instead, the generic device error MIO_EDEVERRR is used */
-			mio_seterrbfmt (mio, MIO_EDEVERR, "device error - unable to get SO_ERROR");
+			 * instead, the generic device error HIO_EDEVERRR is used */
+			hio_seterrbfmt (hio, HIO_EDEVERR, "device error - unable to get SO_ERROR");
 		}
 		else
 		{
-			mio_seterrwithsyserr (rdev->mio, 0, errcode);
+			hio_seterrwithsyserr (rdev->hio, 0, errcode);
 		}
 		return -1;
 	}
-	else if (events & MIO_DEV_EVENT_HUP)
+	else if (events & HIO_DEV_EVENT_HUP)
 	{
-		mio_seterrnum (mio, MIO_EDEVHUP);
+		hio_seterrnum (hio, HIO_EDEVHUP);
 		return -1;
 	}
 
@@ -1982,33 +1982,33 @@ static int dev_evcb_sck_ready_qx (mio_dev_t* dev, int events)
 }
 
 
-static int dev_evcb_sck_on_read_qx (mio_dev_t* dev, const void* data, mio_iolen_t dlen, const mio_devaddr_t* srcaddr)
+static int dev_evcb_sck_on_read_qx (hio_dev_t* dev, const void* data, hio_iolen_t dlen, const hio_devaddr_t* srcaddr)
 {
-	mio_t* mio = dev->mio;
-	mio_dev_sck_t* rdev = (mio_dev_sck_t*)dev;
+	hio_t* hio = dev->hio;
+	hio_dev_sck_t* rdev = (hio_dev_sck_t*)dev;
 
-	if (rdev->type == MIO_DEV_SCK_QX)
+	if (rdev->type == HIO_DEV_SCK_QX)
 	{
-		mio_dev_sck_qxmsg_t* qxmsg;
+		hio_dev_sck_qxmsg_t* qxmsg;
 
-		if (dlen != MIO_SIZEOF(*qxmsg))
+		if (dlen != HIO_SIZEOF(*qxmsg))
 		{
-			mio_seterrbfmt (mio, MIO_EINVAL, "wrong qx packet size");
+			hio_seterrbfmt (hio, HIO_EINVAL, "wrong qx packet size");
 			return 0;
 		}
 
-		qxmsg = (mio_dev_sck_qxmsg_t*)data;
-		if (qxmsg->cmd == MIO_DEV_SCK_QXMSG_NEWCONN)
+		qxmsg = (hio_dev_sck_qxmsg_t*)data;
+		if (qxmsg->cmd == HIO_DEV_SCK_QXMSG_NEWCONN)
 		{
 			if (make_accepted_client_connection(rdev, qxmsg->syshnd, &qxmsg->remoteaddr, qxmsg->scktype) <= -1)
 			{
 printf ("unable to accept new client connection %d\n", qxmsg->syshnd);
-				return (rdev->state & MIO_DEV_SCK_LENIENT)? 0: -1;
+				return (rdev->state & HIO_DEV_SCK_LENIENT)? 0: -1;
 			}
 		}
 		else
 		{
-			mio_seterrbfmt (mio, MIO_EINVAL, "wrong qx command code");
+			hio_seterrbfmt (hio, HIO_EINVAL, "wrong qx command code");
 			return 0;
 		}
 
@@ -2017,23 +2017,23 @@ printf ("unable to accept new client connection %d\n", qxmsg->syshnd);
 
 
 	/* this is not for a qx socket */
-	return rdev->on_read(rdev, data, dlen, MIO_NULL);
+	return rdev->on_read(rdev, data, dlen, HIO_NULL);
 }
 
-static int dev_evcb_sck_on_write_qx (mio_dev_t* dev, mio_iolen_t wrlen, void* wrctx, const mio_devaddr_t* dstaddr)
+static int dev_evcb_sck_on_write_qx (hio_dev_t* dev, hio_iolen_t wrlen, void* wrctx, const hio_devaddr_t* dstaddr)
 {
-	mio_dev_sck_t* rdev = (mio_dev_sck_t*)dev;
+	hio_dev_sck_t* rdev = (hio_dev_sck_t*)dev;
 
-	if (rdev->type == MIO_DEV_SCK_QX)
+	if (rdev->type == HIO_DEV_SCK_QX)
 	{
 		/* this should not be called */
 		return 0;
 	}
 	
-	return rdev->on_write(rdev, wrlen, wrctx, MIO_NULL);
+	return rdev->on_write(rdev, wrlen, wrctx, HIO_NULL);
 }
 
-static mio_dev_evcb_t dev_sck_event_callbacks_qx =
+static hio_dev_evcb_t dev_sck_event_callbacks_qx =
 {
 	dev_evcb_sck_ready_qx,
 	dev_evcb_sck_on_read_qx,
@@ -2042,31 +2042,31 @@ static mio_dev_evcb_t dev_sck_event_callbacks_qx =
 
 /* ========================================================================= */
 
-static int dev_evcb_sck_ready_bpf (mio_dev_t* dev, int events)
+static int dev_evcb_sck_ready_bpf (hio_dev_t* dev, int events)
 {
-	mio_t* mio = dev->mio;
-	mio_dev_sck_t* rdev = (mio_dev_sck_t*)dev;
-	mio_seterrnum (mio, MIO_ENOIMPL);
+	hio_t* hio = dev->hio;
+	hio_dev_sck_t* rdev = (hio_dev_sck_t*)dev;
+	hio_seterrnum (hio, HIO_ENOIMPL);
 	return -1;
 }
 
-static int dev_evcb_sck_on_read_bpf (mio_dev_t* dev, const void* data, mio_iolen_t dlen, const mio_devaddr_t* srcaddr)
+static int dev_evcb_sck_on_read_bpf (hio_dev_t* dev, const void* data, hio_iolen_t dlen, const hio_devaddr_t* srcaddr)
 {
-	mio_t* mio = dev->mio;
-	mio_dev_sck_t* rdev = (mio_dev_sck_t*)dev;
-	mio_seterrnum (mio, MIO_ENOIMPL);
+	hio_t* hio = dev->hio;
+	hio_dev_sck_t* rdev = (hio_dev_sck_t*)dev;
+	hio_seterrnum (hio, HIO_ENOIMPL);
 	return -1;
 }
 
-static int dev_evcb_sck_on_write_bpf (mio_dev_t* dev, mio_iolen_t wrlen, void* wrctx, const mio_devaddr_t* dstaddr)
+static int dev_evcb_sck_on_write_bpf (hio_dev_t* dev, hio_iolen_t wrlen, void* wrctx, const hio_devaddr_t* dstaddr)
 {
-	mio_t* mio = dev->mio;
-	mio_dev_sck_t* rdev = (mio_dev_sck_t*)dev;
-	mio_seterrnum (mio, MIO_ENOIMPL);
+	hio_t* hio = dev->hio;
+	hio_dev_sck_t* rdev = (hio_dev_sck_t*)dev;
+	hio_seterrnum (hio, HIO_ENOIMPL);
 	return -1;
 }
 
-static mio_dev_evcb_t dev_sck_event_callbacks_bpf =
+static hio_dev_evcb_t dev_sck_event_callbacks_bpf =
 {
 	dev_evcb_sck_ready_bpf,
 	dev_evcb_sck_on_read_bpf,
@@ -2075,147 +2075,147 @@ static mio_dev_evcb_t dev_sck_event_callbacks_bpf =
 
 /* ========================================================================= */
 
-mio_dev_sck_t* mio_dev_sck_make (mio_t* mio, mio_oow_t xtnsize, const mio_dev_sck_make_t* info)
+hio_dev_sck_t* hio_dev_sck_make (hio_t* hio, hio_oow_t xtnsize, const hio_dev_sck_make_t* info)
 {
-	mio_dev_sck_t* rdev;
+	hio_dev_sck_t* rdev;
 
-	if (info->type < 0 && info->type >= MIO_COUNTOF(sck_type_map))
+	if (info->type < 0 && info->type >= HIO_COUNTOF(sck_type_map))
 	{
-		mio_seterrnum (mio, MIO_EINVAL);
-		return MIO_NULL;
+		hio_seterrnum (hio, HIO_EINVAL);
+		return HIO_NULL;
 	}
 
-	if (info->type == MIO_DEV_SCK_QX)
+	if (info->type == HIO_DEV_SCK_QX)
 	{
-		rdev = (mio_dev_sck_t*)mio_dev_make(
-			mio, MIO_SIZEOF(mio_dev_sck_t) + xtnsize,
+		rdev = (hio_dev_sck_t*)hio_dev_make(
+			hio, HIO_SIZEOF(hio_dev_sck_t) + xtnsize,
 			&dev_mth_sck_stateless, &dev_sck_event_callbacks_qx, (void*)info);
 	}
-	else if (info->type == MIO_DEV_SCK_BPF)
+	else if (info->type == HIO_DEV_SCK_BPF)
 	{
-		rdev = (mio_dev_sck_t*)mio_dev_make(
-			mio, MIO_SIZEOF(mio_dev_sck_t) + xtnsize,
+		rdev = (hio_dev_sck_t*)hio_dev_make(
+			hio, HIO_SIZEOF(hio_dev_sck_t) + xtnsize,
 			&dev_mth_sck_bpf, &dev_sck_event_callbacks_bpf, (void*)info);
 	}
-	else if (sck_type_map[info->type].extra_dev_cap & MIO_DEV_CAP_STREAM) /* can't use the IS_STATEFUL() macro yet */
+	else if (sck_type_map[info->type].extra_dev_cap & HIO_DEV_CAP_STREAM) /* can't use the IS_STATEFUL() macro yet */
 	{
-		rdev = (mio_dev_sck_t*)mio_dev_make(
-			mio, MIO_SIZEOF(mio_dev_sck_t) + xtnsize,
+		rdev = (hio_dev_sck_t*)hio_dev_make(
+			hio, HIO_SIZEOF(hio_dev_sck_t) + xtnsize,
 			&dev_mth_sck_stateful, &dev_sck_event_callbacks_stateful, (void*)info);
 	}
 	else
 	{
-		rdev = (mio_dev_sck_t*)mio_dev_make(
-			mio, MIO_SIZEOF(mio_dev_sck_t) + xtnsize,
+		rdev = (hio_dev_sck_t*)hio_dev_make(
+			hio, HIO_SIZEOF(hio_dev_sck_t) + xtnsize,
 			&dev_mth_sck_stateless, &dev_sck_event_callbacks_stateless, (void*)info);
 	}
 
 	return rdev;
 }
 
-int mio_dev_sck_bind (mio_dev_sck_t* dev, mio_dev_sck_bind_t* info)
+int hio_dev_sck_bind (hio_dev_sck_t* dev, hio_dev_sck_bind_t* info)
 {
-	return mio_dev_ioctl((mio_dev_t*)dev, MIO_DEV_SCK_BIND, info);
+	return hio_dev_ioctl((hio_dev_t*)dev, HIO_DEV_SCK_BIND, info);
 }
 
-int mio_dev_sck_connect (mio_dev_sck_t* dev, mio_dev_sck_connect_t* info)
+int hio_dev_sck_connect (hio_dev_sck_t* dev, hio_dev_sck_connect_t* info)
 {
-	return mio_dev_ioctl((mio_dev_t*)dev, MIO_DEV_SCK_CONNECT, info);
+	return hio_dev_ioctl((hio_dev_t*)dev, HIO_DEV_SCK_CONNECT, info);
 }
 
-int mio_dev_sck_listen (mio_dev_sck_t* dev, mio_dev_sck_listen_t* info)
+int hio_dev_sck_listen (hio_dev_sck_t* dev, hio_dev_sck_listen_t* info)
 {
-	return mio_dev_ioctl((mio_dev_t*)dev, MIO_DEV_SCK_LISTEN, info);
+	return hio_dev_ioctl((hio_dev_t*)dev, HIO_DEV_SCK_LISTEN, info);
 }
 
-int mio_dev_sck_write (mio_dev_sck_t* dev, const void* data, mio_iolen_t dlen, void* wrctx, const mio_skad_t* dstaddr)
+int hio_dev_sck_write (hio_dev_sck_t* dev, const void* data, hio_iolen_t dlen, void* wrctx, const hio_skad_t* dstaddr)
 {
-	mio_devaddr_t devaddr;
-	return mio_dev_write((mio_dev_t*)dev, data, dlen, wrctx, skad_to_devaddr(dev, dstaddr, &devaddr));
+	hio_devaddr_t devaddr;
+	return hio_dev_write((hio_dev_t*)dev, data, dlen, wrctx, skad_to_devaddr(dev, dstaddr, &devaddr));
 }
 
-int mio_dev_sck_writev (mio_dev_sck_t* dev, mio_iovec_t* iov, mio_iolen_t iovcnt, void* wrctx, const mio_skad_t* dstaddr)
+int hio_dev_sck_writev (hio_dev_sck_t* dev, hio_iovec_t* iov, hio_iolen_t iovcnt, void* wrctx, const hio_skad_t* dstaddr)
 {
-	mio_devaddr_t devaddr;
-	return mio_dev_writev((mio_dev_t*)dev, iov, iovcnt, wrctx, skad_to_devaddr(dev, dstaddr, &devaddr));
+	hio_devaddr_t devaddr;
+	return hio_dev_writev((hio_dev_t*)dev, iov, iovcnt, wrctx, skad_to_devaddr(dev, dstaddr, &devaddr));
 }
 
-int mio_dev_sck_timedwrite (mio_dev_sck_t* dev, const void* data, mio_iolen_t dlen, const mio_ntime_t* tmout, void* wrctx, const mio_skad_t* dstaddr)
+int hio_dev_sck_timedwrite (hio_dev_sck_t* dev, const void* data, hio_iolen_t dlen, const hio_ntime_t* tmout, void* wrctx, const hio_skad_t* dstaddr)
 {
-	mio_devaddr_t devaddr;
-	return mio_dev_timedwrite((mio_dev_t*)dev, data, dlen, tmout, wrctx, skad_to_devaddr(dev, dstaddr, &devaddr));
+	hio_devaddr_t devaddr;
+	return hio_dev_timedwrite((hio_dev_t*)dev, data, dlen, tmout, wrctx, skad_to_devaddr(dev, dstaddr, &devaddr));
 }
 
-int mio_dev_sck_timedwritev (mio_dev_sck_t* dev, mio_iovec_t* iov, mio_iolen_t iovcnt, const mio_ntime_t* tmout, void* wrctx, const mio_skad_t* dstaddr)
+int hio_dev_sck_timedwritev (hio_dev_sck_t* dev, hio_iovec_t* iov, hio_iolen_t iovcnt, const hio_ntime_t* tmout, void* wrctx, const hio_skad_t* dstaddr)
 {
-	mio_devaddr_t devaddr;
-	return mio_dev_timedwritev((mio_dev_t*)dev, iov, iovcnt, tmout, wrctx, skad_to_devaddr(dev, dstaddr, &devaddr));
+	hio_devaddr_t devaddr;
+	return hio_dev_timedwritev((hio_dev_t*)dev, iov, iovcnt, tmout, wrctx, skad_to_devaddr(dev, dstaddr, &devaddr));
 }
 
 /* ========================================================================= */
-int mio_dev_sck_setsockopt (mio_dev_sck_t* dev, int level, int optname, void* optval, mio_scklen_t optlen)
+int hio_dev_sck_setsockopt (hio_dev_sck_t* dev, int level, int optname, void* optval, hio_scklen_t optlen)
 {
 	return setsockopt(dev->hnd, level, optname, optval, optlen);
 }
 
-int mio_dev_sck_getsockopt (mio_dev_sck_t* dev, int level, int optname, void* optval, mio_scklen_t* optlen)
+int hio_dev_sck_getsockopt (hio_dev_sck_t* dev, int level, int optname, void* optval, hio_scklen_t* optlen)
 {
 	return getsockopt(dev->hnd, level, optname, optval, optlen);
 }
 
-int mio_dev_sck_getsockaddr (mio_dev_sck_t* dev, mio_skad_t* skad)
+int hio_dev_sck_getsockaddr (hio_dev_sck_t* dev, hio_skad_t* skad)
 {
-	mio_scklen_t addrlen = MIO_SIZEOF(*skad);
+	hio_scklen_t addrlen = HIO_SIZEOF(*skad);
 	if (getsockname(dev->hnd, (struct sockaddr*)skad, &addrlen) <= -1)
 	{
-		mio_seterrwithsyserr (dev->mio, 0, errno);
+		hio_seterrwithsyserr (dev->hio, 0, errno);
 		return -1;
 	}
 	return 0;
 }
 
-int mio_dev_sck_getpeeraddr (mio_dev_sck_t* dev, mio_skad_t* skad)
+int hio_dev_sck_getpeeraddr (hio_dev_sck_t* dev, hio_skad_t* skad)
 {
-	mio_scklen_t addrlen = MIO_SIZEOF(*skad);
+	hio_scklen_t addrlen = HIO_SIZEOF(*skad);
 	if (getpeername(dev->hnd, (struct sockaddr*)skad, &addrlen) <= -1)
 	{
-		mio_seterrwithsyserr (dev->mio, 0, errno);
+		hio_seterrwithsyserr (dev->hio, 0, errno);
 		return -1;
 	}
 	return 0;
 }
 
-int mio_dev_sck_shutdown (mio_dev_sck_t* dev, int how)
+int hio_dev_sck_shutdown (hio_dev_sck_t* dev, int how)
 {
-	switch (how & (MIO_DEV_SCK_SHUTDOWN_READ | MIO_DEV_SCK_SHUTDOWN_WRITE))
+	switch (how & (HIO_DEV_SCK_SHUTDOWN_READ | HIO_DEV_SCK_SHUTDOWN_WRITE))
 	{
-		case (MIO_DEV_SCK_SHUTDOWN_READ | MIO_DEV_SCK_SHUTDOWN_WRITE):
+		case (HIO_DEV_SCK_SHUTDOWN_READ | HIO_DEV_SCK_SHUTDOWN_WRITE):
 			how = SHUT_RDWR;
 			break;
 
-		case MIO_DEV_SCK_SHUTDOWN_READ:
+		case HIO_DEV_SCK_SHUTDOWN_READ:
 			how = SHUT_RD;
 			break;
 
-		case MIO_DEV_SCK_SHUTDOWN_WRITE:
+		case HIO_DEV_SCK_SHUTDOWN_WRITE:
 			how = SHUT_WR;
 			break;
 
 		default:
-			mio_seterrnum (dev->mio, MIO_EINVAL);
+			hio_seterrnum (dev->hio, HIO_EINVAL);
 			return -1;
 	}
 
 	if (shutdown(dev->hnd, how) <= -1)
 	{
-		mio_seterrwithsyserr (dev->mio, 0, errno);
+		hio_seterrwithsyserr (dev->hio, 0, errno);
 		return -1;
 	}
 
 	return 0;
 }
 
-int mio_dev_sck_sendfileok (mio_dev_sck_t* dev)
+int hio_dev_sck_sendfileok (hio_dev_sck_t* dev)
 {
 #if defined(USE_SSL)
 	return !(dev->ssl);
@@ -2224,7 +2224,7 @@ int mio_dev_sck_sendfileok (mio_dev_sck_t* dev)
 #endif
 }
 
-int mio_dev_sck_writetosidechan (mio_dev_sck_t* dev, const void* dptr, mio_oow_t dlen)
+int hio_dev_sck_writetosidechan (hio_dev_sck_t* dev, const void* dptr, hio_oow_t dlen)
 {
 	if (write(dev->side_chan, dptr, dlen) <= -1) return -1; /* this doesn't set the error information. if you may check errno, though */
 	return 0;
@@ -2232,10 +2232,10 @@ int mio_dev_sck_writetosidechan (mio_dev_sck_t* dev, const void* dptr, mio_oow_t
 
 /* ========================================================================= */
 
-mio_uint16_t mio_checksum_ip (const void* hdr, mio_oow_t len)
+hio_uint16_t hio_checksum_ip (const void* hdr, hio_oow_t len)
 {
-	mio_uint32_t sum = 0;
-	mio_uint16_t *ptr = (mio_uint16_t*)hdr;
+	hio_uint32_t sum = 0;
+	hio_uint16_t *ptr = (hio_uint16_t*)hdr;
 
 	while (len > 1)
 	{
@@ -2247,6 +2247,6 @@ mio_uint16_t mio_checksum_ip (const void* hdr, mio_oow_t len)
  
 	while (sum >> 16) sum = (sum & 0xFFFF) + (sum >> 16);
 
-	return (mio_uint16_t)~sum;
+	return (hio_uint16_t)~sum;
 }
 

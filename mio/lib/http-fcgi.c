@@ -30,31 +30,31 @@
 #define FCGI_OVERLOADED       2
 #define FCGI_UNKNOWN_ROLE     3
 
-#include "mio-pac1.h"
+#include "hio-pac1.h"
 struct fcgi_record_header 
 {
-	mio_uint8_t   version;
-	mio_uint8_t   type;
-	mio_uint16_t  id;
-	mio_uint16_t  content_len;
-	mio_uint8_t   padding_len;
-	mio_uint8_t   reserved;
+	hio_uint8_t   version;
+	hio_uint8_t   type;
+	hio_uint16_t  id;
+	hio_uint16_t  content_len;
+	hio_uint8_t   padding_len;
+	hio_uint8_t   reserved;
 };
 
 struct fcgi_begin_request_body 
 {
-	mio_uint16_t  role;
-	mio_uint8_t   flags;
-	mio_uint8_t   reserved[5];
+	hio_uint16_t  role;
+	hio_uint8_t   flags;
+	hio_uint8_t   reserved[5];
 };
 
 struct fcgi_end_request_body
 {
-	mio_uint32_t app_status;
-	mio_uint8_t proto_status;
-	mio_uint8_t reserved[3];
+	hio_uint32_t app_status;
+	hio_uint8_t proto_status;
+	hio_uint8_t reserved[3];
 };
-#include "mio-upac.h"
+#include "hio-upac.h"
 
 
 
@@ -67,11 +67,11 @@ static int begin_request ()
 
 	h->version = 1;
 	h->type = FCGI_BEGIN_REQUEST;
-	h->id = MIO_CONST_HTON16(1);
-	h->content_len = MIO_HTON16(MIO_SIZEOF(struct fcgi_begin_request_body));
+	h->id = HIO_CONST_HTON16(1);
+	h->content_len = HIO_HTON16(HIO_SIZEOF(struct fcgi_begin_request_body));
 	h->padding_len = 0;
 
-	br->role = MIO_CONST_HTON16(FCGI_RESPONDER);
+	br->role = HIO_CONST_HTON16(FCGI_RESPONDER);
 	br->flags = 0;
 
 

@@ -1,12 +1,8 @@
-dnl AC_PREREQ([2.67])
+dnl AC_PREREQ([2.69])
 
-dnl Make sure you change the version information
-dnl in include/mio/conf_*.h whenever you change the version 
-dnl here. Those files don't depend on autoconf, thus requiring
-dnl manual change.
-AC_INIT([mio],[0.1.0],[Chung, Hyung-Hwan (hyunghwan.chung@gmail.com)],[],[http://code.miflux.com/@mio])
+AC_INIT([hio],[0.1.0],[Chung, Hyung-Hwan (hyunghwan.chung@gmail.com)],[],[http://code.miflux.com/@hio])
 
-AC_CONFIG_HEADER([lib/mio-cfg.h])
+AC_CONFIG_HEADER([lib/hio-cfg.h])
 AC_CONFIG_AUX_DIR([ac])
 AC_CONFIG_MACRO_DIR([m4])
 
@@ -44,7 +40,7 @@ then
 fi
 
 dnl indicate the existence of config.h
-CFLAGS="$CFLAGS -DMIO_HAVE_CFG_H"
+CFLAGS="$CFLAGS -DHIO_HAVE_CFG_H"
 
 dnl make visible the 64-bit interface to the file system
 AC_SYS_LARGEFILE()
@@ -300,7 +296,7 @@ AC_ARG_ENABLE([mariadb],
 )
 if test "${enable_mariadb_is}" = "yes"
 then
-        AC_DEFINE([MIO_ENABLE_MARIADB],[1],[build the mariadb device])
+        AC_DEFINE([HIO_ENABLE_MARIADB],[1],[build the mariadb device])
 fi
 AM_CONDITIONAL(ENABLE_MARIADB, test "${enable_mariadb_is}" = "yes")
 
@@ -486,7 +482,7 @@ then
 	if test ${ac_cv_sizeof_socklen_t} -gt 0
 	then
 		AX_CHECK_SIGN([socklen_t],
-			[ AC_DEFINE(MIO_SOCKLEN_T_IS_SIGNED, 1, [Define if socklen_t is signed]) ],
+			[ AC_DEFINE(HIO_SOCKLEN_T_IS_SIGNED, 1, [Define if socklen_t is signed]) ],
 			[ AS_ECHO_N("") ],
 			[#include <winsock2.h>
 			 #include <ws2tcpip.h>])
@@ -498,7 +494,7 @@ then
 	if test ${ac_cv_sizeof_sa_family_t} -gt 0
 	then
 		AX_CHECK_SIGN([sa_family_t],
-			[ AC_DEFINE(MIO_SA_FAMILY_T_IS_SIGNED, 1, [Define if sa_family_t is signed]) ],
+			[ AC_DEFINE(HIO_SA_FAMILY_T_IS_SIGNED, 1, [Define if sa_family_t is signed]) ],
 			[ AS_ECHO_N("") ],
 			[#include <winsock2.h>
 			 #include <ws2tcpip.h>])
@@ -511,7 +507,7 @@ then
 		 #include <winsock2.h>
 		 #include <ws2tcpip.h>], [ac_cv_offsteof_sa_family=0])
 	AC_MSG_RESULT([$ac_cv_offsetof_sa_family])
-	AC_DEFINE_UNQUOTED(MIO_OFFSETOF_SA_FAMILY, ${ac_cv_offsetof_sa_family}, [offsetof(struct sockaddr, sa_family)])
+	AC_DEFINE_UNQUOTED(HIO_OFFSETOF_SA_FAMILY, ${ac_cv_offsetof_sa_family}, [offsetof(struct sockaddr, sa_family)])
 
 else
 	AC_CHECK_SIZEOF(struct sockaddr_in,,[
@@ -542,7 +538,7 @@ else
 	if test ${ac_cv_sizeof_socklen_t} -gt 0
 	then
 		AX_CHECK_SIGN([socklen_t],
-			[ AC_DEFINE(MIO_SOCKLEN_T_IS_SIGNED, 1, [Define if socklen_t is signed]) ],
+			[ AC_DEFINE(HIO_SOCKLEN_T_IS_SIGNED, 1, [Define if socklen_t is signed]) ],
 			[ AS_ECHO_N("") ],
 			[#include <sys/types.h>
 			 #include <sys/socket.h>])
@@ -555,7 +551,7 @@ else
 	if test ${ac_cv_sizeof_sa_family_t} -gt 0
 	then
 		AX_CHECK_SIGN([sa_family_t],
-			[ AC_DEFINE(MIO_SA_FAMILY_T_IS_SIGNED, 1, [Define if sa_family_t is signed]) ],
+			[ AC_DEFINE(HIO_SA_FAMILY_T_IS_SIGNED, 1, [Define if sa_family_t is signed]) ],
 			[ AS_ECHO_N("") ],
 			[#include <sys/types.h>
 			 #include <sys/socket.h>
@@ -569,7 +565,7 @@ else
 		 #include <sys/types.h>
 		 #include <sys/socket.h>], [ac_cv_offsteof_sa_family=0])
 	AC_MSG_RESULT([$ac_cv_offsetof_sa_family])
-	AC_DEFINE_UNQUOTED(MIO_OFFSETOF_SA_FAMILY, ${ac_cv_offsetof_sa_family}, [offsetof(struct sockaddr, sa_family)])
+	AC_DEFINE_UNQUOTED(HIO_OFFSETOF_SA_FAMILY, ${ac_cv_offsetof_sa_family}, [offsetof(struct sockaddr, sa_family)])
 fi
 
 dnl gcc 3.4.3 on opensolaris x86 gave this warning without -msse or 
@@ -581,7 +577,7 @@ dnl so i've added this check to determine if the compiler has
 dnl proper support for __int128_t.
 dnl 
 dnl Changing ac_cv_sizeof___int128_t here doesn't corret SIZEOF___INT128_T
-dnl since it's already generated. It only affects MIO_SIZEOF___INT128_T below.
+dnl since it's already generated. It only affects HIO_SIZEOF___INT128_T below.
 if test ${ac_cv_sizeof___int128_t} -gt 0
 then
 	AC_MSG_CHECKING([__int128_t with % and va_arg])
@@ -666,78 +662,78 @@ then
 fi
 AC_SUBST(QUADMATH_LIBS)
 
-AC_DEFINE_UNQUOTED(MIO_SIZEOF_CHAR, ${ac_cv_sizeof_char}, [sizeof(char)])
-AC_DEFINE_UNQUOTED(MIO_SIZEOF_SHORT, ${ac_cv_sizeof_short}, [sizeof(short)])
-AC_DEFINE_UNQUOTED(MIO_SIZEOF_INT, ${ac_cv_sizeof_int}, [sizeof(int)])
-AC_DEFINE_UNQUOTED(MIO_SIZEOF_LONG, ${ac_cv_sizeof_long}, [sizeof(long)])
-AC_DEFINE_UNQUOTED(MIO_SIZEOF_LONG_LONG, ${ac_cv_sizeof_long_long}, [sizeof(long long)])
-AC_DEFINE_UNQUOTED(MIO_SIZEOF___INT8, ${ac_cv_sizeof___int8}, [sizeof(__int8)])
-AC_DEFINE_UNQUOTED(MIO_SIZEOF___INT16, ${ac_cv_sizeof___int16}, [sizeof(__int16)])
-AC_DEFINE_UNQUOTED(MIO_SIZEOF___INT32, ${ac_cv_sizeof___int32}, [sizeof(__int32)])
-AC_DEFINE_UNQUOTED(MIO_SIZEOF___INT64, ${ac_cv_sizeof___int64}, [sizeof(__int64)])
-AC_DEFINE_UNQUOTED(MIO_SIZEOF___INT128, ${ac_cv_sizeof___int128}, [sizeof(__int128)])
-AC_DEFINE_UNQUOTED(MIO_SIZEOF___INT128_T, ${ac_cv_sizeof___int128_t}, [sizeof(__int128_t)])
-AC_DEFINE_UNQUOTED(MIO_SIZEOF___UINT128_T, ${ac_cv_sizeof___uint128_t}, [sizeof(__uint128_t)])
-AC_DEFINE_UNQUOTED(MIO_SIZEOF_VOID_P, ${ac_cv_sizeof_void_p}, [sizeof(void*)])
-AC_DEFINE_UNQUOTED(MIO_SIZEOF_FLOAT, ${ac_cv_sizeof_float}, [sizeof(float)])
-AC_DEFINE_UNQUOTED(MIO_SIZEOF_DOUBLE, ${ac_cv_sizeof_double}, [sizeof(double)])
-AC_DEFINE_UNQUOTED(MIO_SIZEOF_LONG_DOUBLE, ${ac_cv_sizeof_long_double}, [sizeof(long double)])
-AC_DEFINE_UNQUOTED(MIO_SIZEOF___FLOAT128, ${ac_cv_sizeof___float128}, [sizeof(__float128)])
+AC_DEFINE_UNQUOTED(HIO_SIZEOF_CHAR, ${ac_cv_sizeof_char}, [sizeof(char)])
+AC_DEFINE_UNQUOTED(HIO_SIZEOF_SHORT, ${ac_cv_sizeof_short}, [sizeof(short)])
+AC_DEFINE_UNQUOTED(HIO_SIZEOF_INT, ${ac_cv_sizeof_int}, [sizeof(int)])
+AC_DEFINE_UNQUOTED(HIO_SIZEOF_LONG, ${ac_cv_sizeof_long}, [sizeof(long)])
+AC_DEFINE_UNQUOTED(HIO_SIZEOF_LONG_LONG, ${ac_cv_sizeof_long_long}, [sizeof(long long)])
+AC_DEFINE_UNQUOTED(HIO_SIZEOF___INT8, ${ac_cv_sizeof___int8}, [sizeof(__int8)])
+AC_DEFINE_UNQUOTED(HIO_SIZEOF___INT16, ${ac_cv_sizeof___int16}, [sizeof(__int16)])
+AC_DEFINE_UNQUOTED(HIO_SIZEOF___INT32, ${ac_cv_sizeof___int32}, [sizeof(__int32)])
+AC_DEFINE_UNQUOTED(HIO_SIZEOF___INT64, ${ac_cv_sizeof___int64}, [sizeof(__int64)])
+AC_DEFINE_UNQUOTED(HIO_SIZEOF___INT128, ${ac_cv_sizeof___int128}, [sizeof(__int128)])
+AC_DEFINE_UNQUOTED(HIO_SIZEOF___INT128_T, ${ac_cv_sizeof___int128_t}, [sizeof(__int128_t)])
+AC_DEFINE_UNQUOTED(HIO_SIZEOF___UINT128_T, ${ac_cv_sizeof___uint128_t}, [sizeof(__uint128_t)])
+AC_DEFINE_UNQUOTED(HIO_SIZEOF_VOID_P, ${ac_cv_sizeof_void_p}, [sizeof(void*)])
+AC_DEFINE_UNQUOTED(HIO_SIZEOF_FLOAT, ${ac_cv_sizeof_float}, [sizeof(float)])
+AC_DEFINE_UNQUOTED(HIO_SIZEOF_DOUBLE, ${ac_cv_sizeof_double}, [sizeof(double)])
+AC_DEFINE_UNQUOTED(HIO_SIZEOF_LONG_DOUBLE, ${ac_cv_sizeof_long_double}, [sizeof(long double)])
+AC_DEFINE_UNQUOTED(HIO_SIZEOF___FLOAT128, ${ac_cv_sizeof___float128}, [sizeof(__float128)])
 
-AC_DEFINE_UNQUOTED(MIO_SIZEOF_WCHAR_T, ${ac_cv_sizeof_wchar_t}, [sizeof(wchar_t)])
-AC_DEFINE_UNQUOTED(MIO_SIZEOF_OFF_T, ${ac_cv_sizeof_off_t}, [sizeof(off_t)])
-AC_DEFINE_UNQUOTED(MIO_SIZEOF_OFF64_T, ${ac_cv_sizeof_off64_t}, [sizeof(off64_t)])
+AC_DEFINE_UNQUOTED(HIO_SIZEOF_WCHAR_T, ${ac_cv_sizeof_wchar_t}, [sizeof(wchar_t)])
+AC_DEFINE_UNQUOTED(HIO_SIZEOF_OFF_T, ${ac_cv_sizeof_off_t}, [sizeof(off_t)])
+AC_DEFINE_UNQUOTED(HIO_SIZEOF_OFF64_T, ${ac_cv_sizeof_off64_t}, [sizeof(off64_t)])
 
-AC_DEFINE_UNQUOTED(MIO_SIZEOF_MBSTATE_T, ${ac_cv_sizeof_mbstate_t}, [sizeof(mbstate_t)])
-AC_DEFINE_UNQUOTED(MIO_MBLEN_MAX, ${ax_cv_numvalof_MB_LEN_MAX}, [MB_LEN_MAX])
-AC_DEFINE_UNQUOTED(MIO_NSIG, ${ax_cv_numvalof_NSIG}, [NSIG])
+AC_DEFINE_UNQUOTED(HIO_SIZEOF_MBSTATE_T, ${ac_cv_sizeof_mbstate_t}, [sizeof(mbstate_t)])
+AC_DEFINE_UNQUOTED(HIO_MBLEN_MAX, ${ax_cv_numvalof_MB_LEN_MAX}, [MB_LEN_MAX])
+AC_DEFINE_UNQUOTED(HIO_NSIG, ${ax_cv_numvalof_NSIG}, [NSIG])
 
-AC_DEFINE_UNQUOTED(MIO_AF_UNSPEC, (${ax_cv_numvalof_AF_UNSPEC}), [AF_UNSPEC])
-AC_DEFINE_UNQUOTED(MIO_AF_INET, (${ax_cv_numvalof_AF_INET}), [AF_INET])
-AC_DEFINE_UNQUOTED(MIO_AF_INET6, (${ax_cv_numvalof_AF_INET6}), [AF_INET6])
-AC_DEFINE_UNQUOTED(MIO_AF_PACKET, (${ax_cv_numvalof_AF_PACKET}), [AF_PACKET])
-AC_DEFINE_UNQUOTED(MIO_AF_UNIX, (${ax_cv_numvalof_AF_UNIX}), [AF_UNIX])
+AC_DEFINE_UNQUOTED(HIO_AF_UNSPEC, (${ax_cv_numvalof_AF_UNSPEC}), [AF_UNSPEC])
+AC_DEFINE_UNQUOTED(HIO_AF_INET, (${ax_cv_numvalof_AF_INET}), [AF_INET])
+AC_DEFINE_UNQUOTED(HIO_AF_INET6, (${ax_cv_numvalof_AF_INET6}), [AF_INET6])
+AC_DEFINE_UNQUOTED(HIO_AF_PACKET, (${ax_cv_numvalof_AF_PACKET}), [AF_PACKET])
+AC_DEFINE_UNQUOTED(HIO_AF_UNIX, (${ax_cv_numvalof_AF_UNIX}), [AF_UNIX])
 
-AC_DEFINE_UNQUOTED(MIO_SIZEOF_STRUCT_SOCKADDR_IN, ${ac_cv_sizeof_struct_sockaddr_in}, [sizeof(struct sockaddr_in)])
-AC_DEFINE_UNQUOTED(MIO_SIZEOF_STRUCT_SOCKADDR_IN6, ${ac_cv_sizeof_struct_sockaddr_in6}, [sizeof(struct sockaddr_in6)])
-AC_DEFINE_UNQUOTED(MIO_SIZEOF_STRUCT_SOCKADDR_UN, ${ac_cv_sizeof_struct_sockaddr_un}, [sizeof(struct sockaddr_un)])
-AC_DEFINE_UNQUOTED(MIO_SIZEOF_STRUCT_SOCKADDR_LL, ${ac_cv_sizeof_struct_sockaddr_ll}, [sizeof(struct sockaddr_ll)])
-AC_DEFINE_UNQUOTED(MIO_SIZEOF_STRUCT_SOCKADDR_DL, ${ac_cv_sizeof_struct_sockaddr_dl}, [sizeof(struct sockaddr_dl)])
-AC_DEFINE_UNQUOTED(MIO_SIZEOF_SOCKLEN_T, ${ac_cv_sizeof_socklen_t}, [sizeof(socklen_t)])
+AC_DEFINE_UNQUOTED(HIO_SIZEOF_STRUCT_SOCKADDR_IN, ${ac_cv_sizeof_struct_sockaddr_in}, [sizeof(struct sockaddr_in)])
+AC_DEFINE_UNQUOTED(HIO_SIZEOF_STRUCT_SOCKADDR_IN6, ${ac_cv_sizeof_struct_sockaddr_in6}, [sizeof(struct sockaddr_in6)])
+AC_DEFINE_UNQUOTED(HIO_SIZEOF_STRUCT_SOCKADDR_UN, ${ac_cv_sizeof_struct_sockaddr_un}, [sizeof(struct sockaddr_un)])
+AC_DEFINE_UNQUOTED(HIO_SIZEOF_STRUCT_SOCKADDR_LL, ${ac_cv_sizeof_struct_sockaddr_ll}, [sizeof(struct sockaddr_ll)])
+AC_DEFINE_UNQUOTED(HIO_SIZEOF_STRUCT_SOCKADDR_DL, ${ac_cv_sizeof_struct_sockaddr_dl}, [sizeof(struct sockaddr_dl)])
+AC_DEFINE_UNQUOTED(HIO_SIZEOF_SOCKLEN_T, ${ac_cv_sizeof_socklen_t}, [sizeof(socklen_t)])
 
 
-mio_package_version_major="`echo ${PACKAGE_VERSION} | cut -d. -f1`"
-mio_package_version_minor="`echo ${PACKAGE_VERSION} | cut -d. -f2`"
-mio_package_version_patch="`echo ${PACKAGE_VERSION} | cut -d. -f3`"
-AC_SUBST(PACKAGE_VERSION_MAJOR, ${mio_package_version_major})
-AC_SUBST(PACKAGE_VERSION_MINOR, ${mio_package_version_minor})
-AC_SUBST(PACKAGE_VERSION_PATCH, ${mio_package_version_patch})
+hio_package_version_major="`echo ${PACKAGE_VERSION} | cut -d. -f1`"
+hio_package_version_minor="`echo ${PACKAGE_VERSION} | cut -d. -f2`"
+hio_package_version_patch="`echo ${PACKAGE_VERSION} | cut -d. -f3`"
+AC_SUBST(PACKAGE_VERSION_MAJOR, ${hio_package_version_major})
+AC_SUBST(PACKAGE_VERSION_MINOR, ${hio_package_version_minor})
+AC_SUBST(PACKAGE_VERSION_PATCH, ${hio_package_version_patch})
 
-AC_DEFINE_UNQUOTED(MIO_PACKAGE_VERSION, "${PACKAGE_VERSION}", [Package version])
-dnl AC_DEFINE_UNQUOTED(MIO_PACKAGE_VERSION_MAJOR, $(echo ${VERSION} | cut -d. -f1), [Major version number])
-dnl AC_DEFINE_UNQUOTED(MIO_PACKAGE_VERSION_MINOR, $(echo ${VERSION} | cut -d. -f2), [Minor version number])
-dnl AC_DEFINE_UNQUOTED(MIO_PACKAGE_VERSION_PATCH, $(echo ${VERSION} | cut -d. -f3), [Patch level])
-AC_DEFINE_UNQUOTED(MIO_PACKAGE_VERSION_MAJOR, ${mio_package_version_major}, [Major version number])
-AC_DEFINE_UNQUOTED(MIO_PACKAGE_VERSION_MINOR, ${mio_package_version_minor}, [Minor version number])
-AC_DEFINE_UNQUOTED(MIO_PACKAGE_VERSION_PATCH, ${mio_package_version_patch}, [Patch level])
+AC_DEFINE_UNQUOTED(HIO_PACKAGE_VERSION, "${PACKAGE_VERSION}", [Package version])
+dnl AC_DEFINE_UNQUOTED(HIO_PACKAGE_VERSION_MAJOR, $(echo ${VERSION} | cut -d. -f1), [Major version number])
+dnl AC_DEFINE_UNQUOTED(HIO_PACKAGE_VERSION_MINOR, $(echo ${VERSION} | cut -d. -f2), [Minor version number])
+dnl AC_DEFINE_UNQUOTED(HIO_PACKAGE_VERSION_PATCH, $(echo ${VERSION} | cut -d. -f3), [Patch level])
+AC_DEFINE_UNQUOTED(HIO_PACKAGE_VERSION_MAJOR, ${hio_package_version_major}, [Major version number])
+AC_DEFINE_UNQUOTED(HIO_PACKAGE_VERSION_MINOR, ${hio_package_version_minor}, [Minor version number])
+AC_DEFINE_UNQUOTED(HIO_PACKAGE_VERSION_PATCH, ${hio_package_version_patch}, [Patch level])
 
-AC_DEFINE_UNQUOTED(MIO_PACKAGE_AUTHOR,"${PACKAGE_BUGREPORT}", [Author])
-AC_DEFINE_UNQUOTED(MIO_PACKAGE_NAME,"${PACKAGE_NAME}", [package name])
-AC_DEFINE_UNQUOTED(MIO_PACKAGE_URL, "${PACKAGE_URL}", [Project URL])
+AC_DEFINE_UNQUOTED(HIO_PACKAGE_AUTHOR,"${PACKAGE_BUGREPORT}", [Author])
+AC_DEFINE_UNQUOTED(HIO_PACKAGE_NAME,"${PACKAGE_NAME}", [package name])
+AC_DEFINE_UNQUOTED(HIO_PACKAGE_URL, "${PACKAGE_URL}", [Project URL])
 
 AC_C_BIGENDIAN(
-	[AC_DEFINE([MIO_ENDIAN_BIG],[],[Big Endian])],
-	[AC_DEFINE([MIO_ENDIAN_LITTLE],[],[Little Endian])],
-	[AC_DEFINE([MIO_ENDIAN_UNKNOWN],[],[Unknown Endian])])
+	[AC_DEFINE([HIO_ENDIAN_BIG],[],[Big Endian])],
+	[AC_DEFINE([HIO_ENDIAN_LITTLE],[],[Little Endian])],
+	[AC_DEFINE([HIO_ENDIAN_UNKNOWN],[],[Unknown Endian])])
 
 AC_ARG_ENABLE([debug], [AS_HELP_STRING([--enable-debug],[build the library in the debug mode (default. no)])],
 	enable_debug_is=$enableval,enable_debug_is=no)
 if test "$enable_debug_is" = "yes"
 then
-	[CFLAGS="$CFLAGS -g -D_DEBUG -UNDEBUG -DMIO_BUILD_DEBUG -U_FORTIFY_SOURCE"]
+	[CFLAGS="$CFLAGS -g -D_DEBUG -UNDEBUG -DHIO_BUILD_DEBUG -U_FORTIFY_SOURCE"]
 	AC_SUBST(BUILD_MODE, "debug")
 else
-	[CFLAGS="$CFLAGS -DNDEBUG -U_DEBUG -DMIO_BUILD_RELEASE -U_FORTIFY_SOURCE"]
+	[CFLAGS="$CFLAGS -DNDEBUG -U_DEBUG -DHIO_BUILD_RELEASE -U_FORTIFY_SOURCE"]
 	AC_SUBST(BUILD_MODE, "release")
 fi
 
@@ -748,36 +744,36 @@ AC_ARG_ENABLE([wide-char],
 )
 if test "${enable_wide_char}" = "yes:4"
 then
-	AC_DEFINE([MIO_WIDE_CHAR_SIZE],[4],[Wide-character type size])
-	AC_DEFINE([MIO_ENABLE_WIDE_CHAR],[1],[Use the wide-character type as the default character type])
+	AC_DEFINE([HIO_WIDE_CHAR_SIZE],[4],[Wide-character type size])
+	AC_DEFINE([HIO_ENABLE_WIDE_CHAR],[1],[Use the wide-character type as the default character type])
 	if test "${platform_win32}" = "yes"
 	then
 		[CFLAGS="$CFLAGS -DUNICODE -D_UNICODE"]
 	fi 
 elif test "${enable_wide_char}" = "yes:2"
 then
-	AC_DEFINE([MIO_WIDE_CHAR_SIZE],[2],[Wide-character type size])
-	AC_DEFINE([MIO_ENABLE_WIDE_CHAR],[1],[Use the wide-character type as the default character type])
+	AC_DEFINE([HIO_WIDE_CHAR_SIZE],[2],[Wide-character type size])
+	AC_DEFINE([HIO_ENABLE_WIDE_CHAR],[1],[Use the wide-character type as the default character type])
 	if test "${platform_win32}" = "yes"
 	then
 		[CFLAGS="$CFLAGS -DUNICODE -D_UNICODE"]
 	fi
 elif test "${enable_wide_char}" = "yes"
 then
-	AC_DEFINE([MIO_WIDE_CHAR_SIZE],[1],[Wide-character type size])
-	AC_DEFINE([MIO_ENABLE_WIDE_CHAR],[1],[Use the wide-character type as the default character type])
+	AC_DEFINE([HIO_WIDE_CHAR_SIZE],[1],[Wide-character type size])
+	AC_DEFINE([HIO_ENABLE_WIDE_CHAR],[1],[Use the wide-character type as the default character type])
 	if test "${platform_win32}" = "yes"
 	then
 		[CFLAGS="$CFLAGS -DUNICODE -D_UNICODE"]
 	fi
 elif test "${enable_wide_char}" = "no:4"
 then
-	AC_DEFINE([MIO_WIDE_CHAR_SIZE],[4],[Wide-character type size])
+	AC_DEFINE([HIO_WIDE_CHAR_SIZE],[4],[Wide-character type size])
 elif test "${enable_wide_char}" = "no:2"
 then
-	AC_DEFINE([MIO_WIDE_CHAR_SIZE],[2],[Wide-character type size])
+	AC_DEFINE([HIO_WIDE_CHAR_SIZE],[2],[Wide-character type size])
 else
-	AC_DEFINE([MIO_WIDE_CHAR_SIZE],[1],[Wide-character type size])
+	AC_DEFINE([HIO_WIDE_CHAR_SIZE],[1],[Wide-character type size])
 fi
 
 AC_ARG_ENABLE([libunwind],
@@ -789,7 +785,7 @@ if test "x${enable_libunwind_is}" = "xyes"
 then
         if test "x${ac_cv_header_libunwind_h}" = "xyes"  -a "${UNWIND_LIBS}" != ""
         then
-                AC_DEFINE([MIO_ENABLE_LIBUNWIND],[],[use libunwind for backtracing stack frames])
+                AC_DEFINE([HIO_ENABLE_LIBUNWIND],[],[use libunwind for backtracing stack frames])
         else
                 enable_libunwind_is="no"
         fi
@@ -808,8 +804,8 @@ then
 fi
 
 dnl ====  subsititution of some key items ====
-AC_SUBST(MIO_PROJECT_AUTHOR, "${PACKAGE_BUGREPORT}")
-AC_SUBST(MIO_PROJECT_URL, "${PACKAGE_URL}")
+AC_SUBST(HIO_PROJECT_AUTHOR, "${PACKAGE_BUGREPORT}")
+AC_SUBST(HIO_PROJECT_URL, "${PACKAGE_URL}")
 
 AC_CONFIG_FILES([
 	Makefile 

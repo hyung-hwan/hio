@@ -88,15 +88,15 @@ enum logfd_flag_t
 	LOGFD_OPENED_HERE = (1 << 1)
 };
 
-static int write_all (mio_t* mio, int fd, mio_bitmask_t mask, const mio_bch_t* ptr, mio_oow_t len)
+static int write_all (hio_t* hio, int fd, hio_bitmask_t mask, const hio_bch_t* ptr, hio_oow_t len)
 {
-	if (mio->option.log_writer) return mio->option.log_writer(mio, mask, ptr, len);
+	if (hio->option.log_writer) return hio->option.log_writer(hio, mask, ptr, len);
 
-	if (MIO_UNLIKELY(fd <= -1)) return 0; /* MIO_FEATURE_LOG_WRITER is off but mio->option.log_write is not set */
+	if (HIO_UNLIKELY(fd <= -1)) return 0; /* HIO_FEATURE_LOG_WRITER is off but hio->option.log_write is not set */
 
 	while (len > 0)
 	{
-		mio_ooi_t wr;
+		hio_ooi_t wr;
 
 		wr = write(fd, ptr, len);
 
@@ -126,46 +126,46 @@ static int write_all (mio_t* mio, int fd, mio_bitmask_t mask, const mio_bch_t* p
 	return 0;
 }
 
-static int write_log (mio_t* mio, int fd, mio_bitmask_t mask, const mio_bch_t* ptr, mio_oow_t len)
+static int write_log (hio_t* hio, int fd, hio_bitmask_t mask, const hio_bch_t* ptr, hio_oow_t len)
 {
-	mio_sys_log_t* log = &mio->sysdep->log;
+	hio_sys_log_t* log = &hio->sysdep->log;
 
 	while (len > 0)
 	{
 		if (log->out.len > 0)
 		{
-			mio_oow_t rcapa, cplen;
+			hio_oow_t rcapa, cplen;
 
-			rcapa = MIO_COUNTOF(log->out.buf) - log->out.len;
+			rcapa = HIO_COUNTOF(log->out.buf) - log->out.len;
 			cplen = (len >= rcapa)? rcapa: len;
 
-			MIO_MEMCPY (&log->out.buf[log->out.len], ptr, cplen);
+			HIO_MEMCPY (&log->out.buf[log->out.len], ptr, cplen);
 			log->out.len += cplen;
 			ptr += cplen;
 			len -= cplen;
 
-			if (log->out.len >= MIO_COUNTOF(log->out.buf))
+			if (log->out.len >= HIO_COUNTOF(log->out.buf))
 			{
 				int n;
-				n = write_all(mio, fd, mask, log->out.buf, log->out.len);
+				n = write_all(hio, fd, mask, log->out.buf, log->out.len);
 				log->out.len = 0;
 				if (n <= -1) return -1;
 			}
 		}
 		else
 		{
-			mio_oow_t rcapa;
+			hio_oow_t rcapa;
 
-			rcapa = MIO_COUNTOF(log->out.buf);
+			rcapa = HIO_COUNTOF(log->out.buf);
 			if (len >= rcapa)
 			{
-				if (write_all(mio, fd, mask, ptr, rcapa) <= -1) return -1;
+				if (write_all(hio, fd, mask, ptr, rcapa) <= -1) return -1;
 				ptr += rcapa;
 				len -= rcapa;
 			}
 			else
 			{
-				MIO_MEMCPY (log->out.buf, ptr, len);
+				HIO_MEMCPY (log->out.buf, ptr, len);
 				log->out.len += len;
 				ptr += len;
 				len -= len;
@@ -177,32 +177,32 @@ static int write_log (mio_t* mio, int fd, mio_bitmask_t mask, const mio_bch_t* p
 	return 0;
 }
 
-static void flush_log (mio_t* mio, int fd, mio_bitmask_t mask)
+static void flush_log (hio_t* hio, int fd, hio_bitmask_t mask)
 {
-	mio_sys_log_t* log = &mio->sysdep->log;
+	hio_sys_log_t* log = &hio->sysdep->log;
 	if (log->out.len > 0)
 	{
-		write_all (mio, fd, mask, log->out.buf, log->out.len);
+		write_all (hio, fd, mask, log->out.buf, log->out.len);
 		log->out.len = 0;
 	}
 }
 
-void mio_sys_writelog (mio_t* mio, mio_bitmask_t mask, const mio_ooch_t* msg, mio_oow_t len)
+void hio_sys_writelog (hio_t* hio, hio_bitmask_t mask, const hio_ooch_t* msg, hio_oow_t len)
 {
-	mio_sys_log_t* log = &mio->sysdep->log;
-	mio_bch_t buf[256];
-	mio_oow_t ucslen, bcslen, msgidx;
+	hio_sys_log_t* log = &hio->sysdep->log;
+	hio_bch_t buf[256];
+	hio_oow_t ucslen, bcslen, msgidx;
 	int n, logfd = -1;
 
-	if (mio->_features & MIO_FEATURE_LOG_WRITER)
+	if (hio->_features & HIO_FEATURE_LOG_WRITER)
 	{
-		if (mask & MIO_LOG_STDERR)
+		if (mask & HIO_LOG_STDERR)
 		{
 			logfd = 2;
 		}
 		else
 		{
-			if (mask & MIO_LOG_STDOUT) logfd = 1;
+			if (mask & HIO_LOG_STDOUT) logfd = 1;
 			else
 			{
 				logfd = log->fd;
@@ -213,14 +213,14 @@ void mio_sys_writelog (mio_t* mio, mio_bitmask_t mask, const mio_ooch_t* msg, mi
 
 /* TODO: beautify the log message.
  *       do classification based on mask. */
-	if (!(mask & (MIO_LOG_STDOUT | MIO_LOG_STDERR)))
+	if (!(mask & (HIO_LOG_STDOUT | HIO_LOG_STDERR)))
 	{
 		time_t now;
 		char ts[32];
 		size_t tslen;
 		struct tm tm, *tmp;
 
-		now = time(MIO_NULL);
+		now = time(HIO_NULL);
 	#if defined(_WIN32)
 		tmp = localtime(&now);
 		tslen = strftime(ts, sizeof(ts), "%Y-%m-%d %H:%M:%S %z ", tmp);
@@ -267,24 +267,24 @@ void mio_sys_writelog (mio_t* mio, mio_bitmask_t mask, const mio_ooch_t* msg, mi
 			tslen = sprintf(ts, "%04d-%02d-%02d %02d:%02d:%02d ", tmp->tm_year + 1900, tmp->tm_mon + 1, tmp->tm_mday, tmp->tm_hour, tmp->tm_min, tmp->tm_sec);
 		}
 	#endif
-		write_log (mio, logfd, mask, ts, tslen);
+		write_log (hio, logfd, mask, ts, tslen);
 	}
 
 	if (logfd == log->fd && (log->fd_flag & LOGFD_TTY))
 	{
-		if (mask & MIO_LOG_FATAL) write_log (mio, logfd, mask, "\x1B[1;31m", 7);
-		else if (mask & MIO_LOG_ERROR) write_log (mio, logfd, mask, "\x1B[1;32m", 7);
-		else if (mask & MIO_LOG_WARN) write_log (mio, logfd, mask, "\x1B[1;33m", 7);
+		if (mask & HIO_LOG_FATAL) write_log (hio, logfd, mask, "\x1B[1;31m", 7);
+		else if (mask & HIO_LOG_ERROR) write_log (hio, logfd, mask, "\x1B[1;32m", 7);
+		else if (mask & HIO_LOG_WARN) write_log (hio, logfd, mask, "\x1B[1;33m", 7);
 	}
 
-#if defined(MIO_OOCH_IS_UCH)
+#if defined(HIO_OOCH_IS_UCH)
 	msgidx = 0;
 	while (len > 0)
 	{
 		ucslen = len;
-		bcslen = MIO_COUNTOF(buf);
+		bcslen = HIO_COUNTOF(buf);
 
-		n = mio_convootobchars(mio, &msg[msgidx], &ucslen, buf, &bcslen);
+		n = hio_convootobchars(hio, &msg[msgidx], &ucslen, buf, &bcslen);
 		if (n == 0 || n == -2)
 		{
 			/* n = 0: 
@@ -293,10 +293,10 @@ void mio_sys_writelog (mio_t* mio, mio_bitmask_t mask, const mio_ooch_t* msg, mi
 			 *    buffer not sufficient. not all got converted yet.
 			 *    write what have been converted this round. */
 
-			MIO_ASSERT (mio, ucslen > 0); /* if this fails, the buffer size must be increased */
+			HIO_ASSERT (hio, ucslen > 0); /* if this fails, the buffer size must be increased */
 
 			/* attempt to write all converted characters */
-			if (write_log(mio, logfd, mask, buf, bcslen) <= -1) break;
+			if (write_log(hio, logfd, mask, buf, bcslen) <= -1) break;
 
 			if (n == 0) break;
 			else
@@ -312,22 +312,22 @@ void mio_sys_writelog (mio_t* mio, mio_bitmask_t mask, const mio_ooch_t* msg, mi
 		}
 	}
 #else
-	write_log (mio, logfd, mask, msg, len);
+	write_log (hio, logfd, mask, msg, len);
 #endif
 
 	if (logfd == log->fd && (log->fd_flag & LOGFD_TTY))
 	{
-		if (mask & (MIO_LOG_FATAL | MIO_LOG_ERROR | MIO_LOG_WARN)) write_log (mio, logfd, mask, "\x1B[0m", 4);
+		if (mask & (HIO_LOG_FATAL | HIO_LOG_ERROR | HIO_LOG_WARN)) write_log (hio, logfd, mask, "\x1B[0m", 4);
 	}
 
-	flush_log (mio, logfd, mask);
+	flush_log (hio, logfd, mask);
 }
 
-int mio_sys_initlog (mio_t* mio)
+int hio_sys_initlog (hio_t* hio)
 {
-	mio_sys_log_t* log = &mio->sysdep->log;
+	hio_sys_log_t* log = &hio->sysdep->log;
 
-	if (mio->_features & MIO_FEATURE_LOG_WRITER)
+	if (hio->_features & HIO_FEATURE_LOG_WRITER)
 	{
 		log->fd = 2;
 		log->fd_flag = 0;
@@ -337,17 +337,17 @@ int mio_sys_initlog (mio_t* mio)
 		log->fd = -1;
 	}
 
-	pthread_mutex_init (&log->mtx, MIO_NULL);
+	pthread_mutex_init (&log->mtx, HIO_NULL);
 	return 0;
 }
 
-void mio_sys_finilog (mio_t* mio)
+void hio_sys_finilog (hio_t* hio)
 {
-	mio_sys_log_t* log = &mio->sysdep->log;
+	hio_sys_log_t* log = &hio->sysdep->log;
 
 	pthread_mutex_destroy (&log->mtx);
 
-	if (mio->_features & MIO_FEATURE_LOG_WRITER)
+	if (hio->_features & HIO_FEATURE_LOG_WRITER)
 	{
 		if ((log->fd_flag & LOGFD_OPENED_HERE) && log->fd >= 0) 
 		{
@@ -358,17 +358,17 @@ void mio_sys_finilog (mio_t* mio)
 	}
 }
 
-void mio_sys_resetlog (mio_t* mio)
+void hio_sys_resetlog (hio_t* hio)
 {
-	mio_sys_log_t* log = &mio->sysdep->log;
+	hio_sys_log_t* log = &hio->sysdep->log;
 
-	if (mio->_features & MIO_FEATURE_LOG_WRITER)
+	if (hio->_features & HIO_FEATURE_LOG_WRITER)
 	{
 		int fd;
 		int fd_flag = 0;
 		int kill_fd = -1;
 
-		fd = open(mio->option.log_target_b, O_CREAT | O_WRONLY | O_APPEND , 0644);
+		fd = open(hio->option.log_target_b, O_CREAT | O_WRONLY | O_APPEND , 0644);
 		if (fd == -1)
 		{
 			fd = 2;
@@ -392,12 +392,12 @@ void mio_sys_resetlog (mio_t* mio)
 	}
 }
 
-void mio_sys_locklog (mio_t* mio)
+void hio_sys_locklog (hio_t* hio)
 {
-	pthread_mutex_lock (&mio->sysdep->log.mtx);
+	pthread_mutex_lock (&hio->sysdep->log.mtx);
 }
 
-void mio_sys_unlocklog (mio_t* mio)
+void hio_sys_unlocklog (hio_t* hio)
 {
-	pthread_mutex_unlock (&mio->sysdep->log.mtx);
+	pthread_mutex_unlock (&hio->sysdep->log.mtx);
 }

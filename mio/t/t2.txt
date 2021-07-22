@@ -1,4 +1,4 @@
-GET /home/hyung-hwan/projects/mio/t/b.sh HTTP/1.1
+GET /home/hyung-hwan/projects/hio/t/b.sh HTTP/1.1
 Host: abc.txt
 Transfer-Encoding: chunked
 Connection: close

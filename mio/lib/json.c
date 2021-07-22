@@ -24,19 +24,19 @@
     THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  */
 
-#include <mio-json.h>
-#include <mio-chr.h>
-#include <mio-fmt.h>
-#include "mio-prv.h"
+#include <hio-json.h>
+#include <hio-chr.h>
+#include <hio-fmt.h>
+#include "hio-prv.h"
 
-#define MIO_JSON_TOKEN_NAME_ALIGN 64
+#define HIO_JSON_TOKEN_NAME_ALIGN 64
 
-/* this must not overlap with MIO_JSON_INST_XXXX enumerators in mio-json.h */
+/* this must not overlap with HIO_JSON_INST_XXXX enumerators in hio-json.h */
 #define __INST_WORD_STRING  9999
 
 /* ========================================================================= */
 
-static void clear_token (mio_json_t* json)
+static void clear_token (hio_json_t* json)
 {
 	json->tok.len = 0;
 	json->tok_line = json->c_line;
@@ -44,22 +44,22 @@ static void clear_token (mio_json_t* json)
 	if (json->tok_capa > 0) json->tok.ptr[json->tok.len] = '\0';
 }
 
-static int add_char_to_token (mio_json_t* json, mio_ooch_t ch, int handle_surrogate_pair)
+static int add_char_to_token (hio_json_t* json, hio_ooch_t ch, int handle_surrogate_pair)
 {
 	if (json->tok.len >= json->tok_capa)
 	{
-		mio_ooch_t* tmp;
-		mio_oow_t newcapa;
+		hio_ooch_t* tmp;
+		hio_oow_t newcapa;
 
-		newcapa = MIO_ALIGN_POW2(json->tok.len + 2, MIO_JSON_TOKEN_NAME_ALIGN);  /* +2 here because of -1 when setting newcapa */
-		tmp = (mio_ooch_t*)mio_reallocmem(json->mio, json->tok.ptr, newcapa * MIO_SIZEOF(*tmp));
-		if (MIO_UNLIKELY(!tmp)) return -1;
+		newcapa = HIO_ALIGN_POW2(json->tok.len + 2, HIO_JSON_TOKEN_NAME_ALIGN);  /* +2 here because of -1 when setting newcapa */
+		tmp = (hio_ooch_t*)hio_reallocmem(json->hio, json->tok.ptr, newcapa * HIO_SIZEOF(*tmp));
+		if (HIO_UNLIKELY(!tmp)) return -1;
 
 		json->tok_capa = newcapa - 1; /* -1 to secure space for terminating null */
 		json->tok.ptr = tmp;
 	}
 
-#if (MIO_SIZEOF_OOCH_T >= 4) 
+#if (HIO_SIZEOF_OOCH_T >= 4) 
 	if (handle_surrogate_pair && ch >= 0xDC00 && ch <= 0xDFFF && json->tok.len > 0)
 	{
 		/* RFC7159
@@ -69,7 +69,7 @@ static int add_char_to_token (mio_json_t* json, mio_ooch_t ch, int handle_surrog
 			containing only the G clef character (U+1D11E) may be represented as
 			"\uD834\uDD1E".
 		*/
-		mio_ooch_t pch = json->tok.ptr[json->tok.len - 1];
+		hio_ooch_t pch = json->tok.ptr[json->tok.len - 1];
 		if (pch >= 0xD800 && pch <= 0xDBFF)
 		{
 			/* X = (character outside BMP) - 0x10000;
@@ -86,18 +86,18 @@ static int add_char_to_token (mio_json_t* json, mio_ooch_t ch, int handle_surrog
 	return 0;
 }
 
-static int add_chars_to_token (mio_json_t* json, const mio_ooch_t* ptr, mio_oow_t len)
+static int add_chars_to_token (hio_json_t* json, const hio_ooch_t* ptr, hio_oow_t len)
 {
-	mio_oow_t i;
+	hio_oow_t i;
 	
 	if (json->tok_capa - json->tok.len > len)
 	{
-		mio_ooch_t* tmp;
-		mio_oow_t newcapa;
+		hio_ooch_t* tmp;
+		hio_oow_t newcapa;
 
-		newcapa = MIO_ALIGN_POW2(json->tok.len + len + 1, MIO_JSON_TOKEN_NAME_ALIGN);
-		tmp = (mio_ooch_t*)mio_reallocmem(json->mio, json->tok.ptr, newcapa * MIO_SIZEOF(*tmp));
-		if (MIO_UNLIKELY(!tmp)) return -1;
+		newcapa = HIO_ALIGN_POW2(json->tok.len + len + 1, HIO_JSON_TOKEN_NAME_ALIGN);
+		tmp = (hio_ooch_t*)hio_reallocmem(json->hio, json->tok.ptr, newcapa * HIO_SIZEOF(*tmp));
+		if (HIO_UNLIKELY(!tmp)) return -1;
 
 		json->tok_capa = newcapa - 1;
 		json->tok.ptr = tmp;
@@ -108,7 +108,7 @@ static int add_chars_to_token (mio_json_t* json, const mio_ooch_t* ptr, mio_oow_
 	return 0;
 }
 
-static MIO_INLINE mio_ooch_t unescape (mio_ooch_t c)
+static HIO_INLINE hio_ooch_t unescape (hio_ooch_t c)
 {
 	switch (c)
 	{
@@ -125,12 +125,12 @@ static MIO_INLINE mio_ooch_t unescape (mio_ooch_t c)
 
 /* ========================================================================= */
 
-static int push_read_state (mio_json_t* json, mio_json_state_t state)
+static int push_read_state (hio_json_t* json, hio_json_state_t state)
 {
-	mio_json_state_node_t* ss;
+	hio_json_state_node_t* ss;
 
-	ss = (mio_json_state_node_t*)mio_callocmem(json->mio, MIO_SIZEOF(*ss));
-	if (MIO_UNLIKELY(!ss)) return -1;
+	ss = (hio_json_state_node_t*)hio_callocmem(json->hio, HIO_SIZEOF(*ss));
+	if (HIO_UNLIKELY(!ss)) return -1;
 
 	ss->state = state;
 	ss->level = json->state_stack->level; /* copy from the parent */
@@ -142,59 +142,59 @@ static int push_read_state (mio_json_t* json, mio_json_state_t state)
 	return 0;
 }
 
-static void pop_read_state (mio_json_t* json)
+static void pop_read_state (hio_json_t* json)
 {
-	mio_json_state_node_t* ss;
+	hio_json_state_node_t* ss;
 
 	ss = json->state_stack;
-	MIO_ASSERT (json->mio, ss != MIO_NULL && ss != &json->state_top);
+	HIO_ASSERT (json->hio, ss != HIO_NULL && ss != &json->state_top);
 	json->state_stack = ss->next;
 
-	if (json->state_stack->state == MIO_JSON_STATE_IN_ARRAY)
+	if (json->state_stack->state == HIO_JSON_STATE_IN_ARRAY)
 	{
 		json->state_stack->u.ia.got_value = 1;
 	}
-	else if (json->state_stack->state == MIO_JSON_STATE_IN_OBJECT)
+	else if (json->state_stack->state == HIO_JSON_STATE_IN_OBJECT)
 	{
 		json->state_stack->u.io.state++;
 	}
 
 /* TODO: don't free this. move it to the free list? */
-	mio_freemem (json->mio, ss);
+	hio_freemem (json->hio, ss);
 }
 
-static void pop_all_read_states (mio_json_t* json)
+static void pop_all_read_states (hio_json_t* json)
 {
 	while (json->state_stack != &json->state_top) pop_read_state (json);
 }
 
 /* ========================================================================= */
 
-static int invoke_data_inst (mio_json_t* json, mio_json_inst_t inst)
+static int invoke_data_inst (hio_json_t* json, hio_json_inst_t inst)
 {
-	mio_json_state_node_t* ss;
+	hio_json_state_node_t* ss;
 	int is_obj_val = 0;
 
 	ss = json->state_stack;
 
-	if (ss->state == MIO_JSON_STATE_IN_OBJECT)
+	if (ss->state == HIO_JSON_STATE_IN_OBJECT)
 	{
 		if (ss->u.io.state == 1) 
 		{
 			/* just got the key part. the colon has not been seen.  */
 
-			if (inst != MIO_JSON_INST_STRING && inst != __INST_WORD_STRING)
+			if (inst != HIO_JSON_INST_STRING && inst != __INST_WORD_STRING)
 			{
-				if (inst == MIO_JSON_INST_END_ARRAY)
-					mio_seterrbfmt (json->mio, MIO_EINVAL, "object key not a string - <array> at %zu:%zu", json->c_line, json->c_col);
-				else if (inst == MIO_JSON_INST_END_OBJECT)
-					mio_seterrbfmt (json->mio, MIO_EINVAL, "object key not a string - <object> at %zu:%zu", json->c_line, json->c_col);
+				if (inst == HIO_JSON_INST_END_ARRAY)
+					hio_seterrbfmt (json->hio, HIO_EINVAL, "object key not a string - <array> at %zu:%zu", json->c_line, json->c_col);
+				else if (inst == HIO_JSON_INST_END_OBJECT)
+					hio_seterrbfmt (json->hio, HIO_EINVAL, "object key not a string - <object> at %zu:%zu", json->c_line, json->c_col);
 				else
-					mio_seterrbfmt (json->mio, MIO_EINVAL, "object key not a string - %.*js at %zu:%zu", json->tok.len, json->tok.ptr, json->tok_line, json->tok_col);
+					hio_seterrbfmt (json->hio, HIO_EINVAL, "object key not a string - %.*js at %zu:%zu", json->tok.len, json->tok.ptr, json->tok_line, json->tok_col);
 				return -1;
 			}
 
-			inst = MIO_JSON_INST_KEY;
+			inst = HIO_JSON_INST_KEY;
 		}
 		else 
 		{
@@ -208,59 +208,59 @@ static int invoke_data_inst (mio_json_t* json, mio_json_inst_t inst)
 
 	if (inst == __INST_WORD_STRING) 
 	{
-		mio_seterrbfmt (json->mio, MIO_EINVAL, "invalid word value - %.*js at line %zu:%zu", json->tok.len, json->tok.ptr, json->tok_line, json->tok_col);
+		hio_seterrbfmt (json->hio, HIO_EINVAL, "invalid word value - %.*js at line %zu:%zu", json->tok.len, json->tok.ptr, json->tok_line, json->tok_col);
 		return -1;
 	}
 
 	switch (inst)
 	{
-		case MIO_JSON_INST_START_ARRAY:
+		case HIO_JSON_INST_START_ARRAY:
 		{
-			mio_json_state_node_t* nss;
-			if (push_read_state(json, MIO_JSON_STATE_IN_ARRAY) <= -1) return -1;
+			hio_json_state_node_t* nss;
+			if (push_read_state(json, HIO_JSON_STATE_IN_ARRAY) <= -1) return -1;
 			nss = json->state_stack;
 			nss->u.ia.got_value = 0;
 			nss->level++;
 
-			MIO_ASSERT (json->mio, nss->level == ss->level + 1);
-			return json->instcb(json, inst, (is_obj_val? 0: ss->level), ss->index, ss->state, MIO_NULL, json->rctx);
+			HIO_ASSERT (json->hio, nss->level == ss->level + 1);
+			return json->instcb(json, inst, (is_obj_val? 0: ss->level), ss->index, ss->state, HIO_NULL, json->rctx);
 			/* no increment on ss->index here. incremented on END */
 		}
 
-		case MIO_JSON_INST_END_ARRAY:
-			if (json->instcb(json, MIO_JSON_INST_END_ARRAY, ss->level, ss->index, ss->state, MIO_NULL, json->rctx) <= -1) return -1;
-			if (ss->state != MIO_JSON_STATE_IN_OBJECT || ss->u.io.state == 3) ss->index++;
+		case HIO_JSON_INST_END_ARRAY:
+			if (json->instcb(json, HIO_JSON_INST_END_ARRAY, ss->level, ss->index, ss->state, HIO_NULL, json->rctx) <= -1) return -1;
+			if (ss->state != HIO_JSON_STATE_IN_OBJECT || ss->u.io.state == 3) ss->index++;
 			break;
 
-		case MIO_JSON_INST_START_OBJECT:
+		case HIO_JSON_INST_START_OBJECT:
 		{
-			mio_json_state_node_t* nss;
+			hio_json_state_node_t* nss;
 
-			if (push_read_state(json, MIO_JSON_STATE_IN_OBJECT) <= -1) return -1;
+			if (push_read_state(json, HIO_JSON_STATE_IN_OBJECT) <= -1) return -1;
 			nss = json->state_stack;
 			nss->u.io.state = 0;
 			nss->level++;
 
-			MIO_ASSERT (json->mio, nss->level == ss->level + 1);
-			return json->instcb(json, inst, (is_obj_val? 0: ss->level), ss->index, ss->state, MIO_NULL, json->rctx);
+			HIO_ASSERT (json->hio, nss->level == ss->level + 1);
+			return json->instcb(json, inst, (is_obj_val? 0: ss->level), ss->index, ss->state, HIO_NULL, json->rctx);
 			/* no increment on ss->index here. incremented on END */
 		}
 
-		case MIO_JSON_INST_END_OBJECT:
-			if (json->instcb(json, MIO_JSON_INST_END_OBJECT, ss->level, ss->index, ss->state, MIO_NULL, json->rctx) <= -1) return -1;
-			if (ss->state != MIO_JSON_STATE_IN_OBJECT || ss->u.io.state == 3) ss->index++;
+		case HIO_JSON_INST_END_OBJECT:
+			if (json->instcb(json, HIO_JSON_INST_END_OBJECT, ss->level, ss->index, ss->state, HIO_NULL, json->rctx) <= -1) return -1;
+			if (ss->state != HIO_JSON_STATE_IN_OBJECT || ss->u.io.state == 3) ss->index++;
 			break;
 
 		default:
 			if (json->instcb(json, inst, (is_obj_val? 0: ss->level), ss->index, ss->state, &json->tok, json->rctx) <= -1) return -1;
-			if (ss->state != MIO_JSON_STATE_IN_OBJECT || ss->u.io.state == 3) ss->index++;
+			if (ss->state != HIO_JSON_STATE_IN_OBJECT || ss->u.io.state == 3) ss->index++;
 			break;
 	}
 
 	return 0;
 }
 
-static int handle_string_value_char (mio_json_t* json, mio_ooci_t c)
+static int handle_string_value_char (hio_json_t* json, hio_ooci_t c)
 {
 	int ret = 1;
 
@@ -302,19 +302,19 @@ static int handle_string_value_char (mio_json_t* json, mio_ooci_t c)
 		{
 			ret = 0;
 		add_sv_acc:
-		#if defined(MIO_OOCH_IS_UCH)
+		#if defined(HIO_OOCH_IS_UCH)
 			if (add_char_to_token(json, json->state_stack->u.sv.acc, json->state_stack->u.sv.escaped == 4) <= -1) return -1;
 		#else
 			/* convert the character to utf8 */
 			{
-				mio_bch_t bcsbuf[MIO_BCSIZE_MAX];
-				mio_oow_t n;
+				hio_bch_t bcsbuf[HIO_BCSIZE_MAX];
+				hio_oow_t n;
 
-				n = json->mio->_cmgr->uctobc(json->state_stack->u.sv.acc, bcsbuf, MIO_COUNTOF(bcsbuf));
-				if (n == 0 || n > MIO_COUNTOF(bcsbuf))
+				n = json->hio->_cmgr->uctobc(json->state_stack->u.sv.acc, bcsbuf, HIO_COUNTOF(bcsbuf));
+				if (n == 0 || n > HIO_COUNTOF(bcsbuf))
 				{
 					/* illegal character or buffer to small */
-					mio_seterrbfmt (json->mio, MIO_EECERR, "unable to convert %jc", json->state_stack->u.sv.acc);
+					hio_seterrbfmt (json->hio, HIO_EECERR, "unable to convert %jc", json->state_stack->u.sv.acc);
 					return -1;
 				}
 
@@ -363,7 +363,7 @@ static int handle_string_value_char (mio_json_t* json, mio_ooci_t c)
 	else if (c == '\"')
 	{
 		pop_read_state (json);
-		if (invoke_data_inst(json, MIO_JSON_INST_STRING) <= -1) return -1;
+		if (invoke_data_inst(json, HIO_JSON_INST_STRING) <= -1) return -1;
 	}
 	else
 	{
@@ -373,17 +373,17 @@ static int handle_string_value_char (mio_json_t* json, mio_ooci_t c)
 	return ret;
 }
 
-static int handle_numeric_value_char (mio_json_t* json, mio_ooci_t c)
+static int handle_numeric_value_char (hio_json_t* json, hio_ooci_t c)
 {
 	switch (json->state_stack->u.nv.progress)
 	{
 		case 0: /* integer part */
-			if (mio_is_ooch_digit(c) || (json->tok.len == 0 && (c == '+' || c == '-')))
+			if (hio_is_ooch_digit(c) || (json->tok.len == 0 && (c == '+' || c == '-')))
 			{
 				if (add_char_to_token(json, c, 0) <= -1) return -1;
 				return 1;
 			}
-			else if ((c == '.' || c == 'e' || c == 'E') && json->tok.len > 0 && mio_is_ooch_digit(json->tok.ptr[json->tok.len - 1]))
+			else if ((c == '.' || c == 'e' || c == 'E') && json->tok.len > 0 && hio_is_ooch_digit(json->tok.ptr[json->tok.len - 1]))
 			{
 				if (add_char_to_token(json, c, 0) <= -1) return -1;
 				json->state_stack->u.nv.progress = (c == '.'? 1: 2);
@@ -392,7 +392,7 @@ static int handle_numeric_value_char (mio_json_t* json, mio_ooci_t c)
 			break;
 
 		case 1: /* decimal part */
-			if (mio_is_ooch_digit(c))
+			if (hio_is_ooch_digit(c))
 			{
 				if (add_char_to_token(json, c, 0) <= -1) return -1;
 				return 1;
@@ -414,7 +414,7 @@ static int handle_numeric_value_char (mio_json_t* json, mio_ooci_t c)
 			}
 			/* fall thru */
 		case 3: /* exponent part (no sign expected) */
-			if (mio_is_ooch_digit(c))
+			if (hio_is_ooch_digit(c))
 			{
 				if (add_char_to_token(json, c, 0) <= -1) return -1;
 				return 1;
@@ -424,24 +424,24 @@ static int handle_numeric_value_char (mio_json_t* json, mio_ooci_t c)
 
 	pop_read_state (json);
 
-	MIO_ASSERT (json->mio, json->tok.len > 0);
-	if (!mio_is_ooch_digit(json->tok.ptr[json->tok.len - 1]))
+	HIO_ASSERT (json->hio, json->tok.len > 0);
+	if (!hio_is_ooch_digit(json->tok.ptr[json->tok.len - 1]))
 	{
-		mio_seterrbfmt (json->mio, MIO_EINVAL, "invalid numeric value - %.*js", json->tok.len, json->tok.ptr);
+		hio_seterrbfmt (json->hio, HIO_EINVAL, "invalid numeric value - %.*js", json->tok.len, json->tok.ptr);
 		return -1;
 	}
-	if (invoke_data_inst(json, MIO_JSON_INST_NUMBER) <= -1) return -1;
+	if (invoke_data_inst(json, HIO_JSON_INST_NUMBER) <= -1) return -1;
 	return 0; /* start over */
 }
 
-static int handle_word_value_char (mio_json_t* json, mio_ooci_t c)
+static int handle_word_value_char (hio_json_t* json, hio_ooci_t c)
 {
-	mio_json_inst_t inst;
+	hio_json_inst_t inst;
 	int ok;
 
-	ok = (json->option & MIO_JSON_PERMIT_WORD_KEY)?
-		(mio_is_ooch_alpha(c) || mio_is_ooch_digit(c) || c == '_' || c == '-'):
-		mio_is_ooch_alpha(c);
+	ok = (json->option & HIO_JSON_PERMIT_WORD_KEY)?
+		(hio_is_ooch_alpha(c) || hio_is_ooch_digit(c) || c == '_' || c == '-'):
+		hio_is_ooch_alpha(c);
 	if (ok)
 	{
 		if (add_char_to_token(json, c, 0) <= -1) return -1;
@@ -450,13 +450,13 @@ static int handle_word_value_char (mio_json_t* json, mio_ooci_t c)
 
 	pop_read_state (json);
 
-	if (mio_comp_oochars_bcstr(json->tok.ptr, json->tok.len, "null", 0) == 0) inst = MIO_JSON_INST_NIL;
-	else if (mio_comp_oochars_bcstr(json->tok.ptr, json->tok.len, "true", 0) == 0) inst = MIO_JSON_INST_TRUE;
-	else if (mio_comp_oochars_bcstr(json->tok.ptr, json->tok.len, "false", 0) == 0) inst = MIO_JSON_INST_FALSE;
-	else if (json->option & MIO_JSON_PERMIT_WORD_KEY) inst = __INST_WORD_STRING; /* internal only */
+	if (hio_comp_oochars_bcstr(json->tok.ptr, json->tok.len, "null", 0) == 0) inst = HIO_JSON_INST_NIL;
+	else if (hio_comp_oochars_bcstr(json->tok.ptr, json->tok.len, "true", 0) == 0) inst = HIO_JSON_INST_TRUE;
+	else if (hio_comp_oochars_bcstr(json->tok.ptr, json->tok.len, "false", 0) == 0) inst = HIO_JSON_INST_FALSE;
+	else if (json->option & HIO_JSON_PERMIT_WORD_KEY) inst = __INST_WORD_STRING; /* internal only */
 	else
 	{
-		mio_seterrbfmt (json->mio, MIO_EINVAL, "invalid word value - %.*js", json->tok.len, json->tok.ptr);
+		hio_seterrbfmt (json->hio, HIO_EINVAL, "invalid word value - %.*js", json->tok.len, json->tok.ptr);
 		return -1;
 	}
 
@@ -466,14 +466,14 @@ static int handle_word_value_char (mio_json_t* json, mio_ooci_t c)
 
 /* ========================================================================= */
 
-static int handle_start_char (mio_json_t* json, mio_ooci_t c)
+static int handle_start_char (hio_json_t* json, hio_ooci_t c)
 {
-	if (mio_is_ooch_space(c))
+	if (hio_is_ooch_space(c))
 	{
 		/* do nothing */
 		return 1;
 	}
-	else if ((json->option & MIO_JSON_LINE_COMMENT) && c == '#')
+	else if ((json->option & HIO_JSON_LINE_COMMENT) && c == '#')
 	{
 		/* line comment */
 		json->state_stack->in_comment = 1;
@@ -481,48 +481,48 @@ static int handle_start_char (mio_json_t* json, mio_ooci_t c)
 	}
 	else if (c == '\"')
 	{
-		if (push_read_state(json, MIO_JSON_STATE_IN_STRING_VALUE) <= -1) return -1;
+		if (push_read_state(json, HIO_JSON_STATE_IN_STRING_VALUE) <= -1) return -1;
 		clear_token (json);
 		return 1; /* the quote dosn't form a string. so no start-over */
 	}
-	else if (mio_is_ooch_digit(c) || c == '+' || c == '-')
+	else if (hio_is_ooch_digit(c) || c == '+' || c == '-')
 	{
-		if (push_read_state(json, MIO_JSON_STATE_IN_NUMERIC_VALUE) <= -1) return -1;
+		if (push_read_state(json, HIO_JSON_STATE_IN_NUMERIC_VALUE) <= -1) return -1;
 		clear_token (json);
 		json->state_stack->u.nv.progress = 0;
 		return 0; /* start over to process c under the new state */
 	}
-	else if (mio_is_ooch_alpha(c))
+	else if (hio_is_ooch_alpha(c))
 	{
-		if (push_read_state(json, MIO_JSON_STATE_IN_WORD_VALUE) <= -1) return -1;
+		if (push_read_state(json, HIO_JSON_STATE_IN_WORD_VALUE) <= -1) return -1;
 		clear_token (json);
 		return 0; /* start over to process c under the new state */
 	}
 	else if (c == '[')
 	{
-		if (invoke_data_inst(json, MIO_JSON_INST_START_ARRAY) <= -1) return -1;
+		if (invoke_data_inst(json, HIO_JSON_INST_START_ARRAY) <= -1) return -1;
 		return 1;
 	}
 	else if (c == '{')
 	{
-		if (invoke_data_inst(json, MIO_JSON_INST_START_OBJECT) <= -1) return -1;
+		if (invoke_data_inst(json, HIO_JSON_INST_START_OBJECT) <= -1) return -1;
 		return 1;
 	}
 	else
 	{
-		mio_seterrbfmt (json->mio, MIO_EINVAL, "not starting with an allowed initial character - %jc at %zu:%zu", (mio_ooch_t)c, json->c_line,json->c_col);
+		hio_seterrbfmt (json->hio, HIO_EINVAL, "not starting with an allowed initial character - %jc at %zu:%zu", (hio_ooch_t)c, json->c_line,json->c_col);
 		return -1;
 	}
 }
 
-static int handle_char_in_array (mio_json_t* json, mio_ooci_t c)
+static int handle_char_in_array (hio_json_t* json, hio_ooci_t c)
 {
-	if (mio_is_ooch_space(c))
+	if (hio_is_ooch_space(c))
 	{
 		/* do nothing */
 		return 1;
 	}
-	else if ((json->option & MIO_JSON_LINE_COMMENT) && c == '#')
+	else if ((json->option & HIO_JSON_LINE_COMMENT) && c == '#')
 	{
 		/* line comment */
 		json->state_stack->in_comment = 1;
@@ -531,14 +531,14 @@ static int handle_char_in_array (mio_json_t* json, mio_ooci_t c)
 	else if (c == ']')
 	{
 		pop_read_state (json);
-		if (invoke_data_inst(json, MIO_JSON_INST_END_ARRAY) <= -1) return -1;
+		if (invoke_data_inst(json, HIO_JSON_INST_END_ARRAY) <= -1) return -1;
 		return 1;
 	}
 	else if (c == ',')
 	{
 		if (!json->state_stack->u.ia.got_value)
 		{
-			mio_seterrbfmt (json->mio, MIO_EINVAL, "redundant comma in array - %jc at %zu:%zu", (mio_ooch_t)c, json->c_line, json->c_col);
+			hio_seterrbfmt (json->hio, HIO_EINVAL, "redundant comma in array - %jc at %zu:%zu", (hio_ooch_t)c, json->c_line, json->c_col);
 			return -1;
 		}
 		json->state_stack->u.ia.got_value = 0;
@@ -548,62 +548,62 @@ static int handle_char_in_array (mio_json_t* json, mio_ooci_t c)
 	{
 		if (json->state_stack->u.ia.got_value)
 		{
-			if (json->option & MIO_JSON_OPTIONAL_COMMA)
+			if (json->option & HIO_JSON_OPTIONAL_COMMA)
 			{
 				json->state_stack->u.ia.got_value = 0;
 			}
 			else
 			{
-				mio_seterrbfmt (json->mio, MIO_EINVAL, "comma required in array - %jc at %zu:%zu", (mio_ooch_t)c, json->c_line, json->c_col);
+				hio_seterrbfmt (json->hio, HIO_EINVAL, "comma required in array - %jc at %zu:%zu", (hio_ooch_t)c, json->c_line, json->c_col);
 				return -1;
 			}
 		}
 
 		if (c == '\"')
 		{
-			if (push_read_state(json, MIO_JSON_STATE_IN_STRING_VALUE) <= -1) return -1;
+			if (push_read_state(json, HIO_JSON_STATE_IN_STRING_VALUE) <= -1) return -1;
 			clear_token (json);
 			return 1;
 		}
-		else if (mio_is_ooch_digit(c) || c == '+' || c == '-')
+		else if (hio_is_ooch_digit(c) || c == '+' || c == '-')
 		{
-			if (push_read_state(json, MIO_JSON_STATE_IN_NUMERIC_VALUE) <= -1) return -1;
+			if (push_read_state(json, HIO_JSON_STATE_IN_NUMERIC_VALUE) <= -1) return -1;
 			clear_token (json);
 			json->state_stack->u.nv.progress = 0;
 			return 0; /* start over */
 		}
-		else if (mio_is_ooch_alpha(c))
+		else if (hio_is_ooch_alpha(c))
 		{
-			if (push_read_state(json, MIO_JSON_STATE_IN_WORD_VALUE) <= -1) return -1;
+			if (push_read_state(json, HIO_JSON_STATE_IN_WORD_VALUE) <= -1) return -1;
 			clear_token (json);
 			return 0; /* start over */
 		}
 		else if (c == '[')
 		{
-			if (invoke_data_inst(json, MIO_JSON_INST_START_ARRAY) <= -1) return -1;
+			if (invoke_data_inst(json, HIO_JSON_INST_START_ARRAY) <= -1) return -1;
 			return 1;
 		}
 		else if (c == '{')
 		{
-			if (invoke_data_inst(json, MIO_JSON_INST_START_OBJECT) <= -1) return -1;
+			if (invoke_data_inst(json, HIO_JSON_INST_START_OBJECT) <= -1) return -1;
 			return 1;
 		}
 		else
 		{
-			mio_seterrbfmt (json->mio, MIO_EINVAL, "wrong character inside array - %jc[%d] at %zu:%zu", (mio_ooch_t)c, (int)c, json->c_line, json->c_col);
+			hio_seterrbfmt (json->hio, HIO_EINVAL, "wrong character inside array - %jc[%d] at %zu:%zu", (hio_ooch_t)c, (int)c, json->c_line, json->c_col);
 			return -1;
 		}
 	}
 }
 
-static int handle_char_in_object (mio_json_t* json, mio_ooci_t c)
+static int handle_char_in_object (hio_json_t* json, hio_ooci_t c)
 {
-	if (mio_is_ooch_space(c))
+	if (hio_is_ooch_space(c))
 	{
 		/* do nothing */
 		return 1;
 	}
-	else if ((json->option & MIO_JSON_LINE_COMMENT) && c == '#')
+	else if ((json->option & HIO_JSON_LINE_COMMENT) && c == '#')
 	{
 		/* line comment */
 		json->state_stack->in_comment = 1;
@@ -614,19 +614,19 @@ static int handle_char_in_object (mio_json_t* json, mio_ooci_t c)
 		/* 0 - initial, 1 - got key, 2 -> got colon, 3 -> got value, 0 -> after comma */
 		if (json->state_stack->u.io.state == 1 || json->state_stack->u.io.state == 2)
 		{
-			mio_seterrbfmt (json->mio, MIO_EINVAL, "no value for a key in object at %zu:%zu", json->c_line, json->c_col);
+			hio_seterrbfmt (json->hio, HIO_EINVAL, "no value for a key in object at %zu:%zu", json->c_line, json->c_col);
 			return -1;
 		}
 
 		pop_read_state (json);
-		if (invoke_data_inst(json, MIO_JSON_INST_END_OBJECT) <= -1) return -1;
+		if (invoke_data_inst(json, HIO_JSON_INST_END_OBJECT) <= -1) return -1;
 		return 1;
 	}
 	else if (c == ':')
 	{
 		if (json->state_stack->u.io.state != 1)
 		{
-			mio_seterrbfmt (json->mio, MIO_EINVAL, "redundant colon in object - %jc at %zu:%zu", (mio_ooch_t)c, json->c_line, json->c_col);
+			hio_seterrbfmt (json->hio, HIO_EINVAL, "redundant colon in object - %jc at %zu:%zu", (hio_ooch_t)c, json->c_line, json->c_col);
 			return -1;
 		}
 		json->state_stack->u.io.state++;
@@ -636,7 +636,7 @@ static int handle_char_in_object (mio_json_t* json, mio_ooci_t c)
 	{
 		if (json->state_stack->u.io.state != 3)
 		{
-			mio_seterrbfmt (json->mio, MIO_EINVAL, "comma without value or redundant comma in object - %jc at %zu:%zu", (mio_ooch_t)c, json->c_line, json->c_col);
+			hio_seterrbfmt (json->hio, HIO_EINVAL, "comma without value or redundant comma in object - %jc at %zu:%zu", (hio_ooch_t)c, json->c_line, json->c_col);
 			return -1;
 		}
 		json->state_stack->u.io.state = 0;
@@ -646,53 +646,53 @@ static int handle_char_in_object (mio_json_t* json, mio_ooci_t c)
 	{
 		if (json->state_stack->u.io.state == 1)
 		{
-			mio_seterrbfmt (json->mio, MIO_EINVAL, "colon required in object - %jc at %zu:%zu", (mio_ooch_t)c, json->c_line, json->c_col);
+			hio_seterrbfmt (json->hio, HIO_EINVAL, "colon required in object - %jc at %zu:%zu", (hio_ooch_t)c, json->c_line, json->c_col);
 			return -1;
 		}
 		else if (json->state_stack->u.io.state == 3)
 		{
-			if (json->option & MIO_JSON_OPTIONAL_COMMA)
+			if (json->option & HIO_JSON_OPTIONAL_COMMA)
 			{
 				json->state_stack->u.io.state = 0;
 			}
 			else
 			{
-				mio_seterrbfmt (json->mio, MIO_EINVAL, "comma required in object - %jc at %zu:%zu", (mio_ooch_t)c, json->c_line, json->c_col);
+				hio_seterrbfmt (json->hio, HIO_EINVAL, "comma required in object - %jc at %zu:%zu", (hio_ooch_t)c, json->c_line, json->c_col);
 			}
 		}
 
 		if (c == '\"')
 		{
-			if (push_read_state(json, MIO_JSON_STATE_IN_STRING_VALUE) <= -1) return -1;
+			if (push_read_state(json, HIO_JSON_STATE_IN_STRING_VALUE) <= -1) return -1;
 			clear_token (json);
 			return 1;
 		}
-		else if (mio_is_ooch_digit(c) || c == '+' || c == '-')
+		else if (hio_is_ooch_digit(c) || c == '+' || c == '-')
 		{
-			if (push_read_state(json, MIO_JSON_STATE_IN_NUMERIC_VALUE) <= -1) return -1;
+			if (push_read_state(json, HIO_JSON_STATE_IN_NUMERIC_VALUE) <= -1) return -1;
 			clear_token (json);
 			json->state_stack->u.nv.progress = 0;
 			return 0; /* start over */
 		}
-		else if (mio_is_ooch_alpha(c))
+		else if (hio_is_ooch_alpha(c))
 		{
-			if (push_read_state(json, MIO_JSON_STATE_IN_WORD_VALUE) <= -1) return -1;
+			if (push_read_state(json, HIO_JSON_STATE_IN_WORD_VALUE) <= -1) return -1;
 			clear_token (json);
 			return 0; /* start over */
 		}
 		else if (c == '[')
 		{
-			if (invoke_data_inst(json, MIO_JSON_INST_START_ARRAY) <= -1) return -1;
+			if (invoke_data_inst(json, HIO_JSON_INST_START_ARRAY) <= -1) return -1;
 			return 1;
 		}
 		else if (c == '{')
 		{
-			if (invoke_data_inst(json, MIO_JSON_INST_START_OBJECT) <= -1) return -1;
+			if (invoke_data_inst(json, HIO_JSON_INST_START_OBJECT) <= -1) return -1;
 			return 1;
 		}
 		else
 		{
-			mio_seterrbfmt (json->mio, MIO_EINVAL, "wrong character inside object - %jc[%d] at %zu:%zu", (mio_ooch_t)c, (int)c, json->c_line, json->c_col);
+			hio_seterrbfmt (json->hio, HIO_EINVAL, "wrong character inside object - %jc[%d] at %zu:%zu", (hio_ooch_t)c, (int)c, json->c_line, json->c_col);
 			return -1;
 		}
 	}
@@ -700,53 +700,53 @@ static int handle_char_in_object (mio_json_t* json, mio_ooci_t c)
 
 /* ========================================================================= */
 
-static int handle_char (mio_json_t* json, mio_ooci_t c)
+static int handle_char (hio_json_t* json, hio_ooci_t c)
 {
 	int x;
 
 start_over:
-	if (c == MIO_OOCI_EOF)
+	if (c == HIO_OOCI_EOF)
 	{
-		if (json->state_stack->state == MIO_JSON_STATE_START)
+		if (json->state_stack->state == HIO_JSON_STATE_START)
 		{
 			/* no input data */
 			return 0;
 		}
 		else
 		{
-			mio_seterrbfmt (json->mio, MIO_EBADRE, "unexpected end of data at %zu:%zu", json->c_line, json->c_col);
+			hio_seterrbfmt (json->hio, HIO_EBADRE, "unexpected end of data at %zu:%zu", json->c_line, json->c_col);
 			return -1;
 		}
 	}
 
 	switch (json->state_stack->state)
 	{
-		case MIO_JSON_STATE_START:
+		case HIO_JSON_STATE_START:
 			x = handle_start_char(json, c);
 			break;
 
-		case MIO_JSON_STATE_IN_ARRAY:
+		case HIO_JSON_STATE_IN_ARRAY:
 			x = handle_char_in_array(json, c);
 			break;
 
-		case MIO_JSON_STATE_IN_OBJECT:
+		case HIO_JSON_STATE_IN_OBJECT:
 			x = handle_char_in_object(json, c);
 			break;
 
-		case MIO_JSON_STATE_IN_WORD_VALUE:
+		case HIO_JSON_STATE_IN_WORD_VALUE:
 			x = handle_word_value_char(json, c);
 			break;
 
-		case MIO_JSON_STATE_IN_STRING_VALUE:
+		case HIO_JSON_STATE_IN_STRING_VALUE:
 			x = handle_string_value_char(json, c);
 			break;
 
-		case MIO_JSON_STATE_IN_NUMERIC_VALUE:
+		case HIO_JSON_STATE_IN_NUMERIC_VALUE:
 			x = handle_numeric_value_char(json, c);
 			break;
 
 		default:
-			mio_seterrbfmt (json->mio, MIO_EINTERN, "internal error - must not be called for state %d", (int)json->state_stack->state);
+			hio_seterrbfmt (json->hio, HIO_EINTERN, "internal error - must not be called for state %d", (int)json->state_stack->state);
 			return -1;
 	}
 
@@ -758,10 +758,10 @@ start_over:
 
 /* ========================================================================= */
 
-static int feed_json_data (mio_json_t* json, const mio_bch_t* data, mio_oow_t len, mio_oow_t* xlen, int stop_if_ever_completed)
+static int feed_json_data (hio_json_t* json, const hio_bch_t* data, hio_oow_t len, hio_oow_t* xlen, int stop_if_ever_completed)
 {
-	const mio_bch_t* ptr;
-	const mio_bch_t* end;
+	const hio_bch_t* ptr;
+	const hio_bch_t* end;
 	int ever_completed = 0;
 
 	ptr = data;
@@ -769,17 +769,17 @@ static int feed_json_data (mio_json_t* json, const mio_bch_t* data, mio_oow_t le
 
 	while (ptr < end)
 	{
-		mio_ooci_t c;
-		const mio_bch_t* optr;
+		hio_ooci_t c;
+		const hio_bch_t* optr;
 
-	#if defined(MIO_OOCH_IS_UCH)
-		mio_ooch_t uc;
-		mio_oow_t bcslen;
-		mio_oow_t n;
+	#if defined(HIO_OOCH_IS_UCH)
+		hio_ooch_t uc;
+		hio_oow_t bcslen;
+		hio_oow_t n;
 
 		optr = ptr;
 		bcslen = end - ptr;
-		n = json->mio->_cmgr->bctouc(ptr, bcslen, &uc);
+		n = json->hio->_cmgr->bctouc(ptr, bcslen, &uc);
 		if (n == 0)
 		{
 			/* invalid sequence */
@@ -800,7 +800,7 @@ static int feed_json_data (mio_json_t* json, const mio_bch_t* data, mio_oow_t le
 		c = *ptr++;
 	#endif
 
-		if (c == MIO_EOL)
+		if (c == HIO_EOL)
 		{
 			json->c_col = 0;
 			json->c_line++;
@@ -812,10 +812,10 @@ static int feed_json_data (mio_json_t* json, const mio_bch_t* data, mio_oow_t le
 
 		if (json->state_stack->in_comment) 
 		{
-			if (c == MIO_EOL) json->state_stack->in_comment = 0;
+			if (c == HIO_EOL) json->state_stack->in_comment = 0;
 			continue;
 		}
-		if (json->state_stack->state == MIO_JSON_STATE_START && mio_is_ooch_space(c)) continue; /* skip white space */
+		if (json->state_stack->state == HIO_JSON_STATE_START && hio_is_ooch_space(c)) continue; /* skip white space */
 
 		if (stop_if_ever_completed && ever_completed) 
 		{
@@ -825,7 +825,7 @@ static int feed_json_data (mio_json_t* json, const mio_bch_t* data, mio_oow_t le
 
 		/* handle a signle character */
 		if (handle_char(json, c) <= -1) goto oops;
-		if (json->state_stack->state == MIO_JSON_STATE_START) ever_completed = 1;
+		if (json->state_stack->state == HIO_JSON_STATE_START) ever_completed = 1;
 	}
 
 	*xlen = ptr - data;
@@ -840,46 +840,46 @@ oops:
 
 /* ========================================================================= */
 
-mio_json_t* mio_json_open (mio_t* mio, mio_oow_t xtnsize)
+hio_json_t* hio_json_open (hio_t* hio, hio_oow_t xtnsize)
 {
-	mio_json_t* json;
+	hio_json_t* json;
 
-	json = (mio_json_t*)mio_allocmem(mio, MIO_SIZEOF(*json) + xtnsize);
-	if (MIO_LIKELY(json))
+	json = (hio_json_t*)hio_allocmem(hio, HIO_SIZEOF(*json) + xtnsize);
+	if (HIO_LIKELY(json))
 	{
-		if (mio_json_init(json, mio) <= -1)
+		if (hio_json_init(json, hio) <= -1)
 		{
-			mio_freemem (mio, json);
-			return MIO_NULL;
+			hio_freemem (hio, json);
+			return HIO_NULL;
 		}
 		else
 		{
-			MIO_MEMSET (json + 1,  0, xtnsize);
+			HIO_MEMSET (json + 1,  0, xtnsize);
 		}
 	}
 
 	return json;
 }
 
-void mio_json_close (mio_json_t* json)
+void hio_json_close (hio_json_t* json)
 {
-	mio_json_fini (json);
-	mio_freemem (json->mio, json);
+	hio_json_fini (json);
+	hio_freemem (json->hio, json);
 }
 
-static int do_nothing_on_inst  (mio_json_t* json, mio_json_inst_t inst, mio_oow_t level, mio_oow_t index, mio_json_state_t container_state, const mio_oocs_t* str, void* ctx)
+static int do_nothing_on_inst  (hio_json_t* json, hio_json_inst_t inst, hio_oow_t level, hio_oow_t index, hio_json_state_t container_state, const hio_oocs_t* str, void* ctx)
 {
 	return 0;
 }
 
-int mio_json_init (mio_json_t* json, mio_t* mio)
+int hio_json_init (hio_json_t* json, hio_t* hio)
 {
-	MIO_MEMSET (json, 0, MIO_SIZEOF(*json));
+	HIO_MEMSET (json, 0, HIO_SIZEOF(*json));
 
-	json->mio = mio;
+	json->hio = hio;
 	json->instcb = do_nothing_on_inst;
-	json->state_top.state = MIO_JSON_STATE_START;
-	json->state_top.next = MIO_NULL;
+	json->state_top.state = HIO_JSON_STATE_START;
+	json->state_top.next = HIO_NULL;
 	json->state_stack = &json->state_top;
 
 	json->c_line = 1;
@@ -888,58 +888,58 @@ int mio_json_init (mio_json_t* json, mio_t* mio)
 	return 0;
 }
 
-void mio_json_fini (mio_json_t* json)
+void hio_json_fini (hio_json_t* json)
 {
 	pop_all_read_states (json);
 	if (json->tok.ptr) 
 	{
-		mio_freemem (json->mio, json->tok.ptr);
-		json->tok.ptr = MIO_NULL;
+		hio_freemem (json->hio, json->tok.ptr);
+		json->tok.ptr = HIO_NULL;
 	}
 }
 /* ========================================================================= */
 
-mio_bitmask_t mio_json_getoption (mio_json_t* json)
+hio_bitmask_t hio_json_getoption (hio_json_t* json)
 {
 	return json->option;
 }
 
-void mio_json_setoption (mio_json_t* json, mio_bitmask_t mask)
+void hio_json_setoption (hio_json_t* json, hio_bitmask_t mask)
 {
 	json->option = mask;
 }
 
-void mio_json_setinstcb (mio_json_t* json, mio_json_instcb_t instcb, void* ctx)
+void hio_json_setinstcb (hio_json_t* json, hio_json_instcb_t instcb, void* ctx)
 {
 	json->instcb = instcb;
 	json->rctx = ctx;
 }
 
-mio_json_state_t mio_json_getstate (mio_json_t* json)
+hio_json_state_t hio_json_getstate (hio_json_t* json)
 {
 	return json->state_stack->state;
 }
 
-void mio_json_resetstates (mio_json_t* json)
+void hio_json_resetstates (hio_json_t* json)
 {
 	pop_all_read_states (json);
-	MIO_ASSERT (json->mio, json->state_stack == &json->state_top);
-	json->state_stack->state = MIO_JSON_STATE_START;
+	HIO_ASSERT (json->hio, json->state_stack == &json->state_top);
+	json->state_stack->state = HIO_JSON_STATE_START;
 }
 
-void mio_json_resetfeedloc (mio_json_t* json)
+void hio_json_resetfeedloc (hio_json_t* json)
 {
 	json->c_line = 1;
 	json->c_col = 0;
 }
 
-int mio_json_feed (mio_json_t* json, const void* ptr, mio_oow_t len, mio_oow_t* rem, int stop_if_ever_completed)
+int hio_json_feed (hio_json_t* json, const void* ptr, hio_oow_t len, hio_oow_t* rem, int stop_if_ever_completed)
 {
 	int x;
-	mio_oow_t total, ylen;
-	const mio_bch_t* buf;
+	hio_oow_t total, ylen;
+	const hio_bch_t* buf;
 
-	buf = (const mio_bch_t*)ptr;
+	buf = (const hio_bch_t*)ptr;
 	total = 0;
 	while (total < len)
 	{
@@ -962,12 +962,12 @@ int mio_json_feed (mio_json_t* json, const void* ptr, mio_oow_t len, mio_oow_t* 
 
 /* ========================================================================= */
 
-static int push_write_state (mio_jsonwr_t* jsonwr, mio_json_state_t state)
+static int push_write_state (hio_jsonwr_t* jsonwr, hio_json_state_t state)
 {
-	mio_jsonwr_state_node_t* ss;
+	hio_jsonwr_state_node_t* ss;
 
-	ss = (mio_jsonwr_state_node_t*)mio_callocmem(jsonwr->mio, MIO_SIZEOF(*ss));
-	if (MIO_UNLIKELY(!ss)) return -1;
+	ss = (hio_jsonwr_state_node_t*)hio_callocmem(jsonwr->hio, HIO_SIZEOF(*ss));
+	if (HIO_UNLIKELY(!ss)) return -1;
 
 	ss->state = state;
 	ss->level = jsonwr->state_stack->level; /* copy from the parent */
@@ -977,70 +977,70 @@ static int push_write_state (mio_jsonwr_t* jsonwr, mio_json_state_t state)
 	return 0;
 }
 
-static void pop_write_state (mio_jsonwr_t* jsonwr)
+static void pop_write_state (hio_jsonwr_t* jsonwr)
 {
-	mio_jsonwr_state_node_t* ss;
+	hio_jsonwr_state_node_t* ss;
 
 	ss = jsonwr->state_stack;
-	MIO_ASSERT (jsonwr->mio, ss != MIO_NULL && ss != &jsonwr->state_top);
+	HIO_ASSERT (jsonwr->hio, ss != HIO_NULL && ss != &jsonwr->state_top);
 	jsonwr->state_stack = ss->next;
 
 /* TODO: don't free this. move it to the free list? */
-	mio_freemem (jsonwr->mio, ss);
+	hio_freemem (jsonwr->hio, ss);
 }
 
-static void pop_all_write_states (mio_jsonwr_t* jsonwr)
+static void pop_all_write_states (hio_jsonwr_t* jsonwr)
 {
 	while (jsonwr->state_stack != &jsonwr->state_top) pop_write_state (jsonwr);
 }
 
-mio_jsonwr_t* mio_jsonwr_open (mio_t* mio, mio_oow_t xtnsize, int flags)
+hio_jsonwr_t* hio_jsonwr_open (hio_t* hio, hio_oow_t xtnsize, int flags)
 {
-	mio_jsonwr_t* jsonwr;
+	hio_jsonwr_t* jsonwr;
 
-	jsonwr = (mio_jsonwr_t*)mio_allocmem(mio, MIO_SIZEOF(*jsonwr) + xtnsize);
-	if (MIO_LIKELY(jsonwr))
+	jsonwr = (hio_jsonwr_t*)hio_allocmem(hio, HIO_SIZEOF(*jsonwr) + xtnsize);
+	if (HIO_LIKELY(jsonwr))
 	{
-		if (mio_jsonwr_init(jsonwr, mio, flags) <= -1)
+		if (hio_jsonwr_init(jsonwr, hio, flags) <= -1)
 		{
-			mio_freemem (mio, jsonwr);
-			return MIO_NULL;
+			hio_freemem (hio, jsonwr);
+			return HIO_NULL;
 		}
 		else
 		{
-			MIO_MEMSET (jsonwr + 1,  0, xtnsize);
+			HIO_MEMSET (jsonwr + 1,  0, xtnsize);
 		}
 	}
 
 	return jsonwr;
 }
 
-void mio_jsonwr_close (mio_jsonwr_t* jsonwr)
+void hio_jsonwr_close (hio_jsonwr_t* jsonwr)
 {
-	mio_jsonwr_fini (jsonwr);
-	mio_freemem (jsonwr->mio, jsonwr);
+	hio_jsonwr_fini (jsonwr);
+	hio_freemem (jsonwr->hio, jsonwr);
 }
 
-static int write_nothing (mio_jsonwr_t* jsonwr, const mio_bch_t* dptr, mio_oow_t dlen, void* ctx)
+static int write_nothing (hio_jsonwr_t* jsonwr, const hio_bch_t* dptr, hio_oow_t dlen, void* ctx)
 {
 	return 0;
 }
 
-int mio_jsonwr_init (mio_jsonwr_t* jsonwr, mio_t* mio, int flags)
+int hio_jsonwr_init (hio_jsonwr_t* jsonwr, hio_t* hio, int flags)
 {
-	MIO_MEMSET (jsonwr, 0, MIO_SIZEOF(*jsonwr));
+	HIO_MEMSET (jsonwr, 0, HIO_SIZEOF(*jsonwr));
 
-	jsonwr->mio = mio;
+	jsonwr->hio = hio;
 	jsonwr->writecb = write_nothing;
 	jsonwr->flags = flags;
 
-	jsonwr->state_top.state = MIO_JSON_STATE_START;
-	jsonwr->state_top.next = MIO_NULL;
+	jsonwr->state_top.state = HIO_JSON_STATE_START;
+	jsonwr->state_top.next = HIO_NULL;
 	jsonwr->state_stack = &jsonwr->state_top;
 	return 0;
 }
 
-static int flush_wbuf (mio_jsonwr_t* jsonwr)
+static int flush_wbuf (hio_jsonwr_t* jsonwr)
 {
 	int ret = 0;
 
@@ -1050,7 +1050,7 @@ static int flush_wbuf (mio_jsonwr_t* jsonwr)
 	return ret;
 }
 
-void mio_jsonwr_fini (mio_jsonwr_t* jsonwr)
+void hio_jsonwr_fini (hio_jsonwr_t* jsonwr)
 {
 	if (jsonwr->wbuf_len > 0) flush_wbuf (jsonwr); /* don't care about actual write failure */
 	pop_all_write_states (jsonwr);
@@ -1058,13 +1058,13 @@ void mio_jsonwr_fini (mio_jsonwr_t* jsonwr)
 
 /* ========================================================================= */
 
-void mio_jsonwr_setwritecb (mio_jsonwr_t* jsonwr, mio_jsonwr_writecb_t writecb, void* ctx)
+void hio_jsonwr_setwritecb (hio_jsonwr_t* jsonwr, hio_jsonwr_writecb_t writecb, void* ctx)
 {
 	jsonwr->writecb = writecb;
 	jsonwr->wctx = ctx;
 }
 
-static int escape_char (mio_uch_t uch, mio_uch_t* xch)
+static int escape_char (hio_uch_t uch, hio_uch_t* xch)
 {
 	int x = 1;
 
@@ -1111,22 +1111,22 @@ static int escape_char (mio_uch_t uch, mio_uch_t* xch)
 	return x;
 }
 
-static int write_bytes_noesc (mio_jsonwr_t* jsonwr, const mio_bch_t* dptr, mio_oow_t dlen)
+static int write_bytes_noesc (hio_jsonwr_t* jsonwr, const hio_bch_t* dptr, hio_oow_t dlen)
 {
-	mio_oow_t rem;
+	hio_oow_t rem;
 	do
 	{
-		rem = MIO_COUNTOF(jsonwr->wbuf) - jsonwr->wbuf_len;
+		rem = HIO_COUNTOF(jsonwr->wbuf) - jsonwr->wbuf_len;
 
 		if (dlen <= rem) 
 		{
-			MIO_MEMCPY (&jsonwr->wbuf[jsonwr->wbuf_len], dptr, dlen);
+			HIO_MEMCPY (&jsonwr->wbuf[jsonwr->wbuf_len], dptr, dlen);
 			jsonwr->wbuf_len += dlen;
 			if (dlen == rem && flush_wbuf(jsonwr) <= -1) return -1;
 			break;
 		}
 
-		MIO_MEMCPY (&jsonwr->wbuf[jsonwr->wbuf_len], dptr, rem);
+		HIO_MEMCPY (&jsonwr->wbuf[jsonwr->wbuf_len], dptr, rem);
 		jsonwr->wbuf_len += rem;
 		dptr += rem;
 		dlen -= rem;
@@ -1137,33 +1137,33 @@ static int write_bytes_noesc (mio_jsonwr_t* jsonwr, const mio_bch_t* dptr, mio_o
 	return 0;
 }
 
-static int write_bytes_esc (mio_jsonwr_t* jsonwr, const mio_bch_t* dptr, mio_oow_t dlen)
+static int write_bytes_esc (hio_jsonwr_t* jsonwr, const hio_bch_t* dptr, hio_oow_t dlen)
 {
-	const mio_bch_t* dend = dptr + dlen;
+	const hio_bch_t* dend = dptr + dlen;
 
 	while (dptr < dend)
 	{
 		int e;
-		mio_uch_t ec;
+		hio_uch_t ec;
 		e = escape_char(*dptr, &ec);
 		if (e <= 0)
 		{
 			jsonwr->wbuf[jsonwr->wbuf_len++] = *dptr;
-			if (jsonwr->wbuf_len >= MIO_COUNTOF(jsonwr->wbuf) && flush_wbuf(jsonwr) <= -1) return -1;
+			if (jsonwr->wbuf_len >= HIO_COUNTOF(jsonwr->wbuf) && flush_wbuf(jsonwr) <= -1) return -1;
 		}
 		else if (e == 1)
 		{
 			jsonwr->wbuf[jsonwr->wbuf_len++] = '\\';
-			if (jsonwr->wbuf_len >= MIO_COUNTOF(jsonwr->wbuf) && flush_wbuf(jsonwr) <= -1) return -1;
+			if (jsonwr->wbuf_len >= HIO_COUNTOF(jsonwr->wbuf) && flush_wbuf(jsonwr) <= -1) return -1;
 			jsonwr->wbuf[jsonwr->wbuf_len++] = ec;
-			if (jsonwr->wbuf_len >= MIO_COUNTOF(jsonwr->wbuf) && flush_wbuf(jsonwr) <= -1) return -1;
+			if (jsonwr->wbuf_len >= HIO_COUNTOF(jsonwr->wbuf) && flush_wbuf(jsonwr) <= -1) return -1;
 		}
 		else
 		{
-			mio_bch_t bcsbuf[7];
+			hio_bch_t bcsbuf[7];
 			bcsbuf[0] = '\\';
 			bcsbuf[1] = 'u';
-			mio_fmt_uintmax_to_bcstr(&bcsbuf[2], 5, *dptr, 10, 4, '0', MIO_NULL);
+			hio_fmt_uintmax_to_bcstr(&bcsbuf[2], 5, *dptr, 10, 4, '0', HIO_NULL);
 			if (write_bytes_noesc(jsonwr, bcsbuf, 6) <= -1) return -1;
 		}
 
@@ -1174,19 +1174,19 @@ static int write_bytes_esc (mio_jsonwr_t* jsonwr, const mio_bch_t* dptr, mio_oow
 }
 
 
-static int write_uchars (mio_jsonwr_t* jsonwr, int escape, const mio_uch_t* ptr, mio_oow_t len)
+static int write_uchars (hio_jsonwr_t* jsonwr, int escape, const hio_uch_t* ptr, hio_oow_t len)
 {
-	mio_t* mio = mio_jsonwr_getmio(jsonwr);
-	const mio_uch_t* end = ptr + len;
-	mio_bch_t bcsbuf[MIO_BCSIZE_MAX + 4];
-	mio_oow_t n;
+	hio_t* hio = hio_jsonwr_gethio(jsonwr);
+	const hio_uch_t* end = ptr + len;
+	hio_bch_t bcsbuf[HIO_BCSIZE_MAX + 4];
+	hio_oow_t n;
 
 	while (ptr < end)
 	{
 		if (escape)
 		{
 			int e;
-			mio_uch_t ec;
+			hio_uch_t ec;
 			e = escape_char(*ptr, &ec);
 			if (e <= 0) goto no_escape;
 			else if (e == 1)
@@ -1199,17 +1199,17 @@ static int write_uchars (mio_jsonwr_t* jsonwr, int escape, const mio_uch_t* ptr,
 			{
 				bcsbuf[0] = '\\';
 				bcsbuf[1] = 'u';
-				mio_fmt_uintmax_to_bcstr(&bcsbuf[2], 5, *ptr, 10, 4, '0', MIO_NULL);
+				hio_fmt_uintmax_to_bcstr(&bcsbuf[2], 5, *ptr, 10, 4, '0', HIO_NULL);
 				n = 6;
 			}
 		}
 		else
 		{
 		no_escape:
-			n = mio->_cmgr->uctobc(*ptr, bcsbuf, MIO_COUNTOF(bcsbuf));
+			n = hio->_cmgr->uctobc(*ptr, bcsbuf, HIO_COUNTOF(bcsbuf));
 			if (n == 0) 
 			{
-				mio_seterrnum (mio, MIO_EECERR);
+				hio_seterrnum (hio, HIO_EECERR);
 				return -1;
 			}
 		}
@@ -1229,96 +1229,96 @@ static int write_uchars (mio_jsonwr_t* jsonwr, int escape, const mio_uch_t* ptr,
 
 #define WRITE_LINE_BREAK(jsonwr) WRITE_BYTES_NOESC(jsonwr, "\n", 1)
 
-#define WRITE_COMMA(jsonwr) do { WRITE_BYTES_NOESC(jsonwr, ",", 1); if (jsonwr->flags & MIO_JSONWR_FLAG_PRETTY) WRITE_LINE_BREAK(jsonwr); } while(0)
+#define WRITE_COMMA(jsonwr) do { WRITE_BYTES_NOESC(jsonwr, ",", 1); if (jsonwr->flags & HIO_JSONWR_FLAG_PRETTY) WRITE_LINE_BREAK(jsonwr); } while(0)
 
 #define PREACTION_FOR_VALUE(jsonwr,sn) do { \
-	if (sn->state != MIO_JSON_STATE_IN_ARRAY && !(sn->state == MIO_JSON_STATE_IN_OBJECT && sn->obj_awaiting_val)) goto incompatible_inst; \
-	if (sn->index > 0 && sn->state == MIO_JSON_STATE_IN_ARRAY) WRITE_COMMA (jsonwr); \
+	if (sn->state != HIO_JSON_STATE_IN_ARRAY && !(sn->state == HIO_JSON_STATE_IN_OBJECT && sn->obj_awaiting_val)) goto incompatible_inst; \
+	if (sn->index > 0 && sn->state == HIO_JSON_STATE_IN_ARRAY) WRITE_COMMA (jsonwr); \
 	sn->index++; \
 	sn->obj_awaiting_val = 0; \
-	if ((jsonwr->flags & MIO_JSONWR_FLAG_PRETTY) && sn->state == MIO_JSON_STATE_IN_ARRAY) WRITE_INDENT (jsonwr); \
+	if ((jsonwr->flags & HIO_JSONWR_FLAG_PRETTY) && sn->state == HIO_JSON_STATE_IN_ARRAY) WRITE_INDENT (jsonwr); \
 } while(0)
 
-#define WRITE_INDENT(jsonwr) do { mio_oow_t i; for (i = 0; i < jsonwr->state_stack->level; i++) WRITE_BYTES_NOESC (jsonwr, "\t", 1); } while(0)
+#define WRITE_INDENT(jsonwr) do { hio_oow_t i; for (i = 0; i < jsonwr->state_stack->level; i++) WRITE_BYTES_NOESC (jsonwr, "\t", 1); } while(0)
 
-int mio_jsonwr_write (mio_jsonwr_t* jsonwr, mio_json_inst_t inst, int is_uchars, const void* dptr, mio_oow_t dlen)
+int hio_jsonwr_write (hio_jsonwr_t* jsonwr, hio_json_inst_t inst, int is_uchars, const void* dptr, hio_oow_t dlen)
 {
-	mio_jsonwr_state_node_t* sn = jsonwr->state_stack;
+	hio_jsonwr_state_node_t* sn = jsonwr->state_stack;
 
 	switch (inst)
 	{
-		case MIO_JSON_INST_START_ARRAY:
-			if (sn->state != MIO_JSON_STATE_START && sn->state != MIO_JSON_STATE_IN_ARRAY &&
-			    !(sn->state == MIO_JSON_STATE_IN_OBJECT && sn->obj_awaiting_val)) goto incompatible_inst;
-			if (sn->index > 0 && sn->state == MIO_JSON_STATE_IN_ARRAY) WRITE_COMMA (jsonwr);
+		case HIO_JSON_INST_START_ARRAY:
+			if (sn->state != HIO_JSON_STATE_START && sn->state != HIO_JSON_STATE_IN_ARRAY &&
+			    !(sn->state == HIO_JSON_STATE_IN_OBJECT && sn->obj_awaiting_val)) goto incompatible_inst;
+			if (sn->index > 0 && sn->state == HIO_JSON_STATE_IN_ARRAY) WRITE_COMMA (jsonwr);
 			sn->index++;
-			if ((jsonwr->flags & MIO_JSONWR_FLAG_PRETTY) &&
-			    !(sn->state == MIO_JSON_STATE_IN_OBJECT && sn->obj_awaiting_val))
+			if ((jsonwr->flags & HIO_JSONWR_FLAG_PRETTY) &&
+			    !(sn->state == HIO_JSON_STATE_IN_OBJECT && sn->obj_awaiting_val))
 			{
 				WRITE_INDENT (jsonwr);
 			}
 			sn->obj_awaiting_val = 0;
 			WRITE_BYTES_NOESC (jsonwr, "[", 1); 
-			if (jsonwr->flags & MIO_JSONWR_FLAG_PRETTY) WRITE_LINE_BREAK (jsonwr);
-			if (push_write_state(jsonwr, MIO_JSON_STATE_IN_ARRAY) <= -1) return -1;
+			if (jsonwr->flags & HIO_JSONWR_FLAG_PRETTY) WRITE_LINE_BREAK (jsonwr);
+			if (push_write_state(jsonwr, HIO_JSON_STATE_IN_ARRAY) <= -1) return -1;
 			jsonwr->state_stack->level++;
 			break;
 
-		case MIO_JSON_INST_START_OBJECT:
-			if (sn->state != MIO_JSON_STATE_START && sn->state != MIO_JSON_STATE_IN_ARRAY &&
-			    !(sn->state == MIO_JSON_STATE_IN_OBJECT && sn->obj_awaiting_val)) goto incompatible_inst; 
-			if (sn->index > 0 && sn->state == MIO_JSON_STATE_IN_ARRAY) WRITE_COMMA (jsonwr);
+		case HIO_JSON_INST_START_OBJECT:
+			if (sn->state != HIO_JSON_STATE_START && sn->state != HIO_JSON_STATE_IN_ARRAY &&
+			    !(sn->state == HIO_JSON_STATE_IN_OBJECT && sn->obj_awaiting_val)) goto incompatible_inst; 
+			if (sn->index > 0 && sn->state == HIO_JSON_STATE_IN_ARRAY) WRITE_COMMA (jsonwr);
 			sn->index++;
-			if ((jsonwr->flags & MIO_JSONWR_FLAG_PRETTY) &&
-			    !(sn->state == MIO_JSON_STATE_IN_OBJECT && sn->obj_awaiting_val))
+			if ((jsonwr->flags & HIO_JSONWR_FLAG_PRETTY) &&
+			    !(sn->state == HIO_JSON_STATE_IN_OBJECT && sn->obj_awaiting_val))
 			{
 					WRITE_INDENT (jsonwr);
 			}
 			sn->obj_awaiting_val = 0;
 			WRITE_BYTES_NOESC (jsonwr, "{", 1); 
-			if (jsonwr->flags & MIO_JSONWR_FLAG_PRETTY) WRITE_LINE_BREAK (jsonwr);
-			if (push_write_state (jsonwr, MIO_JSON_STATE_IN_OBJECT) <= -1) return -1;
+			if (jsonwr->flags & HIO_JSONWR_FLAG_PRETTY) WRITE_LINE_BREAK (jsonwr);
+			if (push_write_state (jsonwr, HIO_JSON_STATE_IN_OBJECT) <= -1) return -1;
 			jsonwr->state_stack->level++;
 			break;
 
-		case MIO_JSON_INST_END_ARRAY:
-			if (sn->state != MIO_JSON_STATE_IN_ARRAY) goto incompatible_inst;
+		case HIO_JSON_INST_END_ARRAY:
+			if (sn->state != HIO_JSON_STATE_IN_ARRAY) goto incompatible_inst;
 			pop_write_state (jsonwr);
-			if (jsonwr->flags & MIO_JSONWR_FLAG_PRETTY) 
+			if (jsonwr->flags & HIO_JSONWR_FLAG_PRETTY) 
 			{
 				WRITE_LINE_BREAK (jsonwr);
 				WRITE_INDENT (jsonwr);
 			}
 			WRITE_BYTES_NOESC (jsonwr, "]", 1); 
-			if (jsonwr->state_stack->state == MIO_JSON_STATE_START) 
+			if (jsonwr->state_stack->state == HIO_JSON_STATE_START) 
 			{
 				/* end of json */
-				if (jsonwr->flags & MIO_JSONWR_FLAG_PRETTY) WRITE_LINE_BREAK (jsonwr);
+				if (jsonwr->flags & HIO_JSONWR_FLAG_PRETTY) WRITE_LINE_BREAK (jsonwr);
 				if (jsonwr->wbuf_len > 0 && flush_wbuf(jsonwr) <= -1) return -1;
 			}
 			break;
 
-		case MIO_JSON_INST_END_OBJECT:
-			if (sn->state != MIO_JSON_STATE_IN_OBJECT || sn->obj_awaiting_val) goto incompatible_inst;
+		case HIO_JSON_INST_END_OBJECT:
+			if (sn->state != HIO_JSON_STATE_IN_OBJECT || sn->obj_awaiting_val) goto incompatible_inst;
 			pop_write_state (jsonwr);
-			if (jsonwr->flags & MIO_JSONWR_FLAG_PRETTY) 
+			if (jsonwr->flags & HIO_JSONWR_FLAG_PRETTY) 
 			{
 				WRITE_LINE_BREAK (jsonwr);
 				WRITE_INDENT (jsonwr);
 			}
 			WRITE_BYTES_NOESC (jsonwr, "}", 1); 
-			if (jsonwr->state_stack->state == MIO_JSON_STATE_START) 
+			if (jsonwr->state_stack->state == HIO_JSON_STATE_START) 
 			{
 				/* end of json */
-				if (jsonwr->flags & MIO_JSONWR_FLAG_PRETTY) WRITE_LINE_BREAK (jsonwr);
+				if (jsonwr->flags & HIO_JSONWR_FLAG_PRETTY) WRITE_LINE_BREAK (jsonwr);
 				if (jsonwr->wbuf_len > 0 && flush_wbuf(jsonwr) <= -1) return -1;
 			}
 			break;
 
-		case MIO_JSON_INST_KEY:
-			if (sn->state != MIO_JSON_STATE_IN_OBJECT || sn->obj_awaiting_val) goto incompatible_inst;
+		case HIO_JSON_INST_KEY:
+			if (sn->state != HIO_JSON_STATE_IN_OBJECT || sn->obj_awaiting_val) goto incompatible_inst;
 			if (sn->index > 0) WRITE_COMMA (jsonwr);
-			if (jsonwr->flags & MIO_JSONWR_FLAG_PRETTY) WRITE_INDENT (jsonwr);
+			if (jsonwr->flags & HIO_JSONWR_FLAG_PRETTY) WRITE_INDENT (jsonwr);
 			WRITE_BYTES_NOESC (jsonwr, "\"", 1);
 			if (is_uchars) WRITE_UCHARS (jsonwr, 1, dptr, dlen);
 			else WRITE_BYTES_ESC (jsonwr, dptr, dlen);
@@ -1326,22 +1326,22 @@ int mio_jsonwr_write (mio_jsonwr_t* jsonwr, mio_json_inst_t inst, int is_uchars,
 			sn->obj_awaiting_val = 1;
 			break;
 
-		case MIO_JSON_INST_NIL:
+		case HIO_JSON_INST_NIL:
 			PREACTION_FOR_VALUE (jsonwr, sn);
 			WRITE_BYTES_NOESC (jsonwr, "nil", 3);
 			break;
 
-		case MIO_JSON_INST_TRUE:
+		case HIO_JSON_INST_TRUE:
 			PREACTION_FOR_VALUE (jsonwr, sn);
 			WRITE_BYTES_NOESC (jsonwr, "true", 4);
 			break;
 			
-		case MIO_JSON_INST_FALSE:
+		case HIO_JSON_INST_FALSE:
 			PREACTION_FOR_VALUE (jsonwr, sn);
 			WRITE_BYTES_NOESC (jsonwr, "false", 5);
 			break;
 
-		case MIO_JSON_INST_NUMBER:
+		case HIO_JSON_INST_NUMBER:
 			PREACTION_FOR_VALUE (jsonwr, sn);
 			if (is_uchars)
 				WRITE_UCHARS (jsonwr, 0, dptr, dlen);
@@ -1349,7 +1349,7 @@ int mio_jsonwr_write (mio_jsonwr_t* jsonwr, mio_json_inst_t inst, int is_uchars,
 				WRITE_BYTES_NOESC (jsonwr, dptr, dlen);
 			break;
 
-		case MIO_JSON_INST_STRING:
+		case HIO_JSON_INST_STRING:
 			PREACTION_FOR_VALUE (jsonwr, sn);
 			WRITE_BYTES_NOESC (jsonwr, "\"", 1);
 			if (is_uchars) WRITE_UCHARS (jsonwr, 1, dptr, dlen);
@@ -1360,7 +1360,7 @@ int mio_jsonwr_write (mio_jsonwr_t* jsonwr, mio_json_inst_t inst, int is_uchars,
 		default:
 		incompatible_inst:
 			flush_wbuf (jsonwr);
-			mio_seterrbfmt (jsonwr->mio, MIO_EINVAL, "incompatiable write instruction - %d", (int)inst);
+			hio_seterrbfmt (jsonwr->hio, HIO_EINVAL, "incompatiable write instruction - %d", (int)inst);
 			return -1;
 	}
 
@@ -1368,60 +1368,60 @@ int mio_jsonwr_write (mio_jsonwr_t* jsonwr, mio_json_inst_t inst, int is_uchars,
 }
 
 
-int mio_jsonwr_writeintmax (mio_jsonwr_t* jsonwr, mio_intmax_t v)
+int hio_jsonwr_writeintmax (hio_jsonwr_t* jsonwr, hio_intmax_t v)
 {
-	mio_jsonwr_state_node_t* sn = jsonwr->state_stack;
-	mio_bch_t tmp[((MIO_SIZEOF_UINTMAX_T * MIO_BITS_PER_BYTE) / 3) + 3]; /* there can be a sign. so +3 instead of +2 */
-	mio_oow_t len;
+	hio_jsonwr_state_node_t* sn = jsonwr->state_stack;
+	hio_bch_t tmp[((HIO_SIZEOF_UINTMAX_T * HIO_BITS_PER_BYTE) / 3) + 3]; /* there can be a sign. so +3 instead of +2 */
+	hio_oow_t len;
 
 	PREACTION_FOR_VALUE (jsonwr, sn);
-	len = mio_fmt_intmax_to_bcstr(tmp, MIO_COUNTOF(tmp), v, 10, 0, '\0', MIO_NULL);
+	len = hio_fmt_intmax_to_bcstr(tmp, HIO_COUNTOF(tmp), v, 10, 0, '\0', HIO_NULL);
 	WRITE_BYTES_NOESC (jsonwr, tmp, len);
 	return 0;
 
 incompatible_inst:
 	flush_wbuf (jsonwr);
-	mio_seterrbfmt (jsonwr->mio, MIO_EINVAL, "incompatiable integer write instruction");
+	hio_seterrbfmt (jsonwr->hio, HIO_EINVAL, "incompatiable integer write instruction");
 	return -1;
 }
 
-int mio_jsonwr_writeuintmax (mio_jsonwr_t* jsonwr, mio_uintmax_t v)
+int hio_jsonwr_writeuintmax (hio_jsonwr_t* jsonwr, hio_uintmax_t v)
 {
-	mio_jsonwr_state_node_t* sn = jsonwr->state_stack;
-	mio_bch_t tmp[((MIO_SIZEOF_UINTMAX_T * MIO_BITS_PER_BYTE) / 3) + 2];
-	mio_oow_t len;
+	hio_jsonwr_state_node_t* sn = jsonwr->state_stack;
+	hio_bch_t tmp[((HIO_SIZEOF_UINTMAX_T * HIO_BITS_PER_BYTE) / 3) + 2];
+	hio_oow_t len;
 
 	PREACTION_FOR_VALUE (jsonwr, sn);
-	len = mio_fmt_uintmax_to_bcstr(tmp, MIO_COUNTOF(tmp), v, 10, 0, '\0', MIO_NULL);
+	len = hio_fmt_uintmax_to_bcstr(tmp, HIO_COUNTOF(tmp), v, 10, 0, '\0', HIO_NULL);
 	WRITE_BYTES_NOESC (jsonwr, tmp, len);
 	return 0;
 
 incompatible_inst:
 	flush_wbuf (jsonwr);
-	mio_seterrbfmt (jsonwr->mio, MIO_EINVAL, "incompatiable integer write instruction");
+	hio_seterrbfmt (jsonwr->hio, HIO_EINVAL, "incompatiable integer write instruction");
 	return -1;
 }
 
-int mio_jsonwr_writerawuchars (mio_jsonwr_t* jsonwr, const mio_uch_t* dptr, mio_oow_t dlen)
+int hio_jsonwr_writerawuchars (hio_jsonwr_t* jsonwr, const hio_uch_t* dptr, hio_oow_t dlen)
 {
 	WRITE_UCHARS (jsonwr, 0, dptr, dlen);
 	return 0;
 }
 
-int mio_jsonwr_writerawucstr (mio_jsonwr_t* jsonwr, const mio_uch_t* dptr)
+int hio_jsonwr_writerawucstr (hio_jsonwr_t* jsonwr, const hio_uch_t* dptr)
 {
-	WRITE_UCHARS (jsonwr, 0, dptr, mio_count_ucstr(dptr));
+	WRITE_UCHARS (jsonwr, 0, dptr, hio_count_ucstr(dptr));
 	return 0;
 }
 
-int mio_jsonwr_writerawbchars (mio_jsonwr_t* jsonwr, const mio_bch_t* dptr, mio_oow_t dlen)
+int hio_jsonwr_writerawbchars (hio_jsonwr_t* jsonwr, const hio_bch_t* dptr, hio_oow_t dlen)
 {
 	WRITE_BYTES_NOESC (jsonwr, dptr, dlen);
 	return 0;
 }
 
-int mio_jsonwr_writerawbcstr (mio_jsonwr_t* jsonwr, const mio_bch_t* dptr)
+int hio_jsonwr_writerawbcstr (hio_jsonwr_t* jsonwr, const hio_bch_t* dptr)
 {
-	WRITE_BYTES_NOESC (jsonwr, dptr, mio_count_bcstr(dptr));
+	WRITE_BYTES_NOESC (jsonwr, dptr, hio_count_bcstr(dptr));
 	return 0;
 }

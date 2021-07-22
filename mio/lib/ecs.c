@@ -24,11 +24,11 @@
     THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  */
 
-#include <mio-ecs.h>
-#include <mio-fmt.h>
-#include "mio-prv.h"
+#include <hio-ecs.h>
+#include <hio-fmt.h>
+#include "hio-prv.h"
 
-#define _FN(type,verb) mio_ ## type  ## _ ## verb
+#define _FN(type,verb) hio_ ## type  ## _ ## verb
 
 /* ------------------------------------------------------------------------- */
 
@@ -39,11 +39,11 @@
 #undef cstr_t
 #undef count_chars
 #define FN(verb) _FN(becs,verb)
-#define T(x) MIO_BT(x)
-#define str_t mio_becs_t
-#define char_t mio_bch_t
-#define cstr_t mio_bcs_t
-#define count_chars(x) mio_count_bcstr(x)
+#define T(x) HIO_BT(x)
+#define str_t hio_becs_t
+#define char_t hio_bch_t
+#define cstr_t hio_bcs_t
+#define count_chars(x) hio_count_bcstr(x)
 #define BUILD_BECS
 #include "ecs-imp.h"
 
@@ -56,47 +56,47 @@
 #undef cstr_t
 #undef count_chars
 #define FN(verb) _FN(uecs,verb)
-#define T(x) MIO_UT(x)
-#define str_t mio_uecs_t
-#define char_t mio_uch_t
-#define cstr_t mio_ucs_t
-#define count_chars(x) mio_count_ucstr(x)
+#define T(x) HIO_UT(x)
+#define str_t hio_uecs_t
+#define char_t hio_uch_t
+#define cstr_t hio_ucs_t
+#define count_chars(x) hio_count_ucstr(x)
 #define BUILD_UECS
 #include "ecs-imp.h"
 
 /* ------------------------------------------------------------------------- */
 
 
-mio_oow_t mio_becs_ncatuchars (mio_becs_t* str, const mio_uch_t* s, mio_oow_t len, mio_cmgr_t* cmgr)
+hio_oow_t hio_becs_ncatuchars (hio_becs_t* str, const hio_uch_t* s, hio_oow_t len, hio_cmgr_t* cmgr)
 {
-	mio_oow_t bcslen, ucslen;
+	hio_oow_t bcslen, ucslen;
 
 	ucslen = len;
-	if (mio_conv_uchars_to_bchars_with_cmgr(s, &ucslen, MIO_NULL, &bcslen, cmgr) <= -1) return (mio_oow_t)-1;
+	if (hio_conv_uchars_to_bchars_with_cmgr(s, &ucslen, HIO_NULL, &bcslen, cmgr) <= -1) return (hio_oow_t)-1;
 
-	if (mio_becs_resize_for_ncat(str, bcslen) <= 0) return -1;
+	if (hio_becs_resize_for_ncat(str, bcslen) <= 0) return -1;
 
 	ucslen = len;
 	bcslen = str->capa - str->val.len;
-	mio_conv_uchars_to_bchars_with_cmgr (s, &ucslen, &str->val.ptr[str->val.len], &bcslen, cmgr);
+	hio_conv_uchars_to_bchars_with_cmgr (s, &ucslen, &str->val.ptr[str->val.len], &bcslen, cmgr);
 	str->val.len += bcslen;
 	str->val.ptr[str->val.len] = '\0';
 
 	return str->val.len;
 }
 
-mio_oow_t mio_uecs_ncatbchars (mio_uecs_t* str, const mio_bch_t* s, mio_oow_t len, mio_cmgr_t* cmgr, int all)
+hio_oow_t hio_uecs_ncatbchars (hio_uecs_t* str, const hio_bch_t* s, hio_oow_t len, hio_cmgr_t* cmgr, int all)
 {
-	mio_oow_t bcslen, ucslen;
+	hio_oow_t bcslen, ucslen;
 
 	bcslen = len;
-	if (mio_conv_bchars_to_uchars_with_cmgr(s, &bcslen, MIO_NULL, &ucslen, cmgr, all) <= -1) return (mio_oow_t)-1;
+	if (hio_conv_bchars_to_uchars_with_cmgr(s, &bcslen, HIO_NULL, &ucslen, cmgr, all) <= -1) return (hio_oow_t)-1;
 
-	if (mio_uecs_resize_for_ncat(str, ucslen) <= 0) return -1;
+	if (hio_uecs_resize_for_ncat(str, ucslen) <= 0) return -1;
 
 	bcslen = len;
 	ucslen = str->capa - str->val.len;
-	mio_conv_bchars_to_uchars_with_cmgr (s, &bcslen, &str->val.ptr[str->val.len], &ucslen, cmgr, all);
+	hio_conv_bchars_to_uchars_with_cmgr (s, &bcslen, &str->val.ptr[str->val.len], &ucslen, cmgr, all);
 	str->val.len += ucslen;
 	str->val.ptr[str->val.len] = '\0';
 

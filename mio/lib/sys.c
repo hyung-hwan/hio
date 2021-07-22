@@ -26,59 +26,59 @@
 
 #include "sys-prv.h"
 
-int mio_sys_init (mio_t* mio)
+int hio_sys_init (hio_t* hio)
 {
 	int log_inited = 0;
 	int mux_inited = 0;
 	int time_inited = 0;
 
-	mio->sysdep = (mio_sys_t*)mio_callocmem(mio, MIO_SIZEOF(*mio->sysdep));
-	if (!mio->sysdep) return -1;
+	hio->sysdep = (hio_sys_t*)hio_callocmem(hio, HIO_SIZEOF(*hio->sysdep));
+	if (!hio->sysdep) return -1;
 
-	if (mio->_features & MIO_FEATURE_LOG)
+	if (hio->_features & HIO_FEATURE_LOG)
 	{
-		if (mio_sys_initlog(mio) <= -1) goto oops;
+		if (hio_sys_initlog(hio) <= -1) goto oops;
 		log_inited = 1;
 	}
 
-	if (mio->_features & MIO_FEATURE_MUX)
+	if (hio->_features & HIO_FEATURE_MUX)
 	{
-		if (mio_sys_initmux(mio) <= -1) goto oops;
+		if (hio_sys_initmux(hio) <= -1) goto oops;
 		mux_inited = 1;
 	}
 
-	if (mio_sys_inittime(mio) <= -1) goto oops;
+	if (hio_sys_inittime(hio) <= -1) goto oops;
 	time_inited = 1;
 
 	return 0;
 
 oops:
-	if (time_inited) mio_sys_finitime (mio);
-	if (mux_inited) mio_sys_finimux (mio);
-	if (log_inited) mio_sys_finilog (mio);
-	if (mio->sysdep) 
+	if (time_inited) hio_sys_finitime (hio);
+	if (mux_inited) hio_sys_finimux (hio);
+	if (log_inited) hio_sys_finilog (hio);
+	if (hio->sysdep) 
 	{
-		mio_freemem (mio, mio->sysdep);
-		mio->sysdep = MIO_NULL;
+		hio_freemem (hio, hio->sysdep);
+		hio->sysdep = HIO_NULL;
 	}
 	return -1;
 }
 
-void mio_sys_fini (mio_t* mio)
+void hio_sys_fini (hio_t* hio)
 {
-	mio_sys_finitime (mio);
-	if (mio->_features & MIO_FEATURE_MUX) mio_sys_finimux (mio);
-	if (mio->_features & MIO_FEATURE_LOG) mio_sys_finilog (mio);
+	hio_sys_finitime (hio);
+	if (hio->_features & HIO_FEATURE_MUX) hio_sys_finimux (hio);
+	if (hio->_features & HIO_FEATURE_LOG) hio_sys_finilog (hio);
 
-	mio_freemem (mio, mio->sysdep);
-	mio->sysdep = MIO_NULL;
+	hio_freemem (hio, hio->sysdep);
+	hio->sysdep = HIO_NULL;
 }
 
 
 /* TODO: migrate this function */
 #include <fcntl.h>
 #include <errno.h>
-int mio_makesyshndasync (mio_t* mio, mio_syshnd_t hnd)
+int hio_makesyshndasync (hio_t* hio, hio_syshnd_t hnd)
 {
 #if defined(F_GETFL) && defined(F_SETFL) && defined(O_NONBLOCK)
 	int flags;
@@ -87,18 +87,18 @@ int mio_makesyshndasync (mio_t* mio, mio_syshnd_t hnd)
 	    fcntl(hnd, F_SETFL, flags | O_NONBLOCK) <= -1)
 	{
 printf ("make sysnhd async error (%d) - errno %d\n", hnd, errno);
-		mio_seterrwithsyserr (mio, 0, errno);
+		hio_seterrwithsyserr (hio, 0, errno);
 		return -1;
 	}
 
 	return 0;
 #else
-	mio_seterrnum (mio, MIO_ENOIMPL);
+	hio_seterrnum (hio, HIO_ENOIMPL);
 	return -1;
 #endif
 }
 
-int mio_makesyshndcloexec (mio_t* mio, mio_syshnd_t hnd)
+int hio_makesyshndcloexec (hio_t* hio, hio_syshnd_t hnd)
 {
 #if defined(F_GETFL) && defined(F_SETFL) && defined(FD_CLOEXEC)
 	int flags;
@@ -107,13 +107,13 @@ int mio_makesyshndcloexec (mio_t* mio, mio_syshnd_t hnd)
 	    fcntl(hnd, F_SETFD, flags | FD_CLOEXEC) <= -1)
 	{
 printf ("make sysnhd cloexec error (%d) - errno %d\n", hnd, errno);
-		mio_seterrwithsyserr (mio, 0, errno);
+		hio_seterrwithsyserr (hio, 0, errno);
 		return -1;
 	}
 
 	return 0;
 #else
-	mio_seterrnum (mio, MIO_ENOIMPL);
+	hio_seterrnum (hio, HIO_ENOIMPL);
 	return -1;
 #endif
 }

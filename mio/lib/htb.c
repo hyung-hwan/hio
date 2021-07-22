@@ -24,159 +24,159 @@
     THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  */
 
-#include <mio-htb.h>
-#include "mio-prv.h"
+#include <hio-htb.h>
+#include "hio-prv.h"
 
-#define pair_t          mio_htb_pair_t
-#define copier_t        mio_htb_copier_t
-#define freeer_t        mio_htb_freeer_t
-#define hasher_t        mio_htb_hasher_t
-#define comper_t        mio_htb_comper_t
-#define keeper_t        mio_htb_keeper_t
-#define sizer_t         mio_htb_sizer_t
-#define walker_t        mio_htb_walker_t
-#define cbserter_t      mio_htb_cbserter_t
-#define style_t         mio_htb_style_t
-#define style_kind_t    mio_htb_style_kind_t
+#define pair_t          hio_htb_pair_t
+#define copier_t        hio_htb_copier_t
+#define freeer_t        hio_htb_freeer_t
+#define hasher_t        hio_htb_hasher_t
+#define comper_t        hio_htb_comper_t
+#define keeper_t        hio_htb_keeper_t
+#define sizer_t         hio_htb_sizer_t
+#define walker_t        hio_htb_walker_t
+#define cbserter_t      hio_htb_cbserter_t
+#define style_t         hio_htb_style_t
+#define style_kind_t    hio_htb_style_kind_t
 
-#define KPTR(p)  MIO_HTB_KPTR(p)
-#define KLEN(p)  MIO_HTB_KLEN(p)
-#define VPTR(p)  MIO_HTB_VPTR(p)
-#define VLEN(p)  MIO_HTB_VLEN(p)
-#define NEXT(p)  MIO_HTB_NEXT(p)
+#define KPTR(p)  HIO_HTB_KPTR(p)
+#define KLEN(p)  HIO_HTB_KLEN(p)
+#define VPTR(p)  HIO_HTB_VPTR(p)
+#define VLEN(p)  HIO_HTB_VLEN(p)
+#define NEXT(p)  HIO_HTB_NEXT(p)
 
-#define KTOB(htb,len) ((len)*(htb)->scale[MIO_HTB_KEY])
-#define VTOB(htb,len) ((len)*(htb)->scale[MIO_HTB_VAL])
+#define KTOB(htb,len) ((len)*(htb)->scale[HIO_HTB_KEY])
+#define VTOB(htb,len) ((len)*(htb)->scale[HIO_HTB_VAL])
 
-MIO_INLINE pair_t* mio_htb_allocpair (mio_htb_t* htb, void* kptr, mio_oow_t klen, void* vptr, mio_oow_t vlen)
+HIO_INLINE pair_t* hio_htb_allocpair (hio_htb_t* htb, void* kptr, hio_oow_t klen, void* vptr, hio_oow_t vlen)
 {
 	pair_t* n;
 	copier_t kcop, vcop;
-	mio_oow_t as;
+	hio_oow_t as;
 
-	kcop = htb->style->copier[MIO_HTB_KEY];
-	vcop = htb->style->copier[MIO_HTB_VAL];
+	kcop = htb->style->copier[HIO_HTB_KEY];
+	vcop = htb->style->copier[HIO_HTB_VAL];
 
-	as = MIO_SIZEOF(pair_t);
-	if (kcop == MIO_HTB_COPIER_INLINE) as += MIO_ALIGN_POW2(KTOB(htb,klen), MIO_SIZEOF_VOID_P);
-	if (vcop == MIO_HTB_COPIER_INLINE) as += VTOB(htb,vlen);
+	as = HIO_SIZEOF(pair_t);
+	if (kcop == HIO_HTB_COPIER_INLINE) as += HIO_ALIGN_POW2(KTOB(htb,klen), HIO_SIZEOF_VOID_P);
+	if (vcop == HIO_HTB_COPIER_INLINE) as += VTOB(htb,vlen);
 
-	n = (pair_t*) mio_allocmem(htb->mio, as);
-	if (MIO_UNLIKELY(!n)) return MIO_NULL;
+	n = (pair_t*) hio_allocmem(htb->hio, as);
+	if (HIO_UNLIKELY(!n)) return HIO_NULL;
 
-	NEXT(n) = MIO_NULL;
+	NEXT(n) = HIO_NULL;
 
 	KLEN(n) = klen;
-	if (kcop == MIO_HTB_COPIER_SIMPLE)
+	if (kcop == HIO_HTB_COPIER_SIMPLE)
 	{
 		KPTR(n) = kptr;
 	}
-	else if (kcop == MIO_HTB_COPIER_INLINE)
+	else if (kcop == HIO_HTB_COPIER_INLINE)
 	{
 		KPTR(n) = n + 1;
-		/* if kptr is MIO_NULL, the inline copier does not fill
+		/* if kptr is HIO_NULL, the inline copier does not fill
 		 * the actual key area */
-		if (kptr) MIO_MEMCPY (KPTR(n), kptr, KTOB(htb,klen));
+		if (kptr) HIO_MEMCPY (KPTR(n), kptr, KTOB(htb,klen));
 	}
 	else 
 	{
 		KPTR(n) = kcop(htb, kptr, klen);
-		if (KPTR(n) == MIO_NULL)
+		if (KPTR(n) == HIO_NULL)
 		{
-			mio_freemem (htb->mio, n);
-			return MIO_NULL;
+			hio_freemem (htb->hio, n);
+			return HIO_NULL;
 		}
 	}
 
 	VLEN(n) = vlen;
-	if (vcop == MIO_HTB_COPIER_SIMPLE)
+	if (vcop == HIO_HTB_COPIER_SIMPLE)
 	{
 		VPTR(n) = vptr;
 	}
-	else if (vcop == MIO_HTB_COPIER_INLINE)
+	else if (vcop == HIO_HTB_COPIER_INLINE)
 	{
 		VPTR(n) = n + 1;
-		if (kcop == MIO_HTB_COPIER_INLINE) 
-			VPTR(n) = (mio_uint8_t*)VPTR(n) + MIO_ALIGN_POW2(KTOB(htb,klen), MIO_SIZEOF_VOID_P);
-		/* if vptr is MIO_NULL, the inline copier does not fill
+		if (kcop == HIO_HTB_COPIER_INLINE) 
+			VPTR(n) = (hio_uint8_t*)VPTR(n) + HIO_ALIGN_POW2(KTOB(htb,klen), HIO_SIZEOF_VOID_P);
+		/* if vptr is HIO_NULL, the inline copier does not fill
 		 * the actual value area */
-		if (vptr) MIO_MEMCPY (VPTR(n), vptr, VTOB(htb,vlen));
+		if (vptr) HIO_MEMCPY (VPTR(n), vptr, VTOB(htb,vlen));
 	}
 	else 
 	{
 		VPTR(n) = vcop (htb, vptr, vlen);
-		if (VPTR(n) != MIO_NULL)
+		if (VPTR(n) != HIO_NULL)
 		{
-			if (htb->style->freeer[MIO_HTB_KEY] != MIO_NULL)
-				htb->style->freeer[MIO_HTB_KEY] (htb, KPTR(n), KLEN(n));
-			mio_freemem (htb->mio, n);
-			return MIO_NULL;
+			if (htb->style->freeer[HIO_HTB_KEY] != HIO_NULL)
+				htb->style->freeer[HIO_HTB_KEY] (htb, KPTR(n), KLEN(n));
+			hio_freemem (htb->hio, n);
+			return HIO_NULL;
 		}
 	}
 
 	return n;
 }
 
-MIO_INLINE void mio_htb_freepair (mio_htb_t* htb, pair_t* pair)
+HIO_INLINE void hio_htb_freepair (hio_htb_t* htb, pair_t* pair)
 {
-	if (htb->style->freeer[MIO_HTB_KEY] != MIO_NULL) 
-		htb->style->freeer[MIO_HTB_KEY] (htb, KPTR(pair), KLEN(pair));
-	if (htb->style->freeer[MIO_HTB_VAL] != MIO_NULL)
-		htb->style->freeer[MIO_HTB_VAL] (htb, VPTR(pair), VLEN(pair));
-	mio_freemem (htb->mio, pair);	
+	if (htb->style->freeer[HIO_HTB_KEY] != HIO_NULL) 
+		htb->style->freeer[HIO_HTB_KEY] (htb, KPTR(pair), KLEN(pair));
+	if (htb->style->freeer[HIO_HTB_VAL] != HIO_NULL)
+		htb->style->freeer[HIO_HTB_VAL] (htb, VPTR(pair), VLEN(pair));
+	hio_freemem (htb->hio, pair);	
 }
 
-static MIO_INLINE pair_t* change_pair_val (mio_htb_t* htb, pair_t* pair, void* vptr, mio_oow_t vlen)
+static HIO_INLINE pair_t* change_pair_val (hio_htb_t* htb, pair_t* pair, void* vptr, hio_oow_t vlen)
 {
 	if (VPTR(pair) == vptr && VLEN(pair) == vlen) 
 	{
 		/* if the old value and the new value are the same,
 		 * it just calls the handler for this condition. 
 		 * No value replacement occurs. */
-		if (htb->style->keeper != MIO_NULL)
+		if (htb->style->keeper != HIO_NULL)
 		{
 			htb->style->keeper (htb, vptr, vlen);
 		}
 	}
 	else
 	{
-		copier_t vcop = htb->style->copier[MIO_HTB_VAL];
+		copier_t vcop = htb->style->copier[HIO_HTB_VAL];
 		void* ovptr = VPTR(pair);
-		mio_oow_t ovlen = VLEN(pair);
+		hio_oow_t ovlen = VLEN(pair);
 
 		/* place the new value according to the copier */
-		if (vcop == MIO_HTB_COPIER_SIMPLE)
+		if (vcop == HIO_HTB_COPIER_SIMPLE)
 		{
 			VPTR(pair) = vptr;
 			VLEN(pair) = vlen;
 		}
-		else if (vcop == MIO_HTB_COPIER_INLINE)
+		else if (vcop == HIO_HTB_COPIER_INLINE)
 		{
 			if (ovlen == vlen)
 			{
-				if (vptr) MIO_MEMCPY (VPTR(pair), vptr, VTOB(htb,vlen));
+				if (vptr) HIO_MEMCPY (VPTR(pair), vptr, VTOB(htb,vlen));
 			}
 			else
 			{
 				/* need to reconstruct the pair */
-				pair_t* p = mio_htb_allocpair(htb, KPTR(pair), KLEN(pair), vptr, vlen);
-				if (MIO_UNLIKELY(!p)) return MIO_NULL;
-				mio_htb_freepair (htb, pair);
+				pair_t* p = hio_htb_allocpair(htb, KPTR(pair), KLEN(pair), vptr, vlen);
+				if (HIO_UNLIKELY(!p)) return HIO_NULL;
+				hio_htb_freepair (htb, pair);
 				return p;
 			}
 		}
 		else 
 		{
 			void* nvptr = vcop(htb, vptr, vlen);
-			if (MIO_UNLIKELY(!nvptr)) return MIO_NULL;
+			if (HIO_UNLIKELY(!nvptr)) return HIO_NULL;
 			VPTR(pair) = nvptr;
 			VLEN(pair) = vlen;
 		}
 
 		/* free up the old value */
-		if (htb->style->freeer[MIO_HTB_VAL] != MIO_NULL) 
+		if (htb->style->freeer[HIO_HTB_VAL] != HIO_NULL) 
 		{
-			htb->style->freeer[MIO_HTB_VAL] (htb, ovptr, ovlen);
+			htb->style->freeer[HIO_HTB_VAL] (htb, ovptr, ovlen);
 		}
 	}
 
@@ -185,129 +185,129 @@ static MIO_INLINE pair_t* change_pair_val (mio_htb_t* htb, pair_t* pair, void* v
 
 static style_t style[] =
 {
-    	/* == MIO_HTB_STYLE_DEFAULT == */
+    	/* == HIO_HTB_STYLE_DEFAULT == */
 	{
 		{
-			MIO_HTB_COPIER_DEFAULT,
-			MIO_HTB_COPIER_DEFAULT
+			HIO_HTB_COPIER_DEFAULT,
+			HIO_HTB_COPIER_DEFAULT
 		},
 		{
-			MIO_HTB_FREEER_DEFAULT,
-			MIO_HTB_FREEER_DEFAULT
+			HIO_HTB_FREEER_DEFAULT,
+			HIO_HTB_FREEER_DEFAULT
 		},
-		MIO_HTB_COMPER_DEFAULT,
-		MIO_HTB_KEEPER_DEFAULT,
-		MIO_HTB_SIZER_DEFAULT,
-		MIO_HTB_HASHER_DEFAULT
+		HIO_HTB_COMPER_DEFAULT,
+		HIO_HTB_KEEPER_DEFAULT,
+		HIO_HTB_SIZER_DEFAULT,
+		HIO_HTB_HASHER_DEFAULT
 	},
 
-	/* == MIO_HTB_STYLE_INLINE_COPIERS == */
+	/* == HIO_HTB_STYLE_INLINE_COPIERS == */
 	{
 		{
-			MIO_HTB_COPIER_INLINE,
-			MIO_HTB_COPIER_INLINE
+			HIO_HTB_COPIER_INLINE,
+			HIO_HTB_COPIER_INLINE
 		},
 		{
-			MIO_HTB_FREEER_DEFAULT,
-			MIO_HTB_FREEER_DEFAULT
+			HIO_HTB_FREEER_DEFAULT,
+			HIO_HTB_FREEER_DEFAULT
 		},
-		MIO_HTB_COMPER_DEFAULT,
-		MIO_HTB_KEEPER_DEFAULT,
-		MIO_HTB_SIZER_DEFAULT,
-		MIO_HTB_HASHER_DEFAULT
+		HIO_HTB_COMPER_DEFAULT,
+		HIO_HTB_KEEPER_DEFAULT,
+		HIO_HTB_SIZER_DEFAULT,
+		HIO_HTB_HASHER_DEFAULT
 	},
 
-	/* == MIO_HTB_STYLE_INLINE_KEY_COPIER == */
+	/* == HIO_HTB_STYLE_INLINE_KEY_COPIER == */
 	{
 		{
-			MIO_HTB_COPIER_INLINE,
-			MIO_HTB_COPIER_DEFAULT
+			HIO_HTB_COPIER_INLINE,
+			HIO_HTB_COPIER_DEFAULT
 		},
 		{
-			MIO_HTB_FREEER_DEFAULT,
-			MIO_HTB_FREEER_DEFAULT
+			HIO_HTB_FREEER_DEFAULT,
+			HIO_HTB_FREEER_DEFAULT
 		},
-		MIO_HTB_COMPER_DEFAULT,
-		MIO_HTB_KEEPER_DEFAULT,
-		MIO_HTB_SIZER_DEFAULT,
-		MIO_HTB_HASHER_DEFAULT
+		HIO_HTB_COMPER_DEFAULT,
+		HIO_HTB_KEEPER_DEFAULT,
+		HIO_HTB_SIZER_DEFAULT,
+		HIO_HTB_HASHER_DEFAULT
 	},
 
-	/* == MIO_HTB_STYLE_INLINE_VALUE_COPIER == */
+	/* == HIO_HTB_STYLE_INLINE_VALUE_COPIER == */
 	{
 		{
-			MIO_HTB_COPIER_DEFAULT,
-			MIO_HTB_COPIER_INLINE
+			HIO_HTB_COPIER_DEFAULT,
+			HIO_HTB_COPIER_INLINE
 		},
 		{
-			MIO_HTB_FREEER_DEFAULT,
-			MIO_HTB_FREEER_DEFAULT
+			HIO_HTB_FREEER_DEFAULT,
+			HIO_HTB_FREEER_DEFAULT
 		},
-		MIO_HTB_COMPER_DEFAULT,
-		MIO_HTB_KEEPER_DEFAULT,
-		MIO_HTB_SIZER_DEFAULT,
-		MIO_HTB_HASHER_DEFAULT
+		HIO_HTB_COMPER_DEFAULT,
+		HIO_HTB_KEEPER_DEFAULT,
+		HIO_HTB_SIZER_DEFAULT,
+		HIO_HTB_HASHER_DEFAULT
 	}
 };
 
-const style_t* mio_get_htb_style (style_kind_t kind)
+const style_t* hio_get_htb_style (style_kind_t kind)
 {
 	return &style[kind];
 }
 
-mio_htb_t* mio_htb_open (mio_t* mio, mio_oow_t xtnsize, mio_oow_t capa, int factor, int kscale, int vscale)
+hio_htb_t* hio_htb_open (hio_t* hio, hio_oow_t xtnsize, hio_oow_t capa, int factor, int kscale, int vscale)
 {
-	mio_htb_t* htb;
+	hio_htb_t* htb;
 
-	htb = (mio_htb_t*)mio_allocmem(mio, MIO_SIZEOF(mio_htb_t) + xtnsize);
-	if (MIO_UNLIKELY(!htb)) return MIO_NULL;
+	htb = (hio_htb_t*)hio_allocmem(hio, HIO_SIZEOF(hio_htb_t) + xtnsize);
+	if (HIO_UNLIKELY(!htb)) return HIO_NULL;
 
-	if (mio_htb_init(htb, mio, capa, factor, kscale, vscale) <= -1)
+	if (hio_htb_init(htb, hio, capa, factor, kscale, vscale) <= -1)
 	{
-		mio_freemem (mio, htb);
-		return MIO_NULL;
+		hio_freemem (hio, htb);
+		return HIO_NULL;
 	}
 
-	MIO_MEMSET (htb + 1, 0, xtnsize);
+	HIO_MEMSET (htb + 1, 0, xtnsize);
 	return htb;
 }
 
-void mio_htb_close (mio_htb_t* htb)
+void hio_htb_close (hio_htb_t* htb)
 {
-	mio_htb_fini (htb);
-	mio_freemem (htb->mio, htb);
+	hio_htb_fini (htb);
+	hio_freemem (htb->hio, htb);
 }
 
-int mio_htb_init (mio_htb_t* htb, mio_t* mio, mio_oow_t capa, int factor, int kscale, int vscale)
+int hio_htb_init (hio_htb_t* htb, hio_t* hio, hio_oow_t capa, int factor, int kscale, int vscale)
 {
 	/* The initial capacity should be greater than 0. 
 	 * Otherwise, it is adjusted to 1 in the release mode */
-	MIO_ASSERT (mio, capa > 0);
+	HIO_ASSERT (hio, capa > 0);
 
 	/* The load factor should be between 0 and 100 inclusive. 
 	 * In the release mode, a value out of the range is adjusted to 100 */
-	MIO_ASSERT (mio, factor >= 0 && factor <= 100);
+	HIO_ASSERT (hio, factor >= 0 && factor <= 100);
 
-	MIO_ASSERT (mio, kscale >= 0 && kscale <= MIO_TYPE_MAX(mio_uint8_t));
-	MIO_ASSERT (mio, vscale >= 0 && vscale <= MIO_TYPE_MAX(mio_uint8_t));
+	HIO_ASSERT (hio, kscale >= 0 && kscale <= HIO_TYPE_MAX(hio_uint8_t));
+	HIO_ASSERT (hio, vscale >= 0 && vscale <= HIO_TYPE_MAX(hio_uint8_t));
 
 	/* some initial adjustment */
 	if (capa <= 0) capa = 1;
 	if (factor > 100) factor = 100;
 
 	/* do not zero out the extension */
-	MIO_MEMSET (htb, 0, MIO_SIZEOF(*htb));
-	htb->mio = mio;
+	HIO_MEMSET (htb, 0, HIO_SIZEOF(*htb));
+	htb->hio = hio;
 
-	htb->bucket = mio_allocmem(mio, capa * MIO_SIZEOF(pair_t*));
-	if (MIO_UNLIKELY(!htb->bucket)) return -1;
+	htb->bucket = hio_allocmem(hio, capa * HIO_SIZEOF(pair_t*));
+	if (HIO_UNLIKELY(!htb->bucket)) return -1;
 
-	/*for (i = 0; i < capa; i++) htb->bucket[i] = MIO_NULL;*/
-	MIO_MEMSET (htb->bucket, 0, capa * MIO_SIZEOF(pair_t*));
+	/*for (i = 0; i < capa; i++) htb->bucket[i] = HIO_NULL;*/
+	HIO_MEMSET (htb->bucket, 0, capa * HIO_SIZEOF(pair_t*));
 
 	htb->factor = factor;
-	htb->scale[MIO_HTB_KEY] = (kscale < 1)? 1: kscale;
-	htb->scale[MIO_HTB_VAL] = (vscale < 1)? 1: vscale;
+	htb->scale[HIO_HTB_KEY] = (kscale < 1)? 1: kscale;
+	htb->scale[HIO_HTB_VAL] = (vscale < 1)? 1: vscale;
 
 	htb->size = 0;
 	htb->capa = capa;
@@ -318,42 +318,42 @@ int mio_htb_init (mio_htb_t* htb, mio_t* mio, mio_oow_t capa, int factor, int ks
 	return 0;
 }
 
-void mio_htb_fini (mio_htb_t* htb)
+void hio_htb_fini (hio_htb_t* htb)
 {
-	mio_htb_clear (htb);
-	mio_freemem (htb->mio, htb->bucket);
+	hio_htb_clear (htb);
+	hio_freemem (htb->hio, htb->bucket);
 }
 
-const style_t* mio_htb_getstyle (const mio_htb_t* htb)
+const style_t* hio_htb_getstyle (const hio_htb_t* htb)
 {
 	return htb->style;
 }
 
-void mio_htb_setstyle (mio_htb_t* htb, const style_t* style)
+void hio_htb_setstyle (hio_htb_t* htb, const style_t* style)
 {
-	MIO_ASSERT (htb->mio, style != MIO_NULL);
+	HIO_ASSERT (htb->hio, style != HIO_NULL);
 	htb->style = style;
 }
 
-mio_oow_t mio_htb_getsize (const mio_htb_t* htb)
+hio_oow_t hio_htb_getsize (const hio_htb_t* htb)
 {
 	return htb->size;
 }
 
-mio_oow_t mio_htb_getcapa (const mio_htb_t* htb)
+hio_oow_t hio_htb_getcapa (const hio_htb_t* htb)
 {
 	return htb->capa;
 }
 
-pair_t* mio_htb_search (const mio_htb_t* htb, const void* kptr, mio_oow_t klen)
+pair_t* hio_htb_search (const hio_htb_t* htb, const void* kptr, hio_oow_t klen)
 {
 	pair_t* pair;
-	mio_oow_t hc;
+	hio_oow_t hc;
 
 	hc = htb->style->hasher(htb,kptr,klen) % htb->capa;
 	pair = htb->bucket[hc];
 
-	while (pair != MIO_NULL) 
+	while (pair != HIO_NULL) 
 	{
 		if (htb->style->comper(htb, KPTR(pair), KLEN(pair), kptr, klen) == 0)
 		{
@@ -363,13 +363,13 @@ pair_t* mio_htb_search (const mio_htb_t* htb, const void* kptr, mio_oow_t klen)
 		pair = NEXT(pair);
 	}
 
-	mio_seterrnum (htb->mio, MIO_ENOENT);
-	return MIO_NULL;
+	hio_seterrnum (htb->hio, HIO_ENOENT);
+	return HIO_NULL;
 }
 
-static MIO_INLINE int reorganize (mio_htb_t* htb)
+static HIO_INLINE int reorganize (hio_htb_t* htb)
 {
-	mio_oow_t i, hc, new_capa;
+	hio_oow_t i, hc, new_capa;
 	pair_t** new_buck;
 
 	if (htb->style->sizer)
@@ -390,22 +390,22 @@ static MIO_INLINE int reorganize (mio_htb_t* htb)
 		new_capa = (htb->capa >= 65536)? (htb->capa + 65536): (htb->capa << 1);
 	}
 
-	new_buck = (pair_t**)mio_allocmem(htb->mio, new_capa * MIO_SIZEOF(pair_t*));
-	if (MIO_UNLIKELY(!new_buck)) 
+	new_buck = (pair_t**)hio_allocmem(htb->hio, new_capa * HIO_SIZEOF(pair_t*));
+	if (HIO_UNLIKELY(!new_buck)) 
 	{
 		/* reorganization is disabled once it fails */
 		htb->threshold = 0;
 		return -1;
 	}
 
-	/*for (i = 0; i < new_capa; i++) new_buck[i] = MIO_NULL;*/
-	MIO_MEMSET (new_buck, 0, new_capa * MIO_SIZEOF(pair_t*));
+	/*for (i = 0; i < new_capa; i++) new_buck[i] = HIO_NULL;*/
+	HIO_MEMSET (new_buck, 0, new_capa * HIO_SIZEOF(pair_t*));
 
 	for (i = 0; i < htb->capa; i++)
 	{
 		pair_t* pair = htb->bucket[i];
 
-		while (pair != MIO_NULL) 
+		while (pair != HIO_NULL) 
 		{
 			pair_t* next = NEXT(pair);
 
@@ -418,7 +418,7 @@ static MIO_INLINE int reorganize (mio_htb_t* htb)
 		}
 	}
 
-	mio_freemem (htb->mio, htb->bucket);
+	hio_freemem (htb->hio, htb->bucket);
 	htb->bucket = new_buck;
 	htb->capa = new_capa;
 	htb->threshold = htb->capa * htb->factor / 100;
@@ -432,16 +432,16 @@ static MIO_INLINE int reorganize (mio_htb_t* htb)
 #define ENSERT 3
 #define INSERT 4
 
-static MIO_INLINE pair_t* insert (mio_htb_t* htb, void* kptr, mio_oow_t klen, void* vptr, mio_oow_t vlen, int opt)
+static HIO_INLINE pair_t* insert (hio_htb_t* htb, void* kptr, hio_oow_t klen, void* vptr, hio_oow_t vlen, int opt)
 {
 	pair_t* pair, * p, * prev, * next;
-	mio_oow_t hc;
+	hio_oow_t hc;
 
 	hc = htb->style->hasher(htb,kptr,klen) % htb->capa;
 	pair = htb->bucket[hc];
-	prev = MIO_NULL;
+	prev = HIO_NULL;
 
-	while (pair != MIO_NULL) 
+	while (pair != HIO_NULL) 
 	{
 		next = NEXT(pair);
 
@@ -453,17 +453,17 @@ static MIO_INLINE pair_t* insert (mio_htb_t* htb, void* kptr, mio_oow_t klen, vo
 				case UPSERT:
 				case UPDATE:
 					p = change_pair_val (htb, pair, vptr, vlen);
-					if (p == MIO_NULL) 
+					if (p == HIO_NULL) 
 					{
 						/* error in changing the value */
-						return MIO_NULL; 
+						return HIO_NULL; 
 					}
 					if (p != pair) 
 					{
 						/* old pair destroyed. new pair reallocated.
 						 * relink to include the new pair but to drop
 						 * the old pair. */
-						if (prev == MIO_NULL) htb->bucket[hc] = p;
+						if (prev == HIO_NULL) htb->bucket[hc] = p;
 						else NEXT(prev) = p;
 						NEXT(p) = next; 
 					}
@@ -475,8 +475,8 @@ static MIO_INLINE pair_t* insert (mio_htb_t* htb, void* kptr, mio_oow_t klen, vo
 
 				case INSERT:
 					/* return failure */
-					mio_seterrnum (htb->mio, MIO_EEXIST);
-					return MIO_NULL;
+					hio_seterrnum (htb->hio, HIO_EEXIST);
+					return HIO_NULL;
 			}
 		}
 
@@ -486,8 +486,8 @@ static MIO_INLINE pair_t* insert (mio_htb_t* htb, void* kptr, mio_oow_t klen, vo
 
 	if (opt == UPDATE) 
 	{
-		mio_seterrnum (htb->mio, MIO_ENOENT);
-		return MIO_NULL;
+		hio_seterrnum (htb->hio, HIO_ENOENT);
+		return HIO_NULL;
 	}
 
 	if (htb->threshold > 0 && htb->size >= htb->threshold)
@@ -500,10 +500,10 @@ static MIO_INLINE pair_t* insert (mio_htb_t* htb, void* kptr, mio_oow_t klen, vo
 		}
 	}
 
-	MIO_ASSERT (htb->mio, pair == MIO_NULL);
+	HIO_ASSERT (htb->hio, pair == HIO_NULL);
 
-	pair = mio_htb_allocpair (htb, kptr, klen, vptr, vlen);
-	if (MIO_UNLIKELY(!pair)) return MIO_NULL; /* error */
+	pair = hio_htb_allocpair (htb, kptr, klen, vptr, vlen);
+	if (HIO_UNLIKELY(!pair)) return HIO_NULL; /* error */
 
 	NEXT(pair) = htb->bucket[hc];
 	htb->bucket[hc] = pair;
@@ -512,37 +512,37 @@ static MIO_INLINE pair_t* insert (mio_htb_t* htb, void* kptr, mio_oow_t klen, vo
 	return pair; /* new key added */
 }
 
-pair_t* mio_htb_upsert (mio_htb_t* htb, void* kptr, mio_oow_t klen, void* vptr, mio_oow_t vlen)
+pair_t* hio_htb_upsert (hio_htb_t* htb, void* kptr, hio_oow_t klen, void* vptr, hio_oow_t vlen)
 {
 	return insert (htb, kptr, klen, vptr, vlen, UPSERT);
 }
 
-pair_t* mio_htb_ensert (mio_htb_t* htb, void* kptr, mio_oow_t klen, void* vptr, mio_oow_t vlen)
+pair_t* hio_htb_ensert (hio_htb_t* htb, void* kptr, hio_oow_t klen, void* vptr, hio_oow_t vlen)
 {
 	return insert (htb, kptr, klen, vptr, vlen, ENSERT);
 }
 
-pair_t* mio_htb_insert (mio_htb_t* htb, void* kptr, mio_oow_t klen, void* vptr, mio_oow_t vlen)
+pair_t* hio_htb_insert (hio_htb_t* htb, void* kptr, hio_oow_t klen, void* vptr, hio_oow_t vlen)
 {
 	return insert (htb, kptr, klen, vptr, vlen, INSERT);
 }
 
 
-pair_t* mio_htb_update (mio_htb_t* htb, void* kptr, mio_oow_t klen, void* vptr, mio_oow_t vlen)
+pair_t* hio_htb_update (hio_htb_t* htb, void* kptr, hio_oow_t klen, void* vptr, hio_oow_t vlen)
 {
 	return insert (htb, kptr, klen, vptr, vlen, UPDATE);
 }
 
-pair_t* mio_htb_cbsert (mio_htb_t* htb, void* kptr, mio_oow_t klen, cbserter_t cbserter, void* ctx)
+pair_t* hio_htb_cbsert (hio_htb_t* htb, void* kptr, hio_oow_t klen, cbserter_t cbserter, void* ctx)
 {
 	pair_t* pair, * p, * prev, * next;
-	mio_oow_t hc;
+	hio_oow_t hc;
 
 	hc = htb->style->hasher(htb,kptr,klen) % htb->capa;
 	pair = htb->bucket[hc];
-	prev = MIO_NULL;
+	prev = HIO_NULL;
 
-	while (pair != MIO_NULL) 
+	while (pair != HIO_NULL) 
 	{
 		next = NEXT(pair);
 
@@ -550,17 +550,17 @@ pair_t* mio_htb_cbsert (mio_htb_t* htb, void* kptr, mio_oow_t klen, cbserter_t c
 		{
 			/* found a pair with a matching key */
 			p = cbserter(htb, pair, kptr, klen, ctx);
-			if (p == MIO_NULL) 
+			if (p == HIO_NULL) 
 			{
 				/* error returned by the callback function */
-				return MIO_NULL; 
+				return HIO_NULL; 
 			}
 			if (p != pair) 
 			{
 				/* old pair destroyed. new pair reallocated.
 				 * relink to include the new pair but to drop
 				 * the old pair. */
-				if (prev == MIO_NULL) htb->bucket[hc] = p;
+				if (prev == HIO_NULL) htb->bucket[hc] = p;
 				else NEXT(prev) = p;
 				NEXT(p) = next; 
 			}
@@ -581,10 +581,10 @@ pair_t* mio_htb_cbsert (mio_htb_t* htb, void* kptr, mio_oow_t klen, cbserter_t c
 		}
 	}
 
-	MIO_ASSERT (htb->mio, pair == MIO_NULL);
+	HIO_ASSERT (htb->hio, pair == HIO_NULL);
 
-	pair = cbserter(htb, MIO_NULL, kptr, klen, ctx);
-	if (MIO_UNLIKELY(!pair)) return MIO_NULL; /* error */
+	pair = cbserter(htb, HIO_NULL, kptr, klen, ctx);
+	if (HIO_UNLIKELY(!pair)) return HIO_NULL; /* error */
 
 	NEXT(pair) = htb->bucket[hc];
 	htb->bucket[hc] = pair;
@@ -593,24 +593,24 @@ pair_t* mio_htb_cbsert (mio_htb_t* htb, void* kptr, mio_oow_t klen, cbserter_t c
 	return pair; /* new key added */
 }
 
-int mio_htb_delete (mio_htb_t* htb, const void* kptr, mio_oow_t klen)
+int hio_htb_delete (hio_htb_t* htb, const void* kptr, hio_oow_t klen)
 {
 	pair_t* pair, * prev;
-	mio_oow_t hc;
+	hio_oow_t hc;
 
 	hc = htb->style->hasher(htb,kptr,klen) % htb->capa;
 	pair = htb->bucket[hc];
-	prev = MIO_NULL;
+	prev = HIO_NULL;
 
-	while (pair != MIO_NULL) 
+	while (pair != HIO_NULL) 
 	{
 		if (htb->style->comper(htb, KPTR(pair), KLEN(pair), kptr, klen) == 0) 
 		{
-			if (prev == MIO_NULL) 
+			if (prev == HIO_NULL) 
 				htb->bucket[hc] = NEXT(pair);
 			else NEXT(prev) = NEXT(pair);
 
-			mio_htb_freepair (htb, pair);
+			hio_htb_freepair (htb, pair);
 			htb->size--;
 
 			return 0;
@@ -620,59 +620,59 @@ int mio_htb_delete (mio_htb_t* htb, const void* kptr, mio_oow_t klen)
 		pair = NEXT(pair);
 	}
 
-	mio_seterrnum (htb->mio, MIO_ENOENT);
+	hio_seterrnum (htb->hio, HIO_ENOENT);
 	return -1;
 }
 
-void mio_htb_clear (mio_htb_t* htb)
+void hio_htb_clear (hio_htb_t* htb)
 {
-	mio_oow_t i;
+	hio_oow_t i;
 	pair_t* pair, * next;
 
 	for (i = 0; i < htb->capa; i++) 
 	{
 		pair = htb->bucket[i];
 
-		while (pair != MIO_NULL) 
+		while (pair != HIO_NULL) 
 		{
 			next = NEXT(pair);
-			mio_htb_freepair (htb, pair);
+			hio_htb_freepair (htb, pair);
 			htb->size--;
 			pair = next;
 		}
 
-		htb->bucket[i] = MIO_NULL;
+		htb->bucket[i] = HIO_NULL;
 	}
 }
 
-void mio_htb_walk (mio_htb_t* htb, walker_t walker, void* ctx)
+void hio_htb_walk (hio_htb_t* htb, walker_t walker, void* ctx)
 {
-	mio_oow_t i;
+	hio_oow_t i;
 	pair_t* pair, * next;
 
 	for (i = 0; i < htb->capa; i++) 
 	{
 		pair = htb->bucket[i];
 
-		while (pair != MIO_NULL) 
+		while (pair != HIO_NULL) 
 		{
 			next = NEXT(pair);
-			if (walker(htb, pair, ctx) == MIO_HTB_WALK_STOP) return;
+			if (walker(htb, pair, ctx) == HIO_HTB_WALK_STOP) return;
 			pair = next;
 		}
 	}
 }
 
 
-void mio_init_htb_itr (mio_htb_itr_t* itr)
+void hio_init_htb_itr (hio_htb_itr_t* itr)
 {
-	itr->pair = MIO_NULL;
+	itr->pair = HIO_NULL;
 	itr->buckno = 0;
 }
 
-pair_t* mio_htb_getfirstpair (mio_htb_t* htb, mio_htb_itr_t* itr)
+pair_t* hio_htb_getfirstpair (hio_htb_t* htb, hio_htb_itr_t* itr)
 {
-	mio_oow_t i;
+	hio_oow_t i;
 	pair_t* pair;
 
 	for (i = 0; i < htb->capa; i++)
@@ -686,12 +686,12 @@ pair_t* mio_htb_getfirstpair (mio_htb_t* htb, mio_htb_itr_t* itr)
 		}
 	}
 
-	return MIO_NULL;
+	return HIO_NULL;
 }
 
-pair_t* mio_htb_getnextpair (mio_htb_t* htb, mio_htb_itr_t* itr)
+pair_t* hio_htb_getnextpair (hio_htb_t* htb, hio_htb_itr_t* itr)
 {
-	mio_oow_t i;
+	hio_oow_t i;
 	pair_t* pair;
 
 	pair = NEXT(itr->pair);
@@ -713,19 +713,19 @@ pair_t* mio_htb_getnextpair (mio_htb_t* htb, mio_htb_itr_t* itr)
 		}
 	}
 
-	return MIO_NULL;
+	return HIO_NULL;
 }
 
-mio_oow_t mio_htb_dflhash (const mio_htb_t* htb, const void* kptr, mio_oow_t klen)
+hio_oow_t hio_htb_dflhash (const hio_htb_t* htb, const void* kptr, hio_oow_t klen)
 {
-	mio_oow_t h;
-	MIO_HASH_BYTES (h, kptr, klen);
+	hio_oow_t h;
+	HIO_HASH_BYTES (h, kptr, klen);
 	return h ; 
 }
 
-int mio_htb_dflcomp (const mio_htb_t* htb, const void* kptr1, mio_oow_t klen1, const void* kptr2, mio_oow_t klen2)
+int hio_htb_dflcomp (const hio_htb_t* htb, const void* kptr1, hio_oow_t klen1, const void* kptr2, hio_oow_t klen2)
 {
-	if (klen1 == klen2) return MIO_MEMCMP (kptr1, kptr2, KTOB(htb,klen1));
+	if (klen1 == klen2) return HIO_MEMCMP (kptr1, kptr2, KTOB(htb,klen1));
 	/* it just returns 1 to indicate that they are different. */
 	return 1;
 }
