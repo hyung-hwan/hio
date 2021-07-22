@@ -594,6 +594,9 @@ typedef enum mio_log_mask_t mio_log_mask_t;
 #define MIO_LOG4(mio,mask,fmt,a1,a2,a3,a4) do { if (MIO_LOG_ENABLED(mio,mask)) mio_logbfmt(mio, mask, fmt, a1, a2, a3, a4); } while(0)
 #define MIO_LOG5(mio,mask,fmt,a1,a2,a3,a4,a5) do { if (MIO_LOG_ENABLED(mio,mask)) mio_logbfmt(mio, mask, fmt, a1, a2, a3, a4, a5); } while(0)
 #define MIO_LOG6(mio,mask,fmt,a1,a2,a3,a4,a5,a6) do { if (MIO_LOG_ENABLED(mio,mask)) mio_logbfmt(mio, mask, fmt, a1, a2, a3, a4, a5, a6); } while(0)
+#define MIO_LOG7(mio,mask,fmt,a1,a2,a3,a4,a5,a6,a7) do { if (MIO_LOG_ENABLED(mio,mask)) mio_logbfmt(mio, mask, fmt, a1, a2, a3, a4, a5, a6, a7); } while(0)
+#define MIO_LOG8(mio,mask,fmt,a1,a2,a3,a4,a5,a6,a7,a8) do { if (MIO_LOG_ENABLED(mio,mask)) mio_logbfmt(mio, mask, fmt, a1, a2, a3, a4, a5, a6, a7, a8); } while(0)
+#define MIO_LOG9(mio,mask,fmt,a1,a2,a3,a4,a5,a6,a7,a8,a9) do { if (MIO_LOG_ENABLED(mio,mask)) mio_logbfmt(mio, mask, fmt, a1, a2, a3, a4, a5, a6, a7, a8, a9); } while(0)
 
 #if defined(MIO_BUILD_RELEASE)
 	/* [NOTE]
@@ -607,6 +610,9 @@ typedef enum mio_log_mask_t mio_log_mask_t;
 #	define MIO_DEBUG4(mio,fmt,a1,a2,a3,a4)
 #	define MIO_DEBUG5(mio,fmt,a1,a2,a3,a4,a5)
 #	define MIO_DEBUG6(mio,fmt,a1,a2,a3,a4,a5,a6)
+#	define MIO_DEBUG7(mio,fmt,a1,a2,a3,a4,a5,a6,a7)
+#	define MIO_DEBUG8(mio,fmt,a1,a2,a3,a4,a5,a6,a7,a8)
+#	define MIO_DEBUG9(mio,fmt,a1,a2,a3,a4,a5,a6,a7,a8,a9)
 #else
 #	define MIO_DEBUG0(mio,fmt) MIO_LOG0(mio, MIO_LOG_DEBUG | MIO_LOG_UNTYPED, fmt)
 #	define MIO_DEBUG1(mio,fmt,a1) MIO_LOG1(mio, MIO_LOG_DEBUG | MIO_LOG_UNTYPED, fmt, a1)
@@ -615,6 +621,7 @@ typedef enum mio_log_mask_t mio_log_mask_t;
 #	define MIO_DEBUG4(mio,fmt,a1,a2,a3,a4) MIO_LOG4(mio, MIO_LOG_DEBUG | MIO_LOG_UNTYPED, fmt, a1, a2, a3, a4)
 #	define MIO_DEBUG5(mio,fmt,a1,a2,a3,a4,a5) MIO_LOG5(mio, MIO_LOG_DEBUG | MIO_LOG_UNTYPED, fmt, a1, a2, a3, a4, a5)
 #	define MIO_DEBUG6(mio,fmt,a1,a2,a3,a4,a5,a6) MIO_LOG6(mio, MIO_LOG_DEBUG | MIO_LOG_UNTYPED, fmt, a1, a2, a3, a4, a5, a6)
+#	define MIO_DEBUG7(mio,fmt,a1,a2,a3,a4,a5,a6,a7) MIO_LOG7(mio, MIO_LOG_DEBUG | MIO_LOG_UNTYPED, fmt, a1, a2, a3, a4, a5, a6, a7)
 #endif
 
 #define MIO_INFO0(mio,fmt) MIO_LOG0(mio, MIO_LOG_INFO | MIO_LOG_UNTYPED, fmt)
@@ -624,6 +631,20 @@ typedef enum mio_log_mask_t mio_log_mask_t;
 #define MIO_INFO4(mio,fmt,a1,a2,a3,a4) MIO_LOG4(mio, MIO_LOG_INFO | MIO_LOG_UNTYPED, fmt, a1, a2, a3, a4)
 #define MIO_INFO5(mio,fmt,a1,a2,a3,a4,a5) MIO_LOG5(mio, MIO_LOG_INFO | MIO_LOG_UNTYPED, fmt, a1, a2, a3, a4, a5)
 #define MIO_INFO6(mio,fmt,a1,a2,a3,a4,a5,a6) MIO_LOG6(mio, MIO_LOG_INFO | MIO_LOG_UNTYPED, fmt, a1, a2, a3, a4, a5, a6)
+#define MIO_INFO7(mio,fmt,a1,a2,a3,a4,a5,a6,a7) MIO_LOG7(mio, MIO_LOG_INFO | MIO_LOG_UNTYPED, fmt, a1, a2, a3, a4, a5, a6, a7)
+#define MIO_INFO8(mio,fmt,a1,a2,a3,a4,a5,a6,a7,a8) MIO_LOG7(mio, MIO_LOG_INFO | MIO_LOG_UNTYPED, fmt, a1, a2, a3, a4, a5, a6, a7, a8)
+#define MIO_INFO9(mio,fmt,a1,a2,a3,a4,a5,a6,a7,a8,a9) MIO_LOG7(mio, MIO_LOG_INFO | MIO_LOG_UNTYPED, fmt, a1, a2, a3, a4, a5, a6, a7, a8, a9)
+
+#define MIO_WARN0(mio,fmt) MIO_LOG0(mio, MIO_LOG_WARN | MIO_LOG_UNTYPED, fmt)
+#define MIO_WARN1(mio,fmt,a1) MIO_LOG1(mio, MIO_LOG_WARN | MIO_LOG_UNTYPED, fmt, a1)
+#define MIO_WARN2(mio,fmt,a1,a2) MIO_LOG2(mio, MIO_LOG_WARN | MIO_LOG_UNTYPED, fmt, a1, a2)
+#define MIO_WARN3(mio,fmt,a1,a2,a3) MIO_LOG3(mio, MIO_LOG_WARN | MIO_LOG_UNTYPED, fmt, a1, a2, a3)
+#define MIO_WARN4(mio,fmt,a1,a2,a3,a4) MIO_LOG4(mio, MIO_LOG_WARN | MIO_LOG_UNTYPED, fmt, a1, a2, a3, a4)
+#define MIO_WARN5(mio,fmt,a1,a2,a3,a4,a5) MIO_LOG5(mio, MIO_LOG_WARN | MIO_LOG_UNTYPED, fmt, a1, a2, a3, a4, a5)
+#define MIO_WARN6(mio,fmt,a1,a2,a3,a4,a5,a6) MIO_LOG6(mio, MIO_LOG_WARN | MIO_LOG_UNTYPED, fmt, a1, a2, a3, a4, a5, a6)
+#define MIO_WARN7(mio,fmt,a1,a2,a3,a4,a5,a6,a7) MIO_LOG7(mio, MIO_LOG_WARN | MIO_LOG_UNTYPED, fmt, a1, a2, a3, a4, a5, a6, a7)
+#define MIO_WARN8(mio,fmt,a1,a2,a3,a4,a5,a6,a7,a8) MIO_LOG7(mio, MIO_LOG_WARN | MIO_LOG_UNTYPED, fmt, a1, a2, a3, a4, a5, a6, a7, a8)
+#define MIO_WARN9(mio,fmt,a1,a2,a3,a4,a5,a6,a7,a8,a9) MIO_LOG7(mio, MIO_LOG_WARN | MIO_LOG_UNTYPED, fmt, a1, a2, a3, a4, a5, a6, a7, a8, a9)
 
 #define MIO_ERROR0(mio,fmt) MIO_LOG0(mio, MIO_LOG_ERROR | MIO_LOG_UNTYPED, fmt)
 #define MIO_ERROR1(mio,fmt,a1) MIO_LOG1(mio, MIO_LOG_ERROR | MIO_LOG_UNTYPED, fmt, a1)
@@ -632,6 +653,9 @@ typedef enum mio_log_mask_t mio_log_mask_t;
 #define MIO_ERROR4(mio,fmt,a1,a2,a3,a4) MIO_LOG4(mio, MIO_LOG_ERROR | MIO_LOG_UNTYPED, fmt, a1, a2, a3, a4)
 #define MIO_ERROR5(mio,fmt,a1,a2,a3,a4,a5) MIO_LOG5(mio, MIO_LOG_ERROR | MIO_LOG_UNTYPED, fmt, a1, a2, a3, a4, a5)
 #define MIO_ERROR6(mio,fmt,a1,a2,a3,a4,a5,a6) MIO_LOG6(mio, MIO_LOG_ERROR | MIO_LOG_UNTYPED, fmt, a1, a2, a3, a4, a5, a6)
+#define MIO_ERROR7(mio,fmt,a1,a2,a3,a4,a5,a6,a7) MIO_LOG7(mio, MIO_LOG_ERROR | MIO_LOG_UNTYPED, fmt, a1, a2, a3, a4, a5, a6, a7)
+#define MIO_ERROR8(mio,fmt,a1,a2,a3,a4,a5,a6,a7,a8) MIO_LOG7(mio, MIO_LOG_ERROR | MIO_LOG_UNTYPED, fmt, a1, a2, a3, a4, a5, a6, a7, a8)
+#define MIO_ERROR9(mio,fmt,a1,a2,a3,a4,a5,a6,a7,a8,a9) MIO_LOG7(mio, MIO_LOG_ERROR | MIO_LOG_UNTYPED, fmt, a1, a2, a3, a4, a5, a6, a7, a8, a9)
 
 /* ========================================================================= */
 

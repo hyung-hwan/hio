@@ -199,14 +199,14 @@ MIO_EXPORT int mio_equal_skads (
 	int               strict
 );
 
-MIO_EXPORT mio_oow_t mio_ipad_bytes_to_ucstr (
+MIO_EXPORT mio_oow_t mio_ipaddr_bytes_to_ucstr (
 	const mio_uint8_t* iptr,
 	mio_oow_t          ilen,
 	mio_uch_t*         buf,
 	mio_oow_t          blen
 );
 
-MIO_EXPORT mio_oow_t mio_ipad_bytes_to_bcstr (
+MIO_EXPORT mio_oow_t mio_ipaddr_bytes_to_bcstr (
 	const mio_uint8_t* iptr,
 	mio_oow_t          ilen,
 	mio_bch_t*         buf,
@@ -214,14 +214,14 @@ MIO_EXPORT mio_oow_t mio_ipad_bytes_to_bcstr (
 );
 
 
-MIO_EXPORT int mio_uchars_to_ipad_bytes (
+MIO_EXPORT int mio_uchars_to_ipaddr_bytes (
 	const mio_uch_t*   str,
 	mio_oow_t          slen,
 	mio_uint8_t*       buf,
 	mio_oow_t          blen
 );
 
-MIO_EXPORT int mio_bchars_to_ipad_bytes (
+MIO_EXPORT int mio_bchars_to_ipaddr_bytes (
 	const mio_bch_t*   str,
 	mio_oow_t          slen,
 	mio_uint8_t*       buf,
