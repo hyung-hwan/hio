@@ -49,8 +49,8 @@
 
 struct MIO_PACKED mio_ethhdr_t
 {
-	mio_uint8_t  dest[MIO_ETHADDR_LEN];
-	mio_uint8_t  source[MIO_ETHADDR_LEN];
+	mio_uint8_t  dest[MIO_ETHAD_LEN];
+	mio_uint8_t  source[MIO_ETHAD_LEN];
 	mio_uint16_t proto;
 };
 typedef struct mio_ethhdr_t mio_ethhdr_t;
@@ -68,10 +68,10 @@ typedef struct mio_arphdr_t mio_arphdr_t;
 /* arp payload for ipv4 over ethernet */
 struct MIO_PACKED mio_etharp_t
 {
-	mio_uint8_t sha[MIO_ETHADDR_LEN];   /* source hardware address */
-	mio_uint8_t spa[MIO_IP4ADDR_LEN];   /* source protocol address */
-	mio_uint8_t tha[MIO_ETHADDR_LEN];   /* target hardware address */
-	mio_uint8_t tpa[MIO_IP4ADDR_LEN];   /* target protocol address */
+	mio_uint8_t sha[MIO_ETHAD_LEN];   /* source hardware address */
+	mio_uint8_t spa[MIO_IP4AD_LEN];   /* source protocol address */
+	mio_uint8_t tha[MIO_ETHAD_LEN];   /* target hardware address */
+	mio_uint8_t tpa[MIO_IP4AD_LEN];   /* target protocol address */
 };
 typedef struct mio_etharp_t mio_etharp_t;
 

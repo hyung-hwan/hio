@@ -417,27 +417,27 @@ static int setup_arp_tester (mio_t* mio)
 	}
 
 	//mio_bcstrtoifindex (mio, "enp0s25.3", &ifindex);
-	//mio_skad_init_for_eth (&ethdst, ifindex, (mio_ethaddr_t*)"\xFF\xFF\xFF\xFF\xFF\xFF");
-	//mio_skad_init_for_eth (&ethdst, ifindex, (mio_ethaddr_t*)"\xAA\xBB\xFF\xCC\xDD\xFF");
+	//mio_skad_init_for_eth (&ethdst, ifindex, (mio_ethad_t*)"\xFF\xFF\xFF\xFF\xFF\xFF");
+	//mio_skad_init_for_eth (&ethdst, ifindex, (mio_ethad_t*)"\xAA\xBB\xFF\xCC\xDD\xFF");
 	//mio_bcstrtoifindex (mio, "eno1", &ifindex);
-	//mio_skad_init_for_eth (&ethdst, ifindex, (mio_ethaddr_t*)"\xAA\xBB\xFF\xCC\xDD\xFF");
+	//mio_skad_init_for_eth (&ethdst, ifindex, (mio_ethad_t*)"\xAA\xBB\xFF\xCC\xDD\xFF");
 	mio_bcstrtoifindex (mio, "bce0", &ifindex);
-	mio_skad_init_for_eth (&ethdst, ifindex, (mio_ethaddr_t*)"\xAA\xBB\xFF\xCC\xDD\xFF");
+	mio_skad_init_for_eth (&ethdst, ifindex, (mio_ethad_t*)"\xAA\xBB\xFF\xCC\xDD\xFF");
 
 	memset (&etharp, 0, MIO_SIZEOF(etharp));
 
-	memcpy (etharp.ethhdr.source, "\xB8\x6B\x23\x9C\x10\x76", MIO_ETHADDR_LEN);
-	//memcpy (etharp.ethhdr.dest, "\xFF\xFF\xFF\xFF\xFF\xFF", MIO_ETHADDR_LEN);
-	memcpy (etharp.ethhdr.dest, "\xAA\xBB\xFF\xCC\xDD\xFF", MIO_ETHADDR_LEN);
+	memcpy (etharp.ethhdr.source, "\xB8\x6B\x23\x9C\x10\x76", MIO_ETHAD_LEN);
+	//memcpy (etharp.ethhdr.dest, "\xFF\xFF\xFF\xFF\xFF\xFF", MIO_ETHAD_LEN);
+	memcpy (etharp.ethhdr.dest, "\xAA\xBB\xFF\xCC\xDD\xFF", MIO_ETHAD_LEN);
 	etharp.ethhdr.proto = MIO_CONST_HTON16(MIO_ETHHDR_PROTO_ARP);
 
 	etharp.arphdr.htype = MIO_CONST_HTON16(MIO_ARPHDR_HTYPE_ETH);
 	etharp.arphdr.ptype = MIO_CONST_HTON16(MIO_ARPHDR_PTYPE_IP4);
-	etharp.arphdr.hlen = MIO_ETHADDR_LEN;
-	etharp.arphdr.plen = MIO_IP4ADDR_LEN;
+	etharp.arphdr.hlen = MIO_ETHAD_LEN;
+	etharp.arphdr.plen = MIO_IP4AD_LEN;
 	etharp.arphdr.opcode = MIO_CONST_HTON16(MIO_ARPHDR_OPCODE_REQUEST);
 
-	memcpy (etharp.arppld.sha, "\xB8\x6B\x23\x9C\x10\x76", MIO_ETHADDR_LEN);
+	memcpy (etharp.arppld.sha, "\xB8\x6B\x23\x9C\x10\x76", MIO_ETHAD_LEN);
 
 	if (mio_dev_sck_write(sck, &etharp, MIO_SIZEOF(etharp), MIO_NULL, &ethdst) <= -1)
 	//if (mio_dev_sck_write (sck, &etharp.arphdr, MIO_SIZEOF(etharp) - MIO_SIZEOF(etharp.ethhdr), MIO_NULL, &ethaddr) <= -1)
