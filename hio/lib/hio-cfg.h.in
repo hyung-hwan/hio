@@ -538,157 +538,157 @@
 #undef LT_OBJDIR
 
 /* AF_INET */
-#undef MIO_AF_INET
+#undef HIO_AF_INET
 
 /* AF_INET6 */
-#undef MIO_AF_INET6
+#undef HIO_AF_INET6
 
 /* AF_PACKET */
-#undef MIO_AF_PACKET
+#undef HIO_AF_PACKET
 
 /* AF_UNIX */
-#undef MIO_AF_UNIX
+#undef HIO_AF_UNIX
 
 /* AF_UNSPEC */
-#undef MIO_AF_UNSPEC
+#undef HIO_AF_UNSPEC
 
 /* use libunwind for backtracing stack frames */
-#undef MIO_ENABLE_LIBUNWIND
+#undef HIO_ENABLE_LIBUNWIND
 
 /* build the mariadb device */
-#undef MIO_ENABLE_MARIADB
+#undef HIO_ENABLE_MARIADB
 
 /* Use the wide-character type as the default character type */
-#undef MIO_ENABLE_WIDE_CHAR
+#undef HIO_ENABLE_WIDE_CHAR
 
 /* Big Endian */
-#undef MIO_ENDIAN_BIG
+#undef HIO_ENDIAN_BIG
 
 /* Little Endian */
-#undef MIO_ENDIAN_LITTLE
+#undef HIO_ENDIAN_LITTLE
 
 /* Unknown Endian */
-#undef MIO_ENDIAN_UNKNOWN
+#undef HIO_ENDIAN_UNKNOWN
 
 /* MB_LEN_MAX */
-#undef MIO_MBLEN_MAX
+#undef HIO_MBLEN_MAX
 
 /* NSIG */
-#undef MIO_NSIG
+#undef HIO_NSIG
 
 /* offsetof(struct sockaddr, sa_family) */
-#undef MIO_OFFSETOF_SA_FAMILY
+#undef HIO_OFFSETOF_SA_FAMILY
 
 /* Author */
-#undef MIO_PACKAGE_AUTHOR
+#undef HIO_PACKAGE_AUTHOR
 
 /* package name */
-#undef MIO_PACKAGE_NAME
+#undef HIO_PACKAGE_NAME
 
 /* Project URL */
-#undef MIO_PACKAGE_URL
+#undef HIO_PACKAGE_URL
 
 /* Package version */
-#undef MIO_PACKAGE_VERSION
+#undef HIO_PACKAGE_VERSION
 
 /* Major version number */
-#undef MIO_PACKAGE_VERSION_MAJOR
+#undef HIO_PACKAGE_VERSION_MAJOR
 
 /* Minor version number */
-#undef MIO_PACKAGE_VERSION_MINOR
+#undef HIO_PACKAGE_VERSION_MINOR
 
 /* Patch level */
-#undef MIO_PACKAGE_VERSION_PATCH
+#undef HIO_PACKAGE_VERSION_PATCH
 
 /* Define if sa_family_t is signed */
-#undef MIO_SA_FAMILY_T_IS_SIGNED
+#undef HIO_SA_FAMILY_T_IS_SIGNED
 
 /* sizeof(char) */
-#undef MIO_SIZEOF_CHAR
+#undef HIO_SIZEOF_CHAR
 
 /* sizeof(double) */
-#undef MIO_SIZEOF_DOUBLE
+#undef HIO_SIZEOF_DOUBLE
 
 /* sizeof(float) */
-#undef MIO_SIZEOF_FLOAT
+#undef HIO_SIZEOF_FLOAT
 
 /* sizeof(int) */
-#undef MIO_SIZEOF_INT
+#undef HIO_SIZEOF_INT
 
 /* sizeof(long) */
-#undef MIO_SIZEOF_LONG
+#undef HIO_SIZEOF_LONG
 
 /* sizeof(long double) */
-#undef MIO_SIZEOF_LONG_DOUBLE
+#undef HIO_SIZEOF_LONG_DOUBLE
 
 /* sizeof(long long) */
-#undef MIO_SIZEOF_LONG_LONG
+#undef HIO_SIZEOF_LONG_LONG
 
 /* sizeof(mbstate_t) */
-#undef MIO_SIZEOF_MBSTATE_T
+#undef HIO_SIZEOF_MBSTATE_T
 
 /* sizeof(off64_t) */
-#undef MIO_SIZEOF_OFF64_T
+#undef HIO_SIZEOF_OFF64_T
 
 /* sizeof(off_t) */
-#undef MIO_SIZEOF_OFF_T
+#undef HIO_SIZEOF_OFF_T
 
 /* sizeof(short) */
-#undef MIO_SIZEOF_SHORT
+#undef HIO_SIZEOF_SHORT
 
 /* sizeof(socklen_t) */
-#undef MIO_SIZEOF_SOCKLEN_T
+#undef HIO_SIZEOF_SOCKLEN_T
 
 /* sizeof(struct sockaddr_dl) */
-#undef MIO_SIZEOF_STRUCT_SOCKADDR_DL
+#undef HIO_SIZEOF_STRUCT_SOCKADDR_DL
 
 /* sizeof(struct sockaddr_in) */
-#undef MIO_SIZEOF_STRUCT_SOCKADDR_IN
+#undef HIO_SIZEOF_STRUCT_SOCKADDR_IN
 
 /* sizeof(struct sockaddr_in6) */
-#undef MIO_SIZEOF_STRUCT_SOCKADDR_IN6
+#undef HIO_SIZEOF_STRUCT_SOCKADDR_IN6
 
 /* sizeof(struct sockaddr_ll) */
-#undef MIO_SIZEOF_STRUCT_SOCKADDR_LL
+#undef HIO_SIZEOF_STRUCT_SOCKADDR_LL
 
 /* sizeof(struct sockaddr_un) */
-#undef MIO_SIZEOF_STRUCT_SOCKADDR_UN
+#undef HIO_SIZEOF_STRUCT_SOCKADDR_UN
 
 /* sizeof(void*) */
-#undef MIO_SIZEOF_VOID_P
+#undef HIO_SIZEOF_VOID_P
 
 /* sizeof(wchar_t) */
-#undef MIO_SIZEOF_WCHAR_T
+#undef HIO_SIZEOF_WCHAR_T
 
 /* sizeof(__float128) */
-#undef MIO_SIZEOF___FLOAT128
+#undef HIO_SIZEOF___FLOAT128
 
 /* sizeof(__int128) */
-#undef MIO_SIZEOF___INT128
+#undef HIO_SIZEOF___INT128
 
 /* sizeof(__int128_t) */
-#undef MIO_SIZEOF___INT128_T
+#undef HIO_SIZEOF___INT128_T
 
 /* sizeof(__int16) */
-#undef MIO_SIZEOF___INT16
+#undef HIO_SIZEOF___INT16
 
 /* sizeof(__int32) */
-#undef MIO_SIZEOF___INT32
+#undef HIO_SIZEOF___INT32
 
 /* sizeof(__int64) */
-#undef MIO_SIZEOF___INT64
+#undef HIO_SIZEOF___INT64
 
 /* sizeof(__int8) */
-#undef MIO_SIZEOF___INT8
+#undef HIO_SIZEOF___INT8
 
 /* sizeof(__uint128_t) */
-#undef MIO_SIZEOF___UINT128_T
+#undef HIO_SIZEOF___UINT128_T
 
 /* Define if socklen_t is signed */
-#undef MIO_SOCKLEN_T_IS_SIGNED
+#undef HIO_SOCKLEN_T_IS_SIGNED
 
 /* Wide-character type size */
-#undef MIO_WIDE_CHAR_SIZE
+#undef HIO_WIDE_CHAR_SIZE
 
 /* The size of `AF_INET', as computed by valueof. */
 #undef NUMVALOF_AF_INET

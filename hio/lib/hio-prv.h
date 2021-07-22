@@ -24,14 +24,14 @@
     THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  */
 
-#ifndef _MIO_PRV_H_
-#define _MIO_PRV_H_
+#ifndef _HIO_PRV_H_
+#define _HIO_PRV_H_
 
-#include <mio.h>
-#include <mio-utl.h>
+#include <hio.h>
+#include <hio-utl.h>
 
 /* enable floating-point support in basic formatting functions */
-#define MIO_ENABLE_FLTFMT
+#define HIO_ENABLE_FLTFMT
 
 #if defined(__has_builtin)
 
@@ -40,24 +40,24 @@
 #	endif
 
 #	if __has_builtin(__builtin_memset)
-#		define MIO_MEMSET(dst,src,size)  __builtin_memset(dst,src,size)
+#		define HIO_MEMSET(dst,src,size)  __builtin_memset(dst,src,size)
 #	else
-#		define MIO_MEMSET(dst,src,size)  memset(dst,src,size)
+#		define HIO_MEMSET(dst,src,size)  memset(dst,src,size)
 #	endif
 #	if __has_builtin(__builtin_memcpy)
-#		define MIO_MEMCPY(dst,src,size)  __builtin_memcpy(dst,src,size)
+#		define HIO_MEMCPY(dst,src,size)  __builtin_memcpy(dst,src,size)
 #	else
-#		define MIO_MEMCPY(dst,src,size)  memcpy(dst,src,size)
+#		define HIO_MEMCPY(dst,src,size)  memcpy(dst,src,size)
 #	endif
 #	if __has_builtin(__builtin_memmove)
-#		define MIO_MEMMOVE(dst,src,size)  __builtin_memmove(dst,src,size)
+#		define HIO_MEMMOVE(dst,src,size)  __builtin_memmove(dst,src,size)
 #	else
-#		define MIO_MEMMOVE(dst,src,size)  memmove(dst,src,size)
+#		define HIO_MEMMOVE(dst,src,size)  memmove(dst,src,size)
 #	endif
 #	if __has_builtin(__builtin_memcmp)
-#		define MIO_MEMCMP(dst,src,size)  __builtin_memcmp(dst,src,size)
+#		define HIO_MEMCMP(dst,src,size)  __builtin_memcmp(dst,src,size)
 #	else
-#		define MIO_MEMCMP(dst,src,size)  memcmp(dst,src,size)
+#		define HIO_MEMCMP(dst,src,size)  memcmp(dst,src,size)
 #	endif
 
 #else
@@ -67,24 +67,24 @@
 #	endif
 
 #	if defined(HAVE___BUILTIN_MEMSET)
-#		define MIO_MEMSET(dst,src,size)  __builtin_memset(dst,src,size)
+#		define HIO_MEMSET(dst,src,size)  __builtin_memset(dst,src,size)
 #	else
-#		define MIO_MEMSET(dst,src,size)  memset(dst,src,size)
+#		define HIO_MEMSET(dst,src,size)  memset(dst,src,size)
 #	endif
 #	if defined(HAVE___BUILTIN_MEMCPY)
-#		define MIO_MEMCPY(dst,src,size)  __builtin_memcpy(dst,src,size)
+#		define HIO_MEMCPY(dst,src,size)  __builtin_memcpy(dst,src,size)
 #	else
-#		define MIO_MEMCPY(dst,src,size)  memcpy(dst,src,size)
+#		define HIO_MEMCPY(dst,src,size)  memcpy(dst,src,size)
 #	endif
 #	if defined(HAVE___BUILTIN_MEMMOVE)
-#		define MIO_MEMMOVE(dst,src,size)  __builtin_memmove(dst,src,size)
+#		define HIO_MEMMOVE(dst,src,size)  __builtin_memmove(dst,src,size)
 #	else
-#		define MIO_MEMMOVE(dst,src,size)  memmove(dst,src,size)
+#		define HIO_MEMMOVE(dst,src,size)  memmove(dst,src,size)
 #	endif
 #	if defined(HAVE___BUILTIN_MEMCMP)
-#		define MIO_MEMCMP(dst,src,size)  __builtin_memcmp(dst,src,size)
+#		define HIO_MEMCMP(dst,src,size)  __builtin_memcmp(dst,src,size)
 #	else
-#		define MIO_MEMCMP(dst,src,size)  memcmp(dst,src,size)
+#		define HIO_MEMCMP(dst,src,size)  memcmp(dst,src,size)
 #	endif
 
 #endif
@@ -92,130 +92,130 @@
 /* =========================================================================
  * MIO ASSERTION
  * ========================================================================= */
-#if defined(MIO_BUILD_RELEASE)
-#	define MIO_ASSERT(mio,expr) ((void)0)
+#if defined(HIO_BUILD_RELEASE)
+#	define HIO_ASSERT(hio,expr) ((void)0)
 #else
-#	define MIO_ASSERT(mio,expr) ((void)((expr) || (mio_sys_assertfail(mio, #expr, __FILE__, __LINE__), 0)))
+#	define HIO_ASSERT(hio,expr) ((void)((expr) || (hio_sys_assertfail(hio, #expr, __FILE__, __LINE__), 0)))
 #endif
 
 
 /* i don't want an error raised inside the callback to override 
  * the existing error number and message. */
-#define MIO_SYS_WRITE_LOG(mio,mask,ptr,len) do { \
-		int __shuterr = (mio)->_shuterr; \
-		(mio)->_shuterr = 1; \
-		mio_sys_writelog (mio, mask, ptr, len); \
-		(mio)->_shuterr = __shuterr; \
+#define HIO_SYS_WRITE_LOG(hio,mask,ptr,len) do { \
+		int __shuterr = (hio)->_shuterr; \
+		(hio)->_shuterr = 1; \
+		hio_sys_writelog (hio, mask, ptr, len); \
+		(hio)->_shuterr = __shuterr; \
 	} while(0)
 
 #ifdef __cplusplus
 extern "C" {
 #endif
 
-int mio_makesyshndasync (
-	mio_t*       mio,
-	mio_syshnd_t hnd
+int hio_makesyshndasync (
+	hio_t*       hio,
+	hio_syshnd_t hnd
 );
 
-int mio_makesyshndcloexec (
-	mio_t*       mio,
-	mio_syshnd_t hnd
+int hio_makesyshndcloexec (
+	hio_t*       hio,
+	hio_syshnd_t hnd
 );
 
-void mio_cleartmrjobs (
-	mio_t* mio
+void hio_cleartmrjobs (
+	hio_t* hio
 );
 
-void mio_firetmrjobs (
-	mio_t*             mio,
-	const mio_ntime_t* tmbase,
-	mio_oow_t*        firecnt
+void hio_firetmrjobs (
+	hio_t*             hio,
+	const hio_ntime_t* tmbase,
+	hio_oow_t*        firecnt
 );
 
 
 /**
- * The mio_gettmrtmout() function gets the remaining time until the first 
+ * The hio_gettmrtmout() function gets the remaining time until the first 
  * scheduled job is to be triggered. It stores in \a tmout the difference between 
  * the given time \a tm and the scheduled time and returns 1. If there is no
  * job scheduled, it returns 0.
  */
-int mio_gettmrtmout (
-	mio_t*             mio,
-	const mio_ntime_t* tm,
-	mio_ntime_t*       tmout
+int hio_gettmrtmout (
+	hio_t*             hio,
+	const hio_ntime_t* tm,
+	hio_ntime_t*       tmout
 );
 
 /* ========================================================================== */
 /* system intefaces                                                           */
 /* ========================================================================== */
 
-int mio_sys_init (
-	mio_t* mio
+int hio_sys_init (
+	hio_t* hio
 );
 
-void mio_sys_fini (
-	mio_t* mio
+void hio_sys_fini (
+	hio_t* hio
 );
 
-void mio_sys_assertfail (
-	mio_t*           mio, 
-	const mio_bch_t* expr,
-	const mio_bch_t* file,
-	mio_oow_t        line
+void hio_sys_assertfail (
+	hio_t*           hio, 
+	const hio_bch_t* expr,
+	const hio_bch_t* file,
+	hio_oow_t        line
 );
 
-mio_errnum_t mio_sys_syserrstrb (
-	mio_t*            mio,
+hio_errnum_t hio_sys_syserrstrb (
+	hio_t*            hio,
 	int               syserr_type,
 	int               syserr_code,
-	mio_bch_t*        buf,
-	mio_oow_t         len
+	hio_bch_t*        buf,
+	hio_oow_t         len
 );
 
-void mio_sys_resetlog (
-	mio_t*            mio
+void hio_sys_resetlog (
+	hio_t*            hio
 );
 
-void mio_sys_locklog (
-	mio_t*            mio
+void hio_sys_locklog (
+	hio_t*            hio
 );
 
-void mio_sys_unlocklog (
-	mio_t*            mio
+void hio_sys_unlocklog (
+	hio_t*            hio
 );
 
-void mio_sys_writelog (
-	mio_t*            mio,
-	mio_bitmask_t     mask,
-	const mio_ooch_t* msg,
-	mio_oow_t         len
+void hio_sys_writelog (
+	hio_t*            hio,
+	hio_bitmask_t     mask,
+	const hio_ooch_t* msg,
+	hio_oow_t         len
 );
 
-void mio_sys_intrmux  (
-	mio_t*            mio
+void hio_sys_intrmux  (
+	hio_t*            hio
 );
 
-int mio_sys_ctrlmux (
-	mio_t*            mio,
-	mio_sys_mux_cmd_t cmd,
-	mio_dev_t*        dev,
+int hio_sys_ctrlmux (
+	hio_t*            hio,
+	hio_sys_mux_cmd_t cmd,
+	hio_dev_t*        dev,
 	int               dev_cap
 );
 
-int mio_sys_waitmux (
-	mio_t*              mio,
-	const mio_ntime_t*  tmout,
-	mio_sys_mux_evtcb_t event_handler
+int hio_sys_waitmux (
+	hio_t*              hio,
+	const hio_ntime_t*  tmout,
+	hio_sys_mux_evtcb_t event_handler
 );
 
-void mio_sys_gettime (
-	mio_t*       mio,
-	mio_ntime_t* now
+void hio_sys_gettime (
+	hio_t*       hio,
+	hio_ntime_t* now
 );
 
-void mio_sys_getrealtime (
-	mio_t*       mio,
-	mio_ntime_t* now
+void hio_sys_getrealtime (
+	hio_t*       hio,
+	hio_ntime_t* now
 );
 
 #ifdef __cplusplus

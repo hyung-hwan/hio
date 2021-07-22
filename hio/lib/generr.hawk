@@ -1,5 +1,5 @@
 #
-# hawk -f generr.awk mio.h
+# hawk -f generr.awk hio.h
 #
 
 @pragma striprecspc on
@@ -16,7 +16,7 @@ capture == 1 {
 	{
 		capture = 0;
 	}
-	else if ($1 ~ /^MIO_E[[:alnum:]]+,*/)
+	else if ($1 ~ /^HIO_E[[:alnum:]]+,*/)
 	{
 		msg = "";
 		for (i = 3; i < NF; i++)
@@ -25,7 +25,7 @@ capture == 1 {
 			msg = msg $i;
 		}
 
-		printf ("static mio_ooch_t errstr_%d[] = {", msgcount);
+		printf ("static hio_ooch_t errstr_%d[] = {", msgcount);
 		len = length(msg);
 		for (i = 1; i <= len; i++)
 		{
@@ -35,14 +35,14 @@ capture == 1 {
 		msgcount++;
 	}
 }
-/^enum mio_errnum_t$/ {
+/^enum hio_errnum_t$/ {
 	getline x; # consume the next line
 	capture = 1;
 }
 
 
 END {
-	printf ("static mio_ooch_t* errstr[] =\n");
+	printf ("static hio_ooch_t* errstr[] =\n");
 	printf ("{\n\t");
 	for (i = 0; i < msgcount; i++)
 	{
