@@ -117,7 +117,10 @@ static int dev_mar_kill (hio_dev_t* dev, int force)
 		 * let me just call shutdown on the underlying socket to work around this issue.
 		 * as a result, mysql_close() will be unable to send COM_QUIT but will return fast
 		 */
-		shutdown (mysql_get_socket(rdev->hnd), SHUT_RDWR);
+		if (rdev->connected)
+		{
+			shutdown (mysql_get_socket(rdev->hnd), SHUT_RDWR);
+		}
 	}
 
 	if (rdev->res)
