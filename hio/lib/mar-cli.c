@@ -84,9 +84,11 @@ typedef struct dev_xtn_t dev_xtn_t;
 
 struct dev_xtn_t
 {
-	sess_t* sess;
+	hio_oow_t sid;
+	hio_svc_marc_t* svc;
 };
 
+#define INVALID_SID HIO_TYPE_MAX(hio_oow_t)
 
 hio_svc_marc_t* hio_svc_marc_start (hio_t* hio, const hio_svc_marc_connect_t* ci, const hio_svc_marc_tmout_t* tmout)
 {
@@ -215,16 +217,17 @@ static int send_pending_query_if_any (sess_t* sess)
 }
 
 /* ------------------------------------------------------------------- */
-static hio_dev_mar_t* alloc_device (hio_svc_marc_t* marc, sess_t* sess);
+static hio_dev_mar_t* alloc_device (hio_svc_marc_t* marc, hio_oow_t sid);
 
 static void mar_on_disconnect (hio_dev_mar_t* dev)
 {
 	hio_t* hio = dev->hio;
 	dev_xtn_t* xtn = (dev_xtn_t*)hio_dev_mar_getxtn(dev);
-	sess_t* sess = xtn->sess;
+	sess_t* sess;
 
-	if (!sess) return; /* this session data is not set if there's failure in alloc_device() */
+	if (xtn->sid == INVALID_SID) return; /* this session data is not set if there's failure in alloc_device() */
 
+	sess = &xtn->svc->sess.ptr[xtn->sid];
 	HIO_DEBUG6 (hio, "MARC(%p) - device disconnected - sid %lu session %p session-connected %d device %p device-broken %d\n", sess->svc, (unsigned long int)sess->sid, sess, (int)sess->connected, dev, (int)dev->broken); 
 	HIO_ASSERT (hio, dev == sess->dev);
 
@@ -237,7 +240,7 @@ static void mar_on_disconnect (hio_dev_mar_t* dev)
 
 			sess->connected = 0;
 
-			dev = alloc_device(sess->svc, sess);
+			dev = alloc_device(sess->svc, sess->sid);
 			if (HIO_LIKELY(dev))
 			{
 				sess->dev = dev;
@@ -279,8 +282,10 @@ static void mar_on_connect (hio_dev_mar_t* dev)
 {
 	hio_t* hio = dev->hio;
 	dev_xtn_t* xtn = (dev_xtn_t*)hio_dev_mar_getxtn(dev);
-	sess_t* sess = xtn->sess;
+	sess_t* sess;
 
+	HIO_ASSERT (hio, xtn->sid != INVALID_SID);
+	sess = &xtn->svc->sess.ptr[xtn->sid];
 	HIO_DEBUG5 (hio, "MARC(%p) - device connected - sid %lu session %p device %p device-broken %d\n", sess->svc, (unsigned long int)sess->sid, sess, dev, dev->broken); 
 
 	sess->connected = 1;
@@ -289,9 +294,14 @@ static void mar_on_connect (hio_dev_mar_t* dev)
 
 static void mar_on_query_started (hio_dev_mar_t* dev, int mar_ret, const hio_bch_t* mar_errmsg)
 {
+	hio_t* hio = dev->hio;
 	dev_xtn_t* xtn = (dev_xtn_t*)hio_dev_mar_getxtn(dev);
-	sess_t* sess = xtn->sess;
-	sess_qry_t* sq = get_first_session_query(sess);
+	sess_t* sess;
+	sess_qry_t* sq;
+
+	HIO_ASSERT (hio, xtn->sid != INVALID_SID);
+	sess = &xtn->svc->sess.ptr[xtn->sid];
+	sq = get_first_session_query(sess);
 
 	if (mar_ret)
 	{
@@ -327,9 +337,14 @@ static void mar_on_query_started (hio_dev_mar_t* dev, int mar_ret, const hio_bch
 
 static void mar_on_row_fetched (hio_dev_mar_t* dev, void* data)
 {
+	hio_t* hio = dev->hio;
 	dev_xtn_t* xtn = (dev_xtn_t*)hio_dev_mar_getxtn(dev);
-	sess_t* sess = xtn->sess;
-	sess_qry_t* sq = get_first_session_query(sess);
+	sess_t* sess;
+	sess_qry_t* sq;
+
+	HIO_ASSERT (hio, xtn->sid != INVALID_SID);
+	sess = &xtn->svc->sess.ptr[xtn->sid];
+	sq = get_first_session_query(sess);
 
 	sq->on_result (sess->svc, sess->sid, (data? HIO_SVC_MARC_RCODE_ROW: HIO_SVC_MARC_RCODE_DONE), data, sq->qctx);
 
@@ -340,7 +355,7 @@ static void mar_on_row_fetched (hio_dev_mar_t* dev, void* data)
 	}
 }
 
-static hio_dev_mar_t* alloc_device (hio_svc_marc_t* marc, sess_t* sess)
+static hio_dev_mar_t* alloc_device (hio_svc_marc_t* marc, hio_oow_t sid)
 {
 	hio_t* hio = (hio_t*)marc->hio;
 	hio_dev_mar_t* mar;
@@ -363,11 +378,12 @@ static hio_dev_mar_t* alloc_device (hio_svc_marc_t* marc, sess_t* sess)
 	if (HIO_UNLIKELY(!mar)) return HIO_NULL;
 
 	xtn = (dev_xtn_t*)hio_dev_mar_getxtn(mar);
-	xtn->sess = sess;
+	xtn->sid = sid;
+	xtn->svc = marc;
 
 	if (hio_dev_mar_connect(mar, &marc->ci) <= -1) 
 	{
-		xtn->sess = HIO_NULL;
+		xtn->sid = INVALID_SID;
 		hio_dev_mar_halt (mar);
 		return HIO_NULL;
 	}
@@ -387,7 +403,7 @@ static sess_t* get_session (hio_svc_marc_t* marc, hio_oow_t sid)
 		sess_t* tmp;
 		hio_oow_t newcapa, i;
 
-		newcapa = marc->sess.capa + 16;
+		newcapa = marc->sess.capa + 64; /* TODO: make this configurable? */
 		if (newcapa <= sid) newcapa = sid + 1;
 		newcapa = HIO_ALIGN_POW2(newcapa, 16);
 
@@ -416,7 +432,7 @@ static sess_t* get_session (hio_svc_marc_t* marc, hio_oow_t sid)
 		sq = make_session_query(hio, HIO_SVC_MARC_QTYPE_ACTION, "", 0, HIO_NULL, 0); /* this is a place holder */
 		if (HIO_UNLIKELY(!sq)) return HIO_NULL;
 
-		sess->dev = alloc_device(marc, sess);
+		sess->dev = alloc_device(marc, sess->sid);
 		if (HIO_UNLIKELY(!sess->dev)) 
 		{
 			free_session_query (hio, sq);
