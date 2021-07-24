@@ -622,6 +622,8 @@ typedef enum hio_log_mask_t hio_log_mask_t;
 #	define HIO_DEBUG5(hio,fmt,a1,a2,a3,a4,a5) HIO_LOG5(hio, HIO_LOG_DEBUG | HIO_LOG_UNTYPED, fmt, a1, a2, a3, a4, a5)
 #	define HIO_DEBUG6(hio,fmt,a1,a2,a3,a4,a5,a6) HIO_LOG6(hio, HIO_LOG_DEBUG | HIO_LOG_UNTYPED, fmt, a1, a2, a3, a4, a5, a6)
 #	define HIO_DEBUG7(hio,fmt,a1,a2,a3,a4,a5,a6,a7) HIO_LOG7(hio, HIO_LOG_DEBUG | HIO_LOG_UNTYPED, fmt, a1, a2, a3, a4, a5, a6, a7)
+#	define HIO_DEBUG8(hio,fmt,a1,a2,a3,a4,a5,a6,a7,a8) HIO_LOG8(hio, HIO_LOG_DEBUG | HIO_LOG_UNTYPED, fmt, a1, a2, a3, a4, a5, a6, a7, a8)
+#	define HIO_DEBUG9(hio,fmt,a1,a2,a3,a4,a5,a6,a7,a8,a9) HIO_LOG9(hio, HIO_LOG_DEBUG | HIO_LOG_UNTYPED, fmt, a1, a2, a3, a4, a5, a6, a7, a8, a9)
 #endif
 
 #define HIO_INFO0(hio,fmt) HIO_LOG0(hio, HIO_LOG_INFO | HIO_LOG_UNTYPED, fmt)
@@ -643,8 +645,8 @@ typedef enum hio_log_mask_t hio_log_mask_t;
 #define HIO_WARN5(hio,fmt,a1,a2,a3,a4,a5) HIO_LOG5(hio, HIO_LOG_WARN | HIO_LOG_UNTYPED, fmt, a1, a2, a3, a4, a5)
 #define HIO_WARN6(hio,fmt,a1,a2,a3,a4,a5,a6) HIO_LOG6(hio, HIO_LOG_WARN | HIO_LOG_UNTYPED, fmt, a1, a2, a3, a4, a5, a6)
 #define HIO_WARN7(hio,fmt,a1,a2,a3,a4,a5,a6,a7) HIO_LOG7(hio, HIO_LOG_WARN | HIO_LOG_UNTYPED, fmt, a1, a2, a3, a4, a5, a6, a7)
-#define HIO_WARN8(hio,fmt,a1,a2,a3,a4,a5,a6,a7,a8) HIO_LOG7(hio, HIO_LOG_WARN | HIO_LOG_UNTYPED, fmt, a1, a2, a3, a4, a5, a6, a7, a8)
-#define HIO_WARN9(hio,fmt,a1,a2,a3,a4,a5,a6,a7,a8,a9) HIO_LOG7(hio, HIO_LOG_WARN | HIO_LOG_UNTYPED, fmt, a1, a2, a3, a4, a5, a6, a7, a8, a9)
+#define HIO_WARN8(hio,fmt,a1,a2,a3,a4,a5,a6,a7,a8) HIO_LOG8(hio, HIO_LOG_WARN | HIO_LOG_UNTYPED, fmt, a1, a2, a3, a4, a5, a6, a7, a8)
+#define HIO_WARN9(hio,fmt,a1,a2,a3,a4,a5,a6,a7,a8,a9) HIO_LOG9(hio, HIO_LOG_WARN | HIO_LOG_UNTYPED, fmt, a1, a2, a3, a4, a5, a6, a7, a8, a9)
 
 #define HIO_ERROR0(hio,fmt) HIO_LOG0(hio, HIO_LOG_ERROR | HIO_LOG_UNTYPED, fmt)
 #define HIO_ERROR1(hio,fmt,a1) HIO_LOG1(hio, HIO_LOG_ERROR | HIO_LOG_UNTYPED, fmt, a1)
@@ -654,8 +656,8 @@ typedef enum hio_log_mask_t hio_log_mask_t;
 #define HIO_ERROR5(hio,fmt,a1,a2,a3,a4,a5) HIO_LOG5(hio, HIO_LOG_ERROR | HIO_LOG_UNTYPED, fmt, a1, a2, a3, a4, a5)
 #define HIO_ERROR6(hio,fmt,a1,a2,a3,a4,a5,a6) HIO_LOG6(hio, HIO_LOG_ERROR | HIO_LOG_UNTYPED, fmt, a1, a2, a3, a4, a5, a6)
 #define HIO_ERROR7(hio,fmt,a1,a2,a3,a4,a5,a6,a7) HIO_LOG7(hio, HIO_LOG_ERROR | HIO_LOG_UNTYPED, fmt, a1, a2, a3, a4, a5, a6, a7)
-#define HIO_ERROR8(hio,fmt,a1,a2,a3,a4,a5,a6,a7,a8) HIO_LOG7(hio, HIO_LOG_ERROR | HIO_LOG_UNTYPED, fmt, a1, a2, a3, a4, a5, a6, a7, a8)
-#define HIO_ERROR9(hio,fmt,a1,a2,a3,a4,a5,a6,a7,a8,a9) HIO_LOG7(hio, HIO_LOG_ERROR | HIO_LOG_UNTYPED, fmt, a1, a2, a3, a4, a5, a6, a7, a8, a9)
+#define HIO_ERROR8(hio,fmt,a1,a2,a3,a4,a5,a6,a7,a8) HIO_LOG8(hio, HIO_LOG_ERROR | HIO_LOG_UNTYPED, fmt, a1, a2, a3, a4, a5, a6, a7, a8)
+#define HIO_ERROR9(hio,fmt,a1,a2,a3,a4,a5,a6,a7,a8,a9) HIO_LOG9(hio, HIO_LOG_ERROR | HIO_LOG_UNTYPED, fmt, a1, a2, a3, a4, a5, a6, a7, a8, a9)
 
 /* ========================================================================= */
 
