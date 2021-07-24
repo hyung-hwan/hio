@@ -228,6 +228,20 @@ HIO_EXPORT int hio_bchars_to_ipad_bytes (
 	hio_oow_t          blen
 );
 
+HIO_EXPORT int hio_ipad_bytes_is_v4_mapped (
+	const hio_uint8_t* iptr,
+	hio_oow_t          ilen
+);
+
+HIO_EXPORT int hio_ipad_bytes_is_loop_back (
+	const hio_uint8_t* iptr,
+	hio_oow_t          ilen
+);
+
+HIO_EXPORT int hio_ipad_bytes_is_link_local (
+	const hio_uint8_t* iptr,
+	hio_oow_t          ilen
+);
 
 #if defined(__cplusplus)
 }

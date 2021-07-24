@@ -1594,3 +1594,58 @@ int hio_bchars_to_ipad_bytes (const hio_bch_t* str, hio_oow_t slen, hio_uint8_t*
 
 	return -1;
 }
+
+int hio_ipad_bytes_is_v4_mapped (const hio_uint8_t* iptr, hio_oow_t ilen)
+{
+	if (ilen != HIO_IP6AD_LEN) return 0;
+
+	return iptr[0] == 0x00 && iptr[1] == 0x00 &&
+	       iptr[2] == 0x00 && iptr[3] == 0x00 &&
+	       iptr[4] == 0x00 && iptr[5] == 0x00 &&
+	       iptr[6] == 0x00 && iptr[7] == 0x00 &&
+	       iptr[8] == 0x00 && iptr[9] == 0x00 &&
+	       iptr[10] == 0xFF && iptr[11] == 0xFF;
+}
+
+int hio_ipad_bytes_is_loop_back (const hio_uint8_t* iptr, hio_oow_t ilen)
+{
+	switch (ilen)
+	{
+		case HIO_IP4AD_LEN:
+		{
+			// 127.0.0.0/8
+			return iptr[0] == 0x7F;
+		}
+
+		case HIO_IP6AD_LEN:
+		{
+			hio_uint32_t* x = (hio_uint32_t*)iptr;
+			return (x[0] == 0 && x[1] == 0 && x[2] == 0 && x[3] == HIO_CONST_HTON32(1)) || /* TODO: is this alignment safe?  */
+			       (hio_ipad_bytes_is_v4_mapped(iptr, ilen) && (x[3] & HIO_CONST_HTON32(0xFF000000u)) == HIO_CONST_HTON32(0x7F000000u)); 
+		}
+
+		default:
+			return 0;
+	}
+}
+
+int hio_ipad_bytes_is_link_local (const hio_uint8_t* iptr, hio_oow_t ilen)
+{
+	switch (ilen)
+	{
+		case HIO_IP4AD_LEN:
+		{
+			// 169.254.0.0/16
+			return iptr[0] == 0xA9 && iptr[1] == 0xFE;
+		}
+
+		case HIO_IP6AD_LEN:
+		{
+			/* FE80::/10 */
+			return iptr[0] == 0xFE && (iptr[1] & 0xC0) == 0x80;
+		}
+
+		default:
+			return 0;
+	}
+}
