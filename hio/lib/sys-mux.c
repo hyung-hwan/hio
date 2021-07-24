@@ -87,6 +87,29 @@ int hio_sys_initmux (hio_t* hio)
 		mux->map.ptr[mux->ctrlp[0]] = idx;
 	}
 
+#elif defined(USE_KQUEUE)
+	#if defined(HAVE_KQUEUE1) && defined(O_CLOEXEC)
+	mux->kq = kqueue1(O_CLOEXEC);
+	if (mux->kq <= -1)
+	{
+		hio_seterrwithsyserr (hio, 0, errno);
+		return -1;
+	}
+	#else
+	mux->kq = kqueue();
+	if (mux->kq <= -1)
+	{
+		hio_seterrwithsyserr (hio, 0, errno);
+		return -1;
+	}
+	else
+	{
+		#if defined(FD_CLOEXEC)
+		int flags = fcntl(mux->kq, F_GETFD);
+		if (flags >= 0) fcntl (mux->kq, F_SETFD, flag | FD_CLOEXEC);
+		#endif
+	}
+	#endif
 
 #elif defined(USE_EPOLL)
 
@@ -159,6 +182,16 @@ void hio_sys_finimux (hio_t* hio)
 		mux->pd.dptr = HIO_NULL;
 	}
 	mux->pd.capa = 0;
+
+#elif defined(USE_KQUEUE)
+	if (mux->ctrlp[0] != HIO_SYSHND_INVALID)
+	{
+		/* TODO: */
+	}
+
+	close (mux->kq);
+	mux->kq = HIO_SYSHND_INVALID;
+
 
 #elif defined(USE_EPOLL)
 	if (mux->ctrlp[0] != HIO_SYSHND_INVALID)
