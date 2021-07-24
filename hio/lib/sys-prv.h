@@ -31,6 +31,9 @@
 
 #include "hio-prv.h"
 
+#if defined(HAVE_SYS_EVENT_H) && defined(HAVE_KQUEUE) && defined(HAVE_KEVENT)
+#	include <sys/event.h>
+#	define USE_KQUEUE
 #if defined(HAVE_SYS_EPOLL_H)
 #	include <sys/epoll.h>
 #	define USE_EPOLL
@@ -67,6 +70,16 @@ struct hio_sys_mux_t
 	int ctrlp[2];
 };
 
+#elif defined(USE_KQUEUE)
+
+struct hio_sys_mutx_t
+{
+	int kq;
+
+	struct kevent revs[1024]; /* TODO: is it a good size? */
+		
+	int ctrlp[2];
+};
 #elif defined(USE_EPOLL)
 
 struct hio_sys_mux_t
