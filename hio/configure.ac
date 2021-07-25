@@ -137,7 +137,7 @@ AC_CHECK_FUNCS([backtrace backtrace_symbols])
 AC_CHECK_FUNCS([fork vfork posix_spawn gettid nanosleep select])
 AC_CHECK_FUNCS([makecontext swapcontext getcontext setcontext])
 AC_CHECK_FUNCS([snprintf _vsnprintf _vsnwprintf])
-AC_CHECK_FUNCS([pipe2 accept4 sendmsg recvmsg writev readv])
+AC_CHECK_FUNCS([pipe2 accept4 paccept sendmsg recvmsg writev readv])
 AC_CHECK_FUNCS([isatty mmap munmap])
 AC_CHECK_LIB([rt], [clock_gettime], [LIBS="$LIBS -lrt"])
 
