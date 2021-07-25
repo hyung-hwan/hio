@@ -111,6 +111,13 @@ int hio_sys_initmux (hio_t* hio)
 	}
 	#endif
 
+	/* register the control pipe */
+	{
+		struct kevent chlist;
+		EV_SET(&chlist, mux->ctrlp[0], EVFILT_READ, EV_ADD | EV_ENABLE, 0, 0, 0);
+		kevent(mux->kq, &chlist, 1, HIO_NULL, 0, HIO_NULL);
+	}
+
 #elif defined(USE_EPOLL)
 
 #if defined(HAVE_EPOLL_CREATE1) && defined(EPOLL_CLOEXEC)
@@ -186,7 +193,9 @@ void hio_sys_finimux (hio_t* hio)
 #elif defined(USE_KQUEUE)
 	if (mux->ctrlp[0] != HIO_SYSHND_INVALID)
 	{
-		/* TODO: */
+		struct kevent chlist;
+		EV_SET(&chlist, mux->ctrlp[0], EVFILT_READ, EV_DELETE | EV_DISABLE, 0, 0, 0);
+		kevent(mux->kq, &chlist, 1, HIO_NULL, 0, HIO_NULL);
 	}
 
 	close (mux->kq);
@@ -291,7 +300,6 @@ int hio_sys_ctrlmux (hio_t* hio, hio_sys_mux_cmd_t cmd, hio_dev_t* dev, int dev_
 
 	hnd = dev->dev_mth->getsyshnd(dev);
 
-#if 1
 	if (cmd == HIO_SYS_MUX_CMD_INSERT)
 	{
 		if (secure_poll_map_slot_for_hnd(hio, hnd) <=  -1) return -1;
@@ -304,30 +312,6 @@ int hio_sys_ctrlmux (hio_t* hio, hio_sys_mux_cmd_t cmd, hio_dev_t* dev, int dev_
 			return -1;
 		}
 	}
-#else
-	if (hnd >= mux->map.capa)
-	{
-		hio_oow_t new_capa;
-		hio_oow_t* tmp;
-
-		if (cmd != HIO_SYS_MUX_CMD_INSERT)
-		{
-			hio_seterrnum (hio, HIO_ENOENT);
-			return -1;
-		}
-
-		new_capa = HIO_ALIGN_POW2((hnd + 1), 256);
-
-		tmp = hio_reallocmem(hio, mux->map.ptr, new_capa * HIO_SIZEOF(*tmp));
-		if (HIO_UNLIKELY(!tmp)) return -1;
-
-		for (idx = mux->map.capa; idx < new_capa; idx++) tmp[idx] = MUX_INDEX_INVALID;
-
-		mux->map.ptr = tmp;
-		mux->map.capa = new_capa;
-	}
-#endif
-
 	idx = mux->map.ptr[hnd];
 
 	switch (cmd)
@@ -340,34 +324,7 @@ int hio_sys_ctrlmux (hio_t* hio, hio_sys_mux_cmd_t cmd, hio_dev_t* dev, int dev_
 			}
 
 		do_insert:
-#if 1
 			if (HIO_UNLIKELY(secure_poll_data_slot_for_insert(hio) <=  -1)) return -1;
-#else
-
-			if (mux->pd.size >= mux->pd.capa)
-			{
-				hio_oow_t new_capa;
-				struct pollfd* tmp1;
-				hio_dev_t** tmp2;
-
-				new_capa = HIO_ALIGN_POW2(mux->pd.size + 1, 256);
-
-				tmp1 = hio_reallocmem(hio, mux->pd.pfd, new_capa * HIO_SIZEOF(*tmp1));
-				if (HIO_UNLIKELY(!tmp1)) return -1;
-
-				tmp2 = hio_reallocmem(hio, mux->pd.dptr, new_capa * HIO_SIZEOF(*tmp2));
-				if (HIO_UNLIKELY(!tmp2))
-				{
-					hio_freemem (hio, tmp1);
-					return -1;
-				}
-
-				mux->pd.pfd = tmp1;
-				mux->pd.dptr = tmp2;
-				mux->pd.capa = new_capa;
-			}
-#endif
-
 			idx = mux->pd.size++;
 
 			mux->pd.pfd[idx].fd = hnd;
@@ -453,6 +410,83 @@ int hio_sys_ctrlmux (hio_t* hio, hio_sys_mux_cmd_t cmd, hio_dev_t* dev, int dev_
 			hio_seterrnum (hio, HIO_EINVAL);
 			return -1;
 	}
+
+#elif defined(USE_KQUEUE)
+
+	hio_sys_mux_t* mux = &hio->sysdep->mux;
+	hio_syshnd_t hnd;
+	struct kevent chlist[2];
+	int x;
+
+	HIO_ASSERT (hio, hio == dev->hio);
+	hnd = dev->dev_mth->getsyshnd(dev);
+
+	switch (cmd)
+	{
+		case HIO_SYS_MUX_CMD_INSERT:
+		{
+			int i_flag, o_flag;
+			if (HIO_UNLIKELY(dev->dev_cap & HIO_DEV_CAP_WATCH_SUSPENDED))
+			{
+				hio_seterrnum (hio, HIO_EEXIST);
+				return -1;
+			}
+
+			i_flag = (dev_cap & HIO_DEV_CAP_IN_WATCHED)? EV_ENABLE: EV_DISABLE;
+			o_flag = (dev_cap & HIO_DEV_CAP_OUT_WATCHED)? EV_ENABLE: EV_DISABLE;
+
+			EV_SET (&chlist[1], hnd, EVFILT_READ, EV_ADD | i_flag, 0, 0, dev); 
+			EV_SET (&chlist[0], hnd, EVFILT_WRITE, EV_ADD | o_flag, 0, 0, dev);
+
+			x = kevent(mux->kq, chlist, 2, HIO_NULL, 0, HIO_NULL);
+			if (x >= 0) dev->dev_cap |= HIO_DEV_CAP_WATCH_REREG_REQUIRED; /* ugly hack for the listening sockets in NetBSD */ 
+
+			/* the CMD_INSERT comes with at MIO_DEV_CAP_IN_WATCHD set. 
+			 * skip checking to set WATCH_SUSPENDED */
+			
+			break;
+		}
+
+		case HIO_SYS_MUX_CMD_UPDATE:
+		{
+			int i_flag, o_flag;
+			i_flag = (dev_cap & HIO_DEV_CAP_IN_WATCHED)? EV_ENABLE: EV_DISABLE;
+			o_flag = (dev_cap & HIO_DEV_CAP_OUT_WATCHED)? EV_ENABLE: EV_DISABLE;
+
+			EV_SET (&chlist[0], hnd, EVFILT_READ, EV_ADD | i_flag, 0, 0, dev); 
+			EV_SET (&chlist[1], hnd, EVFILT_WRITE, EV_ADD | o_flag, 0, 0, dev);
+
+			x = kevent(mux->kq, chlist, 2, HIO_NULL, 0, HIO_NULL);
+			if (x >= 0) 
+			{
+				if (i_flag == EV_DISABLE && o_flag == EV_DISABLE)
+					dev->dev_cap &= ~HIO_DEV_CAP_WATCH_SUSPENDED;
+				else
+					dev->dev_cap |= HIO_DEV_CAP_WATCH_SUSPENDED;
+			}
+			break;
+		}
+
+		case HIO_SYS_MUX_CMD_DELETE:
+			EV_SET (&chlist[0], hnd, EVFILT_READ, EV_DELETE | EV_DISABLE, 0, 0, dev);
+			EV_SET (&chlist[1], hnd, EVFILT_WRITE, EV_DELETE | EV_DISABLE, 0, 0, dev);
+			x = kevent(mux->kq, chlist, 2, HIO_NULL, 0, HIO_NULL);
+			if (x >= 0) dev->dev_cap &= ~HIO_DEV_CAP_WATCH_SUSPENDED; /* just clear this */
+			break;
+
+		default:
+			hio_seterrnum (hio, HIO_EINVAL);
+			return -1;
+	}
+
+	if (x <= -1)
+	{
+		hio_seterrwithsyserr (hio, 0, errno);
+		return -1;
+	}
+
+	return 0;
+
 #elif defined(USE_EPOLL)
 	hio_sys_mux_t* mux = &hio->sysdep->mux;
 	struct epoll_event ev;
@@ -584,6 +618,52 @@ int hio_sys_waitmux (hio_t* hio, const hio_ntime_t* tmout, hio_sys_mux_evtcb_t e
 			if (mux->pd.pfd[i].revents & POLLHUP) events |= HIO_DEV_EVENT_HUP;
 
 			event_handler (hio, dev, events, 0);
+		}
+	}
+#elif defined(USE_KQUEUE)
+
+	hio_sys_mux_t* mux = &hio->sysdep->mux;
+	struct timespec ts;
+	int nentries, i;
+
+	ts.tv_sec = tmout->sec;
+	ts.tv_nsec = tmout->nsec;
+
+	nentries = kevent(mux->kq, HIO_NULL, 0, mux->revs, HIO_COUNTOF(mux->revs), &ts);
+	if (nentries <= -1)
+	{
+		if (errno == EINTR) return 0; /* it's actually ok */
+		/* other errors are critical - EBADF, EFAULT, EINVAL */
+		hio_seterrwithsyserr (hio, 0, errno);
+		return -1;
+	}
+
+	for (i = 0; i < nentries; i++)
+	{
+		int events = 0;
+		hio_dev_t* dev;
+
+		dev = mux->revs[i].udata;	
+
+		if (HIO_LIKELY(dev))
+		{
+			HIO_ASSERT (hio, mux->revs[i].ident == dev->dev_mth->getsyshnd(dev));
+
+			if (mux->revs[i].flags & EV_ERROR) events |= HIO_DEV_EVENT_ERR;
+			if (mux->revs[i].flags & EV_EOF) events |= HIO_DEV_EVENT_HUP;
+
+			if (mux->revs[i].filter == EVFILT_READ) events |= HIO_DEV_EVENT_IN;
+			else if (mux->revs[i].filter == EVFILT_WRITE) events |= HIO_DEV_EVENT_OUT;
+
+			if (HIO_LIKELY(events)) event_handler (hio, dev, events, 0);
+		}
+		else if (mux->ctrlp[0] != HIO_SYSHND_INVALID)
+		{
+			/* internal pipe for signaling */
+			hio_uint8_t tmp[16];
+
+			HIO_ASSERT (hio, mux->revs[i].ident == mux->ctrlp[0]);
+			while (read(mux->ctrlp[0], tmp, HIO_SIZEOF(tmp)) > 0) ;
 		}
 	}
 
