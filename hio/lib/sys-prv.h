@@ -34,7 +34,7 @@
 #if defined(HAVE_SYS_EVENT_H) && defined(HAVE_KQUEUE) && defined(HAVE_KEVENT)
 #	include <sys/event.h>
 #	define USE_KQUEUE
-#if defined(HAVE_SYS_EPOLL_H)
+#elif defined(HAVE_SYS_EPOLL_H)
 #	include <sys/epoll.h>
 #	define USE_EPOLL
 #elif defined(HAVE_SYS_POLL_H)
