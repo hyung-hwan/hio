@@ -91,6 +91,9 @@ host_triplet = @host@
 bin_PROGRAMS = hio-execd$(EXEEXT) hio-t01$(EXEEXT) hio-t02$(EXEEXT) \
 	hio-t03$(EXEEXT) hio-t04$(EXEEXT) hio-t05$(EXEEXT) \
 	hio-t06$(EXEEXT)
+@ENABLE_MARIADB_TRUE@am__append_1 = $(MARIADB_CFLAGS)  
+@ENABLE_MARIADB_TRUE@am__append_2 = $(MARIADB_LDFLAGS)  
+@ENABLE_MARIADB_TRUE@am__append_3 = $(MARIADB_LIBS)  
 subdir = bin
 ACLOCAL_M4 = $(top_srcdir)/aclocal.m4
 am__aclocal_m4_deps = $(top_srcdir)/m4/ax_check_sign.m4 \
@@ -138,7 +141,9 @@ hio_t03_LINK = $(LIBTOOL) $(AM_V_lt) --tag=CC $(AM_LIBTOOLFLAGS) \
 	$(CFLAGS) $(hio_t03_LDFLAGS) $(LDFLAGS) -o $@
 am_hio_t04_OBJECTS = hio_t04-t04.$(OBJEXT)
 hio_t04_OBJECTS = $(am_hio_t04_OBJECTS)
-hio_t04_DEPENDENCIES = $(LIBADD_COMMON)
+am__DEPENDENCIES_1 =
+@ENABLE_MARIADB_TRUE@am__DEPENDENCIES_2 = $(am__DEPENDENCIES_1)
+hio_t04_DEPENDENCIES = $(LIBADD_COMMON) $(am__DEPENDENCIES_2)
 hio_t04_LINK = $(LIBTOOL) $(AM_V_lt) --tag=CC $(AM_LIBTOOLFLAGS) \
 	$(LIBTOOLFLAGS) --mode=link $(CCLD) $(hio_t04_CFLAGS) \
 	$(CFLAGS) $(hio_t04_LDFLAGS) $(LDFLAGS) -o $@
@@ -395,9 +400,9 @@ hio_t03_LDFLAGS = $(LDFLAGS_COMMON)
 hio_t03_LDADD = $(LIBADD_COMMON)
 hio_t04_SOURCES = t04.c
 hio_t04_CPPFLAGS = $(CPPFLAGS_COMMON)
-hio_t04_CFLAGS = $(CFLAGS_COMMON)
-hio_t04_LDFLAGS = $(LDFLAGS_COMMON)
-hio_t04_LDADD = $(LIBADD_COMMON)
+hio_t04_CFLAGS = $(CFLAGS_COMMON) $(am__append_1)
+hio_t04_LDFLAGS = $(LDFLAGS_COMMON) $(am__append_2)
+hio_t04_LDADD = $(LIBADD_COMMON) $(am__append_3)
 hio_t05_SOURCES = t05.c
 hio_t05_CPPFLAGS = $(CPPFLAGS_COMMON)
 hio_t05_CFLAGS = $(CFLAGS_COMMON)
