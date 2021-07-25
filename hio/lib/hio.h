@@ -431,7 +431,8 @@ enum hio_dev_cap_t
 	HIO_DEV_CAP_ZOMBIE          = (1 << 17),
 	HIO_DEV_CAP_RENEW_REQUIRED  = (1 << 18),
 	HIO_DEV_CAP_WATCH_STARTED   = (1 << 19),
-	HIO_DEV_CAP_WATCH_SUSPENDED = (1 << 20)
+	HIO_DEV_CAP_WATCH_SUSPENDED = (1 << 20),
+	HIO_DEV_CAP_WATCH_REREG_REQUIRED = (1 << 21), 
 };
 typedef enum hio_dev_cap_t hio_dev_cap_t;
 

@@ -1366,6 +1366,22 @@ fcntl (rdev->hnd, F_SETFL, flags | O_NONBLOCK);
 				return -1;
 			}
 
+			if (rdev->dev_cap & HIO_DEV_CAP_WATCH_REREG_REQUIRED)
+			{
+				/* On NetBSD, the listening socket added before listen()
+				 * doesn't generate an event even if a new connection is ready
+				 * to be accepted. */
+
+				/* TODO: need to keep the old watch flags before STOP and
+				 *       use the flags witn START  */
+				if (hio_dev_watch(rdev, HIO_DEV_WATCH_STOP, 0) <= -1 ||
+				    hio_dev_watch(rdev, HIO_DEV_WATCH_START, 0) <= -1)
+				{
+					hio_stop (hio, HIO_STOPREQ_WATCHER_ERROR);
+					return -1;
+				}
+			}
+
 			rdev->tmout = lstn->accept_tmout;
 
 			HIO_DEV_SCK_SET_PROGRESS (rdev, HIO_DEV_SCK_LISTENING);
@@ -1652,7 +1668,21 @@ static int accept_incoming_connection (hio_dev_sck_t* rdev)
 
 	/* this is a server(lisening) socket */
 
-#if defined(SOCK_NONBLOCK) && defined(SOCK_CLOEXEC) && defined(HAVE_ACCEPT4)
+#if defined(SOCK_NONBLOCK) && defined(SOCK_CLOEXEC) && defined(HAVE_PACCEPT)
+	flags = SOCK_NONBLOCK | SOCK_CLOEXEC;
+
+	addrlen = HIO_SIZEOF(remoteaddr);
+	clisck = paccept(rdev->hnd, (struct sockaddr*)&remoteaddr, &addrlen, HIO_NULL, flags);
+	if (clisck <= -1)
+	{
+		 if (errno != ENOSYS) goto accept_error;
+		 /* go on for the normal 3-parameter accept */
+	}
+	else
+	{
+		 goto accept_done;
+	}
+#elif defined(SOCK_NONBLOCK) && defined(SOCK_CLOEXEC) && defined(HAVE_ACCEPT4)
 	flags = SOCK_NONBLOCK | SOCK_CLOEXEC;
 
 	addrlen = HIO_SIZEOF(remoteaddr);
@@ -2002,7 +2032,7 @@ static int dev_evcb_sck_on_read_qx (hio_dev_t* dev, const void* data, hio_iolen_
 		{
 			if (make_accepted_client_connection(rdev, qxmsg->syshnd, &qxmsg->remoteaddr, qxmsg->scktype) <= -1)
 			{
-printf ("unable to accept new client connection %d\n", qxmsg->syshnd);
+/*printf ("unable to accept new client connection %d\n", qxmsg->syshnd);*/
 				return (rdev->state & HIO_DEV_SCK_LENIENT)? 0: -1;
 			}
 		}

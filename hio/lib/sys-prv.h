@@ -72,7 +72,7 @@ struct hio_sys_mux_t
 
 #elif defined(USE_KQUEUE)
 
-struct hio_sys_mutx_t
+struct hio_sys_mux_t
 {
 	int kq;
 
@@ -80,6 +80,7 @@ struct hio_sys_mutx_t
 		
 	int ctrlp[2];
 };
+
 #elif defined(USE_EPOLL)
 
 struct hio_sys_mux_t

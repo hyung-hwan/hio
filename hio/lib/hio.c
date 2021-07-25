@@ -353,7 +353,7 @@ int hio_setoption (hio_t* hio, hio_option_t id, const void* value)
 		{
 			hio_uch_t* v1;
 			hio_bch_t* v2;
-			hio_ucs_t* v = (hio_bcs_t*)value;
+			hio_ucs_t* v = (hio_ucs_t*)value;
 
 			v1 = hio_dupuchars(hio, v->ptr, v->len);
 			if (HIO_UNLIKELY(!v1)) return -1;
@@ -1243,7 +1243,7 @@ int hio_dev_watch (hio_dev_t* dev, hio_dev_watch_cmd_t cmd, int events)
 	}
 
 	/*ev.data.ptr = dev;*/
-	dev_cap = dev->dev_cap & ~(DEV_CAP_ALL_WATCHED | HIO_DEV_CAP_WATCH_SUSPENDED); /* UGLY to use HIO_DEV_CAP_WATCH_SUSPENDED here */
+	dev_cap = dev->dev_cap & ~(DEV_CAP_ALL_WATCHED | HIO_DEV_CAP_WATCH_SUSPENDED | HIO_DEV_CAP_WATCH_REREG_REQUIRED); /* UGLY to use HIO_DEV_CAP_WATCH_SUSPENDED and HIO_DEV_CAP_WATCH_REREG_REQUIRED here */
 
 	switch (cmd)
 	{
@@ -1314,7 +1314,7 @@ int hio_dev_watch (hio_dev_t* dev, hio_dev_watch_cmd_t cmd, int events)
 	}
 
 	/* UGLY. HIO_DEV_CAP_WATCH_SUSPENDED may be set/unset by hio_sys_ctrlmux. I need this to reflect it */
-	dev->dev_cap = dev_cap | (dev->dev_cap & HIO_DEV_CAP_WATCH_SUSPENDED);
+	dev->dev_cap = dev_cap | (dev->dev_cap & (HIO_DEV_CAP_WATCH_SUSPENDED | HIO_DEV_CAP_WATCH_REREG_REQUIRED));
 	return 0;
 }
 
