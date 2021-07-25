@@ -1,12 +1,17 @@
+#include <hio.h>
+
 #if defined(HIO_ENABLE_MARIADB)
 
-#include <hio.h>
 #include <hio-mar.h>
 #include <stdio.h>
 #include <string.h>
 #include <signal.h>
 
+#if 0
 #include <mariadb/mysql.h>
+#else
+#include <mysql.h>
+#endif
 
 #if 0
 static void mar_on_disconnect (hio_dev_mar_t* dev)
@@ -212,7 +217,7 @@ int main (int argc, char* argv[])
 		return -1;
 	}
 
-	hio = hio_open(HIO_NULL, 0, HIO_NULL, 512, HIO_NULL);
+	hio = hio_open(HIO_NULL, 0, HIO_NULL, HIO_FEATURE_ALL, 512, HIO_NULL);
 	if (!hio)
 	{
 		printf ("Cannot open hio\n");
