@@ -237,7 +237,7 @@ int main (int argc, char* argv[])
 	HIO_INIT_NTIME (&tmout.w, -1,  0);
 */
 
-	marc = hio_svc_marc_start(hio, &ci, HIO_NULL);
+	marc = hio_svc_marc_start(hio, &ci, HIO_NULL, HIO_NULL);
 	if (!marc)
 	{
 		printf ("Cannot start a mariadb client service\n");

@@ -738,6 +738,7 @@ static hio_dev_mth_t dev_pro_methods =
 	dev_pro_kill_master,
 	HIO_NULL,
 	dev_pro_getsyshnd,
+	HIO_NULL,
 
 	HIO_NULL, /* read */
 	HIO_NULL, /* write */
@@ -752,6 +753,7 @@ static hio_dev_mth_t dev_pro_methods_slave =
 	dev_pro_kill_slave,
 	HIO_NULL,
 	dev_pro_getsyshnd_slave,
+	HIO_NULL,
 
 	dev_pro_read_slave,
 	dev_pro_write_slave,

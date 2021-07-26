@@ -52,6 +52,9 @@ static int dev_mar_make (hio_dev_t* dev, void* ctx)
 		return -1;
 	}
 
+	if (mi->default_group)  /* don't care about success/failure */
+		mysql_options(rdev->hnd, MYSQL_READ_DEFAULT_GROUP, mi->default_group);
+
 	if (mysql_options(rdev->hnd, MYSQL_OPT_NONBLOCK, 0) != 0)
 	{
 		hio_seterrbfmt (hio, HIO_ESYSERR, "%hs", mysql_error(rdev->hnd));
@@ -137,6 +140,7 @@ static int dev_mar_kill (hio_dev_t* dev, int force)
 
 	rdev->connected = 0;
 	rdev->broken = 0;
+	rdev->broken_syshnd = HIO_SYSHND_INVALID;
 
 	return 0;
 }
@@ -146,6 +150,12 @@ static hio_syshnd_t dev_mar_getsyshnd (hio_dev_t* dev)
 	hio_dev_mar_t* rdev = (hio_dev_mar_t*)dev;
 	if (rdev->broken) return rdev->broken_syshnd; /* hack!! */
 	return (hio_syshnd_t)mysql_get_socket(rdev->hnd);
+}
+
+static int dev_mar_issyshndbroken (hio_dev_t* dev)
+{
+	hio_dev_mar_t* rdev = (hio_dev_mar_t*)dev;
+	return rdev->broken;
 }
 
 static int events_to_mysql_wstatus (int events)
@@ -235,12 +245,17 @@ static int dev_mar_ioctl (hio_dev_t* dev, int cmd, void* arg)
 				if (HIO_UNLIKELY(!tmp)) /* connection attempt failed immediately */
 				{
 					/* immediate failure doesn't invoke on_discoonect(). 
-					 * the caller must check the return code of this function.  */
+					 * the caller must check the return code of this function. */
+
+					rdev->connected = 0;
+					rdev->broken = 1;
+					rdev->broken_syshnd = HIO_SYSHND_INVALID;
+
 					hio_seterrbfmt (hio, HIO_ESYSERR, "%hs", mysql_error(rdev->hnd));
 					return -1;
 				}
 
-				/* connected_deferred immediately. postpone actual handling to the ready() callback */
+				/* connected immediately. postpone actual handling to the ready() callback */
 				HIO_DEV_MAR_SET_PROGRESS (rdev, HIO_DEV_MAR_CONNECTING);
 				rdev->connected_deferred = 1; /* to let the ready() handler to trigger on_connect() */
 				/* regiter it in the multiplexer so that the ready() handler is
@@ -291,8 +306,12 @@ static int dev_mar_ioctl (hio_dev_t* dev, int cmd, void* arg)
 						/* the underlying socket must have gotten closed by mysql_real_query_start() */
 						const hio_ooch_t* prev_errmsg;
 						prev_errmsg = hio_backuperrmsg(hio);
+
+						rdev->connected = 0;
 						rdev->broken = 1;
-						rdev->broken_syshnd = syshnd;
+						/* remember the previous handle - this may be needed by the poll/select based multiplexer */
+						rdev->broken_syshnd = syshnd; 
+
 						watch_mysql (rdev, 0);
 						hio_dev_mar_halt (rdev); /* i can't keep this device alive regardless of the caller's post-action */
 						hio_seterrbfmt (hio, HIO_ESYSERR, "%js", prev_errmsg);
@@ -335,6 +354,7 @@ static hio_dev_mth_t dev_mar_methods =
 	dev_mar_kill,
 	HIO_NULL,
 	dev_mar_getsyshnd,
+	dev_mar_issyshndbroken,
 
 	HIO_NULL,
 	HIO_NULL,
@@ -416,8 +436,16 @@ static int dev_evcb_mar_ready (hio_dev_t* dev, int events)
 					{
 						/* connection attempt failed */
 
+						/* the mysql client library closes the underlying socket handle 
+						 * whenever the connection attempt fails. this prevent hio from 
+						 * managing the the mysql connections properly. this also causes
+						 * race condition if this library is used in multi-threaded programs. */
+
+						rdev->connected = 0;
 						rdev->broken = 1; /* trick dev_mar_getsyshnd() to return rdev->broken_syshnd. */
-						rdev->broken_syshnd = syshnd; /* mysql_get_socket() over a failed mariadb handle ends up with segfault */
+						/* remember the previous handle - this may be needed by the poll/select based multiplexer
+						 * mysql_get_socket() over a failed mariadb handle ends up with segfault */
+						rdev->broken_syshnd = syshnd; 
 
 						/* this attempts to trigger the low-level multiplxer to delete 'syshnd' closed by mysql_real_connect_cont().
 						 * the underlying low-level operation may fail. but i don't care. the best is not to open 
