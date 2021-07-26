@@ -173,6 +173,7 @@ static void send_test_query (hio_t* hio, const hio_ntime_t* now, hio_tmrjob_t* j
 	hio_bch_t tmp[256];
 	int len;
 
+	HIO_INFO0 (hio, "ATTEMPTING TO SEND QUERY\n");
 	if (hio_svc_marc_querywithbchars(marc, 0, HIO_SVC_MARC_QTYPE_SELECT, "SHOW STATUS", 11, on_result, HIO_NULL) <= -1)
 	{
 		HIO_INFO1 (hio, "FAILED TO SEND QUERY - %js\n", hio_geterrmsg(hio));
@@ -278,7 +279,7 @@ int main (int argc, char* argv[])
 	/* ---------------------------------------- */
 	{
 		hio_ntime_t x;
-		HIO_INIT_NTIME (&x, 32, 0);
+		HIO_INIT_NTIME (&x, 20, 0);
 		schedule_timer_job_after (hio, &x, send_test_query, marc);
 		hio_loop (hio);
 	}
