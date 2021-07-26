@@ -942,7 +942,7 @@ void hio_stop (hio_t* hio, hio_stopreq_t stopreq)
 	hio_sys_intrmux (hio);
 }
 
-int hio_loop (hio_t* hio)
+int hio_loop (hio_t* hio/*, int check_svc*/)
 {
 	HIO_ASSERT (hio, (HIO_FEATURE_ALL & HIO_FEATURE_MUX)); /* never call this if you disableed this feature */
 
@@ -952,7 +952,8 @@ int hio_loop (hio_t* hio)
 
 	if (hio_prologue(hio) <= -1) return -1;
 
-	while (hio->stopreq == HIO_STOPREQ_NONE && !HIO_DEVL_IS_EMPTY(&hio->actdev))
+	while (hio->stopreq == HIO_STOPREQ_NONE && 
+	       (!HIO_DEVL_IS_EMPTY(&hio->actdev) || hio->tmr.size > 0))
 	{
 		if (__exec(hio) <= -1) break;
 		/* you can do other things here */
