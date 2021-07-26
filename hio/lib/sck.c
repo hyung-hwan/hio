@@ -1398,6 +1398,7 @@ static hio_dev_mth_t dev_mth_sck_stateless =
 	dev_sck_kill,
 	HIO_NULL,
 	dev_sck_getsyshnd,
+	HIO_NULL,
 
 	dev_sck_read_stateless,
 	dev_sck_write_stateless,
@@ -1413,6 +1414,7 @@ static hio_dev_mth_t dev_mth_sck_stateful =
 	dev_sck_kill,
 	HIO_NULL,
 	dev_sck_getsyshnd,
+	HIO_NULL,
 
 	dev_sck_read_stateful,
 	dev_sck_write_stateful,
@@ -1427,6 +1429,7 @@ static hio_dev_mth_t dev_mth_clisck =
 	dev_sck_kill,
 	dev_sck_fail_before_make_client,
 	dev_sck_getsyshnd,
+	HIO_NULL,
 
 	dev_sck_read_stateful,
 	dev_sck_write_stateful,
@@ -1441,6 +1444,7 @@ static hio_dev_mth_t dev_mth_sck_bpf =
 	dev_sck_kill,
 	HIO_NULL,
 	dev_sck_getsyshnd,
+	HIO_NULL,
 
 	dev_sck_read_bpf,
 	dev_sck_write_bpf,

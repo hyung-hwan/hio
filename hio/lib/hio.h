@@ -222,7 +222,8 @@ struct hio_dev_mth_t
 	void          (*fail_before_make)     (void* ctx);
 
 	/* ------------------------------------------------------------------ */
-	hio_syshnd_t (*getsyshnd)    (hio_dev_t* dev); /* mandatory. called in hio_dev_make() after successful make() */
+	hio_syshnd_t (*getsyshnd)      (hio_dev_t* dev); /* mandatory. called in hio_dev_make() after successful make() */
+	int          (*issyshndbroken) (hio_dev_t* dev); /* the device whose underlying system handle can get closed before kill() must implement this */
 
 	/* ------------------------------------------------------------------ */
 	/* return -1 on failure, 0 if no data is availble, 1 otherwise.

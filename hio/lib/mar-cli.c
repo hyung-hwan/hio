@@ -45,6 +45,8 @@ struct hio_svc_marc_t
 	int stopping;
 	int tmout_set;
 
+	const hio_bch_t* default_group;
+
 	hio_svc_marc_connect_t ci;
 	hio_svc_marc_tmout_t tmout;
 
@@ -90,7 +92,7 @@ struct dev_xtn_t
 
 #define INVALID_SID HIO_TYPE_MAX(hio_oow_t)
 
-hio_svc_marc_t* hio_svc_marc_start (hio_t* hio, const hio_svc_marc_connect_t* ci, const hio_svc_marc_tmout_t* tmout)
+hio_svc_marc_t* hio_svc_marc_start (hio_t* hio, const hio_svc_marc_connect_t* ci, const hio_svc_marc_tmout_t* tmout, const hio_bch_t* default_group)
 {
 	hio_svc_marc_t* marc = HIO_NULL;
 
@@ -108,6 +110,7 @@ hio_svc_marc_t* hio_svc_marc_start (hio_t* hio, const hio_svc_marc_connect_t* ci
 		marc->tmout = *tmout;
 		marc->tmout_set = 1;
 	}
+	marc->default_group = default_group;
 
 	HIO_SVCL_APPEND_SVC (&hio->actsvc, (hio_svc_t*)marc);
 	return marc;
@@ -368,6 +371,7 @@ static hio_dev_mar_t* alloc_device (hio_svc_marc_t* marc, hio_oow_t sid)
 		mi.flags = HIO_DEV_MAR_USE_TMOUT;
 		mi.tmout = marc->tmout;
 	}
+	mi.default_group = marc->default_group;
 
 	mi.on_connect = mar_on_connect;
 	mi.on_disconnect = mar_on_disconnect;
@@ -378,11 +382,12 @@ static hio_dev_mar_t* alloc_device (hio_svc_marc_t* marc, hio_oow_t sid)
 	if (HIO_UNLIKELY(!mar)) return HIO_NULL;
 
 	xtn = (dev_xtn_t*)hio_dev_mar_getxtn(mar);
-	xtn->sid = sid;
 	xtn->svc = marc;
+	xtn->sid = sid;
 
 	if (hio_dev_mar_connect(mar, &marc->ci) <= -1) 
 	{
+		/* connection failed immediately */
 		xtn->sid = INVALID_SID;
 		hio_dev_mar_halt (mar);
 		return HIO_NULL;
@@ -422,8 +427,8 @@ static sess_t* get_session (hio_svc_marc_t* marc, hio_oow_t sid)
 	}
 
 	sess = &marc->sess.ptr[sid];
-	HIO_ASSERT (hio, sess->sid == sid);
 	HIO_ASSERT (hio, sess->svc == marc);
+	HIO_ASSERT (hio, sess->sid == sid);
 
 	if (!sess->dev)
 	{

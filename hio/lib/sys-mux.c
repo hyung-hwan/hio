@@ -419,6 +419,11 @@ int hio_sys_ctrlmux (hio_t* hio, hio_sys_mux_cmd_t cmd, hio_dev_t* dev, int dev_
 	int x;
 
 	HIO_ASSERT (hio, hio == dev->hio);
+
+	/* no operation over a broken(closed) handle to prevent multiplexer from failing.
+	 * close of the handle leads to auto-deletion from the kqueue multiplexer. 
+	 * the closed handle must not be fed to the multiplexer */
+	if (dev->dev_mth->issyshndbroken && dev->dev_mth->issyshndbroken(dev)) return 0;
 	hnd = dev->dev_mth->getsyshnd(dev);
 
 	switch (cmd)
@@ -495,6 +500,11 @@ int hio_sys_ctrlmux (hio_t* hio, hio_sys_mux_cmd_t cmd, hio_dev_t* dev, int dev_
 	int x;
 
 	HIO_ASSERT (hio, hio == dev->hio);
+
+	/* no operation over a broken(closed) handle to prevent multiplexer from failing.
+	 * close of the handle leads to auto-deletion from the epoll multiplexer. 
+	 * the closed handle must not be fed to the multiplexer */
+	if (dev->dev_mth->issyshndbroken && dev->dev_mth->issyshndbroken(dev)) return 0;
 	hnd = dev->dev_mth->getsyshnd(dev);
 
 	events = 0;

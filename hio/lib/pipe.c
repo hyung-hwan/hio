@@ -376,6 +376,7 @@ static hio_dev_mth_t dev_pipe_methods =
 	dev_pipe_kill_master,
 	HIO_NULL,
 	dev_pipe_getsyshnd,
+	HIO_NULL,
 
 	HIO_NULL,
 	HIO_NULL,
@@ -389,6 +390,7 @@ static hio_dev_mth_t dev_pipe_methods_slave =
 	dev_pipe_kill_slave,
 	dev_pipe_fail_before_make_slave,
 	dev_pipe_getsyshnd_slave,
+	HIO_NULL,
 
 	dev_pipe_read_slave,
 	dev_pipe_write_slave,

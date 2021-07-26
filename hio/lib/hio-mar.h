@@ -125,6 +125,8 @@ struct hio_dev_mar_make_t
 {
 	int flags;
 	hio_dev_mar_tmout_t tmout;
+	const hio_bch_t* default_group;
+
 	hio_dev_mar_on_write_t on_write; /* mandatory */
 	hio_dev_mar_on_read_t on_read; /* mandatory */
 	hio_dev_mar_on_connect_t on_connect; /* optional */
@@ -251,7 +253,8 @@ HIO_EXPORT hio_oow_t hio_dev_mar_escapebchars (
 HIO_EXPORT hio_svc_marc_t* hio_svc_marc_start (
 	hio_t*                        hio,
 	const hio_svc_marc_connect_t* ci,
-	const hio_svc_marc_tmout_t*   tmout
+	const hio_svc_marc_tmout_t*   tmout,
+	const hio_bch_t*              default_group
 );
 
 HIO_EXPORT void hio_svc_marc_stop (
