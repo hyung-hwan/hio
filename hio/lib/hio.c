@@ -902,7 +902,7 @@ static HIO_INLINE int __exec (hio_t* hio)
 	 * e.g. write() in a timer job gets completed immediately. */
 	fire_cwq_handlers (hio);
 
-	if (!HIO_DEVL_IS_EMPTY(&hio->actdev))
+	if (HIO_LIKELY(!HIO_DEVL_IS_EMPTY(&hio->actdev) || hio->tmr.size > 0))
 	{
 		/* wait on the multiplexer only if there is at least 1 active device */
 		hio_ntime_t tmout;
