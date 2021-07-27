@@ -245,10 +245,23 @@ int main (int argc, char* argv[])
 		goto oops;
 	}
 
-	hio_svc_marc_querywithbchars (marc, 0, HIO_SVC_MARC_QTYPE_SELECT, "SHOW STATUS", 11, on_result, HIO_NULL);
-	hio_svc_marc_querywithbchars (marc, 0, HIO_SVC_MARC_QTYPE_ACTION, "DELETE FROM", 11, on_result, HIO_NULL);
-//	hio_svc_marc_querywithbchars (marc, 0, HIO_SVC_MARC_QTYPE_SELECT, "SHOW STATUS", 11, on_result, HIO_NULL);
-	hio_svc_marc_querywithbchars (marc, 0, HIO_SVC_MARC_QTYPE_ACTION, "DELETE FROM XXX", 14, on_result, HIO_NULL);
+	hio_svc_marc_querywithbchars (marc, 4 | HIO_SVC_MARC_SID_FLAG_AUTO_BOUNDED, HIO_SVC_MARC_QTYPE_SELECT, "SHOW STATUS", 11, on_result, HIO_NULL);
+	hio_svc_marc_querywithbchars (marc, 4 | HIO_SVC_MARC_SID_FLAG_AUTO_BOUNDED, HIO_SVC_MARC_QTYPE_ACTION, "DELETE FROM", 11, on_result, HIO_NULL);
+//	hio_svc_marc_querywithbchars (marc, 4 | HIO_SVC_MARC_SID_FLAG_AUTO_BOUNDED, HIO_SVC_MARC_QTYPE_SELECT, "SHOW STATUS", 11, on_result, HIO_NULL);
+	hio_svc_marc_querywithbchars (marc, 4 | HIO_SVC_MARC_SID_FLAG_AUTO_BOUNDED, HIO_SVC_MARC_QTYPE_ACTION, "DELETE FROM XXX", 14, on_result, HIO_NULL);
+	hio_svc_marc_querywithbchars (marc, 4 | HIO_SVC_MARC_SID_FLAG_AUTO_BOUNDED, HIO_SVC_MARC_QTYPE_ACTION, "DELETE FROM ZZZ", 14, on_result, HIO_NULL);
+	hio_svc_marc_querywithbchars (marc, 4 | HIO_SVC_MARC_SID_FLAG_AUTO_BOUNDED, HIO_SVC_MARC_QTYPE_ACTION, "DELETE FROM TTT", 14, on_result, HIO_NULL);
+	hio_svc_marc_querywithbchars (marc, 4 | HIO_SVC_MARC_SID_FLAG_AUTO_BOUNDED, HIO_SVC_MARC_QTYPE_ACTION, "DELETE FROM QQQ", 14, on_result, HIO_NULL);
+	hio_svc_marc_querywithbchars (marc, 4 | HIO_SVC_MARC_SID_FLAG_AUTO_BOUNDED, HIO_SVC_MARC_QTYPE_ACTION, "DELETE FROM RRR", 14, on_result, HIO_NULL);
+	hio_svc_marc_querywithbchars (marc, 4 | HIO_SVC_MARC_SID_FLAG_AUTO_BOUNDED, HIO_SVC_MARC_QTYPE_ACTION, "DELETE FROM RRR", 14, on_result, HIO_NULL);
+	hio_svc_marc_querywithbchars (marc, 4 | HIO_SVC_MARC_SID_FLAG_AUTO_BOUNDED, HIO_SVC_MARC_QTYPE_ACTION, "DELETE FROM RRR", 14, on_result, HIO_NULL);
+	hio_svc_marc_querywithbchars (marc, 4 | HIO_SVC_MARC_SID_FLAG_AUTO_BOUNDED, HIO_SVC_MARC_QTYPE_ACTION, "DELETE FROM RRR", 14, on_result, HIO_NULL);
+	hio_svc_marc_querywithbchars (marc, 4 | HIO_SVC_MARC_SID_FLAG_AUTO_BOUNDED, HIO_SVC_MARC_QTYPE_ACTION, "DELETE FROM RRR", 14, on_result, HIO_NULL);
+	hio_svc_marc_querywithbchars (marc, 4 | HIO_SVC_MARC_SID_FLAG_AUTO_BOUNDED, HIO_SVC_MARC_QTYPE_ACTION, "DELETE FROM RRR", 14, on_result, HIO_NULL);
+	hio_svc_marc_querywithbchars (marc, 4 | HIO_SVC_MARC_SID_FLAG_AUTO_BOUNDED, HIO_SVC_MARC_QTYPE_ACTION, "DELETE FROM RRR", 14, on_result, HIO_NULL);
+	hio_svc_marc_querywithbchars (marc, 10 | HIO_SVC_MARC_SID_FLAG_AUTO_BOUNDED, HIO_SVC_MARC_QTYPE_ACTION, "DELETE FROM RRR", 14, on_result, HIO_NULL);
+	hio_svc_marc_querywithbchars (marc, 10 | HIO_SVC_MARC_SID_FLAG_AUTO_BOUNDED, HIO_SVC_MARC_QTYPE_ACTION, "DELETE FROM RRR", 14, on_result, HIO_NULL);
+	hio_svc_marc_querywithbchars (marc, 10 | HIO_SVC_MARC_SID_FLAG_AUTO_BOUNDED, HIO_SVC_MARC_QTYPE_ACTION, "DELETE FROM RRR", 14, on_result, HIO_NULL);
 
 #if 0
 	memset (&mi, 0, HIO_SIZEOF(mi));

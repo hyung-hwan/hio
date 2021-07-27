@@ -57,6 +57,9 @@ struct hio_svc_marc_t
 		sess_t* ptr;
 		hio_oow_t capa;
 	} sess;
+
+	hio_oow_t autoi;
+	hio_oow_t autoi2;
 };
 
 struct sess_qry_t
@@ -398,11 +401,76 @@ static hio_dev_mar_t* alloc_device (hio_svc_marc_t* marc, hio_oow_t sid)
 
 /* ------------------------------------------------------------------- */
 
-static sess_t* get_session (hio_svc_marc_t* marc, hio_oow_t sid)
+static sess_t* get_session (hio_svc_marc_t* marc, hio_oow_t flagged_sid)
 {
 	hio_t* hio = marc->hio;
+	hio_oow_t sid;
 	sess_t* sess;
 
+	sid = flagged_sid & ~HIO_SVC_MARC_SID_FLAG_ALL;
+
+	if ((flagged_sid & HIO_SVC_MARC_SID_FLAG_AUTO_BOUNDED) && marc->sess.capa > 0)
+	{
+		hio_oow_t i, ubound, mbound;
+		hio_oow_t unused = INVALID_SID;
+
+		/* automatic sid assignment. sid holds the largest session id that can be assigned */
+		ubound = marc->sess.capa;
+		if (sid < ubound) ubound = sid + 1;
+
+		mbound = marc->autoi;
+		if (mbound > ubound) mbound = ubound;
+		for (i = mbound; i < ubound; i++)
+		{
+			sess = &marc->sess.ptr[i];
+			if (sess->dev)
+			{
+				if (!get_first_session_query(sess)) 
+				{
+					marc->autoi = i;
+					sid = marc->autoi;
+					goto got_sid;
+				}
+			}
+			else unused = i;
+		}
+		for (i = 0; i < mbound; i++)
+		{
+			sess = &marc->sess.ptr[i];
+			if (sess->dev)
+			{
+				if (!get_first_session_query(sess)) 
+				{
+					marc->autoi = i;
+					sid = marc->autoi;
+					goto got_sid;
+				}
+			}
+			else unused = i;
+		}
+
+		if (unused == INVALID_SID)
+		{
+			if (sid >= ubound)
+			{
+				marc->autoi = sid;
+			}
+			else
+			{
+				/* TODO: more optimizations - take the one with the least enqueued queries */
+				marc->autoi2 = (marc->autoi2 + 1) % ubound;
+				marc->autoi = marc->autoi;
+				sid = marc->autoi2;
+			}
+		}
+		else
+		{
+			marc->autoi = unused;
+			sid = marc->autoi;
+		}
+	}
+
+got_sid:
 	if (sid >= marc->sess.capa)
 	{
 		sess_t* tmp;
@@ -412,7 +480,7 @@ static sess_t* get_session (hio_svc_marc_t* marc, hio_oow_t sid)
 		if (newcapa <= sid) newcapa = sid + 1;
 		newcapa = HIO_ALIGN_POW2(newcapa, 16);
 
-		tmp = hio_reallocmem(hio, marc->sess.ptr, HIO_SIZEOF(sess_t) * newcapa);
+		tmp = (sess_t*)hio_reallocmem(hio, marc->sess.ptr, HIO_SIZEOF(sess_t) * newcapa);
 		if (HIO_UNLIKELY(!tmp)) return HIO_NULL;
 
 		HIO_MEMSET (&tmp[marc->sess.capa], 0, HIO_SIZEOF(sess_t) * (newcapa - marc->sess.capa));
@@ -471,13 +539,13 @@ static sess_t* get_session (hio_svc_marc_t* marc, hio_oow_t sid)
 }
 
 
-int hio_svc_marc_querywithbchars (hio_svc_marc_t* marc, hio_oow_t sid, hio_svc_marc_qtype_t qtype, const hio_bch_t* qptr, hio_oow_t qlen, hio_svc_marc_on_result_t on_result, void* qctx)
+int hio_svc_marc_querywithbchars (hio_svc_marc_t* marc, hio_oow_t flagged_sid, hio_svc_marc_qtype_t qtype, const hio_bch_t* qptr, hio_oow_t qlen, hio_svc_marc_on_result_t on_result, void* qctx)
 {
 	hio_t* hio = marc->hio;
 	sess_t* sess;
 	sess_qry_t* sq;
 
-	sess = get_session(marc, sid);
+	sess = get_session(marc, flagged_sid);
 	if (HIO_UNLIKELY(!sess)) return -1;
 
 	sq = make_session_query(hio, qtype, qptr, qlen, qctx, on_result);

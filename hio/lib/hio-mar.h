@@ -175,6 +175,16 @@ enum hio_svc_marc_rcode_t
 };
 typedef enum hio_svc_marc_rcode_t hio_svc_marc_rcode_t;
 
+enum hio_svc_marc_sid_flag_t
+{
+	HIO_SVC_MARC_SID_FLAG_AUTO_BOUNDED = ((hio_oow_t)1 << (HIO_SIZEOF_OOW_T - 1)),
+	HIO_SVC_MARC_SID_FLAG_RESERVED_1 = ((hio_oow_t)1 << (HIO_SIZEOF_OOW_T - 2)),
+	HIO_SVC_MARC_SID_FLAG_RESERVED_2 = ((hio_oow_t)1 << (HIO_SIZEOF_OOW_T - 3)),
+
+	HIO_SVC_MARC_SID_FLAG_ALL = (HIO_SVC_MARC_SID_FLAG_AUTO_BOUNDED | HIO_SVC_MARC_SID_FLAG_RESERVED_1 | HIO_SVC_MARC_SID_FLAG_RESERVED_2)
+};
+typedef enum hio_svc_marc_sid_flag_t hio_svc_marc_sid_flag_t;
+
 struct hio_svc_marc_dev_error_t
 {
 	int mar_errcode;
@@ -269,7 +279,7 @@ static HIO_INLINE hio_t* hio_svc_marc_gethio(hio_svc_marc_t* svc) { return hio_s
 
 HIO_EXPORT int hio_svc_marc_querywithbchars (
 	hio_svc_marc_t*            marc,
-	hio_oow_t                  sid,
+	hio_oow_t                  flagged_sid,
 	hio_svc_marc_qtype_t       qtype,
 	const hio_bch_t*           qptr,
 	hio_oow_t                  qlen,
