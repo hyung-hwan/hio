@@ -931,36 +931,62 @@ static HIO_INLINE int __exec (hio_t* hio)
 
 int hio_exec (hio_t* hio)
 {
-	HIO_ASSERT (hio, (HIO_FEATURE_ALL & HIO_FEATURE_MUX)); /* never call this if you disableed this feature */
+	/* never call this if you disabled this feature */
+	HIO_ASSERT (hio, (hio->_features & HIO_FEATURE_MUX));
 	return __exec(hio);
 }
 
 void hio_stop (hio_t* hio, hio_stopreq_t stopreq)
 {
-	HIO_ASSERT (hio, (HIO_FEATURE_ALL & HIO_FEATURE_MUX)); /* never call this if you disableed this feature */
+	/* never call this if you disabled this feature */
+	HIO_ASSERT (hio, (hio->_features & HIO_FEATURE_MUX));
 	hio->stopreq = stopreq;
 	hio_sys_intrmux (hio);
 }
 
-int hio_loop (hio_t* hio/*, int check_svc*/)
+int hio_loop (hio_t* hio)
 {
-	HIO_ASSERT (hio, (HIO_FEATURE_ALL & HIO_FEATURE_MUX)); /* never call this if you disableed this feature */
+	int ret = 0;
 
-	if (HIO_DEVL_IS_EMPTY(&hio->actdev)) return 0;
+	/* never call this if you disabled this feature */
+	HIO_ASSERT (hio, (hio->_features & HIO_FEATURE_MUX));
+
+	if (HIO_UNLIKELY(HIO_DEVL_IS_EMPTY(&hio->actdev) && hio->tmr.size <= 0)) return 0;
 
 	hio->stopreq = HIO_STOPREQ_NONE;
 
-	if (hio_prologue(hio) <= -1) return -1;
-
-	while (hio->stopreq == HIO_STOPREQ_NONE && 
-	       (!HIO_DEVL_IS_EMPTY(&hio->actdev) || hio->tmr.size > 0))
+	if (hio_prologue(hio) <= -1)
 	{
-		if (__exec(hio) <= -1) break;
-		/* you can do other things here */
+		ret = -1;
 	}
+	else
+	{
+		while (HIO_LIKELY(hio->stopreq == HIO_STOPREQ_NONE))
+		{
+			if (HIO_UNLIKELY(HIO_DEVL_IS_EMPTY(&hio->actdev) && hio->tmr.size <= 0)) break;
 
-	hio_epilogue(hio);
-	return 0;
+			ret = __exec(hio);
+			if (ret <= -1) break;
+			if (HIO_UNLIKELY(hio->stopreq == HIO_STOPREQ_WATCHER_ERROR))
+			{
+				const hio_ooch_t* prev_errmsg;
+
+				prev_errmsg = hio_backuperrmsg(hio);
+
+				/* this previous error message may be off the error context.
+				 * try the best to capture the message */
+				hio_seterrbfmt (hio, HIO_ESYSERR, "watcher error detected - %js", prev_errmsg);
+
+				ret = -2;
+				break;
+			}
+
+			/* you can do other things here */
+		}
+
+		hio_epilogue(hio);
+	}
+	return ret;
 }
 
 hio_dev_t* hio_dev_make (hio_t* hio, hio_oow_t dev_size, hio_dev_mth_t* dev_mth, hio_dev_evcb_t* dev_evcb, void* make_ctx)
