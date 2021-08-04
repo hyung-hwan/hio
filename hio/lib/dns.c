@@ -765,7 +765,7 @@ hio_dns_msg_t* hio_dns_make_msg (hio_t* hio, hio_dns_bhdr_t* bhdr, hio_dns_bqr_t
 	msgbufsz = HIO_SIZEOF(*msg) + HIO_ALIGN_POW2(pktlen, HIO_SIZEOF_VOID_P) + xtnsize;
 
 /* TODO: msg buffer reuse */
-	msg = hio_callocmem(hio, msgbufsz);
+	msg = (hio_dns_msg_t*)hio_callocmem(hio, msgbufsz);
 	if (HIO_UNLIKELY(!msg)) return HIO_NULL;
 
 	msg->msglen = msgbufsz; /* record the instance size */

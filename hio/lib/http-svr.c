@@ -357,7 +357,7 @@ hio_svc_htts_t* hio_svc_htts_start (hio_t* hio, hio_dev_sck_bind_t* sck_bind, hi
 	info.m.on_connect = listener_on_connect;
 	info.m.on_disconnect = listener_on_disconnect;
 	htts->lsck = hio_dev_sck_make(hio, HIO_SIZEOF(*cli), &info.m);
-	if (!htts->lsck) goto oops;
+	if (HIO_UNLIKELY(!htts->lsck)) goto oops;
 
 	/* the name 'cli' for the listening socket is awkward.
 	 * the listening socket will use the htts and sck fields for tracking only.
