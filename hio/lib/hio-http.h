@@ -250,7 +250,8 @@ HIO_EXPORT int hio_scan_http_qparam (
 
 HIO_EXPORT hio_svc_htts_t* hio_svc_htts_start (
 	hio_t*                    hio,
-	hio_dev_sck_bind_t*       sck_bind,
+	hio_dev_sck_bind_t*       binds,
+	hio_oow_t                 nbinds,
 	hio_svc_htts_proc_req_t   proc_req
 );
 
@@ -266,6 +267,7 @@ static HIO_INLINE hio_t* hio_svc_htts_gethio(hio_svc_htts_t* svc) { return hio_s
 
 HIO_EXPORT int hio_svc_htts_writetosidechan (
 	hio_svc_htts_t* htts,
+	hio_oow_t       idx, /* listener index */
 	const void*     dptr,
 	hio_oow_t       dlen
 );
@@ -275,8 +277,22 @@ HIO_EXPORT int hio_svc_htts_setservernamewithbcstr (
 	const hio_bch_t* server_name
 );
 
+/* return the listening device at the given position.
+ * not all devices may be up and running */
+HIO_EXPORT hio_dev_sck_t* hio_svc_htts_getlistendev (
+	hio_svc_htts_t* htts,
+	hio_oow_t       idx
+);
+
+/* return the total number of listening devices requested to start.
+ * not all devices may be up and running */
+HIO_EXPORT hio_oow_t hio_sv_htts_getnlistendevs (
+	hio_svc_htts_t* htts
+);
+
 HIO_EXPORT int hio_svc_htts_getsockaddr (
 	hio_svc_htts_t*  htts,
+	hio_oow_t        idx, /* listener index */
 	hio_skad_t*      skad
 );
 

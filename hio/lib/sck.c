@@ -224,13 +224,18 @@ struct sck_type_map_t
 	int extra_dev_cap;
 };
 
-#define __AF_QX 999999
 #define __AF_BPF 999998
 
 static struct sck_type_map_t sck_type_map[] =
 {
 	/* HIO_DEV_SCK_QX */
-	{ __AF_QX,    0,              0,                         0 },
+	{ HIO_AF_QX,  0,              0,                         0 },
+
+#if defined(AF_UNIX)
+	{ AF_UNIX,    SOCK_STREAM,    0,                         HIO_DEV_CAP_STREAM },
+#else
+	{ -1,         0,                0,                         0 },
+#endif
 
 	/* HIO_DEV_SCK_TCP4 */
 	{ AF_INET,    SOCK_STREAM,    0,                         HIO_DEV_CAP_STREAM },
@@ -277,7 +282,6 @@ static struct sck_type_map_t sck_type_map[] =
 #else
 	{ -1,       0,                0,                         0                                              },
 #endif
-
 
 	/* HIO_DEV_SCK_BPF - arp */
 	{ __AF_BPF, 0, 0, 0 } /* not implemented yet */
@@ -397,7 +401,7 @@ static int dev_sck_make (hio_dev_t* dev, void* ctx)
 		goto oops;
 	}
 
-	if (HIO_UNLIKELY(sck_type_map[arg->type].domain == __AF_QX))
+	if (HIO_UNLIKELY(sck_type_map[arg->type].domain == HIO_AF_QX))
 	{
 		hnd = open_async_qx(hio, &side_chan);
 		if (hnd == HIO_SYSHND_INVALID) goto oops;
@@ -2200,7 +2204,11 @@ int hio_dev_sck_getsockopt (hio_dev_sck_t* dev, int level, int optname, void* op
 int hio_dev_sck_getsockaddr (hio_dev_sck_t* dev, hio_skad_t* skad)
 {
 	hio_scklen_t addrlen = HIO_SIZEOF(*skad);
-	if (getsockname(dev->hnd, (struct sockaddr*)skad, &addrlen) <= -1)
+	if (dev->type == HIO_DEV_SCK_QX)
+	{
+		hio_skad_init_for_qx (skad);
+	}
+	else if (getsockname(dev->hnd, (struct sockaddr*)skad, &addrlen) <= -1)
 	{
 		hio_seterrwithsyserr (dev->hio, 0, errno);
 		return -1;
@@ -2211,7 +2219,11 @@ int hio_dev_sck_getsockaddr (hio_dev_sck_t* dev, hio_skad_t* skad)
 int hio_dev_sck_getpeeraddr (hio_dev_sck_t* dev, hio_skad_t* skad)
 {
 	hio_scklen_t addrlen = HIO_SIZEOF(*skad);
-	if (getpeername(dev->hnd, (struct sockaddr*)skad, &addrlen) <= -1)
+	if (dev->type == HIO_DEV_SCK_QX)
+	{
+		hio_skad_init_for_qx (skad);
+	}
+	else if (getpeername(dev->hnd, (struct sockaddr*)skad, &addrlen) <= -1)
 	{
 		hio_seterrwithsyserr (dev->hio, 0, errno);
 		return -1;

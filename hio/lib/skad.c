@@ -382,17 +382,30 @@ int hio_ucharstoskad (hio_t* hio, const hio_uch_t* str, hio_oow_t len, hio_skad_
 	/* use HIO_SIZEOF(*_skad) instead of HIO_SIZEOF(*skad) in case they are different */
 	HIO_MEMSET (skad, 0, HIO_SIZEOF(*_skad)); 
 
-#if defined(AF_UNIX)
-	if (*p == '/' && len >= 2)
+	if (p[0] == '<' && p[1] == 'q' && p[2] == 'x' && p[3] == '>' && p[4] == '\0')
 	{
-		hio_oow_t dstlen;
+		/* this is HIO specific. the rest isn't important */
+		skad->sa.sa_family = HIO_AF_QX;
+		return 0;
+	}
+
+	if (*p == '@')
+	{
+#if defined(AF_UNIX) && (HIO_SIZEOF_STRUCT_SOCKADDR_UN > 0)
+		/* @aaa,  @/tmp/aaa ... */
+		hio_oow_t srclen, dstlen;
 		dstlen = HIO_COUNTOF(skad->un.sun_path) - 1;
-		if (hio_convutobchars(hio, p, &len, skad->un.sun_path, &dstlen) <= -1) return -1;
+		srclen = len - 1;
+		if (hio_convutobchars(hio, p + 1, &srclen, skad->un.sun_path, &dstlen) <= -1) return -1;
 		skad->un.sun_path[dstlen] = '\0';
 		skad->un.sun_family = AF_UNIX;
 		return 0;
-	}
+#else
+		hio_seterrbfmt (hio, HIO_ENOIMPL, "unix address not supported");
+		return -1;	
 #endif
+	}
+
 
 #if (HIO_SIZEOF_STRUCT_SOCKADDR_IN6 > 0)
 	if (*p == '[')
@@ -596,14 +609,25 @@ int hio_bcharstoskad (hio_t* hio, const hio_bch_t* str, hio_oow_t len, hio_skad_
 	/* use HIO_SIZEOF(*_skad) instead of HIO_SIZEOF(*skad) in case they are different */
 	HIO_MEMSET (skad, 0, HIO_SIZEOF(*_skad));
 
-#if defined(AF_UNIX)
-	if (*p == '/' && len >= 2)
+	if (p[0] == '<' && p[1] == 'q' && p[2] == 'x' && p[3] == '>' && p[4] == '\0')
 	{
-		hio_copy_bcstr (skad->un.sun_path, HIO_COUNTOF(skad->un.sun_path), str);
-		skad->un.sun_family = AF_UNIX;
+		/* this is HIO specific. the rest isn't important */
+		skad->sa.sa_family = HIO_AF_QX;
 		return 0;
 	}
+
+	if (*p == '@')
+	{
+#if defined(AF_UNIX) && (HIO_SIZEOF_STRUCT_SOCKADDR_UN > 0)
+		/* @aaa,  @/tmp/aaa ... */
+		hio_copy_bchars_to_bcstr (skad->un.sun_path, HIO_COUNTOF(skad->un.sun_path), str + 1, len - 1);
+		skad->un.sun_family = HIO_AF_UNIX;
+		return 0;
+#else
+		hio_seterrbfmt (hio, HIO_ENOIMPL, "unix address not supported");
+		return -1;	
 #endif
+	}
 
 #if (HIO_SIZEOF_STRUCT_SOCKADDR_IN6 > 0)
 	if (*p == '[')
@@ -959,17 +983,17 @@ hio_oow_t hio_skadtoucstr (hio_t* hio, const hio_skad_t* _skad, hio_uch_t* buf, 
 	switch (hio_skad_family(_skad))
 	{
 		case HIO_AF_INET:
-			if (flags & HIO_SKAD_TO_BCSTR_ADDR)
+			if (flags & HIO_SKAD_TO_UCSTR_ADDR)
 			{
 				if (xlen + 1 >= len) goto done;
 				xlen += ip4ad_to_ucstr(&skad->in4.sin_addr, buf, len);
 			}
 
-			if (flags & HIO_SKAD_TO_BCSTR_PORT)
+			if (flags & HIO_SKAD_TO_UCSTR_PORT)
 			{
-				if (!(flags & HIO_SKAD_TO_BCSTR_ADDR) || skad->in4.sin_port != 0)
+				if (!(flags & HIO_SKAD_TO_UCSTR_ADDR) || skad->in4.sin_port != 0)
 				{
-					if (flags & HIO_SKAD_TO_BCSTR_ADDR)
+					if (flags & HIO_SKAD_TO_UCSTR_ADDR)
 					{
 						if (xlen + 1 >= len) goto done;
 						buf[xlen++] = ':';
@@ -982,11 +1006,11 @@ hio_oow_t hio_skadtoucstr (hio_t* hio, const hio_skad_t* _skad, hio_uch_t* buf, 
 			break;
 
 		case HIO_AF_INET6:
-			if (flags & HIO_SKAD_TO_BCSTR_PORT)
+			if (flags & HIO_SKAD_TO_UCSTR_PORT)
 			{
-				if (!(flags & HIO_SKAD_TO_BCSTR_ADDR) || skad->in6.sin6_port != 0)
+				if (!(flags & HIO_SKAD_TO_UCSTR_ADDR) || skad->in6.sin6_port != 0)
 				{
-					if (flags & HIO_SKAD_TO_BCSTR_ADDR)
+					if (flags & HIO_SKAD_TO_UCSTR_ADDR)
 					{
 						if (xlen + 1 >= len) goto done;
 						buf[xlen++] = '[';
@@ -994,7 +1018,7 @@ hio_oow_t hio_skadtoucstr (hio_t* hio, const hio_skad_t* _skad, hio_uch_t* buf, 
 				}
 			}
 
-			if (flags & HIO_SKAD_TO_BCSTR_ADDR)
+			if (flags & HIO_SKAD_TO_UCSTR_ADDR)
 			{
 				if (xlen + 1 >= len) goto done;
 				xlen += ip6ad_to_ucstr(&skad->in6.sin6_addr, &buf[xlen], len - xlen);
@@ -1017,11 +1041,11 @@ hio_oow_t hio_skadtoucstr (hio_t* hio, const hio_skad_t* _skad, hio_uch_t* buf, 
 				}
 			}
 
-			if (flags & HIO_SKAD_TO_BCSTR_PORT)
+			if (flags & HIO_SKAD_TO_UCSTR_PORT)
 			{
-				if (!(flags & HIO_SKAD_TO_BCSTR_ADDR) || skad->in6.sin6_port != 0) 
+				if (!(flags & HIO_SKAD_TO_UCSTR_ADDR) || skad->in6.sin6_port != 0) 
 				{
-					if (flags & HIO_SKAD_TO_BCSTR_ADDR)
+					if (flags & HIO_SKAD_TO_UCSTR_ADDR)
 					{
 						if (xlen + 1 >= len) goto done;
 						buf[xlen++] = ']';
@@ -1038,7 +1062,7 @@ hio_oow_t hio_skadtoucstr (hio_t* hio, const hio_skad_t* _skad, hio_uch_t* buf, 
 			break;
 
 		case HIO_AF_UNIX:
-			if (flags & HIO_SKAD_TO_BCSTR_ADDR)
+			if (flags & HIO_SKAD_TO_UCSTR_ADDR)
 			{
 				if (xlen + 1 >= len) goto done;
 				buf[xlen++] = '@';
@@ -1051,6 +1075,21 @@ hio_oow_t hio_skadtoucstr (hio_t* hio, const hio_skad_t* _skad, hio_uch_t* buf, 
 					/* i don't care about conversion errors */
 					xlen += wcslen;
 				}
+			}
+
+			break;
+
+		case HIO_AF_QX:
+			if (flags & HIO_SKAD_TO_UCSTR_ADDR)
+			{
+				if (xlen + 1 >= len) goto done;
+				buf[xlen++] = '<';
+				if (xlen + 1 >= len) goto done;
+				buf[xlen++] = 'q';
+				if (xlen + 1 >= len) goto done;
+				buf[xlen++] = 'x';
+				if (xlen + 1 >= len) goto done;
+				buf[xlen++] = '>';
 			}
 
 			break;
@@ -1295,6 +1334,21 @@ hio_oow_t hio_skadtobcstr (hio_t* hio, const hio_skad_t* _skad, hio_bch_t* buf, 
 			}
 
 			break;
+
+		case HIO_AF_QX:
+			if (flags & HIO_SKAD_TO_BCSTR_ADDR)
+			{
+				if (xlen + 1 >= len) goto done;
+				buf[xlen++] = '<';
+				if (xlen + 1 >= len) goto done;
+				buf[xlen++] = 'q';
+				if (xlen + 1 >= len) goto done;
+				buf[xlen++] = 'x';
+				if (xlen + 1 >= len) goto done;
+				buf[xlen++] = '>';
+			}
+
+			break;
 	}
 
 done:
@@ -1452,6 +1506,13 @@ void hio_skad_init_for_eth (hio_skad_t* skad, int ifindex, hio_ethad_t* ethad)
 #else
 #	error UNSUPPORTED DATALINK SOCKET ADDRESS
 #endif
+}
+
+void hio_skad_init_for_qx (hio_skad_t* _skad)
+{
+	hio_skad_alt_t* skad = (hio_skad_alt_t*)_skad;
+	HIO_MEMSET (skad, 0, HIO_SIZEOF(*_skad));
+	skad->sa.sa_family = HIO_AF_QX;
 }
 
 void hio_clear_skad (hio_skad_t* _skad)

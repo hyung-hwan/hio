@@ -52,6 +52,13 @@
 #	define HIO_SIZEOF_SKAD_T HIO_SIZEOF_STRUCT_SOCKADDR_UN
 #endif
 
+#if !defined(HIO_AF_UNIX)
+	/* this is a fake value */
+#	define HIO_AF_UNIX (65534)
+#endif
+/* this is HIO specific. No AF_XXXX definitions must overlap with this */
+#define HIO_AF_QX (65530)
+
 struct hio_skad_t
 {
 	hio_uint8_t data[HIO_SIZEOF_SKAD_T];
@@ -171,6 +178,10 @@ HIO_EXPORT void hio_skad_init_for_eth (
 	hio_skad_t*        skad,
 	int                ifindex,
 	hio_ethad_t*       ethad
+);
+
+HIO_EXPORT void hio_skad_init_for_qx (
+	hio_skad_t*        skad
 );
 
 HIO_EXPORT int hio_skad_family (

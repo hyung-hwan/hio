@@ -262,7 +262,7 @@ typedef void (*hio_dev_sck_on_raw_accept_t) (
 enum hio_dev_sck_type_t
 {
 	HIO_DEV_SCK_QX,
-
+	HIO_DEV_SCK_UNIX,
 
 	HIO_DEV_SCK_TCP4,
 	HIO_DEV_SCK_TCP6,
