@@ -269,6 +269,12 @@ enum hio_dev_sck_type_t
 	HIO_DEV_SCK_UDP4,
 	HIO_DEV_SCK_UDP6,
 
+	HIO_DEV_SCK_SCTP4, /*  one-to-one sctp stream */
+	HIO_DEV_SCK_SCTP6, /*  one-to-one sctp stream */
+
+	HIO_DEV_SCK_SCTP4_SP, /*  one-to-one sctp seqpacket */
+	HIO_DEV_SCK_SCTP6_SP, /*  one-to-one sctp seqpacket */
+
 	/* ICMP at the IPv4 layer */
 	HIO_DEV_SCK_ICMP4,
 

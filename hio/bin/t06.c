@@ -15,6 +15,8 @@ static int g_num_thrs = 2;
 static hio_svc_htts_t* g_htts[MAX_NUM_THRS];
 static int g_htts_no = 0;
 static pthread_mutex_t g_htts_mutex = PTHREAD_MUTEX_INITIALIZER;
+static int g_dev_type4 = HIO_DEV_SCK_TCP4;
+static int g_dev_type6 = HIO_DEV_SCK_TCP6;
 
 static int print_qparam (hio_bcs_t* key, hio_bcs_t* val, void* ctx)
 {
@@ -477,6 +479,7 @@ static int add_listener (hio_t* hio, hio_bch_t* addrstr)
 		return -1;
 	}
 	bi.options = HIO_DEV_SCK_BIND_REUSEADDR /*| HIO_DEV_SCK_BIND_REUSEPORT |*/;
+	bi.options = HIO_DEV_SCK_BIND_IGNERR;
 #if defined(USE_SSL)
 	bi.options |= HIO_DEV_SCK_BIND_SSL; 
 	bi.ssl_certfile = "localhost.crt";
@@ -485,8 +488,8 @@ static int add_listener (hio_t* hio, hio_bch_t* addrstr)
 
 	memset (&mi, 0, HIO_SIZEOF(mi));
 	f = hio_skad_family(&bi.localaddr);
-	if (f == HIO_AF_INET) mi.type = HIO_DEV_SCK_TCP4;
-	else if (f == HIO_AF_INET6) mi.type = HIO_DEV_SCK_TCP6;
+	if (f == HIO_AF_INET) mi.type = g_dev_type4;
+	else if (f == HIO_AF_INET6) mi.type = g_dev_type6;
 	else if (f == HIO_AF_UNIX) mi.type = HIO_DEV_SCK_UNIX;
 	else
 	{
@@ -553,7 +556,13 @@ int main (int argc, char* argv[])
 // TODO: use getopt() or something similar
 	for (i = 1; i < argc; )
 	{
-		if (strcmp(argv[i], "-t") == 0)
+		if (strcmp(argv[i], "-s") == 0)
+		{
+			i++;
+			g_dev_type4 = HIO_DEV_SCK_SCTP4;
+			g_dev_type6 = HIO_DEV_SCK_SCTP6;
+		}
+		else if (strcmp(argv[i], "-t") == 0)
 		{
 			i++;
 			if (i < argc)
