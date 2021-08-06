@@ -229,58 +229,78 @@ struct sck_type_map_t
 static struct sck_type_map_t sck_type_map[] =
 {
 	/* HIO_DEV_SCK_QX */
-	{ HIO_AF_QX,  0,              0,                         0 },
+	{ HIO_AF_QX,  0,              0,                 0 },
 
 #if defined(AF_UNIX)
-	{ AF_UNIX,    SOCK_STREAM,    0,                         HIO_DEV_CAP_STREAM },
+	{ AF_UNIX,    SOCK_STREAM,    0,                 HIO_DEV_CAP_STREAM },
 #else
-	{ -1,         0,                0,                         0 },
+	{ -1,         0,              0,                 0 },
 #endif
 
 	/* HIO_DEV_SCK_TCP4 */
-	{ AF_INET,    SOCK_STREAM,    0,                         HIO_DEV_CAP_STREAM },
+	{ AF_INET,    SOCK_STREAM,    0,                 HIO_DEV_CAP_STREAM },
 
 	/* HIO_DEV_SCK_TCP6 */
-	{ AF_INET6,   SOCK_STREAM,    0,                         HIO_DEV_CAP_STREAM },
+	{ AF_INET6,   SOCK_STREAM,    0,                 HIO_DEV_CAP_STREAM },
 
 	/* HIO_DEV_SCK_UPD4 */
-	{ AF_INET,    SOCK_DGRAM,     0,                         0                                             },
+	{ AF_INET,    SOCK_DGRAM,     0,                 0                  },
 
 	/* HIO_DEV_SCK_UDP6 */
-	{ AF_INET6,   SOCK_DGRAM,     0,                         0                                             },
+	{ AF_INET6,   SOCK_DGRAM,     0,                 0                  },
+
+#if defined(IPPROTO_SCTP)
+	/* HIO_DEV_SCK_SCTP4 */
+	{ AF_INET,   SOCK_STREAM,     IPPROTO_SCTP,      HIO_DEV_CAP_STREAM },
+
+	/* HIO_DEV_SCK_SCTP6 */
+	{ AF_INET6,  SOCK_STREAM,     IPPROTO_SCTP,      HIO_DEV_CAP_STREAM },
+
+	/* HIO_DEV_SCK_SCTP4_SP - not implemented */
+	{ -1,        SOCK_SEQPACKET,  IPPROTO_SCTP,      0 },
+
+	/* HIO_DEV_SCK_SCTP6_SP - not implemented */
+	{ -1,        SOCK_SEQPACKET,  IPPROTO_SCTP,      0 },
+#else
+	{ -1,        0,               0,                 0 },
+	{ -1,        0,               0,                 0 },
+	{ -1,        0,               0,                 0 },
+	{ -1,        0,               0,                 0 },
+#endif
 
 	/* HIO_DEV_SCK_ICMP4 - IP protocol field is 1 byte only. no byte order conversion is needed */
-	{ AF_INET,    SOCK_RAW,       IPPROTO_ICMP,              0,                                             },
+	{ AF_INET,    SOCK_RAW,       IPPROTO_ICMP,      0 },
 
 	/* HIO_DEV_SCK_ICMP6 - IP protocol field is 1 byte only. no byte order conversion is needed */
-	{ AF_INET6,   SOCK_RAW,       IPPROTO_ICMP,              0,                                             },
+	{ AF_INET6,   SOCK_RAW,       IPPROTO_ICMP,      0 },
+
 
 #if defined(AF_PACKET) && (HIO_SIZEOF_STRUCT_SOCKADDR_LL > 0)
 	/* HIO_DEV_SCK_ARP - Ethernet type is 2 bytes long. Protocol must be specified in the network byte order */
-	{ AF_PACKET,  SOCK_RAW,       HIO_CONST_HTON16(HIO_ETHHDR_PROTO_ARP), 0                                 },
+	{ AF_PACKET,  SOCK_RAW,       HIO_CONST_HTON16(HIO_ETHHDR_PROTO_ARP), 0 },
 
 	/* HIO_DEV_SCK_ARP_DGRAM - link-level header removed*/
-	{ AF_PACKET,  SOCK_DGRAM,     HIO_CONST_HTON16(HIO_ETHHDR_PROTO_ARP), 0                                 },
+	{ AF_PACKET,  SOCK_DGRAM,     HIO_CONST_HTON16(HIO_ETHHDR_PROTO_ARP), 0 },
 
 #elif defined(AF_LINK) && (HIO_SIZEOF_STRUCT_SOCKADDR_DL > 0)
 	/* HIO_DEV_SCK_ARP */
-	{ AF_LINK,  SOCK_RAW,         HIO_CONST_HTON16(HIO_ETHHDR_PROTO_ARP), 0                                 },
+	{ AF_LINK,  SOCK_RAW,         HIO_CONST_HTON16(HIO_ETHHDR_PROTO_ARP), 0 },
 
 	/* HIO_DEV_SCK_ARP_DGRAM */
-	{ AF_LINK,  SOCK_DGRAM,       HIO_CONST_HTON16(HIO_ETHHDR_PROTO_ARP), 0                                 },
+	{ AF_LINK,  SOCK_DGRAM,       HIO_CONST_HTON16(HIO_ETHHDR_PROTO_ARP), 0 },
 #else
-	{ -1,       0,                0,                         0                                              },
-	{ -1,       0,                0,                         0                                              },
+	{ -1,       0,                0,                 0 },
+	{ -1,       0,                0,                 0 },
 #endif
 
 #if defined(AF_PACKET) && (HIO_SIZEOF_STRUCT_SOCKADDR_LL > 0)
 	/* HIO_DEV_SCK_PACKET */
-	{ AF_PACKET,  SOCK_RAW,       HIO_CONST_HTON16(ETH_P_ALL), 0                                            },
+	{ AF_PACKET,  SOCK_RAW,       HIO_CONST_HTON16(ETH_P_ALL), 0 },
 #elif defined(AF_LINK) && (HIO_SIZEOF_STRUCT_SOCKADDR_DL > 0)
 	/* HIO_DEV_SCK_PACKET */
-	{ AF_LINK,    SOCK_RAW,       HIO_CONST_HTON16(0),       0                                              },
+	{ AF_LINK,    SOCK_RAW,       HIO_CONST_HTON16(0),       0 },
 #else
-	{ -1,       0,                0,                         0                                              },
+	{ -1,       0,                0,                 0 },
 #endif
 
 	/* HIO_DEV_SCK_BPF - arp */
@@ -1054,8 +1074,11 @@ static int dev_sck_ioctl (hio_dev_t* dev, int cmd, void* arg)
 				int v = 1;
 				if (setsockopt(rdev->hnd, IPPROTO_IPV6, IPV6_V6ONLY, &v, HIO_SIZEOF(v)) == -1)
 				{
-					hio_seterrbfmtwithsyserr (hio, 0, errno, "unable to set IPV6_V6ONLY");
-					return -1;
+					if (!(bnd->options & HIO_DEV_SCK_BIND_IGNERR))
+					{
+						hio_seterrbfmtwithsyserr (hio, 0, errno, "unable to set IPV6_V6ONLY");
+						return -1;
+					}
 				}
 			}
 
@@ -1064,6 +1087,7 @@ static int dev_sck_ioctl (hio_dev_t* dev, int cmd, void* arg)
 				int v = 1;
 				if (setsockopt(rdev->hnd, SOL_SOCKET, SO_BROADCAST, &v, HIO_SIZEOF(v)) == -1)
 				{
+					/* not affected by HIO_DEV_SCK_BIND_IGNERR */
 					hio_seterrbfmtwithsyserr (hio, 0, errno, "unable to set SO_BROADCAST");
 					return -1;
 				}
