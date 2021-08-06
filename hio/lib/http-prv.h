@@ -38,10 +38,11 @@ struct hio_svc_htts_cli_t
 	hio_svc_htts_cli_t* cli_prev;
 	hio_svc_htts_cli_t* cli_next;
 
-	/* a listener socket sets htts and sck fields only */
+	/* a listener socket sets htts, sck, and l_idx fields only */
 	/* a client sockets uses all the fields in this struct */
 	hio_svc_htts_t* htts;
 	hio_dev_sck_t* sck;
+	hio_oow_t l_idx; /* listening socket: < htts->l.count, client socket: >= htts->l.count */
 
 	hio_htrd_t* htrd;
 	hio_becs_t* sbuf; /* temporary buffer for status line formatting */
@@ -62,7 +63,13 @@ struct hio_svc_htts_t
 
 	hio_svc_htts_proc_req_t proc_req;
 
-	hio_dev_sck_t* lsck;
+	struct
+	{
+		hio_dev_sck_t** sck;
+		hio_oow_t count;
+	} l;
+	/*hio_dev_sck_t* lsck;*/
+
 	hio_svc_htts_cli_t cli; /* list head for client list */
 	hio_tmridx_t idle_tmridx;
 

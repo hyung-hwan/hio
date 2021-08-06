@@ -11,7 +11,6 @@
 #include <stdlib.h>
 
 #define MAX_NUM_THRS 256
-static int  g_reuse_port = 0;
 static int g_num_thrs = 2;
 static hio_svc_htts_t* g_htts[MAX_NUM_THRS];
 static int g_htts_no = 0;
@@ -216,7 +215,7 @@ void* thr_func (void* arg)
 {
 	hio_t* hio = HIO_NULL;
 	hio_svc_htts_t* htts = HIO_NULL;
-	hio_dev_sck_bind_t htts_bind_info;
+	hio_dev_sck_bind_t htts_bind_info[2];
 	int htts_no = -1;
 
 	hio = hio_open(HIO_NULL, 0, HIO_NULL, HIO_FEATURE_ALL, 512, HIO_NULL);
@@ -229,16 +228,17 @@ void* thr_func (void* arg)
 	hio_setoption (hio, HIO_LOG_TARGET_BCSTR, "/dev/stderr");
 
 	memset (&htts_bind_info, 0, HIO_SIZEOF(htts_bind_info));
-	if (g_reuse_port)
-	{
-		hio_bcstrtoskad (hio, "0.0.0.0:9987", &htts_bind_info.localaddr);
-		htts_bind_info.options = HIO_DEV_SCK_BIND_REUSEADDR | HIO_DEV_SCK_BIND_REUSEPORT | HIO_DEV_SCK_BIND_IGNERR;
-		//htts_bind_info.options |= HIO_DEV_SCK_BIND_SSL; 
-		htts_bind_info.ssl_certfile = "localhost.crt";
-		htts_bind_info.ssl_keyfile = "localhost.key";
-	}
+	hio_skad_init_for_qx (&htts_bind_info[0].localaddr);
 
-	htts = hio_svc_htts_start(hio, &htts_bind_info, process_http_request);
+	hio_bcstrtoskad (hio, "0.0.0.0:9988", &htts_bind_info[1].localaddr);
+	htts_bind_info[1].options = HIO_DEV_SCK_BIND_REUSEADDR | HIO_DEV_SCK_BIND_REUSEPORT | HIO_DEV_SCK_BIND_IGNERR;
+#if 0
+	htts_bind_info[1].options |= HIO_DEV_SCK_BIND_SSL; 
+	htts_bind_info[1].ssl_certfile = "localhost.crt";
+	htts_bind_info[1].ssl_keyfile = "localhost.key";
+#endif
+
+	htts = hio_svc_htts_start(hio, &htts_bind_info, HIO_COUNTOF(htts_bind_info), process_http_request);
 	if (!htts) 
 	{
 		printf ("Unable to start htts\n");
@@ -251,9 +251,7 @@ void* thr_func (void* arg)
 	g_htts_no = (g_htts_no + 1) % g_num_thrs;
 	pthread_mutex_unlock (&g_htts_mutex);
 
-printf ("entering the loop for %d\n", htts_no);
 	hio_loop (hio);
-printf ("exiting the loop for %d\n", htts_no);
 
 oops:
 	pthread_mutex_lock (&g_htts_mutex);
@@ -387,7 +385,7 @@ static int try_to_accept (hio_dev_sck_t* sck, hio_dev_sck_qxmsg_t* qxmsg, int in
 	g_htts_no = (g_htts_no + 1) % g_num_thrs;
 	pthread_mutex_unlock (&g_htts_mutex);
 
-	if (hio_svc_htts_writetosidechan(htts, qxmsg, HIO_SIZEOF(*qxmsg)) <= -1)
+	if (hio_svc_htts_writetosidechan(htts, 0, qxmsg, HIO_SIZEOF(*qxmsg)) <= -1)
 	{
 		hio_bch_t buf[128];
 
@@ -470,6 +468,7 @@ static int add_listener (hio_t* hio, hio_bch_t* addrstr)
 	hio_dev_sck_t* tcp;
 	hio_dev_sck_bind_t bi;
 	hio_dev_sck_listen_t li;
+	int f;
 
 	memset (&bi, 0, HIO_SIZEOF(bi));
 	if (hio_bcstrtoskad(hio, addrstr, &bi.localaddr) <= -1)
@@ -485,7 +484,16 @@ static int add_listener (hio_t* hio, hio_bch_t* addrstr)
 #endif
 
 	memset (&mi, 0, HIO_SIZEOF(mi));
-	mi.type = (hio_skad_family(&bi.localaddr) == HIO_AF_INET? HIO_DEV_SCK_TCP4: HIO_DEV_SCK_TCP6);
+	f = hio_skad_family(&bi.localaddr);
+	if (f == HIO_AF_INET) mi.type = HIO_DEV_SCK_TCP4;
+	else if (f == HIO_AF_INET6) mi.type = HIO_DEV_SCK_TCP6;
+	else if (f == HIO_AF_UNIX) mi.type = HIO_DEV_SCK_UNIX;
+	else
+	{
+		HIO_INFO1 (hio, "unsupported address type - %hs\n", addrstr);
+		return -1;
+	}
+
 	mi.options = HIO_DEV_SCK_MAKE_LENIENT;
 	mi.on_write = tcp_sck_on_write;
 	mi.on_read = tcp_sck_on_read;
@@ -496,17 +504,14 @@ static int add_listener (hio_t* hio, hio_bch_t* addrstr)
 	tcp = hio_dev_sck_make(hio, 0, &mi);
 	if (!tcp)
 	{
-		HIO_INFO1 (hio, "Cannot make tcp - %js\n", hio_geterrmsg(hio));
+		HIO_INFO2 (hio, "Cannot make tcp for %hs - %js\n", addrstr, hio_geterrmsg(hio));
 		return -1;
 	}
 
-	if (!g_reuse_port)
+	if (hio_dev_sck_bind(tcp, &bi) <= -1)
 	{
-		if (hio_dev_sck_bind(tcp, &bi) <= -1)
-		{
-			HIO_INFO1 (hio, "tcp hio_dev_sck_bind() failed - %js\n", hio_geterrmsg(hio));
-			return -1;
-		}
+		HIO_INFO2 (hio, "tcp hio_dev_sck_bind() failed with %hs - %js\n", addrstr, hio_geterrmsg(hio));
+		return -1;
 	}
 
 	memset (&li, 0, HIO_SIZEOF(li));
@@ -514,8 +519,16 @@ static int add_listener (hio_t* hio, hio_bch_t* addrstr)
 	HIO_INIT_NTIME (&li.accept_tmout, 5, 1);
 	if (hio_dev_sck_listen(tcp, &li) <= -1)
 	{
-		HIO_INFO1 (hio, "tcp[2] hio_dev_sck_listen() failed - %js\n", hio_geterrmsg(hio));
+		HIO_INFO2 (hio, "tcp hio_dev_sck_listen() failed on %hs - %js\n", addrstr, hio_geterrmsg(hio));
 		return -1;
+	}
+	else
+	{
+		hio_skad_t skad;
+		hio_bch_t buf[HIO_SKAD_IP_STRLEN + 1];
+		hio_dev_sck_getsockaddr (tcp, &skad);
+		hio_skadtobcstr (hio, &skad, buf, HIO_COUNTOF(buf), HIO_SKAD_TO_BCSTR_ADDR | HIO_SKAD_TO_BCSTR_PORT);
+		HIO_INFO1 (hio, "main listener on %hs\n", buf);
 	}
 
 	return 0;
@@ -540,12 +553,7 @@ int main (int argc, char* argv[])
 // TODO: use getopt() or something similar
 	for (i = 1; i < argc; )
 	{
-		if (strcmp(argv[i], "-r") == 0)
-		{
-			g_reuse_port = 1;
-			i++;
-		}
-		else if (strcmp(argv[i], "-t") == 0)
+		if (strcmp(argv[i], "-t") == 0)
 		{
 			i++;
 			if (i < argc)
@@ -602,9 +610,12 @@ int main (int argc, char* argv[])
 	if (add_listener(hio, "[::]:9987") <= -1 ||
 	    add_listener(hio, "0.0.0.0:9987") <= -1) goto oops;
 
-printf ("entering the main loop\n");
+	/* add a unix socket listener. 
+	 * don't check for an error to continue without it in case it fails. */
+	unlink ("t06.sck");
+	add_listener(hio, "@t06.sck");
+
 	hio_loop (hio);
-printf ("exiting the main loop\n");
 
 	xret = 0;
 

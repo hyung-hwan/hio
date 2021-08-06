@@ -48,10 +48,11 @@ static int init_client (hio_svc_htts_cli_t* cli, hio_dev_sck_t* sck)
 
 	/* the htts field must be filled with the same field in the listening socket upon accept() */
 	HIO_ASSERT (sck->hio, cli->htts != HIO_NULL);
-	HIO_ASSERT (sck->hio, cli->sck == cli->htts->lsck); /* the field should still point to the listner socket */
+	//HIO_ASSERT (sck->hio, cli->sck == cli->htts->lsck); /* the field should still point to the listner socket */
 	HIO_ASSERT (sck->hio, sck->hio == cli->htts->hio);
 
 	cli->sck = sck;
+	cli->l_idx = HIO_TYPE_MAX(hio_oow_t);
 	cli->htrd = HIO_NULL;
 	cli->sbuf = HIO_NULL;
 	cli->rsrc = HIO_NULL;
@@ -138,7 +139,7 @@ static int listener_on_read (hio_dev_sck_t* sck, const void* buf, hio_iolen_t le
 	hio_oow_t rem;
 	int x;
 
-	HIO_ASSERT (hio, sck != cli->htts->lsck);
+	//HIO_ASSERT (hio, sck != cli->htts->lsck);
 	HIO_ASSERT (hio, cli->rsrc == HIO_NULL); /* if a resource has been set, the resource must take over this handler */
 
 	if (len <= -1)
@@ -182,7 +183,7 @@ oops:
 static int listener_on_write (hio_dev_sck_t* sck, hio_iolen_t wrlen, void* wrctx, const hio_skad_t* dstaddr)
 {
 	hio_svc_htts_cli_t* cli = hio_dev_sck_getxtn(sck);
-	HIO_ASSERT (sck->hio, sck != cli->htts->lsck);
+	//HIO_ASSERT (sck->hio, sck != cli->htts->lsck);
 	HIO_ASSERT (sck->hio, cli->rsrc == HIO_NULL); /* if a resource has been set, the resource must take over this handler */
 	return 0;
 }
@@ -214,7 +215,7 @@ static void listener_on_connect (hio_dev_sck_t* sck)
 static void listener_on_disconnect (hio_dev_sck_t* sck)
 {
 	hio_t* hio = sck->hio;
-	hio_svc_htts_cli_t* cli = hio_dev_sck_getxtn(sck);
+	hio_svc_htts_cli_t* xtn = hio_dev_sck_getxtn(sck);
 
 	switch (HIO_DEV_SCK_GET_PROGRESS(sck))
 	{
@@ -241,8 +242,8 @@ static void listener_on_disconnect (hio_dev_sck_t* sck)
 			/* this progress code indicates that the ssl-level accept failed.
 			 * on_disconnected() with this code is called without corresponding on_connect(). 
 			 * the cli extension are is not initialized yet */
-			HIO_ASSERT (hio, sck != cli->sck);
-			HIO_ASSERT (hio, cli->sck == cli->htts->lsck); /* the field is a copy of the extension are of the listener socket. so it should point to the listner socket */
+			HIO_ASSERT (hio, sck != xtn->sck);
+			//HIO_ASSERT (hio, cli->sck == cli->htts->lsck); /* the field is a copy of the extension are of the listener socket. so it should point to the listner socket */
 			HIO_DEBUG2 (hio, "LISTENER UNABLE TO SSL-ACCEPT CLIENT %p(%d) ....%p\n", sck, (int)sck->hnd);
 			return;
 
@@ -257,21 +258,21 @@ static void listener_on_disconnect (hio_dev_sck_t* sck)
 			break;
 	}
 
-	if (sck == cli->htts->lsck)
+	if (xtn->l_idx < xtn->htts->l.count)
 	{
 		/* the listener socket has these fields set to NULL */
-		HIO_ASSERT (hio, cli->htrd == HIO_NULL);
-		HIO_ASSERT (hio, cli->sbuf == HIO_NULL);
+		HIO_ASSERT (hio, xtn->htrd == HIO_NULL);
+		HIO_ASSERT (hio, xtn->sbuf == HIO_NULL);
 
-		HIO_DEBUG2 (hio, "HTTS(%p) - listener socket disconnect %p\n", cli->htts, sck);
-		cli->htts->lsck = HIO_NULL; /* let the htts service forget about this listening socket */
+		HIO_DEBUG2 (hio, "HTTS(%p) - listener socket disconnect %p\n", xtn->htts, sck);
+		xtn->htts->l.sck[xtn->l_idx] = HIO_NULL; /* let the htts service forget about this listening socket */
 	}
 	else
 	{
 		/* client socket */
-		HIO_DEBUG2 (hio, "HTTS(%p) - client socket disconnect %p\n", cli->htts, sck);
-		HIO_ASSERT (hio, cli->sck == sck);
-		fini_client (cli);
+		HIO_DEBUG2 (hio, "HTTS(%p) - client socket disconnect %p\n", xtn->htts, sck);
+		HIO_ASSERT (hio, xtn->sck == sck);
+		fini_client (xtn);
 	}
 }
 
@@ -315,7 +316,7 @@ static void halt_idle_clients (hio_t* hio, const hio_ntime_t* now, hio_tmrjob_t*
 
 /* ------------------------------------------------------------------------ */
 
-hio_svc_htts_t* hio_svc_htts_start (hio_t* hio, hio_dev_sck_bind_t* sck_bind, hio_svc_htts_proc_req_t proc_req)
+hio_svc_htts_t* hio_svc_htts_start (hio_t* hio, hio_dev_sck_bind_t* binds, hio_oow_t nbinds, hio_svc_htts_proc_req_t proc_req)
 {
 	hio_svc_htts_t* htts = HIO_NULL;
 	union
@@ -324,68 +325,130 @@ hio_svc_htts_t* hio_svc_htts_start (hio_t* hio, hio_dev_sck_bind_t* sck_bind, hi
 		hio_dev_sck_listen_t l;
 	} info;
 	hio_svc_htts_cli_t* cli;
+	hio_oow_t i, noks;
+
+	if (HIO_UNLIKELY(nbinds <= 0)) 
+	{
+		hio_seterrnum (hio, HIO_EINVAL);
+		goto oops;
+	}
 
 	htts = (hio_svc_htts_t*)hio_callocmem(hio, HIO_SIZEOF(*htts));
 	if (HIO_UNLIKELY(!htts)) goto oops;
+
+	HIO_DEBUG1 (hio, "HTTS - STARTING SERVICE %p\n", htts);
 
 	htts->hio = hio;
 	htts->svc_stop = hio_svc_htts_stop;
 	htts->proc_req = proc_req;
 	htts->idle_tmridx = HIO_TMRIDX_INVALID;
 
-	HIO_MEMSET (&info, 0, HIO_SIZEOF(info));
-	switch (hio_skad_family(&sck_bind->localaddr))
+	htts->l.sck = (hio_dev_sck_t**)hio_callocmem(hio, HIO_SIZEOF(*htts->l.sck) * nbinds);
+	if (HIO_UNLIKELY(!htts->l.sck)) goto oops;
+	htts->l.count = nbinds;
+
+	for (i = 0, noks = 0; i < nbinds; i++)
 	{
-		case HIO_AF_INET:
-			info.m.type = HIO_DEV_SCK_TCP4;
-			break;
-
-		case HIO_AF_INET6:
-			info.m.type = HIO_DEV_SCK_TCP6;
-			break;
-
-		default:
-			/*hio_seterrnum (hio, HIO_EINVAL);
-			goto oops;*/
-			info.m.type = HIO_DEV_SCK_QX;
-			break;
-
-	}
-	info.m.options = HIO_DEV_SCK_MAKE_LENIENT;
-	info.m.on_write = listener_on_write;
-	info.m.on_read = listener_on_read;
-	info.m.on_connect = listener_on_connect;
-	info.m.on_disconnect = listener_on_disconnect;
-	htts->lsck = hio_dev_sck_make(hio, HIO_SIZEOF(*cli), &info.m);
-	if (HIO_UNLIKELY(!htts->lsck)) goto oops;
-
-	/* the name 'cli' for the listening socket is awkward.
-	 * the listening socket will use the htts and sck fields for tracking only.
-	 * each accepted client socket gets the extension size for this size as well.
-	 * most of other fields are used for client management */
-	cli = (hio_svc_htts_cli_t*)hio_dev_sck_getxtn(htts->lsck);
-	cli->htts = htts; 
-	cli->sck = htts->lsck;
-
-	if (htts->lsck->type != HIO_DEV_SCK_QX)
-	{
-		if (hio_dev_sck_bind(htts->lsck, sck_bind) <= -1) goto oops;
+		hio_dev_sck_t* sck;
 
 		HIO_MEMSET (&info, 0, HIO_SIZEOF(info));
-		info.l.backlogs = 4096; /* TODO: use configuration? */
-		HIO_INIT_NTIME (&info.l.accept_tmout, 5, 1); /* usedd for ssl accept */
-		if (hio_dev_sck_listen(htts->lsck, &info.l) <= -1) goto oops;
+		switch (hio_skad_family(&binds[i].localaddr))
+		{
+			case HIO_AF_INET:
+				info.m.type = HIO_DEV_SCK_TCP4;
+				break;
+	
+			case HIO_AF_INET6:
+				info.m.type = HIO_DEV_SCK_TCP6;
+				break;
+	
+		#if defined(HIO_AF_UNIX)
+			case HIO_AF_UNIX:
+				info.m.type = HIO_DEV_SCK_UNIX;
+				break;
+		#endif
+
+			case HIO_AF_QX:
+				info.m.type = HIO_DEV_SCK_QX;
+				break;
+
+			default:
+				/* ignore this */
+				continue;
+		}
+		info.m.options = HIO_DEV_SCK_MAKE_LENIENT;
+		info.m.on_write = listener_on_write;
+		info.m.on_read = listener_on_read;
+		info.m.on_connect = listener_on_connect;
+		info.m.on_disconnect = listener_on_disconnect;
+		sck = hio_dev_sck_make(hio, HIO_SIZEOF(*cli), &info.m);
+		if (HIO_UNLIKELY(!sck)) continue;
+	
+		/* the name 'cli' for the listening socket is awkward.
+		 * the listening socket will use the htts, sck, and listening fields for tracking only.
+		 * each accepted client socket gets the extension size for this size as well.
+		 * most of other fields are used for client management. init_client() will set
+		 * the sck field to the client socket and the listening field to 0. */
+		cli = (hio_svc_htts_cli_t*)hio_dev_sck_getxtn(sck);
+		cli->htts = htts; 
+		cli->sck = sck;
+		cli->l_idx = i;
+
+		if (sck->type != HIO_DEV_SCK_QX)
+		{
+			if (hio_dev_sck_bind(sck, &binds[i]) <= -1)
+			{
+				if (HIO_LOG_ENABLED(hio, HIO_LOG_DEBUG))
+				{
+					hio_bch_t tmpbuf[HIO_SKAD_IP_STRLEN + 1];
+					hio_skadtobcstr(hio, &binds[i].localaddr, tmpbuf, HIO_COUNTOF(tmpbuf), HIO_SKAD_TO_BCSTR_ADDR | HIO_SKAD_TO_BCSTR_PORT);
+					HIO_DEBUG3 (hio, "HTTS(%p) - [%zd] unable to bind to %hs\n", htts, i, tmpbuf);
+				}
+
+				hio_dev_sck_kill (sck);
+				continue;
+			}
+
+			HIO_MEMSET (&info, 0, HIO_SIZEOF(info));
+			info.l.backlogs = 4096; /* TODO: use configuration? */
+			HIO_INIT_NTIME (&info.l.accept_tmout, 5, 1); /* usedd for ssl accept */
+			if (hio_dev_sck_listen(sck, &info.l) <= -1) 
+			{
+				if (HIO_LOG_ENABLED(hio, HIO_LOG_DEBUG))
+				{
+					hio_bch_t tmpbuf[HIO_SKAD_IP_STRLEN + 1];
+					hio_skadtobcstr(hio, &binds[i].localaddr, tmpbuf, HIO_COUNTOF(tmpbuf), HIO_SKAD_TO_BCSTR_ADDR | HIO_SKAD_TO_BCSTR_PORT);
+					HIO_DEBUG3 (hio, "HTTS(%p) - [%zd] unable to bind to %hs\n", htts, i, tmpbuf);
+				}
+
+				hio_dev_sck_kill (sck);
+				goto oops;
+			}
+		}
+
+		if (HIO_LOG_ENABLED(hio, HIO_LOG_DEBUG))
+		{
+			hio_skad_t tmpad;
+			hio_bch_t tmpbuf[HIO_SKAD_IP_STRLEN + 1];
+			hio_dev_sck_getsockaddr(sck, &tmpad);
+			hio_skadtobcstr(hio, &tmpad, tmpbuf, HIO_COUNTOF(tmpbuf), HIO_SKAD_TO_BCSTR_ADDR | HIO_SKAD_TO_BCSTR_PORT);
+			HIO_DEBUG3 (hio, "HTTS(%p) - [%zd] listening on %hs\n", htts, i, tmpbuf);
+		}
+
+		htts->l.sck[i] = sck;
+		noks++;
 	}
+
+	if (noks <= 0) goto oops;
 
 	hio_fmttobcstr (htts->hio, htts->server_name_buf, HIO_COUNTOF(htts->server_name_buf), "%s-%d.%d.%d", 
 		HIO_PACKAGE_NAME, (int)HIO_PACKAGE_VERSION_MAJOR, (int)HIO_PACKAGE_VERSION_MINOR, (int)HIO_PACKAGE_VERSION_PATCH);
 	htts->server_name = htts->server_name_buf;
 
-
 	HIO_SVCL_APPEND_SVC (&hio->actsvc, (hio_svc_t*)htts);
 	HIO_SVC_HTTS_CLIL_INIT (&htts->cli);
 
-	HIO_DEBUG3 (hio, "HTTS - STARTED SERVICE %p - LISTENER SOCKET %p(%d)\n", htts, htts->lsck, (int)htts->lsck->hnd);
+	HIO_DEBUG1 (hio, "HTTS - STARTED SERVICE %p\n", htts);
 
 	{
 		hio_ntime_t t;
@@ -403,7 +466,13 @@ hio_svc_htts_t* hio_svc_htts_start (hio_t* hio, hio_dev_sck_bind_t* sck_bind, hi
 oops:
 	if (htts)
 	{
-		if (htts->lsck) hio_dev_sck_kill (htts->lsck);
+		if (htts->l.sck) 
+		{
+			for (i = 0; i < htts->l.count; i++)
+				hio_dev_sck_kill (htts->l.sck[i]);
+			hio_freemem (hio, htts->l.sck);
+		}
+
 		hio_freemem (hio, htts);
 	}
 	return HIO_NULL;
@@ -412,12 +481,17 @@ oops:
 void hio_svc_htts_stop (hio_svc_htts_t* htts)
 {
 	hio_t* hio = htts->hio;
+	hio_oow_t i;
 
-	HIO_DEBUG3 (hio, "HTTS - STOPPING SERVICE %p - LISTENER SOCKET %p(%d)\n", htts, htts->lsck, (int)(htts->lsck? htts->lsck->hnd: -1));
+	HIO_DEBUG1 (hio, "HTTS - STOPPING SERVICE %p\n", htts);
 
-	/* htts->lsck may be null if the socket has been destroyed for operational error and 
-	 * forgotten in the disconnect callback thereafter */
-	if (htts->lsck) hio_dev_sck_kill (htts->lsck);
+	for (i = 0; i < htts->l.count; i++)
+	{
+		/* the socket may be null:
+		 *  if it has been destroyed for operation errors and forgotten in the disconnect callback thereafter
+		 *  if it has never been created successfully */
+		if (htts->l.sck[i]) hio_dev_sck_kill (htts->l.sck[i]);
+	}
 
 	while (!HIO_SVC_HTTS_CLIL_IS_EMPTY(&htts->cli))
 	{
@@ -430,6 +504,7 @@ void hio_svc_htts_stop (hio_svc_htts_t* htts)
 
 	if (htts->idle_tmridx != HIO_TMRIDX_INVALID) hio_deltmrjob (hio, htts->idle_tmridx);
 
+	if (htts->l.sck) hio_freemem (hio, htts->l.sck);
 	hio_freemem (hio, htts);
 }
 
@@ -453,10 +528,47 @@ int hio_svc_htts_setservernamewithbcstr (hio_svc_htts_t* htts, const hio_bch_t* 
 	return 0;
 }
 
-int hio_svc_htts_getsockaddr (hio_svc_htts_t* htts, hio_skad_t* skad)
+hio_dev_sck_t* hio_svc_htts_getlistendev (hio_svc_htts_t* htts, hio_oow_t idx)
+{
+	if (idx >= htts->l.count)
+	{
+		hio_seterrbfmt (htts->hio, HIO_EINVAL, "index out of range");
+		return HIO_NULL;
+	}
+
+	if (!htts->l.sck[idx])
+	{
+		hio_seterrbfmt (htts->hio, HIO_EINVAL, "no listener at the given index");
+		return HIO_NULL;
+	}
+
+	return htts->l.sck[idx];
+}
+
+hio_oow_t hio_svc_htts_getnlistendevs (hio_svc_htts_t* htts)
+{
+	/* return the total number of listening socket devices.
+	 * not all devices may be up and working */
+	return htts->l.count;
+}
+
+int hio_svc_htts_getsockaddr (hio_svc_htts_t* htts, hio_oow_t idx, hio_skad_t* skad)
 {
 	/* return the socket address of the listening socket. */
-	return hio_dev_sck_getsockaddr(htts->lsck, skad);
+
+	if (idx >= htts->l.count)
+	{
+		hio_seterrbfmt (htts->hio, HIO_EINVAL, "index out of range");
+		return -1;
+	}
+
+	if (!htts->l.sck[idx])
+	{
+		hio_seterrbfmt (htts->hio, HIO_EINVAL, "no listener at the given index");
+		return -1;
+	}
+
+	return hio_dev_sck_getsockaddr(htts->l.sck[idx], skad);
 }
 
 /* ----------------------------------------------------------------- */
@@ -550,9 +662,21 @@ hio_bch_t* hio_svc_htts_dupmergepaths (hio_svc_htts_t* htts, const hio_bch_t* ba
 	return xpath;
 }
 
-int hio_svc_htts_writetosidechan (hio_svc_htts_t* htts, const void* dptr, hio_oow_t dlen)
+int hio_svc_htts_writetosidechan (hio_svc_htts_t* htts, hio_oow_t idx, const void* dptr, hio_oow_t dlen)
 {
-	return hio_dev_sck_writetosidechan(htts->lsck, dptr, dlen);
+	if (idx >= htts->l.count)
+	{
+		hio_seterrbfmt (htts->hio, HIO_EINVAL, "index out of range");
+		return -1;
+	}
+
+	if (!htts->l.sck[idx])
+	{
+		hio_seterrbfmt (htts->hio, HIO_EINVAL, "no listener at the given index");
+		return -1;
+	}
+
+	return hio_dev_sck_writetosidechan(htts->l.sck[idx], dptr, dlen);
 }
 
 

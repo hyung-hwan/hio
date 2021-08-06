@@ -1237,7 +1237,7 @@ for (i = 0; i < 5; i++)
 		HIO_INFO1 (hio, "UNABLE TO START DNC - %js\n", hio_geterrmsg(hio));
 	}
 
-	htts = hio_svc_htts_start(hio, &htts_bind_info, process_http_request);
+	htts = hio_svc_htts_start(hio, &htts_bind_info, 1, process_http_request);
 	if (htts) hio_svc_htts_setservernamewithbcstr (htts, "HIO-HTTP");
 	else HIO_INFO1 (hio, "UNABLE TO START HTTS - %js\n", hio_geterrmsg(hio));
 
