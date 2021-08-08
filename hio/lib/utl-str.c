@@ -226,6 +226,63 @@ int hio_comp_bcstr (const hio_bch_t* str1, const hio_bch_t* str2, int ignorecase
 
 
 
+   
+int hio_comp_ucstr_limited (const hio_uch_t* str1, const hio_uch_t* str2, hio_oow_t maxlen, int ignorecase)
+{
+	if (maxlen == 0) return 0;
+
+	if (ignorecase)
+	{
+		while (hio_to_uch_lower(*str1) == hio_to_uch_lower(*str2))
+		{
+			 if (*str1 == '\0' || maxlen == 1) return 0;
+			 str1++; str2++; maxlen--;
+		}
+
+		return ((hio_uchu_t)hio_to_uch_lower(*str1) > (hio_uchu_t)hio_to_uch_lower(*str2))? 1: -1;
+	}
+	else
+	{
+		while (*str1 == *str2)
+		{
+			 if (*str1 == '\0' || maxlen == 1) return 0;
+			 str1++; str2++; maxlen--;
+		}
+
+		return ((hio_uchu_t)*str1 > (hio_uchu_t)*str2)? 1: -1;
+	}
+}
+
+   
+int hio_comp_bcstr_limited (const hio_bch_t* str1, const hio_bch_t* str2, hio_oow_t maxlen, int ignorecase)
+{
+	if (maxlen == 0) return 0;
+
+	if (ignorecase)
+	{
+		while (hio_to_bch_lower(*str1) == hio_to_bch_lower(*str2))
+		{
+			 if (*str1 == '\0' || maxlen == 1) return 0;
+			 str1++; str2++; maxlen--;
+		}
+
+		return ((hio_bchu_t)hio_to_bch_lower(*str1) > (hio_bchu_t)hio_to_bch_lower(*str2))? 1: -1;
+	}
+	else
+	{
+		while (*str1 == *str2)
+		{
+			 if (*str1 == '\0' || maxlen == 1) return 0;
+			 str1++; str2++; maxlen--;
+		}
+
+		return ((hio_bchu_t)*str1 > (hio_bchu_t)*str2)? 1: -1;
+	}
+}
+
+
+
+
    hio_oow_t hio_concat_uchars_to_ucstr (hio_uch_t* buf, hio_oow_t bsz, const hio_uch_t* str, hio_oow_t len)
 {
 	hio_uch_t* p, * p2;
