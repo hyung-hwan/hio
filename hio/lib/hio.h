@@ -367,7 +367,7 @@ struct hio_wq_t
 #define HIO_DEV_HEADER \
 	hio_t*          hio; \
 	hio_oow_t       dev_size; \
-	int             dev_cap; \
+	hio_bitmask_t   dev_cap; \
 	hio_dev_mth_t*  dev_mth; \
 	hio_dev_evcb_t* dev_evcb; \
 	hio_ntime_t     rtmout; \
@@ -409,31 +409,36 @@ struct hio_dev_t
 
 enum hio_dev_cap_t
 {
-	HIO_DEV_CAP_VIRTUAL         = (1 << 0),
-	HIO_DEV_CAP_IN              = (1 << 1),
-	HIO_DEV_CAP_OUT             = (1 << 2),
-	HIO_DEV_CAP_PRI             = (1 << 3),  /* meaningful only if #HIO_DEV_CAP_IN is set */
-	HIO_DEV_CAP_STREAM          = (1 << 4),
-	HIO_DEV_CAP_IN_DISABLED     = (1 << 5),
-	HIO_DEV_CAP_OUT_UNQUEUEABLE = (1 << 6),
+	/* don't forget to update hio_dev_cap_to_bcstr()
+	 * when you add/delete these enumerators */
+
+	HIO_DEV_CAP_VIRTUAL         = ((hio_bitmask_t)1 << 0),
+	HIO_DEV_CAP_IN              = ((hio_bitmask_t)1 << 1),
+	HIO_DEV_CAP_OUT             = ((hio_bitmask_t)1 << 2),
+	HIO_DEV_CAP_PRI             = ((hio_bitmask_t)1 << 3), /* meaningful only if #HIO_DEV_CAP_IN is set */
+	HIO_DEV_CAP_STREAM          = ((hio_bitmask_t)1 << 4), /* byte stream */
+
+
+	HIO_DEV_CAP_IN_DISABLED     = ((hio_bitmask_t)1 << 5),
+	HIO_DEV_CAP_OUT_UNQUEUEABLE = ((hio_bitmask_t)1 << 6),
 	HIO_DEV_CAP_ALL_MASK        = (HIO_DEV_CAP_VIRTUAL | HIO_DEV_CAP_IN | HIO_DEV_CAP_OUT | HIO_DEV_CAP_PRI | HIO_DEV_CAP_STREAM | HIO_DEV_CAP_IN_DISABLED | HIO_DEV_CAP_OUT_UNQUEUEABLE),
 
 	/* -------------------------------------------------------------------
 	 * the followings bits are for internal use only. 
 	 * never set these bits to the dev_cap field.
 	 * ------------------------------------------------------------------- */
-	HIO_DEV_CAP_IN_CLOSED       = (1 << 10),
-	HIO_DEV_CAP_OUT_CLOSED      = (1 << 11),
-	HIO_DEV_CAP_IN_WATCHED      = (1 << 12),
-	HIO_DEV_CAP_OUT_WATCHED     = (1 << 13),
-	HIO_DEV_CAP_PRI_WATCHED     = (1 << 14), /**< can be set only if HIO_DEV_CAP_IN_WATCHED is set */
-	HIO_DEV_CAP_ACTIVE          = (1 << 15),
-	HIO_DEV_CAP_HALTED          = (1 << 16),
-	HIO_DEV_CAP_ZOMBIE          = (1 << 17),
-	HIO_DEV_CAP_RENEW_REQUIRED  = (1 << 18),
-	HIO_DEV_CAP_WATCH_STARTED   = (1 << 19),
-	HIO_DEV_CAP_WATCH_SUSPENDED = (1 << 20),
-	HIO_DEV_CAP_WATCH_REREG_REQUIRED = (1 << 21), 
+	HIO_DEV_CAP_IN_CLOSED       = ((hio_bitmask_t)1 << 10),
+	HIO_DEV_CAP_OUT_CLOSED      = ((hio_bitmask_t)1 << 11),
+	HIO_DEV_CAP_IN_WATCHED      = ((hio_bitmask_t)1 << 12),
+	HIO_DEV_CAP_OUT_WATCHED     = ((hio_bitmask_t)1 << 13),
+	HIO_DEV_CAP_PRI_WATCHED     = ((hio_bitmask_t)1 << 14), /**< can be set only if HIO_DEV_CAP_IN_WATCHED is set */
+	HIO_DEV_CAP_ACTIVE          = ((hio_bitmask_t)1 << 15),
+	HIO_DEV_CAP_HALTED          = ((hio_bitmask_t)1 << 16),
+	HIO_DEV_CAP_ZOMBIE          = ((hio_bitmask_t)1 << 17),
+	HIO_DEV_CAP_RENEW_REQUIRED  = ((hio_bitmask_t)1 << 18),
+	HIO_DEV_CAP_WATCH_STARTED   = ((hio_bitmask_t)1 << 19),
+	HIO_DEV_CAP_WATCH_SUSPENDED = ((hio_bitmask_t)1 << 20),
+	HIO_DEV_CAP_WATCH_REREG_REQUIRED = ((hio_bitmask_t)1 << 21), 
 };
 typedef enum hio_dev_cap_t hio_dev_cap_t;
 
@@ -1410,6 +1415,12 @@ HIO_EXPORT hio_ooi_t hio_logufmtv (
 
 HIO_EXPORT const hio_ooch_t* hio_errnum_to_errstr (
 	hio_errnum_t errnum
+);
+
+HIO_EXPORT hio_oow_t hio_dev_cap_to_bcstr (
+	hio_bitmask_t cap,
+	hio_bch_t*    buf,
+	hio_oow_t     bsz
 );
 
 #ifdef __cplusplus

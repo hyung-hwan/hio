@@ -38,6 +38,24 @@
 
 
   
+hio_oow_t hio_count_ucstr (const hio_uch_t* str)
+{
+	const hio_uch_t* ptr = str;
+	while (*ptr != '\0') ptr++;
+	return ptr - str;
+} 
+
+  
+hio_oow_t hio_count_bcstr (const hio_bch_t* str)
+{
+	const hio_bch_t* ptr = str;
+	while (*ptr != '\0') ptr++;
+	return ptr - str;
+} 
+
+
+
+  
 int hio_equal_uchars (const hio_uch_t* str1, const hio_uch_t* str2, hio_oow_t len)
 {
 	hio_oow_t i;
@@ -208,6 +226,101 @@ int hio_comp_bcstr (const hio_bch_t* str1, const hio_bch_t* str2, int ignorecase
 
 
 
+   hio_oow_t hio_concat_uchars_to_ucstr (hio_uch_t* buf, hio_oow_t bsz, const hio_uch_t* str, hio_oow_t len)
+{
+	hio_uch_t* p, * p2;
+	const hio_uch_t* end;
+	hio_oow_t blen;
+
+	blen = hio_count_ucstr(buf);
+	if (blen >= bsz) return blen; /* something wrong */
+
+	p = buf + blen;
+	p2 = buf + bsz - 1;
+
+	end = str + len;
+
+	while (p < p2) 
+	{
+		if (str >= end) break;
+		*p++ = *str++;
+	}
+
+	if (bsz > 0) *p = '\0';
+	return p - buf;
+}
+
+   hio_oow_t hio_concat_bchars_to_bcstr (hio_bch_t* buf, hio_oow_t bsz, const hio_bch_t* str, hio_oow_t len)
+{
+	hio_bch_t* p, * p2;
+	const hio_bch_t* end;
+	hio_oow_t blen;
+
+	blen = hio_count_bcstr(buf);
+	if (blen >= bsz) return blen; /* something wrong */
+
+	p = buf + blen;
+	p2 = buf + bsz - 1;
+
+	end = str + len;
+
+	while (p < p2) 
+	{
+		if (str >= end) break;
+		*p++ = *str++;
+	}
+
+	if (bsz > 0) *p = '\0';
+	return p - buf;
+}
+
+
+
+   hio_oow_t hio_concat_ucstr (hio_uch_t* buf, hio_oow_t bsz, const hio_uch_t* str)
+{
+	hio_uch_t* p, * p2;
+	hio_oow_t blen;
+
+	blen = hio_count_ucstr(buf);
+	if (blen >= bsz) return blen; /* something wrong */
+
+	p = buf + blen;
+	p2 = buf + bsz - 1;
+
+	while (p < p2) 
+	{
+		if (*str == '\0') break;
+		*p++ = *str++;
+	}
+
+	if (bsz > 0) *p = '\0';
+	return p - buf;
+}
+
+   hio_oow_t hio_concat_bcstr (hio_bch_t* buf, hio_oow_t bsz, const hio_bch_t* str)
+{
+	hio_bch_t* p, * p2;
+	hio_oow_t blen;
+
+	blen = hio_count_bcstr(buf);
+	if (blen >= bsz) return blen; /* something wrong */
+
+	p = buf + blen;
+	p2 = buf + bsz - 1;
+
+	while (p < p2) 
+	{
+		if (*str == '\0') break;
+		*p++ = *str++;
+	}
+
+	if (bsz > 0) *p = '\0';
+	return p - buf;
+}
+
+
+
+
   
 void hio_fill_uchars (hio_uch_t* dst, hio_uch_t ch, hio_oow_t len)
 {
@@ -221,24 +334,6 @@ void hio_fill_bchars (hio_bch_t* dst, hio_bch_t ch, hio_oow_t len)
         hio_oow_t i;
         for (i = 0; i < len; i++) dst[i] = ch;
 }
-
-
-
-  
-hio_oow_t hio_count_ucstr (const hio_uch_t* str)
-{
-	const hio_uch_t* ptr = str;
-	while (*ptr != '\0') ptr++;
-	return ptr - str;
-} 
-
-  
-hio_oow_t hio_count_bcstr (const hio_bch_t* str)
-{
-	const hio_bch_t* ptr = str;
-	while (*ptr != '\0') ptr++;
-	return ptr - str;
-} 
 
 
 
@@ -900,8 +995,6 @@ exit_point:
 
 	return cnt;
 }
-
-
 
 
 

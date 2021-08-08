@@ -2195,3 +2195,37 @@ hio_oow_t hio_fmttobcstr (hio_t* hio, hio_bch_t* buf, hio_oow_t bufsz, const hio
 }
 
 /* ------------------------------------------------------------------------ */
+
+hio_oow_t hio_dev_cap_to_bcstr (hio_bitmask_t cap, hio_bch_t* buf, hio_oow_t size)
+{
+	hio_oow_t len = 0;
+
+	if (size <= 0) return 0;
+	buf[len] = '\0';
+
+	if (cap & HIO_DEV_CAP_VIRTUAL) len += hio_copy_bcstr(&buf[len], size - len, "virtual|");
+	if (cap & HIO_DEV_CAP_IN) len += hio_copy_bcstr(&buf[len], size - len, "in|");
+	if (cap & HIO_DEV_CAP_OUT) len += hio_copy_bcstr(&buf[len], size - len, "out|");
+	if (cap & HIO_DEV_CAP_PRI) len += hio_copy_bcstr(&buf[len], size - len, "pri|");
+	if (cap & HIO_DEV_CAP_STREAM) len += hio_copy_bcstr(&buf[len], size - len, "stream|");
+	if (cap & HIO_DEV_CAP_IN_DISABLED) len += hio_copy_bcstr(&buf[len], size - len, "in_disabled|");
+	if (cap & HIO_DEV_CAP_OUT_UNQUEUEABLE) len += hio_copy_bcstr(&buf[len], size - len, "out_unqueueable|");
+
+	if (cap & HIO_DEV_CAP_IN_CLOSED) len += hio_copy_bcstr(&buf[len], size - len, "in_closed|");
+	if (cap & HIO_DEV_CAP_OUT_CLOSED) len += hio_copy_bcstr(&buf[len], size - len, "out_closed|");
+	if (cap & HIO_DEV_CAP_IN_WATCHED) len += hio_copy_bcstr(&buf[len], size - len, "in_watched|");
+	if (cap & HIO_DEV_CAP_OUT_WATCHED) len += hio_copy_bcstr(&buf[len], size - len, "out_watched|");
+	if (cap & HIO_DEV_CAP_PRI_WATCHED) len += hio_copy_bcstr(&buf[len], size - len, "pri_watched|");
+	if (cap & HIO_DEV_CAP_ACTIVE) len += hio_copy_bcstr(&buf[len], size - len, "active|");
+	if (cap & HIO_DEV_CAP_HALTED) len += hio_copy_bcstr(&buf[len], size - len, "halted|");
+	if (cap & HIO_DEV_CAP_ZOMBIE) len += hio_copy_bcstr(&buf[len], size - len, "zombie|");
+	if (cap & HIO_DEV_CAP_RENEW_REQUIRED) len += hio_copy_bcstr(&buf[len], size - len, "renew_required|");
+	if (cap & HIO_DEV_CAP_WATCH_STARTED) len += hio_copy_bcstr(&buf[len], size - len, "watch_started|");
+	if (cap & HIO_DEV_CAP_WATCH_SUSPENDED) len += hio_copy_bcstr(&buf[len], size - len, "watch_suspended|");
+	if (cap & HIO_DEV_CAP_WATCH_REREG_REQUIRED) len += hio_copy_bcstr(&buf[len], size - len, "watch_rereg_required|");
+	
+	if (buf[len - 1] == '|') buf[--len] = '\0';
+	return len;
+}
+
+

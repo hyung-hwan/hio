@@ -472,8 +472,8 @@ hio_dns_pkt_info_t* hio_dns_make_pkt_info (hio_t* hio, const hio_dns_pkt_t* pkt,
 
 	HIO_MEMSET (&pib, 0, HIO_SIZEOF(pib));
 
-	/* this is used a initial workspace and also indicates that it's the first run. 
-	 * at the second run, it is set to a dynamically allocated memory block large enough
+	/* pib is used as the initial workspace and also indicates that it's the first run. 
+	 * at the second run, pii is set to a dynamically allocated memory block large enough
 	 * to hold actual data.  */
 	pii = &pib; 
 

@@ -38,6 +38,18 @@ dnl ---------------------------------------------------------------------------
 changequote(`[[', `]]')
 
 dnl ---------------------------------------------------------------------------
+define([[fn_count_cstr]], [[ define([[fn_name]], $1) define([[char_type]], $2)
+hio_oow_t fn_name (const char_type* str)
+{
+	const char_type* ptr = str;
+	while (*ptr != '\0') ptr++;
+	return ptr - str;
+} 
+]])
+fn_count_cstr(hio_count_ucstr, hio_uch_t)
+fn_count_cstr(hio_count_bcstr, hio_bch_t)
+
+dnl ---------------------------------------------------------------------------
 define([[fn_equal_chars]], [[ define([[fn_name]], $1) define([[char_type]], $2)
 int fn_name (const char_type* str1, const char_type* str2, hio_oow_t len)
 {
@@ -133,6 +145,62 @@ fn_comp_cstr(hio_comp_ucstr, hio_uch_t, hio_uchu_t, hio_to_uch_lower)
 fn_comp_cstr(hio_comp_bcstr, hio_bch_t, hio_bchu_t, hio_to_bch_lower)
 
 dnl ---------------------------------------------------------------------------
+define([[fn_concat_chars_to_cstr]], [[ define([[fn_name]], $1) define([[char_type]], $2) dnl: $3 count_str
+hio_oow_t fn_name (char_type* buf, hio_oow_t bsz, const char_type* str, hio_oow_t len)
+{
+	char_type* p, * p2;
+	const char_type* end;
+	hio_oow_t blen;
+
+	blen = $3(buf);
+	if (blen >= bsz) return blen; /* something wrong */
+
+	p = buf + blen;
+	p2 = buf + bsz - 1;
+
+	end = str + len;
+
+	while (p < p2) 
+	{
+		if (str >= end) break;
+		*p++ = *str++;
+	}
+
+	if (bsz > 0) *p = '\0';
+	return p - buf;
+}
+]])
+fn_concat_chars_to_cstr(hio_concat_uchars_to_ucstr, hio_uch_t, hio_count_ucstr)
+fn_concat_chars_to_cstr(hio_concat_bchars_to_bcstr, hio_bch_t, hio_count_bcstr)
+
+dnl ---------------------------------------------------------------------------
+define([[fn_concat_cstr]], [[ define([[fn_name]], $1) define([[char_type]], $2) dnl: $3 count_str
+hio_oow_t fn_name (char_type* buf, hio_oow_t bsz, const char_type* str)
+{
+	char_type* p, * p2;
+	hio_oow_t blen;
+
+	blen = $3(buf);
+	if (blen >= bsz) return blen; /* something wrong */
+
+	p = buf + blen;
+	p2 = buf + bsz - 1;
+
+	while (p < p2) 
+	{
+		if (*str == '\0') break;
+		*p++ = *str++;
+	}
+
+	if (bsz > 0) *p = '\0';
+	return p - buf;
+}
+]])
+fn_concat_cstr(hio_concat_ucstr, hio_uch_t, hio_count_ucstr)
+fn_concat_cstr(hio_concat_bcstr, hio_bch_t, hio_count_bcstr)
+
+
+dnl ---------------------------------------------------------------------------
 define([[fn_fill_chars]], [[ define([[fn_name]], $1) define([[char_type]], $2)
 void fn_name (char_type* dst, char_type ch, hio_oow_t len)
 {
@@ -142,18 +210,6 @@ void fn_name (char_type* dst, char_type ch, hio_oow_t len)
 ]])
 fn_fill_chars(hio_fill_uchars, hio_uch_t)
 fn_fill_chars(hio_fill_bchars, hio_bch_t)
-
-dnl ---------------------------------------------------------------------------
-define([[fn_count_cstr]], [[ define([[fn_name]], $1) define([[char_type]], $2)
-hio_oow_t fn_name (const char_type* str)
-{
-	const char_type* ptr = str;
-	while (*ptr != '\0') ptr++;
-	return ptr - str;
-} 
-]])
-fn_count_cstr(hio_count_ucstr, hio_uch_t)
-fn_count_cstr(hio_count_bcstr, hio_bch_t)
 
 dnl ---------------------------------------------------------------------------
 define([[fn_find_char]], [[ define([[fn_name]], $1) define([[char_type]], $2)
@@ -503,8 +559,6 @@ exit_point:
 ]])
 fn_split_cstr(hio_split_ucstr, hio_uch_t, hio_is_uch_space, hio_copy_ucstr_unlimited)
 fn_split_cstr(hio_split_bcstr, hio_bch_t, hio_is_bch_space, hio_copy_bcstr_unlimited)
-
-
 
 dnl ---------------------------------------------------------------------------
 define([[fn_chars_to_int]], [[ define([[fn_name]], $1) define([[char_type]], $2) define([[int_type]], $3)
