@@ -1711,10 +1711,15 @@ static int make_accepted_client_connection (hio_dev_sck_t* rdev, hio_syshnd_t cl
 		return 0;
 	}
 
-	/* use rdev->dev_size when instantiating a client sck device
-	 * instead of HIO_SIZEOF(hio_dev_sck_t). therefore, the  
-	 * extension area as big as that of the master sck device
-	 * is created in the client sck device */
+	/* rdev->dev_size: 
+	 *   use rdev->dev_size when instantiating a client sck device
+	 *   instead of HIO_SIZEOF(hio_dev_sck_t). therefore, the  
+	 *   extension area as big as that of the master socket device
+	 *   is created in the client sck device 
+	 * dev_mth:
+	 *   choose the client socket method base on the master socket 
+	 *   device capability. currently, stream or non-stream is supported.
+	 */
 	dev_mth = (sck_type_map[clisck_type].extra_dev_cap & HIO_DEV_CAP_STREAM)? &dev_mth_clisck_stream: &dev_mth_clisck_stateless;
 	clidev = (hio_dev_sck_t*)hio_dev_make(hio, rdev->dev_size, dev_mth, rdev->dev_evcb, &clisck); 
 	if (HIO_UNLIKELY(!clidev))

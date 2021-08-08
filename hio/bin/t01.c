@@ -710,7 +710,7 @@ static void on_dnc_resolve(hio_svc_dnc_t* dnc, hio_dns_msg_t* reqmsg, hio_errnum
 
 
 		printf (">>>>>>>> RRDLEN = %d\n", (int)pi->_rrdlen);
-		printf (">>>>>>>> RCODE %s(%d) EDNS exist %d uplen %d version %d dnssecok %d\n", hio_dns_rcode_to_bcstr(pi->hdr.rcode), pi->hdr.rcode, pi->edns.exist, pi->edns.uplen, pi->edns.version, pi->edns.dnssecok);
+		printf (">>>>>>>> RCODE %s(%d) EDNS exist %d uplen %d version %d dnssecok %d qdcount %d ancount %d nscount %d arcount %d\n", hio_dns_rcode_to_bcstr(pi->hdr.rcode), pi->hdr.rcode, pi->edns.exist, pi->edns.uplen, pi->edns.version, pi->edns.dnssecok, pi->qdcount, pi->ancount, pi->nscount, pi->arcount);
 		if (pi->hdr.rcode == HIO_DNS_RCODE_BADCOOKIE)
 		{
 			/* TODO: must retry?? there shoudl be no RRs in the payload */
@@ -727,8 +727,12 @@ static void on_dnc_resolve(hio_svc_dnc_t* dnc, hio_dns_msg_t* reqmsg, hio_errnum
 			printf ("CLIENT COOKIE IS OK>>>>>>>>>>>>>>>>>>>%d\n", hio_svc_dnc_checkclientcookie(dnc, reqmsg, pi));
 		}
 
+
 		//if (pi->hdr.rcode != HIO_DNS_RCODE_NOERROR) goto no_data;
-		if (pi->ancount < 0) goto no_data;
+		if (pi->ancount < 0) 
+		{
+			goto no_data;
+		}
 
 		for (i = 0; i < pi->ancount; i++)
 		{
@@ -1216,8 +1220,8 @@ for (i = 0; i < 5; i++)
 	reply_tmout.sec = 1;
 	reply_tmout.nsec = 0;
 
-	//hio_bcstrtoskad (hio, "8.8.8.8:53", &servaddr);
-	hio_bcstrtoskad (hio, "198.41.0.4:53", &servaddr); // a.root-servers.net
+	hio_bcstrtoskad (hio, "8.8.8.8:53", &servaddr);
+	//hio_bcstrtoskad (hio, "198.41.0.4:53", &servaddr); // a.root-servers.net
 	//hio_bcstrtoskad (hio, "130.59.31.29:53", &servaddr); // ns2.switch.ch
 	//hio_bcstrtoskad (hio, "134.119.216.86:53", &servaddr); // ns.manyhost.net
 	//hio_bcstrtoskad (hio, "[fe80::c7e2:bd6e:1209:ac1b]:1153", &servaddr);
