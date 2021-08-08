@@ -145,6 +145,38 @@ fn_comp_cstr(hio_comp_ucstr, hio_uch_t, hio_uchu_t, hio_to_uch_lower)
 fn_comp_cstr(hio_comp_bcstr, hio_bch_t, hio_bchu_t, hio_to_bch_lower)
 
 dnl ---------------------------------------------------------------------------
+define([[fn_comp_cstr_limited]], [[ define([[fn_name]], $1) define([[char_type]], $2) define([[chau_type]], $3)
+int fn_name (const char_type* str1, const char_type* str2, hio_oow_t maxlen, int ignorecase)
+{
+	if (maxlen == 0) return 0;
+
+	if (ignorecase)
+	{
+		while ($4(*str1) == $4(*str2))
+		{
+			 if (*str1 == '\0' || maxlen == 1) return 0;
+			 str1++; str2++; maxlen--;
+		}
+
+		return ((chau_type)$4(*str1) > (chau_type)$4(*str2))? 1: -1;
+	}
+	else
+	{
+		while (*str1 == *str2)
+		{
+			 if (*str1 == '\0' || maxlen == 1) return 0;
+			 str1++; str2++; maxlen--;
+		}
+
+		return ((chau_type)*str1 > (chau_type)*str2)? 1: -1;
+	}
+}
+]])
+fn_comp_cstr_limited(hio_comp_ucstr_limited, hio_uch_t, hio_uchu_t, hio_to_uch_lower)
+fn_comp_cstr_limited(hio_comp_bcstr_limited, hio_bch_t, hio_bchu_t, hio_to_bch_lower)
+
+
+dnl ---------------------------------------------------------------------------
 define([[fn_concat_chars_to_cstr]], [[ define([[fn_name]], $1) define([[char_type]], $2) dnl: $3 count_str
 hio_oow_t fn_name (char_type* buf, hio_oow_t bsz, const char_type* str, hio_oow_t len)
 {
