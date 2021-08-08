@@ -562,6 +562,12 @@ int main (int argc, char* argv[])
 			g_dev_type4 = HIO_DEV_SCK_SCTP4;
 			g_dev_type6 = HIO_DEV_SCK_SCTP6;
 		}
+		else if (strcmp(argv[i], "-ss") == 0)
+		{
+			i++;
+			g_dev_type4 = HIO_DEV_SCK_SCTP4_SP;
+			g_dev_type6 = HIO_DEV_SCK_SCTP6_SP;
+		}
 		else if (strcmp(argv[i], "-t") == 0)
 		{
 			i++;

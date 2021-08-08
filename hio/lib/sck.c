@@ -39,6 +39,10 @@
 #include <net/if.h>
 #include <netinet/if_ether.h>
 
+#if defined(HAVE_NETINET_SCTP_H)
+#	include <netinet/sctp.h>
+#endif
+
 #if defined(HAVE_NETPACKET_PACKET_H)
 #	include <netpacket/packet.h>
 #endif
@@ -182,8 +186,8 @@ static hio_syshnd_t open_async_bpf (hio_t* hio)
 	if (fd == HIO_SYSHND_INVALID) goto oops;
 
 #if 0
-	if (ioctl(fd, BIOCIMMEDIATE, &tmp) == -1) goto oops;
-	if (ioctl(fd, BIOCGBLEN, &bufsize) == -1) goto oops;
+	if (ioctl(fd, BIOCIMMEDIATE, &tmp) <= -1) goto oops;
+	if (ioctl(fd, BIOCGBLEN, &bufsize) <= -1) goto oops;
 #endif
 
 	return fd;
@@ -221,7 +225,11 @@ struct sck_type_map_t
 	int domain;
 	int type;
 	int proto;
-	int extra_dev_cap;
+
+	unsigned int connectable: 1;
+	unsigned int listenable: 1;
+
+	hio_bitmask_t extra_dev_cap;
 };
 
 #define __AF_BPF 999998
@@ -229,82 +237,82 @@ struct sck_type_map_t
 static struct sck_type_map_t sck_type_map[] =
 {
 	/* HIO_DEV_SCK_QX */
-	{ HIO_AF_QX,  0,              0,                 0 },
+	{ HIO_AF_QX, 0,               0,                 0, 0, 0 },
 
 #if defined(AF_UNIX)
-	{ AF_UNIX,    SOCK_STREAM,    0,                 HIO_DEV_CAP_STREAM },
+	{ AF_UNIX,   SOCK_STREAM,     0,                 1, 1, HIO_DEV_CAP_STREAM },
 #else
-	{ -1,         0,              0,                 0 },
+	{ -1,        0,               0,                 0, 0, 0 },
 #endif
 
 	/* HIO_DEV_SCK_TCP4 */
-	{ AF_INET,    SOCK_STREAM,    0,                 HIO_DEV_CAP_STREAM },
+	{ AF_INET,   SOCK_STREAM,     0,                 1, 1, HIO_DEV_CAP_STREAM },
 
 	/* HIO_DEV_SCK_TCP6 */
-	{ AF_INET6,   SOCK_STREAM,    0,                 HIO_DEV_CAP_STREAM },
+	{ AF_INET6,  SOCK_STREAM,     0,                 1, 1, HIO_DEV_CAP_STREAM },
 
-	/* HIO_DEV_SCK_UPD4 */
-	{ AF_INET,    SOCK_DGRAM,     0,                 0                  },
+	/* HIO_DEV_SCK_UPD4 */ /* TODO: the socket api allows connect() on UDP sockets. should i mark it connectable? */ 
+	{ AF_INET,   SOCK_DGRAM,      0,                 0, 0, 0 },
 
 	/* HIO_DEV_SCK_UDP6 */
-	{ AF_INET6,   SOCK_DGRAM,     0,                 0                  },
+	{ AF_INET6,  SOCK_DGRAM,      0,                 0, 0, 0 },
 
 #if defined(IPPROTO_SCTP)
 	/* HIO_DEV_SCK_SCTP4 */
-	{ AF_INET,   SOCK_STREAM,     IPPROTO_SCTP,      HIO_DEV_CAP_STREAM },
+	{ AF_INET,   SOCK_STREAM,     IPPROTO_SCTP,      1, 1, HIO_DEV_CAP_STREAM },
 
 	/* HIO_DEV_SCK_SCTP6 */
-	{ AF_INET6,  SOCK_STREAM,     IPPROTO_SCTP,      HIO_DEV_CAP_STREAM },
+	{ AF_INET6,  SOCK_STREAM,     IPPROTO_SCTP,      1, 1, HIO_DEV_CAP_STREAM },
 
 	/* HIO_DEV_SCK_SCTP4_SP - not implemented */
-	{ -1,        SOCK_SEQPACKET,  IPPROTO_SCTP,      0 },
+	{ AF_INET,   SOCK_SEQPACKET,  IPPROTO_SCTP,      1, 1, 0 },
 
 	/* HIO_DEV_SCK_SCTP6_SP - not implemented */
-	{ -1,        SOCK_SEQPACKET,  IPPROTO_SCTP,      0 },
+	{ AF_INET6,  SOCK_SEQPACKET,  IPPROTO_SCTP,      1, 1, 0 },
 #else
-	{ -1,        0,               0,                 0 },
-	{ -1,        0,               0,                 0 },
-	{ -1,        0,               0,                 0 },
-	{ -1,        0,               0,                 0 },
+	{ -1,        0,               0,                 0, 0, 0 },
+	{ -1,        0,               0,                 0, 0, 0 },
+	{ -1,        0,               0,                 0, 0, 0 },
+	{ -1,        0,               0,                 0, 0, 0 },
 #endif
 
 	/* HIO_DEV_SCK_ICMP4 - IP protocol field is 1 byte only. no byte order conversion is needed */
-	{ AF_INET,    SOCK_RAW,       IPPROTO_ICMP,      0 },
+	{ AF_INET,    SOCK_RAW,       IPPROTO_ICMP,      0, 0, 0 },
 
 	/* HIO_DEV_SCK_ICMP6 - IP protocol field is 1 byte only. no byte order conversion is needed */
-	{ AF_INET6,   SOCK_RAW,       IPPROTO_ICMP,      0 },
+	{ AF_INET6,   SOCK_RAW,       IPPROTO_ICMP,      0, 0, 0 },
 
 
 #if defined(AF_PACKET) && (HIO_SIZEOF_STRUCT_SOCKADDR_LL > 0)
 	/* HIO_DEV_SCK_ARP - Ethernet type is 2 bytes long. Protocol must be specified in the network byte order */
-	{ AF_PACKET,  SOCK_RAW,       HIO_CONST_HTON16(HIO_ETHHDR_PROTO_ARP), 0 },
+	{ AF_PACKET,  SOCK_RAW,       HIO_CONST_HTON16(HIO_ETHHDR_PROTO_ARP), 0, 0, 0 },
 
 	/* HIO_DEV_SCK_ARP_DGRAM - link-level header removed*/
-	{ AF_PACKET,  SOCK_DGRAM,     HIO_CONST_HTON16(HIO_ETHHDR_PROTO_ARP), 0 },
+	{ AF_PACKET,  SOCK_DGRAM,     HIO_CONST_HTON16(HIO_ETHHDR_PROTO_ARP), 0, 0, 0 },
 
 #elif defined(AF_LINK) && (HIO_SIZEOF_STRUCT_SOCKADDR_DL > 0)
 	/* HIO_DEV_SCK_ARP */
-	{ AF_LINK,  SOCK_RAW,         HIO_CONST_HTON16(HIO_ETHHDR_PROTO_ARP), 0 },
+	{ AF_LINK,  SOCK_RAW,         HIO_CONST_HTON16(HIO_ETHHDR_PROTO_ARP), 0, 0, 0 },
 
 	/* HIO_DEV_SCK_ARP_DGRAM */
-	{ AF_LINK,  SOCK_DGRAM,       HIO_CONST_HTON16(HIO_ETHHDR_PROTO_ARP), 0 },
+	{ AF_LINK,  SOCK_DGRAM,       HIO_CONST_HTON16(HIO_ETHHDR_PROTO_ARP), 0, 0, 0 },
 #else
-	{ -1,       0,                0,                 0 },
-	{ -1,       0,                0,                 0 },
+	{ -1,       0,                0,                 0, 0, 0 },
+	{ -1,       0,                0,                 0, 0, 0 },
 #endif
 
 #if defined(AF_PACKET) && (HIO_SIZEOF_STRUCT_SOCKADDR_LL > 0)
 	/* HIO_DEV_SCK_PACKET */
-	{ AF_PACKET,  SOCK_RAW,       HIO_CONST_HTON16(ETH_P_ALL), 0 },
+	{ AF_PACKET,  SOCK_RAW,       HIO_CONST_HTON16(ETH_P_ALL), 0, 0, 0 },
 #elif defined(AF_LINK) && (HIO_SIZEOF_STRUCT_SOCKADDR_DL > 0)
 	/* HIO_DEV_SCK_PACKET */
-	{ AF_LINK,    SOCK_RAW,       HIO_CONST_HTON16(0),       0 },
+	{ AF_LINK,    SOCK_RAW,       HIO_CONST_HTON16(0), 0, 0, 0 },
 #else
-	{ -1,       0,                0,                 0 },
+	{ -1,       0,                0,                   0, 0, 0 },
 #endif
 
 	/* HIO_DEV_SCK_BPF - arp */
-	{ __AF_BPF, 0, 0, 0 } /* not implemented yet */
+	{ __AF_BPF, 0, 0, 0, 0, 0 } /* not implemented yet */
 };
 
 /* ======================================================================== */
@@ -430,6 +438,18 @@ static int dev_sck_make (hio_dev_t* dev, void* ctx)
 	{
 		hnd = open_async_socket(hio, sck_type_map[arg->type].domain, sck_type_map[arg->type].type, sck_type_map[arg->type].proto);
 		if (hnd == HIO_SYSHND_INVALID) goto oops;
+
+	#if defined(IPPROTO_SCTP)
+		if (sck_type_map[arg->type].type == SOCK_SEQPACKET && 
+		    sck_type_map[arg->type].proto == IPPROTO_SCTP)
+		{
+			struct sctp_event_subscribe sctp_ev_s;
+
+			HIO_MEMSET (&sctp_ev_s, 0, HIO_SIZEOF(sctp_ev_s));
+			sctp_ev_s.sctp_data_io_event = 1;
+			setsockopt (hnd, IPPROTO_SCTP, SCTP_EVENTS, &sctp_ev_s, HIO_SIZEOF(sctp_ev_s));
+		}
+	#endif
 	}
 
 	rdev->hnd = hnd;
@@ -585,7 +605,7 @@ static int dev_sck_read_stateful (hio_dev_t* dev, void* buf, hio_iolen_t* len, h
 		ssize_t x;
 
 		x = recv(rdev->hnd, buf, *len, 0);
-		if (x == -1)
+		if (x <= -1)
 		{
 			if (errno == EINPROGRESS || errno == EWOULDBLOCK || errno == EAGAIN) return 0;  /* no data available */
 			if (errno == EINTR) return 0;
@@ -636,6 +656,54 @@ static int dev_sck_read_bpf (hio_dev_t* dev, void* buf, hio_iolen_t* len, hio_de
 	return -1;
 }
 
+
+#if defined(IPPROTO_SCTP)
+static int dev_sck_read_sctp_sp (hio_dev_t* dev, void* buf, hio_iolen_t* len, hio_devaddr_t* srcaddr)
+{
+	hio_t* hio = dev->hio;
+	hio_dev_sck_t* rdev = (hio_dev_sck_t*)dev;
+	hio_scklen_t srcaddrlen;
+	ssize_t x;
+	int msg_flags;
+	struct sctp_sndrcvinfo sri;
+
+	srcaddrlen = HIO_SIZEOF(rdev->remoteaddr);
+/*
+struct sctp_sndrcvinfo {
+        __u16 sinfo_stream;
+        __u16 sinfo_ssn;
+        __u16 sinfo_flags;
+        __u32 sinfo_ppid;
+        __u32 sinfo_context;
+        __u32 sinfo_timetolive;
+        __u32 sinfo_tsn;
+        __u32 sinfo_cumtsn;
+        sctp_assoc_t sinfo_assoc_id;
+};
+*/
+	/* msg_flags -> flags such as MSG_NOTIFICATION or MSG_EOR */
+	x = sctp_recvmsg(rdev->hnd, buf, *len, (struct sockaddr*)&rdev->remoteaddr, &srcaddrlen, &sri, &msg_flags);
+	if (x <= -1)
+	{
+		int eno = errno;
+		if (eno == EINPROGRESS || eno == EWOULDBLOCK || eno == EAGAIN) return 0;  /* no data available */
+		if (eno == EINTR) return 0;
+
+		hio_seterrwithsyserr (hio, 0, eno);
+
+		HIO_DEBUG2 (hio, "SCK(%p) - recvfrom failure - %hs", rdev, strerror(eno)); 
+		return -1;
+	}
+
+	srcaddr->ptr = &rdev->remoteaddr;
+	srcaddr->len = srcaddrlen;
+
+	*len = x;
+	//*sid = sri.sinfo_stream; /* stream number */
+	return 1;
+}
+#endif
+
 /* ------------------------------------------------------------------------------ */
 
 static int dev_sck_write_stateful (hio_dev_t* dev, const void* data, hio_iolen_t* len, const hio_devaddr_t* dstaddr)
@@ -652,7 +720,7 @@ static int dev_sck_write_stateful (hio_dev_t* dev, const void* data, hio_iolen_t
 		{
 			/* it's a writing finish indicator. close the writing end of
 			 * the socket, probably leaving it in the half-closed state */
-			if ((x = SSL_shutdown((SSL*)rdev->ssl)) == -1)
+			if ((x = SSL_shutdown((SSL*)rdev->ssl)) <= -1)
 			{
 				set_ssl_error (hio, SSL_get_error((SSL*)rdev->ssl, x));
 				return -1;
@@ -682,7 +750,7 @@ static int dev_sck_write_stateful (hio_dev_t* dev, const void* data, hio_iolen_t
 			/* the write handler for a stream device must handle a zero-length 
 			 * writing request specially. it's a writing finish indicator. close
 			 * the writing end of the socket, probably leaving it in the half-closed state */
-			if (shutdown(rdev->hnd, SHUT_WR) == -1)
+			if (shutdown(rdev->hnd, SHUT_WR) <= -1)
 			{
 				hio_seterrwithsyserr (hio, 0, errno);
 				return -1;
@@ -698,7 +766,7 @@ static int dev_sck_write_stateful (hio_dev_t* dev, const void* data, hio_iolen_t
 		flags |= MSG_NOSIGNAL;
 	#endif
 		x = send(rdev->hnd, data, *len, flags);
-		if (x == -1) 
+		if (x <= -1) 
 		{
 			if (errno == EINPROGRESS || errno == EWOULDBLOCK || errno == EAGAIN) return 0;  /* no data can be written */
 			if (errno == EINTR) return 0;
@@ -729,7 +797,7 @@ static int dev_sck_writev_stateful (hio_dev_t* dev, const hio_iovec_t* iov, hio_
 		{
 			/* it's a writing finish indicator. close the writing end of
 			 * the socket, probably leaving it in the half-closed state */
-			if ((x = SSL_shutdown((SSL*)rdev->ssl)) == -1)
+			if ((x = SSL_shutdown((SSL*)rdev->ssl)) <= -1)
 			{
 				set_ssl_error (hio, SSL_get_error((SSL*)rdev->ssl, x));
 				return -1;
@@ -767,7 +835,7 @@ static int dev_sck_writev_stateful (hio_dev_t* dev, const hio_iovec_t* iov, hio_
 		{
 			/* it's a writing finish indicator. close the writing end of
 			 * the socket, probably leaving it in the half-closed state */
-			if (shutdown(rdev->hnd, SHUT_WR) == -1)
+			if (shutdown(rdev->hnd, SHUT_WR) <= -1)
 			{
 				hio_seterrwithsyserr (hio, 0, errno);
 				return -1;
@@ -792,7 +860,7 @@ static int dev_sck_writev_stateful (hio_dev_t* dev, const hio_iovec_t* iov, hio_
 	#else
 		x = writev(rdev->hnd, (const struct iovec*)iov, *iovcnt);
 	#endif
-		if (x == -1) 
+		if (x <= -1) 
 		{
 			if (errno == EINPROGRESS || errno == EWOULDBLOCK || errno == EAGAIN) return 0;  /* no data can be written */
 			if (errno == EINTR) return 0;
@@ -883,6 +951,42 @@ static int dev_sck_writev_bpf (hio_dev_t* dev, const hio_iovec_t* iov, hio_iolen
 	return -1;
 }
 
+/* ------------------------------------------------------------------------------ */
+#if defined(IPPROTO_SCTPXX)
+static int dev_sck_write_sctp_sp (hio_dev_t* dev, const void* data, hio_iolen_t* len, const hio_devaddr_t* dstaddr)
+{
+	hio_t* hio = dev->hio;
+	hio_dev_sck_t* rdev = (hio_dev_sck_t*)dev;
+	ssize_t x;
+
+	x = sctp_sendmsg(rdev->hnd, 
+		data, *len, dstaddr->ptr, dstaddr->len, 
+		sir->info_ppid, /* ppid - opaque */
+		0, /* flags (e.g. SCTP_UNORDERED, SCTP_EOF, SCT_ABORT, ...) */,
+		sid, /* stream number */
+		0, /* ttl */
+		0 /* context*/);
+	if (x <= -1) 
+	{
+		if (errno == EINPROGRESS || errno == EWOULDBLOCK || errno == EAGAIN) return 0;  /* no data can be written */
+		if (errno == EINTR) return 0;
+		hio_seterrwithsyserr (hio, 0, errno);
+		return -1;
+	}
+
+	*len = x;
+	return 1;
+}
+
+static int dev_sck_writev_sctp_sp (hio_dev_t* dev, const hio_iovec_t* iov, hio_iolen_t* iovcnt, const hio_devaddr_t* dstaddr)
+{
+	/* TODO: use sctp_sendv? */
+	hio_t* hio = dev->hio;
+	hio_dev_sck_t* rdev = (hio_dev_sck_t*)dev;
+	hio_seterrwithsyserr (hio, 0, HIO_ENOIMPL);
+	return -1;
+}
+#endif
 
 /* ------------------------------------------------------------------------------ */
 
@@ -901,7 +1005,7 @@ static int dev_sck_sendfile_stateful (hio_dev_t* dev, hio_syshnd_t in_fd, hio_fo
 		{
 			/* it's a writing finish indicator. close the writing end of
 			 * the socket, probably leaving it in the half-closed state */
-			if ((x = SSL_shutdown((SSL*)rdev->ssl)) == -1)
+			if ((x = SSL_shutdown((SSL*)rdev->ssl)) <= -1)
 			{
 				set_ssl_error (hio, SSL_get_error((SSL*)rdev->ssl, x));
 				return -1;
@@ -930,7 +1034,7 @@ static int dev_sck_sendfile_stateful (hio_dev_t* dev, hio_syshnd_t in_fd, hio_fo
 			/* the write handler for a stream device must handle a zero-length 
 			 * writing request specially. it's a writing finish indicator. close
 			 * the writing end of the socket, probably leaving it in the half-closed state */
-			if (shutdown(rdev->hnd, SHUT_WR) == -1)
+			if (shutdown(rdev->hnd, SHUT_WR) <= -1)
 			{
 				hio_seterrwithsyserr (hio, 0, errno);
 				return -1;
@@ -944,7 +1048,7 @@ static int dev_sck_sendfile_stateful (hio_dev_t* dev, hio_syshnd_t in_fd, hio_fo
 #if defined(HAVE_SENDFILE)
 /* TODO: cater for other systems */
 		x = sendfile(rdev->hnd, in_fd, &foff, *len);
-		if (x == -1) 
+		if (x <= -1) 
 		{
 			if (errno == EINPROGRESS || errno == EWOULDBLOCK || errno == EAGAIN) return 0;  /* no data can be written */
 			if (errno == EINTR) return 0;
@@ -1072,7 +1176,7 @@ static int dev_sck_ioctl (hio_dev_t* dev, int cmd, void* arg)
 			{
 				/* TODO: should i make it into bnd->options? HIO_DEV_SCK_BIND_IPV6ONLY? applicable to ipv6 though. */
 				int v = 1;
-				if (setsockopt(rdev->hnd, IPPROTO_IPV6, IPV6_V6ONLY, &v, HIO_SIZEOF(v)) == -1)
+				if (setsockopt(rdev->hnd, IPPROTO_IPV6, IPV6_V6ONLY, &v, HIO_SIZEOF(v)) <= -1)
 				{
 					if (!(bnd->options & HIO_DEV_SCK_BIND_IGNERR))
 					{
@@ -1085,7 +1189,7 @@ static int dev_sck_ioctl (hio_dev_t* dev, int cmd, void* arg)
 			if (bnd->options & HIO_DEV_SCK_BIND_BROADCAST)
 			{
 				int v = 1;
-				if (setsockopt(rdev->hnd, SOL_SOCKET, SO_BROADCAST, &v, HIO_SIZEOF(v)) == -1)
+				if (setsockopt(rdev->hnd, SOL_SOCKET, SO_BROADCAST, &v, HIO_SIZEOF(v)) <= -1)
 				{
 					/* not affected by HIO_DEV_SCK_BIND_IGNERR */
 					hio_seterrbfmtwithsyserr (hio, 0, errno, "unable to set SO_BROADCAST");
@@ -1097,7 +1201,7 @@ static int dev_sck_ioctl (hio_dev_t* dev, int cmd, void* arg)
 			{
 			#if defined(SO_REUSEADDR)
 				int v = 1;
-				if (setsockopt(rdev->hnd, SOL_SOCKET, SO_REUSEADDR, &v, HIO_SIZEOF(v)) == -1)
+				if (setsockopt(rdev->hnd, SOL_SOCKET, SO_REUSEADDR, &v, HIO_SIZEOF(v)) <= -1)
 				{
 					if (!(bnd->options & HIO_DEV_SCK_BIND_IGNERR))
 					{
@@ -1117,7 +1221,7 @@ static int dev_sck_ioctl (hio_dev_t* dev, int cmd, void* arg)
 			{
 			#if defined(SO_REUSEPORT)
 				int v = 1;
-				if (setsockopt(rdev->hnd, SOL_SOCKET, SO_REUSEPORT, &v, HIO_SIZEOF(v)) == -1)
+				if (setsockopt(rdev->hnd, SOL_SOCKET, SO_REUSEPORT, &v, HIO_SIZEOF(v)) <= -1)
 				{
 					if (!(bnd->options & HIO_DEV_SCK_BIND_IGNERR))
 					{
@@ -1137,7 +1241,7 @@ static int dev_sck_ioctl (hio_dev_t* dev, int cmd, void* arg)
 			{
 			#if defined(IP_TRANSPARENT)
 				int v = 1;
-				if (setsockopt(rdev->hnd, SOL_IP, IP_TRANSPARENT, &v, HIO_SIZEOF(v)) == -1)
+				if (setsockopt(rdev->hnd, SOL_IP, IP_TRANSPARENT, &v, HIO_SIZEOF(v)) <= -1)
 				{
 					hio_seterrbfmtwithsyserr (hio, 0, errno, "unable to set IP_TRANSPARENT");
 					return -1;
@@ -1205,7 +1309,7 @@ static int dev_sck_ioctl (hio_dev_t* dev, int cmd, void* arg)
 			}
 
 			x = bind(rdev->hnd, (struct sockaddr*)&bnd->localaddr, hio_skad_size(&bnd->localaddr));
-			if (x == -1)
+			if (x <= -1)
 			{
 				hio_seterrwithsyserr (hio, 0, errno);
 			#if defined(USE_SSL)
@@ -1240,7 +1344,7 @@ static int dev_sck_ioctl (hio_dev_t* dev, int cmd, void* arg)
 				return -1;
 			}
 
-			if (!IS_STATEFUL(rdev)) 
+			if (!sck_type_map[rdev->type].connectable)
 			{
 				hio_seterrbfmt (hio, HIO_EPERM, "disallowed to connect stateless device");
 				return -1;
@@ -1381,14 +1485,14 @@ fcntl (rdev->hnd, F_SETFL, flags | O_NONBLOCK);
 				return -1;
 			}
 
-			if (!IS_STATEFUL(rdev)) 
+			if (!sck_type_map[rdev->type].listenable)
 			{
 				hio_seterrbfmt (hio, HIO_EPERM, "disallowed to listen on stateless device");
 				return -1;
 			}
 
 			x = listen(rdev->hnd, lstn->backlogs);
-			if (x == -1) 
+			if (x <= -1) 
 			{
 				hio_seterrwithsyserr (hio, 0, errno);
 				return -1;
@@ -1492,7 +1596,7 @@ static int harvest_outgoing_connection (hio_dev_sck_t* rdev)
 	HIO_ASSERT (hio, !(rdev->state & HIO_DEV_SCK_CONNECTED));
 
 	len = HIO_SIZEOF(errcode);
-	if (getsockopt(rdev->hnd, SOL_SOCKET, SO_ERROR, (char*)&errcode, &len) == -1)
+	if (getsockopt(rdev->hnd, SOL_SOCKET, SO_ERROR, (char*)&errcode, &len) <= -1)
 	{
 		hio_seterrbfmtwithsyserr (hio, 0, errno, "unable to get SO_ERROR");
 		return -1;
@@ -1606,11 +1710,11 @@ static int make_accepted_client_connection (hio_dev_sck_t* rdev, hio_syshnd_t cl
 	clidev->type = clisck_type;
 	HIO_ASSERT (hio, clidev->hnd == clisck);
 
-	clidev->dev_cap |= HIO_DEV_CAP_IN | HIO_DEV_CAP_OUT | HIO_DEV_CAP_STREAM;
+	clidev->dev_cap |= HIO_DEV_CAP_IN | HIO_DEV_CAP_OUT | sck_type_map[clisck_type].extra_dev_cap;
 	clidev->remoteaddr = *remoteaddr;
 
 	addrlen = HIO_SIZEOF(clidev->localaddr);
-	if (getsockname(clisck, (struct sockaddr*)&clidev->localaddr, &addrlen) == -1) clidev->localaddr = rdev->localaddr;
+	if (getsockname(clisck, (struct sockaddr*)&clidev->localaddr, &addrlen) <= -1) clidev->localaddr = rdev->localaddr;
 
 #if defined(SO_ORIGINAL_DST)
 	/* if REDIRECT is used, SO_ORIGINAL_DST returns the original
@@ -1618,7 +1722,7 @@ static int make_accepted_client_connection (hio_dev_sck_t* rdev, hio_syshnd_t cl
 	 * the address of the local socket. In this case, it should
 	 * be same as the result of getsockname(). */
 	addrlen = HIO_SIZEOF(clidev->orgdstaddr);
-	if (getsockopt(clisck, SOL_IP, SO_ORIGINAL_DST, &clidev->orgdstaddr, &addrlen) == -1) clidev->orgdstaddr = rdev->localaddr;
+	if (getsockopt(clisck, SOL_IP, SO_ORIGINAL_DST, &clidev->orgdstaddr, &addrlen) <= -1) clidev->orgdstaddr = rdev->localaddr;
 #else
 	clidev->orgdstaddr = rdev->localaddr;
 #endif
@@ -1761,7 +1865,7 @@ static int dev_evcb_sck_ready_stateful (hio_dev_t* dev, int events)
 		hio_scklen_t len;
 
 		len = HIO_SIZEOF(errcode);
-		if (getsockopt(rdev->hnd, SOL_SOCKET, SO_ERROR, (char*)&errcode, &len) == -1)
+		if (getsockopt(rdev->hnd, SOL_SOCKET, SO_ERROR, (char*)&errcode, &len) <= -1)
 		{
 			/* the error number is set to the socket error code.
 			 * errno resulting from getsockopt() doesn't reflect the actual
@@ -1945,7 +2049,7 @@ static int dev_evcb_sck_ready_stateless (hio_dev_t* dev, int events)
 		hio_scklen_t len;
 
 		len = HIO_SIZEOF(errcode);
-		if (getsockopt(rdev->hnd, SOL_SOCKET, SO_ERROR, (char*)&errcode, &len) == -1)
+		if (getsockopt(rdev->hnd, SOL_SOCKET, SO_ERROR, (char*)&errcode, &len) <= -1)
 		{
 			/* the error number is set to the socket error code.
 			 * errno resulting from getsockopt() doesn't reflect the actual
@@ -2020,7 +2124,7 @@ static int dev_evcb_sck_ready_qx (hio_dev_t* dev, int events)
 		hio_scklen_t len;
 
 		len = HIO_SIZEOF(errcode);
-		if (getsockopt(rdev->hnd, SOL_SOCKET, SO_ERROR, (char*)&errcode, &len) == -1)
+		if (getsockopt(rdev->hnd, SOL_SOCKET, SO_ERROR, (char*)&errcode, &len) <= -1)
 		{
 			/* the error number is set to the socket error code.
 			 * errno resulting from getsockopt() doesn't reflect the actual
