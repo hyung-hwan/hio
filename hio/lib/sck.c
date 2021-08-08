@@ -218,7 +218,7 @@ static HIO_INLINE hio_skad_t* devaddr_to_skad (hio_dev_sck_t* dev, const hio_dev
 
 /* ========================================================================= */
 
-#define IS_STATEFUL(sck) ((sck)->dev_cap & HIO_DEV_CAP_STREAM)
+#define IS_STREAM(sck) ((sck)->dev_cap & HIO_DEV_CAP_STREAM)
 
 struct sck_type_map_t
 {
@@ -321,7 +321,7 @@ static void connect_timedout (hio_t* hio, const hio_ntime_t* now, hio_tmrjob_t* 
 {
 	hio_dev_sck_t* rdev = (hio_dev_sck_t*)job->ctx;
 
-	HIO_ASSERT (hio, IS_STATEFUL(rdev));
+	HIO_ASSERT (hio, IS_STREAM(rdev));
 
 	if (rdev->state & HIO_DEV_SCK_CONNECTING)
 	{
@@ -339,7 +339,7 @@ static void ssl_accept_timedout (hio_t* hio, const hio_ntime_t* now, hio_tmrjob_
 {
 	hio_dev_sck_t* rdev = (hio_dev_sck_t*)job->ctx;
 
-	HIO_ASSERT (hio, IS_STATEFUL(rdev));
+	HIO_ASSERT (hio, IS_STREAM(rdev));
 
 	if (rdev->state & HIO_DEV_SCK_ACCEPTING_SSL)
 	{
@@ -352,7 +352,7 @@ static void ssl_connect_timedout (hio_t* hio, const hio_ntime_t* now, hio_tmrjob
 {
 	hio_dev_sck_t* rdev = (hio_dev_sck_t*)job->ctx;
 
-	HIO_ASSERT (hio, IS_STATEFUL(rdev));
+	HIO_ASSERT (hio, IS_STREAM(rdev));
 
 	if (rdev->state & HIO_DEV_SCK_CONNECTING_SSL)
 	{
@@ -519,7 +519,7 @@ static int dev_sck_kill (hio_dev_t* dev, int force)
 	hio_t* hio = dev->hio;
 	hio_dev_sck_t* rdev = (hio_dev_sck_t*)dev;
 
-	if (IS_STATEFUL(rdev))
+	if (IS_STREAM(rdev))
 	{
 		/*if (HIO_DEV_SCK_GET_PROGRESS(rdev))
 		{*/
@@ -578,7 +578,7 @@ static hio_syshnd_t dev_sck_getsyshnd (hio_dev_t* dev)
 }
 /* ------------------------------------------------------------------------------ */
 
-static int dev_sck_read_stateful (hio_dev_t* dev, void* buf, hio_iolen_t* len, hio_devaddr_t* srcaddr)
+static int dev_sck_read_stream (hio_dev_t* dev, void* buf, hio_iolen_t* len, hio_devaddr_t* srcaddr)
 {
 	hio_t* hio = dev->hio;
 	hio_dev_sck_t* rdev = (hio_dev_sck_t*)dev;
@@ -706,7 +706,7 @@ struct sctp_sndrcvinfo {
 
 /* ------------------------------------------------------------------------------ */
 
-static int dev_sck_write_stateful (hio_dev_t* dev, const void* data, hio_iolen_t* len, const hio_devaddr_t* dstaddr)
+static int dev_sck_write_stream (hio_dev_t* dev, const void* data, hio_iolen_t* len, const hio_devaddr_t* dstaddr)
 {
 	hio_t* hio = dev->hio;
 	hio_dev_sck_t* rdev = (hio_dev_sck_t*)dev;
@@ -782,7 +782,7 @@ static int dev_sck_write_stateful (hio_dev_t* dev, const void* data, hio_iolen_t
 }
 
 
-static int dev_sck_writev_stateful (hio_dev_t* dev, const hio_iovec_t* iov, hio_iolen_t* iovcnt, const hio_devaddr_t* dstaddr)
+static int dev_sck_writev_stream (hio_dev_t* dev, const hio_iovec_t* iov, hio_iolen_t* iovcnt, const hio_devaddr_t* dstaddr)
 {
 	hio_t* hio = dev->hio;
 	hio_dev_sck_t* rdev = (hio_dev_sck_t*)dev;
@@ -809,7 +809,7 @@ static int dev_sck_writev_stateful (hio_dev_t* dev, const hio_iovec_t* iov, hio_
 		for (i = 0; i < *iovcnt; i++)
 		{
 			/* no SSL_writev. invoke multiple calls to SSL_write(). 
-			 * since the write function is for the stateful connection,
+			 * since the write function is for the stream connection,
 			 * mutiple calls shouldn't really matter */
 			x = SSL_write((SSL*)rdev->ssl, iov[i].iov_ptr, iov[i].iov_len);
 			if (x <= -1)
@@ -990,7 +990,7 @@ static int dev_sck_writev_sctp_sp (hio_dev_t* dev, const hio_iovec_t* iov, hio_i
 
 /* ------------------------------------------------------------------------------ */
 
-static int dev_sck_sendfile_stateful (hio_dev_t* dev, hio_syshnd_t in_fd, hio_foff_t foff, hio_iolen_t* len)
+static int dev_sck_sendfile_stream (hio_dev_t* dev, hio_syshnd_t in_fd, hio_foff_t foff, hio_iolen_t* len)
 {
 	hio_t* hio = dev->hio;
 	hio_dev_sck_t* rdev = (hio_dev_sck_t*)dev;
@@ -1540,7 +1540,7 @@ static hio_dev_mth_t dev_mth_sck_stateless =
 };
 
 
-static hio_dev_mth_t dev_mth_sck_stateful = 
+static hio_dev_mth_t dev_mth_sck_stream = 
 {
 	dev_sck_make,
 	dev_sck_kill,
@@ -1548,14 +1548,14 @@ static hio_dev_mth_t dev_mth_sck_stateful =
 	dev_sck_getsyshnd,
 	HIO_NULL,
 
-	dev_sck_read_stateful,
-	dev_sck_write_stateful,
-	dev_sck_writev_stateful,
-	dev_sck_sendfile_stateful,
+	dev_sck_read_stream,
+	dev_sck_write_stream,
+	dev_sck_writev_stream,
+	dev_sck_sendfile_stream,
 	dev_sck_ioctl,     /* ioctl */
 };
 
-static hio_dev_mth_t dev_mth_clisck =
+static hio_dev_mth_t dev_mth_clisck_stateless =
 {
 	dev_sck_make_client,
 	dev_sck_kill,
@@ -1563,10 +1563,25 @@ static hio_dev_mth_t dev_mth_clisck =
 	dev_sck_getsyshnd,
 	HIO_NULL,
 
-	dev_sck_read_stateful,
-	dev_sck_write_stateful,
-	dev_sck_writev_stateful,
-	dev_sck_sendfile_stateful,
+	dev_sck_read_stateless,
+	dev_sck_write_stateless,
+	dev_sck_writev_stateless,
+	HIO_NULL,
+	dev_sck_ioctl
+};
+
+static hio_dev_mth_t dev_mth_clisck_stream =
+{
+	dev_sck_make_client,
+	dev_sck_kill,
+	dev_sck_fail_before_make_client,
+	dev_sck_getsyshnd,
+	HIO_NULL,
+
+	dev_sck_read_stream,
+	dev_sck_write_stream,
+	dev_sck_writev_stream,
+	dev_sck_sendfile_stream,
 	dev_sck_ioctl
 };
 
@@ -1685,6 +1700,7 @@ static int make_accepted_client_connection (hio_dev_sck_t* rdev, hio_syshnd_t cl
 	hio_t* hio = rdev->hio;
 	hio_dev_sck_t* clidev;
 	hio_scklen_t addrlen;
+	hio_dev_mth_t* dev_mth;
 
 	if (rdev->on_raw_accept)
 	{
@@ -1699,7 +1715,8 @@ static int make_accepted_client_connection (hio_dev_sck_t* rdev, hio_syshnd_t cl
 	 * instead of HIO_SIZEOF(hio_dev_sck_t). therefore, the  
 	 * extension area as big as that of the master sck device
 	 * is created in the client sck device */
-	clidev = (hio_dev_sck_t*)hio_dev_make(hio, rdev->dev_size, &dev_mth_clisck, rdev->dev_evcb, &clisck); 
+	dev_mth = (sck_type_map[clisck_type].extra_dev_cap & HIO_DEV_CAP_STREAM)? &dev_mth_clisck_stream: &dev_mth_clisck_stateless;
+	clidev = (hio_dev_sck_t*)hio_dev_make(hio, rdev->dev_size, dev_mth, rdev->dev_evcb, &clisck); 
 	if (HIO_UNLIKELY(!clidev))
 	{
 		/* [NOTE] 'clisck' is closed by callback methods called by hio_dev_make() upon failure */
@@ -1854,7 +1871,7 @@ accept_done:
 	return make_accepted_client_connection(rdev, clisck, &remoteaddr, rdev->type);
 }
 
-static int dev_evcb_sck_ready_stateful (hio_dev_t* dev, int events)
+static int dev_evcb_sck_ready_stream (hio_dev_t* dev, int events)
 {
 	hio_t* hio = dev->hio;
 	hio_dev_sck_t* rdev = (hio_dev_sck_t*)dev;
@@ -2072,13 +2089,13 @@ static int dev_evcb_sck_ready_stateless (hio_dev_t* dev, int events)
 	return 1; /* the device is ok. carry on reading or writing */
 }
 
-static int dev_evcb_sck_on_read_stateful (hio_dev_t* dev, const void* data, hio_iolen_t dlen, const hio_devaddr_t* srcaddr)
+static int dev_evcb_sck_on_read_stream (hio_dev_t* dev, const void* data, hio_iolen_t dlen, const hio_devaddr_t* srcaddr)
 {
 	hio_dev_sck_t* rdev = (hio_dev_sck_t*)dev;
 	return rdev->on_read(rdev, data, dlen, HIO_NULL);
 }
 
-static int dev_evcb_sck_on_write_stateful (hio_dev_t* dev, hio_iolen_t wrlen, void* wrctx, const hio_devaddr_t* dstaddr)
+static int dev_evcb_sck_on_write_stream (hio_dev_t* dev, hio_iolen_t wrlen, void* wrctx, const hio_devaddr_t* dstaddr)
 {
 	hio_dev_sck_t* rdev = (hio_dev_sck_t*)dev;
 	return rdev->on_write(rdev, wrlen, wrctx, HIO_NULL);
@@ -2098,11 +2115,11 @@ static int dev_evcb_sck_on_write_stateless (hio_dev_t* dev, hio_iolen_t wrlen, v
 
 /* ========================================================================= */
 
-static hio_dev_evcb_t dev_sck_event_callbacks_stateful =
+static hio_dev_evcb_t dev_sck_event_callbacks_stream =
 {
-	dev_evcb_sck_ready_stateful,
-	dev_evcb_sck_on_read_stateful,
-	dev_evcb_sck_on_write_stateful
+	dev_evcb_sck_ready_stream,
+	dev_evcb_sck_on_read_stream,
+	dev_evcb_sck_on_write_stream
 };
 
 static hio_dev_evcb_t dev_sck_event_callbacks_stateless =
@@ -2263,11 +2280,11 @@ hio_dev_sck_t* hio_dev_sck_make (hio_t* hio, hio_oow_t xtnsize, const hio_dev_sc
 			hio, HIO_SIZEOF(hio_dev_sck_t) + xtnsize,
 			&dev_mth_sck_bpf, &dev_sck_event_callbacks_bpf, (void*)info);
 	}
-	else if (sck_type_map[info->type].extra_dev_cap & HIO_DEV_CAP_STREAM) /* can't use the IS_STATEFUL() macro yet */
+	else if (sck_type_map[info->type].extra_dev_cap & HIO_DEV_CAP_STREAM) /* can't use the IS_STREAM() macro yet */
 	{
 		rdev = (hio_dev_sck_t*)hio_dev_make(
 			hio, HIO_SIZEOF(hio_dev_sck_t) + xtnsize,
-			&dev_mth_sck_stateful, &dev_sck_event_callbacks_stateful, (void*)info);
+			&dev_mth_sck_stream, &dev_sck_event_callbacks_stream, (void*)info);
 	}
 	else
 	{
