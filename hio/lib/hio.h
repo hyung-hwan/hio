@@ -226,6 +226,9 @@ struct hio_dev_mth_t
 	int          (*issyshndbroken) (hio_dev_t* dev); /* the device whose underlying system handle can get closed before kill() must implement this */
 
 	/* ------------------------------------------------------------------ */
+	int           (*ioctl)        (hio_dev_t* dev, int cmd, void* arg);
+
+	/* ------------------------------------------------------------------ */
 	/* return -1 on failure, 0 if no data is availble, 1 otherwise.
 	 * when returning 1, *len must be sent to the length of data read.
 	 * if *len is set to 0, it's treated as EOF. */
@@ -235,10 +238,6 @@ struct hio_dev_mth_t
 	int           (*write)        (hio_dev_t* dev, const void* data, hio_iolen_t* len, const hio_devaddr_t* dstaddr);
 	int           (*writev)       (hio_dev_t* dev, const hio_iovec_t* iov, hio_iolen_t* iovcnt, const hio_devaddr_t* dstaddr);
 	int           (*sendfile)     (hio_dev_t* dev, hio_syshnd_t in_fd, hio_foff_t foff, hio_iolen_t* len);
-
-	/* ------------------------------------------------------------------ */
-	int           (*ioctl)        (hio_dev_t* dev, int cmd, void* arg);
-
 };
 
 struct hio_dev_evcb_t

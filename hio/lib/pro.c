@@ -739,12 +739,12 @@ static hio_dev_mth_t dev_pro_methods =
 	HIO_NULL,
 	dev_pro_getsyshnd,
 	HIO_NULL,
+	dev_pro_ioctl,
 
 	HIO_NULL, /* read */
 	HIO_NULL, /* write */
 	HIO_NULL, /* writev */
 	HIO_NULL, /* sendfile */
-	dev_pro_ioctl
 };
 
 static hio_dev_mth_t dev_pro_methods_slave =
@@ -754,12 +754,12 @@ static hio_dev_mth_t dev_pro_methods_slave =
 	HIO_NULL,
 	dev_pro_getsyshnd_slave,
 	HIO_NULL,
+	dev_pro_ioctl,
 
 	dev_pro_read_slave,
 	dev_pro_write_slave,
 	dev_pro_writev_slave,
 	HIO_NULL, /* sendfile */
-	dev_pro_ioctl
 };
 
 /* ========================================================================= */

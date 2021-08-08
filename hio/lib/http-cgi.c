@@ -228,7 +228,7 @@ static HIO_INLINE void cgi_mark_over (cgi_t* cgi, int over_bits)
 			/* how to arrange to delete this cgi object and put the socket back to the normal waiting state??? */
 			HIO_ASSERT (cgi->htts->hio, cgi->client->rsrc == (hio_svc_htts_rsrc_t*)cgi);
 
-printf ("DETACHING FROM THE MAIN CLIENT RSRC... state -> %p\n", cgi->client->rsrc);
+/*printf ("DETACHING FROM THE MAIN CLIENT RSRC... state -> %p\n", cgi->client->rsrc);*/
 			HIO_SVC_HTTS_RSRC_DETACH (cgi->client->rsrc);
 			/* cgi must not be access from here down as it could have been destroyed */
 		}
@@ -317,7 +317,7 @@ static void cgi_peer_on_close (hio_dev_pro_t* pro, hio_dev_pro_sid_t sid)
 			cgi->peer = HIO_NULL; /* clear this peer from the state */
 
 			HIO_ASSERT (hio, cgi_peer->state != HIO_NULL);
-printf ("DETACHING FROM CGI PEER DEVICE.....................%p   %d\n", cgi_peer->state, (int)cgi_peer->state->rsrc_refcnt);
+/*printf ("DETACHING FROM CGI PEER DEVICE.....................%p   %d\n", cgi_peer->state, (int)cgi_peer->state->rsrc_refcnt);*/
 			HIO_SVC_HTTS_RSRC_DETACH (cgi_peer->state);
 
 			if (cgi->peer_htrd)
@@ -326,7 +326,7 @@ printf ("DETACHING FROM CGI PEER DEVICE.....................%p   %d\n", cgi_peer
 				 * it's safe to detach the extra information attached on the htrd object. */
 				cgi_peer = hio_htrd_getxtn(cgi->peer_htrd);
 				HIO_ASSERT (hio, cgi_peer->state != HIO_NULL);
-printf ("DETACHING FROM CGI PEER HTRD.....................%p   %d\n", cgi_peer->state, (int)cgi_peer->state->rsrc_refcnt);
+/*printf ("DETACHING FROM CGI PEER HTRD.....................%p   %d\n", cgi_peer->state, (int)cgi_peer->state->rsrc_refcnt);*/
 				HIO_SVC_HTTS_RSRC_DETACH (cgi_peer->state);
 			}
 
@@ -407,7 +407,7 @@ static int cgi_peer_on_read (hio_dev_pro_t* pro, hio_dev_pro_sid_t sid, const vo
 		if (rem > 0) 
 		{
 			/* If the script specifies Content-Length and produces longer data, it will come here */
-printf ("AAAAAAAAAAAAAAAAAa EEEEEXcessive DATA..................\n");
+/*printf ("AAAAAAAAAAAAAAAAAa EEEEEXcessive DATA..................\n");*/
 /* TODO: or drop this request?? */
 		}
 	}
@@ -472,7 +472,7 @@ static int cgi_peer_htrd_peek (hio_htrd_t* htrd, hio_htre_t* req)
 		if (*endptr == '\0' && is_sober && v > 0 && v <= HIO_TYPE_MAX(int)) status_code = v;
 	}
 
-printf ("CGI PEER HTRD PEEK...\n");
+/*printf ("CGI PEER HTRD PEEK...\n");*/
 	hio_svc_htts_fmtgmtime (cli->htts, HIO_NULL, dtbuf, HIO_COUNTOF(dtbuf));
 
 	if (hio_becs_fmt(cli->sbuf, "HTTP/%d.%d %d %hs\r\nServer: %hs\r\nDate: %hs\r\n",
@@ -508,7 +508,7 @@ static int cgi_peer_htrd_poke (hio_htrd_t* htrd, hio_htre_t* req)
 	cgi_peer_xtn_t* cgi_peer = hio_htrd_getxtn(htrd);
 	cgi_t* cgi = cgi_peer->state;
 
-printf (">> PEER RESPONSE COMPLETED\n");
+/*printf (">> PEER RESPONSE COMPLETED\n");*/
 
 	if (cgi_write_last_chunk_to_client(cgi) <= -1) return -1;
 
@@ -580,7 +580,7 @@ static int cgi_client_htrd_poke (hio_htrd_t* htrd, hio_htre_t* req)
 	hio_svc_htts_cli_t* cli = hio_dev_sck_getxtn(sck);
 	cgi_t* cgi = (cgi_t*)cli->rsrc;
 
-printf (">> CLIENT REQUEST COMPLETED\n");
+/*printf (">> CLIENT REQUEST COMPLETED\n");*/
 
 	/* indicate EOF to the client peer */
 	if (cgi_write_to_peer(cgi, HIO_NULL, 0) <= -1) return -1;

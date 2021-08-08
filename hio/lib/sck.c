@@ -1531,12 +1531,12 @@ static hio_dev_mth_t dev_mth_sck_stateless =
 	HIO_NULL,
 	dev_sck_getsyshnd,
 	HIO_NULL,
+	dev_sck_ioctl,     /* ioctl */
 
 	dev_sck_read_stateless,
 	dev_sck_write_stateless,
 	dev_sck_writev_stateless,
 	HIO_NULL,          /* sendfile */
-	dev_sck_ioctl,     /* ioctl */
 };
 
 
@@ -1547,12 +1547,12 @@ static hio_dev_mth_t dev_mth_sck_stream =
 	HIO_NULL,
 	dev_sck_getsyshnd,
 	HIO_NULL,
+	dev_sck_ioctl,     /* ioctl */
 
 	dev_sck_read_stream,
 	dev_sck_write_stream,
 	dev_sck_writev_stream,
 	dev_sck_sendfile_stream,
-	dev_sck_ioctl,     /* ioctl */
 };
 
 static hio_dev_mth_t dev_mth_clisck_stateless =
@@ -1562,12 +1562,12 @@ static hio_dev_mth_t dev_mth_clisck_stateless =
 	dev_sck_fail_before_make_client,
 	dev_sck_getsyshnd,
 	HIO_NULL,
+	dev_sck_ioctl,
 
 	dev_sck_read_stateless,
 	dev_sck_write_stateless,
 	dev_sck_writev_stateless,
 	HIO_NULL,
-	dev_sck_ioctl
 };
 
 static hio_dev_mth_t dev_mth_clisck_stream =
@@ -1577,12 +1577,12 @@ static hio_dev_mth_t dev_mth_clisck_stream =
 	dev_sck_fail_before_make_client,
 	dev_sck_getsyshnd,
 	HIO_NULL,
+	dev_sck_ioctl,
 
 	dev_sck_read_stream,
 	dev_sck_write_stream,
 	dev_sck_writev_stream,
-	dev_sck_sendfile_stream,
-	dev_sck_ioctl
+	dev_sck_sendfile_stream
 };
 
 static hio_dev_mth_t dev_mth_sck_bpf = 
@@ -1592,12 +1592,12 @@ static hio_dev_mth_t dev_mth_sck_bpf =
 	HIO_NULL,
 	dev_sck_getsyshnd,
 	HIO_NULL,
+	dev_sck_ioctl,     /* ioctl */
 
 	dev_sck_read_bpf,
 	dev_sck_write_bpf,
 	dev_sck_writev_bpf,
 	HIO_NULL,          /* sendfile */
-	dev_sck_ioctl,     /* ioctl */
 };
 
 /* ========================================================================= */

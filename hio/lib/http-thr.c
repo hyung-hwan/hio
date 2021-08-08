@@ -407,7 +407,7 @@ static int thr_peer_on_read (hio_dev_thr_t* thr, const void* data, hio_iolen_t d
 		if (rem > 0) 
 		{
 			/* If the script specifies Content-Length and produces longer data, it will come here */
-printf ("AAAAAAAAAAAAAAAAAa EEEEEXcessive DATA..................\n");
+/*printf ("AAAAAAAAAAAAAAAAAa EEEEEXcessive DATA..................\n");*/
 /* TODO: or drop this request?? */
 		}
 	}

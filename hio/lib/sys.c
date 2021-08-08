@@ -75,9 +75,10 @@ void hio_sys_fini (hio_t* hio)
 }
 
 
-/* TODO: migrate this function */
+/* TODO: migrate these functions */
 #include <fcntl.h>
 #include <errno.h>
+
 int hio_makesyshndasync (hio_t* hio, hio_syshnd_t hnd)
 {
 #if defined(F_GETFL) && defined(F_SETFL) && defined(O_NONBLOCK)
@@ -86,7 +87,6 @@ int hio_makesyshndasync (hio_t* hio, hio_syshnd_t hnd)
 	if ((flags = fcntl(hnd, F_GETFL, 0)) <= -1 ||
 	    fcntl(hnd, F_SETFL, flags | O_NONBLOCK) <= -1)
 	{
-printf ("make sysnhd async error (%d) - errno %d\n", hnd, errno);
 		hio_seterrwithsyserr (hio, 0, errno);
 		return -1;
 	}
@@ -106,7 +106,6 @@ int hio_makesyshndcloexec (hio_t* hio, hio_syshnd_t hnd)
 	if ((flags = fcntl(hnd, F_GETFD, 0)) <= -1 ||
 	    fcntl(hnd, F_SETFD, flags | FD_CLOEXEC) <= -1)
 	{
-printf ("make sysnhd cloexec error (%d) - errno %d\n", hnd, errno);
 		hio_seterrwithsyserr (hio, 0, errno);
 		return -1;
 	}

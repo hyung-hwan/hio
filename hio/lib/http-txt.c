@@ -140,7 +140,7 @@ static HIO_INLINE void txt_mark_over (txt_t* txt, int over_bits)
 			/* how to arrange to delete this txt object and put the socket back to the normal waiting state??? */
 			HIO_ASSERT (txt->htts->hio, txt->client->rsrc == (hio_svc_htts_rsrc_t*)txt);
 
-printf ("DETACHING FROM THE MAIN CLIENT RSRC... state -> %p\n", txt->client->rsrc);
+/*printf ("DETACHING FROM THE MAIN CLIENT RSRC... state -> %p\n", txt->client->rsrc);*/
 			HIO_SVC_HTTS_RSRC_DETACH (txt->client->rsrc);
 			/* txt must not be access from here down as it could have been destroyed */
 		}
@@ -204,7 +204,7 @@ static int txt_client_htrd_poke (hio_htrd_t* htrd, hio_htre_t* req)
 	hio_svc_htts_cli_t* cli = hio_dev_sck_getxtn(sck);
 	txt_t* txt = (txt_t*)cli->rsrc;
 
-printf (">> CLIENT REQUEST COMPLETED\n");
+/*printf (">> CLIENT REQUEST COMPLETED\n");*/
 
 	txt_mark_over (txt, TXT_OVER_READ_FROM_CLIENT);
 	return 0;
@@ -267,7 +267,7 @@ static int txt_client_on_read (hio_dev_sck_t* sck, const void* buf, hio_iolen_t 
 		if (rem > 0)
 		{
 			/* TODO store this to client buffer. once the current resource is completed, arrange to call on_read() with it */
-printf ("UUUUUUUUUUUUUUUUUUUUUUUUUUGGGGGHHHHHHHHHHHH .......... TXT CLIENT GIVING EXCESSIVE DATA AFTER CONTENTS...\n");
+/*printf ("UUUUUUUUUUUUUUUUUUUUUUUUUUGGGGGHHHHHHHHHHHH .......... TXT CLIENT GIVING EXCESSIVE DATA AFTER CONTENTS...\n");*/
 		}
 	}
 

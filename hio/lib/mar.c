@@ -355,12 +355,12 @@ static hio_dev_mth_t dev_mar_methods =
 	HIO_NULL,
 	dev_mar_getsyshnd,
 	dev_mar_issyshndbroken,
+	dev_mar_ioctl,
 
 	HIO_NULL,
 	HIO_NULL,
 	HIO_NULL,
 	HIO_NULL, /* sendfile */
-	dev_mar_ioctl
 };
 
 /* ========================================================================= */
