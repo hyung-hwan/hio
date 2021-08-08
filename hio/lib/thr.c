@@ -569,11 +569,12 @@ static hio_dev_mth_t dev_thr_methods =
 	HIO_NULL,
 	dev_thr_getsyshnd,
 	HIO_NULL,
+	dev_thr_ioctl,
 
 	HIO_NULL,
 	HIO_NULL,
 	HIO_NULL,
-	dev_thr_ioctl
+	HIO_NULL /* sendfile */
 };
 
 static hio_dev_mth_t dev_thr_methods_slave =
@@ -583,11 +584,12 @@ static hio_dev_mth_t dev_thr_methods_slave =
 	dev_thr_fail_before_make_slave,
 	dev_thr_getsyshnd_slave,
 	HIO_NULL,
+	dev_thr_ioctl,
 
 	dev_thr_read_slave,
 	dev_thr_write_slave,
 	dev_thr_writev_slave,
-	dev_thr_ioctl
+	HIO_NULL, /* sendfile */
 };
 
 /* ========================================================================= */

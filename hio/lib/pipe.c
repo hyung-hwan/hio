@@ -377,11 +377,12 @@ static hio_dev_mth_t dev_pipe_methods =
 	HIO_NULL,
 	dev_pipe_getsyshnd,
 	HIO_NULL,
+	dev_pipe_ioctl,
 
 	HIO_NULL,
 	HIO_NULL,
 	HIO_NULL,
-	dev_pipe_ioctl
+	HIO_NULL, /* sendfile */
 };
 
 static hio_dev_mth_t dev_pipe_methods_slave =
@@ -391,11 +392,12 @@ static hio_dev_mth_t dev_pipe_methods_slave =
 	dev_pipe_fail_before_make_slave,
 	dev_pipe_getsyshnd_slave,
 	HIO_NULL,
+	dev_pipe_ioctl,
 
 	dev_pipe_read_slave,
 	dev_pipe_write_slave,
 	dev_pipe_writev_slave,
-	dev_pipe_ioctl
+	HIO_NULL, /* sendfile */
 };
 
 /* ========================================================================= */
