@@ -27,6 +27,8 @@
 #include "http-prv.h"
 #include <hio-path.h>
 
+#define INVALID_LIDX HIO_TYPE_MAX(hio_oow_t)
+
 /* ------------------------------------------------------------------------ */
 static int client_htrd_peek_request (hio_htrd_t* htrd, hio_htre_t* req)
 {
@@ -48,11 +50,11 @@ static int init_client (hio_svc_htts_cli_t* cli, hio_dev_sck_t* sck)
 
 	/* the htts field must be filled with the same field in the listening socket upon accept() */
 	HIO_ASSERT (sck->hio, cli->htts != HIO_NULL);
-	//HIO_ASSERT (sck->hio, cli->sck == cli->htts->lsck); /* the field should still point to the listner socket */
+	HIO_ASSERT (sck->hio, cli->l_idx < cli->htts->l.count); /* at this point, it's still the listener's index as it's cloned */
 	HIO_ASSERT (sck->hio, sck->hio == cli->htts->hio);
 
 	cli->sck = sck;
-	cli->l_idx = HIO_TYPE_MAX(hio_oow_t);
+	cli->l_idx = INVALID_LIDX; /* not a listening socket anymore */
 	cli->htrd = HIO_NULL;
 	cli->sbuf = HIO_NULL;
 	cli->rsrc = HIO_NULL;
@@ -139,8 +141,12 @@ static int listener_on_read (hio_dev_sck_t* sck, const void* buf, hio_iolen_t le
 	hio_oow_t rem;
 	int x;
 
-	//HIO_ASSERT (hio, sck != cli->htts->lsck);
-	HIO_ASSERT (hio, cli->rsrc == HIO_NULL); /* if a resource has been set, the resource must take over this handler */
+	HIO_ASSERT (hio, cli->l_idx == INVALID_LIDX);
+
+	/* if a resource has been set(cli->rsrc not NULL), the resource must take over
+	 * this handler. this handler is never called unless the the overriding handler
+	 * call this. */
+	HIO_ASSERT (hio, cli->rsrc == HIO_NULL); 
 
 	if (len <= -1)
 	{
@@ -182,9 +188,18 @@ oops:
 
 static int listener_on_write (hio_dev_sck_t* sck, hio_iolen_t wrlen, void* wrctx, const hio_skad_t* dstaddr)
 {
+	/* don't get deluded by the name. it's set on both the listener and the client.
+	 * it is not supposed to be triggered on the listener, however */
 	hio_svc_htts_cli_t* cli = hio_dev_sck_getxtn(sck);
-	//HIO_ASSERT (sck->hio, sck != cli->htts->lsck);
-	HIO_ASSERT (sck->hio, cli->rsrc == HIO_NULL); /* if a resource has been set, the resource must take over this handler */
+	HIO_ASSERT (sck->hio, cli->l_idx == INVALID_LIDX);
+
+	/* if a resource has been set(cli->rsrc not NULL), the resource must take over
+	 * this handler. this handler is never called unless the the overriding handler
+	 * call this. */
+	HIO_ASSERT (sck->hio, cli->rsrc == HIO_NULL);
+
+	/* anyways, nothing to do upon write completion */
+
 	return 0;
 }
 

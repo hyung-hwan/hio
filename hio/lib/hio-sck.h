@@ -379,7 +379,7 @@ struct hio_dev_sck_t
 
 	int state;
 
-	/* remote peer address for a stateful stream socket. valid if one of the 
+	/* remote peer address for a stream socket. valid if one of the 
 	 * followings is set in state:
 	 *   HIO_DEV_TCP_ACCEPTING_SSL
 	 *   HIO_DEV_TCP_ACCEPTED

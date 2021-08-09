@@ -466,6 +466,23 @@ then
 	AC_CHECK_SIZEOF(struct sockaddr_in6,,[
 		#include <winsock2.h>
 		#include <ws2tcpip.h>])
+	AC_CHECK_SIZEOF(struct sockaddr_in_x,,[
+		#include <winsock2.h>
+		#include <ws2tcpip.h>
+		struct sockaddr_in_x { 
+			struct sockaddr_in a; 
+			unsigned short chan; 
+		};
+	])
+	AC_CHECK_SIZEOF(struct sockaddr_in6_x,,[
+		#include <winsock2.h>
+		#include <ws2tcpip.h>
+		struct sockaddr_in6_x { 
+			struct sockaddr_in6 a;
+			unsigned short chan; 
+		};
+	])
+
 	AC_CHECK_SIZEOF(struct sockaddr_un,,[
 		#include <winsock2.h>
 		#include <ws2tcpip.h>])
@@ -518,6 +535,25 @@ else
 		#include <sys/types.h>
 		#include <sys/socket.h>
 		#include <netinet/in.h>])
+	AC_CHECK_SIZEOF(struct sockaddr_in_x,,[
+		#include <sys/types.h>
+		#include <sys/socket.h>
+		#include <netinet/in.h>
+		struct sockaddr_in_x { 
+			struct sockaddr_in a; 
+			unsigned short chan; 
+		};
+	])
+	AC_CHECK_SIZEOF(struct sockaddr_in6_x,,[
+		#include <sys/types.h>
+		#include <sys/socket.h>
+		#include <netinet/in.h>
+		struct sockaddr_in6_x { 
+			struct sockaddr_in6 a;
+			unsigned short chan; 
+		};
+	])
+
 	AC_CHECK_SIZEOF(struct sockaddr_un,,[
 		#include <sys/types.h>
 		#include <sys/socket.h>
@@ -530,7 +566,6 @@ else
 		#include <sys/types.h>
 		#include <sys/socket.h>
 		#include <net/if_dl.h>])
-
 
 	AC_CHECK_SIZEOF(socklen_t,, [
 		#include <sys/types.h>
@@ -696,6 +731,10 @@ AC_DEFINE_UNQUOTED(HIO_AF_UNIX, (${ax_cv_numvalof_AF_UNIX}), [AF_UNIX])
 
 AC_DEFINE_UNQUOTED(HIO_SIZEOF_STRUCT_SOCKADDR_IN, ${ac_cv_sizeof_struct_sockaddr_in}, [sizeof(struct sockaddr_in)])
 AC_DEFINE_UNQUOTED(HIO_SIZEOF_STRUCT_SOCKADDR_IN6, ${ac_cv_sizeof_struct_sockaddr_in6}, [sizeof(struct sockaddr_in6)])
+
+AC_DEFINE_UNQUOTED(HIO_SIZEOF_STRUCT_SOCKADDR_IN_X, ${ac_cv_sizeof_struct_sockaddr_in_x}, [sizeof(struct sockaddr_in_x)])
+AC_DEFINE_UNQUOTED(HIO_SIZEOF_STRUCT_SOCKADDR_IN6_X, ${ac_cv_sizeof_struct_sockaddr_in6_x}, [sizeof(struct sockaddr_in6_x)])
+
 AC_DEFINE_UNQUOTED(HIO_SIZEOF_STRUCT_SOCKADDR_UN, ${ac_cv_sizeof_struct_sockaddr_un}, [sizeof(struct sockaddr_un)])
 AC_DEFINE_UNQUOTED(HIO_SIZEOF_STRUCT_SOCKADDR_LL, ${ac_cv_sizeof_struct_sockaddr_ll}, [sizeof(struct sockaddr_ll)])
 AC_DEFINE_UNQUOTED(HIO_SIZEOF_STRUCT_SOCKADDR_DL, ${ac_cv_sizeof_struct_sockaddr_dl}, [sizeof(struct sockaddr_dl)])

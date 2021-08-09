@@ -31,13 +31,13 @@
 #include <hio-utl.h>
 
 #define HIO_SIZEOF_SKAD_T 1
-#if (HIO_SIZEOF_STRUCT_SOCKADDR_IN > HIO_SIZEOF_SKAD_T)
+#if (HIO_SIZEOF_STRUCT_SOCKADDR_IN_X > HIO_SIZEOF_SKAD_T)
 #	undef HIO_SIZEOF_SKAD_T
-#	define HIO_SIZEOF_SKAD_T HIO_SIZEOF_STRUCT_SOCKADDR_IN
+#	define HIO_SIZEOF_SKAD_T HIO_SIZEOF_STRUCT_SOCKADDR_IN_X
 #endif
-#if (HIO_SIZEOF_STRUCT_SOCKADDR_IN6 > HIO_SIZEOF_SKAD_T)
+#if (HIO_SIZEOF_STRUCT_SOCKADDR_IN6_X > HIO_SIZEOF_SKAD_T)
 #	undef HIO_SIZEOF_SKAD_T
-#	define HIO_SIZEOF_SKAD_T HIO_SIZEOF_STRUCT_SOCKADDR_IN6
+#	define HIO_SIZEOF_SKAD_T HIO_SIZEOF_STRUCT_SOCKADDR_IN6_X
 #endif
 #if (HIO_SIZEOF_STRUCT_SOCKADDR_LL > HIO_SIZEOF_SKAD_T)
 #	undef HIO_SIZEOF_SKAD_T
@@ -198,6 +198,24 @@ HIO_EXPORT int hio_skad_port (
 
 HIO_EXPORT int hio_skad_ifindex (
 	const hio_skad_t* skad
+);
+
+HIO_EXPORT int hio_skad_scope_id (
+	const hio_skad_t* skad
+);
+
+HIO_EXPORT void hio_skad_set_scope_id (
+	hio_skad_t*       skad,
+	int               scope_id
+);
+
+HIO_EXPORT hio_uint16_t hio_skad_chan (
+	const hio_skad_t* skad
+);
+
+HIO_EXPORT void hio_skad_set_chan (
+	hio_skad_t*       skad,
+	hio_uint16_t      chan
 );
 
 HIO_EXPORT void hio_clear_skad (

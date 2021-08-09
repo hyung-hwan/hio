@@ -648,6 +648,12 @@
 /* sizeof(struct sockaddr_in6) */
 #undef HIO_SIZEOF_STRUCT_SOCKADDR_IN6
 
+/* sizeof(struct sockaddr_in6_x) */
+#undef HIO_SIZEOF_STRUCT_SOCKADDR_IN6_X
+
+/* sizeof(struct sockaddr_in_x) */
+#undef HIO_SIZEOF_STRUCT_SOCKADDR_IN_X
+
 /* sizeof(struct sockaddr_ll) */
 #undef HIO_SIZEOF_STRUCT_SOCKADDR_LL
 
@@ -789,6 +795,12 @@
 
 /* The size of `struct sockaddr_in6', as computed by sizeof. */
 #undef SIZEOF_STRUCT_SOCKADDR_IN6
+
+/* The size of `struct sockaddr_in6_x', as computed by sizeof. */
+#undef SIZEOF_STRUCT_SOCKADDR_IN6_X
+
+/* The size of `struct sockaddr_in_x', as computed by sizeof. */
+#undef SIZEOF_STRUCT_SOCKADDR_IN_X
 
 /* The size of `struct sockaddr_ll', as computed by sizeof. */
 #undef SIZEOF_STRUCT_SOCKADDR_LL
