@@ -24,7 +24,6 @@
     THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  */
 
-
 #include <hio-sck.h>
 #include "hio-prv.h"
 
@@ -95,7 +94,6 @@
 static hio_syshnd_t open_async_socket (hio_t* hio, int domain, int type, int proto)
 {
 	hio_syshnd_t sck = HIO_SYSHND_INVALID;
-	int flags;
 
 #if defined(SOCK_NONBLOCK) && defined(SOCK_CLOEXEC)
 	type |= SOCK_NONBLOCK | SOCK_CLOEXEC;
@@ -179,8 +177,10 @@ done:
 static hio_syshnd_t open_async_bpf (hio_t* hio)
 {
 	hio_syshnd_t fd = HIO_SYSHND_INVALID;
+#if 0
 	int tmp;
 	unsigned int bufsize;
+#endif
 
 	fd = open("/dev/bpf", O_RDWR);
 	if (fd == HIO_SYSHND_INVALID) goto oops;
@@ -265,10 +265,12 @@ static struct sck_type_map_t sck_type_map[] =
 	{ AF_INET6,  SOCK_STREAM,     IPPROTO_SCTP,      1, 1, HIO_DEV_CAP_STREAM },
 
 	/* HIO_DEV_SCK_SCTP4_SP - not implemented */
-	{ AF_INET,   SOCK_SEQPACKET,  IPPROTO_SCTP,      1, 1, 0 },
+	/*{ AF_INET,   SOCK_SEQPACKET,  IPPROTO_SCTP,      1, 1, 0 },*/
+	{ -1,        0,               0,                 0, 0, 0 },
 
 	/* HIO_DEV_SCK_SCTP6_SP - not implemented */
-	{ AF_INET6,  SOCK_SEQPACKET,  IPPROTO_SCTP,      1, 1, 0 },
+	/*{ AF_INET6,  SOCK_SEQPACKET,  IPPROTO_SCTP,      1, 1, 0 },*/
+	{ -1,        0,               0,                 0, 0, 0 },
 #else
 	{ -1,        0,               0,                 0, 0, 0 },
 	{ -1,        0,               0,                 0, 0, 0 },
@@ -363,39 +365,12 @@ static void ssl_connect_timedout (hio_t* hio, const hio_ntime_t* now, hio_tmrjob
 
 static HIO_INLINE int schedule_timer_job_at (hio_dev_sck_t* dev, const hio_ntime_t* fire_at, hio_tmrjob_handler_t handler)
 {
-#if 1
 	return hio_schedtmrjobat(dev->hio, fire_at, handler, &dev->tmrjob_index, dev);
-#else
-	hio_tmrjob_t tmrjob;
-
-	HIO_MEMSET (&tmrjob, 0, HIO_SIZEOF(tmrjob));
-	tmrjob.ctx = dev;
-	tmrjob.when = *fire_at;
-
-	tmrjob.handler = handler;
-	tmrjob.idxptr = &dev->tmrjob_index;
-
-	HIO_ASSERT (dev->hio, dev->tmrjob_index == HIO_TMRIDX_INVALID);
-	dev->tmrjob_index = hio_instmrjob(dev->hio, &tmrjob);
-	return dev->tmrjob_index == HIO_TMRIDX_INVALID? -1: 0;
-#endif
 }
 
 static HIO_INLINE int schedule_timer_job_after (hio_dev_sck_t* dev, const hio_ntime_t* fire_after, hio_tmrjob_handler_t handler)
 {
-#if 1
 	return hio_schedtmrjobafter(dev->hio, fire_after, handler, &dev->tmrjob_index, dev);
-#else
-	hio_t* hio = dev->hio;
-	hio_ntime_t fire_at;
-
-	HIO_ASSERT (hio, HIO_IS_POS_NTIME(fire_after));
-
-	hio_gettime (hio, &fire_at);
-	HIO_ADD_NTIME (&fire_at, &fire_at, fire_after);
-
-	return schedule_timer_job_at(dev, &fire_at, handler);
-#endif
 }
 
 /* ======================================================================== */
@@ -519,6 +494,7 @@ static int dev_sck_kill (hio_dev_t* dev, int force)
 	hio_t* hio = dev->hio;
 	hio_dev_sck_t* rdev = (hio_dev_sck_t*)dev;
 
+#if 0
 	if (IS_STREAM(rdev))
 	{
 		/*if (HIO_DEV_SCK_GET_PROGRESS(rdev))
@@ -528,19 +504,21 @@ static int dev_sck_kill (hio_dev_t* dev, int force)
 			 * it is the same if connect or accept has not been called. */
 			if (rdev->on_disconnect) rdev->on_disconnect (rdev);
 		/*}*/
-
-		if (rdev->tmrjob_index != HIO_TMRIDX_INVALID)
-		{
-			hio_deltmrjob (hio, rdev->tmrjob_index);
-			HIO_ASSERT (hio, rdev->tmrjob_index == HIO_TMRIDX_INVALID);
-		}
 	}
 	else
 	{
-		HIO_ASSERT (hio, (rdev->state & HIO_DEV_SCK_ALL_PROGRESS_BITS) == 0);
-		HIO_ASSERT (hio, rdev->tmrjob_index == HIO_TMRIDX_INVALID);
+		/* non-stream, but lisenable or connectable can have the progress bits on */
+		/*HIO_ASSERT (hio, (rdev->state & HIO_DEV_SCK_ALL_PROGRESS_BITS) == 0);*/
 
 		if (rdev->on_disconnect) rdev->on_disconnect (rdev);
+	}
+#else
+	if (rdev->on_disconnect) rdev->on_disconnect (rdev);
+#endif
+	if (rdev->tmrjob_index != HIO_TMRIDX_INVALID)
+	{
+		hio_deltmrjob (hio, rdev->tmrjob_index);
+		HIO_ASSERT (hio, rdev->tmrjob_index == HIO_TMRIDX_INVALID);
 	}
 
 #if defined(USE_SSL)
@@ -651,15 +629,90 @@ static int dev_sck_read_stateless (hio_dev_t* dev, void* buf, hio_iolen_t* len, 
 static int dev_sck_read_bpf (hio_dev_t* dev, void* buf, hio_iolen_t* len, hio_devaddr_t* srcaddr)
 {
 	hio_t* hio = dev->hio;
-	hio_dev_sck_t* rdev = (hio_dev_sck_t*)dev;
+	/*hio_dev_sck_t* rdev = (hio_dev_sck_t*)dev;*/
 	hio_seterrwithsyserr (hio, 0, HIO_ENOIMPL);
 	return -1;
 }
 
 
 #if defined(IPPROTO_SCTP)
+static int recvmsg_sctp(
+	int s, void* ptr, hio_oow_t len, struct sockaddr* srcaddr, hio_scklen_t* srcaddrlen, 
+	struct sctp_sndrcvinfo* sinfo, int* msg_flags)
+{
+	int n;
+	struct iovec iov;
+	struct msghdr msg;
+	struct cmsghdr* cmsg;
+	hio_uint8_t cmsg_buf[CMSG_SPACE(HIO_SIZEOF(*sinfo))];
+
+	iov.iov_base = ptr;
+	iov.iov_len = len;
+
+	HIO_MEMSET (&msg, 0, HIO_SIZEOF(msg));
+	msg.msg_name = srcaddr;
+	msg.msg_namelen = *srcaddrlen;
+	msg.msg_iov = &iov;
+	msg.msg_iovlen = 1;
+	msg.msg_control = cmsg_buf;
+	msg.msg_controllen = HIO_SIZEOF(cmsg_buf);
+
+	n = recvmsg(s, &msg, 0);
+	if (n <= -1) return n;
+
+	*srcaddrlen = msg.msg_namelen;
+	if (msg_flags) *msg_flags = msg.msg_flags;
+
+	for (cmsg = CMSG_FIRSTHDR(&msg); cmsg ; cmsg = CMSG_NXTHDR(&msg, cmsg))
+	{
+		if (cmsg->cmsg_level == IPPROTO_SCTP && cmsg->cmsg_type == SCTP_SNDRCV) 
+		{
+			HIO_MEMCPY(sinfo, CMSG_DATA(cmsg), HIO_SIZEOF(*sinfo));
+			break;
+		}
+	}
+
+	return n;
+}
+
+static int sendmsg_sctp(
+	int s, const hio_iovec_t* iov, hio_oow_t iovcnt, struct sockaddr* dstaddr, hio_scklen_t dstaddrlen, 
+	hio_uint32_t ppid, hio_uint32_t flags, hio_uint16_t stream_no, hio_uint32_t ttl, hio_uint32_t context)
+{
+	struct sctp_sndrcvinfo* sinfo;
+	struct msghdr msg;
+	struct cmsghdr* cmsg;
+	hio_uint8_t cmsg_buf[CMSG_SPACE(HIO_SIZEOF(*sinfo))];
+
+	msg.msg_name = dstaddr;
+	msg.msg_namelen = dstaddrlen;
+	msg.msg_iov = (struct iovec*)iov;
+	msg.msg_iovlen = iovcnt;
+
+	msg.msg_control = cmsg_buf;
+	msg.msg_controllen = HIO_SIZEOF(cmsg_buf);
+	msg.msg_flags = 0;
+
+	cmsg = CMSG_FIRSTHDR(&msg);
+	cmsg->cmsg_level = IPPROTO_SCTP;
+	cmsg->cmsg_type = SCTP_SNDRCV;
+	cmsg->cmsg_len = CMSG_LEN(HIO_SIZEOF(*sinfo));
+
+	msg.msg_controllen = cmsg->cmsg_len;
+	sinfo = (struct sctp_sndrcvinfo *)CMSG_DATA(cmsg);
+	HIO_MEMSET (sinfo, 0, HIO_SIZEOF(*sinfo));
+	sinfo->sinfo_ppid = ppid;
+	sinfo->sinfo_flags = flags;
+	sinfo->sinfo_stream = stream_no;
+	sinfo->sinfo_timetolive = ttl;
+	sinfo->sinfo_context = context;
+
+	return sendmsg(s, &msg, 0);
+}
+
 static int dev_sck_read_sctp_sp (hio_dev_t* dev, void* buf, hio_iolen_t* len, hio_devaddr_t* srcaddr)
 {
+/* NOTE: sctp support is far away from complete */
 	hio_t* hio = dev->hio;
 	hio_dev_sck_t* rdev = (hio_dev_sck_t*)dev;
 	hio_scklen_t srcaddrlen;
@@ -668,21 +721,9 @@ static int dev_sck_read_sctp_sp (hio_dev_t* dev, void* buf, hio_iolen_t* len, hi
 	struct sctp_sndrcvinfo sri;
 
 	srcaddrlen = HIO_SIZEOF(rdev->remoteaddr);
-/*
-struct sctp_sndrcvinfo {
-        __u16 sinfo_stream;
-        __u16 sinfo_ssn;
-        __u16 sinfo_flags;
-        __u32 sinfo_ppid;
-        __u32 sinfo_context;
-        __u32 sinfo_timetolive;
-        __u32 sinfo_tsn;
-        __u32 sinfo_cumtsn;
-        sctp_assoc_t sinfo_assoc_id;
-};
-*/
+
 	/* msg_flags -> flags such as MSG_NOTIFICATION or MSG_EOR */
-	x = sctp_recvmsg(rdev->hnd, buf, *len, (struct sockaddr*)&rdev->remoteaddr, &srcaddrlen, &sri, &msg_flags);
+	x = recvmsg_sctp(rdev->hnd, buf, *len, (struct sockaddr*)&rdev->remoteaddr, &srcaddrlen, &sri, &msg_flags);
 	if (x <= -1)
 	{
 		int eno = errno;
@@ -695,11 +736,16 @@ struct sctp_sndrcvinfo {
 		return -1;
 	}
 
+/*
+if (msg_flags & MSG_EOR) end of message??
+else push to buffer???
+*/
+	hio_skad_set_chan (&rdev->remoteaddr, sri.sinfo_stream);
+/* TODO: how to store sri.sinfo_ppid or sri.sinfo_context? */
 	srcaddr->ptr = &rdev->remoteaddr;
 	srcaddr->len = srcaddrlen;
 
 	*len = x;
-	//*sid = sri.sinfo_stream; /* stream number */
 	return 1;
 }
 #endif
@@ -938,7 +984,7 @@ static int dev_sck_writev_stateless (hio_dev_t* dev, const hio_iovec_t* iov, hio
 static int dev_sck_write_bpf (hio_dev_t* dev, const void* data, hio_iolen_t* len, const hio_devaddr_t* dstaddr)
 {
 	hio_t* hio = dev->hio;
-	hio_dev_sck_t* rdev = (hio_dev_sck_t*)dev;
+	/*hio_dev_sck_t* rdev = (hio_dev_sck_t*)dev;*/
 	hio_seterrwithsyserr (hio, 0, HIO_ENOIMPL);
 	return -1;
 }
@@ -946,24 +992,28 @@ static int dev_sck_write_bpf (hio_dev_t* dev, const void* data, hio_iolen_t* len
 static int dev_sck_writev_bpf (hio_dev_t* dev, const hio_iovec_t* iov, hio_iolen_t* iovcnt, const hio_devaddr_t* dstaddr)
 {
 	hio_t* hio = dev->hio;
-	hio_dev_sck_t* rdev = (hio_dev_sck_t*)dev;
+	/*hio_dev_sck_t* rdev = (hio_dev_sck_t*)dev;*/
 	hio_seterrwithsyserr (hio, 0, HIO_ENOIMPL);
 	return -1;
 }
 
 /* ------------------------------------------------------------------------------ */
-#if defined(IPPROTO_SCTPXX)
+#if defined(IPPROTO_SCTP)
 static int dev_sck_write_sctp_sp (hio_dev_t* dev, const void* data, hio_iolen_t* len, const hio_devaddr_t* dstaddr)
 {
+/* NOTE: sctp support is far away from complete */
 	hio_t* hio = dev->hio;
 	hio_dev_sck_t* rdev = (hio_dev_sck_t*)dev;
 	ssize_t x;
+	hio_iovec_t iov;
 
-	x = sctp_sendmsg(rdev->hnd, 
-		data, *len, dstaddr->ptr, dstaddr->len, 
-		sir->info_ppid, /* ppid - opaque */
-		0, /* flags (e.g. SCTP_UNORDERED, SCTP_EOF, SCT_ABORT, ...) */,
-		sid, /* stream number */
+	iov.iov_ptr = (void*)data;
+	iov.iov_len = *len;
+	x = sendmsg_sctp(rdev->hnd, 
+		&iov, 1, dstaddr->ptr, dstaddr->len, 
+		0, /* ppid - opaque */
+		0, /* flags (e.g. SCTP_UNORDERED, SCTP_EOF, SCT_ABORT, ...) */
+		hio_skad_chan(dstaddr->ptr), /* stream number */
 		0, /* ttl */
 		0 /* context*/);
 	if (x <= -1) 
@@ -980,11 +1030,27 @@ static int dev_sck_write_sctp_sp (hio_dev_t* dev, const void* data, hio_iolen_t*
 
 static int dev_sck_writev_sctp_sp (hio_dev_t* dev, const hio_iovec_t* iov, hio_iolen_t* iovcnt, const hio_devaddr_t* dstaddr)
 {
-	/* TODO: use sctp_sendv? */
 	hio_t* hio = dev->hio;
 	hio_dev_sck_t* rdev = (hio_dev_sck_t*)dev;
-	hio_seterrwithsyserr (hio, 0, HIO_ENOIMPL);
-	return -1;
+	ssize_t x;
+
+	x = sendmsg_sctp(rdev->hnd, 
+		iov, *iovcnt, dstaddr->ptr, dstaddr->len, 
+		0, /* ppid - opaque */
+		0, /* flags (e.g. SCTP_UNORDERED, SCTP_EOF, SCT_ABORT, ...) */
+		hio_skad_chan(dstaddr->ptr), /* stream number */
+		0, /* ttl */
+		0 /* context*/);
+	if (x <= -1) 
+	{
+		if (errno == EINPROGRESS || errno == EWOULDBLOCK || errno == EAGAIN) return 0;  /* no data can be written */
+		if (errno == EINTR) return 0;
+		hio_seterrwithsyserr (hio, 0, errno);
+		return -1;
+	}
+
+	*iovcnt = x;
+	return 1;
 }
 #endif
 
@@ -1346,7 +1412,7 @@ static int dev_sck_ioctl (hio_dev_t* dev, int cmd, void* arg)
 
 			if (!sck_type_map[rdev->type].connectable)
 			{
-				hio_seterrbfmt (hio, HIO_EPERM, "disallowed to connect stateless device");
+				hio_seterrbfmt (hio, HIO_EPERM, "unconnectable socket device");
 				return -1;
 			}
 
@@ -1487,7 +1553,7 @@ fcntl (rdev->hnd, F_SETFL, flags | O_NONBLOCK);
 
 			if (!sck_type_map[rdev->type].listenable)
 			{
-				hio_seterrbfmt (hio, HIO_EPERM, "disallowed to listen on stateless device");
+				hio_seterrbfmt (hio, HIO_EPERM, "unlistenable socket device");
 				return -1;
 			}
 
@@ -1506,8 +1572,8 @@ fcntl (rdev->hnd, F_SETFL, flags | O_NONBLOCK);
 
 				/* TODO: need to keep the old watch flags before STOP and
 				 *       use the flags witn START  */
-				if (hio_dev_watch(rdev, HIO_DEV_WATCH_STOP, 0) <= -1 ||
-				    hio_dev_watch(rdev, HIO_DEV_WATCH_START, 0) <= -1)
+				if (hio_dev_watch((hio_dev_t*)rdev, HIO_DEV_WATCH_STOP, 0) <= -1 ||
+				    hio_dev_watch((hio_dev_t*)rdev, HIO_DEV_WATCH_START, 0) <= -1)
 				{
 					hio_stop (hio, HIO_STOPREQ_WATCHER_ERROR);
 					return -1;
@@ -1555,6 +1621,21 @@ static hio_dev_mth_t dev_mth_sck_stream =
 	dev_sck_sendfile_stream,
 };
 
+static hio_dev_mth_t dev_mth_sck_sctp_sp = 
+{
+	dev_sck_make,
+	dev_sck_kill,
+	HIO_NULL,
+	dev_sck_getsyshnd,
+	HIO_NULL,
+	dev_sck_ioctl,     /* ioctl */
+
+	dev_sck_read_sctp_sp,
+	dev_sck_write_sctp_sp,
+	dev_sck_writev_sctp_sp,
+	HIO_NULL,          /* sendfile */
+};
+
 static hio_dev_mth_t dev_mth_clisck_stateless =
 {
 	dev_sck_make_client,
@@ -1583,6 +1664,21 @@ static hio_dev_mth_t dev_mth_clisck_stream =
 	dev_sck_write_stream,
 	dev_sck_writev_stream,
 	dev_sck_sendfile_stream
+};
+
+static hio_dev_mth_t dev_mth_clisck_sctp_sp =
+{
+	dev_sck_make_client,
+	dev_sck_kill,
+	dev_sck_fail_before_make_client,
+	dev_sck_getsyshnd,
+	HIO_NULL,
+	dev_sck_ioctl,
+
+	dev_sck_read_sctp_sp,
+	dev_sck_write_sctp_sp,
+	dev_sck_writev_sctp_sp,
+	HIO_NULL,
 };
 
 static hio_dev_mth_t dev_mth_sck_bpf = 
@@ -1720,7 +1816,8 @@ static int make_accepted_client_connection (hio_dev_sck_t* rdev, hio_syshnd_t cl
 	 *   choose the client socket method base on the master socket 
 	 *   device capability. currently, stream or non-stream is supported.
 	 */
-	dev_mth = (sck_type_map[clisck_type].extra_dev_cap & HIO_DEV_CAP_STREAM)? &dev_mth_clisck_stream: &dev_mth_clisck_stateless;
+	dev_mth = (sck_type_map[clisck_type].extra_dev_cap & HIO_DEV_CAP_STREAM)? &dev_mth_clisck_stream:
+	          (sck_type_map[clisck_type].proto == IPPROTO_SCTP)? &dev_mth_clisck_sctp_sp: &dev_mth_clisck_stateless;
 	clidev = (hio_dev_sck_t*)hio_dev_make(hio, rdev->dev_size, dev_mth, rdev->dev_evcb, &clisck); 
 	if (HIO_UNLIKELY(!clidev))
 	{
@@ -2133,6 +2230,13 @@ static hio_dev_evcb_t dev_sck_event_callbacks_stateless =
 	dev_evcb_sck_on_read_stateless,
 	dev_evcb_sck_on_write_stateless
 };
+
+static hio_dev_evcb_t dev_sck_event_callbacks_sctp_sp =
+{
+	dev_evcb_sck_ready_stateless,
+	dev_evcb_sck_on_read_stateless,
+	dev_evcb_sck_on_write_stateless
+};
 /* ========================================================================= */
 
 static int dev_evcb_sck_ready_qx (hio_dev_t* dev, int events)
@@ -2233,7 +2337,7 @@ static hio_dev_evcb_t dev_sck_event_callbacks_qx =
 static int dev_evcb_sck_ready_bpf (hio_dev_t* dev, int events)
 {
 	hio_t* hio = dev->hio;
-	hio_dev_sck_t* rdev = (hio_dev_sck_t*)dev;
+	/*hio_dev_sck_t* rdev = (hio_dev_sck_t*)dev;*/
 	hio_seterrnum (hio, HIO_ENOIMPL);
 	return -1;
 }
@@ -2241,7 +2345,7 @@ static int dev_evcb_sck_ready_bpf (hio_dev_t* dev, int events)
 static int dev_evcb_sck_on_read_bpf (hio_dev_t* dev, const void* data, hio_iolen_t dlen, const hio_devaddr_t* srcaddr)
 {
 	hio_t* hio = dev->hio;
-	hio_dev_sck_t* rdev = (hio_dev_sck_t*)dev;
+	/*hio_dev_sck_t* rdev = (hio_dev_sck_t*)dev;*/
 	hio_seterrnum (hio, HIO_ENOIMPL);
 	return -1;
 }
@@ -2249,7 +2353,7 @@ static int dev_evcb_sck_on_read_bpf (hio_dev_t* dev, const void* data, hio_iolen
 static int dev_evcb_sck_on_write_bpf (hio_dev_t* dev, hio_iolen_t wrlen, void* wrctx, const hio_devaddr_t* dstaddr)
 {
 	hio_t* hio = dev->hio;
-	hio_dev_sck_t* rdev = (hio_dev_sck_t*)dev;
+	/*hio_dev_sck_t* rdev = (hio_dev_sck_t*)dev;*/
 	hio_seterrnum (hio, HIO_ENOIMPL);
 	return -1;
 }
@@ -2290,6 +2394,12 @@ hio_dev_sck_t* hio_dev_sck_make (hio_t* hio, hio_oow_t xtnsize, const hio_dev_sc
 		rdev = (hio_dev_sck_t*)hio_dev_make(
 			hio, HIO_SIZEOF(hio_dev_sck_t) + xtnsize,
 			&dev_mth_sck_stream, &dev_sck_event_callbacks_stream, (void*)info);
+	}
+	else if (sck_type_map[info->type].proto == IPPROTO_SCTP)
+	{
+		rdev = (hio_dev_sck_t*)hio_dev_make(
+			hio, HIO_SIZEOF(hio_dev_sck_t) + xtnsize,
+			&dev_mth_sck_sctp_sp, &dev_sck_event_callbacks_sctp_sp, (void*)info);
 	}
 	else
 	{

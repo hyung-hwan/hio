@@ -995,12 +995,12 @@ HIO_EXPORT int hio_dev_sendfile (
 );
 
 HIO_EXPORT int hio_dev_timedwrite (
-	hio_dev_t*           dev,
-	const void*          data,
-	hio_iolen_t          len,
-	const hio_ntime_t*   tmout,
-	void*                wrctx,
-	const hio_devaddr_t* dstaddr
+	hio_dev_t*            dev,
+	const void*           data,
+	hio_iolen_t           len,
+	const hio_ntime_t*    tmout,
+	void*                 wrctx,
+	const hio_devaddr_t*  dstaddr
 );
 
 

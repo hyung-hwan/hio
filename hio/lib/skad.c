@@ -45,14 +45,39 @@
 #	include <net/if_dl.h>
 #endif
 
+#if (HIO_SIZEOF_STRUCT_SOCKADDR_IN > 0)
+/* dirty hack to secure more space at the end of the actual socket address.
+ * the extra fiels must be transparent to unaware parties.
+ * if you add/delete extra fields or change the size of existing fields,
+ * you must update the corresponding checks in configure.ac.
+ *
+ * extra fields:
+ *   chan - used as a stream number for SCTP PACKETSEQ sockets. 
+ *          use hio_skad_chan() and hio_skad_setchan() for safe access.
+ */
+struct sockaddr_in_x 
+{
+	struct sockaddr_in a;
+	hio_uint16_t chan;
+};
+#endif
+
+#if (HIO_SIZEOF_STRUCT_SOCKADDR_IN6 > 0)
+struct sockaddr_in6_x
+{
+	struct sockaddr_in6 a;
+	hio_uint16_t chan;
+};
+#endif
+
 union hio_skad_alt_t
 {
 	struct sockaddr    sa;
 #if (HIO_SIZEOF_STRUCT_SOCKADDR_IN > 0)
-	struct sockaddr_in in4;
+	struct sockaddr_in_x in4;
 #endif
 #if (HIO_SIZEOF_STRUCT_SOCKADDR_IN6 > 0)
-	struct sockaddr_in6 in6;
+	struct sockaddr_in6_x in6;
 #endif
 #if (HIO_SIZEOF_STRUCT_SOCKADDR_LL > 0)
 	struct sockaddr_ll ll;
@@ -434,16 +459,16 @@ int hio_ucharstoskad (hio_t* hio, const hio_uch_t* str, hio_oow_t len, hio_skad_
 			if (*p >= '0' && *p <= '9') 
 			{
 				/* numeric scope id */
-				skad->in6.sin6_scope_id = 0;
+				skad->in6.a.sin6_scope_id = 0;
 				do
 				{
-					x = skad->in6.sin6_scope_id * 10 + (*p - '0');
-					if (x < skad->in6.sin6_scope_id) 
+					x = skad->in6.a.sin6_scope_id * 10 + (*p - '0');
+					if (x < skad->in6.a.sin6_scope_id) 
 					{
 						hio_seterrbfmt (hio, HIO_EINVAL, "scope id too large");
 						return -1; /* overflow */
 					}
-					skad->in6.sin6_scope_id = x;
+					skad->in6.a.sin6_scope_id = x;
 					p++;
 				}
 				while (p < end && *p >= '0' && *p <= '9');
@@ -455,15 +480,15 @@ int hio_ucharstoskad (hio_t* hio, const hio_uch_t* str, hio_oow_t len, hio_skad_
 				unsigned int index;
 				do p++; while (p < end && *p != ']');
 				if (hio_ucharstoifindex(hio, stmp, p - stmp, &index) <= -1) return -1;
-				skad->in6.sin6_scope_id = index;
+				skad->in6.a.sin6_scope_id = index;
 			}
 
 			if (p >= end || *p != ']') goto no_rbrack;
 		}
 		p++; /* skip ] */
 
-		if (uchars_to_ipv6(tmp.ptr, tmp.len, &skad->in6.sin6_addr) <= -1) goto unrecog;
-		skad->in6.sin6_family = AF_INET6;
+		if (uchars_to_ipv6(tmp.ptr, tmp.len, &skad->in6.a.sin6_addr) <= -1) goto unrecog;
+		skad->in6.a.sin6_family = AF_INET6;
 	}
 	else
 	{
@@ -473,7 +498,7 @@ int hio_ucharstoskad (hio_t* hio, const hio_uch_t* str, hio_oow_t len, hio_skad_
 		while (p < end && *p != ':') p++;
 		tmp.len = p - tmp.ptr;
 
-		if (uchars_to_ipv4(tmp.ptr, tmp.len, &skad->in4.sin_addr) <= -1)
+		if (uchars_to_ipv4(tmp.ptr, tmp.len, &skad->in4.a.sin_addr) <= -1)
 		{
 		#if (HIO_SIZEOF_STRUCT_SOCKADDR_IN6 > 0)
 			/* check if it is an IPv6 address not enclosed in []. 
@@ -487,7 +512,7 @@ int hio_ucharstoskad (hio_t* hio, const hio_uch_t* str, hio_oow_t len, hio_skad_
 			while (p < end && *p != '%') p++;
 			tmp.len = p - tmp.ptr;
 
-			if (uchars_to_ipv6(tmp.ptr, tmp.len, &skad->in6.sin6_addr) <= -1) goto unrecog;
+			if (uchars_to_ipv6(tmp.ptr, tmp.len, &skad->in6.a.sin6_addr) <= -1) goto unrecog;
 
 			if (p < end && *p == '%')
 			{
@@ -506,16 +531,16 @@ int hio_ucharstoskad (hio_t* hio, const hio_uch_t* str, hio_oow_t len, hio_skad_
 				if (*p >= '0' && *p <= '9') 
 				{
 					/* numeric scope id */
-					skad->in6.sin6_scope_id = 0;
+					skad->in6.a.sin6_scope_id = 0;
 					do
 					{
-						x = skad->in6.sin6_scope_id * 10 + (*p - '0');
-						if (x < skad->in6.sin6_scope_id) 
+						x = skad->in6.a.sin6_scope_id * 10 + (*p - '0');
+						if (x < skad->in6.a.sin6_scope_id) 
 						{
 							hio_seterrbfmt (hio, HIO_EINVAL, "scope id too large");
 							return -1; /* overflow */
 						}
-						skad->in6.sin6_scope_id = x;
+						skad->in6.a.sin6_scope_id = x;
 						p++;
 					}
 					while (p < end && *p >= '0' && *p <= '9');
@@ -527,20 +552,20 @@ int hio_ucharstoskad (hio_t* hio, const hio_uch_t* str, hio_oow_t len, hio_skad_
 					unsigned int index;
 					do p++; while (p < end);
 					if (hio_ucharstoifindex(hio, stmp, p - stmp, &index) <= -1) return -1;
-					skad->in6.sin6_scope_id = index;
+					skad->in6.a.sin6_scope_id = index;
 				}
 			}
 
 			if (p < end) goto unrecog; /* some gargage after the end? */
 
-			skad->in6.sin6_family = AF_INET6;
+			skad->in6.a.sin6_family = AF_INET6;
 			return 0;
 		#else
 			goto unrecog;
 		#endif
 		}
 
-		skad->in4.sin_family = AF_INET;
+		skad->in4.a.sin_family = AF_INET;
 #if (HIO_SIZEOF_STRUCT_SOCKADDR_IN6 > 0)
 	}
 #endif
@@ -568,12 +593,12 @@ int hio_ucharstoskad (hio_t* hio, const hio_uch_t* str, hio_oow_t len, hio_skad_
 		}
 
 	#if (HIO_SIZEOF_STRUCT_SOCKADDR_IN6 > 0)
-		if (skad->in4.sin_family == AF_INET)
-			skad->in4.sin_port = hio_hton16(port);
+		if (skad->in4.a.sin_family == AF_INET)
+			skad->in4.a.sin_port = hio_hton16(port);
 		else
-			skad->in6.sin6_port = hio_hton16(port);
+			skad->in6.a.sin6_port = hio_hton16(port);
 	#else
-		skad->in4.sin_port = hio_hton16(port);
+		skad->in4.a.sin_port = hio_hton16(port);
 	#endif
 	}
 
@@ -656,16 +681,16 @@ int hio_bcharstoskad (hio_t* hio, const hio_bch_t* str, hio_oow_t len, hio_skad_
 			if (*p >= '0' && *p <= '9') 
 			{
 				/* numeric scope id */
-				skad->in6.sin6_scope_id = 0;
+				skad->in6.a.sin6_scope_id = 0;
 				do
 				{
-					x = skad->in6.sin6_scope_id * 10 + (*p - '0');
-					if (x < skad->in6.sin6_scope_id) 
+					x = skad->in6.a.sin6_scope_id * 10 + (*p - '0');
+					if (x < skad->in6.a.sin6_scope_id) 
 					{
 						hio_seterrbfmt (hio, HIO_EINVAL, "scope id too large");
 						return -1; /* overflow */
 					}
-					skad->in6.sin6_scope_id = x;
+					skad->in6.a.sin6_scope_id = x;
 					p++;
 				}
 				while (p < end && *p >= '0' && *p <= '9');
@@ -677,15 +702,15 @@ int hio_bcharstoskad (hio_t* hio, const hio_bch_t* str, hio_oow_t len, hio_skad_
 				unsigned int index;
 				do p++; while (p < end && *p != ']');
 				if (hio_bcharstoifindex(hio, stmp, p - stmp, &index) <= -1) return -1;
-				skad->in6.sin6_scope_id = index;
+				skad->in6.a.sin6_scope_id = index;
 			}
 
 			if (p >= end || *p != ']') goto no_rbrack;
 		}
 		p++; /* skip ] */
 
-		if (bchars_to_ipv6(tmp.ptr, tmp.len, &skad->in6.sin6_addr) <= -1) goto unrecog;
-		skad->in6.sin6_family = AF_INET6;
+		if (bchars_to_ipv6(tmp.ptr, tmp.len, &skad->in6.a.sin6_addr) <= -1) goto unrecog;
+		skad->in6.a.sin6_family = AF_INET6;
 	}
 	else
 	{
@@ -695,7 +720,7 @@ int hio_bcharstoskad (hio_t* hio, const hio_bch_t* str, hio_oow_t len, hio_skad_
 		while (p < end && *p != ':') p++;
 		tmp.len = p - tmp.ptr;
 
-		if (bchars_to_ipv4(tmp.ptr, tmp.len, &skad->in4.sin_addr) <= -1)
+		if (bchars_to_ipv4(tmp.ptr, tmp.len, &skad->in4.a.sin_addr) <= -1)
 		{
 		#if (HIO_SIZEOF_STRUCT_SOCKADDR_IN6 > 0)
 			/* check if it is an IPv6 address not enclosed in []. 
@@ -710,7 +735,7 @@ int hio_bcharstoskad (hio_t* hio, const hio_bch_t* str, hio_oow_t len, hio_skad_
 			while (p < end && *p != '%') p++;
 			tmp.len = p - tmp.ptr;
 
-			if (bchars_to_ipv6(tmp.ptr, tmp.len, &skad->in6.sin6_addr) <= -1) goto unrecog;
+			if (bchars_to_ipv6(tmp.ptr, tmp.len, &skad->in6.a.sin6_addr) <= -1) goto unrecog;
 
 			if (p < end && *p == '%')
 			{
@@ -729,16 +754,16 @@ int hio_bcharstoskad (hio_t* hio, const hio_bch_t* str, hio_oow_t len, hio_skad_
 				if (*p >= '0' && *p <= '9') 
 				{
 					/* numeric scope id */
-					skad->in6.sin6_scope_id = 0;
+					skad->in6.a.sin6_scope_id = 0;
 					do
 					{
-						x = skad->in6.sin6_scope_id * 10 + (*p - '0');
-						if (x < skad->in6.sin6_scope_id) 
+						x = skad->in6.a.sin6_scope_id * 10 + (*p - '0');
+						if (x < skad->in6.a.sin6_scope_id) 
 						{
 							hio_seterrbfmt (hio, HIO_EINVAL, "scope id too large");
 							return -1; /* overflow */
 						}
-						skad->in6.sin6_scope_id = x;
+						skad->in6.a.sin6_scope_id = x;
 						p++;
 					}
 					while (p < end && *p >= '0' && *p <= '9');
@@ -750,20 +775,20 @@ int hio_bcharstoskad (hio_t* hio, const hio_bch_t* str, hio_oow_t len, hio_skad_
 					unsigned int index;
 					do p++; while (p < end);
 					if (hio_bcharstoifindex(hio, stmp, p - stmp, &index) <= -1) return -1;
-					skad->in6.sin6_scope_id = index;
+					skad->in6.a.sin6_scope_id = index;
 				}
 			}
 
 			if (p < end) goto unrecog; /* some gargage after the end? */
 
-			skad->in6.sin6_family = AF_INET6;
+			skad->in6.a.sin6_family = AF_INET6;
 			return 0;
 		#else
 			goto unrecog;
 		#endif
 		}
 
-		skad->in4.sin_family = AF_INET;
+		skad->in4.a.sin_family = AF_INET;
 #if (HIO_SIZEOF_STRUCT_SOCKADDR_IN6 > 0)
 	}
 #endif
@@ -791,12 +816,12 @@ int hio_bcharstoskad (hio_t* hio, const hio_bch_t* str, hio_oow_t len, hio_skad_
 		}
 
 	#if (HIO_SIZEOF_STRUCT_SOCKADDR_IN6 > 0)
-		if (skad->in4.sin_family == AF_INET)
-			skad->in4.sin_port = hio_hton16(port);
+		if (skad->in4.a.sin_family == AF_INET)
+			skad->in4.a.sin_port = hio_hton16(port);
 		else
-			skad->in6.sin6_port = hio_hton16(port);
+			skad->in6.a.sin6_port = hio_hton16(port);
 	#else
-		skad->in4.sin_port = hio_hton16(port);
+		skad->in4.a.sin_port = hio_hton16(port);
 	#endif
 	}
 
@@ -986,12 +1011,12 @@ hio_oow_t hio_skadtoucstr (hio_t* hio, const hio_skad_t* _skad, hio_uch_t* buf, 
 			if (flags & HIO_SKAD_TO_UCSTR_ADDR)
 			{
 				if (xlen + 1 >= len) goto done;
-				xlen += ip4ad_to_ucstr(&skad->in4.sin_addr, buf, len);
+				xlen += ip4ad_to_ucstr(&skad->in4.a.sin_addr, buf, len);
 			}
 
 			if (flags & HIO_SKAD_TO_UCSTR_PORT)
 			{
-				if (!(flags & HIO_SKAD_TO_UCSTR_ADDR) || skad->in4.sin_port != 0)
+				if (!(flags & HIO_SKAD_TO_UCSTR_ADDR) || skad->in4.a.sin_port != 0)
 				{
 					if (flags & HIO_SKAD_TO_UCSTR_ADDR)
 					{
@@ -1000,7 +1025,7 @@ hio_oow_t hio_skadtoucstr (hio_t* hio, const hio_skad_t* _skad, hio_uch_t* buf, 
 					}
 
 					if (xlen + 1 >= len) goto done;
-					xlen += hio_fmt_uintmax_to_ucstr(&buf[xlen], len - xlen, hio_ntoh16(skad->in4.sin_port), 10, 0, '\0', HIO_NULL);
+					xlen += hio_fmt_uintmax_to_ucstr(&buf[xlen], len - xlen, hio_ntoh16(skad->in4.a.sin_port), 10, 0, '\0', HIO_NULL);
 				}
 			}
 			break;
@@ -1008,7 +1033,7 @@ hio_oow_t hio_skadtoucstr (hio_t* hio, const hio_skad_t* _skad, hio_uch_t* buf, 
 		case HIO_AF_INET6:
 			if (flags & HIO_SKAD_TO_UCSTR_PORT)
 			{
-				if (!(flags & HIO_SKAD_TO_UCSTR_ADDR) || skad->in6.sin6_port != 0)
+				if (!(flags & HIO_SKAD_TO_UCSTR_ADDR) || skad->in6.a.sin6_port != 0)
 				{
 					if (flags & HIO_SKAD_TO_UCSTR_ADDR)
 					{
@@ -1021,9 +1046,9 @@ hio_oow_t hio_skadtoucstr (hio_t* hio, const hio_skad_t* _skad, hio_uch_t* buf, 
 			if (flags & HIO_SKAD_TO_UCSTR_ADDR)
 			{
 				if (xlen + 1 >= len) goto done;
-				xlen += ip6ad_to_ucstr(&skad->in6.sin6_addr, &buf[xlen], len - xlen);
+				xlen += ip6ad_to_ucstr(&skad->in6.a.sin6_addr, &buf[xlen], len - xlen);
 
-				if (skad->in6.sin6_scope_id != 0)
+				if (skad->in6.a.sin6_scope_id != 0)
 				{
 					int tmp;
 
@@ -1032,10 +1057,10 @@ hio_oow_t hio_skadtoucstr (hio_t* hio, const hio_skad_t* _skad, hio_uch_t* buf, 
 
 					if (xlen + 1 >= len) goto done;
 
-					tmp = hio_ifindextoucstr(hio, skad->in6.sin6_scope_id, &buf[xlen], len - xlen);
+					tmp = hio_ifindextoucstr(hio, skad->in6.a.sin6_scope_id, &buf[xlen], len - xlen);
 					if (tmp <= -1)
 					{
-						xlen += hio_fmt_uintmax_to_ucstr(&buf[xlen], len - xlen, skad->in6.sin6_scope_id, 10, 0, '\0', HIO_NULL);
+						xlen += hio_fmt_uintmax_to_ucstr(&buf[xlen], len - xlen, skad->in6.a.sin6_scope_id, 10, 0, '\0', HIO_NULL);
 					}
 					else xlen += tmp;
 				}
@@ -1043,7 +1068,7 @@ hio_oow_t hio_skadtoucstr (hio_t* hio, const hio_skad_t* _skad, hio_uch_t* buf, 
 
 			if (flags & HIO_SKAD_TO_UCSTR_PORT)
 			{
-				if (!(flags & HIO_SKAD_TO_UCSTR_ADDR) || skad->in6.sin6_port != 0) 
+				if (!(flags & HIO_SKAD_TO_UCSTR_ADDR) || skad->in6.a.sin6_port != 0) 
 				{
 					if (flags & HIO_SKAD_TO_UCSTR_ADDR)
 					{
@@ -1055,7 +1080,7 @@ hio_oow_t hio_skadtoucstr (hio_t* hio, const hio_skad_t* _skad, hio_uch_t* buf, 
 					}
 
 					if (xlen + 1 >= len) goto done;
-					xlen += hio_fmt_uintmax_to_ucstr(&buf[xlen], len - xlen, hio_ntoh16(skad->in6.sin6_port), 10, 0, '\0', HIO_NULL);
+					xlen += hio_fmt_uintmax_to_ucstr(&buf[xlen], len - xlen, hio_ntoh16(skad->in6.a.sin6_port), 10, 0, '\0', HIO_NULL);
 				}
 			}
 
@@ -1247,12 +1272,12 @@ hio_oow_t hio_skadtobcstr (hio_t* hio, const hio_skad_t* _skad, hio_bch_t* buf, 
 			if (flags & HIO_SKAD_TO_BCSTR_ADDR)
 			{
 				if (xlen + 1 >= len) goto done;
-				xlen += ip4ad_to_bcstr(&skad->in4.sin_addr, buf, len);
+				xlen += ip4ad_to_bcstr(&skad->in4.a.sin_addr, buf, len);
 			}
 
 			if (flags & HIO_SKAD_TO_BCSTR_PORT)
 			{
-				if (!(flags & HIO_SKAD_TO_BCSTR_ADDR) || skad->in4.sin_port != 0)
+				if (!(flags & HIO_SKAD_TO_BCSTR_ADDR) || skad->in4.a.sin_port != 0)
 				{
 					if (flags & HIO_SKAD_TO_BCSTR_ADDR)
 					{
@@ -1261,7 +1286,7 @@ hio_oow_t hio_skadtobcstr (hio_t* hio, const hio_skad_t* _skad, hio_bch_t* buf, 
 					}
 
 					if (xlen + 1 >= len) goto done;
-					xlen += hio_fmt_uintmax_to_bcstr(&buf[xlen], len - xlen, hio_ntoh16(skad->in4.sin_port), 10, 0, '\0', HIO_NULL);
+					xlen += hio_fmt_uintmax_to_bcstr(&buf[xlen], len - xlen, hio_ntoh16(skad->in4.a.sin_port), 10, 0, '\0', HIO_NULL);
 				}
 			}
 			break;
@@ -1269,7 +1294,7 @@ hio_oow_t hio_skadtobcstr (hio_t* hio, const hio_skad_t* _skad, hio_bch_t* buf, 
 		case HIO_AF_INET6:
 			if (flags & HIO_SKAD_TO_BCSTR_PORT)
 			{
-				if (!(flags & HIO_SKAD_TO_BCSTR_ADDR) || skad->in6.sin6_port != 0)
+				if (!(flags & HIO_SKAD_TO_BCSTR_ADDR) || skad->in6.a.sin6_port != 0)
 				{
 					if (flags & HIO_SKAD_TO_BCSTR_ADDR)
 					{
@@ -1283,9 +1308,9 @@ hio_oow_t hio_skadtobcstr (hio_t* hio, const hio_skad_t* _skad, hio_bch_t* buf, 
 			{
 
 				if (xlen + 1 >= len) goto done;
-				xlen += ip6ad_to_bcstr(&skad->in6.sin6_addr, &buf[xlen], len - xlen);
+				xlen += ip6ad_to_bcstr(&skad->in6.a.sin6_addr, &buf[xlen], len - xlen);
 
-				if (skad->in6.sin6_scope_id != 0)
+				if (skad->in6.a.sin6_scope_id != 0)
 				{
 					int tmp;
 
@@ -1294,10 +1319,10 @@ hio_oow_t hio_skadtobcstr (hio_t* hio, const hio_skad_t* _skad, hio_bch_t* buf, 
 
 					if (xlen + 1 >= len) goto done;
 
-					tmp = hio_ifindextobcstr(hio, skad->in6.sin6_scope_id, &buf[xlen], len - xlen);
+					tmp = hio_ifindextobcstr(hio, skad->in6.a.sin6_scope_id, &buf[xlen], len - xlen);
 					if (tmp <= -1)
 					{
-						xlen += hio_fmt_uintmax_to_bcstr(&buf[xlen], len - xlen, skad->in6.sin6_scope_id, 10, 0, '\0', HIO_NULL);
+						xlen += hio_fmt_uintmax_to_bcstr(&buf[xlen], len - xlen, skad->in6.a.sin6_scope_id, 10, 0, '\0', HIO_NULL);
 					}
 					else xlen += tmp;
 				}
@@ -1305,7 +1330,7 @@ hio_oow_t hio_skadtobcstr (hio_t* hio, const hio_skad_t* _skad, hio_bch_t* buf, 
 
 			if (flags & HIO_SKAD_TO_BCSTR_PORT)
 			{
-				if (!(flags & HIO_SKAD_TO_BCSTR_ADDR) || skad->in6.sin6_port != 0) 
+				if (!(flags & HIO_SKAD_TO_BCSTR_ADDR) || skad->in6.a.sin6_port != 0) 
 				{
 					if (flags & HIO_SKAD_TO_BCSTR_ADDR)
 					{
@@ -1317,7 +1342,7 @@ hio_oow_t hio_skadtobcstr (hio_t* hio, const hio_skad_t* _skad, hio_bch_t* buf, 
 					}
 
 					if (xlen + 1 >= len) goto done;
-					xlen += hio_fmt_uintmax_to_bcstr(&buf[xlen], len - xlen, hio_ntoh16(skad->in6.sin6_port), 10, 0, '\0', HIO_NULL);
+					xlen += hio_fmt_uintmax_to_bcstr(&buf[xlen], len - xlen, hio_ntoh16(skad->in6.a.sin6_port), 10, 0, '\0', HIO_NULL);
 				}
 			}
 
@@ -1369,6 +1394,9 @@ int hio_skad_family (const hio_skad_t* _skad)
 
 int hio_skad_size (const hio_skad_t* _skad)
 {
+	/* this excludes the size of the 'chan' field.
+	 * the field is not part of the core socket address */
+
 	const hio_skad_alt_t* skad = (const hio_skad_alt_t*)_skad;
 	/*HIO_STATIC_ASSERT (HIO_SIZEOF(*_skad) >= HIO_SIZEOF(*skad));*/
 
@@ -1401,10 +1429,10 @@ int hio_skad_port (const hio_skad_t* _skad)
 	switch (skad->sa.sa_family)
 	{
 	#if defined(AF_INET) && (HIO_SIZEOF_STRUCT_SOCKADDR_IN > 0)
-		case AF_INET: return hio_ntoh16(((struct sockaddr_in*)skad)->sin_port);
+		case AF_INET: return hio_ntoh16(skad->in4.a.sin_port);
 	#endif
 	#if defined(AF_INET6) && (HIO_SIZEOF_STRUCT_SOCKADDR_IN6 > 0)
-		case AF_INET6: return hio_ntoh16(((struct sockaddr_in6*)skad)->sin6_port);
+		case AF_INET6: return hio_ntoh16(skad->in6.a.sin6_port);
 	#endif
 	}
 	return 0;
@@ -1415,15 +1443,65 @@ int hio_skad_ifindex (const hio_skad_t* _skad)
 	const hio_skad_alt_t* skad = (const hio_skad_alt_t*)_skad;
 
 #if defined(AF_PACKET) && (HIO_SIZEOF_STRUCT_SOCKADDR_LL > 0)
-	if (skad->sa.sa_family == AF_PACKET) return ((struct sockaddr_ll*)skad)->sll_ifindex;
+	if (skad->sa.sa_family == AF_PACKET) return skad->ll.sll_ifindex;
 
 #elif defined(AF_LINK) && (HIO_SIZEOF_STRUCT_SOCKADDR_DL > 0)
-	if (skad->sa.sa_family == AF_LINK)  return ((struct sockaddr_dl*)skad)->sdl_index;
+	if (skad->sa.sa_family == AF_LINK)  return skad->dl.sdl_index;
 #endif
 
 	return 0;
 }
 
+int hio_skad_scope_id (const hio_skad_t* _skad)
+{
+	const hio_skad_alt_t* skad = (const hio_skad_alt_t*)_skad;
+
+#if defined(AF_INET6) && (HIO_SIZEOF_STRUCT_SOCKADDR_IN6 > 0)
+	if (skad->sa.sa_family == AF_INET6)  return skad->in6.a.sin6_scope_id;
+#endif
+
+	return 0;
+}
+
+void hio_skad_set_scope_id (hio_skad_t* _skad, int scope_id)
+{
+	hio_skad_alt_t* skad = (hio_skad_alt_t*)_skad;
+
+#if defined(AF_INET6) && (HIO_SIZEOF_STRUCT_SOCKADDR_IN6 > 0)
+	if (skad->sa.sa_family == AF_INET6) skad->in6.a.sin6_scope_id = scope_id;
+#endif
+}
+
+hio_uint16_t hio_skad_chan (const hio_skad_t* _skad)
+{
+	const hio_skad_alt_t* skad = (const hio_skad_alt_t*)_skad;
+
+	switch (skad->sa.sa_family)
+	{
+	#if defined(AF_INET) && (HIO_SIZEOF_STRUCT_SOCKADDR_IN > 0)
+		case AF_INET: return skad->in4.chan;
+	#endif
+	#if defined(AF_INET6) && (HIO_SIZEOF_STRUCT_SOCKADDR_IN6 > 0)
+		case AF_INET6: return skad->in6.chan;
+	#endif
+	}
+	return 0;
+}
+
+void hio_skad_set_chan (hio_skad_t* _skad, hio_uint16_t chan)
+{
+	hio_skad_alt_t* skad = (hio_skad_alt_t*)_skad;
+
+	switch (skad->sa.sa_family)
+	{
+	#if defined(AF_INET) && (HIO_SIZEOF_STRUCT_SOCKADDR_IN > 0)
+		case AF_INET: skad->in4.chan = chan; break;
+	#endif
+	#if defined(AF_INET6) && (HIO_SIZEOF_STRUCT_SOCKADDR_IN6 > 0)
+		case AF_INET6: skad->in6.chan = chan; break;
+	#endif
+	}
+}
 
 void hio_skad_init_for_ip4 (hio_skad_t* skad, hio_uint16_t port, hio_ip4ad_t* ip4ad)
 {

@@ -452,15 +452,29 @@ static void tcp_sck_on_raw_accept (hio_dev_sck_t* sck, hio_syshnd_t syshnd, hio_
 	try_to_accept (sck, &qxmsg, 0);
 }
 
-static int tcp_sck_on_write (hio_dev_sck_t* tcp, hio_iolen_t wrlen, void* wrctx, const hio_skad_t* dstaddr)
+static int tcp_sck_on_write (hio_dev_sck_t* sck, hio_iolen_t wrlen, void* wrctx, const hio_skad_t* dstaddr)
 {
-	/* won't be invoked */
+	/* won't be invoked if tcp.
+	 * invokde if sctp_sp */
+//printf ("wrote back chan %d\n", hio_skad_chan(dstaddr));
 	return 0;
 }
 
-static int tcp_sck_on_read (hio_dev_sck_t* tcp, const void* buf, hio_iolen_t len, const hio_skad_t* srcaddr)
+static int tcp_sck_on_read (hio_dev_sck_t* sck, const void* buf, hio_iolen_t len, const hio_skad_t* srcaddr)
 {
-	/* won't be invoked */
+	/* won't be invoked 
+	 * invokde if sctp_sp */
+	hio_iovec_t iov;
+
+#if 0
+/* the code here is invoked on a seqpacket socket. .. this part not ready. will rewrite if the core support is done */
+printf ("[%.*s] chan %d\n", (int)len, buf, hio_skad_chan(srcaddr));
+iov.iov_ptr = buf;
+iov.iov_len = len;
+hio_skad_set_scope_id (srcaddr, 3);
+hio_dev_sck_writev (sck, &iov, 1, HIO_NULL, srcaddr);
+#endif
+
 	return 0;
 }
 
@@ -651,7 +665,6 @@ oops:
 	{
 		pthread_join (t[i], HIO_NULL);
 	}
-
 
 	if (hio) hio_close (hio);
 	return xret;

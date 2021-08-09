@@ -17573,6 +17573,89 @@ _ACEOF
 # version HP92453-01 B.11.11.23709.GP, which incorrectly rejects
 # declarations like `int a3[[(sizeof (unsigned char)) >= 0]];'.
 # This bug is HP SR number 8606223364.
+{ $as_echo "$as_me:${as_lineno-$LINENO}: checking size of struct sockaddr_in_x" >&5
+$as_echo_n "checking size of struct sockaddr_in_x... " >&6; }
+if ${ac_cv_sizeof_struct_sockaddr_in_x+:} false; then :
+  $as_echo_n "(cached) " >&6
+else
+  if ac_fn_c_compute_int "$LINENO" "(long int) (sizeof (struct sockaddr_in_x))" "ac_cv_sizeof_struct_sockaddr_in_x"        "
+		#include <winsock2.h>
+		#include <ws2tcpip.h>
+		struct sockaddr_in_x {
+			struct sockaddr_in a;
+			unsigned short chan;
+		};
+
+"; then :
+
+else
+  if test "$ac_cv_type_struct_sockaddr_in_x" = yes; then
+     { { $as_echo "$as_me:${as_lineno-$LINENO}: error: in \`$ac_pwd':" >&5
+$as_echo "$as_me: error: in \`$ac_pwd':" >&2;}
+as_fn_error 77 "cannot compute sizeof (struct sockaddr_in_x)
+See \`config.log' for more details" "$LINENO" 5; }
+   else
+     ac_cv_sizeof_struct_sockaddr_in_x=0
+   fi
+fi
+
+fi
+{ $as_echo "$as_me:${as_lineno-$LINENO}: result: $ac_cv_sizeof_struct_sockaddr_in_x" >&5
+$as_echo "$ac_cv_sizeof_struct_sockaddr_in_x" >&6; }
+
+
+
+cat >>confdefs.h <<_ACEOF
+#define SIZEOF_STRUCT_SOCKADDR_IN_X $ac_cv_sizeof_struct_sockaddr_in_x
+_ACEOF
+
+
+	# The cast to long int works around a bug in the HP C Compiler
+# version HP92453-01 B.11.11.23709.GP, which incorrectly rejects
+# declarations like `int a3[[(sizeof (unsigned char)) >= 0]];'.
+# This bug is HP SR number 8606223364.
+{ $as_echo "$as_me:${as_lineno-$LINENO}: checking size of struct sockaddr_in6_x" >&5
+$as_echo_n "checking size of struct sockaddr_in6_x... " >&6; }
+if ${ac_cv_sizeof_struct_sockaddr_in6_x+:} false; then :
+  $as_echo_n "(cached) " >&6
+else
+  if ac_fn_c_compute_int "$LINENO" "(long int) (sizeof (struct sockaddr_in6_x))" "ac_cv_sizeof_struct_sockaddr_in6_x"        "
+		#include <winsock2.h>
+		#include <ws2tcpip.h>
+		struct sockaddr_in6_x {
+			struct sockaddr_in6 a;
+			unsigned short chan;
+		};
+
+"; then :
+
+else
+  if test "$ac_cv_type_struct_sockaddr_in6_x" = yes; then
+     { { $as_echo "$as_me:${as_lineno-$LINENO}: error: in \`$ac_pwd':" >&5
+$as_echo "$as_me: error: in \`$ac_pwd':" >&2;}
+as_fn_error 77 "cannot compute sizeof (struct sockaddr_in6_x)
+See \`config.log' for more details" "$LINENO" 5; }
+   else
+     ac_cv_sizeof_struct_sockaddr_in6_x=0
+   fi
+fi
+
+fi
+{ $as_echo "$as_me:${as_lineno-$LINENO}: result: $ac_cv_sizeof_struct_sockaddr_in6_x" >&5
+$as_echo "$ac_cv_sizeof_struct_sockaddr_in6_x" >&6; }
+
+
+
+cat >>confdefs.h <<_ACEOF
+#define SIZEOF_STRUCT_SOCKADDR_IN6_X $ac_cv_sizeof_struct_sockaddr_in6_x
+_ACEOF
+
+
+
+	# The cast to long int works around a bug in the HP C Compiler
+# version HP92453-01 B.11.11.23709.GP, which incorrectly rejects
+# declarations like `int a3[[(sizeof (unsigned char)) >= 0]];'.
+# This bug is HP SR number 8606223364.
 { $as_echo "$as_me:${as_lineno-$LINENO}: checking size of struct sockaddr_un" >&5
 $as_echo_n "checking size of struct sockaddr_un... " >&6; }
 if ${ac_cv_sizeof_struct_sockaddr_un+:} false; then :
@@ -17933,6 +18016,91 @@ _ACEOF
 # version HP92453-01 B.11.11.23709.GP, which incorrectly rejects
 # declarations like `int a3[[(sizeof (unsigned char)) >= 0]];'.
 # This bug is HP SR number 8606223364.
+{ $as_echo "$as_me:${as_lineno-$LINENO}: checking size of struct sockaddr_in_x" >&5
+$as_echo_n "checking size of struct sockaddr_in_x... " >&6; }
+if ${ac_cv_sizeof_struct_sockaddr_in_x+:} false; then :
+  $as_echo_n "(cached) " >&6
+else
+  if ac_fn_c_compute_int "$LINENO" "(long int) (sizeof (struct sockaddr_in_x))" "ac_cv_sizeof_struct_sockaddr_in_x"        "
+		#include <sys/types.h>
+		#include <sys/socket.h>
+		#include <netinet/in.h>
+		struct sockaddr_in_x {
+			struct sockaddr_in a;
+			unsigned short chan;
+		};
+
+"; then :
+
+else
+  if test "$ac_cv_type_struct_sockaddr_in_x" = yes; then
+     { { $as_echo "$as_me:${as_lineno-$LINENO}: error: in \`$ac_pwd':" >&5
+$as_echo "$as_me: error: in \`$ac_pwd':" >&2;}
+as_fn_error 77 "cannot compute sizeof (struct sockaddr_in_x)
+See \`config.log' for more details" "$LINENO" 5; }
+   else
+     ac_cv_sizeof_struct_sockaddr_in_x=0
+   fi
+fi
+
+fi
+{ $as_echo "$as_me:${as_lineno-$LINENO}: result: $ac_cv_sizeof_struct_sockaddr_in_x" >&5
+$as_echo "$ac_cv_sizeof_struct_sockaddr_in_x" >&6; }
+
+
+
+cat >>confdefs.h <<_ACEOF
+#define SIZEOF_STRUCT_SOCKADDR_IN_X $ac_cv_sizeof_struct_sockaddr_in_x
+_ACEOF
+
+
+	# The cast to long int works around a bug in the HP C Compiler
+# version HP92453-01 B.11.11.23709.GP, which incorrectly rejects
+# declarations like `int a3[[(sizeof (unsigned char)) >= 0]];'.
+# This bug is HP SR number 8606223364.
+{ $as_echo "$as_me:${as_lineno-$LINENO}: checking size of struct sockaddr_in6_x" >&5
+$as_echo_n "checking size of struct sockaddr_in6_x... " >&6; }
+if ${ac_cv_sizeof_struct_sockaddr_in6_x+:} false; then :
+  $as_echo_n "(cached) " >&6
+else
+  if ac_fn_c_compute_int "$LINENO" "(long int) (sizeof (struct sockaddr_in6_x))" "ac_cv_sizeof_struct_sockaddr_in6_x"        "
+		#include <sys/types.h>
+		#include <sys/socket.h>
+		#include <netinet/in.h>
+		struct sockaddr_in6_x {
+			struct sockaddr_in6 a;
+			unsigned short chan;
+		};
+
+"; then :
+
+else
+  if test "$ac_cv_type_struct_sockaddr_in6_x" = yes; then
+     { { $as_echo "$as_me:${as_lineno-$LINENO}: error: in \`$ac_pwd':" >&5
+$as_echo "$as_me: error: in \`$ac_pwd':" >&2;}
+as_fn_error 77 "cannot compute sizeof (struct sockaddr_in6_x)
+See \`config.log' for more details" "$LINENO" 5; }
+   else
+     ac_cv_sizeof_struct_sockaddr_in6_x=0
+   fi
+fi
+
+fi
+{ $as_echo "$as_me:${as_lineno-$LINENO}: result: $ac_cv_sizeof_struct_sockaddr_in6_x" >&5
+$as_echo "$ac_cv_sizeof_struct_sockaddr_in6_x" >&6; }
+
+
+
+cat >>confdefs.h <<_ACEOF
+#define SIZEOF_STRUCT_SOCKADDR_IN6_X $ac_cv_sizeof_struct_sockaddr_in6_x
+_ACEOF
+
+
+
+	# The cast to long int works around a bug in the HP C Compiler
+# version HP92453-01 B.11.11.23709.GP, which incorrectly rejects
+# declarations like `int a3[[(sizeof (unsigned char)) >= 0]];'.
+# This bug is HP SR number 8606223364.
 { $as_echo "$as_me:${as_lineno-$LINENO}: checking size of struct sockaddr_un" >&5
 $as_echo_n "checking size of struct sockaddr_un... " >&6; }
 if ${ac_cv_sizeof_struct_sockaddr_un+:} false; then :
@@ -18038,7 +18206,6 @@ $as_echo "$ac_cv_sizeof_struct_sockaddr_dl" >&6; }
 cat >>confdefs.h <<_ACEOF
 #define SIZEOF_STRUCT_SOCKADDR_DL $ac_cv_sizeof_struct_sockaddr_dl
 _ACEOF
-
 
 
 
@@ -18540,6 +18707,18 @@ _ACEOF
 cat >>confdefs.h <<_ACEOF
 #define HIO_SIZEOF_STRUCT_SOCKADDR_IN6 ${ac_cv_sizeof_struct_sockaddr_in6}
 _ACEOF
+
+
+
+cat >>confdefs.h <<_ACEOF
+#define HIO_SIZEOF_STRUCT_SOCKADDR_IN_X ${ac_cv_sizeof_struct_sockaddr_in_x}
+_ACEOF
+
+
+cat >>confdefs.h <<_ACEOF
+#define HIO_SIZEOF_STRUCT_SOCKADDR_IN6_X ${ac_cv_sizeof_struct_sockaddr_in6_x}
+_ACEOF
+
 
 
 cat >>confdefs.h <<_ACEOF
