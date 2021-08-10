@@ -52,12 +52,24 @@
 #	define HIO_SIZEOF_SKAD_T HIO_SIZEOF_STRUCT_SOCKADDR_UN
 #endif
 
-#if !defined(HIO_AF_UNIX)
-	/* this is a fake value */
-#	define HIO_AF_UNIX (65534)
+#if (HIO_SIZEOF_SA_FAMILY_T == 1) && !defined(HIO_SA_FAMILY_T_IS_SIGNED)
+#	if !defined(HIO_AF_UNIX)
+#		define HIO_AF_UNIX (254)
+#	endif
+#	define HIO_AF_QX (255)
+#elif (HIO_SIZEOF_SA_FAMILY_T == 1) && defined(HIO_SA_FAMILY_T_IS_SIGNED)
+#	if !defined(HIO_AF_UNIX)
+#		define HIO_AF_UNIX (-2)
+#	endif
+#	define HIO_AF_QX (-1)
+#else
+#	if !defined(HIO_AF_UNIX)
+		/* this is a fake value */
+#		define HIO_AF_UNIX (65534)
+#	endif
+	/* this is HIO specific. No AF_XXXX definitions must overlap with this */
+#	define HIO_AF_QX (65530)
 #endif
-/* this is HIO specific. No AF_XXXX definitions must overlap with this */
-#define HIO_AF_QX (65530)
 
 struct hio_skad_t
 {

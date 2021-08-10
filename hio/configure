@@ -18741,6 +18741,11 @@ cat >>confdefs.h <<_ACEOF
 _ACEOF
 
 
+cat >>confdefs.h <<_ACEOF
+#define HIO_SIZEOF_SA_FAMILY_T ${ac_cv_sizeof_sa_family_t}
+_ACEOF
+
+
 
 hio_package_version_major="`echo ${PACKAGE_VERSION} | cut -d. -f1`"
 hio_package_version_minor="`echo ${PACKAGE_VERSION} | cut -d. -f2`"

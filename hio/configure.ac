@@ -739,6 +739,7 @@ AC_DEFINE_UNQUOTED(HIO_SIZEOF_STRUCT_SOCKADDR_UN, ${ac_cv_sizeof_struct_sockaddr
 AC_DEFINE_UNQUOTED(HIO_SIZEOF_STRUCT_SOCKADDR_LL, ${ac_cv_sizeof_struct_sockaddr_ll}, [sizeof(struct sockaddr_ll)])
 AC_DEFINE_UNQUOTED(HIO_SIZEOF_STRUCT_SOCKADDR_DL, ${ac_cv_sizeof_struct_sockaddr_dl}, [sizeof(struct sockaddr_dl)])
 AC_DEFINE_UNQUOTED(HIO_SIZEOF_SOCKLEN_T, ${ac_cv_sizeof_socklen_t}, [sizeof(socklen_t)])
+AC_DEFINE_UNQUOTED(HIO_SIZEOF_SA_FAMILY_T, ${ac_cv_sizeof_sa_family_t}, [sizeof(sa_family_t)])
 
 
 hio_package_version_major="`echo ${PACKAGE_VERSION} | cut -d. -f1`"

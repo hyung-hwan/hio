@@ -633,6 +633,9 @@
 /* sizeof(off_t) */
 #undef HIO_SIZEOF_OFF_T
 
+/* sizeof(sa_family_t) */
+#undef HIO_SIZEOF_SA_FAMILY_T
+
 /* sizeof(short) */
 #undef HIO_SIZEOF_SHORT
 
