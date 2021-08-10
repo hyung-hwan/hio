@@ -2532,7 +2532,12 @@ int hio_dev_sck_sendfileok (hio_dev_sck_t* dev)
 
 int hio_dev_sck_writetosidechan (hio_dev_sck_t* dev, const void* dptr, hio_oow_t dlen)
 {
-	if (write(dev->side_chan, dptr, dlen) <= -1) return -1; /* this doesn't set the error information. if you may check errno, though */
+	if (write(dev->side_chan, dptr, dlen) <= -1) 
+	{
+		/* this doesn't set the error information on the main socket. if you may check errno, though */
+		/* TODO: make hio_seterrbfmt() thread safe and set the error information properly. still the caller may be in the thread-unsafe context */
+		return -1; 
+	}
 	return 0;
 }
 
