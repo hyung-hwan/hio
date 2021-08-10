@@ -486,7 +486,9 @@ oops:
 		if (htts->l.sck) 
 		{
 			for (i = 0; i < htts->l.count; i++)
-				hio_dev_sck_kill (htts->l.sck[i]);
+			{
+				if (htts->l.sck[i]) hio_dev_sck_kill (htts->l.sck[i]);
+			}
 			hio_freemem (hio, htts->l.sck);
 		}
 
