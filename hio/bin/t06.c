@@ -387,6 +387,7 @@ static int try_to_accept (hio_dev_sck_t* sck, hio_dev_sck_qxmsg_t* qxmsg, int in
 	g_htts_no = (g_htts_no + 1) % g_num_thrs;
 	pthread_mutex_unlock (&g_htts_mutex);
 
+	/* 0: index to the QX socket device (see the the first binding address to hi_svc_htts_start) */
 	if (hio_svc_htts_writetosidechan(htts, 0, qxmsg, HIO_SIZEOF(*qxmsg)) <= -1)
 	{
 		hio_bch_t buf[128];
@@ -414,7 +415,7 @@ static int try_to_accept (hio_dev_sck_t* sck, hio_dev_sck_qxmsg_t* qxmsg, int in
 		else
 		{
 		sidechan_write_error:
-printf ("sidechannel write error %s\n", strerror(errno));
+//printf ("sidechannel write error errno=%d strerror=%s\n", errno, strerror(errno));
 			hio_skadtobcstr (hio, &qxmsg->remoteaddr, buf, HIO_COUNTOF(buf), HIO_SKAD_TO_BCSTR_ADDR | HIO_SKAD_TO_BCSTR_PORT); 
 			HIO_INFO2 (hio, "unable to handle the accepted connection %ld from %hs\n", (long int)qxmsg->syshnd, buf);
 

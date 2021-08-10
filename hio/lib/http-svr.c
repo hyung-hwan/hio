@@ -26,6 +26,7 @@
 
 #include "http-prv.h"
 #include <hio-path.h>
+#include <errno.h>
 
 #define INVALID_LIDX HIO_TYPE_MAX(hio_oow_t)
 
@@ -389,6 +390,7 @@ hio_svc_htts_t* hio_svc_htts_start (hio_t* hio, hio_dev_sck_bind_t* binds, hio_o
 
 			default:
 				/* ignore this */
+				HIO_DEBUG3 (hio, "HTTS(%p) - [%zu] unsupported bind address type %d\n", htts, i, (int)hio_skad_family(&binds[i].localaddr));
 				continue;
 		}
 		info.m.options = HIO_DEV_SCK_MAKE_LENIENT;
@@ -417,7 +419,7 @@ hio_svc_htts_t* hio_svc_htts_start (hio_t* hio, hio_dev_sck_bind_t* binds, hio_o
 				{
 					hio_bch_t tmpbuf[HIO_SKAD_IP_STRLEN + 1];
 					hio_skadtobcstr(hio, &binds[i].localaddr, tmpbuf, HIO_COUNTOF(tmpbuf), HIO_SKAD_TO_BCSTR_ADDR | HIO_SKAD_TO_BCSTR_PORT);
-					HIO_DEBUG3 (hio, "HTTS(%p) - [%zd] unable to bind to %hs\n", htts, i, tmpbuf);
+					HIO_DEBUG3 (hio, "HTTS(%p) - [%zu] unable to bind to %hs\n", htts, i, tmpbuf);
 				}
 
 				hio_dev_sck_kill (sck);
@@ -433,7 +435,7 @@ hio_svc_htts_t* hio_svc_htts_start (hio_t* hio, hio_dev_sck_bind_t* binds, hio_o
 				{
 					hio_bch_t tmpbuf[HIO_SKAD_IP_STRLEN + 1];
 					hio_skadtobcstr(hio, &binds[i].localaddr, tmpbuf, HIO_COUNTOF(tmpbuf), HIO_SKAD_TO_BCSTR_ADDR | HIO_SKAD_TO_BCSTR_PORT);
-					HIO_DEBUG3 (hio, "HTTS(%p) - [%zd] unable to bind to %hs\n", htts, i, tmpbuf);
+					HIO_DEBUG3 (hio, "HTTS(%p) - [%zu] unable to bind to %hs\n", htts, i, tmpbuf);
 				}
 
 				hio_dev_sck_kill (sck);
@@ -447,7 +449,7 @@ hio_svc_htts_t* hio_svc_htts_start (hio_t* hio, hio_dev_sck_bind_t* binds, hio_o
 			hio_bch_t tmpbuf[HIO_SKAD_IP_STRLEN + 1];
 			hio_dev_sck_getsockaddr(sck, &tmpad);
 			hio_skadtobcstr(hio, &tmpad, tmpbuf, HIO_COUNTOF(tmpbuf), HIO_SKAD_TO_BCSTR_ADDR | HIO_SKAD_TO_BCSTR_PORT);
-			HIO_DEBUG3 (hio, "HTTS(%p) - [%zd] listening on %hs\n", htts, i, tmpbuf);
+			HIO_DEBUG3 (hio, "HTTS(%p) - [%zu] listening on %hs\n", htts, i, tmpbuf);
 		}
 
 		htts->l.sck[i] = sck;
@@ -681,13 +683,17 @@ int hio_svc_htts_writetosidechan (hio_svc_htts_t* htts, hio_oow_t idx, const voi
 {
 	if (idx >= htts->l.count)
 	{
-		hio_seterrbfmt (htts->hio, HIO_EINVAL, "index out of range");
+		/* don't set the error information - TODO: change hio_seterrbfmt thread-safe?
+		 *hio_seterrbfmt (htts->hio, HIO_EINVAL, "index out of range");*/ 
+		errno = EINVAL;
 		return -1;
 	}
 
 	if (!htts->l.sck[idx])
 	{
-		hio_seterrbfmt (htts->hio, HIO_EINVAL, "no listener at the given index");
+		/* don't set the error information 
+		 *hio_seterrbfmt (htts->hio, HIO_EINVAL, "no listener at the given index"); */
+		errno = EINVAL;
 		return -1;
 	}
 
