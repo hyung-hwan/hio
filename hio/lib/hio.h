@@ -1,6 +1,4 @@
 /*
- * $Id$
- *
     Copyright (c) 2016-2020 Chung, Hyung-Hwan. All rights reserved.
 
     Redistribution and use in source and binary forms, with or without
@@ -764,7 +762,7 @@ struct hio_t
 
 /* ========================================================================= */
 
-#ifdef __cplusplus
+#if defined(__cplusplus)
 extern "C" {
 #endif
 
@@ -1422,7 +1420,7 @@ HIO_EXPORT hio_oow_t hio_dev_cap_to_bcstr (
 	hio_oow_t     bsz
 );
 
-#ifdef __cplusplus
+#if defined(__cplusplus)
 }
 #endif
 

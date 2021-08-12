@@ -44,6 +44,7 @@ include_HEADERS = \
 	hio-path.h \
 	hio-pipe.h \
 	hio-pro.h \
+	hio-rad.h \
 	hio-sck.h \
 	hio-skad.h \
 	hio-thr.h \
@@ -74,12 +75,14 @@ libhio_la_SOURCES = \
 	json.c \
 	hio-prv.h \
 	hio.c \
+	md5.c \
 	nwif.c \
 	opt.c \
 	opt-imp.h \
 	path.c \
 	pipe.c \
 	pro.c \
+	rad-msg.c \
 	sck.c \
 	skad.c \
 	sys.c \

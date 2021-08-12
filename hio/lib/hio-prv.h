@@ -1,6 +1,4 @@
 /*
- * $Id$
- *
     Copyright (c) 2016-2020 Chung, Hyung-Hwan. All rights reserved.
 
     Redistribution and use in source and binary forms, with or without
@@ -108,7 +106,7 @@
 		(hio)->_shuterr = __shuterr; \
 	} while(0)
 
-#ifdef __cplusplus
+#if defined(__cplusplus)
 extern "C" {
 #endif
 
@@ -218,7 +216,7 @@ void hio_sys_getrealtime (
 	hio_ntime_t* now
 );
 
-#ifdef __cplusplus
+#if defined(__cplusplus)
 }
 #endif
 

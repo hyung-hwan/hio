@@ -1,6 +1,4 @@
 /*
- * $Id$
- *
     Copyright (c) 2016-2020 Chung, Hyung-Hwan. All rights reserved.
 
     Redistribution and use in source and binary forms, with or without
@@ -241,7 +239,7 @@ enum hio_trim_oochars_flag_t
 #define HIO_TRIM_BCHARS_RIGHT HIO_TRIM_OOCHARS_RIGHT
 };
 
-#ifdef __cplusplus
+#if defined(__cplusplus)
 extern "C" {
 #endif
 
@@ -1077,7 +1075,7 @@ HIO_EXPORT void hio_sip_hash_24 (
 	hio_uint8_t         out[8]
 );
 
-#ifdef __cplusplus
+#if defined(__cplusplus)
 }
 #endif
 
