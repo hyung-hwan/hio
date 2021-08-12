@@ -1,6 +1,4 @@
 /*
- * $Id$
- *
     Copyright (c) 2016-2020 Chung, Hyung-Hwan. All rights reserved.
 
     Redistribution and use in source and binary forms, with or without
@@ -92,7 +90,7 @@ enum hio_dev_pipe_ioctl_cmd_t
 };
 typedef enum hio_dev_pipe_ioctl_cmd_t hio_dev_pipe_ioctl_cmd_t;
 
-#ifdef __cplusplus
+#if defined(__cplusplus)
 extern "C" {
 #endif
 
@@ -153,7 +151,7 @@ HIO_EXPORT int hio_dev_pipe_close (
 	hio_dev_pipe_sid_t  sid
 );
 
-#ifdef __cplusplus
+#if defined(__cplusplus)
 }
 #endif
 

@@ -1,6 +1,4 @@
 /*
- * $Id$
- *
     Copyright (c) 2016-2020 Chung, Hyung-Hwan. All rights reserved.
 
     Redistribution and use in source and binary forms, with or without
@@ -445,7 +443,7 @@ struct hio_dev_sck_qxmsg_t
 typedef struct hio_dev_sck_qxmsg_t hio_dev_sck_qxmsg_t;
 
 
-#ifdef __cplusplus
+#if defined(__cplusplus)
 extern "C" {
 #endif
 
@@ -614,7 +612,7 @@ HIO_EXPORT hio_uint16_t hio_checksum_ip (
 	hio_oow_t   len
 );
 
-#ifdef __cplusplus
+#if defined(__cplusplus)
 }
 #endif
 

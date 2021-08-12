@@ -1,6 +1,4 @@
 /*
- * $Id$
- *
     Copyright (c) 2016-2020 Chung, Hyung-Hwan. All rights reserved.
 
     Redistribution and use in source and binary forms, with or without
@@ -203,7 +201,7 @@ typedef void (*hio_svc_marc_on_result_t) (
 
 /* -------------------------------------------------------------- */
 
-#ifdef __cplusplus
+#if defined(__cplusplus)
 extern "C" {
 #endif
 
@@ -294,7 +292,7 @@ HIO_EXPORT hio_oow_t hio_svc_marc_escapebchars (
 	hio_bch_t*          buf
 );
 
-#ifdef __cplusplus
+#if defined(__cplusplus)
 }
 #endif
 

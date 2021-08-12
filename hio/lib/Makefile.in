@@ -150,10 +150,11 @@ libhio_la_DEPENDENCIES = $(am__DEPENDENCIES_2) $(am__DEPENDENCIES_1) \
 am__libhio_la_SOURCES_DIST = chr.c dns.c dns-cli.c ecs.c ecs-imp.h \
 	err.c fmt.c fmt-imp.h htb.c htrd.c htre.c http.c http-cgi.c \
 	http-fil.c http-prv.h http-svr.c http-thr.c http-txt.c json.c \
-	hio-prv.h hio.c nwif.c opt.c opt-imp.h path.c pipe.c pro.c \
-	sck.c skad.c sys.c sys-ass.c sys-err.c sys-log.c sys-mux.c \
-	sys-prv.h sys-tim.c thr.c uch-case.h uch-prop.h tmr.c utf8.c \
-	utl.c utl-siph.c utl-str.c mar.c mar-cli.c
+	hio-prv.h hio.c md5.c nwif.c opt.c opt-imp.h path.c pipe.c \
+	pro.c rad-msg.c sck.c skad.c sys.c sys-ass.c sys-err.c \
+	sys-log.c sys-mux.c sys-prv.h sys-tim.c thr.c uch-case.h \
+	uch-prop.h tmr.c utf8.c utl.c utl-siph.c utl-str.c mar.c \
+	mar-cli.c
 @ENABLE_MARIADB_TRUE@am__objects_1 = libhio_la-mar.lo \
 @ENABLE_MARIADB_TRUE@	libhio_la-mar-cli.lo
 am_libhio_la_OBJECTS = libhio_la-chr.lo libhio_la-dns.lo \
@@ -162,13 +163,14 @@ am_libhio_la_OBJECTS = libhio_la-chr.lo libhio_la-dns.lo \
 	libhio_la-htre.lo libhio_la-http.lo libhio_la-http-cgi.lo \
 	libhio_la-http-fil.lo libhio_la-http-svr.lo \
 	libhio_la-http-thr.lo libhio_la-http-txt.lo libhio_la-json.lo \
-	libhio_la-hio.lo libhio_la-nwif.lo libhio_la-opt.lo \
-	libhio_la-path.lo libhio_la-pipe.lo libhio_la-pro.lo \
-	libhio_la-sck.lo libhio_la-skad.lo libhio_la-sys.lo \
-	libhio_la-sys-ass.lo libhio_la-sys-err.lo libhio_la-sys-log.lo \
-	libhio_la-sys-mux.lo libhio_la-sys-tim.lo libhio_la-thr.lo \
-	libhio_la-tmr.lo libhio_la-utf8.lo libhio_la-utl.lo \
-	libhio_la-utl-siph.lo libhio_la-utl-str.lo $(am__objects_1)
+	libhio_la-hio.lo libhio_la-md5.lo libhio_la-nwif.lo \
+	libhio_la-opt.lo libhio_la-path.lo libhio_la-pipe.lo \
+	libhio_la-pro.lo libhio_la-rad-msg.lo libhio_la-sck.lo \
+	libhio_la-skad.lo libhio_la-sys.lo libhio_la-sys-ass.lo \
+	libhio_la-sys-err.lo libhio_la-sys-log.lo libhio_la-sys-mux.lo \
+	libhio_la-sys-tim.lo libhio_la-thr.lo libhio_la-tmr.lo \
+	libhio_la-utf8.lo libhio_la-utl.lo libhio_la-utl-siph.lo \
+	libhio_la-utl-str.lo $(am__objects_1)
 libhio_la_OBJECTS = $(am_libhio_la_OBJECTS)
 AM_V_lt = $(am__v_lt_@AM_V@)
 am__v_lt_ = $(am__v_lt_@AM_DEFAULT_V@)
@@ -205,9 +207,11 @@ am__depfiles_remade = ./$(DEPDIR)/libhio_la-chr.Plo \
 	./$(DEPDIR)/libhio_la-http-txt.Plo \
 	./$(DEPDIR)/libhio_la-http.Plo ./$(DEPDIR)/libhio_la-json.Plo \
 	./$(DEPDIR)/libhio_la-mar-cli.Plo \
-	./$(DEPDIR)/libhio_la-mar.Plo ./$(DEPDIR)/libhio_la-nwif.Plo \
-	./$(DEPDIR)/libhio_la-opt.Plo ./$(DEPDIR)/libhio_la-path.Plo \
-	./$(DEPDIR)/libhio_la-pipe.Plo ./$(DEPDIR)/libhio_la-pro.Plo \
+	./$(DEPDIR)/libhio_la-mar.Plo ./$(DEPDIR)/libhio_la-md5.Plo \
+	./$(DEPDIR)/libhio_la-nwif.Plo ./$(DEPDIR)/libhio_la-opt.Plo \
+	./$(DEPDIR)/libhio_la-path.Plo ./$(DEPDIR)/libhio_la-pipe.Plo \
+	./$(DEPDIR)/libhio_la-pro.Plo \
+	./$(DEPDIR)/libhio_la-rad-msg.Plo \
 	./$(DEPDIR)/libhio_la-sck.Plo ./$(DEPDIR)/libhio_la-skad.Plo \
 	./$(DEPDIR)/libhio_la-sys-ass.Plo \
 	./$(DEPDIR)/libhio_la-sys-err.Plo \
@@ -248,8 +252,8 @@ am__can_run_installinfo = \
 am__include_HEADERS_DIST = hio-cfg.h hio-chr.h hio-cmn.h hio-dns.h \
 	hio-ecs.h hio-fmt.h hio-htb.h hio-htrd.h hio-htre.h hio-http.h \
 	hio-json.h hio-nwif.h hio-opt.h hio-pac1.h hio-path.h \
-	hio-pipe.h hio-pro.h hio-sck.h hio-skad.h hio-thr.h hio-upac.h \
-	hio-utl.h hio.h hio-mar.h
+	hio-pipe.h hio-pro.h hio-rad.h hio-sck.h hio-skad.h hio-thr.h \
+	hio-upac.h hio-utl.h hio.h hio-mar.h
 HEADERS = $(include_HEADERS)
 am__tagged_files = $(HEADERS) $(SOURCES) $(TAGS_FILES) $(LISP) \
 	hio-cfg.h.in
@@ -439,16 +443,16 @@ LIBADD_LIB_COMMON = $(LIBM)
 include_HEADERS = hio-cfg.h hio-chr.h hio-cmn.h hio-dns.h hio-ecs.h \
 	hio-fmt.h hio-htb.h hio-htrd.h hio-htre.h hio-http.h \
 	hio-json.h hio-nwif.h hio-opt.h hio-pac1.h hio-path.h \
-	hio-pipe.h hio-pro.h hio-sck.h hio-skad.h hio-thr.h hio-upac.h \
-	hio-utl.h hio.h $(am__append_1)
+	hio-pipe.h hio-pro.h hio-rad.h hio-sck.h hio-skad.h hio-thr.h \
+	hio-upac.h hio-utl.h hio.h $(am__append_1)
 lib_LTLIBRARIES = libhio.la
 libhio_la_SOURCES = chr.c dns.c dns-cli.c ecs.c ecs-imp.h err.c fmt.c \
 	fmt-imp.h htb.c htrd.c htre.c http.c http-cgi.c http-fil.c \
 	http-prv.h http-svr.c http-thr.c http-txt.c json.c hio-prv.h \
-	hio.c nwif.c opt.c opt-imp.h path.c pipe.c pro.c sck.c skad.c \
-	sys.c sys-ass.c sys-err.c sys-log.c sys-mux.c sys-prv.h \
-	sys-tim.c thr.c uch-case.h uch-prop.h tmr.c utf8.c utl.c \
-	utl-siph.c utl-str.c $(am__append_2)
+	hio.c md5.c nwif.c opt.c opt-imp.h path.c pipe.c pro.c \
+	rad-msg.c sck.c skad.c sys.c sys-ass.c sys-err.c sys-log.c \
+	sys-mux.c sys-prv.h sys-tim.c thr.c uch-case.h uch-prop.h \
+	tmr.c utf8.c utl.c utl-siph.c utl-str.c $(am__append_2)
 libhio_la_CPPFLAGS = $(CPPFLAGS_LIB_COMMON)
 libhio_la_CFLAGS = $(CFLAGS_LIB_COMMON) $(am__append_3)
 libhio_la_LDFLAGS = $(LDFLAGS_LIB_COMMON) $(am__append_4)
@@ -567,11 +571,13 @@ distclean-compile:
 @AMDEP_TRUE@@am__include@ @am__quote@./$(DEPDIR)/libhio_la-json.Plo@am__quote@ # am--include-marker
 @AMDEP_TRUE@@am__include@ @am__quote@./$(DEPDIR)/libhio_la-mar-cli.Plo@am__quote@ # am--include-marker
 @AMDEP_TRUE@@am__include@ @am__quote@./$(DEPDIR)/libhio_la-mar.Plo@am__quote@ # am--include-marker
+@AMDEP_TRUE@@am__include@ @am__quote@./$(DEPDIR)/libhio_la-md5.Plo@am__quote@ # am--include-marker
 @AMDEP_TRUE@@am__include@ @am__quote@./$(DEPDIR)/libhio_la-nwif.Plo@am__quote@ # am--include-marker
 @AMDEP_TRUE@@am__include@ @am__quote@./$(DEPDIR)/libhio_la-opt.Plo@am__quote@ # am--include-marker
 @AMDEP_TRUE@@am__include@ @am__quote@./$(DEPDIR)/libhio_la-path.Plo@am__quote@ # am--include-marker
 @AMDEP_TRUE@@am__include@ @am__quote@./$(DEPDIR)/libhio_la-pipe.Plo@am__quote@ # am--include-marker
 @AMDEP_TRUE@@am__include@ @am__quote@./$(DEPDIR)/libhio_la-pro.Plo@am__quote@ # am--include-marker
+@AMDEP_TRUE@@am__include@ @am__quote@./$(DEPDIR)/libhio_la-rad-msg.Plo@am__quote@ # am--include-marker
 @AMDEP_TRUE@@am__include@ @am__quote@./$(DEPDIR)/libhio_la-sck.Plo@am__quote@ # am--include-marker
 @AMDEP_TRUE@@am__include@ @am__quote@./$(DEPDIR)/libhio_la-skad.Plo@am__quote@ # am--include-marker
 @AMDEP_TRUE@@am__include@ @am__quote@./$(DEPDIR)/libhio_la-sys-ass.Plo@am__quote@ # am--include-marker
@@ -736,6 +742,13 @@ libhio_la-hio.lo: hio.c
 @AMDEP_TRUE@@am__fastdepCC_FALSE@	DEPDIR=$(DEPDIR) $(CCDEPMODE) $(depcomp) @AMDEPBACKSLASH@
 @am__fastdepCC_FALSE@	$(AM_V_CC@am__nodep@)$(LIBTOOL) $(AM_V_lt) --tag=CC $(AM_LIBTOOLFLAGS) $(LIBTOOLFLAGS) --mode=compile $(CC) $(DEFS) $(DEFAULT_INCLUDES) $(INCLUDES) $(libhio_la_CPPFLAGS) $(CPPFLAGS) $(libhio_la_CFLAGS) $(CFLAGS) -c -o libhio_la-hio.lo `test -f 'hio.c' || echo '$(srcdir)/'`hio.c
 
+libhio_la-md5.lo: md5.c
+@am__fastdepCC_TRUE@	$(AM_V_CC)$(LIBTOOL) $(AM_V_lt) --tag=CC $(AM_LIBTOOLFLAGS) $(LIBTOOLFLAGS) --mode=compile $(CC) $(DEFS) $(DEFAULT_INCLUDES) $(INCLUDES) $(libhio_la_CPPFLAGS) $(CPPFLAGS) $(libhio_la_CFLAGS) $(CFLAGS) -MT libhio_la-md5.lo -MD -MP -MF $(DEPDIR)/libhio_la-md5.Tpo -c -o libhio_la-md5.lo `test -f 'md5.c' || echo '$(srcdir)/'`md5.c
+@am__fastdepCC_TRUE@	$(AM_V_at)$(am__mv) $(DEPDIR)/libhio_la-md5.Tpo $(DEPDIR)/libhio_la-md5.Plo
+@AMDEP_TRUE@@am__fastdepCC_FALSE@	$(AM_V_CC)source='md5.c' object='libhio_la-md5.lo' libtool=yes @AMDEPBACKSLASH@
+@AMDEP_TRUE@@am__fastdepCC_FALSE@	DEPDIR=$(DEPDIR) $(CCDEPMODE) $(depcomp) @AMDEPBACKSLASH@
+@am__fastdepCC_FALSE@	$(AM_V_CC@am__nodep@)$(LIBTOOL) $(AM_V_lt) --tag=CC $(AM_LIBTOOLFLAGS) $(LIBTOOLFLAGS) --mode=compile $(CC) $(DEFS) $(DEFAULT_INCLUDES) $(INCLUDES) $(libhio_la_CPPFLAGS) $(CPPFLAGS) $(libhio_la_CFLAGS) $(CFLAGS) -c -o libhio_la-md5.lo `test -f 'md5.c' || echo '$(srcdir)/'`md5.c
+
 libhio_la-nwif.lo: nwif.c
 @am__fastdepCC_TRUE@	$(AM_V_CC)$(LIBTOOL) $(AM_V_lt) --tag=CC $(AM_LIBTOOLFLAGS) $(LIBTOOLFLAGS) --mode=compile $(CC) $(DEFS) $(DEFAULT_INCLUDES) $(INCLUDES) $(libhio_la_CPPFLAGS) $(CPPFLAGS) $(libhio_la_CFLAGS) $(CFLAGS) -MT libhio_la-nwif.lo -MD -MP -MF $(DEPDIR)/libhio_la-nwif.Tpo -c -o libhio_la-nwif.lo `test -f 'nwif.c' || echo '$(srcdir)/'`nwif.c
 @am__fastdepCC_TRUE@	$(AM_V_at)$(am__mv) $(DEPDIR)/libhio_la-nwif.Tpo $(DEPDIR)/libhio_la-nwif.Plo
@@ -770,6 +783,13 @@ libhio_la-pro.lo: pro.c
 @AMDEP_TRUE@@am__fastdepCC_FALSE@	$(AM_V_CC)source='pro.c' object='libhio_la-pro.lo' libtool=yes @AMDEPBACKSLASH@
 @AMDEP_TRUE@@am__fastdepCC_FALSE@	DEPDIR=$(DEPDIR) $(CCDEPMODE) $(depcomp) @AMDEPBACKSLASH@
 @am__fastdepCC_FALSE@	$(AM_V_CC@am__nodep@)$(LIBTOOL) $(AM_V_lt) --tag=CC $(AM_LIBTOOLFLAGS) $(LIBTOOLFLAGS) --mode=compile $(CC) $(DEFS) $(DEFAULT_INCLUDES) $(INCLUDES) $(libhio_la_CPPFLAGS) $(CPPFLAGS) $(libhio_la_CFLAGS) $(CFLAGS) -c -o libhio_la-pro.lo `test -f 'pro.c' || echo '$(srcdir)/'`pro.c
+
+libhio_la-rad-msg.lo: rad-msg.c
+@am__fastdepCC_TRUE@	$(AM_V_CC)$(LIBTOOL) $(AM_V_lt) --tag=CC $(AM_LIBTOOLFLAGS) $(LIBTOOLFLAGS) --mode=compile $(CC) $(DEFS) $(DEFAULT_INCLUDES) $(INCLUDES) $(libhio_la_CPPFLAGS) $(CPPFLAGS) $(libhio_la_CFLAGS) $(CFLAGS) -MT libhio_la-rad-msg.lo -MD -MP -MF $(DEPDIR)/libhio_la-rad-msg.Tpo -c -o libhio_la-rad-msg.lo `test -f 'rad-msg.c' || echo '$(srcdir)/'`rad-msg.c
+@am__fastdepCC_TRUE@	$(AM_V_at)$(am__mv) $(DEPDIR)/libhio_la-rad-msg.Tpo $(DEPDIR)/libhio_la-rad-msg.Plo
+@AMDEP_TRUE@@am__fastdepCC_FALSE@	$(AM_V_CC)source='rad-msg.c' object='libhio_la-rad-msg.lo' libtool=yes @AMDEPBACKSLASH@
+@AMDEP_TRUE@@am__fastdepCC_FALSE@	DEPDIR=$(DEPDIR) $(CCDEPMODE) $(depcomp) @AMDEPBACKSLASH@
+@am__fastdepCC_FALSE@	$(AM_V_CC@am__nodep@)$(LIBTOOL) $(AM_V_lt) --tag=CC $(AM_LIBTOOLFLAGS) $(LIBTOOLFLAGS) --mode=compile $(CC) $(DEFS) $(DEFAULT_INCLUDES) $(INCLUDES) $(libhio_la_CPPFLAGS) $(CPPFLAGS) $(libhio_la_CFLAGS) $(CFLAGS) -c -o libhio_la-rad-msg.lo `test -f 'rad-msg.c' || echo '$(srcdir)/'`rad-msg.c
 
 libhio_la-sck.lo: sck.c
 @am__fastdepCC_TRUE@	$(AM_V_CC)$(LIBTOOL) $(AM_V_lt) --tag=CC $(AM_LIBTOOLFLAGS) $(LIBTOOLFLAGS) --mode=compile $(CC) $(DEFS) $(DEFAULT_INCLUDES) $(INCLUDES) $(libhio_la_CPPFLAGS) $(CPPFLAGS) $(libhio_la_CFLAGS) $(CFLAGS) -MT libhio_la-sck.lo -MD -MP -MF $(DEPDIR)/libhio_la-sck.Tpo -c -o libhio_la-sck.lo `test -f 'sck.c' || echo '$(srcdir)/'`sck.c
@@ -1057,11 +1077,13 @@ distclean: distclean-am
 	-rm -f ./$(DEPDIR)/libhio_la-json.Plo
 	-rm -f ./$(DEPDIR)/libhio_la-mar-cli.Plo
 	-rm -f ./$(DEPDIR)/libhio_la-mar.Plo
+	-rm -f ./$(DEPDIR)/libhio_la-md5.Plo
 	-rm -f ./$(DEPDIR)/libhio_la-nwif.Plo
 	-rm -f ./$(DEPDIR)/libhio_la-opt.Plo
 	-rm -f ./$(DEPDIR)/libhio_la-path.Plo
 	-rm -f ./$(DEPDIR)/libhio_la-pipe.Plo
 	-rm -f ./$(DEPDIR)/libhio_la-pro.Plo
+	-rm -f ./$(DEPDIR)/libhio_la-rad-msg.Plo
 	-rm -f ./$(DEPDIR)/libhio_la-sck.Plo
 	-rm -f ./$(DEPDIR)/libhio_la-skad.Plo
 	-rm -f ./$(DEPDIR)/libhio_la-sys-ass.Plo
@@ -1141,11 +1163,13 @@ maintainer-clean: maintainer-clean-am
 	-rm -f ./$(DEPDIR)/libhio_la-json.Plo
 	-rm -f ./$(DEPDIR)/libhio_la-mar-cli.Plo
 	-rm -f ./$(DEPDIR)/libhio_la-mar.Plo
+	-rm -f ./$(DEPDIR)/libhio_la-md5.Plo
 	-rm -f ./$(DEPDIR)/libhio_la-nwif.Plo
 	-rm -f ./$(DEPDIR)/libhio_la-opt.Plo
 	-rm -f ./$(DEPDIR)/libhio_la-path.Plo
 	-rm -f ./$(DEPDIR)/libhio_la-pipe.Plo
 	-rm -f ./$(DEPDIR)/libhio_la-pro.Plo
+	-rm -f ./$(DEPDIR)/libhio_la-rad-msg.Plo
 	-rm -f ./$(DEPDIR)/libhio_la-sck.Plo
 	-rm -f ./$(DEPDIR)/libhio_la-skad.Plo
 	-rm -f ./$(DEPDIR)/libhio_la-sys-ass.Plo
