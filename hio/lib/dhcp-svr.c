@@ -35,7 +35,7 @@ struct hio_svc_dhcs_t
 };
 
 
-hio_svc_dhcs_t* hio_svc_dhcs_start (hio_t* hio/*, hio_dev_sck_bind_t* sck_bind*/)
+hio_svc_dhcs_t* hio_svc_dhcs_start (hio_t* hio, const hio_skad_t* local_binds, hio_oow_t local_nbinds)
 {
 	hio_svc_dhcs_t* dhcs;
 	union
@@ -43,31 +43,35 @@ hio_svc_dhcs_t* hio_svc_dhcs_start (hio_t* hio/*, hio_dev_sck_bind_t* sck_bind*/
 		hio_dev_sck_make_t m;
 		hio_dev_sck_listen_t l;
 	} info;
+	hio_oow_t i;
 
 	dhcs = (hio_svc_dhcs_t*)hio_callocmem(hio, HIO_SIZEOF(*dhcs));
 	if (HIO_UNLIKELY(!dhcs)) goto oops;
 
 	dhcs->hio = hio;
 
-	HIO_MEMSET (&info, 0, HIO_SIZEOF(info));
-	info.m.type = HIO_DEV_SCK_UDP6;
-	info.m.options = HIO_DEV_SCK_BIND_REUSEADDR | HIO_DEV_SCK_BIND_REUSEPORT | HIO_DEV_SCK_BIND_IGNERR;
-	//info.m.on_write = 
-	//info.m.on_read = ...
-	//info.m.on_connect = ...
-	//info.m.on_disconnect = ...
-	dhcs->sck = hio_dev_sck_make(hio, 0, &info.m);
-	if (HIO_UNLIKELY(!dhcs->sck)) goto oops;
+	for (i = 0; i < local_nbinds; i++)
+	{
+		HIO_MEMSET (&info, 0, HIO_SIZEOF(info));
+		info.m.type = HIO_DEV_SCK_UDP6;
+		info.m.options = HIO_DEV_SCK_BIND_REUSEADDR | HIO_DEV_SCK_BIND_REUSEPORT | HIO_DEV_SCK_BIND_IGNERR;
+		//info.m.on_write = 
+		//info.m.on_read = ...
+		//info.m.on_connect = ...
+		//info.m.on_disconnect = ...
+		dhcs->sck = hio_dev_sck_make(hio, 0, &info.m);
+		if (HIO_UNLIKELY(!dhcs->sck)) goto oops;
 
-#if defined(IPV6_RECVPKTINFO)
-	hio_dev_sck_setsockopt (dhcs->sck, IPPROTO_IPV6, IPV6_RECVPKTINFO, &v);
-#elif defined(IPV6_PKTINFO)
-	hio_dev_sck_setsockopt (dhcs->sck, IPPROTO_IPV6, IPV6_PKTINFO, &v);
-#else
-//#	error no ipv6 pktinfo
-#endif
+	#if defined(IPV6_RECVPKTINFO)
+		hio_dev_sck_setsockopt (dhcs->sck, IPPROTO_IPV6, IPV6_RECVPKTINFO, &v);
+	#elif defined(IPV6_PKTINFO)
+		hio_dev_sck_setsockopt (dhcs->sck, IPPROTO_IPV6, IPV6_PKTINFO, &v);
+	#else
+	//#	error no ipv6 pktinfo
+	#endif
 
-	//hio_dev_sck_bind(dhcs->sck, )
+		hio_dev_sck_bind(dhcs->sck, &local_binds[i]);
+	}
 
 	HIO_SVCL_APPEND_SVC (&hio->actsvc, (hio_svc_t*)dhcs);
 	return dhcs;
