@@ -107,7 +107,11 @@ extern "C" {
 #endif
 
 HIO_EXPORT hio_svc_dhcs_t* hio_svc_dhcs_start (
-	hio_t*             hio
+	hio_t*             hio,
+	const hio_skad_t*  local_binds,
+	hio_oow_t          local_nbinds
+
+
 #if 0
 	,
 	const hio_skad_t*  serv_addr, /* required */
