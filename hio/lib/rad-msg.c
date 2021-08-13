@@ -33,10 +33,10 @@
 
 void hio_rad_initialize (hio_rad_hdr_t* hdr, hio_rad_code_t code, hio_uint8_t id)
 {
-	HIO_MEMSET (hdr, 0, sizeof(*hdr));
+	HIO_MEMSET (hdr, 0, HIO_SIZEOF(*hdr));
 	hdr->code = code;
 	hdr->id = id;
-	hdr->length = hio_hton16(sizeof(*hdr));
+	hdr->length = hio_hton16(HIO_SIZEOF(*hdr));
 }
 
 static HIO_INLINE void xor (void* p, void* q, int length)
@@ -51,11 +51,9 @@ static void fill_authenticator_randomly (void* authenticator, int length)
 {
 	hio_uint8_t* v = (hio_uint8_t*)authenticator;
 	int total = 0;
-
-#if defined(__linux)
 	int fd;
 
-	fd = open("/dev/urandom", O_RDONLY, 0); /* Linux: get *real* random numbers */
+	fd = open("/dev/urandom", O_RDONLY, 0);
 	if (fd >= 0) 
 	{
 		while (total < length) 
@@ -66,7 +64,6 @@ static void fill_authenticator_randomly (void* authenticator, int length)
 		}
 		close (fd);
 	}
-#endif
 
 	if (total < length) 
 	{
@@ -85,6 +82,60 @@ static void fill_authenticator_randomly (void* authenticator, int length)
 		}
 	}
 }
+
+int hio_rad_walk_attributes (const hio_rad_hdr_t* hdr, hio_rad_attr_walker_t walker, void* ctx)
+{
+	int totlen, rem;
+	hio_rad_attr_hdr_t* attr;
+
+	totlen = hio_ntoh16(hdr->length);
+	if (totlen < HIO_SIZEOF(*hdr)) return -1;
+
+	rem = totlen - HIO_SIZEOF(*hdr);
+	attr = (hio_rad_attr_hdr_t*)(hdr + 1);
+	while (rem >= HIO_SIZEOF(*attr))
+	{
+		/* sanity checks */
+		if (rem < attr->length) return -1;
+		if (attr->length < HIO_SIZEOF(*attr)) 
+		{
+			/* attribute length cannot be less than the header size.
+			 * the packet could be corrupted... */
+			return -1;
+		}
+
+		rem -= attr->length;
+
+		if (attr->type == HIO_RAD_ATTR_VENDOR_SPECIFIC)
+		{
+			hio_rad_vsattr_hdr_t* vsattr;
+			int val_len;
+
+			if (attr->length < HIO_SIZEOF(*vsattr)) return -1;
+			vsattr = (hio_rad_vsattr_hdr_t*)attr;
+
+			val_len = (int)vsattr->length - HIO_SIZEOF(*vsattr);
+			if ((int)vsattr->vs.length != val_len + HIO_SIZEOF(vsattr->vs)) return -1;
+
+			/* if this vendor happens to be 0, walker can't tell
+			 * if it is vendor specific or not because 0 is passed in
+			 * for non-VSAs. but i don't care. in reality, 
+			 * 0 is reserved in IANA enterpirse number assignments.
+			 * (http://www.iana.org/assignments/enterprise-numbers) */
+			if (walker(hdr, hio_ntoh32(vsattr->vendor), &vsattr->vs, ctx) <= -1) return -1;
+		}
+		else
+		{
+			if (walker(hdr, 0, attr, ctx) <= -1) return -1;
+		}
+
+		attr = (hio_rad_attr_hdr_t*)((hio_uint8_t*) attr + attr->length);
+	}
+
+	return 0;
+}
+
+/* ---------------------------------------------------------------- */
 
 static hio_rad_attr_hdr_t* find_attribute (hio_rad_attr_hdr_t* attr, int* len, hio_uint8_t attrtype)
 {
@@ -189,7 +240,7 @@ hio_rad_attr_hdr_t* hio_rad_find_attribute (hio_rad_hdr_t* hdr, hio_uint8_t attr
 	return HIO_NULL;
 }
 
-hio_rad_attr_hdr_t* hio_rad_find_extended_attribute (hio_rad_hdr_t* hdr, hio_uint8_t xtype, hio_uint8_t attrtype, int index)
+hio_rad_xattr_hdr_t* hio_rad_find_extended_attribute (hio_rad_hdr_t* hdr, hio_uint8_t xtype, hio_uint8_t attrtype, int index)
 {
 	hio_rad_attr_hdr_t *attr = (hio_rad_attr_hdr_t*)(hdr + 1);
 
@@ -199,7 +250,7 @@ hio_rad_attr_hdr_t* hio_rad_find_extended_attribute (hio_rad_hdr_t* hdr, hio_uin
 		attr = find_extended_attribute(attr, &len, xtype, attrtype);
 		while (attr)
 		{
-			if (index <= 0) return attr;
+			if (index <= 0) return (hio_rad_xattr_hdr_t*)attr;
 			index--;
 			attr = find_extended_attribute((hio_rad_attr_hdr_t*)((hio_uint8_t*)attr + attr->length), &len, xtype, attrtype);
 		}
@@ -208,7 +259,7 @@ hio_rad_attr_hdr_t* hio_rad_find_extended_attribute (hio_rad_hdr_t* hdr, hio_uin
 	return HIO_NULL;
 }
 
-hio_rad_vsattr_hdr_t* hio_rad_find_vsattr (hio_rad_hdr_t* hdr, hio_uint32_t vendor, hio_uint8_t attrtype, int index)
+hio_rad_vsattr_hdr_t* hio_rad_find_vendor_specific_attribute (hio_rad_hdr_t* hdr, hio_uint32_t vendor, hio_uint8_t attrtype, int index)
 {
 	hio_rad_attr_hdr_t *attr = (hio_rad_attr_hdr_t*)(hdr+1);
 
@@ -246,7 +297,8 @@ hio_rad_vsattr_hdr_t* hio_rad_find_vsattr (hio_rad_hdr_t* hdr, hio_uint32_t vend
 	return HIO_NULL;
 }
 
-hio_rad_xvsattr_hdr_t* hio_rad_find_extended_vsattr (hio_rad_hdr_t* hdr, hio_uint32_t vendor, hio_uint8_t xtype, hio_uint8_t attrtype, int index)
+
+hio_rad_xvsattr_hdr_t* hio_rad_find_extended_vendor_specific_attribute (hio_rad_hdr_t* hdr, hio_uint32_t vendor, hio_uint8_t xtype, hio_uint8_t attrtype, int index)
 {
 	hio_rad_attr_hdr_t *attr = (hio_rad_attr_hdr_t*)(hdr+1);
 
@@ -309,115 +361,7 @@ hio_rad_xvsattr_hdr_t* hio_rad_find_extended_vsattr (hio_rad_hdr_t* hdr, hio_uin
 	return HIO_NULL;
 }
 
-hio_rad_attr_hdr_t* hio_rad_find_vendor_specific_attribute (hio_rad_hdr_t* hdr, hio_uint32_t vendor, hio_uint8_t attrtype, int index)
-{
-	hio_rad_vsattr_hdr_t* vsattr;
-	vsattr = hio_rad_find_vsattr(hdr, vendor, attrtype, index);
-	return vsattr? &vsattr->vs: HIO_NULL;
-}
-
-int hio_rad_walk_attributes (const hio_rad_hdr_t* hdr, hio_rad_attr_walker_t walker, void* ctx)
-{
-	int totlen, rem;
-	hio_rad_attr_hdr_t* attr;
-
-	totlen = hio_ntoh16(hdr->length);
-	if (totlen < HIO_SIZEOF(*hdr)) return -1;
-
-	rem = totlen - HIO_SIZEOF(*hdr);
-	attr = (hio_rad_attr_hdr_t*)(hdr + 1);
-	while (rem >= HIO_SIZEOF(*attr))
-	{
-		/* sanity checks */
-		if (rem < attr->length) return -1;
-		if (attr->length < HIO_SIZEOF(*attr)) 
-		{
-			/* attribute length cannot be less than the header size.
-			 * the packet could be corrupted... */
-			return -1;
-		}
-
-		rem -= attr->length;
-
-		if (attr->type == HIO_RAD_ATTR_VENDOR_SPECIFIC)
-		{
-			hio_rad_vsattr_hdr_t* vsattr;
-			int val_len;
-
-			if (attr->length < HIO_SIZEOF(*vsattr)) return -1;
-			vsattr = (hio_rad_vsattr_hdr_t*)attr;
-
-			val_len = (int)vsattr->length - HIO_SIZEOF(*vsattr);
-			if ((int)vsattr->vs.length != val_len + HIO_SIZEOF(vsattr->vs)) return -1;
-
-			/* if this vendor happens to be 0, walker can't tell
-			 * if it is vendor specific or not because 0 is passed in
-			 * for non-VSAs. but i don't care. in reality, 
-			 * 0 is reserved in IANA enterpirse number assignments.
-			 * (http://www.iana.org/assignments/enterprise-numbers) */
-			if (walker(hdr, hio_ntoh32(vsattr->vendor), &vsattr->vs, ctx) <= -1) return -1;
-		}
-		else
-		{
-			if (walker(hdr, 0, attr, ctx) <= -1) return -1;
-		}
-
-		attr = (hio_rad_attr_hdr_t*)((hio_uint8_t*) attr + attr->length);
-	}
-
-	return 0;
-}
-
-
-int hio_rad_insert_attribute (
-	hio_rad_hdr_t* auth, int max,
-	hio_uint8_t id, const void* ptr, hio_uint8_t len)
-{
-	hio_rad_attr_hdr_t* attr;
-	int auth_len = hio_ntoh16(auth->length);
-	int new_auth_len;
-
-	/*if (len > HIO_RAD_MAX_ATTR_VALUE_LEN) return -1;*/
-	if (len > HIO_RAD_MAX_ATTR_VALUE_LEN) len = HIO_RAD_MAX_ATTR_VALUE_LEN;
-	new_auth_len = auth_len + len + HIO_SIZEOF(*attr);
-
-	if (new_auth_len > max) return -1;
-
-	attr = (hio_rad_attr_hdr_t*)((hio_uint8_t*)auth + auth_len);
-	attr->type = id;
-	attr->length = new_auth_len - auth_len;
-	HIO_MEMCPY (attr + 1, ptr, len);
-	auth->length = hio_hton16(new_auth_len);
-
-	return 0;
-}
-
-int hio_rad_insert_vendor_specific_attribute (
-	hio_rad_hdr_t* auth, int max,
-	hio_uint32_t vendor, hio_uint8_t attrtype, const void* ptr, hio_uint8_t len)
-{
-	hio_rad_vsattr_hdr_t* vsattr;
-	int auth_len = hio_ntoh16(auth->length);
-	int new_auth_len;
-
-	/*if (len > HIO_RAD_MAX_VSATTR_VALUE_LEN) return -1;*/
-	if (len > HIO_RAD_MAX_VSATTR_VALUE_LEN) len = HIO_RAD_MAX_VSATTR_VALUE_LEN;
-	new_auth_len = auth_len + HIO_SIZEOF(*vsattr) + len;
-
-	if (new_auth_len > max) return -1;
-
-	vsattr = (hio_rad_vsattr_hdr_t*)((hio_uint8_t*)auth + auth_len);
-	vsattr->type = HIO_RAD_ATTR_VENDOR_SPECIFIC;
-	vsattr->length = new_auth_len - auth_len;
-	vsattr->vendor = hio_hton32(vendor);
-
-	vsattr->vs.type = attrtype;
-	vsattr->vs.length = HIO_SIZEOF(vsattr->vs) + len;
-	HIO_MEMCPY (vsattr + 1, ptr, len);
-
-	auth->length = hio_hton16(new_auth_len);
-	return 0;
-}
+/* ---------------------------------------------------------------- */
 
 static int delete_attribute (hio_rad_hdr_t* auth, hio_rad_attr_hdr_t* attr)
 {
@@ -444,12 +388,21 @@ int hio_rad_delete_attribute (hio_rad_hdr_t* auth, hio_uint8_t attrtype, int ind
 	return (delete_attribute(auth, attr) <= -1)? -1: 1;
 }
 
+int hio_rad_delete_extended_attribute (hio_rad_hdr_t* auth, hio_uint8_t xtype, hio_uint8_t attrtype, int index)
+{
+	hio_rad_xattr_hdr_t* attr;
+
+	attr = hio_rad_find_extended_attribute(auth, xtype, attrtype, index);
+	if (!attr) return 0; /* not found */
+	return (delete_attribute(auth, (hio_rad_attr_hdr_t*)attr) <= -1)? -1: 1;
+}
+
 int hio_rad_delete_vendor_specific_attribute (
 	hio_rad_hdr_t* auth, hio_uint32_t vendor, hio_uint8_t attrtype, int index)
 {
 	hio_rad_vsattr_hdr_t* vsattr;
 
-	vsattr = hio_rad_find_vsattr(auth, vendor, attrtype, 0);
+	vsattr = hio_rad_find_vendor_specific_attribute(auth, vendor, attrtype, 0);
 	if (!vsattr) return 0; /* not found */
 	return (delete_attribute(auth, (hio_rad_attr_hdr_t*)vsattr) <= -1)? -1: 1;
 }
@@ -459,76 +412,225 @@ int hio_rad_delete_extended_vendor_specific_attribute (
 {
 	hio_rad_xvsattr_hdr_t* xvsattr;
 
-	xvsattr = hio_rad_find_extended_vsattr(auth, vendor, xtype, attrtype, 0);
+	xvsattr = hio_rad_find_extended_vendor_specific_attribute(auth, vendor, xtype, attrtype, 0);
 	if (!xvsattr) return 0; /* not found */
 
 	return (delete_attribute(auth, (hio_rad_attr_hdr_t*)xvsattr) <= -1)? -1: 1;
 }
 
-int hio_rad_insert_attribute_with_bcstr (
+/* ---------------------------------------------------------------- */
+
+hio_rad_attr_hdr_t* hio_rad_insert_attribute (
+	hio_rad_hdr_t* auth, int max,
+	hio_uint8_t attrtype, const void* ptr, hio_uint8_t len)
+{
+	hio_rad_attr_hdr_t* attr;
+	int auth_len = hio_ntoh16(auth->length);
+	int new_auth_len;
+
+	/*if (len > HIO_RAD_MAX_ATTR_VALUE_LEN) return HIO_NULL;*/
+	if (len > HIO_RAD_MAX_ATTR_VALUE_LEN) len = HIO_RAD_MAX_ATTR_VALUE_LEN;
+	new_auth_len = auth_len + HIO_SIZEOF(*attr) + len;
+
+	if (new_auth_len > max) return HIO_NULL;
+
+	attr = (hio_rad_attr_hdr_t*)((hio_uint8_t*)auth + auth_len);
+	attr->type = attrtype;
+	attr->length = new_auth_len - auth_len;
+	HIO_MEMCPY (attr + 1, ptr, len);
+	auth->length = hio_hton16(new_auth_len);
+
+	return attr;
+}
+
+hio_rad_xattr_hdr_t* hio_rad_insert_extended_attribute (
+	hio_rad_hdr_t* auth, int max, hio_uint8_t xtype,
+	hio_uint8_t attrtype, const void* ptr, hio_uint8_t len, hio_uint8_t lxflags)
+{
+	hio_rad_xattr_hdr_t* xattr;
+	int auth_len = hio_ntoh16(auth->length);
+	int new_auth_len, maxvallen, hdrlen;
+
+	if (HIO_RAD_ATTR_IS_SHORT_EXTENDED(xtype)) 
+	{
+		maxvallen = HIO_RAD_MAX_XATTR_VALUE_LEN;
+		hdrlen = HIO_SIZEOF(hio_rad_xattr_hdr_t);
+	}
+	else if (HIO_RAD_ATTR_IS_LONG_EXTENDED(xtype)) 
+	{
+		maxvallen = HIO_RAD_MAX_LXATTR_VALUE_LEN;
+		hdrlen = HIO_SIZEOF(hio_rad_lxattr_hdr_t);
+	}
+	else return HIO_NULL;
+
+	/*if (len > maxvallen) return HIO_NULL;*/
+	if (len > maxvallen) len = maxvallen;
+	new_auth_len = auth_len + hdrlen + len;
+
+	if (new_auth_len > max) return HIO_NULL;
+
+	xattr = (hio_rad_xattr_hdr_t*)((hio_uint8_t*)auth + auth_len);
+	xattr->type = xtype;
+	xattr->length = new_auth_len - auth_len;
+	if (HIO_RAD_ATTR_IS_LONG_EXTENDED(xtype)) 
+	{
+		hio_rad_lxattr_hdr_t* lxattr;
+		lxattr = (hio_rad_lxattr_hdr_t*)xattr;
+		lxattr->xtype = attrtype;
+		lxattr->xflags = lxflags;
+		HIO_MEMCPY (lxattr + 1, ptr, len);
+	}
+	else
+	{
+		xattr->xtype = attrtype;
+		HIO_MEMCPY (xattr + 1, ptr, len);
+	}
+	auth->length = hio_hton16(new_auth_len);
+
+	return xattr;
+}
+
+hio_rad_vsattr_hdr_t* hio_rad_insert_vendor_specific_attribute (
+	hio_rad_hdr_t* auth, int max,
+	hio_uint32_t vendor, hio_uint8_t attrtype, const void* ptr, hio_uint8_t len)
+{
+	hio_rad_vsattr_hdr_t* vsattr;
+	int auth_len = hio_ntoh16(auth->length);
+	int new_auth_len;
+
+	/*if (len > HIO_RAD_MAX_VSATTR_VALUE_LEN) return HIO_NULL;*/
+	if (len > HIO_RAD_MAX_VSATTR_VALUE_LEN) len = HIO_RAD_MAX_VSATTR_VALUE_LEN;
+	new_auth_len = auth_len + HIO_SIZEOF(*vsattr) + len;
+
+	if (new_auth_len > max) return HIO_NULL;
+
+	vsattr = (hio_rad_vsattr_hdr_t*)((hio_uint8_t*)auth + auth_len);
+	vsattr->type = HIO_RAD_ATTR_VENDOR_SPECIFIC;
+	vsattr->length = new_auth_len - auth_len;
+	vsattr->vendor = hio_hton32(vendor);
+
+	vsattr->vs.type = attrtype;
+	vsattr->vs.length = HIO_SIZEOF(vsattr->vs) + len;
+	HIO_MEMCPY (vsattr + 1, ptr, len);
+
+	auth->length = hio_hton16(new_auth_len);
+	return vsattr;
+}
+
+hio_rad_xvsattr_hdr_t* hio_rad_insert_extended_vendor_specific_attribute (
+	hio_rad_hdr_t* auth, int max, hio_uint32_t vendor, hio_uint8_t xtype,
+	hio_uint8_t attrtype, const void* ptr, hio_uint8_t len, hio_uint8_t lxflags)
+{
+	/* RFC6929 */
+	hio_rad_xvsattr_hdr_t* xvsattr;
+	int auth_len = hio_ntoh16(auth->length);
+	int new_auth_len, maxvallen, hdrlen;
+
+	if (HIO_RAD_ATTR_IS_SHORT_EXTENDED(xtype)) 
+	{
+		maxvallen = HIO_RAD_MAX_XVSATTR_VALUE_LEN;
+		hdrlen = HIO_SIZEOF(hio_rad_xvsattr_hdr_t);
+	}
+	else if (HIO_RAD_ATTR_IS_LONG_EXTENDED(xtype)) 
+	{
+		maxvallen = HIO_RAD_MAX_LXVSATTR_VALUE_LEN;
+		hdrlen = HIO_SIZEOF(hio_rad_lxvsattr_hdr_t);
+	}
+	else return HIO_NULL;
+
+	/*if (len > maxvallen) return HIO_NULL;*/
+	if (len > maxvallen) len = HIO_RAD_MAX_XVSATTR_VALUE_LEN;
+	new_auth_len = auth_len + hdrlen + len;
+
+	if (new_auth_len > max) return HIO_NULL;
+
+	xvsattr = (hio_rad_xvsattr_hdr_t*)((hio_uint8_t*)auth + auth_len);
+	xvsattr->type = xtype;
+	xvsattr->length = new_auth_len - auth_len;
+	xvsattr->xtype = HIO_RAD_ATTR_VENDOR_SPECIFIC;
+	xvsattr->vendor = hio_hton32(vendor);
+
+	if (HIO_RAD_ATTR_IS_LONG_EXTENDED(xtype)) 
+	{
+		/* this function is still low-level. it doesn't handle continuation of big data */
+		hio_rad_lxvsattr_hdr_t* lxvsattr;
+		lxvsattr = (hio_rad_lxvsattr_hdr_t*)xvsattr;
+		lxvsattr->lxvs.type = attrtype;
+		lxvsattr->lxvs.flags = lxflags;
+		lxvsattr->lxvs.length = len + HIO_SIZEOF(lxvsattr->lxvs);
+		HIO_MEMCPY (lxvsattr + 1, ptr, len);
+	}
+	else
+	{
+		xvsattr->xvs.type = attrtype;
+		xvsattr->xvs.length = len + HIO_SIZEOF(xvsattr->xvs);
+		HIO_MEMCPY (xvsattr + 1, ptr, len);
+	}	
+
+	auth->length = hio_hton16(new_auth_len);
+	return xvsattr;
+}
+
+/* ---------------------------------------------------------------- */
+
+hio_rad_attr_hdr_t* hio_rad_insert_attribute_with_bcstr (
 	hio_rad_hdr_t* auth, int max, hio_uint32_t vendor, 
 	hio_uint8_t id, const hio_bch_t* value)
 {
 	return (vendor == 0)?
 		hio_rad_insert_attribute(auth, max, id, value, hio_count_bcstr(value)):
-		hio_rad_insert_vendor_specific_attribute(auth, max, vendor, id, value, hio_count_bcstr(value));
+		(hio_rad_attr_hdr_t*)hio_rad_insert_vendor_specific_attribute(auth, max, vendor, id, value, hio_count_bcstr(value));
 }
 
-int hio_rad_insert_attribute_with_ucstr (
+hio_rad_attr_hdr_t* hio_rad_insert_attribute_with_ucstr (
 	hio_rad_hdr_t* auth, int max, hio_uint32_t vendor, 
 	hio_uint8_t id, const hio_uch_t* value)
 {
-	int n;
 	hio_oow_t bcslen, ucslen;
 	hio_bch_t bcsval[HIO_RAD_MAX_ATTR_VALUE_LEN + 1];
 
 	bcslen = HIO_COUNTOF(bcsval);
-	if (hio_conv_ucstr_to_utf8(value, &ucslen, bcsval, &bcslen) <= -1) return -1;
-	n = (vendor == 0)?
+	if (hio_conv_ucstr_to_utf8(value, &ucslen, bcsval, &bcslen) <= -1) return HIO_NULL;
+	return (vendor == 0)?
 		hio_rad_insert_attribute(auth, max, id, bcsval, bcslen):
-		hio_rad_insert_vendor_specific_attribute(auth, max, vendor, id, bcsval, bcslen);
-
-	return n;
+		(hio_rad_attr_hdr_t*)hio_rad_insert_vendor_specific_attribute(auth, max, vendor, id, bcsval, bcslen);
 }
 
-int hio_rad_insert_attribute_with_bchars (
+hio_rad_attr_hdr_t* hio_rad_insert_attribute_with_bchars (
 	hio_rad_hdr_t* auth, int max, hio_uint32_t vendor, 
 	hio_uint8_t id, const hio_bch_t* value, hio_uint8_t length)
 {
 	return (vendor == 0)?
 		hio_rad_insert_attribute(auth, max, id, value, length):
-		hio_rad_insert_vendor_specific_attribute(auth, max, vendor, id, value, length);
+		(hio_rad_attr_hdr_t*)hio_rad_insert_vendor_specific_attribute(auth, max, vendor, id, value, length);
 }
 
-int hio_rad_insert_attribute_with_uchars (
+hio_rad_attr_hdr_t* hio_rad_insert_attribute_with_uchars (
 	hio_rad_hdr_t* auth, int max, hio_uint32_t vendor, 
 	hio_uint8_t id, const hio_uch_t* value, hio_uint8_t length)
 {
-	int n;
 	hio_oow_t bcslen, ucslen;
 	hio_bch_t bcsval[HIO_RAD_MAX_ATTR_VALUE_LEN];
 
 	ucslen = length;
 	bcslen = HIO_COUNTOF(bcsval);
-	if (hio_conv_uchars_to_utf8(value, &ucslen, bcsval, &bcslen) <= -1) return -1; 
+	if (hio_conv_uchars_to_utf8(value, &ucslen, bcsval, &bcslen) <= -1) return HIO_NULL; 
 
-	n = (vendor == 0)?
+	return (vendor == 0)?
 		hio_rad_insert_attribute(auth, max, id, bcsval, bcslen):
-		hio_rad_insert_vendor_specific_attribute(auth, max, vendor, id, bcsval, bcslen);
-
-	return n;
+		(hio_rad_attr_hdr_t*)hio_rad_insert_vendor_specific_attribute(auth, max, vendor, id, bcsval, bcslen);
 }
 
-int hio_rad_insert_uint32_attribute (
+hio_rad_attr_hdr_t* hio_rad_insert_uint32_attribute (
 	hio_rad_hdr_t* auth, int max, hio_uint32_t vendor, hio_uint8_t id, hio_uint32_t value)
 {
 	hio_uint32_t val = hio_hton32(value);
 	return (vendor == 0)?
 		hio_rad_insert_attribute(auth, max, id, &val, HIO_SIZEOF(val)):
-		hio_rad_insert_vendor_specific_attribute(auth, max, vendor, id, &val, HIO_SIZEOF(val));
+		(hio_rad_attr_hdr_t*)hio_rad_insert_vendor_specific_attribute(auth, max, vendor, id, &val, HIO_SIZEOF(val));
 }
 
-int hio_rad_insert_ipv6prefix_attribute (
+hio_rad_attr_hdr_t* hio_rad_insert_ipv6prefix_attribute (
 	hio_rad_hdr_t* auth, int  max, hio_uint32_t vendor, hio_uint8_t id,
 	hio_uint8_t prefix_bits, const hio_ip6ad_t* value)
 {
@@ -544,7 +646,7 @@ int hio_rad_insert_ipv6prefix_attribute (
 
 	if (prefix_bits > 128) prefix_bits = 128;
 
-	HIO_MEMSET (&ipv6prefix, 0, sizeof(ipv6prefix));
+	HIO_MEMSET (&ipv6prefix, 0, HIO_SIZEOF(ipv6prefix));
 	ipv6prefix.bits = prefix_bits;
 
 	for (i = 0, j = 0; i < prefix_bits; i += 8, j++)
@@ -571,97 +673,196 @@ int hio_rad_insert_ipv6prefix_attribute (
 	
 	return (vendor == 0)?
 		hio_rad_insert_attribute(auth, max, id, &ipv6prefix, j + 2):
-		hio_rad_insert_vendor_specific_attribute(auth, max, vendor, id, &ipv6prefix, j + 2);
+		(hio_rad_attr_hdr_t*)hio_rad_insert_vendor_specific_attribute(auth, max, vendor, id, &ipv6prefix, j + 2);
 }
 
-int hio_rad_insert_giga_attribute (
+#if (HIO_SIZEOF_UINT64_T > 0)
+hio_rad_attr_hdr_t* hio_rad_insert_giga_attribute (
 	hio_rad_hdr_t* auth, int max, hio_uint32_t  vendor, int low_id, int high_id, hio_uint64_t value)
 {
+	hio_rad_attr_hdr_t* hdr;
 	hio_uint32_t low;
 	low = value & HIO_TYPE_MAX(hio_uint32_t);
 	low = hio_hton32(low);
 
 	if (vendor == 0)
 	{
-		if (hio_rad_insert_attribute(auth, max, low_id, &low, HIO_SIZEOF(low)) <= -1) return -1;
+		hdr = hio_rad_insert_attribute(auth, max, low_id, &low, HIO_SIZEOF(low));
+		if (!hdr) return HIO_NULL;
 
 		if (value > HIO_TYPE_MAX(hio_uint32_t))
 		{
 			hio_uint32_t high;
 			high = value >> (HIO_SIZEOF(hio_uint32_t) * 8);
 			high = hio_hton32(high);
-			if (hio_rad_insert_attribute(auth, max, high_id, &high, HIO_SIZEOF(high)) <= -1) return -1;
+			if (!hio_rad_insert_attribute(auth, max, high_id, &high, HIO_SIZEOF(high))) return HIO_NULL;
 		}
 	}
 	else
 	{
-		if (hio_rad_insert_vendor_specific_attribute(auth, max, vendor, low_id, &low, HIO_SIZEOF(low)) <= -1) return -1;
+		hdr = (hio_rad_attr_hdr_t*)hio_rad_insert_vendor_specific_attribute(auth, max, vendor, low_id, &low, HIO_SIZEOF(low));
+		if (!hdr) return HIO_NULL;
 
 		if (value > HIO_TYPE_MAX(hio_uint32_t))
 		{
 			hio_uint32_t high;
 			high = value >> (HIO_SIZEOF(hio_uint32_t) * 8);
 			high = hio_hton32(high);
-			if (hio_rad_insert_vendor_specific_attribute(auth, max, vendor, high_id, &high, HIO_SIZEOF(high)) <= -1) return -1;
+			if (!hio_rad_insert_vendor_specific_attribute(auth, max, vendor, high_id, &high, HIO_SIZEOF(high))) return HIO_NULL;
 		}
 	}
 
-	return 0;
+	return hdr;
 }
+#endif
 
-int hio_rad_insert_extended_vendor_specific_attribute (
-	hio_rad_hdr_t* auth, int max, hio_uint32_t vendor, hio_uint8_t xtype,
-	hio_uint8_t attrtype, const void* ptr, hio_uint8_t len, hio_uint8_t lxflags)
+/* -----------------------------------------------------------------------
+ *  HIGH-LEVEL ATTRIBUTE FUNCTIONS
+ * ----------------------------------------------------------------------- */
+
+hio_rad_attr_hdr_t* hio_rad_find_attr (hio_rad_hdr_t* hdr, hio_uint16_t attrcode, int index)
 {
-	/* RFC6929 */
-	hio_rad_xvsattr_hdr_t* xvsattr;
-	int auth_len = hio_ntoh16(auth->length);
-	int new_auth_len, maxvallen, hdrlen;
+	hio_uint8_t hi, lo;
 
-	if (HIO_RAD_ATTR_IS_SHORT_EXTENDED(xtype)) 
+	hi = HIO_RAD_ATTR_CODE_HI(attrcode);
+	lo = HIO_RAD_ATTR_CODE_LO(attrcode);
+
+	if (!hi)
 	{
-		maxvallen = HIO_RAD_MAX_XVSATTR_VALUE_LEN;
-		hdrlen = HIO_SIZEOF(hio_rad_xvsattr_hdr_t);
+		return hio_rad_find_attribute(hdr, lo, index);
 	}
-	else if (HIO_RAD_ATTR_IS_LONG_EXTENDED(xtype)) 
+	else if (HIO_RAD_ATTR_IS_EXTENDED(hi))
 	{
-		maxvallen = HIO_RAD_MAX_LXVSATTR_VALUE_LEN;
-		hdrlen = HIO_SIZEOF(hio_rad_lxvsattr_hdr_t);
+		/* both short and long */
+		return (hio_rad_attr_hdr_t*)hio_rad_find_extended_attribute(hdr, hi, lo, index);
 	}
-	else return -1;
 
-	/*if (len > maxvallen) return -1;*/
-	if (len > maxvallen) len = HIO_RAD_MAX_XVSATTR_VALUE_LEN;
-	new_auth_len = auth_len + hdrlen + len;
-
-	if (new_auth_len > max) return -1;
-
-	xvsattr = (hio_rad_xvsattr_hdr_t*)((hio_uint8_t*)auth + auth_len);
-	xvsattr->type = xtype;
-	xvsattr->length = new_auth_len - auth_len;
-	xvsattr->xtype = HIO_RAD_ATTR_VENDOR_SPECIFIC;
-	xvsattr->vendor = hio_hton32(vendor);
-
-	if (HIO_RAD_ATTR_IS_LONG_EXTENDED(xtype)) 
-	{
-		/* this function is still low-level. it doesn't handle continuation of big data */
-		hio_rad_lxvsattr_hdr_t* lxvsattr;
-		lxvsattr = (hio_rad_lxvsattr_hdr_t*)xvsattr;
-		lxvsattr->lxvs.type = attrtype;
-		lxvsattr->lxvs.flags = lxflags;
-		lxvsattr->lxvs.length = len + HIO_SIZEOF(lxvsattr->lxvs);
-		HIO_MEMCPY (lxvsattr + 1, ptr, len);
-	}
-	else
-	{
-		xvsattr->xvs.type = attrtype;
-		xvsattr->xvs.length = len + HIO_SIZEOF(xvsattr->xvs);
-		HIO_MEMCPY (xvsattr + 1, ptr, len);
-	}	
-
-	auth->length = hio_hton16(new_auth_len);
-	return 0;
+	/* attribute code out of range */
+	return HIO_NULL;
 }
+
+
+hio_rad_vsattr_hdr_t* hio_rad_find_vsattr (hio_rad_hdr_t* hdr, hio_uint32_t vendor, hio_uint16_t attrcode, int index)
+{
+	hio_uint8_t hi, lo;
+
+	hi = HIO_RAD_ATTR_CODE_HI(attrcode);
+	lo = HIO_RAD_ATTR_CODE_LO(attrcode);
+
+	if (!hi)
+	{
+		return hio_rad_find_vendor_specific_attribute(hdr, vendor, lo, index);
+	}
+	else if (HIO_RAD_ATTR_IS_EXTENDED(hi))
+	{
+		/* both short and long */
+		return (hio_rad_vsattr_hdr_t*)hio_rad_find_extended_vendor_specific_attribute(hdr, vendor, hi, lo, index);
+	}
+
+	/* attribute code out of range */
+	return HIO_NULL;
+}
+
+
+int hio_rad_delete_attr (hio_rad_hdr_t* hdr, hio_uint16_t attrcode, int index)
+{
+	hio_uint8_t hi, lo;
+
+	hi = HIO_RAD_ATTR_CODE_HI(attrcode);
+	lo = HIO_RAD_ATTR_CODE_LO(attrcode);
+
+	if (!hi)
+	{
+		return hio_rad_delete_attribute(hdr, lo, index);
+	}
+	else if (HIO_RAD_ATTR_IS_EXTENDED(hi))
+	{
+		/* both short and long */
+		return hio_rad_delete_extended_attribute(hdr, hi, lo, index);
+	}
+
+	/* attribute code out of range */
+	return -2;
+}
+
+
+int hio_rad_delete_vsattr (hio_rad_hdr_t* hdr, hio_uint32_t vendor, hio_uint16_t attrcode, int index)
+{
+	hio_uint8_t hi, lo;
+
+	hi = HIO_RAD_ATTR_CODE_HI(attrcode);
+	lo = HIO_RAD_ATTR_CODE_LO(attrcode);
+
+	if (!hi)
+	{
+		return hio_rad_delete_vendor_specific_attribute(hdr, vendor, lo, index);
+	}
+	else if (HIO_RAD_ATTR_IS_EXTENDED(hi))
+	{
+		/* both short and long */
+		return hio_rad_delete_extended_vendor_specific_attribute(hdr, vendor, hi, lo, index);
+	}
+
+	/* attribute code out of range */
+	return -2;
+}
+
+hio_rad_attr_hdr_t* hio_rad_insert_attr (hio_rad_hdr_t* auth, int max, hio_uint16_t attrcode, const void* ptr, hio_uint16_t len)
+{
+	hio_uint8_t hi, lo;
+
+	hi = HIO_RAD_ATTR_CODE_HI(attrcode);
+	lo = HIO_RAD_ATTR_CODE_LO(attrcode);
+
+	if (!hi)
+	{
+		/* classical attribute */
+		return hio_rad_insert_attribute(auth, max, lo, ptr, len);
+	}
+	else if (HIO_RAD_ATTR_IS_SHORT_EXTENDED(hi))
+	{
+		return (hio_rad_attr_hdr_t*)hio_rad_insert_extended_attribute(auth, max, hi, lo, ptr, len, 0);
+	}
+	else if (HIO_RAD_ATTR_IS_LONG_EXTENDED(hi))
+	{
+		/* TODO: mutliple attributes if data is long */
+		return (hio_rad_attr_hdr_t*)hio_rad_insert_extended_attribute(auth, max, hi, lo, ptr, len, 0);
+	}
+
+	/* attribute code out of range */
+	return HIO_NULL;
+}
+
+
+hio_rad_vsattr_hdr_t* hio_rad_insert_vsattr (hio_rad_hdr_t* auth, int max, hio_uint32_t vendor, hio_uint16_t attrcode, const void* ptr, hio_uint16_t len)
+{
+	hio_uint8_t hi, lo;
+
+	hi = HIO_RAD_ATTR_CODE_HI(attrcode);
+	lo = HIO_RAD_ATTR_CODE_LO(attrcode);
+
+	if (!hi)
+	{
+		/* classical attribute */
+		return hio_rad_insert_vendor_specific_attribute(auth, max, vendor, lo, ptr, len);
+	}
+	else if (HIO_RAD_ATTR_IS_SHORT_EXTENDED(hi))
+	{
+		return (hio_rad_vsattr_hdr_t*)hio_rad_insert_extended_vendor_specific_attribute(auth, max, vendor, hi, lo, ptr, len, 0);
+	}
+	else if (HIO_RAD_ATTR_IS_LONG_EXTENDED(hi))
+	{
+	/* TODO: if len is greater than the maxm add multiple extended attributes with continuation */
+		return (hio_rad_vsattr_hdr_t*)hio_rad_insert_extended_vendor_specific_attribute(auth, max, vendor, hi, lo, ptr, len, 0);
+	}
+
+	/* attribute code out of range */
+	return HIO_NULL;
+}
+
+/* -----------------------------------------------------------------------
+ *  UTILITY FUNCTIONS
+ * ----------------------------------------------------------------------- */
 
 #define PASS_BLKSIZE HIO_RAD_MAX_AUTHENTICATOR_LEN
 #define ALIGN(x,factor) ((((x) + (factor) - 1) / (factor)) * (factor))
@@ -727,7 +928,7 @@ int hio_rad_set_user_password (hio_rad_hdr_t* auth, int max, const hio_bch_t* pa
 		if (n <= -1) goto oops;
 		if (n == 0) break; 
 	}
-	if (hio_rad_insert_attribute(auth, max, HIO_RAD_ATTR_USER_PASSWORD, hashed, padlen) <= -1) goto oops;
+	if (!hio_rad_insert_attribute(auth, max, HIO_RAD_ATTR_USER_PASSWORD, hashed, padlen)) goto oops;
 
 	return 0;
 
