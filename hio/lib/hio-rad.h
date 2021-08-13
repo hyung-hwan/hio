@@ -167,8 +167,27 @@ typedef int (*hio_rad_attr_walker_t) (
 	void*                     ctx
 );
 
-enum hio_rad_attr_type_t
+#define HIO_RAD_ATTR_IS_SHORT_EXTENDED(attrtype) ((attrtype) >= HIO_RAD_ATTR_EXTENDED_1 && (attrtype) <= HIO_RAD_ATTR_EXTENDED_4)
+#define HIO_RAD_ATTR_IS_LONG_EXTENDED(attrtype) ((attrtype) >= HIO_RAD_ATTR_EXTENDED_5 && (attrtype) <= HIO_RAD_ATTR_EXTENDED_6)
+#define HIO_RAD_ATTR_IS_EXTENDED(attrtype) ((attrtype) >= HIO_RAD_ATTR_EXTENDED_1 && (attrtype) <= HIO_RAD_ATTR_EXTENDED_6)
+
+/* The attribute code is an attribute type encoded in 2 byte integer. */
+#define HIO_RAD_ATTR_CODE_MAKE(hi,lo) ((hio_uint16_t)((hi) & 0xFF) << 8 | ((lo) & 0xFF)) 
+#define HIO_RAD_ATTR_CODE_HI(attrtype) (((attrtype) >> 8) & 0xFF)
+#define HIO_RAD_ATTR_CODE_LO(attrtype) ((attrtype) & 0xFF)
+
+#define HIO_RAD_ATTR_CODE_EXTENDED_1(lo) HIO_RAD_ATTR_CODE_MAKE(HIO_RAD_ATTR_EXTENDED_1, lo)
+#define HIO_RAD_ATTR_CODE_EXTENDED_2(lo) HIO_RAD_ATTR_CODE_MAKE(HIO_RAD_ATTR_EXTENDED_2, lo)
+#define HIO_RAD_ATTR_CODE_EXTENDED_3(lo) HIO_RAD_ATTR_CODE_MAKE(HIO_RAD_ATTR_EXTENDED_3, lo)
+#define HIO_RAD_ATTR_CODE_EXTENDED_4(lo) HIO_RAD_ATTR_CODE_MAKE(HIO_RAD_ATTR_EXTENDED_4, lo)
+#define HIO_RAD_ATTR_CODE_EXTENDED_5(lo) HIO_RAD_ATTR_CODE_MAKE(HIO_RAD_ATTR_EXTENDED_5, lo)
+#define HIO_RAD_ATTR_CODE_EXTENDED_6(lo) HIO_RAD_ATTR_CODE_MAKE(HIO_RAD_ATTR_EXTENDED_6, lo)
+
+enum hio_rad_attr_code_t
 {
+	/* -----------------------------------------------------------
+	 * 1 byte attribute types. they can be used as a code or a type 
+	 * ----------------------------------------------------------- */
 	HIO_RAD_ATTR_USER_NAME             = 1,  /* string */
 	HIO_RAD_ATTR_USER_PASSWORD         = 2,  /* string encrypted */
 	HIO_RAD_ATTR_NAS_IP_ADDRESS        = 4,  /* ipaddr */
@@ -195,7 +214,7 @@ enum hio_rad_attr_type_t
 	HIO_RAD_ATTR_NAS_PORT_TYPE         = 61, /* integer */
 	HIO_RAD_ATTR_ACCT_INTERIM_INTERVAL = 85, /* integer */
 	HIO_RAD_ATTR_NAS_PORT_ID           = 87, /* string */
-	HIO_RAD_ATTR_FRAMED_IPV6_PREFIX    = 97,  /* ipv6prefix */
+	HIO_RAD_ATTR_FRAMED_IPV6_PREFIX    = 97, /* ipv6prefix */
 
 	HIO_RAD_ATTR_EXTENDED_1            = 241,
 	HIO_RAD_ATTR_EXTENDED_2            = 242,
@@ -203,11 +222,14 @@ enum hio_rad_attr_type_t
 	HIO_RAD_ATTR_EXTENDED_4            = 244,
 	HIO_RAD_ATTR_EXTENDED_5            = 245, /* long extended */
 	HIO_RAD_ATTR_EXTENDED_6            = 246, /* long extended */
+
+	 /* -----------------------------------------------------------
+	 * 2-byte attribute codes. represented extended attributes.
+	 * ----------------------------------------------------------- */
+	HIO_RAD_ATTR_CODE_FRAG_STATUS           = HIO_RAD_ATTR_CODE_EXTENDED_1(1),
+	HIO_RAD_ATTR_CODE_PROXY_STATE_LENGTH    = HIO_RAD_ATTR_CODE_EXTENDED_1(2),
 };
 
-#define HIO_RAD_ATTR_IS_SHORT_EXTENDED(attrtype) ((attrtype) >= HIO_RAD_ATTR_EXTENDED_1 && (attrtype) <= HIO_RAD_ATTR_EXTENDED_4)
-#define HIO_RAD_ATTR_IS_LONG_EXTENDED(attrtype) ((attrtype) >= HIO_RAD_ATTR_EXTENDED_5 && (attrtype) <= HIO_RAD_ATTR_EXTENDED_6)
-#define HIO_RAD_ATTR_IS_EXTENDED(attrtype) ((attrtype) >= HIO_RAD_ATTR_EXTENDED_1 && (attrtype) <= HIO_RAD_ATTR_EXTENDED_6)
 
 enum hio_rad_attr_acct_status_type_t
 {
@@ -252,46 +274,16 @@ enum hio_rad_attr_nas_port_type_t
 	/* TODO: more types */
 };
 
-
 #if defined(__cplusplus)
 extern "C" {
 #endif
 
-/* ----------------------------------------------------------- 
- * RARIUS MESSAGE FUNCTIONS
- * ----------------------------------------------------------- */
+/* ----------------------------------------------------------------------- */
+
 HIO_EXPORT void hio_rad_initialize (
 	hio_rad_hdr_t*  hdr,
 	hio_rad_code_t  code,
 	hio_uint8_t     id
-);
-
-HIO_EXPORT hio_rad_attr_hdr_t* hio_rad_find_attribute (
-	hio_rad_hdr_t*  hdr,
-	hio_uint8_t     attrtype,
-	int             index
-);
-
-HIO_EXPORT hio_rad_vsattr_hdr_t* hio_rad_find_vsattr (
-	hio_rad_hdr_t*      hdr,
-	hio_uint32_t        vendor,
-	hio_uint8_t         attrtype,
-	int                 index
-);
-
-HIO_EXPORT hio_rad_xvsattr_hdr_t* hio_rad_find_extended_vsattr (
-	hio_rad_hdr_t*      hdr,
-	hio_uint32_t        vendor,
-	hio_uint8_t         xtype,
-	hio_uint8_t         attrtype,
-	int                 index
-);
-
-HIO_EXPORT hio_rad_attr_hdr_t* hio_rad_find_vendor_specific_attribute (
-	hio_rad_hdr_t*  hdr,
-	hio_uint32_t    vendor,
-	hio_uint8_t     id,
-	int             index
 );
 
 HIO_EXPORT int hio_rad_walk_attributes (
@@ -300,37 +292,92 @@ HIO_EXPORT int hio_rad_walk_attributes (
 	void*                 ctx
 );
 
-HIO_EXPORT int hio_rad_insert_attribute (
-	hio_rad_hdr_t*  auth,
-	int             max,
+
+/* ----------------------------------------------------------------------- */
+
+HIO_EXPORT hio_rad_attr_hdr_t* hio_rad_find_attr (
+	hio_rad_hdr_t*      hdr,
+	hio_uint16_t        attrcode,
+	int                 index
+);
+
+HIO_EXPORT hio_rad_vsattr_hdr_t* hio_rad_find_vsattr (
+	hio_rad_hdr_t*      hdr,
+	hio_uint32_t        vendor,
+	hio_uint16_t        attrcode,
+	int                 index
+);
+
+HIO_EXPORT int hio_rad_delete_attr (
+	hio_rad_hdr_t*      hdr,
+	hio_uint16_t        attrcode,
+	int                 index
+);
+
+HIO_EXPORT int hio_rad_delete_vsattr (
+	hio_rad_hdr_t*      hdr,
+	hio_uint32_t        vendor,
+	hio_uint16_t        attrcode,
+	int                 index
+);
+
+HIO_EXPORT hio_rad_attr_hdr_t* hio_rad_insert_attr (
+	hio_rad_hdr_t*      auth,
+	int                 max,
+	hio_uint16_t        attrcode,
+	const void*         ptr,
+	hio_uint16_t        len
+);
+
+HIO_EXPORT hio_rad_vsattr_hdr_t* hio_rad_insert_vsattr (
+	hio_rad_hdr_t*      auth,
+	int                 max,
+	hio_uint32_t        vendor,
+	hio_uint16_t        attrcode,
+	const void*         ptr,
+	hio_uint16_t        len
+);
+
+/* ----------------------------------------------------------------------- */
+
+HIO_EXPORT hio_rad_attr_hdr_t* hio_rad_find_attribute (
+	hio_rad_hdr_t*  hdr,
+	hio_uint8_t     attrtype,
+	int             index
+);
+
+HIO_EXPORT hio_rad_xattr_hdr_t* hio_rad_find_extended_attribute (
+	hio_rad_hdr_t*  hdr,
+	hio_uint8_t     xtype,
+	hio_uint8_t     attrtype,
+	int             index
+);
+
+HIO_EXPORT hio_rad_vsattr_hdr_t* hio_rad_find_vendor_specific_attribute (
+	hio_rad_hdr_t*  hdr,
+	hio_uint32_t    vendor,
 	hio_uint8_t     id,
-	const void*     ptr,
-	hio_uint8_t     len
+	int             index
 );
 
-HIO_EXPORT int hio_rad_insert_vendor_specific_attribute (
-	hio_rad_hdr_t*  auth,
-	int             max,
+HIO_EXPORT hio_rad_xvsattr_hdr_t* hio_rad_find_extended_vendor_specific_attribute (
+	hio_rad_hdr_t*  hdr,
 	hio_uint32_t    vendor,
-	hio_uint8_t     attrtype, 
-	const void*     ptr,
-	hio_uint8_t     len
-);
-
-HIO_EXPORT int hio_rad_insert_extended_vendor_specific_attribute (
-	hio_rad_hdr_t*  auth,
-	int             max,
-	hio_uint32_t    vendor,
-	hio_uint8_t     xtype, /* HIO_RAD_ATTR_EXTENDED_X */
-	hio_uint8_t     attrtype, 
-	const void*     ptr,
-	hio_uint8_t     len,
-	hio_uint8_t     lxflags
+	hio_uint8_t     xtype,
+	hio_uint8_t     attrtype,
+	int             index
 );
 
 HIO_EXPORT int hio_rad_delete_attribute (
 	hio_rad_hdr_t*  auth,
 	hio_uint8_t     attrtype,
+	int             index
+);
+
+HIO_EXPORT int hio_rad_delete_extended_attribute (
+	hio_rad_hdr_t*  auth, 
+	hio_uint8_t     xtype,
+	hio_uint8_t     attrtype, 
 	int             index
 );
 
@@ -349,7 +396,46 @@ HIO_EXPORT int hio_rad_delete_extended_vendor_specific_attribute (
 	int             index
 );
 
-HIO_EXPORT int hio_rad_insert_attribute_with_bcstr (
+HIO_EXPORT hio_rad_attr_hdr_t* hio_rad_insert_attribute (
+	hio_rad_hdr_t*  auth,
+	int             max,
+	hio_uint8_t     id,
+	const void*     ptr,
+	hio_uint8_t     len
+);
+
+HIO_EXPORT hio_rad_xattr_hdr_t* hio_rad_insert_extended_attribute (
+	hio_rad_hdr_t*  auth,
+	int             max,
+	hio_uint8_t     xtype,
+	hio_uint8_t     attrtype,
+	const void*     ptr,
+	hio_uint8_t     len,
+	hio_uint8_t     lxflags
+);
+
+HIO_EXPORT hio_rad_vsattr_hdr_t* hio_rad_insert_vendor_specific_attribute (
+	hio_rad_hdr_t*  auth,
+	int             max,
+	hio_uint32_t    vendor,
+	hio_uint8_t     attrtype, 
+	const void*     ptr,
+	hio_uint8_t     len
+);
+
+HIO_EXPORT hio_rad_xvsattr_hdr_t* hio_rad_insert_extended_vendor_specific_attribute (
+	hio_rad_hdr_t*  auth,
+	int             max,
+	hio_uint32_t    vendor,
+	hio_uint8_t     xtype, /* HIO_RAD_ATTR_EXTENDED_X */
+	hio_uint8_t     attrtype, 
+	const void*     ptr,
+	hio_uint8_t     len,
+	hio_uint8_t     lxflags
+);
+
+
+HIO_EXPORT hio_rad_attr_hdr_t* hio_rad_insert_attribute_with_bcstr (
 	hio_rad_hdr_t*     auth, 
 	int                max, 
 	hio_uint32_t       vendor, /* in host-byte order */
@@ -357,7 +443,7 @@ HIO_EXPORT int hio_rad_insert_attribute_with_bcstr (
 	const hio_bch_t*   value
 );
 
-HIO_EXPORT int hio_rad_insert_attribute_ucstr (
+HIO_EXPORT hio_rad_attr_hdr_t* hio_rad_insert_attribute_ucstr (
 	hio_rad_hdr_t*     auth, 
 	int                max, 
 	hio_uint32_t       vendor, /* in host-byte order */
@@ -365,7 +451,7 @@ HIO_EXPORT int hio_rad_insert_attribute_ucstr (
 	const hio_uch_t*   value
 );
 
-HIO_EXPORT int hio_rad_insert_attribute_with_bchars (
+HIO_EXPORT hio_rad_attr_hdr_t* hio_rad_insert_attribute_with_bchars (
 	hio_rad_hdr_t*     auth, 
 	int                max, 
 	hio_uint32_t       vendor, /* in host-byte order */
@@ -374,7 +460,7 @@ HIO_EXPORT int hio_rad_insert_attribute_with_bchars (
 	hio_uint8_t        length
 );
 
-HIO_EXPORT int hio_rad_insert_attribute_with_uchars (
+HIO_EXPORT hio_rad_attr_hdr_t* hio_rad_insert_attribute_with_uchars (
 	hio_rad_hdr_t*     auth, 
 	int                max, 
 	hio_uint32_t       vendor, /* in host-byte order */
@@ -383,7 +469,7 @@ HIO_EXPORT int hio_rad_insert_attribute_with_uchars (
 	hio_uint8_t        length
 );
 
-HIO_EXPORT int hio_rad_insert_uint32_attribute (
+HIO_EXPORT hio_rad_attr_hdr_t* hio_rad_insert_uint32_attribute (
 	hio_rad_hdr_t*     auth, 
 	int                max,
 	hio_uint32_t       vendor, /* in host-byte order */
@@ -391,43 +477,47 @@ HIO_EXPORT int hio_rad_insert_uint32_attribute (
 	hio_uint32_t       value /* in host-byte order */
 );
 
-HIO_EXPORT int hio_rad_insert_ipv6prefix_attribute (
-	hio_rad_hdr_t*      auth, 
-	int                 max,
-	hio_uint32_t        vendor, /* in host-byte order */
-	hio_uint8_t         id,
-	hio_uint8_t         prefix_bits,
-	const hio_ip6ad_t*  value
+HIO_EXPORT hio_rad_attr_hdr_t* hio_rad_insert_ipv6prefix_attribute (
+	hio_rad_hdr_t*     auth, 
+	int                max,
+	hio_uint32_t       vendor, /* in host-byte order */
+	hio_uint8_t        id,
+	hio_uint8_t        prefix_bits,
+	const hio_ip6ad_t* value
 );
 
-HIO_EXPORT int hio_rad_insert_giga_attribute (
-	hio_rad_hdr_t*    auth,
-	int               max,
-	hio_uint32_t      vendor,
-	int               low_id,
-	int               high_id,
-	hio_uint64_t      value
+#if (HIO_SIZEOF_UINT64_T > 0)
+HIO_EXPORT hio_rad_attr_hdr_t* hio_rad_insert_giga_attribute (
+	hio_rad_hdr_t*     auth,
+	int                max,
+	hio_uint32_t       vendor,
+	int                low_id,
+	int                high_id,
+	hio_uint64_t       value
 );
+#endif
 
+/* ----------------------------------------------------------------------- */
+ 
 HIO_EXPORT int hio_rad_set_user_password (
-	hio_rad_hdr_t*      auth,
-	int                 max,
-	const hio_bch_t*    password,
-	const hio_bch_t*    secret
+	hio_rad_hdr_t*     auth,
+	int                max,
+	const hio_bch_t*   password,
+	const hio_bch_t*   secret
 );
 
 HIO_EXPORT void hio_rad_fill_authenticator (
-	hio_rad_hdr_t*        auth
+	hio_rad_hdr_t*     auth
 );
 
 HIO_EXPORT void hio_rad_copy_authenticator (
-	hio_rad_hdr_t*        dst,
-	const hio_rad_hdr_t*  src
+	hio_rad_hdr_t*       dst,
+	const hio_rad_hdr_t* src
 );
 
 HIO_EXPORT int hio_rad_set_authenticator (
-	hio_rad_hdr_t*       req, 
-	const hio_bch_t*     secret
+	hio_rad_hdr_t*     req, 
+	const hio_bch_t*   secret
 );
 
 /* 

@@ -87,7 +87,7 @@ PRE_UNINSTALL = :
 POST_UNINSTALL = :
 build_triplet = @build@
 host_triplet = @host@
-check_PROGRAMS = t-001$(EXEEXT) t-002$(EXEEXT)
+check_PROGRAMS = t-001$(EXEEXT) t-002$(EXEEXT) t-003$(EXEEXT)
 TESTS = $(check_PROGRAMS) $(am__EXEEXT_1)
 subdir = t
 ACLOCAL_M4 = $(top_srcdir)/aclocal.m4
@@ -122,6 +122,12 @@ t_002_DEPENDENCIES = $(am__DEPENDENCIES_2)
 t_002_LINK = $(LIBTOOL) $(AM_V_lt) --tag=CC $(AM_LIBTOOLFLAGS) \
 	$(LIBTOOLFLAGS) --mode=link $(CCLD) $(t_002_CFLAGS) $(CFLAGS) \
 	$(t_002_LDFLAGS) $(LDFLAGS) -o $@
+am_t_003_OBJECTS = t_003-t-003.$(OBJEXT)
+t_003_OBJECTS = $(am_t_003_OBJECTS)
+t_003_DEPENDENCIES = $(am__DEPENDENCIES_2)
+t_003_LINK = $(LIBTOOL) $(AM_V_lt) --tag=CC $(AM_LIBTOOLFLAGS) \
+	$(LIBTOOLFLAGS) --mode=link $(CCLD) $(t_003_CFLAGS) $(CFLAGS) \
+	$(t_003_LDFLAGS) $(LDFLAGS) -o $@
 AM_V_P = $(am__v_P_@AM_V@)
 am__v_P_ = $(am__v_P_@AM_DEFAULT_V@)
 am__v_P_0 = false
@@ -138,7 +144,7 @@ DEFAULT_INCLUDES =
 depcomp = $(SHELL) $(top_srcdir)/ac/depcomp
 am__maybe_remake_depfiles = depfiles
 am__depfiles_remade = ./$(DEPDIR)/t_001-t-001.Po \
-	./$(DEPDIR)/t_002-t-002.Po
+	./$(DEPDIR)/t_002-t-002.Po ./$(DEPDIR)/t_003-t-003.Po
 am__mv = mv -f
 COMPILE = $(CC) $(DEFS) $(DEFAULT_INCLUDES) $(INCLUDES) $(AM_CPPFLAGS) \
 	$(CPPFLAGS) $(AM_CFLAGS) $(CFLAGS)
@@ -158,8 +164,8 @@ AM_V_CCLD = $(am__v_CCLD_@AM_V@)
 am__v_CCLD_ = $(am__v_CCLD_@AM_DEFAULT_V@)
 am__v_CCLD_0 = @echo "  CCLD    " $@;
 am__v_CCLD_1 = 
-SOURCES = $(t_001_SOURCES) $(t_002_SOURCES)
-DIST_SOURCES = $(t_001_SOURCES) $(t_002_SOURCES)
+SOURCES = $(t_001_SOURCES) $(t_002_SOURCES) $(t_003_SOURCES)
+DIST_SOURCES = $(t_001_SOURCES) $(t_002_SOURCES) $(t_003_SOURCES)
 am__can_run_installinfo = \
   case $$AM_UPDATE_INFO_DIR in \
     n|no|NO) false;; \
@@ -553,6 +559,11 @@ t_002_CPPFLAGS = $(CPPFLAGS_COMMON)
 t_002_CFLAGS = $(CFLAGS_COMMON)
 t_002_LDFLAGS = $(LDFLAGS_COMMON)
 t_002_LDADD = $(LIBADD_COMMON)
+t_003_SOURCES = t-003.c t.h
+t_003_CPPFLAGS = $(CPPFLAGS_COMMON)
+t_003_CFLAGS = $(CFLAGS_COMMON)
+t_003_LDFLAGS = $(LDFLAGS_COMMON)
+t_003_LDADD = $(LIBADD_COMMON)
 all: all-am
 
 .SUFFIXES:
@@ -604,6 +615,10 @@ t-002$(EXEEXT): $(t_002_OBJECTS) $(t_002_DEPENDENCIES) $(EXTRA_t_002_DEPENDENCIE
 	@rm -f t-002$(EXEEXT)
 	$(AM_V_CCLD)$(t_002_LINK) $(t_002_OBJECTS) $(t_002_LDADD) $(LIBS)
 
+t-003$(EXEEXT): $(t_003_OBJECTS) $(t_003_DEPENDENCIES) $(EXTRA_t_003_DEPENDENCIES) 
+	@rm -f t-003$(EXEEXT)
+	$(AM_V_CCLD)$(t_003_LINK) $(t_003_OBJECTS) $(t_003_LDADD) $(LIBS)
+
 mostlyclean-compile:
 	-rm -f *.$(OBJEXT)
 
@@ -612,6 +627,7 @@ distclean-compile:
 
 @AMDEP_TRUE@@am__include@ @am__quote@./$(DEPDIR)/t_001-t-001.Po@am__quote@ # am--include-marker
 @AMDEP_TRUE@@am__include@ @am__quote@./$(DEPDIR)/t_002-t-002.Po@am__quote@ # am--include-marker
+@AMDEP_TRUE@@am__include@ @am__quote@./$(DEPDIR)/t_003-t-003.Po@am__quote@ # am--include-marker
 
 $(am__depfiles_remade):
 	@$(MKDIR_P) $(@D)
@@ -670,6 +686,20 @@ t_002-t-002.obj: t-002.c
 @AMDEP_TRUE@@am__fastdepCC_FALSE@	$(AM_V_CC)source='t-002.c' object='t_002-t-002.obj' libtool=no @AMDEPBACKSLASH@
 @AMDEP_TRUE@@am__fastdepCC_FALSE@	DEPDIR=$(DEPDIR) $(CCDEPMODE) $(depcomp) @AMDEPBACKSLASH@
 @am__fastdepCC_FALSE@	$(AM_V_CC@am__nodep@)$(CC) $(DEFS) $(DEFAULT_INCLUDES) $(INCLUDES) $(t_002_CPPFLAGS) $(CPPFLAGS) $(t_002_CFLAGS) $(CFLAGS) -c -o t_002-t-002.obj `if test -f 't-002.c'; then $(CYGPATH_W) 't-002.c'; else $(CYGPATH_W) '$(srcdir)/t-002.c'; fi`
+
+t_003-t-003.o: t-003.c
+@am__fastdepCC_TRUE@	$(AM_V_CC)$(CC) $(DEFS) $(DEFAULT_INCLUDES) $(INCLUDES) $(t_003_CPPFLAGS) $(CPPFLAGS) $(t_003_CFLAGS) $(CFLAGS) -MT t_003-t-003.o -MD -MP -MF $(DEPDIR)/t_003-t-003.Tpo -c -o t_003-t-003.o `test -f 't-003.c' || echo '$(srcdir)/'`t-003.c
+@am__fastdepCC_TRUE@	$(AM_V_at)$(am__mv) $(DEPDIR)/t_003-t-003.Tpo $(DEPDIR)/t_003-t-003.Po
+@AMDEP_TRUE@@am__fastdepCC_FALSE@	$(AM_V_CC)source='t-003.c' object='t_003-t-003.o' libtool=no @AMDEPBACKSLASH@
+@AMDEP_TRUE@@am__fastdepCC_FALSE@	DEPDIR=$(DEPDIR) $(CCDEPMODE) $(depcomp) @AMDEPBACKSLASH@
+@am__fastdepCC_FALSE@	$(AM_V_CC@am__nodep@)$(CC) $(DEFS) $(DEFAULT_INCLUDES) $(INCLUDES) $(t_003_CPPFLAGS) $(CPPFLAGS) $(t_003_CFLAGS) $(CFLAGS) -c -o t_003-t-003.o `test -f 't-003.c' || echo '$(srcdir)/'`t-003.c
+
+t_003-t-003.obj: t-003.c
+@am__fastdepCC_TRUE@	$(AM_V_CC)$(CC) $(DEFS) $(DEFAULT_INCLUDES) $(INCLUDES) $(t_003_CPPFLAGS) $(CPPFLAGS) $(t_003_CFLAGS) $(CFLAGS) -MT t_003-t-003.obj -MD -MP -MF $(DEPDIR)/t_003-t-003.Tpo -c -o t_003-t-003.obj `if test -f 't-003.c'; then $(CYGPATH_W) 't-003.c'; else $(CYGPATH_W) '$(srcdir)/t-003.c'; fi`
+@am__fastdepCC_TRUE@	$(AM_V_at)$(am__mv) $(DEPDIR)/t_003-t-003.Tpo $(DEPDIR)/t_003-t-003.Po
+@AMDEP_TRUE@@am__fastdepCC_FALSE@	$(AM_V_CC)source='t-003.c' object='t_003-t-003.obj' libtool=no @AMDEPBACKSLASH@
+@AMDEP_TRUE@@am__fastdepCC_FALSE@	DEPDIR=$(DEPDIR) $(CCDEPMODE) $(depcomp) @AMDEPBACKSLASH@
+@am__fastdepCC_FALSE@	$(AM_V_CC@am__nodep@)$(CC) $(DEFS) $(DEFAULT_INCLUDES) $(INCLUDES) $(t_003_CPPFLAGS) $(CPPFLAGS) $(t_003_CFLAGS) $(CFLAGS) -c -o t_003-t-003.obj `if test -f 't-003.c'; then $(CYGPATH_W) 't-003.c'; else $(CYGPATH_W) '$(srcdir)/t-003.c'; fi`
 
 mostlyclean-libtool:
 	-rm -f *.lo
@@ -884,6 +914,13 @@ t-002.log: t-002$(EXEEXT)
 	--log-file $$b.log --trs-file $$b.trs \
 	$(am__common_driver_flags) $(AM_LOG_DRIVER_FLAGS) $(LOG_DRIVER_FLAGS) -- $(LOG_COMPILE) \
 	"$$tst" $(AM_TESTS_FD_REDIRECT)
+t-003.log: t-003$(EXEEXT)
+	@p='t-003$(EXEEXT)'; \
+	b='t-003'; \
+	$(am__check_pre) $(LOG_DRIVER) --test-name "$$f" \
+	--log-file $$b.log --trs-file $$b.trs \
+	$(am__common_driver_flags) $(AM_LOG_DRIVER_FLAGS) $(LOG_DRIVER_FLAGS) -- $(LOG_COMPILE) \
+	"$$tst" $(AM_TESTS_FD_REDIRECT)
 .test.log:
 	@p='$<'; \
 	$(am__set_b); \
@@ -979,6 +1016,7 @@ clean-am: clean-checkPROGRAMS clean-generic clean-libtool \
 distclean: distclean-am
 		-rm -f ./$(DEPDIR)/t_001-t-001.Po
 	-rm -f ./$(DEPDIR)/t_002-t-002.Po
+	-rm -f ./$(DEPDIR)/t_003-t-003.Po
 	-rm -f Makefile
 distclean-am: clean-am distclean-compile distclean-generic \
 	distclean-tags
@@ -1026,6 +1064,7 @@ installcheck-am:
 maintainer-clean: maintainer-clean-am
 		-rm -f ./$(DEPDIR)/t_001-t-001.Po
 	-rm -f ./$(DEPDIR)/t_002-t-002.Po
+	-rm -f ./$(DEPDIR)/t_003-t-003.Po
 	-rm -f Makefile
 maintainer-clean-am: distclean-am maintainer-clean-generic
 
