@@ -38,6 +38,9 @@
 
 #if defined(HAVE_NETINET_SCTP_H)
 #	include <netinet/sctp.h>
+#	if defined(IPPROTO_SCTP)
+#		define ENABLE_SCTP
+#	endif
 #endif
 
 #if defined(HAVE_NETPACKET_PACKET_H)
@@ -255,7 +258,7 @@ static struct sck_type_map_t sck_type_map[] =
 	/* HIO_DEV_SCK_UDP6 */
 	{ AF_INET6,  SOCK_DGRAM,      0,                 0, 0, 0 },
 
-#if defined(IPPROTO_SCTP)
+#if defined(ENABLE_SCTP)
 	/* HIO_DEV_SCK_SCTP4 */
 	{ AF_INET,   SOCK_STREAM,     IPPROTO_SCTP,      1, 1, HIO_DEV_CAP_STREAM },
 
@@ -412,7 +415,7 @@ static int dev_sck_make (hio_dev_t* dev, void* ctx)
 		hnd = open_async_socket(hio, sck_type_map[arg->type].domain, sck_type_map[arg->type].type, sck_type_map[arg->type].proto);
 		if (hnd == HIO_SYSHND_INVALID) goto oops;
 
-	#if defined(IPPROTO_SCTP)
+	#if defined(ENABLE_SCTP)
 		if (sck_type_map[arg->type].type == SOCK_SEQPACKET && 
 		    sck_type_map[arg->type].proto == IPPROTO_SCTP)
 		{
@@ -633,7 +636,7 @@ static int dev_sck_read_bpf (hio_dev_t* dev, void* buf, hio_iolen_t* len, hio_de
 }
 
 
-#if defined(IPPROTO_SCTP)
+#if defined(ENABLE_SCTP)
 static int recvmsg_sctp(
 	int s, void* ptr, hio_oow_t len, struct sockaddr* srcaddr, hio_scklen_t* srcaddrlen, 
 	struct sctp_sndrcvinfo* sinfo, int* msg_flags)
@@ -996,7 +999,7 @@ static int dev_sck_writev_bpf (hio_dev_t* dev, const hio_iovec_t* iov, hio_iolen
 }
 
 /* ------------------------------------------------------------------------------ */
-#if defined(IPPROTO_SCTP)
+#if defined(ENABLE_SCTP)
 static int dev_sck_write_sctp_sp (hio_dev_t* dev, const void* data, hio_iolen_t* len, const hio_devaddr_t* dstaddr)
 {
 /* NOTE: sctp support is far away from complete */
@@ -1619,6 +1622,7 @@ static hio_dev_mth_t dev_mth_sck_stream =
 	dev_sck_sendfile_stream,
 };
 
+#if defined(ENABLE_SCTP)
 static hio_dev_mth_t dev_mth_sck_sctp_sp = 
 {
 	dev_sck_make,
@@ -1633,6 +1637,7 @@ static hio_dev_mth_t dev_mth_sck_sctp_sp =
 	dev_sck_writev_sctp_sp,
 	HIO_NULL,          /* sendfile */
 };
+#endif
 
 static hio_dev_mth_t dev_mth_clisck_stateless =
 {
@@ -1664,6 +1669,7 @@ static hio_dev_mth_t dev_mth_clisck_stream =
 	dev_sck_sendfile_stream
 };
 
+#if defined(ENABLE_SCTP)
 static hio_dev_mth_t dev_mth_clisck_sctp_sp =
 {
 	dev_sck_make_client,
@@ -1678,6 +1684,7 @@ static hio_dev_mth_t dev_mth_clisck_sctp_sp =
 	dev_sck_writev_sctp_sp,
 	HIO_NULL,
 };
+#endif
 
 static hio_dev_mth_t dev_mth_sck_bpf = 
 {
@@ -1814,8 +1821,12 @@ static int make_accepted_client_connection (hio_dev_sck_t* rdev, hio_syshnd_t cl
 	 *   choose the client socket method base on the master socket 
 	 *   device capability. currently, stream or non-stream is supported.
 	 */
+#if defined(ENABLE_SCTP)
 	dev_mth = (sck_type_map[clisck_type].extra_dev_cap & HIO_DEV_CAP_STREAM)? &dev_mth_clisck_stream:
 	          (sck_type_map[clisck_type].proto == IPPROTO_SCTP)? &dev_mth_clisck_sctp_sp: &dev_mth_clisck_stateless;
+#else
+	dev_mth = (sck_type_map[clisck_type].extra_dev_cap & HIO_DEV_CAP_STREAM)? &dev_mth_clisck_stream: &dev_mth_clisck_stateless;
+#endif
 	clidev = (hio_dev_sck_t*)hio_dev_make(hio, rdev->dev_size, dev_mth, rdev->dev_evcb, &clisck); 
 	if (HIO_UNLIKELY(!clidev))
 	{
@@ -2393,12 +2404,14 @@ hio_dev_sck_t* hio_dev_sck_make (hio_t* hio, hio_oow_t xtnsize, const hio_dev_sc
 			hio, HIO_SIZEOF(hio_dev_sck_t) + xtnsize,
 			&dev_mth_sck_stream, &dev_sck_event_callbacks_stream, (void*)info);
 	}
+#if defined(ENABLE_SCTP)
 	else if (sck_type_map[info->type].proto == IPPROTO_SCTP)
 	{
 		rdev = (hio_dev_sck_t*)hio_dev_make(
 			hio, HIO_SIZEOF(hio_dev_sck_t) + xtnsize,
 			&dev_mth_sck_sctp_sp, &dev_sck_event_callbacks_sctp_sp, (void*)info);
 	}
+#endif
 	else
 	{
 		rdev = (hio_dev_sck_t*)hio_dev_make(
