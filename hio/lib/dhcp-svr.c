@@ -22,6 +22,7 @@
     THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  */
 
+#include <hio-dhcp.h>
 #include <hio-sck.h>
 #include "hio-prv.h"
 
