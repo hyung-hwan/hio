@@ -147,30 +147,31 @@ am__DEPENDENCIES_2 = $(am__DEPENDENCIES_1)
 libhio_la_DEPENDENCIES = $(am__DEPENDENCIES_2) $(am__DEPENDENCIES_1) \
 	$(am__DEPENDENCIES_1) $(am__DEPENDENCIES_1) \
 	$(am__DEPENDENCIES_3) $(am__DEPENDENCIES_4)
-am__libhio_la_SOURCES_DIST = chr.c dns.c dns-cli.c ecs.c ecs-imp.h \
-	err.c fmt.c fmt-imp.h htb.c htrd.c htre.c http.c http-cgi.c \
-	http-fil.c http-prv.h http-svr.c http-thr.c http-txt.c json.c \
-	hio-prv.h hio.c md5.c nwif.c opt.c opt-imp.h path.c pipe.c \
-	pro.c rad-msg.c sck.c skad.c sys.c sys-ass.c sys-err.c \
-	sys-log.c sys-mux.c sys-prv.h sys-tim.c thr.c uch-case.h \
-	uch-prop.h tmr.c utf8.c utl.c utl-siph.c utl-str.c mar.c \
-	mar-cli.c
+am__libhio_la_SOURCES_DIST = chr.c dhcp-svr.c dns.c dns-cli.c ecs.c \
+	ecs-imp.h err.c fmt.c fmt-imp.h htb.c htrd.c htre.c http.c \
+	http-cgi.c http-fil.c http-prv.h http-svr.c http-thr.c \
+	http-txt.c json.c hio-prv.h hio.c md5.c nwif.c opt.c opt-imp.h \
+	path.c pipe.c pro.c rad-msg.c sck.c skad.c sys.c sys-ass.c \
+	sys-err.c sys-log.c sys-mux.c sys-prv.h sys-tim.c thr.c \
+	uch-case.h uch-prop.h tmr.c utf8.c utl.c utl-siph.c utl-str.c \
+	mar.c mar-cli.c
 @ENABLE_MARIADB_TRUE@am__objects_1 = libhio_la-mar.lo \
 @ENABLE_MARIADB_TRUE@	libhio_la-mar-cli.lo
-am_libhio_la_OBJECTS = libhio_la-chr.lo libhio_la-dns.lo \
-	libhio_la-dns-cli.lo libhio_la-ecs.lo libhio_la-err.lo \
-	libhio_la-fmt.lo libhio_la-htb.lo libhio_la-htrd.lo \
-	libhio_la-htre.lo libhio_la-http.lo libhio_la-http-cgi.lo \
-	libhio_la-http-fil.lo libhio_la-http-svr.lo \
-	libhio_la-http-thr.lo libhio_la-http-txt.lo libhio_la-json.lo \
-	libhio_la-hio.lo libhio_la-md5.lo libhio_la-nwif.lo \
-	libhio_la-opt.lo libhio_la-path.lo libhio_la-pipe.lo \
-	libhio_la-pro.lo libhio_la-rad-msg.lo libhio_la-sck.lo \
-	libhio_la-skad.lo libhio_la-sys.lo libhio_la-sys-ass.lo \
-	libhio_la-sys-err.lo libhio_la-sys-log.lo libhio_la-sys-mux.lo \
-	libhio_la-sys-tim.lo libhio_la-thr.lo libhio_la-tmr.lo \
-	libhio_la-utf8.lo libhio_la-utl.lo libhio_la-utl-siph.lo \
-	libhio_la-utl-str.lo $(am__objects_1)
+am_libhio_la_OBJECTS = libhio_la-chr.lo libhio_la-dhcp-svr.lo \
+	libhio_la-dns.lo libhio_la-dns-cli.lo libhio_la-ecs.lo \
+	libhio_la-err.lo libhio_la-fmt.lo libhio_la-htb.lo \
+	libhio_la-htrd.lo libhio_la-htre.lo libhio_la-http.lo \
+	libhio_la-http-cgi.lo libhio_la-http-fil.lo \
+	libhio_la-http-svr.lo libhio_la-http-thr.lo \
+	libhio_la-http-txt.lo libhio_la-json.lo libhio_la-hio.lo \
+	libhio_la-md5.lo libhio_la-nwif.lo libhio_la-opt.lo \
+	libhio_la-path.lo libhio_la-pipe.lo libhio_la-pro.lo \
+	libhio_la-rad-msg.lo libhio_la-sck.lo libhio_la-skad.lo \
+	libhio_la-sys.lo libhio_la-sys-ass.lo libhio_la-sys-err.lo \
+	libhio_la-sys-log.lo libhio_la-sys-mux.lo libhio_la-sys-tim.lo \
+	libhio_la-thr.lo libhio_la-tmr.lo libhio_la-utf8.lo \
+	libhio_la-utl.lo libhio_la-utl-siph.lo libhio_la-utl-str.lo \
+	$(am__objects_1)
 libhio_la_OBJECTS = $(am_libhio_la_OBJECTS)
 AM_V_lt = $(am__v_lt_@AM_V@)
 am__v_lt_ = $(am__v_lt_@AM_DEFAULT_V@)
@@ -195,6 +196,7 @@ DEFAULT_INCLUDES =
 depcomp = $(SHELL) $(top_srcdir)/ac/depcomp
 am__maybe_remake_depfiles = depfiles
 am__depfiles_remade = ./$(DEPDIR)/libhio_la-chr.Plo \
+	./$(DEPDIR)/libhio_la-dhcp-svr.Plo \
 	./$(DEPDIR)/libhio_la-dns-cli.Plo \
 	./$(DEPDIR)/libhio_la-dns.Plo ./$(DEPDIR)/libhio_la-ecs.Plo \
 	./$(DEPDIR)/libhio_la-err.Plo ./$(DEPDIR)/libhio_la-fmt.Plo \
@@ -249,11 +251,11 @@ am__can_run_installinfo = \
     n|no|NO) false;; \
     *) (install-info --version) >/dev/null 2>&1;; \
   esac
-am__include_HEADERS_DIST = hio-cfg.h hio-chr.h hio-cmn.h hio-dns.h \
-	hio-ecs.h hio-fmt.h hio-htb.h hio-htrd.h hio-htre.h hio-http.h \
-	hio-json.h hio-nwif.h hio-opt.h hio-pac1.h hio-path.h \
-	hio-pipe.h hio-pro.h hio-rad.h hio-sck.h hio-skad.h hio-thr.h \
-	hio-upac.h hio-utl.h hio.h hio-mar.h
+am__include_HEADERS_DIST = hio-cfg.h hio-chr.h hio-cmn.h hio-dhcp.h \
+	hio-dns.h hio-ecs.h hio-fmt.h hio-htb.h hio-htrd.h hio-htre.h \
+	hio-http.h hio-json.h hio-nwif.h hio-opt.h hio-pac1.h \
+	hio-path.h hio-pipe.h hio-pro.h hio-rad.h hio-sck.h hio-skad.h \
+	hio-thr.h hio-upac.h hio-utl.h hio.h hio-mar.h
 HEADERS = $(include_HEADERS)
 am__tagged_files = $(HEADERS) $(SOURCES) $(TAGS_FILES) $(LISP) \
 	hio-cfg.h.in
@@ -440,19 +442,20 @@ LIBADD_LIB_COMMON = $(LIBM)
 #pkgincludedir = $(includedir)
 #pkglibdir = $(libdir)
 #pkgbindir = $(bindir)
-include_HEADERS = hio-cfg.h hio-chr.h hio-cmn.h hio-dns.h hio-ecs.h \
-	hio-fmt.h hio-htb.h hio-htrd.h hio-htre.h hio-http.h \
+include_HEADERS = hio-cfg.h hio-chr.h hio-cmn.h hio-dhcp.h hio-dns.h \
+	hio-ecs.h hio-fmt.h hio-htb.h hio-htrd.h hio-htre.h hio-http.h \
 	hio-json.h hio-nwif.h hio-opt.h hio-pac1.h hio-path.h \
 	hio-pipe.h hio-pro.h hio-rad.h hio-sck.h hio-skad.h hio-thr.h \
 	hio-upac.h hio-utl.h hio.h $(am__append_1)
 lib_LTLIBRARIES = libhio.la
-libhio_la_SOURCES = chr.c dns.c dns-cli.c ecs.c ecs-imp.h err.c fmt.c \
-	fmt-imp.h htb.c htrd.c htre.c http.c http-cgi.c http-fil.c \
-	http-prv.h http-svr.c http-thr.c http-txt.c json.c hio-prv.h \
-	hio.c md5.c nwif.c opt.c opt-imp.h path.c pipe.c pro.c \
-	rad-msg.c sck.c skad.c sys.c sys-ass.c sys-err.c sys-log.c \
-	sys-mux.c sys-prv.h sys-tim.c thr.c uch-case.h uch-prop.h \
-	tmr.c utf8.c utl.c utl-siph.c utl-str.c $(am__append_2)
+libhio_la_SOURCES = chr.c dhcp-svr.c dns.c dns-cli.c ecs.c ecs-imp.h \
+	err.c fmt.c fmt-imp.h htb.c htrd.c htre.c http.c http-cgi.c \
+	http-fil.c http-prv.h http-svr.c http-thr.c http-txt.c json.c \
+	hio-prv.h hio.c md5.c nwif.c opt.c opt-imp.h path.c pipe.c \
+	pro.c rad-msg.c sck.c skad.c sys.c sys-ass.c sys-err.c \
+	sys-log.c sys-mux.c sys-prv.h sys-tim.c thr.c uch-case.h \
+	uch-prop.h tmr.c utf8.c utl.c utl-siph.c utl-str.c \
+	$(am__append_2)
 libhio_la_CPPFLAGS = $(CPPFLAGS_LIB_COMMON)
 libhio_la_CFLAGS = $(CFLAGS_LIB_COMMON) $(am__append_3)
 libhio_la_LDFLAGS = $(LDFLAGS_LIB_COMMON) $(am__append_4)
@@ -553,6 +556,7 @@ distclean-compile:
 	-rm -f *.tab.c
 
 @AMDEP_TRUE@@am__include@ @am__quote@./$(DEPDIR)/libhio_la-chr.Plo@am__quote@ # am--include-marker
+@AMDEP_TRUE@@am__include@ @am__quote@./$(DEPDIR)/libhio_la-dhcp-svr.Plo@am__quote@ # am--include-marker
 @AMDEP_TRUE@@am__include@ @am__quote@./$(DEPDIR)/libhio_la-dns-cli.Plo@am__quote@ # am--include-marker
 @AMDEP_TRUE@@am__include@ @am__quote@./$(DEPDIR)/libhio_la-dns.Plo@am__quote@ # am--include-marker
 @AMDEP_TRUE@@am__include@ @am__quote@./$(DEPDIR)/libhio_la-ecs.Plo@am__quote@ # am--include-marker
@@ -629,6 +633,13 @@ libhio_la-chr.lo: chr.c
 @AMDEP_TRUE@@am__fastdepCC_FALSE@	$(AM_V_CC)source='chr.c' object='libhio_la-chr.lo' libtool=yes @AMDEPBACKSLASH@
 @AMDEP_TRUE@@am__fastdepCC_FALSE@	DEPDIR=$(DEPDIR) $(CCDEPMODE) $(depcomp) @AMDEPBACKSLASH@
 @am__fastdepCC_FALSE@	$(AM_V_CC@am__nodep@)$(LIBTOOL) $(AM_V_lt) --tag=CC $(AM_LIBTOOLFLAGS) $(LIBTOOLFLAGS) --mode=compile $(CC) $(DEFS) $(DEFAULT_INCLUDES) $(INCLUDES) $(libhio_la_CPPFLAGS) $(CPPFLAGS) $(libhio_la_CFLAGS) $(CFLAGS) -c -o libhio_la-chr.lo `test -f 'chr.c' || echo '$(srcdir)/'`chr.c
+
+libhio_la-dhcp-svr.lo: dhcp-svr.c
+@am__fastdepCC_TRUE@	$(AM_V_CC)$(LIBTOOL) $(AM_V_lt) --tag=CC $(AM_LIBTOOLFLAGS) $(LIBTOOLFLAGS) --mode=compile $(CC) $(DEFS) $(DEFAULT_INCLUDES) $(INCLUDES) $(libhio_la_CPPFLAGS) $(CPPFLAGS) $(libhio_la_CFLAGS) $(CFLAGS) -MT libhio_la-dhcp-svr.lo -MD -MP -MF $(DEPDIR)/libhio_la-dhcp-svr.Tpo -c -o libhio_la-dhcp-svr.lo `test -f 'dhcp-svr.c' || echo '$(srcdir)/'`dhcp-svr.c
+@am__fastdepCC_TRUE@	$(AM_V_at)$(am__mv) $(DEPDIR)/libhio_la-dhcp-svr.Tpo $(DEPDIR)/libhio_la-dhcp-svr.Plo
+@AMDEP_TRUE@@am__fastdepCC_FALSE@	$(AM_V_CC)source='dhcp-svr.c' object='libhio_la-dhcp-svr.lo' libtool=yes @AMDEPBACKSLASH@
+@AMDEP_TRUE@@am__fastdepCC_FALSE@	DEPDIR=$(DEPDIR) $(CCDEPMODE) $(depcomp) @AMDEPBACKSLASH@
+@am__fastdepCC_FALSE@	$(AM_V_CC@am__nodep@)$(LIBTOOL) $(AM_V_lt) --tag=CC $(AM_LIBTOOLFLAGS) $(LIBTOOLFLAGS) --mode=compile $(CC) $(DEFS) $(DEFAULT_INCLUDES) $(INCLUDES) $(libhio_la_CPPFLAGS) $(CPPFLAGS) $(libhio_la_CFLAGS) $(CFLAGS) -c -o libhio_la-dhcp-svr.lo `test -f 'dhcp-svr.c' || echo '$(srcdir)/'`dhcp-svr.c
 
 libhio_la-dns.lo: dns.c
 @am__fastdepCC_TRUE@	$(AM_V_CC)$(LIBTOOL) $(AM_V_lt) --tag=CC $(AM_LIBTOOLFLAGS) $(LIBTOOLFLAGS) --mode=compile $(CC) $(DEFS) $(DEFAULT_INCLUDES) $(INCLUDES) $(libhio_la_CPPFLAGS) $(CPPFLAGS) $(libhio_la_CFLAGS) $(CFLAGS) -MT libhio_la-dns.lo -MD -MP -MF $(DEPDIR)/libhio_la-dns.Tpo -c -o libhio_la-dns.lo `test -f 'dns.c' || echo '$(srcdir)/'`dns.c
@@ -1059,6 +1070,7 @@ clean-am: clean-generic clean-libLTLIBRARIES clean-libtool \
 
 distclean: distclean-am
 		-rm -f ./$(DEPDIR)/libhio_la-chr.Plo
+	-rm -f ./$(DEPDIR)/libhio_la-dhcp-svr.Plo
 	-rm -f ./$(DEPDIR)/libhio_la-dns-cli.Plo
 	-rm -f ./$(DEPDIR)/libhio_la-dns.Plo
 	-rm -f ./$(DEPDIR)/libhio_la-ecs.Plo
@@ -1145,6 +1157,7 @@ installcheck-am:
 
 maintainer-clean: maintainer-clean-am
 		-rm -f ./$(DEPDIR)/libhio_la-chr.Plo
+	-rm -f ./$(DEPDIR)/libhio_la-dhcp-svr.Plo
 	-rm -f ./$(DEPDIR)/libhio_la-dns-cli.Plo
 	-rm -f ./$(DEPDIR)/libhio_la-dns.Plo
 	-rm -f ./$(DEPDIR)/libhio_la-ecs.Plo

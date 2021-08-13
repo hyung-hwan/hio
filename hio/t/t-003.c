@@ -12,9 +12,7 @@ int main ()
 {
 	{	
 		hio_uint8_t buf[10240];
-		hio_rad_hdr_t* hdr = buf;
-	
-		
+		hio_rad_hdr_t* hdr = (hio_rad_hdr_t*)buf;
 		int i, j, n, exptotlen;
 
 		struct
@@ -32,6 +30,7 @@ int main ()
 			{ 0, 4329,  5,                                       "ssid",                 4 },
 			{ 0, 0,     HIO_RAD_ATTR_NAS_IDENTIFIER,             "nas identifier",       14 },
 			{ 0, 0,     HIO_RAD_ATTR_USER_PASSWORD,              "password",             8  },
+			{ 1, 0,     HIO_RAD_ATTR_USER_PASSWORD,              "password",             8  },
 			{ 0, 0,     HIO_RAD_ATTR_USER_NAME,                  "username",             8  },
 			{ 1, 10415, 8,                                       "imsi-mcc-mnc-2",       14 },
 
@@ -53,11 +52,12 @@ int main ()
 			{ 2, 0,     HIO_RAD_ATTR_REPLY_MESSAGE,              "reply message 3",      15 },
 		};
 
-		hio_rad_initialize (buf, HIO_RAD_ACCESS_REQUEST, 255);
+		hio_rad_initialize (hdr, HIO_RAD_ACCESS_REQUEST, 255);
 		T_ASSERT1 (hdr->code == HIO_RAD_ACCESS_REQUEST, "hdr->code not ok");
 		T_ASSERT1 (hdr->id == 255, "hdr->id not ok");
 		exptotlen = HIO_SIZEOF(*hdr);
 		T_ASSERT1 (hdr->length == HIO_CONST_HTON16(HIO_SIZEOF(*hdr)), "hdr->length not ok");
+
 
 		for (i = 0; i < HIO_COUNTOF(data); i++)
 		{
@@ -74,13 +74,13 @@ int main ()
 				if (HIO_RAD_ATTR_IS_LONG_EXTENDED(vsattr->type))
 				{
 					exptotlen += HIO_SIZEOF(*lxvsattr);
-					lxvsattr = vsattr;
+					lxvsattr = (hio_rad_lxvsattr_hdr_t*)vsattr;
 					T_ASSERT1 (lxvsattr->length == HIO_SIZEOF(*lxvsattr) + data[i].len, "wrong attribute length");
 				}
 				else if (HIO_RAD_ATTR_IS_SHORT_EXTENDED(vsattr->type))
 				{
 					exptotlen += HIO_SIZEOF(*xvsattr);
-					xvsattr = vsattr;
+					xvsattr = (hio_rad_xvsattr_hdr_t*)vsattr;
 					T_ASSERT1 (xvsattr->length == HIO_SIZEOF(*xvsattr) + data[i].len, "wrong attribute length");
 				}
 				else
@@ -102,13 +102,13 @@ int main ()
 				if (HIO_RAD_ATTR_IS_LONG_EXTENDED(attr->type))
 				{
 					exptotlen += HIO_SIZEOF(*lxattr);
-					lxattr = attr;
+					lxattr = (hio_rad_lxattr_hdr_t*)attr;
 					T_ASSERT1 (lxattr->length == HIO_SIZEOF(*lxattr) + data[i].len, "wrong attribute length");
 				}
 				else if (HIO_RAD_ATTR_IS_SHORT_EXTENDED(attr->type))
 				{
 					exptotlen += HIO_SIZEOF(*xattr);
-					xattr = attr;
+					xattr = (hio_rad_xattr_hdr_t*)attr;
 					T_ASSERT1 (xattr->length == HIO_SIZEOF(*xattr) + data[i].len, "wrong attribute length");
 				}
 				else
@@ -223,7 +223,30 @@ int main ()
 		}
 
 		hio_rad_fill_authenticator (hdr);
-		hio_rad_set_user_password (hdr, HIO_SIZEOF(buf), "real_password", "testing123");
+		hio_rad_set_user_password (hdr, HIO_SIZEOF(buf), "real_real_password", "testing123");
+		exptotlen -= HIO_SIZEOF(hio_rad_attr_hdr_t) + 8; /* the first User-Password in the data table */
+		exptotlen -= HIO_SIZEOF(hio_rad_attr_hdr_t) + 8; /* the second User-Password in the data table */
+		exptotlen += HIO_SIZEOF(hio_rad_attr_hdr_t) + HIO_RAD_USER_PASSWORD_TOTSIZE(18);
+		T_ASSERT1 (hio_ntoh16(hdr->length) == exptotlen, "hdr->length not ok");
+
+		{
+			char tmp[1024];
+			hio_rad_attr_hdr_t* attr;
+			hio_rad_lxattr_hdr_t* lxattr;
+			
+			for (i = 0; i < HIO_COUNTOF(tmp); i++) tmp[i] = "ABCDEFGHIJKLMNOPQRSTUVWXYZ"[i % 26];
+
+			/* the following call must insert 5 attributes. it returns the pointer to the first attribute. */
+			attr = hio_rad_insert_attr (hdr, HIO_SIZEOF(buf), HIO_RAD_ATTR_CODE_EXTENDED_6(10), tmp, 1024);
+			T_ASSERT1 (attr != HIO_NULL, "long extended attribue insertion failure");
+			T_ASSERT1 (attr->type == HIO_RAD_ATTR_EXTENDED_6, "wrong extended attribute base");
+
+			lxattr = (hio_rad_lxattr_hdr_t*)attr;
+			T_ASSERT1 (lxattr->xtype == 10, "wrong extended attribute type");
+			T_ASSERT1 (lxattr->xflags == (1 << 7), "wrong long extended attribute flags");
+
+			/* TODO: inspect 4 continuing attributes */
+		}
 
 #if 1
 		{

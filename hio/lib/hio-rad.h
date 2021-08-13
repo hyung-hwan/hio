@@ -54,13 +54,18 @@ enum hio_rad_code_t
 };
 typedef enum hio_rad_code_t hio_rad_code_t;
 
-#define HIO_RAD_MAX_AUTHENTICATOR_LEN 16
+#define HIO_RAD_AUTHENTICATOR_LEN (16)
+#define HIO_RAD_USER_PASSWORD_BLKSIZE (16) /* size of a single block */
+#define HIO_RAD_USER_PASSWORD_TOTSIZE(pwlen) ((pwlen) <= 0? HIO_RAD_USER_PASSWORD_BLKSIZE: HIO_ALIGN(pwlen,HIO_RAD_USER_PASSWORD_BLKSIZE))
+
 #define HIO_RAD_MAX_ATTR_VALUE_LEN  (HIO_TYPE_MAX(hio_uint8_t) - HIO_SIZEOF(hio_rad_attr_hdr_t))
 #define HIO_RAD_MAX_XATTR_VALUE_LEN  (HIO_TYPE_MAX(hio_uint8_t) - HIO_SIZEOF(hio_rad_xattr_hdr_t))
 #define HIO_RAD_MAX_LXATTR_VALUE_LEN  (HIO_TYPE_MAX(hio_uint8_t) - HIO_SIZEOF(hio_rad_lxattr_hdr_t))
 #define HIO_RAD_MAX_VSATTR_VALUE_LEN (HIO_TYPE_MAX(hio_uint8_t) - HIO_SIZEOF(hio_rad_vsattr_hdr_t))
 #define HIO_RAD_MAX_XVSATTR_VALUE_LEN (HIO_TYPE_MAX(hio_uint8_t) - HIO_SIZEOF(hio_rad_xvsattr_hdr_t))
 #define HIO_RAD_MAX_LXVSATTR_VALUE_LEN (HIO_TYPE_MAX(hio_uint8_t) - HIO_SIZEOF(hio_rad_lxvsattr_hdr_t))
+
+
 
 typedef struct hio_rad_hdr_t hio_rad_hdr_t;
 typedef struct hio_rad_attr_hdr_t hio_rad_attr_hdr_t;
@@ -81,7 +86,7 @@ struct hio_rad_hdr_t
 	hio_uint8_t   code; /* hio_rad_code_t */
 	hio_uint8_t   id;
 	hio_uint16_t  length;
-	hio_uint8_t   authenticator[HIO_RAD_MAX_AUTHENTICATOR_LEN]; /* authenticator */
+	hio_uint8_t   authenticator[HIO_RAD_AUTHENTICATOR_LEN]; /* authenticator */
 };
 
 struct hio_rad_attr_hdr_t

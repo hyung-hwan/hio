@@ -30,6 +30,7 @@ include_HEADERS = \
 	hio-cfg.h \
 	hio-chr.h \
 	hio-cmn.h \
+	hio-dhcp.h \
 	hio-dns.h \
 	hio-ecs.h \
 	hio-fmt.h \
@@ -55,6 +56,7 @@ include_HEADERS = \
 lib_LTLIBRARIES = libhio.la
 libhio_la_SOURCES = \
 	chr.c \
+	dhcp-svr.c \
 	dns.c \
 	dns-cli.c \
 	ecs.c \

@@ -831,8 +831,30 @@ hio_rad_attr_hdr_t* hio_rad_insert_attr (hio_rad_hdr_t* auth, int max, hio_uint1
 	}
 	else if (HIO_RAD_ATTR_IS_LONG_EXTENDED(hi))
 	{
-		/* TODO: mutliple attributes if data is long */
-		return (hio_rad_attr_hdr_t*)hio_rad_insert_extended_attribute(auth, max, hi, lo, ptr, len, 0);
+		hio_rad_xattr_hdr_t* tmp, * ret = HIO_NULL;
+		hio_uint16_t orglen = auth->length;
+		
+		while (len > HIO_RAD_MAX_LXATTR_VALUE_LEN)
+		{
+			tmp = hio_rad_insert_extended_attribute(auth, max, hi, lo, ptr, HIO_RAD_MAX_LXATTR_VALUE_LEN, (1 << 7));
+			if (!tmp)	
+			{
+				auth->length = orglen;
+				return HIO_NULL;
+			}
+			if (!ret) ret = tmp;
+			len -= HIO_RAD_MAX_LXATTR_VALUE_LEN;
+			ptr = (const hio_uint8_t*)ptr + HIO_RAD_MAX_LXATTR_VALUE_LEN;
+		}
+		tmp = hio_rad_insert_extended_attribute(auth, max, hi, lo, ptr, len, 0);
+		if (!tmp) 
+		{
+			auth->length = orglen;
+			return HIO_NULL;
+		}
+		if (!ret) ret = tmp;
+
+		return (hio_rad_attr_hdr_t*)ret;
 	}
 
 	/* attribute code out of range */
@@ -858,8 +880,30 @@ hio_rad_vsattr_hdr_t* hio_rad_insert_vsattr (hio_rad_hdr_t* auth, int max, hio_u
 	}
 	else if (HIO_RAD_ATTR_IS_LONG_EXTENDED(hi))
 	{
-	/* TODO: if len is greater than the maxm add multiple extended attributes with continuation */
-		return (hio_rad_vsattr_hdr_t*)hio_rad_insert_extended_vendor_specific_attribute(auth, max, vendor, hi, lo, ptr, len, 0);
+		hio_rad_xvsattr_hdr_t* tmp, * ret = HIO_NULL;
+		hio_uint16_t orglen = auth->length;
+		
+		while (len > HIO_RAD_MAX_LXVSATTR_VALUE_LEN)
+		{
+			tmp = hio_rad_insert_extended_vendor_specific_attribute(auth, max, vendor, hi, lo, ptr, HIO_RAD_MAX_LXVSATTR_VALUE_LEN, (1 << 7));
+			if (!tmp)	
+			{
+				auth->length = orglen;
+				return HIO_NULL;
+			}
+			if (!ret) ret = tmp;
+			len -= HIO_RAD_MAX_LXVSATTR_VALUE_LEN;
+			ptr = (const hio_uint8_t*)ptr + HIO_RAD_MAX_LXVSATTR_VALUE_LEN;
+		}
+		tmp = hio_rad_insert_extended_vendor_specific_attribute(auth, max, vendor, hi, lo, ptr, len, 0);
+		if (!tmp) 
+		{
+			auth->length = orglen;
+			return HIO_NULL;
+		}
+		if (!ret) ret = tmp;
+
+		return (hio_rad_vsattr_hdr_t*)ret;
 	}
 
 	/* attribute code out of range */
@@ -870,15 +914,12 @@ hio_rad_vsattr_hdr_t* hio_rad_insert_vsattr (hio_rad_hdr_t* auth, int max, hio_u
  *  UTILITY FUNCTIONS
  * ----------------------------------------------------------------------- */
 
-#define PASS_BLKSIZE HIO_RAD_MAX_AUTHENTICATOR_LEN
-#define ALIGN(x,factor) ((((x) + (factor) - 1) / (factor)) * (factor))
-
 int hio_rad_set_user_password (hio_rad_hdr_t* auth, int max, const hio_bch_t* password, const hio_bch_t* secret)
 {
 	hio_md5_t md5;
 
 	hio_uint8_t hashed[HIO_RAD_MAX_ATTR_VALUE_LEN]; /* can't be longer than this */
-	hio_uint8_t tmp[PASS_BLKSIZE];
+	hio_uint8_t tmp[HIO_RAD_USER_PASSWORD_BLKSIZE];
 
 	int i, pwlen, padlen;
 
@@ -886,16 +927,15 @@ int hio_rad_set_user_password (hio_rad_hdr_t* auth, int max, const hio_bch_t* pa
 
 	pwlen = hio_count_bcstr(password);
 
-	/* calculate padlen to be the multiples of 16.
-	 * 0 is forced to 16. */
-	padlen = (pwlen <= 0)? PASS_BLKSIZE: ALIGN(pwlen,PASS_BLKSIZE);
+	/* calculate padlen to be the multiples of 16. 0 is forced to 16. */
+	padlen = HIO_RAD_USER_PASSWORD_TOTSIZE(pwlen);
 
 	/* keep the padded length limited within the maximum attribute length */
 	if (padlen > HIO_RAD_MAX_ATTR_VALUE_LEN)
 	{
 		padlen = HIO_RAD_MAX_ATTR_VALUE_LEN;
-		padlen = ALIGN(padlen,PASS_BLKSIZE);
-		if (padlen > HIO_RAD_MAX_ATTR_VALUE_LEN) padlen -= PASS_BLKSIZE;
+		padlen = HIO_ALIGN(padlen, HIO_RAD_USER_PASSWORD_BLKSIZE);
+		if (padlen > HIO_RAD_MAX_ATTR_VALUE_LEN) padlen -= HIO_RAD_USER_PASSWORD_BLKSIZE;
 
 		/* also limit the original length */
 		if (pwlen > padlen) pwlen = padlen;
@@ -921,9 +961,9 @@ int hio_rad_set_user_password (hio_rad_hdr_t* auth, int max, const hio_bch_t* pa
 	{
 		hio_md5_initialize (&md5);
 		hio_md5_update (&md5, secret, hio_count_bcstr(secret));
-		hio_md5_update (&md5, &hashed[(i-1) * PASS_BLKSIZE], PASS_BLKSIZE);
+		hio_md5_update (&md5, &hashed[(i - 1) * HIO_RAD_USER_PASSWORD_BLKSIZE], HIO_RAD_USER_PASSWORD_BLKSIZE);
 		hio_md5_digest (&md5, tmp, HIO_SIZEOF(tmp));
-		xor (&hashed[i * PASS_BLKSIZE], tmp, HIO_SIZEOF(tmp));
+		xor (&hashed[i * HIO_RAD_USER_PASSWORD_BLKSIZE], tmp, HIO_SIZEOF(tmp));
 	}
 
 	/* ok if not found or deleted. but not ok if an error occurred */
@@ -971,7 +1011,7 @@ int hio_rad_set_authenticator (hio_rad_hdr_t* req, const hio_bch_t* secret)
 int hio_rad_verify_request (hio_rad_hdr_t* req, const hio_bch_t* secret)
 {
 	hio_md5_t md5;
-	hio_uint8_t orgauth[HIO_RAD_MAX_AUTHENTICATOR_LEN];
+	hio_uint8_t orgauth[HIO_RAD_AUTHENTICATOR_LEN];
 	int ret;
 
 	HIO_MEMCPY (orgauth, req->authenticator, HIO_SIZEOF(req->authenticator));
@@ -992,11 +1032,11 @@ int hio_rad_verify_response (hio_rad_hdr_t* res, const hio_rad_hdr_t* req, const
 {
 	hio_md5_t md5;
 
-	hio_uint8_t calculated[HIO_RAD_MAX_AUTHENTICATOR_LEN];
-	hio_uint8_t reply[HIO_RAD_MAX_AUTHENTICATOR_LEN];
+	hio_uint8_t calculated[HIO_RAD_AUTHENTICATOR_LEN];
+	hio_uint8_t reply[HIO_RAD_AUTHENTICATOR_LEN];
 
-	/*HIO_ASSERT (HIO_SIZEOF(req->authenticator) == HIO_RAD_MAX_AUTHENTICATOR_LEN);
-	HIO_ASSERT (HIO_SIZEOF(res->authenticator) == HIO_RAD_MAX_AUTHENTICATOR_LEN);*/
+	/*HIO_ASSERT (HIO_SIZEOF(req->authenticator) == HIO_RAD_AUTHENTICATOR_LEN);
+	HIO_ASSERT (HIO_SIZEOF(res->authenticator) == HIO_RAD_AUTHENTICATOR_LEN);*/
 
 	/*
 	 * We could dispense with the HIO_MEMCPY, and do MD5's of the packet
