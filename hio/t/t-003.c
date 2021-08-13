@@ -31,6 +31,8 @@ int main ()
 			{ 0, 10415, 8,                                       "imsi-mcc-mnc",         12 },
 			{ 0, 4329,  5,                                       "ssid",                 4 },
 			{ 0, 0,     HIO_RAD_ATTR_NAS_IDENTIFIER,             "nas identifier",       14 },
+			{ 0, 0,     HIO_RAD_ATTR_USER_PASSWORD,              "password",             8  },
+			{ 0, 0,     HIO_RAD_ATTR_USER_NAME,                  "username",             8  },
 			{ 1, 10415, 8,                                       "imsi-mcc-mnc-2",       14 },
 
 			/* Frag-Status 241.1 integer. */
@@ -220,6 +222,8 @@ int main ()
 			}
 		}
 
+		hio_rad_fill_authenticator (hdr);
+		hio_rad_set_user_password (hdr, HIO_SIZEOF(buf), "real_password", "testing123");
 
 #if 1
 		{
