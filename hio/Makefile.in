@@ -831,7 +831,7 @@ uninstall-am:
 
 
 distclean-local:
-	$(RM) -r $(top_srcdir)/autom4te.cache
+	rm -rf $(top_srcdir)/autom4te.cache
 
 ######################################################################
 

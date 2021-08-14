@@ -446,6 +446,8 @@ LIBADD_LIB_COMMON = $(LIBM)
 #pkgincludedir = $(includedir)
 #pkglibdir = $(libdir)
 #pkgbindir = $(bindir)
+
+# Never list hio-cfg.h in include_HEADERS.
 include_HEADERS = hio-chr.h hio-cmn.h hio-dhcp.h hio-dns.h hio-ecs.h \
 	hio-fmt.h hio-htb.h hio-htrd.h hio-htre.h hio-http.h \
 	hio-json.h hio-md5.h hio-nwif.h hio-opt.h hio-pac1.h \
