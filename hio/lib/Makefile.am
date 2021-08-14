@@ -39,6 +39,7 @@ include_HEADERS = \
 	hio-htre.h \
 	hio-http.h \
 	hio-json.h \
+	hio-md5.h \
 	hio-nwif.h \
 	hio-opt.h \
 	hio-pac1.h \

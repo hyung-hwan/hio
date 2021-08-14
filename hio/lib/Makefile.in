@@ -253,9 +253,9 @@ am__can_run_installinfo = \
   esac
 am__include_HEADERS_DIST = hio-cfg.h hio-chr.h hio-cmn.h hio-dhcp.h \
 	hio-dns.h hio-ecs.h hio-fmt.h hio-htb.h hio-htrd.h hio-htre.h \
-	hio-http.h hio-json.h hio-nwif.h hio-opt.h hio-pac1.h \
-	hio-path.h hio-pipe.h hio-pro.h hio-rad.h hio-sck.h hio-skad.h \
-	hio-thr.h hio-upac.h hio-utl.h hio.h hio-mar.h
+	hio-http.h hio-json.h hio-md5.h hio-nwif.h hio-opt.h \
+	hio-pac1.h hio-path.h hio-pipe.h hio-pro.h hio-rad.h hio-sck.h \
+	hio-skad.h hio-thr.h hio-upac.h hio-utl.h hio.h hio-mar.h
 HEADERS = $(include_HEADERS)
 am__tagged_files = $(HEADERS) $(SOURCES) $(TAGS_FILES) $(LISP) \
 	hio-cfg.h.in
@@ -444,9 +444,9 @@ LIBADD_LIB_COMMON = $(LIBM)
 #pkgbindir = $(bindir)
 include_HEADERS = hio-cfg.h hio-chr.h hio-cmn.h hio-dhcp.h hio-dns.h \
 	hio-ecs.h hio-fmt.h hio-htb.h hio-htrd.h hio-htre.h hio-http.h \
-	hio-json.h hio-nwif.h hio-opt.h hio-pac1.h hio-path.h \
-	hio-pipe.h hio-pro.h hio-rad.h hio-sck.h hio-skad.h hio-thr.h \
-	hio-upac.h hio-utl.h hio.h $(am__append_1)
+	hio-json.h hio-md5.h hio-nwif.h hio-opt.h hio-pac1.h \
+	hio-path.h hio-pipe.h hio-pro.h hio-rad.h hio-sck.h hio-skad.h \
+	hio-thr.h hio-upac.h hio-utl.h hio.h $(am__append_1)
 lib_LTLIBRARIES = libhio.la
 libhio_la_SOURCES = chr.c dhcp-svr.c dns.c dns-cli.c ecs.c ecs-imp.h \
 	err.c fmt.c fmt-imp.h htb.c htrd.c htre.c http.c http-cgi.c \
