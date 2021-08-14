@@ -25,7 +25,6 @@
 #include <hio-skad.h>
 #include <hio-nwif.h>
 #include <hio-fmt.h>
-#include <hio-chr.h>
 #include "hio-prv.h"
 
 #include <sys/types.h>

@@ -644,6 +644,7 @@ _int_type_ _fn_name_ (const _char_type_* str, hio_oow_t len, int option, const _
 ]])
 
 dnl ---------------------------------------------------------------------------
+dnl $4: is_space $5: prefix for some macros
 define([[fn_chars_to_uint]], [[ define([[_fn_name_]], $1) define([[_char_type_]], $2) define([[_int_type_]], $3)
 _int_type_ _fn_name_ (const _char_type_* str, hio_oow_t len, int option, const _char_type_** endptr, int* is_sober)
 {

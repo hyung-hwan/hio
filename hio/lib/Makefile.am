@@ -135,6 +135,7 @@ uninstall-hook:
 $(srcdir)/hio-utl.h: utl-str.m4 hio-utl.h.m4
 	m4 -I$(srcdir) $(srcdir)/hio-utl.h.m4 > $(srcdir)/hio-utl.h
 
+# do NOT put $(srcdir) before utl-str.c
 utl-str.c: utl-str.m4 utl-str.c.m4 
 	m4 -I$(srcdir) $(srcdir)/utl-str.c.m4 > $(srcdir)/utl-str.c
 

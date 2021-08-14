@@ -619,53 +619,53 @@ HIO_EXPORT hio_oow_t hio_byte_to_bcstr (
 );
 
 /* ------------------------------------------------------------------------- */
-#define HIO_CHARS_TO_INTMAX_MAKE_OPTION(e,ltrim,rtrim,base) (((!!(e)) << 0) | ((!!(ltrim)) << 2) | ((!!(rtrim)) << 3) | ((base) << 8))
-#define HIO_CHARS_TO_INTMAX_GET_OPTION_E(option) ((option) & 1)
-#define HIO_CHARS_TO_INTMAX_GET_OPTION_LTRIM(option) ((option) & 4)
-#define HIO_CHARS_TO_INTMAX_GET_OPTION_RTRIM(option) ((option) & 8)
-#define HIO_CHARS_TO_INTMAX_GET_OPTION_BASE(option) ((option) >> 8)
+#define HIO_CHARS_TO_INT_MAKE_OPTION(e,ltrim,rtrim,base) (((!!(e)) << 0) | ((!!(ltrim)) << 2) | ((!!(rtrim)) << 3) | ((base) << 8))
+#define HIO_CHARS_TO_INT_GET_OPTION_E(option) ((option) & 1)
+#define HIO_CHARS_TO_INT_GET_OPTION_LTRIM(option) ((option) & 4)
+#define HIO_CHARS_TO_INT_GET_OPTION_RTRIM(option) ((option) & 8)
+#define HIO_CHARS_TO_INT_GET_OPTION_BASE(option) ((option) >> 8)
 
-#define HIO_CHARS_TO_UINTMAX_MAKE_OPTION(e,ltrim,rtrim,base) (((!!(e)) << 0) | ((!!(ltrim)) << 2) | ((!!(rtrim)) << 3) | ((base) << 8))
-#define HIO_CHARS_TO_UINTMAX_GET_OPTION_E(option) ((option) & 1)
-#define HIO_CHARS_TO_UINTMAX_GET_OPTION_LTRIM(option) ((option) & 4)
-#define HIO_CHARS_TO_UINTMAX_GET_OPTION_RTRIM(option) ((option) & 8)
-#define HIO_CHARS_TO_UINTMAX_GET_OPTION_BASE(option) ((option) >> 8)
+#define HIO_CHARS_TO_UINT_MAKE_OPTION(e,ltrim,rtrim,base) (((!!(e)) << 0) | ((!!(ltrim)) << 2) | ((!!(rtrim)) << 3) | ((base) << 8))
+#define HIO_CHARS_TO_UINT_GET_OPTION_E(option) ((option) & 1)
+#define HIO_CHARS_TO_UINT_GET_OPTION_LTRIM(option) ((option) & 4)
+#define HIO_CHARS_TO_UINT_GET_OPTION_RTRIM(option) ((option) & 8)
+#define HIO_CHARS_TO_UINT_GET_OPTION_BASE(option) ((option) >> 8)
 
-#define HIO_OOCHARS_TO_INTMAX_MAKE_OPTION(e,ltrim,rtrim,base)  HIO_CHARS_TO_INTMAX_MAKE_OPTION(e,ltrim,rtrim,base)
-#define HIO_OOCHARS_TO_INTMAX_GET_OPTION_E(option)             HIO_CHARS_TO_INTMAX_GET_OPTION_E(option)
-#define HIO_OOCHARS_TO_INTMAX_GET_OPTION_LTRIM(option)         HIO_CHARS_TO_INTMAX_GET_OPTION_LTRIM(option)
-#define HIO_OOCHARS_TO_INTMAX_GET_OPTION_RTRIM(option)         HIO_CHARS_TO_INTMAX_GET_OPTION_RTRIM(option)
-#define HIO_OOCHARS_TO_INTMAX_GET_OPTION_BASE(option)          HIO_CHARS_TO_INTMAX_GET_OPTION_BASE(option)
+#define HIO_OOCHARS_TO_INTMAX_MAKE_OPTION(e,ltrim,rtrim,base)  HIO_CHARS_TO_INT_MAKE_OPTION(e,ltrim,rtrim,base)
+#define HIO_OOCHARS_TO_INTMAX_GET_OPTION_E(option)             HIO_CHARS_TO_INT_GET_OPTION_E(option)
+#define HIO_OOCHARS_TO_INTMAX_GET_OPTION_LTRIM(option)         HIO_CHARS_TO_INT_GET_OPTION_LTRIM(option)
+#define HIO_OOCHARS_TO_INTMAX_GET_OPTION_RTRIM(option)         HIO_CHARS_TO_INT_GET_OPTION_RTRIM(option)
+#define HIO_OOCHARS_TO_INTMAX_GET_OPTION_BASE(option)          HIO_CHARS_TO_INT_GET_OPTION_BASE(option)
 
-#define HIO_OOCHARS_TO_UINTMAX_MAKE_OPTION(e,ltrim,rtrim,base) HIO_CHARS_TO_UINTMAX_MAKE_OPTION(e,ltrim,rtrim,base)
-#define HIO_OOCHARS_TO_UINTMAX_GET_OPTION_E(option)            HIO_CHARS_TO_UINTMAX_GET_OPTION_E(option)
-#define HIO_OOCHARS_TO_UINTMAX_GET_OPTION_LTRIM(option)        HIO_CHARS_TO_UINTMAX_GET_OPTION_LTRIM(option)
-#define HIO_OOCHARS_TO_UINTMAX_GET_OPTION_RTRIM(option)        HIO_CHARS_TO_UINTMAX_GET_OPTION_RTRIM(option)
-#define HIO_OOCHARS_TO_UINTMAX_GET_OPTION_BASE(option)         HIO_CHARS_TO_UINTMAX_GET_OPTION_BASE(option)
+#define HIO_OOCHARS_TO_UINTMAX_MAKE_OPTION(e,ltrim,rtrim,base) HIO_CHARS_TO_UINT_MAKE_OPTION(e,ltrim,rtrim,base)
+#define HIO_OOCHARS_TO_UINTMAX_GET_OPTION_E(option)            HIO_CHARS_TO_UINT_GET_OPTION_E(option)
+#define HIO_OOCHARS_TO_UINTMAX_GET_OPTION_LTRIM(option)        HIO_CHARS_TO_UINT_GET_OPTION_LTRIM(option)
+#define HIO_OOCHARS_TO_UINTMAX_GET_OPTION_RTRIM(option)        HIO_CHARS_TO_UINT_GET_OPTION_RTRIM(option)
+#define HIO_OOCHARS_TO_UINTMAX_GET_OPTION_BASE(option)         HIO_CHARS_TO_UINT_GET_OPTION_BASE(option)
 
-#define HIO_UCHARS_TO_INTMAX_MAKE_OPTION(e,ltrim,rtrim,base)   HIO_CHARS_TO_INTMAX_MAKE_OPTION(e,ltrim,rtrim,base)
-#define HIO_UCHARS_TO_INTMAX_GET_OPTION_E(option)              HIO_CHARS_TO_INTMAX_GET_OPTION_E(option)
-#define HIO_UCHARS_TO_INTMAX_GET_OPTION_LTRIM(option)          HIO_CHARS_TO_INTMAX_GET_OPTION_LTRIM(option)
-#define HIO_UCHARS_TO_INTMAX_GET_OPTION_RTRIM(option)          HIO_CHARS_TO_INTMAX_GET_OPTION_RTRIM(option)
-#define HIO_UCHARS_TO_INTMAX_GET_OPTION_BASE(option)           HIO_CHARS_TO_INTMAX_GET_OPTION_BASE(option)
+#define HIO_UCHARS_TO_INTMAX_MAKE_OPTION(e,ltrim,rtrim,base)   HIO_CHARS_TO_INT_MAKE_OPTION(e,ltrim,rtrim,base)
+#define HIO_UCHARS_TO_INTMAX_GET_OPTION_E(option)              HIO_CHARS_TO_INT_GET_OPTION_E(option)
+#define HIO_UCHARS_TO_INTMAX_GET_OPTION_LTRIM(option)          HIO_CHARS_TO_INT_GET_OPTION_LTRIM(option)
+#define HIO_UCHARS_TO_INTMAX_GET_OPTION_RTRIM(option)          HIO_CHARS_TO_INT_GET_OPTION_RTRIM(option)
+#define HIO_UCHARS_TO_INTMAX_GET_OPTION_BASE(option)           HIO_CHARS_TO_INT_GET_OPTION_BASE(option)
 
-#define HIO_BCHARS_TO_INTMAX_MAKE_OPTION(e,ltrim,rtrim,base)   HIO_CHARS_TO_INTMAX_MAKE_OPTION(e,ltrim,rtrim,base)
-#define HIO_BCHARS_TO_INTMAX_GET_OPTION_E(option)              HIO_CHARS_TO_INTMAX_GET_OPTION_E(option)
-#define HIO_BCHARS_TO_INTMAX_GET_OPTION_LTRIM(option)          HIO_CHARS_TO_INTMAX_GET_OPTION_LTRIM(option)
-#define HIO_BCHARS_TO_INTMAX_GET_OPTION_RTRIM(option)          HIO_CHARS_TO_INTMAX_GET_OPTION_RTRIM(option)
-#define HIO_BCHARS_TO_INTMAX_GET_OPTION_BASE(option)           HIO_CHARS_TO_INTMAX_GET_OPTION_BASE(option)
+#define HIO_BCHARS_TO_INTMAX_MAKE_OPTION(e,ltrim,rtrim,base)   HIO_CHARS_TO_INT_MAKE_OPTION(e,ltrim,rtrim,base)
+#define HIO_BCHARS_TO_INTMAX_GET_OPTION_E(option)              HIO_CHARS_TO_INT_GET_OPTION_E(option)
+#define HIO_BCHARS_TO_INTMAX_GET_OPTION_LTRIM(option)          HIO_CHARS_TO_INT_GET_OPTION_LTRIM(option)
+#define HIO_BCHARS_TO_INTMAX_GET_OPTION_RTRIM(option)          HIO_CHARS_TO_INT_GET_OPTION_RTRIM(option)
+#define HIO_BCHARS_TO_INTMAX_GET_OPTION_BASE(option)           HIO_CHARS_TO_INT_GET_OPTION_BASE(option)
 
-#define HIO_UCHARS_TO_UINTMAX_MAKE_OPTION(e,ltrim,rtrim,base)  HIO_CHARS_TO_UINTMAX_MAKE_OPTION(e,ltrim,rtrim,base)
-#define HIO_UCHARS_TO_UINTMAX_GET_OPTION_E(option)             HIO_CHARS_TO_UINTMAX_GET_OPTION_E(option)
-#define HIO_UCHARS_TO_UINTMAX_GET_OPTION_LTRIM(option)         HIO_CHARS_TO_UINTMAX_GET_OPTION_LTRIM(option)
-#define HIO_UCHARS_TO_UINTMAX_GET_OPTION_RTRIM(option)         HIO_CHARS_TO_UINTMAX_GET_OPTION_RTRIM(option)
-#define HIO_UCHARS_TO_UINTMAX_GET_OPTION_BASE(option)          HIO_CHARS_TO_UINTMAX_GET_OPTION_BASE(option)
+#define HIO_UCHARS_TO_UINTMAX_MAKE_OPTION(e,ltrim,rtrim,base)  HIO_CHARS_TO_UINT_MAKE_OPTION(e,ltrim,rtrim,base)
+#define HIO_UCHARS_TO_UINTMAX_GET_OPTION_E(option)             HIO_CHARS_TO_UINT_GET_OPTION_E(option)
+#define HIO_UCHARS_TO_UINTMAX_GET_OPTION_LTRIM(option)         HIO_CHARS_TO_UINT_GET_OPTION_LTRIM(option)
+#define HIO_UCHARS_TO_UINTMAX_GET_OPTION_RTRIM(option)         HIO_CHARS_TO_UINT_GET_OPTION_RTRIM(option)
+#define HIO_UCHARS_TO_UINTMAX_GET_OPTION_BASE(option)          HIO_CHARS_TO_UINT_GET_OPTION_BASE(option)
 
-#define HIO_BCHARS_TO_UINTMAX_MAKE_OPTION(e,ltrim,rtrim,base)  HIO_CHARS_TO_UINTMAX_MAKE_OPTION(e,ltrim,rtrim,base)
-#define HIO_BCHARS_TO_UINTMAX_GET_OPTION_E(option)             HIO_CHARS_TO_UINTMAX_GET_OPTION_E(option)
-#define HIO_BCHARS_TO_UINTMAX_GET_OPTION_LTRIM(option)         HIO_CHARS_TO_UINTMAX_GET_OPTION_LTRIM(option)
-#define HIO_BCHARS_TO_UINTMAX_GET_OPTION_RTRIM(option)         HIO_CHARS_TO_UINTMAX_GET_OPTION_RTRIM(option)
-#define HIO_BCHARS_TO_UINTMAX_GET_OPTION_BASE(option)          HIO_CHARS_TO_UINTMAX_GET_OPTION_BASE(option)
+#define HIO_BCHARS_TO_UINTMAX_MAKE_OPTION(e,ltrim,rtrim,base)  HIO_CHARS_TO_UINT_MAKE_OPTION(e,ltrim,rtrim,base)
+#define HIO_BCHARS_TO_UINTMAX_GET_OPTION_E(option)             HIO_CHARS_TO_UINT_GET_OPTION_E(option)
+#define HIO_BCHARS_TO_UINTMAX_GET_OPTION_LTRIM(option)         HIO_CHARS_TO_UINT_GET_OPTION_LTRIM(option)
+#define HIO_BCHARS_TO_UINTMAX_GET_OPTION_RTRIM(option)         HIO_CHARS_TO_UINT_GET_OPTION_RTRIM(option)
+#define HIO_BCHARS_TO_UINTMAX_GET_OPTION_BASE(option)          HIO_CHARS_TO_UINT_GET_OPTION_BASE(option)
 
 HIO_EXPORT hio_intmax_t hio_uchars_to_intmax (
 	const hio_uch_t*  str,
@@ -1104,8 +1104,18 @@ HIO_EXPORT void hio_sip_hash_24 (
 
 /* Some C++ utilities below */
 #if defined(__cplusplus)
-template<CHAR_TYPE, INT_TYPE>fn_chars_to_int(hio_chars_to_uint, CHAR_TYPE, INT_TYPE, hio_is_bch_space, HIO_CHARS_TO_INTMAX)
-template<CHAR_TYPE, UINT_TYPE>fn_chars_to_uint(hio_chars_to_uint, CHAR_TYPE, UINT_TYPE, hio_is_bch_space, HIO_CHARS_TO_UINTMAX)
+
+/*
+static inline int is_space (char c) { return isspace(c); }
+static inline int is_wspace (wchar_t c) { return iswspace(c); }
+unsigned x = hio_chars_to_uint<char,unsigned,is_space>("0x12345", 7, 0, NULL, NULL);
+unsigned y = hio_chars_to_uint<wchar_t,unsigned,is_wspace>(L"0x12345", 7, 0, NULL, NULL);
+int a = hio_chars_to_int<char,int,is_space>("-0x12345", 8, 0, NULL, NULL);
+int b = hio_chars_to_int<wchar_t,int,is_wspace>(L"-0x12345", 8, 0, NULL, NULL);
+*/
+template<typename CHAR_TYPE, typename INT_TYPE, int (*IS_SPACE)(CHAR_TYPE)>fn_chars_to_int(hio_chars_to_int, CHAR_TYPE, INT_TYPE, IS_SPACE, HIO_CHARS_TO_INT)
+template<typename CHAR_TYPE, typename UINT_TYPE, int (*IS_SPACE)(CHAR_TYPE)>fn_chars_to_uint(hio_chars_to_uint, CHAR_TYPE, UINT_TYPE, IS_SPACE, HIO_CHARS_TO_UINT)
+
 #endif
 
 #endif
