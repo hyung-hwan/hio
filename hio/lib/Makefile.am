@@ -8,7 +8,7 @@ CPPFLAGS_ALL_COMMON = \
 CFLAGS_ALL_COMMON  =
 LDFLAGS_ALL_COMMON = -L$(abs_builddir) -L$(libdir)
 
-EXTRA_DIST = utl-str.c.m4
+EXTRA_DIST = hio-utl.h.m4 utl-str.c.m4 
 
 ##################################################
 # MAIN LIBRARY 
@@ -132,5 +132,9 @@ install-data-hook:
 uninstall-hook:
 	@rm -f "$(DESTDIR)$(includedir)/hio-cfg.h"
 
-utl-str.c: utl-str.c.m4
-	m4 $(abs_srcdir)/utl-str.c.m4 > $(abs_srcdir)/utl-str.c
+$(srcdir)/hio-utl.h: utl-str.m4 hio-utl.h.m4
+	m4 -I$(srcdir) $(srcdir)/hio-utl.h.m4 > $(srcdir)/hio-utl.h
+
+utl-str.c: utl-str.m4 utl-str.c.m4 
+	m4 -I$(srcdir) $(srcdir)/utl-str.c.m4 > $(srcdir)/utl-str.c
+
