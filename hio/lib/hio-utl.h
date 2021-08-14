@@ -1135,14 +1135,14 @@ HIO_EXPORT void hio_sip_hash_24 (
 #if defined(__cplusplus)
 
 /*
-static inline int is_space (char c) { return isspace(c); }
-static inline int is_wspace (wchar_t c) { return iswspace(c); }
+static inline bool is_space (char c) { return isspace(c); }
+static inline bool is_wspace (wchar_t c) { return iswspace(c); }
 unsigned x = hio_chars_to_uint<char,unsigned,is_space>("0x12345", 7, 0, NULL, NULL);
 unsigned y = hio_chars_to_uint<wchar_t,unsigned,is_wspace>(L"0x12345", 7, 0, NULL, NULL);
 int a = hio_chars_to_int<char,int,is_space>("-0x12345", 8, 0, NULL, NULL);
 int b = hio_chars_to_int<wchar_t,int,is_wspace>(L"-0x12345", 8, 0, NULL, NULL);
 */
-template<typename CHAR_TYPE, typename INT_TYPE, int (*IS_SPACE)(CHAR_TYPE)>   
+template<typename CHAR_TYPE, typename INT_TYPE, bool(*IS_SPACE)(CHAR_TYPE)>   
 INT_TYPE hio_chars_to_int (const CHAR_TYPE* str, hio_oow_t len, int option, const CHAR_TYPE** endptr, int* is_sober)
 {
 	INT_TYPE n = 0;
@@ -1258,7 +1258,7 @@ INT_TYPE hio_chars_to_int (const CHAR_TYPE* str, hio_oow_t len, int option, cons
 	return (negative)? -n: n;
 }
 
-template<typename CHAR_TYPE, typename UINT_TYPE, int (*IS_SPACE)(CHAR_TYPE)>   
+template<typename CHAR_TYPE, typename UINT_TYPE, bool(*IS_SPACE)(CHAR_TYPE)>   
 UINT_TYPE hio_chars_to_uint (const CHAR_TYPE* str, hio_oow_t len, int option, const CHAR_TYPE** endptr, int* is_sober)
 {
 	UINT_TYPE n = 0;
