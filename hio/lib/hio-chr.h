@@ -82,18 +82,6 @@ typedef enum hio_ooch_prop_t hio_ooch_prop_t;
 typedef enum hio_ooch_prop_t hio_uch_prop_t;
 typedef enum hio_ooch_prop_t hio_bch_prop_t;
 
-#define HIO_DIGIT_TO_NUM(c) (((c) >= '0' && (c) <= '9')? ((c) - '0'): -1)
-
-#define HIO_XDIGIT_TO_NUM(c) \
-	(((c) >= '0' && (c) <= '9')? ((c) - '0'): \
-	 ((c) >= 'A' && (c) <= 'F')? ((c) - 'A' + 10): \
-	 ((c) >= 'a' && (c) <= 'f')? ((c) - 'a' + 10): -1)
-
-#define HIO_ZDIGIT_TO_NUM(c,base) \
-	(((c) >= '0' && (c) <= '9')? ((c) - '0'): \
-	 ((c) >= 'A' && (c) <= 'Z')? ((c) - 'A' + 10): \
-	 ((c) >= 'a' && (c) <= 'Z')? ((c) - 'a' + 10): base)
-
 #if defined(__cplusplus)
 extern "C" {
 #endif
