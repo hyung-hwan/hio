@@ -8,7 +8,10 @@ CPPFLAGS_ALL_COMMON = \
 CFLAGS_ALL_COMMON  =
 LDFLAGS_ALL_COMMON = -L$(abs_builddir) -L$(libdir)
 
-EXTRA_DIST = hio-utl.h.m4 utl-str.c.m4 
+EXTRA_DIST = \
+	hio-utl.h.m4 \
+	utl-str.c.m4 \
+	utl-str.m4
 
 ##################################################
 # MAIN LIBRARY 
