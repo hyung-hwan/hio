@@ -26,7 +26,6 @@
 #include <hio-sck.h>
 #include "hio-prv.h"
 
-typedef struct hio_svc_dhcs_t hio_svc_dhcs_t;
 struct hio_svc_dhcs_t
 {
 	HIO_SVC_HEADER;
