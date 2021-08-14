@@ -251,11 +251,11 @@ am__can_run_installinfo = \
     n|no|NO) false;; \
     *) (install-info --version) >/dev/null 2>&1;; \
   esac
-am__include_HEADERS_DIST = hio-cfg.h hio-chr.h hio-cmn.h hio-dhcp.h \
-	hio-dns.h hio-ecs.h hio-fmt.h hio-htb.h hio-htrd.h hio-htre.h \
-	hio-http.h hio-json.h hio-md5.h hio-nwif.h hio-opt.h \
-	hio-pac1.h hio-path.h hio-pipe.h hio-pro.h hio-rad.h hio-sck.h \
-	hio-skad.h hio-thr.h hio-upac.h hio-utl.h hio.h hio-mar.h
+am__include_HEADERS_DIST = hio-chr.h hio-cmn.h hio-dhcp.h hio-dns.h \
+	hio-ecs.h hio-fmt.h hio-htb.h hio-htrd.h hio-htre.h hio-http.h \
+	hio-json.h hio-md5.h hio-nwif.h hio-opt.h hio-pac1.h \
+	hio-path.h hio-pipe.h hio-pro.h hio-rad.h hio-sck.h hio-skad.h \
+	hio-thr.h hio-upac.h hio-utl.h hio.h hio-mar.h
 HEADERS = $(include_HEADERS)
 am__tagged_files = $(HEADERS) $(SOURCES) $(TAGS_FILES) $(LISP) \
 	hio-cfg.h.in
@@ -446,8 +446,8 @@ LIBADD_LIB_COMMON = $(LIBM)
 #pkgincludedir = $(includedir)
 #pkglibdir = $(libdir)
 #pkgbindir = $(bindir)
-include_HEADERS = hio-cfg.h hio-chr.h hio-cmn.h hio-dhcp.h hio-dns.h \
-	hio-ecs.h hio-fmt.h hio-htb.h hio-htrd.h hio-htre.h hio-http.h \
+include_HEADERS = hio-chr.h hio-cmn.h hio-dhcp.h hio-dns.h hio-ecs.h \
+	hio-fmt.h hio-htb.h hio-htrd.h hio-htre.h hio-http.h \
 	hio-json.h hio-md5.h hio-nwif.h hio-opt.h hio-pac1.h \
 	hio-path.h hio-pipe.h hio-pro.h hio-rad.h hio-sck.h hio-skad.h \
 	hio-thr.h hio-upac.h hio-utl.h hio.h $(am__append_1)
