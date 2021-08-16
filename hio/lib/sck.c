@@ -2464,12 +2464,18 @@ int hio_dev_sck_timedwritev (hio_dev_sck_t* dev, hio_iovec_t* iov, hio_iolen_t i
 /* ========================================================================= */
 int hio_dev_sck_setsockopt (hio_dev_sck_t* dev, int level, int optname, void* optval, hio_scklen_t optlen)
 {
-	return setsockopt(dev->hnd, level, optname, optval, optlen);
+	int n;
+	n = setsockopt(dev->hnd, level, optname, optval, optlen);
+	if (n <= -1) hio_seterrwithsyserr (dev->hio, 0, errno);
+	return n;
 }
 
 int hio_dev_sck_getsockopt (hio_dev_sck_t* dev, int level, int optname, void* optval, hio_scklen_t* optlen)
 {
-	return getsockopt(dev->hnd, level, optname, optval, optlen);
+	int n;
+	n = getsockopt(dev->hnd, level, optname, optval, optlen);
+	if (n <= -1) hio_seterrwithsyserr (dev->hio, 0, errno);
+	return n;
 }
 
 int hio_dev_sck_getsockaddr (hio_dev_sck_t* dev, hio_skad_t* skad)
@@ -2501,6 +2507,42 @@ int hio_dev_sck_getpeeraddr (hio_dev_sck_t* dev, hio_skad_t* skad)
 	}
 	return 0;
 }
+
+int hio_dev_sck_joinmcastgroup (hio_dev_sck_t* dev, const hio_skad_t* mcast_skad, int ifindex)
+{
+	int f;
+
+	f = hio_skad_family(mcast_skad);
+	switch (f)
+	{
+		case HIO_AF_INET:
+		{
+			struct ip_mreqn mreq;
+			HIO_MEMSET (&mreq, 0, HIO_SIZEOF(mreq));
+			//mreq.imr_multiaddr
+			mreq.imr_ifindex = ifindex;
+			/*mreq.imr_address = */
+			if (hio_dev_sck_setsockopt(dev, IPPROTO_IP, IP_ADD_MEMBERSHIP, &mreq, HIO_SIZEOF(mreq)) <= -1) return -1;
+			return 0;
+		}
+
+		case HIO_AF_INET6:
+		{
+			struct ipv6_mreq mreq;
+			HIO_MEMSET (&mreq, 0, HIO_SIZEOF(mreq));
+			mreq.ipv6mr_interface = ifindex; /* TODO: can reuse the scope id? */
+			//mreq.ipv6mr_multiaddr = hio_skad_ip6ad();
+			if (hio_dev_sck_setsockopt(dev, IPPROTO_IP, IPV6_JOIN_GROUP, &mreq, HIO_SIZEOF(mreq)) <= -1) return -1;
+			return 0;
+		}
+	}
+	
+
+	hio_seterrbfmt (hio_dev_sck_gethio(dev), HIO_EINVAL, "invalid multicast address family");
+	return -1;
+}
+
+/* ========================================================================= */
 
 int hio_dev_sck_shutdown (hio_dev_sck_t* dev, int how)
 {

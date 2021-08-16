@@ -34,6 +34,61 @@ struct hio_svc_dhcs_t
 };
 
 
+/*                         
+                   binding address         link address for relay.
+lo                 ip address of lo        unspec
+lo/::1,            [::1]:547               
+lo/[::1]:544       [::1]:544                           
+lo/[::1]:544/xxx   [::1]:544               xxx
+
+join multicast group??
+*/
+
+struct hio_svc_dhcs_cfg_t
+{
+	hio_skad_t bind_addr; /* if this is link local? */
+	hio_skad_t link_addr; /* want to use a different link address for relay? << if the peer address is link local, need to set this*/
+	const hio_bch_t* ifce_id; /* want to set Interface-ID? */
+};
+
+typedef struct hio_svc_dhcs_cfg_t hio_svc_dhcs_cfg_t;
+
+static hio_dev_sck_t* open_socket (hio_t* hio, hio_svc_dhcs_cfg_t* cfg)
+{
+	hio_dev_sck_make_t m;
+	hio_dev_sck_t* sck = HIO_NULL;
+	int f;
+
+	f = hio_skad_family(&cfg->bind_addr);
+	if (f != HIO_AF_INET || f != HIO_AF_INET6) 
+	{
+		hio_seterrbfmt (hio, HIO_EINVAL, "invalid bind address family");
+		goto oops;
+	}
+
+	HIO_MEMSET (&m, 0, HIO_SIZEOF(m));
+	m.type = HIO_DEV_SCK_UDP6;
+	m.options = HIO_DEV_SCK_BIND_REUSEADDR | HIO_DEV_SCK_BIND_REUSEPORT | HIO_DEV_SCK_BIND_IGNERR;
+	//m.on_write = 
+	//m.on_read = ...
+	//m.on_connect = ...
+	//m.on_disconnect = ...
+	sck = hio_dev_sck_make(hio, 0, &m);
+	if (HIO_UNLIKELY(!sck)) goto oops;
+
+
+#if 0
+	if (hio_dev_sck_joingroup(sck, mcast_addr, ifindex) <= -1) goto oops;
+#endif
+
+
+	return sck;
+
+oops:
+	if (sck) hio_dev_sck_kill (sck);
+	return HIO_NULL;
+}
+
 hio_svc_dhcs_t* hio_svc_dhcs_start (hio_t* hio, const hio_skad_t* local_binds, hio_oow_t local_nbinds)
 {
 	hio_svc_dhcs_t* dhcs;
@@ -48,6 +103,7 @@ hio_svc_dhcs_t* hio_svc_dhcs_start (hio_t* hio, const hio_skad_t* local_binds, h
 	if (HIO_UNLIKELY(!dhcs)) goto oops;
 
 	dhcs->hio = hio;
+
 
 	for (i = 0; i < local_nbinds; i++)
 	{
