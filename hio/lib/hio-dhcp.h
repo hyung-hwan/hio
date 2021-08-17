@@ -26,7 +26,7 @@
 #define _HIO_DHCP_H_
 
 #include <hio.h>
-#include <hio-skad.h>
+#include <hio-sck.h>
 
 #define HIO_DHCP6_SERVER_PORT     (547)
 #define HIO_DHCP6_CLIENT_PORT     (546)
@@ -97,7 +97,6 @@ typedef struct hio_dhcp6_pktinf_t hio_dhcp6_pktinf_t;
 
 /* ---------------------------------------------------------------- */
 
-
 typedef struct hio_svc_dhcs_t hio_svc_dhcs_t; 
 
 /* ---------------------------------------------------------------- */
@@ -110,20 +109,10 @@ HIO_EXPORT hio_svc_dhcs_t* hio_svc_dhcs_start (
 	hio_t*             hio,
 	const hio_skad_t*  local_binds,
 	hio_oow_t          local_nbinds
-
-
-#if 0
-	,
-	const hio_skad_t*  serv_addr, /* required */
-	const hio_skad_t*  bind_addr, /* optional. can be HIO_NULL */
-	const hio_ntime_t* send_tmout, /* required */
-	const hio_ntime_t* reply_tmout, /* required */
-	hio_oow_t          max_tries /* required */
-#endif
 );
 
 HIO_EXPORT void hio_svc_dhcs_stop (
-	hio_svc_dhcs_t* dhcs
+	hio_svc_dhcs_t*    dhcs
 );
 
 #if defined(HIO_HAVE_INLINE)

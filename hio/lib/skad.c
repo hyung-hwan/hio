@@ -42,6 +42,12 @@
 #	include <net/if_dl.h>
 #endif
 
+struct sockaddr_extra_t
+{
+	hio_uint16_t chan;
+};
+typedef struct sockaddr_extra_t sockaddr_extra_t;
+
 #if (HIO_SIZEOF_STRUCT_SOCKADDR_IN > 0)
 /* dirty hack to secure more space at the end of the actual socket address.
  * the extra fiels must be transparent to unaware parties.
@@ -50,12 +56,12 @@
  *
  * extra fields:
  *   chan - used as a stream number for SCTP PACKETSEQ sockets. 
- *          use hio_skad_chan() and hio_skad_setchan() for safe access.
+ *          use hio_skad_get_chan() and hio_skad_set_chan() for safe access.
  */
 struct sockaddr_in_x 
 {
 	struct sockaddr_in a;
-	hio_uint16_t chan;
+	sockaddr_extra_t x;
 };
 #endif
 
@@ -63,7 +69,7 @@ struct sockaddr_in_x
 struct sockaddr_in6_x
 {
 	struct sockaddr_in6 a;
-	hio_uint16_t chan;
+	sockaddr_extra_t x;
 };
 #endif
 
@@ -1002,7 +1008,7 @@ hio_oow_t hio_skadtoucstr (hio_t* hio, const hio_skad_t* _skad, hio_uch_t* buf, 
 
 	/* unsupported types will result in an empty string */
 
-	switch (hio_skad_family(_skad))
+	switch (hio_skad_get_family(_skad))
 	{
 		case HIO_AF_INET:
 			if (flags & HIO_SKAD_TO_UCSTR_ADDR)
@@ -1263,7 +1269,7 @@ hio_oow_t hio_skadtobcstr (hio_t* hio, const hio_skad_t* _skad, hio_bch_t* buf, 
 
 	/* unsupported types will result in an empty string */
 
-	switch (hio_skad_family(_skad))
+	switch (hio_skad_get_family(_skad))
 	{
 		case HIO_AF_INET:
 			if (flags & HIO_SKAD_TO_BCSTR_ADDR)
@@ -1382,17 +1388,17 @@ done:
 /* ------------------------------------------------------------------------- */
 
 
-int hio_skad_family (const hio_skad_t* _skad)
+int hio_skad_get_family (const hio_skad_t* _skad)
 {
 	const hio_skad_alt_t* skad = (const hio_skad_alt_t*)_skad;
 	/*HIO_STATIC_ASSERT (HIO_SIZEOF(*_skad) >= HIO_SIZEOF(*skad));*/
 	return skad->sa.sa_family;
 }
 
-int hio_skad_size (const hio_skad_t* _skad)
+int hio_skad_get_size (const hio_skad_t* _skad)
 {
-	/* this excludes the size of the 'chan' field.
-	 * the field is not part of the core socket address */
+	/* this excludes the size of additiona fields(e.g. chan)
+	 * the fields are not part of the core socket address */
 
 	const hio_skad_alt_t* skad = (const hio_skad_alt_t*)_skad;
 	/*HIO_STATIC_ASSERT (HIO_SIZEOF(*_skad) >= HIO_SIZEOF(*skad));*/
@@ -1419,7 +1425,7 @@ int hio_skad_size (const hio_skad_t* _skad)
 	return 0;
 }
 
-int hio_skad_port (const hio_skad_t* _skad)
+int hio_skad_get_port (const hio_skad_t* _skad)
 {
 	const hio_skad_alt_t* skad = (const hio_skad_alt_t*)_skad;
 
@@ -1435,7 +1441,7 @@ int hio_skad_port (const hio_skad_t* _skad)
 	return 0;
 }
 
-int hio_skad_ifindex (const hio_skad_t* _skad)
+int hio_skad_get_ifindex (const hio_skad_t* _skad)
 {
 	const hio_skad_alt_t* skad = (const hio_skad_alt_t*)_skad;
 
@@ -1449,7 +1455,7 @@ int hio_skad_ifindex (const hio_skad_t* _skad)
 	return 0;
 }
 
-int hio_skad_scope_id (const hio_skad_t* _skad)
+int hio_skad_get_scope_id (const hio_skad_t* _skad)
 {
 	const hio_skad_alt_t* skad = (const hio_skad_alt_t*)_skad;
 
@@ -1469,17 +1475,17 @@ void hio_skad_set_scope_id (hio_skad_t* _skad, int scope_id)
 #endif
 }
 
-hio_uint16_t hio_skad_chan (const hio_skad_t* _skad)
+hio_uint16_t hio_skad_get_chan (const hio_skad_t* _skad)
 {
 	const hio_skad_alt_t* skad = (const hio_skad_alt_t*)_skad;
 
 	switch (skad->sa.sa_family)
 	{
 	#if defined(AF_INET) && (HIO_SIZEOF_STRUCT_SOCKADDR_IN > 0)
-		case AF_INET: return skad->in4.chan;
+		case AF_INET: return skad->in4.x.chan;
 	#endif
 	#if defined(AF_INET6) && (HIO_SIZEOF_STRUCT_SOCKADDR_IN6 > 0)
-		case AF_INET6: return skad->in6.chan;
+		case AF_INET6: return skad->in6.x.chan;
 	#endif
 	}
 	return 0;
@@ -1492,12 +1498,36 @@ void hio_skad_set_chan (hio_skad_t* _skad, hio_uint16_t chan)
 	switch (skad->sa.sa_family)
 	{
 	#if defined(AF_INET) && (HIO_SIZEOF_STRUCT_SOCKADDR_IN > 0)
-		case AF_INET: skad->in4.chan = chan; break;
+		case AF_INET: skad->in4.x.chan = chan; break;
 	#endif
 	#if defined(AF_INET6) && (HIO_SIZEOF_STRUCT_SOCKADDR_IN6 > 0)
-		case AF_INET6: skad->in6.chan = chan; break;
+		case AF_INET6: skad->in6.x.chan = chan; break;
 	#endif
 	}
+}
+
+hio_oow_t hio_skad_get_ipad_bytes (hio_skad_t* _skad, void* buf, hio_oow_t len)
+{
+	hio_skad_alt_t* skad = (hio_skad_alt_t*)_skad;
+	hio_oow_t outlen = 0;
+
+	switch (skad->sa.sa_family)
+	{
+	#if defined(AF_INET) && (HIO_SIZEOF_STRUCT_SOCKADDR_IN > 0)
+		case AF_INET:
+			outlen = len < HIO_SIZEOF(skad->in4.a.sin_addr)? len: HIO_SIZEOF(skad->in4.a.sin_addr);
+			HIO_MEMCPY (buf, &skad->in4.a.sin_addr, outlen);
+			break;
+	#endif
+	#if defined(AF_INET6) && (HIO_SIZEOF_STRUCT_SOCKADDR_IN6 > 0)
+		case AF_INET6:
+			outlen = len < HIO_SIZEOF(skad->in6.a.sin6_addr)? len: HIO_SIZEOF(skad->in6.a.sin6_addr);
+			HIO_MEMCPY (buf, &skad->in6.a.sin6_addr, outlen);
+			break;
+	#endif
+	}
+
+	return outlen;
 }
 
 void hio_skad_init_for_ip4 (hio_skad_t* skad, hio_uint16_t port, hio_ip4ad_t* ip4ad)
@@ -1603,8 +1633,8 @@ int hio_equal_skads (const hio_skad_t* addr1, const hio_skad_t* addr2, int stric
 {
 	int f1;
 
-	if ((f1 = hio_skad_family(addr1)) != hio_skad_family(addr2) ||
-	    hio_skad_size(addr1) != hio_skad_size(addr2)) return 0;
+	if ((f1 = hio_skad_get_family(addr1)) != hio_skad_get_family(addr2) ||
+	    hio_skad_get_size(addr1) != hio_skad_get_size(addr2)) return 0;
 
 	switch (f1)
 	{
@@ -1637,7 +1667,7 @@ int hio_equal_skads (const hio_skad_t* addr1, const hio_skad_t* addr2, int stric
 	#endif
 
 		default:
-			return HIO_MEMCMP(addr1, addr2, hio_skad_size(addr1)) == 0;
+			return HIO_MEMCMP(addr1, addr2, hio_skad_get_size(addr1)) == 0;
 	}
 }
 

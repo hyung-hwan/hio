@@ -465,9 +465,9 @@ static int tcp_sck_on_read (hio_dev_sck_t* sck, const void* buf, hio_iolen_t len
 {
 	/* won't be invoked 
 	 * invokde if sctp_sp */
+#if 0
 	hio_iovec_t iov;
 
-#if 0
 /* the code here is invoked on a seqpacket socket. .. this part not ready. will rewrite if the core support is done */
 printf ("[%.*s] chan %d\n", (int)len, buf, hio_skad_chan(srcaddr));
 iov.iov_ptr = buf;
@@ -502,7 +502,7 @@ static int add_listener (hio_t* hio, hio_bch_t* addrstr)
 #endif
 
 	memset (&mi, 0, HIO_SIZEOF(mi));
-	f = hio_skad_family(&bi.localaddr);
+	f = hio_skad_get_family(&bi.localaddr);
 	if (f == HIO_AF_INET) mi.type = g_dev_type4;
 	else if (f == HIO_AF_INET6) mi.type = g_dev_type6;
 	else if (f == HIO_AF_UNIX) mi.type = HIO_DEV_SCK_UNIX;
@@ -644,6 +644,12 @@ int main (int argc, char* argv[])
 	 * don't check for an error to continue without it in case it fails. */
 	unlink ("t06.sck");
 	add_listener(hio, "@t06.sck");
+
+{
+hio_skad_t skad;
+hio_bcstrtoskad(hio, "[::]:3547", &skad);
+hio_svc_dhcs_start (hio, &skad, 1);
+}
 
 	hio_loop (hio);
 

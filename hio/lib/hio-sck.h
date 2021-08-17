@@ -580,7 +580,6 @@ HIO_EXPORT int hio_dev_sck_getsockopt (
 	hio_scklen_t*  optlen
 );
 
-
 HIO_EXPORT int hio_dev_sck_getsockaddr (
 	hio_dev_sck_t* dev,
 	hio_skad_t*    skad
@@ -589,6 +588,18 @@ HIO_EXPORT int hio_dev_sck_getsockaddr (
 HIO_EXPORT int hio_dev_sck_getpeeraddr (
 	hio_dev_sck_t* dev,
 	hio_skad_t*    skad
+);
+
+HIO_EXPORT int hio_dev_sck_joinmcastgroup (
+	hio_dev_sck_t*    dev,
+	const hio_skad_t* mcast_skad,
+	int               ifindex
+);
+
+HIO_EXPORT int hio_dev_sck_leavemcastgroup (
+	hio_dev_sck_t*    dev,
+	const hio_skad_t* mcast_skad,
+	int               ifindex
 );
 
 HIO_EXPORT int hio_dev_sck_shutdown (

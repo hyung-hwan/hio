@@ -228,7 +228,7 @@ int main (int argc, char* argv[])
 	tcp_conn.options = 0;
 
 	memset (&tcp_make, 0, HIO_SIZEOF(tcp_make));
-	tcp_make.type = hio_skad_family(&tcp_conn.remoteaddr) == HIO_AF_INET? HIO_DEV_SCK_TCP4: HIO_DEV_SCK_TCP6;
+	tcp_make.type = hio_skad_get_family(&tcp_conn.remoteaddr) == HIO_AF_INET? HIO_DEV_SCK_TCP4: HIO_DEV_SCK_TCP6;
 	tcp_make.on_write = tcp_sck_on_write;
 	tcp_make.on_read = tcp_sck_on_read;
 	tcp_make.on_connect = tcp_sck_on_connect;

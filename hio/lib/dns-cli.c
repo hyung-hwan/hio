@@ -471,7 +471,7 @@ static int switch_reqmsg_transport_to_tcp (hio_svc_dnc_t* dnc, hio_dns_msg_t* re
 	if (!dnc->tcp_sck)
 	{
 		HIO_MEMSET (&mkinfo, 0, HIO_SIZEOF(mkinfo));
-		switch (hio_skad_family(&reqmsgxtn->servaddr))
+		switch (hio_skad_get_family(&reqmsgxtn->servaddr))
 		{
 			case HIO_AF_INET:
 				mkinfo.type = HIO_DEV_SCK_TCP4;
@@ -736,7 +736,7 @@ hio_svc_dnc_t* hio_svc_dnc_start (hio_t* hio, const hio_skad_t* serv_addr, const
 	dnc->max_tries = max_tries;
 
 	HIO_MEMSET (&mkinfo, 0, HIO_SIZEOF(mkinfo));
-	switch (hio_skad_family(serv_addr))
+	switch (hio_skad_get_family(serv_addr))
 	{
 		case HIO_AF_INET:
 			mkinfo.type = HIO_DEV_SCK_UDP4;

@@ -205,7 +205,7 @@ static hio_devaddr_t* skad_to_devaddr (hio_dev_sck_t* dev, const hio_skad_t* sck
 	if (sckaddr)
 	{
 		devaddr->ptr = (void*)sckaddr;
-		devaddr->len = hio_skad_size(sckaddr);
+		devaddr->len = hio_skad_get_size(sckaddr);
 		return devaddr;
 	}
 
@@ -1014,7 +1014,7 @@ static int dev_sck_write_sctp_sp (hio_dev_t* dev, const void* data, hio_iolen_t*
 		&iov, 1, dstaddr->ptr, dstaddr->len, 
 		0, /* ppid - opaque */
 		0, /* flags (e.g. SCTP_UNORDERED, SCTP_EOF, SCT_ABORT, ...) */
-		hio_skad_chan(dstaddr->ptr), /* stream number */
+		hio_skad_get_chan(dstaddr->ptr), /* stream number */
 		0, /* ttl */
 		0 /* context*/);
 	if (x <= -1) 
@@ -1039,7 +1039,7 @@ static int dev_sck_writev_sctp_sp (hio_dev_t* dev, const hio_iovec_t* iov, hio_i
 		iov, *iovcnt, dstaddr->ptr, dstaddr->len, 
 		0, /* ppid - opaque */
 		0, /* flags (e.g. SCTP_UNORDERED, SCTP_EOF, SCT_ABORT, ...) */
-		hio_skad_chan(dstaddr->ptr), /* stream number */
+		hio_skad_get_chan(dstaddr->ptr), /* stream number */
 		0, /* ttl */
 		0 /* context*/);
 	if (x <= -1) 
@@ -1239,7 +1239,7 @@ static int dev_sck_ioctl (hio_dev_t* dev, int cmd, void* arg)
 				return -1;
 			}
 
-			if (hio_skad_family(&bnd->localaddr) == HIO_AF_INET6) /* getsockopt(rdev->hnd, SO_DOMAIN, ...) may return the domain but it's kernel specific as well */
+			if (hio_skad_get_family(&bnd->localaddr) == HIO_AF_INET6) /* getsockopt(rdev->hnd, SO_DOMAIN, ...) may return the domain but it's kernel specific as well */
 			{
 				/* TODO: should i make it into bnd->options? HIO_DEV_SCK_BIND_IPV6ONLY? applicable to ipv6 though. */
 				int v = 1;
@@ -1375,7 +1375,7 @@ static int dev_sck_ioctl (hio_dev_t* dev, int cmd, void* arg)
 			#endif
 			}
 
-			x = bind(rdev->hnd, (struct sockaddr*)&bnd->localaddr, hio_skad_size(&bnd->localaddr));
+			x = bind(rdev->hnd, (struct sockaddr*)&bnd->localaddr, hio_skad_get_size(&bnd->localaddr));
 			if (x <= -1)
 			{
 				hio_seterrwithsyserr (hio, 0, errno);
@@ -1859,7 +1859,7 @@ static int make_accepted_client_connection (hio_dev_sck_t* rdev, hio_syshnd_t cl
 	{
 		clidev->state |= HIO_DEV_SCK_INTERCEPTED;
 	}
-	else if (hio_skad_port(&clidev->localaddr) != hio_skad_port(&rdev->localaddr))
+	else if (hio_skad_get_port(&clidev->localaddr) != hio_skad_get_port(&rdev->localaddr))
 	{
 		/* When TPROXY is used, getsockname() and SO_ORIGNAL_DST return
 		 * the same addresses. however, the port number may be different
@@ -2508,21 +2508,22 @@ int hio_dev_sck_getpeeraddr (hio_dev_sck_t* dev, hio_skad_t* skad)
 	return 0;
 }
 
-int hio_dev_sck_joinmcastgroup (hio_dev_sck_t* dev, const hio_skad_t* mcast_skad, int ifindex)
+static int update_mcast_group (hio_dev_sck_t* dev, int join, const hio_skad_t* mcast_skad, int ifindex)
 {
 	int f;
 
-	f = hio_skad_family(mcast_skad);
+	f = hio_skad_get_family(mcast_skad);
 	switch (f)
 	{
 		case HIO_AF_INET:
 		{
+			/* TODO: if ip_mreqn doesn't exist, get the ip address of the index and set to imr_address */
 			struct ip_mreqn mreq;
 			HIO_MEMSET (&mreq, 0, HIO_SIZEOF(mreq));
-			//mreq.imr_multiaddr
+			hio_skad_get_ipad_bytes (mcast_skad, &mreq.imr_multiaddr, HIO_SIZEOF(mreq.imr_multiaddr));
 			mreq.imr_ifindex = ifindex;
 			/*mreq.imr_address = */
-			if (hio_dev_sck_setsockopt(dev, IPPROTO_IP, IP_ADD_MEMBERSHIP, &mreq, HIO_SIZEOF(mreq)) <= -1) return -1;
+			if (hio_dev_sck_setsockopt(dev, IPPROTO_IP, (join? IP_ADD_MEMBERSHIP: IP_DROP_MEMBERSHIP), &mreq, HIO_SIZEOF(mreq)) <= -1) return -1;
 			return 0;
 		}
 
@@ -2530,9 +2531,9 @@ int hio_dev_sck_joinmcastgroup (hio_dev_sck_t* dev, const hio_skad_t* mcast_skad
 		{
 			struct ipv6_mreq mreq;
 			HIO_MEMSET (&mreq, 0, HIO_SIZEOF(mreq));
-			mreq.ipv6mr_interface = ifindex; /* TODO: can reuse the scope id? */
-			//mreq.ipv6mr_multiaddr = hio_skad_ip6ad();
-			if (hio_dev_sck_setsockopt(dev, IPPROTO_IP, IPV6_JOIN_GROUP, &mreq, HIO_SIZEOF(mreq)) <= -1) return -1;
+			hio_skad_get_ipad_bytes (mcast_skad, &mreq.ipv6mr_multiaddr, HIO_SIZEOF(mreq.ipv6mr_multiaddr));
+			mreq.ipv6mr_interface = ifindex;
+			if (hio_dev_sck_setsockopt(dev, IPPROTO_IPV6, (join? IPV6_JOIN_GROUP: IPV6_LEAVE_GROUP), &mreq, HIO_SIZEOF(mreq)) <= -1) return -1;
 			return 0;
 		}
 	}
@@ -2540,6 +2541,16 @@ int hio_dev_sck_joinmcastgroup (hio_dev_sck_t* dev, const hio_skad_t* mcast_skad
 
 	hio_seterrbfmt (hio_dev_sck_gethio(dev), HIO_EINVAL, "invalid multicast address family");
 	return -1;
+}
+
+int hio_dev_sck_joinmcastgroup (hio_dev_sck_t* dev, const hio_skad_t* mcast_skad, int ifindex)
+{
+	return update_mcast_group(dev, 1, mcast_skad, ifindex);
+}
+
+int hio_dev_sck_leavemcastgroup (hio_dev_sck_t* dev, const hio_skad_t* mcast_skad, int ifindex)
+{
+	return update_mcast_group(dev, 0, mcast_skad, ifindex);
 }
 
 /* ========================================================================= */

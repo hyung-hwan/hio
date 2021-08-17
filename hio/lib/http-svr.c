@@ -366,7 +366,7 @@ hio_svc_htts_t* hio_svc_htts_start (hio_t* hio, hio_dev_sck_bind_t* binds, hio_o
 		hio_dev_sck_t* sck;
 
 		HIO_MEMSET (&info, 0, HIO_SIZEOF(info));
-		switch (hio_skad_family(&binds[i].localaddr))
+		switch (hio_skad_get_family(&binds[i].localaddr))
 		{
 			case HIO_AF_INET:
 				info.m.type = HIO_DEV_SCK_TCP4;
@@ -388,7 +388,7 @@ hio_svc_htts_t* hio_svc_htts_start (hio_t* hio, hio_dev_sck_bind_t* binds, hio_o
 
 			default:
 				/* ignore this */
-				HIO_DEBUG3 (hio, "HTTS(%p) - [%zu] unsupported bind address type %d\n", htts, i, (int)hio_skad_family(&binds[i].localaddr));
+				HIO_DEBUG3 (hio, "HTTS(%p) - [%zu] unsupported bind address type %d\n", htts, i, (int)hio_skad_get_family(&binds[i].localaddr));
 				continue;
 		}
 		info.m.options = HIO_DEV_SCK_MAKE_LENIENT;

@@ -469,17 +469,25 @@ then
 	AC_CHECK_SIZEOF(struct sockaddr_in_x,,[
 		#include <winsock2.h>
 		#include <ws2tcpip.h>
+		struct sockaddr_extra_t
+		{
+			unsigned short chan;
+		}
 		struct sockaddr_in_x { 
 			struct sockaddr_in a; 
-			unsigned short chan; 
+			struct sockaddr_extra_t u; 
 		};
 	])
 	AC_CHECK_SIZEOF(struct sockaddr_in6_x,,[
 		#include <winsock2.h>
 		#include <ws2tcpip.h>
+		struct sockaddr_extra_t
+		{
+			unsigned short chan;
+		};
 		struct sockaddr_in6_x { 
 			struct sockaddr_in6 a;
-			unsigned short chan; 
+			struct sockaddr_extra_t u; 
 		};
 	])
 
@@ -539,18 +547,26 @@ else
 		#include <sys/types.h>
 		#include <sys/socket.h>
 		#include <netinet/in.h>
+		struct sockaddr_extra_t
+		{
+			unsigned short chan;
+		};
 		struct sockaddr_in_x { 
 			struct sockaddr_in a; 
-			unsigned short chan; 
+			struct sockaddr_extra_t u; 
 		};
 	])
 	AC_CHECK_SIZEOF(struct sockaddr_in6_x,,[
 		#include <sys/types.h>
 		#include <sys/socket.h>
 		#include <netinet/in.h>
+		struct sockaddr_extra_t
+		{
+			unsigned short chan;
+		};
 		struct sockaddr_in6_x { 
 			struct sockaddr_in6 a;
-			unsigned short chan; 
+			struct sockaddr_extra_t u; 
 		};
 	])
 
