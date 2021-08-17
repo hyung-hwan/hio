@@ -2518,11 +2518,17 @@ static int update_mcast_group (hio_dev_sck_t* dev, int join, const hio_skad_t* m
 		case HIO_AF_INET:
 		{
 			/* TODO: if ip_mreqn doesn't exist, get the ip address of the index and set to imr_address */
+		#if defined(HAVE_STRUCT_IP_MREQN)
 			struct ip_mreqn mreq;
+		#else
+			struct ip_mreq mreq;
+		#endif
 			HIO_MEMSET (&mreq, 0, HIO_SIZEOF(mreq));
 			hio_skad_get_ipad_bytes (mcast_skad, &mreq.imr_multiaddr, HIO_SIZEOF(mreq.imr_multiaddr));
+			/*mreq.imr_address = TODO: fill it will the ifindex's ip address */
+		#if defined(HAVE_STRUCT_IP_MREQN)
 			mreq.imr_ifindex = ifindex;
-			/*mreq.imr_address = */
+		#endif
 			if (hio_dev_sck_setsockopt(dev, IPPROTO_IP, (join? IP_ADD_MEMBERSHIP: IP_DROP_MEMBERSHIP), &mreq, HIO_SIZEOF(mreq)) <= -1) return -1;
 			return 0;
 		}

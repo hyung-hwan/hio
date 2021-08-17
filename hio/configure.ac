@@ -352,6 +352,11 @@ AC_CHECK_TYPES([struct timespec], [], [],
 	 #include <sys/time.h>
 	 #endif])
 
+AC_CHECK_TYPES([struct ip_mreqn], [], [],
+	[#include <sys/types.h> 
+	 #include <sys/socket.h> 
+	 #include <netinet/in.h>])
+
 AC_MSG_CHECKING([for va_copy])
 AC_TRY_LINK(
 	[#include <stdarg.h>],
