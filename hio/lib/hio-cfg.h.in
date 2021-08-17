@@ -352,6 +352,9 @@
 /* Define to 1 if the system has the type `struct if_laddrreq'. */
 #undef HAVE_STRUCT_IF_LADDRREQ
 
+/* Define to 1 if the system has the type `struct ip_mreqn'. */
+#undef HAVE_STRUCT_IP_MREQN
+
 /* Define to 1 if the system has the type `struct lifconf'. */
 #undef HAVE_STRUCT_LIFCONF
 
