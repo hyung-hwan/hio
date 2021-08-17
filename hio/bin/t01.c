@@ -369,7 +369,7 @@ static int arp_sck_on_read (hio_dev_sck_t* dev, const void* data, hio_iolen_t dl
 
 	eap = (hio_etharp_pkt_t*)data;
 
-	printf ("ARP ON IFINDEX %d OPCODE: %d", hio_skad_ifindex(srcaddr), ntohs(eap->arphdr.opcode));
+	printf ("ARP ON IFINDEX %d OPCODE: %d", hio_skad_get_ifindex(srcaddr), ntohs(eap->arphdr.opcode));
 
 	printf (" SHA: %02X:%02X:%02X:%02X:%02X:%02X", eap->arppld.sha[0], eap->arppld.sha[1], eap->arppld.sha[2], eap->arppld.sha[3], eap->arppld.sha[4], eap->arppld.sha[5]);
 	printf (" SPA: %d.%d.%d.%d", eap->arppld.spa[0], eap->arppld.spa[1], eap->arppld.spa[2], eap->arppld.spa[3]);

@@ -194,23 +194,25 @@ HIO_EXPORT void hio_skad_init_for_qx (
 	hio_skad_t*        skad
 );
 
-HIO_EXPORT int hio_skad_family (
+HIO_EXPORT int hio_skad_get_family (
 	const hio_skad_t* skad
 );
 
-HIO_EXPORT int hio_skad_size (
+HIO_EXPORT int hio_skad_get_size (
 	const hio_skad_t* skad
 );
 
-HIO_EXPORT int hio_skad_port (
+HIO_EXPORT int hio_skad_get_port (
 	const hio_skad_t* skad
 );
 
-HIO_EXPORT int hio_skad_ifindex (
+/* for link-level addresses */
+HIO_EXPORT int hio_skad_get_ifindex (
 	const hio_skad_t* skad
 );
 
-HIO_EXPORT int hio_skad_scope_id (
+/* for ipv6 */
+HIO_EXPORT int hio_skad_get_scope_id (
 	const hio_skad_t* skad
 );
 
@@ -219,13 +221,20 @@ HIO_EXPORT void hio_skad_set_scope_id (
 	int               scope_id
 );
 
-HIO_EXPORT hio_uint16_t hio_skad_chan (
+/* for sctp */
+HIO_EXPORT hio_uint16_t hio_skad_get_chan (
 	const hio_skad_t* skad
 );
 
 HIO_EXPORT void hio_skad_set_chan (
 	hio_skad_t*       skad,
 	hio_uint16_t      chan
+);
+
+HIO_EXPORT hio_oow_t hio_skad_get_ipad_bytes (
+	hio_skad_t*       skad,
+	void*             buf,
+	hio_oow_t         len
 );
 
 HIO_EXPORT void hio_clear_skad (
