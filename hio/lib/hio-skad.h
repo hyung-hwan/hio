@@ -277,6 +277,20 @@ HIO_EXPORT int hio_bchars_to_ipad_bytes (
 	hio_oow_t          blen
 );
 
+
+#define hio_ucstr_to_ipad_bytes(str,buf,blen) hio_uchars_to_ipad_bytes(str, hio_count_ucstr(str,buf,len)
+#define hio_bcstr_to_ipad_bytes(str,buf,blen) hio_bchars_to_ipad_bytes(str, hio_count_bcstr(str,buf,len)
+
+#if defined(HIO_OOCH_IS_UCH)
+#	define hio_ipad_bytes_to_oocstr hio_ipad_bytes_to_ucstr
+#	define hio_oochars_to_ipad_bytes hio_uchars_to_ipad_bytes
+#	define hio_oocstr_to_ipad_bytes hio_ucstr_to_ipad_bytes
+#else
+#	define hio_ipad_bytes_to_oocstr hio_ipad_bytes_to_bcstr
+#	define hio_oochars_to_ipad_bytes hio_bchars_to_ipad_bytes
+#	define hio_oocstr_to_ipad_bytes hio_bcstr_to_ipad_bytes
+#endif
+
 HIO_EXPORT int hio_ipad_bytes_is_v4_mapped (
 	const hio_uint8_t* iptr,
 	hio_oow_t          ilen
