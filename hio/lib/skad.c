@@ -649,7 +649,7 @@ int hio_bcharstoskad (hio_t* hio, const hio_bch_t* str, hio_oow_t len, hio_skad_
 #if defined(AF_UNIX) && (HIO_SIZEOF_STRUCT_SOCKADDR_UN > 0)
 		/* @aaa,  @/tmp/aaa ... */
 		hio_copy_bchars_to_bcstr (skad->un.sun_path, HIO_COUNTOF(skad->un.sun_path), str + 1, len - 1);
-		skad->un.sun_family = HIO_AF_UNIX;
+		skad->un.sun_family = AF_UNIX;
 		return 0;
 #else
 		hio_seterrbfmt (hio, HIO_ENOIMPL, "unix address not supported");
