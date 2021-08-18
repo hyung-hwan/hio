@@ -136,9 +136,8 @@ HIO_EXPORT int hio_bcharstoskad (
 	hio_skad_t*       skad
 );
 
-#define hio_bcstrtoskad(hio,str,skad) hio_bcharstoskad(hio, str, hio_count_bcstr(str), skad)
 #define hio_ucstrtoskad(hio,str,skad) hio_ucharstoskad(hio, str, hio_count_ucstr(str), skad)
-
+#define hio_bcstrtoskad(hio,str,skad) hio_bcharstoskad(hio, str, hio_count_bcstr(str), skad)
 
 HIO_EXPORT hio_oow_t hio_skadtoucstr (
 	hio_t*            hio,
@@ -157,9 +156,11 @@ HIO_EXPORT hio_oow_t hio_skadtobcstr (
 );
 
 #if defined(HIO_OOCH_IS_UCH)
+#       define hio_oocstrtoskad hio_ucstrtoskad
 #       define hio_oocharstoskad hio_ucharstoskad
 #       define hio_skadtooocstr hio_skadtoucstr
 #else
+#       define hio_oocstrtoskad hio_bcstrtoskad
 #       define hio_oocharstoskad hio_bcharstoskad
 #       define hio_skadtooocstr hio_skadtobcstr
 #endif
