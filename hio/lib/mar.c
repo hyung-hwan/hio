@@ -312,7 +312,7 @@ static int dev_mar_ioctl (hio_dev_t* dev, int cmd, void* arg)
 
 						watch_mysql (rdev, 0);
 						hio_dev_mar_halt (rdev); /* i can't keep this device alive regardless of the caller's post-action */
-						hio_seterrbfmt (hio, HIO_ESYSERR, "%js", prev_errmsg);
+						hio_seterrbfmt (hio, HIO_ENOTCON, "%js", prev_errmsg);
 					}
 					return -1;
 				}
@@ -491,6 +491,12 @@ static int dev_evcb_mar_ready (hio_dev_t* dev, int events)
 
 						if (err == CR_SERVER_LOST || err == CR_SERVER_GONE_ERROR)
 						{
+							/*
+							preserving the error information here isn't very useful because 
+							the info won't survive until on_disconnect() is called...
+							hio_seterrbfmt (hio, HIO_ENOTCON, "%hs", mysql_error(rdev->hnd));
+							*/
+
 							rdev->broken = 1;
 							rdev->broken_syshnd = syshnd;
 							watch_mysql (rdev, 0);
