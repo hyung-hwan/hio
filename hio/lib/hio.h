@@ -99,6 +99,7 @@ enum hio_errnum_t
 	HIO_EECMORE,  /**< insufficient data for encoding conversion */
 	HIO_EBUFFULL, /**< buffer full */
 
+	HIO_ENOTCON,  /**< not connected */
 	HIO_ECONRF,   /**< connection refused */
 	HIO_ECONRS,   /**< connection reset */
 	HIO_ENOCAPA,  /**< no capability */
