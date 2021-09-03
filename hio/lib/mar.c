@@ -28,12 +28,18 @@
 #if 0
 #include <mariadb/mysql.h>
 #include <mariadb/errmsg.h>
+#include <mariadb/mysqld_error.h>
 #else
 #include <mysql.h>
 #include <errmsg.h>
+#include <mysqld_error.h>
 #endif
 
 #include <sys/socket.h>
+
+#if !defined(ER_CONNECTION_KILLED)
+#	define ER_CONNECTION_KILLED (1927)
+#endif
 
 /* ========================================================================= */
 
@@ -296,12 +302,14 @@ static int dev_mar_ioctl (hio_dev_t* dev, int cmd, void* arg)
 				if (err) 
 				{
 					/* but there is an error */
-					if (err == 1) err = mysql_errno(rdev->hnd);
+					if (err == 1 || err == -1) err = mysql_errno(rdev->hnd);
 
-					hio_seterrbfmt (hio, HIO_ESYSERR, "%hs", mysql_error(rdev->hnd));
-					if (err == CR_SERVER_LOST || err == CR_SERVER_GONE_ERROR)
+					hio_seterrbfmt (hio, HIO_ESYSERR, "%hs [code=%d]", mysql_error(rdev->hnd), err);
+					if (err == CR_SERVER_LOST || err == CR_SERVER_GONE_ERROR || err == CR_COMMANDS_OUT_OF_SYNC || err == ER_CONNECTION_KILLED)
 					{
-						/* the underlying socket must have gotten closed by mysql_real_query_start() */
+						/* the underlying socket is closed by the mysql client library when this happens.
+						 * so the mysql_get_socket(rdev->hnd) afterwards is never reliable */
+
 						const hio_ooch_t* prev_errmsg;
 						prev_errmsg = hio_backuperrmsg(hio);
 
@@ -312,7 +320,7 @@ static int dev_mar_ioctl (hio_dev_t* dev, int cmd, void* arg)
 
 						watch_mysql (rdev, 0);
 						hio_dev_mar_halt (rdev); /* i can't keep this device alive regardless of the caller's post-action */
-						hio_seterrbfmt (hio, HIO_ENOTCON, "%js", prev_errmsg);
+						hio_seterrbfmt (hio, HIO_ECONLOST, "%js", prev_errmsg);
 					}
 					return -1;
 				}
@@ -487,14 +495,14 @@ static int dev_evcb_mar_ready (hio_dev_t* dev, int events)
 					if (err)
 					{
 						/* query send failure */
-						if (err == 1) err = mysql_errno(rdev->hnd); /* err is set to 1 by mariadb-connector-c 3.1 as of this writing. let me work around it by fetching the error code */
+						if (err == 1 || err == -1) err = mysql_errno(rdev->hnd); /* err is set to 1 by mariadb-connector-c 3.1 as of this writing. let me work around it by fetching the error code */
 
-						if (err == CR_SERVER_LOST || err == CR_SERVER_GONE_ERROR)
+						if (err == CR_SERVER_LOST || err == CR_SERVER_GONE_ERROR || err == CR_COMMANDS_OUT_OF_SYNC || err == ER_CONNECTION_KILLED)
 						{
 							/*
 							preserving the error information here isn't very useful because 
 							the info won't survive until on_disconnect() is called...
-							hio_seterrbfmt (hio, HIO_ENOTCON, "%hs", mysql_error(rdev->hnd));
+							hio_seterrbfmt (hio, HIO_ECONLOST, "%hs", mysql_error(rdev->hnd));
 							*/
 
 							rdev->broken = 1;

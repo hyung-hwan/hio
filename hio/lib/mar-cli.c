@@ -577,7 +577,7 @@ int hio_svc_marc_querywithbchars (hio_svc_marc_t* marc, hio_oow_t flagged_sid, h
 				return -1;
 			}
 
-			/* the underlying socket of the device may get disconnected.
+			/* the underlying socket of the device might have gotten disconnected.
 			 * in such a case, keep the enqueued query with sq->sent 0
 			 * and defer actual sending and processing */
 		}
