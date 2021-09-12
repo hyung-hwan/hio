@@ -1,18 +1,17 @@
 dnl ---------------------------------------------------------------------------
-changequote(`[[', `]]')
-
+changequote(`[[', `]]')dnl
 dnl ---------------------------------------------------------------------------
-define([[fn_count_cstr]], [[ define([[_fn_name_]], $1) define([[_char_type_]], $2)
+define([[fn_count_cstr]], [[pushdef([[_fn_name_]], $1)pushdef([[_char_type_]], $2)dnl
 hio_oow_t _fn_name_ (const _char_type_* str)
 {
 	const _char_type_* ptr = str;
 	while (*ptr != '\0') ptr++;
 	return ptr - str;
 } 
-]])
-
+popdef([[_fn_name_]])popdef([[_char_type_]])dnl
+]])dnl
 dnl ---------------------------------------------------------------------------
-define([[fn_equal_chars]], [[ define([[_fn_name_]], $1) define([[_char_type_]], $2)
+define([[fn_equal_chars]], [[pushdef([[_fn_name_]], $1)pushdef([[_char_type_]], $2)dnl
 int _fn_name_ (const _char_type_* str1, const _char_type_* str2, hio_oow_t len)
 {
 	hio_oow_t i;
@@ -27,10 +26,10 @@ int _fn_name_ (const _char_type_* str1, const _char_type_* str2, hio_oow_t len)
 
 	return 1;
 }
-]])
-
+popdef([[_fn_name_]])popdef([[_char_type_]])dnl
+]])dnl
 dnl ---------------------------------------------------------------------------
-define([[fn_comp_chars]], [[ define([[_fn_name_]], $1) define([[_char_type_]], $2) define([[_chau_type_]], $3)
+define([[fn_comp_chars]], [[pushdef([[_fn_name_]], $1)pushdef([[_char_type_]], $2)pushdef([[_chau_type_]], $3)pushdef([[_to_lower_]], $4)dnl
 int _fn_name_ (const _char_type_* str1, hio_oow_t len1, const _char_type_* str2, hio_oow_t len2, int ignorecase)
 {
 	_chau_type_ c1, c2;
@@ -41,10 +40,10 @@ int _fn_name_ (const _char_type_* str1, hio_oow_t len1, const _char_type_* str2,
 	{
 		while (str1 < end1)
 		{
-			c1 = $4(*str1);
+			c1 = _to_lower_()(*str1);
 			if (str2 < end2) 
 			{
-				c2 = $4(*str2);
+				c2 = _to_lower_()(*str2);
 				if (c1 > c2) return 1;
 				if (c1 < c2) return -1;
 			}
@@ -70,21 +69,21 @@ int _fn_name_ (const _char_type_* str1, hio_oow_t len1, const _char_type_* str2,
 
 	return (str2 < end2)? -1: 0;
 }
-]])
-
+popdef([[_fn_name_]])popdef([[_char_type_]])popdef([[_chau_type_]])popdef([[_to_lower_]])dnl
+]])dnl
 dnl ---------------------------------------------------------------------------
-define([[fn_comp_cstr]], [[ define([[_fn_name_]], $1) define([[_char_type_]], $2) define([[_chau_type_]], $3)
+define([[fn_comp_cstr]], [[pushdef([[_fn_name_]], $1)pushdef([[_char_type_]], $2)pushdef([[_chau_type_]], $3)pushdef([[_to_lower_]], $4)dnl
 int _fn_name_ (const _char_type_* str1, const _char_type_* str2, int ignorecase)
 {
 	if (ignorecase)
 	{
-		while ($4(*str1) == $4(*str2))
+		while (_to_lower_()(*str1) == _to_lower_()(*str2))
 		{
 			if (*str1 == '\0') return 0;
 			str1++; str2++;
 		}
 
-		return ((_chau_type_)$4(*str1) > (_chau_type_)$4(*str2))? 1: -1;
+		return ((_chau_type_)_to_lower_()(*str1) > (_chau_type_)_to_lower_()(*str2))? 1: -1;
 	}
 	else
 	{
@@ -97,23 +96,23 @@ int _fn_name_ (const _char_type_* str1, const _char_type_* str2, int ignorecase)
 		return ((_chau_type_)*str1 > (_chau_type_)*str2)? 1: -1;
 	}
 }
-]])
-
+popdef([[_fn_name_]])popdef([[_char_type_]])popdef([[_chau_type_]])popdef([[_to_lower_]])dnl
+]])dnl
 dnl ---------------------------------------------------------------------------
-define([[fn_comp_cstr_limited]], [[ define([[_fn_name_]], $1) define([[_char_type_]], $2) define([[_chau_type_]], $3)
+define([[fn_comp_cstr_limited]], [[pushdef([[_fn_name_]], $1)pushdef([[_char_type_]], $2)pushdef([[_chau_type_]], $3)pushdef([[_to_lower_]], $4)dnl
 int _fn_name_ (const _char_type_* str1, const _char_type_* str2, hio_oow_t maxlen, int ignorecase)
 {
 	if (maxlen == 0) return 0;
 
 	if (ignorecase)
 	{
-		while ($4(*str1) == $4(*str2))
+		while (_to_lower_()(*str1) == _to_lower_()(*str2))
 		{
 			 if (*str1 == '\0' || maxlen == 1) return 0;
 			 str1++; str2++; maxlen--;
 		}
 
-		return ((_chau_type_)$4(*str1) > (_chau_type_)$4(*str2))? 1: -1;
+		return ((_chau_type_)_to_lower_()(*str1) > (_chau_type_)_to_lower_()(*str2))? 1: -1;
 	}
 	else
 	{
@@ -126,17 +125,17 @@ int _fn_name_ (const _char_type_* str1, const _char_type_* str2, hio_oow_t maxle
 		return ((_chau_type_)*str1 > (_chau_type_)*str2)? 1: -1;
 	}
 }
-]])
-
+popdef([[_fn_name_]])popdef([[_char_type_]])popdef([[_chau_type_]])popdef([[_to_lower_]])dnl
+]])dnl
 dnl ---------------------------------------------------------------------------
-define([[fn_concat_chars_to_cstr]], [[ define([[_fn_name_]], $1) define([[_char_type_]], $2) dnl: $3 count_str
+define([[fn_concat_chars_to_cstr]], [[pushdef([[_fn_name_]], $1)pushdef([[_char_type_]], $2)pushdef([[_count_str_]], $3)dnl
 hio_oow_t _fn_name_ (_char_type_* buf, hio_oow_t bsz, const _char_type_* str, hio_oow_t len)
 {
 	_char_type_* p, * p2;
 	const _char_type_* end;
 	hio_oow_t blen;
 
-	blen = $3(buf);
+	blen = _count_str_()(buf);
 	if (blen >= bsz) return blen; /* something wrong */
 
 	p = buf + blen;
@@ -153,17 +152,17 @@ hio_oow_t _fn_name_ (_char_type_* buf, hio_oow_t bsz, const _char_type_* str, hi
 	if (bsz > 0) *p = '\0';
 	return p - buf;
 }
-]])
+popdef([[_fn_name_]])popdef([[_char_type_]])popdef([[_count_str_]])dnl
+]])dnl
 
 dnl ---------------------------------------------------------------------------
-dnl $3: count_str
-define([[fn_concat_cstr]], [[ define([[_fn_name_]], $1) define([[_char_type_]], $2)
+define([[fn_concat_cstr]], [[pushdef([[_fn_name_]], $1)pushdef([[_char_type_]], $2)pushdef([[_count_str_]], $3)dnl
 hio_oow_t _fn_name_ (_char_type_* buf, hio_oow_t bsz, const _char_type_* str)
 {
 	_char_type_* p, * p2;
 	hio_oow_t blen;
 
-	blen = $3(buf);
+	blen = _count_str_()(buf);
 	if (blen >= bsz) return blen; /* something wrong */
 
 	p = buf + blen;
@@ -178,19 +177,19 @@ hio_oow_t _fn_name_ (_char_type_* buf, hio_oow_t bsz, const _char_type_* str)
 	if (bsz > 0) *p = '\0';
 	return p - buf;
 }
-]])
-
+popdef([[_fn_name_]])popdef([[_char_type_]])popdef([[_count_str_]])dnl
+]])dnl
 dnl ---------------------------------------------------------------------------
-define([[fn_fill_chars]], [[ define([[_fn_name_]], $1) define([[_char_type_]], $2)
+define([[fn_fill_chars]], [[pushdef([[_fn_name_]], $1)pushdef([[_char_type_]], $2)dnl
 void _fn_name_ (_char_type_* dst, _char_type_ ch, hio_oow_t len)
 {
         hio_oow_t i;
         for (i = 0; i < len; i++) dst[i] = ch;
 }
-]])
-
+popdef([[_fn_name_]])popdef([[_char_type_]])dnl
+]])dnl
 dnl ---------------------------------------------------------------------------
-define([[fn_find_char]], [[ define([[_fn_name_]], $1) define([[_char_type_]], $2)
+define([[fn_find_char]], [[pushdef([[_fn_name_]], $1)pushdef([[_char_type_]], $2)dnl
 _char_type_* _fn_name_ (const _char_type_* ptr, hio_oow_t len, _char_type_ c)
 {
 	const _char_type_* end;
@@ -204,10 +203,10 @@ _char_type_* _fn_name_ (const _char_type_* ptr, hio_oow_t len, _char_type_ c)
 
 	return HIO_NULL;
 }
-]])
-
+popdef([[_fn_name_]])popdef([[_char_type_]])dnl
+]])dnl
 dnl ---------------------------------------------------------------------------
-define([[fn_rfind_char]], [[ define([[_fn_name_]], $1) define([[_char_type_]], $2)
+define([[fn_rfind_char]], [[pushdef([[_fn_name_]], $1)pushdef([[_char_type_]], $2)dnl
 _char_type_* _fn_name_ (const _char_type_* ptr, hio_oow_t len, _char_type_ c)
 {
 	const _char_type_* cur;
@@ -221,10 +220,10 @@ _char_type_* _fn_name_ (const _char_type_* ptr, hio_oow_t len, _char_type_ c)
 
 	return HIO_NULL;
 }
-]])
-
+popdef([[_fn_name_]])popdef([[_char_type_]])dnl
+]])dnl
 dnl ---------------------------------------------------------------------------
-define([[fn_find_char_in_cstr]], [[ define([[_fn_name_]], $1) define([[_char_type_]], $2)
+define([[fn_find_char_in_cstr]], [[pushdef([[_fn_name_]], $1)pushdef([[_char_type_]], $2)dnl
 _char_type_* _fn_name_ (const _char_type_* ptr, _char_type_ c)
 {
 	while (*ptr != '\0')
@@ -235,11 +234,10 @@ _char_type_* _fn_name_ (const _char_type_* ptr, _char_type_ c)
 
 	return HIO_NULL;
 }
-]])
-
+popdef([[_fn_name_]])popdef([[_char_type_]])dnl
+]])dnl
 dnl ---------------------------------------------------------------------------
-dnl $3: is_space $4: prefix for option values
-define([[fn_trim_chars]], [[define([[_fn_name_]], $1) define([[_char_type_]], $2)
+define([[fn_trim_chars]], [[pushdef([[_fn_name_]], $1)pushdef([[_char_type_]], $2)pushdef([[_is_space_]], $3)pushdef([[_prefix_]], $4)dnl
 _char_type_* _fn_name_ (const _char_type_* str, hio_oow_t* len, int flags)
 {
 	const _char_type_* p = str, * end = str + *len;
@@ -250,7 +248,7 @@ _char_type_* _fn_name_ (const _char_type_* str, hio_oow_t* len, int flags)
 
 		do
 		{
-			if (!$3(*p))
+			if (!_is_space_()(*p))
 			{
 				if (s == HIO_NULL) s = p;
 				e = p;
@@ -261,11 +259,11 @@ _char_type_* _fn_name_ (const _char_type_* str, hio_oow_t* len, int flags)
 
 		if (e)
 		{
-			if (flags & $4_RIGHT) 
+			if (flags & _prefix_()_RIGHT) 
 			{
 				*len -= end - e - 1;
 			}
-			if (flags & $4_LEFT) 
+			if (flags & _prefix_()_LEFT) 
 			{
 				*len -= s - str;
 				str = s;
@@ -274,18 +272,17 @@ _char_type_* _fn_name_ (const _char_type_* str, hio_oow_t* len, int flags)
 		else
 		{
 			/* the entire string need to be deleted */
-			if ((flags & $4_RIGHT) || 
-			    (flags & $4_LEFT)) *len = 0;
+			if ((flags & _prefix_()_RIGHT) || 
+			    (flags & _prefix_()_LEFT)) *len = 0;
 		}
 	}
 
 	return (_char_type_*)str;
 }
-]])
-
+popdef([[_fn_name_]])popdef([[_char_type_]])popdef([[_is_space_]])popdef([[_prefix_]])dnl
+]])dnl
 dnl ---------------------------------------------------------------------------
-dnl $3 is_space $4: copy_str_unlimited
-define([[fn_split_cstr]], [[ define([[_fn_name_]], $1) define([[_char_type_]], $2)
+define([[fn_split_cstr]], [[pushdef([[_fn_name_]], $1)pushdef([[_char_type_]], $2)pushdef([[_is_space_]], $3)pushdef([[_copy_str_unlimited_]], $4)dnl
 int _fn_name_ (_char_type_* s, const _char_type_* delim, _char_type_ lquote, _char_type_ rquote, _char_type_ escape)
 {
 	_char_type_* p = s, *d;
@@ -298,19 +295,19 @@ int _fn_name_ (_char_type_* s, const _char_type_* delim, _char_type_ lquote, _ch
 	{
 		delim_mode = 1;
 		for (d = (_char_type_*)delim; *d != '\0'; d++)
-			if (!$3(*d)) delim_mode = 2;
+			if (!_is_space_()(*d)) delim_mode = 2;
 	}
 
 	if (delim_mode == 0) 
 	{
 		/* skip preceding space characters */
-		while ($3(*p)) p++;
+		while (_is_space_()(*p)) p++;
 
 		/* when 0 is given as "delim", it has an effect of cutting
 		   preceding and trailing space characters off "s". */
 		if (lquote != '\0' && *p == lquote) 
 		{
-			$4 (p, p + 1);
+			_copy_str_unlimited_ (p, p + 1);
 
 			for (;;) 
 			{
@@ -318,7 +315,7 @@ int _fn_name_ (_char_type_* s, const _char_type_* delim, _char_type_ lquote, _ch
 
 				if (escape != '\0' && *p == escape) 
 				{
-					$4 (p, p + 1);
+					_copy_str_unlimited_ (p, p + 1);
 				}
 				else 
 				{
@@ -333,14 +330,14 @@ int _fn_name_ (_char_type_* s, const _char_type_* delim, _char_type_ lquote, _ch
 				ep = p;
 				p++;
 			}
-			while ($3(*p)) p++;
+			while (_is_space_()(*p)) p++;
 			if (*p != '\0') return -1;
 
 			if (sp == 0 && ep == 0) s[0] = '\0';
 			else 
 			{
 				ep[1] = '\0';
-				if (s != (_char_type_*)sp) $4 (s, sp);
+				if (s != (_char_type_*)sp) _copy_str_unlimited_ (s, sp);
 				cnt++;
 			}
 		}
@@ -348,7 +345,7 @@ int _fn_name_ (_char_type_* s, const _char_type_* delim, _char_type_ lquote, _ch
 		{
 			while (*p) 
 			{
-				if (!$3(*p)) 
+				if (!_is_space_()(*p)) 
 				{
 					if (sp == 0) sp = p;
 					ep = p;
@@ -360,7 +357,7 @@ int _fn_name_ (_char_type_* s, const _char_type_* delim, _char_type_ lquote, _ch
 			else 
 			{
 				ep[1] = '\0';
-				if (s != (_char_type_*)sp) $4 (s, sp);
+				if (s != (_char_type_*)sp) _copy_str_unlimited_ (s, sp);
 				cnt++;
 			}
 		}
@@ -372,12 +369,12 @@ int _fn_name_ (_char_type_* s, const _char_type_* delim, _char_type_ lquote, _ch
 		while (*p) 
 		{
 			o = p;
-			while ($3(*p)) p++;
-			if (o != p) { $4 (o, p); p = o; }
+			while (_is_space_()(*p)) p++;
+			if (o != p) { _copy_str_unlimited_ (o, p); p = o; }
 
 			if (lquote != '\0' && *p == lquote) 
 			{
-				$4 (p, p + 1);
+				_copy_str_unlimited_ (p, p + 1);
 
 				for (;;) 
 				{
@@ -385,7 +382,7 @@ int _fn_name_ (_char_type_* s, const _char_type_* delim, _char_type_ lquote, _ch
 
 					if (escape != '\0' && *p == escape) 
 					{
-						$4 (p, p + 1);
+						_copy_str_unlimited_ (p, p + 1);
 					}
 					else 
 					{
@@ -409,7 +406,7 @@ int _fn_name_ (_char_type_* s, const _char_type_* delim, _char_type_ lquote, _ch
 						if (o != p) cnt++;
 						break;
 					}
-					if ($3(*p)) 
+					if (_is_space_()(*p)) 
 					{
 						*p++ = '\0';
 						cnt++;
@@ -428,12 +425,12 @@ int _fn_name_ (_char_type_* s, const _char_type_* delim, _char_type_ lquote, _ch
 		while (*p != '\0') 
 		{
 			o = p;
-			while ($3(*p)) p++;
-			if (o != p) { $4 (o, p); p = o; }
+			while (_is_space_()(*p)) p++;
+			if (o != p) { _copy_str_unlimited_ (o, p); p = o; }
 
 			if (lquote != '\0' && *p == lquote) 
 			{
-				$4 (p, p + 1);
+				_copy_str_unlimited_ (p, p + 1);
 
 				for (;;) 
 				{
@@ -441,7 +438,7 @@ int _fn_name_ (_char_type_* s, const _char_type_* delim, _char_type_ lquote, _ch
 
 					if (escape != '\0' && *p == escape) 
 					{
-						$4 (p, p + 1);
+						_copy_str_unlimited_ (p, p + 1);
 					}
 					else 
 					{
@@ -456,14 +453,14 @@ int _fn_name_ (_char_type_* s, const _char_type_* delim, _char_type_ lquote, _ch
 				}
 
 				ok = 0;
-				while ($3(*p)) p++;
+				while (_is_space_()(*p)) p++;
 				if (*p == '\0') ok = 1;
 				for (d = (_char_type_*)delim; *d != '\0'; d++) 
 				{
 					if (*p == *d) 
 					{
 						ok = 1;
-						$4 (p, p + 1);
+						_copy_str_unlimited_ (p, p + 1);
 						break;
 					}
 				}
@@ -491,13 +488,13 @@ int _fn_name_ (_char_type_* s, const _char_type_* delim, _char_type_ lquote, _ch
 						{
 							if (sp == HIO_NULL) 
 							{
-								$4 (o, p); p = o;
+								_copy_str_unlimited_ (o, p); p = o;
 								*p++ = '\0';
 							}
 							else 
 							{
-								$4 (&ep[1], p);
-								$4 (o, sp);
+								_copy_str_unlimited_ (&ep[1], p);
+								_copy_str_unlimited_ (o, sp);
 								o[ep - sp + 1] = '\0';
 								p = &o[ep - sp + 2];
 							}
@@ -508,7 +505,7 @@ int _fn_name_ (_char_type_* s, const _char_type_* delim, _char_type_ lquote, _ch
 						}
 					}
 
-					if (!$3(*p)) 
+					if (!_is_space_()(*p)) 
 					{
 						if (sp == HIO_NULL) sp = p;
 						ep = p;
@@ -523,10 +520,10 @@ exit_point:
 
 	return cnt;
 }
-]])
-
+popdef([[_fn_name_]])popdef([[_char_type_]])popdef([[_is_space_]])popdef([[_copy_str_unlimited_]])dnl
+]])dnl
 dnl ---------------------------------------------------------------------------
-define([[fn_chars_to_int]], [[ define([[_fn_name_]], $1) define([[_char_type_]], $2) define([[_int_type_]], $3)
+define([[fn_chars_to_int]], [[pushdef([[_fn_name_]], $1)pushdef([[_char_type_]], $2)pushdef([[_int_type_]], $3)pushdef([[_is_space_]], $4)pushdef([[_prefix_]], $5)dnl
 _int_type_ _fn_name_ (const _char_type_* str, hio_oow_t len, int option, const _char_type_** endptr, int* is_sober)
 {
 	_int_type_ n = 0;
@@ -534,15 +531,15 @@ _int_type_ _fn_name_ (const _char_type_* str, hio_oow_t len, int option, const _
 	const _char_type_* end;
 	hio_oow_t rem;
 	int digit, negative = 0;
-	int base = $5_GET_OPTION_BASE(option);
+	int base = _prefix_()_GET_OPTION_BASE(option);
 
 	p = str; 
 	end = str + len;
 
-	if ($5_GET_OPTION_LTRIM(option))
+	if (_prefix_()_GET_OPTION_LTRIM(option))
 	{
 		/* strip off leading spaces */
-		while (p < end && $4(*p)) p++;
+		while (p < end && _is_space_()(*p)) p++;
 	}
 
 	/* check for a sign */
@@ -599,7 +596,7 @@ _int_type_ _fn_name_ (const _char_type_* str, hio_oow_t len, int option, const _
 		p++;
 	}
 
-	if ($5_GET_OPTION_E(option))
+	if (_prefix_()_GET_OPTION_E(option))
 	{
 		if (*p == 'E' || *p == 'e')
 		{
@@ -632,20 +629,19 @@ _int_type_ _fn_name_ (const _char_type_* str, hio_oow_t len, int option, const _
 	 * other case: p > pp to be able to have at least 1 meaningful digit. */
 	if (is_sober) *is_sober = (base == 8 || p > pp); 
 
-	if ($5_GET_OPTION_RTRIM(option))
+	if (_prefix_()_GET_OPTION_RTRIM(option))
 	{
 		/* consume trailing spaces */
-		while (p < end && $4(*p)) p++;
+		while (p < end && _is_space_()(*p)) p++;
 	}
 
 	if (endptr) *endptr = p;
 	return (negative)? -n: n;
 }
-]])
-
+popdef([[_fn_name_]])popdef([[_char_type_]])popdef([[_int_type_]])popdef([[_is_space_]])popdef([[_prefix_]])dnl
+]])dnl
 dnl ---------------------------------------------------------------------------
-dnl $4: is_space $5: prefix for some macros
-define([[fn_chars_to_uint]], [[ define([[_fn_name_]], $1) define([[_char_type_]], $2) define([[_int_type_]], $3)
+define([[fn_chars_to_uint]], [[pushdef([[_fn_name_]], $1)pushdef([[_char_type_]], $2)pushdef([[_int_type_]], $3)pushdef([[_is_space_]], $4)pushdef([[_prefix_]], $5)dnl
 _int_type_ _fn_name_ (const _char_type_* str, hio_oow_t len, int option, const _char_type_** endptr, int* is_sober)
 {
 	_int_type_ n = 0;
@@ -653,15 +649,15 @@ _int_type_ _fn_name_ (const _char_type_* str, hio_oow_t len, int option, const _
 	const _char_type_* end;
 	hio_oow_t rem;
 	int digit;
-	int base = $5_GET_OPTION_BASE(option);
+	int base = _prefix_()_GET_OPTION_BASE(option);
 
 	p = str; 
 	end = str + len;
 
-	if ($5_GET_OPTION_LTRIM(option))
+	if (_prefix_()_GET_OPTION_LTRIM(option))
 	{
 		/* strip off leading spaces */
-		while (p < end && $4(*p)) p++;
+		while (p < end && _is_space_()(*p)) p++;
 	}
 
 	/* check for a sign */
@@ -713,7 +709,7 @@ _int_type_ _fn_name_ (const _char_type_* str, hio_oow_t len, int option, const _
 		p++;
 	}
 
-	if ($5_GET_OPTION_E(option))
+	if (_prefix_()_GET_OPTION_E(option))
 	{
 		if (*p == 'E' || *p == 'e')
 		{
@@ -746,13 +742,14 @@ _int_type_ _fn_name_ (const _char_type_* str, hio_oow_t len, int option, const _
 	 * other case: p > pp to be able to have at least 1 meaningful digit. */
 	if (is_sober) *is_sober = (base == 8 || p > pp); 
 
-	if ($5_GET_OPTION_RTRIM(option))
+	if (_prefix_()_GET_OPTION_RTRIM(option))
 	{
 		/* consume trailing spaces */
-		while (p < end && $4(*p)) p++;
+		while (p < end && _is_space_()(*p)) p++;
 	}
 
 	if (endptr) *endptr = p;
 	return n;
 }
+popdef([[_fn_name_]])popdef([[_char_type_]])popdef([[_int_type_]])popdef([[_is_space_]])popdef([[_prefix_]])dnl
 ]])

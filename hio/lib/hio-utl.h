@@ -39,35 +39,6 @@
 
 
 
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
 /* =========================================================================
  * ENDIAN CHANGE OF A CONSTANT
  * ========================================================================= */
@@ -1142,8 +1113,7 @@ unsigned y = hio_chars_to_uint<wchar_t,unsigned,is_wspace>(L"0x12345", 7, 0, NUL
 int a = hio_chars_to_int<char,int,is_space>("-0x12345", 8, 0, NULL, NULL);
 int b = hio_chars_to_int<wchar_t,int,is_wspace>(L"-0x12345", 8, 0, NULL, NULL);
 */
-template<typename CHAR_TYPE, typename INT_TYPE, bool(*IS_SPACE)(CHAR_TYPE)>   
-INT_TYPE hio_chars_to_int (const CHAR_TYPE* str, hio_oow_t len, int option, const CHAR_TYPE** endptr, int* is_sober)
+template<typename CHAR_TYPE, typename INT_TYPE, bool(*IS_SPACE)(CHAR_TYPE)>INT_TYPE hio_chars_to_int (const CHAR_TYPE* str, hio_oow_t len, int option, const CHAR_TYPE** endptr, int* is_sober)
 {
 	INT_TYPE n = 0;
 	const CHAR_TYPE* p, * pp;
@@ -1258,8 +1228,7 @@ INT_TYPE hio_chars_to_int (const CHAR_TYPE* str, hio_oow_t len, int option, cons
 	return (negative)? -n: n;
 }
 
-template<typename CHAR_TYPE, typename UINT_TYPE, bool(*IS_SPACE)(CHAR_TYPE)>   
-UINT_TYPE hio_chars_to_uint (const CHAR_TYPE* str, hio_oow_t len, int option, const CHAR_TYPE** endptr, int* is_sober)
+template<typename CHAR_TYPE, typename UINT_TYPE, bool(*IS_SPACE)(CHAR_TYPE)>UINT_TYPE hio_chars_to_uint (const CHAR_TYPE* str, hio_oow_t len, int option, const CHAR_TYPE** endptr, int* is_sober)
 {
 	UINT_TYPE n = 0;
 	const CHAR_TYPE* p, * pp;

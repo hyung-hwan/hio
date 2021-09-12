@@ -33,39 +33,6 @@
 #include <hio-chr.h>
 
 
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-  
 hio_oow_t hio_count_ucstr (const hio_uch_t* str)
 {
 	const hio_uch_t* ptr = str;
@@ -73,7 +40,6 @@ hio_oow_t hio_count_ucstr (const hio_uch_t* str)
 	return ptr - str;
 } 
 
-  
 hio_oow_t hio_count_bcstr (const hio_bch_t* str)
 {
 	const hio_bch_t* ptr = str;
@@ -81,8 +47,6 @@ hio_oow_t hio_count_bcstr (const hio_bch_t* str)
 	return ptr - str;
 } 
 
-
-  
 int hio_equal_uchars (const hio_uch_t* str1, const hio_uch_t* str2, hio_oow_t len)
 {
 	hio_oow_t i;
@@ -98,7 +62,6 @@ int hio_equal_uchars (const hio_uch_t* str1, const hio_uch_t* str2, hio_oow_t le
 	return 1;
 }
 
-  
 int hio_equal_bchars (const hio_bch_t* str1, const hio_bch_t* str2, hio_oow_t len)
 {
 	hio_oow_t i;
@@ -114,8 +77,6 @@ int hio_equal_bchars (const hio_bch_t* str1, const hio_bch_t* str2, hio_oow_t le
 	return 1;
 }
 
-
-   
 int hio_comp_uchars (const hio_uch_t* str1, hio_oow_t len1, const hio_uch_t* str2, hio_oow_t len2, int ignorecase)
 {
 	hio_uchu_t c1, c2;
@@ -156,7 +117,6 @@ int hio_comp_uchars (const hio_uch_t* str1, hio_oow_t len1, const hio_uch_t* str
 	return (str2 < end2)? -1: 0;
 }
 
-   
 int hio_comp_bchars (const hio_bch_t* str1, hio_oow_t len1, const hio_bch_t* str2, hio_oow_t len2, int ignorecase)
 {
 	hio_bchu_t c1, c2;
@@ -197,8 +157,6 @@ int hio_comp_bchars (const hio_bch_t* str1, hio_oow_t len1, const hio_bch_t* str
 	return (str2 < end2)? -1: 0;
 }
 
-
-   
 int hio_comp_ucstr (const hio_uch_t* str1, const hio_uch_t* str2, int ignorecase)
 {
 	if (ignorecase)
@@ -223,7 +181,6 @@ int hio_comp_ucstr (const hio_uch_t* str1, const hio_uch_t* str2, int ignorecase
 	}
 }
 
-   
 int hio_comp_bcstr (const hio_bch_t* str1, const hio_bch_t* str2, int ignorecase)
 {
 	if (ignorecase)
@@ -248,8 +205,6 @@ int hio_comp_bcstr (const hio_bch_t* str1, const hio_bch_t* str2, int ignorecase
 	}
 }
 
-
-   
 int hio_comp_ucstr_limited (const hio_uch_t* str1, const hio_uch_t* str2, hio_oow_t maxlen, int ignorecase)
 {
 	if (maxlen == 0) return 0;
@@ -276,7 +231,6 @@ int hio_comp_ucstr_limited (const hio_uch_t* str1, const hio_uch_t* str2, hio_oo
 	}
 }
 
-   
 int hio_comp_bcstr_limited (const hio_bch_t* str1, const hio_bch_t* str2, hio_oow_t maxlen, int ignorecase)
 {
 	if (maxlen == 0) return 0;
@@ -303,8 +257,7 @@ int hio_comp_bcstr_limited (const hio_bch_t* str1, const hio_bch_t* str2, hio_oo
 	}
 }
 
-
-   hio_oow_t hio_concat_uchars_to_ucstr (hio_uch_t* buf, hio_oow_t bsz, const hio_uch_t* str, hio_oow_t len)
+hio_oow_t hio_concat_uchars_to_ucstr (hio_uch_t* buf, hio_oow_t bsz, const hio_uch_t* str, hio_oow_t len)
 {
 	hio_uch_t* p, * p2;
 	const hio_uch_t* end;
@@ -328,7 +281,7 @@ int hio_comp_bcstr_limited (const hio_bch_t* str1, const hio_bch_t* str2, hio_oo
 	return p - buf;
 }
 
-   hio_oow_t hio_concat_bchars_to_bcstr (hio_bch_t* buf, hio_oow_t bsz, const hio_bch_t* str, hio_oow_t len)
+hio_oow_t hio_concat_bchars_to_bcstr (hio_bch_t* buf, hio_oow_t bsz, const hio_bch_t* str, hio_oow_t len)
 {
 	hio_bch_t* p, * p2;
 	const hio_bch_t* end;
@@ -352,8 +305,6 @@ int hio_comp_bcstr_limited (const hio_bch_t* str1, const hio_bch_t* str2, hio_oo
 	return p - buf;
 }
 
-
-  
 hio_oow_t hio_concat_ucstr (hio_uch_t* buf, hio_oow_t bsz, const hio_uch_t* str)
 {
 	hio_uch_t* p, * p2;
@@ -375,7 +326,6 @@ hio_oow_t hio_concat_ucstr (hio_uch_t* buf, hio_oow_t bsz, const hio_uch_t* str)
 	return p - buf;
 }
 
-  
 hio_oow_t hio_concat_bcstr (hio_bch_t* buf, hio_oow_t bsz, const hio_bch_t* str)
 {
 	hio_bch_t* p, * p2;
@@ -397,23 +347,18 @@ hio_oow_t hio_concat_bcstr (hio_bch_t* buf, hio_oow_t bsz, const hio_bch_t* str)
 	return p - buf;
 }
 
-
-  
 void hio_fill_uchars (hio_uch_t* dst, hio_uch_t ch, hio_oow_t len)
 {
         hio_oow_t i;
         for (i = 0; i < len; i++) dst[i] = ch;
 }
 
-  
 void hio_fill_bchars (hio_bch_t* dst, hio_bch_t ch, hio_oow_t len)
 {
         hio_oow_t i;
         for (i = 0; i < len; i++) dst[i] = ch;
 }
 
-
-  
 hio_uch_t* hio_find_uchar (const hio_uch_t* ptr, hio_oow_t len, hio_uch_t c)
 {
 	const hio_uch_t* end;
@@ -428,7 +373,6 @@ hio_uch_t* hio_find_uchar (const hio_uch_t* ptr, hio_oow_t len, hio_uch_t c)
 	return HIO_NULL;
 }
 
-  
 hio_bch_t* hio_find_bchar (const hio_bch_t* ptr, hio_oow_t len, hio_bch_t c)
 {
 	const hio_bch_t* end;
@@ -443,8 +387,6 @@ hio_bch_t* hio_find_bchar (const hio_bch_t* ptr, hio_oow_t len, hio_bch_t c)
 	return HIO_NULL;
 }
 
-
-  
 hio_uch_t* hio_rfind_uchar (const hio_uch_t* ptr, hio_oow_t len, hio_uch_t c)
 {
 	const hio_uch_t* cur;
@@ -459,7 +401,6 @@ hio_uch_t* hio_rfind_uchar (const hio_uch_t* ptr, hio_oow_t len, hio_uch_t c)
 	return HIO_NULL;
 }
 
-  
 hio_bch_t* hio_rfind_bchar (const hio_bch_t* ptr, hio_oow_t len, hio_bch_t c)
 {
 	const hio_bch_t* cur;
@@ -474,8 +415,6 @@ hio_bch_t* hio_rfind_bchar (const hio_bch_t* ptr, hio_oow_t len, hio_bch_t c)
 	return HIO_NULL;
 }
 
-
-  
 hio_uch_t* hio_find_uchar_in_ucstr (const hio_uch_t* ptr, hio_uch_t c)
 {
 	while (*ptr != '\0')
@@ -487,7 +426,6 @@ hio_uch_t* hio_find_uchar_in_ucstr (const hio_uch_t* ptr, hio_uch_t c)
 	return HIO_NULL;
 }
 
-  
 hio_bch_t* hio_find_bchar_in_bcstr (const hio_bch_t* ptr, hio_bch_t c)
 {
 	while (*ptr != '\0')
@@ -499,8 +437,6 @@ hio_bch_t* hio_find_bchar_in_bcstr (const hio_bch_t* ptr, hio_bch_t c)
 	return HIO_NULL;
 }
 
-
- 
 hio_uch_t* hio_trim_uchars (const hio_uch_t* str, hio_oow_t* len, int flags)
 {
 	const hio_uch_t* p = str, * end = str + *len;
@@ -543,7 +479,6 @@ hio_uch_t* hio_trim_uchars (const hio_uch_t* str, hio_oow_t* len, int flags)
 	return (hio_uch_t*)str;
 }
 
- 
 hio_bch_t* hio_trim_bchars (const hio_bch_t* str, hio_oow_t* len, int flags)
 {
 	const hio_bch_t* p = str, * end = str + *len;
@@ -586,8 +521,6 @@ hio_bch_t* hio_trim_bchars (const hio_bch_t* str, hio_oow_t* len, int flags)
 	return (hio_bch_t*)str;
 }
 
-
-  
 int hio_split_ucstr (hio_uch_t* s, const hio_uch_t* delim, hio_uch_t lquote, hio_uch_t rquote, hio_uch_t escape)
 {
 	hio_uch_t* p = s, *d;
@@ -826,7 +759,6 @@ exit_point:
 	return cnt;
 }
 
-  
 int hio_split_bcstr (hio_bch_t* s, const hio_bch_t* delim, hio_bch_t lquote, hio_bch_t rquote, hio_bch_t escape)
 {
 	hio_bch_t* p = s, *d;
@@ -1065,8 +997,6 @@ exit_point:
 	return cnt;
 }
 
-
-   
 hio_intmax_t hio_uchars_to_intmax (const hio_uch_t* str, hio_oow_t len, int option, const hio_uch_t** endptr, int* is_sober)
 {
 	hio_intmax_t n = 0;
@@ -1182,7 +1112,6 @@ hio_intmax_t hio_uchars_to_intmax (const hio_uch_t* str, hio_oow_t len, int opti
 	return (negative)? -n: n;
 }
 
-   
 hio_intmax_t hio_bchars_to_intmax (const hio_bch_t* str, hio_oow_t len, int option, const hio_bch_t** endptr, int* is_sober)
 {
 	hio_intmax_t n = 0;
@@ -1298,8 +1227,6 @@ hio_intmax_t hio_bchars_to_intmax (const hio_bch_t* str, hio_oow_t len, int opti
 	return (negative)? -n: n;
 }
 
-
-   
 hio_uintmax_t hio_uchars_to_uintmax (const hio_uch_t* str, hio_oow_t len, int option, const hio_uch_t** endptr, int* is_sober)
 {
 	hio_uintmax_t n = 0;
@@ -1410,7 +1337,6 @@ hio_uintmax_t hio_uchars_to_uintmax (const hio_uch_t* str, hio_oow_t len, int op
 	return n;
 }
 
-   
 hio_uintmax_t hio_bchars_to_uintmax (const hio_bch_t* str, hio_oow_t len, int option, const hio_bch_t** endptr, int* is_sober)
 {
 	hio_uintmax_t n = 0;
