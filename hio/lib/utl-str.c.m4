@@ -31,52 +31,52 @@
 
 #include "hio-prv.h"
 #include <hio-chr.h>
-
+dnl
 dnl ---------------------------------------------------------------------------
-include(`utl-str.m4')
+include(`utl-str.m4')dnl
 dnl ---------------------------------------------------------------------------
-
+dnl
 fn_count_cstr(hio_count_ucstr, hio_uch_t)
 fn_count_cstr(hio_count_bcstr, hio_bch_t)
-
+dnl --
 fn_equal_chars(hio_equal_uchars, hio_uch_t)
 fn_equal_chars(hio_equal_bchars, hio_bch_t)
-
+dnl --
 fn_comp_chars(hio_comp_uchars, hio_uch_t, hio_uchu_t, hio_to_uch_lower)
 fn_comp_chars(hio_comp_bchars, hio_bch_t, hio_bchu_t, hio_to_bch_lower)
-
+dnl --
 fn_comp_cstr(hio_comp_ucstr, hio_uch_t, hio_uchu_t, hio_to_uch_lower)
 fn_comp_cstr(hio_comp_bcstr, hio_bch_t, hio_bchu_t, hio_to_bch_lower)
-
+dnl --
 fn_comp_cstr_limited(hio_comp_ucstr_limited, hio_uch_t, hio_uchu_t, hio_to_uch_lower)
 fn_comp_cstr_limited(hio_comp_bcstr_limited, hio_bch_t, hio_bchu_t, hio_to_bch_lower)
-
+dnl --
 fn_concat_chars_to_cstr(hio_concat_uchars_to_ucstr, hio_uch_t, hio_count_ucstr)
 fn_concat_chars_to_cstr(hio_concat_bchars_to_bcstr, hio_bch_t, hio_count_bcstr)
-
+dnl --
 fn_concat_cstr(hio_concat_ucstr, hio_uch_t, hio_count_ucstr)
 fn_concat_cstr(hio_concat_bcstr, hio_bch_t, hio_count_bcstr)
-
+dnl --
 fn_fill_chars(hio_fill_uchars, hio_uch_t)
 fn_fill_chars(hio_fill_bchars, hio_bch_t)
-
+dnl --
 fn_find_char(hio_find_uchar, hio_uch_t)
 fn_find_char(hio_find_bchar, hio_bch_t)
-
+dnl --
 fn_rfind_char(hio_rfind_uchar, hio_uch_t)
 fn_rfind_char(hio_rfind_bchar, hio_bch_t)
-
+dnl --
 fn_find_char_in_cstr(hio_find_uchar_in_ucstr, hio_uch_t)
 fn_find_char_in_cstr(hio_find_bchar_in_bcstr, hio_bch_t)
-
+dnl --
 fn_trim_chars(hio_trim_uchars, hio_uch_t, hio_is_uch_space, HIO_TRIM_UCHARS)
 fn_trim_chars(hio_trim_bchars, hio_bch_t, hio_is_bch_space, HIO_TRIM_BCHARS)
-
+dnl --
 fn_split_cstr(hio_split_ucstr, hio_uch_t, hio_is_uch_space, hio_copy_ucstr_unlimited)
 fn_split_cstr(hio_split_bcstr, hio_bch_t, hio_is_bch_space, hio_copy_bcstr_unlimited)
-
+dnl --
 fn_chars_to_int(hio_uchars_to_intmax, hio_uch_t, hio_intmax_t, hio_is_uch_space, HIO_UCHARS_TO_INTMAX)
 fn_chars_to_int(hio_bchars_to_intmax, hio_bch_t, hio_intmax_t, hio_is_bch_space, HIO_BCHARS_TO_INTMAX)
-
+dnl --
 fn_chars_to_uint(hio_uchars_to_uintmax, hio_uch_t, hio_uintmax_t, hio_is_uch_space, HIO_UCHARS_TO_UINTMAX)
 fn_chars_to_uint(hio_bchars_to_uintmax, hio_bch_t, hio_uintmax_t, hio_is_bch_space, HIO_BCHARS_TO_UINTMAX)
