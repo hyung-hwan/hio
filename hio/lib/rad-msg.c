@@ -33,8 +33,8 @@
 
 /* TODO: tlv and various value encoding.
          radius dictionary support
-	    change hio_rad_walk_attributes() to hio_rad_walk_attrs() with enhancement 
-	    finish long attribute insertion in hio_rad_insert_attr... break long data to multiple attrs 
+	   change hio_rad_walk_attributes() to hio_rad_walk_attrs() with enhancement 
+	   finish long attribute insertion in hio_rad_insert_attr... break long data to multiple attrs 
 */
 
 void hio_rad_initialize (hio_rad_hdr_t* hdr, hio_rad_code_t code, hio_uint8_t id)
