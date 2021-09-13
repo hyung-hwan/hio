@@ -24,7 +24,6 @@
     THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  */
 
-
 #include <hio.h>
 #include <hio-utl.h>
 #include <hio-sck.h>
