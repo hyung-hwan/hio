@@ -69,6 +69,9 @@ dnl --
 fn_find_char_in_cstr(hio_find_uchar_in_ucstr, hio_uch_t)
 fn_find_char_in_cstr(hio_find_bchar_in_bcstr, hio_bch_t)
 dnl --
+fn_rotate_chars(hio_rotate_uchars, hio_uch_t)
+fn_rotate_chars(hio_rotate_bchars, hio_bch_t)
+dnl --
 fn_trim_chars(hio_trim_uchars, hio_uch_t, hio_is_uch_space, HIO_TRIM_UCHARS)
 fn_trim_chars(hio_trim_bchars, hio_bch_t, hio_is_bch_space, HIO_TRIM_BCHARS)
 dnl --

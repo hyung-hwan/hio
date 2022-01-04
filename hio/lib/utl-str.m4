@@ -237,6 +237,43 @@ _char_type_* _fn_name_ (const _char_type_* ptr, _char_type_ c)
 popdef([[_fn_name_]])popdef([[_char_type_]])dnl
 ]])dnl
 dnl ---------------------------------------------------------------------------
+define([[fn_rotate_chars]], [[pushdef([[_fn_name_]], $1)pushdef([[_char_type_]], $2)dnl
+hio_oow_t _fn_name_ (_char_type_* str, hio_oow_t len, int dir, hio_oow_t n)
+{
+	hio_oow_t first, last, count, index, nk;
+	_char_type_ c;
+
+	if (dir == 0 || len == 0) return len;
+	if ((n %= len) == 0) return len;
+
+	if (dir > 0) n = len - n;
+	first = 0; nk = len - n; count = 0;
+
+	while (count < n)
+	{
+		last = first + nk;
+		index = first;
+		c = str[first];
+		do
+		{
+			count++;
+			while (index < nk)
+			{
+				str[index] = str[index + n];
+				index += n;
+			}
+			if (index == last) break;
+			str[index] = str[index - nk];
+			index -= nk;
+		}
+		while (1);
+		str[last] = c; first++;
+	}
+	return len;
+}
+popdef([[_fn_name_]])popdef([[_char_type_]])dnl
+]])dnl
+dnl ---------------------------------------------------------------------------
 define([[fn_trim_chars]], [[pushdef([[_fn_name_]], $1)pushdef([[_char_type_]], $2)pushdef([[_is_space_]], $3)pushdef([[_prefix_]], $4)dnl
 _char_type_* _fn_name_ (const _char_type_* str, hio_oow_t* len, int flags)
 {
