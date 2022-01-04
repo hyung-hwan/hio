@@ -437,6 +437,74 @@ hio_bch_t* hio_find_bchar_in_bcstr (const hio_bch_t* ptr, hio_bch_t c)
 	return HIO_NULL;
 }
 
+hio_oow_t hio_rotate_uchars (hio_uch_t* str, hio_oow_t len, int dir, hio_oow_t n)
+{
+	hio_oow_t first, last, count, index, nk;
+	hio_uch_t c;
+
+	if (dir == 0 || len == 0) return len;
+	if ((n %= len) == 0) return len;
+
+	if (dir > 0) n = len - n;
+	first = 0; nk = len - n; count = 0;
+
+	while (count < n)
+	{
+		last = first + nk;
+		index = first;
+		c = str[first];
+		do
+		{
+			count++;
+			while (index < nk)
+			{
+				str[index] = str[index + n];
+				index += n;
+			}
+			if (index == last) break;
+			str[index] = str[index - nk];
+			index -= nk;
+		}
+		while (1);
+		str[last] = c; first++;
+	}
+	return len;
+}
+
+hio_oow_t hio_rotate_bchars (hio_bch_t* str, hio_oow_t len, int dir, hio_oow_t n)
+{
+	hio_oow_t first, last, count, index, nk;
+	hio_bch_t c;
+
+	if (dir == 0 || len == 0) return len;
+	if ((n %= len) == 0) return len;
+
+	if (dir > 0) n = len - n;
+	first = 0; nk = len - n; count = 0;
+
+	while (count < n)
+	{
+		last = first + nk;
+		index = first;
+		c = str[first];
+		do
+		{
+			count++;
+			while (index < nk)
+			{
+				str[index] = str[index + n];
+				index += n;
+			}
+			if (index == last) break;
+			str[index] = str[index - nk];
+			index -= nk;
+		}
+		while (1);
+		str[last] = c; first++;
+	}
+	return len;
+}
+
 hio_uch_t* hio_trim_uchars (const hio_uch_t* str, hio_oow_t* len, int flags)
 {
 	const hio_uch_t* p = str, * end = str + *len;

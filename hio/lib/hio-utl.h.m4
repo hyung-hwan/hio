@@ -511,6 +511,21 @@ HIO_EXPORT hio_bch_t* hio_find_bchar_in_bcstr (
 	hio_bch_t        c
 );
 
+HIO_EXPORT hio_oow_t hio_rotate_uchars (
+	hio_uch_t*       str,
+	hio_oow_t        len,
+	int              dir,
+	hio_oow_t        n
+);
+
+HIO_EXPORT hio_oow_t hio_rotate_bchars (
+	hio_bch_t*       str,
+	hio_oow_t        len,
+	int              dir,
+	hio_oow_t        n
+);
+
+
 HIO_EXPORT hio_uch_t* hio_trim_uchars (
 	const hio_uch_t* str,
 	hio_oow_t*       len,
