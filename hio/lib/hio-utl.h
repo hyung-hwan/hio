@@ -585,6 +585,7 @@ HIO_EXPORT int hio_split_bcstr (
 #	define hio_rfind_oochar hio_rfind_uchar
 #	define hio_find_oochar_in_oocstr hio_find_uchar_in_ucstr
 
+#	define hio_rotate_oochars hio_rotate_uchars
 #	define hio_trim_oochars hio_trim_uchars
 #	define hio_split_oocstr hio_split_ucstr
 #else
@@ -617,6 +618,7 @@ HIO_EXPORT int hio_split_bcstr (
 #	define hio_rfind_oochar hio_rfind_bchar
 #	define hio_find_oochar_in_oocstr hio_find_bchar_in_bcstr
 
+#	define hio_rotate_oochars hio_rotate_bchars
 #	define hio_trim_oochars hio_trim_bchars
 #	define hio_split_oocstr hio_split_bcstr
 #endif
