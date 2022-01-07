@@ -50,6 +50,25 @@ int main ()
 		T_ASSERT1 (v == 0 && *endptr == '\0' && is_sober == 1, "integer in E notation");
 	}
 
+	{
+		hio_bch_t tmp[10];
+		hio_oow_t x;
+		hio_uch_t uc;
+
+		x = hio_uc_to_utf8(0x2665, tmp, HIO_COUNTOF(tmp));
+		T_ASSERT1 (x == 3 && (hio_uint8_t)tmp[0] == 0xE2 && (hio_uint8_t)tmp[1] == 0x99 && (hio_uint8_t)tmp[2] == 0xA5, "unicode to utf8 conversion");
+
+		x = hio_utf8_to_uc(tmp, x, &uc);
+		T_ASSERT1 (x == 3 && uc == 0x2665, "utf8 to unicode conversion");
+
+	#if (HIO_SIZEOF_UCH_T > 2)
+		x = hio_uc_to_utf8(0x1F3E9, tmp, HIO_COUNTOF(tmp));
+		T_ASSERT1 (x == 4 && (hio_uint8_t)tmp[0] == 0xF0 && (hio_uint8_t)tmp[1] == 0x9F && (hio_uint8_t)tmp[2] == 0x8F && (hio_uint8_t)tmp[3] == 0xA9, "unicode to utf8 conversion");
+
+		x = hio_utf8_to_uc(tmp, x, &uc);
+		T_ASSERT1 (x == 4 && uc == 0x1F3E9, "utf8 to unicode conversion");
+	#endif
+	}
 	return 0;
 
 oops:
