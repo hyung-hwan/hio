@@ -27,16 +27,143 @@
 
 #include <unistd.h>
 #include <errno.h>
+#include <sys/wait.h>
 #include <sys/uio.h>
 
 #include <stdlib.h>
 #include <fcntl.h>
+#include <signal.h>
 
 #if defined(HAVE_PTY_H)
 #	include <pty.h>
 #endif
 
 /* ========================================================================= */
+
+struct param_t
+{
+	hio_bch_t* mcmd;
+	hio_bch_t* fixed_argv[4];
+	hio_bch_t** argv;
+};
+typedef struct param_t param_t;
+
+static void free_param (hio_t* hio, param_t* param)
+{
+	if (param->argv && param->argv != param->fixed_argv) 
+		hio_freemem (hio, param->argv);
+	if (param->mcmd) hio_freemem (hio, param->mcmd);
+	HIO_MEMSET (param, 0, HIO_SIZEOF(*param));
+}
+
+static int make_param (hio_t* hio, const hio_bch_t* cmd, int flags, param_t* param)
+{
+	int fcnt = 0;
+	hio_bch_t* mcmd = HIO_NULL;
+
+	HIO_MEMSET (param, 0, HIO_SIZEOF(*param));
+
+	if (flags & HIO_DEV_PTY_SHELL)
+	{
+		mcmd = (hio_bch_t*)cmd;
+
+		param->argv = param->fixed_argv;
+		param->argv[0] = "/bin/sh";
+		param->argv[1] = "-c";
+		param->argv[2] = mcmd;
+		param->argv[3] = HIO_NULL;
+	}
+	else
+	{
+		int i;
+		hio_bch_t** argv;
+		hio_bch_t* mcmdptr;
+
+		mcmd = hio_dupbcstr(hio, cmd, HIO_NULL);
+		if (HIO_UNLIKELY(!mcmd)) goto oops;
+
+		fcnt = hio_split_bcstr(mcmd, "", '\"', '\"', '\\'); 
+		if (fcnt <= 0) 
+		{
+			/* no field or an error */
+			hio_seterrnum (hio, HIO_EINVAL);
+			goto oops;
+		}
+
+		if (fcnt < HIO_COUNTOF(param->fixed_argv))
+		{
+			param->argv = param->fixed_argv;
+		}
+		else
+		{
+			param->argv = hio_allocmem(hio, (fcnt + 1) * HIO_SIZEOF(argv[0]));
+			if (HIO_UNLIKELY(!param->argv)) goto oops;
+		}
+
+		mcmdptr = mcmd;
+		for (i = 0; i < fcnt; i++)
+		{
+			param->argv[i] = mcmdptr;
+			while (*mcmdptr != '\0') mcmdptr++;
+			mcmdptr++;
+		}
+		param->argv[i] = HIO_NULL;
+	}
+
+	if (mcmd && mcmd != (hio_bch_t*)cmd) param->mcmd = mcmd;
+	return 0;
+
+oops:
+	if (mcmd && mcmd != cmd) hio_freemem (hio, mcmd);
+	return -1;
+}
+
+static pid_t standard_fork_and_exec (hio_dev_pty_t* dev, int pfds[], hio_dev_pty_make_t* mi, param_t* param)
+{
+	hio_t* hio = dev->hio;
+	pid_t pid;
+
+	pid = fork();
+	if (pid == -1) 
+	{
+		hio_seterrwithsyserr (hio, 0, errno);
+		return -1;
+	}
+
+	if (pid == 0)
+	{
+		/* slave process */
+		/* child */
+		close (pfds[0]);  /* close the pty master */
+		pfds[0] = HIO_SYSHND_INVALID;
+
+/*TODO: close all open file descriptors */
+		if (mi->on_fork) mi->on_fork (dev, mi->fork_ctx);
+
+		setsid (); /* TODO: error check? */
+		setpgid (0, 0);
+		if (ioctl(pfds[1], TIOCSCTTY, HIO_NULL) == -1) goto slave_oops;
+
+		if (dup2(pfds[1], 0) == -1 || dup2(pfds[1], 1) == -1 || dup2(pfds[1], 2) == -1) goto slave_oops;
+
+		close (pfds[1]);
+		pfds[1] == HIO_SYSHND_INVALID;
+
+/* TODO: pass environment like TERM */
+		execv (param->argv[0], param->argv);
+
+		/* if exec fails, free 'param' parameter which is an inherited pointer */
+		free_param (hio, param); 
+
+	slave_oops:
+		if (pfds[1] != HIO_SYSHND_INVALID) close(pfds[1]);
+		_exit (128);
+	}
+
+	/* parent process */
+	return pid;
+}
+
 
 static int dev_pty_make (hio_dev_t* dev, void* ctx)
 {
@@ -45,6 +172,7 @@ static int dev_pty_make (hio_dev_t* dev, void* ctx)
 	hio_dev_pty_make_t* info = (hio_dev_pty_make_t*)ctx;
 	hio_syshnd_t pfds[2] = { HIO_SYSHND_INVALID, HIO_SYSHND_INVALID };
 	int i, fd;
+	param_t param;
 	pid_t pid;
 
 #if defined(HAVE_POSIX_OPENPT)
@@ -114,37 +242,10 @@ static int dev_pty_make (hio_dev_t* dev, void* ctx)
 	if (hio_makesyshndcloexec(hio, pfds[0]) <= -1 ||
 	    hio_makesyshndcloexec(hio, pfds[1]) <= -1) goto oops;
 
-	pid = fork();
-	if (pid == -1) 
-	{
-		hio_seterrwithsyserr (hio, 0, errno);
-		goto oops;
-	}
-
-	if (pid == 0)
-	{
-		/* child */
-		close (pfds[0]);  /* close the pty master */
-		pfds[0] = HIO_SYSHND_INVALID;
-
-	/*TODO: close all open file descriptors */
-
-		setsid (); /* TODO: error check? */
-		setpgid (0, 0);
-		if (ioctl(pfds[1], TIOCSCTTY, HIO_NULL) == -1) goto slave_oops;
-
-		if (dup2(pfds[1], 0) == -1 || dup2(pfds[1], 1) == -1 || dup2(pfds[1], 2) == -1) goto slave_oops;
-
-		close (pfds[1]);
-		pfds[1] == HIO_SYSHND_INVALID;
-
-/* TODO: no hard-coding of the executed program */
-		execl ("/bin/bash", "bin/bash", "/tmp/a.sh", HIO_NULL);
-
-	slave_oops:
-		if (pfds[1] != HIO_SYSHND_INVALID) close(pfds[1]);
-		_exit (128);
-	}
+	if (make_param(hio, info->cmd, info->flags, &param) <= -1) goto oops;
+	pid = standard_fork_and_exec(rdev, pfds, info, &param);
+	free_param (hio, &param);
+	if (pid <= -1) goto oops;
 
 	close (pfds[1]); /* close the pty slave */
 	pfds[1] = HIO_SYSHND_INVALID;
@@ -152,6 +253,8 @@ static int dev_pty_make (hio_dev_t* dev, void* ctx)
 	if (hio_makesyshndasync(hio, pfds[0]) <= -1) goto oops;
 
 	rdev->pfd = pfds[0];
+	rdev->child_pid = pid;
+	rdev->flags = info->flags;
 	rdev->dev_cap = HIO_DEV_CAP_OUT | HIO_DEV_CAP_IN | HIO_DEV_CAP_STREAM;
 	rdev->on_read = info->on_read;
 	rdev->on_write = info->on_write;
@@ -166,8 +269,48 @@ oops:
 
 static int dev_pty_kill (hio_dev_t* dev, int force)
 {
-	/*hio_t* hio = dev->hio;*/
+	hio_t* hio = dev->hio;
 	hio_dev_pty_t* rdev = (hio_dev_pty_t*)dev;
+
+	if (rdev->child_pid >= 0)
+	{
+		if (!(rdev->flags & HIO_DEV_PTY_FORGET_CHILD))
+		{
+			int killed = 0;
+			int status;
+			pid_t wpid;
+
+		await_child:
+			wpid = waitpid(rdev->child_pid, &status, WNOHANG);
+			if (wpid == 0)
+			{
+				if (force && !killed)
+				{
+					if (!(rdev->flags & HIO_DEV_PTY_FORGET_DIEHARD_CHILD))
+					{
+						kill (rdev->child_pid, SIGKILL);
+						killed = 1;
+						goto await_child;
+					}
+				}
+				else
+				{
+					/* child process is still alive */
+					hio_seterrnum (hio, HIO_EAGAIN);
+					return -1;  /* call me again */
+				}
+			}
+
+			/* wpid == rdev->child_pid => full success
+			 * wpid == -1 && errno == ECHILD => no such process. it's waitpid()'ed by some other part of the program?
+			 * other cases ==> can't really handle properly. forget it by returning success
+			 * no need not worry about EINTR because errno can't have the value when WNOHANG is set.
+			 */
+		}
+
+		HIO_DEBUG1 (hio, "PTY >>>>>>>>>>>>>>>>>>> REAPED CHILD %d\n", (int)rdev->child_pid);
+		rdev->child_pid = -1;
+	}
 
 	if (rdev->on_close) rdev->on_close (rdev);
 
@@ -291,10 +434,19 @@ static int dev_pty_ioctl (hio_dev_t* dev, int cmd, void* arg)
 	switch (cmd)
 	{
 		case HIO_DEV_PTY_CLOSE:
-		{
 			hio_dev_kill ((hio_dev_t*)rdev);
 			return 0;
-		}
+
+		case HIO_DEV_PTY_KILL_CHILD:
+			if (rdev->child_pid >= 0)
+			{
+				if (kill(rdev->child_pid, SIGKILL) == -1)
+				{
+					hio_seterrwithsyserr (hio, 0, errno);
+					return -1;
+				}
+			}
+			return 0;
 
 		default:
 			hio_seterrnum (hio, HIO_EINVAL);
@@ -407,4 +559,9 @@ int hio_dev_pty_timedwrite (hio_dev_pty_t* dev, const void* data, hio_iolen_t dl
 int hio_dev_pty_close (hio_dev_pty_t* dev)
 {
 	return hio_dev_ioctl((hio_dev_t*)dev, HIO_DEV_PTY_CLOSE, HIO_NULL);
+}
+
+int hio_dev_pty_killchild (hio_dev_pty_t* dev)
+{
+	return hio_dev_ioctl((hio_dev_t*)dev, HIO_DEV_PTY_KILL_CHILD, HIO_NULL);
 }
