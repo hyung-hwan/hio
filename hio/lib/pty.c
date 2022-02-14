@@ -29,7 +29,7 @@
 #include <errno.h>
 #include <sys/wait.h>
 #include <sys/uio.h>
-
+#include <sys/ioctl.h>
 #include <stdlib.h>
 #include <fcntl.h>
 #include <signal.h>
