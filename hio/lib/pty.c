@@ -147,7 +147,7 @@ static pid_t standard_fork_and_exec (hio_dev_pty_t* dev, int pfds[], hio_dev_pty
 		if (dup2(pfds[1], 0) == -1 || dup2(pfds[1], 1) == -1 || dup2(pfds[1], 2) == -1) goto slave_oops;
 
 		close (pfds[1]);
-		pfds[1] == HIO_SYSHND_INVALID;
+		pfds[1] = HIO_SYSHND_INVALID;
 
 /* TODO: pass environment like TERM */
 		execv (param->argv[0], param->argv);
