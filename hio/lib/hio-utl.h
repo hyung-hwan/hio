@@ -254,29 +254,8 @@ enum hio_trim_oochars_flag_t
 extern "C" {
 #endif
 
-HIO_EXPORT hio_oow_t hio_count_ucstr (
-	const hio_uch_t* str
-);
 
-HIO_EXPORT hio_oow_t hio_count_bcstr (
-	const hio_bch_t* str
-);
-
-/**
- * The hio_equal_uchars() function determines equality of two strings
- * of the same length \a len.
- */
-HIO_EXPORT int hio_equal_uchars (
-	const hio_uch_t* str1,
-	const hio_uch_t* str2,
-	hio_oow_t        len
-);
-
-HIO_EXPORT int hio_equal_bchars (
-	const hio_bch_t* str1,
-	const hio_bch_t* str2,
-	hio_oow_t        len
-);
+/* ------------------------------------ */
 
 HIO_EXPORT int hio_comp_uchars (
 	const hio_uch_t* str1,
@@ -354,76 +333,7 @@ HIO_EXPORT int hio_comp_bchars_ucstr (
 	int              ignorecase
 );
 
-HIO_EXPORT void hio_copy_uchars (
-	hio_uch_t*       dst,
-	const hio_uch_t* src,
-	hio_oow_t        len
-);
-
-HIO_EXPORT void hio_copy_bchars (
-	hio_bch_t*       dst,
-	const hio_bch_t* src,
-	hio_oow_t        len
-);
-
-HIO_EXPORT void hio_copy_bchars_to_uchars (
-	hio_uch_t*       dst,
-	const hio_bch_t* src,
-	hio_oow_t        len
-);
-HIO_EXPORT void hio_copy_uchars_to_bchars (
-	hio_bch_t*       dst,
-	const hio_uch_t* src,
-	hio_oow_t        len
-);
-
-HIO_EXPORT hio_oow_t hio_copy_uchars_to_ucstr_unlimited (
-	hio_uch_t*       dst,
-	const hio_uch_t* src,
-	hio_oow_t        len
-);
-
-HIO_EXPORT hio_oow_t hio_copy_bchars_to_bcstr_unlimited (
-	hio_bch_t*       dst,
-	const hio_bch_t* src,
-	hio_oow_t        len
-);
-
-HIO_EXPORT hio_oow_t hio_copy_ucstr (
-	hio_uch_t*       dst,
-	hio_oow_t        len,
-	const hio_uch_t* src
-);
-
-HIO_EXPORT hio_oow_t hio_copy_bcstr (
-	hio_bch_t*       dst,
-	hio_oow_t        len,
-	const hio_bch_t* src
-);
-
-HIO_EXPORT hio_oow_t hio_copy_uchars_to_ucstr (
-	hio_uch_t*       dst,
-	hio_oow_t        dlen,
-	const hio_uch_t* src,
-	hio_oow_t        slen
-);
-
-HIO_EXPORT hio_oow_t hio_copy_bchars_to_bcstr (
-	hio_bch_t*       dst,
-	hio_oow_t        dlen,
-	const hio_bch_t* src,
-	hio_oow_t        slen
-);
-
-HIO_EXPORT hio_oow_t hio_copy_ucstr_unlimited (
-	hio_uch_t*       dst,
-	const hio_uch_t* src
-);
-
-HIO_EXPORT hio_oow_t hio_copy_bcstr_unlimited (
-	hio_bch_t*       dst,
-	const hio_bch_t* src
-);
+/* ------------------------------------ */
 
 HIO_EXPORT hio_oow_t hio_concat_uchars_to_ucstr (
 	hio_uch_t*       buf,
@@ -450,6 +360,110 @@ HIO_EXPORT hio_oow_t hio_concat_bcstr (
 	hio_oow_t        bsz,
 	const hio_bch_t* src
 );
+
+/* ------------------------------------ */
+
+HIO_EXPORT void hio_copy_uchars (
+	hio_uch_t*       dst,
+	const hio_uch_t* src,
+	hio_oow_t        len
+);
+
+HIO_EXPORT void hio_copy_bchars (
+	hio_bch_t*       dst,
+	const hio_bch_t* src,
+	hio_oow_t        len
+);
+
+HIO_EXPORT void hio_copy_bchars_to_uchars (
+	hio_uch_t*       dst,
+	const hio_bch_t* src,
+	hio_oow_t        len
+);
+HIO_EXPORT void hio_copy_uchars_to_bchars (
+	hio_bch_t*       dst,
+	const hio_uch_t* src,
+	hio_oow_t        len
+);
+
+HIO_EXPORT hio_oow_t hio_copy_uchars_to_ucstr (
+	hio_uch_t*       dst,
+	hio_oow_t        dlen,
+	const hio_uch_t* src,
+	hio_oow_t        slen
+);
+
+HIO_EXPORT hio_oow_t hio_copy_bchars_to_bcstr (
+	hio_bch_t*       dst,
+	hio_oow_t        dlen,
+	const hio_bch_t* src,
+	hio_oow_t        slen
+);
+
+HIO_EXPORT hio_oow_t hio_copy_uchars_to_ucstr_unlimited (
+	hio_uch_t*       dst,
+	const hio_uch_t* src,
+	hio_oow_t        len
+);
+
+HIO_EXPORT hio_oow_t hio_copy_bchars_to_bcstr_unlimited (
+	hio_bch_t*       dst,
+	const hio_bch_t* src,
+	hio_oow_t        len
+);
+
+HIO_EXPORT hio_oow_t hio_copy_ucstr (
+	hio_uch_t*       dst,
+	hio_oow_t        len,
+	const hio_uch_t* src
+);
+
+HIO_EXPORT hio_oow_t hio_copy_bcstr (
+	hio_bch_t*       dst,
+	hio_oow_t        len,
+	const hio_bch_t* src
+);
+
+HIO_EXPORT hio_oow_t hio_copy_ucstr_unlimited (
+	hio_uch_t*       dst,
+	const hio_uch_t* src
+);
+
+HIO_EXPORT hio_oow_t hio_copy_bcstr_unlimited (
+	hio_bch_t*       dst,
+	const hio_bch_t* src
+);
+
+/* ------------------------------------ */
+
+HIO_EXPORT hio_oow_t hio_count_ucstr (
+	const hio_uch_t* str
+);
+
+HIO_EXPORT hio_oow_t hio_count_bcstr (
+	const hio_bch_t* str
+);
+
+/* ------------------------------------ */
+
+/**
+ * The hio_equal_uchars() function determines equality of two strings
+ * of the same length \a len.
+ */
+HIO_EXPORT int hio_equal_uchars (
+	const hio_uch_t* str1,
+	const hio_uch_t* str2,
+	hio_oow_t        len
+);
+
+HIO_EXPORT int hio_equal_bchars (
+	const hio_bch_t* str1,
+	const hio_bch_t* str2,
+	hio_oow_t        len
+);
+
+/* ------------------------------------ */
+
 
 HIO_EXPORT void hio_fill_uchars (
 	hio_uch_t*       dst,
@@ -585,7 +599,6 @@ HIO_EXPORT int hio_split_bcstr (
 #	define hio_rfind_oochar hio_rfind_uchar
 #	define hio_find_oochar_in_oocstr hio_find_uchar_in_ucstr
 
-#	define hio_rotate_oochars hio_rotate_uchars
 #	define hio_trim_oochars hio_trim_uchars
 #	define hio_split_oocstr hio_split_ucstr
 #else
@@ -618,7 +631,6 @@ HIO_EXPORT int hio_split_bcstr (
 #	define hio_rfind_oochar hio_rfind_bchar
 #	define hio_find_oochar_in_oocstr hio_find_bchar_in_bcstr
 
-#	define hio_rotate_oochars hio_rotate_bchars
 #	define hio_trim_oochars hio_trim_bchars
 #	define hio_split_oocstr hio_split_bcstr
 #endif

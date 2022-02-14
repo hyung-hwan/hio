@@ -35,12 +35,6 @@ dnl
 dnl ---------------------------------------------------------------------------
 include(`utl-str.m4')dnl
 dnl ---------------------------------------------------------------------------
-dnl
-fn_count_cstr(hio_count_ucstr, hio_uch_t)
-fn_count_cstr(hio_count_bcstr, hio_bch_t)
-dnl --
-fn_equal_chars(hio_equal_uchars, hio_uch_t)
-fn_equal_chars(hio_equal_bchars, hio_bch_t)
 dnl --
 fn_comp_chars(hio_comp_uchars, hio_uch_t, hio_uchu_t, hio_to_uch_lower)
 fn_comp_chars(hio_comp_bchars, hio_bch_t, hio_bchu_t, hio_to_bch_lower)
@@ -51,11 +45,35 @@ dnl --
 fn_comp_cstr_limited(hio_comp_ucstr_limited, hio_uch_t, hio_uchu_t, hio_to_uch_lower)
 fn_comp_cstr_limited(hio_comp_bcstr_limited, hio_bch_t, hio_bchu_t, hio_to_bch_lower)
 dnl --
+fn_comp_chars_cstr(hio_comp_uchars_ucstr, hio_uch_t, hio_uchu_t, hio_to_uch_lower)
+fn_comp_chars_cstr(hio_comp_bchars_bcstr, hio_bch_t, hio_bchu_t, hio_to_bch_lower)
+dnl --
 fn_concat_chars_to_cstr(hio_concat_uchars_to_ucstr, hio_uch_t, hio_count_ucstr)
 fn_concat_chars_to_cstr(hio_concat_bchars_to_bcstr, hio_bch_t, hio_count_bcstr)
 dnl --
 fn_concat_cstr(hio_concat_ucstr, hio_uch_t, hio_count_ucstr)
 fn_concat_cstr(hio_concat_bcstr, hio_bch_t, hio_count_bcstr)
+dnl --
+fn_copy_chars(hio_copy_uchars, hio_uch_t)
+fn_copy_chars(hio_copy_bchars, hio_bch_t)
+dnl --
+fn_copy_chars_to_cstr(hio_copy_uchars_to_ucstr, hio_uch_t)
+fn_copy_chars_to_cstr(hio_copy_bchars_to_bcstr, hio_bch_t)
+dnl --
+fn_copy_chars_to_cstr_unlimited(hio_copy_uchars_to_ucstr_unlimited, hio_uch_t)
+fn_copy_chars_to_cstr_unlimited(hio_copy_bchars_to_bcstr_unlimited, hio_bch_t)
+dnl --
+fn_copy_cstr(hio_copy_ucstr, hio_uch_t)
+fn_copy_cstr(hio_copy_bcstr, hio_bch_t)
+dnl --
+fn_copy_cstr_unlimited(hio_copy_ucstr_unlimited, hio_uch_t)
+fn_copy_cstr_unlimited(hio_copy_bcstr_unlimited, hio_bch_t)
+dnl --
+fn_count_cstr(hio_count_ucstr, hio_uch_t)
+fn_count_cstr(hio_count_bcstr, hio_bch_t)
+dnl --
+fn_equal_chars(hio_equal_uchars, hio_uch_t)
+fn_equal_chars(hio_equal_bchars, hio_bch_t)
 dnl --
 fn_fill_chars(hio_fill_uchars, hio_uch_t)
 fn_fill_chars(hio_fill_bchars, hio_bch_t)

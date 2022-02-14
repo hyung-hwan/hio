@@ -33,50 +33,6 @@
 #include <hio-chr.h>
 
 
-hio_oow_t hio_count_ucstr (const hio_uch_t* str)
-{
-	const hio_uch_t* ptr = str;
-	while (*ptr != '\0') ptr++;
-	return ptr - str;
-} 
-
-hio_oow_t hio_count_bcstr (const hio_bch_t* str)
-{
-	const hio_bch_t* ptr = str;
-	while (*ptr != '\0') ptr++;
-	return ptr - str;
-} 
-
-int hio_equal_uchars (const hio_uch_t* str1, const hio_uch_t* str2, hio_oow_t len)
-{
-	hio_oow_t i;
-
-	/* NOTE: you should call this function after having ensured that
-	 *       str1 and str2 are in the same length */
-
-	for (i = 0; i < len; i++)
-	{
-		if (str1[i] != str2[i]) return 0;
-	}
-
-	return 1;
-}
-
-int hio_equal_bchars (const hio_bch_t* str1, const hio_bch_t* str2, hio_oow_t len)
-{
-	hio_oow_t i;
-
-	/* NOTE: you should call this function after having ensured that
-	 *       str1 and str2 are in the same length */
-
-	for (i = 0; i < len; i++)
-	{
-		if (str1[i] != str2[i]) return 0;
-	}
-
-	return 1;
-}
-
 int hio_comp_uchars (const hio_uch_t* str1, hio_oow_t len1, const hio_uch_t* str2, hio_oow_t len2, int ignorecase)
 {
 	hio_uchu_t c1, c2;
@@ -257,6 +213,70 @@ int hio_comp_bcstr_limited (const hio_bch_t* str1, const hio_bch_t* str2, hio_oo
 	}
 }
 
+int hio_comp_uchars_ucstr (const hio_uch_t* str1, hio_oow_t len, const hio_uch_t* str2, int ignorecase)
+{
+	/* for "abc\0" of length 4 vs "abc", the fourth character
+	 * of the first string is equal to the terminating null of
+	 * the second string. the first string is still considered 
+	 * bigger */
+	if (ignorecase)
+	{
+		const hio_uch_t* end = str1 + len;
+		hio_uch_t c1;
+		hio_uch_t c2;
+		while (str1 < end && *str2 != '\0') 
+		{
+			c1 = hio_to_uch_lower(*str1);
+			c2 = hio_to_uch_lower(*str2);
+			if (c1 != c2) return ((hio_uchu_t)c1 > (hio_uchu_t)c2)? 1: -1;
+			str1++; str2++;
+		}
+		return (str1 < end)? 1: (*str2 == '\0'? 0: -1);
+	}
+	else
+	{
+		const hio_uch_t* end = str1 + len;
+		while (str1 < end && *str2 != '\0') 
+		{
+			if (*str1 != *str2) return ((hio_uchu_t)*str1 > (hio_uchu_t)*str2)? 1: -1;
+			str1++; str2++;
+		}
+		return (str1 < end)? 1: (*str2 == '\0'? 0: -1);
+	}
+}
+
+int hio_comp_bchars_bcstr (const hio_bch_t* str1, hio_oow_t len, const hio_bch_t* str2, int ignorecase)
+{
+	/* for "abc\0" of length 4 vs "abc", the fourth character
+	 * of the first string is equal to the terminating null of
+	 * the second string. the first string is still considered 
+	 * bigger */
+	if (ignorecase)
+	{
+		const hio_bch_t* end = str1 + len;
+		hio_bch_t c1;
+		hio_bch_t c2;
+		while (str1 < end && *str2 != '\0') 
+		{
+			c1 = hio_to_bch_lower(*str1);
+			c2 = hio_to_bch_lower(*str2);
+			if (c1 != c2) return ((hio_bchu_t)c1 > (hio_bchu_t)c2)? 1: -1;
+			str1++; str2++;
+		}
+		return (str1 < end)? 1: (*str2 == '\0'? 0: -1);
+	}
+	else
+	{
+		const hio_bch_t* end = str1 + len;
+		while (str1 < end && *str2 != '\0') 
+		{
+			if (*str1 != *str2) return ((hio_bchu_t)*str1 > (hio_bchu_t)*str2)? 1: -1;
+			str1++; str2++;
+		}
+		return (str1 < end)? 1: (*str2 == '\0'? 0: -1);
+	}
+}
+
 hio_oow_t hio_concat_uchars_to_ucstr (hio_uch_t* buf, hio_oow_t bsz, const hio_uch_t* str, hio_oow_t len)
 {
 	hio_uch_t* p, * p2;
@@ -345,6 +365,146 @@ hio_oow_t hio_concat_bcstr (hio_bch_t* buf, hio_oow_t bsz, const hio_bch_t* str)
 
 	if (bsz > 0) *p = '\0';
 	return p - buf;
+}
+
+void hio_copy_uchars (hio_uch_t* dst, const hio_uch_t* src, hio_oow_t len)
+{
+	/* take note of no forced null termination */
+	hio_oow_t i;
+	for (i = 0; i < len; i++) dst[i] = src[i];
+}
+
+void hio_copy_bchars (hio_bch_t* dst, const hio_bch_t* src, hio_oow_t len)
+{
+	/* take note of no forced null termination */
+	hio_oow_t i;
+	for (i = 0; i < len; i++) dst[i] = src[i];
+}
+
+hio_oow_t hio_copy_uchars_to_ucstr (hio_uch_t* dst, hio_oow_t dlen, const hio_uch_t* src, hio_oow_t slen)
+{
+	hio_oow_t i;
+	if (dlen <= 0) return 0;
+	if (dlen <= slen) slen = dlen - 1;
+	for (i = 0; i < slen; i++) dst[i] = src[i];
+	dst[i] = '\0';
+	return i;
+}
+
+hio_oow_t hio_copy_bchars_to_bcstr (hio_bch_t* dst, hio_oow_t dlen, const hio_bch_t* src, hio_oow_t slen)
+{
+	hio_oow_t i;
+	if (dlen <= 0) return 0;
+	if (dlen <= slen) slen = dlen - 1;
+	for (i = 0; i < slen; i++) dst[i] = src[i];
+	dst[i] = '\0';
+	return i;
+}
+
+hio_oow_t hio_copy_uchars_to_ucstr_unlimited (hio_uch_t* dst, const hio_uch_t* src, hio_oow_t len)
+{
+	hio_oow_t i;
+	for (i = 0; i < len; i++) dst[i] = src[i];
+	dst[i] = '\0';
+	return i;
+}
+
+hio_oow_t hio_copy_bchars_to_bcstr_unlimited (hio_bch_t* dst, const hio_bch_t* src, hio_oow_t len)
+{
+	hio_oow_t i;
+	for (i = 0; i < len; i++) dst[i] = src[i];
+	dst[i] = '\0';
+	return i;
+}
+
+hio_oow_t hio_copy_ucstr (hio_uch_t* dst, hio_oow_t len, const hio_uch_t* src)
+{
+	hio_uch_t* p, * p2;
+
+	p = dst; p2 = dst + len - 1;
+
+	while (p < p2)
+	{
+		if (*src == '\0') break;
+		*p++ = *src++;
+	}
+
+	if (len > 0) *p = '\0';
+	return p - dst;
+} 
+
+hio_oow_t hio_copy_bcstr (hio_bch_t* dst, hio_oow_t len, const hio_bch_t* src)
+{
+	hio_bch_t* p, * p2;
+
+	p = dst; p2 = dst + len - 1;
+
+	while (p < p2)
+	{
+		if (*src == '\0') break;
+		*p++ = *src++;
+	}
+
+	if (len > 0) *p = '\0';
+	return p - dst;
+} 
+
+hio_oow_t hio_copy_ucstr_unlimited (hio_uch_t* dst, const hio_uch_t* src)
+{
+	hio_uch_t* org = dst;
+	while ((*dst++ = *src++) != '\0');
+	return dst - org - 1;
+}
+
+hio_oow_t hio_copy_bcstr_unlimited (hio_bch_t* dst, const hio_bch_t* src)
+{
+	hio_bch_t* org = dst;
+	while ((*dst++ = *src++) != '\0');
+	return dst - org - 1;
+}
+
+hio_oow_t hio_count_ucstr (const hio_uch_t* str)
+{
+	const hio_uch_t* ptr = str;
+	while (*ptr != '\0') ptr++;
+	return ptr - str;
+} 
+
+hio_oow_t hio_count_bcstr (const hio_bch_t* str)
+{
+	const hio_bch_t* ptr = str;
+	while (*ptr != '\0') ptr++;
+	return ptr - str;
+} 
+
+int hio_equal_uchars (const hio_uch_t* str1, const hio_uch_t* str2, hio_oow_t len)
+{
+	hio_oow_t i;
+
+	/* NOTE: you should call this function after having ensured that
+	 *       str1 and str2 are in the same length */
+
+	for (i = 0; i < len; i++)
+	{
+		if (str1[i] != str2[i]) return 0;
+	}
+
+	return 1;
+}
+
+int hio_equal_bchars (const hio_bch_t* str1, const hio_bch_t* str2, hio_oow_t len)
+{
+	hio_oow_t i;
+
+	/* NOTE: you should call this function after having ensured that
+	 *       str1 and str2 are in the same length */
+
+	for (i = 0; i < len; i++)
+	{
+		if (str1[i] != str2[i]) return 0;
+	}
+
+	return 1;
 }
 
 void hio_fill_uchars (hio_uch_t* dst, hio_uch_t ch, hio_oow_t len)

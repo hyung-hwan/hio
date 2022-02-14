@@ -1,34 +1,6 @@
 dnl ---------------------------------------------------------------------------
 changequote(`[[', `]]')dnl
 dnl ---------------------------------------------------------------------------
-define([[fn_count_cstr]], [[pushdef([[_fn_name_]], $1)pushdef([[_char_type_]], $2)dnl
-hio_oow_t _fn_name_ (const _char_type_* str)
-{
-	const _char_type_* ptr = str;
-	while (*ptr != '\0') ptr++;
-	return ptr - str;
-} 
-popdef([[_fn_name_]])popdef([[_char_type_]])dnl
-]])dnl
-dnl ---------------------------------------------------------------------------
-define([[fn_equal_chars]], [[pushdef([[_fn_name_]], $1)pushdef([[_char_type_]], $2)dnl
-int _fn_name_ (const _char_type_* str1, const _char_type_* str2, hio_oow_t len)
-{
-	hio_oow_t i;
-
-	/* NOTE: you should call this function after having ensured that
-	 *       str1 and str2 are in the same length */
-
-	for (i = 0; i < len; i++)
-	{
-		if (str1[i] != str2[i]) return 0;
-	}
-
-	return 1;
-}
-popdef([[_fn_name_]])popdef([[_char_type_]])dnl
-]])dnl
-dnl ---------------------------------------------------------------------------
 define([[fn_comp_chars]], [[pushdef([[_fn_name_]], $1)pushdef([[_char_type_]], $2)pushdef([[_chau_type_]], $3)pushdef([[_to_lower_]], $4)dnl
 int _fn_name_ (const _char_type_* str1, hio_oow_t len1, const _char_type_* str2, hio_oow_t len2, int ignorecase)
 {
@@ -128,6 +100,41 @@ int _fn_name_ (const _char_type_* str1, const _char_type_* str2, hio_oow_t maxle
 popdef([[_fn_name_]])popdef([[_char_type_]])popdef([[_chau_type_]])popdef([[_to_lower_]])dnl
 ]])dnl
 dnl ---------------------------------------------------------------------------
+define([[fn_comp_chars_cstr]], [[pushdef([[_fn_name_]], $1)pushdef([[_char_type_]], $2)pushdef([[_chau_type_]], $3)pushdef([[_to_lower_]], $4)dnl
+int _fn_name_ (const _char_type_* str1, hio_oow_t len, const _char_type_* str2, int ignorecase)
+{
+	/* for "abc\0" of length 4 vs "abc", the fourth character
+	 * of the first string is equal to the terminating null of
+	 * the second string. the first string is still considered 
+	 * bigger */
+	if (ignorecase)
+	{
+		const _char_type_* end = str1 + len;
+		_char_type_ c1;
+		_char_type_ c2;
+		while (str1 < end && *str2 != '\0') 
+		{
+			c1 = _to_lower_()(*str1);
+			c2 = _to_lower_()(*str2);
+			if (c1 != c2) return ((_chau_type_)c1 > (_chau_type_)c2)? 1: -1;
+			str1++; str2++;
+		}
+		return (str1 < end)? 1: (*str2 == '\0'? 0: -1);
+	}
+	else
+	{
+		const _char_type_* end = str1 + len;
+		while (str1 < end && *str2 != '\0') 
+		{
+			if (*str1 != *str2) return ((_chau_type_)*str1 > (_chau_type_)*str2)? 1: -1;
+			str1++; str2++;
+		}
+		return (str1 < end)? 1: (*str2 == '\0'? 0: -1);
+	}
+}
+popdef([[_fn_name_]])popdef([[_char_type_]])popdef([[_chau_type_]])popdef([[_to_lower_]])dnl
+]])dnl
+dnl ---------------------------------------------------------------------------
 define([[fn_concat_chars_to_cstr]], [[pushdef([[_fn_name_]], $1)pushdef([[_char_type_]], $2)pushdef([[_count_str_]], $3)dnl
 hio_oow_t _fn_name_ (_char_type_* buf, hio_oow_t bsz, const _char_type_* str, hio_oow_t len)
 {
@@ -178,6 +185,97 @@ hio_oow_t _fn_name_ (_char_type_* buf, hio_oow_t bsz, const _char_type_* str)
 	return p - buf;
 }
 popdef([[_fn_name_]])popdef([[_char_type_]])popdef([[_count_str_]])dnl
+]])dnl
+dnl ---------------------------------------------------------------------------
+define([[fn_copy_chars]], [[pushdef([[_fn_name_]], $1)pushdef([[_char_type_]], $2)dnl
+void _fn_name_ (_char_type_* dst, const _char_type_* src, hio_oow_t len)
+{
+	/* take note of no forced null termination */
+	hio_oow_t i;
+	for (i = 0; i < len; i++) dst[i] = src[i];
+}
+popdef([[_fn_name_]])popdef([[_char_type_]])dnl
+]])dnl
+dnl ---------------------------------------------------------------------------
+define([[fn_copy_chars_to_cstr]], [[pushdef([[_fn_name_]], $1)pushdef([[_char_type_]], $2)dnl
+hio_oow_t _fn_name_ (_char_type_* dst, hio_oow_t dlen, const _char_type_* src, hio_oow_t slen)
+{
+	hio_oow_t i;
+	if (dlen <= 0) return 0;
+	if (dlen <= slen) slen = dlen - 1;
+	for (i = 0; i < slen; i++) dst[i] = src[i];
+	dst[i] = '\0';
+	return i;
+}
+popdef([[_fn_name_]])popdef([[_char_type_]])dnl
+]])dnl
+dnl ---------------------------------------------------------------------------
+define([[fn_copy_chars_to_cstr_unlimited]], [[pushdef([[_fn_name_]], $1)pushdef([[_char_type_]], $2)dnl
+hio_oow_t _fn_name_ (_char_type_* dst, const _char_type_* src, hio_oow_t len)
+{
+	hio_oow_t i;
+	for (i = 0; i < len; i++) dst[i] = src[i];
+	dst[i] = '\0';
+	return i;
+}
+popdef([[_fn_name_]])popdef([[_char_type_]])dnl
+]])dnl
+dnl ---------------------------------------------------------------------------
+define([[fn_copy_cstr]], [[pushdef([[_fn_name_]], $1)pushdef([[_char_type_]], $2)dnl
+hio_oow_t _fn_name_ (_char_type_* dst, hio_oow_t len, const _char_type_* src)
+{
+	_char_type_* p, * p2;
+
+	p = dst; p2 = dst + len - 1;
+
+	while (p < p2)
+	{
+		if (*src == '\0') break;
+		*p++ = *src++;
+	}
+
+	if (len > 0) *p = '\0';
+	return p - dst;
+} 
+popdef([[_fn_name_]])popdef([[_char_type_]])dnl
+]])dnl
+dnl ---------------------------------------------------------------------------
+define([[fn_copy_cstr_unlimited]], [[pushdef([[_fn_name_]], $1)pushdef([[_char_type_]], $2)dnl
+hio_oow_t _fn_name_ (_char_type_* dst, const _char_type_* src)
+{
+	_char_type_* org = dst;
+	while ((*dst++ = *src++) != '\0');
+	return dst - org - 1;
+}
+popdef([[_fn_name_]])popdef([[_char_type_]])dnl
+]])dnl
+dnl ---------------------------------------------------------------------------
+define([[fn_count_cstr]], [[pushdef([[_fn_name_]], $1)pushdef([[_char_type_]], $2)dnl
+hio_oow_t _fn_name_ (const _char_type_* str)
+{
+	const _char_type_* ptr = str;
+	while (*ptr != '\0') ptr++;
+	return ptr - str;
+} 
+popdef([[_fn_name_]])popdef([[_char_type_]])dnl
+]])dnl
+dnl ---------------------------------------------------------------------------
+define([[fn_equal_chars]], [[pushdef([[_fn_name_]], $1)pushdef([[_char_type_]], $2)dnl
+int _fn_name_ (const _char_type_* str1, const _char_type_* str2, hio_oow_t len)
+{
+	hio_oow_t i;
+
+	/* NOTE: you should call this function after having ensured that
+	 *       str1 and str2 are in the same length */
+
+	for (i = 0; i < len; i++)
+	{
+		if (str1[i] != str2[i]) return 0;
+	}
+
+	return 1;
+}
+popdef([[_fn_name_]])popdef([[_char_type_]])dnl
 ]])dnl
 dnl ---------------------------------------------------------------------------
 define([[fn_fill_chars]], [[pushdef([[_fn_name_]], $1)pushdef([[_char_type_]], $2)dnl
