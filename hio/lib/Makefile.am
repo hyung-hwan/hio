@@ -49,6 +49,7 @@ include_HEADERS = \
 	hio-path.h \
 	hio-pipe.h \
 	hio-pro.h \
+	hio-pty.h \
 	hio-rad.h \
 	hio-sck.h \
 	hio-skad.h \
