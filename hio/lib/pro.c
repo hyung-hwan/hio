@@ -279,16 +279,11 @@ static int dev_pro_make_master (hio_dev_t* dev, void* ctx)
 	}
 
 	if (make_param(hio, info->cmd, info->flags, &param) <= -1) goto oops;
-
 /* TODO: more advanced fork and exec .. */
 	pid = standard_fork_and_exec(rdev, pfds, info, &param);
-	if (pid <= -1) 
-	{
-		free_param (hio, &param);
-		goto oops;
-	}
-
 	free_param (hio, &param);
+	if (pid <= -1) goto oops;
+
 	rdev->child_pid = pid;
 
 	/* this is the parent process */
@@ -427,11 +422,11 @@ static int dev_pro_kill_master (hio_dev_t* dev, int force)
 {
 	hio_t* hio = dev->hio;
 	hio_dev_pro_t* rdev = (hio_dev_pro_t*)dev;
-	int i, status;
-	pid_t wpid;
 
 	if (rdev->slave_count > 0)
 	{
+		hio_oow_t i;
+
 		for (i = 0; i < HIO_COUNTOF(rdev->slave); i++)
 		{
 			if (rdev->slave[i])
@@ -454,6 +449,8 @@ static int dev_pro_kill_master (hio_dev_t* dev, int force)
 		if (!(rdev->flags & HIO_DEV_PRO_FORGET_CHILD))
 		{
 			int killed = 0;
+			int status;
+			pid_t wpid;
 
 		await_child:
 			wpid = waitpid(rdev->child_pid, &status, WNOHANG);
@@ -483,7 +480,7 @@ static int dev_pro_kill_master (hio_dev_t* dev, int force)
 			 */
 		}
 
-		HIO_DEBUG1 (hio, ">>>>>>>>>>>>>>>>>>> REAPED CHILD %d\n", (int)rdev->child_pid);
+		HIO_DEBUG1 (hio, "PRO >>>>>>>>>>>>>>>>>>> REAPED CHILD %d\n", (int)rdev->child_pid);
 		rdev->child_pid = -1;
 	}
 

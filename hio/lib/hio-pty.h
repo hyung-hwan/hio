@@ -45,28 +45,53 @@ typedef void (*hio_dev_pty_on_close_t) (
 	hio_dev_pty_t*    dev
 );
 
+typedef int (*hio_dev_pty_on_fork_t) (
+	hio_dev_pty_t*    dev,
+	void*             fork_ctx
+);
+
 struct hio_dev_pty_t
 {
 	HIO_DEV_HEADER;
 
 	hio_syshnd_t pfd;
+	hio_intptr_t child_pid;
+	int flags;
 
 	hio_dev_pty_on_read_t on_read;
 	hio_dev_pty_on_write_t on_write;
 	hio_dev_pty_on_close_t on_close;
 };
 
+enum hio_dev_pty_make_flag_t
+{
+	HIO_DEV_PTY_SHELL = (1 << 13),
+	/* perform no waitpid() on a child process upon device destruction.
+	 * you should set this flag if your application has automatic child 
+	 * process reaping enabled. for instance, SIGCHLD is set to SIG_IGN
+	 * on POSIX.1-2001 compliant systems */
+	HIO_DEV_PTY_FORGET_CHILD = (1 << 14),
+	HIO_DEV_PTY_FORGET_DIEHARD_CHILD = (1 << 15)
+};
+typedef enum hio_dev_pty_make_flag_t hio_dev_pty_make_flag_t;
+
 typedef struct hio_dev_pty_make_t hio_dev_pty_make_t;
 struct hio_dev_pty_make_t
 {
+	int flags; /**< bitwise-ORed of hio_dev_pty_make_flag_t enumerators */
+	const void* cmd;
+
 	hio_dev_pty_on_write_t on_write; /* mandatory */
 	hio_dev_pty_on_read_t on_read; /* mandatory */
 	hio_dev_pty_on_close_t on_close; /* optional */
+	hio_dev_pty_on_fork_t on_fork; /* optional */
+	void* fork_ctx;
 };
 
 enum hio_dev_pty_ioctl_cmd_t
 {
-	HIO_DEV_PTY_CLOSE
+	HIO_DEV_PTY_CLOSE,
+	HIO_DEV_PTY_KILL_CHILD
 };
 typedef enum hio_dev_pty_ioctl_cmd_t hio_dev_pty_ioctl_cmd_t;
 
@@ -128,6 +153,10 @@ HIO_EXPORT int hio_dev_pty_timedwrite (
 
 HIO_EXPORT int hio_dev_pty_close (
 	hio_dev_pty_t*     pty
+);
+
+HIO_EXPORT int hio_dev_pty_killchild (
+	hio_dev_pty_t*     pro
 );
 
 #if defined(__cplusplus)

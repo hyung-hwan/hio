@@ -62,6 +62,8 @@ int main (int argc, char* argv[])
 	hio_setoption (hio, HIO_LOG_TARGET_BCSTR, "/dev/stderr");
 
 	memset (&pi, 0, HIO_SIZEOF(pi));
+	pi.cmd = "/bin/ls -laF /etc";
+	pi.flags = HIO_DEV_PTY_SHELL;
 	pi.on_write = pty_on_write;
 	pi.on_read = pty_on_read;
 	pi.on_close = pty_on_close; 
