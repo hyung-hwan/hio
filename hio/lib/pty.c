@@ -111,8 +111,8 @@ static int dev_pty_make (hio_dev_t* dev, void* ctx)
 #	error NOT IMPLEMENTED YET
 #endif
 
-	if (hio_makesyshndcloexec(hio, pfds[0]) <= -1) goto oops;
-	if (hio_makesyshndcloexec(hio, pfds[1]) <= -1) goto oops;
+	if (hio_makesyshndcloexec(hio, pfds[0]) <= -1 ||
+	    hio_makesyshndcloexec(hio, pfds[1]) <= -1) goto oops;
 
 	pid = fork();
 	if (pid == -1) 
@@ -127,7 +127,7 @@ static int dev_pty_make (hio_dev_t* dev, void* ctx)
 		close (pfds[0]);  /* close the pty master */
 		pfds[0] = HIO_SYSHND_INVALID;
 
-		/*TODO: close all open file descriptors */
+	/*TODO: close all open file descriptors */
 
 		setsid (); /* TODO: error check? */
 		setpgid (0, 0);
@@ -160,7 +160,7 @@ static int dev_pty_make (hio_dev_t* dev, void* ctx)
 
 oops:
 	if (pfds[0] != HIO_SYSHND_INVALID) close (pfds[0]);
-	if (pfds[1] != HIO_SYSHND_INVALID) close (pfds[0]);
+	if (pfds[1] != HIO_SYSHND_INVALID) close (pfds[1]);
 	return -1;
 }
 
@@ -408,4 +408,3 @@ int hio_dev_pty_close (hio_dev_pty_t* dev)
 {
 	return hio_dev_ioctl((hio_dev_t*)dev, HIO_DEV_PTY_CLOSE, HIO_NULL);
 }
-

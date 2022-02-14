@@ -88,8 +88,8 @@ static int make_param (hio_t* hio, const hio_bch_t* cmd, int flags, param_t* par
 		hio_bch_t* mcmdptr;
 
 		mcmd = hio_dupbcstr(hio, cmd, HIO_NULL);
-		if (!mcmd) goto oops;
-		
+		if (HIO_UNLIKELY(!mcmd)) goto oops;
+
 		fcnt = hio_split_bcstr(mcmd, "", '\"', '\"', '\\'); 
 		if (fcnt <= 0) 
 		{
@@ -105,7 +105,7 @@ static int make_param (hio_t* hio, const hio_bch_t* cmd, int flags, param_t* par
 		else
 		{
 			param->argv = hio_allocmem(hio, (fcnt + 1) * HIO_SIZEOF(argv[0]));
-			if (!param->argv) goto oops;
+			if (HIO_UNLIKELY(!param->argv)) goto oops;
 		}
 
 		mcmdptr = mcmd;
