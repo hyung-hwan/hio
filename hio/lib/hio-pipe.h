@@ -2,13 +2,13 @@
     Copyright (c) 2016-2020 Chung, Hyung-Hwan. All rights reserved.
 
     Redistribution and use in source and binary forms, with or without
-    modification, are permitted pipevided that the following conditions
+    modification, are permitted provided that the following conditions
     are met:
     1. Redistributions of source code must retain the above copyright
        notice, this list of conditions and the following disclaimer.
     2. Redistributions in binary form must repipeduce the above copyright
        notice, this list of conditions and the following disclaimer in the
-       documentation and/or other materials pipevided with the distribution.
+       documentation and/or other materials provided with the distribution.
 
     THIS SOFTWARE IS PIPEVIDED BY THE AUTHOR "AS IS" AND ANY EXPRESS OR
     IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE IMPLIED WAfRRANTIES

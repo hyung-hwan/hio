@@ -443,14 +443,8 @@ static int dev_sck_make (hio_dev_t* dev, void* ctx)
 	return 0;
 
 oops:
-	if (hnd != HIO_SYSHND_INVALID) 
-	{
-		close (hnd);
-	}
-	if (side_chan != HIO_SYSHND_INVALID) 
-	{
-		close (side_chan);
-	}
+	if (hnd != HIO_SYSHND_INVALID) close (hnd);
+	if (side_chan != HIO_SYSHND_INVALID) close (side_chan);
 	return -1;
 }
 

@@ -226,6 +226,9 @@
 /* Define to 1 if you have the <net/if.h> header file. */
 #undef HAVE_NET_IF_H
 
+/* Define to 1 if you have the `openpty' function. */
+#undef HAVE_OPENPTY
+
 /* Define to 1 if you have the <openssl/engine.h> header file. */
 #undef HAVE_OPENSSL_ENGINE_H
 
@@ -244,6 +247,9 @@
 /* Define to 1 if you have the `posix_fadvise' function. */
 #undef HAVE_POSIX_FADVISE
 
+/* Define to 1 if you have the `posix_openpt' function. */
+#undef HAVE_POSIX_OPENPT
+
 /* Define to 1 if you have the `posix_spawn' function. */
 #undef HAVE_POSIX_SPAWN
 
@@ -261,6 +267,9 @@
 
 /* Have PTHREAD_PRIO_INHERIT. */
 #undef HAVE_PTHREAD_PRIO_INHERIT
+
+/* Define to 1 if you have the <pty.h> header file. */
+#undef HAVE_PTY_H
 
 /* Define to 1 if you have the <quadmath.h> header file. */
 #undef HAVE_QUADMATH_H

@@ -88,6 +88,7 @@ libhio_la_SOURCES = \
 	path.c \
 	pipe.c \
 	pro.c \
+	pty.c \
 	rad-msg.c \
 	sck.c \
 	skad.c \
