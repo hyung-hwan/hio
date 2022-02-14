@@ -1,5 +1,6 @@
 #include <hio-sck.h>
 #include <hio-http.h>
+#include <hio-dhcp.h>
 #include <hio-utl.h>
 #include <stdio.h>
 #include <string.h>
