@@ -15,7 +15,16 @@ hio_execd_SOURCES = execd.c
 hio_execd_CPPFLAGS = $(CPPFLAGS_COMMON)
 hio_execd_CFLAGS = $(CFLAGS_COMMON)
 hio_execd_LDFLAGS = $(LDFLAGS_COMMON)
-hio_execd_LDADD = $(LIBADD_COMMON)
+hio_execd_LDADD = $(LIBADD_COMMON) 
+
+if HAVE_X11_LIB
+bin_PROGRAMS += hio-te
+hio_te_SOURCES = te.c 
+hio_te_CPPFLAGS = $(CPPFLAGS_COMMON)
+hio_te_CFLAGS = $(CFLAGS_COMMON)
+hio_te_LDFLAGS = $(LDFLAGS_COMMON)
+hio_te_LDADD = $(LIBADD_COMMON) -lX11
+endif
 
 bin_PROGRAMS += hio-t01
 hio_t01_SOURCES = t01.c
