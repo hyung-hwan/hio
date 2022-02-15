@@ -45,6 +45,8 @@ struct param_t
 	hio_bch_t* mcmd;
 	hio_bch_t* fixed_argv[4];
 	hio_bch_t** argv;
+
+	hio_bch_t* fixed_env[2];
 };
 typedef struct param_t param_t;
 
@@ -56,16 +58,28 @@ static void free_param (hio_t* hio, param_t* param)
 	HIO_MEMSET (param, 0, HIO_SIZEOF(*param));
 }
 
-static int make_param (hio_t* hio, const hio_bch_t* cmd, int flags, param_t* param)
+static int make_param (hio_t* hio, const void* cmd, int flags, param_t* param)
 {
 	int fcnt = 0;
 	hio_bch_t* mcmd = HIO_NULL;
 
 	HIO_MEMSET (param, 0, HIO_SIZEOF(*param));
 
+	/* TODO: make this configurable */
+	param->fixed_env[0] = "TERM=dumb";
+	param->fixed_env[1] = HIO_NULL;
+
 	if (flags & HIO_DEV_PTY_SHELL)
 	{
-		mcmd = (hio_bch_t*)cmd;
+		if (flags & HIO_DEV_PTY_UCMD)
+		{
+			mcmd = hio_duputobcstr(hio, cmd, HIO_NULL);
+			if (HIO_UNLIKELY(!mcmd)) goto oops;
+		}
+		else
+		{
+			mcmd = (hio_bch_t*)cmd;
+		}
 
 		param->argv = param->fixed_argv;
 		param->argv[0] = "/bin/sh";
@@ -79,7 +93,9 @@ static int make_param (hio_t* hio, const hio_bch_t* cmd, int flags, param_t* par
 		hio_bch_t** argv;
 		hio_bch_t* mcmdptr;
 
-		mcmd = hio_dupbcstr(hio, cmd, HIO_NULL);
+		mcmd = (flags & HIO_DEV_PTY_UCMD)?
+			hio_duputobcstr(hio, cmd, HIO_NULL):
+			hio_dupbcstr(hio, cmd, HIO_NULL);
 		if (HIO_UNLIKELY(!mcmd)) goto oops;
 
 		fcnt = hio_split_bcstr(mcmd, "", '\"', '\"', '\\'); 
@@ -149,8 +165,7 @@ static pid_t standard_fork_and_exec (hio_dev_pty_t* dev, int pfds[], hio_dev_pty
 		close (pfds[1]);
 		pfds[1] = HIO_SYSHND_INVALID;
 
-/* TODO: pass environment like TERM */
-		execv (param->argv[0], param->argv);
+		execve (param->argv[0], param->argv, param->fixed_env);
 
 		/* if exec fails, free 'param' parameter which is an inherited pointer */
 		free_param (hio, param); 
@@ -252,7 +267,7 @@ static int dev_pty_make (hio_dev_t* dev, void* ctx)
 
 	if (hio_makesyshndasync(hio, pfds[0]) <= -1) goto oops;
 
-	rdev->pfd = pfds[0];
+	rdev->hnd = pfds[0];
 	rdev->child_pid = pid;
 	rdev->flags = info->flags;
 	rdev->dev_cap = HIO_DEV_CAP_OUT | HIO_DEV_CAP_IN | HIO_DEV_CAP_STREAM;
@@ -314,10 +329,10 @@ static int dev_pty_kill (hio_dev_t* dev, int force)
 
 	if (rdev->on_close) rdev->on_close (rdev);
 
-	if (rdev->pfd != HIO_SYSHND_INVALID)
+	if (rdev->hnd != HIO_SYSHND_INVALID)
 	{
-		close (rdev->pfd);
-		rdev->pfd = HIO_SYSHND_INVALID;
+		close (rdev->hnd);
+		rdev->hnd = HIO_SYSHND_INVALID;
 	}
 	return 0;
 }
@@ -327,13 +342,13 @@ static int dev_pty_read (hio_dev_t* dev, void* buf, hio_iolen_t* len, hio_devadd
 	hio_dev_pty_t* pty = (hio_dev_pty_t*)dev;
 	ssize_t x;
 
-	if (HIO_UNLIKELY(pty->pfd == HIO_SYSHND_INVALID))
+	if (HIO_UNLIKELY(pty->hnd == HIO_SYSHND_INVALID))
 	{
 		hio_seterrnum (pty->hio, HIO_EBADHND);
 		return -1;
 	}
 
-	x = read(pty->pfd, buf, *len);
+	x = read(pty->hnd, buf, *len);
 	if (x <= -1)
 	{
 		if (errno == EINPROGRESS || errno == EWOULDBLOCK || errno == EAGAIN) return 0;  /* no data available */
@@ -351,7 +366,7 @@ static int dev_pty_write (hio_dev_t* dev, const void* data, hio_iolen_t* len, co
 	hio_dev_pty_t* pty = (hio_dev_pty_t*)dev;
 	ssize_t x;
 
-	if (HIO_UNLIKELY(pty->pfd == HIO_SYSHND_INVALID))
+	if (HIO_UNLIKELY(pty->hnd == HIO_SYSHND_INVALID))
 	{
 		hio_seterrnum (pty->hio, HIO_EBADHND);
 		return -1;
@@ -361,16 +376,16 @@ static int dev_pty_write (hio_dev_t* dev, const void* data, hio_iolen_t* len, co
 	{
 		/* this is an EOF indicator */
 		/*hio_dev_halt (dev);*/ /* halt this slave device to indicate EOF on the lower-level handle */
-		if (HIO_LIKELY(pty->pfd != HIO_SYSHND_INVALID)) /* halt() doesn't close the pty immediately. so close the underlying pty */
+		if (HIO_LIKELY(pty->hnd != HIO_SYSHND_INVALID)) /* halt() doesn't close the pty immediately. so close the underlying pty */
 		{
 			hio_dev_watch (dev, HIO_DEV_WATCH_STOP, 0);
-			close (pty->pfd);
-			pty->pfd = HIO_SYSHND_INVALID;
+			close (pty->hnd);
+			pty->hnd = HIO_SYSHND_INVALID;
 		}
 		return 1; /* indicate that the operation got successful. the core will execute on_write() with 0. */
 	}
 
-	x = write(pty->pfd, data, *len);
+	x = write(pty->hnd, data, *len);
 	if (x <= -1)
 	{
 		if (errno == EINPROGRESS || errno == EWOULDBLOCK || errno == EAGAIN) return 0;  /* no data can be written */
@@ -388,7 +403,7 @@ static int dev_pty_writev (hio_dev_t* dev, const hio_iovec_t* iov, hio_iolen_t* 
 	hio_dev_pty_t* pty = (hio_dev_pty_t*)dev;
 	ssize_t x;
 
-	if (HIO_UNLIKELY(pty->pfd == HIO_SYSHND_INVALID))
+	if (HIO_UNLIKELY(pty->hnd == HIO_SYSHND_INVALID))
 	{
 		hio_seterrnum (pty->hio, HIO_EBADHND);
 		return -1;
@@ -398,16 +413,16 @@ static int dev_pty_writev (hio_dev_t* dev, const hio_iovec_t* iov, hio_iolen_t* 
 	{
 		/* this is an EOF indicator */
 		/*hio_dev_halt (dev);*/ /* halt this slave device to indicate EOF on the lower-level handle  */
-		if (HIO_LIKELY(pty->pfd != HIO_SYSHND_INVALID)) /* halt() doesn't close the pty immediately. so close the underlying pty */
+		if (HIO_LIKELY(pty->hnd != HIO_SYSHND_INVALID)) /* halt() doesn't close the pty immediately. so close the underlying pty */
 		{
 			hio_dev_watch (dev, HIO_DEV_WATCH_STOP, 0);
-			close (pty->pfd);
-			pty->pfd = HIO_SYSHND_INVALID;
+			close (pty->hnd);
+			pty->hnd = HIO_SYSHND_INVALID;
 		}
 		return 1; /* indicate that the operation got successful. the core will execute on_write() with 0. */
 	}
 
-	x = writev(pty->pfd, iov, *iovcnt);
+	x = writev(pty->hnd, iov, *iovcnt);
 	if (x <= -1)
 	{
 		if (errno == EINPROGRESS || errno == EWOULDBLOCK || errno == EAGAIN) return 0;  /* no data can be written */
@@ -423,7 +438,7 @@ static int dev_pty_writev (hio_dev_t* dev, const hio_iovec_t* iov, hio_iolen_t* 
 static hio_syshnd_t dev_pty_getsyshnd (hio_dev_t* dev)
 {
 	hio_dev_pty_t* rdev = (hio_dev_pty_t*)dev;
-	return rdev->pfd;
+	return rdev->hnd;
 }
 
 static int dev_pty_ioctl (hio_dev_t* dev, int cmd, void* arg)

@@ -64,7 +64,7 @@ static void free_param (hio_t* hio, param_t* param)
 	HIO_MEMSET (param, 0, HIO_SIZEOF(*param));
 }
 
-static int make_param (hio_t* hio, const hio_bch_t* cmd, int flags, param_t* param)
+static int make_param (hio_t* hio, const void* cmd, int flags, param_t* param)
 {
 	int fcnt = 0;
 	hio_bch_t* mcmd = HIO_NULL;
@@ -73,7 +73,15 @@ static int make_param (hio_t* hio, const hio_bch_t* cmd, int flags, param_t* par
 
 	if (flags & HIO_DEV_PRO_SHELL)
 	{
-		mcmd = (hio_bch_t*)cmd;
+		if (flags & HIO_DEV_PRO_UCMD)
+		{
+			mcmd = hio_duputobcstr(hio, cmd, HIO_NULL);
+			if (HIO_UNLIKELY(!mcmd)) goto oops;
+		}
+		else
+		{
+			mcmd = (hio_bch_t*)cmd;
+		}
 
 		param->argv = param->fixed_argv;
 		param->argv[0] = "/bin/sh";
@@ -87,7 +95,9 @@ static int make_param (hio_t* hio, const hio_bch_t* cmd, int flags, param_t* par
 		hio_bch_t** argv;
 		hio_bch_t* mcmdptr;
 
-		mcmd = hio_dupbcstr(hio, cmd, HIO_NULL);
+		mcmd = (flags & HIO_DEV_PRO_UCMD)?
+			hio_duputobcstr(hio, cmd, HIO_NULL):
+			hio_dupbcstr(hio, cmd, HIO_NULL);
 		if (HIO_UNLIKELY(!mcmd)) goto oops;
 
 		fcnt = hio_split_bcstr(mcmd, "", '\"', '\"', '\\'); 

@@ -103,6 +103,7 @@ enum hio_dev_pro_make_flag_t
 	HIO_DEV_PRO_DROPOUT = (1 << 9),
 	HIO_DEV_PRO_DROPERR = (1 << 10),
 
+	HIO_DEV_PRO_UCMD = (1 << 12), /* cmd is hio_uch_t* */
 	HIO_DEV_PRO_SHELL = (1 << 13),
 
 	/* perform no waitpid() on a child process upon device destruction.
@@ -120,7 +121,7 @@ typedef struct hio_dev_pro_make_t hio_dev_pro_make_t;
 struct hio_dev_pro_make_t
 {
 	int flags; /**< bitwise-ORed of hio_dev_pro_make_flag_t enumerators */
-	const void* cmd;
+	const void* cmd; /* the actual type is determined by HIO_DEV_PRO_UCMD */
 	hio_dev_pro_on_write_t on_write; /* mandatory */
 	hio_dev_pro_on_read_t on_read; /* mandatory */
 	hio_dev_pro_on_close_t on_close; /* optional */

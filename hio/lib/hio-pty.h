@@ -54,7 +54,7 @@ struct hio_dev_pty_t
 {
 	HIO_DEV_HEADER;
 
-	hio_syshnd_t pfd;
+	hio_syshnd_t hnd;
 	hio_intptr_t child_pid;
 	int flags;
 
@@ -65,6 +65,7 @@ struct hio_dev_pty_t
 
 enum hio_dev_pty_make_flag_t
 {
+	HIO_DEV_PTY_UCMD = (1 << 12), /* cmd is hio_uch_t* */
 	HIO_DEV_PTY_SHELL = (1 << 13),
 	/* perform no waitpid() on a child process upon device destruction.
 	 * you should set this flag if your application has automatic child 
@@ -79,7 +80,7 @@ typedef struct hio_dev_pty_make_t hio_dev_pty_make_t;
 struct hio_dev_pty_make_t
 {
 	int flags; /**< bitwise-ORed of hio_dev_pty_make_flag_t enumerators */
-	const void* cmd;
+	const void* cmd; /* the actual type is determined by HIO_DEV_PTY_UCMD */
 
 	hio_dev_pty_on_write_t on_write; /* mandatory */
 	hio_dev_pty_on_read_t on_read; /* mandatory */
@@ -107,14 +108,16 @@ HIO_EXPORT  hio_dev_pty_t* hio_dev_pty_make (
 
 #if defined(HIO_HAVE_INLINE)
 static HIO_INLINE hio_t* hio_dev_pty_gethio (hio_dev_pty_t* pty) { return hio_dev_gethio((hio_dev_t*)pty); }
+static HIO_INLINE void* hio_dev_pty_getxtn (hio_dev_pty_t* pty) { return (void*)(pty + 1); }
+static HIO_INLINE hio_syshnd_t hio_dev_pty_getsyshnd (hio_dev_pty_t* pty) { return pty->hnd; }
 #else
 #	define hio_dev_pty_gethio(pty) hio_dev_gethio(pty)
+#	define hio_dev_pty_getxtn(pty) ((void*)(((hio_dev_pty_t*)pty) + 1))
+#	define hio_dev_pty_getsyshnd(pty) (((hio_dev_pty_t*)pty)->hnd)
 #endif
 
 #if defined(HIO_HAVE_INLINE)
-static HIO_INLINE void* hio_dev_pty_getxtn (hio_dev_pty_t* pty) { return (void*)(pty + 1); }
 #else
-#	define hio_dev_pty_getxtn(pty) ((void*)(((hio_dev_pty_t*)pty) + 1))
 #endif
 
 HIO_EXPORT void hio_dev_pty_kill (
