@@ -88,12 +88,13 @@ PRE_UNINSTALL = :
 POST_UNINSTALL = :
 build_triplet = @build@
 host_triplet = @host@
-bin_PROGRAMS = hio-execd$(EXEEXT) hio-t01$(EXEEXT) hio-t02$(EXEEXT) \
-	hio-t03$(EXEEXT) hio-t04$(EXEEXT) hio-t05$(EXEEXT) \
-	hio-t06$(EXEEXT)
-@ENABLE_MARIADB_TRUE@am__append_1 = $(MARIADB_CFLAGS)  
-@ENABLE_MARIADB_TRUE@am__append_2 = $(MARIADB_LDFLAGS)  
-@ENABLE_MARIADB_TRUE@am__append_3 = $(MARIADB_LIBS)  
+bin_PROGRAMS = hio-execd$(EXEEXT) $(am__EXEEXT_1) hio-t01$(EXEEXT) \
+	hio-t02$(EXEEXT) hio-t03$(EXEEXT) hio-t04$(EXEEXT) \
+	hio-t05$(EXEEXT) hio-t06$(EXEEXT)
+@HAVE_X11_LIB_TRUE@am__append_1 = hio-te
+@ENABLE_MARIADB_TRUE@am__append_2 = $(MARIADB_CFLAGS)  
+@ENABLE_MARIADB_TRUE@am__append_3 = $(MARIADB_LDFLAGS)  
+@ENABLE_MARIADB_TRUE@am__append_4 = $(MARIADB_LIBS)  
 subdir = bin
 ACLOCAL_M4 = $(top_srcdir)/aclocal.m4
 am__aclocal_m4_deps = $(top_srcdir)/m4/ax_check_sign.m4 \
@@ -109,6 +110,7 @@ mkinstalldirs = $(install_sh) -d
 CONFIG_HEADER = $(top_builddir)/lib/hio-cfg.h
 CONFIG_CLEAN_FILES =
 CONFIG_CLEAN_VPATH_FILES =
+@HAVE_X11_LIB_TRUE@am__EXEEXT_1 = hio-te$(EXEEXT)
 am__installdirs = "$(DESTDIR)$(bindir)"
 PROGRAMS = $(bin_PROGRAMS)
 am_hio_execd_OBJECTS = hio_execd-execd.$(OBJEXT)
@@ -159,6 +161,13 @@ hio_t06_DEPENDENCIES = $(LIBADD_COMMON)
 hio_t06_LINK = $(LIBTOOL) $(AM_V_lt) --tag=CC $(AM_LIBTOOLFLAGS) \
 	$(LIBTOOLFLAGS) --mode=link $(CCLD) $(hio_t06_CFLAGS) \
 	$(CFLAGS) $(hio_t06_LDFLAGS) $(LDFLAGS) -o $@
+am__hio_te_SOURCES_DIST = te.c
+@HAVE_X11_LIB_TRUE@am_hio_te_OBJECTS = hio_te-te.$(OBJEXT)
+hio_te_OBJECTS = $(am_hio_te_OBJECTS)
+@HAVE_X11_LIB_TRUE@hio_te_DEPENDENCIES = $(LIBADD_COMMON)
+hio_te_LINK = $(LIBTOOL) $(AM_V_lt) --tag=CC $(AM_LIBTOOLFLAGS) \
+	$(LIBTOOLFLAGS) --mode=link $(CCLD) $(hio_te_CFLAGS) $(CFLAGS) \
+	$(hio_te_LDFLAGS) $(LDFLAGS) -o $@
 AM_V_P = $(am__v_P_@AM_V@)
 am__v_P_ = $(am__v_P_@AM_DEFAULT_V@)
 am__v_P_0 = false
@@ -177,7 +186,8 @@ am__maybe_remake_depfiles = depfiles
 am__depfiles_remade = ./$(DEPDIR)/hio_execd-execd.Po \
 	./$(DEPDIR)/hio_t01-t01.Po ./$(DEPDIR)/hio_t02-t02.Po \
 	./$(DEPDIR)/hio_t03-t03.Po ./$(DEPDIR)/hio_t04-t04.Po \
-	./$(DEPDIR)/hio_t05-t05.Po ./$(DEPDIR)/hio_t06-t06.Po
+	./$(DEPDIR)/hio_t05-t05.Po ./$(DEPDIR)/hio_t06-t06.Po \
+	./$(DEPDIR)/hio_te-te.Po
 am__mv = mv -f
 COMPILE = $(CC) $(DEFS) $(DEFAULT_INCLUDES) $(INCLUDES) $(AM_CPPFLAGS) \
 	$(CPPFLAGS) $(AM_CFLAGS) $(CFLAGS)
@@ -199,10 +209,11 @@ am__v_CCLD_0 = @echo "  CCLD    " $@;
 am__v_CCLD_1 = 
 SOURCES = $(hio_execd_SOURCES) $(hio_t01_SOURCES) $(hio_t02_SOURCES) \
 	$(hio_t03_SOURCES) $(hio_t04_SOURCES) $(hio_t05_SOURCES) \
-	$(hio_t06_SOURCES)
+	$(hio_t06_SOURCES) $(hio_te_SOURCES)
 DIST_SOURCES = $(hio_execd_SOURCES) $(hio_t01_SOURCES) \
 	$(hio_t02_SOURCES) $(hio_t03_SOURCES) $(hio_t04_SOURCES) \
-	$(hio_t05_SOURCES) $(hio_t06_SOURCES)
+	$(hio_t05_SOURCES) $(hio_t06_SOURCES) \
+	$(am__hio_te_SOURCES_DIST)
 am__can_run_installinfo = \
   case $$AM_UPDATE_INFO_DIR in \
     n|no|NO) false;; \
@@ -383,7 +394,12 @@ hio_execd_SOURCES = execd.c
 hio_execd_CPPFLAGS = $(CPPFLAGS_COMMON)
 hio_execd_CFLAGS = $(CFLAGS_COMMON)
 hio_execd_LDFLAGS = $(LDFLAGS_COMMON)
-hio_execd_LDADD = $(LIBADD_COMMON)
+hio_execd_LDADD = $(LIBADD_COMMON) 
+@HAVE_X11_LIB_TRUE@hio_te_SOURCES = te.c 
+@HAVE_X11_LIB_TRUE@hio_te_CPPFLAGS = $(CPPFLAGS_COMMON)
+@HAVE_X11_LIB_TRUE@hio_te_CFLAGS = $(CFLAGS_COMMON)
+@HAVE_X11_LIB_TRUE@hio_te_LDFLAGS = $(LDFLAGS_COMMON)
+@HAVE_X11_LIB_TRUE@hio_te_LDADD = $(LIBADD_COMMON) -lX11
 hio_t01_SOURCES = t01.c
 hio_t01_CPPFLAGS = $(CPPFLAGS_COMMON)
 hio_t01_CFLAGS = $(CFLAGS_COMMON)
@@ -401,9 +417,9 @@ hio_t03_LDFLAGS = $(LDFLAGS_COMMON)
 hio_t03_LDADD = $(LIBADD_COMMON)
 hio_t04_SOURCES = t04.c
 hio_t04_CPPFLAGS = $(CPPFLAGS_COMMON)
-hio_t04_CFLAGS = $(CFLAGS_COMMON) $(am__append_1)
-hio_t04_LDFLAGS = $(LDFLAGS_COMMON) $(am__append_2)
-hio_t04_LDADD = $(LIBADD_COMMON) $(am__append_3)
+hio_t04_CFLAGS = $(CFLAGS_COMMON) $(am__append_2)
+hio_t04_LDFLAGS = $(LDFLAGS_COMMON) $(am__append_3)
+hio_t04_LDADD = $(LIBADD_COMMON) $(am__append_4)
 hio_t05_SOURCES = t05.c
 hio_t05_CPPFLAGS = $(CPPFLAGS_COMMON)
 hio_t05_CFLAGS = $(CFLAGS_COMMON)
@@ -525,6 +541,10 @@ hio-t06$(EXEEXT): $(hio_t06_OBJECTS) $(hio_t06_DEPENDENCIES) $(EXTRA_hio_t06_DEP
 	@rm -f hio-t06$(EXEEXT)
 	$(AM_V_CCLD)$(hio_t06_LINK) $(hio_t06_OBJECTS) $(hio_t06_LDADD) $(LIBS)
 
+hio-te$(EXEEXT): $(hio_te_OBJECTS) $(hio_te_DEPENDENCIES) $(EXTRA_hio_te_DEPENDENCIES) 
+	@rm -f hio-te$(EXEEXT)
+	$(AM_V_CCLD)$(hio_te_LINK) $(hio_te_OBJECTS) $(hio_te_LDADD) $(LIBS)
+
 mostlyclean-compile:
 	-rm -f *.$(OBJEXT)
 
@@ -538,6 +558,7 @@ distclean-compile:
 @AMDEP_TRUE@@am__include@ @am__quote@./$(DEPDIR)/hio_t04-t04.Po@am__quote@ # am--include-marker
 @AMDEP_TRUE@@am__include@ @am__quote@./$(DEPDIR)/hio_t05-t05.Po@am__quote@ # am--include-marker
 @AMDEP_TRUE@@am__include@ @am__quote@./$(DEPDIR)/hio_t06-t06.Po@am__quote@ # am--include-marker
+@AMDEP_TRUE@@am__include@ @am__quote@./$(DEPDIR)/hio_te-te.Po@am__quote@ # am--include-marker
 
 $(am__depfiles_remade):
 	@$(MKDIR_P) $(@D)
@@ -666,6 +687,20 @@ hio_t06-t06.obj: t06.c
 @AMDEP_TRUE@@am__fastdepCC_FALSE@	$(AM_V_CC)source='t06.c' object='hio_t06-t06.obj' libtool=no @AMDEPBACKSLASH@
 @AMDEP_TRUE@@am__fastdepCC_FALSE@	DEPDIR=$(DEPDIR) $(CCDEPMODE) $(depcomp) @AMDEPBACKSLASH@
 @am__fastdepCC_FALSE@	$(AM_V_CC@am__nodep@)$(CC) $(DEFS) $(DEFAULT_INCLUDES) $(INCLUDES) $(hio_t06_CPPFLAGS) $(CPPFLAGS) $(hio_t06_CFLAGS) $(CFLAGS) -c -o hio_t06-t06.obj `if test -f 't06.c'; then $(CYGPATH_W) 't06.c'; else $(CYGPATH_W) '$(srcdir)/t06.c'; fi`
+
+hio_te-te.o: te.c
+@am__fastdepCC_TRUE@	$(AM_V_CC)$(CC) $(DEFS) $(DEFAULT_INCLUDES) $(INCLUDES) $(hio_te_CPPFLAGS) $(CPPFLAGS) $(hio_te_CFLAGS) $(CFLAGS) -MT hio_te-te.o -MD -MP -MF $(DEPDIR)/hio_te-te.Tpo -c -o hio_te-te.o `test -f 'te.c' || echo '$(srcdir)/'`te.c
+@am__fastdepCC_TRUE@	$(AM_V_at)$(am__mv) $(DEPDIR)/hio_te-te.Tpo $(DEPDIR)/hio_te-te.Po
+@AMDEP_TRUE@@am__fastdepCC_FALSE@	$(AM_V_CC)source='te.c' object='hio_te-te.o' libtool=no @AMDEPBACKSLASH@
+@AMDEP_TRUE@@am__fastdepCC_FALSE@	DEPDIR=$(DEPDIR) $(CCDEPMODE) $(depcomp) @AMDEPBACKSLASH@
+@am__fastdepCC_FALSE@	$(AM_V_CC@am__nodep@)$(CC) $(DEFS) $(DEFAULT_INCLUDES) $(INCLUDES) $(hio_te_CPPFLAGS) $(CPPFLAGS) $(hio_te_CFLAGS) $(CFLAGS) -c -o hio_te-te.o `test -f 'te.c' || echo '$(srcdir)/'`te.c
+
+hio_te-te.obj: te.c
+@am__fastdepCC_TRUE@	$(AM_V_CC)$(CC) $(DEFS) $(DEFAULT_INCLUDES) $(INCLUDES) $(hio_te_CPPFLAGS) $(CPPFLAGS) $(hio_te_CFLAGS) $(CFLAGS) -MT hio_te-te.obj -MD -MP -MF $(DEPDIR)/hio_te-te.Tpo -c -o hio_te-te.obj `if test -f 'te.c'; then $(CYGPATH_W) 'te.c'; else $(CYGPATH_W) '$(srcdir)/te.c'; fi`
+@am__fastdepCC_TRUE@	$(AM_V_at)$(am__mv) $(DEPDIR)/hio_te-te.Tpo $(DEPDIR)/hio_te-te.Po
+@AMDEP_TRUE@@am__fastdepCC_FALSE@	$(AM_V_CC)source='te.c' object='hio_te-te.obj' libtool=no @AMDEPBACKSLASH@
+@AMDEP_TRUE@@am__fastdepCC_FALSE@	DEPDIR=$(DEPDIR) $(CCDEPMODE) $(depcomp) @AMDEPBACKSLASH@
+@am__fastdepCC_FALSE@	$(AM_V_CC@am__nodep@)$(CC) $(DEFS) $(DEFAULT_INCLUDES) $(INCLUDES) $(hio_te_CPPFLAGS) $(CPPFLAGS) $(hio_te_CFLAGS) $(CFLAGS) -c -o hio_te-te.obj `if test -f 'te.c'; then $(CYGPATH_W) 'te.c'; else $(CYGPATH_W) '$(srcdir)/te.c'; fi`
 
 mostlyclean-libtool:
 	-rm -f *.lo
@@ -807,6 +842,7 @@ distclean: distclean-am
 	-rm -f ./$(DEPDIR)/hio_t04-t04.Po
 	-rm -f ./$(DEPDIR)/hio_t05-t05.Po
 	-rm -f ./$(DEPDIR)/hio_t06-t06.Po
+	-rm -f ./$(DEPDIR)/hio_te-te.Po
 	-rm -f Makefile
 distclean-am: clean-am distclean-compile distclean-generic \
 	distclean-tags
@@ -859,6 +895,7 @@ maintainer-clean: maintainer-clean-am
 	-rm -f ./$(DEPDIR)/hio_t04-t04.Po
 	-rm -f ./$(DEPDIR)/hio_t05-t05.Po
 	-rm -f ./$(DEPDIR)/hio_t06-t06.Po
+	-rm -f ./$(DEPDIR)/hio_te-te.Po
 	-rm -f Makefile
 maintainer-clean-am: distclean-am maintainer-clean-generic
 

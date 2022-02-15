@@ -315,6 +315,9 @@ fi
 
 dnl libmariadb
 AX_LIB_MARIADB
+dnl X11 library
+AC_CHECK_LIB([X11], [XOpenDisplay], [AC_DEFINE([HAVE_X11_LIB], [1], [libX11 is available])] )
+AM_CONDITIONAL(HAVE_X11_LIB, test "x${ac_cv_lib_X11_XOpenDisplay}" = "xyes")
 
 AC_STRUCT_DIRENT_D_TYPE
 AC_CHECK_MEMBERS([DIR.d_fd, DIR.dd_fd],,,[[#include <dirent.h>]])
