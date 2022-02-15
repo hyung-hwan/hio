@@ -52,6 +52,7 @@ include_HEADERS = \
 	hio-pty.h \
 	hio-rad.h \
 	hio-sck.h \
+	hio-shw.h \
 	hio-skad.h \
 	hio-thr.h \
 	hio-upac.h \
@@ -92,6 +93,7 @@ libhio_la_SOURCES = \
 	pty.c \
 	rad-msg.c \
 	sck.c \
+	shw.c \
 	skad.c \
 	sys.c \
 	sys-ass.c \
