@@ -180,6 +180,40 @@ const hio_uch_t* hio_find_ucstr_word_in_ucstr (const hio_uch_t* str, const hio_u
 
 /* ========================================================================= */
 
+hio_oow_t hio_byte_to_ucstr (hio_oob_t byte, hio_uch_t* buf, hio_oow_t size, int flagged_radix, hio_uch_t fill)
+{
+	hio_uch_t tmp[(HIO_SIZEOF(hio_oob_t) * HIO_BITS_PER_BYTE)];
+	hio_uch_t* p = tmp, * bp = buf, * be = buf + size - 1;
+	int radix;
+	hio_uch_t radix_char;
+
+	radix = (flagged_radix & HIO_BYTE_TO_UCSTR_RADIXMASK);
+	radix_char = (flagged_radix & HIO_BYTE_TO_UCSTR_LOWERCASE)? 'a': 'A';
+	if (radix < 2 || radix > 36 || size <= 0) return 0;
+
+	do 
+	{
+		hio_uint8_t digit = byte % radix;	
+		if (digit < 10) *p++ = digit + '0';
+		else *p++ = digit + radix_char - 10;
+		byte /= radix;
+	}
+	while (byte > 0);
+
+	if (fill != '\0') 
+	{
+		while (size - 1 > p - tmp) 
+		{
+			*bp++ = fill;
+			size--;
+		}
+	}
+
+	while (p > tmp && bp < be) *bp++ = *--p;
+	*bp = '\0';
+	return bp - buf;
+}
+
 hio_oow_t hio_byte_to_bcstr (hio_uint8_t byte, hio_bch_t* buf, hio_oow_t size, int flagged_radix, hio_bch_t fill)
 {
 	hio_bch_t tmp[(HIO_SIZEOF(hio_uint8_t) * HIO_BITS_PER_BYTE)];

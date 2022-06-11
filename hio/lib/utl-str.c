@@ -417,6 +417,38 @@ hio_oow_t hio_copy_bchars_to_bcstr_unlimited (hio_bch_t* dst, const hio_bch_t* s
 	return i;
 }
 
+hio_oow_t hio_copy_ucstr_to_uchars (hio_uch_t* dst, hio_oow_t len, const hio_uch_t* src)
+{
+	/* no null termination */
+	hio_uch_t* p, * p2;
+
+	p = dst; p2 = dst + len - 1;
+
+	while (p < p2)
+	{
+		if (*src == '\0') break;
+		*p++ = *src++;
+	}
+
+	return p - dst;
+}
+
+hio_oow_t hio_copy_bcstr_to_bchars (hio_bch_t* dst, hio_oow_t len, const hio_bch_t* src)
+{
+	/* no null termination */
+	hio_bch_t* p, * p2;
+
+	p = dst; p2 = dst + len - 1;
+
+	while (p < p2)
+	{
+		if (*src == '\0') break;
+		*p++ = *src++;
+	}
+
+	return p - dst;
+}
+
 hio_oow_t hio_copy_ucstr (hio_uch_t* dst, hio_oow_t len, const hio_uch_t* src)
 {
 	hio_uch_t* p, * p2;
@@ -431,7 +463,7 @@ hio_oow_t hio_copy_ucstr (hio_uch_t* dst, hio_oow_t len, const hio_uch_t* src)
 
 	if (len > 0) *p = '\0';
 	return p - dst;
-} 
+}
 
 hio_oow_t hio_copy_bcstr (hio_bch_t* dst, hio_oow_t len, const hio_bch_t* src)
 {
@@ -447,7 +479,7 @@ hio_oow_t hio_copy_bcstr (hio_bch_t* dst, hio_oow_t len, const hio_bch_t* src)
 
 	if (len > 0) *p = '\0';
 	return p - dst;
-} 
+}
 
 hio_oow_t hio_copy_ucstr_unlimited (hio_uch_t* dst, const hio_uch_t* src)
 {

@@ -221,6 +221,25 @@ hio_oow_t _fn_name_ (_char_type_* dst, const _char_type_* src, hio_oow_t len)
 popdef([[_fn_name_]])popdef([[_char_type_]])dnl
 ]])dnl
 dnl ---------------------------------------------------------------------------
+define([[fn_copy_cstr_to_chars]], [[pushdef([[_fn_name_]], $1)pushdef([[_char_type_]], $2)dnl
+hio_oow_t _fn_name_ (_char_type_* dst, hio_oow_t len, const _char_type_* src)
+{
+	/* no null termination */
+	_char_type_* p, * p2;
+
+	p = dst; p2 = dst + len - 1;
+
+	while (p < p2)
+	{
+		if (*src == '\0') break;
+		*p++ = *src++;
+	}
+
+	return p - dst;
+}
+popdef([[_fn_name_]])popdef([[_char_type_]])dnl
+]])dnl
+dnl ---------------------------------------------------------------------------
 define([[fn_copy_cstr]], [[pushdef([[_fn_name_]], $1)pushdef([[_char_type_]], $2)dnl
 hio_oow_t _fn_name_ (_char_type_* dst, hio_oow_t len, const _char_type_* src)
 {
@@ -236,7 +255,7 @@ hio_oow_t _fn_name_ (_char_type_* dst, hio_oow_t len, const _char_type_* src)
 
 	if (len > 0) *p = '\0';
 	return p - dst;
-} 
+}
 popdef([[_fn_name_]])popdef([[_char_type_]])dnl
 ]])dnl
 dnl ---------------------------------------------------------------------------

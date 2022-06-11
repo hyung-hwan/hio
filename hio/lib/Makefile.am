@@ -13,6 +13,10 @@ EXTRA_DIST = \
 	utl-str.c.m4 \
 	utl-str.m4
 
+BUILT_SOURCES = \
+	hio-utl.h \
+	utl-str.c 
+
 ##################################################
 # MAIN LIBRARY 
 ##################################################
@@ -140,10 +144,9 @@ install-data-hook:
 uninstall-hook:
 	@rm -f "$(DESTDIR)$(includedir)/hio-cfg.h"
 
-$(srcdir)/hio-utl.h: utl-str.m4 hio-utl.h.m4
+hio-utl.h: utl-str.m4 hio-utl.h.m4
 	m4 -I$(srcdir) $(srcdir)/hio-utl.h.m4 > $(srcdir)/hio-utl.h
 
-# do NOT put $(srcdir) before utl-str.c
 utl-str.c: utl-str.m4 utl-str.c.m4 
 	m4 -I$(srcdir) $(srcdir)/utl-str.c.m4 > $(srcdir)/utl-str.c
 
