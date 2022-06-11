@@ -412,6 +412,18 @@ HIO_EXPORT hio_oow_t hio_copy_bchars_to_bcstr_unlimited (
 	hio_oow_t        len
 );
 
+HIO_EXPORT hio_oow_t hio_copy_ucstr_to_uchars (
+	hio_uch_t*        dst,
+	hio_oow_t         dlen,
+	const hio_uch_t*  src
+);
+
+HIO_EXPORT hio_oow_t hio_copy_bcstr_to_bchars (
+	hio_bch_t*        dst,
+	hio_oow_t         dlen,
+	const hio_bch_t*  src
+);
+
 HIO_EXPORT hio_oow_t hio_copy_ucstr (
 	hio_uch_t*       dst,
 	hio_oow_t        len,
@@ -645,6 +657,17 @@ HIO_EXPORT hio_oow_t hio_byte_to_bcstr (
 	hio_oow_t     size,
 	int           flagged_radix,
 	hio_bch_t     fill
+);
+
+#define HIO_BYTE_TO_UCSTR_RADIXMASK (0xFF)
+#define HIO_BYTE_TO_UCSTR_LOWERCASE (1 << 8)
+ 
+HIO_EXPORT hio_oow_t hio_byte_to_ucstr (
+	hio_uint8_t   byte,  
+	hio_uch_t*    buf,
+	hio_oow_t     size,
+	int           flagged_radix,
+	hio_uch_t     fill
 );
 
 /* ------------------------------------------------------------------------- */

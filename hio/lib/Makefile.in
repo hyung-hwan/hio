@@ -434,6 +434,10 @@ EXTRA_DIST = \
 	utl-str.c.m4 \
 	utl-str.m4
 
+BUILT_SOURCES = \
+	hio-utl.h \
+	utl-str.c 
+
 
 ##################################################
 # MAIN LIBRARY 
@@ -471,7 +475,7 @@ libhio_la_CFLAGS = $(CFLAGS_LIB_COMMON) $(am__append_3)
 libhio_la_LDFLAGS = $(LDFLAGS_LIB_COMMON) $(am__append_4)
 libhio_la_LIBADD = $(LIBADD_LIB_COMMON) $(SSL_LIBS) $(SOCKET_LIBS) \
 	$(SENDFILE_LIBS) $(am__append_5) $(am__append_6)
-all: hio-cfg.h
+all: $(BUILT_SOURCES) hio-cfg.h
 	$(MAKE) $(AM_MAKEFLAGS) all-am
 
 .SUFFIXES:
@@ -1053,13 +1057,15 @@ distdir-am: $(DISTFILES)
 	  fi; \
 	done
 check-am: all-am
-check: check-am
+check: $(BUILT_SOURCES)
+	$(MAKE) $(AM_MAKEFLAGS) check-am
 all-am: Makefile $(LTLIBRARIES) $(HEADERS) hio-cfg.h
 installdirs:
 	for dir in "$(DESTDIR)$(libdir)" "$(DESTDIR)$(includedir)"; do \
 	  test -z "$$dir" || $(MKDIR_P) "$$dir"; \
 	done
-install: install-am
+install: $(BUILT_SOURCES)
+	$(MAKE) $(AM_MAKEFLAGS) install-am
 install-exec: install-exec-am
 install-data: install-data-am
 uninstall: uninstall-am
@@ -1089,6 +1095,7 @@ distclean-generic:
 maintainer-clean-generic:
 	@echo "This command is intended for maintainers to use"
 	@echo "it deletes files that may require special tools to rebuild."
+	-test -z "$(BUILT_SOURCES)" || rm -f $(BUILT_SOURCES)
 clean: clean-am
 
 clean-am: clean-generic clean-libLTLIBRARIES clean-libtool \
@@ -1246,7 +1253,8 @@ ps-am:
 uninstall-am: uninstall-includeHEADERS uninstall-libLTLIBRARIES
 	@$(NORMAL_INSTALL)
 	$(MAKE) $(AM_MAKEFLAGS) uninstall-hook
-.MAKE: all install-am install-data-am install-strip uninstall-am
+.MAKE: all check install install-am install-data-am install-strip \
+	uninstall-am
 
 .PHONY: CTAGS GTAGS TAGS all all-am am--depfiles check check-am clean \
 	clean-generic clean-libLTLIBRARIES clean-libtool cscopelist-am \
@@ -1278,10 +1286,9 @@ install-data-hook:
 uninstall-hook:
 	@rm -f "$(DESTDIR)$(includedir)/hio-cfg.h"
 
-$(srcdir)/hio-utl.h: utl-str.m4 hio-utl.h.m4
+hio-utl.h: utl-str.m4 hio-utl.h.m4
 	m4 -I$(srcdir) $(srcdir)/hio-utl.h.m4 > $(srcdir)/hio-utl.h
 
-# do NOT put $(srcdir) before utl-str.c
 utl-str.c: utl-str.m4 utl-str.c.m4 
 	m4 -I$(srcdir) $(srcdir)/utl-str.c.m4 > $(srcdir)/utl-str.c
 

@@ -63,6 +63,9 @@ dnl --
 fn_copy_chars_to_cstr_unlimited(hio_copy_uchars_to_ucstr_unlimited, hio_uch_t)
 fn_copy_chars_to_cstr_unlimited(hio_copy_bchars_to_bcstr_unlimited, hio_bch_t)
 dnl --
+fn_copy_cstr_to_chars(hio_copy_ucstr_to_uchars, hio_uch_t)
+fn_copy_cstr_to_chars(hio_copy_bcstr_to_bchars, hio_bch_t)
+dnl --
 fn_copy_cstr(hio_copy_ucstr, hio_uch_t)
 fn_copy_cstr(hio_copy_bcstr, hio_bch_t)
 dnl --
