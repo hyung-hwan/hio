@@ -543,25 +543,25 @@ HIO_EXPORT const hio_uch_t* hio_find_ucstr_word_in_ucstr (
 	int              ignorecase
 );
 
-HIO_EXPORT hio_uch_t* hio_find_uchar_in_chars (
+HIO_EXPORT hio_uch_t* hio_find_uchar_in_uchars (
 	const hio_uch_t* ptr,
 	hio_oow_t        len,
 	hio_uch_t        c
 );
 
-HIO_EXPORT hio_bch_t* hio_find_bchar_in_chars (
+HIO_EXPORT hio_bch_t* hio_find_bchar_in_bchars (
 	const hio_bch_t* ptr,
 	hio_oow_t        len,
 	hio_bch_t        c
 );
 
-HIO_EXPORT hio_uch_t* hio_rfind_uchar_in_chars (
+HIO_EXPORT hio_uch_t* hio_rfind_uchar_in_uchars (
 	const hio_uch_t* ptr,
 	hio_oow_t        len,
 	hio_uch_t        c
 );
 
-HIO_EXPORT hio_bch_t* hio_rfind_bchar_in_chars (
+HIO_EXPORT hio_bch_t* hio_rfind_bchar_in_bchars (
 	const hio_bch_t* ptr,
 	hio_oow_t        len,
 	hio_bch_t        c
@@ -575,6 +575,48 @@ HIO_EXPORT hio_uch_t* hio_find_uchar_in_ucstr (
 HIO_EXPORT hio_bch_t* hio_find_bchar_in_bcstr (
 	const hio_bch_t* ptr,
 	hio_bch_t        c
+);
+
+HIO_EXPORT hio_uch_t* hio_rfind_uchar_in_ucstr (
+	const hio_uch_t* ptr,
+	hio_uch_t        c
+);
+
+HIO_EXPORT hio_bch_t* hio_rfind_bchar_in_bcstr (
+	const hio_bch_t* ptr,
+	hio_bch_t        c
+);
+
+HIO_EXPORT hio_uch_t* hio_find_uchars_in_uchars (
+	const hio_uch_t* str,
+	hio_oow_t        strsz,
+	const hio_uch_t* sub,
+	hio_oow_t        subsz,
+	int              inorecase
+);
+
+HIO_EXPORT hio_bch_t* hio_find_bchars_in_bchars (
+	const hio_bch_t* str,
+	hio_oow_t        strsz,
+	const hio_bch_t* sub,
+	hio_oow_t        subsz,
+	int              inorecase
+);
+
+HIO_EXPORT hio_uch_t* hio_rfind_uchars_in_uchars (
+	const hio_uch_t* str,
+	hio_oow_t        strsz,
+	const hio_uch_t* sub,
+	hio_oow_t        subsz,
+	int              inorecase
+);
+
+HIO_EXPORT hio_bch_t* hio_rfind_bchars_in_bchars (
+	const hio_bch_t* str,
+	hio_oow_t        strsz,
+	const hio_bch_t* sub,
+	hio_oow_t        subsz,
+	int              inorecase
 );
 
 /* ------------------------------------ */
