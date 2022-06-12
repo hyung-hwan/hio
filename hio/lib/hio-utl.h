@@ -446,6 +446,34 @@ HIO_EXPORT hio_oow_t hio_copy_bcstr_unlimited (
 	const hio_bch_t* src
 );
 
+HIO_EXPORT hio_oow_t hio_copy_fmt_ucstrs_to_ucstr (
+	hio_uch_t*       buf,
+	hio_oow_t        bsz,
+	const hio_uch_t* fmt,
+	const hio_uch_t* str[]
+);
+
+HIO_EXPORT hio_oow_t hio_copy_fmt_bcstrs_to_bcstr (
+	hio_bch_t*       buf,
+	hio_oow_t        bsz,
+	const hio_bch_t* fmt,
+	const hio_bch_t* str[]
+);
+
+HIO_EXPORT hio_oow_t hio_copy_fmt_ucses_to_ucstr (
+	hio_uch_t*       buf,
+	hio_oow_t        bsz,
+	const hio_uch_t* fmt,
+	const hio_ucs_t  str[]
+);
+
+HIO_EXPORT hio_oow_t hio_copy_fmt_bcses_to_bcstr (
+	hio_bch_t*       buf,
+	hio_oow_t        bsz,
+	const hio_bch_t* fmt,
+	const hio_bcs_t  str[]
+);
+
 /* ------------------------------------ */
 
 HIO_EXPORT hio_oow_t hio_count_ucstr (
@@ -454,6 +482,16 @@ HIO_EXPORT hio_oow_t hio_count_ucstr (
 
 HIO_EXPORT hio_oow_t hio_count_bcstr (
 	const hio_bch_t* str
+);
+
+HIO_EXPORT hio_oow_t hio_count_ucstr_limited (
+	const hio_uch_t* str,
+	hio_oow_t        maxlen
+);
+
+HIO_EXPORT hio_oow_t hio_count_bcstr_limited (
+	const hio_bch_t* str,
+	hio_oow_t        maxlen
 );
 
 /* ------------------------------------ */
@@ -489,6 +527,8 @@ HIO_EXPORT void hio_fill_bchars (
 	hio_oow_t        len
 );
 
+/* ------------------------------------ */
+
 HIO_EXPORT const hio_bch_t* hio_find_bcstr_word_in_bcstr (
 	const hio_bch_t* str,
 	const hio_bch_t* word,
@@ -503,25 +543,25 @@ HIO_EXPORT const hio_uch_t* hio_find_ucstr_word_in_ucstr (
 	int              ignorecase
 );
 
-HIO_EXPORT hio_uch_t* hio_find_uchar (
+HIO_EXPORT hio_uch_t* hio_find_uchar_in_chars (
 	const hio_uch_t* ptr,
 	hio_oow_t        len,
 	hio_uch_t        c
 );
 
-HIO_EXPORT hio_bch_t* hio_find_bchar (
+HIO_EXPORT hio_bch_t* hio_find_bchar_in_chars (
 	const hio_bch_t* ptr,
 	hio_oow_t        len,
 	hio_bch_t        c
 );
 
-HIO_EXPORT hio_uch_t* hio_rfind_uchar (
+HIO_EXPORT hio_uch_t* hio_rfind_uchar_in_chars (
 	const hio_uch_t* ptr,
 	hio_oow_t        len,
 	hio_uch_t        c
 );
 
-HIO_EXPORT hio_bch_t* hio_rfind_bchar (
+HIO_EXPORT hio_bch_t* hio_rfind_bchar_in_chars (
 	const hio_bch_t* ptr,
 	hio_oow_t        len,
 	hio_bch_t        c
@@ -536,6 +576,8 @@ HIO_EXPORT hio_bch_t* hio_find_bchar_in_bcstr (
 	const hio_bch_t* ptr,
 	hio_bch_t        c
 );
+
+/* ------------------------------------ */
 
 HIO_EXPORT hio_oow_t hio_rotate_uchars (
 	hio_uch_t*       str,
@@ -583,6 +625,8 @@ HIO_EXPORT int hio_split_bcstr (
 
 #if defined(HIO_OOCH_IS_UCH)
 #	define hio_count_oocstr hio_count_ucstr
+#	define hio_count_oocstr_limited hio_count_ucstr_limited
+
 #	define hio_equal_oochars hio_equal_uchars
 #	define hio_comp_oochars hio_comp_uchars
 #	define hio_comp_oocstr_bcstr hio_comp_ucstr_bcstr
@@ -601,20 +645,24 @@ HIO_EXPORT int hio_split_bcstr (
 #	define hio_copy_oochars_to_oocstr_unlimited hio_copy_uchars_to_ucstr_unlimited
 #	define hio_copy_oocstr hio_copy_ucstr
 #	define hio_copy_oocstr_unlimited hio_copy_ucstr_unlimited
+#	define hio_copy_fmt_oocses_to_oocstr hio_copy_fmt_ucses_to_ucstr
+#	define hio_copy_fmt_oocstr_to_oocstr hio_copy_fmt_ucstr_to_ucstr
 
 #	define hio_concat_oochars_to_ucstr hio_concat_uchars_to_ucstr
 #	define hio_concat_oocstr hio_concat_ucstr
 
 #	define hio_fill_oochars hio_fill_uchars
 #	define hio_find_oocstr_word_in_oocstr hio_find_ucstr_word_in_ucstr
-#	define hio_find_oochar hio_find_uchar
-#	define hio_rfind_oochar hio_rfind_uchar
+#	define hio_find_oochar_in_oochars hio_find_uchar_in_uchars
+#	define hio_rfind_oochar_in_oochars hio_rfind_uchar_in_uchars
 #	define hio_find_oochar_in_oocstr hio_find_uchar_in_ucstr
 
 #	define hio_trim_oochars hio_trim_uchars
 #	define hio_split_oocstr hio_split_ucstr
 #else
 #	define hio_count_oocstr hio_count_bcstr
+#	define hio_count_oocstr_limited hio_count_bcstr_limited
+
 #	define hio_equal_oochars hio_equal_bchars
 #	define hio_comp_oochars hio_comp_bchars
 #	define hio_comp_oocstr_bcstr hio_comp_bcstr
@@ -633,14 +681,16 @@ HIO_EXPORT int hio_split_bcstr (
 #	define hio_copy_oochars_to_oocstr_unlimited hio_copy_bchars_to_bcstr_unlimited
 #	define hio_copy_oocstr hio_copy_bcstr
 #	define hio_copy_oocstr_unlimited hio_copy_bcstr_unlimited
+#	define hio_copy_fmt_oocses_to_oocstr hio_copy_fmt_bcses_to_bcstr
+#	define hio_copy_fmt_oocstr_to_oocstr hio_copy_fmt_bcstr_to_bcstr
 
 #	define hio_concat_oochars_to_bcstr hio_concat_bchars_to_bcstr
 #	define hio_concat_oocstr hio_concat_bcstr
 
 #	define hio_fill_oochars hio_fill_bchars
 #	define hio_find_oocstr_word_in_oocstr hio_find_bcstr_word_in_bcstr
-#	define hio_find_oochar hio_find_bchar
-#	define hio_rfind_oochar hio_rfind_bchar
+#	define hio_find_oochar_in_oochars hio_find_bchar_in_bchars
+#	define hio_rfind_oochar_in_oochars hio_rfind_bchar_in_bchars
 #	define hio_find_oochar_in_oocstr hio_find_bchar_in_bcstr
 
 #	define hio_trim_oochars hio_trim_bchars
