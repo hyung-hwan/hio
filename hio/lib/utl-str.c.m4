@@ -72,8 +72,17 @@ dnl --
 fn_copy_cstr_unlimited(hio_copy_ucstr_unlimited, hio_uch_t)
 fn_copy_cstr_unlimited(hio_copy_bcstr_unlimited, hio_bch_t)
 dnl --
+fn_copy_fmt_cstrs_to_cstr(hio_copy_fmt_ucstrs_to_ucstr, hio_uch_t)
+fn_copy_fmt_cstrs_to_cstr(hio_copy_fmt_bcstrs_to_bcstr, hio_bch_t)
+dnl --
+fn_copy_fmt_cses_to_cstr(hio_copy_fmt_ucses_to_ucstr, hio_uch_t, hio_ucs_t)
+fn_copy_fmt_cses_to_cstr(hio_copy_fmt_bcses_to_bcstr, hio_bch_t, hio_bcs_t)
+dnl --
 fn_count_cstr(hio_count_ucstr, hio_uch_t)
 fn_count_cstr(hio_count_bcstr, hio_bch_t)
+dnl --
+fn_count_cstr_limited(hio_count_ucstr_limited, hio_uch_t)
+fn_count_cstr_limited(hio_count_bcstr_limited, hio_bch_t)
 dnl --
 fn_equal_chars(hio_equal_uchars, hio_uch_t)
 fn_equal_chars(hio_equal_bchars, hio_bch_t)
@@ -81,14 +90,23 @@ dnl --
 fn_fill_chars(hio_fill_uchars, hio_uch_t)
 fn_fill_chars(hio_fill_bchars, hio_bch_t)
 dnl --
-fn_find_char(hio_find_uchar, hio_uch_t)
-fn_find_char(hio_find_bchar, hio_bch_t)
+fn_find_char_in_chars(hio_find_uchar, hio_uch_t)
+fn_find_char_in_chars(hio_find_bchar, hio_bch_t)
 dnl --
-fn_rfind_char(hio_rfind_uchar, hio_uch_t)
-fn_rfind_char(hio_rfind_bchar, hio_bch_t)
+fn_rfind_char_in_chars(hio_rfind_uchar, hio_uch_t)
+fn_rfind_char_in_chars(hio_rfind_bchar, hio_bch_t)
 dnl --
 fn_find_char_in_cstr(hio_find_uchar_in_ucstr, hio_uch_t)
 fn_find_char_in_cstr(hio_find_bchar_in_bcstr, hio_bch_t)
+dnl --
+fn_rfind_char_in_cstr(hio_rfind_uchar_in_ucstr, hio_uch_t)
+fn_rfind_char_in_cstr(hio_rfind_bchar_in_bcstr, hio_bch_t)
+dnl --
+fn_find_chars_in_chars(hio_find_uchars_in_uchars, hio_uch_t, hio_to_uch_lower)
+fn_find_chars_in_chars(hio_find_bchars_in_bchars, hio_bch_t, hio_to_bch_lower)
+dnl --
+fn_rfind_chars_in_chars(hio_rfind_uchars_in_uchars, hio_uch_t, hio_to_uch_lower)
+fn_rfind_chars_in_chars(hio_rfind_bchars_in_bchars, hio_bch_t, hio_to_bch_lower)
 dnl --
 fn_rotate_chars(hio_rotate_uchars, hio_uch_t)
 fn_rotate_chars(hio_rotate_bchars, hio_bch_t)

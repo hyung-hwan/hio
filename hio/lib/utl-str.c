@@ -495,6 +495,246 @@ hio_oow_t hio_copy_bcstr_unlimited (hio_bch_t* dst, const hio_bch_t* src)
 	return dst - org - 1;
 }
 
+hio_oow_t hio_copy_fmt_ucstrs_to_ucstr (hio_uch_t* buf, hio_oow_t bsz, const hio_uch_t* fmt, const hio_uch_t* str[])
+{
+	hio_uch_t* b = buf;
+	hio_uch_t* end = buf + bsz - 1;
+	const hio_uch_t* f = fmt;
+
+	if (bsz <= 0) return 0;
+
+	while (*f != '\0')
+	{
+		if (*f == '\\')
+		{
+			/* get the escaped character and treat it normally.
+			 * if the escaper is the last character, treat it
+			 * normally also. */
+			if (f[1] != '\0') f++;
+		}
+		else if (*f == '$')
+		{
+			if (f[1] == '{' && (f[2] >= '0' && f[2] <= '9'))
+			{
+				const hio_uch_t* tmp;
+				hio_oow_t idx = 0;
+
+				tmp = f;
+				f += 2;
+
+				do idx = idx * 10 + (*f++ - '0');
+				while (*f >= '0' && *f <= '9');
+
+				if (*f != '}')
+				{
+					f = tmp;
+					goto normal;
+				}
+
+				f++;
+
+				tmp = str[idx];
+				while (*tmp != '\0')
+				{
+					if (b >= end) goto fini;
+					*b++ = *tmp++;
+				}
+				continue;
+			}
+			else if (f[1] == '$') f++;
+		}
+
+	normal:
+		if (b >= end) break;
+		*b++ = *f++;
+	}
+
+fini:
+	*b = '\0';
+	return b - buf;
+}
+
+hio_oow_t hio_copy_fmt_bcstrs_to_bcstr (hio_bch_t* buf, hio_oow_t bsz, const hio_bch_t* fmt, const hio_bch_t* str[])
+{
+	hio_bch_t* b = buf;
+	hio_bch_t* end = buf + bsz - 1;
+	const hio_bch_t* f = fmt;
+
+	if (bsz <= 0) return 0;
+
+	while (*f != '\0')
+	{
+		if (*f == '\\')
+		{
+			/* get the escaped character and treat it normally.
+			 * if the escaper is the last character, treat it
+			 * normally also. */
+			if (f[1] != '\0') f++;
+		}
+		else if (*f == '$')
+		{
+			if (f[1] == '{' && (f[2] >= '0' && f[2] <= '9'))
+			{
+				const hio_bch_t* tmp;
+				hio_oow_t idx = 0;
+
+				tmp = f;
+				f += 2;
+
+				do idx = idx * 10 + (*f++ - '0');
+				while (*f >= '0' && *f <= '9');
+
+				if (*f != '}')
+				{
+					f = tmp;
+					goto normal;
+				}
+
+				f++;
+
+				tmp = str[idx];
+				while (*tmp != '\0')
+				{
+					if (b >= end) goto fini;
+					*b++ = *tmp++;
+				}
+				continue;
+			}
+			else if (f[1] == '$') f++;
+		}
+
+	normal:
+		if (b >= end) break;
+		*b++ = *f++;
+	}
+
+fini:
+	*b = '\0';
+	return b - buf;
+}
+
+hio_oow_t hio_copy_fmt_ucses_to_ucstr (hio_uch_t* buf, hio_oow_t bsz, const hio_uch_t* fmt, const hio_ucs_t str[])
+{
+	hio_uch_t* b = buf;
+	hio_uch_t* end = buf + bsz - 1;
+	const hio_uch_t* f = fmt;
+ 
+	if (bsz <= 0) return 0;
+ 
+	while (*f != '\0')
+	{
+		if (*f == '\\')
+		{
+			/* get the escaped character and treat it normally.
+			 * if the escaper is the last character, treat it 
+			 * normally also. */
+			if (f[1] != '\0') f++;
+		}
+		else if (*f == '$')
+		{
+			if (f[1] == '{' && (f[2] >= '0' && f[2] <= '9'))
+			{
+				const hio_uch_t* tmp, * tmpend;
+				hio_oow_t idx = 0;
+ 
+				tmp = f;
+				f += 2;
+ 
+				do idx = idx * 10 + (*f++ - '0');
+				while (*f >= '0' && *f <= '9');
+	
+				if (*f != '}')
+				{
+					f = tmp;
+					goto normal;
+				}
+ 
+				f++;
+				
+				tmp = str[idx].ptr;
+				tmpend = tmp + str[idx].len;
+ 
+				while (tmp < tmpend)
+				{
+					if (b >= end) goto fini;
+					*b++ = *tmp++;
+				}
+				continue;
+			}
+			else if (f[1] == '$') f++;
+		}
+ 
+	normal:
+		if (b >= end) break;
+		*b++ = *f++;
+	}
+ 
+fini:
+	*b = '\0';
+	return b - buf;
+}
+
+hio_oow_t hio_copy_fmt_bcses_to_bcstr (hio_bch_t* buf, hio_oow_t bsz, const hio_bch_t* fmt, const hio_bcs_t str[])
+{
+	hio_bch_t* b = buf;
+	hio_bch_t* end = buf + bsz - 1;
+	const hio_bch_t* f = fmt;
+ 
+	if (bsz <= 0) return 0;
+ 
+	while (*f != '\0')
+	{
+		if (*f == '\\')
+		{
+			/* get the escaped character and treat it normally.
+			 * if the escaper is the last character, treat it 
+			 * normally also. */
+			if (f[1] != '\0') f++;
+		}
+		else if (*f == '$')
+		{
+			if (f[1] == '{' && (f[2] >= '0' && f[2] <= '9'))
+			{
+				const hio_bch_t* tmp, * tmpend;
+				hio_oow_t idx = 0;
+ 
+				tmp = f;
+				f += 2;
+ 
+				do idx = idx * 10 + (*f++ - '0');
+				while (*f >= '0' && *f <= '9');
+	
+				if (*f != '}')
+				{
+					f = tmp;
+					goto normal;
+				}
+ 
+				f++;
+				
+				tmp = str[idx].ptr;
+				tmpend = tmp + str[idx].len;
+ 
+				while (tmp < tmpend)
+				{
+					if (b >= end) goto fini;
+					*b++ = *tmp++;
+				}
+				continue;
+			}
+			else if (f[1] == '$') f++;
+		}
+ 
+	normal:
+		if (b >= end) break;
+		*b++ = *f++;
+	}
+ 
+fini:
+	*b = '\0';
+	return b - buf;
+}
+
 hio_oow_t hio_count_ucstr (const hio_uch_t* str)
 {
 	const hio_uch_t* ptr = str;
@@ -508,6 +748,26 @@ hio_oow_t hio_count_bcstr (const hio_bch_t* str)
 	while (*ptr != '\0') ptr++;
 	return ptr - str;
 } 
+
+hio_oow_t hio_count_ucstr_limited (const hio_uch_t* str, hio_oow_t maxlen)
+{
+	hio_oow_t i;
+	for (i = 0; i < maxlen; i++)
+	{
+		if (str[i] == '\0') break;
+	}
+	return i;
+}
+
+hio_oow_t hio_count_bcstr_limited (const hio_uch_t* str, hio_oow_t maxlen)
+{
+	hio_oow_t i;
+	for (i = 0; i < maxlen; i++)
+	{
+		if (str[i] == '\0') break;
+	}
+	return i;
+}
 
 int hio_equal_uchars (const hio_uch_t* str1, const hio_uch_t* str2, hio_oow_t len)
 {
@@ -624,6 +884,226 @@ hio_bch_t* hio_find_bchar_in_bcstr (const hio_bch_t* ptr, hio_bch_t c)
 	{
 		if (*ptr == c) return (hio_bch_t*)ptr;
 		ptr++;
+	}
+
+	return HIO_NULL;
+}
+
+hio_uch_t* hio_rfind_uchar_in_ucstr (const hio_uch_t* str, hio_uch_t c)
+{
+	const hio_uch_t* ptr = str;
+	while (*ptr != '\0') ptr++;
+
+	while (ptr > str)
+	{
+		--ptr;
+		if (*ptr == c) return (hio_uch_t*)ptr;
+	}
+
+	return HIO_NULL;
+}
+
+hio_bch_t* hio_rfind_bchar_in_bcstr (const hio_bch_t* str, hio_bch_t c)
+{
+	const hio_bch_t* ptr = str;
+	while (*ptr != '\0') ptr++;
+
+	while (ptr > str)
+	{
+		--ptr;
+		if (*ptr == c) return (hio_bch_t*)ptr;
+	}
+
+	return HIO_NULL;
+}
+
+hio_uch_t* hio_find_uchars_in_uchars (const hio_uch_t* str, hio_oow_t strsz, const hio_uch_t* sub, hio_oow_t subsz, int ignorecase)
+{
+	const hio_uch_t* end, * subp;
+
+	if (subsz == 0) return (hio_uch_t*)str;
+	if (strsz < subsz) return HIO_NULL;
+	
+	end = str + strsz - subsz;
+	subp = sub + subsz;
+
+	if (HIO_UNLIKELY(ignorecase))
+	{
+		while (str <= end) 
+		{
+			const hio_uch_t* x = str;
+			const hio_uch_t* y = sub;
+
+			while (1)
+			{
+				if (y >= subp) return (hio_uch_t*)str;
+				if (hio_to_uch_lower(*x) != hio_to_uch_lower(*y)) break;
+				x++; y++;
+			}
+
+			str++;
+		}
+	}
+	else
+	{
+		while (str <= end) 
+		{
+			const hio_uch_t* x = str;
+			const hio_uch_t* y = sub;
+
+			while (1)
+			{
+				if (y >= subp) return (hio_uch_t*)str;
+				if (*x != *y) break;
+				x++; y++;
+			}
+
+			str++;
+		}
+	}
+
+	return HIO_NULL;
+}
+
+hio_bch_t* hio_find_bchars_in_bchars (const hio_bch_t* str, hio_oow_t strsz, const hio_bch_t* sub, hio_oow_t subsz, int ignorecase)
+{
+	const hio_bch_t* end, * subp;
+
+	if (subsz == 0) return (hio_bch_t*)str;
+	if (strsz < subsz) return HIO_NULL;
+	
+	end = str + strsz - subsz;
+	subp = sub + subsz;
+
+	if (HIO_UNLIKELY(ignorecase))
+	{
+		while (str <= end) 
+		{
+			const hio_bch_t* x = str;
+			const hio_bch_t* y = sub;
+
+			while (1)
+			{
+				if (y >= subp) return (hio_bch_t*)str;
+				if (hio_to_bch_lower(*x) != hio_to_bch_lower(*y)) break;
+				x++; y++;
+			}
+
+			str++;
+		}
+	}
+	else
+	{
+		while (str <= end) 
+		{
+			const hio_bch_t* x = str;
+			const hio_bch_t* y = sub;
+
+			while (1)
+			{
+				if (y >= subp) return (hio_bch_t*)str;
+				if (*x != *y) break;
+				x++; y++;
+			}
+
+			str++;
+		}
+	}
+
+	return HIO_NULL;
+}
+
+hio_uch_t* hio_rfind_uchars_in_uchars (const hio_uch_t* str, hio_oow_t strsz, const hio_uch_t* sub, hio_oow_t subsz, int ignorecase)
+{
+	const hio_uch_t* p = str + strsz;
+	const hio_uch_t* subp = sub + subsz;
+
+	if (subsz == 0) return (hio_uch_t*)p;
+	if (strsz < subsz) return HIO_NULL;
+
+	p = p - subsz;
+
+	if (HIO_UNLIKELY(ignorecase))
+	{
+		while (p >= str) 
+		{
+			const hio_uch_t* x = p;
+			const hio_uch_t* y = sub;
+
+			while (1) 
+			{
+				if (y >= subp) return (hio_uch_t*)p;
+				if (hio_to_uch_lower(*x) != hio_to_uch_lower(*y)) break;
+				x++; y++;
+			}
+
+			p--;
+		}
+	}
+	else
+	{
+		while (p >= str) 
+		{
+			const hio_uch_t* x = p;
+			const hio_uch_t* y = sub;
+
+			while (1) 
+			{
+				if (y >= subp) return (hio_uch_t*)p;
+				if (*x != *y) break;
+				x++; y++;
+			}	
+
+			p--;
+		}
+	}
+
+	return HIO_NULL;
+}
+
+hio_bch_t* hio_rfind_bchars_in_bchars (const hio_bch_t* str, hio_oow_t strsz, const hio_bch_t* sub, hio_oow_t subsz, int ignorecase)
+{
+	const hio_bch_t* p = str + strsz;
+	const hio_bch_t* subp = sub + subsz;
+
+	if (subsz == 0) return (hio_bch_t*)p;
+	if (strsz < subsz) return HIO_NULL;
+
+	p = p - subsz;
+
+	if (HIO_UNLIKELY(ignorecase))
+	{
+		while (p >= str) 
+		{
+			const hio_bch_t* x = p;
+			const hio_bch_t* y = sub;
+
+			while (1) 
+			{
+				if (y >= subp) return (hio_bch_t*)p;
+				if (hio_to_bch_lower(*x) != hio_to_bch_lower(*y)) break;
+				x++; y++;
+			}
+
+			p--;
+		}
+	}
+	else
+	{
+		while (p >= str) 
+		{
+			const hio_bch_t* x = p;
+			const hio_bch_t* y = sub;
+
+			while (1) 
+			{
+				if (y >= subp) return (hio_bch_t*)p;
+				if (*x != *y) break;
+				x++; y++;
+			}	
+
+			p--;
+		}
 	}
 
 	return HIO_NULL;

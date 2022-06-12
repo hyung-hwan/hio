@@ -269,6 +269,132 @@ hio_oow_t _fn_name_ (_char_type_* dst, const _char_type_* src)
 popdef([[_fn_name_]])popdef([[_char_type_]])dnl
 ]])dnl
 dnl ---------------------------------------------------------------------------
+define([[fn_copy_fmt_cstrs_to_cstr]], [[pushdef([[_fn_name_]], $1)pushdef([[_char_type_]], $2)dnl
+hio_oow_t _fn_name_ (_char_type_* buf, hio_oow_t bsz, const _char_type_* fmt, const _char_type_* str[])
+{
+	_char_type_* b = buf;
+	_char_type_* end = buf + bsz - 1;
+	const _char_type_* f = fmt;
+
+	if (bsz <= 0) return 0;
+
+	while (*f != '\0')
+	{
+		if (*f == '\\')
+		{
+			/* get the escaped character and treat it normally.
+			 * if the escaper is the last character, treat it
+			 * normally also. */
+			if (f[1] != '\0') f++;
+		}
+		else if (*f == '$')
+		{
+			if (f[1] == '{' && (f[2] >= '0' && f[2] <= '9'))
+			{
+				const _char_type_* tmp;
+				hio_oow_t idx = 0;
+
+				tmp = f;
+				f += 2;
+
+				do idx = idx * 10 + (*f++ - '0');
+				while (*f >= '0' && *f <= '9');
+
+				if (*f != '}')
+				{
+					f = tmp;
+					goto normal;
+				}
+
+				f++;
+
+				tmp = str[idx];
+				while (*tmp != '\0')
+				{
+					if (b >= end) goto fini;
+					*b++ = *tmp++;
+				}
+				continue;
+			}
+			else if (f[1] == '$') f++;
+		}
+
+	normal:
+		if (b >= end) break;
+		*b++ = *f++;
+	}
+
+fini:
+	*b = '\0';
+	return b - buf;
+}
+popdef([[_fn_name_]])popdef([[_char_type_]])dnl
+]])dnl
+dnl ---------------------------------------------------------------------------
+define([[fn_copy_fmt_cses_to_cstr]], [[pushdef([[_fn_name_]], $1)pushdef([[_char_type_]], $2)pushdef([[_cs_t_]], $3)dnl
+hio_oow_t _fn_name_ (_char_type_* buf, hio_oow_t bsz, const _char_type_* fmt, const _cs_t_ str[])
+{
+	_char_type_* b = buf;
+	_char_type_* end = buf + bsz - 1;
+	const _char_type_* f = fmt;
+ 
+	if (bsz <= 0) return 0;
+ 
+	while (*f != '\0')
+	{
+		if (*f == '\\')
+		{
+			/* get the escaped character and treat it normally.
+			 * if the escaper is the last character, treat it 
+			 * normally also. */
+			if (f[1] != '\0') f++;
+		}
+		else if (*f == '$')
+		{
+			if (f[1] == '{' && (f[2] >= '0' && f[2] <= '9'))
+			{
+				const _char_type_* tmp, * tmpend;
+				hio_oow_t idx = 0;
+ 
+				tmp = f;
+				f += 2;
+ 
+				do idx = idx * 10 + (*f++ - '0');
+				while (*f >= '0' && *f <= '9');
+	
+				if (*f != '}')
+				{
+					f = tmp;
+					goto normal;
+				}
+ 
+				f++;
+				
+				tmp = str[idx].ptr;
+				tmpend = tmp + str[idx].len;
+ 
+				while (tmp < tmpend)
+				{
+					if (b >= end) goto fini;
+					*b++ = *tmp++;
+				}
+				continue;
+			}
+			else if (f[1] == '$') f++;
+		}
+ 
+	normal:
+		if (b >= end) break;
+		*b++ = *f++;
+	}
+ 
+fini:
+	*b = '\0';
+	return b - buf;
+}
+popdef([[_fn_name_]])popdef([[_char_type_]])popdef([[_cs_t_]])dnl
+]])dnl
+dnl ---------------------------------------------------------------------------
 define([[fn_count_cstr]], [[pushdef([[_fn_name_]], $1)pushdef([[_char_type_]], $2)dnl
 hio_oow_t _fn_name_ (const _char_type_* str)
 {
@@ -276,6 +402,19 @@ hio_oow_t _fn_name_ (const _char_type_* str)
 	while (*ptr != '\0') ptr++;
 	return ptr - str;
 } 
+popdef([[_fn_name_]])popdef([[_char_type_]])dnl
+]])dnl
+dnl ---------------------------------------------------------------------------
+define([[fn_count_cstr_limited]], [[pushdef([[_fn_name_]], $1)pushdef([[_char_type_]], $2)dnl
+hio_oow_t _fn_name_ (const hio_uch_t* str, hio_oow_t maxlen)
+{
+	hio_oow_t i;
+	for (i = 0; i < maxlen; i++)
+	{
+		if (str[i] == '\0') break;
+	}
+	return i;
+}
 popdef([[_fn_name_]])popdef([[_char_type_]])dnl
 ]])dnl
 dnl ---------------------------------------------------------------------------
@@ -306,7 +445,7 @@ void _fn_name_ (_char_type_* dst, _char_type_ ch, hio_oow_t len)
 popdef([[_fn_name_]])popdef([[_char_type_]])dnl
 ]])dnl
 dnl ---------------------------------------------------------------------------
-define([[fn_find_char]], [[pushdef([[_fn_name_]], $1)pushdef([[_char_type_]], $2)dnl
+define([[fn_find_char_in_chars]], [[pushdef([[_fn_name_]], $1)pushdef([[_char_type_]], $2)dnl
 _char_type_* _fn_name_ (const _char_type_* ptr, hio_oow_t len, _char_type_ c)
 {
 	const _char_type_* end;
@@ -323,7 +462,7 @@ _char_type_* _fn_name_ (const _char_type_* ptr, hio_oow_t len, _char_type_ c)
 popdef([[_fn_name_]])popdef([[_char_type_]])dnl
 ]])dnl
 dnl ---------------------------------------------------------------------------
-define([[fn_rfind_char]], [[pushdef([[_fn_name_]], $1)pushdef([[_char_type_]], $2)dnl
+define([[fn_rfind_char_in_chars]], [[pushdef([[_fn_name_]], $1)pushdef([[_char_type_]], $2)dnl
 _char_type_* _fn_name_ (const _char_type_* ptr, hio_oow_t len, _char_type_ c)
 {
 	const _char_type_* cur;
@@ -352,6 +491,125 @@ _char_type_* _fn_name_ (const _char_type_* ptr, _char_type_ c)
 	return HIO_NULL;
 }
 popdef([[_fn_name_]])popdef([[_char_type_]])dnl
+]])dnl
+dnl ---------------------------------------------------------------------------
+define([[fn_rfind_char_in_cstr]], [[pushdef([[_fn_name_]], $1)pushdef([[_char_type_]], $2)dnl
+_char_type_* _fn_name_ (const _char_type_* str, _char_type_ c)
+{
+	const _char_type_* ptr = str;
+	while (*ptr != '\0') ptr++;
+
+	while (ptr > str)
+	{
+		--ptr;
+		if (*ptr == c) return (_char_type_*)ptr;
+	}
+
+	return HIO_NULL;
+}
+popdef([[_fn_name_]])popdef([[_char_type_]])dnl
+]])dnl
+dnl ---------------------------------------------------------------------------
+define([[fn_find_chars_in_chars]], [[pushdef([[_fn_name_]], $1)pushdef([[_char_type_]], $2)pushdef([[_to_lower_]], $3)dnl
+_char_type_* _fn_name_ (const _char_type_* str, hio_oow_t strsz, const _char_type_* sub, hio_oow_t subsz, int ignorecase)
+{
+	const _char_type_* end, * subp;
+
+	if (subsz == 0) return (_char_type_*)str;
+	if (strsz < subsz) return HIO_NULL;
+	
+	end = str + strsz - subsz;
+	subp = sub + subsz;
+
+	if (HIO_UNLIKELY(ignorecase))
+	{
+		while (str <= end) 
+		{
+			const _char_type_* x = str;
+			const _char_type_* y = sub;
+
+			while (1)
+			{
+				if (y >= subp) return (_char_type_*)str;
+				if (_to_lower_()(*x) != _to_lower_()(*y)) break;
+				x++; y++;
+			}
+
+			str++;
+		}
+	}
+	else
+	{
+		while (str <= end) 
+		{
+			const _char_type_* x = str;
+			const _char_type_* y = sub;
+
+			while (1)
+			{
+				if (y >= subp) return (_char_type_*)str;
+				if (*x != *y) break;
+				x++; y++;
+			}
+
+			str++;
+		}
+	}
+
+	return HIO_NULL;
+}
+popdef([[_fn_name_]])popdef([[_char_type_]])popdef([[_to_lower_]])dnl
+]])dnl
+dnl ---------------------------------------------------------------------------
+define([[fn_rfind_chars_in_chars]], [[pushdef([[_fn_name_]], $1)pushdef([[_char_type_]], $2)pushdef([[_to_lower_]], $3)dnl
+_char_type_* _fn_name_ (const _char_type_* str, hio_oow_t strsz, const _char_type_* sub, hio_oow_t subsz, int ignorecase)
+{
+	const _char_type_* p = str + strsz;
+	const _char_type_* subp = sub + subsz;
+
+	if (subsz == 0) return (_char_type_*)p;
+	if (strsz < subsz) return HIO_NULL;
+
+	p = p - subsz;
+
+	if (HIO_UNLIKELY(ignorecase))
+	{
+		while (p >= str) 
+		{
+			const _char_type_* x = p;
+			const _char_type_* y = sub;
+
+			while (1) 
+			{
+				if (y >= subp) return (_char_type_*)p;
+				if (_to_lower_()(*x) != _to_lower_()(*y)) break;
+				x++; y++;
+			}
+
+			p--;
+		}
+	}
+	else
+	{
+		while (p >= str) 
+		{
+			const _char_type_* x = p;
+			const _char_type_* y = sub;
+
+			while (1) 
+			{
+				if (y >= subp) return (_char_type_*)p;
+				if (*x != *y) break;
+				x++; y++;
+			}	
+
+			p--;
+		}
+	}
+
+	return HIO_NULL;
+}
+popdef([[_fn_name_]])popdef([[_char_type_]])popdef([[_to_lower_]])dnl
 ]])dnl
 dnl ---------------------------------------------------------------------------
 define([[fn_rotate_chars]], [[pushdef([[_fn_name_]], $1)pushdef([[_char_type_]], $2)dnl
