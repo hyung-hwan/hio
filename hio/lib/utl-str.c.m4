@@ -90,11 +90,11 @@ dnl --
 fn_fill_chars(hio_fill_uchars, hio_uch_t)
 fn_fill_chars(hio_fill_bchars, hio_bch_t)
 dnl --
-fn_find_char_in_chars(hio_find_uchar, hio_uch_t)
-fn_find_char_in_chars(hio_find_bchar, hio_bch_t)
+fn_find_char_in_chars(hio_find_uchar_in_uchars, hio_uch_t)
+fn_find_char_in_chars(hio_find_bchar_in_bchars, hio_bch_t)
 dnl --
-fn_rfind_char_in_chars(hio_rfind_uchar, hio_uch_t)
-fn_rfind_char_in_chars(hio_rfind_bchar, hio_bch_t)
+fn_rfind_char_in_chars(hio_rfind_uchar_in_uchars, hio_uch_t)
+fn_rfind_char_in_chars(hio_rfind_bchar_in_bchars, hio_bch_t)
 dnl --
 fn_find_char_in_cstr(hio_find_uchar_in_ucstr, hio_uch_t)
 fn_find_char_in_cstr(hio_find_bchar_in_bcstr, hio_bch_t)

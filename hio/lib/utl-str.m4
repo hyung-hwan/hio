@@ -406,7 +406,7 @@ popdef([[_fn_name_]])popdef([[_char_type_]])dnl
 ]])dnl
 dnl ---------------------------------------------------------------------------
 define([[fn_count_cstr_limited]], [[pushdef([[_fn_name_]], $1)pushdef([[_char_type_]], $2)dnl
-hio_oow_t _fn_name_ (const hio_uch_t* str, hio_oow_t maxlen)
+hio_oow_t _fn_name_ (const _char_type_* str, hio_oow_t maxlen)
 {
 	hio_oow_t i;
 	for (i = 0; i < maxlen; i++)
