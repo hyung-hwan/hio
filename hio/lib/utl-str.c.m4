@@ -108,6 +108,9 @@ dnl --
 fn_rfind_chars_in_chars(hio_rfind_uchars_in_uchars, hio_uch_t, hio_to_uch_lower)
 fn_rfind_chars_in_chars(hio_rfind_bchars_in_bchars, hio_bch_t, hio_to_bch_lower)
 dnl --
+fn_compact_chars(hio_compact_uchars, hio_uch_t)
+fn_compact_chars(hio_compact_bchars, hio_bch_t)
+dnl --
 fn_rotate_chars(hio_rotate_uchars, hio_uch_t)
 fn_rotate_chars(hio_rotate_bchars, hio_bch_t)
 dnl --
