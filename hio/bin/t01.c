@@ -41,6 +41,7 @@
 #include <netinet/in.h>
 #include <arpa/inet.h>
 #include <signal.h>
+#include <unistd.h>
 
 #include <assert.h>
 
@@ -691,7 +692,7 @@ int z = 0;
 		z++;
 		if ((y % 2) && (z >5)) 
 		{
-			write (iop->wfd, 0, HIO_NULL);
+			write (iop->wfd, HIO_NULL, 0);
 			break;
 		}
 	}

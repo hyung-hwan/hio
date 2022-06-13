@@ -33,6 +33,7 @@
 #include <stdlib.h>
 #include <fcntl.h>
 #include <signal.h>
+#include <stdlib.h>
 
 #if defined(HAVE_PTY_H)
 #	include <pty.h>

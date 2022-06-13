@@ -117,6 +117,17 @@ dnl --
 fn_split_cstr(hio_split_ucstr, hio_uch_t, hio_is_uch_space, hio_copy_ucstr_unlimited)
 fn_split_cstr(hio_split_bcstr, hio_bch_t, hio_is_bch_space, hio_copy_bcstr_unlimited)
 dnl --
+fn_tokenize_chars(hio_tokenize_uchars, hio_uch_t, hio_ucs_t, hio_is_uch_space, hio_to_uch_lower)
+fn_tokenize_chars(hio_tokenize_bchars, hio_bch_t, hio_bcs_t, hio_is_bch_space, hio_to_bch_lower)
+dnl --
+fn_byte_to_cstr(hio_byte_to_ucstr, hio_uch_t, HIO_BYTE_TO_UCSTR)
+fn_byte_to_cstr(hio_byte_to_bcstr, hio_bch_t, HIO_BYTE_TO_BCSTR)
+dnl --
+fn_int_to_cstr(hio_intmax_to_ucstr, hio_uch_t, hio_intmax_t, hio_count_ucstr)
+fn_int_to_cstr(hio_intmax_to_bcstr, hio_bch_t, hio_intmax_t, hio_count_bcstr)
+fn_int_to_cstr(hio_uintmax_to_ucstr, hio_uch_t, hio_uintmax_t, hio_count_ucstr)
+fn_int_to_cstr(hio_uintmax_to_bcstr, hio_bch_t, hio_uintmax_t, hio_count_bcstr)
+dnl --
 fn_chars_to_int(hio_uchars_to_intmax, hio_uch_t, hio_intmax_t, hio_is_uch_space, HIO_UCHARS_TO_INTMAX)
 fn_chars_to_int(hio_bchars_to_intmax, hio_bch_t, hio_intmax_t, hio_is_bch_space, HIO_BCHARS_TO_INTMAX)
 dnl --

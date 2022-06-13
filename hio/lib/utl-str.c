@@ -1737,6 +1737,750 @@ exit_point:
 	return cnt;
 }
 
+hio_uch_t* hio_tokenize_uchars (const hio_uch_t* s, hio_oow_t len, const hio_uch_t* delim, hio_oow_t delim_len, hio_ucs_t* tok, int ignorecase)
+{
+	const hio_uch_t* p = s, *d;
+	const hio_uch_t* end = s + len;
+	const hio_uch_t* sp = HIO_NULL, * ep = HIO_NULL;
+	const hio_uch_t* delim_end = delim + delim_len;
+	hio_uch_t c; 
+	int delim_mode;
+
+#define __DELIM_NULL      0
+#define __DELIM_EMPTY     1
+#define __DELIM_SPACES    2
+#define __DELIM_NOSPACES  3
+#define __DELIM_COMPOSITE 4
+	if (delim == HIO_NULL) delim_mode = __DELIM_NULL;
+	else 
+	{
+		delim_mode = __DELIM_EMPTY;
+
+		for (d = delim; d < delim_end; d++) 
+		{
+			if (hio_is_uch_space(*d)) 
+			{
+				if (delim_mode == __DELIM_EMPTY)
+					delim_mode = __DELIM_SPACES;
+				else if (delim_mode == __DELIM_NOSPACES)
+				{
+					delim_mode = __DELIM_COMPOSITE;
+					break;
+				}
+			}
+			else
+			{
+				if (delim_mode == __DELIM_EMPTY)
+					delim_mode = __DELIM_NOSPACES;
+				else if (delim_mode == __DELIM_SPACES)
+				{
+					delim_mode = __DELIM_COMPOSITE;
+					break;
+				}
+			}
+		}
+
+		/* TODO: verify the following statement... */
+		if (delim_mode == __DELIM_SPACES && delim_len == 1 && delim[0] != ' ') delim_mode = __DELIM_NOSPACES;
+	}		
+	
+	if (delim_mode == __DELIM_NULL) 
+	{ 
+		/* when HIO_NULL is given as "delim", it trims off the 
+		 * leading and trailing spaces characters off the source
+		 * string "s" eventually. */
+
+		while (p < end && hio_is_uch_space(*p)) p++;
+		while (p < end) 
+		{
+			c = *p;
+
+			if (!hio_is_uch_space(c)) 
+			{
+				if (sp == HIO_NULL) sp = p;
+				ep = p;
+			}
+			p++;
+		}
+	}
+	else if (delim_mode == __DELIM_EMPTY)
+	{
+		/* each character in the source string "s" becomes a token. */
+		if (p < end)
+		{
+			c = *p;
+			sp = p;
+			ep = p++;
+		}
+	}
+	else if (delim_mode == __DELIM_SPACES) 
+	{
+		/* each token is delimited by space characters. all leading
+		 * and trailing spaces are removed. */
+
+		while (p < end && hio_is_uch_space(*p)) p++;
+		while (p < end) 
+		{
+			c = *p;
+			if (hio_is_uch_space(c)) break;
+			if (sp == HIO_NULL) sp = p;
+			ep = p++;
+		}
+		while (p < end && hio_is_uch_space(*p)) p++;
+	}
+	else if (delim_mode == __DELIM_NOSPACES)
+	{
+		/* each token is delimited by one of charaters 
+		 * in the delimeter set "delim". */
+		if (ignorecase)
+		{
+			while (p < end) 
+			{
+				c = hio_to_uch_lower(*p);
+				for (d = delim; d < delim_end; d++) 
+				{
+					if (c == hio_to_uch_lower(*d)) goto exit_loop;
+				}
+
+				if (sp == HIO_NULL) sp = p;
+				ep = p++;
+			}
+		}
+		else
+		{
+			while (p < end) 
+			{
+				c = *p;
+				for (d = delim; d < delim_end; d++) 
+				{
+					if (c == *d) goto exit_loop;
+				}
+
+				if (sp == HIO_NULL) sp = p;
+				ep = p++;
+			}
+		}
+	}
+	else /* if (delim_mode == __DELIM_COMPOSITE) */ 
+	{
+		/* each token is delimited by one of non-space charaters
+		 * in the delimeter set "delim". however, all space characters
+		 * surrounding the token are removed */
+		while (p < end && hio_is_uch_space(*p)) p++;
+		if (ignorecase)
+		{
+			while (p < end) 
+			{
+				c = hio_to_uch_lower(*p);
+				if (hio_is_uch_space(c)) 
+				{
+					p++;
+					continue;
+				}
+				for (d = delim; d < delim_end; d++) 
+				{
+					if (c == hio_to_uch_lower(*d)) goto exit_loop;
+				}
+				if (sp == HIO_NULL) sp = p;
+				ep = p++;
+			}
+		}
+		else
+		{
+			while (p < end) 
+			{
+				c = *p;
+				if (hio_is_uch_space(c)) 
+				{
+					p++;
+					continue;
+				}
+				for (d = delim; d < delim_end; d++) 
+				{
+					if (c == *d) goto exit_loop;
+				}
+				if (sp == HIO_NULL) sp = p;
+				ep = p++;
+			}
+		}
+	}
+
+exit_loop:
+	if (sp == HIO_NULL) 
+	{
+		tok->ptr = HIO_NULL;
+		tok->len = (hio_oow_t)0;
+	}
+	else 
+	{
+		tok->ptr = (hio_uch_t*)sp;
+		tok->len = ep - sp + 1;
+	}
+
+	/* if HIO_NULL is returned, this function should not be called again */
+	if (p >= end) return HIO_NULL;
+	if (delim_mode == __DELIM_EMPTY || delim_mode == __DELIM_SPACES) return (hio_uch_t*)p;
+	return (hio_uch_t*)++p;
+}
+
+hio_bch_t* hio_tokenize_bchars (const hio_bch_t* s, hio_oow_t len, const hio_bch_t* delim, hio_oow_t delim_len, hio_bcs_t* tok, int ignorecase)
+{
+	const hio_bch_t* p = s, *d;
+	const hio_bch_t* end = s + len;
+	const hio_bch_t* sp = HIO_NULL, * ep = HIO_NULL;
+	const hio_bch_t* delim_end = delim + delim_len;
+	hio_bch_t c; 
+	int delim_mode;
+
+#define __DELIM_NULL      0
+#define __DELIM_EMPTY     1
+#define __DELIM_SPACES    2
+#define __DELIM_NOSPACES  3
+#define __DELIM_COMPOSITE 4
+	if (delim == HIO_NULL) delim_mode = __DELIM_NULL;
+	else 
+	{
+		delim_mode = __DELIM_EMPTY;
+
+		for (d = delim; d < delim_end; d++) 
+		{
+			if (hio_is_bch_space(*d)) 
+			{
+				if (delim_mode == __DELIM_EMPTY)
+					delim_mode = __DELIM_SPACES;
+				else if (delim_mode == __DELIM_NOSPACES)
+				{
+					delim_mode = __DELIM_COMPOSITE;
+					break;
+				}
+			}
+			else
+			{
+				if (delim_mode == __DELIM_EMPTY)
+					delim_mode = __DELIM_NOSPACES;
+				else if (delim_mode == __DELIM_SPACES)
+				{
+					delim_mode = __DELIM_COMPOSITE;
+					break;
+				}
+			}
+		}
+
+		/* TODO: verify the following statement... */
+		if (delim_mode == __DELIM_SPACES && delim_len == 1 && delim[0] != ' ') delim_mode = __DELIM_NOSPACES;
+	}		
+	
+	if (delim_mode == __DELIM_NULL) 
+	{ 
+		/* when HIO_NULL is given as "delim", it trims off the 
+		 * leading and trailing spaces characters off the source
+		 * string "s" eventually. */
+
+		while (p < end && hio_is_bch_space(*p)) p++;
+		while (p < end) 
+		{
+			c = *p;
+
+			if (!hio_is_bch_space(c)) 
+			{
+				if (sp == HIO_NULL) sp = p;
+				ep = p;
+			}
+			p++;
+		}
+	}
+	else if (delim_mode == __DELIM_EMPTY)
+	{
+		/* each character in the source string "s" becomes a token. */
+		if (p < end)
+		{
+			c = *p;
+			sp = p;
+			ep = p++;
+		}
+	}
+	else if (delim_mode == __DELIM_SPACES) 
+	{
+		/* each token is delimited by space characters. all leading
+		 * and trailing spaces are removed. */
+
+		while (p < end && hio_is_bch_space(*p)) p++;
+		while (p < end) 
+		{
+			c = *p;
+			if (hio_is_bch_space(c)) break;
+			if (sp == HIO_NULL) sp = p;
+			ep = p++;
+		}
+		while (p < end && hio_is_bch_space(*p)) p++;
+	}
+	else if (delim_mode == __DELIM_NOSPACES)
+	{
+		/* each token is delimited by one of charaters 
+		 * in the delimeter set "delim". */
+		if (ignorecase)
+		{
+			while (p < end) 
+			{
+				c = hio_to_bch_lower(*p);
+				for (d = delim; d < delim_end; d++) 
+				{
+					if (c == hio_to_bch_lower(*d)) goto exit_loop;
+				}
+
+				if (sp == HIO_NULL) sp = p;
+				ep = p++;
+			}
+		}
+		else
+		{
+			while (p < end) 
+			{
+				c = *p;
+				for (d = delim; d < delim_end; d++) 
+				{
+					if (c == *d) goto exit_loop;
+				}
+
+				if (sp == HIO_NULL) sp = p;
+				ep = p++;
+			}
+		}
+	}
+	else /* if (delim_mode == __DELIM_COMPOSITE) */ 
+	{
+		/* each token is delimited by one of non-space charaters
+		 * in the delimeter set "delim". however, all space characters
+		 * surrounding the token are removed */
+		while (p < end && hio_is_bch_space(*p)) p++;
+		if (ignorecase)
+		{
+			while (p < end) 
+			{
+				c = hio_to_bch_lower(*p);
+				if (hio_is_bch_space(c)) 
+				{
+					p++;
+					continue;
+				}
+				for (d = delim; d < delim_end; d++) 
+				{
+					if (c == hio_to_bch_lower(*d)) goto exit_loop;
+				}
+				if (sp == HIO_NULL) sp = p;
+				ep = p++;
+			}
+		}
+		else
+		{
+			while (p < end) 
+			{
+				c = *p;
+				if (hio_is_bch_space(c)) 
+				{
+					p++;
+					continue;
+				}
+				for (d = delim; d < delim_end; d++) 
+				{
+					if (c == *d) goto exit_loop;
+				}
+				if (sp == HIO_NULL) sp = p;
+				ep = p++;
+			}
+		}
+	}
+
+exit_loop:
+	if (sp == HIO_NULL) 
+	{
+		tok->ptr = HIO_NULL;
+		tok->len = (hio_oow_t)0;
+	}
+	else 
+	{
+		tok->ptr = (hio_bch_t*)sp;
+		tok->len = ep - sp + 1;
+	}
+
+	/* if HIO_NULL is returned, this function should not be called again */
+	if (p >= end) return HIO_NULL;
+	if (delim_mode == __DELIM_EMPTY || delim_mode == __DELIM_SPACES) return (hio_bch_t*)p;
+	return (hio_bch_t*)++p;
+}
+
+hio_oow_t hio_byte_to_ucstr (hio_uint8_t byte, hio_uch_t* buf, hio_oow_t size, int flagged_radix, hio_uch_t fill)
+{
+	hio_uch_t tmp[(HIO_SIZEOF(hio_uint8_t) * HIO_BITS_PER_BYTE)];
+	hio_uch_t* p = tmp, * bp = buf, * be = buf + size - 1;
+	int radix;
+	hio_uch_t radix_char;
+
+	radix = (flagged_radix & HIO_BYTE_TO_UCSTR_RADIXMASK);
+	radix_char = (flagged_radix & HIO_BYTE_TO_UCSTR_LOWERCASE)? 'a': 'A';
+	if (radix < 2 || radix > 36 || size <= 0) return 0;
+
+	do 
+	{
+		hio_uint8_t digit = byte % radix;
+		if (digit < 10) *p++ = digit + '0';
+		else *p++ = digit + radix_char - 10;
+		byte /= radix;
+	}
+	while (byte > 0);
+
+	if (fill != '\0') 
+	{
+		while (size - 1 > p - tmp) 
+		{
+			*bp++ = fill;
+			size--;
+		}
+	}
+
+	while (p > tmp && bp < be) *bp++ = *--p;
+	*bp = '\0';
+	return bp - buf;
+}
+
+hio_oow_t hio_byte_to_bcstr (hio_uint8_t byte, hio_bch_t* buf, hio_oow_t size, int flagged_radix, hio_bch_t fill)
+{
+	hio_bch_t tmp[(HIO_SIZEOF(hio_uint8_t) * HIO_BITS_PER_BYTE)];
+	hio_bch_t* p = tmp, * bp = buf, * be = buf + size - 1;
+	int radix;
+	hio_bch_t radix_char;
+
+	radix = (flagged_radix & HIO_BYTE_TO_BCSTR_RADIXMASK);
+	radix_char = (flagged_radix & HIO_BYTE_TO_BCSTR_LOWERCASE)? 'a': 'A';
+	if (radix < 2 || radix > 36 || size <= 0) return 0;
+
+	do 
+	{
+		hio_uint8_t digit = byte % radix;
+		if (digit < 10) *p++ = digit + '0';
+		else *p++ = digit + radix_char - 10;
+		byte /= radix;
+	}
+	while (byte > 0);
+
+	if (fill != '\0') 
+	{
+		while (size - 1 > p - tmp) 
+		{
+			*bp++ = fill;
+			size--;
+		}
+	}
+
+	while (p > tmp && bp < be) *bp++ = *--p;
+	*bp = '\0';
+	return bp - buf;
+}
+
+hio_oow_t hio_intmax_to_ucstr (hio_intmax_t value, int radix, const hio_uch_t* prefix, hio_uch_t* buf, hio_oow_t size)
+{
+	hio_intmax_t t, rem;
+	hio_oow_t len, ret, i;
+	hio_oow_t prefix_len;
+
+	prefix_len = (prefix != HIO_NULL)? hio_count_ucstr(prefix): 0;
+
+	t = value;
+	if (t == 0)
+	{
+		/* zero */
+		if (buf == HIO_NULL) 
+		{
+			/* if buf is not given, 
+			 * return the number of bytes required */
+			return prefix_len + 1;
+		}
+
+		if (size < prefix_len+1) 
+		{
+			/* buffer too small */
+			return (hio_oow_t)-1;
+		}
+
+		for (i = 0; i < prefix_len; i++) buf[i] = prefix[i];
+		buf[prefix_len] = '0';
+		if (size > prefix_len+1) buf[prefix_len+1] = '\0';
+		return prefix_len+1;
+	}
+
+	/* non-zero values */
+	len = prefix_len;
+	if (t < 0) { t = -t; len++; }
+	while (t > 0) { len++; t /= radix; }
+
+	if (buf == HIO_NULL)
+	{
+		/* if buf is not given, return the number of bytes required */
+		return len;
+	}
+
+	if (size < len) return (hio_oow_t)-1; /* buffer too small */
+	if (size > len) buf[len] = '\0';
+	ret = len;
+
+	t = value;
+	if (t < 0) t = -t;
+
+	while (t > 0) 
+	{
+		rem = t % radix;
+		if (rem >= 10)
+			buf[--len] = (hio_uch_t)rem + 'a' - 10;
+		else
+			buf[--len] = (hio_uch_t)rem + '0';
+		t /= radix;
+	}
+
+	if (value < 0) 
+	{
+		for (i = 1; i <= prefix_len; i++) 
+		{
+			buf[i] = prefix[i-1];
+			len--;
+		}
+		buf[--len] = '-';
+	}
+	else
+	{
+		for (i = 0; i < prefix_len; i++) buf[i] = prefix[i];
+	}
+
+	return ret;
+}
+
+hio_oow_t hio_intmax_to_bcstr (hio_intmax_t value, int radix, const hio_bch_t* prefix, hio_bch_t* buf, hio_oow_t size)
+{
+	hio_intmax_t t, rem;
+	hio_oow_t len, ret, i;
+	hio_oow_t prefix_len;
+
+	prefix_len = (prefix != HIO_NULL)? hio_count_bcstr(prefix): 0;
+
+	t = value;
+	if (t == 0)
+	{
+		/* zero */
+		if (buf == HIO_NULL) 
+		{
+			/* if buf is not given, 
+			 * return the number of bytes required */
+			return prefix_len + 1;
+		}
+
+		if (size < prefix_len+1) 
+		{
+			/* buffer too small */
+			return (hio_oow_t)-1;
+		}
+
+		for (i = 0; i < prefix_len; i++) buf[i] = prefix[i];
+		buf[prefix_len] = '0';
+		if (size > prefix_len+1) buf[prefix_len+1] = '\0';
+		return prefix_len+1;
+	}
+
+	/* non-zero values */
+	len = prefix_len;
+	if (t < 0) { t = -t; len++; }
+	while (t > 0) { len++; t /= radix; }
+
+	if (buf == HIO_NULL)
+	{
+		/* if buf is not given, return the number of bytes required */
+		return len;
+	}
+
+	if (size < len) return (hio_oow_t)-1; /* buffer too small */
+	if (size > len) buf[len] = '\0';
+	ret = len;
+
+	t = value;
+	if (t < 0) t = -t;
+
+	while (t > 0) 
+	{
+		rem = t % radix;
+		if (rem >= 10)
+			buf[--len] = (hio_bch_t)rem + 'a' - 10;
+		else
+			buf[--len] = (hio_bch_t)rem + '0';
+		t /= radix;
+	}
+
+	if (value < 0) 
+	{
+		for (i = 1; i <= prefix_len; i++) 
+		{
+			buf[i] = prefix[i-1];
+			len--;
+		}
+		buf[--len] = '-';
+	}
+	else
+	{
+		for (i = 0; i < prefix_len; i++) buf[i] = prefix[i];
+	}
+
+	return ret;
+}
+
+hio_oow_t hio_uintmax_to_ucstr (hio_uintmax_t value, int radix, const hio_uch_t* prefix, hio_uch_t* buf, hio_oow_t size)
+{
+	hio_uintmax_t t, rem;
+	hio_oow_t len, ret, i;
+	hio_oow_t prefix_len;
+
+	prefix_len = (prefix != HIO_NULL)? hio_count_ucstr(prefix): 0;
+
+	t = value;
+	if (t == 0)
+	{
+		/* zero */
+		if (buf == HIO_NULL) 
+		{
+			/* if buf is not given, 
+			 * return the number of bytes required */
+			return prefix_len + 1;
+		}
+
+		if (size < prefix_len+1) 
+		{
+			/* buffer too small */
+			return (hio_oow_t)-1;
+		}
+
+		for (i = 0; i < prefix_len; i++) buf[i] = prefix[i];
+		buf[prefix_len] = '0';
+		if (size > prefix_len+1) buf[prefix_len+1] = '\0';
+		return prefix_len+1;
+	}
+
+	/* non-zero values */
+	len = prefix_len;
+	if (t < 0) { t = -t; len++; }
+	while (t > 0) { len++; t /= radix; }
+
+	if (buf == HIO_NULL)
+	{
+		/* if buf is not given, return the number of bytes required */
+		return len;
+	}
+
+	if (size < len) return (hio_oow_t)-1; /* buffer too small */
+	if (size > len) buf[len] = '\0';
+	ret = len;
+
+	t = value;
+	if (t < 0) t = -t;
+
+	while (t > 0) 
+	{
+		rem = t % radix;
+		if (rem >= 10)
+			buf[--len] = (hio_uch_t)rem + 'a' - 10;
+		else
+			buf[--len] = (hio_uch_t)rem + '0';
+		t /= radix;
+	}
+
+	if (value < 0) 
+	{
+		for (i = 1; i <= prefix_len; i++) 
+		{
+			buf[i] = prefix[i-1];
+			len--;
+		}
+		buf[--len] = '-';
+	}
+	else
+	{
+		for (i = 0; i < prefix_len; i++) buf[i] = prefix[i];
+	}
+
+	return ret;
+}
+
+hio_oow_t hio_uintmax_to_bcstr (hio_uintmax_t value, int radix, const hio_bch_t* prefix, hio_bch_t* buf, hio_oow_t size)
+{
+	hio_uintmax_t t, rem;
+	hio_oow_t len, ret, i;
+	hio_oow_t prefix_len;
+
+	prefix_len = (prefix != HIO_NULL)? hio_count_bcstr(prefix): 0;
+
+	t = value;
+	if (t == 0)
+	{
+		/* zero */
+		if (buf == HIO_NULL) 
+		{
+			/* if buf is not given, 
+			 * return the number of bytes required */
+			return prefix_len + 1;
+		}
+
+		if (size < prefix_len+1) 
+		{
+			/* buffer too small */
+			return (hio_oow_t)-1;
+		}
+
+		for (i = 0; i < prefix_len; i++) buf[i] = prefix[i];
+		buf[prefix_len] = '0';
+		if (size > prefix_len+1) buf[prefix_len+1] = '\0';
+		return prefix_len+1;
+	}
+
+	/* non-zero values */
+	len = prefix_len;
+	if (t < 0) { t = -t; len++; }
+	while (t > 0) { len++; t /= radix; }
+
+	if (buf == HIO_NULL)
+	{
+		/* if buf is not given, return the number of bytes required */
+		return len;
+	}
+
+	if (size < len) return (hio_oow_t)-1; /* buffer too small */
+	if (size > len) buf[len] = '\0';
+	ret = len;
+
+	t = value;
+	if (t < 0) t = -t;
+
+	while (t > 0) 
+	{
+		rem = t % radix;
+		if (rem >= 10)
+			buf[--len] = (hio_bch_t)rem + 'a' - 10;
+		else
+			buf[--len] = (hio_bch_t)rem + '0';
+		t /= radix;
+	}
+
+	if (value < 0) 
+	{
+		for (i = 1; i <= prefix_len; i++) 
+		{
+			buf[i] = prefix[i-1];
+			len--;
+		}
+		buf[--len] = '-';
+	}
+	else
+	{
+		for (i = 0; i < prefix_len; i++) buf[i] = prefix[i];
+	}
+
+	return ret;
+}
+
 hio_intmax_t hio_uchars_to_intmax (const hio_uch_t* str, hio_oow_t len, int option, const hio_uch_t** endptr, int* is_sober)
 {
 	hio_intmax_t n = 0;
@@ -1790,13 +2534,11 @@ hio_intmax_t hio_uchars_to_intmax (const hio_uch_t* str, hio_oow_t len, int opti
 	} 
 	else if (rem >= 2 && base == 16)
 	{
-		if (*p == '0' && 
-		    (*(p + 1) == 'x' || *(p + 1) == 'X')) p += 2; 
+		if (*p == '0' && (*(p + 1) == 'x' || *(p + 1) == 'X')) p += 2; 
 	}
 	else if (rem >= 2 && base == 2)
 	{
-		if (*p == '0' && 
-		    (*(p + 1) == 'b' || *(p + 1) == 'B')) p += 2; 
+		if (*p == '0' && (*(p + 1) == 'b' || *(p + 1) == 'B')) p += 2; 
 	}
 
 	/* process the digits */
@@ -1905,13 +2647,11 @@ hio_intmax_t hio_bchars_to_intmax (const hio_bch_t* str, hio_oow_t len, int opti
 	} 
 	else if (rem >= 2 && base == 16)
 	{
-		if (*p == '0' && 
-		    (*(p + 1) == 'x' || *(p + 1) == 'X')) p += 2; 
+		if (*p == '0' && (*(p + 1) == 'x' || *(p + 1) == 'X')) p += 2; 
 	}
 	else if (rem >= 2 && base == 2)
 	{
-		if (*p == '0' && 
-		    (*(p + 1) == 'b' || *(p + 1) == 'B')) p += 2; 
+		if (*p == '0' && (*(p + 1) == 'b' || *(p + 1) == 'B')) p += 2; 
 	}
 
 	/* process the digits */
@@ -2015,13 +2755,11 @@ hio_uintmax_t hio_uchars_to_uintmax (const hio_uch_t* str, hio_oow_t len, int op
 	} 
 	else if (rem >= 2 && base == 16)
 	{
-		if (*p == '0' && 
-		    (*(p + 1) == 'x' || *(p + 1) == 'X')) p += 2; 
+		if (*p == '0' && (*(p + 1) == 'x' || *(p + 1) == 'X')) p += 2; 
 	}
 	else if (rem >= 2 && base == 2)
 	{
-		if (*p == '0' && 
-		    (*(p + 1) == 'b' || *(p + 1) == 'B')) p += 2; 
+		if (*p == '0' && (*(p + 1) == 'b' || *(p + 1) == 'B')) p += 2; 
 	}
 
 	/* process the digits */
@@ -2125,13 +2863,11 @@ hio_uintmax_t hio_bchars_to_uintmax (const hio_bch_t* str, hio_oow_t len, int op
 	} 
 	else if (rem >= 2 && base == 16)
 	{
-		if (*p == '0' && 
-		    (*(p + 1) == 'x' || *(p + 1) == 'X')) p += 2; 
+		if (*p == '0' && (*(p + 1) == 'x' || *(p + 1) == 'X')) p += 2; 
 	}
 	else if (rem >= 2 && base == 2)
 	{
-		if (*p == '0' && 
-		    (*(p + 1) == 'b' || *(p + 1) == 'B')) p += 2; 
+		if (*p == '0' && (*(p + 1) == 'b' || *(p + 1) == 'B')) p += 2; 
 	}
 
 	/* process the digits */
