@@ -9,12 +9,12 @@ CFLAGS_ALL_COMMON  =
 LDFLAGS_ALL_COMMON = -L$(abs_builddir) -L$(libdir)
 
 EXTRA_DIST = \
-	hio-utl.h.m4 \
+	hio-str.h.m4 \
 	utl-str.c.m4 \
 	utl-str.m4
 
 BUILT_SOURCES = \
-	hio-utl.h \
+	hio-str.h \
 	utl-str.c 
 
 ##################################################
@@ -58,6 +58,7 @@ include_HEADERS = \
 	hio-sck.h \
 	hio-shw.h \
 	hio-skad.h \
+	hio-str.h \
 	hio-thr.h \
 	hio-upac.h \
 	hio-utl.h \
@@ -144,8 +145,8 @@ install-data-hook:
 uninstall-hook:
 	@rm -f "$(DESTDIR)$(includedir)/hio-cfg.h"
 
-hio-utl.h: utl-str.m4 hio-utl.h.m4
-	m4 -I$(srcdir) $(srcdir)/hio-utl.h.m4 > $(srcdir)/hio-utl.h
+hio-str.h: utl-str.m4 hio-str.h.m4
+	m4 -I$(srcdir) $(srcdir)/hio-str.h.m4 > $(srcdir)/hio-str.h
 
 utl-str.c: utl-str.m4 utl-str.c.m4 
 	m4 -I$(srcdir) $(srcdir)/utl-str.c.m4 > $(srcdir)/utl-str.c

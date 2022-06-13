@@ -22,22 +22,12 @@
     THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  */
 
-/*
- * Do NOT edit hio-utl.h. Edit hio-utl.h.m4 instead.
- *
- * Generate hio-utl.h.m4 with m4
- *   $ m4 hio-utl.h.m4 > hio-utl.h
- */
-
 #ifndef _HIO_UTL_H_
 #define _HIO_UTL_H_
 
 #include <hio-cmn.h>
+#include <hio-str.h>
 #include <stdarg.h>
-
-
-
-
 
 /* =========================================================================
  * ENDIAN CHANGE OF A CONSTANT
@@ -238,89 +228,15 @@
  * STRING
  * ========================================================================= */
 
-enum hio_trim_oochars_flag_t
-{
-        HIO_TRIM_OOCHARS_LEFT  = (1 << 0), /**< trim leading spaces */
-#define HIO_TRIM_OOCHARS_LEFT HIO_TRIM_OOCHARS_LEFT
-#define HIO_TRIM_UCHARS_LEFT HIO_TRIM_OOCHARS_LEFT
-#define HIO_TRIM_BCHARS_LEFT HIO_TRIM_OOCHARS_LEFT
-        HIO_TRIM_OOCHARS_RIGHT = (1 << 1)  /**< trim trailing spaces */
-#define HIO_TRIM_OOCHARS_RIGHT HIO_TRIM_OOCHARS_RIGHT
-#define HIO_TRIM_UCHARS_RIGHT HIO_TRIM_OOCHARS_RIGHT
-#define HIO_TRIM_BCHARS_RIGHT HIO_TRIM_OOCHARS_RIGHT
-};
-
-#if defined(__cplusplus)
-extern "C" {
-#endif
-
-
-/* ------------------------------------ */
-
-HIO_EXPORT int hio_comp_uchars (
-	const hio_uch_t* str1,
-	hio_oow_t        len1,
-	const hio_uch_t* str2,
-	hio_oow_t        len2,
-	int              ignorecase
-);
-
-HIO_EXPORT int hio_comp_bchars (
-	const hio_bch_t* str1,
-	hio_oow_t        len1,
-	const hio_bch_t* str2,
-	hio_oow_t        len2,
-	int              ignorecase
-);
-
-HIO_EXPORT int hio_comp_ucstr (
-	const hio_uch_t* str1,
-	const hio_uch_t* str2,
-	int              ignorecase
-);
-
-HIO_EXPORT int hio_comp_bcstr (
-	const hio_bch_t* str1,
-	const hio_bch_t* str2,
-	int              ignorecase
-);
-
-HIO_EXPORT int hio_comp_ucstr_limited (
-	const hio_uch_t* str1,
-	const hio_uch_t* str2,
-	hio_oow_t        maxlen,
-	int              ignorecase
-);
-
-HIO_EXPORT int hio_comp_bcstr_limited (
-	const hio_bch_t* str1,
-	const hio_bch_t* str2,
-	hio_oow_t        maxlen,
-	int              ignorecase
-);
-
 HIO_EXPORT int hio_comp_ucstr_bcstr (
 	const hio_uch_t* str1,
 	const hio_bch_t* str2,
 	int              ignorecase
 );
 
-HIO_EXPORT int hio_comp_uchars_ucstr (
-	const hio_uch_t* str1,
-	hio_oow_t        len,
-	const hio_uch_t* str2,
-	int              ignorecase
-);
 
 HIO_EXPORT int hio_comp_uchars_bcstr (
 	const hio_uch_t* str1,
-	hio_oow_t        len,
-	const hio_bch_t* str2,
-	int              ignorecase
-);
-
-HIO_EXPORT int hio_comp_bchars_bcstr (
-	const hio_bch_t* str1,
 	hio_oow_t        len,
 	const hio_bch_t* str2,
 	int              ignorecase
@@ -333,533 +249,7 @@ HIO_EXPORT int hio_comp_bchars_ucstr (
 	int              ignorecase
 );
 
-/* ------------------------------------ */
-
-HIO_EXPORT hio_oow_t hio_concat_uchars_to_ucstr (
-	hio_uch_t*       buf,
-	hio_oow_t        bsz,
-	const hio_uch_t* src,
-	hio_oow_t        len
-);
-
-HIO_EXPORT hio_oow_t hio_concat_bchars_to_bcstr (
-	hio_bch_t*       buf,
-	hio_oow_t        bsz,
-	const hio_bch_t* src,
-	hio_oow_t        len
-);
-
-HIO_EXPORT hio_oow_t hio_concat_ucstr (
-	hio_uch_t*       buf,
-	hio_oow_t        bsz,
-	const hio_uch_t* src
-);
-
-HIO_EXPORT hio_oow_t hio_concat_bcstr (
-	hio_bch_t*       buf,
-	hio_oow_t        bsz,
-	const hio_bch_t* src
-);
-
-/* ------------------------------------ */
-
-HIO_EXPORT void hio_copy_uchars (
-	hio_uch_t*       dst,
-	const hio_uch_t* src,
-	hio_oow_t        len
-);
-
-HIO_EXPORT void hio_copy_bchars (
-	hio_bch_t*       dst,
-	const hio_bch_t* src,
-	hio_oow_t        len
-);
-
-HIO_EXPORT void hio_copy_bchars_to_uchars (
-	hio_uch_t*       dst,
-	const hio_bch_t* src,
-	hio_oow_t        len
-);
-HIO_EXPORT void hio_copy_uchars_to_bchars (
-	hio_bch_t*       dst,
-	const hio_uch_t* src,
-	hio_oow_t        len
-);
-
-HIO_EXPORT hio_oow_t hio_copy_uchars_to_ucstr (
-	hio_uch_t*       dst,
-	hio_oow_t        dlen,
-	const hio_uch_t* src,
-	hio_oow_t        slen
-);
-
-HIO_EXPORT hio_oow_t hio_copy_bchars_to_bcstr (
-	hio_bch_t*       dst,
-	hio_oow_t        dlen,
-	const hio_bch_t* src,
-	hio_oow_t        slen
-);
-
-HIO_EXPORT hio_oow_t hio_copy_uchars_to_ucstr_unlimited (
-	hio_uch_t*       dst,
-	const hio_uch_t* src,
-	hio_oow_t        len
-);
-
-HIO_EXPORT hio_oow_t hio_copy_bchars_to_bcstr_unlimited (
-	hio_bch_t*       dst,
-	const hio_bch_t* src,
-	hio_oow_t        len
-);
-
-HIO_EXPORT hio_oow_t hio_copy_ucstr_to_uchars (
-	hio_uch_t*        dst,
-	hio_oow_t         dlen,
-	const hio_uch_t*  src
-);
-
-HIO_EXPORT hio_oow_t hio_copy_bcstr_to_bchars (
-	hio_bch_t*        dst,
-	hio_oow_t         dlen,
-	const hio_bch_t*  src
-);
-
-HIO_EXPORT hio_oow_t hio_copy_ucstr (
-	hio_uch_t*       dst,
-	hio_oow_t        len,
-	const hio_uch_t* src
-);
-
-HIO_EXPORT hio_oow_t hio_copy_bcstr (
-	hio_bch_t*       dst,
-	hio_oow_t        len,
-	const hio_bch_t* src
-);
-
-HIO_EXPORT hio_oow_t hio_copy_ucstr_unlimited (
-	hio_uch_t*       dst,
-	const hio_uch_t* src
-);
-
-HIO_EXPORT hio_oow_t hio_copy_bcstr_unlimited (
-	hio_bch_t*       dst,
-	const hio_bch_t* src
-);
-
-HIO_EXPORT hio_oow_t hio_copy_fmt_ucstrs_to_ucstr (
-	hio_uch_t*       buf,
-	hio_oow_t        bsz,
-	const hio_uch_t* fmt,
-	const hio_uch_t* str[]
-);
-
-HIO_EXPORT hio_oow_t hio_copy_fmt_bcstrs_to_bcstr (
-	hio_bch_t*       buf,
-	hio_oow_t        bsz,
-	const hio_bch_t* fmt,
-	const hio_bch_t* str[]
-);
-
-HIO_EXPORT hio_oow_t hio_copy_fmt_ucses_to_ucstr (
-	hio_uch_t*       buf,
-	hio_oow_t        bsz,
-	const hio_uch_t* fmt,
-	const hio_ucs_t  str[]
-);
-
-HIO_EXPORT hio_oow_t hio_copy_fmt_bcses_to_bcstr (
-	hio_bch_t*       buf,
-	hio_oow_t        bsz,
-	const hio_bch_t* fmt,
-	const hio_bcs_t  str[]
-);
-
-/* ------------------------------------ */
-
-HIO_EXPORT hio_oow_t hio_count_ucstr (
-	const hio_uch_t* str
-);
-
-HIO_EXPORT hio_oow_t hio_count_bcstr (
-	const hio_bch_t* str
-);
-
-HIO_EXPORT hio_oow_t hio_count_ucstr_limited (
-	const hio_uch_t* str,
-	hio_oow_t        maxlen
-);
-
-HIO_EXPORT hio_oow_t hio_count_bcstr_limited (
-	const hio_bch_t* str,
-	hio_oow_t        maxlen
-);
-
-/* ------------------------------------ */
-
-/**
- * The hio_equal_uchars() function determines equality of two strings
- * of the same length \a len.
- */
-HIO_EXPORT int hio_equal_uchars (
-	const hio_uch_t* str1,
-	const hio_uch_t* str2,
-	hio_oow_t        len
-);
-
-HIO_EXPORT int hio_equal_bchars (
-	const hio_bch_t* str1,
-	const hio_bch_t* str2,
-	hio_oow_t        len
-);
-
-/* ------------------------------------ */
-
-
-HIO_EXPORT void hio_fill_uchars (
-	hio_uch_t*       dst,
-	const hio_uch_t  ch,
-	hio_oow_t        len
-);
-
-HIO_EXPORT void hio_fill_bchars (
-	hio_bch_t*       dst,
-	const hio_bch_t  ch,
-	hio_oow_t        len
-);
-
-/* ------------------------------------ */
-
-HIO_EXPORT const hio_bch_t* hio_find_bcstr_word_in_bcstr (
-	const hio_bch_t* str,
-	const hio_bch_t* word,
-	hio_bch_t        extra_delim,
-	int              ignorecase
-);
-
-HIO_EXPORT const hio_uch_t* hio_find_ucstr_word_in_ucstr (
-	const hio_uch_t* str,
-	const hio_uch_t* word,
-	hio_uch_t        extra_delim,
-	int              ignorecase
-);
-
-HIO_EXPORT hio_uch_t* hio_find_uchar_in_uchars (
-	const hio_uch_t* ptr,
-	hio_oow_t        len,
-	hio_uch_t        c
-);
-
-HIO_EXPORT hio_bch_t* hio_find_bchar_in_bchars (
-	const hio_bch_t* ptr,
-	hio_oow_t        len,
-	hio_bch_t        c
-);
-
-HIO_EXPORT hio_uch_t* hio_rfind_uchar_in_uchars (
-	const hio_uch_t* ptr,
-	hio_oow_t        len,
-	hio_uch_t        c
-);
-
-HIO_EXPORT hio_bch_t* hio_rfind_bchar_in_bchars (
-	const hio_bch_t* ptr,
-	hio_oow_t        len,
-	hio_bch_t        c
-);
-
-HIO_EXPORT hio_uch_t* hio_find_uchar_in_ucstr (
-	const hio_uch_t* ptr,
-	hio_uch_t        c
-);
-
-HIO_EXPORT hio_bch_t* hio_find_bchar_in_bcstr (
-	const hio_bch_t* ptr,
-	hio_bch_t        c
-);
-
-HIO_EXPORT hio_uch_t* hio_rfind_uchar_in_ucstr (
-	const hio_uch_t* ptr,
-	hio_uch_t        c
-);
-
-HIO_EXPORT hio_bch_t* hio_rfind_bchar_in_bcstr (
-	const hio_bch_t* ptr,
-	hio_bch_t        c
-);
-
-HIO_EXPORT hio_uch_t* hio_find_uchars_in_uchars (
-	const hio_uch_t* str,
-	hio_oow_t        strsz,
-	const hio_uch_t* sub,
-	hio_oow_t        subsz,
-	int              inorecase
-);
-
-HIO_EXPORT hio_bch_t* hio_find_bchars_in_bchars (
-	const hio_bch_t* str,
-	hio_oow_t        strsz,
-	const hio_bch_t* sub,
-	hio_oow_t        subsz,
-	int              inorecase
-);
-
-HIO_EXPORT hio_uch_t* hio_rfind_uchars_in_uchars (
-	const hio_uch_t* str,
-	hio_oow_t        strsz,
-	const hio_uch_t* sub,
-	hio_oow_t        subsz,
-	int              inorecase
-);
-
-HIO_EXPORT hio_bch_t* hio_rfind_bchars_in_bchars (
-	const hio_bch_t* str,
-	hio_oow_t        strsz,
-	const hio_bch_t* sub,
-	hio_oow_t        subsz,
-	int              inorecase
-);
-
-/* ------------------------------------ */
-
-HIO_EXPORT hio_oow_t hio_rotate_uchars (
-	hio_uch_t*       str,
-	hio_oow_t        len,
-	int              dir,
-	hio_oow_t        n
-);
-
-HIO_EXPORT hio_oow_t hio_rotate_bchars (
-	hio_bch_t*       str,
-	hio_oow_t        len,
-	int              dir,
-	hio_oow_t        n
-);
-
-
-HIO_EXPORT hio_uch_t* hio_trim_uchars (
-	const hio_uch_t* str,
-	hio_oow_t*       len,
-	int              flags
-);
-
-HIO_EXPORT hio_bch_t* hio_trim_bchars (
-	const hio_bch_t* str,
-	hio_oow_t*       len,
-	int              flags
-);
-
-HIO_EXPORT int hio_split_ucstr (
-	hio_uch_t*       s,
-	const hio_uch_t* delim,
-	hio_uch_t        lquote,
-	hio_uch_t        rquote,
-	hio_uch_t        escape
-);
-
-HIO_EXPORT int hio_split_bcstr (
-	hio_bch_t*       s,
-	const hio_bch_t* delim,
-	hio_bch_t        lquote,
-	hio_bch_t        rquote,
-	hio_bch_t        escape
-);
-
-
-#if defined(HIO_OOCH_IS_UCH)
-#	define hio_count_oocstr hio_count_ucstr
-#	define hio_count_oocstr_limited hio_count_ucstr_limited
-
-#	define hio_equal_oochars hio_equal_uchars
-#	define hio_comp_oochars hio_comp_uchars
-#	define hio_comp_oocstr_bcstr hio_comp_ucstr_bcstr
-#	define hio_comp_oochars_bcstr hio_comp_uchars_bcstr
-#	define hio_comp_oochars_ucstr hio_comp_uchars_ucstr
-#	define hio_comp_oochars_oocstr hio_comp_uchars_ucstr
-#	define hio_comp_oocstr hio_comp_ucstr
-
-#	define hio_copy_oochars hio_copy_uchars
-#	define hio_copy_bchars_to_oochars hio_copy_bchars_to_uchars
-#	define hio_copy_oochars_to_bchars hio_copy_uchars_to_bchars
-#	define hio_copy_uchars_to_oochars hio_copy_uchars
-#	define hio_copy_oochars_to_uchars hio_copy_uchars
-
-#	define hio_copy_oochars_to_oocstr hio_copy_uchars_to_ucstr
-#	define hio_copy_oochars_to_oocstr_unlimited hio_copy_uchars_to_ucstr_unlimited
-#	define hio_copy_oocstr hio_copy_ucstr
-#	define hio_copy_oocstr_unlimited hio_copy_ucstr_unlimited
-#	define hio_copy_fmt_oocses_to_oocstr hio_copy_fmt_ucses_to_ucstr
-#	define hio_copy_fmt_oocstr_to_oocstr hio_copy_fmt_ucstr_to_ucstr
-
-#	define hio_concat_oochars_to_ucstr hio_concat_uchars_to_ucstr
-#	define hio_concat_oocstr hio_concat_ucstr
-
-#	define hio_fill_oochars hio_fill_uchars
-#	define hio_find_oocstr_word_in_oocstr hio_find_ucstr_word_in_ucstr
-#	define hio_find_oochar_in_oochars hio_find_uchar_in_uchars
-#	define hio_rfind_oochar_in_oochars hio_rfind_uchar_in_uchars
-#	define hio_find_oochar_in_oocstr hio_find_uchar_in_ucstr
-
-#	define hio_trim_oochars hio_trim_uchars
-#	define hio_split_oocstr hio_split_ucstr
-#else
-#	define hio_count_oocstr hio_count_bcstr
-#	define hio_count_oocstr_limited hio_count_bcstr_limited
-
-#	define hio_equal_oochars hio_equal_bchars
-#	define hio_comp_oochars hio_comp_bchars
-#	define hio_comp_oocstr_bcstr hio_comp_bcstr
-#	define hio_comp_oochars_bcstr hio_comp_bchars_bcstr
-#	define hio_comp_oochars_ucstr hio_comp_bchars_ucstr
-#	define hio_comp_oochars_oocstr hio_comp_bchars_bcstr
-#	define hio_comp_oocstr hio_comp_bcstr
-
-#	define hio_copy_oochars hio_copy_bchars
-#	define hio_copy_bchars_to_oochars hio_copy_bchars
-#	define hio_copy_oochars_to_bchars hio_copy_bchars
-#	define hio_copy_uchars_to_oochars hio_copy_uchars_to_bchars
-#	define hio_copy_oochars_to_uchars hio_copy_bchars_to_uchars
-
-#	define hio_copy_oochars_to_oocstr hio_copy_bchars_to_bcstr
-#	define hio_copy_oochars_to_oocstr_unlimited hio_copy_bchars_to_bcstr_unlimited
-#	define hio_copy_oocstr hio_copy_bcstr
-#	define hio_copy_oocstr_unlimited hio_copy_bcstr_unlimited
-#	define hio_copy_fmt_oocses_to_oocstr hio_copy_fmt_bcses_to_bcstr
-#	define hio_copy_fmt_oocstr_to_oocstr hio_copy_fmt_bcstr_to_bcstr
-
-#	define hio_concat_oochars_to_bcstr hio_concat_bchars_to_bcstr
-#	define hio_concat_oocstr hio_concat_bcstr
-
-#	define hio_fill_oochars hio_fill_bchars
-#	define hio_find_oocstr_word_in_oocstr hio_find_bcstr_word_in_bcstr
-#	define hio_find_oochar_in_oochars hio_find_bchar_in_bchars
-#	define hio_rfind_oochar_in_oochars hio_rfind_bchar_in_bchars
-#	define hio_find_oochar_in_oocstr hio_find_bchar_in_bcstr
-
-#	define hio_trim_oochars hio_trim_bchars
-#	define hio_split_oocstr hio_split_bcstr
-#endif
 /* ------------------------------------------------------------------------- */
-
-#define HIO_BYTE_TO_BCSTR_RADIXMASK (0xFF)
-#define HIO_BYTE_TO_BCSTR_LOWERCASE (1 << 8)
- 
-HIO_EXPORT hio_oow_t hio_byte_to_bcstr (
-	hio_uint8_t   byte,  
-	hio_bch_t*    buf,
-	hio_oow_t     size,
-	int           flagged_radix,
-	hio_bch_t     fill
-);
-
-#define HIO_BYTE_TO_UCSTR_RADIXMASK (0xFF)
-#define HIO_BYTE_TO_UCSTR_LOWERCASE (1 << 8)
- 
-HIO_EXPORT hio_oow_t hio_byte_to_ucstr (
-	hio_uint8_t   byte,  
-	hio_uch_t*    buf,
-	hio_oow_t     size,
-	int           flagged_radix,
-	hio_uch_t     fill
-);
-
-/* ------------------------------------------------------------------------- */
-#define HIO_CHARS_TO_INT_MAKE_OPTION(e,ltrim,rtrim,base) (((!!(e)) << 0) | ((!!(ltrim)) << 2) | ((!!(rtrim)) << 3) | ((base) << 8))
-#define HIO_CHARS_TO_INT_GET_OPTION_E(option) ((option) & 1)
-#define HIO_CHARS_TO_INT_GET_OPTION_LTRIM(option) ((option) & 4)
-#define HIO_CHARS_TO_INT_GET_OPTION_RTRIM(option) ((option) & 8)
-#define HIO_CHARS_TO_INT_GET_OPTION_BASE(option) ((option) >> 8)
-
-#define HIO_CHARS_TO_UINT_MAKE_OPTION(e,ltrim,rtrim,base) (((!!(e)) << 0) | ((!!(ltrim)) << 2) | ((!!(rtrim)) << 3) | ((base) << 8))
-#define HIO_CHARS_TO_UINT_GET_OPTION_E(option) ((option) & 1)
-#define HIO_CHARS_TO_UINT_GET_OPTION_LTRIM(option) ((option) & 4)
-#define HIO_CHARS_TO_UINT_GET_OPTION_RTRIM(option) ((option) & 8)
-#define HIO_CHARS_TO_UINT_GET_OPTION_BASE(option) ((option) >> 8)
-
-#define HIO_OOCHARS_TO_INTMAX_MAKE_OPTION(e,ltrim,rtrim,base)  HIO_CHARS_TO_INT_MAKE_OPTION(e,ltrim,rtrim,base)
-#define HIO_OOCHARS_TO_INTMAX_GET_OPTION_E(option)             HIO_CHARS_TO_INT_GET_OPTION_E(option)
-#define HIO_OOCHARS_TO_INTMAX_GET_OPTION_LTRIM(option)         HIO_CHARS_TO_INT_GET_OPTION_LTRIM(option)
-#define HIO_OOCHARS_TO_INTMAX_GET_OPTION_RTRIM(option)         HIO_CHARS_TO_INT_GET_OPTION_RTRIM(option)
-#define HIO_OOCHARS_TO_INTMAX_GET_OPTION_BASE(option)          HIO_CHARS_TO_INT_GET_OPTION_BASE(option)
-
-#define HIO_OOCHARS_TO_UINTMAX_MAKE_OPTION(e,ltrim,rtrim,base) HIO_CHARS_TO_UINT_MAKE_OPTION(e,ltrim,rtrim,base)
-#define HIO_OOCHARS_TO_UINTMAX_GET_OPTION_E(option)            HIO_CHARS_TO_UINT_GET_OPTION_E(option)
-#define HIO_OOCHARS_TO_UINTMAX_GET_OPTION_LTRIM(option)        HIO_CHARS_TO_UINT_GET_OPTION_LTRIM(option)
-#define HIO_OOCHARS_TO_UINTMAX_GET_OPTION_RTRIM(option)        HIO_CHARS_TO_UINT_GET_OPTION_RTRIM(option)
-#define HIO_OOCHARS_TO_UINTMAX_GET_OPTION_BASE(option)         HIO_CHARS_TO_UINT_GET_OPTION_BASE(option)
-
-#define HIO_UCHARS_TO_INTMAX_MAKE_OPTION(e,ltrim,rtrim,base)   HIO_CHARS_TO_INT_MAKE_OPTION(e,ltrim,rtrim,base)
-#define HIO_UCHARS_TO_INTMAX_GET_OPTION_E(option)              HIO_CHARS_TO_INT_GET_OPTION_E(option)
-#define HIO_UCHARS_TO_INTMAX_GET_OPTION_LTRIM(option)          HIO_CHARS_TO_INT_GET_OPTION_LTRIM(option)
-#define HIO_UCHARS_TO_INTMAX_GET_OPTION_RTRIM(option)          HIO_CHARS_TO_INT_GET_OPTION_RTRIM(option)
-#define HIO_UCHARS_TO_INTMAX_GET_OPTION_BASE(option)           HIO_CHARS_TO_INT_GET_OPTION_BASE(option)
-
-#define HIO_BCHARS_TO_INTMAX_MAKE_OPTION(e,ltrim,rtrim,base)   HIO_CHARS_TO_INT_MAKE_OPTION(e,ltrim,rtrim,base)
-#define HIO_BCHARS_TO_INTMAX_GET_OPTION_E(option)              HIO_CHARS_TO_INT_GET_OPTION_E(option)
-#define HIO_BCHARS_TO_INTMAX_GET_OPTION_LTRIM(option)          HIO_CHARS_TO_INT_GET_OPTION_LTRIM(option)
-#define HIO_BCHARS_TO_INTMAX_GET_OPTION_RTRIM(option)          HIO_CHARS_TO_INT_GET_OPTION_RTRIM(option)
-#define HIO_BCHARS_TO_INTMAX_GET_OPTION_BASE(option)           HIO_CHARS_TO_INT_GET_OPTION_BASE(option)
-
-#define HIO_UCHARS_TO_UINTMAX_MAKE_OPTION(e,ltrim,rtrim,base)  HIO_CHARS_TO_UINT_MAKE_OPTION(e,ltrim,rtrim,base)
-#define HIO_UCHARS_TO_UINTMAX_GET_OPTION_E(option)             HIO_CHARS_TO_UINT_GET_OPTION_E(option)
-#define HIO_UCHARS_TO_UINTMAX_GET_OPTION_LTRIM(option)         HIO_CHARS_TO_UINT_GET_OPTION_LTRIM(option)
-#define HIO_UCHARS_TO_UINTMAX_GET_OPTION_RTRIM(option)         HIO_CHARS_TO_UINT_GET_OPTION_RTRIM(option)
-#define HIO_UCHARS_TO_UINTMAX_GET_OPTION_BASE(option)          HIO_CHARS_TO_UINT_GET_OPTION_BASE(option)
-
-#define HIO_BCHARS_TO_UINTMAX_MAKE_OPTION(e,ltrim,rtrim,base)  HIO_CHARS_TO_UINT_MAKE_OPTION(e,ltrim,rtrim,base)
-#define HIO_BCHARS_TO_UINTMAX_GET_OPTION_E(option)             HIO_CHARS_TO_UINT_GET_OPTION_E(option)
-#define HIO_BCHARS_TO_UINTMAX_GET_OPTION_LTRIM(option)         HIO_CHARS_TO_UINT_GET_OPTION_LTRIM(option)
-#define HIO_BCHARS_TO_UINTMAX_GET_OPTION_RTRIM(option)         HIO_CHARS_TO_UINT_GET_OPTION_RTRIM(option)
-#define HIO_BCHARS_TO_UINTMAX_GET_OPTION_BASE(option)          HIO_CHARS_TO_UINT_GET_OPTION_BASE(option)
-
-HIO_EXPORT hio_intmax_t hio_uchars_to_intmax (
-	const hio_uch_t*  str,
-	hio_oow_t         len,
-	int               option,
-	const hio_uch_t** endptr,
-	int*              is_sober
-);
-
-HIO_EXPORT hio_intmax_t hio_bchars_to_intmax (
-	const hio_bch_t*  str,
-	hio_oow_t         len,
-	int               option,
-	const hio_bch_t** endptr,
-	int*              is_sober
-);
-
-HIO_EXPORT hio_uintmax_t hio_uchars_to_uintmax (
-	const hio_uch_t*  str,
-	hio_oow_t         len,
-	int               option,
-	const hio_uch_t** endptr,
-	int*              is_sober
-);
-
-HIO_EXPORT hio_uintmax_t hio_bchars_to_uintmax (
-	const hio_bch_t*  str,
-	hio_oow_t         len,
-	int               option,
-	const hio_bch_t** endptr,
-	int*              is_sober
-);
-#if defined(HIO_OOCH_IS_UCH)
-#	define hio_oochars_to_intmax hio_uchars_to_intmax
-#	define hio_oochars_to_uintmax hio_uchars_to_uintmax
-#else
-#	define hio_oochars_to_intmax hio_bchars_to_intmax
-#	define hio_oochars_to_uintmax hio_bchars_to_uintmax
-#endif
-
-/* ------------------------------------------------------------------------- */
-
-#if defined(HIO_OOCH_IS_UCH)
-#	define hio_conv_oocstr_to_bcstr_with_cmgr(oocs,oocslen,bcs,bcslen,cmgr) hio_conv_ucstr_to_bcstr_with_cmgr(oocs,oocslen,bcs,bcslen,cmgr)
-#	define hio_conv_oochars_to_bchars_with_cmgr(oocs,oocslen,bcs,bcslen,cmgr) hio_conv_uchars_to_bchars_with_cmgr(oocs,oocslen,bcs,bcslen,cmgr)
-#else
-#	define hio_conv_oocstr_to_ucstr_with_cmgr(oocs,oocslen,ucs,ucslen,cmgr) hio_conv_bcstr_to_ucstr_with_cmgr(oocs,oocslen,ucs,ucslen,cmgr,0)
-#	define hio_conv_oochars_to_uchars_with_cmgr(oocs,oocslen,ucs,ucslen,cmgr) hio_conv_bchars_to_uchars_with_cmgr(oocs,oocslen,ucs,ucslen,cmgr,0)
-#endif
-
 
 HIO_EXPORT int hio_conv_bcstr_to_ucstr_with_cmgr (
 	const hio_bch_t* bcs,
@@ -894,6 +284,15 @@ HIO_EXPORT int hio_conv_uchars_to_bchars_with_cmgr (
 	hio_oow_t*       bcslen,
 	hio_cmgr_t*      cmgr
 );
+
+#if defined(HIO_OOCH_IS_UCH)
+#	define hio_conv_oocstr_to_bcstr_with_cmgr(oocs,oocslen,bcs,bcslen,cmgr) hio_conv_ucstr_to_bcstr_with_cmgr(oocs,oocslen,bcs,bcslen,cmgr)
+#	define hio_conv_oochars_to_bchars_with_cmgr(oocs,oocslen,bcs,bcslen,cmgr) hio_conv_uchars_to_bchars_with_cmgr(oocs,oocslen,bcs,bcslen,cmgr)
+#else
+#	define hio_conv_oocstr_to_ucstr_with_cmgr(oocs,oocslen,ucs,ucslen,cmgr) hio_conv_bcstr_to_ucstr_with_cmgr(oocs,oocslen,ucs,ucslen,cmgr,0)
+#	define hio_conv_oochars_to_uchars_with_cmgr(oocs,oocslen,ucs,ucslen,cmgr) hio_conv_bchars_to_uchars_with_cmgr(oocs,oocslen,ucs,ucslen,cmgr,0)
+#endif
+
 
 /* ------------------------------------------------------------------------- */
 
@@ -1310,13 +709,11 @@ template<typename CHAR_TYPE, typename INT_TYPE, bool(*IS_SPACE)(CHAR_TYPE)>INT_T
 	} 
 	else if (rem >= 2 && base == 16)
 	{
-		if (*p == '0' && 
-		    (*(p + 1) == 'x' || *(p + 1) == 'X')) p += 2; 
+		if (*p == '0' && (*(p + 1) == 'x' || *(p + 1) == 'X')) p += 2; 
 	}
 	else if (rem >= 2 && base == 2)
 	{
-		if (*p == '0' && 
-		    (*(p + 1) == 'b' || *(p + 1) == 'B')) p += 2; 
+		if (*p == '0' && (*(p + 1) == 'b' || *(p + 1) == 'B')) p += 2; 
 	}
 
 	/* process the digits */
@@ -1420,13 +817,11 @@ template<typename CHAR_TYPE, typename UINT_TYPE, bool(*IS_SPACE)(CHAR_TYPE)>UINT
 	} 
 	else if (rem >= 2 && base == 16)
 	{
-		if (*p == '0' && 
-		    (*(p + 1) == 'x' || *(p + 1) == 'X')) p += 2; 
+		if (*p == '0' && (*(p + 1) == 'x' || *(p + 1) == 'X')) p += 2; 
 	}
 	else if (rem >= 2 && base == 2)
 	{
-		if (*p == '0' && 
-		    (*(p + 1) == 'b' || *(p + 1) == 'B')) p += 2; 
+		if (*p == '0' && (*(p + 1) == 'b' || *(p + 1) == 'B')) p += 2; 
 	}
 
 	/* process the digits */

@@ -256,8 +256,8 @@ am__include_HEADERS_DIST = hio-chr.h hio-cmn.h hio-dhcp.h hio-dns.h \
 	hio-ecs.h hio-fmt.h hio-htb.h hio-htrd.h hio-htre.h hio-http.h \
 	hio-json.h hio-md5.h hio-nwif.h hio-opt.h hio-pac1.h \
 	hio-path.h hio-pipe.h hio-pro.h hio-pty.h hio-rad.h hio-sck.h \
-	hio-shw.h hio-skad.h hio-thr.h hio-upac.h hio-utl.h hio.h \
-	hio-mar.h
+	hio-shw.h hio-skad.h hio-str.h hio-thr.h hio-upac.h hio-utl.h \
+	hio.h hio-mar.h
 HEADERS = $(include_HEADERS)
 am__tagged_files = $(HEADERS) $(SOURCES) $(TAGS_FILES) $(LISP) \
 	hio-cfg.h.in
@@ -430,12 +430,12 @@ CPPFLAGS_ALL_COMMON = \
 CFLAGS_ALL_COMMON = 
 LDFLAGS_ALL_COMMON = -L$(abs_builddir) -L$(libdir)
 EXTRA_DIST = \
-	hio-utl.h.m4 \
+	hio-str.h.m4 \
 	utl-str.c.m4 \
 	utl-str.m4
 
 BUILT_SOURCES = \
-	hio-utl.h \
+	hio-str.h \
 	utl-str.c 
 
 
@@ -459,8 +459,8 @@ include_HEADERS = hio-chr.h hio-cmn.h hio-dhcp.h hio-dns.h hio-ecs.h \
 	hio-fmt.h hio-htb.h hio-htrd.h hio-htre.h hio-http.h \
 	hio-json.h hio-md5.h hio-nwif.h hio-opt.h hio-pac1.h \
 	hio-path.h hio-pipe.h hio-pro.h hio-pty.h hio-rad.h hio-sck.h \
-	hio-shw.h hio-skad.h hio-thr.h hio-upac.h hio-utl.h hio.h \
-	$(am__append_1)
+	hio-shw.h hio-skad.h hio-str.h hio-thr.h hio-upac.h hio-utl.h \
+	hio.h $(am__append_1)
 lib_LTLIBRARIES = libhio.la
 libhio_la_SOURCES = chr.c dhcp-svr.c dns.c dns-cli.c ecs.c ecs-imp.h \
 	err.c fmt.c fmt-imp.h htb.c htrd.c htre.c http.c http-cgi.c \
@@ -1286,8 +1286,8 @@ install-data-hook:
 uninstall-hook:
 	@rm -f "$(DESTDIR)$(includedir)/hio-cfg.h"
 
-hio-utl.h: utl-str.m4 hio-utl.h.m4
-	m4 -I$(srcdir) $(srcdir)/hio-utl.h.m4 > $(srcdir)/hio-utl.h
+hio-str.h: utl-str.m4 hio-str.h.m4
+	m4 -I$(srcdir) $(srcdir)/hio-str.h.m4 > $(srcdir)/hio-str.h
 
 utl-str.c: utl-str.m4 utl-str.c.m4 
 	m4 -I$(srcdir) $(srcdir)/utl-str.c.m4 > $(srcdir)/utl-str.c
