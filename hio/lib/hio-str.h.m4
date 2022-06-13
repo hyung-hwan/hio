@@ -406,6 +406,16 @@ HIO_EXPORT hio_bch_t* hio_rfind_bchars_in_bchars (
 
 /* ------------------------------------ */
 
+HIO_EXPORT hio_oow_t hio_compact_uchars (
+	hio_uch_t*       str,
+	hio_oow_t        len
+);
+
+HIO_EXPORT hio_oow_t hio_compact_bchars (
+	hio_bch_t*       str,
+	hio_oow_t        len
+);
+
 HIO_EXPORT hio_oow_t hio_rotate_uchars (
 	hio_uch_t*       str,
 	hio_oow_t        len,
@@ -461,6 +471,7 @@ HIO_EXPORT int hio_split_bcstr (
 #	define hio_comp_oochars_ucstr hio_comp_uchars_ucstr
 #	define hio_comp_oochars_oocstr hio_comp_uchars_ucstr
 #	define hio_comp_oocstr hio_comp_ucstr
+#	define hio_comp_oocstr_limited hio_comp_ucstr_limited
 
 #	define hio_copy_oochars hio_copy_uchars
 #	define hio_copy_bchars_to_oochars hio_copy_bchars_to_uchars
@@ -483,7 +494,11 @@ HIO_EXPORT int hio_split_bcstr (
 #	define hio_find_oochar_in_oochars hio_find_uchar_in_uchars
 #	define hio_rfind_oochar_in_oochars hio_rfind_uchar_in_uchars
 #	define hio_find_oochar_in_oocstr hio_find_uchar_in_ucstr
+#	define hio_find_oochars_in_oochars hio_find_uchars_in_uchars
+#	define hio_rfind_oochars_in_oochars hio_rfind_uchars_in_uchars
 
+#	define hio_compact_oochars hio_compact_uchars
+#	define hio_rotate_oochars hio_rotate_uchars
 #	define hio_trim_oochars hio_trim_uchars
 #	define hio_split_oocstr hio_split_ucstr
 #else
@@ -497,6 +512,8 @@ HIO_EXPORT int hio_split_bcstr (
 #	define hio_comp_oochars_ucstr hio_comp_bchars_ucstr
 #	define hio_comp_oochars_oocstr hio_comp_bchars_bcstr
 #	define hio_comp_oocstr hio_comp_bcstr
+#	define hio_comp_oocstr_limited hio_comp_bcstr_limited
+
 
 #	define hio_copy_oochars hio_copy_bchars
 #	define hio_copy_bchars_to_oochars hio_copy_bchars
@@ -519,16 +536,26 @@ HIO_EXPORT int hio_split_bcstr (
 #	define hio_find_oochar_in_oochars hio_find_bchar_in_bchars
 #	define hio_rfind_oochar_in_oochars hio_rfind_bchar_in_bchars
 #	define hio_find_oochar_in_oocstr hio_find_bchar_in_bcstr
+#	define hio_find_oochars_in_oochars hio_find_bchars_in_bchars
+#	define hio_rfind_oochars_in_oochars hio_rfind_bchars_in_bchars
 
+#	define hio_compact_oochars hio_compact_bchars
+#	define hio_rotate_oochars hio_rotate_bchars
 #	define hio_trim_oochars hio_trim_bchars
 #	define hio_split_oocstr hio_split_bcstr
 #endif
 
 /* ------------------------------------------------------------------------- */
 
-#define HIO_BYTE_TO_BCSTR_RADIXMASK (0xFF)
-#define HIO_BYTE_TO_BCSTR_LOWERCASE (1 << 8)
- 
+#define HIO_BYTE_TO_OOCSTR_RADIXMASK (0xFF)
+#define HIO_BYTE_TO_OOCSTR_LOWERCASE (1 << 8)
+
+#define HIO_BYTE_TO_UCSTR_RADIXMASK HIO_BYTE_TO_OOCSTR_RADIXMASK
+#define HIO_BYTE_TO_UCSTR_LOWERCASE HIO_BYTE_TO_OOCSTR_LOWERCASE
+
+#define HIO_BYTE_TO_BCSTR_RADIXMASK HIO_BYTE_TO_OOCSTR_RADIXMASK
+#define HIO_BYTE_TO_BCSTR_LOWERCASE HIO_BYTE_TO_OOCSTR_LOWERCASE
+
 HIO_EXPORT hio_oow_t hio_byte_to_bcstr (
 	hio_uint8_t   byte,  
 	hio_bch_t*    buf,
@@ -537,9 +564,6 @@ HIO_EXPORT hio_oow_t hio_byte_to_bcstr (
 	hio_bch_t     fill
 );
 
-#define HIO_BYTE_TO_UCSTR_RADIXMASK (0xFF)
-#define HIO_BYTE_TO_UCSTR_LOWERCASE (1 << 8)
- 
 HIO_EXPORT hio_oow_t hio_byte_to_ucstr (
 	hio_uint8_t   byte,  
 	hio_uch_t*    buf,

@@ -1109,6 +1109,84 @@ hio_bch_t* hio_rfind_bchars_in_bchars (const hio_bch_t* str, hio_oow_t strsz, co
 	return HIO_NULL;
 }
 
+hio_oow_t hio_compact_uchars (hio_uch_t* str, hio_oow_t len)
+{
+	hio_uch_t* p = str, * q = str, * end = str + len;
+	int followed_by_space = 0;
+	int state = 0;
+
+	while (p < end) 
+	{
+		if (state == 0) 
+		{
+			if (!(*p)) 
+			{
+				*q++ = *p;
+				state = 1;
+			}
+		}
+		else if (state == 1) 
+		{
+			if ((*p)) 
+			{
+				if (!followed_by_space) 
+				{
+					followed_by_space = 1;
+					*q++ = *p;
+				}
+			}
+			else 
+			{
+				followed_by_space = 0;
+				*q++ = *p;	
+			}
+		}
+
+		p++;
+	}
+
+	return (followed_by_space) ? (q - str -1): (q - str);
+}
+
+hio_oow_t hio_compact_bchars (hio_bch_t* str, hio_oow_t len)
+{
+	hio_bch_t* p = str, * q = str, * end = str + len;
+	int followed_by_space = 0;
+	int state = 0;
+
+	while (p < end) 
+	{
+		if (state == 0) 
+		{
+			if (!(*p)) 
+			{
+				*q++ = *p;
+				state = 1;
+			}
+		}
+		else if (state == 1) 
+		{
+			if ((*p)) 
+			{
+				if (!followed_by_space) 
+				{
+					followed_by_space = 1;
+					*q++ = *p;
+				}
+			}
+			else 
+			{
+				followed_by_space = 0;
+				*q++ = *p;	
+			}
+		}
+
+		p++;
+	}
+
+	return (followed_by_space) ? (q - str -1): (q - str);
+}
+
 hio_oow_t hio_rotate_uchars (hio_uch_t* str, hio_oow_t len, int dir, hio_oow_t n)
 {
 	hio_oow_t first, last, count, index, nk;

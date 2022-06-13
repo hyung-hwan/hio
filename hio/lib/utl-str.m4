@@ -612,6 +612,48 @@ _char_type_* _fn_name_ (const _char_type_* str, hio_oow_t strsz, const _char_typ
 popdef([[_fn_name_]])popdef([[_char_type_]])popdef([[_to_lower_]])dnl
 ]])dnl
 dnl ---------------------------------------------------------------------------
+define([[fn_compact_chars]], [[pushdef([[_fn_name_]], $1)pushdef([[_char_type_]], $2)pushdef([[_is_space_]], $3)dnl
+hio_oow_t _fn_name_ (_char_type_* str, hio_oow_t len)
+{
+	_char_type_* p = str, * q = str, * end = str + len;
+	int followed_by_space = 0;
+	int state = 0;
+
+	while (p < end) 
+	{
+		if (state == 0) 
+		{
+			if (!_is_space_()(*p)) 
+			{
+				*q++ = *p;
+				state = 1;
+			}
+		}
+		else if (state == 1) 
+		{
+			if (_is_space_()(*p)) 
+			{
+				if (!followed_by_space) 
+				{
+					followed_by_space = 1;
+					*q++ = *p;
+				}
+			}
+			else 
+			{
+				followed_by_space = 0;
+				*q++ = *p;	
+			}
+		}
+
+		p++;
+	}
+
+	return (followed_by_space) ? (q - str -1): (q - str);
+}
+popdef([[_fn_name_]])popdef([[_char_type_]])popdef([[_is_space_]])dnl
+]])dnl
+dnl ---------------------------------------------------------------------------
 define([[fn_rotate_chars]], [[pushdef([[_fn_name_]], $1)pushdef([[_char_type_]], $2)dnl
 hio_oow_t _fn_name_ (_char_type_* str, hio_oow_t len, int dir, hio_oow_t n)
 {
