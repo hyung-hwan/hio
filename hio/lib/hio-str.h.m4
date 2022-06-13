@@ -430,6 +430,23 @@ HIO_EXPORT hio_oow_t hio_rotate_bchars (
 	hio_oow_t        n
 );
 
+HIO_EXPORT hio_uch_t* hio_tokenize_uchars (
+	const hio_uch_t* s,
+	hio_oow_t        len,
+	const hio_uch_t* delim,
+	hio_oow_t        delim_len,
+	hio_ucs_t*       tok,
+	int              ignorecase
+);
+
+HIO_EXPORT hio_bch_t* hio_tokenize_bchars (
+	const hio_bch_t* s,
+	hio_oow_t        len,
+	const hio_bch_t* delim,
+	hio_oow_t        delim_len,
+	hio_bcs_t*       tok,
+	int              ignorecase
+);
 
 HIO_EXPORT hio_uch_t* hio_trim_uchars (
 	const hio_uch_t* str,
@@ -499,6 +516,7 @@ HIO_EXPORT int hio_split_bcstr (
 
 #	define hio_compact_oochars hio_compact_uchars
 #	define hio_rotate_oochars hio_rotate_uchars
+#	define hio_tokenize_oochars hio_tokenize_uchars
 #	define hio_trim_oochars hio_trim_uchars
 #	define hio_split_oocstr hio_split_ucstr
 #else
@@ -541,6 +559,7 @@ HIO_EXPORT int hio_split_bcstr (
 
 #	define hio_compact_oochars hio_compact_bchars
 #	define hio_rotate_oochars hio_rotate_bchars
+#	define hio_tokenize_oochars hio_tokenize_bchars
 #	define hio_trim_oochars hio_trim_bchars
 #	define hio_split_oocstr hio_split_bcstr
 #endif
