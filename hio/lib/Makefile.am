@@ -80,7 +80,7 @@ libhio_la_SOURCES = \
 	htre.c \
 	http.c \
 	http-cgi.c \
-	http-fil.c \
+	http-file.c \
 	http-prv.h \
 	http-svr.c \
 	http-thr.c \
