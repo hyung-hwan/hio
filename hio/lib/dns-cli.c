@@ -1006,7 +1006,7 @@ hio_dns_msg_t* hio_svc_dnc_resolve (hio_svc_dnc_t* dnc, const hio_bch_t* qname, 
 		if (dnc->cookie.server_len > 0) beopt_cookie.dlen += dnc->cookie.server_len;
 
 		/* compute the client cookie */
-		HIO_STATIC_ASSERT (HIO_SIZEOF(dnc->cookie.data.client) == HIO_DNS_COOKIE_CLIENT_LEN);
+		HIO_STATIC_ASSERT_EXPR (HIO_SIZEOF(dnc->cookie.data.client) == HIO_DNS_COOKIE_CLIENT_LEN);
 		hio_sip_hash_24 (dnc->cookie.key, &dnc->serv_addr, HIO_SIZEOF(dnc->serv_addr), dnc->cookie.data.client);
 
 		qedns.beonum = 1;
