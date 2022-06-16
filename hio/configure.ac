@@ -321,6 +321,7 @@ AM_CONDITIONAL(HAVE_X11_LIB, test "x${ac_cv_lib_X11_XOpenDisplay}" = "xyes")
 
 AC_STRUCT_DIRENT_D_TYPE
 AC_CHECK_MEMBERS([DIR.d_fd, DIR.dd_fd],,,[[#include <dirent.h>]])
+AC_CHECK_MEMBERS([struct stat.st_mtim])
 AC_CHECK_MEMBERS([struct stat.st_birthtime])
 AC_CHECK_MEMBERS([struct stat.st_mtim.tv_nsec])
 AC_CHECK_MEMBERS([struct stat.st_birthtim.tv_nsec])
