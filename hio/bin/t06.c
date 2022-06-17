@@ -191,8 +191,8 @@ if (hio_htre_getcontentlen(req) > 0)
 		}
 		else
 
-		{
 #endif
+		{
 			const hio_bch_t* qpath = hio_htre_getqpath(req);
 			int x;
 			if (hio_comp_bcstr_limited(qpath, "/thr/", 5, 1) == 0)
@@ -206,6 +206,10 @@ if (hio_htre_getcontentlen(req) > 0)
 			else
 				x = hio_svc_htts_dofile(htts, csck, req, "", hio_htre_getqpath(req), "text/plain");
 			if (x <= -1) goto oops;
+		}
+#if 0
+	}
+#endif
 
 	return 0;
 
@@ -415,12 +419,13 @@ static int try_to_accept (hio_dev_sck_t* sck, hio_dev_sck_qxmsg_t* qxmsg, int in
 		}
 		else
 		{
+			const char* msg;
 		sidechan_write_error:
 //printf ("sidechannel write error errno=%d strerror=%s\n", errno, strerror(errno));
 			hio_skadtobcstr (hio, &qxmsg->remoteaddr, buf, HIO_COUNTOF(buf), HIO_SKAD_TO_BCSTR_ADDR | HIO_SKAD_TO_BCSTR_PORT); 
 			HIO_INFO2 (hio, "unable to handle the accepted connection %ld from %hs\n", (long int)qxmsg->syshnd, buf);
 
-			const char* msg = "HTTP/1.0 503 Service unavailable\r\nConnection: close\r\nContent-Length: 0\r\n\r\n";
+			msg = "HTTP/1.0 503 Service unavailable\r\nConnection: close\r\nContent-Length: 0\r\n\r\n";
 			write (qxmsg->syshnd, msg, strlen(msg));
 	printf ("close %d\n", qxmsg->syshnd);
 			close (qxmsg->syshnd);

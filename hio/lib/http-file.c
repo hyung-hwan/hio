@@ -567,10 +567,17 @@ static HIO_INLINE int process_range_header (file_t* file, hio_htre_t* req)
 
 	if (file->req_method == HIO_HTTP_GET)
 	{
+	#if defined(HAVE_STRUCT_STAT_MTIM)
 		etag_len = hio_fmt_uintmax_to_bcstr(&file->peer_etag[0], HIO_COUNTOF(file->peer_etag), st.st_mtim.tv_sec, 16, -1, '\0', HIO_NULL);
 		file->peer_etag[etag_len++] = '-';
+		#if defined(HAVE_STRUCT_STAT_ST_MTIM_TV_NSEC)
 		etag_len += hio_fmt_uintmax_to_bcstr(&file->peer_etag[etag_len], HIO_COUNTOF(file->peer_etag), st.st_mtim.tv_nsec, 16, -1, '\0', HIO_NULL);
 		file->peer_etag[etag_len++] = '-';
+		#endif
+	#else
+		etag_len = hio_fmt_uintmax_to_bcstr(&file->peer_etag[0], HIO_COUNTOF(file->peer_etag), st.st_mtime, 16, -1, '\0', HIO_NULL);
+		file->peer_etag[etag_len++] = '-';
+	#endif
 		etag_len += hio_fmt_uintmax_to_bcstr(&file->peer_etag[etag_len], HIO_COUNTOF(file->peer_etag) - etag_len, st.st_size, 16, -1, '\0', HIO_NULL);
 		file->peer_etag[etag_len++] = '-';
 		etag_len += hio_fmt_uintmax_to_bcstr(&file->peer_etag[etag_len], HIO_COUNTOF(file->peer_etag) - etag_len, st.st_ino, 16, -1, '\0', HIO_NULL);
