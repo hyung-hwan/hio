@@ -643,8 +643,8 @@ int main (int argc, char* argv[])
 	sleep (1); /* TODO: use pthread_cond_wait()/pthread_cond_signal() or a varialble to see if all threads are up */
 /* TODO: wait until all threads are ready to serve... */
 
-	if (add_listener(hio, "[::]:9987") <= -1 ||
-	    add_listener(hio, "0.0.0.0:9987") <= -1) goto oops;
+	if (add_listener(hio, "[::]:9987") <= -1 &&
+	    add_listener(hio, "0.0.0.0:9987") <= -1) goto oops; /* as long as 1 listener is alive */
 
 	/* add a unix socket listener. 
 	 * don't check for an error to continue without it in case it fails. */
