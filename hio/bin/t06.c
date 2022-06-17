@@ -501,7 +501,7 @@ static int add_listener (hio_t* hio, hio_bch_t* addrstr)
 		return -1;
 	}
 	bi.options = HIO_DEV_SCK_BIND_REUSEADDR /*| HIO_DEV_SCK_BIND_REUSEPORT |*/;
-	bi.options = HIO_DEV_SCK_BIND_IGNERR;
+	bi.options |= HIO_DEV_SCK_BIND_IGNERR;
 #if defined(USE_SSL)
 	bi.options |= HIO_DEV_SCK_BIND_SSL; 
 	bi.ssl_certfile = "localhost.crt";
