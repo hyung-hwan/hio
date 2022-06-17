@@ -91,7 +91,7 @@ static void on_htts_thr2_request (hio_t* hio, hio_dev_thr_iopair_t* iop, hio_svc
 		fprintf (fp, "Status: 200\r\n");
 		fprintf (fp, "Content-Type: text/html\r\n\r\n");
 
-		while (!feof(sf))
+		while (!feof(sf) && !ferror(sf))
 		{
 			size_t n;
 			n = fread(buf, 1, sizeof(buf), sf);
@@ -102,7 +102,8 @@ static void on_htts_thr2_request (hio_t* hio, hio_dev_thr_iopair_t* iop, hio_svc
 	}
 
 	/* invalid iop->wfd to mark that this function closed this file descriptor. 
-	 * no invalidation will lead to double closes on the same file descriptor. */
+	 * no invalidation will lead to double closes on the same file descriptor. 
+	 * the hio library attempt to close it if it's not INVALID after this handler. */
 	iop->wfd = HIO_SYSHND_INVALID; 
 	fclose (fp);
 }
