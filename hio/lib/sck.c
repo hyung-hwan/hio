@@ -1235,6 +1235,7 @@ static int dev_sck_ioctl (hio_dev_t* dev, int cmd, void* arg)
 
 			if (hio_skad_get_family(&bnd->localaddr) == HIO_AF_INET6) /* getsockopt(rdev->hnd, SO_DOMAIN, ...) may return the domain but it's kernel specific as well */
 			{
+			#if defined(IPV6_V6ONLY)
 				/* TODO: should i make it into bnd->options? HIO_DEV_SCK_BIND_IPV6ONLY? applicable to ipv6 though. */
 				int v = 1;
 				if (setsockopt(rdev->hnd, IPPROTO_IPV6, IPV6_V6ONLY, &v, HIO_SIZEOF(v)) <= -1)
@@ -1245,6 +1246,7 @@ static int dev_sck_ioctl (hio_dev_t* dev, int cmd, void* arg)
 						return -1;
 					}
 				}
+			#endif
 			}
 
 			if (bnd->options & HIO_DEV_SCK_BIND_BROADCAST)

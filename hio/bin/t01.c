@@ -965,8 +965,8 @@ if (hio_htre_getcontentlen(req) > 0)
 		}
 		else
 
-		{
 #endif
+		{
 			const hio_bch_t* qpath = hio_htre_getqpath(req);
 			int x;
 			if (hio_comp_bcstr_limited(qpath, "/thr/", 5, 1) == 0)
@@ -978,6 +978,10 @@ if (hio_htre_getcontentlen(req) > 0)
 			else
 				x = hio_svc_htts_dofile(htts, csck, req, "", hio_htre_getqpath(req), "text/plain");
 			if (x <= -1) goto oops;
+		}
+#if 0
+	}
+#endif
 
 	return 0;
 
