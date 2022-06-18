@@ -43,6 +43,49 @@
 
 /* ========================================================================= */
 
+static void on_connect_timeout (hio_t* hio, const hio_ntime_t* now, hio_tmrjob_t* job)
+{
+	hio_dev_mar_t* rdev = (hio_dev_mar_t*)job->ctx;
+	hio_dev_mar_halt (rdev);
+}
+
+static int sched_connect_timeout (hio_dev_t* dev)
+{
+	hio_t* hio = dev->hio;
+	hio_dev_mar_t* rdev = (hio_dev_mar_t*)dev;
+	hio_tmrjob_t tmrjob;
+
+	if (rdev->tmout.c.sec >= 0)
+	{
+		HIO_MEMSET (&tmrjob, 0, HIO_SIZEOF(tmrjob));
+		tmrjob.ctx = rdev;
+		hio_gettime (hio, &tmrjob.when);
+		HIO_ADD_NTIME (&tmrjob.when, &tmrjob.when, &rdev->tmout.c);
+		tmrjob.handler = on_connect_timeout;
+		tmrjob.idxptr = &rdev->ctmridx;
+		rdev->ctmridx = hio_instmrjob(hio, &tmrjob);
+		if (rdev->ctmridx == HIO_TMRIDX_INVALID)
+		{
+			/* don't care about failure. timing out won't work */
+			/* TODO: fix this */
+		}
+	}
+
+	return 0;
+}
+
+static void desched_connect_timeout (hio_dev_t* dev)
+{
+	hio_t* hio = dev->hio;
+	hio_dev_mar_t* rdev = (hio_dev_mar_t*)dev;
+
+	if (rdev->ctmridx != HIO_TMRIDX_INVALID) 
+	{
+		hio_deltmrjob (hio, rdev->ctmridx);
+		HIO_ASSERT (hio, rdev->ctmridx == HIO_TMRIDX_INVALID);
+	}
+}
+
 static int dev_mar_make (hio_dev_t* dev, void* ctx)
 {
 	hio_t* hio = dev->hio;
@@ -72,24 +115,26 @@ static int dev_mar_make (hio_dev_t* dev, void* ctx)
 		mysql_options(rdev->hnd, MYSQL_OPT_RECONNECT, &x);
 	}
 
-#if 0
-/* TOOD: timeout not implemented...
- * timeout can't be implemented using the mysql timeout options in the nonblocking mode.
- * i must create a timeer jobs for these */
-	if (mi->flags & HIO_DEV_MAR_USE_TMOUT)
-	{
+
+	/* remember the timeout settings. use a negative second to indicate no timeout.
+	 * the saved values will be used in scheduling a timer job for each relevant operation.
+	 * Timing out can't be implemented with the standard MYSQL TIMEOUT options in 
+	 * the asynchronous mode. that is, this sample code doesn't work.
 		unsigned int tmout;
-
-		tmout = mi->tmout.c.sec; /* mysql supports the granularity of seconds only */
+		tmout = mi->tmout.c.sec; // mysql supports the granularity of seconds only 
 		if (tmout >= 0) mysql_options(rdev->hnd, MYSQL_OPT_CONNECT_TIMEOUT, &tmout);
-
 		tmout = mi->tmout.r.sec;
 		if (tmout >= 0) mysql_options(rdev->hnd, MYSQL_OPT_READ_TIMEOUT, &tmout);
-
 		tmout = mi->tmout.w.sec;
 		if (tmout >= 0) mysql_options(rdev->hnd, MYSQL_OPT_WRITE_TIMEOUT, &tmout);
+	 */
+	rdev->tmout = mi->tmout;
+	if (!(mi->flags & HIO_DEV_MAR_USE_TMOUT))
+	{
+		rdev->tmout.c.sec = -1;
+		rdev->tmout.r.sec = -1;
+		rdev->tmout.w.sec = -1;
 	}
-#endif
 
 	rdev->dev_cap = HIO_DEV_CAP_IN | HIO_DEV_CAP_OUT | HIO_DEV_CAP_VIRTUAL; /* mysql_init() doesn't create a socket. so no IO is possible at this point */
 	rdev->on_read = mi->on_read;
@@ -100,14 +145,17 @@ static int dev_mar_make (hio_dev_t* dev, void* ctx)
 	rdev->on_row_fetched = mi->on_row_fetched;
 
 	rdev->progress = HIO_DEV_MAR_INITIAL;
+	rdev->ctmridx = HIO_TMRIDX_INVALID;
 
 	return 0;
 }
 
 static int dev_mar_kill (hio_dev_t* dev, int force)
 {
-	/*hio_t* hio = dev->hio;*/
+	hio_t* hio = dev->hio;
 	hio_dev_mar_t* rdev = (hio_dev_mar_t*)dev;
+
+	desched_connect_timeout (dev);
 
 	/* if rdev->connected is 0 at this point, 
 	 * the underlying socket of this device is down */
@@ -241,6 +289,7 @@ static int dev_mar_ioctl (hio_dev_t* dev, int cmd, void* arg)
 			if (status)
 			{
 				/* not connected */
+				sched_connect_timeout (dev);
 				HIO_DEV_MAR_SET_PROGRESS (rdev, HIO_DEV_MAR_CONNECTING);
 				watch_mysql (rdev, status);
 			}
@@ -432,8 +481,8 @@ static int dev_evcb_mar_ready (hio_dev_t* dev, int events)
 					if (tmp)
 					{
 						/* established ok */
+						desched_connect_timeout (dev);
 						watch_mysql (rdev, status);
-
 						rdev->connected = 1; /* really connected */
 						HIO_DEV_MAR_SET_PROGRESS (rdev, HIO_DEV_MAR_CONNECTED);
 						if (rdev->on_connect) rdev->on_connect (rdev);
@@ -443,7 +492,7 @@ static int dev_evcb_mar_ready (hio_dev_t* dev, int events)
 						/* connection attempt failed */
 
 						/* the mysql client library closes the underlying socket handle 
-						 * whenever the connection attempt fails. this prevent hio from 
+						 * whenever the connection attempt fails. this prevents hio from 
 						 * managing the the mysql connections properly. this also causes
 						 * race condition if this library is used in multi-threaded programs. */
 
@@ -463,8 +512,8 @@ static int dev_evcb_mar_ready (hio_dev_t* dev, int events)
 						watch_mysql (rdev, 0);
 
 						/* on_disconnect() will be called without on_connect(). 
-						 * you may assume that the initial connectinon attempt failed. 
-						 * reconnectin doesn't apply in this context. */
+						 * you may assume that the initial connection attempt failed. 
+						 * reconnection doesn't apply in this context. */
 						hio_dev_mar_halt (rdev); 
 					}
 				}
