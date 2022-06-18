@@ -258,6 +258,7 @@ static void mar_on_disconnect (hio_dev_mar_t* dev)
 
 	sess->connected = 0;
 
+	/* give RCODE_ERROR to pending queries */
 	while (1)
 	{
 		sess_qry_t* sq;

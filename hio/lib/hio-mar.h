@@ -76,6 +76,14 @@ typedef void (*hio_dev_mar_on_row_fetched_t) (
 	void*             row_data
 );
 
+typedef struct hio_dev_mar_tmout_t hio_dev_mar_tmout_t;
+struct hio_dev_mar_tmout_t
+{
+	hio_ntime_t c;
+	hio_ntime_t r;
+	hio_ntime_t w;
+};
+
 struct hio_dev_mar_t
 {
 	HIO_DEV_HEADER;
@@ -83,6 +91,9 @@ struct hio_dev_mar_t
 	void* hnd;
 	void* res;
 	hio_dev_mar_progress_t progress;
+
+	hio_dev_mar_tmout_t tmout;
+	hio_tmridx_t ctmridx;
 
 	unsigned int connected: 1;
 	unsigned int connected_deferred: 1;
@@ -108,15 +119,6 @@ enum hio_dev_mar_make_flag_t
 	HIO_DEV_MAR_USE_TMOUT = (1 << 0)
 };
 typedef enum hio_dev_mar_make_flag_t hio_dev_mar_make_flag_t;
-
-
-typedef struct hio_dev_mar_tmout_t hio_dev_mar_tmout_t;
-struct hio_dev_mar_tmout_t
-{
-	hio_ntime_t c;
-	hio_ntime_t r;
-	hio_ntime_t w;
-};
 
 typedef struct hio_dev_mar_make_t hio_dev_mar_make_t;
 struct hio_dev_mar_make_t

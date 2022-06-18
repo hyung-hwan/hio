@@ -210,7 +210,7 @@ int main (int argc, char* argv[])
 	hio_t* hio = HIO_NULL;
 	hio_svc_marc_t* marc;
 	hio_svc_marc_connect_t ci;
-/*	hio_svc_marc_tmout_t tmout;*/
+	hio_svc_marc_tmout_t tmout;
 
 	if (argc != 6)
 	{
@@ -232,13 +232,12 @@ int main (int argc, char* argv[])
 	ci.password = argv[4];
 	ci.dbname = argv[5];
 
-/* timeout not implemented  yet in the mardiab device and services 
-	HIO_INIT_NTIME (&tmout.c, 2,  0);
+	memset (&tmout, 0, HIO_SIZEOF(tmout));
+	HIO_INIT_NTIME (&tmout.c, 4,  0);
 	HIO_INIT_NTIME (&tmout.r, -1,  0);
 	HIO_INIT_NTIME (&tmout.w, -1,  0);
-*/
-
-	marc = hio_svc_marc_start(hio, &ci, HIO_NULL, HIO_NULL);
+	marc = hio_svc_marc_start(hio, &ci, &tmout, HIO_NULL);
+	/*marc = hio_svc_marc_start(hio, &ci, HIO_NULL, HIO_NULL);*/
 	if (!marc)
 	{
 		printf ("Cannot start a mariadb client service\n");
