@@ -104,7 +104,7 @@ int hio_sys_initmux (hio_t* hio)
 	{
 		#if defined(FD_CLOEXEC)
 		int flags = fcntl(mux->kq, F_GETFD);
-		if (flags >= 0) fcntl (mux->kq, F_SETFD, flag | FD_CLOEXEC);
+		if (flags >= 0) fcntl (mux->kq, F_SETFD, flags | FD_CLOEXEC);
 		#endif
 	}
 	#endif

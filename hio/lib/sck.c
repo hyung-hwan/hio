@@ -25,6 +25,7 @@
 #include <hio-sck.h>
 #include "hio-prv.h"
 
+#include <sys/types.h>
 #include <sys/socket.h>
 #include <fcntl.h>
 #include <unistd.h>
