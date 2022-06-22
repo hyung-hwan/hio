@@ -32,6 +32,10 @@
 #include <sys/stat.h>
 #include <stdlib.h> /* setenv, clearenv */
 
+#if defined(HAVE_CRT_EXTERNS_H)
+#	include <crt_externs.h> /* _NSGetEnviron */
+#endif
+
 #define CGI_ALLOW_UNLIMITED_REQ_CONTENT_LENGTH
 
 enum cgi_res_mode_t
@@ -830,6 +834,12 @@ static int cgi_peer_on_fork (hio_dev_pro_t* pro, void* fork_ctx)
 	lang = hio_dupbcstr(hio, getenv("LANG"), HIO_NULL);
 #if defined(HAVE_CLEARENV)
 	clearenv ();
+#elif defined(HAVE_CRT_EXTERNS_H)
+	{
+		char** environ = *_NSGetEnviron();
+		if (environ) environ[0] = '\0';
+	}
+
 #else
 	{
 		extern char** environ;
