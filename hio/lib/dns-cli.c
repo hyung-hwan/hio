@@ -26,6 +26,7 @@
 #include <hio-sck.h>
 #include "hio-prv.h"
 
+#include <sys/types.h>
 #include <netinet/in.h>
 
 struct hio_svc_dns_t

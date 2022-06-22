@@ -30,6 +30,7 @@
 #include "hio-prv.h"
 
 #if defined(HAVE_SYS_EVENT_H) && defined(HAVE_KQUEUE) && defined(HAVE_KEVENT)
+#	include <sys/types.h>
 #	include <sys/event.h>
 #	define USE_KQUEUE
 #elif defined(HAVE_SYS_EPOLL_H)
