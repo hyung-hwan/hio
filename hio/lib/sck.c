@@ -2591,9 +2591,19 @@ int hio_dev_sck_shutdown (hio_dev_sck_t* dev, int how)
 int hio_dev_sck_sendfileok (hio_dev_sck_t* dev)
 {
 #if defined(USE_SSL)
+	#if defined(HAVE_SENDFILE)
+	/* unable to use sendfile over ssl */
 	return !(dev->ssl);
+	#else
+	/* no send file implementation */
+	return 0;
+	#endif
 #else
+	#if defined(HAVE_SENDFILE)
 	return 1;
+	#else
+	return 0;
+	#endif
 #endif
 }
 

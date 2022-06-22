@@ -203,9 +203,9 @@ if (hio_htre_getcontentlen(req) > 0)
 			else if (hio_comp_bcstr_limited(qpath, "/txt/", 5, 1) == 0)
 				x = hio_svc_htts_dotxt(htts, csck, req, 200, "text/plain", qpath);
 			else if (hio_comp_bcstr_limited(qpath, "/cgi/", 5, 1) == 0)
-				x = hio_svc_htts_docgi(htts, csck, req, "", hio_htre_getqpath(req));
+				x = hio_svc_htts_docgi(htts, csck, req, "", qpath + 4);
 			else
-				x = hio_svc_htts_dofile(htts, csck, req, "", hio_htre_getqpath(req), "text/plain");
+				x = hio_svc_htts_dofile(htts, csck, req, "", qpath, "text/plain");
 			if (x <= -1) goto oops;
 		}
 #if 0
