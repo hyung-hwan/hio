@@ -767,7 +767,10 @@ static HIO_INLINE void handle_event (hio_t* hio, hio_dev_t* dev, int events, int
 					{
 						/* 1. input ended and its reporting failed or 
 						 * 2. input ended and no writing is possible */
-						HIO_DEBUG2 (hio, "DEV(%p) - halting a stream device for on_read failure while output is closed - %js\n", dev, hio_geterrmsg(hio));
+						if (dev->dev_cap & HIO_DEV_CAP_OUT_CLOSED)
+							HIO_DEBUG1 (hio, "DEV(%p) - halting a stream device as output is closed\n", dev);
+						else
+							HIO_DEBUG2 (hio, "DEV(%p) - halting a stream device for on_read failure while output is closed - %js\n", dev, hio_geterrmsg(hio));
 						hio_dev_halt (dev);
 						dev = HIO_NULL;
 					}
@@ -792,8 +795,7 @@ static HIO_INLINE void handle_event (hio_t* hio, hio_dev_t* dev, int events, int
 					}
 					else if (y == 0)
 					{
-						/* don't be greedy. read only once 
-						 * for this loop iteration */
+						/* don't be greedy. read only once for this loop iteration */
 						break;
 					}
 				}
@@ -835,8 +837,7 @@ static HIO_INLINE void handle_event (hio_t* hio, hio_dev_t* dev, int events, int
 			}
 		}
 
-		if ((dev->dev_cap & HIO_DEV_CAP_IN_CLOSED) &&
-		    (dev->dev_cap & HIO_DEV_CAP_OUT_CLOSED))
+		if ((dev->dev_cap & HIO_DEV_CAP_IN_CLOSED) && (dev->dev_cap & HIO_DEV_CAP_OUT_CLOSED))
 		{
 			HIO_DEBUG1 (hio, "DEV(%p) - halting a device for closed input and output\n", dev);
 			hio_dev_halt (dev);

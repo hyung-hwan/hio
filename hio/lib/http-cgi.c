@@ -348,6 +348,7 @@ static void cgi_peer_on_close (hio_dev_pro_t* pro, hio_dev_pro_sid_t sid)
 			break;
 
 		case HIO_DEV_PRO_IN:
+			HIO_DEBUG4 (hio, "HTTS(%p) - peer %p(pid=%d) closing slave[%d]\n", cgi->client->htts, pro, (int)pro->child_pid, sid);
 			cgi_mark_over (cgi, CGI_OVER_WRITE_TO_PEER);
 			break;
 
@@ -370,21 +371,23 @@ static int cgi_peer_on_read (hio_dev_pro_t* pro, hio_dev_pro_sid_t sid, const vo
 
 	if (dlen <= -1)
 	{
-		HIO_DEBUG3 (hio, "HTTPS(%p) - read error from peer %p(pid=%u)\n", cgi->client->htts, pro, (unsigned int)pro->child_pid);
+		HIO_DEBUG3 (hio, "HTTS(%p) - read error from peer %p(pid=%u)\n", cgi->client->htts, pro, (unsigned int)pro->child_pid);
 		goto oops;
 	}
 
 	if (dlen == 0)
 	{
-		HIO_DEBUG3 (hio, "HTTPS(%p) - EOF from peer %p(pid=%u)\n", cgi->client->htts, pro, (unsigned int)pro->child_pid);
+		HIO_DEBUG3 (hio, "HTTS(%p) - EOF from peer %p(pid=%u)\n", cgi->client->htts, pro, (unsigned int)pro->child_pid);
 
 		if (!(cgi->over & CGI_OVER_READ_FROM_PEER))
 		{
-			/* the cgi script could be misbehaviing.
+			int n;
+			/* the cgi script could be misbehaving.
 			 * it still has to read more but EOF is read.
-			 * otherwise client_peer_htrd_poke() should have been called */
-			if (cgi_write_last_chunk_to_client(cgi) <= -1) goto oops;
+			 * otherwise cgi_peer_htrd_poke() should have been called */
+			n = cgi_write_last_chunk_to_client(cgi);
 			cgi_mark_over (cgi, CGI_OVER_READ_FROM_PEER);
+			if (n <= -1) goto oops;
 		}
 	}
 	else
@@ -395,7 +398,7 @@ static int cgi_peer_on_read (hio_dev_pro_t* pro, hio_dev_pro_sid_t sid, const vo
 
 		if (hio_htrd_feed(cgi->peer_htrd, data, dlen, &rem) <= -1) 
 		{
-			HIO_DEBUG3 (hio, "HTTPS(%p) - unable to feed peer htrd - peer %p(pid=%u)\n", cgi->htts, pro, (unsigned int)pro->child_pid);
+			HIO_DEBUG3 (hio, "HTTS(%p) - unable to feed peer htrd - peer %p(pid=%u)\n", cgi->htts, pro, (unsigned int)pro->child_pid);
 
 			if (!cgi->ever_attempted_to_write_to_client &&
 			    !(cgi->over & CGI_OVER_WRITE_TO_CLIENT))
@@ -627,7 +630,7 @@ static int cgi_peer_on_write (hio_dev_pro_t* pro, hio_iolen_t wrlen, void* wrctx
 	else if (wrlen == 0)
 	{
 		/* indicated EOF */
-		/* do nothing here as i didn't incremented num_pending_writes_to_peer when making the write request */
+		/* do nothing here as i didn't increment num_pending_writes_to_peer when making the write request */
 
 		cgi->num_pending_writes_to_peer--;
 		HIO_ASSERT (hio, cgi->num_pending_writes_to_peer == 0);
@@ -679,7 +682,7 @@ static int cgi_client_on_read (hio_dev_sck_t* sck, const void* buf, hio_iolen_t 
 	if (len <= -1)
 	{
 		/* read error */
-		HIO_DEBUG2 (cli->htts->hio, "HTTPS(%p) - read error on client %p(%d)\n", sck, (int)sck->hnd);
+		HIO_DEBUG2 (cli->htts->hio, "HTTS(%p) - read error on client %p(%d)\n", sck, (int)sck->hnd);
 		goto oops;
 	}
 
@@ -692,7 +695,7 @@ static int cgi_client_on_read (hio_dev_sck_t* sck, const void* buf, hio_iolen_t 
 	if (len == 0)
 	{
 		/* EOF on the client side. arrange to close */
-		HIO_DEBUG3 (hio, "HTTPS(%p) - EOF from client %p(hnd=%d)\n", cgi->client->htts, sck, (int)sck->hnd);
+		HIO_DEBUG3 (hio, "HTTS(%p) - EOF from client %p(hnd=%d)\n", cgi->client->htts, sck, (int)sck->hnd);
 
 		if (!(cgi->over & CGI_OVER_READ_FROM_CLIENT)) /* if this is true, EOF is received without cgi_client_htrd_poke() */
 		{
@@ -711,7 +714,7 @@ static int cgi_client_on_read (hio_dev_sck_t* sck, const void* buf, hio_iolen_t 
 		if (rem > 0)
 		{
 			/* TODO store this to client buffer. once the current resource is completed, arrange to call on_read() with it */
-			HIO_DEBUG3 (hio, "HTTPS(%p) - excessive data after contents by cgi client %p(%d)\n", sck->hio, sck, (int)sck->hnd);
+			HIO_DEBUG3 (hio, "HTTS(%p) - excessive data after contents by cgi client %p(%d)\n", sck->hio, sck, (int)sck->hnd);
 		}
 	}
 
@@ -730,7 +733,7 @@ static int cgi_client_on_write (hio_dev_sck_t* sck, hio_iolen_t wrlen, void* wrc
 
 	if (wrlen <= -1)
 	{
-		HIO_DEBUG3 (hio, "HTTPS(%p) - unable to write to client %p(%d)\n", sck->hio, sck, (int)sck->hnd);
+		HIO_DEBUG3 (hio, "HTTS(%p) - unable to write to client %p(%d)\n", sck->hio, sck, (int)sck->hnd);
 		goto oops;
 	}
 
