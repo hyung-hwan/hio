@@ -400,6 +400,8 @@ static int dev_pro_make_master (hio_dev_t* dev, void* ctx)
 	rdev->on_read = info->on_read;
 	rdev->on_write = info->on_write;
 	rdev->on_close = info->on_close;
+
+	HIO_DEBUG4 (hio, "PRO(%p) -  in %p out %p err %p\n", dev, rdev->slave[HIO_DEV_PRO_IN], rdev->slave[HIO_DEV_PRO_OUT], rdev->slave[HIO_DEV_PRO_ERR]);
 	return 0;
 
 oops:
@@ -490,7 +492,7 @@ static int dev_pro_kill_master (hio_dev_t* dev, int force)
 			 */
 		}
 
-		HIO_DEBUG1 (hio, "PRO >>>>>>>>>>>>>>>>>>> REAPED CHILD %d\n", (int)rdev->child_pid);
+		HIO_DEBUG2 (hio, "PRO(%p) -  REAPED CHILD %d\n", dev, (int)rdev->child_pid);
 		rdev->child_pid = -1;
 	}
 
