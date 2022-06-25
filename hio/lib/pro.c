@@ -401,7 +401,10 @@ static int dev_pro_make_master (hio_dev_t* dev, void* ctx)
 	rdev->on_write = info->on_write;
 	rdev->on_close = info->on_close;
 
-	HIO_DEBUG4 (hio, "PRO(%p) -  in %p out %p err %p\n", dev, rdev->slave[HIO_DEV_PRO_IN], rdev->slave[HIO_DEV_PRO_OUT], rdev->slave[HIO_DEV_PRO_ERR]);
+	HIO_DEBUG7 (hio, "PRO(%p) -  slave[%d] %p slave[%d] %p slave[%d] %p\n", dev, 
+		HIO_DEV_PRO_IN, rdev->slave[HIO_DEV_PRO_IN], 
+		HIO_DEV_PRO_OUT, rdev->slave[HIO_DEV_PRO_OUT],
+		HIO_DEV_PRO_ERR, rdev->slave[HIO_DEV_PRO_ERR]);
 	return 0;
 
 oops:
