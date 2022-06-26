@@ -1367,11 +1367,16 @@ static int __dev_read (hio_dev_t* dev, int enabled, const hio_ntime_t* tmout, vo
 {
 	hio_t* hio = dev->hio;
 
+	/* __dev_read() doesn't perform 'read' unlike __dev_write() that actually writes.
+	 * it only changes the multiplexer state. it may be ok to allow this state change
+	 * request even if HIO_DEV_CAP_IN_CLOSED is set. therefore, the condtion like this
+	 * is not implemented in this function.
 	if (dev->dev_cap & HIO_DEV_CAP_IN_CLOSED)
 	{
 		hio_seterrbfmt (hio, HIO_ENOCAPA, "unable to read closed device");
 		return -1;
 	}
+	*/
 
 	if (enabled)
 	{
