@@ -768,7 +768,7 @@ static HIO_INLINE void handle_event (hio_t* hio, hio_dev_t* dev, int events, int
 						/* 1. input ended and its reporting failed or 
 						 * 2. input ended and no writing is possible */
 						if (dev->dev_cap & HIO_DEV_CAP_OUT_CLOSED)
-							HIO_DEBUG1 (hio, "DEV(%p) - halting a stream device as output is closed\n", dev);
+							HIO_DEBUG1 (hio, "DEV(%p) - halting a stream device on input EOF as output is also closed\n", dev);
 						else
 							HIO_DEBUG2 (hio, "DEV(%p) - halting a stream device for on_read failure while output is closed - %js\n", dev, hio_geterrmsg(hio));
 						hio_dev_halt (dev);
