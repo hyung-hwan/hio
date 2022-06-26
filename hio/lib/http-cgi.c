@@ -827,14 +827,21 @@ static int cgi_peer_on_fork (hio_dev_pro_t* pro, void* fork_ctx)
 	cgi_peer_fork_ctx_t* fc = (cgi_peer_fork_ctx_t*)fork_ctx;
 	hio_oow_t content_length;
 	const hio_bch_t* qparam;
+	const hio_bch_t* tmpstr;
 	hio_bch_t* path, * lang;
 	hio_bch_t tmp[256];
 	hio_becs_t dbuf;
 
 	qparam = hio_htre_getqparam(fc->req);
 
-	path = hio_dupbcstr(hio, getenv("PATH"), HIO_NULL);
-	lang = hio_dupbcstr(hio, getenv("LANG"), HIO_NULL);
+	tmpstr = getenv("PATH");
+	if (!tmpstr) tmpstr = "";
+	path = hio_dupbcstr(hio, tmpstr, HIO_NULL);
+
+	tmpstr = getenv("LANG");
+	if (!tmpstr) tmpstr = "";
+	lang = hio_dupbcstr(hio, tmpstr, HIO_NULL);
+
 #if defined(HAVE_CLEARENV)
 	clearenv ();
 #elif defined(HAVE_CRT_EXTERNS_H)
