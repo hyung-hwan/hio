@@ -51,6 +51,33 @@ int hio_comp_ucstr_bcstr (const hio_uch_t* str1, const hio_bch_t* str2, int igno
 	}
 }
 
+int hio_comp_ucstr_bcstr_limited (const hio_uch_t* str1, const hio_bch_t* str2, hio_oow_t maxlen, int ignorecase)
+{
+	if (maxlen == 0) return 0;
+
+	if (ignorecase)
+	{
+		while (hio_to_uch_lower(*str1) == hio_to_bch_lower(*str2))
+ 		{
+			if (*str1 == '\0' || maxlen == 1) return 0;
+
+			str1++; str2++; maxlen--;
+		}
+
+		return ((hio_uchu_t)hio_to_uch_lower(*str1) > (hio_bchu_t)hio_to_bch_lower(*str2))? 1: -1;
+	}
+	else
+	{
+		while (*str1 == *str2)
+		{
+			if (*str1 == '\0' || maxlen == 1) return 0;
+			str1++; str2++; maxlen--;
+		}
+
+		return ((hio_uchu_t)*str1 > (hio_bchu_t)*str2)? 1: -1;
+	}
+}
+
 int hio_comp_uchars_bcstr (const hio_uch_t* str1, hio_oow_t len, const hio_bch_t* str2, int ignorecase)
 {
 	if (ignorecase)

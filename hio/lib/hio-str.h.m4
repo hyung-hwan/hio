@@ -42,18 +42,40 @@ dnl ---------------------------------------------------------------------------
 /* ========================================================================= 
  * STRING
  * ========================================================================= */
-
-enum hio_trim_oochars_flag_t
+enum hio_trim_flag_t
 {
-        HIO_TRIM_OOCHARS_LEFT  = (1 << 0), /**< trim leading spaces */
-#define HIO_TRIM_OOCHARS_LEFT HIO_TRIM_OOCHARS_LEFT
-#define HIO_TRIM_UCHARS_LEFT HIO_TRIM_OOCHARS_LEFT
-#define HIO_TRIM_BCHARS_LEFT HIO_TRIM_OOCHARS_LEFT
-        HIO_TRIM_OOCHARS_RIGHT = (1 << 1)  /**< trim trailing spaces */
-#define HIO_TRIM_OOCHARS_RIGHT HIO_TRIM_OOCHARS_RIGHT
-#define HIO_TRIM_UCHARS_RIGHT HIO_TRIM_OOCHARS_RIGHT
-#define HIO_TRIM_BCHARS_RIGHT HIO_TRIM_OOCHARS_RIGHT
+	HIO_TRIM_LEFT  = (1 << 0), /**< trim leading spaces */
+#define HIO_TRIM_LEFT HIO_TRIM_LEFT
+#define HIO_TRIM_OOCHARS_LEFT HIO_TRIM_LEFT
+#define HIO_TRIM_UCHARS_LEFT HIO_TRIM_LEFT
+#define HIO_TRIM_BCHARS_LEFT HIO_TRIM_LEFT
+	HIO_TRIM_RIGHT = (1 << 1)  /**< trim trailing spaces */
+#define HIO_TRIM_RIGHT HIO_TRIM_RIGHT
+#define HIO_TRIM_OOCHARS_RIGHT HIO_TRIM_RIGHT
+#define HIO_TRIM_UCHARS_RIGHT HIO_TRIM_RIGHT
+#define HIO_TRIM_BCHARS_RIGHT HIO_TRIM_RIGHT
 };
+
+enum hio_fnmat_flag_t
+{
+	HIO_FNMAT_PATHNAME   = (1 << 0),
+#define HIO_FNMAT_PATHNAME   HIO_FNMAT_PATHNAME
+	HIO_FNMAT_NOESCAPE   = (1 << 1),
+#define HIO_FNMAT_NOESCAPE   HIO_FNMAT_NOESCAPE
+	HIO_FNMAT_PERIOD     = (1 << 2),
+#define HIO_FNMAT_PERIOD     HIO_FNMAT_PERIOD
+	HIO_FNMAT_IGNORECASE = (1 << 3)
+#define HIO_FNMAT_IGNORECASE HIO_FNMAT_IGNORECASE
+};
+
+#if defined(_WIN32) || defined(__OS2__) || defined(__DOS__)
+	/* i don't support escaping in these systems */
+#	define HIO_FNMAT_IS_ESC(c) (0)
+#	define HIO_FNMAT_IS_SEP(c) ((c) == '/' || (c) == '\\')
+#else
+#	define HIO_FNMAT_IS_ESC(c) ((c) == '\\')
+#	define HIO_FNMAT_IS_SEP(c) ((c) == '/')
+#endif
 
 #if defined(__cplusplus)
 extern "C" {
@@ -477,6 +499,35 @@ HIO_EXPORT int hio_split_bcstr (
 );
 
 
+HIO_EXPORT int hio_fnmat_uchars_i (
+	const hio_uch_t* str,
+	hio_oow_t        slen,
+	const hio_uch_t* ptn,
+	hio_oow_t        plen,
+	int              flags,
+	int              no_first_period
+);
+
+HIO_EXPORT int hio_fnmat_bchars_i (
+	const hio_bch_t* str,
+	hio_oow_t        slen,
+	const hio_bch_t* ptn,
+	hio_oow_t        plen,
+	int              flags,
+	int              no_first_period
+);
+
+#define hio_fnmat_uchars(str, slen, ptn, plen, flags) hio_fnmat_uchars_i(str, slen, ptn, plen, flags, 0)
+#define hio_fnmat_ucstr(str, ptn, flags) hio_fnmat_uchars_i(str, hio_count_ucstr(str), ptn, hio_count_ucstr(ptn), flags, 0)
+#define hio_fnmat_uchars_ucstr(str, slen, ptn, flags) hio_fnmat_uchars_i(str, slen, ptn, hio_count_ucstr(ptn), flags, 0)
+#define hio_fnmat_ucstr_uchars(str, ptn, plen, flags) hio_fnmat_uchars_i(str, hio_count_ucstr(str), ptn, plen, flags, 0)
+
+#define hio_fnmat_bchars(str, slen, ptn, plen, flags) hio_fnmat_bchars_i(str, slen, ptn, plen, flags, 0)
+#define hio_fnmat_bcstr(str, ptn, flags) hio_fnmat_bchars_i(str, hio_count_bcstr(str), ptn, hio_count_bcstr(ptn), flags, 0)
+#define hio_fnmat_bchars_bcstr(str, slen, ptn, flags) hio_fnmat_bchars_i(str, slen, ptn, hio_count_bcstr(ptn), flags, 0)
+#define hio_fnmat_bcstr_bchars(str, ptn, plen, flags) hio_fnmat_bchars_i(str, hio_count_bcstr(str), ptn, plen, flags, 0)
+
+
 #if defined(HIO_OOCH_IS_UCH)
 #	define hio_count_oocstr hio_count_ucstr
 #	define hio_count_oocstr_limited hio_count_ucstr_limited
@@ -519,6 +570,13 @@ HIO_EXPORT int hio_split_bcstr (
 #	define hio_tokenize_oochars hio_tokenize_uchars
 #	define hio_trim_oochars hio_trim_uchars
 #	define hio_split_oocstr hio_split_ucstr
+
+#	define hawk_fnmat_oochars_i hawk_fnmat_uchars_i
+#	define hawk_fnmat_oochars hawk_fnmat_uchars
+#	define hawk_fnmat_oocstr hawk_fnmat_ucstr
+#	define hawk_fnmat_oochars_oocstr hawk_fnmat_uchars_ucstr
+#	define hawk_fnmat_oocstr_oochars hawk_fnmat_ucstr_uchars
+
 #else
 #	define hio_count_oocstr hio_count_bcstr
 #	define hio_count_oocstr_limited hio_count_bcstr_limited
@@ -562,6 +620,12 @@ HIO_EXPORT int hio_split_bcstr (
 #	define hio_tokenize_oochars hio_tokenize_bchars
 #	define hio_trim_oochars hio_trim_bchars
 #	define hio_split_oocstr hio_split_bcstr
+
+#	define hawk_fnmat_oochars_i hawk_fnmat_bchars_i
+#	define hawk_fnmat_oochars hawk_fnmat_bchars
+#	define hawk_fnmat_oocstr hawk_fnmat_bcstr
+#	define hawk_fnmat_oochars_oocstr hawk_fnmat_bchars_bcstr
+#	define hawk_fnmat_oocstr_oochars hawk_fnmat_bcstr_bchars
 #endif
 
 /* ------------------------------------------------------------------------- */

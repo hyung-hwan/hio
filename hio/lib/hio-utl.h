@@ -234,6 +234,12 @@ HIO_EXPORT int hio_comp_ucstr_bcstr (
 	int              ignorecase
 );
 
+HIO_EXPORT int hio_comp_ucstr_bcstr_limited (
+	const hio_uch_t* str1,
+	const hio_bch_t* str2,
+	hio_oow_t        maxlen,
+	int              ignorecase
+);
 
 HIO_EXPORT int hio_comp_uchars_bcstr (
 	const hio_uch_t* str1,
