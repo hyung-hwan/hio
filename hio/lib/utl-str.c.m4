@@ -31,6 +31,129 @@
 
 #include "hio-prv.h"
 #include <hio-chr.h>
+
+static int match_uch_class (const hio_uch_t* pp, hio_uch_t sc, int* matched)
+{
+	if (hio_comp_ucstr_bcstr_limited(pp, "[:upper:]", 9, 0) == 0) 
+	{
+		*matched = hio_is_uch_upper(sc);
+		return 9;
+	}
+	else if (hio_comp_ucstr_bcstr_limited(pp, "[:lower:]", 9, 0) == 0) 
+	{
+		*matched = hio_is_uch_lower(sc);
+		return 9;
+	}
+	else if (hio_comp_ucstr_bcstr_limited(pp, "[:alpha:]", 9, 0) == 0) 
+	{
+		*matched = hio_is_uch_alpha(sc);
+		return 9;
+	}
+	else if (hio_comp_ucstr_bcstr_limited(pp, "[:digit:]", 9, 0) == 0) 
+	{
+		*matched = hio_is_uch_digit(sc);
+		return 9;
+	}
+	else if (hio_comp_ucstr_bcstr_limited(pp, "[:xdigit:]", 10, 0) == 0) 
+	{
+		*matched = hio_is_uch_xdigit(sc);
+		return 10;
+	}
+	else if (hio_comp_ucstr_bcstr_limited(pp, "[:alnum:]", 9, 0) == 0) 
+	{
+		*matched = hio_is_uch_alnum(sc);
+		return 9;
+	}
+	else if (hio_comp_ucstr_bcstr_limited(pp, "[:space:]", 9, 0) == 0) 
+	{
+		*matched = hio_is_uch_space(sc);
+		return 9;
+	}
+	else if (hio_comp_ucstr_bcstr_limited(pp, "[:print:]", 9, 0) == 0) 
+	{
+		*matched = hio_is_uch_print(sc);
+		return 9;
+	}
+	else if (hio_comp_ucstr_bcstr_limited(pp, "[:graph:]", 9, 0) == 0) 
+	{
+		*matched = hio_is_uch_graph(sc);
+		return 9;
+	}
+	else if (hio_comp_ucstr_bcstr_limited(pp, "[:cntrl:]", 9, 0) == 0) 
+	{
+		*matched = hio_is_uch_cntrl(sc);
+		return 9;
+	}
+	else if (hio_comp_ucstr_bcstr_limited(pp, "[:punct:]", 9, 0) == 0) 
+	{
+		*matched = hio_is_uch_punct(sc);
+		return 9;
+	}
+
+	return 0;
+}
+
+static int match_bch_class (const hio_bch_t* pp, hio_bch_t sc, int* matched)
+{
+	if (hio_comp_bcstr_limited(pp, "[:upper:]", 9, 0) == 0) 
+	{
+		*matched = hio_is_bch_upper(sc);
+		return 9;
+	}
+	else if (hio_comp_bcstr_limited(pp, "[:lower:]", 9, 0) == 0) 
+	{
+		*matched = hio_is_bch_lower(sc);
+		return 9;
+	}
+	else if (hio_comp_bcstr_limited(pp, "[:alpha:]", 9, 0) == 0) 
+	{
+		*matched = hio_is_bch_alpha(sc);
+		return 9;
+	}
+	else if (hio_comp_bcstr_limited(pp, "[:digit:]", 9, 0) == 0) 
+	{
+		*matched = hio_is_bch_digit(sc);
+		return 9;
+	}
+	else if (hio_comp_bcstr_limited(pp, "[:xdigit:]", 10, 0) == 0) 
+	{
+		*matched = hio_is_bch_xdigit(sc);
+		return 10;
+	}
+	else if (hio_comp_bcstr_limited(pp, "[:alnum:]", 9, 0) == 0) 
+	{
+		*matched = hio_is_bch_alnum(sc);
+		return 9;
+	}
+	else if (hio_comp_bcstr_limited(pp, "[:space:]", 9, 0) == 0) 
+	{
+		*matched = hio_is_bch_space(sc);
+		return 9;
+	}
+	else if (hio_comp_bcstr_limited(pp, "[:print:]", 9, 0) == 0) 
+	{
+		*matched = hio_is_bch_print(sc);
+		return 9;
+	}
+	else if (hio_comp_bcstr_limited(pp, "[:graph:]", 9, 0) == 0) 
+	{
+		*matched = hio_is_bch_graph(sc);
+		return 9;
+	}
+	else if (hio_comp_bcstr_limited(pp, "[:cntrl:]", 9, 0) == 0) 
+	{
+		*matched = hio_is_bch_cntrl(sc);
+		return 9;
+	}
+	else if (hio_comp_bcstr_limited(pp, "[:punct:]", 9, 0) == 0) 
+	{
+		*matched = hio_is_bch_punct(sc);
+		return 9;
+	}
+
+	return 0;
+}
+
 dnl
 dnl ---------------------------------------------------------------------------
 include(`utl-str.m4')dnl
@@ -136,3 +259,6 @@ fn_chars_to_int(hio_bchars_to_intmax, hio_bch_t, hio_intmax_t, hio_is_bch_space,
 dnl --
 fn_chars_to_uint(hio_uchars_to_uintmax, hio_uch_t, hio_uintmax_t, hio_is_uch_space, HIO_UCHARS_TO_UINTMAX)
 fn_chars_to_uint(hio_bchars_to_uintmax, hio_bch_t, hio_uintmax_t, hio_is_bch_space, HIO_BCHARS_TO_UINTMAX)
+dnl --
+fn_fnmat(hio_fnmat_uchars_i, hio_uch_t, hio_to_uch_lower, match_uch_class)
+fn_fnmat(hio_fnmat_bchars_i, hio_bch_t, hio_to_bch_lower, match_bch_class)
