@@ -30,6 +30,7 @@
 
 /** string pointer and length as a aggregate */
 #define HIO_BECS_BCS(s)      (&((s)->val))  
+#define HIO_BECS_CS(s)       (&((s)->val))  
 /** string length */
 #define HIO_BECS_LEN(s)      ((s)->val.len)
 /** string pointer */
@@ -45,6 +46,7 @@
 
 /** string pointer and length as a aggregate */
 #define HIO_UECS_UCS(s)      (&((s)->val))  
+#define HIO_UECS_CS(s )      (&((s)->val))  
 /** string length */
 #define HIO_UECS_LEN(s)      ((s)->val.len)
 /** string pointer */
