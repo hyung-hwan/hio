@@ -2,7 +2,7 @@ dnl AC_PREREQ([2.69])
 
 AC_INIT([hio],[0.1.0],[Chung, Hyung-Hwan (hyunghwan.chung@gmail.com)],[],[http://code.miflux.com/@hio])
 
-AC_CONFIG_HEADER([lib/hio-cfg.h])
+AC_CONFIG_HEADERS([lib/hio-cfg.h])
 AC_CONFIG_AUX_DIR([ac])
 AC_CONFIG_MACRO_DIR([m4])
 

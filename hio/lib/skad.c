@@ -1649,13 +1649,13 @@ int hio_equal_skads (const hio_skad_t* addr1, const hio_skad_t* addr2, int stric
 			
 			if (strict)
 			{
-				/* don't care about scope id */
 				return HIO_MEMCMP(&((struct sockaddr_in6*)addr1)->sin6_addr, &((struct sockaddr_in6*)addr2)->sin6_addr, HIO_SIZEOF(((struct sockaddr_in6*)addr2)->sin6_addr)) == 0 &&
 				       ((struct sockaddr_in6*)addr1)->sin6_port == ((struct sockaddr_in6*)addr2)->sin6_port &&
 				       ((struct sockaddr_in6*)addr1)->sin6_scope_id == ((struct sockaddr_in6*)addr2)->sin6_scope_id;
 			}
 			else
 			{
+				/* don't care about scope id */
 				return HIO_MEMCMP(&((struct sockaddr_in6*)addr1)->sin6_addr, &((struct sockaddr_in6*)addr2)->sin6_addr, HIO_SIZEOF(((struct sockaddr_in6*)addr2)->sin6_addr)) == 0 &&
 				       ((struct sockaddr_in6*)addr1)->sin6_port == ((struct sockaddr_in6*)addr2)->sin6_port;
 			}

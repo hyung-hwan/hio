@@ -83,7 +83,7 @@ typedef struct cgi_t cgi_t;
 
 struct cgi_peer_xtn_t
 {
-	cgi_t* state;
+	cgi_t* cgi; /* back pointer to the cgi object */
 };
 typedef struct cgi_peer_xtn_t cgi_peer_xtn_t;
 
@@ -184,6 +184,7 @@ static int cgi_write_to_peer (cgi_t* cgi, const void* data, hio_iolen_t dlen)
 /* TODO: check if it's already finished or something.. */
 	if (cgi->num_pending_writes_to_peer > CGI_PENDING_IO_THRESHOLD)
 	{
+		/* suspend input watching */
 		if (hio_dev_sck_read(cgi->client->sck, 0) <= -1) return -1;
 	}
 	return 0;
@@ -232,7 +233,7 @@ static HIO_INLINE void cgi_mark_over (cgi_t* cgi, int over_bits)
 
 /*printf ("DETACHING FROM THE MAIN CLIENT RSRC... state -> %p\n", cgi->client->rsrc);*/
 			HIO_SVC_HTTS_RSRC_DETACH (cgi->client->rsrc);
-			/* cgi must not be access from here down as it could have been destroyed */
+			/* cgi must not be accessed from here down as it could have been destroyed */
 		}
 		else
 		{
@@ -251,8 +252,8 @@ static void cgi_on_kill (cgi_t* cgi)
 
 	if (cgi->peer)
 	{
-		cgi_peer_xtn_t* cgi_peer = hio_dev_pro_getxtn(cgi->peer);
-		cgi_peer->state = HIO_NULL;  /* cgi_peer->state many not be NULL if the resource is killed regardless of the reference count */
+		cgi_peer_xtn_t* peer = hio_dev_pro_getxtn(cgi->peer);
+		peer->cgi = HIO_NULL;  /* peer->cgi many not be NULL if the resource is killed regardless of the reference count */
 
 		hio_dev_pro_kill (cgi->peer);
 		cgi->peer = HIO_NULL;
@@ -260,8 +261,8 @@ static void cgi_on_kill (cgi_t* cgi)
 
 	if (cgi->peer_htrd)
 	{
-		cgi_peer_xtn_t* cgi_peer = hio_htrd_getxtn(cgi->peer_htrd);
-		cgi_peer->state = HIO_NULL; /* cgi_peer->state many not be NULL if the resource is killed regardless of the reference count */
+		cgi_peer_xtn_t* peer = hio_htrd_getxtn(cgi->peer_htrd);
+		peer->cgi = HIO_NULL; /* peer->cgi many not be NULL if the resource is killed regardless of the reference count */
 
 		hio_htrd_close (cgi->peer_htrd);
 		cgi->peer_htrd = HIO_NULL;
@@ -304,11 +305,11 @@ static void cgi_on_kill (cgi_t* cgi)
 /*printf ("**** CGI_ON_KILL DONE\n");*/
 }
 
-static void cgi_peer_on_close (hio_dev_pro_t* pro, hio_dev_pro_sid_t sid)
+static void peer_on_close (hio_dev_pro_t* pro, hio_dev_pro_sid_t sid)
 {
 	hio_t* hio = pro->hio;
-	cgi_peer_xtn_t* cgi_peer = hio_dev_pro_getxtn(pro);
-	cgi_t* cgi = cgi_peer->state;
+	cgi_peer_xtn_t* peer = hio_dev_pro_getxtn(pro);
+	cgi_t* cgi = peer->cgi;
 
 	if (!cgi) return; /* cgi state already gone */
 
@@ -318,18 +319,18 @@ static void cgi_peer_on_close (hio_dev_pro_t* pro, hio_dev_pro_sid_t sid)
 			HIO_DEBUG3 (hio, "HTTS(%p) - peer %p(pid=%d) closing master\n", cgi->client->htts, pro, (int)pro->child_pid);
 			cgi->peer = HIO_NULL; /* clear this peer from the state */
 
-			HIO_ASSERT (hio, cgi_peer->state != HIO_NULL);
-/*printf ("DETACHING FROM CGI PEER DEVICE.....................%p   %d\n", cgi_peer->state, (int)cgi_peer->state->rsrc_refcnt);*/
-			HIO_SVC_HTTS_RSRC_DETACH (cgi_peer->state);
+			HIO_ASSERT (hio, peer->cgi != HIO_NULL);
+/*printf ("DETACHING FROM CGI PEER DEVICE.....................%p   %d\n", peer->cgi, (int)peer->cgi->rsrc_refcnt);*/
+			HIO_SVC_HTTS_RSRC_DETACH (peer->cgi);
 
 			if (cgi->peer_htrd)
 			{
 				/* once this peer device is closed, peer's htrd is also never used.
 				 * it's safe to detach the extra information attached on the htrd object. */
-				cgi_peer = hio_htrd_getxtn(cgi->peer_htrd);
-				HIO_ASSERT (hio, cgi_peer->state != HIO_NULL);
-/*printf ("DETACHING FROM CGI PEER HTRD.....................%p   %d\n", cgi_peer->state, (int)cgi_peer->state->rsrc_refcnt);*/
-				HIO_SVC_HTTS_RSRC_DETACH (cgi_peer->state);
+				peer = hio_htrd_getxtn(cgi->peer_htrd);
+				HIO_ASSERT (hio, peer->cgi != HIO_NULL);
+/*printf ("DETACHING FROM CGI PEER HTRD.....................%p   %d\n", peer->cgi, (int)peer->cgi->rsrc_refcnt);*/
+				HIO_SVC_HTTS_RSRC_DETACH (peer->cgi);
 			}
 
 			break;
@@ -360,11 +361,11 @@ static void cgi_peer_on_close (hio_dev_pro_t* pro, hio_dev_pro_sid_t sid)
 	}
 }
 
-static int cgi_peer_on_read (hio_dev_pro_t* pro, hio_dev_pro_sid_t sid, const void* data, hio_iolen_t dlen)
+static int peer_on_read (hio_dev_pro_t* pro, hio_dev_pro_sid_t sid, const void* data, hio_iolen_t dlen)
 {
 	hio_t* hio = pro->hio;
-	cgi_peer_xtn_t* cgi_peer = hio_dev_pro_getxtn(pro);
-	cgi_t* cgi = cgi_peer->state;
+	cgi_peer_xtn_t* peer = hio_dev_pro_getxtn(pro);
+	cgi_t* cgi = peer->cgi;
 
 	HIO_ASSERT (hio, sid == HIO_DEV_PRO_OUT); /* since HIO_DEV_PRO_ERRTONUL is used, there should be no input from HIO_DEV_PRO_ERR */
 	HIO_ASSERT (hio, cgi != HIO_NULL);
@@ -384,7 +385,7 @@ static int cgi_peer_on_read (hio_dev_pro_t* pro, hio_dev_pro_sid_t sid, const vo
 			int n;
 			/* the cgi script could be misbehaving.
 			 * it still has to read more but EOF is read.
-			 * otherwise cgi_peer_htrd_poke() should have been called */
+			 * otherwise peer_htrd_poke() should have been called */
 			n = cgi_write_last_chunk_to_client(cgi);
 			cgi_mark_over (cgi, CGI_OVER_READ_FROM_PEER);
 			if (n <= -1) goto oops;
@@ -424,7 +425,7 @@ oops:
 	return 0;
 }
 
-static int cgi_peer_capture_response_header (hio_htre_t* req, const hio_bch_t* key, const hio_htre_hdrval_t* val, void* ctx)
+static int peer_capture_response_header (hio_htre_t* req, const hio_bch_t* key, const hio_htre_hdrval_t* val, void* ctx)
 {
 	hio_svc_htts_cli_t* cli = (hio_svc_htts_cli_t*)ctx;
 
@@ -453,10 +454,10 @@ static int cgi_peer_capture_response_header (hio_htre_t* req, const hio_bch_t* k
 	return 0;
 }
 
-static int cgi_peer_htrd_peek (hio_htrd_t* htrd, hio_htre_t* req)
+static int peer_htrd_peek (hio_htrd_t* htrd, hio_htre_t* req)
 {
-	cgi_peer_xtn_t* cgi_peer = hio_htrd_getxtn(htrd);
-	cgi_t* cgi = cgi_peer->state;
+	cgi_peer_xtn_t* peer = hio_htrd_getxtn(htrd);
+	cgi_t* cgi = peer->cgi;
 	hio_svc_htts_cli_t* cli = cgi->client;
 	hio_bch_t dtbuf[64];
 	int status_code = 200;
@@ -485,7 +486,7 @@ static int cgi_peer_htrd_peek (hio_htrd_t* htrd, hio_htre_t* req)
 		status_code, hio_http_status_to_bcstr(status_code),
 		cli->htts->server_name, dtbuf) == (hio_oow_t)-1) return -1;
 
-	if (hio_htre_walkheaders(req, cgi_peer_capture_response_header, cli) <= -1) return -1;
+	if (hio_htre_walkheaders(req, peer_capture_response_header, cli) <= -1) return -1;
 
 	switch (cgi->res_mode_to_cli)
 	{
@@ -507,11 +508,11 @@ static int cgi_peer_htrd_peek (hio_htrd_t* htrd, hio_htre_t* req)
 	return cgi_write_to_client(cgi, HIO_BECS_PTR(cli->sbuf), HIO_BECS_LEN(cli->sbuf));
 }
 
-static int cgi_peer_htrd_poke (hio_htrd_t* htrd, hio_htre_t* req)
+static int peer_htrd_poke (hio_htrd_t* htrd, hio_htre_t* req)
 {
 	/* client request got completed */
-	cgi_peer_xtn_t* cgi_peer = hio_htrd_getxtn(htrd);
-	cgi_t* cgi = cgi_peer->state;
+	cgi_peer_xtn_t* peer = hio_htrd_getxtn(htrd);
+	cgi_t* cgi = peer->cgi;
 
 /*printf (">> PEER RESPONSE COMPLETED\n");*/
 
@@ -521,10 +522,10 @@ static int cgi_peer_htrd_poke (hio_htrd_t* htrd, hio_htre_t* req)
 	return 0;
 }
 
-static int cgi_peer_htrd_push_content (hio_htrd_t* htrd, hio_htre_t* req, const hio_bch_t* data, hio_oow_t dlen)
+static int peer_htrd_push_content (hio_htrd_t* htrd, hio_htre_t* req, const hio_bch_t* data, hio_oow_t dlen)
 {
-	cgi_peer_xtn_t* cgi_peer = hio_htrd_getxtn(htrd);
-	cgi_t* cgi = cgi_peer->state;
+	cgi_peer_xtn_t* peer = hio_htrd_getxtn(htrd);
+	cgi_t* cgi = peer->cgi;
 
 	HIO_ASSERT (cgi->client->htts->hio, htrd == cgi->peer_htrd);
 
@@ -570,11 +571,11 @@ oops:
 	return -1;
 }
 
-static hio_htrd_recbs_t cgi_peer_htrd_recbs =
+static hio_htrd_recbs_t peer_htrd_recbs =
 {
-	cgi_peer_htrd_peek,
-	cgi_peer_htrd_poke,
-	cgi_peer_htrd_push_content
+	peer_htrd_peek,
+	peer_htrd_poke,
+	peer_htrd_push_content
 };
 
 static int cgi_client_htrd_poke (hio_htrd_t* htrd, hio_htre_t* req)
@@ -607,16 +608,16 @@ static int cgi_client_htrd_push_content (hio_htrd_t* htrd, hio_htre_t* req, cons
 
 static hio_htrd_recbs_t cgi_client_htrd_recbs =
 {
-	HIO_NULL,
+	HIO_NULL, /* this shall be set to an actual peer handler before hio_htrd_setrecbs() */
 	cgi_client_htrd_poke,
 	cgi_client_htrd_push_content
 };
 
-static int cgi_peer_on_write (hio_dev_pro_t* pro, hio_iolen_t wrlen, void* wrctx)
+static int peer_on_write (hio_dev_pro_t* pro, hio_iolen_t wrlen, void* wrctx)
 {
 	hio_t* hio = pro->hio;
-	cgi_peer_xtn_t* cgi_peer = hio_dev_pro_getxtn(pro);
-	cgi_t* cgi = cgi_peer->state;
+	cgi_peer_xtn_t* peer = hio_dev_pro_getxtn(pro);
+	cgi_t* cgi = peer->cgi;
 
 	if (cgi == HIO_NULL) return 0; /* there is nothing i can do. the cgi is being cleared or has been cleared already. */
 
@@ -772,7 +773,7 @@ oops:
 	return 0;
 }
 
-struct cgi_peer_fork_ctx_t
+struct peer_fork_ctx_t
 {
 	hio_svc_htts_cli_t* cli;
 	hio_htre_t* req;
@@ -780,9 +781,9 @@ struct cgi_peer_fork_ctx_t
 	const hio_bch_t* script;
 	hio_bch_t* actual_script;
 };
-typedef struct cgi_peer_fork_ctx_t cgi_peer_fork_ctx_t;
+typedef struct peer_fork_ctx_t peer_fork_ctx_t;
 
-static int cgi_peer_capture_request_header (hio_htre_t* req, const hio_bch_t* key, const hio_htre_hdrval_t* val, void* ctx)
+static int peer_capture_request_header (hio_htre_t* req, const hio_bch_t* key, const hio_htre_hdrval_t* val, void* ctx)
 {
 	hio_becs_t* dbuf = (hio_becs_t*)ctx;
 
@@ -821,10 +822,10 @@ static int cgi_peer_capture_request_header (hio_htre_t* req, const hio_bch_t* ke
 	return 0;
 }
 
-static int cgi_peer_on_fork (hio_dev_pro_t* pro, void* fork_ctx)
+static int peer_on_fork (hio_dev_pro_t* pro, void* fork_ctx)
 {
 	hio_t* hio = pro->hio; /* in this callback, the pro device is not fully up. however, the hio field is guaranteed to be available */
-	cgi_peer_fork_ctx_t* fc = (cgi_peer_fork_ctx_t*)fork_ctx;
+	peer_fork_ctx_t* fc = (peer_fork_ctx_t*)fork_ctx;
 	hio_oow_t content_length;
 	const hio_bch_t* qparam;
 	const hio_bch_t* tmpstr;
@@ -912,7 +913,7 @@ static int cgi_peer_on_fork (hio_dev_pro_t* pro, void* fork_ctx)
 
 	if (hio_becs_init(&dbuf, hio, 256) >= 0)
 	{
-		hio_htre_walkheaders (fc->req,  cgi_peer_capture_request_header, &dbuf);
+		hio_htre_walkheaders (fc->req,  peer_capture_request_header, &dbuf);
 		/* [NOTE] trailers are not available when this cgi resource is started. let's not call hio_htre_walktrailers() */
 		hio_becs_fini (&dbuf);
 	}
@@ -925,9 +926,9 @@ int hio_svc_htts_docgi (hio_svc_htts_t* htts, hio_dev_sck_t* csck, hio_htre_t* r
 	hio_t* hio = htts->hio;
 	hio_svc_htts_cli_t* cli = hio_dev_sck_getxtn(csck);
 	cgi_t* cgi = HIO_NULL;
-	cgi_peer_xtn_t* cgi_peer;
+	cgi_peer_xtn_t* peer;
 	hio_dev_pro_make_t mi;
-	cgi_peer_fork_ctx_t fc;
+	peer_fork_ctx_t fc;
 
 	/* ensure that you call this function before any contents is received */
 	HIO_ASSERT (hio, hio_htre_getcontentlen(req) == 0);
@@ -943,10 +944,10 @@ int hio_svc_htts_docgi (hio_svc_htts_t* htts, hio_dev_sck_t* csck, hio_htre_t* r
 	HIO_MEMSET (&mi, 0, HIO_SIZEOF(mi));
 	mi.flags = HIO_DEV_PRO_READOUT | HIO_DEV_PRO_ERRTONUL | HIO_DEV_PRO_WRITEIN /*| HIO_DEV_PRO_FORGET_CHILD*/;
 	mi.cmd = fc.actual_script;
-	mi.on_read = cgi_peer_on_read;
-	mi.on_write = cgi_peer_on_write;
-	mi.on_close = cgi_peer_on_close;
-	mi.on_fork = cgi_peer_on_fork;
+	mi.on_read = peer_on_read;
+	mi.on_write = peer_on_write;
+	mi.on_close = peer_on_close;
+	mi.on_fork = peer_on_fork;
 	mi.fork_ctx = &fc;
 
 	cgi = (cgi_t*)hio_svc_htts_rsrc_make(htts, HIO_SIZEOF(*cgi), cgi_on_kill);
@@ -958,15 +959,17 @@ int hio_svc_htts_docgi (hio_svc_htts_t* htts, hio_dev_sck_t* csck, hio_htre_t* r
 	cgi->req_version = *hio_htre_getversion(req);
 	cgi->req_content_length_unlimited = hio_htre_getreqcontentlen(req, &cgi->req_content_length);
 
+	/* remember the client socket's io event handlers */
 	cgi->client_org_on_read = csck->on_read;
 	cgi->client_org_on_write = csck->on_write;
 	cgi->client_org_on_disconnect = csck->on_disconnect;
+	/* set new io events handlers on the client socket */
 	csck->on_read = cgi_client_on_read;
 	csck->on_write = cgi_client_on_write;
 	csck->on_disconnect = cgi_client_on_disconnect;
 
 	HIO_ASSERT (hio, cli->rsrc == HIO_NULL);
-	HIO_SVC_HTTS_RSRC_ATTACH (cgi, cli->rsrc);
+	HIO_SVC_HTTS_RSRC_ATTACH (cgi, cli->rsrc); /* cli->rsrc = cgi */
 
 	if (access(mi.cmd, X_OK) == -1)
 	{
@@ -974,18 +977,18 @@ int hio_svc_htts_docgi (hio_svc_htts_t* htts, hio_dev_sck_t* csck, hio_htre_t* r
 		goto oops; /* TODO: must not go to oops.  just destroy the cgi and finalize the request .. */
 	}
 
-	cgi->peer = hio_dev_pro_make(hio, HIO_SIZEOF(*cgi_peer), &mi);
+	cgi->peer = hio_dev_pro_make(hio, HIO_SIZEOF(*peer), &mi);
 	if (HIO_UNLIKELY(!cgi->peer)) goto oops;
-	cgi_peer = hio_dev_pro_getxtn(cgi->peer);
-	HIO_SVC_HTTS_RSRC_ATTACH (cgi, cgi_peer->state);
+	peer = hio_dev_pro_getxtn(cgi->peer);
+	HIO_SVC_HTTS_RSRC_ATTACH (cgi, peer->cgi); /* peer->cgi in pro = cgi */
 
-	cgi->peer_htrd = hio_htrd_open(hio, HIO_SIZEOF(*cgi_peer));
+	cgi->peer_htrd = hio_htrd_open(hio, HIO_SIZEOF(*peer));
 	if (HIO_UNLIKELY(!cgi->peer_htrd)) goto oops;
 	hio_htrd_setoption (cgi->peer_htrd, HIO_HTRD_SKIP_INITIAL_LINE | HIO_HTRD_RESPONSE);
-	hio_htrd_setrecbs (cgi->peer_htrd, &cgi_peer_htrd_recbs);
+	hio_htrd_setrecbs (cgi->peer_htrd, &peer_htrd_recbs);
 
-	cgi_peer = hio_htrd_getxtn(cgi->peer_htrd);
-	HIO_SVC_HTTS_RSRC_ATTACH (cgi, cgi_peer->state);
+	peer = hio_htrd_getxtn(cgi->peer_htrd);
+	HIO_SVC_HTTS_RSRC_ATTACH (cgi, peer->cgi); /* peer->cgi in htrd = cgi */
 
 #if !defined(CGI_ALLOW_UNLIMITED_REQ_CONTENT_LENGTH)
 	if (cgi->req_content_length_unlimited)
