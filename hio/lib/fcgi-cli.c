@@ -247,7 +247,7 @@ hio_svc_fcgic_sess_t* hio_svc_fcgic_tie (hio_svc_fcgic_t* fcgic, hio_skad_t* add
 	return new_session(fcgic, addr);
 }
 
-int hio_svc_fcgic_untie (hio_svc_fcgic_sess_t* sess)
+void hio_svc_fcgic_untie (hio_svc_fcgic_sess_t* sess)
 {
 	/* TODO: reference counting for safety?? */
 	release_session (sess);
