@@ -38,11 +38,6 @@ struct hio_svc_fcgic_t
 	hio_svc_fcgic_tmout_t tmout;
 
 	hio_svc_fcgic_conn_t* conns;
-
-#if 0
-	hio_oow_t autoi;
-	hio_oow_t autoi2;
-#endif
 };
 
 #define INVALID_SID HIO_TYPE_MAX(hio_oow_t)
@@ -113,6 +108,46 @@ typedef struct fcgic_fcgi_msg_xtn_t fcgic_fcgi_msg_xtn_t;
 
 #endif
 
+static hio_dev_sck_t* make_sck_dev (hio_t* hio, hio_skad_t* addr)
+{
+	hio_dev_sck_make_t mi;
+
+	HIO_MEMSET (&mi, 0, HIO_SIZEOF(mi));
+	switch (hio_skad_get_family(addr))
+	{
+		case HIO_AF_INET:
+			mi.type = HIO_DEV_SCK_TCP4;
+			break;
+
+		case HIO_AF_INET6:
+			mi.type = HIO_DEV_SCK_TCP6;
+			break;
+
+	#if defined(HIO_AF_UNIX)
+		case HIO_AF_UNIX:
+			mi.type = HIO_DEV_SCK_UNIX;
+			break;
+	#endif
+
+		case HIO_AF_QX:
+			mi.type = HIO_DEV_SCK_QX;
+			break;
+
+	default:
+			hio_seterrnum (hio, HIO_EINVAL);
+			return HIO_NULL;
+	}
+
+	mi.options = HIO_DEV_SCK_MAKE_LENIENT;
+#if 0
+	mi.on_write = listener_on_write;
+	mi.on_read = listener_on_read;
+	mi.on_connect = listener_on_connect;
+	mi.on_disconnect = listener_on_disconnect;
+#endif
+
+	return hio_dev_sck_make(hio, 0, &mi);
+}
 
 static hio_svc_fcgic_conn_t* get_connection (hio_svc_fcgic_t* fcgic, hio_skad_t* addr)
 {
@@ -128,6 +163,14 @@ static hio_svc_fcgic_conn_t* get_connection (hio_svc_fcgic_t* fcgic, hio_skad_t*
 
 	conn = hio_callocmem(hio, HIO_SIZEOF(*conn));
 	if (HIO_UNLIKELY(!conn)) return HIO_NULL;
+
+	conn->dev = make_sck_dev(hio, addr);
+	if (HIO_UNLIKELY(!conn->dev)) 
+	{
+		hio_freemem (hio, conn);
+		return HIO_NULL;
+	}
+	conn->addr = *addr;
 
 	conn->sess.capa = 0;
 	conn->sess.free = INVALID_SID;
