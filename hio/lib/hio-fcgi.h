@@ -67,6 +67,15 @@ static HIO_INLINE hio_t* hio_svc_fcgic_gethio(hio_svc_fcgic_t* svc) { return hio
 #	define hio_svc_fcgic_gethio(svc) hio_svc_gethio(svc)
 #endif
 
+HIO_EXPORT hio_svc_fcgic_sess_t* hio_svc_fcgic_tie (
+	hio_svc_fcgic_t*  fcgic,
+	hio_skad_t*       addr
+);
+
+HIO_EXPORT void hio_svc_fcgic_untie (
+	hio_svc_fcgic_sess_t* sess
+);
+
 #if defined(__cplusplus)
 }
 #endif

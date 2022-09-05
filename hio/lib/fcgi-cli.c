@@ -27,6 +27,8 @@
 #include "hio-prv.h"
 
 
+
+
 typedef struct hio_svc_fcgic_conn_t hio_svc_fcgic_conn_t;
 
 struct hio_svc_fcgic_t
@@ -40,6 +42,8 @@ struct hio_svc_fcgic_t
 	hio_svc_fcgic_conn_t* conns;
 };
 
+#define CONN_SESS_CAPA_MAX (65536)
+#define CONN_SESS_INC  (32)
 #define INVALID_SID HIO_TYPE_MAX(hio_oow_t)
 
 struct hio_svc_fcgic_sess_t
@@ -65,23 +69,22 @@ struct hio_svc_fcgic_conn_t
 	hio_svc_fcgic_conn_t* next;
 };
 
-#if 0
-
 struct fcgic_sck_xtn_t
 {
-	hio_svc_fcgic_t* fcgic;
-
+	hio_svc_fcgic_conn_t* conn;
+#if 0
 	struct
 	{
 		hio_uint8_t* ptr;
 		hio_oow_t  len;
 		hio_oow_t  capa;
 	} rbuf; /* used by tcp socket */
+#endif
 };
 typedef struct fcgic_sck_xtn_t fcgic_sck_xtn_t;
 
 
-
+#if 0
 /* ----------------------------------------------------------------------- */
 
 struct fcgic_fcgi_msg_xtn_t
@@ -108,9 +111,36 @@ typedef struct fcgic_fcgi_msg_xtn_t fcgic_fcgi_msg_xtn_t;
 
 #endif
 
-static hio_dev_sck_t* make_sck_dev (hio_t* hio, hio_skad_t* addr)
+static void sck_on_disconnect (hio_dev_sck_t* sck)
 {
+	fcgic_sck_xtn_t* sck_xtn = hio_dev_sck_getxtn(sck);
+	hio_svc_fcgic_conn_t* conn;
+	
+	conn = sck_xtn->conn;
+	conn->sck = make_connection_socket(fcgic, fcgic->saddr);
+}
+
+static void sck_on_connect (hio_dev_sck_t* sck)
+{
+}
+
+static int sck_on_write (hio_dev_sck_t* sck, hio_iolen_t wrlen, void* wrctx, const hio_skad_t* dstaddr)
+{
+	return 0;
+}
+
+static int sck_on_read (hio_dev_sck_t* sck, const void* buf, hio_iolen_t len, const hio_skad_t* srcaddr)
+{
+	return 0;
+}
+
+static hio_dev_sck_t* make_connection_socket (hio_svc_fcgic_t* fcgic, hio_skad_t* addr)
+{
+	hio_t* hio = fcgic->hio;
+	hio_dev_sck_t* sck;
 	hio_dev_sck_make_t mi;
+	hio_dev_sck_connect_t ci;
+	fcgic_sck_xtn_t* sck_xtn;
 
 	HIO_MEMSET (&mi, 0, HIO_SIZEOF(mi));
 	switch (hio_skad_get_family(addr))
@@ -139,14 +169,33 @@ static hio_dev_sck_t* make_sck_dev (hio_t* hio, hio_skad_t* addr)
 	}
 
 	mi.options = HIO_DEV_SCK_MAKE_LENIENT;
-#if 0
-	mi.on_write = listener_on_write;
-	mi.on_read = listener_on_read;
-	mi.on_connect = listener_on_connect;
-	mi.on_disconnect = listener_on_disconnect;
-#endif
+	mi.on_write = sck_on_write;
+	mi.on_read = sck_on_read;
+	mi.on_connect = sck_on_connect;
+	mi.on_disconnect = sck_on_disconnect;
 
-	return hio_dev_sck_make(hio, 0, &mi);
+	sck = hio_dev_sck_make(hio, HIO_SIZEOF(*sck_xtn), &mi);
+	if (HIO_UNLIKELY(!sck)) return HIO_NULL;
+
+	sck_xtn = hio_dev_sck_getxtn(sck);
+	sck_xtn->conn = conn;
+
+	return sck;
+}
+
+static void initiate_connection (hio_svc_fcgic_t* conn)
+{
+	HIO_MEMSET (&ci, 0, HIO_SIZEOF(ci));
+	ci.remoteaddr = conn.addr
+#if 0
+// TODO:
+	//ci.connect_tmout = ...
+#endif
+	if (hio_dev_sck_connect(sck, &ci) <= -1)
+	{
+		hio_dev_sck_kill (sck);
+		return HIO_NULL;
+	}
 }
 
 static hio_svc_fcgic_conn_t* get_connection (hio_svc_fcgic_t* fcgic, hio_skad_t* addr)
@@ -157,26 +206,32 @@ static hio_svc_fcgic_conn_t* get_connection (hio_svc_fcgic_t* fcgic, hio_skad_t*
 	/* TODO: speed up? how many conns would be configured? sequential search may be ok here */
 	while (conn)
 	{
-		if (hio_equal_skads(&conn->addr, addr, 1)) return conn;
+		if (hio_equal_skads(&conn->addr, addr, 1))
+		{
+			if (conn->sess.free != INVALID_SID ||
+			    conn->sess.capa <= (CONN_SESS_CAPA_MAX - CONN_SESS_INC)) return conn;
+		}
 		conn = conn->next;
 	}
 
 	conn = hio_callocmem(hio, HIO_SIZEOF(*conn));
 	if (HIO_UNLIKELY(!conn)) return HIO_NULL;
 
-	conn->dev = make_sck_dev(hio, addr);
+	conn->addr = *addr;
+	conn->sess.capa = 0;
+	conn->sess.free = INVALID_SID;
+
+	conn->dev = make_connection_socket(fcgic, addr);
 	if (HIO_UNLIKELY(!conn->dev)) 
 	{
 		hio_freemem (hio, conn);
 		return HIO_NULL;
 	}
-	conn->addr = *addr;
-
-	conn->sess.capa = 0;
-	conn->sess.free = INVALID_SID;
 
 	conn->next = fcgic->conns;
 	fcgic->conns = conn;
+
+initiate_conection (conn);
 
 	return conn;
 }
@@ -211,7 +266,7 @@ static hio_svc_fcgic_sess_t* new_session (hio_svc_fcgic_t* fcgic, hio_skad_t* ad
 		hio_oow_t newcapa, i;
 		hio_svc_fcgic_sess_t* newptr;
 
-		newcapa = conn->sess.capa + 32;
+		newcapa = conn->sess.capa + CONN_SESS_INC;
 		newptr = hio_reallocmem (hio, conn->sess.ptr, HIO_SIZEOF(*sess) * newcapa);
 		if (HIO_UNLIKELY(!newptr)) return HIO_NULL;
 
@@ -227,15 +282,13 @@ static hio_svc_fcgic_sess_t* new_session (hio_svc_fcgic_t* fcgic, hio_skad_t* ad
 		conn->sess.capa = newcapa;
 		conn->sess.ptr = newptr;
 	}
-	else
-	{
-		sess = &conn->sess.ptr[conn->sess.free];
-		conn->sess.free = sess->sid;
 
-		sess->sid = conn->sess.free;
-		HIO_ASSERT (hio, sess->fcgic == fcgic);
-		HIO_ASSERT (hio, sess->conn == conn);
-	}
+	sess = &conn->sess.ptr[conn->sess.free];
+	conn->sess.free = sess->sid;
+
+	sess->sid = conn->sess.free;
+	HIO_ASSERT (hio, sess->fcgic == fcgic);
+	HIO_ASSERT (hio, sess->conn == conn);
 
 	return sess;
 }

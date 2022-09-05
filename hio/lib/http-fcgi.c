@@ -1,6 +1,7 @@
 #include "http-prv.h"
 #include <hio-fmt.h>
 #include <hio-chr.h>
+#include <hio-fcgi.h>
 
 #define FCGI_ALLOW_UNLIMITED_REQ_CONTENT_LENGTH
 
@@ -20,7 +21,6 @@ typedef enum fcgi_res_mode_t fcgi_res_mode_t;
 #define FCGI_OVER_WRITE_TO_CLIENT  (1 << 2)
 #define FCGI_OVER_WRITE_TO_PEER    (1 << 3)
 #define FCGI_OVER_ALL (FCGI_OVER_READ_FROM_CLIENT | FCGI_OVER_READ_FROM_PEER | FCGI_OVER_WRITE_TO_CLIENT | FCGI_OVER_WRITE_TO_PEER)
-
 
 
 #define FCGI_VERSION (1)
@@ -99,7 +99,7 @@ struct fcgi_t
 
 	hio_oow_t num_pending_writes_to_client;
 	hio_oow_t num_pending_writes_to_peer;
-	//hio_dev_pro_t* peer;
+	hio_svc_fcgic_sess_t* peer;
 	hio_svc_htts_cli_t* client;
 	hio_http_version_t req_version; /* client request */
 
@@ -502,7 +502,7 @@ int hio_svc_htts_dofcgi (hio_svc_htts_t* htts, hio_dev_sck_t* csck, hio_htre_t* 
 	hio_t* hio = htts->hio;
 	hio_svc_htts_cli_t* cli = hio_dev_sck_getxtn(csck);
 	fcgi_t* fcgi = HIO_NULL;
-	//fcgi_peer_xtn_t* peer;
+	//fcgi_peer_xtn_t* peer_xtn;
 
 	/* ensure that you call this function before any contents is received */
 	HIO_ASSERT (hio, hio_htre_getcontentlen(req) == 0);
@@ -529,29 +529,13 @@ int hio_svc_htts_dofcgi (hio_svc_htts_t* htts, hio_dev_sck_t* csck, hio_htre_t* 
 	HIO_SVC_HTTS_RSRC_ATTACH (fcgi, cli->rsrc); /* cli->rsrc = fcgi */
 
 #if 0 // TODO
-	fcgi->peer = hio_dev_pro_make(hio, HIO_SIZEOF(*peer), &mi);
+	fcgi->peer = hio_dev_pro_make(hio, HIO_SIZEOF(*peer_xtn), &mi);
 	if (HIO_UNLIKELY(!fcgi->peer)) goto oops;
-	peer = hio_dev_pro_getxtn(fcgi->peer);
-	HIO_SVC_HTTS_RSRC_ATTACH (fcgi, peer->fcgi); /* peer->fcgi = fcgi */
+	peer_xtn = hio_dev_pro_getxtn(fcgi->peer);
+	HIO_SVC_HTTS_RSRC_ATTACH (fcgi, peer_xtn->fcgi); /* peer->fcgi = fcgi */
 #else
-/*
-	hio_fcgic_sess_t* fcgi_sess;
-
-	fcgi_sess = hio_svc_fcgic_tie(hio, "10.10.10.9:9000");
-	if (HIO_UNLIKELY(!fcgi_sess)) goto oops;
-
-	hio_svc_fcgic_untie (fcgic_sess); <---  this must release the session.
-
-
-	fcgi_sess = hio_svc_fcgic_tie(hio, "10.10.10.9:9000", callback?);
-hio_svc_fcgic_write (hio, fcgi_sess, DATA, "aaaaaaaaaaaaaaaaaaaaa");
-hio_svc_fcgic_write (hio, fcgi_sess, STDIO, "aaaaaaaaaaaaaaaaaaaaa");
-
-	fcgi->peer = hio_svc_fcgi_make(hio, XXXX);
+	fcgi->peer = hio_svc_fcgic_tie(hio, "10.10.10.9:9000" /* TODO: add a read callback */);
 	if (HIO_UNLIKELY(!fcgi->peer)) goto oops;
-	peer = hio_dev_pro_getxtn(fcgi->peer);
-	HIO_SVC_HTTS_RSRC_ATTACH (fcgi, peer->fcgi);
-*/
 #endif
 
 #if 0 // TODO
