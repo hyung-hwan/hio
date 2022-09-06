@@ -49,12 +49,12 @@ struct hio_svc_fcgic_t
 struct hio_svc_fcgic_sess_t
 {
 	hio_oow_t sid;
-	hio_svc_fcgic_t* fcgic;
 	hio_svc_fcgic_conn_t* conn;
 };
 
 struct hio_svc_fcgic_conn_t
 {
+	hio_svc_fcgic_t* fcgic;
 	hio_skad_t addr;
 	hio_dev_sck_t* dev;
 	int connected;
@@ -111,13 +111,17 @@ typedef struct fcgic_fcgi_msg_xtn_t fcgic_fcgi_msg_xtn_t;
 
 #endif
 
+static int make_connection_socket (hio_svc_fcgic_conn_t* conn);
+
 static void sck_on_disconnect (hio_dev_sck_t* sck)
 {
 	fcgic_sck_xtn_t* sck_xtn = hio_dev_sck_getxtn(sck);
-	hio_svc_fcgic_conn_t* conn;
+	hio_svc_fcgic_conn_t* conn = sck_xtn->conn;
 	
-	conn = sck_xtn->conn;
-	conn->sck = make_connection_socket(fcgic, fcgic->saddr);
+/* TODO: arrange to create it again if the server is not closing... */
+/* if (.... ) */
+	make_connection_socket(conn); /* don't care about failure for now */
+
 }
 
 static void sck_on_connect (hio_dev_sck_t* sck)
@@ -134,16 +138,16 @@ static int sck_on_read (hio_dev_sck_t* sck, const void* buf, hio_iolen_t len, co
 	return 0;
 }
 
-static hio_dev_sck_t* make_connection_socket (hio_svc_fcgic_t* fcgic, hio_skad_t* addr)
+static int make_connection_socket (hio_svc_fcgic_conn_t* conn)
 {
-	hio_t* hio = fcgic->hio;
+	hio_t* hio = conn->fcgic->hio;
 	hio_dev_sck_t* sck;
 	hio_dev_sck_make_t mi;
 	hio_dev_sck_connect_t ci;
 	fcgic_sck_xtn_t* sck_xtn;
 
 	HIO_MEMSET (&mi, 0, HIO_SIZEOF(mi));
-	switch (hio_skad_get_family(addr))
+	switch (hio_skad_get_family(&conn->addr))
 	{
 		case HIO_AF_INET:
 			mi.type = HIO_DEV_SCK_TCP4;
@@ -163,9 +167,9 @@ static hio_dev_sck_t* make_connection_socket (hio_svc_fcgic_t* fcgic, hio_skad_t
 			mi.type = HIO_DEV_SCK_QX;
 			break;
 
-	default:
+		default:
 			hio_seterrnum (hio, HIO_EINVAL);
-			return HIO_NULL;
+			return -1;
 	}
 
 	mi.options = HIO_DEV_SCK_MAKE_LENIENT;
@@ -175,28 +179,33 @@ static hio_dev_sck_t* make_connection_socket (hio_svc_fcgic_t* fcgic, hio_skad_t
 	mi.on_disconnect = sck_on_disconnect;
 
 	sck = hio_dev_sck_make(hio, HIO_SIZEOF(*sck_xtn), &mi);
-	if (HIO_UNLIKELY(!sck)) return HIO_NULL;
+	if (HIO_UNLIKELY(!sck)) return -1;
 
 	sck_xtn = hio_dev_sck_getxtn(sck);
 	sck_xtn->conn = conn;
 
-	return sck;
-}
-
-static void initiate_connection (hio_svc_fcgic_t* conn)
-{
 	HIO_MEMSET (&ci, 0, HIO_SIZEOF(ci));
-	ci.remoteaddr = conn.addr
-#if 0
-// TODO:
-	//ci.connect_tmout = ...
-#endif
+	ci.remoteaddr = conn->addr;
+
 	if (hio_dev_sck_connect(sck, &ci) <= -1)
 	{
+/* TODO: check if this tirggers on_disconnecT???/ */
 		hio_dev_sck_kill (sck);
-		return HIO_NULL;
+		return -1;
 	}
+
+
+if (conn->dev != HIO_NULL)
+{
+/* TODO: is this necessary???? */
+	hio_dev_sck_kill (conn->dev);
+	conn->dev = HIO_NULL;
 }
+
+	conn->dev = sck;
+	return 0;
+}
+
 
 static hio_svc_fcgic_conn_t* get_connection (hio_svc_fcgic_t* fcgic, hio_skad_t* addr)
 {
@@ -217,12 +226,12 @@ static hio_svc_fcgic_conn_t* get_connection (hio_svc_fcgic_t* fcgic, hio_skad_t*
 	conn = hio_callocmem(hio, HIO_SIZEOF(*conn));
 	if (HIO_UNLIKELY(!conn)) return HIO_NULL;
 
+	conn->fcgic = fcgic;
 	conn->addr = *addr;
 	conn->sess.capa = 0;
 	conn->sess.free = INVALID_SID;
 
-	conn->dev = make_connection_socket(fcgic, addr);
-	if (HIO_UNLIKELY(!conn->dev)) 
+	if (make_connection_socket(conn) <= -1)
 	{
 		hio_freemem (hio, conn);
 		return HIO_NULL;
@@ -230,8 +239,6 @@ static hio_svc_fcgic_conn_t* get_connection (hio_svc_fcgic_t* fcgic, hio_skad_t*
 
 	conn->next = fcgic->conns;
 	fcgic->conns = conn;
-
-initiate_conection (conn);
 
 	return conn;
 }
@@ -273,7 +280,6 @@ static hio_svc_fcgic_sess_t* new_session (hio_svc_fcgic_t* fcgic, hio_skad_t* ad
 		for (i = conn->sess.capa ; i < newcapa; i++)
 		{
 			newptr[i].sid = i + 1;
-			newptr[i].fcgic = fcgic;
 			newptr[i].conn = conn;
 		}
 		newptr[i - 1].sid = INVALID_SID;
@@ -287,8 +293,8 @@ static hio_svc_fcgic_sess_t* new_session (hio_svc_fcgic_t* fcgic, hio_skad_t* ad
 	conn->sess.free = sess->sid;
 
 	sess->sid = conn->sess.free;
-	HIO_ASSERT (hio, sess->fcgic == fcgic);
 	HIO_ASSERT (hio, sess->conn == conn);
+	HIO_ASSERT (hio, sess->conn->fcgic == fcgic);
 
 	return sess;
 }

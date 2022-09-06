@@ -1468,7 +1468,7 @@ fcntl (rdev->hnd, F_SETFL, flags | O_NONBLOCK);
 					{
 						/* watcher update failure. it's critical */
 						hio_stop (hio, HIO_STOPREQ_WATCHER_ERROR);
-						goto oops_connect;
+						goto oops_connect_watcher_error;
 					}
 					else
 					{
@@ -1506,6 +1506,7 @@ fcntl (rdev->hnd, F_SETFL, flags | O_NONBLOCK);
 					hio_stop (hio, HIO_STOPREQ_WATCHER_ERROR);
 				}
 
+			oops_connect_watcher_error:
 			#if defined(USE_SSL)
 				if (ssl_ctx) SSL_CTX_free (ssl_ctx);
 			#endif
