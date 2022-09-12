@@ -67,6 +67,7 @@ struct hio_svc_htts_t
 		hio_oow_t count;
 	} l;
 	/*hio_dev_sck_t* lsck;*/
+	hio_svc_fcgic_t* fcgic;
 
 	hio_svc_htts_cli_t cli; /* list head for client list */
 	hio_tmridx_t idle_tmridx;

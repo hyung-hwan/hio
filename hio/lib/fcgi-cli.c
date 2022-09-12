@@ -194,7 +194,6 @@ static int make_connection_socket (hio_svc_fcgic_conn_t* conn)
 		return -1;
 	}
 
-
 if (conn->dev != HIO_NULL)
 {
 /* TODO: is this necessary???? */
@@ -207,7 +206,7 @@ if (conn->dev != HIO_NULL)
 }
 
 
-static hio_svc_fcgic_conn_t* get_connection (hio_svc_fcgic_t* fcgic, hio_skad_t* addr)
+static hio_svc_fcgic_conn_t* get_connection (hio_svc_fcgic_t* fcgic, const hio_skad_t* fcgis_addr)
 {
 	hio_t* hio = fcgic->hio;
 	hio_svc_fcgic_conn_t* conn = fcgic->conns;
@@ -215,7 +214,7 @@ static hio_svc_fcgic_conn_t* get_connection (hio_svc_fcgic_t* fcgic, hio_skad_t*
 	/* TODO: speed up? how many conns would be configured? sequential search may be ok here */
 	while (conn)
 	{
-		if (hio_equal_skads(&conn->addr, addr, 1))
+		if (hio_equal_skads(&conn->addr, fcgis_addr, 1))
 		{
 			if (conn->sess.free != INVALID_SID ||
 			    conn->sess.capa <= (CONN_SESS_CAPA_MAX - CONN_SESS_INC)) return conn;
@@ -227,7 +226,7 @@ static hio_svc_fcgic_conn_t* get_connection (hio_svc_fcgic_t* fcgic, hio_skad_t*
 	if (HIO_UNLIKELY(!conn)) return HIO_NULL;
 
 	conn->fcgic = fcgic;
-	conn->addr = *addr;
+	conn->addr = *fcgis_addr;
 	conn->sess.capa = 0;
 	conn->sess.free = INVALID_SID;
 
@@ -259,13 +258,13 @@ static void free_connections (hio_svc_fcgic_t* fcgic)
 	}
 }
 
-static hio_svc_fcgic_sess_t* new_session (hio_svc_fcgic_t* fcgic, hio_skad_t* addr)
+static hio_svc_fcgic_sess_t* new_session (hio_svc_fcgic_t* fcgic, const hio_skad_t* fcgis_addr)
 {
 	hio_t* hio = fcgic->hio;
 	hio_svc_fcgic_conn_t* conn;
 	hio_svc_fcgic_sess_t* sess;
 
-	conn = get_connection(fcgic, addr);
+	conn = get_connection(fcgic, fcgis_addr);
 	if (HIO_UNLIKELY(!conn)) return HIO_NULL;
 
 	if (conn->sess.free == INVALID_SID)
@@ -343,7 +342,7 @@ void hio_svc_fcgic_stop (hio_svc_fcgic_t* fcgic)
 	hio_freemem (hio, fcgic);
 }
 
-hio_svc_fcgic_sess_t* hio_svc_fcgic_tie (hio_svc_fcgic_t* fcgic, hio_skad_t* addr)
+hio_svc_fcgic_sess_t* hio_svc_fcgic_tie (hio_svc_fcgic_t* fcgic, const hio_skad_t* addr)
 {
 	/* TODO: reference counting for safety?? */
 	return new_session(fcgic, addr);
@@ -355,3 +354,7 @@ void hio_svc_fcgic_untie (hio_svc_fcgic_sess_t* sess)
 	release_session (sess);
 }
 
+int hio_svc_fcgic_write (hio_svc_fcgic_sess_t* sess, const void* data, hio_iolen_t len)
+{
+	return 0;
+}

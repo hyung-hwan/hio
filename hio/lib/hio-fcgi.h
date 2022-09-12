@@ -69,11 +69,17 @@ static HIO_INLINE hio_t* hio_svc_fcgic_gethio(hio_svc_fcgic_t* svc) { return hio
 
 HIO_EXPORT hio_svc_fcgic_sess_t* hio_svc_fcgic_tie (
 	hio_svc_fcgic_t*  fcgic,
-	hio_skad_t*       addr
+	const hio_skad_t* fcgis_addr
 );
 
 HIO_EXPORT void hio_svc_fcgic_untie (
 	hio_svc_fcgic_sess_t* sess
+);
+
+HIO_EXPORT int hio_svc_fcgic_write (
+	hio_svc_fcgic_sess_t* sess,
+	const void*           data,
+	hio_iolen_t           len
 );
 
 #if defined(__cplusplus)

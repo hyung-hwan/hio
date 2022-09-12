@@ -497,7 +497,7 @@ static void fcgi_on_kill (fcgi_t* fcgi)
 #endif
 }
 
-int hio_svc_htts_dofcgi (hio_svc_htts_t* htts, hio_dev_sck_t* csck, hio_htre_t* req, hio_skad_t* fcgi_server_addr)
+int hio_svc_htts_dofcgi (hio_svc_htts_t* htts, hio_dev_sck_t* csck, hio_htre_t* req, const hio_skad_t* fcgis_addr)
 {
 	hio_t* hio = htts->hio;
 	hio_svc_htts_cli_t* cli = hio_dev_sck_getxtn(csck);
@@ -506,6 +506,12 @@ int hio_svc_htts_dofcgi (hio_svc_htts_t* htts, hio_dev_sck_t* csck, hio_htre_t* 
 
 	/* ensure that you call this function before any contents is received */
 	HIO_ASSERT (hio, hio_htre_getcontentlen(req) == 0);
+
+	if (!htts->fcgic)
+	{
+		hio_seterrbfmt (hio, HIO_ENOCAPA, "fcgi client service not enabled");
+		goto oops;
+	}
 
 	fcgi = (fcgi_t*)hio_svc_htts_rsrc_make(htts, HIO_SIZEOF(*fcgi), fcgi_on_kill);
 	if (HIO_UNLIKELY(!fcgi)) goto oops;
@@ -534,8 +540,10 @@ int hio_svc_htts_dofcgi (hio_svc_htts_t* htts, hio_dev_sck_t* csck, hio_htre_t* 
 	peer_xtn = hio_dev_pro_getxtn(fcgi->peer);
 	HIO_SVC_HTTS_RSRC_ATTACH (fcgi, peer_xtn->fcgi); /* peer->fcgi = fcgi */
 #else
-	fcgi->peer = hio_svc_fcgic_tie(hio, "10.10.10.9:9000" /* TODO: add a read callback */);
+	fcgi->peer = hio_svc_fcgic_tie(htts->fcgic, fcgis_addr /* TODO: add a read callback */);
 	if (HIO_UNLIKELY(!fcgi->peer)) goto oops;
+
+	hio_svc_fcgic_write (fcgi->peer, "hello", 5);
 #endif
 
 #if 0 // TODO

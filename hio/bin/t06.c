@@ -204,6 +204,12 @@ if (hio_htre_getcontentlen(req) > 0)
 				x = hio_svc_htts_dotxt(htts, csck, req, 200, "text/plain", qpath);
 			else if (hio_comp_bcstr_limited(qpath, "/cgi/", 5, 1) == 0)
 				x = hio_svc_htts_docgi(htts, csck, req, "", qpath + 4);
+			else if (hio_comp_bcstr_limited(qpath, "/fcgi/", 5, 1) == 0)
+			{
+				hio_skad_t fcgis_addr;
+				hio_bcstrtoskad(hio, "127.0.0.1:9000", &fcgis_addr);
+				x = hio_svc_htts_dofcgi(htts, csck, req, &fcgis_addr);
+			}
 			else
 				x = hio_svc_htts_dofile(htts, csck, req, "", qpath, "text/plain");
 			if (x <= -1) goto oops;

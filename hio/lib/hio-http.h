@@ -29,6 +29,7 @@
 #include <hio-sck.h>
 #include <hio-htre.h>
 #include <hio-thr.h>
+#include <hio-fcgi.h>
 
 /** \file
  * This file provides basic data types and functions for the http protocol.
@@ -303,6 +304,14 @@ HIO_EXPORT int hio_svc_htts_docgi (
 	const hio_bch_t* docroot,
 	const hio_bch_t* script
 );
+
+HIO_EXPORT int hio_svc_htts_dofcgi (
+	hio_svc_htts_t*   htts,
+	hio_dev_sck_t*    csck,
+	hio_htre_t*       req,
+	const hio_skad_t* fcgis_addr
+);
+
 
 HIO_EXPORT int hio_svc_htts_dofile (
 	hio_svc_htts_t*  htts,

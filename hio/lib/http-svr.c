@@ -463,6 +463,12 @@ hio_svc_htts_t* hio_svc_htts_start (hio_t* hio, hio_dev_sck_bind_t* binds, hio_o
 	HIO_SVCL_APPEND_SVC (&hio->actsvc, (hio_svc_t*)htts);
 	HIO_SVC_HTTS_CLIL_INIT (&htts->cli);
 
+	htts->fcgic = hio_svc_fcgic_start(hio, HIO_NULL); /* TODO: set timeout properly */
+	if (HIO_UNLIKELY(!htts->fcgic))
+	{
+		/* TODO: only warning ... */
+	}
+
 	HIO_DEBUG1 (hio, "HTTS - STARTED SERVICE %p\n", htts);
 
 	{
@@ -481,6 +487,12 @@ hio_svc_htts_t* hio_svc_htts_start (hio_t* hio, hio_dev_sck_bind_t* binds, hio_o
 oops:
 	if (htts)
 	{
+		if (htts->fcgic)
+		{
+			hio_svc_fcgic_stop (htts->fcgic);
+			htts->fcgic = HIO_NULL;
+		}
+
 		if (htts->l.sck) 
 		{
 			for (i = 0; i < htts->l.count; i++)
@@ -502,6 +514,12 @@ void hio_svc_htts_stop (hio_svc_htts_t* htts)
 
 	HIO_DEBUG1 (hio, "HTTS - STOPPING SERVICE %p\n", htts);
 
+	if (htts->fcgic)
+	{
+		hio_svc_fcgic_stop (htts->fcgic);
+		htts->fcgic = HIO_NULL;
+	}
+	
 	for (i = 0; i < htts->l.count; i++)
 	{
 		/* the socket may be null:
