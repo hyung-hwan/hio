@@ -436,7 +436,7 @@ enum hio_dev_cap_t
 	HIO_DEV_CAP_RENEW_REQUIRED  = ((hio_bitmask_t)1 << 18),
 	HIO_DEV_CAP_WATCH_STARTED   = ((hio_bitmask_t)1 << 19),
 	HIO_DEV_CAP_WATCH_SUSPENDED = ((hio_bitmask_t)1 << 20),
-	HIO_DEV_CAP_WATCH_REREG_REQUIRED = ((hio_bitmask_t)1 << 21), 
+	HIO_DEV_CAP_WATCH_REREG_REQUIRED = ((hio_bitmask_t)1 << 21)
 };
 typedef enum hio_dev_cap_t hio_dev_cap_t;
 

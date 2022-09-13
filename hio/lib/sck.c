@@ -490,6 +490,7 @@ static int dev_sck_kill (hio_dev_t* dev, int force)
 	hio_t* hio = dev->hio;
 	hio_dev_sck_t* rdev = (hio_dev_sck_t*)dev;
 
+	HIO_DEBUG1 (hio, "SCK(%p) - being killed\n", rdev);
 #if 0
 	if (IS_STREAM(rdev))
 	{

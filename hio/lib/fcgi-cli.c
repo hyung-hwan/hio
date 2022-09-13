@@ -118,9 +118,17 @@ static void sck_on_disconnect (hio_dev_sck_t* sck)
 	fcgic_sck_xtn_t* sck_xtn = hio_dev_sck_getxtn(sck);
 	hio_svc_fcgic_conn_t* conn = sck_xtn->conn;
 	
+	if (conn)
+	{
 /* TODO: arrange to create it again if the server is not closing... */
 /* if (.... ) */
-	make_connection_socket(conn); /* don't care about failure for now */
+printf ("DISCONNECT SOCKET .................. %p\n", sck);
+		if (sck->hio->stopreq == HIO_STOPREQ_NONE)
+		{
+			/* this may create a busy loop if the connection attempt fails repeatedly */
+			make_connection_socket(conn); /* don't care about failure for now */
+		}
+	}
 
 }
 
@@ -189,15 +197,20 @@ static int make_connection_socket (hio_svc_fcgic_conn_t* conn)
 
 	if (hio_dev_sck_connect(sck, &ci) <= -1)
 	{
-/* TODO: check if this tirggers on_disconnecT???/ */
-		hio_dev_sck_kill (sck);
+		/* immediate failure */
+		sck_xtn->conn = HIO_NULL; /* disassociate the socket from the fcgi connection object */
+		hio_dev_sck_halt (sck);
 		return -1;
 	}
+
+	printf ("MAKING CONNECTION %p %p\n", conn->dev, sck);
 
 if (conn->dev != HIO_NULL)
 {
 /* TODO: is this necessary???? */
-	hio_dev_sck_kill (conn->dev);
+	sck_xtn = hio_dev_sck_getxtn(conn->dev);
+	sck_xtn->conn = HIO_NULL;
+	hio_dev_sck_halt (conn->dev);
 	conn->dev = HIO_NULL;
 }
 
@@ -251,7 +264,13 @@ static void free_connections (hio_svc_fcgic_t* fcgic)
 	while (conn)
 	{
 		next = conn->next;
-		if (conn->dev) hio_dev_sck_kill (conn->dev);
+		if (conn->dev) 
+		{
+			struct fcgic_sck_xtn_t* sck_xtn;
+			sck_xtn = hio_dev_sck_getxtn(conn->dev);
+			sck_xtn->conn = HIO_NULL;
+			hio_dev_sck_halt (conn->dev);
+		}
 		hio_freemem (hio, conn->sess.ptr);
 		hio_freemem (hio, conn);
 		conn = next;

@@ -312,7 +312,6 @@ HIO_EXPORT int hio_svc_htts_dofcgi (
 	const hio_skad_t* fcgis_addr
 );
 
-
 HIO_EXPORT int hio_svc_htts_dofile (
 	hio_svc_htts_t*  htts,
 	hio_dev_sck_t*   csck,
