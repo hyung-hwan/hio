@@ -11,8 +11,8 @@ LDFLAGS_COMMON = -L$(abs_builddir)/../lib -L$(libdir)
 LIBADD_COMMON = ../lib/libhio.la 
 
 if ENABLE_ALL_STATIC
-LDFLAGS_ALL_STATIC = -all-static
-LIBADD_ALL_STATIC = -ldl -lm ## TODO: this may very depending on platforms
+LDFLAGS_ALL_STATIC ?= -all-static
+LIBADD_ALL_STATIC ?= 
 else
 LDFLAGS_ALL_STATIC = 
 LIBADD_ALL_STATIC =

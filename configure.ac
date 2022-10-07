@@ -241,13 +241,6 @@ AC_CHECK_LIB([pthread], [pthread_mutex_trylock],  [
 	AC_DEFINE([HAVE_PTHREAD_MUTEX_TRYLOCK],1,[pthreads has pthread_mutex_trylock()])
 ])
 
-dnl check is the import library for unicows.dll exists
-dnl this check doesn't look for a particular symbol
-dnl but for the symbol 'main' since i want to check 
-dnl the existence of the libaray.
-AC_CHECK_LIB([unicows], [main], [UNICOWS_LIBS="-lunicows"])
-AC_SUBST(UNICOWS_LIBS)
-
 dnl ===== enable-all-static =====
 AC_ARG_ENABLE([all-static], [AS_HELP_STRING([--enable-all-static],[build the full static binaries(default. no)])],
 	enable_all_static_is=$enableval,enable_all_static_is=no)
