@@ -329,8 +329,7 @@ static void halt_idle_clients (hio_t* hio, const hio_ntime_t* now, hio_tmrjob_t*
 }
 
 /* ------------------------------------------------------------------------ */
-
-hio_svc_htts_t* hio_svc_htts_start (hio_t* hio, hio_dev_sck_bind_t* binds, hio_oow_t nbinds, hio_svc_htts_proc_req_t proc_req)
+hio_svc_htts_t* hio_svc_htts_start (hio_t* hio, hio_oow_t xtnsize, hio_dev_sck_bind_t* binds, hio_oow_t nbinds, hio_svc_htts_proc_req_t proc_req)
 {
 	hio_svc_htts_t* htts = HIO_NULL;
 	union
@@ -347,7 +346,7 @@ hio_svc_htts_t* hio_svc_htts_start (hio_t* hio, hio_dev_sck_bind_t* binds, hio_o
 		goto oops;
 	}
 
-	htts = (hio_svc_htts_t*)hio_callocmem(hio, HIO_SIZEOF(*htts));
+	htts = (hio_svc_htts_t*)hio_callocmem(hio, HIO_SIZEOF(*htts) + xtnsize);
 	if (HIO_UNLIKELY(!htts)) goto oops;
 
 	HIO_DEBUG1 (hio, "HTTS - STARTING SERVICE %p\n", htts);
@@ -543,6 +542,11 @@ void hio_svc_htts_stop (hio_svc_htts_t* htts)
 	hio_freemem (hio, htts);
 }
 
+void* hio_svc_htts_getxtn (hio_svc_htts_t* htts)
+{
+	return (void*)(htts + 1);
+}
+
 int hio_svc_htts_setservernamewithbcstr (hio_svc_htts_t* htts, const hio_bch_t* name)
 {
 	hio_t* hio = htts->hio;
@@ -608,6 +612,19 @@ int hio_svc_htts_getsockaddr (hio_svc_htts_t* htts, hio_oow_t idx, hio_skad_t* s
 
 /* ----------------------------------------------------------------- */
 
+/* rsrc_size must be the total size to allocate including the header.
+ *
+ * For instance, if you define a resource like below,
+ *
+ * struct my_rsrc_t
+ * {
+ * 	HIO_SVC_HTTS_RSRC_HEADER;
+ * 	int a;
+ * 	int b;
+ * };
+ *
+ * you can pass sizeof(my_rsrc_t) to hio_svc_htts_rsrc_make() 
+ */
 hio_svc_htts_rsrc_t* hio_svc_htts_rsrc_make (hio_svc_htts_t* htts, hio_oow_t rsrc_size, hio_svc_htts_rsrc_on_kill_t on_kill)
 {
 	hio_t* hio = htts->hio;
@@ -630,12 +647,6 @@ void hio_svc_htts_rsrc_kill (hio_svc_htts_rsrc_t* rsrc)
 	if (rsrc->rsrc_on_kill) rsrc->rsrc_on_kill (rsrc);
 	hio_freemem (hio, rsrc);
 }
-
-#if defined(HIO_HAVE_INLINE)
-static HIO_INLINE void* hio_svc_htts_rsrc_getxtn (hio_svc_htts_rsrc_t* rsrc) { return rsrc + 1; }
-#else
-#define hio_svc_htts_rsrc_getxtn(rsrc) ((void*)((hio_svc_htts_rsrc_t*)rsrc + 1))
-#endif
 
 /* ----------------------------------------------------------------- */
 

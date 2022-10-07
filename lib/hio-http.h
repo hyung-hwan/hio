@@ -251,12 +251,17 @@ HIO_EXPORT int hio_scan_http_qparam (
 
 HIO_EXPORT hio_svc_htts_t* hio_svc_htts_start (
 	hio_t*                    hio,
+	hio_oow_t                 xtnsize,
 	hio_dev_sck_bind_t*       binds,
 	hio_oow_t                 nbinds,
 	hio_svc_htts_proc_req_t   proc_req
 );
 
 HIO_EXPORT void hio_svc_htts_stop (
+	hio_svc_htts_t* htts
+);
+
+HIO_EXPORT void* hio_svc_htts_getxtn (
 	hio_svc_htts_t* htts
 );
 

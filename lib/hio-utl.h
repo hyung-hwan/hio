@@ -429,6 +429,22 @@ HIO_EXPORT void hio_sub_ntime (
 	const hio_ntime_t* y
 );
 
+/* =========================================================================
+ * PATH STRING
+ * ========================================================================= */
+HIO_EXPORT const hio_uch_t* hio_get_base_name_ucstr (
+	const hio_uch_t* path
+);
+
+HIO_EXPORT const hio_bch_t* hio_get_base_name_bcstr (
+	const hio_bch_t* path
+);
+
+#if defined(HIO_OOCH_IS_UCH)
+#	define hio_get_base_name_oocstr hio_get_base_name_ucstr
+#else
+#	define hio_get_base_name_oocstr hio_get_base_name_bcstr
+#endif
 
 /* =========================================================================
  * BIT SWAP

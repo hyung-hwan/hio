@@ -145,15 +145,18 @@ static int file_send_final_status_to_client (file_t* file, int status_code, int 
 {
 	hio_svc_htts_cli_t* cli = file->client;
 	hio_bch_t dtbuf[64];
+	const hio_bch_t* status_msg;
 
 	hio_svc_htts_fmtgmtime (cli->htts, HIO_NULL, dtbuf, HIO_COUNTOF(dtbuf));
+	status_msg =  hio_http_status_to_bcstr(status_code);
 
 	if (!force_close) force_close = !file->keep_alive;
-	if (hio_becs_fmt(cli->sbuf, "HTTP/%d.%d %d %hs\r\nServer: %hs\r\nDate: %s\r\nConnection: %hs\r\nContent-Length: 0\r\n\r\n",
+	if (hio_becs_fmt(cli->sbuf, "HTTP/%d.%d %d %hs\r\nServer: %hs\r\nDate: %s\r\nConnection: %hs\r\nContent-Length: %zu\r\n\r\n%s",
 		file->req_version.major, file->req_version.minor,
-		status_code, hio_http_status_to_bcstr(status_code),
+		status_code, status_msg,
 		cli->htts->server_name, dtbuf,
-		(force_close? "close": "keep-alive")) == (hio_oow_t)-1) return -1;
+		(force_close? "close": "keep-alive"),
+		hio_count_bcstr(status_msg), status_msg) == (hio_oow_t)-1) return -1;
 
 	return (file_write_to_client(file, HIO_BECS_PTR(cli->sbuf), HIO_BECS_LEN(cli->sbuf)) <= -1 ||
 	        (force_close && file_write_to_client(file, HIO_NULL, 0) <= -1))? -1: 0;

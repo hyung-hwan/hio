@@ -657,6 +657,8 @@ ENABLE_MARIADB_TRUE
 ENABLE_SSL_FALSE
 ENABLE_SSL_TRUE
 SSL_LIBS
+ENABLE_ALL_STATIC_FALSE
+ENABLE_ALL_STATIC_TRUE
 UNICOWS_LIBS
 PTHREAD_CFLAGS
 PTHREAD_LIBS
@@ -798,6 +800,7 @@ with_gnu_ld
 with_sysroot
 enable_libtool_lock
 enable_largefile
+enable_all_static
 enable_ssl
 enable_mariadb
 with_mariadb
@@ -1457,6 +1460,7 @@ Optional Features:
                           optimize for fast installation [default=yes]
   --disable-libtool-lock  avoid locking (might break parallel builds)
   --disable-largefile     omit support for large files
+  --enable-all-static     build the full static binaries(default. no)
   --enable-ssl            build the library in the ssl mode (default. yes)
   --enable-mariadb        enable mariadb support (default. no)
   --enable-debug          build the library in the debug mode (default. no)
@@ -15506,6 +15510,22 @@ fi
 
 
 
+# Check whether --enable-all-static was given.
+if test "${enable_all_static+set}" = set; then :
+  enableval=$enable_all_static; enable_all_static_is=$enableval
+else
+  enable_all_static_is=no
+fi
+
+ if test "x${enable_all_static_is}" = "xyes"; then
+  ENABLE_ALL_STATIC_TRUE=
+  ENABLE_ALL_STATIC_FALSE='#'
+else
+  ENABLE_ALL_STATIC_TRUE='#'
+  ENABLE_ALL_STATIC_FALSE=
+fi
+
+
 # Check whether --enable-ssl was given.
 if test "${enable_ssl+set}" = set; then :
   enableval=$enable_ssl; enable_ssl_is=$enableval
@@ -19279,7 +19299,7 @@ HIO_PROJECT_AUTHOR="${PACKAGE_BUGREPORT}"
 HIO_PROJECT_URL="${PACKAGE_URL}"
 
 
-ac_config_files="$ac_config_files Makefile lib/Makefile bin/Makefile t/Makefile pkgs/hio.spec"
+ac_config_files="$ac_config_files Makefile Dockerfile lib/Makefile bin/Makefile t/Makefile pkgs/hio.spec"
 
 cat >confcache <<\_ACEOF
 # This file is a shell script that caches the results of configure
@@ -19424,6 +19444,10 @@ Usually this means the macro was only invoked conditionally." "$LINENO" 5
 fi
 if test -z "${MACOSX_TRUE}" && test -z "${MACOSX_FALSE}"; then
   as_fn_error $? "conditional \"MACOSX\" was never defined.
+Usually this means the macro was only invoked conditionally." "$LINENO" 5
+fi
+if test -z "${ENABLE_ALL_STATIC_TRUE}" && test -z "${ENABLE_ALL_STATIC_FALSE}"; then
+  as_fn_error $? "conditional \"ENABLE_ALL_STATIC\" was never defined.
 Usually this means the macro was only invoked conditionally." "$LINENO" 5
 fi
 if test -z "${ENABLE_SSL_TRUE}" && test -z "${ENABLE_SSL_FALSE}"; then
@@ -20323,6 +20347,7 @@ do
     "depfiles") CONFIG_COMMANDS="$CONFIG_COMMANDS depfiles" ;;
     "libtool") CONFIG_COMMANDS="$CONFIG_COMMANDS libtool" ;;
     "Makefile") CONFIG_FILES="$CONFIG_FILES Makefile" ;;
+    "Dockerfile") CONFIG_FILES="$CONFIG_FILES Dockerfile" ;;
     "lib/Makefile") CONFIG_FILES="$CONFIG_FILES lib/Makefile" ;;
     "bin/Makefile") CONFIG_FILES="$CONFIG_FILES bin/Makefile" ;;
     "t/Makefile") CONFIG_FILES="$CONFIG_FILES t/Makefile" ;;

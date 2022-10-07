@@ -927,3 +927,33 @@ void hio_sub_ntime (hio_ntime_t* z, const hio_ntime_t* x, const hio_ntime_t* y)
 }
 
 /* ========================================================================= */
+
+#if defined(_WIN32) || defined(__OS2__) || defined(__DOS__)
+#	define IS_PATH_SEP(c) ((c) == '/' || (c) == '\\')
+#else
+#	define IS_PATH_SEP(c) ((c) == '/')
+#endif
+
+const hio_uch_t* hio_get_base_name_ucstr (const hio_uch_t* path)
+{
+	const hio_uch_t* p, * last = HIO_NULL;
+
+	for (p = path; *p != '\0'; p++)
+	{
+		if (IS_PATH_SEP(*p)) last = p;
+	}
+
+	return last? (last +1): path;
+}
+
+const hio_bch_t* hio_get_base_name_bcstr (const hio_bch_t* path)
+{
+	const hio_bch_t* p, * last = HIO_NULL;
+
+	for (p = path; *p != '\0'; p++)
+	{
+		if (IS_PATH_SEP(*p)) last = p;
+	}
+
+	return last? (last +1): path;
+}

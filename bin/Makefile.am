@@ -7,8 +7,16 @@ CPPFLAGS_COMMON = \
 	-I$(abs_srcdir)/../lib \
 	-I$(includedir)	
 CFLAGS_COMMON =
-LDFLAGS_COMMON = -L$(abs_builddir)/../lib -L$(libdir)
-LIBADD_COMMON = ../lib/libhio.la
+LDFLAGS_COMMON = -L$(abs_builddir)/../lib -L$(libdir) 
+LIBADD_COMMON = ../lib/libhio.la 
+
+if ENABLE_ALL_STATIC
+LDFLAGS_ALL_STATIC = -all-static
+LIBADD_ALL_STATIC = -ldl -lm ## TODO: this may very depending on platforms
+else
+LDFLAGS_ALL_STATIC = 
+LIBADD_ALL_STATIC =
+endif
 
 bin_PROGRAMS = hio-execd
 hio_execd_SOURCES = execd.c
@@ -72,3 +80,10 @@ hio_t06_CPPFLAGS = $(CPPFLAGS_COMMON)
 hio_t06_CFLAGS = $(CFLAGS_COMMON)
 hio_t06_LDFLAGS = $(LDFLAGS_COMMON)
 hio_t06_LDADD = $(LIBADD_COMMON)
+
+bin_PROGRAMS += hio-webs
+hio_webs_SOURCES = webs.c
+hio_webs_CPPFLAGS = $(CPPFLAGS_COMMON)
+hio_webs_CFLAGS = $(CFLAGS_COMMON)
+hio_webs_LDFLAGS = $(LDFLAGS_COMMON) $(LDFLAGS_ALL_STATIC)
+hio_webs_LDADD = $(LIBADD_COMMON) $(LIBADD_ALL_STATIC)

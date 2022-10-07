@@ -19,3 +19,5 @@ rpm: dist-gzip
 	cp @PACKAGE_NAME@-@PACKAGE_VERSION@.tar.gz "@abs_builddir@/pkgs/RPM/SOURCES"
 	rpmbuild --define "_topdir @abs_builddir@/pkgs/RPM" -ba @abs_builddir@/pkgs/hio.spec --target=@build_cpu@
 
+docker:
+	docker -t hio:webs Dockerfile .
