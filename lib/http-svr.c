@@ -53,6 +53,8 @@ static int init_client (hio_svc_htts_cli_t* cli, hio_dev_sck_t* sck)
 	HIO_ASSERT (sck->hio, sck->hio == cli->htts->hio);
 
 	cli->sck = sck;
+	if (hio_dev_sck_getpeeraddr (sck, &cli->cli_addr) >= 0)
+		hio_skadtobcstr (sck->hio, &cli->cli_addr, cli->cli_addr_bcstr, HIO_COUNTOF(cli->cli_addr_bcstr), HIO_SKAD_TO_BCSTR_ADDR | HIO_SKAD_TO_BCSTR_PORT);
 	cli->l_idx = INVALID_LIDX; /* not a listening socket anymore */
 	cli->htrd = HIO_NULL;
 	cli->sbuf = HIO_NULL;
@@ -77,7 +79,7 @@ static int init_client (hio_svc_htts_cli_t* cli, hio_dev_sck_t* sck)
 	hio_htrd_setrecbs (cli->htrd, &client_htrd_recbs);
 
 	hio_gettime (sck->hio, &cli->last_active);
-	HIO_DEBUG3 (sck->hio, "HTTS(%p) - initialized client %p socket %p\n", cli->htts, cli, sck);
+	HIO_DEBUG4 (sck->hio, "HTTS(%p) - initialized client(%p,%p,%d)\n", cli->htts, cli, sck, (int)sck->hnd);
 	return 0;
 
 oops:
@@ -98,12 +100,16 @@ oops:
 
 static void fini_client (hio_svc_htts_cli_t* cli)
 {
-	HIO_DEBUG3 (cli->sck->hio, "HTTS(%p) - finalizing client %p socket %p\n", cli->htts, cli, cli->sck);
+	HIO_DEBUG4 (cli->sck->hio, "HTTS(%p) - finalizing client(%p,%p,%d)\n", cli->htts, cli, cli->sck, (int)cli->sck->hnd);
 
 	if (cli->rsrc)
 	{
+	#if 0
 		hio_svc_htts_rsrc_kill (cli->rsrc);
 		cli->rsrc = HIO_NULL;
+	#else
+		HIO_SVC_HTTS_RSRC_DETACH (cli->rsrc);
+	#endif
 	}
 
 	if (cli->sbuf) 
@@ -209,18 +215,18 @@ static void listener_on_connect (hio_dev_sck_t* sck)
 	if (sck->state & HIO_DEV_SCK_ACCEPTED)
 	{
 		/* accepted a new client */
-		HIO_DEBUG3 (sck->hio, "HTTS(%p) - accepted... %p %d \n", cli->htts, sck, sck->hnd);
+		HIO_DEBUG3 (sck->hio, "HTTS(%p) - accepted client(%p,%d) \n", cli->htts, sck, (int)sck->hnd);
 
 		if (init_client(cli, sck) <= -1)
 		{
-			HIO_DEBUG2 (cli->htts->hio, "HTTS(%p) - halting client(%p) for client intiaialization failure\n", cli->htts, sck);
+			HIO_DEBUG3 (cli->htts->hio, "HTTS(%p) - halting client(%p,%d) for client intiaialization failure\n", cli->htts, sck, (int)sck->hnd);
 			hio_dev_sck_halt (sck);
 		}
 	}
 	else if (sck->state & HIO_DEV_SCK_CONNECTED)
 	{
 		/* this will never be triggered as the listing socket never call hio_dev_sck_connect() */
-		HIO_DEBUG3 (sck->hio, "** HTTS(%p) - connected... %p %d \n", cli->htts, sck, sck->hnd);
+		HIO_DEBUG3 (sck->hio, "HTTS(%p) - connected (%p,%d) \n", cli->htts, sck, (int)sck->hnd);
 	}
 
 	/* HIO_DEV_SCK_CONNECTED must not be seen here as this is only for the listener socket */
@@ -314,7 +320,7 @@ static void halt_idle_clients (hio_t* hio, const hio_ntime_t* now, hio_tmrjob_t*
 
 			if (HIO_CMP_NTIME(&t, &max_client_idle) >= 0) 
 			{
-				HIO_DEBUG3 (hio, "HTTS(%p) - Halting idle client socket %p(client=%p)\n", htts, cli->sck, cli);
+				HIO_DEBUG4 (hio, "HTTS(%p) - Halting idle client(%p,%p,%d)\n", htts, cli, cli->sck, (int)cli->sck->hnd);
 				hio_dev_sck_halt (cli->sck);
 			}
 		}
@@ -404,7 +410,7 @@ hio_svc_htts_t* hio_svc_htts_start (hio_t* hio, hio_oow_t xtnsize, hio_dev_sck_b
 		 * most of other fields are used for client management. init_client() will set
 		 * the sck field to the client socket and the listening field to 0. */
 		cli = (hio_svc_htts_cli_t*)hio_dev_sck_getxtn(sck);
-		cli->htts = htts; 
+		cli->htts = htts;
 		cli->sck = sck;
 		cli->l_idx = i;
 

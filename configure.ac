@@ -242,13 +242,27 @@ AC_CHECK_LIB([pthread], [pthread_mutex_trylock],  [
 ])
 
 dnl ===== enable-all-static =====
-AC_ARG_ENABLE([all-static], [AS_HELP_STRING([--enable-all-static],[build the full static binaries(default. no)])],
-	enable_all_static_is=$enableval,enable_all_static_is=no)
+AC_ARG_ENABLE([all-static], 
+	[AS_HELP_STRING([--enable-all-static],[build the full static binaries(default. no)])],
+	enable_all_static_is=$enableval,
+	enable_all_static_is=no
+)
 AM_CONDITIONAL(ENABLE_ALL_STATIC, test "x${enable_all_static_is}" = "xyes")
 
+AC_ARG_WITH([all-static-libs], 
+	[AS_HELP_STRING([--with-all-static-libs[[=lib-list]]],[specify extra libraries to add for building the full static binaries])],
+	[],
+	[with_all_static_libs=]
+)
+ALL_STATIC_LIBS="$with_all_static_libs"
+AC_SUBST(ALL_STATIC_LIBS)
+
 dnl ===== enable-ssl =====
-AC_ARG_ENABLE([ssl], [AS_HELP_STRING([--enable-ssl],[build the library in the ssl mode (default. yes)])],
-	enable_ssl_is=$enableval,enable_ssl_is=yes)
+AC_ARG_ENABLE([ssl], 
+	[AS_HELP_STRING([--enable-ssl],[build the library in the ssl mode (default. yes)])],
+	enable_ssl_is=$enableval,
+	enable_ssl_is=yes
+)
 if test "x$enable_ssl_is" = "xyes"
 then
 	AC_CHECK_HEADERS([openssl/ssl.h openssl/err.h openssl/engine.h])
@@ -803,10 +817,10 @@ fi
 
 AC_ARG_ENABLE([wide-char], 
 	[AS_HELP_STRING([--enable-wide-char],[Use the wide-character type as the default character type. one of yes, no, yes:2, yes:4, no:2, no:4 (default. yes)])],
-	enable_wide_char=$enableval,
-	enable_wide_char=yes
+	enable_wide_char_is=$enableval,
+	enable_wide_char_is=yes
 )
-if test "${enable_wide_char}" = "yes:4"
+if test "${enable_wide_char_is}" = "yes:4"
 then
 	AC_DEFINE([HIO_WIDE_CHAR_SIZE],[4],[Wide-character type size])
 	AC_DEFINE([HIO_ENABLE_WIDE_CHAR],[1],[Use the wide-character type as the default character type])
@@ -814,7 +828,7 @@ then
 	then
 		[CFLAGS="$CFLAGS -DUNICODE -D_UNICODE"]
 	fi 
-elif test "${enable_wide_char}" = "yes:2"
+elif test "${enable_wide_char_is}" = "yes:2"
 then
 	AC_DEFINE([HIO_WIDE_CHAR_SIZE],[2],[Wide-character type size])
 	AC_DEFINE([HIO_ENABLE_WIDE_CHAR],[1],[Use the wide-character type as the default character type])
@@ -822,7 +836,7 @@ then
 	then
 		[CFLAGS="$CFLAGS -DUNICODE -D_UNICODE"]
 	fi
-elif test "${enable_wide_char}" = "yes"
+elif test "${enable_wide_char_is}" = "yes"
 then
 	AC_DEFINE([HIO_WIDE_CHAR_SIZE],[1],[Wide-character type size])
 	AC_DEFINE([HIO_ENABLE_WIDE_CHAR],[1],[Use the wide-character type as the default character type])
@@ -830,10 +844,10 @@ then
 	then
 		[CFLAGS="$CFLAGS -DUNICODE -D_UNICODE"]
 	fi
-elif test "${enable_wide_char}" = "no:4"
+elif test "${enable_wide_char_is}" = "no:4"
 then
 	AC_DEFINE([HIO_WIDE_CHAR_SIZE],[4],[Wide-character type size])
-elif test "${enable_wide_char}" = "no:2"
+elif test "${enable_wide_char_is}" = "no:2"
 then
 	AC_DEFINE([HIO_WIDE_CHAR_SIZE],[2],[Wide-character type size])
 else

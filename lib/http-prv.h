@@ -40,6 +40,8 @@ struct hio_svc_htts_cli_t
 	/* a client sockets uses all the fields in this struct */
 	hio_svc_htts_t* htts;
 	hio_dev_sck_t* sck;
+	hio_skad_t cli_addr;
+	hio_bch_t cli_addr_bcstr[HIO_SKAD_IP_STRLEN + 1];
 	hio_oow_t l_idx; /* listening socket: < htts->l.count, client socket: >= htts->l.count */
 
 	hio_htrd_t* htrd;

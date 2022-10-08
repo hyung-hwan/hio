@@ -1,6 +1,5 @@
 FROM scratch
 
-COPY bin/hio-webs /bin
-RUN mkdir -p /data
+ADD hio-webs.tar /
 
 CMD [ "/bin/hio-webs", "0.0.0.0:80", "/data" ]

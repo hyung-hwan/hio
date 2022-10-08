@@ -57,7 +57,6 @@ struct file_t
 
 	hio_oow_t num_pending_writes_to_client;
 	hio_oow_t num_pending_writes_to_peer;
-
 	int sendfile_ok;
 	int peer;
 	hio_foff_t total_size;
@@ -76,6 +75,7 @@ struct file_t
 	unsigned int keep_alive: 1;
 	unsigned int req_content_length_unlimited: 1;
 	unsigned int ever_attempted_to_write_to_client: 1;
+	unsigned int client_eof_detected: 1;
 	unsigned int client_disconnected: 1;
 	unsigned int client_htrd_recbs_changed: 1;
 	unsigned int etag_match: 1;
@@ -98,8 +98,10 @@ static void file_halt_participating_devices (file_t* file)
 	HIO_ASSERT (file->client->htts->hio, file->client != HIO_NULL);
 	HIO_ASSERT (file->client->htts->hio, file->client->sck != HIO_NULL);
 
-	HIO_DEBUG4 (file->client->htts->hio, "HTTS(%p) - Halting participating devices in file state %p(client=%p,peer=%d)\n", file->client->htts, file, file->client->sck, (int)file->peer);
+	HIO_DEBUG3 (file->client->htts->hio, "HTTS(%p) - file(c=%d,p=%d) Halting participating devices in file state\n", file->client->htts, (int)file->client->sck->hnd, (int)file->peer);
 
+	/* only the client socket device. 
+	 * the peer side is just a file descriptor - no hio-managed device */
 	hio_dev_sck_halt (file->client->sck);
 }
 
@@ -186,13 +188,13 @@ static void file_mark_over (file_t* file, int over_bits)
 	old_over = file->over;
 	file->over |= over_bits;
 
-	HIO_DEBUG5 (file->htts->hio, "HTTS(%p) - client=%p peer=%p new-bits=%x over=%x\n", file->htts, file->client->sck, file->peer, (int)over_bits, (int)file->over);
+	HIO_DEBUG6 (file->htts->hio, "HTTS(%p) - file(c=%d,p=%d) updating mark - old_over=%x | new-bits=%x => over=%x\n", file->htts, (int)file->client->sck->hnd, file->peer, (int)old_over, (int)over_bits, (int)file->over);
 
 	if (!(old_over & FILE_OVER_READ_FROM_CLIENT) && (file->over & FILE_OVER_READ_FROM_CLIENT))
 	{
 		if (hio_dev_sck_read(file->client->sck, 0) <= -1) 
 		{
-			HIO_DEBUG2 (file->htts->hio, "HTTS(%p) - halting client(%p) for failure to disable input watching\n", file->htts, file->client->sck);
+			HIO_DEBUG3 (file->htts->hio, "HTTS(%p) - file(c=%d,p=%d) halting client for failure to disable input watching\n", file->htts, (int)file->client->sck->hnd, file->peer);
 			hio_dev_sck_halt (file->client->sck);
 		}
 	}
@@ -207,10 +209,10 @@ static void file_mark_over (file_t* file, int over_bits)
 	if (old_over != FILE_OVER_ALL && file->over == FILE_OVER_ALL)
 	{
 		/* ready to stop */
-		HIO_DEBUG2 (file->htts->hio, "HTTS(%p) - halting peer(%p) as it is unneeded\n", file->htts, file->peer);
+		HIO_DEBUG3 (file->htts->hio, "HTTS(%p) - file(c=%d,p=%d) halting peer as it is unneeded\n", file->htts, (int)file->client->sck->hnd, file->peer);
 		file_close_peer (file);
 
-		if (file->keep_alive) 
+		if (file->keep_alive && !file->client_eof_detected) 
 		{
 		#if defined(TCP_CORK)
 			int tcp_cork = 0;
@@ -223,19 +225,18 @@ static void file_mark_over (file_t* file, int over_bits)
 
 			/* how to arrange to delete this file object and put the socket back to the normal waiting state??? */
 			HIO_ASSERT (file->htts->hio, file->client->rsrc == (hio_svc_htts_rsrc_t*)file);
-
 			HIO_SVC_HTTS_RSRC_DETACH (file->client->rsrc);
-			/* file must not be accessed from here down as it could have been destroyed */
+			/* the file resource must not be accessed from here down as it could have been destroyed */
 		}
 		else
 		{
-			HIO_DEBUG2 (file->htts->hio, "HTTS(%p) - halting client(%p) for no keep-alive\n", file->htts, file->client->sck);
+			HIO_DEBUG4 (file->htts->hio, "HTTS(%p) - file(c=%d,p=%d) halting client for %hs\n", file->htts, (int)file->client->sck->hnd, file->peer, (file->client_eof_detected? "EOF detected": "no keep-alive"));
 			hio_dev_sck_shutdown (file->client->sck, HIO_DEV_SCK_SHUTDOWN_WRITE);
 			hio_dev_sck_halt (file->client->sck);
+			/* the file resource will be detached from file->client->rsrc by the upstream disconnect handler in http_svr.c */
 		}
 	}
 }
-
 
 static int file_write_to_peer (file_t* file, const void* data, hio_iolen_t dlen)
 {
@@ -260,7 +261,7 @@ static void file_on_kill (file_t* file)
 {
 	hio_t* hio = file->htts->hio;
 
-	HIO_DEBUG2 (hio, "HTTS(%p) - killing file client(%p)\n", file->htts, file->client->sck);
+	HIO_DEBUG3 (hio, "HTTS(%p) - file(c=%d,p=%d) on_kill\n", file->htts, (int)file->client->sck->hnd, file->peer);
 
 	file_close_peer (file);
 
@@ -292,7 +293,7 @@ static void file_on_kill (file_t* file)
 	{
 		if (!file->keep_alive || hio_dev_sck_read(file->client->sck, 1) <= -1)
 		{
-			HIO_DEBUG2 (hio, "HTTS(%p) - halting client(%p) for failure to enable input watching\n", file->htts, file->client->sck);
+			HIO_DEBUG3 (hio, "HTTS(%p) - file(c=%d,p=%d) halting client for failure to enable input watching\n", file->htts, (int)file->client->sck->hnd, file->peer);
 			hio_dev_sck_halt (file->client->sck);
 		}
 	}
@@ -300,10 +301,21 @@ static void file_on_kill (file_t* file)
 
 static void file_client_on_disconnect (hio_dev_sck_t* sck)
 {
+	hio_t* hio = sck->hio;
 	hio_svc_htts_cli_t* cli = hio_dev_sck_getxtn(sck);
 	file_t* file = (file_t*)cli->rsrc;
+
+	HIO_ASSERT (hio, sck == cli->sck);
+	HIO_ASSERT (hio, sck == file->client->sck);
+
+	HIO_DEBUG3 (cli->htts->hio, "HTTS(%p) - file(c=%d,p=%d) client on_disconnect\n", file->client->htts, (int)sck->hnd, file->peer);
+
 	file->client_disconnected = 1;
 	file->client_org_on_disconnect (sck);
+
+	/* the original disconnect handler (listener_on_disconnect in http-svr.c) 
+	 * frees the file resource attached to the client. so it must not be accessed */
+	HIO_ASSERT (hio, cli->rsrc == HIO_NULL);
 }
 
 static int file_client_on_read (hio_dev_sck_t* sck, const void* buf, hio_iolen_t len, const hio_skad_t* srcaddr)
@@ -313,11 +325,12 @@ static int file_client_on_read (hio_dev_sck_t* sck, const void* buf, hio_iolen_t
 	file_t* file = (file_t*)cli->rsrc;
 
 	HIO_ASSERT (hio, sck == cli->sck);
+	HIO_ASSERT (hio, sck == file->client->sck);
 
 	if (len <= -1)
 	{
 		/* read error */
-		HIO_DEBUG2 (cli->htts->hio, "HTTPS(%p) - read error on client %p(%d)\n", sck, (int)sck->hnd);
+		HIO_DEBUG3 (cli->htts->hio, "HTTS(%p) - file(c=%d,p=%d) read error on client\n", file->client->htts, (int)sck->hnd, file->peer);
 		goto oops;
 	}
 
@@ -330,11 +343,12 @@ static int file_client_on_read (hio_dev_sck_t* sck, const void* buf, hio_iolen_t
 	if (len == 0)
 	{
 		/* EOF on the client side. arrange to close */
-		HIO_DEBUG3 (hio, "HTTPS(%p) - EOF from client %p(hnd=%d)\n", file->client->htts, sck, (int)sck->hnd);
+		HIO_DEBUG3 (cli->htts->hio, "HTTS(%p) - file(c=%d,p=%d) EOF detected on client\n", file->client->htts, (int)sck->hnd, file->peer);
 
 		if (!(file->over & FILE_OVER_READ_FROM_CLIENT)) /* if this is true, EOF is received without file_client_htrd_poke() */
 		{
 			if (file_write_to_peer(file, HIO_NULL, 0) <= -1) goto oops;
+			file->client_eof_detected = 1;
 			file_mark_over (file, FILE_OVER_READ_FROM_CLIENT);
 		}
 	}
@@ -349,7 +363,7 @@ static int file_client_on_read (hio_dev_sck_t* sck, const void* buf, hio_iolen_t
 		if (rem > 0)
 		{
 			/* TODO store this to client buffer. once the current resource is completed, arrange to call on_read() with it */
-			HIO_DEBUG3 (hio, "HTTPS(%p) - excessive data after contents by file client %p(%d)\n", sck->hio, sck, (int)sck->hnd);
+			HIO_DEBUG3 (cli->htts->hio, "HTTS(%p) - file(c=%d,p=%d) excessive data after contents on client\n", file->client->htts, (int)sck->hnd, file->peer);
 		}
 	}
 
@@ -366,9 +380,12 @@ static int file_client_on_write (hio_dev_sck_t* sck, hio_iolen_t wrlen, void* wr
 	hio_svc_htts_cli_t* cli = hio_dev_sck_getxtn(sck);
 	file_t* file = (file_t*)cli->rsrc;
 
+	HIO_ASSERT (hio, sck == cli->sck);
+	HIO_ASSERT (hio, sck == file->client->sck);
+
 	if (wrlen <= -1)
 	{
-		HIO_DEBUG3 (hio, "HTTPS(%p) - unable to write to client %p(%d)\n", sck->hio, sck, (int)sck->hnd);
+		HIO_DEBUG3 (hio, "HTTS(%p) - file(c=%d,p=%d) unable to write to client\n", file->client->htts, (int)sck->hnd, file->peer);
 		goto oops;
 	}
 
@@ -377,7 +394,7 @@ static int file_client_on_write (hio_dev_sck_t* sck, hio_iolen_t wrlen, void* wr
 		/* if the connect is keep-alive, this part may not be called */
 		file->num_pending_writes_to_client--;
 		HIO_ASSERT (hio, file->num_pending_writes_to_client == 0);
-		HIO_DEBUG3 (hio, "HTTS(%p) - indicated EOF to client %p(%d)\n", file->client->htts, sck, (int)sck->hnd);
+		HIO_DEBUG3 (hio, "HTTS(%p) - file(c=%d,p=%d) indicated EOF to client\n", file->client->htts, (int)sck->hnd, file->peer);
 		/* since EOF has been indicated to the client, it must not write to the client any further.
 		 * this also means that i don't need any data from the peer side either.
 		 * i don't need to enable input watching on the peer side */
@@ -733,6 +750,9 @@ int hio_svc_htts_dofile (hio_svc_htts_t* htts, hio_dev_sck_t* csck, hio_htre_t* 
 
 	/* ensure that you call this function before any contents is received */
 	HIO_ASSERT (hio, hio_htre_getcontentlen(req) == 0);
+	HIO_ASSERT (hio, cli->sck == csck);
+
+	HIO_DEBUG5 (hio, "HTTS(%p) - file(c=%d) - [%hs] %hs%hs\n", htts, (int)csck->hnd, cli->cli_addr_bcstr, (docroot[0] == '/' && docroot[1] == '\0' && filepath[0] == '/'? "": docroot), filepath);
 
 	actual_file = hio_svc_htts_dupmergepaths(htts, docroot, filepath);
 	if (HIO_UNLIKELY(!actual_file)) goto oops;
@@ -756,7 +776,7 @@ int hio_svc_htts_dofile (hio_svc_htts_t* htts, hio_dev_sck_t* csck, hio_htre_t* 
 	csck->on_disconnect = file_client_on_disconnect;
 
 	HIO_ASSERT (hio, cli->rsrc == HIO_NULL); /* you must not call this function while cli->rsrc is not HIO_NULL */
-	HIO_SVC_HTTS_RSRC_ATTACH (file, cli->rsrc);
+	HIO_SVC_HTTS_RSRC_ATTACH (file, cli->rsrc); /* cli->rsrc = file with ref-count up */
 
 	file->peer_tmridx = HIO_TMRIDX_INVALID;
 	file->peer = -1;
@@ -879,7 +899,7 @@ int hio_svc_htts_dofile (hio_svc_htts_t* htts, hio_dev_sck_t* csck, hio_htre_t* 
 	return 0;
 
 oops:
-	HIO_DEBUG2 (hio, "HTTS(%p) - FAILURE in dofile - socket(%p)\n", htts, csck);
+	HIO_DEBUG2 (hio, "HTTS(%p) - file(c=%d) failure\n", htts, csck->hnd);
 	if (file) file_halt_participating_devices (file);
 	if (actual_file) hio_freemem (hio, actual_file);
 	return -1;

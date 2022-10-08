@@ -12,6 +12,7 @@ typedef struct htts_ext_t htts_ext_t;
 static int process_http_request (hio_svc_htts_t* htts, hio_dev_sck_t* csck, hio_htre_t* req)
 {
 	htts_ext_t* ext = hio_svc_htts_getxtn(htts);
+	hio_t* hio = hio_svc_htts_gethio(htts);
 	hio_http_method_t mth;
 	const hio_bch_t* qpath;
 
@@ -20,10 +21,15 @@ static int process_http_request (hio_svc_htts_t* htts, hio_dev_sck_t* csck, hio_
 	mth = hio_htre_getqmethodtype(req);
 	qpath = hio_htre_getqpath(req);
 
-	if (mth == HIO_HTTP_GET)
+	if (mth == HIO_HTTP_GET || mth == HIO_HTTP_POST)
 	{
-		/* TODO: mime-type */
-		if (hio_svc_htts_dofile(htts, csck, req, ext->docroot, qpath, "text/plain") <= -1) goto oops;
+		/* TODO: proper mime-type */
+		const hio_bch_t* dot;
+		hio_bch_t mt[128];
+
+		dot = hio_rfind_bchar_in_bcstr(qpath, '.');
+		hio_fmttobcstr (hio, mt, HIO_COUNTOF(mt), "text/%hs", ((dot && dot[1] != '\0')? &dot[1]: "plain")); /* TODO: error check */
+		if (hio_svc_htts_dofile(htts, csck, req, ext->docroot, qpath, mt) <= -1) goto oops;
 	}
 	else
 	{
