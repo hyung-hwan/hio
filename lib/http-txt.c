@@ -33,6 +33,7 @@ struct txt_t
 {
 	HIO_SVC_HTTS_RSRC_HEADER;
 
+	int options;
 	hio_oow_t num_pending_writes_to_client;
 	hio_svc_htts_cli_t* client;
 	hio_http_version_t req_version; /* client request */
@@ -40,6 +41,7 @@ struct txt_t
 	unsigned int over: 2; /* must be large enough to accomodate TXT_OVER_ALL */
 	unsigned int keep_alive: 1;
 	unsigned int req_content_length_unlimited: 1;
+	unsigned int client_eof_detected: 1;
 	unsigned int client_disconnected: 1;
 	unsigned int client_htrd_recbs_changed: 1;
 	hio_oow_t req_content_length; /* client request content length */
@@ -133,7 +135,7 @@ static HIO_INLINE void txt_mark_over (txt_t* txt, int over_bits)
 	if (old_over != TXT_OVER_ALL && txt->over == TXT_OVER_ALL)
 	{
 		/* ready to stop */
-		if (txt->keep_alive) 
+		if (txt->keep_alive && !txt->client_eof_detected)
 		{
 			/* how to arrange to delete this txt object and put the socket back to the normal waiting state??? */
 			HIO_ASSERT (txt->htts->hio, txt->client->rsrc == (hio_svc_htts_rsrc_t*)txt);
@@ -248,7 +250,8 @@ static int txt_client_on_read (hio_dev_sck_t* sck, const void* buf, hio_iolen_t 
 	{
 		/* EOF on the client side. arrange to close */
 		HIO_DEBUG3 (hio, "HTTPS(%p) - EOF from client %p(hnd=%d)\n", txt->client->htts, sck, (int)sck->hnd);
-
+		txt->client_eof_detected = 1;
+ 
 		if (!(txt->over & TXT_OVER_READ_FROM_CLIENT)) /* if this is true, EOF is received without txt_client_htrd_poke() */
 		{
 			txt_mark_over (txt, TXT_OVER_READ_FROM_CLIENT);
@@ -316,7 +319,7 @@ oops:
 	return 0;
 }
 
-int hio_svc_htts_dotxt (hio_svc_htts_t* htts, hio_dev_sck_t* csck, hio_htre_t* req, int status_code, const hio_bch_t* content_type, const hio_bch_t* content_text)
+int hio_svc_htts_dotxt (hio_svc_htts_t* htts, hio_dev_sck_t* csck, hio_htre_t* req, int status_code, const hio_bch_t* content_type, const hio_bch_t* content_text, int options)
 {
 	hio_t* hio = htts->hio;
 	hio_svc_htts_cli_t* cli = hio_dev_sck_getxtn(csck);
@@ -328,6 +331,7 @@ int hio_svc_htts_dotxt (hio_svc_htts_t* htts, hio_dev_sck_t* csck, hio_htre_t* r
 	txt = (txt_t*)hio_svc_htts_rsrc_make(htts, HIO_SIZEOF(*txt), txt_on_kill);
 	if (HIO_UNLIKELY(!txt)) goto oops;
 
+	txt->options = options;
 	txt->client = cli;
 	/*txt->num_pending_writes_to_client = 0;*/
 	txt->req_version = *hio_htre_getversion(req);
@@ -350,7 +354,7 @@ int hio_svc_htts_dotxt (hio_svc_htts_t* htts, hio_dev_sck_t* csck, hio_htre_t* r
 	else if (req->flags & HIO_HTRE_ATTR_EXPECT)
 	{
 		/* 417 Expectation Failed */
-		txt_send_final_status_to_client(txt, 417, HIO_NULL, HIO_NULL, 1);
+		txt_send_final_status_to_client(txt, HIO_HTTP_STATUS_EXPECTATION_FAILED, HIO_NULL, HIO_NULL, 1);
 		goto oops;
 	}
 

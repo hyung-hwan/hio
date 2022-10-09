@@ -59,6 +59,7 @@ struct thr_state_t
 {
 	HIO_SVC_HTTS_RSRC_HEADER;
 
+	int options;
 	hio_oow_t num_pending_writes_to_client;
 	hio_oow_t num_pending_writes_to_peer;
 	hio_dev_thr_t* peer;
@@ -70,6 +71,7 @@ struct thr_state_t
 	unsigned int keep_alive: 1;
 	unsigned int req_content_length_unlimited: 1;
 	unsigned int ever_attempted_to_write_to_client: 1;
+	unsigned int client_eof_detected: 1;
 	unsigned int client_disconnected: 1;
 	unsigned int client_htrd_recbs_changed: 1;
 	hio_oow_t req_content_length; /* client request content length */
@@ -160,7 +162,7 @@ static int thr_state_write_last_chunk_to_client (thr_state_t* thr_state)
 {
 	if (!thr_state->ever_attempted_to_write_to_client)
 	{
-		if (thr_state_send_final_status_to_client(thr_state, 500, 0) <= -1) return -1;
+		if (thr_state_send_final_status_to_client(thr_state, HIO_HTTP_STATUS_INTERNAL_SERVER_ERROR, 0) <= -1) return -1;
 	}
 	else
 	{
@@ -225,7 +227,7 @@ static HIO_INLINE void thr_state_mark_over (thr_state_t* thr_state, int over_bit
 			hio_dev_thr_halt (thr_state->peer);
 		}
 
-		if (thr_state->keep_alive) 
+		if (thr_state->keep_alive && !thr_state->client_eof_detected)
 		{
 			/* how to arrange to delete this thr_state object and put the socket back to the normal waiting state??? */
 			HIO_ASSERT (thr_state->htts->hio, thr_state->client->rsrc == (hio_svc_htts_rsrc_t*)thr_state);
@@ -396,7 +398,7 @@ static int thr_peer_on_read (hio_dev_thr_t* thr, const void* data, hio_iolen_t d
 			if (!thr_state->ever_attempted_to_write_to_client &&
 			    !(thr_state->over & THR_STATE_OVER_WRITE_TO_CLIENT))
 			{
-				thr_state_send_final_status_to_client (thr_state, 500, 1); /* don't care about error because it jumps to oops below anyway */
+				thr_state_send_final_status_to_client (thr_state, HIO_HTTP_STATUS_INTERNAL_SERVER_ERROR, 1); /* don't care about error because it jumps to oops below anyway */
 			}
 
 			goto oops; 
@@ -452,7 +454,7 @@ static int thr_peer_htrd_peek (hio_htrd_t* htrd, hio_htre_t* req)
 	thr_state_t* thr_state = thr_peer->state;
 	hio_svc_htts_cli_t* cli = thr_state->client;
 	hio_bch_t dtbuf[64];
-	int status_code = 200;
+	int status_code = HIO_HTTP_STATUS_OK;
 
 	if (req->attr.content_length)
 	{
@@ -693,11 +695,14 @@ static int thr_client_on_read (hio_dev_sck_t* sck, const void* buf, hio_iolen_t 
 	{
 		/* EOF on the client side. arrange to close */
 		HIO_DEBUG3 (hio, "HTTPS(%p) - EOF from client %p(hnd=%d)\n", thr_state->client->htts, sck, (int)sck->hnd);
+		thr_state->client_eof_detected = 1;
 
 		if (!(thr_state->over & THR_STATE_OVER_READ_FROM_CLIENT)) /* if this is true, EOF is received without thr_client_htrd_poke() */
 		{
-			if (thr_state_write_to_peer(thr_state, HIO_NULL, 0) <= -1) goto oops;
+			int n;
+			n = thr_state_write_to_peer(thr_state, HIO_NULL, 0);
 			thr_state_mark_over (thr_state, THR_STATE_OVER_READ_FROM_CLIENT);
+			if (n <= -1) goto oops;
 		}
 	}
 	else
@@ -812,7 +817,7 @@ static int thr_capture_request_header (hio_htre_t* req, const hio_bch_t* key, co
 	return 0;
 }
 
-int hio_svc_htts_dothr (hio_svc_htts_t* htts, hio_dev_sck_t* csck, hio_htre_t* req, hio_svc_htts_thr_func_t func, void* ctx)
+int hio_svc_htts_dothr (hio_svc_htts_t* htts, hio_dev_sck_t* csck, hio_htre_t* req, hio_svc_htts_thr_func_t func, void* ctx, int options)
 {
 	hio_t* hio = htts->hio;
 	hio_svc_htts_cli_t* cli = hio_dev_sck_getxtn(csck);
@@ -857,6 +862,7 @@ int hio_svc_htts_dothr (hio_svc_htts_t* htts, hio_dev_sck_t* csck, hio_htre_t* r
 	thr_state = (thr_state_t*)hio_svc_htts_rsrc_make(htts, HIO_SIZEOF(*thr_state), thr_state_on_kill);
 	if (HIO_UNLIKELY(!thr_state)) goto oops;
 
+	thr_state->options = options;
 	thr_state->client = cli;
 	/*thr_state->num_pending_writes_to_client = 0;
 	thr_state->num_pending_writes_to_peer = 0;*/
@@ -902,7 +908,7 @@ int hio_svc_htts_dothr (hio_svc_htts_t* htts, hio_dev_sck_t* csck, hio_htre_t* r
 		 * option 2. send 411 Length Required immediately
 		 * option 3. set Content-Length to -1 and use EOF to indicate the end of content [Non-Standard] */
 
-		if (thr_state_send_final_status_to_client(thr_state, 411, 1) <= -1) goto oops;
+		if (thr_state_send_final_status_to_client(thr_state, HIO_HTTP_STATUS_LENGTH_REQUIRED, 1) <= -1) goto oops;
 	}
 #endif
 
@@ -910,7 +916,8 @@ int hio_svc_htts_dothr (hio_svc_htts_t* htts, hio_dev_sck_t* csck, hio_htre_t* r
 	{
 		/* TODO: Expect: 100-continue? who should handle this? thr? or the http server? */
 		/* CAN I LET the thr SCRIPT handle this? */
-		if (hio_comp_http_version_numbers(&req->version, 1, 1) >= 0 && 
+		if (!(options & HIO_SVC_HTTS_THR_NO_100_CONTINUE) &&
+		    hio_comp_http_version_numbers(&req->version, 1, 1) >= 0 &&
 		   (thr_state->req_content_length_unlimited || thr_state->req_content_length > 0)) 
 		{
 			/* 
@@ -929,7 +936,7 @@ int hio_svc_htts_dothr (hio_svc_htts_t* htts, hio_dev_sck_t* csck, hio_htre_t* r
 			hio_bch_t msgbuf[64];
 			hio_oow_t msglen;
 
-			msglen = hio_fmttobcstr(hio, msgbuf, HIO_COUNTOF(msgbuf), "HTTP/%d.%d 100 Continue\r\n\r\n", thr_state->req_version.major, thr_state->req_version.minor);
+			msglen = hio_fmttobcstr(hio, msgbuf, HIO_COUNTOF(msgbuf), "HTTP/%d.%d %d %hs\r\n\r\n", thr_state->req_version.major, thr_state->req_version.minor, HIO_HTTP_STATUS_CONTINUE, hio_http_status_to_bcstr(HIO_HTTP_STATUS_CONTINUE));
 			if (thr_state_write_to_client(thr_state, msgbuf, msglen) <= -1) goto oops;
 			thr_state->ever_attempted_to_write_to_client = 0; /* reset this as it's polluted for 100 continue */
 		}
@@ -937,7 +944,7 @@ int hio_svc_htts_dothr (hio_svc_htts_t* htts, hio_dev_sck_t* csck, hio_htre_t* r
 	else if (req->flags & HIO_HTRE_ATTR_EXPECT)
 	{
 		/* 417 Expectation Failed */
-		thr_state_send_final_status_to_client(thr_state, 417, 1);
+		thr_state_send_final_status_to_client(thr_state, HIO_HTTP_STATUS_EXPECTATION_FAILED, 1);
 		goto oops;
 	}
 

@@ -961,7 +961,7 @@ if (hio_htre_getcontentlen(req) > 0)
 			hio_htre_discardcontent (req); 
 			/* 411 Length Required - can't keep alive. Force disconnect */
 			req->flags &= ~HIO_HTRE_ATTR_KEEPALIVE; /* to cause sendstatus() to close */
-			if (hio_svc_htts_sendstatus(htts, csck, req, 411, HIO_NULL) <= -1) goto oops;
+			if (hio_svc_htts_sendstatus(htts, csck, req, HIO_HTTP_STATUS_LENGTH_REQUIRED, HIO_NULL) <= -1) goto oops;
 		}
 		else
 
@@ -970,13 +970,13 @@ if (hio_htre_getcontentlen(req) > 0)
 			const hio_bch_t* qpath = hio_htre_getqpath(req);
 			int x;
 			if (hio_comp_bcstr_limited(qpath, "/thr/", 5, 1) == 0)
-				x = hio_svc_htts_dothr(htts, csck, req, on_htts_thr_request, HIO_NULL);
+				x = hio_svc_htts_dothr(htts, csck, req, on_htts_thr_request, HIO_NULL, 0);
 			else if (hio_comp_bcstr_limited(qpath, "/txt/", 5, 1) == 0)
-				x = hio_svc_htts_dotxt(htts, csck, req, 200, "text/plain", qpath);
+				x = hio_svc_htts_dotxt(htts, csck, req, HIO_HTTP_STATUS_OK, "text/plain", qpath, 0);
 			else if (hio_comp_bcstr_limited(qpath, "/cgi/", 5, 1) == 0)
-				x = hio_svc_htts_docgi(htts, csck, req, "", qpath + 4);
+				x = hio_svc_htts_docgi(htts, csck, req, "", qpath + 4, 0);
 			else
-				x = hio_svc_htts_dofile(htts, csck, req, "", qpath, "text/plain");
+				x = hio_svc_htts_dofile(htts, csck, req, "", qpath, "text/plain", 0);
 			if (x <= -1) goto oops;
 		}
 #if 0

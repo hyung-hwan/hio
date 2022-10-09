@@ -137,6 +137,30 @@ typedef void (*hio_svc_htts_thr_func_t) (
 
 /* -------------------------------------------------------------- */
 
+
+enum hio_svc_htts_cgi_option_t
+{
+	HIO_SVC_HTTS_CGI_NO_100_CONTINUE = (1 << 0)
+};
+
+enum hio_svc_htts_file_option_t
+{
+	HIO_SVC_HTTS_FILE_NO_100_CONTINUE = (1 << 0),
+	HIO_SVC_HTTS_FILE_READ_ONLY       = (1 << 1)
+};
+
+enum hio_svc_htts_thr_option_t
+{
+	HIO_SVC_HTTS_THR_NO_100_CONTINUE = (1 << 0)
+};
+
+#if 0
+enum hio_svc_htts_txt_option_t
+{
+	/* no option yet */
+};
+#endif
+
 #if defined(__cplusplus)
 extern "C" {
 #endif
@@ -307,14 +331,16 @@ HIO_EXPORT int hio_svc_htts_docgi (
 	hio_dev_sck_t*   csck,
 	hio_htre_t*      req,
 	const hio_bch_t* docroot,
-	const hio_bch_t* script
+	const hio_bch_t* script,
+	int              options
 );
 
 HIO_EXPORT int hio_svc_htts_dofcgi (
 	hio_svc_htts_t*   htts,
 	hio_dev_sck_t*    csck,
 	hio_htre_t*       req,
-	const hio_skad_t* fcgis_addr
+	const hio_skad_t* fcgis_addr,
+	int               options
 );
 
 HIO_EXPORT int hio_svc_htts_dofile (
@@ -323,7 +349,8 @@ HIO_EXPORT int hio_svc_htts_dofile (
 	hio_htre_t*      req,
 	const hio_bch_t* docroot,
 	const hio_bch_t* filepath,
-	const hio_bch_t* mime_type
+	const hio_bch_t* mime_type,
+	int              options
 );
 
 HIO_EXPORT int hio_svc_htts_dothr (
@@ -331,7 +358,8 @@ HIO_EXPORT int hio_svc_htts_dothr (
 	hio_dev_sck_t*          csck,
 	hio_htre_t*             req,
 	hio_svc_htts_thr_func_t func,
-	void*                   ctx
+	void*                   ctx,
+	int                     options
 );
 
 HIO_EXPORT int hio_svc_htts_dotxt (
@@ -340,7 +368,8 @@ HIO_EXPORT int hio_svc_htts_dotxt (
 	hio_htre_t*         req,
 	int                 status_code,
 	const hio_bch_t*    content_type,
-	const hio_bch_t*    content_text
+	const hio_bch_t*    content_text,
+	int                 options
 );
 
 HIO_EXPORT hio_svc_htts_rsrc_t* hio_svc_htts_rsrc_make (

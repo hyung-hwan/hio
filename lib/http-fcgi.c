@@ -497,7 +497,7 @@ static void fcgi_on_kill (fcgi_t* fcgi)
 #endif
 }
 
-int hio_svc_htts_dofcgi (hio_svc_htts_t* htts, hio_dev_sck_t* csck, hio_htre_t* req, const hio_skad_t* fcgis_addr)
+int hio_svc_htts_dofcgi (hio_svc_htts_t* htts, hio_dev_sck_t* csck, hio_htre_t* req, const hio_skad_t* fcgis_addr, int options)
 {
 	hio_t* hio = htts->hio;
 	hio_svc_htts_cli_t* cli = hio_dev_sck_getxtn(csck);
@@ -565,7 +565,7 @@ int hio_svc_htts_dofcgi (hio_svc_htts_t* htts, hio_dev_sck_t* csck, hio_htre_t* 
 		 * option 2. send 411 Length Required immediately
 		 * option 3. set Content-Length to -1 and use EOF to indicate the end of content [Non-Standard] */
 
-		if (cgi_send_final_status_to_client(cgi, 411, 1) <= -1) goto oops;
+		if (cgi_send_final_status_to_client(cgi, HIO_HTTP_STATUS_LENGTH_REQUIRED, 1) <= -1) goto oops;
 	}
 #endif
 
@@ -573,7 +573,8 @@ int hio_svc_htts_dofcgi (hio_svc_htts_t* htts, hio_dev_sck_t* csck, hio_htre_t* 
 	{
 		/* TODO: Expect: 100-continue? who should handle this? cgi? or the http server? */
 		/* CAN I LET the cgi SCRIPT handle this? */
-		if (hio_comp_http_version_numbers(&req->version, 1, 1) >= 0 && 
+		if (!(options & HIO_SVC_HTTS_CGI_NO_100_CONTINUE) && 
+		    hio_comp_http_version_numbers(&req->version, 1, 1) >= 0 && 
 		   (fcgi->req_content_length_unlimited || fcgi->req_content_length > 0)) 
 		{
 			/* 
@@ -592,7 +593,7 @@ int hio_svc_htts_dofcgi (hio_svc_htts_t* htts, hio_dev_sck_t* csck, hio_htre_t* 
 			hio_bch_t msgbuf[64];
 			hio_oow_t msglen;
 
-			msglen = hio_fmttobcstr(hio, msgbuf, HIO_COUNTOF(msgbuf), "HTTP/%d.%d 100 Continue\r\n\r\n", fcgi->req_version.major, fcgi->req_version.minor);
+			msglen = hio_fmttobcstr(hio, msgbuf, HIO_COUNTOF(msgbuf), "HTTP/%d.%d %d %hs\r\n\r\n", fcgi->req_version.major, fcgi->req_version.minor, HIO_HTTP_STATUS_CONTINUE, hio_http_status_to_bcstr(HIO_HTTP_STATUS_CONTINUE));
 			if (fcgi_write_to_client(fcgi, msgbuf, msglen) <= -1) goto oops;
 			fcgi->ever_attempted_to_write_to_client = 0; /* reset this as it's polluted for 100 continue */
 		}
@@ -600,7 +601,7 @@ int hio_svc_htts_dofcgi (hio_svc_htts_t* htts, hio_dev_sck_t* csck, hio_htre_t* 
 	else if (req->flags & HIO_HTRE_ATTR_EXPECT)
 	{
 		/* 417 Expectation Failed */
-		fcgi_send_final_status_to_client(fcgi, 417, 1);
+		fcgi_send_final_status_to_client(fcgi, HIO_HTTP_STATUS_EXPECTATION_FAILED, 1);
 		goto oops;
 	}
 

@@ -58,6 +58,7 @@ struct cgi_t
 {
 	HIO_SVC_HTTS_RSRC_HEADER;
 
+	int options;
 	hio_oow_t num_pending_writes_to_client;
 	hio_oow_t num_pending_writes_to_peer;
 	hio_dev_pro_t* peer;
@@ -69,6 +70,7 @@ struct cgi_t
 	unsigned int keep_alive: 1;
 	unsigned int req_content_length_unlimited: 1;
 	unsigned int ever_attempted_to_write_to_client: 1;
+	unsigned int client_eof_detected: 1;
 	unsigned int client_disconnected: 1;
 	unsigned int client_htrd_recbs_changed: 1;
 	hio_oow_t req_content_length; /* client request content length */
@@ -160,7 +162,7 @@ static int cgi_write_last_chunk_to_client (cgi_t* cgi)
 {
 	if (!cgi->ever_attempted_to_write_to_client)
 	{
-		if (cgi_send_final_status_to_client(cgi, 500, 0) <= -1) return -1;
+		if (cgi_send_final_status_to_client(cgi, HIO_HTTP_STATUS_INTERNAL_SERVER_ERROR, 0) <= -1) return -1;
 	}
 	else
 	{
@@ -226,7 +228,7 @@ static HIO_INLINE void cgi_mark_over (cgi_t* cgi, int over_bits)
 			hio_dev_pro_halt (cgi->peer);
 		}
 
-		if (cgi->keep_alive) 
+		if (cgi->keep_alive && !cgi->client_eof_detected)
 		{
 			/* how to arrange to delete this cgi object and put the socket back to the normal waiting state??? */
 			HIO_ASSERT (cgi->htts->hio, cgi->client->rsrc == (hio_svc_htts_rsrc_t*)cgi);
@@ -379,6 +381,7 @@ static int peer_on_read (hio_dev_pro_t* pro, hio_dev_pro_sid_t sid, const void* 
 	if (dlen == 0)
 	{
 		HIO_DEBUG3 (hio, "HTTS(%p) - EOF from peer %p(pid=%u)\n", cgi->client->htts, pro, (unsigned int)pro->child_pid);
+		cgi->client_eof_detected = 1;
 
 		if (!(cgi->over & CGI_OVER_READ_FROM_PEER))
 		{
@@ -404,7 +407,7 @@ static int peer_on_read (hio_dev_pro_t* pro, hio_dev_pro_sid_t sid, const void* 
 			if (!cgi->ever_attempted_to_write_to_client &&
 			    !(cgi->over & CGI_OVER_WRITE_TO_CLIENT))
 			{
-				cgi_send_final_status_to_client (cgi, 500, 1); /* don't care about error because it jumps to oops below anyway */
+				cgi_send_final_status_to_client (cgi, HIO_HTTP_STATUS_INTERNAL_SERVER_ERROR, 1); /* don't care about error because it jumps to oops below anyway */
 			}
 
 			goto oops; 
@@ -921,7 +924,7 @@ static int peer_on_fork (hio_dev_pro_t* pro, void* fork_ctx)
 	return 0;
 }
 
-int hio_svc_htts_docgi (hio_svc_htts_t* htts, hio_dev_sck_t* csck, hio_htre_t* req, const hio_bch_t* docroot, const hio_bch_t* script)
+int hio_svc_htts_docgi (hio_svc_htts_t* htts, hio_dev_sck_t* csck, hio_htre_t* req, const hio_bch_t* docroot, const hio_bch_t* script, int options)
 {
 	hio_t* hio = htts->hio;
 	hio_svc_htts_cli_t* cli = hio_dev_sck_getxtn(csck);
@@ -953,6 +956,7 @@ int hio_svc_htts_docgi (hio_svc_htts_t* htts, hio_dev_sck_t* csck, hio_htre_t* r
 	cgi = (cgi_t*)hio_svc_htts_rsrc_make(htts, HIO_SIZEOF(*cgi), cgi_on_kill);
 	if (HIO_UNLIKELY(!cgi)) goto oops;
 
+	cgi->options = options;
 	cgi->client = cli;
 	/*cgi->num_pending_writes_to_client = 0;
 	cgi->num_pending_writes_to_peer = 0;*/
@@ -973,7 +977,7 @@ int hio_svc_htts_docgi (hio_svc_htts_t* htts, hio_dev_sck_t* csck, hio_htre_t* r
 
 	if (access(mi.cmd, X_OK) == -1)
 	{
-		cgi_send_final_status_to_client (cgi, 403, 1); /* 403 Forbidden */
+		cgi_send_final_status_to_client (cgi, HIO_HTTP_STATUS_FORBIDDEN, 1); /* 403 Forbidden */
 		goto oops; /* TODO: must not go to oops.  just destroy the cgi and finalize the request .. */
 	}
 
@@ -999,7 +1003,7 @@ int hio_svc_htts_docgi (hio_svc_htts_t* htts, hio_dev_sck_t* csck, hio_htre_t* r
 		 * option 2. send 411 Length Required immediately
 		 * option 3. set Content-Length to -1 and use EOF to indicate the end of content [Non-Standard] */
 
-		if (cgi_send_final_status_to_client(cgi, 411, 1) <= -1) goto oops;
+		if (cgi_send_final_status_to_client(cgi, HIO_HTTP_STATUS_LENGTH_REQUIRED, 1) <= -1) goto oops;
 	}
 #endif
 
@@ -1007,7 +1011,8 @@ int hio_svc_htts_docgi (hio_svc_htts_t* htts, hio_dev_sck_t* csck, hio_htre_t* r
 	{
 		/* TODO: Expect: 100-continue? who should handle this? cgi? or the http server? */
 		/* CAN I LET the cgi SCRIPT handle this? */
-		if (hio_comp_http_version_numbers(&req->version, 1, 1) >= 0 && 
+		if (!(options & HIO_SVC_HTTS_CGI_NO_100_CONTINUE) && 
+		    hio_comp_http_version_numbers(&req->version, 1, 1) >= 0 && 
 		   (cgi->req_content_length_unlimited || cgi->req_content_length > 0)) 
 		{
 			/* 
@@ -1026,7 +1031,7 @@ int hio_svc_htts_docgi (hio_svc_htts_t* htts, hio_dev_sck_t* csck, hio_htre_t* r
 			hio_bch_t msgbuf[64];
 			hio_oow_t msglen;
 
-			msglen = hio_fmttobcstr(hio, msgbuf, HIO_COUNTOF(msgbuf), "HTTP/%d.%d 100 Continue\r\n\r\n", cgi->req_version.major, cgi->req_version.minor);
+			msglen = hio_fmttobcstr(hio, msgbuf, HIO_COUNTOF(msgbuf), "HTTP/%d.%d %d %hs\r\n\r\n", cgi->req_version.major, cgi->req_version.minor, HIO_HTTP_STATUS_CONTINUE, hio_http_status_to_bcstr(HIO_HTTP_STATUS_CONTINUE));
 			if (cgi_write_to_client(cgi, msgbuf, msglen) <= -1) goto oops;
 			cgi->ever_attempted_to_write_to_client = 0; /* reset this as it's polluted for 100 continue */
 		}
@@ -1034,7 +1039,7 @@ int hio_svc_htts_docgi (hio_svc_htts_t* htts, hio_dev_sck_t* csck, hio_htre_t* r
 	else if (req->flags & HIO_HTRE_ATTR_EXPECT)
 	{
 		/* 417 Expectation Failed */
-		cgi_send_final_status_to_client(cgi, 417, 1);
+		cgi_send_final_status_to_client(cgi, HIO_HTTP_STATUS_EXPECTATION_FAILED, 1);
 		goto oops;
 	}
 

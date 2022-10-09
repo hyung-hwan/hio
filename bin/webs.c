@@ -21,21 +21,22 @@ static int process_http_request (hio_svc_htts_t* htts, hio_dev_sck_t* csck, hio_
 	mth = hio_htre_getqmethodtype(req);
 	qpath = hio_htre_getqpath(req);
 
-	if (mth == HIO_HTTP_GET || mth == HIO_HTTP_POST)
+
+//	if (mth == HIO_HTTP_GET || mth == HIO_HTTP_POST)
 	{
 		/* TODO: proper mime-type */
 		const hio_bch_t* dot;
 		hio_bch_t mt[128];
-
 		dot = hio_rfind_bchar_in_bcstr(qpath, '.');
 		hio_fmttobcstr (hio, mt, HIO_COUNTOF(mt), "text/%hs", ((dot && dot[1] != '\0')? &dot[1]: "plain")); /* TODO: error check */
-		if (hio_svc_htts_dofile(htts, csck, req, ext->docroot, qpath, mt) <= -1) goto oops;
+		if (hio_svc_htts_dofile(htts, csck, req, ext->docroot, qpath, mt, 0) <= -1) goto oops;
 	}
+#if 0
 	else
 	{
-		if (hio_svc_htts_dotxt(htts, csck, req, 403, "text/plain", hio_http_status_to_bcstr(403)) <= -1) goto oops;
+		if (hio_svc_htts_dotxt(htts, csck, req, HIO_HTTP_STATUS_FORBIDDEN, "text/plain", hio_http_status_to_bcstr(403), 0) <= -1) goto oops;
 	}
-
+#endif
 	return 0;
 	
 oops:

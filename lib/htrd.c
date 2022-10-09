@@ -554,7 +554,7 @@ static int capture_expect (hio_htrd_t* htrd, hio_htb_pair_t* pair)
 
 	val = HIO_HTB_VPTR(pair);
 	while (val) 
-	{	
+	{
 		/* Expect: 100-continue is included */
 		if (hio_comp_bcstr(val->ptr, "100-continue", 1) == 0) htrd->re.flags |= HIO_HTRE_ATTR_EXPECT100; 
 		val = val->next;
