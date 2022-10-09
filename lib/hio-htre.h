@@ -97,8 +97,8 @@ typedef enum hio_http_method_t hio_http_method_t;
 enum hio_http_status_t
 {
 	HIO_HTTP_STATUS_CONTINUE              = 100,
-     HIO_HTTP_STATUS_SWITCH_PROTOCOL       = 101,
-                                           
+	HIO_HTTP_STATUS_SWITCH_PROTOCOL       = 101,
+
 	HIO_HTTP_STATUS_OK                    = 200,
 	HIO_HTTP_STATUS_CREATED               = 201,
 	HIO_HTTP_STATUS_ACCEPTED              = 202,
@@ -106,10 +106,10 @@ enum hio_http_status_t
 	HIO_HTTP_STATUS_NO_CONTENT            = 204,
 	HIO_HTTP_STATUS_RESET_CONTENT         = 205,
 	HIO_HTTP_STATUS_PARTIAL_CONTENT       = 206,
-                                           
+
 	HIO_HTTP_STATUS_MOVED_PERMANENTLY     = 301,
 	HIO_HTTP_STATUS_NOT_MODIFIED          = 304,
-                                           
+
 	HIO_HTTP_STATUS_BAD_REQUEST           = 400,
 	HIO_HTTP_STATUS_FORBIDDEN             = 403,
 	HIO_HTTP_STATUS_NOT_FOUND             = 404,
@@ -119,7 +119,6 @@ enum hio_http_status_t
 	HIO_HTTP_STATUS_EXPECTATION_FAILED    = 417,
 
 	HIO_HTTP_STATUS_INTERNAL_SERVER_ERROR = 500,
-
 };
 typedef enum hio_http_status_t hio_http_status_t;
 
