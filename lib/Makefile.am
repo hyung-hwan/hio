@@ -60,6 +60,7 @@ include_HEADERS = \
 	hio-shw.h \
 	hio-skad.h \
 	hio-str.h \
+	hio-tar.h \
 	hio-thr.h \
 	hio-upac.h \
 	hio-utl.h \
@@ -113,6 +114,7 @@ libhio_la_SOURCES = \
 	thr.c \
 	uch-case.h \
 	uch-prop.h \
+	tar.c  \
 	tmr.c \
 	utf8.c \
 	utl.c \

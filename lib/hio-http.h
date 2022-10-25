@@ -113,7 +113,7 @@ typedef int (*hio_svc_htts_proc_req_t) (
 /* -------------------------------------------------------------- */
 struct hio_svc_htts_thr_func_info_t
 {
-	hio_t*             hio;
+	hio_svc_htts_t*    htts;
 
 	hio_http_method_t  req_method;
 	hio_http_version_t req_version;
@@ -131,7 +131,7 @@ typedef struct hio_svc_htts_thr_func_info_t hio_svc_htts_thr_func_info_t;
 typedef void (*hio_svc_htts_thr_func_t) (
 	hio_t*                        hio,
 	hio_dev_thr_iopair_t*         iop,
-	hio_svc_htts_thr_func_info_t* info,
+	hio_svc_htts_thr_func_info_t* tfi,
 	void*                         ctx
 );
 

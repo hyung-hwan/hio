@@ -81,6 +81,13 @@ hio_t06_CFLAGS = $(CFLAGS_COMMON)
 hio_t06_LDFLAGS = $(LDFLAGS_COMMON)
 hio_t06_LDADD = $(LIBADD_COMMON)
 
+bin_PROGRAMS += hio-untar
+hio_untar_SOURCES = untar.c
+hio_untar_CPPFLAGS = $(CPPFLAGS_COMMON)
+hio_untar_CFLAGS = $(CFLAGS_COMMON)
+hio_untar_LDFLAGS = $(LDFLAGS_COMMON)
+hio_untar_LDADD = $(LIBADD_COMMON)
+
 bin_PROGRAMS += hio-webs
 hio_webs_SOURCES = webs.c
 hio_webs_CPPFLAGS = $(CPPFLAGS_COMMON)

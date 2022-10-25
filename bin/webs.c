@@ -1,13 +1,49 @@
 #include <hio-http.h>
+#include <hio-tar.h>
 #include <signal.h>
 #include <string.h>
 #include <stdio.h>
+#include <unistd.h>
 
 struct htts_ext_t
 {
 	const hio_bch_t* docroot;
 };
 typedef struct htts_ext_t htts_ext_t;
+
+
+void untar (hio_t* hio, hio_dev_thr_iopair_t* iop, hio_svc_htts_thr_func_info_t* tfi, void* ctx)
+{
+	FILE* wfp = NULL;
+	htts_ext_t* ext;
+
+	ext = hio_svc_htts_getxtn(tfi->htts);
+
+	wfp = fdopen(iop->wfd, "w");
+	if (!wfp)
+	{
+		write (iop->wfd, "Status: 500\r\n\r\n", 15); /* internal server error */
+		goto done;
+	}
+
+#if 0
+	if (hio_extract_tarfd(hio, iop->rfd, ext->docroot + tfi->req_path) <= -1)
+	{
+/* TODO: better error message */
+		write (iop->wfd, "Status: 500\r\n\r\n", 15); 
+		goto done;
+	}
+#endif
+
+	write (iop->wfd, "Status: 200\r\n\r\n", 15); 
+
+done:
+	if (wfp)
+	{
+		iop->wfd = HIO_SYSHND_INVALID; /* prevent double close by the main library */
+		fclose (wfp);
+	}
+}
 
 static int process_http_request (hio_svc_htts_t* htts, hio_dev_sck_t* csck, hio_htre_t* req)
 {
@@ -22,6 +58,11 @@ static int process_http_request (hio_svc_htts_t* htts, hio_dev_sck_t* csck, hio_
 	qpath = hio_htre_getqpath(req);
 
 
+	if (mth == HIO_HTTP_OTHER && hio_comp_bcstr(hio_htre_getqmethodname(req), "UNTAR", 1) == 0)
+	{
+		hio_svc_htts_dothr(htts, csck, req, untar, HIO_NULL, 0);
+	}
+	else
 //	if (mth == HIO_HTTP_GET || mth == HIO_HTTP_POST)
 	{
 		/* TODO: proper mime-type */
@@ -38,7 +79,7 @@ static int process_http_request (hio_svc_htts_t* htts, hio_dev_sck_t* csck, hio_
 	}
 #endif
 	return 0;
-	
+
 oops:
 	hio_dev_sck_halt (csck);
 	return 0;

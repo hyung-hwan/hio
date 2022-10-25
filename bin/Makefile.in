@@ -90,7 +90,8 @@ build_triplet = @build@
 host_triplet = @host@
 bin_PROGRAMS = hio-execd$(EXEEXT) $(am__EXEEXT_1) hio-t01$(EXEEXT) \
 	hio-t02$(EXEEXT) hio-t03$(EXEEXT) hio-t04$(EXEEXT) \
-	hio-t05$(EXEEXT) hio-t06$(EXEEXT) hio-webs$(EXEEXT)
+	hio-t05$(EXEEXT) hio-t06$(EXEEXT) hio-untar$(EXEEXT) \
+	hio-webs$(EXEEXT)
 @HAVE_X11_LIB_TRUE@am__append_1 = hio-te
 @ENABLE_MARIADB_TRUE@am__append_2 = $(MARIADB_CFLAGS)  
 @ENABLE_MARIADB_TRUE@am__append_3 = $(MARIADB_LDFLAGS)  
@@ -168,6 +169,12 @@ hio_te_OBJECTS = $(am_hio_te_OBJECTS)
 hio_te_LINK = $(LIBTOOL) $(AM_V_lt) --tag=CC $(AM_LIBTOOLFLAGS) \
 	$(LIBTOOLFLAGS) --mode=link $(CCLD) $(hio_te_CFLAGS) $(CFLAGS) \
 	$(hio_te_LDFLAGS) $(LDFLAGS) -o $@
+am_hio_untar_OBJECTS = hio_untar-untar.$(OBJEXT)
+hio_untar_OBJECTS = $(am_hio_untar_OBJECTS)
+hio_untar_DEPENDENCIES = $(LIBADD_COMMON)
+hio_untar_LINK = $(LIBTOOL) $(AM_V_lt) --tag=CC $(AM_LIBTOOLFLAGS) \
+	$(LIBTOOLFLAGS) --mode=link $(CCLD) $(hio_untar_CFLAGS) \
+	$(CFLAGS) $(hio_untar_LDFLAGS) $(LDFLAGS) -o $@
 am_hio_webs_OBJECTS = hio_webs-webs.$(OBJEXT)
 hio_webs_OBJECTS = $(am_hio_webs_OBJECTS)
 hio_webs_DEPENDENCIES = $(LIBADD_COMMON) $(am__DEPENDENCIES_1)
@@ -193,7 +200,8 @@ am__depfiles_remade = ./$(DEPDIR)/hio_execd-execd.Po \
 	./$(DEPDIR)/hio_t01-t01.Po ./$(DEPDIR)/hio_t02-t02.Po \
 	./$(DEPDIR)/hio_t03-t03.Po ./$(DEPDIR)/hio_t04-t04.Po \
 	./$(DEPDIR)/hio_t05-t05.Po ./$(DEPDIR)/hio_t06-t06.Po \
-	./$(DEPDIR)/hio_te-te.Po ./$(DEPDIR)/hio_webs-webs.Po
+	./$(DEPDIR)/hio_te-te.Po ./$(DEPDIR)/hio_untar-untar.Po \
+	./$(DEPDIR)/hio_webs-webs.Po
 am__mv = mv -f
 COMPILE = $(CC) $(DEFS) $(DEFAULT_INCLUDES) $(INCLUDES) $(AM_CPPFLAGS) \
 	$(CPPFLAGS) $(AM_CFLAGS) $(CFLAGS)
@@ -215,11 +223,13 @@ am__v_CCLD_0 = @echo "  CCLD    " $@;
 am__v_CCLD_1 = 
 SOURCES = $(hio_execd_SOURCES) $(hio_t01_SOURCES) $(hio_t02_SOURCES) \
 	$(hio_t03_SOURCES) $(hio_t04_SOURCES) $(hio_t05_SOURCES) \
-	$(hio_t06_SOURCES) $(hio_te_SOURCES) $(hio_webs_SOURCES)
+	$(hio_t06_SOURCES) $(hio_te_SOURCES) $(hio_untar_SOURCES) \
+	$(hio_webs_SOURCES)
 DIST_SOURCES = $(hio_execd_SOURCES) $(hio_t01_SOURCES) \
 	$(hio_t02_SOURCES) $(hio_t03_SOURCES) $(hio_t04_SOURCES) \
 	$(hio_t05_SOURCES) $(hio_t06_SOURCES) \
-	$(am__hio_te_SOURCES_DIST) $(hio_webs_SOURCES)
+	$(am__hio_te_SOURCES_DIST) $(hio_untar_SOURCES) \
+	$(hio_webs_SOURCES)
 am__can_run_installinfo = \
   case $$AM_UPDATE_INFO_DIR in \
     n|no|NO) false;; \
@@ -438,6 +448,11 @@ hio_t06_CPPFLAGS = $(CPPFLAGS_COMMON)
 hio_t06_CFLAGS = $(CFLAGS_COMMON)
 hio_t06_LDFLAGS = $(LDFLAGS_COMMON)
 hio_t06_LDADD = $(LIBADD_COMMON)
+hio_untar_SOURCES = untar.c
+hio_untar_CPPFLAGS = $(CPPFLAGS_COMMON)
+hio_untar_CFLAGS = $(CFLAGS_COMMON)
+hio_untar_LDFLAGS = $(LDFLAGS_COMMON)
+hio_untar_LDADD = $(LIBADD_COMMON)
 hio_webs_SOURCES = webs.c
 hio_webs_CPPFLAGS = $(CPPFLAGS_COMMON)
 hio_webs_CFLAGS = $(CFLAGS_COMMON)
@@ -558,6 +573,10 @@ hio-te$(EXEEXT): $(hio_te_OBJECTS) $(hio_te_DEPENDENCIES) $(EXTRA_hio_te_DEPENDE
 	@rm -f hio-te$(EXEEXT)
 	$(AM_V_CCLD)$(hio_te_LINK) $(hio_te_OBJECTS) $(hio_te_LDADD) $(LIBS)
 
+hio-untar$(EXEEXT): $(hio_untar_OBJECTS) $(hio_untar_DEPENDENCIES) $(EXTRA_hio_untar_DEPENDENCIES) 
+	@rm -f hio-untar$(EXEEXT)
+	$(AM_V_CCLD)$(hio_untar_LINK) $(hio_untar_OBJECTS) $(hio_untar_LDADD) $(LIBS)
+
 hio-webs$(EXEEXT): $(hio_webs_OBJECTS) $(hio_webs_DEPENDENCIES) $(EXTRA_hio_webs_DEPENDENCIES) 
 	@rm -f hio-webs$(EXEEXT)
 	$(AM_V_CCLD)$(hio_webs_LINK) $(hio_webs_OBJECTS) $(hio_webs_LDADD) $(LIBS)
@@ -576,6 +595,7 @@ distclean-compile:
 @AMDEP_TRUE@@am__include@ @am__quote@./$(DEPDIR)/hio_t05-t05.Po@am__quote@ # am--include-marker
 @AMDEP_TRUE@@am__include@ @am__quote@./$(DEPDIR)/hio_t06-t06.Po@am__quote@ # am--include-marker
 @AMDEP_TRUE@@am__include@ @am__quote@./$(DEPDIR)/hio_te-te.Po@am__quote@ # am--include-marker
+@AMDEP_TRUE@@am__include@ @am__quote@./$(DEPDIR)/hio_untar-untar.Po@am__quote@ # am--include-marker
 @AMDEP_TRUE@@am__include@ @am__quote@./$(DEPDIR)/hio_webs-webs.Po@am__quote@ # am--include-marker
 
 $(am__depfiles_remade):
@@ -719,6 +739,20 @@ hio_te-te.obj: te.c
 @AMDEP_TRUE@@am__fastdepCC_FALSE@	$(AM_V_CC)source='te.c' object='hio_te-te.obj' libtool=no @AMDEPBACKSLASH@
 @AMDEP_TRUE@@am__fastdepCC_FALSE@	DEPDIR=$(DEPDIR) $(CCDEPMODE) $(depcomp) @AMDEPBACKSLASH@
 @am__fastdepCC_FALSE@	$(AM_V_CC@am__nodep@)$(CC) $(DEFS) $(DEFAULT_INCLUDES) $(INCLUDES) $(hio_te_CPPFLAGS) $(CPPFLAGS) $(hio_te_CFLAGS) $(CFLAGS) -c -o hio_te-te.obj `if test -f 'te.c'; then $(CYGPATH_W) 'te.c'; else $(CYGPATH_W) '$(srcdir)/te.c'; fi`
+
+hio_untar-untar.o: untar.c
+@am__fastdepCC_TRUE@	$(AM_V_CC)$(CC) $(DEFS) $(DEFAULT_INCLUDES) $(INCLUDES) $(hio_untar_CPPFLAGS) $(CPPFLAGS) $(hio_untar_CFLAGS) $(CFLAGS) -MT hio_untar-untar.o -MD -MP -MF $(DEPDIR)/hio_untar-untar.Tpo -c -o hio_untar-untar.o `test -f 'untar.c' || echo '$(srcdir)/'`untar.c
+@am__fastdepCC_TRUE@	$(AM_V_at)$(am__mv) $(DEPDIR)/hio_untar-untar.Tpo $(DEPDIR)/hio_untar-untar.Po
+@AMDEP_TRUE@@am__fastdepCC_FALSE@	$(AM_V_CC)source='untar.c' object='hio_untar-untar.o' libtool=no @AMDEPBACKSLASH@
+@AMDEP_TRUE@@am__fastdepCC_FALSE@	DEPDIR=$(DEPDIR) $(CCDEPMODE) $(depcomp) @AMDEPBACKSLASH@
+@am__fastdepCC_FALSE@	$(AM_V_CC@am__nodep@)$(CC) $(DEFS) $(DEFAULT_INCLUDES) $(INCLUDES) $(hio_untar_CPPFLAGS) $(CPPFLAGS) $(hio_untar_CFLAGS) $(CFLAGS) -c -o hio_untar-untar.o `test -f 'untar.c' || echo '$(srcdir)/'`untar.c
+
+hio_untar-untar.obj: untar.c
+@am__fastdepCC_TRUE@	$(AM_V_CC)$(CC) $(DEFS) $(DEFAULT_INCLUDES) $(INCLUDES) $(hio_untar_CPPFLAGS) $(CPPFLAGS) $(hio_untar_CFLAGS) $(CFLAGS) -MT hio_untar-untar.obj -MD -MP -MF $(DEPDIR)/hio_untar-untar.Tpo -c -o hio_untar-untar.obj `if test -f 'untar.c'; then $(CYGPATH_W) 'untar.c'; else $(CYGPATH_W) '$(srcdir)/untar.c'; fi`
+@am__fastdepCC_TRUE@	$(AM_V_at)$(am__mv) $(DEPDIR)/hio_untar-untar.Tpo $(DEPDIR)/hio_untar-untar.Po
+@AMDEP_TRUE@@am__fastdepCC_FALSE@	$(AM_V_CC)source='untar.c' object='hio_untar-untar.obj' libtool=no @AMDEPBACKSLASH@
+@AMDEP_TRUE@@am__fastdepCC_FALSE@	DEPDIR=$(DEPDIR) $(CCDEPMODE) $(depcomp) @AMDEPBACKSLASH@
+@am__fastdepCC_FALSE@	$(AM_V_CC@am__nodep@)$(CC) $(DEFS) $(DEFAULT_INCLUDES) $(INCLUDES) $(hio_untar_CPPFLAGS) $(CPPFLAGS) $(hio_untar_CFLAGS) $(CFLAGS) -c -o hio_untar-untar.obj `if test -f 'untar.c'; then $(CYGPATH_W) 'untar.c'; else $(CYGPATH_W) '$(srcdir)/untar.c'; fi`
 
 hio_webs-webs.o: webs.c
 @am__fastdepCC_TRUE@	$(AM_V_CC)$(CC) $(DEFS) $(DEFAULT_INCLUDES) $(INCLUDES) $(hio_webs_CPPFLAGS) $(CPPFLAGS) $(hio_webs_CFLAGS) $(CFLAGS) -MT hio_webs-webs.o -MD -MP -MF $(DEPDIR)/hio_webs-webs.Tpo -c -o hio_webs-webs.o `test -f 'webs.c' || echo '$(srcdir)/'`webs.c
@@ -875,6 +909,7 @@ distclean: distclean-am
 	-rm -f ./$(DEPDIR)/hio_t05-t05.Po
 	-rm -f ./$(DEPDIR)/hio_t06-t06.Po
 	-rm -f ./$(DEPDIR)/hio_te-te.Po
+	-rm -f ./$(DEPDIR)/hio_untar-untar.Po
 	-rm -f ./$(DEPDIR)/hio_webs-webs.Po
 	-rm -f Makefile
 distclean-am: clean-am distclean-compile distclean-generic \
@@ -929,6 +964,7 @@ maintainer-clean: maintainer-clean-am
 	-rm -f ./$(DEPDIR)/hio_t05-t05.Po
 	-rm -f ./$(DEPDIR)/hio_t06-t06.Po
 	-rm -f ./$(DEPDIR)/hio_te-te.Po
+	-rm -f ./$(DEPDIR)/hio_untar-untar.Po
 	-rm -f ./$(DEPDIR)/hio_webs-webs.Po
 	-rm -f Makefile
 maintainer-clean-am: distclean-am maintainer-clean-generic
