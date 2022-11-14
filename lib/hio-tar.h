@@ -11,13 +11,14 @@ struct hio_tar_hdr_t
 	char mode[8];                 /* 100 */
 	char uid[8];                  /* 108 */
 	char gid[8];                  /* 116 */
-	char size[12];                /* 124 */
+	char size[12];                /* 124 - file size in an ascii octal string */
 	char mtime[12];               /* 136 */
 	char chksum[8];               /* 148 */
 	char typeflag;                /* 156 */
 	char linkname[100];           /* 157 */
-	char magic[6];                /* 257 */
-	char version[2];              /* 263 */
+
+	char magic[6];                /* 257 - ustar indicator */
+	char version[2];              /* 263 - ustar version */
 	char uname[32];               /* 265 */
 	char gname[32];               /* 297 */
 	char devmajor[8];             /* 329 */
@@ -31,7 +32,6 @@ struct hio_tar_hdr_t
 };
 
 typedef struct hio_tar_hdr_t hio_tar_hdr_t;
-
 
 #define HIO_TAR_MAGIC   "ustar"        /* ustar and a null */
 #define HIO_TAR_MAGLEN  6
@@ -88,6 +88,12 @@ struct hio_tar_t
 		hio_uint8_t buf[HIO_TAR_BLKSIZE];
 		hio_oow_t len;
 	} blk;
+
+	struct
+	{
+		hio_uintmax_t filesize;
+		void* fp;
+	} hi;
 };
 typedef struct hio_tar_t hio_tar_t;
 
@@ -98,21 +104,29 @@ extern "C" {
 HIO_EXPORT int hio_extract_tar (hio_t* hio, const hio_bch_t* archive_file);
 
 
-hio_tar_t* hio_tar_open (
+HIO_EXPORT hio_tar_t* hio_tar_open (
 	hio_t*    hio,
 	hio_oow_t xtnsize
 );
 
-void hio_tar_close (
+HIO_EXPORT void hio_tar_close (
 	hio_tar_t* tar
 );
 
-int hio_tar_init (
+HIO_EXPORT int hio_tar_init (
 	hio_tar_t* tar
 );
 
-void hio_tar_fini (
+HIO_EXPORT void hio_tar_fini (
 	hio_tar_t* tar
+);
+
+#define hio_tar_endfeed(tar) hio_tar_feed(tar, HIO_NULL, 0)
+
+HIO_EXPORT int hio_tar_feed (
+	hio_tar_t*  tar,
+	const void* ptr,
+	hio_oow_t   len
 );
 
 #if defined(__cplusplus)

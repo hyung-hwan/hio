@@ -223,25 +223,69 @@ void hio_tar_fini (hio_tar_t* tar)
 {
 }
 
-
 static int process_header (hio_tar_t* tar)
 {
 	hio_tar_hdr_t* hdr;
 
+	HIO_ASSERT (tar->hio, tar->state == HIO_TAR_STATE_START);
 	HIO_ASSERT (tar->hio, tar->blk.len == HIO_TAR_BLKSIZE);
 	hdr = (hio_tar_hdr_t*)tar->blk.buf;
 
 	/* all-zero byte block ends the archive */
 	if (HIO_MEMCMP(hdr, _end_block, HIO_TAR_BLKSIZE) == 0) 
 	{
+/* TODO: is it correct? */
 		tar->state = HIO_TAR_STATE_END;
-		return 0;
+	}
+	else
+	{
+		int is_sober;
+		const hio_bch_t* endptr;
+
+		/* if (hdr->typeflag) TODO: do different jobs depending on types... */
+
+		tar->hi.filesize = hio_bchars_to_uintmax(hdr->size, HIO_COUNTOF(hdr->size), HIO_BCHARS_TO_UINTMAX_MAKE_OPTION(0,0,0,8), &endptr, &is_sober);
+		//mode = hio_bchars_to_uintmax(hdr->mode, HIO_COUNTOF(hdr->mode), HIO_BCHARS_TO_UINTMAX_MAKE_OPTION(0,0,0,8), &endptr, &is_sober);
+
+		if (tar->hi.filesize > 0)
+		{
+			tar->state = HIO_TAR_STATE_FILE;
+			/* open here? */
+/* COMPOSE an actual file name...
+hdr->prefix + hdr->name 
+			fp = fopen(hdr->name, "w");
+		}
+		else
+		{
+			/* empty file? just create an empty file here??? */
+			/* open ... close or just create */
+		}
 	}
 
 	return 0;
 }
 
-#define hio_tar_endfeed(tar) hio_tar_feed(tar, HIO_NULL, 0)
+static int process_content (hio_tar_t* tar)
+{
+	hio_oow_t chunksize;
+
+	HIO_ASSERT (tar->hio, tar->blk.len == HIO_TAR_BLKSIZE);
+	HIO_ASSERT (tar->hio, tar->hi.filesize > 0);
+
+	
+	chunksize = tar->hi.filesize < tar->blk.len? tar->hi.filesize: tar->blk.len;
+
+#if 0
+	write callback(tar->hi.).. tar->blk.buf, tar->blk.len);
+#endif
+
+	tar->hi.filesize -= chunksize;
+	if (tar->hi.filesize <= 0)
+	{
+		/* end of file */
+		/* close file???  also close if there is an exception or error??? */
+	}
+}
 
 int hio_tar_feed (hio_tar_t* tar, const void* ptr, hio_oow_t len)
 {
@@ -251,34 +295,40 @@ int hio_tar_feed (hio_tar_t* tar, const void* ptr, hio_oow_t len)
 		if (tar->state != HIO_TAR_STATE_END || tar->blk.len > 0)
 		{
 			/* ERROR - premature end of file */
+			hio_seterrbfmt (tar->hio, HIO_EINVAL, "premature end of feed");
 			return -1;
 		}
 	}
 
 	while (len > 0)
 	{
-		switch (tar->state)
+		hio_oow_t cplen;
+
+		cplen = HIO_COUNTOF(tar->blk.buf) - tar->blk.len; /* required length to fill a block */
+		if (len < cplen) cplen = len; /* not enough to fill a block */
+
+		HIO_MEMCPY (&tar->blk.buf[tar->blk.len], ptr, cplen);
+		tar->blk.len += cplen;
+		len -= cplen;
+
+		if (tar->blk.len == HIO_COUNTOF(tar->blk.buf))
 		{
-			case HIO_TAR_STATE_START:
+			/* on a complete block */
+			switch (tar->state)
 			{
-				hio_oow_t cplen;
-				cplen = HIO_COUNTOF(tar->blk.buf) - tar->blk.len;
-				if (len < cplen) cplen = len;
-				HIO_MEMCPY (&tar->blk.buf[tar->blk.len], ptr, cplen);
-				len -= cplen;
-				break;
-			}
+				case HIO_TAR_STATE_START:
+					if (process_header(tar) <= -1) return -1;
+					break;
 
-			case HIO_TAR_STATE_FILE:
-				break;
+				case HIO_TAR_STATE_FILE:
+					if (process_content(tar) <= -1) return -1;
+					break;
 
-			case HIO_TAR_STATE_END:
-				if (len > 0)
-				{
+				case HIO_TAR_STATE_END:
 					/* garbage after the final ending block */
+					hio_seterrbfmt (tar->hio, HIO_EINVAL, "trailing garbage at the end of feed");
 					return -1;
-				}
-				break;
+			}
 		}
 	}
 
