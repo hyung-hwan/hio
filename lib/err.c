@@ -37,27 +37,28 @@ static hio_ooch_t errstr_8[] = {'e', 'x', 'i', 's', 't', 'i', 'n', 'g', '/', 'd'
 static hio_ooch_t errstr_9[] = {'s', 'y', 's', 't', 'e', 'm', ' ', 'b', 'u', 's', 'y', '\0' };
 static hio_ooch_t errstr_10[] = {'a', 'c', 'c', 'e', 's', 's', ' ', 'd', 'e', 'n', 'i', 'e', 'd', '\0' };
 static hio_ooch_t errstr_11[] = {'o', 'p', 'e', 'r', 'a', 't', 'i', 'o', 'n', ' ', 'n', 'o', 't', ' ', 'p', 'e', 'r', 'm', 'i', 't', 't', 'e', 'd', '\0' };
-static hio_ooch_t errstr_12[] = {'n', 'o', 't', ' ', 'd', 'i', 'r', 'e', 'c', 't', 'o', 'r', 'y', '\0' };
-static hio_ooch_t errstr_13[] = {'i', 'n', 't', 'e', 'r', 'r', 'u', 'p', 't', 'e', 'd', '\0' };
-static hio_ooch_t errstr_14[] = {'p', 'i', 'p', 'e', ' ', 'e', 'r', 'r', 'o', 'r', '\0' };
-static hio_ooch_t errstr_15[] = {'r', 'e', 's', 'o', 'u', 'r', 'c', 'e', ' ', 't', 'e', 'm', 'p', 'o', 'r', 'a', 'r', 'i', 'l', 'y', ' ', 'u', 'n', 'a', 'v', 'a', 'i', 'l', 'a', 'b', 'l', 'e', '\0' };
-static hio_ooch_t errstr_16[] = {'b', 'a', 'd', ' ', 's', 'y', 's', 't', 'e', 'm', ' ', 'h', 'a', 'n', 'd', 'l', 'e', '\0' };
-static hio_ooch_t errstr_17[] = {'b', 'a', 'd', ' ', 'r', 'e', 'q', 'u', 'e', 's', 't', ' ', 'o', 'r', ' ', 'r', 'e', 's', 'p', 'o', 'n', 's', 'e', '\0' };
-static hio_ooch_t errstr_18[] = {'t', 'o', 'o', ' ', 'm', 'a', 'n', 'y', ' ', 'o', 'p', 'e', 'n', ' ', 'f', 'i', 'l', 'e', 's', '\0' };
+static hio_ooch_t errstr_12[] = {'i', 's', ' ', 'd', 'i', 'r', 'e', 'c', 't', 'o', 'r', 'y', '\0' };
+static hio_ooch_t errstr_13[] = {'n', 'o', 't', ' ', 'd', 'i', 'r', 'e', 'c', 't', 'o', 'r', 'y', '\0' };
+static hio_ooch_t errstr_14[] = {'i', 'n', 't', 'e', 'r', 'r', 'u', 'p', 't', 'e', 'd', '\0' };
+static hio_ooch_t errstr_15[] = {'p', 'i', 'p', 'e', ' ', 'e', 'r', 'r', 'o', 'r', '\0' };
+static hio_ooch_t errstr_16[] = {'r', 'e', 's', 'o', 'u', 'r', 'c', 'e', ' ', 't', 'e', 'm', 'p', 'o', 'r', 'a', 'r', 'i', 'l', 'y', ' ', 'u', 'n', 'a', 'v', 'a', 'i', 'l', 'a', 'b', 'l', 'e', '\0' };
+static hio_ooch_t errstr_17[] = {'b', 'a', 'd', ' ', 's', 'y', 's', 't', 'e', 'm', ' ', 'h', 'a', 'n', 'd', 'l', 'e', '\0' };
+static hio_ooch_t errstr_18[] = {'b', 'a', 'd', ' ', 'r', 'e', 'q', 'u', 'e', 's', 't', ' ', 'o', 'r', ' ', 'r', 'e', 's', 'p', 'o', 'n', 's', 'e', '\0' };
 static hio_ooch_t errstr_19[] = {'t', 'o', 'o', ' ', 'm', 'a', 'n', 'y', ' ', 'o', 'p', 'e', 'n', ' ', 'f', 'i', 'l', 'e', 's', '\0' };
-static hio_ooch_t errstr_20[] = {'I', '/', 'O', ' ', 'e', 'r', 'r', 'o', 'r', '\0' };
-static hio_ooch_t errstr_21[] = {'e', 'n', 'c', 'o', 'd', 'i', 'n', 'g', ' ', 'c', 'o', 'n', 'v', 'e', 'r', 's', 'i', 'o', 'n', ' ', 'e', 'r', 'r', 'o', 'r', '\0' };
-static hio_ooch_t errstr_22[] = {'i', 'n', 's', 'u', 'f', 'f', 'i', 'c', 'i', 'e', 'n', 't', ' ', 'd', 'a', 't', 'a', ' ', 'f', 'o', 'r', ' ', 'e', 'n', 'c', 'o', 'd', 'i', 'n', 'g', ' ', 'c', 'o', 'n', 'v', 'e', 'r', 's', 'i', 'o', 'n', '\0' };
-static hio_ooch_t errstr_23[] = {'b', 'u', 'f', 'f', 'e', 'r', ' ', 'f', 'u', 'l', 'l', '\0' };
-static hio_ooch_t errstr_24[] = {'c', 'o', 'n', 'n', 'e', 'c', 't', 'i', 'o', 'n', ' ', 'l', 'o', 's', 't', '\0' };
-static hio_ooch_t errstr_25[] = {'c', 'o', 'n', 'n', 'e', 'c', 't', 'i', 'o', 'n', ' ', 'r', 'e', 'f', 'u', 's', 'e', 'd', '\0' };
-static hio_ooch_t errstr_26[] = {'c', 'o', 'n', 'n', 'e', 'c', 't', 'i', 'o', 'n', ' ', 'r', 'e', 's', 'e', 't', '\0' };
-static hio_ooch_t errstr_27[] = {'n', 'o', ' ', 'c', 'a', 'p', 'a', 'b', 'i', 'l', 'i', 't', 'y', '\0' };
-static hio_ooch_t errstr_28[] = {'t', 'i', 'm', 'e', 'd', ' ', 'o', 'u', 't', '\0' };
-static hio_ooch_t errstr_29[] = {'n', 'o', ' ', 'r', 'e', 's', 'p', 'o', 'n', 's', 'e', '\0' };
-static hio_ooch_t errstr_30[] = {'u', 'n', 'a', 'b', 'l', 'e', ' ', 't', 'o', ' ', 'm', 'a', 'k', 'e', ' ', 'd', 'e', 'v', 'i', 'c', 'e', '\0' };
-static hio_ooch_t errstr_31[] = {'d', 'e', 'v', 'i', 'c', 'e', ' ', 'e', 'r', 'r', 'o', 'r', '\0' };
-static hio_ooch_t errstr_32[] = {'d', 'e', 'v', 'i', 'c', 'e', ' ', 'h', 'a', 'n', 'g', '-', 'u', 'p', '\0' };
+static hio_ooch_t errstr_20[] = {'t', 'o', 'o', ' ', 'm', 'a', 'n', 'y', ' ', 'o', 'p', 'e', 'n', ' ', 'f', 'i', 'l', 'e', 's', '\0' };
+static hio_ooch_t errstr_21[] = {'I', '/', 'O', ' ', 'e', 'r', 'r', 'o', 'r', '\0' };
+static hio_ooch_t errstr_22[] = {'e', 'n', 'c', 'o', 'd', 'i', 'n', 'g', ' ', 'c', 'o', 'n', 'v', 'e', 'r', 's', 'i', 'o', 'n', ' ', 'e', 'r', 'r', 'o', 'r', '\0' };
+static hio_ooch_t errstr_23[] = {'i', 'n', 's', 'u', 'f', 'f', 'i', 'c', 'i', 'e', 'n', 't', ' ', 'd', 'a', 't', 'a', ' ', 'f', 'o', 'r', ' ', 'e', 'n', 'c', 'o', 'd', 'i', 'n', 'g', ' ', 'c', 'o', 'n', 'v', 'e', 'r', 's', 'i', 'o', 'n', '\0' };
+static hio_ooch_t errstr_24[] = {'b', 'u', 'f', 'f', 'e', 'r', ' ', 'f', 'u', 'l', 'l', '\0' };
+static hio_ooch_t errstr_25[] = {'c', 'o', 'n', 'n', 'e', 'c', 't', 'i', 'o', 'n', ' ', 'l', 'o', 's', 't', '\0' };
+static hio_ooch_t errstr_26[] = {'c', 'o', 'n', 'n', 'e', 'c', 't', 'i', 'o', 'n', ' ', 'r', 'e', 'f', 'u', 's', 'e', 'd', '\0' };
+static hio_ooch_t errstr_27[] = {'c', 'o', 'n', 'n', 'e', 'c', 't', 'i', 'o', 'n', ' ', 'r', 'e', 's', 'e', 't', '\0' };
+static hio_ooch_t errstr_28[] = {'n', 'o', ' ', 'c', 'a', 'p', 'a', 'b', 'i', 'l', 'i', 't', 'y', '\0' };
+static hio_ooch_t errstr_29[] = {'t', 'i', 'm', 'e', 'd', ' ', 'o', 'u', 't', '\0' };
+static hio_ooch_t errstr_30[] = {'n', 'o', ' ', 'r', 'e', 's', 'p', 'o', 'n', 's', 'e', '\0' };
+static hio_ooch_t errstr_31[] = {'u', 'n', 'a', 'b', 'l', 'e', ' ', 't', 'o', ' ', 'm', 'a', 'k', 'e', ' ', 'd', 'e', 'v', 'i', 'c', 'e', '\0' };
+static hio_ooch_t errstr_32[] = {'d', 'e', 'v', 'i', 'c', 'e', ' ', 'e', 'r', 'r', 'o', 'r', '\0' };
+static hio_ooch_t errstr_33[] = {'d', 'e', 'v', 'i', 'c', 'e', ' ', 'h', 'a', 'n', 'g', '-', 'u', 'p', '\0' };
 static hio_ooch_t* errstr[] =
 {
 	errstr_0, errstr_1, errstr_2, errstr_3, errstr_4,
@@ -66,7 +67,7 @@ static hio_ooch_t* errstr[] =
 	errstr_15, errstr_16, errstr_17, errstr_18, errstr_19,
 	errstr_20, errstr_21, errstr_22, errstr_23, errstr_24,
 	errstr_25, errstr_26, errstr_27, errstr_28, errstr_29,
-	errstr_30, errstr_31, errstr_32
+	errstr_30, errstr_31, errstr_32, errstr_33
 };
 
 

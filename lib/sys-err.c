@@ -41,6 +41,9 @@ static hio_errnum_t errno_to_errnum (int errcode)
 	#if defined(EPERM)
 		case EPERM: return HIO_EPERM;
 	#endif
+	#if defined(EISDIR)
+		case EISDIR: return HIO_EISDIR;
+	#endif
 	#if defined(ENOTDIR)
 		case ENOTDIR: return HIO_ENOTDIR;
 	#endif

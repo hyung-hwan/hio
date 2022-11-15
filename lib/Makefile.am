@@ -41,7 +41,6 @@ include_HEADERS = \
 	hio-dns.h \
 	hio-ecs.h \
 	hio-fcgi.h \
-	hio-fio.h \
 	hio-fmt.h \
 	hio-htb.h \
 	hio-htrd.h \
@@ -77,7 +76,6 @@ libhio_la_SOURCES = \
 	ecs-imp.h \
 	err.c \
 	fcgi-cli.c \
-	fio.c \
 	fmt.c \
 	fmt-imp.h \
 	htb.c \

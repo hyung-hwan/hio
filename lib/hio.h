@@ -84,6 +84,7 @@ enum hio_errnum_t
 	HIO_EBUSY,    /**< system busy */
 	HIO_EACCES,   /**< access denied */
 	HIO_EPERM,    /**< operation not permitted */
+	HIO_EISDIR,   /**< is directory */
 	HIO_ENOTDIR,  /**< not directory */
 	HIO_EINTR,    /**< interrupted */
 	HIO_EPIPE,    /**< pipe error */

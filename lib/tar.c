@@ -1,9 +1,11 @@
 #include <hio-tar.h>
 #include <hio-utl.h>
 #include <hio-prv.h>
-#include <stdio.h>
+
 #include <sys/types.h>
 #include <sys/stat.h>
+#include <stdio.h>
+#include <errno.h>
 
 static hio_uint8_t _end_block[HIO_TAR_BLKSIZE] = { 0, };
 
@@ -247,18 +249,31 @@ static int process_header (hio_tar_t* tar)
 		tar->hi.filesize = hio_bchars_to_uintmax(hdr->size, HIO_COUNTOF(hdr->size), HIO_BCHARS_TO_UINTMAX_MAKE_OPTION(0,0,0,8), &endptr, &is_sober);
 		//mode = hio_bchars_to_uintmax(hdr->mode, HIO_COUNTOF(hdr->mode), HIO_BCHARS_TO_UINTMAX_MAKE_OPTION(0,0,0,8), &endptr, &is_sober);
 
+
 		if (tar->hi.filesize > 0)
 		{
+			FILE* fp;
 			tar->state = HIO_TAR_STATE_FILE;
+
 			/* open here? */
-/* COMPOSE an actual file name...
-hdr->prefix + hdr->name 
+/*TODO: hdr->prefix + hdr->name */
 			fp = fopen(hdr->name, "w");
+			if (!fp)
+			{
+				hio_seterrwithsyserr (tar->hio, 0, errno);
+				return -1;
+			}
+
+			tar->hi.fp = fp;
 		}
-		else
+
+		if (tar->hi.filesize <= 0)
 		{
-			/* empty file? just create an empty file here??? */
-			/* open ... close or just create */
+			if (tar->hi.fp)
+			{
+				fclose (tar->hi.fp);
+				tar->hi.fp = HIO_NULL;
+			}
 		}
 	}
 
@@ -272,19 +287,24 @@ static int process_content (hio_tar_t* tar)
 	HIO_ASSERT (tar->hio, tar->blk.len == HIO_TAR_BLKSIZE);
 	HIO_ASSERT (tar->hio, tar->hi.filesize > 0);
 
-	
+
 	chunksize = tar->hi.filesize < tar->blk.len? tar->hi.filesize: tar->blk.len;
 
-#if 0
-	write callback(tar->hi.).. tar->blk.buf, tar->blk.len);
-#endif
+/* TODO: error check */
+	fwrite (tar->blk.buf, 1, chunksize, tar->hi.fp);
 
 	tar->hi.filesize -= chunksize;
 	if (tar->hi.filesize <= 0)
 	{
 		/* end of file */
-		/* close file???  also close if there is an exception or error??? */
+		if (tar->hi.fp)
+		{
+			fclose (tar->hi.fp);
+			tar->hi.fp = HIO_NULL;
+		}
 	}
+
+	return 0;
 }
 
 int hio_tar_feed (hio_tar_t* tar, const void* ptr, hio_oow_t len)
