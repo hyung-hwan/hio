@@ -188,9 +188,6 @@ int hio_extract_tar (hio_t* hio, const hio_bch_t* archive_file)
 	return n;
 }
 
-
-
-
 hio_tar_t* hio_tar_open (hio_t* hio, hio_oow_t xtnsize)
 {
 	hio_tar_t* tar;
@@ -223,6 +220,12 @@ int hio_tar_init (hio_tar_t* tar)
 
 void hio_tar_fini (hio_tar_t* tar)
 {
+	if (tar->hi.fp)
+	{
+		/* clean up */
+		fclose (tar->hi.fp);
+		tar->hi.fp = HIO_NULL;
+	}
 }
 
 static int process_header (hio_tar_t* tar)
@@ -233,6 +236,7 @@ static int process_header (hio_tar_t* tar)
 	HIO_ASSERT (tar->hio, tar->blk.len == HIO_TAR_BLKSIZE);
 	hdr = (hio_tar_hdr_t*)tar->blk.buf;
 
+printf("process_header...\n");
 	/* all-zero byte block ends the archive */
 	if (HIO_MEMCMP(hdr, _end_block, HIO_TAR_BLKSIZE) == 0) 
 	{
@@ -247,36 +251,77 @@ static int process_header (hio_tar_t* tar)
 		/* if (hdr->typeflag) TODO: do different jobs depending on types... */
 
 		tar->hi.filesize = hio_bchars_to_uintmax(hdr->size, HIO_COUNTOF(hdr->size), HIO_BCHARS_TO_UINTMAX_MAKE_OPTION(0,0,0,8), &endptr, &is_sober);
-		//mode = hio_bchars_to_uintmax(hdr->mode, HIO_COUNTOF(hdr->mode), HIO_BCHARS_TO_UINTMAX_MAKE_OPTION(0,0,0,8), &endptr, &is_sober);
+		tar->hi.filemode = hio_bchars_to_uintmax(hdr->mode, HIO_COUNTOF(hdr->mode), HIO_BCHARS_TO_UINTMAX_MAKE_OPTION(0,0,0,8), &endptr, &is_sober);
 
 
-		if (tar->hi.filesize > 0)
+		if (tar->hi.fp)
 		{
-			FILE* fp;
-			tar->state = HIO_TAR_STATE_FILE;
-
-			/* open here? */
-/*TODO: hdr->prefix + hdr->name */
-			fp = fopen(hdr->name, "w");
-			if (!fp)
-			{
-				hio_seterrwithsyserr (tar->hio, 0, errno);
-				return -1;
-			}
-
-			tar->hi.fp = fp;
+			/* just in case */
+			fclose (tar->hi.fp);
+			tar->hi.fp = HIO_NULL;
 		}
 
-		if (tar->hi.filesize <= 0)
+printf ("file size = %u [%s]\n", (unsigned int)tar->hi.filesize, hdr->name);
+		switch (hdr->typeflag) 
 		{
-			if (tar->hi.fp)
+			case HIO_TAR_LNKTYPE:
+				printf(" Ignoring hardlink %s\n", hdr->name);
+				break;
+			case HIO_TAR_SYMTYPE:
+				printf(" Ignoring symlink %s\n", hdr->name);
+				break;
+			case HIO_TAR_CHRTYPE:
+				printf(" Ignoring character device %s\n", hdr->name);
+				break;
+			case HIO_TAR_BLKTYPE:
+				printf(" Ignoring block device %s\n", hdr->name);
+				break;
+			case HIO_TAR_DIRTYPE:
+				printf(" Extracting dir %s\n", hdr->name);
+			#if 0
+				if (tar->hio.filesize != 0)
+				{
+					/* something wrong */
+				}
+			#endif
+				create_dir(hdr->name, tar->hi.filemode);
+				break;
+			case HIO_TAR_FIFOTYPE:
+				printf(" Ignoring FIFO %s\n", hdr->name);
+				break;
+
+			case HIO_TAR_CONTTYPE:
+				printf(" Ignoring cont %s\n", hdr->name);
+				break;
+
+			default: /* HIO_TAR_REGTYPE */
 			{
-				fclose (tar->hi.fp);
-				tar->hi.fp = HIO_NULL;
+
+				FILE* fp;
+
+				printf(" Extracting file %s\n", hdr->name);
+
+				/* open here? */
+	/*TODO: hdr->prefix + hdr->name */
+				fp = fopen(hdr->name, "w");
+				if (!fp)
+				{
+					hio_seterrwithsyserr (tar->hio, 0, errno);
+					return -1;
+				}
+
+				fchmod (fileno(fp), tar->hi.filemode);
+
+				tar->hi.fp = fp;
+				tar->state = HIO_TAR_STATE_FILE;
+				goto done;
 			}
 		}
+
+		tar->state == HIO_TAR_STATE_START;
 	}
 
+done:
 	return 0;
 }
 
@@ -288,6 +333,7 @@ static int process_content (hio_tar_t* tar)
 	HIO_ASSERT (tar->hio, tar->hi.filesize > 0);
 
 
+printf("process_content...\n");
 	chunksize = tar->hi.filesize < tar->blk.len? tar->hi.filesize: tar->blk.len;
 
 /* TODO: error check */
@@ -320,6 +366,7 @@ int hio_tar_feed (hio_tar_t* tar, const void* ptr, hio_oow_t len)
 		}
 	}
 
+printf ("feeding %d\n", len);
 	while (len > 0)
 	{
 		hio_oow_t cplen;

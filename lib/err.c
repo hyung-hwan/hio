@@ -88,10 +88,46 @@ const hio_ooch_t* hio_geterrstr (hio_t* hio)
 	return hio_errnum_to_errstr(hio->errnum);
 }
 
+#if 0
 const hio_ooch_t* hio_geterrmsg (hio_t* hio)
 {
 	if (hio->errmsg.len <= 0) return hio_errnum_to_errstr(hio->errnum);
 	return hio->errmsg.buf;
+}
+#endif
+
+const hio_bch_t* hio_geterrbmsg (hio_t* hio)
+{
+#if defined(HIO_OOCH_IS_BCH)
+	return (hio->errmsg.len <= 0)? hio_errnum_to_errstr(hio->errnum): hio->errmsg.buf;
+#else
+	const hio_ooch_t* msg;
+	hio_oow_t wcslen, mbslen;
+
+	msg = (hio->errmsg.len <= 0)? hio_errnum_to_errstr(hio->errnum): hio->errmsg.buf;
+
+	mbslen = HIO_COUNTOF(hio->errmsg.xerrmsg);
+	hio_conv_ucstr_to_bcstr_with_cmgr (msg, &wcslen, hio->errmsg.xerrmsg, &mbslen, hio_getcmgr(hio));
+
+	return hio->errmsg.xerrmsg;
+#endif
+}
+
+const hio_uch_t* hio_geterrumsg (hio_t* hio)
+{
+#if defined(HIO_OOCH_IS_BCH)
+	const hio_ooch_t* msg;
+	hio_oow_t wcslen, mbslen;
+
+	msg = (hio->errmsg.len <= 0)? hio_errnum_to_errstrerrstr(hio->errnum): hio->errmsg.buf;
+
+	wcslen = HIO_COUNTOF(hio->errmsg.xerrmsg);
+	hio_conv_bcstr_to_ucstr_with_cmgr (msg, &mbslen, hio->errmsg.xerrmsg, &wcslen, hio_getcmgr(hio), 1);
+
+	return hio->errmsg.xerrmsg;
+#else
+	return (hio->errmsg.len == '\0')? hio_errnum_to_errstr(hio->errnum): hio->errmsg.buf;
+#endif
 }
 
 void hio_geterrinf (hio_t* hio, hio_errinf_t* info)

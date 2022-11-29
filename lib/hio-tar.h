@@ -92,6 +92,7 @@ struct hio_tar_t
 	struct
 	{
 		hio_uintmax_t filesize;
+		hio_uintmax_t filemode;
 		void* fp;
 	} hi;
 };

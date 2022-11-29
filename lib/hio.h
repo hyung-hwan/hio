@@ -698,6 +698,11 @@ struct hio_t
 			hio_bch_t bch[HIO_ERRMSG_CAPA];
 			hio_uch_t uch[HIO_ERRMSG_CAPA];
 		} tmpbuf;
+	#if defined(HIO_OOCH_IS_BCH)
+		hio_uch_t    xerrmsg[HIO_ERRMSG_CAPA];
+	#else
+		hio_bch_t    xerrmsg[HIO_ERRMSG_CAPA * 2];
+	#endif
 		hio_ooch_t buf[HIO_ERRMSG_CAPA];
 		hio_oow_t len;
 	} errmsg;
@@ -878,9 +883,19 @@ HIO_EXPORT const hio_ooch_t* hio_geterrstr (
 	hio_t* hio
 );
 
-HIO_EXPORT const hio_ooch_t* hio_geterrmsg (
+HIO_EXPORT const hio_uch_t* hio_geterrumsg (
 	hio_t* hio
 );
+
+HIO_EXPORT const hio_bch_t* hio_geterrbmsg (
+	hio_t* hio
+);
+
+#if defined(HIO_OOCH_IS_UCH)
+#	define hio_geterrmsg hio_geterrumsg
+#else
+#	define hio_geterrmsg hio_geterrbmsg
+#endif
 
 HIO_EXPORT void hio_geterrinf (
 	hio_t*        hio,
