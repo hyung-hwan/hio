@@ -322,6 +322,7 @@ printf ("file size = %u [%s]\n", (unsigned int)tar->hi.filesize, hdr->name);
 	}
 
 done:
+	tar->blk.len = 0; /* consumed the block */
 	return 0;
 }
 
@@ -350,6 +351,7 @@ printf("process_content...\n");
 		}
 	}
 
+	tar->blk.len = 0; /* consumed the block */
 	return 0;
 }
 
