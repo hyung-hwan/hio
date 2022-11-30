@@ -261,7 +261,13 @@ printf("process_header...\n");
 			tar->hi.fp = HIO_NULL;
 		}
 
-printf ("file size = %u [%s]\n", (unsigned int)tar->hi.filesize, hdr->name);
+printf ("file size = %u [%s] [%s]\n", (unsigned int)tar->hi.filesize, hdr->name, hdr->prefix);
+/*{
+	int i;
+	for (i = 0; i < 512; i++) printf ("%05d %c\n", i, tar->blk.buf[i]);
+	printf ("\n");
+}*/
+
 		switch (hdr->typeflag) 
 		{
 			case HIO_TAR_LNKTYPE:
@@ -296,7 +302,6 @@ printf ("file size = %u [%s]\n", (unsigned int)tar->hi.filesize, hdr->name);
 
 			default: /* HIO_TAR_REGTYPE */
 			{
-
 				FILE* fp;
 
 				printf(" Extracting file %s\n", hdr->name);
@@ -306,6 +311,7 @@ printf ("file size = %u [%s]\n", (unsigned int)tar->hi.filesize, hdr->name);
 				fp = fopen(hdr->name, "w");
 				if (!fp)
 				{
+		printf ("unable to openf ile...\n");
 					hio_seterrwithsyserr (tar->hio, 0, errno);
 					return -1;
 				}
@@ -322,7 +328,6 @@ printf ("file size = %u [%s]\n", (unsigned int)tar->hi.filesize, hdr->name);
 	}
 
 done:
-	tar->blk.len = 0; /* consumed the block */
 	return 0;
 }
 
@@ -334,7 +339,7 @@ static int process_content (hio_tar_t* tar)
 	HIO_ASSERT (tar->hio, tar->hi.filesize > 0);
 
 
-printf("process_content...\n");
+//printf("process_content...\n");
 	chunksize = tar->hi.filesize < tar->blk.len? tar->hi.filesize: tar->blk.len;
 
 /* TODO: error check */
@@ -351,7 +356,6 @@ printf("process_content...\n");
 		}
 	}
 
-	tar->blk.len = 0; /* consumed the block */
 	return 0;
 }
 
@@ -368,7 +372,6 @@ int hio_tar_feed (hio_tar_t* tar, const void* ptr, hio_oow_t len)
 		}
 	}
 
-printf ("feeding %d\n", len);
 	while (len > 0)
 	{
 		hio_oow_t cplen;
@@ -379,6 +382,7 @@ printf ("feeding %d\n", len);
 		HIO_MEMCPY (&tar->blk.buf[tar->blk.len], ptr, cplen);
 		tar->blk.len += cplen;
 		len -= cplen;
+		ptr += cplen;
 
 		if (tar->blk.len == HIO_COUNTOF(tar->blk.buf))
 		{
@@ -398,6 +402,8 @@ printf ("feeding %d\n", len);
 					hio_seterrbfmt (tar->hio, HIO_EINVAL, "trailing garbage at the end of feed");
 					return -1;
 			}
+
+			tar->blk.len = 0;
 		}
 	}
 
