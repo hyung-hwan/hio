@@ -337,6 +337,7 @@ static int process_content (hio_tar_t* tar)
 
 	HIO_ASSERT (tar->hio, tar->blk.len == HIO_TAR_BLKSIZE);
 	HIO_ASSERT (tar->hio, tar->hi.filesize > 0);
+	HIO_ASSERT (tar->hio, tar->hi.fp != HIO_NULL);
 
 
 //printf("process_content...\n");
@@ -349,11 +350,10 @@ static int process_content (hio_tar_t* tar)
 	if (tar->hi.filesize <= 0)
 	{
 		/* end of file */
-		if (tar->hi.fp)
-		{
-			fclose (tar->hi.fp);
-			tar->hi.fp = HIO_NULL;
-		}
+		fclose (tar->hi.fp);
+		tar->hi.fp = HIO_NULL;
+
+		tar->state = HIO_TAR_STATE_START;
 	}
 
 	return 0;
