@@ -58,7 +58,7 @@ int main (int argc, char* argv[])
 	hio_tar_feed (untar, HIO_NULL, 0); /* indicate the end of input */
 
 	fclose (fp);
-	hio_tar_close (hio);
+	hio_tar_close (untar);
 	hio_close (hio);
 	return 0;
 }

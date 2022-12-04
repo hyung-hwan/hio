@@ -2,6 +2,7 @@
 #define _HIO_TAR_H_
 
 #include <hio.h>
+#include <hio-ecs.h>
 
 
 /* tar Header Block, from POSIX 1003.1-1990.  */
@@ -93,6 +94,7 @@ struct hio_tar_t
 	{
 		hio_uintmax_t filesize;
 		hio_uintmax_t filemode;
+		hio_becs_t filename;
 		void* fp;
 	} hi;
 };
@@ -101,9 +103,6 @@ typedef struct hio_tar_t hio_tar_t;
 #if defined(__cplusplus)
 extern "C" {
 #endif
-
-HIO_EXPORT int hio_extract_tar (hio_t* hio, const hio_bch_t* archive_file);
-
 
 HIO_EXPORT hio_tar_t* hio_tar_open (
 	hio_t*    hio,
@@ -115,7 +114,8 @@ HIO_EXPORT void hio_tar_close (
 );
 
 HIO_EXPORT int hio_tar_init (
-	hio_tar_t* tar
+	hio_tar_t* tar,
+	hio_t*     hio
 );
 
 HIO_EXPORT void hio_tar_fini (
