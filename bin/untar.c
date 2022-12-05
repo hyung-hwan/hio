@@ -34,7 +34,7 @@ int main (int argc, char* argv[])
 	if (!fp)
 	{
 		fprintf (stderr, "Error: unable to open file %s\n", argv[1]);
-		hio_tar_close (hio);
+		hio_tar_close (untar);
 		hio_close (hio);
 		return -1;
 	}
@@ -43,7 +43,7 @@ int main (int argc, char* argv[])
 	while (!feof(fp) && !ferror(fp))
 	{
 		int n;
-		char buf[99]; /* TODO: use a different buffer size???*/
+		char buf[512]; /* TODO: use a different buffer size???*/
 		n = fread(buf, 1, sizeof(buf), fp);
 		if (n > 0) 
 		{

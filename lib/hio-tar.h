@@ -75,7 +75,8 @@ enum hio_tar_state_t
 {
 	HIO_TAR_STATE_START,
 	HIO_TAR_STATE_FILE,
-	HIO_TAR_STATE_END
+	HIO_TAR_STATE_END_1,
+	HIO_TAR_STATE_END_2
 };
 typedef enum hio_tar_state_t hio_tar_state_t;
 

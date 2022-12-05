@@ -245,9 +245,8 @@ printf("process_header...\n");
 	/* all-zero byte block ends the archive */
 	if (HIO_MEMCMP(hdr, _end_block, HIO_TAR_BLKSIZE) == 0) 
 	{
-/* TODO: is it correct? */
-printf ("end of input\n");
-		tar->state = HIO_TAR_STATE_END;
+		/* two all-zero blocks are expected as the EOF indicator */
+		tar->state = HIO_TAR_STATE_END_1;
 	}
 	else
 	{
@@ -362,11 +361,10 @@ static int process_content (hio_tar_t* tar)
 
 int hio_tar_feed (hio_tar_t* tar, const void* ptr, hio_oow_t len)
 {
-printf ("feed len = %d\n", len);
 	if (!ptr)
 	{
 		/* EOF indicator */
-		if (tar->state != HIO_TAR_STATE_END || tar->blk.len > 0)
+		if ((tar->state != HIO_TAR_STATE_END_1 && tar->state != HIO_TAR_STATE_END_2) || tar->blk.len > 0)
 		{
 			/* ERROR - premature end of file */
 			hio_seterrbfmt (tar->hio, HIO_EINVAL, "premature end of feed");
@@ -393,17 +391,25 @@ printf ("feed len = %d\n", len);
 			{
 				case HIO_TAR_STATE_START:
 					if (process_header(tar) <= -1) return -1;
-	if (tar->state == HIO_TAR_STATE_END) printf ("remaining data len %d\n", len);
 					break;
 
 				case HIO_TAR_STATE_FILE:
 					if (process_content(tar) <= -1) return -1;
 					break;
 
-				case HIO_TAR_STATE_END:
+				case HIO_TAR_STATE_END_1:
+					if (HIO_MEMCMP(tar->blk.buf, _end_block, HIO_TAR_BLKSIZE) == 0)
+					{
+						tar->state = HIO_TAR_STATE_END_2;
+						break;
+					}
+					/* fall thru here for the trailing garbage error */
+
+				case HIO_TAR_STATE_END_2:
 					/* garbage after the final ending block */
 					hio_seterrbfmt (tar->hio, HIO_EINVAL, "trailing garbage at the end of feed");
 					return -1;
+					break;
 			}
 
 			tar->blk.len = 0;
