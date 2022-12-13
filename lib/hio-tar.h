@@ -75,8 +75,7 @@ enum hio_tar_state_t
 {
 	HIO_TAR_STATE_START,
 	HIO_TAR_STATE_FILE,
-	HIO_TAR_STATE_END_1,
-	HIO_TAR_STATE_END_2
+	HIO_TAR_STATE_END
 };
 typedef enum hio_tar_state_t hio_tar_state_t;
 
@@ -84,20 +83,25 @@ struct hio_tar_t
 {
 	hio_t* hio;
 
-	hio_tar_state_t state;
 	struct
 	{
-		hio_uint8_t buf[HIO_TAR_BLKSIZE];
-		hio_oow_t len;
-	} blk;
+		hio_tar_state_t state;
+		struct
+		{
+			hio_uint8_t buf[HIO_TAR_BLKSIZE];
+			hio_oow_t len;
+		} blk;
 
-	struct
-	{
-		hio_uintmax_t filesize;
-		hio_uintmax_t filemode;
-		hio_becs_t filename;
-		void* fp;
-	} hi;
+		struct
+		{
+			hio_uintmax_t devmajor;
+			hio_uintmax_t devminor;
+			hio_uintmax_t filesize;
+			hio_uintmax_t filemode;
+			hio_becs_t filename;
+			void* fp;
+		} hi;
+	} x; /* extract */
 };
 typedef struct hio_tar_t hio_tar_t;
 
@@ -123,9 +127,9 @@ HIO_EXPORT void hio_tar_fini (
 	hio_tar_t* tar
 );
 
-#define hio_tar_endfeed(tar) hio_tar_feed(tar, HIO_NULL, 0)
+#define hio_tar_endxfeed(tar) hio_tar_xfeed(tar, HIO_NULL, 0)
 
-HIO_EXPORT int hio_tar_feed (
+HIO_EXPORT int hio_tar_xfeed (
 	hio_tar_t*  tar,
 	const void* ptr,
 	hio_oow_t   len

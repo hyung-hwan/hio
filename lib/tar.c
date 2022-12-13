@@ -4,6 +4,8 @@
 
 #include <sys/types.h>
 #include <sys/stat.h>
+#include <fcntl.h>
+#include <unistd.h>
 #include <stdio.h>
 #include <errno.h>
 
@@ -56,140 +58,6 @@ static int create_dir (hio_bch_t *pathname, int mode)
 	return n;
 }
 
-#if 0
-static FILE* create_file (char *pathname, int mode)
-{
-	FILE *fp;
-	fp = fopen(pathname, "wb+");
-	if (!fp) 
-	{
-		char* p = hio_rfind_bchar_in_bcstr(pathname, '/');
-		if (p) 
-		{
-			*p = '\0';
-			create_dir(pathname, 0755);
-			*p = '/';
-			fp = fopen(pathname, "wb+");
-		}
-	}
-	return fp;
-}
-
-static int extract_tar (hio_t* hio, FILE* fp)
-{
-	char buf[HIO_TAR_BLKSIZE];
-	FILE* f = NULL;
-	int filesize;
-
-	while (1)
-	{
-		int is_sober;
-		const hio_bch_t* endptr;
-		hio_iolen_t nbytes;
-		hio_tar_hdr_t* hdr;
-		hio_uint32_t mode;
-
-		nbytes = fread(buf, 1, HIO_TAR_BLKSIZE, fp);
-		if (nbytes < HIO_TAR_BLKSIZE)
-		{
-			hio_seterrbfmt (hio, HIO_EINVAL, "truncated trailing block");
-			return -1;
-		}
-
-		/* all-zero byte block ends the archive */
-		if (HIO_MEMCMP(buf, _end_block, HIO_TAR_BLKSIZE) == 0) break;
-
-#if 0
-		if (!verify_checksum(buf)) 
-		{
-			hio_seterrbfmt (hio, HIO_EINVAL, "invalid checksum value");
-			return -1;
-		}
-#endif
-
-		hdr = (hio_tar_hdr_t*)buf;
-		filesize = hio_bchars_to_uintmax(hdr->size, HIO_COUNTOF(hdr->size), HIO_BCHARS_TO_UINTMAX_MAKE_OPTION(0,0,0,8), &endptr, &is_sober);
-		mode = hio_bchars_to_uintmax(hdr->mode, HIO_COUNTOF(hdr->mode), HIO_BCHARS_TO_UINTMAX_MAKE_OPTION(0,0,0,8), &endptr, &is_sober);
-
-		switch (hdr->typeflag) 
-		{
-			case HIO_TAR_LNKTYPE:
-				printf(" Ignoring hardlink %s\n", filename);
-				break;
-			case HIO_TAR_SYMTYPE:
-				printf(" Ignoring symlink %s\n", filename);
-				break;
-			case HIO_TAR_CHRTYPE:
-				printf(" Ignoring character device %s\n", filename);
-				break;
-			case HIO_TAR_BLKTYPE:
-				printf(" Ignoring block device %s\n", filename);
-				break;
-			case HIO_TAR_DIRTYPE:
-				printf(" Extracting dir %s\n", filename);
-				if (filesize != 0)
-				{
-					/* something wrong */
-				}
-				create_dir(filename, mode);
-				break;
-			case HIO_TAR_FIFOTYPE:
-				printf(" Ignoring FIFO %s\n", filename);
-				break;
-
-			case HIO_TAR_CONTTYPE:
-				printf(" Ignoring cont %s\n", filename);
-				break;
-
-			default:
-				printf(" Extracting file %s\n", filename);
-				f = create_file(filename, mode);
-
-				while (filesize > 0) 
-				{
-					nbytes = fread(buf, 1, HIO_TAR_BLKSIZE, fp);
-					if (nbytes < HIO_TAR_BLKSIZE) 
-					{
-						fprintf(stderr, "Short read - Expected 512, got %d\n", (int)nbytes);
-						return -1;
-					}
-					if (filesize < HIO_TAR_BLKSIZE) nbytes = filesize;
-
-					if (f) 
-					{
-						if (fwrite(buf, 1, nbytes, f) != nbytes)
-						{
-							fprintf(stderr, "Failed write\n");
-							break;
-						}
-					}
-					filesize -= nbytes;
-				}
-
-				fclose (f);
-				break;
-		}
-	}
-
-	return 0;
-}
-
-
-int hio_extract_tar (hio_t* hio, const hio_bch_t* archive_file)
-{
-	FILE* fp;
-	int n;
-
-	fp = fopen(archive_file, "r");
-	if (!fp) return -1;
-
-	n = extract_tar(hio, fp);
-
-	fclose (fp);
-	return n;
-}
-#endif
-
 hio_tar_t* hio_tar_open (hio_t* hio, hio_oow_t xtnsize)
 {
 	hio_tar_t* tar;
@@ -216,37 +84,38 @@ void hio_tar_close (hio_tar_t* tar)
 int hio_tar_init (hio_tar_t* tar, hio_t* hio)
 {
 	tar->hio = hio;
-	tar->state = HIO_TAR_STATE_START;
-	tar->blk.len = 0;
-	hio_becs_init (&tar->hi.filename, tar->hio, 0); /* won't fail with the capacity of 0 */
+	tar->x.state = HIO_TAR_STATE_START;
+	tar->x.blk.len = 0;
+	hio_becs_init (&tar->x.hi.filename, tar->hio, 0); /* won't fail with the capacity of 0 */
 	return 0;
 }
 
 void hio_tar_fini (hio_tar_t* tar)
 {
-	hio_becs_fini (&tar->hi.filename);
-	if (tar->hi.fp)
+	hio_becs_fini (&tar->x.hi.filename);
+	if (tar->x.hi.fp)
 	{
 		/* clean up */
-		fclose (tar->hi.fp);
-		tar->hi.fp = HIO_NULL;
+		fclose (tar->x.hi.fp);
+		tar->x.hi.fp = HIO_NULL;
 	}
 }
 
-static int process_header (hio_tar_t* tar)
+/* extraction - the implementation is still far from completion */
+
+static int x_process_header (hio_tar_t* tar)
 {
 	hio_tar_hdr_t* hdr;
 
-	HIO_ASSERT (tar->hio, tar->state == HIO_TAR_STATE_START);
-	HIO_ASSERT (tar->hio, tar->blk.len == HIO_TAR_BLKSIZE);
-	hdr = (hio_tar_hdr_t*)tar->blk.buf;
+	HIO_ASSERT (tar->hio, tar->x.state == HIO_TAR_STATE_START);
+	HIO_ASSERT (tar->hio, tar->x.blk.len == HIO_TAR_BLKSIZE);
+	hdr = (hio_tar_hdr_t*)tar->x.blk.buf;
 
-printf("process_header...\n");
 	/* all-zero byte block ends the archive */
 	if (HIO_MEMCMP(hdr, _end_block, HIO_TAR_BLKSIZE) == 0) 
 	{
 		/* two all-zero blocks are expected as the EOF indicator */
-		tar->state = HIO_TAR_STATE_END_1;
+		tar->x.state = HIO_TAR_STATE_END;
 	}
 	else
 	{
@@ -254,62 +123,51 @@ printf("process_header...\n");
 		const hio_bch_t* endptr;
 		const hio_bch_t* filename;
 
-		tar->hi.filesize = hio_bchars_to_uintmax(hdr->size, HIO_COUNTOF(hdr->size), HIO_BCHARS_TO_UINTMAX_MAKE_OPTION(0,0,0,8), &endptr, &is_sober);
-		tar->hi.filemode = hio_bchars_to_uintmax(hdr->mode, HIO_COUNTOF(hdr->mode), HIO_BCHARS_TO_UINTMAX_MAKE_OPTION(0,0,0,8), &endptr, &is_sober);
+		tar->x.hi.filesize = hio_bchars_to_uintmax(hdr->size, HIO_COUNTOF(hdr->size), HIO_BCHARS_TO_UINTMAX_MAKE_OPTION(0,0,0,8), &endptr, &is_sober);
+		tar->x.hi.filemode = hio_bchars_to_uintmax(hdr->mode, HIO_COUNTOF(hdr->mode), HIO_BCHARS_TO_UINTMAX_MAKE_OPTION(0,0,0,8), &endptr, &is_sober);
+		tar->x.hi.devmajor = hio_bchars_to_uintmax(hdr->devmajor, HIO_COUNTOF(hdr->devmajor), HIO_BCHARS_TO_UINTMAX_MAKE_OPTION(0,0,0,8), &endptr, &is_sober);
+		tar->x.hi.devminor = hio_bchars_to_uintmax(hdr->devminor, HIO_COUNTOF(hdr->devminor), HIO_BCHARS_TO_UINTMAX_MAKE_OPTION(0,0,0,8), &endptr, &is_sober);
 
-		if (tar->hi.fp)
+		if (tar->x.hi.fp)
 		{
 			/* just in case */
-			fclose (tar->hi.fp);
-			tar->hi.fp = HIO_NULL;
+			fclose (tar->x.hi.fp);
+			tar->x.hi.fp = HIO_NULL;
 		}
 
-		hio_becs_clear (&tar->hi.filename);
-		if (hio_becs_cat(&tar->hi.filename, hdr->prefix) == (hio_oow_t)-1 ||
-		    hio_becs_cat(&tar->hi.filename, hdr->name) == (hio_oow_t)-1)
+		hio_becs_clear (&tar->x.hi.filename);
+		if (hio_becs_cat(&tar->x.hi.filename, hdr->prefix) == (hio_oow_t)-1 ||
+		    hio_becs_cat(&tar->x.hi.filename, hdr->name) == (hio_oow_t)-1)
 		{
 			return -1;
 		}
 
-		filename = HIO_BECS_PTR(&tar->hi.filename);
-printf ("file size = %u [%s]\n", (unsigned int)tar->hi.filesize, filename);
+		filename = HIO_BECS_PTR(&tar->x.hi.filename);
 		switch (hdr->typeflag) 
 		{
 			case HIO_TAR_LNKTYPE:
-				printf(" Ignoring hardlink %s\n", filename);
+				link (hdr->linkname, filename);
 				break;
 			case HIO_TAR_SYMTYPE:
-				printf(" Ignoring symlink %s\n", filename);
+				symlink (hdr->linkname, filename); /* TODO: error check */
 				break;
-			case HIO_TAR_CHRTYPE:
-				printf(" Ignoring character device %s\n", filename);
+			case HIO_TAR_CHRTYPE: 
+				mknod (filename, S_IFCHR | tar->x.hi.filemode,  ((tar->x.hi.devmajor << 8) | tar->x.hi.devminor));
 				break;
 			case HIO_TAR_BLKTYPE:
-				printf(" Ignoring block device %s\n", filename);
+				mknod (filename, S_IFBLK | tar->x.hi.filemode,  ((tar->x.hi.devmajor << 8) | tar->x.hi.devminor));
 				break;
 			case HIO_TAR_DIRTYPE:
-				printf(" Extracting dir %s\n", filename);
-			#if 0
-				if (tar->hio.filesize != 0)
-				{
-					/* something wrong */
-				}
-			#endif
-				create_dir(hdr->name, tar->hi.filemode);
+				create_dir (hdr->name, tar->x.hi.filemode);
 				break;
 			case HIO_TAR_FIFOTYPE:
-				printf(" Ignoring FIFO %s\n", filename);
+				mkfifo (filename, tar->x.hi.filemode);
 				break;
 
-			case HIO_TAR_CONTTYPE:
-				printf(" Ignoring cont %s\n", filename);
-				break;
-
+			case HIO_TAR_CONTTYPE: /* treate it like REGTYPE for now */
 			default: /* HIO_TAR_REGTYPE */
 			{
 				FILE* fp;
-
-				printf(" Extracting file %s\n", filename);
 
 				fp = fopen(filename, "wb+");
 				if (!fp)
@@ -318,53 +176,53 @@ printf ("file size = %u [%s]\n", (unsigned int)tar->hi.filesize, filename);
 					return -1;
 				}
 
-				fchmod (fileno(fp), tar->hi.filemode);
+				fchmod (fileno(fp), tar->x.hi.filemode);
 
-				tar->hi.fp = fp;
-				tar->state = HIO_TAR_STATE_FILE;
+				tar->x.hi.fp = fp;
+				tar->x.state = HIO_TAR_STATE_FILE;
 				goto done;
 			}
 		}
 
-		tar->state = HIO_TAR_STATE_START;
+		tar->x.state = HIO_TAR_STATE_START;
 	}
 
 done:
 	return 0;
 }
 
-static int process_content (hio_tar_t* tar)
+static int x_process_content (hio_tar_t* tar)
 {
 	hio_oow_t chunksize;
 
-	HIO_ASSERT (tar->hio, tar->blk.len == HIO_TAR_BLKSIZE);
-	HIO_ASSERT (tar->hio, tar->hi.filesize > 0);
-	HIO_ASSERT (tar->hio, tar->hi.fp != HIO_NULL);
+	HIO_ASSERT (tar->hio, tar->x.blk.len == HIO_TAR_BLKSIZE);
+	HIO_ASSERT (tar->hio, tar->x.hi.filesize > 0);
+	HIO_ASSERT (tar->hio, tar->x.hi.fp != HIO_NULL);
 
-	chunksize = tar->hi.filesize < tar->blk.len? tar->hi.filesize: tar->blk.len;
+	chunksize = tar->x.hi.filesize < tar->x.blk.len? tar->x.hi.filesize: tar->x.blk.len;
 
 /* TODO: error check */
-	fwrite (tar->blk.buf, 1, chunksize, tar->hi.fp);
+	fwrite (tar->x.blk.buf, 1, chunksize, tar->x.hi.fp);
 
-	tar->hi.filesize -= chunksize;
-	if (tar->hi.filesize <= 0)
+	tar->x.hi.filesize -= chunksize;
+	if (tar->x.hi.filesize <= 0)
 	{
 		/* end of file */
-		fclose (tar->hi.fp);
-		tar->hi.fp = HIO_NULL;
+		fclose (tar->x.hi.fp);
+		tar->x.hi.fp = HIO_NULL;
 
-		tar->state = HIO_TAR_STATE_START;
+		tar->x.state = HIO_TAR_STATE_START;
 	}
 
 	return 0;
 }
 
-int hio_tar_feed (hio_tar_t* tar, const void* ptr, hio_oow_t len)
+int hio_tar_xfeed (hio_tar_t* tar, const void* ptr, hio_oow_t len)
 {
 	if (!ptr)
 	{
 		/* EOF indicator */
-		if ((tar->state != HIO_TAR_STATE_END_1 && tar->state != HIO_TAR_STATE_END_2) || tar->blk.len > 0)
+		if (tar->x.state != HIO_TAR_STATE_END || tar->x.blk.len > 0)
 		{
 			/* ERROR - premature end of file */
 			hio_seterrbfmt (tar->hio, HIO_EINVAL, "premature end of feed");
@@ -376,43 +234,39 @@ int hio_tar_feed (hio_tar_t* tar, const void* ptr, hio_oow_t len)
 	{
 		hio_oow_t cplen;
 
-		cplen = HIO_COUNTOF(tar->blk.buf) - tar->blk.len; /* required length to fill a block */
+		cplen = HIO_COUNTOF(tar->x.blk.buf) - tar->x.blk.len; /* required length to fill a block */
 		if (len < cplen) cplen = len; /* not enough to fill a block */
 
-		HIO_MEMCPY (&tar->blk.buf[tar->blk.len], ptr, cplen);
-		tar->blk.len += cplen;
+		HIO_MEMCPY (&tar->x.blk.buf[tar->x.blk.len], ptr, cplen);
+		tar->x.blk.len += cplen;
 		len -= cplen;
 		ptr += cplen;
 
-		if (tar->blk.len == HIO_COUNTOF(tar->blk.buf))
+		if (tar->x.blk.len == HIO_COUNTOF(tar->x.blk.buf))
 		{
 			/* on a complete block */
-			switch (tar->state)
+			switch (tar->x.state)
 			{
 				case HIO_TAR_STATE_START:
-					if (process_header(tar) <= -1) return -1;
+					if (x_process_header(tar) <= -1) return -1;
 					break;
 
 				case HIO_TAR_STATE_FILE:
-					if (process_content(tar) <= -1) return -1;
+					if (x_process_content(tar) <= -1) return -1;
 					break;
 
-				case HIO_TAR_STATE_END_1:
-					if (HIO_MEMCMP(tar->blk.buf, _end_block, HIO_TAR_BLKSIZE) == 0)
+				case HIO_TAR_STATE_END:
+					if (HIO_MEMCMP(tar->x.blk.buf, _end_block, HIO_TAR_BLKSIZE) != 0)
 					{
-						tar->state = HIO_TAR_STATE_END_2;
-						break;
+						hio_seterrbfmt (tar->hio, HIO_EINVAL, "trailing garbage at the end of feed");
+						return -1;
 					}
-					/* fall thru here for the trailing garbage error */
-
-				case HIO_TAR_STATE_END_2:
-					/* garbage after the final ending block */
-					hio_seterrbfmt (tar->hio, HIO_EINVAL, "trailing garbage at the end of feed");
-					return -1;
+					/* there may come multiple EOF marker blocks depending on the logical record size.
+					 * this implementation doesn't care how much such blocks are given */
 					break;
 			}
 
-			tar->blk.len = 0;
+			tar->x.blk.len = 0;
 		}
 	}
 
