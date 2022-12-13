@@ -136,11 +136,13 @@ static int x_process_header (hio_tar_t* tar)
 		}
 
 		hio_becs_clear (&tar->x.hi.filename);
-		if (hio_becs_cat(&tar->x.hi.filename, hdr->prefix) == (hio_oow_t)-1 ||
-		    hio_becs_cat(&tar->x.hi.filename, hdr->name) == (hio_oow_t)-1)
+		if (tar->x.root[0] != '\0')
 		{
-			return -1;
+			if (hio_becs_cat(&tar->x.hi.filename, tar->x.root) == (hio_oow_t)-1) return -1;
+			if (HIO_BECS_LASTCHAR(&tar->x.hi.filename) != '/' && hio_becs_ccat(&tar->x.hi.filename, '/') == (hio_oow_t)-1) return -1;
 		}
+		if (hio_becs_cat(&tar->x.hi.filename, hdr->prefix) == (hio_oow_t)-1 ||
+		    hio_becs_cat(&tar->x.hi.filename, hdr->name) == (hio_oow_t)-1) return -1;
 
 		filename = HIO_BECS_PTR(&tar->x.hi.filename);
 		switch (hdr->typeflag) 
@@ -158,7 +160,7 @@ static int x_process_header (hio_tar_t* tar)
 				mknod (filename, S_IFBLK | tar->x.hi.filemode,  ((tar->x.hi.devmajor << 8) | tar->x.hi.devminor));
 				break;
 			case HIO_TAR_DIRTYPE:
-				create_dir (hdr->name, tar->x.hi.filemode);
+				create_dir (filename, tar->x.hi.filemode);
 				break;
 			case HIO_TAR_FIFOTYPE:
 				mkfifo (filename, tar->x.hi.filemode);
@@ -271,4 +273,9 @@ int hio_tar_xfeed (hio_tar_t* tar, const void* ptr, hio_oow_t len)
 	}
 
 	return 0;
+}
+
+void hio_tar_setxrootwithbcstr (hio_tar_t* tar, const hio_bch_t* root)
+{
+	hio_copy_bcstr (tar->x.root, HIO_COUNTOF(tar->x.root), root); /* TOOD: handle truncation. make tar->x.root dyanmic? */
 }

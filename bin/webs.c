@@ -11,11 +11,13 @@ struct htts_ext_t
 };
 typedef struct htts_ext_t htts_ext_t;
 
-
 void untar (hio_t* hio, hio_dev_thr_iopair_t* iop, hio_svc_htts_thr_func_info_t* tfi, void* ctx)
 {
-	FILE* wfp = NULL;
+	FILE* wfp = HIO_NULL;
 	htts_ext_t* ext;
+	hio_tar_t* tar = HIO_NULL;
+	hio_uint8_t buf[4096];
+	ssize_t n;
 
 	ext = hio_svc_htts_getxtn(tfi->htts);
 
@@ -26,21 +28,38 @@ void untar (hio_t* hio, hio_dev_thr_iopair_t* iop, hio_svc_htts_thr_func_info_t*
 		goto done;
 	}
 
-#if 0
-	if (hio_extract_tarfd(hio, iop->rfd, ext->docroot + tfi->req_path) <= -1)
+	tar = hio_tar_open(hio, 0);
+	if (!tar)
 	{
-/* TODO: better error message */
-		write (iop->wfd, "Status: 500\r\n\r\n", 15); 
+		write (iop->wfd, "Status: 500\r\n\r\n", 15);
 		goto done;
 	}
-#endif
 
+	hio_tar_setxrootwithbcstr (tar, ext->docroot);
+
+	while (1)
+	{
+		n = read(iop->rfd, buf, HIO_COUNTOF(buf));
+		if (n <= 0) break; /* eof or error */
+
+		if (hio_tar_xfeed(tar, buf, n) <= -1)
+		{
+			write (iop->wfd, "Status: 500\r\n\r\n", 20);
+			goto done;
+		}
+	}
+
+	hio_tar_endxfeed (tar);
 	write (iop->wfd, "Status: 200\r\n\r\n", 15); 
 
 done:
+	if (tar)
+	{
+		hio_tar_close (tar);
+	}
 	if (wfp)
 	{
-		iop->wfd = HIO_SYSHND_INVALID; /* prevent double close by the main library */
+		iop->wfd = HIO_SYSHND_INVALID; /* prevent double close by the main library since this function closes it with fclose() */
 		fclose (wfp);
 	}
 }
@@ -178,7 +197,13 @@ int main (int argc, char* argv[])
 	}
 
 	hio_setoption (hio, HIO_LOG_TARGET_BCSTR, "/dev/stderr");
-
+	{
+		hio_bitmask_t logmask;
+		hio_getoption (hio, HIO_LOG_MASK, &logmask);
+		logmask |= HIO_LOG_GUARDED;
+		hio_setoption (hio, HIO_LOG_MASK, &logmask);
+	}
+	
 	g_hio = hio;
 
 	if (webs_start(hio, argv[1], argv[2]) <= -1) goto oops;

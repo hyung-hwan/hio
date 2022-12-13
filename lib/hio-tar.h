@@ -85,6 +85,8 @@ struct hio_tar_t
 
 	struct
 	{
+		hio_bch_t root[2048];
+
 		hio_tar_state_t state;
 		struct
 		{
@@ -133,6 +135,11 @@ HIO_EXPORT int hio_tar_xfeed (
 	hio_tar_t*  tar,
 	const void* ptr,
 	hio_oow_t   len
+);
+
+HIO_EXPORT void hio_tar_setxrootwithbcstr (
+	hio_tar_t*       tar,
+	const hio_bch_t* root
 );
 
 #if defined(__cplusplus)
