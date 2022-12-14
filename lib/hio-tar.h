@@ -71,6 +71,8 @@ typedef struct hio_tar_hdr_t hio_tar_hdr_t;
 
 #define HIO_TAR_BLKSIZE (512)
 
+typedef struct hio_tar_t hio_tar_t;
+
 enum hio_tar_state_t
 {
 	HIO_TAR_STATE_START,
@@ -79,6 +81,12 @@ enum hio_tar_state_t
 };
 typedef enum hio_tar_state_t hio_tar_state_t;
 
+typedef void (*hio_tar_xcb_t) (
+	hio_tar_t*       tar,
+	const hio_bch_t* filename,
+	void*            ctx
+);
+
 struct hio_tar_t
 {
 	hio_t* hio;
@@ -86,6 +94,8 @@ struct hio_tar_t
 	struct
 	{
 		hio_bch_t root[2048];
+		hio_tar_xcb_t xcb;
+		void* xcb_ctx;
 
 		hio_tar_state_t state;
 		struct
@@ -105,7 +115,6 @@ struct hio_tar_t
 		} hi;
 	} x; /* extract */
 };
-typedef struct hio_tar_t hio_tar_t;
 
 #if defined(__cplusplus)
 extern "C" {
@@ -129,7 +138,16 @@ HIO_EXPORT void hio_tar_fini (
 	hio_tar_t* tar
 );
 
-#define hio_tar_endxfeed(tar) hio_tar_xfeed(tar, HIO_NULL, 0)
+HIO_EXPORT void hio_tar_setxrootwithbcstr (
+	hio_tar_t*       tar,
+	const hio_bch_t* root
+);
+
+HIO_EXPORT void hio_tar_setxcb (
+	hio_tar_t*    tar,
+	hio_tar_xcb_t xcb,
+	void*         ctx
+);
 
 HIO_EXPORT int hio_tar_xfeed (
 	hio_tar_t*  tar,
@@ -137,10 +155,7 @@ HIO_EXPORT int hio_tar_xfeed (
 	hio_oow_t   len
 );
 
-HIO_EXPORT void hio_tar_setxrootwithbcstr (
-	hio_tar_t*       tar,
-	const hio_bch_t* root
-);
+#define hio_tar_endxfeed(tar) hio_tar_xfeed(tar, HIO_NULL, 0)
 
 #if defined(__cplusplus)
 }

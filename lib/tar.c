@@ -101,7 +101,18 @@ void hio_tar_fini (hio_tar_t* tar)
 	}
 }
 
-/* extraction - the implementation is still far from completion */
+/* extraction - the implementation is still far from complete */
+
+void hio_tar_setxrootwithbcstr (hio_tar_t* tar, const hio_bch_t* root)
+{
+	hio_copy_bcstr (tar->x.root, HIO_COUNTOF(tar->x.root), root); /* TOOD: handle truncation. make tar->x.root dyanmic? */
+}
+
+void hio_tar_setxcb (hio_tar_t* tar, hio_tar_xcb_t xcb,	void* ctx)
+{
+	tar->x.xcb = xcb;
+	tar->x.xcb_ctx = ctx;
+}
 
 static int x_process_header (hio_tar_t* tar)
 {
@@ -275,7 +286,3 @@ int hio_tar_xfeed (hio_tar_t* tar, const void* ptr, hio_oow_t len)
 	return 0;
 }
 
-void hio_tar_setxrootwithbcstr (hio_tar_t* tar, const hio_bch_t* root)
-{
-	hio_copy_bcstr (tar->x.root, HIO_COUNTOF(tar->x.root), root); /* TOOD: handle truncation. make tar->x.root dyanmic? */
-}
