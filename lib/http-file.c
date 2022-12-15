@@ -674,6 +674,8 @@ static HIO_INLINE int process_range_header (file_t* file, hio_htre_t* req, int* 
 
 static int open_peer_with_mode (file_t* file, const hio_bch_t* actual_file, int flags, int* error_status)
 {
+	struct stat st;
+
 	flags |= O_NONBLOCK;
 #if defined(O_CLOEXEC)
 	flags |= O_CLOEXEC;
@@ -689,6 +691,24 @@ static int open_peer_with_mode (file_t* file, const hio_bch_t* actual_file, int 
 		return -1;
 	}
 
+	if (fstat(file->peer, &st) >= 0 && S_ISDIR(st.st_mode))
+	{
+		hio_bch_t* alt_file;
+		int alt_fd;
+
+/* TODO: create an option to support directory listing */
+		alt_file = hio_svc_htts_dupmergepaths(file->htts, actual_file, "index.html"); /* TODO: make the default index files configurable */
+		if (alt_file)
+		{
+			alt_fd = open(alt_file, flags, 0644);
+			hio_freemem (file->htts->hio, alt_file);
+			if (alt_fd >= 0)
+			{
+				close (file->peer);
+				file->peer = alt_fd;
+			}
+		}
+	}
 	return 0;
 }
 

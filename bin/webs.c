@@ -79,16 +79,16 @@ static int process_http_request (hio_svc_htts_t* htts, hio_dev_sck_t* csck, hio_
 
 	if (mth == HIO_HTTP_OTHER && hio_comp_bcstr(hio_htre_getqmethodname(req), "UNTAR", 1) == 0)
 	{
+		/* don't care about the path for now. TODO: make this secure and reasonable */
 		hio_svc_htts_dothr(htts, csck, req, untar, HIO_NULL, 0);
 	}
-	else
-//	if (mth == HIO_HTTP_GET || mth == HIO_HTTP_POST)
+	else // if (mth == HIO_HTTP_GET || mth == HIO_HTTP_POST)
 	{
 		/* TODO: proper mime-type */
 		const hio_bch_t* dot;
 		hio_bch_t mt[128];
 		dot = hio_rfind_bchar_in_bcstr(qpath, '.');
-		hio_fmttobcstr (hio, mt, HIO_COUNTOF(mt), "text/%hs", ((dot && dot[1] != '\0')? &dot[1]: "plain")); /* TODO: error check */
+		hio_fmttobcstr (hio, mt, HIO_COUNTOF(mt), "text/%hs", ((dot && dot[1] != '\0')? &dot[1]: "html")); /* TODO: error check */
 		if (hio_svc_htts_dofile(htts, csck, req, ext->docroot, qpath, mt, 0) <= -1) goto oops;
 	}
 #if 0
