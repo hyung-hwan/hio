@@ -698,7 +698,7 @@ static int open_peer_with_mode (file_t* file, const hio_bch_t* actual_file, int 
 	}
 
 	opened_file = actual_file;
-	if ((flags & O_RDONLY) && fstat(file->peer, &st) >= 0 && S_ISDIR(st.st_mode)) /* only for read operation */
+	if ((flags | O_RDONLY) && fstat(file->peer, &st) >= 0 && S_ISDIR(st.st_mode)) /* only for read operation */
 	{
 		hio_bch_t* alt_file;
 		int alt_fd;
