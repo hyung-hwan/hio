@@ -154,7 +154,8 @@ am__libhio_la_SOURCES_DIST = chr.c dhcp-svr.c dns.c dns-cli.c ecs.c \
 	nwif.c opt.c opt-imp.h path.c pipe.c pro.c pty.c rad-msg.c \
 	sck.c shw.c skad.c sys.c sys-ass.c sys-err.c sys-log.c \
 	sys-mux.c sys-prv.h sys-tim.c thr.c uch-case.h uch-prop.h \
-	tar.c tmr.c utf8.c utl.c utl-siph.c utl-str.c mar.c mar-cli.c
+	tar.c tmr.c utf8.c utl.c utl-mime.c utl-siph.c utl-str.c mar.c \
+	mar-cli.c
 @ENABLE_MARIADB_TRUE@am__objects_1 = libhio_la-mar.lo \
 @ENABLE_MARIADB_TRUE@	libhio_la-mar-cli.lo
 am_libhio_la_OBJECTS = libhio_la-chr.lo libhio_la-dhcp-svr.lo \
@@ -171,8 +172,8 @@ am_libhio_la_OBJECTS = libhio_la-chr.lo libhio_la-dhcp-svr.lo \
 	libhio_la-sys.lo libhio_la-sys-ass.lo libhio_la-sys-err.lo \
 	libhio_la-sys-log.lo libhio_la-sys-mux.lo libhio_la-sys-tim.lo \
 	libhio_la-thr.lo libhio_la-tar.lo libhio_la-tmr.lo \
-	libhio_la-utf8.lo libhio_la-utl.lo libhio_la-utl-siph.lo \
-	libhio_la-utl-str.lo $(am__objects_1)
+	libhio_la-utf8.lo libhio_la-utl.lo libhio_la-utl-mime.lo \
+	libhio_la-utl-siph.lo libhio_la-utl-str.lo $(am__objects_1)
 libhio_la_OBJECTS = $(am_libhio_la_OBJECTS)
 AM_V_lt = $(am__v_lt_@AM_V@)
 am__v_lt_ = $(am__v_lt_@AM_DEFAULT_V@)
@@ -228,6 +229,7 @@ am__depfiles_remade = ./$(DEPDIR)/libhio_la-chr.Plo \
 	./$(DEPDIR)/libhio_la-sys.Plo ./$(DEPDIR)/libhio_la-tar.Plo \
 	./$(DEPDIR)/libhio_la-thr.Plo ./$(DEPDIR)/libhio_la-tmr.Plo \
 	./$(DEPDIR)/libhio_la-utf8.Plo \
+	./$(DEPDIR)/libhio_la-utl-mime.Plo \
 	./$(DEPDIR)/libhio_la-utl-siph.Plo \
 	./$(DEPDIR)/libhio_la-utl-str.Plo \
 	./$(DEPDIR)/libhio_la-utl.Plo
@@ -474,7 +476,7 @@ libhio_la_SOURCES = chr.c dhcp-svr.c dns.c dns-cli.c ecs.c ecs-imp.h \
 	opt.c opt-imp.h path.c pipe.c pro.c pty.c rad-msg.c sck.c \
 	shw.c skad.c sys.c sys-ass.c sys-err.c sys-log.c sys-mux.c \
 	sys-prv.h sys-tim.c thr.c uch-case.h uch-prop.h tar.c tmr.c \
-	utf8.c utl.c utl-siph.c utl-str.c $(am__append_2)
+	utf8.c utl.c utl-mime.c utl-siph.c utl-str.c $(am__append_2)
 libhio_la_CPPFLAGS = $(CPPFLAGS_LIB_COMMON)
 libhio_la_CFLAGS = $(CFLAGS_LIB_COMMON) $(am__append_3)
 libhio_la_LDFLAGS = $(LDFLAGS_LIB_COMMON) $(am__append_4)
@@ -617,6 +619,7 @@ distclean-compile:
 @AMDEP_TRUE@@am__include@ @am__quote@./$(DEPDIR)/libhio_la-thr.Plo@am__quote@ # am--include-marker
 @AMDEP_TRUE@@am__include@ @am__quote@./$(DEPDIR)/libhio_la-tmr.Plo@am__quote@ # am--include-marker
 @AMDEP_TRUE@@am__include@ @am__quote@./$(DEPDIR)/libhio_la-utf8.Plo@am__quote@ # am--include-marker
+@AMDEP_TRUE@@am__include@ @am__quote@./$(DEPDIR)/libhio_la-utl-mime.Plo@am__quote@ # am--include-marker
 @AMDEP_TRUE@@am__include@ @am__quote@./$(DEPDIR)/libhio_la-utl-siph.Plo@am__quote@ # am--include-marker
 @AMDEP_TRUE@@am__include@ @am__quote@./$(DEPDIR)/libhio_la-utl-str.Plo@am__quote@ # am--include-marker
 @AMDEP_TRUE@@am__include@ @am__quote@./$(DEPDIR)/libhio_la-utl.Plo@am__quote@ # am--include-marker
@@ -945,6 +948,13 @@ libhio_la-utl.lo: utl.c
 @AMDEP_TRUE@@am__fastdepCC_FALSE@	DEPDIR=$(DEPDIR) $(CCDEPMODE) $(depcomp) @AMDEPBACKSLASH@
 @am__fastdepCC_FALSE@	$(AM_V_CC@am__nodep@)$(LIBTOOL) $(AM_V_lt) --tag=CC $(AM_LIBTOOLFLAGS) $(LIBTOOLFLAGS) --mode=compile $(CC) $(DEFS) $(DEFAULT_INCLUDES) $(INCLUDES) $(libhio_la_CPPFLAGS) $(CPPFLAGS) $(libhio_la_CFLAGS) $(CFLAGS) -c -o libhio_la-utl.lo `test -f 'utl.c' || echo '$(srcdir)/'`utl.c
 
+libhio_la-utl-mime.lo: utl-mime.c
+@am__fastdepCC_TRUE@	$(AM_V_CC)$(LIBTOOL) $(AM_V_lt) --tag=CC $(AM_LIBTOOLFLAGS) $(LIBTOOLFLAGS) --mode=compile $(CC) $(DEFS) $(DEFAULT_INCLUDES) $(INCLUDES) $(libhio_la_CPPFLAGS) $(CPPFLAGS) $(libhio_la_CFLAGS) $(CFLAGS) -MT libhio_la-utl-mime.lo -MD -MP -MF $(DEPDIR)/libhio_la-utl-mime.Tpo -c -o libhio_la-utl-mime.lo `test -f 'utl-mime.c' || echo '$(srcdir)/'`utl-mime.c
+@am__fastdepCC_TRUE@	$(AM_V_at)$(am__mv) $(DEPDIR)/libhio_la-utl-mime.Tpo $(DEPDIR)/libhio_la-utl-mime.Plo
+@AMDEP_TRUE@@am__fastdepCC_FALSE@	$(AM_V_CC)source='utl-mime.c' object='libhio_la-utl-mime.lo' libtool=yes @AMDEPBACKSLASH@
+@AMDEP_TRUE@@am__fastdepCC_FALSE@	DEPDIR=$(DEPDIR) $(CCDEPMODE) $(depcomp) @AMDEPBACKSLASH@
+@am__fastdepCC_FALSE@	$(AM_V_CC@am__nodep@)$(LIBTOOL) $(AM_V_lt) --tag=CC $(AM_LIBTOOLFLAGS) $(LIBTOOLFLAGS) --mode=compile $(CC) $(DEFS) $(DEFAULT_INCLUDES) $(INCLUDES) $(libhio_la_CPPFLAGS) $(CPPFLAGS) $(libhio_la_CFLAGS) $(CFLAGS) -c -o libhio_la-utl-mime.lo `test -f 'utl-mime.c' || echo '$(srcdir)/'`utl-mime.c
+
 libhio_la-utl-siph.lo: utl-siph.c
 @am__fastdepCC_TRUE@	$(AM_V_CC)$(LIBTOOL) $(AM_V_lt) --tag=CC $(AM_LIBTOOLFLAGS) $(LIBTOOLFLAGS) --mode=compile $(CC) $(DEFS) $(DEFAULT_INCLUDES) $(INCLUDES) $(libhio_la_CPPFLAGS) $(CPPFLAGS) $(libhio_la_CFLAGS) $(CFLAGS) -MT libhio_la-utl-siph.lo -MD -MP -MF $(DEPDIR)/libhio_la-utl-siph.Tpo -c -o libhio_la-utl-siph.lo `test -f 'utl-siph.c' || echo '$(srcdir)/'`utl-siph.c
 @am__fastdepCC_TRUE@	$(AM_V_at)$(am__mv) $(DEPDIR)/libhio_la-utl-siph.Tpo $(DEPDIR)/libhio_la-utl-siph.Plo
@@ -1175,6 +1185,7 @@ distclean: distclean-am
 	-rm -f ./$(DEPDIR)/libhio_la-thr.Plo
 	-rm -f ./$(DEPDIR)/libhio_la-tmr.Plo
 	-rm -f ./$(DEPDIR)/libhio_la-utf8.Plo
+	-rm -f ./$(DEPDIR)/libhio_la-utl-mime.Plo
 	-rm -f ./$(DEPDIR)/libhio_la-utl-siph.Plo
 	-rm -f ./$(DEPDIR)/libhio_la-utl-str.Plo
 	-rm -f ./$(DEPDIR)/libhio_la-utl.Plo
@@ -1267,6 +1278,7 @@ maintainer-clean: maintainer-clean-am
 	-rm -f ./$(DEPDIR)/libhio_la-thr.Plo
 	-rm -f ./$(DEPDIR)/libhio_la-tmr.Plo
 	-rm -f ./$(DEPDIR)/libhio_la-utf8.Plo
+	-rm -f ./$(DEPDIR)/libhio_la-utl-mime.Plo
 	-rm -f ./$(DEPDIR)/libhio_la-utl-siph.Plo
 	-rm -f ./$(DEPDIR)/libhio_la-utl-str.Plo
 	-rm -f ./$(DEPDIR)/libhio_la-utl.Plo

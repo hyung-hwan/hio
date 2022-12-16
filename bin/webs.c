@@ -76,7 +76,6 @@ static int process_http_request (hio_svc_htts_t* htts, hio_dev_sck_t* csck, hio_
 	mth = hio_htre_getqmethodtype(req);
 	qpath = hio_htre_getqpath(req);
 
-
 	if (mth == HIO_HTTP_OTHER && hio_comp_bcstr(hio_htre_getqmethodname(req), "UNTAR", 1) == 0)
 	{
 		/* don't care about the path for now. TODO: make this secure and reasonable */
@@ -85,11 +84,7 @@ static int process_http_request (hio_svc_htts_t* htts, hio_dev_sck_t* csck, hio_
 	else // if (mth == HIO_HTTP_GET || mth == HIO_HTTP_POST)
 	{
 		/* TODO: proper mime-type */
-		const hio_bch_t* dot;
-		hio_bch_t mt[128];
-		dot = hio_rfind_bchar_in_bcstr(qpath, '.');
-		hio_fmttobcstr (hio, mt, HIO_COUNTOF(mt), "text/%hs", ((dot && dot[1] != '\0')? &dot[1]: "html")); /* TODO: error check */
-		if (hio_svc_htts_dofile(htts, csck, req, ext->docroot, qpath, mt, 0) <= -1) goto oops;
+		if (hio_svc_htts_dofile(htts, csck, req, ext->docroot, qpath, HIO_NULL, 0) <= -1) goto oops;
 	}
 #if 0
 	else
@@ -152,12 +147,12 @@ static void handle_sigint (int sig)
 int main (int argc, char* argv[])
 {
 	hio_t* hio = HIO_NULL;
-	hio_oow_t i;
 	struct sigaction sigact;
 	int xret = -1;
 
 #if 0
-	
+	hio_oow_t i;
+
 // TODO: use getopt() or something similar
 	for (i = 1; i < argc; )
 	{

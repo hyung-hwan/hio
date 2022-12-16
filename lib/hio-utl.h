@@ -224,6 +224,22 @@
 #define HIO_HASH_UCSTR(hv, ptr) HIO_HASH_VPTR(hv, ptr, const hio_uch_t)
 #define HIO_HASH_MORE_UCSTR(hv, ptr) HIO_HASH_MORE_VPTR(hv, ptr, const hio_uch_t)
 
+
+/* =========================================================================
+ * MIME TYPE ENTRY
+ * ========================================================================= */
+struct hio_mime_type_t
+{
+	const hio_bch_t* ext;
+	const hio_bch_t* type;
+};
+
+typedef struct hio_mime_type_t hio_mime_type_t;
+
+#if defined(__cplusplus)
+extern "C" {
+#endif
+
 /* =========================================================================
  * STRING
  * ========================================================================= */
@@ -652,7 +668,6 @@ static HIO_INLINE hio_uint128_t hio_bswap128 (hio_uint128_t x)
 #	error UNKNOWN ENDIAN
 #endif
 
-
 /* =========================================================================
  * SIP-HASH-PRF
  * ========================================================================= */
@@ -662,5 +677,16 @@ HIO_EXPORT void hio_sip_hash_24 (
 	hio_oow_t           dlen,
 	hio_uint8_t         out[8]
 );
+
+/* =========================================================================
+ * mime-type by extension
+ * ========================================================================= */
+HIO_EXPORT const hio_bch_t* hio_get_mime_type_by_ext (
+	const hio_bch_t* ext
+);
+
+#if defined(__cplusplus)
+}
+#endif
 
 #endif

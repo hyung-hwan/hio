@@ -479,12 +479,16 @@ static int file_send_header_to_client (file_t* file, int status_code, int force_
 	content_length = file->end_offset - file->start_offset + 1;
 	if (status_code == HIO_HTTP_STATUS_OK && file->total_size != content_length) status_code = HIO_HTTP_STATUS_PARTIAL_CONTENT;
 
-	if (hio_becs_fmt(cli->sbuf, "HTTP/%d.%d %d %hs\r\nServer: %hs\r\nDate: %s\r\nConnection: %hs\r\nAccept-Ranges: bytes\r\nContent-Type: %hs\r\n",
+	if (hio_becs_fmt(cli->sbuf, "HTTP/%d.%d %d %hs\r\nServer: %hs\r\nDate: %s\r\nConnection: %hs\r\nAccept-Ranges: bytes\r\n",
 		file->req_version.major, file->req_version.minor,
 		status_code, hio_http_status_to_bcstr(status_code),
 		cli->htts->server_name, dtbuf,
-		(force_close? "close": "keep-alive"), mime_type) == (hio_oow_t)-1) return -1;
+		(force_close? "close": "keep-alive")) == (hio_oow_t)-1) return -1;
 
+	/* Content-Type is not set if mime_type is null or blank */
+	if (mime_type && mime_type[0] != '\0' &&
+	    hio_becs_fcat(cli->sbuf, "Content-Type: %hs\r\n", mime_type) == (hio_oow_t)-1) return -1;
+	
 	if (file->req_method == HIO_HTTP_GET && hio_becs_fcat(cli->sbuf, "ETag: %hs\r\n", file->peer_etag) == (hio_oow_t)-1) return -1;
 	if (status_code == HIO_HTTP_STATUS_PARTIAL_CONTENT && hio_becs_fcat(cli->sbuf, "Content-Ranges: bytes %ju-%ju/%ju\r\n", (hio_uintmax_t)file->start_offset, (hio_uintmax_t)file->end_offset, (hio_uintmax_t)file->total_size) == (hio_oow_t)-1) return -1;
 
@@ -672,9 +676,11 @@ static HIO_INLINE int process_range_header (file_t* file, hio_htre_t* req, int* 
 	return 0;
 }
 
-static int open_peer_with_mode (file_t* file, const hio_bch_t* actual_file, int flags, int* error_status)
+static int open_peer_with_mode (file_t* file, const hio_bch_t* actual_file, int flags, int* error_status, const hio_bch_t** actual_mime_type)
 {
 	struct stat st;
+	const hio_bch_t* opened_file;
+	
 
 	flags |= O_NONBLOCK;
 #if defined(O_CLOEXEC)
@@ -691,7 +697,8 @@ static int open_peer_with_mode (file_t* file, const hio_bch_t* actual_file, int 
 		return -1;
 	}
 
-	if (fstat(file->peer, &st) >= 0 && S_ISDIR(st.st_mode))
+	opened_file = actual_file;
+	if ((flags & O_RDONLY) && fstat(file->peer, &st) >= 0 && S_ISDIR(st.st_mode)) /* only for read operation */
 	{
 		hio_bch_t* alt_file;
 		int alt_fd;
@@ -701,14 +708,30 @@ static int open_peer_with_mode (file_t* file, const hio_bch_t* actual_file, int 
 		if (alt_file)
 		{
 			alt_fd = open(alt_file, flags, 0644);
-			hio_freemem (file->htts->hio, alt_file);
 			if (alt_fd >= 0)
 			{
 				close (file->peer);
 				file->peer = alt_fd;
+				opened_file = alt_file;
 			}
 		}
 	}
+
+	if (actual_mime_type)
+	{
+		const hio_bch_t* dot;
+		dot = hio_rfind_bchar_in_bcstr(opened_file, '.');
+		if (dot)
+		{
+			const hio_bch_t* mt;
+			mt = hio_get_mime_type_by_ext(dot + 1);
+			if (mt) *actual_mime_type = mt;
+		}
+	}
+
+	if (opened_file != actual_file)
+		hio_freemem (file->htts->hio, (hio_bch_t*)opened_file);
+
 	return 0;
 }
 
@@ -854,7 +877,10 @@ int hio_svc_htts_dofile (hio_svc_htts_t* htts, hio_dev_sck_t* csck, hio_htre_t* 
 	switch (file->req_method)
 	{
 		case HIO_HTTP_GET:
-			if (open_peer_with_mode(file, actual_file, O_RDONLY, &status_code) <= -1) goto done_with_status_code;
+		{
+			const hio_bch_t* actual_mime_type = mime_type;
+
+			if (open_peer_with_mode(file, actual_file, O_RDONLY, &status_code, (mime_type? HIO_NULL: &actual_mime_type)) <= -1) goto done_with_status_code;
 			if (process_range_header(file, req, &status_code) <= -1) goto done_with_status_code;
 
 			if (file->etag_match)
@@ -869,13 +895,14 @@ int hio_svc_htts_dofile (hio_svc_htts_t* htts, hio_dev_sck_t* csck, hio_htre_t* 
 		#endif
 			set_tcp_cork (file->client->sck);
 
-			if (file_send_header_to_client(file, HIO_HTTP_STATUS_OK, 0, mime_type) <= -1 ||
+			if (file_send_header_to_client(file, HIO_HTTP_STATUS_OK, 0, actual_mime_type) <= -1 ||
 			    file_send_contents_to_client(file) <= -1) goto oops;
 
 			break;
+		}
 
 		case HIO_HTTP_HEAD:
-			if (open_peer_with_mode(file, actual_file, O_RDONLY, &status_code) <= -1) goto done_with_status_code;
+			if (open_peer_with_mode(file, actual_file, O_RDONLY, &status_code, HIO_NULL) <= -1) goto done_with_status_code;
 			if (process_range_header(file, req, &status_code) <= -1) goto done_with_status_code;
 			status_code = HIO_HTTP_STATUS_OK;
 			goto done_with_status_code;
@@ -888,7 +915,7 @@ int hio_svc_htts_dofile (hio_svc_htts_t* htts, hio_dev_sck_t* csck, hio_htre_t* 
 				goto done_with_status_code;
 			}
 
-			if (open_peer_with_mode(file, actual_file, O_WRONLY | O_TRUNC | O_CREAT, &status_code) <= -1) goto done_with_status_code;
+			if (open_peer_with_mode(file, actual_file, O_WRONLY | O_TRUNC | O_CREAT, &status_code, HIO_NULL) <= -1) goto done_with_status_code;
 
 			/* the client input must be written to the peer side */
 			file_mark_over (file, FILE_OVER_READ_FROM_PEER);
