@@ -1,31 +1,36 @@
 tap_total=0
 
-function tap_end()
+tap_end()
 {
-	printf "1..%d\n" tap_total
+	printf "1..%d\n" $tap_total
 }
 
-function tap_ok(msg)
+tap_ok() 
 {
-	tap_total++;
-	printf "ok %d - %s\n" tap_total msg
+	local msg="$@"
+	tap_total=$((tap_total + 1))
+	printf "ok %d - %s\n" $tap_total "$msg"
 }
 
-function tap_fail(msg)
+tap_fail()
 {
-	tap_total++;
-	printf "not ok %d - %s\n" tap_total msg
+	local msg="$@"
+	tap_total=$((tap_total + 1))
+	printf "not ok %d - %s\n" $tap_total "$msg"
 }
 
-function tap_skip(msg)
+tap_skip()
 {
-	tap_total++;
-	printf "ok %d - # skip%s%s\n" tap_total (length(msg) > 0? " ": "") msg
+	local msg="$@"
+	tap_total=$((tap_total + 1))
+	[ -n "$msg" ] && msg=" $msg"
+	printf "ok %d - # skip%s\n" $tap_total "$msg"
 }
 
-function tap_ensure(a, b, desc, line)
+tap_ensure()
 {
-	id = sprintf("%s[%d]", desc, line);
-	if (a != b) tap_fail (id);
-	else tap_ok (id);
+	local a="$1"
+	local b="$2"
+	local desc="$3"
+	[ "x$a" = "x$b" ] && tap_ok "$desc" || tap_fail "$desc"
 }

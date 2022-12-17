@@ -13,8 +13,7 @@ LDFLAGS_COMMON=-L$(abs_builddir)/../lib  -L$(libdir)
 ## for more information.
 LIBADD_COMMON = ../lib/libhio.la $(LIBM)
 
-check_SCRIPTS = 
-##noinst_SCRIPTS = $(check_SCRIPTS)
+check_SCRIPTS = s-001.sh
 EXTRA_DIST = $(check_SCRIPTS)
 
 check_PROGRAMS = t-001 t-002 t-003 t-004
@@ -43,6 +42,11 @@ t_004_CFLAGS = $(CFLAGS_COMMON)
 t_004_LDFLAGS = $(LDFLAGS_COMMON)
 t_004_LDADD = $(LIBADD_COMMON)
 
-
+LOG_DRIVER = env AM_TAP_AWK='$(AWK)' $(SHELL) $(top_srcdir)/ac/tap-driver.sh
 TESTS = $(check_PROGRAMS) $(check_SCRIPTS)
 
+TEST_EXTENSIONS = .sh
+SH_LOG_DRIVER = $(LOG_DRIVER)
+SH_LOG_COMPILER = /bin/sh
+##SH_LOG_DRIVER_FLAGS =
+##AM_SH_LOG_DRIVER_FLAGS =

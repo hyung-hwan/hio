@@ -1,6 +1,6 @@
 #include <hio-utl.h>
 #include <string.h>
-#include "t.h"
+#include "tap.h"
 
 /* https://131002.net/siphash/siphash24.c */
 
@@ -78,6 +78,7 @@ static int test_sip_vectors()
 
 	hio_uint8_t in[MAXLEN], out[8], k[16];
 	int i;
+	char tmp[64];
 
 	for( i = 0; i < 16; ++i ) k[i] = i;
 
@@ -85,7 +86,8 @@ static int test_sip_vectors()
 	{
 		in[i] = i;
 		hio_sip_hash_24(k, in, i, out);
-		T_ASSERT1 (memcmp(out, vectors[i], 8) == 0, "test vector failure");
+		sprintf (tmp, "test vector %d", i);
+		OK (memcmp(out, vectors[i], 8) == 0, tmp);
 	}
 
 	return 0;
@@ -96,6 +98,7 @@ oops:
 
 int main()
 {
+	no_plan ();
 	if (test_sip_vectors() <= -1) return -1;
-	return 0;
+	return exit_status();
 }
