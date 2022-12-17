@@ -714,6 +714,7 @@ static int open_peer_with_mode (file_t* file, const hio_bch_t* actual_file, int 
 			}
 			else
 			{
+				hio_freemem (file->htts->hio, alt_file);
 				#if 0
 				/* TODO: switch to directory listing if it's enabled */
 				DIR* dp;
