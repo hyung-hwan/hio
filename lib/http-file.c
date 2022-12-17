@@ -663,7 +663,6 @@ static HIO_INLINE int process_range_header (file_t* file, hio_htre_t* req, int* 
 				return -1;
 			}
 		}
-
 	}
 	else
 	{
@@ -680,7 +679,6 @@ static int open_peer_with_mode (file_t* file, const hio_bch_t* actual_file, int 
 {
 	struct stat st;
 	const hio_bch_t* opened_file;
-	
 
 	flags |= O_NONBLOCK;
 #if defined(O_CLOEXEC)
@@ -713,6 +711,19 @@ static int open_peer_with_mode (file_t* file, const hio_bch_t* actual_file, int 
 				close (file->peer);
 				file->peer = alt_fd;
 				opened_file = alt_file;
+			}
+			else
+			{
+				#if 0
+				/* TODO: switch to directory listing if it's enabled */
+				DIR* dp;
+				dp = opendir(actual_file);
+				if (dp)
+				{
+					close (file->peer);
+					file->peer = dp;
+				}
+				#endif
 			}
 		}
 	}
