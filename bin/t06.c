@@ -211,7 +211,7 @@ if (hio_htre_getcontentlen(req) > 0)
 				x = hio_svc_htts_dofcgi(htts, csck, req, &fcgis_addr, 0);
 			}
 			else
-				x = hio_svc_htts_dofile(htts, csck, req, "", qpath, "text/plain", 0);
+				x = hio_svc_htts_dofile(htts, csck, req, "", qpath, "text/plain", 0, HIO_NULL);
 			if (x <= -1) goto oops;
 		}
 #if 0

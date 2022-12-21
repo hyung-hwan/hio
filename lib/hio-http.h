@@ -137,7 +137,6 @@ typedef void (*hio_svc_htts_thr_func_t) (
 
 /* -------------------------------------------------------------- */
 
-
 enum hio_svc_htts_cgi_option_t
 {
 	HIO_SVC_HTTS_CGI_NO_100_CONTINUE = (1 << 0)
@@ -161,6 +160,12 @@ enum hio_svc_htts_txt_option_t
 	/* no option yet */
 };
 #endif
+
+struct hio_svc_htts_file_cbs_t
+{
+	int (*bfmt_dir) (hio_svc_htts_t* htts, const hio_bch_t* name);
+};
+typedef struct hio_svc_htts_file_cbs_t hio_svc_htts_file_cbs_t;
 
 #if defined(__cplusplus)
 extern "C" {
@@ -341,17 +346,18 @@ HIO_EXPORT int hio_svc_htts_dofcgi (
 	hio_dev_sck_t*    csck,
 	hio_htre_t*       req,
 	const hio_skad_t* fcgis_addr,
-	int               options
+	int               options /**< 0 or bitwise-Ored of #hio_svc_htts_file_option_t enumerators */
 );
 
 HIO_EXPORT int hio_svc_htts_dofile (
-	hio_svc_htts_t*  htts,
-	hio_dev_sck_t*   csck,
-	hio_htre_t*      req,
-	const hio_bch_t* docroot,
-	const hio_bch_t* filepath,
-	const hio_bch_t* mime_type,
-	int              options
+	hio_svc_htts_t*          htts,
+	hio_dev_sck_t*           csck,
+	hio_htre_t*              req,
+	const hio_bch_t*         docroot,
+	const hio_bch_t*         filepath,
+	const hio_bch_t*         mime_type,
+	int                      options,
+	hio_svc_htts_file_cbs_t* cbs
 );
 
 HIO_EXPORT int hio_svc_htts_dothr (

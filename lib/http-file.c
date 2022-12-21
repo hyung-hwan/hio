@@ -35,6 +35,7 @@
 #include <netinet/tcp.h>
 #include <dirent.h>
 #include <stdlib.h>
+#include <string.h>
 
 #define FILE_ALLOW_UNLIMITED_REQ_CONTENT_LENGTH
 
@@ -56,6 +57,7 @@ struct file_t
 	HIO_SVC_HTTS_RSRC_HEADER;
 
 	int options;
+	hio_svc_htts_file_cbs_t* cbs;
 	hio_oow_t num_pending_writes_to_client;
 	hio_oow_t num_pending_writes_to_peer;
 	int sendfile_ok;
@@ -736,12 +738,18 @@ static int open_peer_with_mode (file_t* file, const hio_bch_t* actual_file, int 
 									while ((de = readdir(dp)))
 									{
 										/* TODO: do buffering ... */
+									#if 0
+									/* TODO: call a directory entry formatter callback??  */
+										if (file->cbs && file->cbs->bfmt_dir)
+										{
+											file->cbs->bfmt_dir(file->htts, de->d_name);
+										}
+									#endif
 										if (strcmp(de->d_name, ".") != 0)
 										{
 											write (alt_fd, de->d_name, strlen(de->d_name));
 											write (alt_fd, "\n", 1);
 										}
-										/* TODO: call a directory entry formatter callback??  */
 									}
 
 									lseek (alt_fd, SEEK_SET, 0);
@@ -792,10 +800,8 @@ static HIO_INLINE void set_tcp_cork (hio_dev_sck_t* sck)
 #endif
 }
 
-int hio_svc_htts_dofile (hio_svc_htts_t* htts, hio_dev_sck_t* csck, hio_htre_t* req, const hio_bch_t* docroot, const hio_bch_t* filepath, const hio_bch_t* mime_type, int options)
+int hio_svc_htts_dofile (hio_svc_htts_t* htts, hio_dev_sck_t* csck, hio_htre_t* req, const hio_bch_t* docroot, const hio_bch_t* filepath, const hio_bch_t* mime_type, int options, hio_svc_htts_file_cbs_t* cbs)
 {
-/* TODO: ETag, Last-Modified... */
-
 	hio_t* hio = htts->hio;
 	hio_svc_htts_cli_t* cli = hio_dev_sck_getxtn(csck);
 	file_t* file = HIO_NULL;
@@ -815,6 +821,7 @@ int hio_svc_htts_dofile (hio_svc_htts_t* htts, hio_dev_sck_t* csck, hio_htre_t* 
 	if (HIO_UNLIKELY(!file)) goto oops;
 
 	file->options = options;
+	file->cbs = cbs; /* the given pointer must outlive the lifespan of the while file handling cycle. */
 	file->client = cli;
 	file->sendfile_ok = hio_dev_sck_sendfileok(cli->sck);
 	/*file->num_pending_writes_to_client = 0;

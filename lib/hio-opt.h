@@ -73,18 +73,18 @@ struct hio_bopt_lng_t
 struct hio_bopt_t
 {
 	/* input */
-	const hio_bch_t* str; /* option string  */
-	hio_bopt_lng_t*  lng; /* long options */
+	const hio_bch_t* str; /**< option string  */
+	hio_bopt_lng_t*  lng; /**< long options */
 
 	/* output */
-	hio_bci_t        opt; /* character checked for validity */
-	hio_bch_t*       arg; /* argument associated with an option */
+	hio_bci_t        opt; /**< character checked for validity */
+	hio_bch_t*       arg; /**< argument associated with an option */
 
 	/* output */
 	const hio_bch_t* lngopt; 
 
 	/* input + output */
-	int              ind; /* index into parent argv vector */
+	int              ind; /**< index into parent argv vector */
 
 	/* input + output - internal*/
 	hio_bch_t*       cur;
@@ -95,7 +95,7 @@ extern "C" {
 #endif
 
 /**
- * The hio_getopt() function processes the \a argc command-line arguments
+ * The hio_getuopt() function processes the \a argc command-line arguments
  * pointed to by \a argv as configured in \a opt. It can process two 
  * different option styles: a single character starting with '-', and a 
  * long name starting with '--'. 
@@ -107,7 +107,7 @@ extern "C" {
  * - \b ? indicates a bad option stored in the \a opt->opt field.
  * - \b : indicates a bad parameter for an option stored in the \a opt->opt field.
  *
- * @return an option character on success, HIO_CHAR_EOF on no more options.
+ * @return an option character on success, #HIO_UCI_EOF on no more options.
  */
 HIO_EXPORT hio_uci_t hio_getuopt (
 	int                argc, /* argument count */ 
@@ -115,6 +115,10 @@ HIO_EXPORT hio_uci_t hio_getuopt (
 	hio_uopt_t*        opt   /* option configuration */
 );
 
+/**
+ * The hio_getbopt() function is analogous to hio_getuopt() except that 
+ * it accepts character strings of the #hio_bch_t type.
+ */
 HIO_EXPORT hio_bci_t hio_getbopt (
 	int                argc, /* argument count */ 
 	hio_bch_t* const*  argv, /* argument array */

@@ -25,6 +25,10 @@
 #ifndef _HIO_H_
 #define _HIO_H_
 
+/** \file
+ * The file defines basic data types and functions common through the entire
+ * library.
+ */
 #include <hio-cmn.h>
 #include <stdarg.h>
 
@@ -259,6 +263,10 @@ struct hio_dev_evcb_t
 	int           (*on_write)     (hio_dev_t* dev, hio_iolen_t wrlen, void* wrctx, const hio_devaddr_t* dstaddr);
 };
 
+/**
+ * The #hio_q_t type is a basic structure that holds two pointers to the previous
+ * item and the next to form a circular doubly linked list to used as a queue.
+ */
 struct hio_q_t
 {
 	hio_q_t*    q_next;
@@ -297,14 +305,14 @@ struct hio_q_t
 	__nn->q_prev->q_next = __nn; \
 } while (0)
 
-/* insert an item at the back of the queue */
+/** The #HIO_Q_ENQ macro inserts an item at the back of the queue. */
 /*#define HIO_Q_ENQ(wq,x)  HIO_Q_LINK(HIO_Q_TAIL(wq), x, HIO_Q_TAIL(wq)->next)*/
 #define HIO_Q_ENQ(wq,x)  HIO_Q_LINK(HIO_Q_TAIL(wq), x, wq)
 
-/* remove an item in the front from the queue */
+/** The #HIO_Q_DEQ macro removes an item in the front from the queue. */
 #define HIO_Q_DEQ(wq) HIO_Q_UNLINK(HIO_Q_HEAD(wq))
 
-/* completed write queue */
+/** The #hio_cwq_t type defines a queue of completed writes. */
 struct hio_cwq_t
 {
 	hio_cwq_t*    q_next;
@@ -331,7 +339,7 @@ struct hio_cwq_t
 #define HIO_CWQ_ENQ(cwq,x) HIO_CWQ_LINK(HIO_CWQ_TAIL(cwq), (hio_q_t*)x, cwq)
 #define HIO_CWQ_DEQ(cwq) HIO_CWQ_UNLINK(HIO_CWQ_HEAD(cwq))
 
-/* write queue */
+/** The #hio_wq_t type defines a queue of pending writes */
 struct hio_wq_t
 {
 	hio_wq_t*       q_next;
