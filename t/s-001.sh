@@ -7,7 +7,7 @@
 
 test_default_index() 
 {
-	local msg="default index.html"
+	local msg="hi-webs default index.html"
 	local srvaddr=127.0.0.1:54321
 	local tmpdir="/tmp/s-001.$$"
 	../bin/hio-webs "${srvaddr}" "${tmpdir}" 2>/dev/null &

@@ -33,6 +33,8 @@
 #include <errno.h>
 #include <netinet/in.h>
 #include <netinet/tcp.h>
+#include <dirent.h>
+#include <stdlib.h>
 
 #define FILE_ALLOW_UNLIMITED_REQ_CONTENT_LENGTH
 
@@ -85,12 +87,10 @@ struct file_t
 	hio_dev_sck_on_write_t client_org_on_write;
 	hio_dev_sck_on_disconnect_t client_org_on_disconnect;
 	hio_htrd_recbs_t client_htrd_org_recbs;
-
 };
 typedef struct file_t file_t;
 
 static int file_send_contents_to_client (file_t* file);
-
 
 static void file_halt_participating_devices (file_t* file)
 {
@@ -554,7 +554,7 @@ static int file_send_contents_to_client (file_t* file)
 		}
 		else if (n == 0)
 		{
-			/* no more data to read - this must not happend unless file size changed while the file is open. */
+			/* no more data to read - this must not happen unless file size changed while the file is open. */
 	/* TODO: I probably must close the connection by force??? */
 			file_mark_over (file, FILE_OVER_READ_FROM_PEER); 
 			return -1;
@@ -701,7 +701,6 @@ static int open_peer_with_mode (file_t* file, const hio_bch_t* actual_file, int 
 		hio_bch_t* alt_file;
 		int alt_fd;
 
-/* TODO: create an option to support directory listing */
 		alt_file = hio_svc_htts_dupmergepaths(file->htts, actual_file, "index.html"); /* TODO: make the default index files configurable */
 		if (alt_file)
 		{
@@ -715,16 +714,50 @@ static int open_peer_with_mode (file_t* file, const hio_bch_t* actual_file, int 
 			else
 			{
 				hio_freemem (file->htts->hio, alt_file);
-				#if 0
-				/* TODO: switch to directory listing if it's enabled */
-				DIR* dp;
-				dp = opendir(actual_file);
-				if (dp)
+
+				if (file->options & HIO_SVC_HTTS_FILE_LIST_DIR)
 				{
-					close (file->peer);
-					file->peer = dp;
+					/* switch to directory listing */
+					DIR* dp;
+
+					dp = opendir(actual_file);
+					if (dp)
+					{
+						alt_file = hio_dupbcstr(file->htts->hio, "/tmp/.XXXXXX", HIO_NULL);
+						if (alt_file)
+						{
+							/* TOOD: mkostemp instead and specify O_CLOEXEC and O_LARGEFILE? */
+							alt_fd = mkstemp(alt_file);
+							if (alt_fd >= 0)
+							{
+									struct dirent* de;
+
+									unlink (alt_file);
+									while ((de = readdir(dp)))
+									{
+										/* TODO: do buffering ... */
+										if (strcmp(de->d_name, ".") != 0)
+										{
+											write (alt_fd, de->d_name, strlen(de->d_name));
+											write (alt_fd, "\n", 1);
+										}
+										/* TODO: call a directory entry formatter callback??  */
+									}
+
+									lseek (alt_fd, SEEK_SET, 0);
+
+									close (file->peer);
+									file->peer = alt_fd;
+									opened_file = alt_file;
+							}
+							else
+							{
+								hio_freemem (file->htts->hio, alt_file);
+							}
+						}
+						closedir (dp);
+					}
 				}
-				#endif
 			}
 		}
 	}

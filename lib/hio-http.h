@@ -145,8 +145,9 @@ enum hio_svc_htts_cgi_option_t
 
 enum hio_svc_htts_file_option_t
 {
-	HIO_SVC_HTTS_FILE_NO_100_CONTINUE = (1 << 0),
-	HIO_SVC_HTTS_FILE_READ_ONLY       = (1 << 1)
+	HIO_SVC_HTTS_FILE_NO_100_CONTINUE  = (1 << 0),
+	HIO_SVC_HTTS_FILE_READ_ONLY        = (1 << 1),
+	HIO_SVC_HTTS_FILE_LIST_DIR         = (1 << 2)
 };
 
 enum hio_svc_htts_thr_option_t
