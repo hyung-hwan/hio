@@ -1,15 +1,25 @@
 #include <hio-http.h>
 #include <hio-tar.h>
+#include <hio-opt.h>
 #include <signal.h>
 #include <string.h>
 #include <stdio.h>
 #include <unistd.h>
 
+struct arg_info_t
+{
+	const char* laddrs;
+	const char* docroot;
+	int file_list_dir;
+};
+typedef struct arg_info_t arg_info_t;
+
 struct htts_ext_t
 {
-	const hio_bch_t* docroot;
+	arg_info_t* ai;
 };
 typedef struct htts_ext_t htts_ext_t;
+
 
 void untar (hio_t* hio, hio_dev_thr_iopair_t* iop, hio_svc_htts_thr_func_info_t* tfi, void* ctx)
 {
@@ -35,7 +45,7 @@ void untar (hio_t* hio, hio_dev_thr_iopair_t* iop, hio_svc_htts_thr_func_info_t*
 		goto done;
 	}
 
-	hio_tar_setxrootwithbcstr (tar, ext->docroot);
+	hio_tar_setxrootwithbcstr (tar, ext->ai->docroot);
 
 	while (1)
 	{
@@ -85,7 +95,9 @@ static int process_http_request (hio_svc_htts_t* htts, hio_dev_sck_t* csck, hio_
 	{
 		/* TODO: proper mime-type */
 		/* TODO: make HIO_SVC_HTTS_FILE_DIR a cli option */
-		if (hio_svc_htts_dofile(htts, csck, req, ext->docroot, qpath, HIO_NULL, HIO_SVC_HTTS_FILE_LIST_DIR, HIO_NULL) <= -1) goto oops;
+		int fopts = 0;
+		if (ext->ai->file_list_dir) fopts |= HIO_SVC_HTTS_FILE_LIST_DIR;
+		if (hio_svc_htts_dofile(htts, csck, req, ext->ai->docroot, qpath, HIO_NULL, fopts, HIO_NULL) <= -1) goto oops;
 	}
 #if 0
 	else
@@ -100,7 +112,7 @@ oops:
 	return 0;
 }
 
-int webs_start (hio_t* hio, const hio_bch_t* addrs, const hio_bch_t* docroot)
+int webs_start (hio_t* hio, const arg_info_t* ai)
 {
 	const hio_bch_t* ptr, * end;
 	hio_bcs_t tok;
@@ -110,7 +122,7 @@ int webs_start (hio_t* hio, const hio_bch_t* addrs, const hio_bch_t* docroot)
 	htts_ext_t* ext;
 
 	bic = 0;
-	ptr = addrs;
+	ptr = ai->laddrs;
 	end = ptr + hio_count_bcstr(ptr);
 	while (ptr)
 	{
@@ -133,7 +145,7 @@ int webs_start (hio_t* hio, const hio_bch_t* addrs, const hio_bch_t* docroot)
 	if (!webs) return -1; /* TODO: logging */
 
 	ext = hio_svc_htts_getxtn(webs);
-	ext->docroot = docroot;
+	ext->ai = ai;
 
 	return 0;
 }
@@ -145,37 +157,68 @@ static void handle_sigint (int sig)
 	if (g_hio) hio_stop (g_hio, HIO_STOPREQ_TERMINATION);
 }
 
+static int process_args (int argc, char* argv[], arg_info_t* ai)
+{
+	static hio_bopt_lng_t lopt[] =
+	{
+		{ "file-list-dir", '\0' }
+	};
+	static hio_bopt_t opt =
+	{
+		"",
+		&lopt
+	};
+
+	hio_bci_t c;
+
+	if (argc < 3)
+	{
+	print_usage:
+		fprintf (stderr, "Usage: %s [options] listen-address:port docroot-dir\n", argv[0]);
+		return -1;
+	}
+
+	memset (ai, 0, HIO_SIZEOF(*ai));
+
+	while ((c = hio_getbopt(argc, argv, &opt)) != HIO_BCI_EOF)
+	{
+		switch (c)
+		{
+			case '\0':
+				if (strcasecmp(opt.lngopt, "file-list-dir") == 0)
+				{
+					ai->file_list_dir = 1;
+					break;
+				}
+				goto print_usage;
+
+			case ':':
+				if (opt.lngopt)
+					fprintf (stderr, "bad argument for '%s'\n", opt.lngopt);
+				else
+					fprintf (stderr, "bad argument for '%c'\n", opt.opt);
+				return -1;
+
+			default:
+				goto print_usage;
+		}
+	}
+
+	if (argc - opt.ind != 2) goto print_usage;
+
+	ai->laddrs = argv[opt.ind++];
+	ai->docroot = argv[opt.ind++];
+	return 0;
+}
+
 int main (int argc, char* argv[])
 {
 	hio_t* hio = HIO_NULL;
 	struct sigaction sigact;
+	arg_info_t ai;
 	int xret = -1;
 
-#if 0
-	hio_oow_t i;
-
-// TODO: use getopt() or something similar
-	for (i = 1; i < argc; )
-	{
-		if (strcmp(argv[i], "-s") == 0)
-		{
-			i++;
-			g_dev_type4 = HIO_DEV_SCK_SCTP4;
-			g_dev_type6 = HIO_DEV_SCK_SCTP6;
-		}
-		else
-		{
-			printf ("Error: invalid argument %s\n", argv[i]);
-			return -1;
-		}
-	}
-#else
-	if (argc < 3)
-	{
-		printf ("Error: %s listen-address doc-root\n", hio_get_base_name_bcstr(argv[0]));
-		return -1;
-	}
-#endif
+	if (process_args(argc, argv, &ai) <= -1) return -1;
 
 	memset (&sigact, 0, HIO_SIZEOF(sigact));
 	sigact.sa_handler = SIG_IGN;
@@ -202,7 +245,7 @@ int main (int argc, char* argv[])
 	
 	g_hio = hio;
 
-	if (webs_start(hio, argv[1], argv[2]) <= -1) goto oops;
+	if (webs_start(hio, &ai) <= -1) goto oops;
 
 	hio_loop (hio);
 
