@@ -84,7 +84,8 @@ static int process_http_request (hio_svc_htts_t* htts, hio_dev_sck_t* csck, hio_
 	else // if (mth == HIO_HTTP_GET || mth == HIO_HTTP_POST)
 	{
 		/* TODO: proper mime-type */
-		if (hio_svc_htts_dofile(htts, csck, req, ext->docroot, qpath, HIO_NULL, 0, HIO_NULL) <= -1) goto oops;
+		/* TODO: make HIO_SVC_HTTS_FILE_DIR a cli option */
+		if (hio_svc_htts_dofile(htts, csck, req, ext->docroot, qpath, HIO_NULL, HIO_SVC_HTTS_FILE_LIST_DIR, HIO_NULL) <= -1) goto oops;
 	}
 #if 0
 	else
