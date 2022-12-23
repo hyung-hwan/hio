@@ -163,7 +163,8 @@ enum hio_svc_htts_txt_option_t
 
 struct hio_svc_htts_file_cbs_t
 {
-	int (*bfmt_dir) (hio_svc_htts_t* htts, const hio_bch_t* name);
+	int (*bfmt_dir) (hio_svc_htts_t* htts, int fd, const hio_bch_t* name, int type, void* ctx);
+	void *ctx;
 };
 typedef struct hio_svc_htts_file_cbs_t hio_svc_htts_file_cbs_t;
 

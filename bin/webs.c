@@ -74,12 +74,40 @@ done:
 	}
 }
 
+
+static void bfmt_dir (hio_svc_htts_t* htts, int fd, const hio_bch_t* name, int type, void* ctx)
+{
+	/* TODO: do bufferring */
+	/* "<a href="urlencoded-name">name</a> */
+	if (name)
+	{
+/* TODO: get the directory name
+check if the entry is a directory or something else */
+		write (fd, "<li><a href=\"", 13);
+		write (fd, name, strlen(name));
+		write (fd, "\">", 2);
+		write (fd, name, strlen(name));
+		write (fd, "</a>", 4);
+	}
+	else if (type == 0)
+	{
+		write (fd, "<html><body>", 12);
+
+	}
+	else 
+	{
+		write (fd, "</body></html>", 14);
+	}
+}
+
 static int process_http_request (hio_svc_htts_t* htts, hio_dev_sck_t* csck, hio_htre_t* req)
 {
 	htts_ext_t* ext = hio_svc_htts_getxtn(htts);
 	hio_t* hio = hio_svc_htts_gethio(htts);
 	hio_http_method_t mth;
 	const hio_bch_t* qpath;
+
+	static hio_svc_htts_file_cbs_t fcbs = { bfmt_dir, HIO_NULL };
 
 	hio_htre_perdecqpath (req);
 
@@ -97,7 +125,7 @@ static int process_http_request (hio_svc_htts_t* htts, hio_dev_sck_t* csck, hio_
 		/* TODO: make HIO_SVC_HTTS_FILE_DIR a cli option */
 		int fopts = 0;
 		if (ext->ai->file_list_dir) fopts |= HIO_SVC_HTTS_FILE_LIST_DIR;
-		if (hio_svc_htts_dofile(htts, csck, req, ext->ai->docroot, qpath, HIO_NULL, fopts, HIO_NULL) <= -1) goto oops;
+		if (hio_svc_htts_dofile(htts, csck, req, ext->ai->docroot, qpath, HIO_NULL, fopts, &fcbs) <= -1) goto oops;
 	}
 #if 0
 	else

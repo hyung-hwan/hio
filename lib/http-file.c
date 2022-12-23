@@ -735,25 +735,28 @@ static int open_peer_with_mode (file_t* file, const hio_bch_t* actual_file, int 
 									struct dirent* de;
 
 									unlink (alt_file);
-									while ((de = readdir(dp)))
+									if (file->cbs && file->cbs->bfmt_dir)
 									{
-										/* TODO: do buffering ... */
-									#if 0
-									/* TODO: call a directory entry formatter callback??  */
-										if (file->cbs && file->cbs->bfmt_dir)
+										file->cbs->bfmt_dir (file->htts, alt_fd, HIO_NULL, 0, file->cbs->ctx);
+										while ((de = readdir(dp)))
 										{
-											file->cbs->bfmt_dir(file->htts, de->d_name);
+											file->cbs->bfmt_dir (file->htts, alt_fd, de->d_name, 1, file->cbs->ctx);
 										}
-									#endif
-										if (strcmp(de->d_name, ".") != 0)
-										{
-											write (alt_fd, de->d_name, strlen(de->d_name));
-											write (alt_fd, "\n", 1);
+										file->cbs->bfmt_dir (file->htts, alt_fd, HIO_NULL, 2, file->cbs->ctx);
+									}
+									else
+									{
+										while ((de = readdir(dp)))
+										{	
+											if (strcmp(de->d_name, ".") != 0)
+											{
+												write (alt_fd, de->d_name, strlen(de->d_name));
+												write (alt_fd, "\n", 1);
+											}
 										}
 									}
 
 									lseek (alt_fd, SEEK_SET, 0);
-
 									close (file->peer);
 									file->peer = alt_fd;
 									opened_file = alt_file;
