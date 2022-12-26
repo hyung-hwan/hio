@@ -5,7 +5,7 @@
 
 test_default_index() 
 {
-	local msg="hi-webs default index.html"
+	local msg="hio-webs default index.html"
 	local srvaddr=127.0.0.1:54321
 	local tmpdir="/tmp/s-001.$$"
 
@@ -39,7 +39,7 @@ EOF
 
 test_file_list_dir()
 {
-	local msg="hi-webs file-list-dir"
+	local msg="hio-webs file-list-dir"
 	local srvaddr=127.0.0.1:54321
 	local tmpdir="/tmp/s-001.$$"
 

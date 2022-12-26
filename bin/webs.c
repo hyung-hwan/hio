@@ -1,6 +1,7 @@
 #include <hio-http.h>
 #include <hio-tar.h>
 #include <hio-opt.h>
+#include <hio-prv.h>
 #include <signal.h>
 #include <string.h>
 #include <stdio.h>
@@ -31,6 +32,7 @@ void untar (hio_t* hio, hio_dev_thr_iopair_t* iop, hio_svc_htts_thr_func_info_t*
 
 	ext = hio_svc_htts_getxtn(tfi->htts);
 
+/* TODO: error handling on write() failure */
 	wfp = fdopen(iop->wfd, "w");
 	if (!wfp)
 	{
@@ -74,13 +76,23 @@ done:
 	}
 }
 
-
-static void bfmt_dir (hio_svc_htts_t* htts, int fd, const hio_bch_t* name, int type, void* ctx)
+static void bfmt_dir (hio_svc_htts_t* htts, int fd, hio_svc_htts_file_bfmt_dir_type_t type, const hio_bch_t* name, void* ctx)
 {
 	/* TODO: do bufferring */
 	/* "<a href="urlencoded-name">name</a> */
-	if (name)
+	if (type == HIO_SVC_HTTS_FILE_BFMT_DIR_HEADER)
 	{
+		write (fd, "<html><body>", 12);
+
+	}
+	else if (type == HIO_SVC_HTTS_FILE_BFMT_DIR_FOOTER)
+	{
+		write (fd, "</body></html>", 14);
+	}
+	else
+	{
+		HIO_ASSERT (hio_svc_htts_gethio(htts), name != HIO_NULL);
+
 /* TODO: get the directory name
 check if the entry is a directory or something else */
 		write (fd, "<li><a href=\"", 13);
@@ -88,15 +100,6 @@ check if the entry is a directory or something else */
 		write (fd, "\">", 2);
 		write (fd, name, strlen(name));
 		write (fd, "</a>", 4);
-	}
-	else if (type == 0)
-	{
-		write (fd, "<html><body>", 12);
-
-	}
-	else 
-	{
-		write (fd, "</body></html>", 14);
 	}
 }
 
@@ -194,7 +197,7 @@ static int process_args (int argc, char* argv[], arg_info_t* ai)
 	static hio_bopt_t opt =
 	{
 		"",
-		&lopt
+		lopt
 	};
 
 	hio_bci_t c;

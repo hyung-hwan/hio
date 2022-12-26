@@ -242,9 +242,13 @@ struct hio_htre_t
 #define hio_htre_getqmethodname(re) ((re)->u.q.method.name)
 
 #define hio_htre_getqpath(re) ((re)->u.q.path.ptr)
+#define hio_htre_getqpathlen(re) ((re)->u.q.path.len)
 #define hio_htre_getqparam(re) ((re)->u.q.param.ptr)
+#define hio_htre_getqparamlen(re) ((re)->u.q.param.len)
 #define hio_htre_getqanchor(re) ((re)->u.q.anchor.ptr)
+#define hio_htre_getqanchorlen(re) ((re)->u.q.anchor.len)
 #define hio_htre_getorgqpath(re) ((re)->orgqpath.ptr)
+#define hio_htre_getorgqpathlen(re) ((re)->orgqpath.ptr)
 
 #define hio_htre_getscodeval(re) ((re)->u.s.code.val)
 #define hio_htre_getscodestr(re) ((re)->u.s.code.str)

@@ -161,9 +161,17 @@ enum hio_svc_htts_txt_option_t
 };
 #endif
 
+enum hio_svc_htts_file_bfmt_dir_type_t
+{
+	HIO_SVC_HTTS_FILE_BFMT_DIR_HEADER,
+	HIO_SVC_HTTS_FILE_BFMT_DIR_ENTRY,
+	HIO_SVC_HTTS_FILE_BFMT_DIR_FOOTER
+};
+typedef enum hio_svc_htts_file_bfmt_dir_type_t hio_svc_htts_file_bfmt_dir_type_t;
+
 struct hio_svc_htts_file_cbs_t
 {
-	int (*bfmt_dir) (hio_svc_htts_t* htts, int fd, const hio_bch_t* name, int type, void* ctx);
+	int (*bfmt_dir) (hio_svc_htts_t* htts, int fd, hio_svc_htts_file_bfmt_dir_type_t type, const hio_bch_t* name, void* ctx);
 	void *ctx;
 };
 typedef struct hio_svc_htts_file_cbs_t hio_svc_htts_file_cbs_t;

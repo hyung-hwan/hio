@@ -73,10 +73,12 @@ struct file_t
 	hio_svc_htts_cli_t* client;
 	hio_http_version_t req_version; /* client request */
 	hio_http_method_t req_method;
+	hio_bch_t* req_qpath;
 
 	unsigned int over: 4; /* must be large enough to accomodate FILE_OVER_ALL */
 	unsigned int keep_alive: 1;
 	unsigned int req_content_length_unlimited: 1;
+	unsigned int req_qpath_ending_with_slash: 1;
 	unsigned int ever_attempted_to_write_to_client: 1;
 	unsigned int client_eof_detected: 1;
 	unsigned int client_disconnected: 1;
@@ -134,7 +136,7 @@ static int file_sendfile_to_client (file_t* file, hio_foff_t foff, hio_iolen_t l
 	return 0;
 }
 
-static int file_send_final_status_to_client (file_t* file, int status_code, int force_close)
+static int file_send_final_status_to_client (file_t* file, int status_code, int force_close, int dir_redirect)
 {
 	hio_svc_htts_cli_t* cli = file->client;
 	hio_bch_t dtbuf[64];
@@ -144,12 +146,22 @@ static int file_send_final_status_to_client (file_t* file, int status_code, int 
 	status_msg =  hio_http_status_to_bcstr(status_code);
 
 	if (!force_close) force_close = !file->keep_alive;
-	if (hio_becs_fmt(cli->sbuf, "HTTP/%d.%d %d %hs\r\nServer: %hs\r\nDate: %s\r\nConnection: %hs\r\nContent-Length: %zu\r\n\r\n%s",
+	if (hio_becs_fmt(cli->sbuf, "HTTP/%d.%d %d %hs\r\nServer: %hs\r\nDate: %s\r\nConnection: %hs\r\nContent-Length: %zu\r\n",
 		file->req_version.major, file->req_version.minor,
 		status_code, status_msg,
 		cli->htts->server_name, dtbuf,
 		(force_close? "close": "keep-alive"),
-		hio_count_bcstr(status_msg), status_msg) == (hio_oow_t)-1) return -1;
+		hio_count_bcstr(status_msg)) == (hio_oow_t)-1) return -1;
+
+	if (dir_redirect)
+	{
+		/* don't send content body when the status code is 3xx. include the Location header only. */
+		if (hio_becs_fcat(cli->sbuf, "Location: %hs/\r\n\r\n", file->req_qpath) == (hio_oow_t)-1) return -1;
+	}
+	else 
+	{
+		if (hio_becs_fcat(cli->sbuf, "\r\n%hs", status_msg) == (hio_oow_t)-1) return -1;
+	}
 
 	return (file_write_to_client(file, HIO_BECS_PTR(cli->sbuf), HIO_BECS_LEN(cli->sbuf)) <= -1 ||
 	        (force_close && file_write_to_client(file, HIO_NULL, 0) <= -1))? -1: 0;
@@ -265,6 +277,12 @@ static void file_on_kill (file_t* file)
 	HIO_DEBUG3 (hio, "HTTS(%p) - file(c=%d,p=%d) on_kill\n", file->htts, (int)file->client->sck->hnd, file->peer);
 
 	file_close_peer (file);
+
+	if (file->req_qpath)
+	{
+		hio_freemem (hio, file->req_qpath);
+		file->req_qpath = HIO_NULL;
+	}
 
 	if (file->client_org_on_read)
 	{
@@ -441,7 +459,7 @@ static int file_client_htrd_poke (hio_htrd_t* htrd, hio_htre_t* req)
 
 	if (file->req_method != HIO_HTTP_GET)
 	{
-		if (file_send_final_status_to_client(file, HIO_HTTP_STATUS_OK, 0) <= -1) return -1;
+		if (file_send_final_status_to_client(file, HIO_HTTP_STATUS_OK, 0, 0) <= -1) return -1;
 	}
 
 	file_mark_over (file, FILE_OVER_READ_FROM_CLIENT);
@@ -491,8 +509,11 @@ static int file_send_header_to_client (file_t* file, int status_code, int force_
 	if (mime_type && mime_type[0] != '\0' &&
 	    hio_becs_fcat(cli->sbuf, "Content-Type: %hs\r\n", mime_type) == (hio_oow_t)-1) return -1;
 	
-	if (file->req_method == HIO_HTTP_GET && hio_becs_fcat(cli->sbuf, "ETag: %hs\r\n", file->peer_etag) == (hio_oow_t)-1) return -1;
-	if (status_code == HIO_HTTP_STATUS_PARTIAL_CONTENT && hio_becs_fcat(cli->sbuf, "Content-Ranges: bytes %ju-%ju/%ju\r\n", (hio_uintmax_t)file->start_offset, (hio_uintmax_t)file->end_offset, (hio_uintmax_t)file->total_size) == (hio_oow_t)-1) return -1;
+	if ((file->req_method == HIO_HTTP_GET || file->req_method == HIO_HTTP_HEAD) &&
+	    hio_becs_fcat(cli->sbuf, "ETag: %hs\r\n", file->peer_etag) == (hio_oow_t)-1) return -1;
+
+	if (status_code == HIO_HTTP_STATUS_PARTIAL_CONTENT &&
+	    hio_becs_fcat(cli->sbuf, "Content-Ranges: bytes %ju-%ju/%ju\r\n", (hio_uintmax_t)file->start_offset, (hio_uintmax_t)file->end_offset, (hio_uintmax_t)file->total_size) == (hio_oow_t)-1) return -1;
 
 /* ----- */
 // TODO: Allow-Contents
@@ -574,7 +595,7 @@ static int file_send_contents_to_client (file_t* file)
 }
 
 #define ERRNO_TO_STATUS_CODE(x) ( \
-	((x) == ENOENT)? HIO_HTTP_STATUS_NOT_FOUND: \
+	((x) == ENOENT || (x) == ENOTDIR)? HIO_HTTP_STATUS_NOT_FOUND: \
 	((x) == EPERM || (x) == EACCES)? HIO_HTTP_STATUS_FORBIDDEN: HIO_HTTP_STATUS_INTERNAL_SERVER_ERROR \
 )
 
@@ -597,28 +618,26 @@ static HIO_INLINE int process_range_header (file_t* file, hio_htre_t* req, int* 
 		return -1;
 	}
 
-	if (file->req_method == HIO_HTTP_GET)
-	{
-	#if defined(HAVE_STRUCT_STAT_MTIM)
-		etag_len = hio_fmt_uintmax_to_bcstr(&file->peer_etag[0], HIO_COUNTOF(file->peer_etag), st.st_mtim.tv_sec, 16, -1, '\0', HIO_NULL);
-		file->peer_etag[etag_len++] = '-';
-		#if defined(HAVE_STRUCT_STAT_ST_MTIM_TV_NSEC)
-		etag_len += hio_fmt_uintmax_to_bcstr(&file->peer_etag[etag_len], HIO_COUNTOF(file->peer_etag), st.st_mtim.tv_nsec, 16, -1, '\0', HIO_NULL);
-		file->peer_etag[etag_len++] = '-';
-		#endif
-	#else
-		etag_len = hio_fmt_uintmax_to_bcstr(&file->peer_etag[0], HIO_COUNTOF(file->peer_etag), st.st_mtime, 16, -1, '\0', HIO_NULL);
-		file->peer_etag[etag_len++] = '-';
+#if defined(HAVE_STRUCT_STAT_MTIM)
+	etag_len = hio_fmt_uintmax_to_bcstr(&file->peer_etag[0], HIO_COUNTOF(file->peer_etag), st.st_mtim.tv_sec, 16, -1, '\0', HIO_NULL);
+	file->peer_etag[etag_len++] = '-';
+	#if defined(HAVE_STRUCT_STAT_ST_MTIM_TV_NSEC)
+	etag_len += hio_fmt_uintmax_to_bcstr(&file->peer_etag[etag_len], HIO_COUNTOF(file->peer_etag), st.st_mtim.tv_nsec, 16, -1, '\0', HIO_NULL);
+	file->peer_etag[etag_len++] = '-';
 	#endif
-		etag_len += hio_fmt_uintmax_to_bcstr(&file->peer_etag[etag_len], HIO_COUNTOF(file->peer_etag) - etag_len, st.st_size, 16, -1, '\0', HIO_NULL);
-		file->peer_etag[etag_len++] = '-';
-		etag_len += hio_fmt_uintmax_to_bcstr(&file->peer_etag[etag_len], HIO_COUNTOF(file->peer_etag) - etag_len, st.st_ino, 16, -1, '\0', HIO_NULL);
-		file->peer_etag[etag_len++] = '-';
-		hio_fmt_uintmax_to_bcstr (&file->peer_etag[etag_len], HIO_COUNTOF(file->peer_etag) - etag_len, st.st_dev, 16, -1, '\0', HIO_NULL);
+#else
+	etag_len = hio_fmt_uintmax_to_bcstr(&file->peer_etag[0], HIO_COUNTOF(file->peer_etag), st.st_mtime, 16, -1, '\0', HIO_NULL);
+	file->peer_etag[etag_len++] = '-';
+#endif
+	etag_len += hio_fmt_uintmax_to_bcstr(&file->peer_etag[etag_len], HIO_COUNTOF(file->peer_etag) - etag_len, st.st_size, 16, -1, '\0', HIO_NULL);
+	file->peer_etag[etag_len++] = '-';
+	etag_len += hio_fmt_uintmax_to_bcstr(&file->peer_etag[etag_len], HIO_COUNTOF(file->peer_etag) - etag_len, st.st_ino, 16, -1, '\0', HIO_NULL);
+	file->peer_etag[etag_len++] = '-';
+	hio_fmt_uintmax_to_bcstr (&file->peer_etag[etag_len], HIO_COUNTOF(file->peer_etag) - etag_len, st.st_dev, 16, -1, '\0', HIO_NULL);
 
-		tmp = hio_htre_getheaderval(req, "If-None-Match");
-		if (tmp && hio_comp_bcstr(file->peer_etag, tmp->ptr, 0) == 0) file->etag_match = 1;
-	}
+	tmp = hio_htre_getheaderval(req, "If-None-Match");
+	if (tmp && hio_comp_bcstr(file->peer_etag, tmp->ptr, 0) == 0) file->etag_match = 1;
+
 	file->end_offset = st.st_size;
 
 	tmp = hio_htre_getheaderval(req, "Range"); /* TODO: support multiple ranges? */
@@ -703,6 +722,14 @@ static int open_peer_with_mode (file_t* file, const hio_bch_t* actual_file, int 
 		hio_bch_t* alt_file;
 		int alt_fd;
 
+		if (!file->req_qpath_ending_with_slash)
+		{
+			*error_status = HIO_HTTP_STATUS_MOVED_PERMANENTLY;
+			close (file->peer);
+			file->peer = -1;
+			return -1;
+		}
+
 		alt_file = hio_svc_htts_dupmergepaths(file->htts, actual_file, "index.html"); /* TODO: make the default index files configurable */
 		if (alt_file)
 		{
@@ -737,12 +764,12 @@ static int open_peer_with_mode (file_t* file, const hio_bch_t* actual_file, int 
 									unlink (alt_file);
 									if (file->cbs && file->cbs->bfmt_dir)
 									{
-										file->cbs->bfmt_dir (file->htts, alt_fd, HIO_NULL, 0, file->cbs->ctx);
+										file->cbs->bfmt_dir (file->htts, alt_fd, HIO_SVC_HTTS_FILE_BFMT_DIR_HEADER, HIO_NULL, file->cbs->ctx);
 										while ((de = readdir(dp)))
 										{
-											file->cbs->bfmt_dir (file->htts, alt_fd, de->d_name, 1, file->cbs->ctx);
+											file->cbs->bfmt_dir (file->htts, alt_fd, HIO_SVC_HTTS_FILE_BFMT_DIR_ENTRY, de->d_name, file->cbs->ctx);
 										}
-										file->cbs->bfmt_dir (file->htts, alt_fd, HIO_NULL, 2, file->cbs->ctx);
+										file->cbs->bfmt_dir (file->htts, alt_fd, HIO_SVC_HTTS_FILE_BFMT_DIR_FOOTER, HIO_NULL, file->cbs->ctx);
 									}
 									else
 									{
@@ -809,6 +836,8 @@ int hio_svc_htts_dofile (hio_svc_htts_t* htts, hio_dev_sck_t* csck, hio_htre_t* 
 	hio_svc_htts_cli_t* cli = hio_dev_sck_getxtn(csck);
 	file_t* file = HIO_NULL;
 	hio_bch_t* actual_file = HIO_NULL;
+	hio_bch_t* req_qpath = HIO_NULL;
+	int dir_redirect = 0;
 	int status_code;
 
 	/* ensure that you call this function before any contents is received */
@@ -816,6 +845,10 @@ int hio_svc_htts_dofile (hio_svc_htts_t* htts, hio_dev_sck_t* csck, hio_htre_t* 
 	HIO_ASSERT (hio, cli->sck == csck);
 
 	HIO_DEBUG5 (hio, "HTTS(%p) - file(c=%d) - [%hs] %hs%hs\n", htts, (int)csck->hnd, cli->cli_addr_bcstr, (docroot[0] == '/' && docroot[1] == '\0' && filepath[0] == '/'? "": docroot), filepath);
+
+/* TODO: may have to use getorgqpath() for the percent-decoding... */
+	req_qpath = hio_dupbcstr(hio, hio_htre_getqpath(req), HIO_NULL);
+	if (HIO_UNLIKELY(!req_qpath)) goto oops;
 
 	actual_file = hio_svc_htts_dupmergepaths(htts, docroot, filepath);
 	if (HIO_UNLIKELY(!actual_file)) goto oops;
@@ -832,6 +865,9 @@ int hio_svc_htts_dofile (hio_svc_htts_t* htts, hio_dev_sck_t* csck, hio_htre_t* 
 	file->req_version = *hio_htre_getversion(req);
 	file->req_method = hio_htre_getqmethodtype(req);
 	file->req_content_length_unlimited = hio_htre_getreqcontentlen(req, &file->req_content_length);
+	file->req_qpath = req_qpath;
+	req_qpath = HIO_NULL; /* delegated to the file resource */
+	file->req_qpath_ending_with_slash = (hio_htre_getqpathlen(req) > 1 && hio_htre_getqpath(req)[hio_htre_getqpathlen(req) - 1] == '/');
 
 	file->client_org_on_read = csck->on_read;
 	file->client_org_on_write = csck->on_write;
@@ -840,11 +876,12 @@ int hio_svc_htts_dofile (hio_svc_htts_t* htts, hio_dev_sck_t* csck, hio_htre_t* 
 	csck->on_write = file_client_on_write;
 	csck->on_disconnect = file_client_on_disconnect;
 
+	file->peer_tmridx = HIO_TMRIDX_INVALID;
+	file->peer = -1;
+
 	HIO_ASSERT (hio, cli->rsrc == HIO_NULL); /* you must not call this function while cli->rsrc is not HIO_NULL */
 	HIO_SVC_HTTS_RSRC_ATTACH (file, cli->rsrc); /* cli->rsrc = file with ref-count up */
 
-	file->peer_tmridx = HIO_TMRIDX_INVALID;
-	file->peer = -1;
 
 #if !defined(FILE_ALLOW_UNLIMITED_REQ_CONTENT_LENGTH)
 	if (file->req_content_length_unlimited)
@@ -854,7 +891,7 @@ int hio_svc_htts_dofile (hio_svc_htts_t* htts, hio_dev_sck_t* csck, hio_htre_t* 
 		/* option 1. buffer contents. if it gets too large, send 413 Request Entity Too Large.
 		 * option 2. send 411 Length Required immediately
 		 * option 3. set Content-Length to -1 and use EOF to indicate the end of content [Non-Standard] */
-		if (file_send_final_status_to_client(file, HIO_HTTP_STATUS_LENGTH_REQUIRED, 1) <= -1) goto oops;
+		if (file_send_final_status_to_client(file, HIO_HTTP_STATUS_LENGTH_REQUIRED, 1, 0) <= -1) goto oops;
 	}
 #endif
 
@@ -876,7 +913,7 @@ int hio_svc_htts_dofile (hio_svc_htts_t* htts, hio_dev_sck_t* csck, hio_htre_t* 
 	else if (req->flags & HIO_HTRE_ATTR_EXPECT)
 	{
 		/* 417 Expectation Failed */
-		file_send_final_status_to_client (file, HIO_HTTP_STATUS_EXPECTATION_FAILED, 1);
+		file_send_final_status_to_client (file, HIO_HTTP_STATUS_EXPECTATION_FAILED, 1, HIO_NULL);
 		goto oops;
 	}
 
@@ -932,35 +969,42 @@ int hio_svc_htts_dofile (hio_svc_htts_t* htts, hio_dev_sck_t* csck, hio_htre_t* 
 	switch (file->req_method)
 	{
 		case HIO_HTTP_GET:
+		case HIO_HTTP_HEAD:
 		{
 			const hio_bch_t* actual_mime_type = mime_type;
 
-			if (open_peer_with_mode(file, actual_file, O_RDONLY, &status_code, (mime_type? HIO_NULL: &actual_mime_type)) <= -1) goto done_with_status_code;
-			if (process_range_header(file, req, &status_code) <= -1) goto done_with_status_code;
-
-			if (file->etag_match)
+			if (open_peer_with_mode(file, actual_file, O_RDONLY, &status_code, (mime_type? HIO_NULL: &actual_mime_type)) <= -1)
 			{
-				status_code = HIO_HTTP_STATUS_NOT_MODIFIED;
+				dir_redirect = (status_code == HIO_HTTP_STATUS_MOVED_PERMANENTLY); /* to handle the special rediret of a directory not ending with a slash in the request url */
 				goto done_with_status_code;
 			}
+			if (process_range_header(file, req, &status_code) <= -1) goto done_with_status_code;
 
-			/* normal full transfer */
-		#if defined(HAVE_POSIX_FADVISE)
-			posix_fadvise (file->peer, file->start_offset, file->end_offset - file->start_offset + 1, POSIX_FADV_SEQUENTIAL);
-		#endif
-			set_tcp_cork (file->client->sck);
+			if (HIO_LIKELY(file->req_method == HIO_HTTP_GET))
+			{
+				if (file->etag_match)
+				{
+					status_code = HIO_HTTP_STATUS_NOT_MODIFIED;
+					goto done_with_status_code;
+				}
 
-			if (file_send_header_to_client(file, HIO_HTTP_STATUS_OK, 0, actual_mime_type) <= -1 ||
-			    file_send_contents_to_client(file) <= -1) goto oops;
+				/* normal full transfer */
+			#if defined(HAVE_POSIX_FADVISE)
+				posix_fadvise (file->peer, file->start_offset, file->end_offset - file->start_offset + 1, POSIX_FADV_SEQUENTIAL);
+			#endif
+				set_tcp_cork (file->client->sck);
 
+				if (file_send_header_to_client(file, HIO_HTTP_STATUS_OK, 0, actual_mime_type) <= -1) goto oops;
+				if (file_send_contents_to_client(file) <= -1) goto oops;
+			}
+			else
+			{
+				if (file_send_header_to_client(file, HIO_HTTP_STATUS_OK, 0, actual_mime_type) <= -1) goto oops;
+				/* no content must be transmitted for HEAD despite Content-Length in the header. */
+				goto done_with_status_code_2;
+			}
 			break;
 		}
-
-		case HIO_HTTP_HEAD:
-			if (open_peer_with_mode(file, actual_file, O_RDONLY, &status_code, HIO_NULL) <= -1) goto done_with_status_code;
-			if (process_range_header(file, req, &status_code) <= -1) goto done_with_status_code;
-			status_code = HIO_HTTP_STATUS_OK;
-			goto done_with_status_code;
 
 		case HIO_HTTP_POST:
 		case HIO_HTTP_PUT:
@@ -998,7 +1042,8 @@ int hio_svc_htts_dofile (hio_svc_htts_t* htts, hio_dev_sck_t* csck, hio_htre_t* 
 		default:
 			status_code = HIO_HTTP_STATUS_METHOD_NOT_ALLOWED;
 		done_with_status_code:
-			if (file_send_final_status_to_client(file, status_code, 0) <= -1) goto oops;
+			if (file_send_final_status_to_client(file, status_code, 0, dir_redirect) <= -1) goto oops;
+		done_with_status_code_2:
 			file_mark_over (file, FILE_OVER_READ_FROM_PEER | FILE_OVER_WRITE_TO_PEER);
 			break;
 	}
@@ -1012,5 +1057,6 @@ oops:
 	HIO_DEBUG2 (hio, "HTTS(%p) - file(c=%d) failure\n", htts, csck->hnd);
 	if (file) file_halt_participating_devices (file);
 	if (actual_file) hio_freemem (hio, actual_file);
+	if (req_qpath) hio_freemem (hio, req_qpath);
 	return -1;
 }
