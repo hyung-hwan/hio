@@ -146,21 +146,22 @@ static int file_send_final_status_to_client (file_t* file, int status_code, int 
 	status_msg =  hio_http_status_to_bcstr(status_code);
 
 	if (!force_close) force_close = !file->keep_alive;
-	if (hio_becs_fmt(cli->sbuf, "HTTP/%d.%d %d %hs\r\nServer: %hs\r\nDate: %s\r\nConnection: %hs\r\nContent-Length: %zu\r\n",
+	if (hio_becs_fmt(cli->sbuf, "HTTP/%d.%d %d %hs\r\nServer: %hs\r\nDate: %s\r\nConnection: %hs\r\n",
 		file->req_version.major, file->req_version.minor,
 		status_code, status_msg,
 		cli->htts->server_name, dtbuf,
-		(force_close? "close": "keep-alive"),
-		hio_count_bcstr(status_msg)) == (hio_oow_t)-1) return -1;
+		(force_close? "close": "keep-alive")) == (hio_oow_t)-1) return -1;
+
+	if (file->req_method == HIO_HTTP_HEAD && status_code != HIO_HTTP_STATUS_OK) status_msg = "";
 
 	if (dir_redirect)
 	{
 		/* don't send content body when the status code is 3xx. include the Location header only. */
-		if (hio_becs_fcat(cli->sbuf, "Location: %hs/\r\n\r\n", file->req_qpath) == (hio_oow_t)-1) return -1;
+		if (hio_becs_fcat(cli->sbuf, "Content-Length: 0\r\nLocation: %hs/\r\n\r\n", file->req_qpath) == (hio_oow_t)-1) return -1;
 	}
 	else 
 	{
-		if (hio_becs_fcat(cli->sbuf, "\r\n%hs", status_msg) == (hio_oow_t)-1) return -1;
+		if (hio_becs_fcat(cli->sbuf, "Content-Length: %zu\r\n\r\n%hs", hio_count_bcstr(status_msg), status_msg) == (hio_oow_t)-1) return -1;
 	}
 
 	return (file_write_to_client(file, HIO_BECS_PTR(cli->sbuf), HIO_BECS_LEN(cli->sbuf)) <= -1 ||
@@ -867,7 +868,7 @@ int hio_svc_htts_dofile (hio_svc_htts_t* htts, hio_dev_sck_t* csck, hio_htre_t* 
 	file->req_content_length_unlimited = hio_htre_getreqcontentlen(req, &file->req_content_length);
 	file->req_qpath = req_qpath;
 	req_qpath = HIO_NULL; /* delegated to the file resource */
-	file->req_qpath_ending_with_slash = (hio_htre_getqpathlen(req) > 1 && hio_htre_getqpath(req)[hio_htre_getqpathlen(req) - 1] == '/');
+	file->req_qpath_ending_with_slash = (hio_htre_getqpathlen(req) > 0 && hio_htre_getqpath(req)[hio_htre_getqpathlen(req) - 1] == '/');
 
 	file->client_org_on_read = csck->on_read;
 	file->client_org_on_write = csck->on_write;
