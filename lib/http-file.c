@@ -719,12 +719,12 @@ static int open_peer_for_dir_listing (file_t* file, const hio_bch_t* dir_path, i
 	if (file->cbs && file->cbs->bfmt_dir)
 	{
 		/* TODO: can support sorting?? */
-		file->cbs->bfmt_dir (file->htts, alt_fd, HIO_SVC_HTTS_FILE_BFMT_DIR_HEADER, HIO_NULL, file->cbs->ctx);
+		file->cbs->bfmt_dir (file->htts, alt_fd, file->req_qpath, HIO_SVC_HTTS_FILE_BFMT_DIR_HEADER, HIO_NULL, file->cbs->ctx);
 		while ((de = readdir(dp)))
 		{
-			file->cbs->bfmt_dir (file->htts, alt_fd, HIO_SVC_HTTS_FILE_BFMT_DIR_ENTRY, de->d_name, file->cbs->ctx);
+			file->cbs->bfmt_dir (file->htts, alt_fd, file->req_qpath, HIO_SVC_HTTS_FILE_BFMT_DIR_ENTRY, de->d_name, file->cbs->ctx);
 		}
-		file->cbs->bfmt_dir (file->htts, alt_fd, HIO_SVC_HTTS_FILE_BFMT_DIR_FOOTER, HIO_NULL, file->cbs->ctx);
+		file->cbs->bfmt_dir (file->htts, alt_fd, file->req_qpath, HIO_SVC_HTTS_FILE_BFMT_DIR_FOOTER, HIO_NULL, file->cbs->ctx);
 	}
 	else
 	{

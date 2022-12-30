@@ -76,7 +76,7 @@ done:
 	}
 }
 
-static void bfmt_dir (hio_svc_htts_t* htts, int fd, hio_svc_htts_file_bfmt_dir_type_t type, const hio_bch_t* name, void* ctx)
+static void bfmt_dir (hio_svc_htts_t* htts, int fd, const hio_bch_t* qpath, hio_svc_htts_file_bfmt_dir_type_t type, const hio_bch_t* name, void* ctx)
 {
 	/* TODO: do bufferring */
 	/* "<a href="urlencoded-name">name</a> */
@@ -93,8 +93,20 @@ static void bfmt_dir (hio_svc_htts_t* htts, int fd, hio_svc_htts_file_bfmt_dir_t
 	{
 		HIO_ASSERT (hio_svc_htts_gethio(htts), name != HIO_NULL);
 
+		if (name[0] == '.' && name[1] == '\0') return;
+
+		if (qpath[0] == '\0' || (qpath[0] == '/' && qpath[1] == '\0'))
+		{
+			/* at the root */
+			if (name[0] == '.' && name[1] == '.' && name[2] == '\0') return;
+		}
+
 /* TODO: get the directory name
-check if the entry is a directory or something else */
+check if the entry is a directory or something else 
+do escaping...
+show file size?
+append / if the file is a directory
+*/
 		write (fd, "<li><a href=\"", 13);
 		write (fd, name, strlen(name));
 		write (fd, "\">", 2);
