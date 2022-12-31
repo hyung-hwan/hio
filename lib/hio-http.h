@@ -236,7 +236,7 @@ HIO_EXPORT int hio_is_perenced_http_bcstr (
  * The hio_perdec_http_bcstr() function performs percent-decoding over a string.
  * The caller must ensure that the output buffer \a buf is large enough.
  * If \a ndecs is not #HIO_NULL, it is set to the number of characters
- * decoded.  0 means no characters in the input string required decoding
+ * decoded. 0 means no characters in the input string required decoding
  * \return the length of the output string.
  */
 HIO_EXPORT hio_oow_t hio_perdec_http_bcstr (
@@ -259,7 +259,7 @@ HIO_EXPORT hio_oow_t hio_perdec_http_bcs (
  * The hio_perenc_http_bcstr() function performs percent-encoding over a string.
  * The caller must ensure that the output buffer \a buf is large enough.
  * If \a nencs is not #HIO_NULL, it is set to the number of characters
- * encoded.  0 means no characters in the input string required encoding.
+ * encoded. 0 means no characters in the input string required encoding.
  * \return the length of the output string.
  */
 HIO_EXPORT hio_oow_t hio_perenc_http_bcstr (

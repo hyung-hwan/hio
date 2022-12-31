@@ -23,7 +23,7 @@ typedef struct arg_info_t arg_info_t;
 
 struct htts_ext_t
 {
-	arg_info_t* ai;
+	const arg_info_t* ai;
 };
 typedef struct htts_ext_t htts_ext_t;
 
@@ -102,7 +102,7 @@ static int file_open_dir_list (hio_svc_htts_t* htts, const hio_bch_t* qpath, con
 
 	if (ext->ai->file_load_index_page)
 	{
-		const hio_bch_t* index_path;
+		hio_bch_t* index_path;
 
 		index_path = hio_svc_htts_dupmergepaths(htts, dir_path, "index.html");
 		if (HIO_UNLIKELY(!index_path)) goto oops;
@@ -135,7 +135,7 @@ static int file_open_dir_list (hio_svc_htts_t* htts, const hio_bch_t* qpath, con
 	unlink (file_path);
 
 	write (fd, "<html><body>", 12);
-	if (qpath[0] == '\0' || (qpath[0] == '/' && qpath[1] == '\0'))
+	if (!(qpath[0] == '\0' || (qpath[0] == '/' && qpath[1] == '\0')))
 		write (fd, "<li><a href=\"..\">..</a>", 23);
 
 /* TODO: sorting, other informatino like size, */
@@ -143,17 +143,28 @@ static int file_open_dir_list (hio_svc_htts_t* htts, const hio_bch_t* qpath, con
 	while ((de = readdir(dp)))
 	{
 		struct stat st;
+		hio_bch_t* tmp_path;
+		int n;
 
 		if ((de->d_name[0] == '.' && de->d_name[1] == '\0') ||
 			(de->d_name[0] == '.' && de->d_name[1] == '.' && de->d_name[2] == '\0')) continue;
 
-		if (stat(de->d_name, &st) <= -1) continue;
+		tmp_path = hio_svc_htts_dupmergepaths(htts, dir_path, de->d_name);
+		if (HIO_UNLIKELY(!tmp_path)) continue;
+		n = stat(tmp_path, &st);
+		hio_freemem (hio, tmp_path);
+		if (HIO_UNLIKELY(n <= -1)) continue;
 
 		write (fd, "<li><a href=\"", 13);
-		write (fd, de->d_name, strlen(de->d_name)); /* TOOD: url escaping*/
+		{
+		char tmp[1000]; /* TODO:use dynamic buffer?? */
+		hio_perenc_http_bcstr(0, de->d_name, tmp, HIO_NULL); /* url encoding */
+		//write (fd, de->d_name, strlen(de->d_name));
+		write (fd, tmp, strlen(tmp));
+		}
 		if (S_ISDIR(st.st_mode)) write (fd, "/", 1);
 		write (fd, "\">", 2);
-		write (fd, de->d_name, strlen(de->d_name));
+		write (fd, de->d_name, strlen(de->d_name)); /* TODO: html entity encoding */
 		if (S_ISDIR(st.st_mode)) write (fd, "/", 1);
 		write (fd, "</a>", 4);
 	}
