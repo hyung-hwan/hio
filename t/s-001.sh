@@ -5,14 +5,14 @@
 
 test_default_index() 
 {
-	local msg="hio-webs default index.html"
+	local msg="hio-webs default index.html under a directory"
 	local srvaddr=127.0.0.1:54321
 	local tmpdir="/tmp/s-001.$$"
 
 	mkdir -p "${tmpdir}"
 
 	## check if index.html is retrieved
-	../bin/hio-webs "${srvaddr}" "${tmpdir}" 2>/dev/null &
+	../bin/hio-webs --file-no-list-dir "${srvaddr}" "${tmpdir}" 2>/dev/null &
 	local jid=$!
 
 	cat >"${tmpdir}/index.html" <<EOF
@@ -46,7 +46,7 @@ test_file_list_dir()
 	mkdir -p "${tmpdir}"
 
 	## check directory listing against an empty directory
-	../bin/hio-webs --file-list-dir "${srvaddr}" "${tmpdir}" 2>/dev/null &
+	../bin/hio-webs "${srvaddr}" "${tmpdir}" 2>/dev/null &
 	local jid=$!
 	sleep 0.5
 

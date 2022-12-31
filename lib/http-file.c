@@ -33,9 +33,6 @@
 #include <errno.h>
 #include <netinet/in.h>
 #include <netinet/tcp.h>
-#include <dirent.h>
-#include <stdlib.h>
-#include <string.h>
 
 #define FILE_ALLOW_UNLIMITED_REQ_CONTENT_LENGTH
 
@@ -158,11 +155,11 @@ static int file_send_final_status_to_client (file_t* file, int status_code, int 
 	if (dir_redirect)
 	{
 		/* don't send content body when the status code is 3xx. include the Location header only. */
-		if (hio_becs_fcat(cli->sbuf, "Content-Length: 0\r\nLocation: %hs/\r\n\r\n", file->req_qpath) == (hio_oow_t)-1) return -1;
+		if (hio_becs_fcat(cli->sbuf, "Content-Type: text/plain\r\nContent-Length: 0\r\nLocation: %hs/\r\n\r\n", file->req_qpath) == (hio_oow_t)-1) return -1;
 	}
 	else 
 	{
-		if (hio_becs_fcat(cli->sbuf, "Content-Length: %zu\r\n\r\n%hs", hio_count_bcstr(status_msg), status_msg) == (hio_oow_t)-1) return -1;
+		if (hio_becs_fcat(cli->sbuf, "Content-Type: text/plain\r\nContent-Length: %zu\r\n\r\n%hs", hio_count_bcstr(status_msg), status_msg) == (hio_oow_t)-1) return -1;
 	}
 
 	return (file_write_to_client(file, HIO_BECS_PTR(cli->sbuf), HIO_BECS_LEN(cli->sbuf)) <= -1 ||
@@ -698,65 +695,9 @@ static HIO_INLINE int process_range_header (file_t* file, hio_htre_t* req, int* 
 	return 0;
 }
 
-static int open_peer_for_dir_listing (file_t* file, const hio_bch_t* dir_path, int* new_fd, hio_bch_t** new_file)
-{
-	DIR* dp = HIO_NULL;
-	hio_bch_t* alt_file = HIO_NULL;
-	int alt_fd = -1;
-	struct dirent* de;
-
-	dp = opendir(dir_path);
-	if (!dp) goto oops;
-
-	alt_file = hio_dupbcstr(file->htts->hio, "/tmp/.XXXXXX", HIO_NULL);
-	if (!alt_file) goto oops;
-
-	/* TOOD: mkostemp instead and specify O_CLOEXEC and O_LARGEFILE? */
-	alt_fd = mkstemp(alt_file);
-	if (alt_fd <= -1) goto oops;
-
-	unlink (alt_file);
-	if (file->cbs && file->cbs->bfmt_dir)
-	{
-		/* TODO: can support sorting?? */
-		file->cbs->bfmt_dir (file->htts, alt_fd, file->req_qpath, HIO_SVC_HTTS_FILE_BFMT_DIR_HEADER, HIO_NULL, file->cbs->ctx);
-		while ((de = readdir(dp)))
-		{
-			file->cbs->bfmt_dir (file->htts, alt_fd, file->req_qpath, HIO_SVC_HTTS_FILE_BFMT_DIR_ENTRY, de->d_name, file->cbs->ctx);
-		}
-		file->cbs->bfmt_dir (file->htts, alt_fd, file->req_qpath, HIO_SVC_HTTS_FILE_BFMT_DIR_FOOTER, HIO_NULL, file->cbs->ctx);
-	}
-	else
-	{
-		while ((de = readdir(dp)))
-		{
-			if (strcmp(de->d_name, ".") != 0)
-			{
-				write (alt_fd, de->d_name, strlen(de->d_name));
-				write (alt_fd, "\n", 1);
-			}
-		}
-	}
-
-	closedir (dp);
-
-	lseek (alt_fd, SEEK_SET, 0);
-	*new_fd = alt_fd;
-	*new_file = alt_file;
-
-	return 0;
-
-oops:
-	if (alt_fd >= 0) close (alt_fd);
-	if (alt_file) hio_freemem (file->htts->hio, alt_file);
-	if (dp) closedir (dp);
-	return -1;
-}
-
-static int open_peer_with_mode (file_t* file, const hio_bch_t* actual_file, int flags, int* error_status, const hio_bch_t** actual_mime_type)
+static int open_peer_with_mode (file_t* file, const hio_bch_t* actual_file, int flags, int* error_status, const hio_bch_t** res_mime_type)
 {
 	struct stat st;
-	const hio_bch_t* opened_file;
 
 	flags |= O_NONBLOCK;
 #if defined(O_CLOEXEC)
@@ -773,10 +714,9 @@ static int open_peer_with_mode (file_t* file, const hio_bch_t* actual_file, int 
 		return -1;
 	}
 
-	opened_file = actual_file;
-	if ((flags | O_RDONLY) && fstat(file->peer, &st) >= 0 && S_ISDIR(st.st_mode)) /* only for read operation */
+	if (((flags | O_RDONLY) && fstat(file->peer, &st) >= 0 && S_ISDIR(st.st_mode)) && /* only for read operation */
+	    (file->cbs && file->cbs->open_dir_list)) /* directory listing is enabled */
 	{
-		hio_bch_t* alt_file;
 		int alt_fd;
 
 		if (!file->req_qpath_ending_with_slash)
@@ -787,40 +727,22 @@ static int open_peer_with_mode (file_t* file, const hio_bch_t* actual_file, int 
 			return -1;
 		}
 
-		alt_file = hio_svc_htts_dupmergepaths(file->htts, actual_file, "index.html"); /* TODO: make the default index files configurable */
-		if (alt_file)
+		alt_fd = file->cbs->open_dir_list(file->htts, file->req_qpath, actual_file, res_mime_type, file->cbs->ctx);
+		if (alt_fd >= 0)
 		{
-			alt_fd = open(alt_file, flags, 0644);
-			if (alt_fd <= -1)
-			{
-				hio_freemem (file->htts->hio, alt_file);
-				if ((file->options & HIO_SVC_HTTS_FILE_LIST_DIR) &&
-				    open_peer_for_dir_listing(file, actual_file, &alt_fd, &alt_file) >= 0) goto open_ok;
-			}
-			else
-			{
-			open_ok:
-				close (file->peer);
-				file->peer = alt_fd;
-				opened_file = alt_file;
-			}
+			close (file->peer);
+			file->peer = alt_fd;
 		}
 	}
-
-	if (actual_mime_type)
+	else
 	{
-		const hio_bch_t* dot;
-		dot = hio_rfind_bchar_in_bcstr(opened_file, '.');
-		if (dot)
+		if (res_mime_type && file->cbs && file->cbs->get_mime_type) 
 		{
-			const hio_bch_t* mt;
-			mt = hio_get_mime_type_by_ext(dot + 1);
-			if (mt) *actual_mime_type = mt;
+			const hio_bch_t* mime_type;
+			mime_type = file->cbs->get_mime_type(file->htts, file->req_qpath, actual_file, file->cbs->ctx);
+			if (mime_type) *res_mime_type = mime_type;
 		}
 	}
-
-	if (opened_file != actual_file)
-		hio_freemem (file->htts->hio, (hio_bch_t*)opened_file);
 
 	return 0;
 }

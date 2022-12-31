@@ -6,12 +6,18 @@
 #include <string.h>
 #include <stdio.h>
 #include <unistd.h>
+#include <dirent.h>
+#include <stdlib.h>
+#include <unistd.h>
+#include <fcntl.h>
+#include <sys/stat.h>
 
 struct arg_info_t
 {
 	const char* laddrs;
 	const char* docroot;
 	int file_list_dir;
+	int file_load_index_page;
 };
 typedef struct arg_info_t arg_info_t;
 
@@ -76,43 +82,95 @@ done:
 	}
 }
 
-static void bfmt_dir (hio_svc_htts_t* htts, int fd, const hio_bch_t* qpath, hio_svc_htts_file_bfmt_dir_type_t type, const hio_bch_t* name, void* ctx)
+static const hio_bch_t* file_get_mime_type (hio_svc_htts_t* htts, const hio_bch_t* qpath, const hio_bch_t* file_path, void* ctx)
 {
-	/* TODO: do bufferring */
-	/* "<a href="urlencoded-name">name</a> */
-	if (type == HIO_SVC_HTTS_FILE_BFMT_DIR_HEADER)
-	{
-		write (fd, "<html><body>", 12);
+	const hio_bch_t* mt = HIO_NULL;
+	const hio_bch_t* dot;
+	dot = hio_rfind_bchar_in_bcstr(file_path, '.');
+	if (dot) mt = hio_get_mime_type_by_ext(dot + 1);
+	return mt;
+}
 
-	}
-	else if (type == HIO_SVC_HTTS_FILE_BFMT_DIR_FOOTER)
-	{
-		write (fd, "</body></html>", 14);
-	}
-	else
-	{
-		HIO_ASSERT (hio_svc_htts_gethio(htts), name != HIO_NULL);
+static int file_open_dir_list (hio_svc_htts_t* htts, const hio_bch_t* qpath, const hio_bch_t* dir_path, const hio_bch_t** res_mime_type, void* ctx)
+{
+	htts_ext_t* ext = hio_svc_htts_getxtn(htts);
+	hio_t* hio = hio_svc_htts_gethio(htts);
+	DIR* dp = HIO_NULL;
+	hio_bch_t file_path[] = "/tmp/.XXXXXX";
+	int fd = -1;
+	struct dirent* de;
 
-		if (name[0] == '.' && name[1] == '\0') return;
+	if (ext->ai->file_load_index_page)
+	{
+		const hio_bch_t* index_path;
 
-		if (qpath[0] == '\0' || (qpath[0] == '/' && qpath[1] == '\0'))
+		index_path = hio_svc_htts_dupmergepaths(htts, dir_path, "index.html");
+		if (HIO_UNLIKELY(!index_path)) goto oops;
+
+		fd = open(index_path, O_RDONLY, 0644);
+		if (fd >= 0)
 		{
-			/* at the root */
-			if (name[0] == '.' && name[1] == '.' && name[2] == '\0') return;
+			if (res_mime_type)
+			{
+				const hio_bch_t* mt;
+				mt = file_get_mime_type(htts, qpath, index_path, ctx);
+				if (mt) *res_mime_type = mt;
+			}
+			hio_freemem (hio, index_path);
+			return fd;
 		}
 
-/* TODO: get the directory name
-check if the entry is a directory or something else 
-do escaping...
-show file size?
-append / if the file is a directory
-*/
+		hio_freemem (hio, index_path);
+	}
+
+	if (!ext->ai->file_list_dir) goto oops;
+
+	dp = opendir(dir_path);
+	if (!dp) goto oops;
+
+	/* TOOD: mkostemp instead and specify O_CLOEXEC and O_LARGEFILE? */
+	fd = mkstemp(file_path);
+	if (fd <= -1) goto oops;
+
+	unlink (file_path);
+
+	write (fd, "<html><body>", 12);
+	if (qpath[0] == '\0' || (qpath[0] == '/' && qpath[1] == '\0'))
+		write (fd, "<li><a href=\"..\">..</a>", 23);
+
+/* TODO: sorting, other informatino like size, */
+/* TODO: error handling of write() error */
+	while ((de = readdir(dp)))
+	{
+		struct stat st;
+
+		if ((de->d_name[0] == '.' && de->d_name[1] == '\0') ||
+			(de->d_name[0] == '.' && de->d_name[1] == '.' && de->d_name[2] == '\0')) continue;
+
+		if (stat(de->d_name, &st) <= -1) continue;
+
 		write (fd, "<li><a href=\"", 13);
-		write (fd, name, strlen(name));
+		write (fd, de->d_name, strlen(de->d_name)); /* TOOD: url escaping*/
+		if (S_ISDIR(st.st_mode)) write (fd, "/", 1);
 		write (fd, "\">", 2);
-		write (fd, name, strlen(name));
+		write (fd, de->d_name, strlen(de->d_name));
+		if (S_ISDIR(st.st_mode)) write (fd, "/", 1);
 		write (fd, "</a>", 4);
 	}
+
+	write (fd, "</body></html>\n", 15);
+
+	closedir (dp);
+	lseek (fd, SEEK_SET, 0);
+
+done:
+	if (res_mime_type) *res_mime_type = "text/html";
+	return fd;
+
+oops:
+	if (fd >= 0) close (fd);
+	if (dp) closedir (dp);
+	return -1;
 }
 
 static int process_http_request (hio_svc_htts_t* htts, hio_dev_sck_t* csck, hio_htre_t* req)
@@ -122,7 +180,7 @@ static int process_http_request (hio_svc_htts_t* htts, hio_dev_sck_t* csck, hio_
 	hio_http_method_t mth;
 	const hio_bch_t* qpath;
 
-	static hio_svc_htts_file_cbs_t fcbs = { bfmt_dir, HIO_NULL };
+	static hio_svc_htts_file_cbs_t fcbs = { file_get_mime_type, file_open_dir_list, HIO_NULL };
 
 	hio_htre_perdecqpath (req);
 
@@ -138,9 +196,7 @@ static int process_http_request (hio_svc_htts_t* htts, hio_dev_sck_t* csck, hio_
 	{
 		/* TODO: proper mime-type */
 		/* TODO: make HIO_SVC_HTTS_FILE_DIR a cli option */
-		int fopts = 0;
-		if (ext->ai->file_list_dir) fopts |= HIO_SVC_HTTS_FILE_LIST_DIR;
-		if (hio_svc_htts_dofile(htts, csck, req, ext->ai->docroot, qpath, HIO_NULL, fopts, &fcbs) <= -1) goto oops;
+		if (hio_svc_htts_dofile(htts, csck, req, ext->ai->docroot, qpath, HIO_NULL, 0, &fcbs) <= -1) goto oops;
 	}
 #if 0
 	else
@@ -204,7 +260,9 @@ static int process_args (int argc, char* argv[], arg_info_t* ai)
 {
 	static hio_bopt_lng_t lopt[] =
 	{
-		{ "file-list-dir", '\0' }
+		{ "file-no-list-dir", '\0' },
+		{ "file-no-load-index-page", '\0'},
+		{ HIO_NULL, '\0'}
 	};
 	static hio_bopt_t opt =
 	{
@@ -222,15 +280,22 @@ static int process_args (int argc, char* argv[], arg_info_t* ai)
 	}
 
 	memset (ai, 0, HIO_SIZEOF(*ai));
+	ai->file_list_dir = 1;
+	ai->file_load_index_page = 1;
 
 	while ((c = hio_getbopt(argc, argv, &opt)) != HIO_BCI_EOF)
 	{
 		switch (c)
 		{
 			case '\0':
-				if (strcasecmp(opt.lngopt, "file-list-dir") == 0)
+				if (strcasecmp(opt.lngopt, "file-no-list-dir") == 0)
 				{
-					ai->file_list_dir = 1;
+					ai->file_list_dir = 0;
+					break;
+				}
+				else if (strcasecmp(opt.lngopt, "file-no-load-index-page") == 0)
+				{
+					ai->file_load_index_page = 0;
 					break;
 				}
 				goto print_usage;

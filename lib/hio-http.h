@@ -145,8 +145,7 @@ enum hio_svc_htts_cgi_option_t
 enum hio_svc_htts_file_option_t
 {
 	HIO_SVC_HTTS_FILE_NO_100_CONTINUE  = (1 << 0),
-	HIO_SVC_HTTS_FILE_READ_ONLY        = (1 << 1),
-	HIO_SVC_HTTS_FILE_LIST_DIR         = (1 << 2)
+	HIO_SVC_HTTS_FILE_READ_ONLY        = (1 << 1)
 };
 
 enum hio_svc_htts_thr_option_t
@@ -171,7 +170,8 @@ typedef enum hio_svc_htts_file_bfmt_dir_type_t hio_svc_htts_file_bfmt_dir_type_t
 
 struct hio_svc_htts_file_cbs_t
 {
-	int (*bfmt_dir) (hio_svc_htts_t* htts, int fd, const hio_bch_t* qpath, hio_svc_htts_file_bfmt_dir_type_t type, const hio_bch_t* name, void* ctx);
+	const hio_bch_t* (*get_mime_type) (hio_svc_htts_t* htts, const hio_bch_t* qpath, const hio_bch_t* file_path, void* ctx);
+	int (*open_dir_list) (hio_svc_htts_t* htts, const hio_bch_t* qpath, const hio_bch_t* dir_path, const hio_bch_t** res_mime_type, void* ctx);
 	void *ctx;
 };
 typedef struct hio_svc_htts_file_cbs_t hio_svc_htts_file_cbs_t;
