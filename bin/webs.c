@@ -27,8 +27,16 @@ struct htts_ext_t
 };
 typedef struct htts_ext_t htts_ext_t;
 
+struct buff_t
+{
+	hio_uint8_t buf[4096];
+	hio_oow_t len;
+};
+typedef struct buff_t buff_t;
 
-void untar (hio_t* hio, hio_dev_thr_iopair_t* iop, hio_svc_htts_thr_func_info_t* tfi, void* ctx)
+/* ------------------------------------------------------------------------- */
+
+static void untar (hio_t* hio, hio_dev_thr_iopair_t* iop, hio_svc_htts_thr_func_info_t* tfi, void* ctx)
 {
 	FILE* wfp = HIO_NULL;
 	htts_ext_t* ext;
@@ -82,6 +90,70 @@ done:
 	}
 }
 
+/* ------------------------------------------------------------------------- */
+
+static hio_oow_t write_all_to_fd (int fd, const hio_uint8_t* ptr, hio_oow_t len)
+{
+	hio_oow_t rem = len;
+
+	while (rem > 0)
+	{
+		hio_ooi_t n;
+		n = write(fd, ptr, rem);
+		if (n <= -1) break;
+		rem -= n;
+		ptr += n;
+	}
+
+	return len - rem; /* return the number of bytes written */
+}
+
+static HIO_INLINE void init_buff (buff_t* buf)
+{
+	buf->len = 0;
+}
+
+static int flush_buff_to_fd (int fd, buff_t* buf)
+{
+	if (buf->len > 0)
+	{
+		hio_oow_t n;
+		n = write_all_to_fd(fd, buf->buf, buf->len);
+		buf->len -= n;
+		if (buf->len > 0) return -1;
+	}
+	return 0;
+}
+
+static int write_buff_to_fd (int fd, buff_t* buf, const void* ptr, hio_oow_t len)
+{
+	hio_oow_t rcapa;
+
+	rcapa = HIO_COUNTOF(buf->buf) - buf->len;
+	if (len >= HIO_COUNTOF(buf->buf) + rcapa)
+	{
+		if (flush_buff_to_fd(fd, buf) <= -1) return -1;
+		if (write_all_to_fd(fd, (const hio_uint8_t*)ptr, len) != len) return -1;
+	}
+	else if (len >= rcapa)
+	{
+		HIO_MEMCPY (&buf->buf[buf->len], ptr, rcapa);
+		buf->len += rcapa;
+		if (flush_buff_to_fd(fd, buf) <= -1) return -1;
+		HIO_MEMCPY (buf->buf, (const hio_uint8_t*)ptr + rcapa, len - rcapa);
+		buf->len = len - rcapa;
+	}
+	else
+	{
+		HIO_MEMCPY (&buf->buf[buf->len], ptr, len);
+		buf->len += len;
+	}
+
+	return 0;
+}
+
+/* ------------------------------------------------------------------------- */
+
 static const hio_bch_t* file_get_mime_type (hio_svc_htts_t* htts, const hio_bch_t* qpath, const hio_bch_t* file_path, void* ctx)
 {
 	const hio_bch_t* mt = HIO_NULL;
@@ -99,6 +171,7 @@ static int file_open_dir_list (hio_svc_htts_t* htts, const hio_bch_t* qpath, con
 	hio_bch_t file_path[] = "/tmp/.XXXXXX";
 	int fd = -1;
 	struct dirent* de;
+	buff_t buf;
 
 	if (ext->ai->file_load_index_page)
 	{
@@ -134,42 +207,66 @@ static int file_open_dir_list (hio_svc_htts_t* htts, const hio_bch_t* qpath, con
 
 	unlink (file_path);
 
-	write (fd, "<html><body>", 12);
-	if (!(qpath[0] == '\0' || (qpath[0] == '/' && qpath[1] == '\0')))
-		write (fd, "<li><a href=\"..\">..</a>", 23);
+	buf.len = 0;
+	init_buff (&buf);
 
-/* TODO: sorting, other informatino like size, */
-/* TODO: error handling of write() error */
+	if (write_buff_to_fd(fd, &buf, "<html><body>", 12) <= -1) goto oops;
+	if (!(qpath[0] == '\0' || (qpath[0] == '/' && qpath[1] == '\0')) &&
+	    write_buff_to_fd(fd, &buf,"<li><a href=\"..\">..</a>", 23) <= -1) goto oops;
+
 	while ((de = readdir(dp)))
 	{
 		struct stat st;
-		hio_bch_t* tmp_path;
+		hio_bch_t* tptr, * dend;
+		hio_bch_t tmp[1024]; /* this must be at least 5 characters large for html escaping */
+		hio_oow_t tml;
 		int n;
 
 		if ((de->d_name[0] == '.' && de->d_name[1] == '\0') ||
 			(de->d_name[0] == '.' && de->d_name[1] == '.' && de->d_name[2] == '\0')) continue;
 
-		tmp_path = hio_svc_htts_dupmergepaths(htts, dir_path, de->d_name);
-		if (HIO_UNLIKELY(!tmp_path)) continue;
-		n = stat(tmp_path, &st);
-		hio_freemem (hio, tmp_path);
+		tptr = hio_svc_htts_dupmergepaths(htts, dir_path, de->d_name);
+		if (HIO_UNLIKELY(!tptr)) continue;
+		n = stat(tptr, &st);
+		hio_freemem (hio, tptr);
 		if (HIO_UNLIKELY(n <= -1)) continue;
 
-		write (fd, "<li><a href=\"", 13);
+		dend = de->d_name + strlen(de->d_name);
+
+		if (write_buff_to_fd(fd, &buf, "<li><a href=\"", 13) <= -1) goto oops;
+
+		for (tptr = de->d_name; tptr < dend; )
 		{
-		char tmp[1000]; /* TODO:use dynamic buffer?? */
-		hio_perenc_http_bcstr(0, de->d_name, tmp, HIO_NULL); /* url encoding */
-		//write (fd, de->d_name, strlen(de->d_name));
-		write (fd, tmp, strlen(tmp));
+			hio_oow_t dlen = dend - tptr;
+			if (dlen > HIO_COUNTOF(tmp) / 3) dlen = HIO_COUNTOF(tmp) / 3; /* it can grow upto 3 folds */
+			HIO_ASSERT (hio, dlen >= 1);
+			tml = hio_perenc_http_bchars(tptr, dlen, tmp, HIO_COUNTOF(tmp), 0); /* feed a chunk that won't overflow the buffer */
+			HIO_ASSERT (hio, tml <= HIO_COUNTOF(tmp)); /* the buffer 'tmp' must be large enough */
+			if (write_buff_to_fd(fd, &buf, tmp, tml) <= -1) goto oops;
+			tptr += dlen;
 		}
-		if (S_ISDIR(st.st_mode)) write (fd, "/", 1);
-		write (fd, "\">", 2);
-		write (fd, de->d_name, strlen(de->d_name)); /* TODO: html entity encoding */
-		if (S_ISDIR(st.st_mode)) write (fd, "/", 1);
-		write (fd, "</a>", 4);
+
+		if (S_ISDIR(st.st_mode) && write_buff_to_fd(fd, &buf, "/", 1) <= -1) goto oops;
+		if (write_buff_to_fd(fd, &buf, "\">", 2) <= -1) goto oops;
+
+		dend = de->d_name + strlen(de->d_name);
+		for (tptr = de->d_name; tptr < dend; )
+		{
+			hio_oow_t dlen = dend - tptr;
+			if (dlen > HIO_COUNTOF(tmp) / 5) dlen = HIO_COUNTOF(tmp) / 5; /* it can grow upto 5 folds */
+			HIO_ASSERT (hio, dlen >= 1);
+			tml = hio_escape_html_bchars(tptr, dlen, tmp, HIO_COUNTOF(tmp)); /* feed a chunk that won't overflow the buffer */
+			HIO_ASSERT (hio, tml <= HIO_COUNTOF(tmp)); /* the buffer 'tmp' must be large enough */
+			if (write_buff_to_fd(fd, &buf, tmp, tml) <= -1) goto oops;
+			tptr += dlen;
+		}
+
+		if (S_ISDIR(st.st_mode) && write_buff_to_fd(fd, &buf, "/", 1) <= -1) goto oops;
+		if (write_buff_to_fd(fd, &buf, "</a>", 4) <= -1) goto oops;
 	}
 
-	write (fd, "</body></html>\n", 15);
+	if (write_buff_to_fd(fd, &buf, "</body></html>\n", 15) <= -1) goto oops;
+	if (flush_buff_to_fd(fd, &buf) <= -1) goto oops;
 
 	closedir (dp);
 	lseek (fd, SEEK_SET, 0);

@@ -257,26 +257,32 @@ HIO_EXPORT hio_oow_t hio_perdec_http_bcs (
 
 /**
  * The hio_perenc_http_bcstr() function performs percent-encoding over a string.
- * The caller must ensure that the output buffer \a buf is large enough.
- * If \a nencs is not #HIO_NULL, it is set to the number of characters
- * encoded. 0 means no characters in the input string required encoding.
- * \return the length of the output string.
+ * It returns the length of the encoded string if \a len is long enough to hold
+ * the resulting string and the terminating null. If the return value is equal to
+ * or greater than \a len, the buffer pointed to by \a buf of the length \a len
+ * is not large enough.
+ * \return the length of the output string encoded on success or the number of encoded
+ *         string that would have been written if the buffer has been large enough.
  */
 HIO_EXPORT hio_oow_t hio_perenc_http_bcstr (
-	int              opt, /**< 0 or bitwise-OR'ed of #hio_perenc_http_bcstr_opt_t */
 	const hio_bch_t* str, 
 	hio_bch_t*       buf,
-	hio_oow_t*       nencs
+	hio_oow_t        len,
+	int              opt /**< 0 or bitwise-OR'ed of #hio_perenc_http_bcstr_opt_t */
 );
 
-#if 0
-/* TODO: rename this function according to the naming convension */
-HIO_EXPORT hio_bch_t* hio_perenc_http_bcstrdup (
-	int                opt, /**< 0 or bitwise-OR'ed of #hio_perenc_http_bcstr_opt_t */
-	const hio_bch_t*   str, 
-	hio_mmgr_t*        mmgr
+/**
+ * The hio_perenc_http_bchars() function performs percent-ending over a length-bound string.
+ * It doesn't null-terminate the result. The buffer requirement is less than hio_perenc_http_bcstr()
+ * by 1.
+ */
+HIO_EXPORT hio_oow_t hio_perenc_http_bchars (
+	const hio_bch_t* str,
+	hio_oow_t        sln,
+	hio_bch_t*       buf,
+	hio_oow_t        len,
+	int              opt /**< 0 or bitwise-OR'ed of #hio_perenc_http_bcstr_opt_t */
 );
-#endif
 
 HIO_EXPORT int hio_scan_http_qparam (
 	hio_bch_t*      qparam,
@@ -284,6 +290,18 @@ HIO_EXPORT int hio_scan_http_qparam (
 	void*           ctx
 );
 
+HIO_EXPORT hio_oow_t hio_escape_html_bchars (
+	const hio_bch_t* str,
+	hio_oow_t        sln,
+	hio_bch_t*       buf,
+	hio_oow_t        len
+);
+
+HIO_EXPORT hio_oow_t hio_escape_html_bcstr (
+	const hio_bch_t* str,
+	hio_bch_t*       buf,
+	hio_oow_t        len
+);
 /* ------------------------------------------------------------------------- */
 /* HTTP SERVER SERVICE                                                       */
 /* ------------------------------------------------------------------------- */

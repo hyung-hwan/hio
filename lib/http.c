@@ -499,87 +499,73 @@ hio_oow_t hio_perdec_http_bcs (const hio_bcs_t* str, hio_bch_t* buf, hio_oow_t* 
 
 #define TO_HEX(v) ("0123456789ABCDEF"[(v) & 15])
 
-hio_oow_t hio_perenc_http_bcstr (int opt, const hio_bch_t* str, hio_bch_t* buf, hio_oow_t* nencs)
+hio_oow_t hio_perenc_http_bchars (const hio_bch_t* str, hio_oow_t sln, hio_bch_t* buf, hio_oow_t len, int opt)
 {
-	const hio_bch_t* p = str;
+	const hio_bch_t* ptr, * end = str + sln;
 	hio_bch_t* out = buf;
-	hio_oow_t enc_count = 0;
+	hio_bch_t slash;
+	hio_oow_t reqlen = 0;
 
-	/* this function doesn't accept the size of the buffer. the caller must 
-	 * ensure that the buffer is large enough */
+	slash = (opt & HIO_PERENC_HTTP_KEEP_SLASH)? '/': '\0';
 
-	if (opt & HIO_PERENC_HTTP_KEEP_SLASH)
+	for (ptr = str; ptr < end; ptr++)
 	{
-		while (*p != '\0')
+		reqlen += (IS_UNRESERVED(*ptr) || *ptr == slash)? 1: 3;
+	}
+
+	if (len >= reqlen)
+	{
+		ptr = str;
+		while (ptr < end)
 		{
-			if (IS_UNRESERVED(*p) || *p == '/') *out++ = *p;
+			if (IS_UNRESERVED(*ptr) || *ptr == slash) *out++ = *ptr;
 			else
 			{
 				*out++ = '%';
-				*out++ = TO_HEX (*p >> 4);
-				*out++ = TO_HEX (*p & 15);
-				enc_count++;
+				*out++ = TO_HEX(*ptr >> 4);
+				*out++ = TO_HEX(*ptr & 15);
 			}
-			p++;
+			ptr++;
 		}
 	}
-	else
-	{
-		while (*p != '\0')
-		{
-			if (IS_UNRESERVED(*p)) *out++ = *p;
-			else
-			{
-				*out++ = '%';
-				*out++ = TO_HEX (*p >> 4);
-				*out++ = TO_HEX (*p & 15);
-				enc_count++;
-			}
-			p++;
-		}
-	}
-	*out = '\0';
-	if (nencs) *nencs = enc_count;
-	return out - buf;
+
+	return reqlen;
 }
 
-#if 0
-hio_bch_t* hio_perenc_http_bcstrdup (int opt, const hio_bch_t* str, hio_mmgr_t* mmgr)
+hio_oow_t hio_perenc_http_bcstr (const hio_bch_t* str, hio_bch_t* buf, hio_oow_t len, int opt)
 {
-	hio_bch_t* buf;
-	hio_oow_t len = 0;
-	hio_oow_t count = 0;
-	
-	/* count the number of characters that should be encoded */
-	if (opt & HIO_PERENC_HTTP_KEEP_SLASH)
+	const hio_bch_t* ptr = str;
+	hio_bch_t* out = buf;
+	hio_bch_t slash;
+	hio_oow_t reqlen = 0;
+
+	slash = (opt & HIO_PERENC_HTTP_KEEP_SLASH)? '/': '\0';
+
+	for (ptr = str; *ptr != '\0'; ptr++)
 	{
-		for (len = 0; str[len] != '\0'; len++)
-		{
-			if (!IS_UNRESERVED(str[len]) && str[len] != '/') count++;
-		}
-	}
-	else
-	{
-		for (len = 0; str[len] != '\0'; len++)
-		{
-			if (!IS_UNRESERVED(str[len])) count++;
-		}
+		reqlen += (IS_UNRESERVED(*ptr) || *ptr == slash)? 1: 3;
 	}
 
-	/* if there are no characters to escape, just return the original string */
-	if (count <= 0) return (hio_bch_t*)str;
+	if (len > reqlen)
+	{
+		ptr = str;
+		while (*ptr != '\0')
+		{
+			if (IS_UNRESERVED(*ptr) || *ptr == slash) *out++ = *ptr;
+			else
+			{
+				*out++ = '%';
+				*out++ = TO_HEX(*ptr >> 4);
+				*out++ = TO_HEX(*ptr & 15);
+			}
+			ptr++;
+		}
 
-	/* allocate a buffer of an optimal size for escaping, otherwise */
-	buf = HIO_MMGR_ALLOC(mmgr, (len  + (count * 2) + 1)  * HIO_SIZEOF(*buf));
-	if (!buf) return HIO_NULL;
+		*out = '\0';
+	}
 
-	/* perform actual escaping */
-	hio_perenc_http_bcstr (opt, str, buf, HIO_NULL);
-
-	return buf;
+	return reqlen;
 }
-#endif
-
 
 int hio_scan_http_qparam (hio_bch_t* qparam, int (*qparamcb) (hio_bcs_t* key, hio_bcs_t* val, void* ctx), void* ctx)
 {
@@ -637,4 +623,117 @@ int hio_scan_http_qparam (hio_bch_t* qparam, int (*qparamcb) (hio_bcs_t* key, hi
 	while (1);
 
 	return 0;
+}
+
+hio_oow_t hio_escape_html_bchars (const hio_bch_t* str, hio_oow_t sln, hio_bch_t* buf, hio_oow_t len)
+{
+	hio_bch_t* ptr, * end = str + sln;
+	hio_oow_t reqlen = 0;
+
+	for (ptr = (hio_bch_t*)str; ptr < end; ptr++)
+	{
+		switch (*ptr)
+		{
+			case '<':
+			case '>':
+				reqlen += 4;
+				break;
+
+			case '&':
+				reqlen += 5;
+				break;
+
+			default:
+				reqlen++;
+				break;
+		}
+	}
+
+	if (len >= reqlen)
+	{
+		/* the buffer is large enough */
+		ptr = buf;
+		while (str < end)
+		{
+			switch (*str)
+			{
+				case '<':
+					*ptr++ = '&'; *ptr++ = 'l';	*ptr++ = 't'; *ptr++ = ';';
+					break;
+
+				case '>':
+					*ptr++ = '&'; *ptr++ = 'g'; *ptr++ = 't'; *ptr++ = ';';
+					break;
+
+				case '&':
+					*ptr++ = '&'; *ptr++ = 'a'; *ptr++ = 'm'; *ptr++ = 'p'; *ptr++ = ';';
+					break;
+
+				default:
+					*ptr++ = *str;
+					break;
+			}
+			str++;
+		}
+	}
+
+	/* NOTE no null termination */
+	return reqlen;
+}
+
+hio_oow_t hio_escape_html_bcstr (const hio_bch_t* str, hio_bch_t* buf, hio_oow_t len)
+{
+	hio_bch_t* ptr;
+	hio_oow_t reqlen = 0;
+
+	for (ptr = (hio_bch_t*)str; *ptr != '\0'; ptr++)
+	{
+		switch (*ptr)
+		{
+			case '<':
+			case '>':
+				reqlen += 4;
+				break;
+
+			case '&':
+				reqlen += 5;
+				break;
+
+			default:
+				reqlen++;
+				break;
+		}
+	}
+
+	if (len > reqlen)
+	{
+		/* the buffer is large enough */
+		ptr = buf;
+		while (*str != '\0')
+		{
+			switch (*str)
+			{
+				case '<':
+					*ptr++ = '&'; *ptr++ = 'l';	*ptr++ = 't'; *ptr++ = ';';
+					break;
+
+				case '>':
+					*ptr++ = '&'; *ptr++ = 'g'; *ptr++ = 't'; *ptr++ = ';';
+					break;
+
+				case '&':
+					*ptr++ = '&'; *ptr++ = 'a'; *ptr++ = 'm'; *ptr++ = 'p'; *ptr++ = ';';
+					break;
+
+				default:
+					*ptr++ = *str;
+					break;
+			}
+			str++;
+		}
+
+		*ptr = '\0';
+	}
+
+	return reqlen;
 }
