@@ -38,6 +38,13 @@
 #if defined(HAVE_PTY_H)
 #	include <pty.h>
 #endif
+#if defined(HAVE_PATHS_H)
+#	include <paths.h>
+#endif
+
+#if !defined(_PATH_DEV)
+#	define _PATH_DEV "/dev/"
+#endif
 
 /* ========================================================================= */
 
@@ -215,7 +222,11 @@ static int dev_pty_make (hio_dev_t* dev, void* ctx)
 		hio_oow_t capa = HIO_COUNTOF(pts_name_buf);
 
 		/* open a pty slave device name */
+#if defined(HAVE_PTSNAME_R)
 		if (ptsname_r(pfds[0], ptr, capa) != 0)
+#else
+		if (ttyname_r(pfds[0], ptr, capa) != 0)
+#endif
 		{
 			if (errno == ERANGE) 
 			{
@@ -232,6 +243,11 @@ static int dev_pty_make (hio_dev_t* dev, void* ctx)
 			hio_seterrwithsyserr (hio, 0, errno);
 			goto oops;
 		}
+
+#if !defined(HAVE_PTSNAME_R)
+		/* ttyname_r() gives something like /dev/ptyp0. change the leading p to t */
+		ptr[HIO_SIZEOF(_PATH_DEV) - 1] = 't';
+#endif
 
 		/* open a pty slave */
 		pfds[1] = open(ptr, O_RDWR | O_NOCTTY);

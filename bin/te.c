@@ -180,9 +180,9 @@ int x11_setup(struct X11 *x11)
 	x11->buf_x = 0;
 	x11->buf_y = 0;
 	x11->buf = malloc(x11->buf_w * x11->buf_h);
-	if (x11->buf == NULL)
+	if (!x11->buf )
 	{
-		perror("calloc");
+		fprintf(stderr, "Could not allocate terminal buffer\n");
 		return -1;
 	}
 	memset (x11->buf, ' ', x11->buf_w * x11->buf_h);
@@ -363,7 +363,7 @@ int main()
 	hio = hio_open(HIO_NULL, 0, HIO_NULL, HIO_FEATURE_ALL, 512, HIO_NULL);
 	if (!hio)
 	{
-		printf ("Cannot open hio\n");
+		fprintf (stderr, "Error: Unable to open hio\n");
 		return -1;
 	}
 
@@ -382,6 +382,11 @@ int main()
 		pi.on_read = pty_on_read;
 		pi.on_close = pty_on_close;
 		pty = hio_dev_pty_make(hio, HIO_SIZEOF(*pair), &pi);
+		if (!pty)
+		{
+			fprintf (stderr, "Error: Unable to create pty - %s\n",  hio_geterrbmsg(hio));
+			return -1;
+		}
 
 		pair = hio_dev_pty_getxtn(pty);
 		pair->x11 = &x11;
