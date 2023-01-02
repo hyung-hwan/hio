@@ -115,7 +115,7 @@ AC_CHECK_HEADERS([net/if.h net/if_dl.h netpacket/packet.h net/bpf.h], [], [], [
 	#include <sys/types.h>
 	#include <sys/socket.h>])
 AC_CHECK_HEADERS([sys/stropts.h sys/macstat.h linux/ethtool.h linux/sockios.h])
-AC_CHECK_HEADERS([quadmath.h crt_externs.h sys/prctl.h pty.h])
+AC_CHECK_HEADERS([quadmath.h crt_externs.h sys/prctl.h paths.h pty.h])
 
 dnl check data types
 dnl AC_CHECK_TYPE([wchar_t], 
@@ -141,7 +141,7 @@ AC_CHECK_FUNCS([openpty posix_openpt])
 AC_CHECK_FUNCS([makecontext swapcontext getcontext setcontext])
 AC_CHECK_FUNCS([snprintf _vsnprintf _vsnwprintf])
 AC_CHECK_FUNCS([pipe2 accept4 paccept sendmsg recvmsg writev readv])
-AC_CHECK_FUNCS([isatty mmap munmap])
+AC_CHECK_FUNCS([isatty ptsname_r mmap munmap])
 AC_CHECK_LIB([rt], [clock_gettime], [LIBS="$LIBS -lrt"])
 
 dnl OLDLIBS="$LIBS"
