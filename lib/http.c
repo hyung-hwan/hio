@@ -563,6 +563,7 @@ hio_oow_t hio_perenc_http_bcstr (const hio_bch_t* str, hio_bch_t* buf, hio_oow_t
 
 		*out = '\0';
 	}
+	else reqlen++; /* to cater for the terminating null in the return value */
 
 	return reqlen;
 }
@@ -734,6 +735,8 @@ hio_oow_t hio_escape_html_bcstr (const hio_bch_t* str, hio_bch_t* buf, hio_oow_t
 
 		*ptr = '\0';
 	}
+	else reqlen++; /* to cater for the terminating null in the return value */
+
 
 	return reqlen;
 }
