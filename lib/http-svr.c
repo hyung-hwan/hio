@@ -703,7 +703,7 @@ hio_bch_t* hio_svc_htts_dupmergepaths (hio_svc_htts_t* htts, const hio_bch_t* ba
 	ta[idx++] = base;
 	if (path[0] != '\0')
 	{
-		ta[idx++] = "/";
+		if (base[hio_count_bcstr(base) - 1] != '/') ta[idx++] = "/";
 		ta[idx++] = path;
 	}
 	ta[idx++] = HIO_NULL;

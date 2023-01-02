@@ -532,13 +532,13 @@ int hio_svc_htts_dofcgi (hio_svc_htts_t* htts, hio_dev_sck_t* csck, hio_htre_t* 
 	csck->on_disconnect = fcgi_client_on_disconnect;
 
 	HIO_ASSERT (hio, cli->rsrc == HIO_NULL);
-	HIO_SVC_HTTS_RSRC_ATTACH (fcgi, cli->rsrc); /* cli->rsrc = fcgi */
+	HIO_SVC_HTTS_RSRC_ATTACH ((hio_svc_htts_rsrc_t*)fcgi, cli->rsrc); /* cli->rsrc = fcgi */
 
 #if 0 // TODO
 	fcgi->peer = hio_dev_pro_make(hio, HIO_SIZEOF(*peer_xtn), &mi);
 	if (HIO_UNLIKELY(!fcgi->peer)) goto oops;
 	peer_xtn = hio_dev_pro_getxtn(fcgi->peer);
-	HIO_SVC_HTTS_RSRC_ATTACH (fcgi, peer_xtn->fcgi); /* peer->fcgi = fcgi */
+	HIO_SVC_HTTS_RSRC_ATTACH ((hio_svc_htts_rsrc_t*)fcgi, peer_xtn->fcgi); /* peer->fcgi = fcgi */
 #else
 	fcgi->peer = hio_svc_fcgic_tie(htts->fcgic, fcgis_addr /* TODO: add a read callback */);
 	if (HIO_UNLIKELY(!fcgi->peer)) goto oops;
@@ -553,7 +553,7 @@ int hio_svc_htts_dofcgi (hio_svc_htts_t* htts, hio_dev_sck_t* csck, hio_htre_t* 
 	hio_htrd_setrecbs (fcgi->peer_htrd, &peer_htrd_recbs);
 
 	peer = hio_htrd_getxtn(fcgi->peer_htrd);
-	HIO_SVC_HTTS_RSRC_ATTACH (fcgi, peer->fcgi); /* peer->fcgi = fcgi */
+	HIO_SVC_HTTS_RSRC_ATTACH ((hio_svc_htts_rsrc_t*)fcgi, peer->fcgi); /* peer->fcgi = fcgi */
 #endif
 
 #if !defined(FCGI_ALLOW_UNLIMITED_REQ_CONTENT_LENGTH)

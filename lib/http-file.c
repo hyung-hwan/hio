@@ -810,7 +810,7 @@ int hio_svc_htts_dofile (hio_svc_htts_t* htts, hio_dev_sck_t* csck, hio_htre_t* 
 	file->peer = -1;
 
 	HIO_ASSERT (hio, cli->rsrc == HIO_NULL); /* you must not call this function while cli->rsrc is not HIO_NULL */
-	HIO_SVC_HTTS_RSRC_ATTACH (file, cli->rsrc); /* cli->rsrc = file with ref-count up */
+	HIO_SVC_HTTS_RSRC_ATTACH ((hio_svc_htts_rsrc_t*)file, cli->rsrc); /* cli->rsrc = file with ref-count up */
 
 
 #if !defined(FILE_ALLOW_UNLIMITED_REQ_CONTENT_LENGTH)

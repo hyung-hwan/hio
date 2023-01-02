@@ -378,7 +378,8 @@ static int delete_attribute (hio_rad_hdr_t* auth, hio_rad_attr_hdr_t* attr)
 	tmp_len = ((hio_uint8_t*)attr - (hio_uint8_t*)auth) + attr->length;
 	if (tmp_len > auth_len) return -1; /* can this happen? */
 
-	HIO_MEMCPY (attr, (hio_uint8_t*)attr + attr->length, auth_len - tmp_len);
+	/* HIO_MEMCPY() on some platforms doesn't handle overlappig memory regions */
+	HIO_MEMMOVE (attr, (hio_uint8_t*)attr + attr->length, auth_len - tmp_len);
 
 	auth_len -= attr->length;
 	auth->length = hio_hton16(auth_len);

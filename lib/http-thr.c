@@ -878,7 +878,7 @@ int hio_svc_htts_dothr (hio_svc_htts_t* htts, hio_dev_sck_t* csck, hio_htre_t* r
 	csck->on_disconnect = thr_client_on_disconnect;
 
 	HIO_ASSERT (hio, cli->rsrc == HIO_NULL);
-	HIO_SVC_HTTS_RSRC_ATTACH (thr_state, cli->rsrc);
+	HIO_SVC_HTTS_RSRC_ATTACH ((hio_svc_htts_rsrc_t*)thr_state, cli->rsrc);
 
 	thr_state->peer = hio_dev_thr_make(hio, HIO_SIZEOF(*thr_peer), &mi);
 	if (HIO_UNLIKELY(!thr_state->peer)) 
@@ -890,7 +890,7 @@ int hio_svc_htts_dothr (hio_svc_htts_t* htts, hio_dev_sck_t* csck, hio_htre_t* r
 	tfs = HIO_NULL; /* mark that tfs is delegated to the thread */
 
 	thr_peer = hio_dev_thr_getxtn(thr_state->peer);
-	HIO_SVC_HTTS_RSRC_ATTACH (thr_state, thr_peer->state);
+	HIO_SVC_HTTS_RSRC_ATTACH ((hio_svc_htts_rsrc_t*)thr_state, thr_peer->state);
 
 	thr_state->peer_htrd = hio_htrd_open(hio, HIO_SIZEOF(*thr_peer));
 	if (HIO_UNLIKELY(!thr_state->peer_htrd)) goto oops;
@@ -898,7 +898,7 @@ int hio_svc_htts_dothr (hio_svc_htts_t* htts, hio_dev_sck_t* csck, hio_htre_t* r
 	hio_htrd_setrecbs (thr_state->peer_htrd, &thr_peer_htrd_recbs);
 
 	thr_peer = hio_htrd_getxtn(thr_state->peer_htrd);
-	HIO_SVC_HTTS_RSRC_ATTACH (thr_state, thr_peer->state);
+	HIO_SVC_HTTS_RSRC_ATTACH ((hio_svc_htts_rsrc_t*)thr_state, thr_peer->state);
 
 #if !defined(THR_ALLOW_UNLIMITED_REQ_CONTENT_LENGTH)
 	if (thr_state->req_content_length_unlimited)

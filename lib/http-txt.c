@@ -345,7 +345,7 @@ int hio_svc_htts_dotxt (hio_svc_htts_t* htts, hio_dev_sck_t* csck, hio_htre_t* r
 	csck->on_disconnect = txt_client_on_disconnect;
 
 	HIO_ASSERT (hio, cli->rsrc == HIO_NULL);
-	HIO_SVC_HTTS_RSRC_ATTACH (txt, cli->rsrc);
+	HIO_SVC_HTTS_RSRC_ATTACH ((hio_svc_htts_rsrc_t*)txt, cli->rsrc);
 
 	if (req->flags & HIO_HTRE_ATTR_EXPECT100)
 	{

@@ -973,7 +973,7 @@ int hio_svc_htts_docgi (hio_svc_htts_t* htts, hio_dev_sck_t* csck, hio_htre_t* r
 	csck->on_disconnect = cgi_client_on_disconnect;
 
 	HIO_ASSERT (hio, cli->rsrc == HIO_NULL);
-	HIO_SVC_HTTS_RSRC_ATTACH (cgi, cli->rsrc); /* cli->rsrc = cgi */
+	HIO_SVC_HTTS_RSRC_ATTACH ((hio_svc_htts_rsrc_t*)cgi, cli->rsrc); /* cli->rsrc = cgi */
 
 	if (access(mi.cmd, X_OK) == -1)
 	{
@@ -984,7 +984,7 @@ int hio_svc_htts_docgi (hio_svc_htts_t* htts, hio_dev_sck_t* csck, hio_htre_t* r
 	cgi->peer = hio_dev_pro_make(hio, HIO_SIZEOF(*peer_xtn), &mi);
 	if (HIO_UNLIKELY(!cgi->peer)) goto oops;
 	peer_xtn = hio_dev_pro_getxtn(cgi->peer);
-	HIO_SVC_HTTS_RSRC_ATTACH (cgi, peer_xtn->cgi); /* peer->cgi in pro = cgi */
+	HIO_SVC_HTTS_RSRC_ATTACH ((hio_svc_htts_rsrc_t*)cgi, peer_xtn->cgi); /* peer->cgi in pro = cgi */
 
 	cgi->peer_htrd = hio_htrd_open(hio, HIO_SIZEOF(*peer_xtn));
 	if (HIO_UNLIKELY(!cgi->peer_htrd)) goto oops;
@@ -992,7 +992,7 @@ int hio_svc_htts_docgi (hio_svc_htts_t* htts, hio_dev_sck_t* csck, hio_htre_t* r
 	hio_htrd_setrecbs (cgi->peer_htrd, &peer_htrd_recbs);
 
 	peer_xtn = hio_htrd_getxtn(cgi->peer_htrd);
-	HIO_SVC_HTTS_RSRC_ATTACH (cgi, peer_xtn->cgi); /* peer->cgi in htrd = cgi */
+	HIO_SVC_HTTS_RSRC_ATTACH ((hio_svc_htts_rsrc_t*)cgi, peer_xtn->cgi); /* peer->cgi in htrd = cgi */
 
 #if !defined(CGI_ALLOW_UNLIMITED_REQ_CONTENT_LENGTH)
 	if (cgi->req_content_length_unlimited)
