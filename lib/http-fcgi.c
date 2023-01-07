@@ -286,11 +286,10 @@ static int fcgi_send_final_status_to_client (fcgi_t* fcgi, int status_code, int 
 	        (force_close && fcgi_write_to_client(fcgi, HIO_NULL, 0) <= -1))? -1: 0;
 }
 
-
-
 static int fcgi_client_htrd_poke (hio_htrd_t* htrd, hio_htre_t* req)
 {
 	/* client request got completed */
+
 	hio_svc_htts_cli_htrd_xtn_t* htrdxtn = (hio_svc_htts_cli_htrd_xtn_t*)hio_htrd_getxtn(htrd);
 	hio_dev_sck_t* sck = htrdxtn->sck;
 	hio_svc_htts_cli_t* cli = hio_dev_sck_getxtn(sck);
@@ -314,6 +313,7 @@ static int fcgi_client_htrd_push_content (hio_htrd_t* htrd, hio_htre_t* req, con
 	hio_svc_htts_cli_t* cli = hio_dev_sck_getxtn(sck);
 	fcgi_t* fcgi = (fcgi_t*)cli->rsrc;
 
+/* TODO: THIS must be written to the peer as FCGI_DATA */
 	HIO_ASSERT (sck->hio, cli->sck == sck);
 	return fcgi_write_to_peer(fcgi, data, dlen);
 }
@@ -324,7 +324,6 @@ static hio_htrd_recbs_t fcgi_client_htrd_recbs =
 	fcgi_client_htrd_poke,
 	fcgi_client_htrd_push_content
 };
-
 
 static void fcgi_client_on_disconnect (hio_dev_sck_t* sck)
 {
@@ -441,10 +440,6 @@ oops:
 	fcgi_halt_participating_devices (fcgi);
 	return 0;
 }
-
-
-
-
 
 static void fcgi_on_kill (fcgi_t* fcgi)
 {

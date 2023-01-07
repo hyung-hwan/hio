@@ -27,8 +27,6 @@
 #include "hio-prv.h"
 
 
-
-
 typedef struct hio_svc_fcgic_conn_t hio_svc_fcgic_conn_t;
 
 struct hio_svc_fcgic_t
@@ -292,7 +290,7 @@ static hio_svc_fcgic_sess_t* new_session (hio_svc_fcgic_t* fcgic, const hio_skad
 		hio_svc_fcgic_sess_t* newptr;
 
 		newcapa = conn->sess.capa + CONN_SESS_INC;
-		newptr = hio_reallocmem (hio, conn->sess.ptr, HIO_SIZEOF(*sess) * newcapa);
+		newptr = hio_reallocmem(hio, conn->sess.ptr, HIO_SIZEOF(*sess) * newcapa);
 		if (HIO_UNLIKELY(!newptr)) return HIO_NULL;
 
 		for (i = conn->sess.capa ; i < newcapa; i++)
@@ -376,4 +374,10 @@ void hio_svc_fcgic_untie (hio_svc_fcgic_sess_t* sess)
 int hio_svc_fcgic_write (hio_svc_fcgic_sess_t* sess, const void* data, hio_iolen_t len)
 {
 	return 0;
+}
+
+
+int hio_svc_fcgic_beginreq (hio_svc_fcgic_sess_t* sess)
+{
+
 }

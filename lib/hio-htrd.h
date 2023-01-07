@@ -67,8 +67,8 @@ typedef struct hio_htrd_recbs_t hio_htrd_recbs_t;
 
 struct hio_htrd_recbs_t
 {
-	int  (*peek) (hio_htrd_t* htrd, hio_htre_t* re);
-	int  (*poke) (hio_htrd_t* htrd, hio_htre_t* re);
+	int  (*peek) (hio_htrd_t* htrd, hio_htre_t* re); /* called when the end of a request header is seen. */
+	int  (*poke) (hio_htrd_t* htrd, hio_htre_t* re); /* called when a complete request is read including content */
 	int  (*push_content) (hio_htrd_t* htrd, hio_htre_t* re, const hio_bch_t* data, hio_oow_t len);
 };
 
