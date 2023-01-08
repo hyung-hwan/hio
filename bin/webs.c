@@ -36,6 +36,21 @@ typedef struct buff_t buff_t;
 
 /* ------------------------------------------------------------------------- */
 
+static void untar_write_status_code (int fd, int code)
+{
+	switch (code)
+	{
+		case 200:
+			write (fd, "Status: 200\r\n\r\n", 15);
+			break;
+
+		case 500:
+		default:
+			write (fd, "Status: 500\r\n\r\n", 15);
+			break;
+	}
+}
+
 static void untar (hio_t* hio, hio_dev_thr_iopair_t* iop, hio_svc_htts_thr_func_info_t* tfi, void* ctx)
 {
 	FILE* wfp = HIO_NULL;
@@ -50,14 +65,14 @@ static void untar (hio_t* hio, hio_dev_thr_iopair_t* iop, hio_svc_htts_thr_func_
 	wfp = fdopen(iop->wfd, "w");
 	if (!wfp)
 	{
-		write (iop->wfd, "Status: 500\r\n\r\n", 15); /* internal server error */
+		untar_write_status_code (iop->wfd, 500);
 		goto done;
 	}
 
 	tar = hio_tar_open(hio, 0);
 	if (!tar)
 	{
-		write (iop->wfd, "Status: 500\r\n\r\n", 15);
+		untar_write_status_code (iop->wfd, 500);
 		goto done;
 	}
 
@@ -70,13 +85,13 @@ static void untar (hio_t* hio, hio_dev_thr_iopair_t* iop, hio_svc_htts_thr_func_
 
 		if (hio_tar_xfeed(tar, buf, n) <= -1)
 		{
-			write (iop->wfd, "Status: 500\r\n\r\n", 20);
+			untar_write_status_code (iop->wfd, 500);
 			goto done;
 		}
 	}
 
 	hio_tar_endxfeed (tar);
-	write (iop->wfd, "Status: 200\r\n\r\n", 15); 
+	untar_write_status_code (iop->wfd, 200);
 
 done:
 	if (tar)
@@ -286,7 +301,7 @@ static int process_http_request (hio_svc_htts_t* htts, hio_dev_sck_t* csck, hio_
 	htts_ext_t* ext = hio_svc_htts_getxtn(htts);
 	hio_t* hio = hio_svc_htts_gethio(htts);
 	hio_http_method_t mth;
-	const hio_bch_t* qpath;
+	const hio_bch_t* qpath, * qpath_ext;
 
 	static hio_svc_htts_file_cbs_t fcbs = { file_get_mime_type, file_open_dir_list, HIO_NULL };
 
@@ -294,11 +309,20 @@ static int process_http_request (hio_svc_htts_t* htts, hio_dev_sck_t* csck, hio_
 
 	mth = hio_htre_getqmethodtype(req);
 	qpath = hio_htre_getqpath(req);
+	qpath_ext = hio_rfind_bchar_in_bcstr(qpath, '.');
+	if (!qpath_ext) qpath_ext = "";
 
-	if (mth == HIO_HTTP_OTHER && hio_comp_bcstr(hio_htre_getqmethodname(req), "UNTAR", 1) == 0)
+	if (mth == HIO_HTTP_OTHER && hio_comp_bcstr(hio_htre_getqmethodname(req), "UNTAR", 1) == 0 && hio_comp_bcstr(qpath_ext, ".tar", 0) == 0)
 	{
 		/* don't care about the path for now. TODO: make this secure and reasonable */
-		hio_svc_htts_dothr(htts, csck, req, untar, HIO_NULL, 0);
+		if (hio_svc_htts_dothr(htts, csck, req, untar, HIO_NULL, 0) <= -1) goto oops;
+	}
+	else if (hio_comp_bcstr(qpath_ext, ".php", 0) == 0)
+	{
+		hio_skad_t skad;
+		hio_bcstrtoskad(hio, "10.30.0.133:9000", &skad);
+		if (hio_svc_htts_dofcgi(htts, csck, req, &skad, 0) <= -1) goto oops;
+		/*if (hio_svc_htts_dotxt(htts, csck, req, HIO_HTTP_STATUS_INTERNAL_SERVER_ERROR, "text/plain", "what the...", 0) <= -1) goto oops;*/
 	}
 	else // if (mth == HIO_HTTP_GET || mth == HIO_HTTP_POST)
 	{

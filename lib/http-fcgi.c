@@ -22,77 +22,6 @@ typedef enum fcgi_res_mode_t fcgi_res_mode_t;
 #define FCGI_OVER_WRITE_TO_PEER    (1 << 3)
 #define FCGI_OVER_ALL (FCGI_OVER_READ_FROM_CLIENT | FCGI_OVER_READ_FROM_PEER | FCGI_OVER_WRITE_TO_CLIENT | FCGI_OVER_WRITE_TO_PEER)
 
-
-#define FCGI_VERSION (1)
-
-#define FCGI_PADDING_SIZE 255
-#define FCGI_RECORD_SIZE HIO_SIZEOF(struct fcgi_record_header_t) + FCGI_CONTENT_SIZE + FCGI_PADDING_SIZE)
-
-enum fcgi_req_type_t
-{
-	FCGI_BEGIN_REQUEST      = 1,
-	FCGI_ABORT_REQUEST      = 2,
-	FCGI_END_REQUEST        = 3,
-	FCGI_PARAMS             = 4,
-	FCGI_STDIN              = 5,
-	FCGI_STDOUT             = 6,
-	FCGI_STDERR             = 7,
-	FCGI_DATA               = 8,
-	FCGI_GET_VALUES         = 9,
-	FCGI_GET_VALUES_RESULT  = 10,
-	FCGI_UNKNOWN_TYPE       = 11,
-	FCGI_MAXTYPE            = (FCGI_UNKNOWN_TYPE)
-};
-typedef enum fcgi_req_type_t fcgi_req_type_t;
-
-/* role in fcgi_begin_request_body */
-enum fcgi_role_t
-{
-	FCGI_ROLE_RESPONDER  = 1,
-	FCGI_ROLE_AUTHORIZER = 2,
-	FCGI_ROLE_FILTER     = 3,
-};
-typedef enum fcgi_role_t fcgi_role_t;
-
-
-/* flag in fcgi_begin_request_body */
-#define FCGI_KEEP_CONN  1
-
-/* proto in fcgi_end_request_body */
-#define FCGI_REQUEST_COMPLETE 0
-#define FCGI_CANT_MPX_CONN    1
-#define FFCGI_OVERLOADED       2
-#define FCGI_UNKNOWN_ROLE     3
-
-#include "hio-pac1.h"
-struct fcgi_record_header_t 
-{
-	hio_uint8_t   version;
-	hio_uint8_t   type;
-	hio_uint16_t  id;
-	hio_uint16_t  content_len;
-	hio_uint8_t   padding_len;
-	hio_uint8_t   reserved;
-	/* content data of the record 'type'*/
-	/* padding data ... */
-};
-
-struct fcgi_begin_request_body_t
-{
-	hio_uint16_t  role;
-	hio_uint8_t   flags;
-	hio_uint8_t   reserved[5];
-};
-
-struct fcgi_end_request_body_t
-{
-	hio_uint32_t app_status;
-	hio_uint8_t proto_status;
-	hio_uint8_t reserved[3];
-};
-#include "hio-upac.h"
-
-
 struct fcgi_t
 {
 	HIO_SVC_HTTS_RSRC_HEADER;
@@ -150,7 +79,6 @@ static int begin_request ()
 
 #endif
 
-
 static void fcgi_halt_participating_devices (fcgi_t* fcgi)
 {
 	HIO_ASSERT (fcgi->client->htts->hio, fcgi->client != HIO_NULL);
@@ -199,6 +127,7 @@ static HIO_INLINE void fcgi_mark_over (fcgi_t* fcgi, int over_bits)
 
 	if (!(old_over & FCGI_OVER_READ_FROM_CLIENT) && (fcgi->over & FCGI_OVER_READ_FROM_CLIENT))
 	{
+printf (">>>>>>>>>>>> disableing client read watching ...................\n");
 		if (hio_dev_sck_read(fcgi->client->sck, 0) <= -1) 
 		{
 			HIO_DEBUG2 (fcgi->htts->hio, "HTTS(%p) - halting client(%p) for failure to disable input watching\n", fcgi->htts, fcgi->client->sck);
@@ -267,7 +196,6 @@ static int fcgi_write_to_client (fcgi_t* fcgi, const void* data, hio_iolen_t dle
 	return 0;
 }
 
-
 static int fcgi_send_final_status_to_client (fcgi_t* fcgi, int status_code, int force_close)
 {
 	hio_svc_htts_cli_t* cli = fcgi->client;
@@ -288,19 +216,15 @@ static int fcgi_send_final_status_to_client (fcgi_t* fcgi, int status_code, int 
 
 static int fcgi_client_htrd_poke (hio_htrd_t* htrd, hio_htre_t* req)
 {
-	/* client request got completed */
-
+	/* the client request got completed including body.
+	 * this callback is set and called only if there is content in the request */
 	hio_svc_htts_cli_htrd_xtn_t* htrdxtn = (hio_svc_htts_cli_htrd_xtn_t*)hio_htrd_getxtn(htrd);
 	hio_dev_sck_t* sck = htrdxtn->sck;
 	hio_svc_htts_cli_t* cli = hio_dev_sck_getxtn(sck);
 	fcgi_t* fcgi = (fcgi_t*)cli->rsrc;
 
-/*printf (">> CLIENT REQUEST COMPLETED\n");*/
-
-#if 0 // TODO: send abort???
-	/* indicate EOF to the client peer */
-	if (fcgi_write_to_peer(fcgi, HIO_NULL, 0) <= -1) return -1;
-#endif
+	/* indicate end of STDIN */
+	if (hio_svc_fcgic_writestdin(fcgi->peer, HIO_NULL, 0) <= -1) return -1;
 
 	fcgi_mark_over (fcgi, FCGI_OVER_READ_FROM_CLIENT);
 	return 0;
@@ -313,9 +237,10 @@ static int fcgi_client_htrd_push_content (hio_htrd_t* htrd, hio_htre_t* req, con
 	hio_svc_htts_cli_t* cli = hio_dev_sck_getxtn(sck);
 	fcgi_t* fcgi = (fcgi_t*)cli->rsrc;
 
-/* TODO: THIS must be written to the peer as FCGI_DATA */
 	HIO_ASSERT (sck->hio, cli->sck == sck);
-	return fcgi_write_to_peer(fcgi, data, dlen);
+
+	/* write the contents to fcgi server as stdin*/
+	return hio_svc_fcgic_writestdin(fcgi->peer, data, dlen);
 }
 
 static hio_htrd_recbs_t fcgi_client_htrd_recbs =
@@ -330,6 +255,7 @@ static void fcgi_client_on_disconnect (hio_dev_sck_t* sck)
 	hio_svc_htts_cli_t* cli = hio_dev_sck_getxtn(sck);
 	fcgi_t* fcgi = (fcgi_t*)cli->rsrc;
 	fcgi->client_disconnected = 1;
+printf ("client disconnected ............................\n");
 	fcgi->client_org_on_disconnect (sck);
 }
 
@@ -363,10 +289,8 @@ static int fcgi_client_on_read (hio_dev_sck_t* sck, const void* buf, hio_iolen_t
 
 		if (!(fcgi->over & FCGI_OVER_READ_FROM_CLIENT)) /* if this is true, EOF is received without fcgi_client_htrd_poke() */
 		{
-#if 0
 			/* indicate eof to the write side */
-			if (fcgi_write_to_peer(fcgi, HIO_NULL, 0) <= -1) goto oops; 
-#endif
+			if (hio_svc_fcgic_writestdin(fcgi->peer, HIO_NULL, 0) <= -1) goto oops;
 			fcgi_mark_over (fcgi, FCGI_OVER_READ_FROM_CLIENT);
 		}
 	}
@@ -441,6 +365,12 @@ oops:
 	return 0;
 }
 
+static int fcgi_peer_on_read (hio_svc_fcgic_sess_t* peer, const void* buf, hio_iolen_t len)
+{
+printf ("GOT FCGI DATA.............[%.*s]\n", (int)len, buf);
+	return 0;
+}
+
 static void fcgi_on_kill (fcgi_t* fcgi)
 {
 	hio_t* hio = fcgi->htts->hio;
@@ -456,6 +386,7 @@ static void fcgi_on_kill (fcgi_t* fcgi)
 		hio_dev_pro_kill (fcgi->peer);
 		fcgi->peer = HIO_NULL;
 	}
+#endif
 
 	if (fcgi->client_org_on_read)
 	{
@@ -489,9 +420,65 @@ static void fcgi_on_kill (fcgi_t* fcgi)
 			hio_dev_sck_halt (fcgi->client->sck);
 		}
 	}
-#endif
 }
 
+static int write_params (fcgi_t* fcgi, hio_dev_sck_t* csck, hio_htre_t* req)
+{
+	hio_t* hio = fcgi->htts->hio;
+	hio_bch_t tmp[256];
+	hio_oow_t len;
+	const hio_bch_t* qparam;
+	hio_oow_t content_length;
+
+	HIO_ASSERT (hio, fcgi->client->sck == csck);
+
+	if (hio_svc_fcgic_writeparam(fcgi->peer, "GATEWAY_INTERFACE", 17, "CGI/1.1", 7) <= -1) goto oops;
+
+	len = hio_fmttobcstr(hio, tmp, HIO_COUNTOF(tmp), "HTTP/%d.%d", (int)hio_htre_getmajorversion(req), (int)hio_htre_getminorversion(req));
+	if (hio_svc_fcgic_writeparam(fcgi->peer, "SERVER_PROTOCOL", 15, tmp, len) <= -1) goto oops;
+
+// TODOs:
+//  DOCUMENT_ROOT
+//  SCRIPT_NAME
+//  PATH_INFO
+
+	if (hio_svc_fcgic_writeparam(fcgi->peer, "REQUEST_METHOD", 14, hio_htre_getqmethodname(req), hio_htre_getqmethodlen(req)) <= -1) goto oops;
+	if (hio_svc_fcgic_writeparam(fcgi->peer, "REQUEST_URI", 11, hio_htre_getqpath(req), hio_htre_getqpathlen(req)) <= -1) goto oops;
+
+    qparam = hio_htre_getqparam(req);
+	if (qparam && hio_svc_fcgic_writeparam(fcgi->peer, "QUERY_STRING", 12, qparam, hio_count_bcstr(qparam)) <= -1) goto oops;
+
+	if (hio_htre_getreqcontentlen(req, &content_length) == 0)
+	{
+		/* content length is known and fixed */
+		len = hio_fmt_uintmax_to_bcstr(tmp, HIO_COUNTOF(tmp), content_length, 10, 0, '\0', HIO_NULL);
+		if (hio_svc_fcgic_writeparam(fcgi->peer, "CONTENT_LENGTH", 14, tmp, len) <= -1) goto oops;
+	}
+
+	if (hio_svc_fcgic_writeparam(fcgi->peer, "SERVER_SOFTWARE", 15, fcgi->htts->server_name, hio_count_bcstr(fcgi->htts->server_name)) <= -1) goto oops;
+
+	len = hio_skadtobcstr (hio, &csck->localaddr, tmp, HIO_COUNTOF(tmp), HIO_SKAD_TO_BCSTR_ADDR);
+	if (hio_svc_fcgic_writeparam(fcgi->peer, "SERVER_ADDR", 11, tmp, len) <= -1) goto oops;
+
+	gethostname (tmp, HIO_COUNTOF(tmp)); /* if this fails, i assume tmp contains the ip address set by hio_skadtobcstr() above */
+	if (hio_svc_fcgic_writeparam(fcgi->peer, "SERVER_NAME", 11, tmp, hio_count_bcstr(tmp)) <= -1) goto oops;
+
+	len = hio_skadtobcstr (hio, &csck->localaddr, tmp, HIO_COUNTOF(tmp), HIO_SKAD_TO_BCSTR_PORT);
+	if (hio_svc_fcgic_writeparam(fcgi->peer, "SERVER_PORT", 11, tmp, len) <= -1) goto oops;
+
+	len = hio_skadtobcstr (hio, &csck->remoteaddr, tmp, HIO_COUNTOF(tmp), HIO_SKAD_TO_BCSTR_ADDR);
+	if (hio_svc_fcgic_writeparam(fcgi->peer, "REMOTE_ADDR", 11, tmp, len) <= -1) goto oops;
+
+	len = hio_skadtobcstr (hio, &csck->remoteaddr, tmp, HIO_COUNTOF(tmp), HIO_SKAD_TO_BCSTR_PORT);
+	if (hio_svc_fcgic_writeparam(fcgi->peer,  "REMOTE_PORT", 11, tmp, len) <= -1) goto oops;
+
+	//hio_htre_walkheaders (req,)
+
+	return 0;
+
+oops:
+	return -1;
+}
 int hio_svc_htts_dofcgi (hio_svc_htts_t* htts, hio_dev_sck_t* csck, hio_htre_t* req, const hio_skad_t* fcgis_addr, int options)
 {
 	hio_t* hio = htts->hio;
@@ -502,7 +489,7 @@ int hio_svc_htts_dofcgi (hio_svc_htts_t* htts, hio_dev_sck_t* csck, hio_htre_t* 
 	/* ensure that you call this function before any contents is received */
 	HIO_ASSERT (hio, hio_htre_getcontentlen(req) == 0);
 
-	if (!htts->fcgic)
+	if (HIO_UNLIKELY(!htts->fcgic))
 	{
 		hio_seterrbfmt (hio, HIO_ENOCAPA, "fcgi client service not enabled");
 		goto oops;
@@ -529,27 +516,15 @@ int hio_svc_htts_dofcgi (hio_svc_htts_t* htts, hio_dev_sck_t* csck, hio_htre_t* 
 	HIO_ASSERT (hio, cli->rsrc == HIO_NULL);
 	HIO_SVC_HTTS_RSRC_ATTACH ((hio_svc_htts_rsrc_t*)fcgi, cli->rsrc); /* cli->rsrc = fcgi */
 
-#if 0 // TODO
-	fcgi->peer = hio_dev_pro_make(hio, HIO_SIZEOF(*peer_xtn), &mi);
-	if (HIO_UNLIKELY(!fcgi->peer)) goto oops;
-	peer_xtn = hio_dev_pro_getxtn(fcgi->peer);
-	HIO_SVC_HTTS_RSRC_ATTACH ((hio_svc_htts_rsrc_t*)fcgi, peer_xtn->fcgi); /* peer->fcgi = fcgi */
-#else
-	fcgi->peer = hio_svc_fcgic_tie(htts->fcgic, fcgis_addr /* TODO: add a read callback */);
+	/* create a session in in the fcgi client service */
+	fcgi->peer = hio_svc_fcgic_tie(htts->fcgic, fcgis_addr, fcgi_peer_on_read);
 	if (HIO_UNLIKELY(!fcgi->peer)) goto oops;
 
-	hio_svc_fcgic_write (fcgi->peer, "hello", 5);
-#endif
-
-#if 0 // TODO
-	fcgi->peer_htrd = hio_htrd_open(hio, HIO_SIZEOF(*peer));
-	if (HIO_UNLIKELY(!fcgi->peer_htrd)) goto oops;
-	hio_htrd_setoption (fcgi->peer_htrd, HIO_HTRD_SKIP_INITIAL_LINE | HIO_HTRD_RESPONSE);
-	hio_htrd_setrecbs (fcgi->peer_htrd, &peer_htrd_recbs);
-
-	peer = hio_htrd_getxtn(fcgi->peer_htrd);
-	HIO_SVC_HTTS_RSRC_ATTACH ((hio_svc_htts_rsrc_t*)fcgi, peer->fcgi); /* peer->fcgi = fcgi */
-#endif
+	/* send FCGI_BEGIN_REQUEST */
+	if (hio_svc_fcgic_beginrequest(fcgi->peer) <= -1) goto oops;
+	/* write FCGI_PARAM */
+	if (write_params(fcgi, csck, req) <= -1) goto oops;
+	if (hio_svc_fcgic_writeparam(fcgi->peer, HIO_NULL, 0, HIO_NULL, 0) <= -1) goto oops; /* end of params */
 
 #if !defined(FCGI_ALLOW_UNLIMITED_REQ_CONTENT_LENGTH)
 	if (fcgi->req_content_length_unlimited)
@@ -566,7 +541,7 @@ int hio_svc_htts_dofcgi (hio_svc_htts_t* htts, hio_dev_sck_t* csck, hio_htre_t* 
 
 	if (req->flags & HIO_HTRE_ATTR_EXPECT100)
 	{
-		/* TODO: Expect: 100-continue? who should handle this? cgi? or the http server? */
+		/* TODO: Expect: 100-continue? who should handle this? fcgi? or the http server? */
 		/* CAN I LET the cgi SCRIPT handle this? */
 		if (!(options & HIO_SVC_HTTS_CGI_NO_100_CONTINUE) && 
 		    hio_comp_http_version_numbers(&req->version, 1, 1) >= 0 && 
@@ -623,8 +598,8 @@ int hio_svc_htts_dofcgi (hio_svc_htts_t* htts, hio_dev_sck_t* csck, hio_htre_t* 
 		else
 		{
 			/* no content to be uploaded from the client */
-			/* indicate EOF to the peer and disable input wathching from the client */
-			if (fcgi_write_to_peer(fcgi, HIO_NULL, 0) <= -1) goto oops;
+			/* indicate end of stdin to the peer and disable input wathching from the client */
+			if (hio_svc_fcgic_writestdin(fcgi->peer, HIO_NULL, 0) <= -1) goto oops;
 			fcgi_mark_over (fcgi, FCGI_OVER_READ_FROM_CLIENT | FCGI_OVER_WRITE_TO_PEER);
 		}
 #if defined(FCGI_ALLOW_UNLIMITED_REQ_CONTENT_LENGTH)

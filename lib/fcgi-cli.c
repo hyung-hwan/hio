@@ -48,6 +48,7 @@ struct hio_svc_fcgic_sess_t
 {
 	hio_oow_t sid;
 	hio_svc_fcgic_conn_t* conn;
+	hio_svc_fcgic_on_read_t on_read;
 };
 
 struct hio_svc_fcgic_conn_t
@@ -115,23 +116,28 @@ static void sck_on_disconnect (hio_dev_sck_t* sck)
 {
 	fcgic_sck_xtn_t* sck_xtn = hio_dev_sck_getxtn(sck);
 	hio_svc_fcgic_conn_t* conn = sck_xtn->conn;
-	
+
+printf ("DISCONNECT SOCKET .................. sck->%p conn->%p\n", sck, conn);	
+
 	if (conn)
 	{
 /* TODO: arrange to create it again if the server is not closing... */
 /* if (.... ) */
-printf ("DISCONNECT SOCKET .................. %p\n", sck);
+#if 0
 		if (sck->hio->stopreq == HIO_STOPREQ_NONE)
 		{
 			/* this may create a busy loop if the connection attempt fails repeatedly */
 			make_connection_socket(conn); /* don't care about failure for now */
 		}
+#else
+		conn->dev = HIO_NULL;
+#endif
 	}
-
 }
 
 static void sck_on_connect (hio_dev_sck_t* sck)
 {
+	printf ("CONNECTED >>>>>>>>>>>>>>>>>>>>>>>>>>\n");
 }
 
 static int sck_on_write (hio_dev_sck_t* sck, hio_iolen_t wrlen, void* wrctx, const hio_skad_t* dstaddr)
@@ -141,6 +147,21 @@ static int sck_on_write (hio_dev_sck_t* sck, hio_iolen_t wrlen, void* wrctx, con
 
 static int sck_on_read (hio_dev_sck_t* sck, const void* buf, hio_iolen_t len, const hio_skad_t* srcaddr)
 {
+	fcgic_sck_xtn_t* sck_xtn = hio_dev_sck_getxtn(sck);
+	hio_svc_fcgic_conn_t* conn = sck_xtn->conn;
+
+	if (len == 0)
+	{
+		hio_dev_sck_halt (sck);
+	}
+	else
+	{
+		/* TODO: parse the reply ..*/
+
+		/*sess = get_session(using the session id);*/
+		/*sess->on_read (sess, ptr, len);*/
+	}
+
 	return 0;
 }
 
@@ -168,10 +189,6 @@ static int make_connection_socket (hio_svc_fcgic_conn_t* conn)
 			mi.type = HIO_DEV_SCK_UNIX;
 			break;
 	#endif
-
-		case HIO_AF_QX:
-			mi.type = HIO_DEV_SCK_QX;
-			break;
 
 		default:
 			hio_seterrnum (hio, HIO_EINVAL);
@@ -202,20 +219,11 @@ static int make_connection_socket (hio_svc_fcgic_conn_t* conn)
 	}
 
 	printf ("MAKING CONNECTION %p %p\n", conn->dev, sck);
-
-if (conn->dev != HIO_NULL)
-{
-/* TODO: is this necessary???? */
-	sck_xtn = hio_dev_sck_getxtn(conn->dev);
-	sck_xtn->conn = HIO_NULL;
-	hio_dev_sck_halt (conn->dev);
-	conn->dev = HIO_NULL;
-}
+	HIO_ASSERT (hio, conn->dev == HIO_NULL);
 
 	conn->dev = sck;
 	return 0;
 }
-
 
 static hio_svc_fcgic_conn_t* get_connection (hio_svc_fcgic_t* fcgic, const hio_skad_t* fcgis_addr)
 {
@@ -228,7 +236,11 @@ static hio_svc_fcgic_conn_t* get_connection (hio_svc_fcgic_t* fcgic, const hio_s
 		if (hio_equal_skads(&conn->addr, fcgis_addr, 1))
 		{
 			if (conn->sess.free != INVALID_SID ||
-			    conn->sess.capa <= (CONN_SESS_CAPA_MAX - CONN_SESS_INC)) return conn;
+			    conn->sess.capa <= (CONN_SESS_CAPA_MAX - CONN_SESS_INC)) 
+			{
+				if (!conn->dev) make_connection_socket(conn); /* conn->dev will still be null if connection fails*/
+				return conn;
+			}
 		}
 		conn = conn->next;
 	}
@@ -275,7 +287,7 @@ static void free_connections (hio_svc_fcgic_t* fcgic)
 	}
 }
 
-static hio_svc_fcgic_sess_t* new_session (hio_svc_fcgic_t* fcgic, const hio_skad_t* fcgis_addr)
+static hio_svc_fcgic_sess_t* new_session (hio_svc_fcgic_t* fcgic, const hio_skad_t* fcgis_addr, hio_svc_fcgic_on_read_t on_read)
 {
 	hio_t* hio = fcgic->hio;
 	hio_svc_fcgic_conn_t* conn;
@@ -309,6 +321,7 @@ static hio_svc_fcgic_sess_t* new_session (hio_svc_fcgic_t* fcgic, const hio_skad
 	conn->sess.free = sess->sid;
 
 	sess->sid = conn->sess.free;
+	sess->on_read = on_read;
 	HIO_ASSERT (hio, sess->conn == conn);
 	HIO_ASSERT (hio, sess->conn->fcgic == fcgic);
 
@@ -329,7 +342,7 @@ hio_svc_fcgic_t* hio_svc_fcgic_start (hio_t* hio, const hio_svc_fcgic_tmout_t* t
 	if (HIO_UNLIKELY(!fcgic)) goto oops;
 
 	fcgic->hio = hio;
-	fcgic->svc_stop = hio_svc_fcgic_stop;
+	fcgic->svc_stop = (hio_svc_stop_t)hio_svc_fcgic_stop;
 
 	if (tmout) 
 	{
@@ -359,10 +372,10 @@ void hio_svc_fcgic_stop (hio_svc_fcgic_t* fcgic)
 	hio_freemem (hio, fcgic);
 }
 
-hio_svc_fcgic_sess_t* hio_svc_fcgic_tie (hio_svc_fcgic_t* fcgic, const hio_skad_t* addr)
+hio_svc_fcgic_sess_t* hio_svc_fcgic_tie (hio_svc_fcgic_t* fcgic, const hio_skad_t* addr, hio_svc_fcgic_on_read_t on_read)
 {
 	/* TODO: reference counting for safety?? */
-	return new_session(fcgic, addr);
+	return new_session(fcgic, addr, on_read);
 }
 
 void hio_svc_fcgic_untie (hio_svc_fcgic_sess_t* sess)
@@ -371,13 +384,137 @@ void hio_svc_fcgic_untie (hio_svc_fcgic_sess_t* sess)
 	release_session (sess);
 }
 
-int hio_svc_fcgic_write (hio_svc_fcgic_sess_t* sess, const void* data, hio_iolen_t len)
+int hio_svc_fcgic_beginrequest (hio_svc_fcgic_sess_t* sess)
 {
-	return 0;
+	hio_iovec_t iov[2];
+	hio_fcgi_record_header_t h;
+	hio_fcgi_begin_request_body_t b;
+
+	if (!sess->conn->dev)
+	{
+		/* TODO: set error **/
+		return -1;
+	}
+
+	HIO_MEMSET (&h, 0, HIO_SIZEOF(h));
+	h.version = HIO_FCGI_VERSION;
+	h.type = HIO_FCGI_BEGIN_REQUEST;
+	h.id = h.id = hio_hton16(sess->sid);
+	h.content_len = hio_hton16(HIO_SIZEOF(b));
+	h.padding_len = 0;
+
+	HIO_MEMSET (&b, 0, HIO_SIZEOF(b));
+	b.role = HIO_CONST_HTON16(HIO_FCGI_ROLE_RESPONDER);
+	b.flags = HIO_FCGI_KEEP_CONN;
+
+	iov[0].iov_ptr = &h;
+	iov[0].iov_len = HIO_SIZEOF(h);
+	iov[1].iov_ptr = &b;
+	iov[1].iov_len = HIO_SIZEOF(b);
+
+/* TODO: check if sess->conn->dev is still valid */
+	return hio_dev_sck_writev(sess->conn->dev, iov, 2, HIO_NULL, HIO_NULL);
 }
 
-
-int hio_svc_fcgic_beginreq (hio_svc_fcgic_sess_t* sess)
+int hio_svc_fcgic_writeparam (hio_svc_fcgic_sess_t* sess, const void* key, hio_iolen_t ksz, const void* val, hio_iolen_t vsz)
 {
+	hio_iovec_t iov[4];
+	hio_fcgi_record_header_t h;
+	hio_uint8_t sz[8];
+	hio_oow_t szc = 0;
 
+	if (!sess->conn->dev)
+	{
+		/* TODO: set error **/
+		return -1;
+	}
+
+	HIO_MEMSET (&h, 0, HIO_SIZEOF(h));
+	h.version = HIO_FCGI_VERSION;
+	h.type = HIO_FCGI_PARAMS;
+	h.id = hio_hton16(sess->sid);
+	h.content_len = 0;
+
+	/* TODO: check ksz and vsz can't exceed max 32bit value. */
+	/* limit sizes to the max of the signed 32-bit interger
+	*  the high-order bit is used as encoding marker (1-byte or 4-byte encoding).
+	*  so a size can't hit the unsigned max. */
+	ksz &= HIO_TYPE_MAX(hio_int32_t);
+	vsz &= HIO_TYPE_MAX(hio_int32_t);
+	if (ksz > 0)
+	{
+		if (ksz > 0xFF)
+		{
+			sz[szc++] = (ksz >> 24) | 0x80;
+			sz[szc++] = (ksz >> 16) & 0xFF;
+			sz[szc++] = (ksz >> 8) & 0xFF;
+			sz[szc++] = ksz & 0xFF;
+		}
+		else
+		{
+			sz[szc++] = ksz;
+		}
+
+		if (vsz > 0xFF)
+		{
+			sz[szc++] = (vsz >> 24) | 0x80;
+			sz[szc++] = (vsz >> 16) & 0xFF;
+			sz[szc++] = (vsz >> 8) & 0xFF;
+			sz[szc++] = vsz & 0xFF;
+		}
+		else
+		{
+			sz[szc++] = vsz;
+		}
+
+		h.content_len = szc + ksz + vsz;
+		/* TODO: check content_len overflows... */
+	}
+
+	h.content_len = hio_hton16(h.content_len);
+	h.padding_len = 0;
+
+/* TODO: some buffering of parameters??? if the key/value isn't long enough, it may trigger many system calls*/
+	iov[0].iov_ptr = &h;
+	iov[0].iov_len = HIO_SIZEOF(h);
+	if (ksz > 0)
+	{
+		iov[1].iov_ptr = sz;
+		iov[1].iov_len = szc;
+		iov[2].iov_ptr = key;
+		iov[2].iov_len = ksz;
+		iov[3].iov_ptr = val;
+		iov[3].iov_len = vsz;
+	}
+
+	return hio_dev_sck_writev(sess->conn->dev, iov, (ksz > 0? 4: 1), HIO_NULL, HIO_NULL);
+}
+
+int hio_svc_fcgic_writestdin (hio_svc_fcgic_sess_t* sess, const void* data, hio_iolen_t size)
+{
+	hio_iovec_t iov[2];
+	hio_fcgi_record_header_t h;
+
+	if (!sess->conn->dev)
+	{
+		/* TODO: set error **/
+		return -1;
+	}
+
+	HIO_MEMSET (&h, 0, HIO_SIZEOF(h));
+	h.version = HIO_FCGI_VERSION;
+	h.type = HIO_FCGI_STDIN;
+	h.id = hio_hton16(sess->sid);
+	h.content_len = hio_hton16(size);
+
+	iov[0].iov_ptr = &h;
+	iov[0].iov_len = HIO_SIZEOF(h);
+	if (size > 0)
+	{
+		iov[1].iov_ptr = (void*)data;
+		iov[1].iov_len = size;
+	}
+
+/* TODO: check if sess->conn->dev is still valid */
+	return hio_dev_sck_writev(sess->conn->dev, iov, (size > 0? 2: 1), HIO_NULL, HIO_NULL);
 }

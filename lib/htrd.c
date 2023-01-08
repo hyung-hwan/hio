@@ -214,6 +214,7 @@ static hio_bch_t* parse_initial_line (hio_htrd_t* htrd, hio_bch_t* line)
 
 		htrd->re.u.q.method.type = hio_bchars_to_http_method(tmp.ptr, tmp.len);
 		htrd->re.u.q.method.name = tmp.ptr;
+		htrd->re.u.q.method.len = tmp.len;
 	}
 	else if ((htrd->option & HIO_HTRD_RESPONSE) && hio_comp_bchars_bcstr(tmp.ptr, tmp.len, "HTTP", 1) == 0)
 	{

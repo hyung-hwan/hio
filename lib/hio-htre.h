@@ -175,6 +175,7 @@ struct hio_htre_t
 			{
 				hio_http_method_t type;
 				const hio_bch_t* name;
+				hio_oow_t len;
 			} method;
 			hio_bcs_t path;
 			hio_bcs_t param;
@@ -240,6 +241,7 @@ struct hio_htre_t
 
 #define hio_htre_getqmethodtype(re) ((re)->u.q.method.type)
 #define hio_htre_getqmethodname(re) ((re)->u.q.method.name)
+#define hio_htre_getqmethodlen(re) ((re)->u.q.method.len)
 
 #define hio_htre_getqpath(re) ((re)->u.q.path.ptr)
 #define hio_htre_getqpathlen(re) ((re)->u.q.path.len)

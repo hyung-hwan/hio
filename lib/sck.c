@@ -2428,6 +2428,9 @@ int hio_dev_sck_bind (hio_dev_sck_t* dev, hio_dev_sck_bind_t* info)
 
 int hio_dev_sck_connect (hio_dev_sck_t* dev, hio_dev_sck_connect_t* info)
 {
+/* TODO: if connecting to a hostname, do name resolutin first ... before calling ioctl(SCK_CONNECT). also some caching may be required....
+for this, hio_dev_sck_connect_t must be changed to accomodate a string as a host name.
+*/
 	return hio_dev_ioctl((hio_dev_t*)dev, HIO_DEV_SCK_CONNECT, info);
 }
 
@@ -2543,7 +2546,6 @@ static int update_mcast_group (hio_dev_sck_t* dev, int join, const hio_skad_t* m
 		}
 	}
 	
-
 	hio_seterrbfmt (hio_dev_sck_gethio(dev), HIO_EINVAL, "invalid multicast address family");
 	return -1;
 }
