@@ -91,6 +91,8 @@ typedef void (*hio_svc_htts_rsrc_on_kill_t) (
 	hio_svc_htts_t* htts; \
 	hio_oow_t rsrc_size; \
 	hio_oow_t rsrc_refcnt; \
+	hio_svc_htts_rsrc_t* task_prev; \
+	hio_svc_htts_rsrc_t* task_next; \
 	hio_svc_htts_rsrc_on_kill_t rsrc_on_kill
 
 struct hio_svc_htts_rsrc_t

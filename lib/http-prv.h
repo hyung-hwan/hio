@@ -72,6 +72,7 @@ struct hio_svc_htts_t
 	hio_svc_fcgic_t* fcgic;
 
 	hio_svc_htts_cli_t cli; /* list head for client list */
+	hio_svc_htts_rsrc_t task; /* list head for task list */
 	hio_tmridx_t idle_tmridx;
 
 	hio_bch_t* server_name;
@@ -108,5 +109,32 @@ struct hio_svc_httc_t
 #define HIO_SVC_HTTS_CLIL_LAST_CLI(lh) ((lh)->cli_prev)
 #define HIO_SVC_HTTS_CLIL_IS_EMPTY(lh) (HIO_SVC_HTTS_CLIL_FIRST_CLI(lh) == (lh))
 #define HIO_SVC_HTTS_CLIL_IS_NIL_CLI(lh,cli) ((cli) == (lh))
+
+
+/* task list */
+#define HIO_SVC_HTTS_TASKL_APPEND_TASK(lh,task) do { \
+	(task)->task_next = (lh); \
+	(task)->task_prev = (lh)->task_prev; \
+	(task)->task_prev->task_next = (task); \
+	(lh)->task_prev = (task); \
+} while(0)
+
+#define HIO_SVC_HTTS_TASKL_UNLINK_TASK(task) do { \
+	(task)->task_prev->task_next = (task)->task_next; \
+	(task)->task_next->task_prev = (task)->task_prev; \
+} while (0)
+
+#define HIO_SVC_HTTS_TASKL_UNLINK_TASK_CLEAN(task) do { \
+	(task)->task_prev->task_next = (task)->task_next; \
+	(task)->task_next->task_prev = (task)->task_prev; \
+	(task)->task_prev = (task); \
+	(task)->task_next = (task); \
+} while (0)
+
+#define HIO_SVC_HTTS_TASKL_INIT(lh) ((lh)->task_next = (lh)->task_prev = lh)
+#define HIO_SVC_HTTS_TASKL_FIRST_TASK(lh) ((lh)->task_next)
+#define HIO_SVC_HTTS_TASKL_LAST_TASK(lh) ((lh)->task_prev)
+#define HIO_SVC_HTTS_TASKL_IS_EMPTY(lh) (HIO_SVC_HTTS_TASKL_FIRST_TASK(lh) == (lh))
+#define HIO_SVC_HTTS_TASKL_IS_NIL_TASK(lh,task) ((task) == (lh))
 
 #endif

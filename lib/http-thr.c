@@ -49,6 +49,7 @@ typedef enum THR_TASK_RES_mode_t THR_TASK_RES_mode_t;
 
 struct thr_func_start_t
 {
+	hio_t* hio; /* for faster and safer access in case htts has been already destroyed */
 	hio_svc_htts_t* htts;
 	hio_svc_htts_thr_func_t thr_func;
 	void* thr_ctx;
@@ -310,7 +311,7 @@ static void thr_task_on_kill (hio_svc_htts_rsrc_t* rsrc)
 	thr_task->client_org_on_disconnect = HIO_NULL;
 	thr_task->client_htrd_recbs_changed = 0;
 
-/////HIO_SVC_HTTS_TASKL_UNLINK_CLI (thr_task); /* detached from the htts service */
+	HIO_SVC_HTTS_TASKL_UNLINK_TASK (thr_task); /* detach from the htts service */
 	HIO_DEBUG5 (hio, "HTTS(%p) - thr(t=%p,c=%p[%d],p=%p) - killed the task\n", thr_task->htts, thr_task, thr_task->client, (thr_task->csck? thr_task->csck->hnd: -1), thr_task->peer);
 }
 
@@ -800,8 +801,32 @@ oops:
 
 static void free_thr_start_info (void* ctx)
 {
+	/* this function is a thread cleanup handler.
+	 * it can get invoked after htts is destroyed by hio_svc_htts_stop() because
+	 * hio_dev_thr_kill() pushes back the job using hio_addcfmb() and the
+	 * actual cfmb clean-up is performed after the service stop.
+	 * it is not realiable to use tfs->htts or tfs->htts->hio. use tfs->hio only here.
+==3845396== Invalid read of size 8
+==3845396==    at 0x40A7D5: free_thr_start_info (http-thr.c:804)
+==3845396==    by 0x40A7D5: thr_func (http-thr.c:815)
+==3845396==    by 0x41AE46: run_thr_func (thr.c:127)
+==3845396==    by 0x4A132A4: start_thread (in /usr/lib64/libpthread-2.33.so)
+==3845396==    by 0x4B2B322: clone (in /usr/lib64/libc-2.33.so)
+==3845396==  Address 0x4c38b00 is 0 bytes inside a block of size 464 free'd
+==3845396==    at 0x48430E4: free (vg_replace_malloc.c:872)
+==3845396==    by 0x4091EE: hio_svc_htts_stop (http-svr.c:555)
+==3845396==    by 0x40F5BE: hio_fini (hio.c:185)
+==3845396==    by 0x40F848: hio_close (hio.c:101)
+==3845396==    by 0x402CB4: main (webs.c:511)
+==3845396==  Block was alloc'd at
+==3845396==    at 0x484086F: malloc (vg_replace_malloc.c:381)
+==3845396==    by 0x412873: hio_callocmem (hio.c:2019)
+==3845396==    by 0x40978E: hio_svc_htts_start (http-svr.c:350)
+==3845396==    by 0x403900: webs_start (webs.c:385)
+==3845396==    by 0x402C6C: main (webs.c:498)
+	 */
 	thr_func_start_t* tfs = (thr_func_start_t*)ctx;
-	hio_t* hio = tfs->htts->hio;
+	hio_t* hio = tfs->hio;
 	if (tfs->tfi.req_path) hio_freemem (hio, tfs->tfi.req_path);
 	if (tfs->tfi.req_param) hio_freemem (hio, tfs->tfi.req_param);
 	hio_freemem (hio, tfs);
@@ -858,6 +883,7 @@ int hio_svc_htts_dothr (hio_svc_htts_t* htts, hio_dev_sck_t* csck, hio_htre_t* r
 	tfs = hio_callocmem(hio, HIO_SIZEOF(*tfs));
 	if (!tfs) goto oops;
 
+	tfs->hio = hio;
 	tfs->htts = htts;
 	tfs->thr_func = func;
 	tfs->thr_ctx = ctx;
@@ -1018,7 +1044,7 @@ int hio_svc_htts_dothr (hio_svc_htts_t* htts, hio_dev_sck_t* csck, hio_htre_t* r
 	/* TODO: store current input watching state and use it when destroying the thr_task data */
 	if (hio_dev_sck_read(csck, !(thr_task->over & THR_TASK_OVER_READ_FROM_CLIENT)) <= -1) goto oops;
 
-//	HIO_SVC_HTTS_TASKL_APPEND_TASK(htts->task, thr_task);
+	HIO_SVC_HTTS_TASKL_APPEND_TASK(&htts->task, thr_task);
 	return 0;
 
 oops:

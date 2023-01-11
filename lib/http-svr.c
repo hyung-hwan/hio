@@ -466,6 +466,7 @@ hio_svc_htts_t* hio_svc_htts_start (hio_t* hio, hio_oow_t xtnsize, hio_dev_sck_b
 
 	HIO_SVCL_APPEND_SVC (&hio->actsvc, (hio_svc_t*)htts);
 	HIO_SVC_HTTS_CLIL_INIT (&htts->cli);
+	HIO_SVC_HTTS_TASKL_INIT (&htts->task);
 
 	htts->fcgic = hio_svc_fcgic_start(hio, HIO_NULL); /* TODO: set timeout properly */
 	if (HIO_UNLIKELY(!htts->fcgic))
@@ -538,12 +539,11 @@ void hio_svc_htts_stop (hio_svc_htts_t* htts)
 		hio_dev_sck_kill (cli->sck);
 	}
 
-/*
 	while (!HIO_SVC_HTTS_TASKL_IS_EMPTY(&htts->task))
 	{
-
+		hio_svc_htts_rsrc_t* task = HIO_SVC_HTTS_TASKL_FIRST_TASK(&htts->task);
+		hio_svc_htts_rsrc_kill (task);
 	}
-*/
 
 	HIO_SVCL_UNLINK_SVC (htts);
 	if (htts->server_name && htts->server_name != htts->server_name_buf) hio_freemem (hio, htts->server_name);
