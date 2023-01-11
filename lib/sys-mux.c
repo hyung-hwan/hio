@@ -69,7 +69,7 @@ int hio_sys_initmux (hio_t* hio)
 	    secure_poll_data_slot_for_insert(hio) <= -1)
 	{
 		/* no control pipes if registration fails */
-		close (mux->ctrlp[1]); 
+		close (mux->ctrlp[1]);
 		mux->ctrlp[1] = HIO_SYSHND_INVALID;
 		close (mux->ctrlp[0]);
 		mux->ctrlp[0] = HIO_SYSHND_INVALID;
@@ -154,7 +154,7 @@ epoll_create_done:
 		if (epoll_ctl(mux->hnd, EPOLL_CTL_ADD, mux->ctrlp[0], &ev) == -1)
 		{
 			/* if ADD fails, close the control pipes and forget them */
-			close (mux->ctrlp[1]); 
+			close (mux->ctrlp[1]);
 			mux->ctrlp[1] = HIO_SYSHND_INVALID;
 			close (mux->ctrlp[0]);
 			mux->ctrlp[0] = HIO_SYSHND_INVALID;
@@ -169,19 +169,19 @@ void hio_sys_finimux (hio_t* hio)
 {
 	hio_sys_mux_t* mux = &hio->sysdep->mux;
 #if defined(USE_POLL)
-	if (mux->map.ptr) 
+	if (mux->map.ptr)
 	{
 		hio_freemem (hio, mux->map.ptr);
 		mux->map.ptr = HIO_NULL;
 		mux->map.capa = 0;
 	}
 
-	if (mux->pd.pfd) 
+	if (mux->pd.pfd)
 	{
 		hio_freemem (hio, mux->pd.pfd);
 		mux->pd.pfd = HIO_NULL;
 	}
-	if (mux->pd.dptr) 
+	if (mux->pd.dptr)
 	{
 		hio_freemem (hio, mux->pd.dptr);
 		mux->pd.dptr = HIO_NULL;
@@ -215,7 +215,7 @@ void hio_sys_finimux (hio_t* hio)
 
 	if (mux->ctrlp[1] != HIO_SYSHND_INVALID)
 	{
-		close (mux->ctrlp[1]); 
+		close (mux->ctrlp[1]);
 		mux->ctrlp[1] = HIO_SYSHND_INVALID;
 	}
 
@@ -347,7 +347,7 @@ int hio_sys_ctrlmux (hio_t* hio, hio_sys_mux_cmd_t cmd, hio_dev_t* dev, int dev_
 				hio_seterrnum (hio, HIO_ENOENT);
 				return -1;
 			}
-			else if (idx == MUX_INDEX_SUSPENDED) 
+			else if (idx == MUX_INDEX_SUSPENDED)
 			{
 				if (!events) return 0; /* no change. keep suspended */
 				goto do_insert;
@@ -384,7 +384,7 @@ int hio_sys_ctrlmux (hio_t* hio, hio_sys_mux_cmd_t cmd, hio_dev_t* dev, int dev_
 			/* TODO: speed up deletion. allow a hole in the array.
 			 *       delay array compaction if there is a hole.
 			 *       set fd for the hole to -1 such that poll()
-			 *       ignores it. compact the array if another deletion 
+			 *       ignores it. compact the array if another deletion
 			 *       is requested when there is an existing hole. */
 			idx++;
 			while (idx < mux->pd.size)
@@ -419,7 +419,7 @@ int hio_sys_ctrlmux (hio_t* hio, hio_sys_mux_cmd_t cmd, hio_dev_t* dev, int dev_
 	HIO_ASSERT (hio, hio == dev->hio);
 
 	/* no operation over a broken(closed) handle to prevent multiplexer from failing.
-	 * close of the handle leads to auto-deletion from the kqueue multiplexer. 
+	 * close of the handle leads to auto-deletion from the kqueue multiplexer.
 	 * the closed handle must not be fed to the multiplexer */
 	if (dev->dev_mth->issyshndbroken && dev->dev_mth->issyshndbroken(dev)) return 0;
 	hnd = dev->dev_mth->getsyshnd(dev);
@@ -438,15 +438,15 @@ int hio_sys_ctrlmux (hio_t* hio, hio_sys_mux_cmd_t cmd, hio_dev_t* dev, int dev_
 			i_flag = (dev_cap & HIO_DEV_CAP_IN_WATCHED)? EV_ENABLE: EV_DISABLE;
 			o_flag = (dev_cap & HIO_DEV_CAP_OUT_WATCHED)? EV_ENABLE: EV_DISABLE;
 
-			EV_SET (&chlist[1], hnd, EVFILT_READ, EV_ADD | i_flag, 0, 0, dev); 
+			EV_SET (&chlist[1], hnd, EVFILT_READ, EV_ADD | i_flag, 0, 0, dev);
 			EV_SET (&chlist[0], hnd, EVFILT_WRITE, EV_ADD | o_flag, 0, 0, dev);
 
 			x = kevent(mux->kq, chlist, 2, HIO_NULL, 0, HIO_NULL);
-			if (x >= 0) dev->dev_cap |= HIO_DEV_CAP_WATCH_REREG_REQUIRED; /* ugly hack for the listening sockets in NetBSD */ 
+			if (x >= 0) dev->dev_cap |= HIO_DEV_CAP_WATCH_REREG_REQUIRED; /* ugly hack for the listening sockets in NetBSD */
 
-			/* the CMD_INSERT comes with at MIO_DEV_CAP_IN_WATCHD set. 
+			/* the CMD_INSERT comes with at MIO_DEV_CAP_IN_WATCHD set.
 			 * skip checking to set WATCH_SUSPENDED */
-			
+
 			break;
 		}
 
@@ -456,11 +456,11 @@ int hio_sys_ctrlmux (hio_t* hio, hio_sys_mux_cmd_t cmd, hio_dev_t* dev, int dev_
 			i_flag = (dev_cap & HIO_DEV_CAP_IN_WATCHED)? EV_ENABLE: EV_DISABLE;
 			o_flag = (dev_cap & HIO_DEV_CAP_OUT_WATCHED)? EV_ENABLE: EV_DISABLE;
 
-			EV_SET (&chlist[0], hnd, EVFILT_READ, EV_ADD | i_flag, 0, 0, dev); 
+			EV_SET (&chlist[0], hnd, EVFILT_READ, EV_ADD | i_flag, 0, 0, dev);
 			EV_SET (&chlist[1], hnd, EVFILT_WRITE, EV_ADD | o_flag, 0, 0, dev);
 
 			x = kevent(mux->kq, chlist, 2, HIO_NULL, 0, HIO_NULL);
-			if (x >= 0) 
+			if (x >= 0)
 			{
 				if (i_flag == EV_DISABLE && o_flag == EV_DISABLE)
 					dev->dev_cap &= ~HIO_DEV_CAP_WATCH_SUSPENDED;
@@ -500,13 +500,13 @@ int hio_sys_ctrlmux (hio_t* hio, hio_sys_mux_cmd_t cmd, hio_dev_t* dev, int dev_
 	HIO_ASSERT (hio, hio == dev->hio);
 
 	/* no operation over a broken(closed) handle to prevent multiplexer from failing.
-	 * close of the handle leads to auto-deletion from the epoll multiplexer. 
+	 * close() of the handle leads to auto-deletion from the epoll multiplexer.
 	 * the closed handle must not be fed to the multiplexer */
 	if (dev->dev_mth->issyshndbroken && dev->dev_mth->issyshndbroken(dev)) return 0;
 	hnd = dev->dev_mth->getsyshnd(dev);
 
 	events = 0;
-	if (dev_cap & HIO_DEV_CAP_IN_WATCHED) 
+	if (dev_cap & HIO_DEV_CAP_IN_WATCHED)
 	{
 		events |= EPOLLIN;
 	#if defined(EPOLLRDHUP)
@@ -560,7 +560,7 @@ int hio_sys_ctrlmux (hio_t* hio, hio_sys_mux_cmd_t cmd, hio_dev_t* dev, int dev_
 			break;
 
 		case HIO_SYS_MUX_CMD_DELETE:
-			if (dev->dev_cap & HIO_DEV_CAP_WATCH_SUSPENDED) 
+			if (dev->dev_cap & HIO_DEV_CAP_WATCH_SUSPENDED)
 			{
 				/* clear the SUSPENDED bit because it's a normal deletion */
 				dev->dev_cap &= ~HIO_DEV_CAP_WATCH_SUSPENDED;
@@ -651,7 +651,7 @@ int hio_sys_waitmux (hio_t* hio, const hio_ntime_t* tmout, hio_sys_mux_evtcb_t e
 		int events = 0;
 		hio_dev_t* dev;
 
-		dev = mux->revs[i].udata;	
+		dev = mux->revs[i].udata;
 
 		if (HIO_LIKELY(dev))
 		{
@@ -690,7 +690,7 @@ int hio_sys_waitmux (hio_t* hio, const hio_ntime_t* tmout, hio_sys_mux_evtcb_t e
 	}
 
 	/* TODO: merge events??? for the same descriptor */
-	
+
 	for (i = 0; i < nentries; i++)
 	{
 		int events = 0, rdhup = 0;

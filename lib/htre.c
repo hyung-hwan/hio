@@ -84,7 +84,7 @@ void hio_htre_fini (hio_htre_t* re)
 	hio_htb_fini (&re->trailers);
 	hio_htb_fini (&re->hdrtab);
 
-	if (re->orgqpath.buf) 
+	if (re->orgqpath.buf)
 	{
 		hio_freemem (re->hio, re->orgqpath.buf);
 		re->orgqpath.buf = HIO_NULL;
@@ -96,7 +96,7 @@ void hio_htre_fini (hio_htre_t* re)
 
 void hio_htre_clear (hio_htre_t* re)
 {
-	if (!(re->state & HIO_HTRE_COMPLETED) && 
+	if (!(re->state & HIO_HTRE_COMPLETED) &&
 	    !(re->state & HIO_HTRE_DISCARDED))
 	{
 		if (re->concb)
@@ -119,7 +119,7 @@ void hio_htre_clear (hio_htre_t* re)
 	hio_htb_clear (&re->trailers);
 
 	hio_becs_clear (&re->content);
-#if 0 
+#if 0
 	hio_becs_clear (&re->iniline);
 #endif
 }
@@ -151,7 +151,7 @@ struct header_walker_ctx_t
 static hio_htb_walk_t walk_headers (hio_htb_t* htb, hio_htb_pair_t* pair, void* ctx)
 {
 	struct header_walker_ctx_t* hwctx = (struct header_walker_ctx_t*)ctx;
-	if (hwctx->walker (hwctx->re, HIO_HTB_KPTR(pair), HIO_HTB_VPTR(pair), hwctx->ctx) <= -1) 
+	if (hwctx->walker (hwctx->re, HIO_HTB_KPTR(pair), HIO_HTB_VPTR(pair), hwctx->ctx) <= -1)
 	{
 		hwctx->ret = -1;
 		return HIO_HTB_WALK_STOP;
@@ -187,7 +187,7 @@ int hio_htre_addcontent (hio_htre_t* re, const hio_bch_t* ptr, hio_oow_t len)
 
 	if (re->state & (HIO_HTRE_COMPLETED | HIO_HTRE_DISCARDED)) return 0; /* skipped */
 
-	if (re->concb) 
+	if (re->concb)
 	{
 		/* if the callback is set, the content goes to the callback. */
 		if (re->concb(re, ptr, len, re->concb_ctx) <= -1) return -1;
@@ -205,14 +205,14 @@ void hio_htre_completecontent (hio_htre_t* re)
 {
 	/* see comments in hio_htre_discardcontent() */
 
-	if (!(re->state & HIO_HTRE_COMPLETED) && 
+	if (!(re->state & HIO_HTRE_COMPLETED) &&
 	    !(re->state & HIO_HTRE_DISCARDED))
 	{
 		re->state |= HIO_HTRE_COMPLETED;
 		if (re->concb)
 		{
 			/* indicate end of content */
-			re->concb (re, HIO_NULL, 0, re->concb_ctx); 
+			re->concb (re, HIO_NULL, 0, re->concb_ctx);
 		}
 	}
 }
@@ -220,7 +220,7 @@ void hio_htre_completecontent (hio_htre_t* re)
 void hio_htre_discardcontent (hio_htre_t* re)
 {
 	/* you can't discard this if it's completed.
-	 * you can't complete this if it's discarded 
+	 * you can't complete this if it's discarded
 	 * you can't add contents to this if it's completed or discarded
 	 */
 
@@ -233,8 +233,8 @@ void hio_htre_discardcontent (hio_htre_t* re)
 		 * hio_htre_discardcontent()... <-- POINT A.
 		 *
 		 * at point A, the content must contain something
-		 * and concb is also set. for simplicity, 
-		 * clear the content buffer and invoke the callback 
+		 * and concb is also set. for simplicity,
+		 * clear the content buffer and invoke the callback
 		 *
 		 * likewise, you may produce many weird combinations
 		 * of these functions. however, these functions are
@@ -245,7 +245,7 @@ void hio_htre_discardcontent (hio_htre_t* re)
 		if (re->concb)
 		{
 			/* indicate end of content */
-			re->concb (re, HIO_NULL, 0, re->concb_ctx); 
+			re->concb (re, HIO_NULL, 0, re->concb_ctx);
 		}
 	}
 }
@@ -307,9 +307,9 @@ int hio_htre_perdecqpath (hio_htre_t* re)
 	}
 
 	re->u.q.path.len = hio_perdec_http_bcstr(re->u.q.path.ptr, re->u.q.path.ptr, &dec_count);
-	if (dec_count > 0) 
+	if (dec_count > 0)
 	{
-		/* this assertion is to ensure that hio_is_perenced_http_bstr() 
+		/* this assertion is to ensure that hio_is_perenced_http_bstr()
 		 * returned true when dec_count is greater than 0 */
 		HIO_ASSERT (re->hio, re->orgqpath.buf != HIO_NULL);
 		HIO_ASSERT (re->hio, re->orgqpath.ptr != HIO_NULL);
@@ -325,7 +325,7 @@ int hio_htre_getreqcontentlen (hio_htre_t* req, hio_oow_t* len)
 
 	if (req->flags & HIO_HTRE_ATTR_CHUNKED)
 	{
-		/* "Transfer-Encoding: chunked" take precedence over "Content-Length: XXX". 
+		/* "Transfer-Encoding: chunked" take precedence over "Content-Length: XXX".
 		 *
 		 * [RFC7230]
 		 *  If a message is received with both a Transfer-Encoding and a

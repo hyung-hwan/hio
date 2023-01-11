@@ -848,7 +848,7 @@ static int print_qparam (hio_bcs_t* key, hio_bcs_t* val, void* ctx)
 	return 0;
 }
 
-static void on_htts_thr_request (hio_t* hio, hio_dev_thr_iopair_t* iop, hio_svc_htts_thr_func_info_t* tfi, void* ctx)
+static void on_htts_thr_request (hio_svc_htts_t* hio, hio_dev_thr_iopair_t* iop, hio_svc_htts_thr_func_info_t* tfi, void* ctx)
 {
 	FILE* fp;
 	int i;

@@ -27,7 +27,7 @@
 
 #include <hio.h>
 
-/** 
+/**
  * The hio_json_t type defines a simple json parser.
  */
 typedef struct hio_json_t hio_json_t;
@@ -91,15 +91,15 @@ struct hio_json_state_node_t
 
 		struct
 		{
-			/* 0: ready to get key (at the beginning or got comma), 
+			/* 0: ready to get key (at the beginning or got comma),
 			 * 1: got key, 2: got colon, 3: got value */
-			int state; 
+			int state;
 		} io; /* in object */
 		struct
 		{
 			int escaped;
 			int digit_count;
-			/* acc is always of unicode type to handle \u and \U. 
+			/* acc is always of unicode type to handle \u and \U.
 			 * in the bch mode, it will get converted to a utf8 stream. */
 			hio_uch_t acc;
 		} sv;
@@ -109,7 +109,7 @@ struct hio_json_state_node_t
 			int digit_count;
 			/* for a character, no way to support the unicode character
 			 * in the bch mode */
-			hio_ooch_t acc; 
+			hio_ooch_t acc;
 		} cv;
 		struct
 		{
@@ -122,7 +122,7 @@ struct hio_json_state_node_t
 enum hio_json_option_t
 {
 	/* allow an unquoted word as an object key */
-	HIO_JSON_PERMIT_WORD_KEY  = ((hio_bitmask_t)1 << 0), 
+	HIO_JSON_PERMIT_WORD_KEY  = ((hio_bitmask_t)1 << 0),
 
 	/* a comma as a separator is not mandatory */
 	HIO_JSON_OPTIONAL_COMMA   = ((hio_bitmask_t)1 << 1),
@@ -259,14 +259,14 @@ HIO_EXPORT void hio_json_resetfeedloc (
  * The hio_json_feed() function processes the raw data.
  *
  * If stop_if_ever_complted is 0, it returns 0 on success. If the value pointed to by
- * rem is greater 0 after the call, processing is not complete and more feeding is 
+ * rem is greater 0 after the call, processing is not complete and more feeding is
  * required. Incomplete feeding may be caused by incomplete byte sequences or incomplete
  * json object.
  *
  * If stop_if_ever_completed is non-zero, it returns 0 upon incomplet byte sequence or
  * incomplete json object. It returns 1 if it sees the first complete json object. It stores
  * the size of remaning raw data in the memory pointed to by rem.
- * 
+ *
  * The function returns -1 upon failure.
  */
 HIO_EXPORT int hio_json_feed (

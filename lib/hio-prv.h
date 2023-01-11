@@ -97,7 +97,7 @@
 #endif
 
 
-/* i don't want an error raised inside the callback to override 
+/* i don't want an error raised inside the callback to override
  * the existing error number and message. */
 #define HIO_SYS_WRITE_LOG(hio,mask,ptr,len) do { \
 		int __shuterr = (hio)->_shuterr; \
@@ -132,8 +132,8 @@ void hio_firetmrjobs (
 
 
 /**
- * The hio_gettmrtmout() function gets the remaining time until the first 
- * scheduled job is to be triggered. It stores in \a tmout the difference between 
+ * The hio_gettmrtmout() function gets the remaining time until the first
+ * scheduled job is to be triggered. It stores in \a tmout the difference between
  * the given time \a tm and the scheduled time and returns 1. If there is no
  * job scheduled, it returns 0.
  */
@@ -156,7 +156,7 @@ void hio_sys_fini (
 );
 
 void hio_sys_assertfail (
-	hio_t*           hio, 
+	hio_t*           hio,
 	const hio_bch_t* expr,
 	const hio_bch_t* file,
 	hio_oow_t        line

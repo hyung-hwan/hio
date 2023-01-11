@@ -175,7 +175,7 @@ typedef int (*hio_log_writer_t) (
 	hio_bitmask_t          mask,
 	const hio_bch_t*       dptr,
 	hio_oow_t              dlen
-);	
+);
 
 /* ========================================================================= */
 
@@ -187,7 +187,7 @@ typedef struct hio_tmrjob_t hio_tmrjob_t;
 
 typedef void (*hio_tmrjob_handler_t) (
 	hio_t*             hio,
-	const hio_ntime_t* now, 
+	const hio_ntime_t* now,
 	hio_tmrjob_t*      tmrjob
 );
 
@@ -205,22 +205,22 @@ struct hio_dev_mth_t
 {
 	/* ------------------------------------------------------------------ */
 	/* mandatory. called in hio_dev_make() */
-	int           (*make)         (hio_dev_t* dev, void* ctx); 
+	int           (*make)         (hio_dev_t* dev, void* ctx);
 
 	/* ------------------------------------------------------------------ */
 	/* mandatory. called in hio_dev_kill(). also called in hio_dev_make() upon
 	 * failure after make() success.
-	 * 
+	 *
 	 * when 'force' is 0, the return value of -1 causes the device to be a
 	 * zombie. the kill method is called periodically on a zombie device
 	 * until the method returns 0.
 	 *
 	 * when 'force' is 1, the called should not return -1. If it does, the
 	 * method is called once more only with the 'force' value of 2.
-	 * 
+	 *
 	 * when 'force' is 2, the device is destroyed regardless of the return value.
 	 */
-	int           (*kill)         (hio_dev_t* dev, int force); 
+	int           (*kill)         (hio_dev_t* dev, int force);
 
 	/* optional. called if hio_dev_make() fails before the make() method is called */
 	void          (*fail_before_make)     (void* ctx);
@@ -256,7 +256,7 @@ struct hio_dev_evcb_t
 	 * when 1 is returned, the main loop attempts to read more data without*/
 	int           (*on_read)      (hio_dev_t* dev, const void* data, hio_iolen_t len, const hio_devaddr_t* srcaddr);
 
-	/* return -1 on failure, 0 on success. 
+	/* return -1 on failure, 0 on success.
 	 * wrlen is the length of data written. it is the length of the originally
 	 * posted writing request for a stream device. For a non stream device, it
 	 * may be shorter than the originally posted length. */
@@ -318,7 +318,7 @@ struct hio_cwq_t
 	hio_cwq_t*    q_next;
 	hio_cwq_t*    q_prev;
 
-	hio_iolen_t   olen; 
+	hio_iolen_t   olen;
 	void*         ctx;
 	hio_dev_t*    dev;
 	hio_devaddr_t dstaddr;
@@ -382,7 +382,7 @@ struct hio_wq_t
 	hio_wq_t        wq; \
 	hio_oow_t       cw_count; \
 	hio_dev_t*      dev_prev; \
-	hio_dev_t*      dev_next 
+	hio_dev_t*      dev_next
 
 struct hio_dev_t
 {
@@ -431,7 +431,7 @@ enum hio_dev_cap_t
 	HIO_DEV_CAP_ALL_MASK        = (HIO_DEV_CAP_VIRTUAL | HIO_DEV_CAP_IN | HIO_DEV_CAP_OUT | HIO_DEV_CAP_PRI | HIO_DEV_CAP_STREAM | HIO_DEV_CAP_IN_DISABLED | HIO_DEV_CAP_OUT_UNQUEUEABLE),
 
 	/* -------------------------------------------------------------------
-	 * the followings bits are for internal use only. 
+	 * the followings bits are for internal use only.
 	 * never set these bits to the dev_cap field.
 	 * ------------------------------------------------------------------- */
 	HIO_DEV_CAP_IN_CLOSED       = ((hio_bitmask_t)1 << 10),
@@ -523,7 +523,7 @@ struct hio_cfmb_t
 #define HIO_CFMBL_PREV_CFMB(cfmb) ((cfmb)->cfmb_prev)
 #define HIO_CFMBL_NEXT_CFMB(cfmb) ((cfmb)->cfmb_next)
 /* =========================================================================
- * SERVICE 
+ * SERVICE
  * ========================================================================= */
 
 typedef void (*hio_svc_stop_t) (hio_svc_t* svc);
@@ -532,12 +532,12 @@ typedef void (*hio_svc_stop_t) (hio_svc_t* svc);
 	hio_t*          hio; \
 	hio_svc_stop_t  svc_stop; \
 	hio_svc_t*      svc_prev; \
-	hio_svc_t*      svc_next 
+	hio_svc_t*      svc_next
 
-/* the stop callback is called if it's not NULL and the service is still 
+/* the stop callback is called if it's not NULL and the service is still
  * alive when hio_close() is reached. it still calls HIO_SVCL_UNLINK_SVC()
  * if the stop callback is NULL. The stop callback, if specified, must
- * call HIO_SVCL_UNLINK_SVC(). */ 
+ * call HIO_SVCL_UNLINK_SVC(). */
 
 struct hio_svc_t
 {
@@ -833,7 +833,7 @@ static HIO_INLINE hio_errnum_t hio_geterrnum (hio_t* hio) { return hio->errnum; 
 #endif
 
 HIO_EXPORT void hio_seterrnum (
-	hio_t*       hio, 
+	hio_t*       hio,
 	hio_errnum_t errnum
 );
 
@@ -985,14 +985,14 @@ HIO_EXPORT int hio_dev_timedread (
 );
 
 /**
- * The hio_dev_write() function posts a writing request. 
+ * The hio_dev_write() function posts a writing request.
  * It attempts to write data immediately if there is no pending requests.
  * If writing fails, it returns -1. If writing succeeds, it calls the
- * on_write callback. If the callback fails, it returns -1. If the callback 
+ * on_write callback. If the callback fails, it returns -1. If the callback
  * succeeds, it returns 1. If no immediate writing is possible, the request
  * is enqueued to a pending request list. If enqueing gets successful,
  * it returns 0. otherwise it returns -1.
- */ 
+ */
 HIO_EXPORT int hio_dev_write (
 	hio_dev_t*            dev,
 	const void*           data,
@@ -1045,7 +1045,7 @@ HIO_EXPORT int hio_dev_timedsendfile (
 	void*                 wrctx
 );
 /* =========================================================================
- * SERVICE 
+ * SERVICE
  * ========================================================================= */
 
 #if defined(HIO_HAVE_INLINE)
@@ -1190,7 +1190,7 @@ HIO_EXPORT int hio_convutobchars (
 );
 
 /**
- * The hio_convbtoucstr() function converts a null-terminated byte string 
+ * The hio_convbtoucstr() function converts a null-terminated byte string
  * to a wide string.
  */
 HIO_EXPORT int hio_convbtoucstr (
@@ -1422,7 +1422,7 @@ HIO_EXPORT hio_ooi_t hio_logufmtv (
 	const hio_uch_t*  fmt,
 	va_list           ap
 );
- 
+
 #if defined(HIO_OOCH_IS_UCH)
 #	define hio_logoofmt hio_logufmt
 #	define hio_logoofmtv hio_logufmtv

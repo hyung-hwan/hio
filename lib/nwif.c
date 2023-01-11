@@ -57,8 +57,8 @@ static int get_sco_ifconf (hio_t* hio, struct ifconf* ifc)
 	int h, num;
 	struct ifreq* ifr;
 
-	h = socket(AF_INET, SOCK_DGRAM, 0); 
-	if (h <= -1) 
+	h = socket(AF_INET, SOCK_DGRAM, 0);
+	if (h <= -1)
 	{
 		hio_seterrwithsyserr (hio, 0, errno);
 		return -1;
@@ -83,7 +83,7 @@ static int get_sco_ifconf (hio_t* hio, struct ifconf* ifc)
 
 	/* sco needs reboot when you add an network interface.
 	 * it should be safe not to consider the case when the interface
-	 * is added after SIOCGIFANUM above. 
+	 * is added after SIOCGIFANUM above.
 	 * another thing to note is that SIOCGIFCONF ends with segfault
 	 * if the buffer is not large enough unlike some other OSes
 	 * like opensolaris which truncates the configuration. */
@@ -92,7 +92,7 @@ static int get_sco_ifconf (hio_t* hio, struct ifconf* ifc)
 	ifc->ifc_buf = hio_allocmem(hio, ifc->ifc_len);
 	if (ifc->ifc_buf == HIO_NULL) goto oops;
 
-	if (ioctl(h, SIOCGIFCONF, ifc) <= -1) 
+	if (ioctl(h, SIOCGIFCONF, ifc) <= -1)
 	{
 		hio_seterrwithsyserr (hio, 0, errno);
 		goto oops;
@@ -134,7 +134,7 @@ int hio_bcstrtoifindex (hio_t* hio, const hio_bch_t* ptr, unsigned int* index)
 	hio_oow_t len;
 	struct ifreq ifr;
 
-	h = socket(AF_INET, SOCK_DGRAM, 0); 
+	h = socket(AF_INET, SOCK_DGRAM, 0);
 	if (h <= -1)
 	{
 		hio_seterrwithsyserr (hio, 0, errno);
@@ -186,7 +186,7 @@ int hio_bcstrtoifindex (hio_t* hio, const hio_bch_t* ptr, unsigned int* index)
 	num = ifc.ifc_len / HIO_SIZEOF(struct ifreq);
 	for (i = 0; i < num; i++)
 	{
-		if (hio_comp_bcstr(ptr, ifc.ifc_req[i].ifr_name, 0) == 0) 
+		if (hio_comp_bcstr(ptr, ifc.ifc_req[i].ifr_name, 0) == 0)
 		{
 			free_sco_ifconf (hio, &ifc);
 			*index = i + 1;
@@ -221,8 +221,8 @@ int hio_bcharstoifindex (hio_t* hio, const hio_bch_t* ptr, hio_oow_t len, unsign
 	int h, x;
 	struct ifreq ifr;
 
-	h = socket(AF_INET, SOCK_DGRAM, 0); 
-	if (h <= -1) 
+	h = socket(AF_INET, SOCK_DGRAM, 0);
+	if (h <= -1)
 	{
 		hio_seterrwithsyserr (hio, 0, errno);
 		return -1;
@@ -269,7 +269,7 @@ int hio_bcharstoifindex (hio_t* hio, const hio_bch_t* ptr, hio_oow_t len, unsign
 	num = ifc.ifc_len / HIO_SIZEOF(struct ifreq);
 	for (i = 0; i < num; i++)
 	{
-		if (hio_comp_bchars_bcstr(ptr, len, ifc.ifc_req[i].ifr_name) == 0) 
+		if (hio_comp_bchars_bcstr(ptr, len, ifc.ifc_req[i].ifr_name) == 0)
 		{
 			free_sco_ifconf (hio, &ifc);
 			*index = i + 1;
@@ -305,8 +305,8 @@ int hio_ucstrtoifindex (hio_t* hio, const hio_uch_t* ptr, unsigned int* index)
 	struct ifreq ifr;
 	hio_oow_t wl, ml;
 
-	h = socket(AF_INET, SOCK_DGRAM, 0); 
-	if (h <= -1) 
+	h = socket(AF_INET, SOCK_DGRAM, 0);
+	if (h <= -1)
 	{
 		hio_seterrwithsyserr (hio, 0, errno);
 		return -1;
@@ -338,7 +338,7 @@ int hio_ucstrtoifindex (hio_t* hio, const hio_uch_t* ptr, unsigned int* index)
 	if (hio_convutobcstr(hio, ptr, &wl, tmp, &ml) <= -1) return -1;
 
 	tmpidx = if_nametoindex(tmp);
-	if (tmpidx == 0) 
+	if (tmpidx == 0)
 	{
 		hio_seterrwithsyserr (hio, 0, errno);
 		return -1;
@@ -361,7 +361,7 @@ int hio_ucstrtoifindex (hio_t* hio, const hio_uch_t* ptr, unsigned int* index)
 	num = ifc.ifc_len / HIO_SIZEOF(struct ifreq);
 	for (i = 0; i < num; i++)
 	{
-		if (hio_comp_bcstr(tmp, ifc.ifc_req[i].ifr_name, 0) == 0) 
+		if (hio_comp_bcstr(tmp, ifc.ifc_req[i].ifr_name, 0) == 0)
 		{
 			free_sco_ifconf (hio, &ifc);
 			*index = i + 1;
@@ -397,8 +397,8 @@ int hio_ucharstoifindex (hio_t* hio, const hio_uch_t* ptr, hio_oow_t len, unsign
 	struct ifreq ifr;
 	hio_oow_t wl, ml;
 
-	h = socket(AF_INET, SOCK_DGRAM, 0); 
-	if (h <= -1) 
+	h = socket(AF_INET, SOCK_DGRAM, 0);
+	if (h <= -1)
 	{
 		hio_seterrwithsyserr (hio, 0, errno);
 		return -1;
@@ -432,7 +432,7 @@ int hio_ucharstoifindex (hio_t* hio, const hio_uch_t* ptr, hio_oow_t len, unsign
 	tmp[ml] = '\0';
 
 	tmpidx = if_nametoindex(tmp);
-	if (tmpidx == 0) 
+	if (tmpidx == 0)
 	{
 		hio_seterrwithsyserr (hio, 0, errno);
 		return -1;
@@ -455,7 +455,7 @@ int hio_ucharstoifindex (hio_t* hio, const hio_uch_t* ptr, hio_oow_t len, unsign
 	num = ifc.ifc_len / HIO_SIZEOF(struct ifreq);
 	for (i = 0; i < num; i++)
 	{
-		if (hio_comp_bcstr(tmp, ifc.ifc_req[i].ifr_name, 0) == 0) 
+		if (hio_comp_bcstr(tmp, ifc.ifc_req[i].ifr_name, 0) == 0)
 		{
 			free_sco_ifconf (hio, &ifc);
 			*index = i + 1;
@@ -492,8 +492,8 @@ int hio_ifindextobcstr (hio_t* hio, unsigned int index, hio_bch_t* buf, hio_oow_
 	int h, x;
 	struct ifreq ifr;
 
-	h = socket(AF_INET, SOCK_DGRAM, 0); 
-	if (h <= -1) 
+	h = socket(AF_INET, SOCK_DGRAM, 0);
+	if (h <= -1)
 	{
 		hio_seterrwithsyserr (hio, 0, errno);
 		return -1;
@@ -505,7 +505,7 @@ int hio_ifindextobcstr (hio_t* hio, unsigned int index, hio_bch_t* buf, hio_oow_
 	#else
 	ifr.ifr_index = index;
 	#endif
-	
+
 	x = ioctl(h, SIOCGIFNAME, &ifr);
 	close (h);
 
@@ -519,7 +519,7 @@ int hio_ifindextobcstr (hio_t* hio, unsigned int index, hio_bch_t* buf, hio_oow_
 
 #elif defined(HAVE_IF_INDEXTONAME)
 	hio_bch_t tmp[IF_NAMESIZE + 1];
-	if (if_indextoname (index, tmp) == HIO_NULL) 
+	if (if_indextoname (index, tmp) == HIO_NULL)
 	{
 		hio_seterrwithsyserr (hio, 0, errno);
 		return -1;
@@ -536,7 +536,7 @@ int hio_ifindextobcstr (hio_t* hio, unsigned int index, hio_bch_t* buf, hio_oow_
 	if (get_sco_ifconf(hio, &ifc) <= -1) return -1;
 
 	num = ifc.ifc_len / HIO_SIZEOF(struct ifreq);
-	if (index > num) 
+	if (index > num)
 	{
 		hio_seterrnum (hio, HIO_ENOENT);
 		free_sco_ifconf (hio, &ifc);
@@ -573,7 +573,7 @@ int hio_ifindextoucstr (hio_t* hio, unsigned int index, hio_uch_t* buf, hio_oow_
 	struct ifreq ifr;
 	hio_oow_t wl, ml;
 
-	h = socket(AF_INET, SOCK_DGRAM, 0); 
+	h = socket(AF_INET, SOCK_DGRAM, 0);
 	if (h <= -1)
 	{
 		hio_seterrwithsyserr (hio, 0, errno);
@@ -607,7 +607,7 @@ int hio_ifindextoucstr (hio_t* hio, unsigned int index, hio_uch_t* buf, hio_oow_
 	hio_oow_t ml, wl;
 	int x;
 
-	if (if_indextoname(index, tmp) == HIO_NULL) 
+	if (if_indextoname(index, tmp) == HIO_NULL)
 	{
 		hio_seterrwithsyserr (hio, 0, errno);
 		return -1;
@@ -628,7 +628,7 @@ int hio_ifindextoucstr (hio_t* hio, unsigned int index, hio_uch_t* buf, hio_oow_
 	if (get_sco_ifconf(hio, &ifc) <= -1) return -1;
 
 	num = ifc.ifc_len / HIO_SIZEOF(struct ifreq);
-	if (index > num) 
+	if (index > num)
 	{
 		free_sco_ifconf (hio, &ifc);
 		return -1;

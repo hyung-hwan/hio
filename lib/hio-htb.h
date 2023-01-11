@@ -28,7 +28,7 @@
 #include <hio.h>
 
 /**@file
- * This file provides a hash table encapsulated in the #hio_htb_t type that 
+ * This file provides a hash table encapsulated in the #hio_htb_t type that
  * maintains buckets for key/value pairs with the same key hash chained under
  * the same bucket. Its interface is very close to #hio_rbt_t.
  *
@@ -36,31 +36,31 @@
  * in the randome order.
  * @code
  * #include <hio-htb.h>
- * 
+ *
  * static hio_htb_walk_t walk (hio_htb_t* htb, hio_htb_pair_t* pair, void* ctx)
  * {
  *   hio_printf (HIO_T("key = %d, value = %d\n"),
  *     *(int*)HIO_HTB_KPTR(pair), *(int*)HIO_HTB_VPTR(pair));
  *   return HIO_HTB_WALK_FORWARD;
  * }
- * 
+ *
  * int main ()
  * {
  *   hio_htb_t* s1;
  *   int i;
- * 
+ *
  *   hio_open_stdsios ();
  *   s1 = hio_htb_open (HIO_MMGR_GETDFL(), 0, 30, 75, 1, 1); // error handling skipped
  *   hio_htb_setstyle (s1, hio_get_htb_style(HIO_HTB_STYLE_INLINE_COPIERS));
- * 
+ *
  *   for (i = 0; i < 20; i++)
  *   {
  *     int x = i * 20;
  *     hio_htb_insert (s1, &i, HIO_SIZEOF(i), &x, HIO_SIZEOF(x)); // eror handling skipped
  *   }
- * 
+ *
  *   hio_htb_walk (s1, walk, HIO_NULL);
- * 
+ *
  *   hio_htb_close (s1);
  *   hio_close_stdsios ();
  *   return 0;
@@ -71,7 +71,7 @@
 typedef struct hio_htb_t hio_htb_t;
 typedef struct hio_htb_pair_t hio_htb_pair_t;
 
-/** 
+/**
  * The hio_htb_walk_t type defines values that the callback function can
  * return to control hio_htb_walk().
  */
@@ -101,7 +101,7 @@ typedef enum hio_htb_id_t hio_htb_id_t;
  */
 typedef void* (*hio_htb_copier_t) (
 	hio_htb_t* htb  /* hash table */,
-	void*      dptr /* pointer to a key or a value */, 
+	void*      dptr /* pointer to a key or a value */,
 	hio_oow_t dlen /* length of a key or a value */
 );
 
@@ -124,17 +124,17 @@ typedef void (*hio_htb_freeer_t) (
  * integer otherwise.
  */
 typedef int (*hio_htb_comper_t) (
-	const hio_htb_t* htb,    /**< hash table */ 
+	const hio_htb_t* htb,    /**< hash table */
 	const void*      kptr1,  /**< key pointer */
-	hio_oow_t       klen1,  /**< key length */ 
-	const void*      kptr2,  /**< key pointer */ 
+	hio_oow_t       klen1,  /**< key length */
+	const void*      kptr2,  /**< key pointer */
 	hio_oow_t       klen2   /**< key length */
 );
 
 /**
- * The hio_htb_keeper_t type defines a value keeper that is called when 
+ * The hio_htb_keeper_t type defines a value keeper that is called when
  * a value is retained in the context that it should be destroyed because
- * it is identical to a new value. Two values are identical if their 
+ * it is identical to a new value. Two values are identical if their
  * pointers and lengths are equal.
  */
 typedef void (*hio_htb_keeper_t) (
@@ -145,7 +145,7 @@ typedef void (*hio_htb_keeper_t) (
 
 /**
  * The hio_htb_sizer_t type defines a bucket size claculator that is called
- * when hash table should resize the bucket. The current bucket size + 1 is 
+ * when hash table should resize the bucket. The current bucket size + 1 is
  * passed as the hint.
  */
 typedef hio_oow_t (*hio_htb_sizer_t) (
@@ -173,12 +173,12 @@ typedef hio_htb_walk_t (*hio_htb_walker_t) (
 
 /**
  * The hio_htb_cbserter_t type defines a callback function for hio_htb_cbsert().
- * The hio_htb_cbserter() function calls it to allocate a new pair for the 
+ * The hio_htb_cbserter() function calls it to allocate a new pair for the
  * key pointed to by @a kptr of the length @a klen and the callback context
  * @a ctx. The second parameter @a pair is passed the pointer to the existing
  * pair for the key or #HIO_NULL in case of no existing key. The callback
  * must return a pointer to a new or a reallocated pair. When reallocating the
- * existing pair, this callback must destroy the existing pair and return the 
+ * existing pair, this callback must destroy the existing pair and return the
  * newly reallocated pair. It must return #HIO_NULL for failure.
  */
 typedef hio_htb_pair_t* (*hio_htb_cbserter_t) (
@@ -193,8 +193,8 @@ typedef hio_htb_pair_t* (*hio_htb_cbserter_t) (
 /**
  * The hio_htb_pair_t type defines hash table pair. A pair is composed of a key
  * and a value. It maintains pointers to the beginning of a key and a value
- * plus their length. The length is scaled down with the scale factor 
- * specified in an owning hash table. 
+ * plus their length. The length is scaled down with the scale factor
+ * specified in an owning hash table.
  */
 struct hio_htb_pair_t
 {
@@ -202,7 +202,7 @@ struct hio_htb_pair_t
 	hio_ptl_t val;
 
 	/* management information below */
-	hio_htb_pair_t* next; 
+	hio_htb_pair_t* next;
 };
 
 typedef struct hio_htb_style_t hio_htb_style_t;
@@ -319,15 +319,15 @@ HIO_EXPORT const hio_htb_style_t* hio_get_htb_style (
 );
 
 /**
- * The hio_htb_open() function creates a hash table with a dynamic array 
+ * The hio_htb_open() function creates a hash table with a dynamic array
  * bucket and a list of values chained. The initial capacity should be larger
  * than 0. The load factor should be between 0 and 100 inclusive and the load
  * factor of 0 disables bucket resizing. If you need extra space associated
  * with hash table, you may pass a non-zero value for @a xtnsize.
- * The HIO_HTB_XTN() macro and the hio_htb_getxtn() function return the 
+ * The HIO_HTB_XTN() macro and the hio_htb_getxtn() function return the
  * pointer to the beginning of the extension.
- * The @a kscale and @a vscale parameters specify the unit of the key and 
- * value size. 
+ * The @a kscale and @a vscale parameters specify the unit of the key and
+ * value size.
  * @return #hio_htb_t pointer on success, #HIO_NULL on failure.
  */
 HIO_EXPORT hio_htb_t* hio_htb_open (
@@ -380,7 +380,7 @@ HIO_EXPORT const hio_htb_style_t* hio_htb_getstyle (
 );
 
 /**
- * The hio_htb_setstyle() function sets internal manipulation callback 
+ * The hio_htb_setstyle() function sets internal manipulation callback
  * functions for data construction, destruction, resizing, hashing, etc.
  * The callback structure pointed to by \a style must outlive the hash
  * table pointed to by \a htb as the hash table doesn't copy the contents
@@ -399,7 +399,7 @@ HIO_EXPORT hio_oow_t hio_htb_getsize (
 );
 
 /**
- * The hio_htb_getcapa() function gets the number of slots allocated 
+ * The hio_htb_getcapa() function gets the number of slots allocated
  * in a hash bucket.
  */
 HIO_EXPORT hio_oow_t hio_htb_getcapa (
@@ -407,10 +407,10 @@ HIO_EXPORT hio_oow_t hio_htb_getcapa (
 );
 
 /**
- * The hio_htb_search() function searches a hash table to find a pair with a 
+ * The hio_htb_search() function searches a hash table to find a pair with a
  * matching key. It returns the pointer to the pair found. If it fails
  * to find one, it returns HIO_NULL.
- * @return pointer to the pair with a maching key, 
+ * @return pointer to the pair with a maching key,
  *         or #HIO_NULL if no match is found.
  */
 HIO_EXPORT hio_htb_pair_t* hio_htb_search (
@@ -420,12 +420,12 @@ HIO_EXPORT hio_htb_pair_t* hio_htb_search (
 );
 
 /**
- * The hio_htb_upsert() function searches a hash table for the pair with a 
+ * The hio_htb_upsert() function searches a hash table for the pair with a
  * matching key. If one is found, it updates the pair. Otherwise, it inserts
- * a new pair with the key and value given. It returns the pointer to the 
+ * a new pair with the key and value given. It returns the pointer to the
  * pair updated or inserted.
- * @return pointer to the updated or inserted pair on success, 
- *         #HIO_NULL on failure. 
+ * @return pointer to the updated or inserted pair on success,
+ *         #HIO_NULL on failure.
  */
 HIO_EXPORT hio_htb_pair_t* hio_htb_upsert (
 	hio_htb_t* htb,   /**< hash table */
@@ -437,9 +437,9 @@ HIO_EXPORT hio_htb_pair_t* hio_htb_upsert (
 
 /**
  * The hio_htb_ensert() function inserts a new pair with the key and the value
- * given. If there exists a pair with the key given, the function returns 
+ * given. If there exists a pair with the key given, the function returns
  * the pair containing the key.
- * @return pointer to a pair on success, #HIO_NULL on failure. 
+ * @return pointer to a pair on success, #HIO_NULL on failure.
  */
 HIO_EXPORT hio_htb_pair_t* hio_htb_ensert (
 	hio_htb_t* htb,   /**< hash table */
@@ -451,9 +451,9 @@ HIO_EXPORT hio_htb_pair_t* hio_htb_ensert (
 
 /**
  * The hio_htb_insert() function inserts a new pair with the key and the value
- * given. If there exists a pair with the key given, the function returns 
+ * given. If there exists a pair with the key given, the function returns
  * #HIO_NULL without channging the value.
- * @return pointer to the pair created on success, #HIO_NULL on failure. 
+ * @return pointer to the pair created on success, #HIO_NULL on failure.
  */
 HIO_EXPORT hio_htb_pair_t* hio_htb_insert (
 	hio_htb_t* htb,   /**< hash table */
@@ -477,7 +477,7 @@ HIO_EXPORT hio_htb_pair_t* hio_htb_update (
 );
 
 /**
- * The hio_htb_cbsert() function inserts a key/value pair by delegating pair 
+ * The hio_htb_cbsert() function inserts a key/value pair by delegating pair
  * allocation to a callback function. Depending on the callback function,
  * it may behave like hio_htb_insert(), hio_htb_upsert(), hio_htb_update(),
  * hio_htb_ensert(), or totally differently. The sample code below inserts
@@ -494,7 +494,7 @@ HIO_EXPORT hio_htb_pair_t* hio_htb_update (
  *     HIO_HTB_VLEN(pair), HIO_HTB_VPTR(pair), (int)HIO_HTB_VLEN(pair));
  *   return HIO_HTB_WALK_FORWARD;
  * }
- * 
+ *
  * hio_htb_pair_t* cbserter (
  *   hio_htb_t* htb, hio_htb_pair_t* pair,
  *   void* kptr, hio_oow_t klen, void* ctx)
@@ -502,54 +502,54 @@ HIO_EXPORT hio_htb_pair_t* hio_htb_update (
  *   hio_cstr_t* v = (hio_cstr_t*)ctx;
  *   if (pair == HIO_NULL)
  *   {
- *     // no existing key for the key 
+ *     // no existing key for the key
  *     return hio_htb_allocpair (htb, kptr, klen, v->ptr, v->len);
  *   }
  *   else
  *   {
- *     // a pair with the key exists. 
- *     // in this sample, i will append the new value to the old value 
+ *     // a pair with the key exists.
+ *     // in this sample, i will append the new value to the old value
  *     // separated by a comma
  *     hio_htb_pair_t* new_pair;
  *     hio_ooch_t comma = HIO_T(',');
  *     hio_uint8_t* vptr;
- * 
- *     // allocate a new pair, but without filling the actual value. 
- *     // note vptr is given HIO_NULL for that purpose 
+ *
+ *     // allocate a new pair, but without filling the actual value.
+ *     // note vptr is given HIO_NULL for that purpose
  *     new_pair = hio_htb_allocpair (
- *       htb, kptr, klen, HIO_NULL, HIO_HTB_VLEN(pair) + 1 + v->len); 
+ *       htb, kptr, klen, HIO_NULL, HIO_HTB_VLEN(pair) + 1 + v->len);
  *     if (new_pair == HIO_NULL) return HIO_NULL;
- * 
- *     // fill in the value space 
+ *
+ *     // fill in the value space
  *     vptr = HIO_HTB_VPTR(new_pair);
  *     hio_memcpy (vptr, HIO_HTB_VPTR(pair), HIO_HTB_VLEN(pair)*HIO_SIZEOF(hio_ooch_t));
  *     vptr += HIO_HTB_VLEN(pair)*HIO_SIZEOF(hio_ooch_t);
  *     hio_memcpy (vptr, &comma, HIO_SIZEOF(hio_ooch_t));
  *     vptr += HIO_SIZEOF(hio_ooch_t);
  *     hio_memcpy (vptr, v->ptr, v->len*HIO_SIZEOF(hio_ooch_t));
- * 
- *     // this callback requires the old pair to be destroyed 
+ *
+ *     // this callback requires the old pair to be destroyed
  *     hio_htb_freepair (htb, pair);
- * 
- *     // return the new pair 
+ *
+ *     // return the new pair
  *     return new_pair;
  *   }
  * }
- * 
+ *
  * int main ()
  * {
  *   hio_htb_t* s1;
  *   int i;
  *   hio_ooch_t* keys[] = { HIO_T("one"), HIO_T("two"), HIO_T("three") };
  *   hio_ooch_t* vals[] = { HIO_T("1"), HIO_T("2"), HIO_T("3"), HIO_T("4"), HIO_T("5") };
- * 
+ *
  *   hio_open_stdsios ();
  *   s1 = hio_htb_open (
  *     HIO_MMGR_GETDFL(), 0, 10, 70,
  *     HIO_SIZEOF(hio_ooch_t), HIO_SIZEOF(hio_ooch_t)
- *   ); // note error check is skipped 
+ *   ); // note error check is skipped
  *   hio_htb_setstyle (s1, hio_get_htb_style(HIO_HTB_STYLE_INLINE_COPIERS));
- * 
+ *
  *   for (i = 0; i < HIO_COUNTOF(vals); i++)
  *   {
  *     hio_cstr_t ctx;
@@ -560,7 +560,7 @@ HIO_EXPORT hio_htb_pair_t* hio_htb_update (
  *     ); // note error check is skipped
  *   }
  *   hio_htb_walk (s1, print_map_pair, HIO_NULL);
- * 
+ *
  *   hio_htb_close (s1);
  *   hio_close_stdsios ();
  *   return 0;
@@ -576,7 +576,7 @@ HIO_EXPORT hio_htb_pair_t* hio_htb_cbsert (
 );
 
 /**
- * The hio_htb_delete() function deletes a pair with a matching key 
+ * The hio_htb_delete() function deletes a pair with a matching key
  * @return 0 on success, -1 on failure
  */
 HIO_EXPORT int hio_htb_delete (
@@ -615,7 +615,7 @@ HIO_EXPORT hio_htb_pair_t* hio_htb_getfirstpair (
 );
 
 /**
- * The hio_htb_getnextpair() function returns the pointer to the next pair 
+ * The hio_htb_getnextpair() function returns the pointer to the next pair
  * to the current pair @a pair in a hash table.
  */
 HIO_EXPORT hio_htb_pair_t* hio_htb_getnextpair (
@@ -624,11 +624,11 @@ HIO_EXPORT hio_htb_pair_t* hio_htb_getnextpair (
 );
 
 /**
- * The hio_htb_allocpair() function allocates a pair for a key and a value 
+ * The hio_htb_allocpair() function allocates a pair for a key and a value
  * given. But it does not chain the pair allocated into the hash table @a htb.
- * Use this function at your own risk. 
+ * Use this function at your own risk.
  *
- * Take note of he following special behavior when the copier is 
+ * Take note of he following special behavior when the copier is
  * #HIO_HTB_COPIER_INLINE.
  * - If @a kptr is #HIO_NULL, the key space of the size @a klen is reserved but
  *   not propagated with any data.
@@ -637,8 +637,8 @@ HIO_EXPORT hio_htb_pair_t* hio_htb_getnextpair (
  */
 HIO_EXPORT hio_htb_pair_t* hio_htb_allocpair (
 	hio_htb_t* htb,
-	void*      kptr, 
-	hio_oow_t klen,	
+	void*      kptr,
+	hio_oow_t klen,
 	void*      vptr,
 	hio_oow_t vlen
 );

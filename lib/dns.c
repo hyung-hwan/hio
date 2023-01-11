@@ -93,7 +93,7 @@ static hio_oow_t to_dn_capa (const hio_bch_t* str)
 		while (!DN_AT_END(cur));
 	}
 
-	capa++; 
+	capa++;
 
 	/* the length includes the terminating zero. */
 	return capa;
@@ -366,7 +366,7 @@ static int parse_answer_rr (hio_t* hio, hio_dns_rr_part_t rr_part, hio_oow_t pos
 
 				HIO_MEMCPY (&mx->preference, pi->_ptr, 2); pi->_ptr += 2;
 
-				mx->preference = hio_ntoh16(mx->preference);	
+				mx->preference = hio_ntoh16(mx->preference);
 				mx->exchange = (hio_bch_t*)pi->_rrdptr;
 				if (parse_domain_name(hio, pi) <= -1) goto oops;
 			}
@@ -423,7 +423,7 @@ static int parse_answer_rr (hio_t* hio, hio_dns_rr_part_t rr_part, hio_oow_t pos
 		verbatim:
 			pi->_ptr += dlen;
 			pi->_rrdlen += dlen;
-			if (pi->_rrdptr) 
+			if (pi->_rrdptr)
 			{
 				HIO_MEMCPY (pi->_rrdptr, rrtr + 1, dlen); /* copy actual data */
 				pi->_rrdptr += dlen;
@@ -451,7 +451,7 @@ static int parse_answer_rr (hio_t* hio, hio_dns_rr_part_t rr_part, hio_oow_t pos
 		brr[pos].dptr = xrrdptr2;
 		/* this length may be different from the length in the header as transformation is performed on some RR data.
 		 * for a domain name, it's inclusive of the termining null. */
-		brr[pos].dlen = pi->_rrdptr - xrrdptr2; 
+		brr[pos].dlen = pi->_rrdptr - xrrdptr2;
 	}
 
 	return 0;
@@ -470,10 +470,10 @@ hio_dns_pkt_info_t* hio_dns_make_pkt_info (hio_t* hio, const hio_dns_pkt_t* pkt,
 
 	HIO_MEMSET (&pib, 0, HIO_SIZEOF(pib));
 
-	/* pib is used as the initial workspace and also indicates that it's the first run. 
+	/* pib is used as the initial workspace and also indicates that it's the first run.
 	 * at the second run, pii is set to a dynamically allocated memory block large enough
 	 * to hold actual data.  */
-	pii = &pib; 
+	pii = &pib;
 
 redo:
 	pii->_start = (hio_uint8_t*)pkt;
@@ -484,8 +484,8 @@ redo:
 	pii->hdr.qr = pkt->qr & 0x01;
 	pii->hdr.opcode = pkt->opcode & 0x0F;
 	pii->hdr.aa = pkt->aa & 0x01;
-	pii->hdr.tc = pkt->tc & 0x01; 
-	pii->hdr.rd = pkt->rd & 0x01; 
+	pii->hdr.tc = pkt->tc & 0x01;
+	pii->hdr.rd = pkt->rd & 0x01;
 	pii->hdr.ra = pkt->ra & 0x01;
 	pii->hdr.ad = pkt->ad & 0x01;
 	pii->hdr.cd = pkt->cd & 0x01;
@@ -526,10 +526,10 @@ redo:
 		pii->rr.ns = (hio_dns_brr_t*)&pii->rr.an[pib.ancount];
 		pii->rr.ar = (hio_dns_brr_t*)&pii->rr.ns[pib.nscount];
 		pii->_rrdptr = (hio_uint8_t*)&pii->rr.ar[pib.arcount];
-	
-		/* _rrdptr points to the beginning of memory where additional data will 
+
+		/* _rrdptr points to the beginning of memory where additional data will
 		 * be held for some RRs. _rrdlen is the length of total additional data.
-		 * the additional data refers to the data that is pointed to by the 
+		 * the additional data refers to the data that is pointed to by the
 		 * breakdown RRs(hio_dns_bqr_t/hio_dns_brr_t) but is not stored in them. */
 
 		goto redo;
@@ -570,7 +570,7 @@ static int encode_rrdata_in_dns_msg (hio_t* hio, const hio_dns_brr_t* rr, hio_ui
 		case HIO_DNS_RRT_MF:
 		case HIO_DNS_RRT_MG:
 		case HIO_DNS_RRT_MR:*/
-		case HIO_DNS_RRT_CNAME: 
+		case HIO_DNS_RRT_CNAME:
 		case HIO_DNS_RRT_NS:
 		case HIO_DNS_RRT_PTR:
 			/* just a normal domain name */
@@ -623,7 +623,7 @@ static int encode_rrdata_in_dns_msg (hio_t* hio, const hio_dns_brr_t* rr, hio_ui
 			}
 			break;
 		}
-		
+
 		case HIO_DNS_RRT_SOA:
 		{
 			/* soa */
@@ -708,7 +708,7 @@ hio_dns_msg_t* hio_dns_make_msg (hio_t* hio, hio_dns_bhdr_t* bhdr, hio_dns_bqr_t
 	for (i = 0; i < qr_count; i++)
 	{
 		dnlen = to_dn_capa(qr[i].qname);
-		if (HIO_UNLIKELY(dnlen <= 0)) 
+		if (HIO_UNLIKELY(dnlen <= 0))
 		{
 			hio_seterrnum (hio, HIO_EINVAL);
 			return HIO_NULL;
@@ -720,7 +720,7 @@ hio_dns_msg_t* hio_dns_make_msg (hio_t* hio, hio_dns_bhdr_t* bhdr, hio_dns_bqr_t
 	{
 		hio_uint16_t rrdata_len;
 		dnlen = to_dn_capa(rr[i].rrname);
-		if (HIO_UNLIKELY(dnlen <= 0)) 
+		if (HIO_UNLIKELY(dnlen <= 0))
 		{
 			hio_seterrnum (hio, HIO_EINVAL);
 			return HIO_NULL;
@@ -750,7 +750,7 @@ hio_dns_msg_t* hio_dns_make_msg (hio_t* hio, hio_dns_bhdr_t* bhdr, hio_dns_bqr_t
 
 		pktlen += edns_dlen;
 	}
-	else 
+	else
 	{
 		if (HIO_UNLIKELY(bhdr->rcode > 0x0F))
 		{
@@ -796,7 +796,7 @@ hio_dns_msg_t* hio_dns_make_msg (hio_t* hio, hio_dns_bhdr_t* bhdr, hio_dns_bqr_t
 
 				dnlen = to_dn(rr[i].rrname, dn);
 				HIO_ASSERT (hio, dnlen > 0);
-				
+
 				rrtr = (hio_dns_rrtr_t*)(dn + dnlen);
 				rrtr->rrtype = hio_hton16(rr[i].rrtype);
 				rrtr->rrclass = hio_hton16(rr[i].rrclass);
@@ -853,8 +853,8 @@ hio_dns_msg_t* hio_dns_make_msg (hio_t* hio, hio_dns_bhdr_t* bhdr, hio_dns_bqr_t
 	pkt->qr = bhdr->qr & 0x01;
 	pkt->opcode = bhdr->opcode & 0x0F;
 	pkt->aa = bhdr->aa & 0x01;
-	pkt->tc = bhdr->tc & 0x01; 
-	pkt->rd = bhdr->rd & 0x01; 
+	pkt->tc = bhdr->tc & 0x01;
+	pkt->rd = bhdr->rd & 0x01;
 	pkt->ra = bhdr->ra & 0x01;
 	pkt->ad = bhdr->ad & 0x01;
 	pkt->cd = bhdr->cd & 0x01;

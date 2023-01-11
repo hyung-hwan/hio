@@ -76,7 +76,7 @@ struct hio_sys_mux_t
 	int kq;
 
 	struct kevent revs[1024]; /* TODO: is it a good size? */
-		
+
 	int ctrlp[2];
 };
 

@@ -60,7 +60,7 @@ typedef struct param_t param_t;
 
 static void free_param (hio_t* hio, param_t* param)
 {
-	if (param->argv && param->argv != param->fixed_argv) 
+	if (param->argv && param->argv != param->fixed_argv)
 		hio_freemem (hio, param->argv);
 	if (param->mcmd) hio_freemem (hio, param->mcmd);
 	HIO_MEMSET (param, 0, HIO_SIZEOF(*param));
@@ -106,8 +106,8 @@ static int make_param (hio_t* hio, const void* cmd, int flags, param_t* param)
 			hio_dupbcstr(hio, cmd, HIO_NULL);
 		if (HIO_UNLIKELY(!mcmd)) goto oops;
 
-		fcnt = hio_split_bcstr(mcmd, "", '\"', '\"', '\\'); 
-		if (fcnt <= 0) 
+		fcnt = hio_split_bcstr(mcmd, "", '\"', '\"', '\\');
+		if (fcnt <= 0)
 		{
 			/* no field or an error */
 			hio_seterrnum (hio, HIO_EINVAL);
@@ -148,7 +148,7 @@ static pid_t standard_fork_and_exec (hio_dev_pty_t* dev, int pfds[], hio_dev_pty
 	pid_t pid;
 
 	pid = fork();
-	if (pid == -1) 
+	if (pid == -1)
 	{
 		hio_seterrwithsyserr (hio, 0, errno);
 		return -1;
@@ -176,7 +176,7 @@ static pid_t standard_fork_and_exec (hio_dev_pty_t* dev, int pfds[], hio_dev_pty
 		execve (param->argv[0], param->argv, param->fixed_env);
 
 		/* if exec fails, free 'param' parameter which is an inherited pointer */
-		free_param (hio, param); 
+		free_param (hio, param);
 
 	slave_oops:
 		if (pfds[1] != HIO_SYSHND_INVALID) close(pfds[1]);
@@ -228,7 +228,7 @@ static int dev_pty_make (hio_dev_t* dev, void* ctx)
 		if (ttyname_r(pfds[0], ptr, capa) != 0)
 #endif
 		{
-			if (errno == ERANGE) 
+			if (errno == ERANGE)
 			{
 				char* tmp;
 				tmp = hio_reallocmem(hio, (ptr == pts_name_buf? HIO_NULL: ptr), capa + 128);
@@ -486,7 +486,7 @@ static int dev_pty_ioctl (hio_dev_t* dev, int cmd, void* arg)
 	}
 }
 
-static hio_dev_mth_t dev_pty_methods = 
+static hio_dev_mth_t dev_pty_methods =
 {
 	dev_pty_make,
 	dev_pty_kill,
@@ -516,7 +516,7 @@ static int pty_ready (hio_dev_t* dev, int events)
 
 	if (events & HIO_DEV_EVENT_HUP)
 	{
-		if (events & (HIO_DEV_EVENT_PRI | HIO_DEV_EVENT_IN | HIO_DEV_EVENT_OUT)) 
+		if (events & (HIO_DEV_EVENT_PRI | HIO_DEV_EVENT_IN | HIO_DEV_EVENT_OUT))
 		{
 			/* ptybably half-open? */
 			return 1;
@@ -554,7 +554,7 @@ static hio_dev_evcb_t dev_pty_event_callbacks =
 hio_dev_pty_t* hio_dev_pty_make (hio_t* hio, hio_oow_t xtnsize, const hio_dev_pty_make_t* info)
 {
 	return (hio_dev_pty_t*)hio_dev_make(
-		hio, HIO_SIZEOF(hio_dev_pty_t) + xtnsize, 
+		hio, HIO_SIZEOF(hio_dev_pty_t) + xtnsize,
 		&dev_pty_methods, &dev_pty_event_callbacks, (void*)info);
 }
 

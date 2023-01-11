@@ -101,7 +101,7 @@ static void file_halt_participating_devices (file_t* file)
 
 	HIO_DEBUG3 (file->client->htts->hio, "HTTS(%p) - file(c=%d,p=%d) Halting participating devices\n", file->client->htts, (int)file->client->sck->hnd, (int)file->peer);
 
-	/* only the client socket device. 
+	/* only the client socket device.
 	 * the peer side is just a file descriptor - no hio-managed device */
 	hio_dev_sck_halt (file->client->sck);
 }
@@ -125,7 +125,7 @@ static int file_sendfile_to_client (file_t* file, hio_foff_t foff, hio_iolen_t l
 	file->ever_attempted_to_write_to_client = 1;
 
 	file->num_pending_writes_to_client++;
-	if (hio_dev_sck_sendfile(file->client->sck, file->peer, foff, len, HIO_NULL) <= -1) 
+	if (hio_dev_sck_sendfile(file->client->sck, file->peer, foff, len, HIO_NULL) <= -1)
 	{
 		file->num_pending_writes_to_client--;
 		return -1;
@@ -157,7 +157,7 @@ static int file_send_final_status_to_client (file_t* file, int status_code, int 
 		/* don't send content body when the status code is 3xx. include the Location header only. */
 		if (hio_becs_fcat(cli->sbuf, "Content-Type: text/plain\r\nContent-Length: 0\r\nLocation: %hs/\r\n\r\n", file->req_qpath) == (hio_oow_t)-1) return -1;
 	}
-	else 
+	else
 	{
 		if (hio_becs_fcat(cli->sbuf, "Content-Type: text/plain\r\nContent-Length: %zu\r\n\r\n%hs", hio_count_bcstr(status_msg), status_msg) == (hio_oow_t)-1) return -1;
 	}
@@ -194,7 +194,7 @@ static void file_mark_over (file_t* file, int over_bits)
 
 	if (!(old_over & FILE_OVER_READ_FROM_CLIENT) && (file->over & FILE_OVER_READ_FROM_CLIENT))
 	{
-		if (hio_dev_sck_read(file->client->sck, 0) <= -1) 
+		if (hio_dev_sck_read(file->client->sck, 0) <= -1)
 		{
 			HIO_DEBUG3 (file->htts->hio, "HTTS(%p) - file(c=%d,p=%d) halting client for failure to disable input watching\n", file->htts, (int)file->client->sck->hnd, file->peer);
 			hio_dev_sck_halt (file->client->sck);
@@ -214,7 +214,7 @@ static void file_mark_over (file_t* file, int over_bits)
 		HIO_DEBUG3 (file->htts->hio, "HTTS(%p) - file(c=%d,p=%d) halting peer as it is unneeded\n", file->htts, (int)file->client->sck->hnd, file->peer);
 		file_close_peer (file);
 
-		if (file->keep_alive && !file->client_eof_detected) 
+		if (file->keep_alive && !file->client_eof_detected)
 		{
 		#if defined(TCP_CORK)
 			int tcp_cork = 0;
@@ -227,7 +227,7 @@ static void file_mark_over (file_t* file, int over_bits)
 
 			/* how to arrange to delete this file object and put the socket back to the normal waiting state??? */
 			HIO_ASSERT (file->htts->hio, file->client->rsrc == (hio_svc_htts_rsrc_t*)file);
-			HIO_SVC_HTTS_RSRC_DETACH (file->client->rsrc);
+			HIO_SVC_HTTS_RSRC_UNREF (file->client->rsrc);
 			/* the file resource must not be accessed from here down as it could have been destroyed */
 		}
 		else
@@ -242,7 +242,7 @@ static void file_mark_over (file_t* file, int over_bits)
 
 static int file_write_to_peer (file_t* file, const void* data, hio_iolen_t dlen)
 {
-	hio_t* hio = file->htts->hio;
+	/* hio_t* hio = file->htts->hio; */
 
 	if (dlen <= 0)
 	{
@@ -251,7 +251,7 @@ static int file_write_to_peer (file_t* file, const void* data, hio_iolen_t dlen)
 	else
 	{
 		hio_iolen_t pos, rem, n;
-		if (file->req_method == HIO_HTTP_GET) return 0; 
+		if (file->req_method == HIO_HTTP_GET) return 0;
 		if (file->peer <= -1) return 0; /* peer open proabably failed */
 
 		/* TODO: async file io -> create a file device?? */
@@ -269,8 +269,9 @@ static int file_write_to_peer (file_t* file, const void* data, hio_iolen_t dlen)
 	return 0;
 }
 
-static void file_on_kill (file_t* file)
+static void file_on_kill (hio_svc_htts_rsrc_t* rsrc)
 {
+	file_t* file = (file_t*)rsrc;
 	hio_t* hio = file->htts->hio;
 
 	HIO_DEBUG3 (hio, "HTTS(%p) - file(c=%d,p=%d) on_kill\n", file->htts, (int)file->client->sck->hnd, file->peer);
@@ -331,7 +332,7 @@ static void file_client_on_disconnect (hio_dev_sck_t* sck)
 	file->client_disconnected = 1;
 	file->client_org_on_disconnect (sck);
 
-	/* the original disconnect handler (listener_on_disconnect in http-svr.c) 
+	/* the original disconnect handler (listener_on_disconnect in http-svr.c)
 	 * frees the file resource attached to the client. so it must not be accessed */
 	HIO_ASSERT (hio, cli->rsrc == HIO_NULL);
 }
@@ -507,7 +508,7 @@ static int file_send_header_to_client (file_t* file, int status_code, int force_
 	/* Content-Type is not set if mime_type is null or blank */
 	if (mime_type && mime_type[0] != '\0' &&
 	    hio_becs_fcat(cli->sbuf, "Content-Type: %hs\r\n", mime_type) == (hio_oow_t)-1) return -1;
-	
+
 	if ((file->req_method == HIO_HTTP_GET || file->req_method == HIO_HTTP_HEAD) &&
 	    hio_becs_fcat(cli->sbuf, "ETag: %hs\r\n", file->peer_etag) == (hio_oow_t)-1) return -1;
 
@@ -578,7 +579,7 @@ static int file_send_contents_to_client (file_t* file)
 		{
 			/* no more data to read - this must not happen unless file size changed while the file is open. */
 	/* TODO: I probably must close the connection by force??? */
-			file_mark_over (file, FILE_OVER_READ_FROM_PEER); 
+			file_mark_over (file, FILE_OVER_READ_FROM_PEER);
 			return -1;
 		}
 
@@ -604,7 +605,7 @@ static HIO_INLINE int process_range_header (file_t* file, hio_htre_t* req, int* 
 	const hio_htre_hdrval_t* tmp;
 	hio_oow_t etag_len;
 
-	if (fstat(file->peer, &st) <= -1) 
+	if (fstat(file->peer, &st) <= -1)
 	{
 		*error_status = ERRNO_TO_STATUS_CODE(errno);
 		return -1;
@@ -675,7 +676,7 @@ static HIO_INLINE int process_range_header (file_t* file, hio_htre_t* req, int* 
 				break;
 		}
 
-		if (file->start_offset > 0) 
+		if (file->start_offset > 0)
 		{
 			if (lseek(file->peer, file->start_offset, SEEK_SET) <= -1)
 			{
@@ -736,7 +737,7 @@ static int open_peer_with_mode (file_t* file, const hio_bch_t* actual_file, int 
 	}
 	else
 	{
-		if (res_mime_type && file->cbs && file->cbs->get_mime_type) 
+		if (res_mime_type && file->cbs && file->cbs->get_mime_type)
 		{
 			const hio_bch_t* mime_type;
 			mime_type = file->cbs->get_mime_type(file->htts, file->req_qpath, actual_file, file->cbs->ctx);
@@ -810,14 +811,14 @@ int hio_svc_htts_dofile (hio_svc_htts_t* htts, hio_dev_sck_t* csck, hio_htre_t* 
 	file->peer = -1;
 
 	HIO_ASSERT (hio, cli->rsrc == HIO_NULL); /* you must not call this function while cli->rsrc is not HIO_NULL */
-	HIO_SVC_HTTS_RSRC_ATTACH ((hio_svc_htts_rsrc_t*)file, cli->rsrc); /* cli->rsrc = file with ref-count up */
+	HIO_SVC_HTTS_RSRC_REF ((hio_svc_htts_rsrc_t*)file, cli->rsrc); /* cli->rsrc = file with ref-count up */
 
 
 #if !defined(FILE_ALLOW_UNLIMITED_REQ_CONTENT_LENGTH)
 	if (file->req_content_length_unlimited)
 	{
 		/* Transfer-Encoding is chunked. no content-length is known in advance. */
-		
+
 		/* option 1. buffer contents. if it gets too large, send 413 Request Entity Too Large.
 		 * option 2. send 411 Length Required immediately
 		 * option 3. set Content-Length to -1 and use EOF to indicate the end of content [Non-Standard] */
@@ -830,7 +831,7 @@ int hio_svc_htts_dofile (hio_svc_htts_t* htts, hio_dev_sck_t* csck, hio_htre_t* 
 		if (!(options & HIO_SVC_HTTS_FILE_NO_100_CONTINUE) &&
 		    hio_comp_http_version_numbers(&req->version, 1, 1) >= 0 &&
 		   (file->req_content_length_unlimited || file->req_content_length > 0) &&
-		   (file->req_method != HIO_HTTP_GET && file->req_method != HIO_HTTP_HEAD))  
+		   (file->req_method != HIO_HTTP_GET && file->req_method != HIO_HTTP_HEAD))
 		{
 			hio_bch_t msgbuf[64];
 			hio_oow_t msglen;
@@ -843,7 +844,7 @@ int hio_svc_htts_dofile (hio_svc_htts_t* htts, hio_dev_sck_t* csck, hio_htre_t* 
 	else if (req->flags & HIO_HTRE_ATTR_EXPECT)
 	{
 		/* 417 Expectation Failed */
-		file_send_final_status_to_client (file, HIO_HTTP_STATUS_EXPECTATION_FAILED, 1, HIO_NULL);
+		file_send_final_status_to_client (file, HIO_HTTP_STATUS_EXPECTATION_FAILED, 1, 0);
 		goto oops;
 	}
 
@@ -951,7 +952,7 @@ int hio_svc_htts_dofile (hio_svc_htts_t* htts, hio_dev_sck_t* csck, hio_htre_t* 
 			break;
 
 		case HIO_HTTP_DELETE:
-			if (file->options & HIO_SVC_HTTS_FILE_READ_ONLY) 
+			if (file->options & HIO_SVC_HTTS_FILE_READ_ONLY)
 			{
 				status_code = HIO_HTTP_STATUS_METHOD_NOT_ALLOWED;
 				goto done_with_status_code;

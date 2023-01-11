@@ -24,7 +24,7 @@
 
 #include <hio-utl.h>
 
-/* 
+/*
  * This code is based on https://github.com/emboss/siphash-c/blob/master/src/siphash.c
  *
  * See https://131002.net/siphash/siphash24.c for a reference implementation by the inventor.
@@ -62,7 +62,7 @@ typedef hio_uint64_t sip_uint64_t;
 struct sip_uint64_t
 {
 	hio_uint32_t _u32[2];
-}; 
+};
 typedef struct sip_uint64_t sip_uint64_t;
 
 #if defined(HIO_ENDIAN_LITTLE)
@@ -133,10 +133,10 @@ static HIO_INLINE sip_uint64_t* xor64_to (sip_uint64_t* v, sip_uint64_t s)
 #endif /* (HIO_SIZEOF_UINT64_T > 0) */
 
 
-static const hio_uint8_t sip_init_v_bin[] = 
+static const hio_uint8_t sip_init_v_bin[] =
 {
 #if defined(HIO_ENDIAN_LITTLE)
-	0x75, 0x65, 0x73, 0x70, 0x65, 0x6d, 0x6f, 0x73, 
+	0x75, 0x65, 0x73, 0x70, 0x65, 0x6d, 0x6f, 0x73,
 	0x6d, 0x6f, 0x64, 0x6e, 0x61, 0x72, 0x6f, 0x64,
 	0x61, 0x72, 0x65, 0x6e, 0x65, 0x67, 0x79, 0x6c,
 	0x73, 0x65, 0x74, 0x79, 0x62, 0x64, 0x65, 0x74
@@ -195,7 +195,7 @@ void hio_sip_hash_24 (const hio_uint8_t key[16], const void* dptr, hio_oow_t dle
 	v2 = k0; XOR64_TO(v2, sip_init_v[2]);
 	v3 = k1; XOR64_TO(v3, sip_init_v[3]);
 
-	for (; ptr != end; ptr += 8) 
+	for (; ptr != end; ptr += 8)
 	{
 		m = U8TO64_LE(ptr);
 		SIP_2_ROUND (m, v0, v1, v2, v3);

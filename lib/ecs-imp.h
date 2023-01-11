@@ -128,7 +128,7 @@ hio_oow_t FN(setcapa) (str_t* str, hio_oow_t capa)
 hio_oow_t FN(setlen) (str_t* str, hio_oow_t len)
 {
 	if (len == str->val.len) return len;
-	if (len < str->val.len) 
+	if (len < str->val.len)
 	{
 		str->val.len = len;
 		str->val.ptr[len] = '\0';
@@ -191,7 +191,7 @@ hio_oow_t FN(ncpy) (str_t* str, const char_t* s, hio_oow_t len)
 		/* if the current capacity is 0 and the string len to copy is 0
 		 * we can't simply pass 'len' as the new capapcity.
 		 * ecs_setcapa() won't do anything the current capacity of 0
-		 * is the same as new capacity required. note that when str->capa 
+		 * is the same as new capacity required. note that when str->capa
 		 * is 0, str->val.ptr is HIO_NULL. However, this is copying operation.
 		 * Copying a zero-length string may indicate that str->val.ptr must
 		 * not be HIO_NULL. so I simply pass 1 as the new capacity */
@@ -213,11 +213,11 @@ hio_oow_t FN(cat) (str_t* str, const char_t* s)
 
 static int FN(resize_for_ncat) (str_t* str, hio_oow_t len)
 {
-	if (len > str->capa - str->val.len) 
+	if (len > str->capa - str->val.len)
 	{
 		hio_oow_t ncapa, mincapa;
 
-		/* let the minimum capacity be as large as 
+		/* let the minimum capacity be as large as
 		 * to fit in the new substring */
 		mincapa = str->val.len + len;
 
@@ -266,7 +266,7 @@ hio_oow_t FN(ncat) (str_t* str, const char_t* s, hio_oow_t len)
 	if (n <= -1) return (hio_oow_t)-1;
 	if (n == 0) return str->val.len;
 
-	if (len > str->capa - str->val.len) 
+	if (len > str->capa - str->val.len)
 	{
 		/* copy as many characters as the number of cells available.
 		 * if the capacity has been decreased, len is adjusted here */
@@ -358,7 +358,7 @@ hio_oow_t FN(amend) (str_t* str, hio_oow_t pos, hio_oow_t len, const char_t* rep
 		HIO_MEMMOVE (&str->val.ptr[pos + repl_len], &str->val.ptr[pos + len], HIO_SIZEOF(*repl) * (old_ecs_len - (pos + len)));
 	}
 
-	if (repl_len > 0) HIO_MEMMOVE (&str->val.ptr[pos], repl, HIO_SIZEOF(*repl) * repl_len); 
+	if (repl_len > 0) HIO_MEMMOVE (&str->val.ptr[pos], repl, HIO_SIZEOF(*repl) * repl_len);
 	return str->val.len;
 }
 

@@ -54,7 +54,7 @@ oops:
 	if (time_inited) hio_sys_finitime (hio);
 	if (mux_inited) hio_sys_finimux (hio);
 	if (log_inited) hio_sys_finilog (hio);
-	if (hio->sysdep) 
+	if (hio->sysdep)
 	{
 		hio_freemem (hio, hio->sysdep);
 		hio->sysdep = HIO_NULL;

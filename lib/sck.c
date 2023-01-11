@@ -101,8 +101,8 @@ static hio_syshnd_t open_async_socket (hio_t* hio, int domain, int type, int pro
 	type |= SOCK_NONBLOCK | SOCK_CLOEXEC;
 open_socket:
 #endif
-	sck = socket(domain, type, proto); 
-	if (sck == HIO_SYSHND_INVALID) 
+	sck = socket(domain, type, proto);
+	if (sck == HIO_SYSHND_INVALID)
 	{
 	#if defined(SOCK_NONBLOCK) && defined(SOCK_CLOEXEC)
 		if (errno == EINVAL && (type & (SOCK_NONBLOCK | SOCK_CLOEXEC)))
@@ -163,7 +163,7 @@ open_socket:
 	if (hio_makesyshndasync(hio, fd[0]) <= -1 ||
 	    hio_makesyshndasync(hio, fd[1]) <= -1 ||
 	    hio_makesyshndcloexec(hio, fd[0]) <= -1 ||
-	    hio_makesyshndcloexec(hio, fd[1]) <= -1) 
+	    hio_makesyshndcloexec(hio, fd[1]) <= -1)
 	{
 		hio_seterrwithsyserr (hio, 0, errno);
 		close (fd[0]);
@@ -253,7 +253,7 @@ static struct sck_type_map_t sck_type_map[] =
 	/* HIO_DEV_SCK_TCP6 */
 	{ AF_INET6,  SOCK_STREAM,     0,                 1, 1, HIO_DEV_CAP_STREAM },
 
-	/* HIO_DEV_SCK_UPD4 */ /* TODO: the socket api allows connect() on UDP sockets. should i mark it connectable? */ 
+	/* HIO_DEV_SCK_UPD4 */ /* TODO: the socket api allows connect() on UDP sockets. should i mark it connectable? */
 	{ AF_INET,   SOCK_DGRAM,      0,                 0, 0, 0 },
 
 	/* HIO_DEV_SCK_UDP6 */
@@ -330,9 +330,9 @@ static void connect_timedout (hio_t* hio, const hio_ntime_t* now, hio_tmrjob_t* 
 	if (rdev->state & HIO_DEV_SCK_CONNECTING)
 	{
 		/* the state check for HIO_DEV_TCP_CONNECTING is actually redundant
-		 * as it must not be fired  after it gets connected. the timer job 
-		 * doesn't need to be deleted when it gets connected for this check 
-		 * here. this libarary, however, deletes the job when it gets 
+		 * as it must not be fired  after it gets connected. the timer job
+		 * doesn't need to be deleted when it gets connected for this check
+		 * here. this libarary, however, deletes the job when it gets
 		 * connected. */
 		HIO_DEBUG1 (hio, "SCK(%p) - connect timed out. halting\n", rdev);
 		hio_dev_sck_halt (rdev);
@@ -417,7 +417,7 @@ static int dev_sck_make (hio_dev_t* dev, void* ctx)
 		if (hnd == HIO_SYSHND_INVALID) goto oops;
 
 	#if defined(ENABLE_SCTP)
-		if (sck_type_map[arg->type].type == SOCK_SEQPACKET && 
+		if (sck_type_map[arg->type].type == SOCK_SEQPACKET &&
 		    sck_type_map[arg->type].proto == IPPROTO_SCTP)
 		{
 			struct sctp_event_subscribe sctp_ev_s;
@@ -489,15 +489,16 @@ static int dev_sck_kill (hio_dev_t* dev, int force)
 {
 	hio_t* hio = dev->hio;
 	hio_dev_sck_t* rdev = (hio_dev_sck_t*)dev;
+	int hnd = rdev->hnd;
 
-	HIO_DEBUG1 (hio, "SCK(%p) - being killed\n", rdev);
+	HIO_DEBUG2 (hio, "SCK(%p) - being killed [%d]\n", rdev, hnd);
 #if 0
 	if (IS_STREAM(rdev))
 	{
 		/*if (HIO_DEV_SCK_GET_PROGRESS(rdev))
 		{*/
 			/* for HIO_DEV_SCK_CONNECTING, HIO_DEV_SCK_CONNECTING_SSL, and HIO_DEV_SCK_ACCEPTING_SSL
-			 * on_disconnect() is called without corresponding on_connect(). 
+			 * on_disconnect() is called without corresponding on_connect().
 			 * it is the same if connect or accept has not been called. */
 			if (rdev->on_disconnect) rdev->on_disconnect (rdev);
 		/*}*/
@@ -532,7 +533,7 @@ static int dev_sck_kill (hio_dev_t* dev, int force)
 	}
 #endif
 
-	if (rdev->hnd != HIO_SYSHND_INVALID) 
+	if (rdev->hnd != HIO_SYSHND_INVALID)
 	{
 		close (rdev->hnd);
 		rdev->hnd = HIO_SYSHND_INVALID;
@@ -543,6 +544,8 @@ static int dev_sck_kill (hio_dev_t* dev, int force)
 		close (rdev->side_chan);
 		rdev->side_chan = HIO_SYSHND_INVALID;
 	}
+
+	HIO_DEBUG2 (hio, "SCK(%p) - killed [%d]\n", rdev, (int)hnd);
 	return 0;
 }
 
@@ -612,7 +615,7 @@ static int dev_sck_read_stateless (hio_dev_t* dev, void* buf, hio_iolen_t* len, 
 
 		hio_seterrwithsyserr (hio, 0, eno);
 
-		HIO_DEBUG2 (hio, "SCK(%p) - recvfrom failure - %hs", rdev, strerror(eno)); 
+		HIO_DEBUG2 (hio, "SCK(%p) - recvfrom failure - %hs", rdev, strerror(eno));
 		return -1;
 	}
 
@@ -634,7 +637,7 @@ static int dev_sck_read_bpf (hio_dev_t* dev, void* buf, hio_iolen_t* len, hio_de
 
 #if defined(ENABLE_SCTP)
 static int recvmsg_sctp(
-	int s, void* ptr, hio_oow_t len, struct sockaddr* srcaddr, hio_scklen_t* srcaddrlen, 
+	int s, void* ptr, hio_oow_t len, struct sockaddr* srcaddr, hio_scklen_t* srcaddrlen,
 	struct sctp_sndrcvinfo* sinfo, int* msg_flags)
 {
 	int n;
@@ -662,7 +665,7 @@ static int recvmsg_sctp(
 
 	for (cmsg = CMSG_FIRSTHDR(&msg); cmsg ; cmsg = CMSG_NXTHDR(&msg, cmsg))
 	{
-		if (cmsg->cmsg_level == IPPROTO_SCTP && cmsg->cmsg_type == SCTP_SNDRCV) 
+		if (cmsg->cmsg_level == IPPROTO_SCTP && cmsg->cmsg_type == SCTP_SNDRCV)
 		{
 			HIO_MEMCPY(sinfo, CMSG_DATA(cmsg), HIO_SIZEOF(*sinfo));
 			break;
@@ -673,7 +676,7 @@ static int recvmsg_sctp(
 }
 
 static int sendmsg_sctp(
-	int s, const hio_iovec_t* iov, hio_oow_t iovcnt, struct sockaddr* dstaddr, hio_scklen_t dstaddrlen, 
+	int s, const hio_iovec_t* iov, hio_oow_t iovcnt, struct sockaddr* dstaddr, hio_scklen_t dstaddrlen,
 	hio_uint32_t ppid, hio_uint32_t flags, hio_uint16_t stream_no, hio_uint32_t ttl, hio_uint32_t context)
 {
 	struct sctp_sndrcvinfo* sinfo;
@@ -729,7 +732,7 @@ static int dev_sck_read_sctp_sp (hio_dev_t* dev, void* buf, hio_iolen_t* len, hi
 
 		hio_seterrwithsyserr (hio, 0, eno);
 
-		HIO_DEBUG2 (hio, "SCK(%p) - recvfrom failure - %hs", rdev, strerror(eno)); 
+		HIO_DEBUG2 (hio, "SCK(%p) - recvfrom failure - %hs", rdev, strerror(eno));
 		return -1;
 	}
 
@@ -790,7 +793,7 @@ static int dev_sck_write_stream (hio_dev_t* dev, const void* data, hio_iolen_t* 
 
 		if (*len <= 0)
 		{
-			/* the write handler for a stream device must handle a zero-length 
+			/* the write handler for a stream device must handle a zero-length
 			 * writing request specially. it's a writing finish indicator. close
 			 * the writing end of the socket, probably leaving it in the half-closed state */
 			if (shutdown(rdev->hnd, SHUT_WR) <= -1)
@@ -799,7 +802,7 @@ static int dev_sck_write_stream (hio_dev_t* dev, const void* data, hio_iolen_t* 
 				return -1;
 			}
 
-			/* it must return a non-zero positive value. if it returns 0, this request 
+			/* it must return a non-zero positive value. if it returns 0, this request
 			 * gets enqueued by the core. we must aovid it */
 			return 1;
 		}
@@ -809,7 +812,7 @@ static int dev_sck_write_stream (hio_dev_t* dev, const void* data, hio_iolen_t* 
 		flags |= MSG_NOSIGNAL;
 	#endif
 		x = send(rdev->hnd, data, *len, flags);
-		if (x <= -1) 
+		if (x <= -1)
 		{
 			if (errno == EINPROGRESS || errno == EWOULDBLOCK || errno == EAGAIN) return 0;  /* no data can be written */
 			if (errno == EINTR) return 0;
@@ -851,7 +854,7 @@ static int dev_sck_writev_stream (hio_dev_t* dev, const hio_iovec_t* iov, hio_io
 		nwritten = 0;
 		for (i = 0; i < *iovcnt; i++)
 		{
-			/* no SSL_writev. invoke multiple calls to SSL_write(). 
+			/* no SSL_writev. invoke multiple calls to SSL_write().
 			 * since the write function is for the stream connection,
 			 * mutiple calls shouldn't really matter */
 			x = SSL_write((SSL*)rdev->ssl, iov[i].iov_ptr, iov[i].iov_len);
@@ -903,7 +906,7 @@ static int dev_sck_writev_stream (hio_dev_t* dev, const hio_iovec_t* iov, hio_io
 	#else
 		x = writev(rdev->hnd, (const struct iovec*)iov, *iovcnt);
 	#endif
-		if (x <= -1) 
+		if (x <= -1)
 		{
 			if (errno == EINPROGRESS || errno == EWOULDBLOCK || errno == EAGAIN) return 0;  /* no data can be written */
 			if (errno == EINTR) return 0;
@@ -927,7 +930,7 @@ static int dev_sck_write_stateless (hio_dev_t* dev, const void* data, hio_iolen_
 	ssize_t x;
 
 	x = sendto(rdev->hnd, data, *len, 0, dstaddr->ptr, dstaddr->len);
-	if (x <= -1) 
+	if (x <= -1)
 	{
 		if (errno == EINPROGRESS || errno == EWOULDBLOCK || errno == EAGAIN) return 0;  /* no data can be written */
 		if (errno == EINTR) return 0;
@@ -965,7 +968,7 @@ static int dev_sck_writev_stateless (hio_dev_t* dev, const hio_iovec_t* iov, hio
 #endif
 
 	x = sendmsg(rdev->hnd, &msg, flags);
-	if (x <= -1) 
+	if (x <= -1)
 	{
 		if (errno == EINPROGRESS || errno == EWOULDBLOCK || errno == EAGAIN) return 0;  /* no data can be written */
 		if (errno == EINTR) return 0;
@@ -1006,14 +1009,14 @@ static int dev_sck_write_sctp_sp (hio_dev_t* dev, const void* data, hio_iolen_t*
 
 	iov.iov_ptr = (void*)data;
 	iov.iov_len = *len;
-	x = sendmsg_sctp(rdev->hnd, 
-		&iov, 1, dstaddr->ptr, dstaddr->len, 
+	x = sendmsg_sctp(rdev->hnd,
+		&iov, 1, dstaddr->ptr, dstaddr->len,
 		0, /* ppid - opaque */
 		0, /* flags (e.g. SCTP_UNORDERED, SCTP_EOF, SCT_ABORT, ...) */
 		hio_skad_get_chan(dstaddr->ptr), /* stream number */
 		0, /* ttl */
 		0 /* context*/);
-	if (x <= -1) 
+	if (x <= -1)
 	{
 		if (errno == EINPROGRESS || errno == EWOULDBLOCK || errno == EAGAIN) return 0;  /* no data can be written */
 		if (errno == EINTR) return 0;
@@ -1031,14 +1034,14 @@ static int dev_sck_writev_sctp_sp (hio_dev_t* dev, const hio_iovec_t* iov, hio_i
 	hio_dev_sck_t* rdev = (hio_dev_sck_t*)dev;
 	ssize_t x;
 
-	x = sendmsg_sctp(rdev->hnd, 
-		iov, *iovcnt, dstaddr->ptr, dstaddr->len, 
+	x = sendmsg_sctp(rdev->hnd,
+		iov, *iovcnt, dstaddr->ptr, dstaddr->len,
 		0, /* ppid - opaque */
 		0, /* flags (e.g. SCTP_UNORDERED, SCTP_EOF, SCT_ABORT, ...) */
 		hio_skad_get_chan(dstaddr->ptr), /* stream number */
 		0, /* ttl */
 		0 /* context*/);
-	if (x <= -1) 
+	if (x <= -1)
 	{
 		if (errno == EINPROGRESS || errno == EWOULDBLOCK || errno == EAGAIN) return 0;  /* no data can be written */
 		if (errno == EINTR) return 0;
@@ -1094,7 +1097,7 @@ static int dev_sck_sendfile_stream (hio_dev_t* dev, hio_syshnd_t in_fd, hio_foff
 
 		if (*len <= 0)
 		{
-			/* the write handler for a stream device must handle a zero-length 
+			/* the write handler for a stream device must handle a zero-length
 			 * writing request specially. it's a writing finish indicator. close
 			 * the writing end of the socket, probably leaving it in the half-closed state */
 			if (shutdown(rdev->hnd, SHUT_WR) <= -1)
@@ -1103,7 +1106,7 @@ static int dev_sck_sendfile_stream (hio_dev_t* dev, hio_syshnd_t in_fd, hio_foff
 				return -1;
 			}
 
-			/* it must return a non-zero positive value. if it returns 0, this request 
+			/* it must return a non-zero positive value. if it returns 0, this request
 			 * gets enqueued by the core. we must aovid it */
 			return 1;
 		}
@@ -1111,7 +1114,7 @@ static int dev_sck_sendfile_stream (hio_dev_t* dev, hio_syshnd_t in_fd, hio_foff
 #if defined(HAVE_SENDFILE)
 /* TODO: cater for other systems */
 		x = sendfile(rdev->hnd, in_fd, &foff, *len);
-		if (x <= -1) 
+		if (x <= -1)
 		{
 			if (errno == EINPROGRESS || errno == EWOULDBLOCK || errno == EAGAIN) return 0;  /* no data can be written */
 			if (errno == EINTR) return 0;
@@ -1124,7 +1127,7 @@ static int dev_sck_sendfile_stream (hio_dev_t* dev, hio_syshnd_t in_fd, hio_foff
 		return -1;
 #endif
 
-	
+
 #if 0 && defined(USE_SSL)
 	}
 #endif
@@ -1362,7 +1365,7 @@ static int dev_sck_ioctl (hio_dev_t* dev, int cmd, void* arg)
 				}
 
 				SSL_CTX_set_read_ahead (ssl_ctx, 0);
-				SSL_CTX_set_mode (ssl_ctx, SSL_CTX_get_mode(ssl_ctx) | 
+				SSL_CTX_set_mode (ssl_ctx, SSL_CTX_get_mode(ssl_ctx) |
 				                           /*SSL_MODE_ENABLE_PARTIAL_WRITE |*/
 				                           SSL_MODE_ACCEPT_MOVING_WRITE_BUFFER);
 
@@ -1417,7 +1420,7 @@ static int dev_sck_ioctl (hio_dev_t* dev, int cmd, void* arg)
 
 			if (sa->sa_family == AF_INET) sl = HIO_SIZEOF(struct sockaddr_in);
 			else if (sa->sa_family == AF_INET6) sl = HIO_SIZEOF(struct sockaddr_in6);
-			else 
+			else
 			{
 				hio_seterrbfmt (hio, HIO_EINVAL, "unknown address family %d", sa->sa_family);
 				return -1;
@@ -1446,7 +1449,7 @@ static int dev_sck_ioctl (hio_dev_t* dev, int cmd, void* arg)
 				}
 
 				SSL_CTX_set_read_ahead (ssl_ctx, 0);
-				SSL_CTX_set_mode (ssl_ctx, SSL_CTX_get_mode(ssl_ctx) | 
+				SSL_CTX_set_mode (ssl_ctx, SSL_CTX_get_mode(ssl_ctx) |
 				                           /* SSL_MODE_ENABLE_PARTIAL_WRITE | */
 				                           SSL_MODE_ACCEPT_MOVING_WRITE_BUFFER);
 			}
@@ -1477,7 +1480,7 @@ fcntl (rdev->hnd, F_SETFL, flags | O_NONBLOCK);
 
 						if (HIO_IS_POS_NTIME(&conn->connect_tmout))
 						{
-							if (schedule_timer_job_after(rdev, &conn->connect_tmout, connect_timedout) <= -1) 
+							if (schedule_timer_job_after(rdev, &conn->connect_tmout, connect_timedout) <= -1)
 							{
 								goto oops_connect;
 							}
@@ -1558,7 +1561,7 @@ fcntl (rdev->hnd, F_SETFL, flags | O_NONBLOCK);
 			}
 
 			x = listen(rdev->hnd, lstn->backlogs);
-			if (x <= -1) 
+			if (x <= -1)
 			{
 				hio_seterrwithsyserr (hio, 0, errno);
 				return -1;
@@ -1590,7 +1593,7 @@ fcntl (rdev->hnd, F_SETFL, flags | O_NONBLOCK);
 	return 0;
 }
 
-static hio_dev_mth_t dev_mth_sck_stateless = 
+static hio_dev_mth_t dev_mth_sck_stateless =
 {
 	dev_sck_make,
 	dev_sck_kill,
@@ -1606,7 +1609,7 @@ static hio_dev_mth_t dev_mth_sck_stateless =
 };
 
 
-static hio_dev_mth_t dev_mth_sck_stream = 
+static hio_dev_mth_t dev_mth_sck_stream =
 {
 	dev_sck_make,
 	dev_sck_kill,
@@ -1622,7 +1625,7 @@ static hio_dev_mth_t dev_mth_sck_stream =
 };
 
 #if defined(ENABLE_SCTP)
-static hio_dev_mth_t dev_mth_sck_sctp_sp = 
+static hio_dev_mth_t dev_mth_sck_sctp_sp =
 {
 	dev_sck_make,
 	dev_sck_kill,
@@ -1685,7 +1688,7 @@ static hio_dev_mth_t dev_mth_clisck_sctp_sp =
 };
 #endif
 
-static hio_dev_mth_t dev_mth_sck_bpf = 
+static hio_dev_mth_t dev_mth_sck_bpf =
 {
 	dev_sck_make,
 	dev_sck_kill,
@@ -1732,7 +1735,7 @@ static int harvest_outgoing_connection (hio_dev_sck_t* rdev)
 		addrlen = HIO_SIZEOF(localaddr);
 		if (getsockname(rdev->hnd, (struct sockaddr*)&localaddr, &addrlen) == 0) rdev->localaddr = localaddr;
 
-		if (hio_dev_watch((hio_dev_t*)rdev, HIO_DEV_WATCH_RENEW, HIO_DEV_EVENT_IN) <= -1) 
+		if (hio_dev_watch((hio_dev_t*)rdev, HIO_DEV_WATCH_RENEW, HIO_DEV_EVENT_IN) <= -1)
 		{
 			/* watcher update failure. it's critical */
 			hio_stop (hio, HIO_STOPREQ_WATCHER_ERROR);
@@ -1755,7 +1758,7 @@ static int harvest_outgoing_connection (hio_dev_sck_t* rdev)
 				HIO_ASSERT (hio, rdev->tmrjob_index == HIO_TMRIDX_INVALID);
 
 				/* rdev->tmout has been set to the deadline of the connect task
-				 * when the CONNECT IOCTL command has been executed. use the 
+				 * when the CONNECT IOCTL command has been executed. use the
 				 * same deadline here */
 				if (HIO_IS_POS_NTIME(&rdev->tmout) &&
 				    schedule_timer_job_at(rdev, &rdev->tmout, ssl_connect_timedout) <= -1)
@@ -1804,20 +1807,20 @@ static int make_accepted_client_connection (hio_dev_sck_t* rdev, hio_syshnd_t cl
 
 	if (rdev->on_raw_accept)
 	{
-		/* this is a special optional callback. If you don't want a client socket device 
-		 * to be created upon accept, you may implement the on_raw_accept() handler. 
+		/* this is a special optional callback. If you don't want a client socket device
+		 * to be created upon accept, you may implement the on_raw_accept() handler.
 		 * the socket handle is delegated to the callback. */
 		rdev->on_raw_accept (rdev, clisck, remoteaddr);
 		return 0;
 	}
 
-	/* rdev->dev_size: 
+	/* rdev->dev_size:
 	 *   use rdev->dev_size when instantiating a client sck device
-	 *   instead of HIO_SIZEOF(hio_dev_sck_t). therefore, the  
+	 *   instead of HIO_SIZEOF(hio_dev_sck_t). therefore, the
 	 *   extension area as big as that of the master socket device
-	 *   is created in the client sck device 
+	 *   is created in the client sck device
 	 * dev_mth:
-	 *   choose the client socket method base on the master socket 
+	 *   choose the client socket method base on the master socket
 	 *   device capability. currently, stream or non-stream is supported.
 	 */
 #if defined(ENABLE_SCTP)
@@ -1826,7 +1829,7 @@ static int make_accepted_client_connection (hio_dev_sck_t* rdev, hio_syshnd_t cl
 #else
 	dev_mth = (sck_type_map[clisck_type].extra_dev_cap & HIO_DEV_CAP_STREAM)? &dev_mth_clisck_stream: &dev_mth_clisck_stateless;
 #endif
-	clidev = (hio_dev_sck_t*)hio_dev_make(hio, rdev->dev_size, dev_mth, rdev->dev_evcb, &clisck); 
+	clidev = (hio_dev_sck_t*)hio_dev_make(hio, rdev->dev_size, dev_mth, rdev->dev_evcb, &clisck);
 	if (HIO_UNLIKELY(!clidev))
 	{
 		/* [NOTE] 'clisck' is closed by callback methods called by hio_dev_make() upon failure */
@@ -1883,7 +1886,7 @@ static int make_accepted_client_connection (hio_dev_sck_t* rdev, hio_syshnd_t cl
 	/* inherit some event handlers from the parent.
 	 * you can still change them inside the on_connect handler */
 	clidev->on_connect = rdev->on_connect;
-	clidev->on_disconnect = rdev->on_disconnect; 
+	clidev->on_disconnect = rdev->on_disconnect;
 	clidev->on_raw_accept = HIO_NULL; /* don't inherit this */
 	clidev->on_write = rdev->on_write;
 	clidev->on_read = rdev->on_read;
@@ -2030,7 +2033,7 @@ static int dev_evcb_sck_ready_stream (hio_dev_t* dev, int events)
 			}
 			else
 			{
-				return 0; /* success but don't invoke on_read() */ 
+				return 0; /* success but don't invoke on_read() */
 			}
 
 		case HIO_DEV_SCK_CONNECTING_SSL:
@@ -2102,7 +2105,7 @@ static int dev_evcb_sck_ready_stream (hio_dev_t* dev, int events)
 			}
 			else
 			{
-				return 0; /* success but don't invoke on_read() */ 
+				return 0; /* success but don't invoke on_read() */
 			}
 
 		case HIO_DEV_SCK_ACCEPTING_SSL:
@@ -2151,7 +2154,7 @@ static int dev_evcb_sck_ready_stream (hio_dev_t* dev, int events)
 		default:
 			if (events & HIO_DEV_EVENT_HUP)
 			{
-				if (events & (HIO_DEV_EVENT_PRI | HIO_DEV_EVENT_IN | HIO_DEV_EVENT_OUT)) 
+				if (events & (HIO_DEV_EVENT_PRI | HIO_DEV_EVENT_IN | HIO_DEV_EVENT_OUT))
 				{
 					/* probably half-open? */
 					return 1;
@@ -2329,7 +2332,7 @@ static int dev_evcb_sck_on_write_qx (hio_dev_t* dev, hio_iolen_t wrlen, void* wr
 		/* this should not be called */
 		return 0;
 	}
-	
+
 	return rdev->on_write(rdev, wrlen, wrctx, HIO_NULL);
 }
 
@@ -2545,7 +2548,7 @@ static int update_mcast_group (hio_dev_sck_t* dev, int join, const hio_skad_t* m
 			return 0;
 		}
 	}
-	
+
 	hio_seterrbfmt (hio_dev_sck_gethio(dev), HIO_EINVAL, "invalid multicast address family");
 	return -1;
 }
@@ -2613,11 +2616,11 @@ int hio_dev_sck_sendfileok (hio_dev_sck_t* dev)
 
 int hio_dev_sck_writetosidechan (hio_dev_sck_t* dev, const void* dptr, hio_oow_t dlen)
 {
-	if (write(dev->side_chan, dptr, dlen) <= -1) 
+	if (write(dev->side_chan, dptr, dlen) <= -1)
 	{
 		/* this doesn't set the error information on the main socket. if you may check errno, though */
 		/* TODO: make hio_seterrbfmt() thread safe and set the error information properly. still the caller may be in the thread-unsafe context */
-		return -1; 
+		return -1;
 	}
 	return 0;
 }
@@ -2636,7 +2639,7 @@ hio_uint16_t hio_checksum_ip (const void* hdr, hio_oow_t len)
 		sum = (sum & 0xFFFF) + (sum >> 16);
 		len -= 2;
 	}
- 
+
 	while (sum >> 16) sum = (sum & 0xFFFF) + (sum >> 16);
 
 	return (hio_uint16_t)~sum;

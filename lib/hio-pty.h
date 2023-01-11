@@ -68,7 +68,7 @@ enum hio_dev_pty_make_flag_t
 	HIO_DEV_PTY_UCMD = (1 << 12), /* cmd is hio_uch_t* */
 	HIO_DEV_PTY_SHELL = (1 << 13),
 	/* perform no waitpid() on a child process upon device destruction.
-	 * you should set this flag if your application has automatic child 
+	 * you should set this flag if your application has automatic child
 	 * process reaping enabled. for instance, SIGCHLD is set to SIG_IGN
 	 * on POSIX.1-2001 compliant systems */
 	HIO_DEV_PTY_FORGET_CHILD = (1 << 14),

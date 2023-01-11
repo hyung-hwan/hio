@@ -149,7 +149,7 @@ HIO_EXPORT int hio_is_bch_type (hio_bch_t c, hio_bch_prop_t type);
 #	if __has_builtin(__builtin_tolower)
 #		define hio_to_bch_lower __builtin_tolower
 #	endif
-#elif (__GNUC__ >= 14) 
+#elif (__GNUC__ >= 14)
 #	define hio_is_bch_upper __builtin_isupper
 #	define hio_is_bch_lower __builtin_islower
 #	define hio_is_bch_alpha __builtin_isalpha

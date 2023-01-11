@@ -85,7 +85,7 @@ int hio_comp_uchars_bcstr (const hio_uch_t* str1, hio_oow_t len, const hio_bch_t
 		const hio_uch_t* end = str1 + len;
 		hio_uch_t c1;
 		hio_bch_t c2;
-		while (str1 < end && *str2 != '\0') 
+		while (str1 < end && *str2 != '\0')
 		{
 			c1 = hio_to_uch_lower(*str1);
 			c2 = hio_to_bch_lower(*str2);
@@ -97,7 +97,7 @@ int hio_comp_uchars_bcstr (const hio_uch_t* str1, hio_oow_t len, const hio_bch_t
 	else
 	{
 		const hio_uch_t* end = str1 + len;
-		while (str1 < end && *str2 != '\0') 
+		while (str1 < end && *str2 != '\0')
 		{
 			if (*str1 != *str2) return ((hio_uchu_t)*str1 > (hio_bchu_t)*str2)? 1: -1;
 			str1++; str2++;
@@ -113,7 +113,7 @@ int hio_comp_bchars_ucstr (const hio_bch_t* str1, hio_oow_t len, const hio_uch_t
 		const hio_bch_t* end = str1 + len;
 		hio_bch_t c1;
 		hio_uch_t c2;
-		while (str1 < end && *str2 != '\0') 
+		while (str1 < end && *str2 != '\0')
 		{
 			c1 = hio_to_bch_lower(*str1);
 			c2 = hio_to_uch_lower(*str2);
@@ -125,7 +125,7 @@ int hio_comp_bchars_ucstr (const hio_bch_t* str1, hio_oow_t len, const hio_uch_t
 	else
 	{
 		const hio_bch_t* end = str1 + len;
-		while (str1 < end && *str2 != '\0') 
+		while (str1 < end && *str2 != '\0')
 		{
 			if (*str1 != *str2) return ((hio_bchu_t)*str1 > (hio_uchu_t)*str2)? 1: -1;
 			str1++; str2++;
@@ -217,7 +217,7 @@ HIO_INLINE int hio_conv_bchars_to_uchars_with_cmgr (
 
 	if (ucs)
 	{
-		/* destination buffer is specified. 
+		/* destination buffer is specified.
 		 * copy the conversion result to the buffer */
 
 		hio_uch_t* q, * qend;
@@ -281,7 +281,7 @@ HIO_INLINE int hio_conv_bchars_to_uchars_with_cmgr (
 		/* no destination buffer is specified. perform conversion
 		 * but don't copy the result. the caller can call this function
 		 * without a buffer to find the required buffer size, allocate
-		 * a buffer with the size and call this function again with 
+		 * a buffer with the size and call this function again with
 		 * the buffer. */
 
 		hio_uch_t w;
@@ -357,13 +357,13 @@ HIO_INLINE int hio_conv_uchars_to_bchars_with_cmgr (
 {
 	const hio_uch_t* p = ucs;
 	const hio_uch_t* end = ucs + *ucslen;
-	int ret = 0; 
+	int ret = 0;
 
 	if (bcs)
 	{
 		hio_oow_t rem = *bcslen;
 
-		while (p < end) 
+		while (p < end)
 		{
 			hio_oow_t n;
 
@@ -374,12 +374,12 @@ HIO_INLINE int hio_conv_uchars_to_bchars_with_cmgr (
 			}
 
 			n = cmgr->uctobc(*p, bcs, rem);
-			if (n == 0) 
+			if (n == 0)
 			{
 				ret = -1;
 				break; /* illegal character */
 			}
-			if (n > rem) 
+			if (n > rem)
 			{
 				ret = -2; /* buffer too small */
 				break;
@@ -387,7 +387,7 @@ HIO_INLINE int hio_conv_uchars_to_bchars_with_cmgr (
 			bcs += n; rem -= n; p++;
 		}
 
-		*bcslen -= rem; 
+		*bcslen -= rem;
 	}
 	else
 	{
@@ -399,7 +399,7 @@ HIO_INLINE int hio_conv_uchars_to_bchars_with_cmgr (
 			hio_oow_t n;
 
 			n = cmgr->uctobc(*p, bcsbuf, HIO_COUNTOF(bcsbuf));
-			if (n == 0) 
+			if (n == 0)
 			{
 				ret = -1;
 				break; /* illegal character */
@@ -411,7 +411,7 @@ HIO_INLINE int hio_conv_uchars_to_bchars_with_cmgr (
 			p++; mlen += n;
 		}
 
-		/* this length excludes the terminating null character. 
+		/* this length excludes the terminating null character.
 		 * this function doesn't even null-terminate the result. */
 		*bcslen = mlen;
 	}
@@ -440,14 +440,14 @@ HIO_INLINE int hio_conv_ucstr_to_bcstr_with_cmgr (
 				ret = -2;
 				break;
 			}
-			
+
 			n = cmgr->uctobc(*p, bcs, rem);
-			if (n == 0) 
+			if (n == 0)
 			{
 				ret = -1;
 				break; /* illegal character */
 			}
-			if (n > rem) 
+			if (n > rem)
 			{
 				ret = -2;
 				break; /* buffer too small */
@@ -458,13 +458,13 @@ HIO_INLINE int hio_conv_ucstr_to_bcstr_with_cmgr (
 
 		/* update bcslen to the length of the bcs string converted excluding
 		 * terminating null */
-		*bcslen -= rem; 
+		*bcslen -= rem;
 
 		/* null-terminate the multibyte sequence if it has sufficient space */
 		if (rem > 0) *bcs = '\0';
-		else 
+		else
 		{
-			/* if ret is -2 and cs[cslen] == '\0', 
+			/* if ret is -2 and cs[cslen] == '\0',
 			 * this means that the bcs buffer was lacking one
 			 * slot for the terminating null */
 			ret = -2; /* buffer too small */
@@ -480,7 +480,7 @@ HIO_INLINE int hio_conv_ucstr_to_bcstr_with_cmgr (
 			hio_oow_t n;
 
 			n = cmgr->uctobc(*p, bcsbuf, HIO_COUNTOF(bcsbuf));
-			if (n == 0) 
+			if (n == 0)
 			{
 				ret = -1;
 				break; /* illegal character */
@@ -492,7 +492,7 @@ HIO_INLINE int hio_conv_ucstr_to_bcstr_with_cmgr (
 			p++; mlen += n;
 		}
 
-		/* this length holds the number of resulting multi-byte characters 
+		/* this length holds the number of resulting multi-byte characters
 		 * excluding the terminating null character */
 		*bcslen = mlen;
 	}
@@ -609,7 +609,7 @@ HIO_INLINE hio_uch_t* hio_dupbtoucharswithheadroom (hio_t* hio, hio_oow_t headro
 	hio_uch_t* ptr;
 
 	inlen = bcslen;
-	if (hio_convbtouchars(hio, bcs, &inlen, HIO_NULL, &outlen, all) <= -1) 
+	if (hio_convbtouchars(hio, bcs, &inlen, HIO_NULL, &outlen, all) <= -1)
 	{
 		/* note it's also an error if no full conversion is made in this function */
 		return HIO_NULL;
@@ -623,10 +623,10 @@ HIO_INLINE hio_uch_t* hio_dupbtoucharswithheadroom (hio_t* hio, hio_oow_t headro
 	ptr = (hio_uch_t*)((hio_oob_t*)ptr + headroom_bytes);
 	hio_convbtouchars (hio, bcs, &inlen, ptr, &outlen, all);
 
-	/* hio_convbtouchars() doesn't null-terminate the target. 
+	/* hio_convbtouchars() doesn't null-terminate the target.
 	 * but in hio_dupbtouchars(), i allocate space. so i don't mind
 	 * null-terminating it with 1 extra character overhead */
-	ptr[outlen] = '\0'; 
+	ptr[outlen] = '\0';
 	if (ucslen) *ucslen = outlen;
 	return ptr;
 }
@@ -642,7 +642,7 @@ HIO_INLINE hio_bch_t* hio_duputobcharswithheadroom (hio_t* hio, hio_oow_t headro
 	hio_bch_t* ptr;
 
 	inlen = ucslen;
-	if (hio_convutobchars(hio, ucs, &inlen, HIO_NULL, &outlen) <= -1) 
+	if (hio_convutobchars(hio, ucs, &inlen, HIO_NULL, &outlen) <= -1)
 	{
 		/* note it's also an error if no full conversion is made in this function */
 		return HIO_NULL;
@@ -673,7 +673,7 @@ HIO_INLINE hio_uch_t* hio_dupbtoucstrwithheadroom (hio_t* hio, hio_oow_t headroo
 	hio_oow_t inlen, outlen;
 	hio_uch_t* ptr;
 
-	if (hio_convbtoucstr(hio, bcs, &inlen, HIO_NULL, &outlen, all) <= -1) 
+	if (hio_convbtoucstr(hio, bcs, &inlen, HIO_NULL, &outlen, all) <= -1)
 	{
 		/* note it's also an error if no full conversion is made in this function */
 		return HIO_NULL;
@@ -698,7 +698,7 @@ HIO_INLINE hio_bch_t* hio_duputobcstrwithheadroom (hio_t* hio, hio_oow_t headroo
 	hio_oow_t inlen, outlen;
 	hio_bch_t* ptr;
 
-	if (hio_convutobcstr(hio, ucs, &inlen, HIO_NULL, &outlen) <= -1) 
+	if (hio_convutobcstr(hio, ucs, &inlen, HIO_NULL, &outlen) <= -1)
 	{
 		/* note it's also an error if no full conversion is made in this function */
 		return HIO_NULL;
@@ -791,7 +791,7 @@ hio_uch_t* hio_dupucstrs (hio_t* hio, const hio_uch_t* ucs[], hio_oow_t* ucslen)
 	ptr = (hio_uch_t*)hio_allocmem(hio, (len + 1) * HIO_SIZEOF(hio_uch_t));
 	if (!ptr) return HIO_NULL;
 
-	for (i = 0, len = 0; ucs[i]; i++) 
+	for (i = 0, len = 0; ucs[i]; i++)
 		len += hio_copy_ucstr_unlimited(&ptr[len], ucs[i]);
 	ptr[len] = '\0';
 
@@ -809,7 +809,7 @@ hio_bch_t* hio_dupbcstrs (hio_t* hio, const hio_bch_t* bcs[], hio_oow_t* bcslen)
 	ptr = (hio_bch_t*)hio_allocmem(hio, (len + 1) * HIO_SIZEOF(hio_bch_t));
 	if (!ptr) return HIO_NULL;
 
-	for (i = 0, len = 0; bcs[i]; i++) 
+	for (i = 0, len = 0; bcs[i]; i++)
 		len += hio_copy_bcstr_unlimited(&ptr[len], bcs[i]);
 	ptr[len] = '\0';
 
@@ -916,7 +916,7 @@ void hio_sub_ntime (hio_ntime_t* z, const hio_ntime_t* x, const hio_ntime_t* y)
 			xs = HIO_TYPE_MIN(hio_ntime_sec_t);
 			ns = 0;
 		}
-	} 
+	}
 	else
 	{
 		xs = xs - ys;

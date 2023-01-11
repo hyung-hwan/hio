@@ -108,7 +108,7 @@ int hio_is_uch_blank (hio_uch_t c)
 hio_uch_t hio_to_uch_upper (hio_uch_t c)
 {
 	hio_uchu_t uc = (hio_uchu_t)c;
-	if (uc >= 0 && uc <= UCH_CASE_MAX) 
+	if (uc >= 0 && uc <= UCH_CASE_MAX)
 	{
 	 	uch_case_page_t* page;
 		page = uch_case_map[UCH_CASE_MAP_INDEX(uc)];
@@ -120,7 +120,7 @@ hio_uch_t hio_to_uch_upper (hio_uch_t c)
 hio_uch_t hio_to_uch_lower (hio_uch_t c)
 {
 	hio_uchu_t uc = (hio_uchu_t)c;
-	if (uc >= 0 && uc <= UCH_CASE_MAX) 
+	if (uc >= 0 && uc <= UCH_CASE_MAX)
 	{
 	 	uch_case_page_t* page;
 		page = uch_case_map[UCH_CASE_MAP_INDEX(uc)];
@@ -219,17 +219,17 @@ int hio_ucstr_to_uch_prop (const hio_uch_t* name, hio_uch_prop_t* id)
 		kwp = &prop_tab[mid];
 
 		n = hio_comp_ucstr_bcstr(name, kwp->name, 0);
-		if (n > 0) 
+		if (n > 0)
 		{
 			/* if left, right, mid were of hio_oow_t,
-			 * you would need the following line. 
+			 * you would need the following line.
 			if (mid == 0) break;
 			 */
 			right = mid - 1;
 		}
 		else if (n < 0) left = mid + 1;
 		else
-		{ 
+		{
 			*id = kwp->class;
 			return 0;
 		}
@@ -251,17 +251,17 @@ int hio_uchars_to_uch_prop (const hio_uch_t* name, hio_oow_t len, hio_uch_prop_t
 		kwp = &prop_tab[mid];
 
 		n = hio_comp_uchars_bcstr(name, len, kwp->name, 0);
-		if (n < 0) 
+		if (n < 0)
 		{
 			/* if left, right, mid were of hio_oow_t,
-			 * you would need the following line. 
+			 * you would need the following line.
 			if (mid == 0) break;
 			 */
 			right = mid - 1;
 		}
 		else if (n > 0) left = mid + 1;
-		else 
-		{ 
+		else
+		{
 			*id = kwp->class;
 			return 0;
 		}
@@ -285,17 +285,17 @@ int hio_bcstr_to_bch_prop (const hio_bch_t* name, hio_bch_prop_t* id)
 		kwp = &prop_tab[mid];
 
 		n = hio_comp_bcstr(name, kwp->name, 0);
-		if (n > 0) 
+		if (n > 0)
 		{
 			/* if left, right, mid were of hio_oow_t,
-			 * you would need the following line. 
+			 * you would need the following line.
 			if (mid == 0) break;
 			 */
 			right = mid - 1;
 		}
 		else if (n < 0) left = mid + 1;
 		else
-		{ 
+		{
 			*id = kwp->class;
 			return 0;
 		}
@@ -317,17 +317,17 @@ int hio_bchars_to_bch_prop (const hio_bch_t* name, hio_oow_t len, hio_bch_prop_t
 		kwp = &prop_tab[mid];
 
 		n = hio_comp_bchars_bcstr(name, len, kwp->name, 0);
-		if (n < 0) 
+		if (n < 0)
 		{
 			/* if left, right, mid were of hio_oow_t,
-			 * you would need the following line. 
+			 * you would need the following line.
 			if (mid == 0) break;
 			 */
 			right = mid - 1;
 		}
 		else if (n > 0) left = mid + 1;
 		else
-		{ 
+		{
 			*id = kwp->class;
 			return 0;
 		}
@@ -339,16 +339,16 @@ int hio_bchars_to_bch_prop (const hio_bch_t* name, hio_oow_t len, hio_bch_prop_t
 /* ----------------------------------------------------------------------- */
 
 /*
- * See http://www.cl.cam.ac.uk/~mgk25/ucs/wcwidth.c 
+ * See http://www.cl.cam.ac.uk/~mgk25/ucs/wcwidth.c
  */
-struct interval 
+struct interval
 {
 	int first;
 	int last;
 };
 
 /* auxiliary function for binary search in interval table */
-static int bisearch(hio_uch_t ucs, const struct interval *table, int max) 
+static int bisearch(hio_uch_t ucs, const struct interval *table, int max)
 {
 	int min = 0;
 	int mid;
@@ -473,7 +473,7 @@ int hio_get_ucwidth (hio_uch_t uc)
 		    (uc >= 0xff00 && uc <= 0xff60) || /* Fullwidth Forms */
 		    (uc >= 0xffe0 && uc <= 0xffe6)
 		#if (HIO_SIZEOF_UCH_T > 2)
-		    || 
+		    ||
 		    (uc >= 0x20000 && uc <= 0x2fffd) ||
 		    (uc >= 0x30000 && uc <= 0x3fffd)
 		#endif
@@ -483,5 +483,5 @@ int hio_get_ucwidth (hio_uch_t uc)
 		}
 	}
 
-	return 1; 
+	return 1;
 }

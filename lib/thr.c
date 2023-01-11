@@ -61,19 +61,19 @@ static hio_dev_thr_slave_t* make_slave (hio_t* hio, slave_info_t* si);
 
 static void free_thr_info_resources (hio_t* hio, hio_dev_thr_info_t* ti)
 {
-	if (ti->thr_iop.rfd != HIO_SYSHND_INVALID) 
+	if (ti->thr_iop.rfd != HIO_SYSHND_INVALID)
 	{
 		/* this function is called at the end of run_thr_func() and
 		 * close() can be a thread cancellation point.
 		 *
-		 * i must invalidate ti->thr_iop.rfd calling close() with it. 
-		 * if resetting is done after close() and close() becomes a cancellation point, 
+		 * i must invalidate ti->thr_iop.rfd calling close() with it.
+		 * if resetting is done after close() and close() becomes a cancellation point,
 		 * the invalidation operation gets skipped. */
 		hio_syshnd_t tmp = ti->thr_iop.rfd;
-		ti->thr_iop.rfd = HIO_SYSHND_INVALID;  
+		ti->thr_iop.rfd = HIO_SYSHND_INVALID;
 		close (tmp);
 	}
-	if (ti->thr_iop.wfd != HIO_SYSHND_INVALID) 
+	if (ti->thr_iop.wfd != HIO_SYSHND_INVALID)
 	{
 		hio_syshnd_t tmp = ti->thr_iop.wfd;
 		ti->thr_iop.wfd = HIO_SYSHND_INVALID;
@@ -126,7 +126,7 @@ static void* run_thr_func (void* ctx)
 
 	ti->thr_func (ti->hio, &ti->thr_iop, ti->thr_ctx);
 
-	free_thr_info_resources (ti->hio, ti); 
+	free_thr_info_resources (ti->hio, ti);
 
 	pthread_cleanup_pop (1);
 	pthread_exit (HIO_NULL);
@@ -176,10 +176,10 @@ pipe_done:
 	si.dev_cap = HIO_DEV_CAP_OUT | HIO_DEV_CAP_STREAM;
 	si.id = HIO_DEV_THR_IN;
 
-	/* invalidate pfds[1] before calling make_slave() because when it fails, the 
+	/* invalidate pfds[1] before calling make_slave() because when it fails, the
 	 * fail_before_make(dev_thr_fail_before_make_slave) and kill(dev_thr_kill_slave) callbacks close si.pfd */
 	pfds[1] = HIO_SYSHND_INVALID;
-					
+
 	rdev->slave[HIO_DEV_THR_IN] = make_slave(hio, &si);
 	if (!rdev->slave[HIO_DEV_THR_IN]) goto oops;
 	rdev->slave_count++;
@@ -188,14 +188,14 @@ pipe_done:
 	si.pfd = pfds[2];
 	si.dev_cap = HIO_DEV_CAP_IN | HIO_DEV_CAP_STREAM;
 	si.id = HIO_DEV_THR_OUT;
-	/* invalidate pfds[2] before calling make_slave() because when it fails, the 
+	/* invalidate pfds[2] before calling make_slave() because when it fails, the
 	 * fail_before_make(dev_thr_fail_before_make_slave) and kill(dev_thr_kill_slave) callbacks close si.pfd */
 	pfds[2] = HIO_SYSHND_INVALID;
 	rdev->slave[HIO_DEV_THR_OUT] = make_slave(hio, &si);
 	if (!rdev->slave[HIO_DEV_THR_OUT]) goto oops;
 	rdev->slave_count++;
 
-	for (i = 0; i < HIO_COUNTOF(rdev->slave); i++) 
+	for (i = 0; i < HIO_COUNTOF(rdev->slave); i++)
 	{
 		if (rdev->slave[i]) rdev->slave[i]->master = rdev;
 	}
@@ -204,7 +204,7 @@ pipe_done:
 	rdev->on_read = info->on_read;
 	rdev->on_write = info->on_write;
 	rdev->on_close = info->on_close;
-	
+
 	/* ---------------------------------------------------------- */
 	{
 		int n;
@@ -221,7 +221,7 @@ pipe_done:
 
 		rdev->thr_info = ti;
 		n = pthread_create(&ti->thr_hnd, HIO_NULL, run_thr_func, ti);
-		if (n != 0) 
+		if (n != 0)
 		{
 			rdev->thr_info = HIO_NULL;
 			hio_freemem (hio, ti);
@@ -240,7 +240,7 @@ pipe_done:
 oops:
 	for (i = 0; i < HIO_COUNTOF(pfds); i++)
 	{
-		if (pfds[i] != HIO_SYSHND_INVALID) 
+		if (pfds[i] != HIO_SYSHND_INVALID)
 		{
 			close (pfds[i]);
 		}
@@ -307,7 +307,7 @@ static int dev_thr_kill_master (hio_dev_t* dev, int force)
 	}
 
 	rdev->thr_info = HIO_NULL;
-	if (ti->thr_done) 
+	if (ti->thr_done)
 	{
 		pthread_detach (ti->thr_hnd); /* pthread_join() may be blocking. detach the thread instead */
 		free_thr_info_resources (hio, ti);
@@ -316,7 +316,7 @@ static int dev_thr_kill_master (hio_dev_t* dev, int force)
 	else
 	{
 	#if 0
-		/* since pthread_join can be blocking, i'd schedule a resource destroyer with hio_addcfmb(). 
+		/* since pthread_join can be blocking, i'd schedule a resource destroyer with hio_addcfmb().
 		 * see after #else */
 		pthread_join (ti->thr_hnd, HIO_NULL);
 		free_thr_info_resources (hio, ti);
@@ -352,7 +352,7 @@ static int dev_thr_kill_slave (hio_dev_t* dev, int force)
 		if (master->slave[rdev->id])
 		{
 			/* this call is started by the slave device itself. */
-			if (master->slave_count <= 0) 
+			if (master->slave_count <= 0)
 			{
 				/* if this is the last slave, kill the master also */
 				hio_dev_kill ((hio_dev_t*)master);
@@ -392,7 +392,7 @@ static int dev_thr_read_slave (hio_dev_t* dev, void* buf, hio_iolen_t* len, hio_
 	ssize_t x;
 
 	/* the read and write operation happens on different slave devices.
-	 * the write EOF indication doesn't affect this device 
+	 * the write EOF indication doesn't affect this device
 	if (HIO_UNLIKELY(thr->pfd == HIO_SYSHND_INVALID))
 	{
 		hio_seterrnum (thr->hio, HIO_EBADHND);
@@ -420,7 +420,7 @@ static int dev_thr_write_slave (hio_dev_t* dev, const void* data, hio_iolen_t* l
 
 	/* this check is not needed because HIO_DEV_CAP_OUT_CLOSED is set on the device by the core
 	 * when EOF indication is successful(return value 1 and *iovcnt 0).
-	 * If HIO_DEV_CAP_OUT_CLOSED, the core doesn't invoke the write method 
+	 * If HIO_DEV_CAP_OUT_CLOSED, the core doesn't invoke the write method
 	if (HIO_UNLIKELY(thr->pfd == HIO_SYSHND_INVALID))
 	{
 		hio_seterrnum (thr->hio, HIO_EBADHND);
@@ -462,7 +462,7 @@ static int dev_thr_writev_slave (hio_dev_t* dev, const hio_iovec_t* iov, hio_iol
 
 	/* this check is not needed because HIO_DEV_CAP_OUT_CLOSED is set on the device by the core
 	 * when EOF indication is successful(return value 1 and *iovcnt 0).
-	 * If HIO_DEV_CAP_OUT_CLOSED, the core doesn't invoke the write method 
+	 * If HIO_DEV_CAP_OUT_CLOSED, the core doesn't invoke the write method
 	if (HIO_UNLIKELY(thr->pfd == HIO_SYSHND_INVALID))
 	{
 		hio_seterrnum (thr->hio, HIO_EBADHND);
@@ -528,11 +528,11 @@ static int dev_thr_ioctl (hio_dev_t* dev, int cmd, void* arg)
 			if (rdev->slave[sid])
 			{
 				/* unlike dev_thr_kill_master(), i don't nullify rdev->slave[sid].
-				 * so i treat the closing ioctl as if it's a kill request 
+				 * so i treat the closing ioctl as if it's a kill request
 				 * initiated by the slave device itself. */
 				hio_dev_kill ((hio_dev_t*)rdev->slave[sid]);
 
-				/* if this is the last slave, the master is destroyed as well. 
+				/* if this is the last slave, the master is destroyed as well.
 				 * therefore, using rdev is unsafe in the assertion below is unsafe.
 				 *HIO_ASSERT (hio, rdev->slave[sid] == HIO_NULL); */
 			}
@@ -560,7 +560,7 @@ static int dev_thr_ioctl (hio_dev_t* dev, int cmd, void* arg)
 	}
 }
 
-static hio_dev_mth_t dev_thr_methods = 
+static hio_dev_mth_t dev_thr_methods =
 {
 	dev_thr_make_master,
 	dev_thr_kill_master,
@@ -635,7 +635,7 @@ static int thr_ready_slave (hio_dev_t* dev, int events)
 
 	if (events & HIO_DEV_EVENT_HUP)
 	{
-		if (events & (HIO_DEV_EVENT_PRI | HIO_DEV_EVENT_IN | HIO_DEV_EVENT_OUT)) 
+		if (events & (HIO_DEV_EVENT_PRI | HIO_DEV_EVENT_IN | HIO_DEV_EVENT_OUT))
 		{
 			/* thrbably half-open? */
 			return 1;
@@ -683,12 +683,12 @@ static hio_dev_thr_slave_t* make_slave (hio_t* hio, slave_info_t* si)
 	{
 		case HIO_DEV_THR_IN:
 			return (hio_dev_thr_slave_t*)hio_dev_make(
-				hio, HIO_SIZEOF(hio_dev_thr_t), 
+				hio, HIO_SIZEOF(hio_dev_thr_t),
 				&dev_thr_methods_slave, &dev_thr_event_callbacks_slave_in, si);
 
 		case HIO_DEV_THR_OUT:
 			return (hio_dev_thr_slave_t*)hio_dev_make(
-				hio, HIO_SIZEOF(hio_dev_thr_t), 
+				hio, HIO_SIZEOF(hio_dev_thr_t),
 				&dev_thr_methods_slave, &dev_thr_event_callbacks_slave_out, si);
 
 		default:
@@ -700,7 +700,7 @@ static hio_dev_thr_slave_t* make_slave (hio_t* hio, slave_info_t* si)
 hio_dev_thr_t* hio_dev_thr_make (hio_t* hio, hio_oow_t xtnsize, const hio_dev_thr_make_t* info)
 {
 	return (hio_dev_thr_t*)hio_dev_make(
-		hio, HIO_SIZEOF(hio_dev_thr_t) + xtnsize, 
+		hio, HIO_SIZEOF(hio_dev_thr_t) + xtnsize,
 		&dev_thr_methods, &dev_thr_event_callbacks, (void*)info);
 }
 

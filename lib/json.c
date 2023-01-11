@@ -57,7 +57,7 @@ static int add_char_to_token (hio_json_t* json, hio_ooch_t ch, int handle_surrog
 		json->tok.ptr = tmp;
 	}
 
-#if (HIO_SIZEOF_OOCH_T >= 4) 
+#if (HIO_SIZEOF_OOCH_T >= 4)
 	if (handle_surrogate_pair && ch >= 0xDC00 && ch <= 0xDFFF && json->tok.len > 0)
 	{
 		/* RFC7159
@@ -87,7 +87,7 @@ static int add_char_to_token (hio_json_t* json, hio_ooch_t ch, int handle_surrog
 static int add_chars_to_token (hio_json_t* json, const hio_ooch_t* ptr, hio_oow_t len)
 {
 	hio_oow_t i;
-	
+
 	if (json->tok_capa - json->tok.len > len)
 	{
 		hio_ooch_t* tmp;
@@ -135,7 +135,7 @@ static int push_read_state (hio_json_t* json, hio_json_state_t state)
 	ss->index  = 0;
 	ss->in_comment = 0;
 	ss->next = json->state_stack;
-	
+
 	json->state_stack = ss;
 	return 0;
 }
@@ -177,7 +177,7 @@ static int invoke_data_inst (hio_json_t* json, hio_json_inst_t inst)
 
 	if (ss->state == HIO_JSON_STATE_IN_OBJECT)
 	{
-		if (ss->u.io.state == 1) 
+		if (ss->u.io.state == 1)
 		{
 			/* just got the key part. the colon has not been seen.  */
 
@@ -194,7 +194,7 @@ static int invoke_data_inst (hio_json_t* json, hio_json_inst_t inst)
 
 			inst = HIO_JSON_INST_KEY;
 		}
-		else 
+		else
 		{
 			/* if this variable is non-zero, level is set to 0 regardless of actual level.
 			 * this helps the callback to print the value without indentation immediately
@@ -204,7 +204,7 @@ static int invoke_data_inst (hio_json_t* json, hio_json_inst_t inst)
 		}
 	}
 
-	if (inst == __INST_WORD_STRING) 
+	if (inst == __INST_WORD_STRING)
 	{
 		hio_seterrbfmt (json->hio, HIO_EINVAL, "invalid word value - %.*js at line %zu:%zu", json->tok.len, json->tok.ptr, json->tok_line, json->tok_col);
 		return -1;
@@ -324,7 +324,7 @@ static int handle_string_value_char (hio_json_t* json, hio_ooci_t c)
 	}
 	else if (json->state_stack->u.sv.escaped == 1)
 	{
-		if (c >= '0' && c <= '8') 
+		if (c >= '0' && c <= '8')
 		{
 			json->state_stack->u.sv.escaped = 3;
 			json->state_stack->u.sv.digit_count = 0;
@@ -787,7 +787,7 @@ static int feed_json_data (hio_json_t* json, const hio_bch_t* data, hio_oow_t le
 		else if (n > bcslen)
 		{
 			/* incomplete sequence */
-			*xlen = ptr - data; 
+			*xlen = ptr - data;
 			return 0; /* feed more for incomplete sequence */
 		}
 
@@ -808,14 +808,14 @@ static int feed_json_data (hio_json_t* json, const hio_bch_t* data, hio_oow_t le
 			json->c_col++;
 		}
 
-		if (json->state_stack->in_comment) 
+		if (json->state_stack->in_comment)
 		{
 			if (c == HIO_EOL) json->state_stack->in_comment = 0;
 			continue;
 		}
 		if (json->state_stack->state == HIO_JSON_STATE_START && hio_is_ooch_space(c)) continue; /* skip white space */
 
-		if (stop_if_ever_completed && ever_completed) 
+		if (stop_if_ever_completed && ever_completed)
 		{
 			*xlen = optr - data;
 			return 2;
@@ -889,7 +889,7 @@ int hio_json_init (hio_json_t* json, hio_t* hio)
 void hio_json_fini (hio_json_t* json)
 {
 	pop_all_read_states (json);
-	if (json->tok.ptr) 
+	if (json->tok.ptr)
 	{
 		hio_freemem (json->hio, json->tok.ptr);
 		json->tok.ptr = HIO_NULL;
@@ -947,7 +947,7 @@ int hio_json_feed (hio_json_t* json, const void* ptr, hio_oow_t len, hio_oow_t* 
 		total += ylen;
 		if (x == 0) break; /* incomplete sequence encountered */
 
-		if (stop_if_ever_completed && x >= 2) 
+		if (stop_if_ever_completed && x >= 2)
 		{
 			if (rem) *rem = len - total;
 			return 1;
@@ -1116,7 +1116,7 @@ static int write_bytes_noesc (hio_jsonwr_t* jsonwr, const hio_bch_t* dptr, hio_o
 	{
 		rem = HIO_COUNTOF(jsonwr->wbuf) - jsonwr->wbuf_len;
 
-		if (dlen <= rem) 
+		if (dlen <= rem)
 		{
 			HIO_MEMCPY (&jsonwr->wbuf[jsonwr->wbuf_len], dptr, dlen);
 			jsonwr->wbuf_len += dlen;
@@ -1205,7 +1205,7 @@ static int write_uchars (hio_jsonwr_t* jsonwr, int escape, const hio_uch_t* ptr,
 		{
 		no_escape:
 			n = hio->_cmgr->uctobc(*ptr, bcsbuf, HIO_COUNTOF(bcsbuf));
-			if (n == 0) 
+			if (n == 0)
 			{
 				hio_seterrnum (hio, HIO_EECERR);
 				return -1;
@@ -1256,7 +1256,7 @@ int hio_jsonwr_write (hio_jsonwr_t* jsonwr, hio_json_inst_t inst, int is_uchars,
 				WRITE_INDENT (jsonwr);
 			}
 			sn->obj_awaiting_val = 0;
-			WRITE_BYTES_NOESC (jsonwr, "[", 1); 
+			WRITE_BYTES_NOESC (jsonwr, "[", 1);
 			if (jsonwr->flags & HIO_JSONWR_FLAG_PRETTY) WRITE_LINE_BREAK (jsonwr);
 			if (push_write_state(jsonwr, HIO_JSON_STATE_IN_ARRAY) <= -1) return -1;
 			jsonwr->state_stack->level++;
@@ -1264,7 +1264,7 @@ int hio_jsonwr_write (hio_jsonwr_t* jsonwr, hio_json_inst_t inst, int is_uchars,
 
 		case HIO_JSON_INST_START_OBJECT:
 			if (sn->state != HIO_JSON_STATE_START && sn->state != HIO_JSON_STATE_IN_ARRAY &&
-			    !(sn->state == HIO_JSON_STATE_IN_OBJECT && sn->obj_awaiting_val)) goto incompatible_inst; 
+			    !(sn->state == HIO_JSON_STATE_IN_OBJECT && sn->obj_awaiting_val)) goto incompatible_inst;
 			if (sn->index > 0 && sn->state == HIO_JSON_STATE_IN_ARRAY) WRITE_COMMA (jsonwr);
 			sn->index++;
 			if ((jsonwr->flags & HIO_JSONWR_FLAG_PRETTY) &&
@@ -1273,7 +1273,7 @@ int hio_jsonwr_write (hio_jsonwr_t* jsonwr, hio_json_inst_t inst, int is_uchars,
 					WRITE_INDENT (jsonwr);
 			}
 			sn->obj_awaiting_val = 0;
-			WRITE_BYTES_NOESC (jsonwr, "{", 1); 
+			WRITE_BYTES_NOESC (jsonwr, "{", 1);
 			if (jsonwr->flags & HIO_JSONWR_FLAG_PRETTY) WRITE_LINE_BREAK (jsonwr);
 			if (push_write_state (jsonwr, HIO_JSON_STATE_IN_OBJECT) <= -1) return -1;
 			jsonwr->state_stack->level++;
@@ -1282,13 +1282,13 @@ int hio_jsonwr_write (hio_jsonwr_t* jsonwr, hio_json_inst_t inst, int is_uchars,
 		case HIO_JSON_INST_END_ARRAY:
 			if (sn->state != HIO_JSON_STATE_IN_ARRAY) goto incompatible_inst;
 			pop_write_state (jsonwr);
-			if (jsonwr->flags & HIO_JSONWR_FLAG_PRETTY) 
+			if (jsonwr->flags & HIO_JSONWR_FLAG_PRETTY)
 			{
 				WRITE_LINE_BREAK (jsonwr);
 				WRITE_INDENT (jsonwr);
 			}
-			WRITE_BYTES_NOESC (jsonwr, "]", 1); 
-			if (jsonwr->state_stack->state == HIO_JSON_STATE_START) 
+			WRITE_BYTES_NOESC (jsonwr, "]", 1);
+			if (jsonwr->state_stack->state == HIO_JSON_STATE_START)
 			{
 				/* end of json */
 				if (jsonwr->flags & HIO_JSONWR_FLAG_PRETTY) WRITE_LINE_BREAK (jsonwr);
@@ -1299,13 +1299,13 @@ int hio_jsonwr_write (hio_jsonwr_t* jsonwr, hio_json_inst_t inst, int is_uchars,
 		case HIO_JSON_INST_END_OBJECT:
 			if (sn->state != HIO_JSON_STATE_IN_OBJECT || sn->obj_awaiting_val) goto incompatible_inst;
 			pop_write_state (jsonwr);
-			if (jsonwr->flags & HIO_JSONWR_FLAG_PRETTY) 
+			if (jsonwr->flags & HIO_JSONWR_FLAG_PRETTY)
 			{
 				WRITE_LINE_BREAK (jsonwr);
 				WRITE_INDENT (jsonwr);
 			}
-			WRITE_BYTES_NOESC (jsonwr, "}", 1); 
-			if (jsonwr->state_stack->state == HIO_JSON_STATE_START) 
+			WRITE_BYTES_NOESC (jsonwr, "}", 1);
+			if (jsonwr->state_stack->state == HIO_JSON_STATE_START)
 			{
 				/* end of json */
 				if (jsonwr->flags & HIO_JSONWR_FLAG_PRETTY) WRITE_LINE_BREAK (jsonwr);
@@ -1333,7 +1333,7 @@ int hio_jsonwr_write (hio_jsonwr_t* jsonwr, hio_json_inst_t inst, int is_uchars,
 			PREACTION_FOR_VALUE (jsonwr, sn);
 			WRITE_BYTES_NOESC (jsonwr, "true", 4);
 			break;
-			
+
 		case HIO_JSON_INST_FALSE:
 			PREACTION_FOR_VALUE (jsonwr, sn);
 			WRITE_BYTES_NOESC (jsonwr, "false", 5);

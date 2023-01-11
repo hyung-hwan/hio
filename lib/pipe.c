@@ -100,7 +100,7 @@ pipe_done:
 	if (!rdev->slave[HIO_DEV_PIPE_OUT]) goto oops;
 	rdev->slave_count++;
 
-	for (i = 0; i < HIO_COUNTOF(rdev->slave); i++) 
+	for (i = 0; i < HIO_COUNTOF(rdev->slave); i++)
 	{
 		if (rdev->slave[i]) rdev->slave[i]->master = rdev;
 	}
@@ -195,7 +195,7 @@ static int dev_pipe_kill_slave (hio_dev_t* dev, int force)
 		{
 			/* this call is started by the slave device itself.
 			 * if this is the last slave, kill the master also */
-			if (master->slave_count <= 0) 
+			if (master->slave_count <= 0)
 			{
 				hio_dev_kill ((hio_dev_t*)master);
 				/* the master pointer is not valid from this point onwards
@@ -355,7 +355,7 @@ static int dev_pipe_ioctl (hio_dev_t* dev, int cmd, void* arg)
 			if (rdev->slave[sid])
 			{
 				/* unlike dev_pipe_kill_master(), i don't nullify rdev->slave[sid].
-				 * so i treat the closing ioctl as if it's a kill request 
+				 * so i treat the closing ioctl as if it's a kill request
 				 * initiated by the slave device itself. */
 				hio_dev_kill ((hio_dev_t*)rdev->slave[sid]);
 			}
@@ -368,7 +368,7 @@ static int dev_pipe_ioctl (hio_dev_t* dev, int cmd, void* arg)
 	}
 }
 
-static hio_dev_mth_t dev_pipe_methods = 
+static hio_dev_mth_t dev_pipe_methods =
 {
 	dev_pipe_make_master,
 	dev_pipe_kill_master,
@@ -443,7 +443,7 @@ static int pipe_ready_slave (hio_dev_t* dev, int events)
 
 	if (events & HIO_DEV_EVENT_HUP)
 	{
-		if (events & (HIO_DEV_EVENT_PRI | HIO_DEV_EVENT_IN | HIO_DEV_EVENT_OUT)) 
+		if (events & (HIO_DEV_EVENT_PRI | HIO_DEV_EVENT_IN | HIO_DEV_EVENT_OUT))
 		{
 			/* pipebably half-open? */
 			return 1;
@@ -490,12 +490,12 @@ static hio_dev_pipe_slave_t* make_slave (hio_t* hio, slave_info_t* si)
 	{
 		case HIO_DEV_PIPE_IN:
 			return (hio_dev_pipe_slave_t*)hio_dev_make(
-				hio, HIO_SIZEOF(hio_dev_pipe_t), 
+				hio, HIO_SIZEOF(hio_dev_pipe_t),
 				&dev_pipe_methods_slave, &dev_pipe_event_callbacks_slave_in, si);
 
 		case HIO_DEV_PIPE_OUT:
 			return (hio_dev_pipe_slave_t*)hio_dev_make(
-				hio, HIO_SIZEOF(hio_dev_pipe_t), 
+				hio, HIO_SIZEOF(hio_dev_pipe_t),
 				&dev_pipe_methods_slave, &dev_pipe_event_callbacks_slave_out, si);
 
 		default:
@@ -507,7 +507,7 @@ static hio_dev_pipe_slave_t* make_slave (hio_t* hio, slave_info_t* si)
 hio_dev_pipe_t* hio_dev_pipe_make (hio_t* hio, hio_oow_t xtnsize, const hio_dev_pipe_make_t* info)
 {
 	return (hio_dev_pipe_t*)hio_dev_make(
-		hio, HIO_SIZEOF(hio_dev_pipe_t) + xtnsize, 
+		hio, HIO_SIZEOF(hio_dev_pipe_t) + xtnsize,
 		&dev_pipe_methods, &dev_pipe_event_callbacks, (void*)info);
 }
 

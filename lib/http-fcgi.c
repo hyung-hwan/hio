@@ -74,7 +74,7 @@ static int begin_request ()
 /*
 	h->type = FCGI_STDIN;
 */
-	
+
 }
 
 #endif
@@ -100,7 +100,7 @@ static int fcgi_write_to_peer (fcgi_t* fcgi, const void* data, hio_iolen_t dlen)
 {
 #if 0
 	fcgi->num_pending_writes_to_peer++;
-	if (hio_dev_pro_write(fcgi->peer, data, dlen, HIO_NULL) <= -1) 
+	if (hio_dev_pro_write(fcgi->peer, data, dlen, HIO_NULL) <= -1)
 	{
 		fcgi->num_pending_writes_to_peer--;
 		return -1;
@@ -128,7 +128,7 @@ static HIO_INLINE void fcgi_mark_over (fcgi_t* fcgi, int over_bits)
 	if (!(old_over & FCGI_OVER_READ_FROM_CLIENT) && (fcgi->over & FCGI_OVER_READ_FROM_CLIENT))
 	{
 printf (">>>>>>>>>>>> disableing client read watching ...................\n");
-		if (hio_dev_sck_read(fcgi->client->sck, 0) <= -1) 
+		if (hio_dev_sck_read(fcgi->client->sck, 0) <= -1)
 		{
 			HIO_DEBUG2 (fcgi->htts->hio, "HTTS(%p) - halting client(%p) for failure to disable input watching\n", fcgi->htts, fcgi->client->sck);
 			hio_dev_sck_halt (fcgi->client->sck);
@@ -138,7 +138,7 @@ printf (">>>>>>>>>>>> disableing client read watching ...................\n");
 	if (!(old_over & FCGI_OVER_READ_FROM_PEER) && (fcgi->over & FCGI_OVER_READ_FROM_PEER))
 	{
 #if 0 // TODO:
-		if (fcgi->peer && hio_dev_pro_read(fcgi->peer, HIO_DEV_PRO_OUT, 0) <= -1) 
+		if (fcgi->peer && hio_dev_pro_read(fcgi->peer, HIO_DEV_PRO_OUT, 0) <= -1)
 		{
 			HIO_DEBUG2 (fcgi->htts->hio, "HTTS(%p) - halting peer(%p) for failure to disable input watching\n", fcgi->htts, fcgi->peer);
 			hio_dev_pro_halt (fcgi->peer);
@@ -150,20 +150,20 @@ printf (">>>>>>>>>>>> disableing client read watching ...................\n");
 	{
 		/* ready to stop */
 #if 0 // TODO:
-		if (fcgi->peer) 
+		if (fcgi->peer)
 		{
 			HIO_DEBUG2 (fcgi->htts->hio, "HTTS(%p) - halting peer(%p) as it is unneeded\n", fcgi->htts, fcgi->peer);
 			hio_dev_pro_halt (fcgi->peer);
 		}
 #endif
 
-		if (fcgi->keep_alive) 
+		if (fcgi->keep_alive)
 		{
 			/* how to arrange to delete this fcgi object and put the socket back to the normal waiting state??? */
 			HIO_ASSERT (fcgi->htts->hio, fcgi->client->rsrc == (hio_svc_htts_rsrc_t*)fcgi);
 
 /*printf ("DETACHING FROM THE MAIN CLIENT RSRC... state -> %p\n", fcgi->client->rsrc);*/
-			HIO_SVC_HTTS_RSRC_DETACH (fcgi->client->rsrc);
+			HIO_SVC_HTTS_RSRC_UNREF (fcgi->client->rsrc);
 			/* fcgi must not be accessed from here down as it could have been destroyed */
 		}
 		else
@@ -180,7 +180,7 @@ static int fcgi_write_to_client (fcgi_t* fcgi, const void* data, hio_iolen_t dle
 	fcgi->ever_attempted_to_write_to_client = 1;
 
 	fcgi->num_pending_writes_to_client++;
-	if (hio_dev_sck_write(fcgi->client->sck, data, dlen, HIO_NULL, HIO_NULL) <= -1) 
+	if (hio_dev_sck_write(fcgi->client->sck, data, dlen, HIO_NULL, HIO_NULL) <= -1)
 	{
 		fcgi->num_pending_writes_to_client--;
 		return -1;
@@ -371,8 +371,9 @@ printf ("GOT FCGI DATA.............[%.*s]\n", (int)len, buf);
 	return 0;
 }
 
-static void fcgi_on_kill (fcgi_t* fcgi)
+static void fcgi_on_kill (hio_svc_htts_rsrc_t* rsrc)
 {
+	fcgi_t* fcgi = (fcgi_t*)rsrc;
 	hio_t* hio = fcgi->htts->hio;
 
 	HIO_DEBUG2 (hio, "HTTS(%p) - killing fcgi client(%p)\n", fcgi->htts, fcgi->client->sck);
@@ -422,25 +423,29 @@ static void fcgi_on_kill (fcgi_t* fcgi)
 	}
 }
 
-static int write_params (fcgi_t* fcgi, hio_dev_sck_t* csck, hio_htre_t* req)
+static int write_params (fcgi_t* fcgi, hio_dev_sck_t* csck, hio_htre_t* req, const hio_bch_t* docroot, const hio_bch_t* script)
 {
 	hio_t* hio = fcgi->htts->hio;
 	hio_bch_t tmp[256];
 	hio_oow_t len;
 	const hio_bch_t* qparam;
 	hio_oow_t content_length;
+	hio_bch_t* actual_script = HIO_NULL;
 
 	HIO_ASSERT (hio, fcgi->client->sck == csck);
+
+	actual_script = hio_svc_htts_dupmergepaths(fcgi->htts, docroot, script);
+	if (!actual_script) goto oops;
 
 	if (hio_svc_fcgic_writeparam(fcgi->peer, "GATEWAY_INTERFACE", 17, "CGI/1.1", 7) <= -1) goto oops;
 
 	len = hio_fmttobcstr(hio, tmp, HIO_COUNTOF(tmp), "HTTP/%d.%d", (int)hio_htre_getmajorversion(req), (int)hio_htre_getminorversion(req));
 	if (hio_svc_fcgic_writeparam(fcgi->peer, "SERVER_PROTOCOL", 15, tmp, len) <= -1) goto oops;
 
-// TODOs:
-//  DOCUMENT_ROOT
-//  SCRIPT_NAME
-//  PATH_INFO
+	if (hio_svc_fcgic_writeparam(fcgi->peer, "DOCUMENT_ROOT", 13, docroot, hio_count_bcstr(docroot)) <= -1) goto oops;
+	if (hio_svc_fcgic_writeparam(fcgi->peer, "SCRIPT_NAME", 11, script, hio_count_bcstr(script)) <= -1) goto oops;
+	if (hio_svc_fcgic_writeparam(fcgi->peer, "SCRIPT_FILENAME", 15, actual_script, hio_count_bcstr(actual_script)) <= -1) goto oops;
+// TODO: PATH_INFO
 
 	if (hio_svc_fcgic_writeparam(fcgi->peer, "REQUEST_METHOD", 14, hio_htre_getqmethodname(req), hio_htre_getqmethodlen(req)) <= -1) goto oops;
 	if (hio_svc_fcgic_writeparam(fcgi->peer, "REQUEST_URI", 11, hio_htre_getqpath(req), hio_htre_getqpathlen(req)) <= -1) goto oops;
@@ -477,9 +482,10 @@ static int write_params (fcgi_t* fcgi, hio_dev_sck_t* csck, hio_htre_t* req)
 	return 0;
 
 oops:
+	if (actual_script) hio_freemem (hio, actual_script);
 	return -1;
 }
-int hio_svc_htts_dofcgi (hio_svc_htts_t* htts, hio_dev_sck_t* csck, hio_htre_t* req, const hio_skad_t* fcgis_addr, int options)
+int hio_svc_htts_dofcgi (hio_svc_htts_t* htts, hio_dev_sck_t* csck, hio_htre_t* req, const hio_skad_t* fcgis_addr, const hio_bch_t* docroot, const hio_bch_t* script, int options)
 {
 	hio_t* hio = htts->hio;
 	hio_svc_htts_cli_t* cli = hio_dev_sck_getxtn(csck);
@@ -514,7 +520,7 @@ int hio_svc_htts_dofcgi (hio_svc_htts_t* htts, hio_dev_sck_t* csck, hio_htre_t* 
 	csck->on_disconnect = fcgi_client_on_disconnect;
 
 	HIO_ASSERT (hio, cli->rsrc == HIO_NULL);
-	HIO_SVC_HTTS_RSRC_ATTACH ((hio_svc_htts_rsrc_t*)fcgi, cli->rsrc); /* cli->rsrc = fcgi */
+	HIO_SVC_HTTS_RSRC_REF ((hio_svc_htts_rsrc_t*)fcgi, cli->rsrc); /* cli->rsrc = fcgi */
 
 	/* create a session in in the fcgi client service */
 	fcgi->peer = hio_svc_fcgic_tie(htts->fcgic, fcgis_addr, fcgi_peer_on_read);
@@ -523,14 +529,14 @@ int hio_svc_htts_dofcgi (hio_svc_htts_t* htts, hio_dev_sck_t* csck, hio_htre_t* 
 	/* send FCGI_BEGIN_REQUEST */
 	if (hio_svc_fcgic_beginrequest(fcgi->peer) <= -1) goto oops;
 	/* write FCGI_PARAM */
-	if (write_params(fcgi, csck, req) <= -1) goto oops;
+	if (write_params(fcgi, csck, req, docroot, script) <= -1) goto oops;
 	if (hio_svc_fcgic_writeparam(fcgi->peer, HIO_NULL, 0, HIO_NULL, 0) <= -1) goto oops; /* end of params */
 
 #if !defined(FCGI_ALLOW_UNLIMITED_REQ_CONTENT_LENGTH)
 	if (fcgi->req_content_length_unlimited)
 	{
 		/* Transfer-Encoding is chunked. no content-length is known in advance. */
-		
+
 		/* option 1. buffer contents. if it gets too large, send 413 Request Entity Too Large.
 		 * option 2. send 411 Length Required immediately
 		 * option 3. set Content-Length to -1 and use EOF to indicate the end of content [Non-Standard] */
@@ -543,17 +549,17 @@ int hio_svc_htts_dofcgi (hio_svc_htts_t* htts, hio_dev_sck_t* csck, hio_htre_t* 
 	{
 		/* TODO: Expect: 100-continue? who should handle this? fcgi? or the http server? */
 		/* CAN I LET the cgi SCRIPT handle this? */
-		if (!(options & HIO_SVC_HTTS_CGI_NO_100_CONTINUE) && 
-		    hio_comp_http_version_numbers(&req->version, 1, 1) >= 0 && 
-		   (fcgi->req_content_length_unlimited || fcgi->req_content_length > 0)) 
+		if (!(options & HIO_SVC_HTTS_CGI_NO_100_CONTINUE) &&
+		    hio_comp_http_version_numbers(&req->version, 1, 1) >= 0 &&
+		   (fcgi->req_content_length_unlimited || fcgi->req_content_length > 0))
 		{
-			/* 
+			/*
 			 * Don't send 100 Continue if http verions is lower than 1.1
-			 * [RFC7231] 
+			 * [RFC7231]
 			 *  A server that receives a 100-continue expectation in an HTTP/1.0
 			 *  request MUST ignore that expectation.
 			 *
-			 * Don't send 100 Continue if expected content lenth is 0. 
+			 * Don't send 100 Continue if expected content lenth is 0.
 			 * [RFC7231]
 			 *  A server MAY omit sending a 100 (Continue) response if it has
 			 *  already received some or all of the message body for the
@@ -610,7 +616,7 @@ int hio_svc_htts_dofcgi (hio_svc_htts_t* htts, hio_dev_sck_t* csck, hio_htre_t* 
 	if (req->flags & HIO_HTRE_ATTR_KEEPALIVE)
 	{
 		fcgi->keep_alive = 1;
-		fcgi->res_mode_to_cli = FCGI_RES_MODE_CHUNKED; 
+		fcgi->res_mode_to_cli = FCGI_RES_MODE_CHUNKED;
 		/* the mode still can get switched to FCGI_RES_MODE_LENGTH if the cgi script emits Content-Length */
 	}
 	else

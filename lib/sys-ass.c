@@ -94,7 +94,7 @@ static void backtrace_stack_frames (hio_t* hio)
 	unw_init_local(&cursor, &context);
 
 	hio_logbfmt (hio, HIO_LOG_UNTYPED | HIO_LOG_DEBUG, "[BACKTRACE]\n");
-	for (n = 0; unw_step(&cursor) > 0; n++) 
+	for (n = 0; unw_step(&cursor) > 0; n++)
 	{
 		unw_word_t ip, sp, off;
 		char symbol[256];
@@ -102,13 +102,13 @@ static void backtrace_stack_frames (hio_t* hio)
 		unw_get_reg (&cursor, UNW_REG_IP, &ip);
 		unw_get_reg (&cursor, UNW_REG_SP, &sp);
 
-		if (unw_get_proc_name(&cursor, symbol, HIO_COUNTOF(symbol), &off)) 
+		if (unw_get_proc_name(&cursor, symbol, HIO_COUNTOF(symbol), &off))
 		{
 			hio_copy_bcstr (symbol, HIO_COUNTOF(symbol), "<unknown>");
 		}
 
-		hio_logbfmt (hio, HIO_LOG_UNTYPED | HIO_LOG_DEBUG, 
-			"#%02d ip=0x%*p sp=0x%*p %s+0x%zu\n", 
+		hio_logbfmt (hio, HIO_LOG_UNTYPED | HIO_LOG_DEBUG,
+			"#%02d ip=0x%*p sp=0x%*p %s+0x%zu\n",
 			n, HIO_SIZEOF(void*) * 2, (void*)ip, HIO_SIZEOF(void*) * 2, (void*)sp, symbol, (hio_oow_t)off);
 	}
 }

@@ -23,7 +23,7 @@
  */
 
 /*
- * This file contains a formatted output routine derived from kvprintf() 
+ * This file contains a formatted output routine derived from kvprintf()
  * of FreeBSD. It has been heavily modified and bug-fixed.
  */
 
@@ -70,7 +70,7 @@
 
 #include <stdio.h> /* for snrintf(). used for floating-point number formatting */
 #if defined(_MSC_VER) || defined(__BORLANDC__) || (defined(__WATCOMC__) && (__WATCOMC__ < 1200))
-#	define snprintf _snprintf 
+#	define snprintf _snprintf
 #	if !defined(HAVE_SNPRINTF)
 #		define HAVE_SNPRINTF
 #	endif
@@ -81,7 +81,7 @@
 
 #endif
 
-/* Max number conversion buffer length: 
+/* Max number conversion buffer length:
  * hio_intmax_t in base 2, plus NUL byte. */
 #define MAXNBUF (HIO_SIZEOF(hio_intmax_t) * HIO_BITS_PER_BYTE + 1)
 
@@ -106,7 +106,7 @@ static struct
 {
 	hio_uint8_t flag; /* for single occurrence */
 	hio_uint8_t dflag; /* for double occurrence */
-} lm_tab[26] = 
+} lm_tab[26] =
 {
 	{ 0,    0 }, /* a */
 	{ 0,    0 }, /* b */
@@ -137,7 +137,7 @@ static struct
 };
 
 
-enum 
+enum
 {
 	FLAGC_DOT       = (1 << 0),
 	FLAGC_SPACE     = (1 << 1),
@@ -152,14 +152,14 @@ enum
 	FLAGC_LENMOD    = (1 << 10) /* length modifier */
 };
 
-static const hio_bch_t hex2ascii_lower[] = 
+static const hio_bch_t hex2ascii_lower[] =
 {
 	'0','1','2','3','4','5','6','7','8','9',
 	'a','b','c','d','e','f','g','h','i','j','k','l','m',
 	'n','o','p','q','r','s','t','u','v','w','x','y','z'
 };
 
-static const hio_bch_t hex2ascii_upper[] = 
+static const hio_bch_t hex2ascii_upper[] =
 {
 	'0','1','2','3','4','5','6','7','8','9',
 	'A','B','C','D','E','F','G','H','I','J','K','L','M',
@@ -311,10 +311,10 @@ static int fmt_outv (hio_fmtout_t* fmtout, va_list ap)
 	fmtptr = (const hio_uint8_t*)fmtout->fmt_str;
 	switch (fmtout->fmt_type)
 	{
-		case HIO_FMTOUT_FMT_TYPE_BCH: 
+		case HIO_FMTOUT_FMT_TYPE_BCH:
 			fmtchsz = HIO_SIZEOF_BCH_T;
 			break;
-		case HIO_FMTOUT_FMT_TYPE_UCH: 
+		case HIO_FMTOUT_FMT_TYPE_UCH:
 			fmtchsz = HIO_SIZEOF_UCH_T;
 			break;
 	}
@@ -347,9 +347,9 @@ static int fmt_outv (hio_fmtout_t* fmtout, va_list ap)
 		{
 			const hio_bch_t* start, * end;
 			start = end = (const hio_bch_t*)fmtptr;
-			while ((bch = *end++) != '%' || stop) 
+			while ((bch = *end++) != '%' || stop)
 			{
-				if (bch == '\0') 
+				if (bch == '\0')
 				{
 					PUT_BCS (fmtout, start, end - start - 1);
 					goto done;
@@ -365,9 +365,9 @@ static int fmt_outv (hio_fmtout_t* fmtout, va_list ap)
 		{
 			const hio_uch_t* start, * end;
 			start = end = (const hio_uch_t*)fmtptr;
-			while ((uch = *end++) != '%' || stop) 
+			while ((uch = *end++) != '%' || stop)
 			{
-				if (uch == '\0') 
+				if (uch == '\0')
 				{
 					PUT_UCS (fmtout, start, end - start - 1);
 					goto done;
@@ -380,15 +380,15 @@ static int fmt_outv (hio_fmtout_t* fmtout, va_list ap)
 		goto handle_percent;
 
 	handle_percent:
-		padc = ' '; 
+		padc = ' ';
 		width = 0; precision = 0; neg = 0; sign = 0;
-		lm_flag = 0; lm_dflag = 0; flagc = 0; 
+		lm_flag = 0; lm_dflag = 0; flagc = 0;
 		sprintn = sprintn_lower;
 
 	reswitch:
 		switch (fmtout->fmt_type)
 		{
-			case HIO_FMTOUT_FMT_TYPE_BCH: 
+			case HIO_FMTOUT_FMT_TYPE_BCH:
 				uch = *(const hio_bch_t*)fmtptr;
 				break;
 			case HIO_FMTOUT_FMT_TYPE_UCH:
@@ -397,7 +397,7 @@ static int fmt_outv (hio_fmtout_t* fmtout, va_list ap)
 		}
 		fmtptr += fmtchsz;
 
-		switch (uch) 
+		switch (uch)
 		{
 		case '%': /* %% */
 			bch = uch;
@@ -409,7 +409,7 @@ static int fmt_outv (hio_fmtout_t* fmtout, va_list ap)
 			flagc |= FLAGC_DOT;
 			goto reswitch;
 
-		case '#': 
+		case '#':
 			if (flagc & (FLAGC_WIDTH | FLAGC_DOT | FLAGC_LENMOD)) goto invalid_format;
 			flagc |= FLAGC_SHARP;
 			goto reswitch;
@@ -442,30 +442,30 @@ static int fmt_outv (hio_fmtout_t* fmtout, va_list ap)
 			goto reswitch;
 
 		case '*': /* take the length from the parameter */
-			if (flagc & FLAGC_DOT) 
+			if (flagc & FLAGC_DOT)
 			{
 				if (flagc & (FLAGC_STAR2 | FLAGC_PRECISION)) goto invalid_format;
 				flagc |= FLAGC_STAR2;
 
 				precision = va_arg(ap, hio_ooi_t); /* this deviates from the standard printf that accepts 'int' */
-				if (precision < 0) 
+				if (precision < 0)
 				{
-					/* if precision is less than 0, 
+					/* if precision is less than 0,
 					 * treat it as if no .precision is specified */
 					flagc &= ~FLAGC_DOT;
 					precision = 0;
 				}
-			} 
-			else 
+			}
+			else
 			{
 				if (flagc & (FLAGC_STAR1 | FLAGC_WIDTH)) goto invalid_format;
 				flagc |= FLAGC_STAR1;
 
 				width = va_arg(ap, hio_ooi_t); /* it deviates from the standard printf that accepts 'int' */
-				if (width < 0) 
+				if (width < 0)
 				{
 					/*
-					if (flagc & FLAGC_LEFTADJ) 
+					if (flagc & FLAGC_LEFTADJ)
 						flagc  &= ~FLAGC_LEFTADJ;
 					else
 					*/
@@ -489,12 +489,12 @@ static int fmt_outv (hio_fmtout_t* fmtout, va_list ap)
 		case '5': case '6': case '7': case '8': case '9':
 		{
 			if (flagc & FLAGC_LENMOD) goto invalid_format;
-			for (n = 0;; fmtptr += fmtchsz) 
+			for (n = 0;; fmtptr += fmtchsz)
 			{
 				n = n * 10 + uch - '0';
 				switch (fmtout->fmt_type)
 				{
-					case HIO_FMTOUT_FMT_TYPE_BCH: 
+					case HIO_FMTOUT_FMT_TYPE_BCH:
 						uch = *(const hio_bch_t*)fmtptr;
 						break;
 					case HIO_FMTOUT_FMT_TYPE_UCH:
@@ -503,13 +503,13 @@ static int fmt_outv (hio_fmtout_t* fmtout, va_list ap)
 				}
 				if (uch < '0' || uch > '9') break;
 			}
-			if (flagc & FLAGC_DOT) 
+			if (flagc & FLAGC_DOT)
 			{
 				if (flagc & FLAGC_STAR2) goto invalid_format;
 				precision = n;
 				flagc |= FLAGC_PRECISION;
 			}
-			else 
+			else
 			{
 				if (flagc & FLAGC_STAR1) goto invalid_format;
 				width = n;
@@ -548,7 +548,7 @@ static int fmt_outv (hio_fmtout_t* fmtout, va_list ap)
 					goto invalid_format;
 				}
 			}
-			else 
+			else
 			{
 				lm_flag |= lm_tab[uch - 'a'].flag;
 				goto reswitch;
@@ -556,10 +556,10 @@ static int fmt_outv (hio_fmtout_t* fmtout, va_list ap)
 			break;
 
 		case 'L': /* long double */
-			if (flagc & FLAGC_LENMOD) 
+			if (flagc & FLAGC_LENMOD)
 			{
 				/* conflict with other length modifier */
-				goto invalid_format; 
+				goto invalid_format;
 			}
 			flagc |= FLAGC_LENMOD;
 			lm_flag |= LF_LD;
@@ -569,7 +569,7 @@ static int fmt_outv (hio_fmtout_t* fmtout, va_list ap)
 			if (flagc & FLAGC_LENMOD)
 			{
 				/* conflict with other length modifier */
-				goto invalid_format; 
+				goto invalid_format;
 			}
 			flagc |= FLAGC_LENMOD;
 			lm_flag |= LF_QD;
@@ -591,12 +591,12 @@ static int fmt_outv (hio_fmtout_t* fmtout, va_list ap)
 				*(va_arg(ap, short int*)) = fmtout->count;
 			else if (lm_flag & LF_C) /* hh */
 				*(va_arg(ap, char*)) = fmtout->count;
-			else if (flagc & FLAGC_LENMOD) 
+			else if (flagc & FLAGC_LENMOD)
 				goto invalid_format;
 			else
 				*(va_arg(ap, int*)) = fmtout->count;
 			break;
- 
+
 		/* signed integer conversions */
 		case 'd':
 		case 'i': /* signed conversion */
@@ -606,7 +606,7 @@ static int fmt_outv (hio_fmtout_t* fmtout, va_list ap)
 		/* end of signed integer conversions */
 
 		/* unsigned integer conversions */
-		case 'o': 
+		case 'o':
 			base = 8;
 			goto handle_nosign;
 		case 'u':
@@ -634,7 +634,7 @@ static int fmt_outv (hio_fmtout_t* fmtout, va_list ap)
 		case 'c':
 		{
 			/* zeropad must not take effect for 'c' */
-			if (flagc & FLAGC_ZEROPAD) padc = ' '; 
+			if (flagc & FLAGC_ZEROPAD) padc = ' ';
 			if (lm_flag & LF_L) goto uppercase_c;
 		#if defined(HIO_OOCH_IS_UCH)
 			if (lm_flag & LF_J) goto uppercase_c;
@@ -742,12 +742,12 @@ static int fmt_outv (hio_fmtout_t* fmtout, va_list ap)
 			const hio_uint8_t* bsp;
 			hio_oow_t k_hex_width;
 
-			/* zeropad must not take effect for 'k' and 'K' 
-			 * 
+			/* zeropad must not take effect for 'k' and 'K'
+			 *
  			 * 'h' & 'l' is not used to differentiate hio_bch_t and hio_uch_t
-			 * because 'k' means hio_byte_t. 
-			 * 'l', results in uppercase hexadecimal letters. 
-			 * 'h' drops the leading \x in the output 
+			 * because 'k' means hio_byte_t.
+			 * 'l', results in uppercase hexadecimal letters.
+			 * 'h' drops the leading \x in the output
 			 * --------------------------------------------------------
 			 * hk -> \x + non-printable in lowercase hex
 			 * k -> all in lowercase hex
@@ -792,9 +792,9 @@ static int fmt_outv (hio_fmtout_t* fmtout, va_list ap)
 
 			if (!(flagc & FLAGC_LEFTADJ) && width > 0) PUT_OOCH (fmtout, padc, width);
 
-			while (n--) 
+			while (n--)
 			{
-				if ((lm_flag & LF_H) && BYTE_PRINTABLE(*bsp)) 
+				if ((lm_flag & LF_H) && BYTE_PRINTABLE(*bsp))
 				{
 					PUT_BCH (fmtout, *bsp, 1);
 				}
@@ -816,7 +816,7 @@ static int fmt_outv (hio_fmtout_t* fmtout, va_list ap)
 		case 'W':
 		{
 			/* unicode string in unicode escape sequence.
-			 * 
+			 *
 			 * hw -> \uXXXX, \UXXXXXXXX, printable-byte(only in ascii range)
 			 * w -> \uXXXX, \UXXXXXXXX
 			 * lw -> all in \UXXXXXXXX
@@ -830,7 +830,7 @@ static int fmt_outv (hio_fmtout_t* fmtout, va_list ap)
 			if (flagc & FLAGC_DOT)
 			{
 				/* if precision is specifed, it doesn't stop at the value of zero unlike 's' or 'S' */
-				for (n = 0; n < precision; n++) 
+				for (n = 0; n < precision; n++)
 				{
 					if ((lm_flag & LF_H) && BYTE_PRINTABLE(usp[n])) uwid = 1;
 					else if (!(lm_flag & LF_L) && usp[n] <= 0xFFFF) uwid = 6;
@@ -851,13 +851,13 @@ static int fmt_outv (hio_fmtout_t* fmtout, va_list ap)
 
 			if (!(flagc & FLAGC_LEFTADJ) && width > 0) PUT_OOCH (fmtout, padc, width);
 
-			while (n--) 
+			while (n--)
 			{
-				if ((lm_flag & LF_H) && BYTE_PRINTABLE(*usp)) 
+				if ((lm_flag & LF_H) && BYTE_PRINTABLE(*usp))
 				{
 					PUT_OOCH(fmtout, *usp, 1);
 				}
-				else if (!(lm_flag & LF_L) && *usp <= 0xFFFF) 
+				else if (!(lm_flag & LF_L) && *usp <= 0xFFFF)
 				{
 					hio_uint16_t u16 = *usp;
 					int extra_flags = ((uch) == 'w'? HIO_BYTE_TO_BCSTR_LOWERCASE: 0);
@@ -934,7 +934,7 @@ static int fmt_outv (hio_fmtout_t* fmtout, va_list ap)
 			{
 				/* hio_flt_t is limited to double or long double */
 
-				/* precedence goes to double if sizeof(double) == sizeof(long double) 
+				/* precedence goes to double if sizeof(double) == sizeof(long double)
 				 * for example, %Lf didn't work on some old platforms.
 				 * so i prefer the format specifier with no modifier.
 				 */
@@ -998,18 +998,18 @@ static int fmt_outv (hio_fmtout_t* fmtout, va_list ap)
 			if (flagc & FLAGC_ZEROPAD) fb.fmt.ptr[fmtlen++] = '0';
 
 			if (flagc & FLAGC_STAR1) fb.fmt.ptr[fmtlen++] = '*';
-			else if (flagc & FLAGC_WIDTH) 
+			else if (flagc & FLAGC_WIDTH)
 			{
 				fmtlen += hio_fmt_uintmax_to_bcstr(
-					&fb.fmt.ptr[fmtlen], fb.fmt.capa - fmtlen, 
+					&fb.fmt.ptr[fmtlen], fb.fmt.capa - fmtlen,
 					width, 10, -1, '\0', HIO_NULL);
 			}
 			if (flagc & FLAGC_DOT) fb.fmt.ptr[fmtlen++] = '.';
 			if (flagc & FLAGC_STAR2) fb.fmt.ptr[fmtlen++] = '*';
-			else if (flagc & FLAGC_PRECISION) 
+			else if (flagc & FLAGC_PRECISION)
 			{
 				fmtlen += hio_fmt_uintmax_to_bcstr(
-					&fb.fmt.ptr[fmtlen], fb.fmt.capa - fmtlen, 
+					&fb.fmt.ptr[fmtlen], fb.fmt.capa - fmtlen,
 					precision, 10, -1, '\0', HIO_NULL);
 			}
 
@@ -1026,7 +1026,7 @@ static int fmt_outv (hio_fmtout_t* fmtout, va_list ap)
 		#if defined(HAVE_SNPRINTF)
 			/* nothing special here */
 		#else
-			/* best effort to avoid buffer overflow when no snprintf is available. 
+			/* best effort to avoid buffer overflow when no snprintf is available.
 			 * i really can't do much if it happens. */
 			newcapa = precision + width + 32;
 			if (fb.out.capa < newcapa)
@@ -1176,14 +1176,14 @@ static int fmt_outv (hio_fmtout_t* fmtout, va_list ap)
 				num = va_arg(ap, int);
 
 		number:
-			if (sign && (hio_intmax_t)num < 0) 
+			if (sign && (hio_intmax_t)num < 0)
 			{
 				neg = 1;
 				num = -(hio_intmax_t)num;
 			}
 
 			nbufp = sprintn(nbuf, num, base, &tmp);
-			if ((flagc & FLAGC_SHARP) && num != 0) 
+			if ((flagc & FLAGC_SHARP) && num != 0)
 			{
 				if (base == 2 || base == 16) tmp += 2;
 				else if (base == 8) tmp += 1;
@@ -1193,7 +1193,7 @@ static int fmt_outv (hio_fmtout_t* fmtout, va_list ap)
 			else if (flagc & FLAGC_SPACE) tmp++;
 
 			numlen = (int)((const hio_bch_t*)nbufp - (const hio_bch_t*)nbuf);
-			if ((flagc & FLAGC_DOT) && precision > numlen) 
+			if ((flagc & FLAGC_DOT) && precision > numlen)
 			{
 				/* extra zeros for precision specified */
 				tmp += (precision - numlen);
@@ -1209,18 +1209,18 @@ static int fmt_outv (hio_fmtout_t* fmtout, va_list ap)
 			else if (flagc & FLAGC_SIGN) PUT_OOCH (fmtout, '+', 1);
 			else if (flagc & FLAGC_SPACE) PUT_OOCH (fmtout, ' ', 1);
 
-			if ((flagc & FLAGC_SHARP) && num != 0) 
+			if ((flagc & FLAGC_SHARP) && num != 0)
 			{
-				if (base == 2) 
+				if (base == 2)
 				{
 					PUT_OOCH (fmtout, '0', 1);
 					PUT_OOCH (fmtout, 'b', 1);
 				}
-				if (base == 8) 
+				if (base == 8)
 				{
 					PUT_OOCH (fmtout, '0', 1);
-				} 
-				else if (base == 16) 
+				}
+				else if (base == 16)
 				{
 					PUT_OOCH (fmtout, '0', 1);
 					PUT_OOCH (fmtout, 'x', 1);
@@ -1376,7 +1376,7 @@ int hio_ufmt_out (hio_fmtout_t* fmtout, const hio_uch_t* fmt, ...)
 	return n;
 }
 
-/* -------------------------------------------------------------------------- 
+/* --------------------------------------------------------------------------
  * FORMATTED LOG OUTPUT
  * -------------------------------------------------------------------------- */
 
@@ -1409,7 +1409,7 @@ redo:
 		hio_ooch_t* tmp;
 
 		max = HIO_TYPE_MAX(hio_oow_t) - hio->log.len;
-		if (len > max) 
+		if (len > max)
 		{
 			/* data too big. */
 			rem += len - max;
@@ -1429,7 +1429,7 @@ redo:
 
 		/* +1 to handle line ending injection more easily */
 		tmp = hio_reallocmem(hio, hio->log.ptr, (newcapa + 1) * HIO_SIZEOF(*tmp));
-		if (!tmp) 
+		if (!tmp)
 		{
 		make_do:
 			if (hio->log.len > 0)
@@ -1525,21 +1525,21 @@ hio_ooi_t hio_logbfmtv (hio_t* hio, hio_bitmask_t mask, const hio_bch_t* fmt, va
 	int x;
 	hio_fmtout_t fo;
 
-	/* there may internal log calls even if this feature is disabled. 
+	/* there may internal log calls even if this feature is disabled.
 	 * the explicit check is required */
-	if (HIO_UNLIKELY(!(hio->_features & HIO_FEATURE_LOG))) return -1; 
+	if (HIO_UNLIKELY(!(hio->_features & HIO_FEATURE_LOG))) return -1;
 
-	if (hio->log.default_type_mask & HIO_LOG_ALL_TYPES) 
+	if (hio->log.default_type_mask & HIO_LOG_ALL_TYPES)
 	{
 		/* if a type is given, it's not untyped any more.
 		 * mask off the UNTYPED bit */
-		mask &= ~HIO_LOG_UNTYPED; 
+		mask &= ~HIO_LOG_UNTYPED;
 
 		/* if the default_type_mask has the UNTYPED bit on,
 		 * it'll get turned back on */
 		mask |= (hio->log.default_type_mask & HIO_LOG_ALL_TYPES);
 	}
-	else if (!(mask & HIO_LOG_ALL_TYPES)) 
+	else if (!(mask & HIO_LOG_ALL_TYPES))
 	{
 		/* no type is set in the given mask and no default type is set.
 		 * make it UNTYPED. */
@@ -1555,7 +1555,7 @@ hio_ooi_t hio_logbfmtv (hio_t* hio, hio_bitmask_t mask, const hio_bch_t* fmt, va
 	fo.putbchars = log_bcs;
 	fo.putuchars = log_ucs;
 
-	if (hio->option.log_mask & HIO_LOG_GUARDED) 
+	if (hio->option.log_mask & HIO_LOG_GUARDED)
 	{
 		hio_sys_locklog (hio);
 		x = fmt_outv(&fo, ap);
@@ -1596,21 +1596,21 @@ hio_ooi_t hio_logufmtv (hio_t* hio, hio_bitmask_t mask, const hio_uch_t* fmt, va
 	int x;
 	hio_fmtout_t fo;
 
-	/* there may internal log calls even if this feature is disabled. 
+	/* there may internal log calls even if this feature is disabled.
 	 * the explicit check is required */
 	if (HIO_UNLIKELY(!(hio->_features & HIO_FEATURE_LOG))) return -1;
 
-	if (hio->log.default_type_mask & HIO_LOG_ALL_TYPES) 
+	if (hio->log.default_type_mask & HIO_LOG_ALL_TYPES)
 	{
 		/* if a type is given, it's not untyped any more.
 		 * mask off the UNTYPED bit */
-		mask &= ~HIO_LOG_UNTYPED; 
+		mask &= ~HIO_LOG_UNTYPED;
 
 		/* if the default_type_mask has the UNTYPED bit on,
 		 * it'll get turned back on */
 		mask |= (hio->log.default_type_mask & HIO_LOG_ALL_TYPES);
 	}
-	else if (!(mask & HIO_LOG_ALL_TYPES)) 
+	else if (!(mask & HIO_LOG_ALL_TYPES))
 	{
 		/* no type is set in the given mask and no default type is set.
 		 * make it UNTYPED. */
@@ -1626,7 +1626,7 @@ hio_ooi_t hio_logufmtv (hio_t* hio, hio_bitmask_t mask, const hio_uch_t* fmt, va
 	fo.putbchars = log_bcs;
 	fo.putuchars = log_ucs;
 
-	if (hio->option.log_mask & HIO_LOG_GUARDED) 
+	if (hio->option.log_mask & HIO_LOG_GUARDED)
 	{
 		hio_sys_locklog (hio);
 		x = fmt_outv(&fo, ap);
@@ -1682,7 +1682,7 @@ hio_ooi_t hio_logufmt (hio_t* hio, hio_bitmask_t mask, const hio_uch_t* fmt, ...
 /* ------------------------------------------------------------------------------------- */
 
 int hio_fmt_intmax_to_bcstr (
-	hio_bch_t* buf, int size, 
+	hio_bch_t* buf, int size,
 	hio_intmax_t value, int base_and_flags, int prec,
 	hio_bch_t fillchar, const hio_bch_t* prefix)
 {
@@ -1714,7 +1714,7 @@ int hio_fmt_intmax_to_bcstr (
 }
 
 int hio_fmt_uintmax_to_bcstr (
-	hio_bch_t* buf, int size, 
+	hio_bch_t* buf, int size,
 	hio_uintmax_t value, int base_and_flags, int prec,
 	hio_bch_t fillchar, const hio_bch_t* prefix)
 {
@@ -1740,7 +1740,7 @@ int hio_fmt_uintmax_to_bcstr (
 /* ------------------------------------------------------------------------------------- */
 
 int hio_fmt_intmax_to_ucstr (
-	hio_uch_t* buf, int size, 
+	hio_uch_t* buf, int size,
 	hio_intmax_t value, int base_and_flags, int prec,
 	hio_uch_t fillchar, const hio_uch_t* prefix)
 {
@@ -1772,7 +1772,7 @@ int hio_fmt_intmax_to_ucstr (
 }
 
 int hio_fmt_uintmax_to_ucstr (
-	hio_uch_t* buf, int size, 
+	hio_uch_t* buf, int size,
 	hio_uintmax_t value, int base_and_flags, int prec,
 	hio_uch_t fillchar, const hio_uch_t* prefix)
 {

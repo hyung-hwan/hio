@@ -88,7 +88,7 @@ static HIO_INLINE int xdigit_to_num (hio_bch_t c)
 
 static HIO_INLINE int push_to_buffer (hio_htrd_t* htrd, hio_becs_t* octb, const hio_bch_t* ptr, hio_oow_t len)
 {
-	if (hio_becs_ncat(octb, ptr, len) == (hio_oow_t)-1) 
+	if (hio_becs_ncat(octb, ptr, len) == (hio_oow_t)-1)
 	{
 		htrd->errnum = HIO_HTRD_ENOMEM;
 		return -1;
@@ -102,20 +102,20 @@ static HIO_INLINE int push_content (hio_htrd_t* htrd, const hio_bch_t* ptr, hio_
 
 	if (htrd->recbs.push_content) return htrd->recbs.push_content(htrd, &htrd->re, ptr, len);
 
-	if (hio_htre_addcontent(&htrd->re, ptr, len) <= -1) 
+	if (hio_htre_addcontent(&htrd->re, ptr, len) <= -1)
 	{
 		htrd->errnum = HIO_HTRD_ENOMEM;
 		return -1;
 	}
 
-	/* hio_htre_addcontent() returns 1 on full success and 0 if adding is 
+	/* hio_htre_addcontent() returns 1 on full success and 0 if adding is
 	 * skipped. i treat both as success */
 	return 0;
 }
 
 static HIO_INLINE void clear_feed (hio_htrd_t* htrd)
 {
-	/* clear necessary part of the request/response before 
+	/* clear necessary part of the request/response before
 	 * reading the next request/response */
 	htrd->clean = 1;
 	hio_htre_clear (&htrd->re);
@@ -250,7 +250,7 @@ static hio_bch_t* parse_initial_line (hio_htrd_t* htrd, hio_bch_t* line)
 
 		/* skip spaces */
 		do p++; while (is_space_octet(*p));
-		
+
 		n = digit_to_num(*p);
 		if (n <= -1) goto badre;
 
@@ -260,7 +260,7 @@ static hio_bch_t* parse_initial_line (hio_htrd_t* htrd, hio_bch_t* line)
 		{
 			status = status * 10 + n;
 			p++;
-		} 
+		}
 		while ((n = digit_to_num(*p)) >= 0);
 
 		if (!is_space_octet(*p)) goto badre;
@@ -275,15 +275,15 @@ static hio_bch_t* parse_initial_line (hio_htrd_t* htrd, hio_bch_t* line)
 
 		/* skip spaces */
 		do p++; while (is_space_octet(*p));
-	
+
 		tmp.ptr = p;
 		tmp.len = 0;
-		while (*p != '\0' && *p != '\n') 
+		while (*p != '\0' && *p != '\n')
 		{
 			if (!is_space_octet(*p)) tmp.len = p - tmp.ptr + 1;
 			p++;
 		}
-	
+
 		/* if the line does not end with a new line, it is a bad request */
 		if (*p != '\n') goto badre;
 
@@ -309,7 +309,7 @@ static hio_bch_t* parse_initial_line (hio_htrd_t* htrd, hio_bch_t* line)
 			if (HIO_UNLIKELY(*p == '\0')) goto badre;
 			else if (is_space_octet(*p) || *p == '?' || *p == '#')
 			{
-				tmp.len = p - tmp.ptr; 
+				tmp.len = p - tmp.ptr;
 				if (tmp.len <= 0) goto badre;
 				break;
 			}
@@ -373,10 +373,10 @@ static hio_bch_t* parse_initial_line (hio_htrd_t* htrd, hio_bch_t* line)
 				htrd->re.u.q.path.len = hio_canon_bcstr_path(qpath, qpath, 0);
 			}
 		}
-	
+
 		/* skip spaces after the url part */
 		do { p++; } while (is_space_octet(*p));
-	
+
 		tmp.ptr = p;
 		/* check protocol version */
 		if ((p[0] == 'H' || p[0] == 'h') &&
@@ -396,7 +396,7 @@ static hio_bch_t* parse_initial_line (hio_htrd_t* htrd, hio_bch_t* line)
 			else goto badre;
 		}
 		else goto badre;
-	
+
 		tmp.len = p - tmp.ptr;
 
 		/* skip trailing spaces on the line */
@@ -408,10 +408,10 @@ static hio_bch_t* parse_initial_line (hio_htrd_t* htrd, hio_bch_t* line)
 		((hio_bch_t*)tmp.ptr)[tmp.len] = '\0';
 		htrd->re.verstr = tmp.ptr;
 	}
-	
+
 	/* adjust Connection: Keep-Alive for HTTP 1.1 or later.
 	 * this is initial. it can be adjusted further in capture_connection(). */
-	if (htrd->re.version.major > 1 || 
+	if (htrd->re.version.major > 1 ||
 	    (htrd->re.version.major == 1 && htrd->re.version.minor >= 1))
 	{
 		htrd->re.flags |= HIO_HTRE_ATTR_KEEPALIVE;
@@ -462,7 +462,7 @@ static int capture_connection (hio_htrd_t* htrd, hio_htb_pair_t* pair)
 	val = HIO_HTB_VPTR(pair);
 	while (val->next) val = val->next;
 
-	/* The value for Connection: may get comma-separated. 
+	/* The value for Connection: may get comma-separated.
 	 * so use hio_find_bcstr_word_in_bcstr() instead of hio_comp_bcstr(). */
 
 	if (hio_find_bcstr_word_in_bcstr(val->ptr, "close", ',', 1))
@@ -535,7 +535,7 @@ static int capture_content_length (hio_htrd_t* htrd, hio_htb_pair_t* pair)
 
 	if ((htrd->re.flags & HIO_HTRE_ATTR_CHUNKED) && len > 0)
 	{
-		/* content-length is greater than 0 
+		/* content-length is greater than 0
 		 * while transfer-encoding: chunked is specified. */
 		htrd->errnum = HIO_HTRD_EBADRE;
 		return -1;
@@ -551,13 +551,13 @@ static int capture_expect (hio_htrd_t* htrd, hio_htb_pair_t* pair)
 	hio_htre_hdrval_t* val;
 
 	/* Expect is included */
-	htrd->re.flags |= HIO_HTRE_ATTR_EXPECT; 
+	htrd->re.flags |= HIO_HTRE_ATTR_EXPECT;
 
 	val = HIO_HTB_VPTR(pair);
-	while (val) 
+	while (val)
 	{
 		/* Expect: 100-continue is included */
-		if (hio_comp_bcstr(val->ptr, "100-continue", 1) == 0) htrd->re.flags |= HIO_HTRE_ATTR_EXPECT100; 
+		if (hio_comp_bcstr(val->ptr, "100-continue", 1) == 0) htrd->re.flags |= HIO_HTRE_ATTR_EXPECT100;
 		val = val->next;
 	}
 
@@ -610,7 +610,7 @@ static HIO_INLINE int capture_key_header (hio_htrd_t* htrd, hio_htb_pair_t* pair
 		const hio_bch_t* ptr;
 		hio_oow_t        len;
 		int (*handler) (hio_htrd_t*, hio_htb_pair_t*);
-	} hdrtab[] = 
+	} hdrtab[] =
 	{
 		{ "Connection",         10, capture_connection },
 		{ "Content-Length",     14, capture_content_length },
@@ -649,7 +649,7 @@ struct hdr_cbserter_ctx_t
 };
 
 static hio_htb_pair_t* hdr_cbserter (
-	hio_htb_t* htb, hio_htb_pair_t* pair, 
+	hio_htb_t* htb, hio_htb_pair_t* pair,
 	void* kptr, hio_oow_t klen, void* ctx)
 {
 	struct hdr_cbserter_ctx_t* tx = (struct hdr_cbserter_ctx_t*)ctx;
@@ -657,7 +657,7 @@ static hio_htb_pair_t* hdr_cbserter (
 	if (pair == HIO_NULL)
 	{
 		/* the key is new. let's create a new pair. */
-		hio_htb_pair_t* p; 
+		hio_htb_pair_t* p;
 		hio_htre_hdrval_t *val;
 
 		val = hio_allocmem(htb->hio, HIO_SIZEOF(*val));
@@ -673,12 +673,12 @@ static hio_htb_pair_t* hdr_cbserter (
 		val->next = HIO_NULL;
 
 		p = hio_htb_allocpair(htb, kptr, klen, val, 0);
-		if (HIO_UNLIKELY(!p)) 
+		if (HIO_UNLIKELY(!p))
 		{
 			hio_freemem (htb->hio, val);
 			tx->htrd->errnum = HIO_HTRD_ENOMEM;
 		}
-		else 
+		else
 		{
 			if (capture_key_header(tx->htrd, p) <= -1)
 			{
@@ -693,30 +693,30 @@ static hio_htb_pair_t* hdr_cbserter (
 	}
 	else
 	{
-		/* RFC2616 
-		 * Multiple message-header fields with the same field-name 
-		 * MAY be present in a message if and only if the entire 
-		 * field-value for that header field is defined as a 
-		 * comma-separated list [i.e., #(values)]. It MUST be possible 
-		 * to combine the multiple header fields into one 
+		/* RFC2616
+		 * Multiple message-header fields with the same field-name
+		 * MAY be present in a message if and only if the entire
+		 * field-value for that header field is defined as a
+		 * comma-separated list [i.e., #(values)]. It MUST be possible
+		 * to combine the multiple header fields into one
 		 * "field-name: field-value" pair, without changing the semantics
-		 * of the message, by appending each subsequent field-value 
-		 * to the first, each separated by a comma. The order in which 
+		 * of the message, by appending each subsequent field-value
+		 * to the first, each separated by a comma. The order in which
 		 * header fields with the same field-name are received is therefore
 		 * significant to the interpretation of the combined field value,
-		 * and thus a proxy MUST NOT change the order of these field values 
-		 * when a message is forwarded. 
+		 * and thus a proxy MUST NOT change the order of these field values
+		 * when a message is forwarded.
 
 		 * RFC6265 defines the syntax for Set-Cookie and Cookie.
 		 * this seems to be conflicting with RFC2616.
-		 * 
-		 * Origin servers SHOULD NOT fold multiple Set-Cookie header fields 
-		 * into a single header field. The usual mechanism for folding HTTP 
-		 * headers fields (i.e., as defined in [RFC2616]) might change the 
+		 *
+		 * Origin servers SHOULD NOT fold multiple Set-Cookie header fields
+		 * into a single header field. The usual mechanism for folding HTTP
+		 * headers fields (i.e., as defined in [RFC2616]) might change the
 		 * semantics of the Set-Cookie header field because the %x2C (",")
-		 * character is used by Set-Cookie in a way that conflicts with 
+		 * character is used by Set-Cookie in a way that conflicts with
 		 * such folding.
-		 * 	
+		 *
 		 * So i just maintain the list of values for a key instead of
 		 * folding them.
 		 */
@@ -743,7 +743,7 @@ static hio_htb_pair_t* hdr_cbserter (
 		/* find the tail */
 		while (tmp->next) tmp = tmp->next;
 		/* append it to the list*/
-		tmp->next = val; 
+		tmp->next = val;
 
 		if (capture_key_header(tx->htrd, pair) <= -1) return HIO_NULL;
 		return pair;
@@ -774,12 +774,12 @@ hio_bch_t* parse_header_field (hio_htrd_t* htrd, hio_bch_t* line, hio_htb_t* tab
 	}
 	name.len = last - name.ptr;
 
-	if (*p != ':') 
+	if (*p != ':')
 	{
 		if (!(htrd->option & HIO_HTRD_STRICT))
 		{
 			while (is_space_octet(*p)) p++;
-			if (*p == '\n') 
+			if (*p == '\n')
 			{
 				/* ignore a line without a colon */
 				p++;
@@ -802,13 +802,13 @@ hio_bch_t* parse_header_field (hio_htrd_t* htrd, hio_bch_t* line, hio_htb_t* tab
 	value.len = last - value.ptr;
 	if (*p != '\n') goto badhdr; /* not ending with a new line */
 
-	/* peep at the beginning of the next line to check if it is 
+	/* peep at the beginning of the next line to check if it is
 	 * the continuation */
 	if (is_purespace_octet (*++p))
 	{
-		/* RFC: HTTP/1.0 headers may be folded onto multiple lines if 
-		 * each continuation line begins with a space or horizontal tab. 
-		 * All linear whitespace, including folding, has the same semantics 
+		/* RFC: HTTP/1.0 headers may be folded onto multiple lines if
+		 * each continuation line begins with a space or horizontal tab.
+		 * All linear whitespace, including folding, has the same semantics
 		 * as SP. */
 		hio_bch_t* cpydst;
 
@@ -816,14 +816,14 @@ hio_bch_t* parse_header_field (hio_htrd_t* htrd, hio_bch_t* line, hio_htb_t* tab
 		if (*(cpydst-1) == '\r') cpydst--;
 
 		/* process all continued lines */
-		do 
+		do
 		{
 			while (*p != '\0' && *p != '\n')
 			{
-				*cpydst = *p++; 
+				*cpydst = *p++;
 				if (!is_space_octet(*cpydst++)) last = cpydst;
-			} 
-	
+			}
+
 			value.len = last - value.ptr;
 			if (*p != '\n') goto badhdr;
 
@@ -843,10 +843,10 @@ hio_bch_t* parse_header_field (hio_htrd_t* htrd, hio_bch_t* line, hio_htb_t* tab
 
 		htrd->errnum = HIO_HTRD_ENOERR;
 		if (hio_htb_cbsert (
-			tab, name.ptr, name.len, 
+			tab, name.ptr, name.len,
 			hdr_cbserter, &ctx) == HIO_NULL)
 		{
-			if (htrd->errnum == HIO_HTRD_ENOERR) 
+			if (htrd->errnum == HIO_HTRD_ENOERR)
 				htrd->errnum = HIO_HTRD_ENOMEM;
 			return HIO_NULL;
 		}
@@ -877,7 +877,7 @@ static HIO_INLINE int parse_initial_line_and_headers (hio_htrd_t* htrd, const hi
 	else
 #endif
 		while (is_space_octet(*p)) p++;
-	
+
 	HIO_ASSERT (htrd->hio, *p != '\0');
 
 	/* parse the initial line */
@@ -940,7 +940,7 @@ static const hio_bch_t* getchunklen (hio_htrd_t* htrd, const hio_bch_t* ptr, hio
 
 	if (ptr < end)
 	{
-		if (*ptr == '\n') 
+		if (*ptr == '\n')
 		{
 			/* the chunk length line ended properly */
 
@@ -984,13 +984,13 @@ static const hio_bch_t* get_trailing_headers (hio_htrd_t* htrd, const hio_bch_t*
 		switch (b)
 		{
 			case '\0':
-				/* guarantee that the request does not contain a null 
+				/* guarantee that the request does not contain a null
 				 * character */
 				htrd->errnum = HIO_HTRD_EBADRE;
 				return HIO_NULL;
 
 			case '\n':
-				if (htrd->fed.s.crlf <= 1) 
+				if (htrd->fed.s.crlf <= 1)
 				{
 					htrd->fed.s.crlf = 2;
 					break;
@@ -1025,7 +1025,7 @@ static const hio_bch_t* get_trailing_headers (hio_htrd_t* htrd, const hio_bch_t*
 				}
 
 			case '\r':
-				if (htrd->fed.s.crlf == 0 || htrd->fed.s.crlf == 2) 
+				if (htrd->fed.s.crlf == 0 || htrd->fed.s.crlf == 2)
 					htrd->fed.s.crlf++;
 				else htrd->fed.s.crlf = 1;
 				break;
@@ -1037,7 +1037,7 @@ static const hio_bch_t* get_trailing_headers (hio_htrd_t* htrd, const hio_bch_t*
 		}
 	}
 
-	if (push_to_buffer (htrd, &htrd->fed.b.tra, req, ptr - req) <= -1) 
+	if (push_to_buffer (htrd, &htrd->fed.b.tra, req, ptr - req) <= -1)
 		return HIO_NULL;
 
 done:
@@ -1049,7 +1049,9 @@ int hio_htrd_feed (hio_htrd_t* htrd, const hio_bch_t* req, hio_oow_t len, hio_oo
 {
 	const hio_bch_t* end = req + len;
 	const hio_bch_t* ptr = req;
+#if 0
 	int header_completed_during_this_feed = 0;
+#endif
 	hio_oow_t avail;
 
 	HIO_ASSERT (htrd->hio, len > 0);
@@ -1069,9 +1071,9 @@ int hio_htrd_feed (hio_htrd_t* htrd, const hio_bch_t* req, hio_oow_t len, hio_oo
 	}
 
 	/* does this goto drop code maintainability? */
-	if (htrd->fed.s.need > 0) 
+	if (htrd->fed.s.need > 0)
 	{
-		/* we're in need of as many octets as htrd->fed.s.need 
+		/* we're in need of as many octets as htrd->fed.s.need
 		 * for contents body. make a proper jump to resume
 		 * content handling */
 		goto content_resume;
@@ -1083,7 +1085,7 @@ int hio_htrd_feed (hio_htrd_t* htrd, const hio_bch_t* req, hio_oow_t len, hio_oo
 			goto dechunk_resume;
 
 		case GET_CHUNK_DATA:
-			/* this won't be reached as htrd->fed.s.need 
+			/* this won't be reached as htrd->fed.s.need
 			 * is greater than 0 if GET_CHUNK_DATA is true */
 			goto content_resume;
 
@@ -1102,7 +1104,7 @@ int hio_htrd_feed (hio_htrd_t* htrd, const hio_bch_t* req, hio_oow_t len, hio_oo
 
 #if 0
 		if (htrd->option & HIO_HTRD_SKIP_EMPTY_LINES &&
-		    htrd->fed.s.plen <= 0 && is_whspace_octet(b)) 
+		    htrd->fed.s.plen <= 0 && is_whspace_octet(b))
 		{
 			/* let's drop leading whitespaces across multiple
 			 * lines */
@@ -1121,13 +1123,13 @@ int hio_htrd_feed (hio_htrd_t* htrd, const hio_bch_t* req, hio_oow_t len, hio_oo
 
 			case '\n':
 			{
-				if (htrd->fed.s.crlf <= 1) 
+				if (htrd->fed.s.crlf <= 1)
 				{
 					/* htrd->fed.s.crlf == 0
 					 *   => CR was not seen
 					 * htrd->fed.s.crlf == 1
-					 *   => CR was seen 
-					 * whatever the current case is, 
+					 *   => CR was seen
+					 * whatever the current case is,
 					 * mark the first LF is seen here.
 					 */
 					htrd->fed.s.crlf = 2;
@@ -1148,18 +1150,20 @@ int hio_htrd_feed (hio_htrd_t* htrd, const hio_bch_t* req, hio_oow_t len, hio_oo
 					/* reset the raw request length */
 					htrd->fed.s.plen = 0;
 
-					if (parse_initial_line_and_headers(htrd, req, ptr - req) <= -1) 
+					if (parse_initial_line_and_headers(htrd, req, ptr - req) <= -1)
 					{
 						return -1;
 					}
 
+#if 0
 					/* compelete request header is received */
 					header_completed_during_this_feed = 1;
+#endif
 
 ////////////////////////////////////////////////////////////////////////////////////////////////////
 					if (htrd->recbs.peek(htrd, &htrd->re) <= -1)
 					{
-						/* need to clear request on error? 
+						/* need to clear request on error?
 						clear_feed (htrd); */
 						return -1;
 					}
@@ -1190,7 +1194,7 @@ int hio_htrd_feed (hio_htrd_t* htrd, const hio_bch_t* req, hio_oow_t len, hio_oo
 						{
 							/* this state is reached after the
 							 * last chunk length 0 is read. The next
-							 * empty line immediately completes 
+							 * empty line immediately completes
 							 * a content body. so i need to adjust
 							 * this crlf status to 2 as if a trailing
 							 * header line has been read. */
@@ -1212,32 +1216,32 @@ int hio_htrd_feed (hio_htrd_t* htrd, const hio_bch_t* req, hio_oow_t len, hio_oo
 					{
 						/* we need to read as many octets as
 						 * Content-Length */
-						if ((htrd->option & HIO_HTRD_RESPONSE) && 
+						if ((htrd->option & HIO_HTRD_RESPONSE) &&
 						    !(htrd->re.flags & HIO_HTRE_ATTR_LENGTH) &&
 						    !(htrd->re.flags & HIO_HTRE_ATTR_KEEPALIVE))
 						{
-							/* for a response, no content-length and 
-							 * no chunk are specified and 'connection' 
-							 * is to close. i must read until the 
-							 * connection is closed. however, there isn't 
-							 * any good way to know when to stop from 
+							/* for a response, no content-length and
+							 * no chunk are specified and 'connection'
+							 * is to close. i must read until the
+							 * connection is closed. however, there isn't
+							 * any good way to know when to stop from
 							 * within this function. so the caller
 							 * can call hio_htrd_halt() for this. */
 
 							/* set this to the maximum in a type safe way
 							 * assuming it's unsigned. the problem of
-							 * the current implementation is that 
+							 * the current implementation is that
 							 * it can't receive more than  */
 							htrd->fed.s.need = 0;
-							htrd->fed.s.need = ~htrd->fed.s.need; 
+							htrd->fed.s.need = ~htrd->fed.s.need;
 							htrd->fed.s.flags |= CONSUME_UNTIL_CLOSE;
 						}
 						else if ((htrd->option & HIO_HTRD_RESPONSE) &&
 						         !(htrd->re.flags & HIO_HTRE_ATTR_LENGTH) &&
 						          (htrd->re.flags & HIO_HTRE_ATTR_KEEPALIVE))
 						{
-							/* 
-							 * what the hell! 
+							/*
+							 * what the hell!
 							 * no content-length, but keep-alive and not chunked.
 							 * there's no way to know how large the contents is.
 							 *
@@ -1246,7 +1250,7 @@ int hio_htrd_feed (hio_htrd_t* htrd, const hio_bch_t* req, hio_oow_t len, hio_oo
 							 *    Accept-Encoding: gzip, deflate
 							 *
 							 * the service gave this response as of this writing:
-							 * 
+							 *
 HTTP/1.1 304 Not Modified
 Server: nginx/1.6.2
 Date: Tue, 04 Nov 2014 15:45:46 GMT
@@ -1256,7 +1260,7 @@ Set-Cookie: LAST_LANG=en; expires=Wed, 04-Nov-2015 15:45:46 GMT; Max-Age=3153600
 Set-Cookie: COUNTRY=KOR%2C220.121.110.171; expires=Tue, 11-Nov-2014 15:45:46 GMT; Max-Age=604800; path=/; domain=.php.net
 
 XXXXXXXX
-							 * 
+							 *
 							 * XXXXXXX is some compressed garbage included in the contents-body.
 							 * why does the service behave this way? is it a server bug or am i doing anything wrong?
 							 *
@@ -1276,7 +1280,7 @@ XXXXXXXX
 
 					if (htrd->fed.s.need > 0)
 					{
-						/* content-length or chunked data length 
+						/* content-length or chunked data length
 						 * specified */
 					content_resume:
 						avail = end - ptr;
@@ -1285,41 +1289,41 @@ XXXXXXXX
 							/* we didn't get a complete content yet */
 
 							/* avail can be 0 if data fed ends with
-							 * a chunk length withtout actual data. 
+							 * a chunk length withtout actual data.
 							 * so i check if avail is greater than 0
 							 * in order not to push empty content. */
-							goto feedme_more; 
+							goto feedme_more;
 						}
 						else if (avail < htrd->fed.s.need)
 						{
 							/* the data is not as large as needed */
-							if (push_content(htrd, ptr, avail) <= -1) 
+							if (push_content(htrd, ptr, avail) <= -1)
 							{
 								return -1;
 							}
 
-							if (!(htrd->fed.s.flags & CONSUME_UNTIL_CLOSE)) 
+							if (!(htrd->fed.s.flags & CONSUME_UNTIL_CLOSE))
 							{
 								/* i don't decrement htrd->fed.s.need
 								 * if i should read until connection is closed.
 								 * well, unless set your own callback,
-								 * push_content() above will fail 
+								 * push_content() above will fail
 								 * if too much has been received already */
 								htrd->fed.s.need -= avail;
 							}
 
 							/* we didn't get a complete content yet */
-							goto feedme_more; 
+							goto feedme_more;
 						}
-						else 
+						else
 						{
 							/* we got all or more than needed */
-							if (push_content (htrd, ptr, htrd->fed.s.need) <= -1) 
+							if (push_content (htrd, ptr, htrd->fed.s.need) <= -1)
 							{
 								return -1;
 							}
 							ptr += htrd->fed.s.need;
-							if (!(htrd->fed.s.flags & CONSUME_UNTIL_CLOSE)) 
+							if (!(htrd->fed.s.flags & CONSUME_UNTIL_CLOSE))
 								htrd->fed.s.need = 0;
 						}
 					}
@@ -1333,17 +1337,17 @@ XXXXXXXX
 						while (ptr < end && is_space_octet(*ptr)) ptr++;
 						if (ptr < end)
 						{
-							if (*ptr == '\n') 
+							if (*ptr == '\n')
 							{
 								/* end of chunk data. */
 								ptr++;
 
-								/* more octets still available. 
-								 * let it decode the next chunk 
+								/* more octets still available.
+								 * let it decode the next chunk
 								 */
-								if (ptr < end) goto dechunk_start; 
+								if (ptr < end) goto dechunk_start;
 
-								/* no more octets available after 
+								/* no more octets available after
 								 * chunk data. the chunk state variables
 								 * need to be reset when a jump is made
 								 * to dechunk_resume upon the next call
@@ -1377,13 +1381,13 @@ XXXXXXXX
 						/* the peek handler has not been executed.
 						 * this can happen if this function is fed with
 						 * at least the ending part of a complete header
-						 * plus complete content body and the header 
+						 * plus complete content body and the header
 						 * of the next request. */
 						int n;
 						n = htrd->recbs.peek(htrd, &htrd->re);
 						if (n <= -1)
 						{
-							/* need to clear request on error? 
+							/* need to clear request on error?
 							clear_feed (htrd); */
 							return -1;
 						}
@@ -1398,20 +1402,20 @@ XXXXXXXX
 						n = htrd->recbs.poke(htrd, &htrd->re);
 						if (n <= -1)
 						{
-							/* need to clear request on error? 
+							/* need to clear request on error?
 							clear_feed (htrd); */
 							return -1;
 						}
 					}
 
 #if 0
-hio_printf (HIO_T("CONTENT_LENGTH %d, RAW HEADER LENGTH %d\n"), 
+hio_printf (HIO_T("CONTENT_LENGTH %d, RAW HEADER LENGTH %d\n"),
 	(int)HIO_BECS_LEN(&htrd->re.content),
 	(int)HIO_BECS_LEN(&htrd->fed.b.raw));
 #endif
 					clear_feed (htrd);
 
-					if (rem) 
+					if (rem)
 					{
 						/* stop even if there are fed data left */
 						*rem = end - ptr; /* remaining feeds */
@@ -1440,29 +1444,29 @@ hio_printf (HIO_T("CONTENT_LENGTH %d, RAW HEADER LENGTH %d\n"),
 							return 0;
 					}
 
-					/* let ptr point to the next character to LF or 
+					/* let ptr point to the next character to LF or
 					 * the optional contents */
-					req = ptr; 
+					req = ptr;
 
 					/* since there are more to handle, i mark that
 					 * htrd is in need of some data. this may
-					 * not be really compatible with SKIP_EMPTY_LINES. 
+					 * not be really compatible with SKIP_EMPTY_LINES.
 					 * SHOULD I simply remove the option? */
-					htrd->clean = 0; 
+					htrd->clean = 0;
 				}
 				break;
 			}
 
 			case '\r':
-				if (htrd->fed.s.crlf == 0 || htrd->fed.s.crlf == 2) 
+				if (htrd->fed.s.crlf == 0 || htrd->fed.s.crlf == 2)
 					htrd->fed.s.crlf++;
 				else htrd->fed.s.crlf = 1;
 				break;
 
 			default:
-				/* increment length of a request in raw 
+				/* increment length of a request in raw
 				 * excluding crlf */
-				htrd->fed.s.plen++; 
+				htrd->fed.s.plen++;
 				/* mark that neither CR nor LF was seen */
 				htrd->fed.s.crlf = 0;
 		}
@@ -1471,7 +1475,7 @@ hio_printf (HIO_T("CONTENT_LENGTH %d, RAW HEADER LENGTH %d\n"),
 	if (ptr > req)
 	{
 		/* enbuffer the incomplete request */
-		if (push_to_buffer(htrd, &htrd->fed.b.raw, req, ptr - req) <= -1) 
+		if (push_to_buffer(htrd, &htrd->fed.b.raw, req, ptr - req) <= -1)
 		{
 			return -1;
 		}
@@ -1485,7 +1489,7 @@ feedme_more:
 		n = htrd->recbs.peek(htrd, &htrd->re);
 		if (n <= -1)
 		{
-			/* need to clear request on error? 
+			/* need to clear request on error?
 			clear_feed (htrd); */
 			return -1;
 		}
@@ -1508,7 +1512,7 @@ int hio_htrd_halt (hio_htrd_t* htrd)
 			n = htrd->recbs.poke(htrd, &htrd->re);
 			if (n <= -1)
 			{
-				/* need to clear request on error? 
+				/* need to clear request on error?
 				clear_feed (htrd); */
 				return -1;
 			}

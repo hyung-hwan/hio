@@ -65,7 +65,7 @@ struct hio_ifcfg_t
 
 	/* ---------------- */
 
-	/* TODO: add hwaddr?? */	
+	/* TODO: add hwaddr?? */
 	/* i support ethernet only currently */
 	hio_uint8_t      ethw[6];  /* out */
 };

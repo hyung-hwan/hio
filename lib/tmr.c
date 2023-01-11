@@ -45,7 +45,7 @@ static hio_tmridx_t sift_up (hio_t* hio, hio_tmridx_t index)
 	{
 		hio_tmrjob_t item;
 
-		item = hio->tmr.jobs[index]; 
+		item = hio->tmr.jobs[index];
 
 		do
 		{
@@ -100,7 +100,7 @@ static hio_tmridx_t sift_down (hio_t* hio, hio_tmridx_t index)
 			index = younger;
 		}
 		while (index < base);
-		
+
 		hio->tmr.jobs[index] = item;
 		if (hio->tmr.jobs[index].idxptr) *hio->tmr.jobs[index].idxptr = index;
 	}

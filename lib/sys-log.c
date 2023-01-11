@@ -167,7 +167,7 @@ static int write_log (hio_t* hio, int fd, hio_bitmask_t mask, const hio_bch_t* p
 				log->out.len += len;
 				ptr += len;
 				len -= len;
-				
+
 			}
 		}
 	}
@@ -222,7 +222,7 @@ void hio_sys_writelog (hio_t* hio, hio_bitmask_t mask, const hio_ooch_t* msg, hi
 	#if defined(_WIN32)
 		tmp = localtime(&now);
 		tslen = strftime(ts, sizeof(ts), "%Y-%m-%d %H:%M:%S %z ", tmp);
-		if (tslen == 0) 
+		if (tslen == 0)
 		{
 			tslen = sprintf(ts, "%04d-%02d-%02d %02d:%02d:%02d ", tmp->tm_year + 1900, tmp->tm_mon + 1, tmp->tm_mday, tmp->tm_hour, tmp->tm_min, tmp->tm_sec);
 		}
@@ -239,7 +239,7 @@ void hio_sys_writelog (hio_t* hio, hio_bitmask_t mask, const hio_ooch_t* msg, hi
 		#else
 		tslen = strftime(ts, sizeof(ts), "%Y-%m-%d %H:%M:%S %z ", tmp);
 		#endif
-		if (tslen == 0) 
+		if (tslen == 0)
 		{
 			tslen = sprintf(ts, "%04d-%02d-%02d %02d:%02d:%02d ", tmp->tm_year + 1900, tmp->tm_mon + 1, tmp->tm_mday, tmp->tm_hour, tmp->tm_min, tmp->tm_sec);
 		}
@@ -258,9 +258,9 @@ void hio_sys_writelog (hio_t* hio, hio_bitmask_t mask, const hio_ooch_t* msg, hi
 		#if defined(HAVE_STRFTIME_SMALL_Z)
 		tslen = strftime(ts, sizeof(ts), "%Y-%m-%d %H:%M:%S %z ", tmp);
 		#else
-		tslen = strftime(ts, sizeof(ts), "%Y-%m-%d %H:%M:%S %Z ", tmp); 
+		tslen = strftime(ts, sizeof(ts), "%Y-%m-%d %H:%M:%S %Z ", tmp);
 		#endif
-		if (tslen == 0) 
+		if (tslen == 0)
 		{
 			tslen = sprintf(ts, "%04d-%02d-%02d %02d:%02d:%02d ", tmp->tm_year + 1900, tmp->tm_mon + 1, tmp->tm_mday, tmp->tm_hour, tmp->tm_min, tmp->tm_sec);
 		}
@@ -285,9 +285,9 @@ void hio_sys_writelog (hio_t* hio, hio_bitmask_t mask, const hio_ooch_t* msg, hi
 		n = hio_convootobchars(hio, &msg[msgidx], &ucslen, buf, &bcslen);
 		if (n == 0 || n == -2)
 		{
-			/* n = 0: 
-			 *   converted all successfully 
-			 * n == -2: 
+			/* n = 0:
+			 *   converted all successfully
+			 * n == -2:
 			 *    buffer not sufficient. not all got converted yet.
 			 *    write what have been converted this round. */
 
@@ -347,7 +347,7 @@ void hio_sys_finilog (hio_t* hio)
 
 	if (hio->_features & HIO_FEATURE_LOG_WRITER)
 	{
-		if ((log->fd_flag & LOGFD_OPENED_HERE) && log->fd >= 0) 
+		if ((log->fd_flag & LOGFD_OPENED_HERE) && log->fd >= 0)
 		{
 			close (log->fd);
 			log->fd = -1;

@@ -1,4 +1,4 @@
-/* 
+/*
     Copyright (c) 2016-2020 Chung, Hyung-Hwan. All rights reserved.
 
     Redistribution and use in source and binary forms, with or without
@@ -79,7 +79,7 @@ enum hio_http_method_t
 	HIO_HTTP_MERGE,
 	HIO_HTTP_BASELINE_CONTROL,
 	HIO_HTTP_MKACTIVITY,
-	
+
 	/* microsoft */
 	HIO_HTTP_BPROPFIND,
 	HIO_HTTP_BPROPPATCH,
@@ -122,9 +122,9 @@ enum hio_http_status_t
 };
 typedef enum hio_http_status_t hio_http_status_t;
 
-/* 
- * You should not manipulate an object of the #hio_htre_t 
- * type directly since it's complex. Use #hio_htrd_t to 
+/*
+ * You should not manipulate an object of the #hio_htre_t
+ * type directly since it's complex. Use #hio_htrd_t to
  * create an object of the hio_htre_t type.
  */
 
@@ -153,7 +153,7 @@ struct hio_htre_hdrval_t
 	hio_htre_hdrval_t* next;
 };
 
-struct hio_htre_t 
+struct hio_htre_t
 {
 	hio_t* hio;
 
@@ -169,7 +169,7 @@ struct hio_htre_t
 
 	union
 	{
-		struct 
+		struct
 		{
 			struct
 			{
@@ -222,7 +222,7 @@ struct hio_htre_t
 	/* header table */
 	hio_htb_t hdrtab;
 	hio_htb_t trailers;
-	
+
 	/* content octets */
 	hio_becs_t content;
 
@@ -286,12 +286,12 @@ HIO_EXPORT void hio_htre_clear (
 );
 
 HIO_EXPORT const hio_htre_hdrval_t* hio_htre_getheaderval (
-	const hio_htre_t*  re, 
+	const hio_htre_t*  re,
 	const hio_bch_t* key
 );
 
 HIO_EXPORT const hio_htre_hdrval_t* hio_htre_gettrailerval (
-	const hio_htre_t*  re, 
+	const hio_htre_t*  re,
 	const hio_bch_t* key
 );
 
@@ -310,8 +310,8 @@ HIO_EXPORT int hio_htre_walktrailers (
 /**
  * The hio_htre_addcontent() function adds a content semgnet pointed to by
  * @a ptr of @a len bytes to the content buffer. If @a re is already completed
- * or discarded, this function returns 0 without adding the segment to the 
- * content buffer. 
+ * or discarded, this function returns 0 without adding the segment to the
+ * content buffer.
  * @return 1 on success, -1 on failure, 0 if adding is skipped.
  */
 HIO_EXPORT int hio_htre_addcontent (
@@ -334,7 +334,7 @@ HIO_EXPORT void hio_htre_unsetconcb (
 
 HIO_EXPORT void hio_htre_setconcb (
 	hio_htre_t*      re,
-	hio_htre_concb_t concb, 
+	hio_htre_concb_t concb,
 	void*            ctx
 );
 

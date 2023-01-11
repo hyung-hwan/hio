@@ -4,7 +4,7 @@
 
 typedef struct uch_case_page_t uch_case_page_t;
 
-struct uch_case_page_t 
+struct uch_case_page_t
 {
 	hio_int32_t upper;
 	hio_int32_t lower;

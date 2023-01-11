@@ -106,7 +106,7 @@ hio_svc_marc_t* hio_svc_marc_start (hio_t* hio, const hio_svc_marc_connect_t* ci
 	marc->hio = hio;
 	marc->svc_stop = hio_svc_marc_stop;
 	marc->ci = *ci;
-	if (tmout) 
+	if (tmout)
 	{
 		marc->tmout = *tmout;
 		marc->tmout_set = 1;
@@ -131,7 +131,7 @@ void hio_svc_marc_stop (hio_svc_marc_t* marc)
 
 	for (i = 0; i < marc->sess.capa; i++)
 	{
-		if (marc->sess.ptr[i].dev) 
+		if (marc->sess.ptr[i].dev)
 		{
 			hio_dev_mar_kill (marc->sess.ptr[i].dev);
 		}
@@ -205,7 +205,7 @@ static int send_pending_query_if_any (sess_t* sess)
 	{
 		sq->sent = 1;
 /*printf ("sending... %.*s\n", (int)sq->qlen, sq->qptr);*/
-		if (hio_dev_mar_querywithbchars(sess->dev, sq->qptr, sq->qlen) <= -1) 
+		if (hio_dev_mar_querywithbchars(sess->dev, sq->qptr, sq->qlen) <= -1)
 		{
 			HIO_DEBUG2 (sess->svc->hio, "MARC(%p) - SEND FAIL %js\n", sess->dev, hio_geterrmsg(sess->svc->hio));
 			sq->sent = 0;
@@ -232,7 +232,7 @@ static void mar_on_disconnect (hio_dev_mar_t* dev)
 	if (xtn->sid == INVALID_SID) return; /* this session data is not set if there's failure in alloc_device() */
 
 	sess = &xtn->svc->sess.ptr[xtn->sid];
-	HIO_DEBUG6 (hio, "MARC(%p) - device disconnected - sid %lu session %p session-connected %d device %p device-broken %d\n", sess->svc, (unsigned long int)sess->sid, sess, (int)sess->connected, dev, (int)dev->broken); 
+	HIO_DEBUG6 (hio, "MARC(%p) - device disconnected - sid %lu session %p session-connected %d device %p device-broken %d\n", sess->svc, (unsigned long int)sess->sid, sess, (int)sess->connected, dev, (int)dev->broken);
 	HIO_ASSERT (hio, dev == sess->dev);
 
 	if (HIO_UNLIKELY(!sess->svc->stopping && hio->stopreq == HIO_STOPREQ_NONE))
@@ -291,7 +291,7 @@ static void mar_on_connect (hio_dev_mar_t* dev)
 
 	HIO_ASSERT (hio, xtn->sid != INVALID_SID);
 	sess = &xtn->svc->sess.ptr[xtn->sid];
-	HIO_DEBUG5 (hio, "MARC(%p) - device connected - sid %lu session %p device %p device-broken %d\n", sess->svc, (unsigned long int)sess->sid, sess, dev, dev->broken); 
+	HIO_DEBUG5 (hio, "MARC(%p) - device connected - sid %lu session %p device %p device-broken %d\n", sess->svc, (unsigned long int)sess->sid, sess, dev, dev->broken);
 
 	sess->connected = 1;
 	send_pending_query_if_any (sess);
@@ -353,7 +353,7 @@ static void mar_on_row_fetched (hio_dev_mar_t* dev, void* data)
 
 	sq->on_result (sess->svc, sess->sid, (data? HIO_SVC_MARC_RCODE_ROW: HIO_SVC_MARC_RCODE_DONE), data, sq->qctx);
 
-	if (!data) 
+	if (!data)
 	{
 		dequeue_session_query (sess->svc->hio, sess);
 		send_pending_query_if_any (sess);
@@ -387,7 +387,7 @@ static hio_dev_mar_t* alloc_device (hio_svc_marc_t* marc, hio_oow_t sid)
 	xtn->svc = marc;
 	xtn->sid = sid;
 
-	if (hio_dev_mar_connect(mar, &marc->ci) <= -1) 
+	if (hio_dev_mar_connect(mar, &marc->ci) <= -1)
 	{
 		/* connection failed immediately */
 		xtn->sid = INVALID_SID;
@@ -424,7 +424,7 @@ static sess_t* get_session (hio_svc_marc_t* marc, hio_oow_t flagged_sid)
 			sess = &marc->sess.ptr[i];
 			if (sess->dev)
 			{
-				if (!get_first_session_query(sess)) 
+				if (!get_first_session_query(sess))
 				{
 					marc->autoi = i;
 					sid = marc->autoi;
@@ -438,7 +438,7 @@ static sess_t* get_session (hio_svc_marc_t* marc, hio_oow_t flagged_sid)
 			sess = &marc->sess.ptr[i];
 			if (sess->dev)
 			{
-				if (!get_first_session_query(sess)) 
+				if (!get_first_session_query(sess))
 				{
 					marc->autoi = i;
 					sid = marc->autoi;
@@ -505,16 +505,16 @@ got_sid:
 		if (HIO_UNLIKELY(!sq)) return HIO_NULL;
 
 		sess->dev = alloc_device(marc, sess->sid);
-		if (HIO_UNLIKELY(!sess->dev)) 
+		if (HIO_UNLIKELY(!sess->dev))
 		{
 			free_session_query (hio, sq);
 			return HIO_NULL;
 		}
 
-		/* queue initialization with a place holder. the queue maintains a placeholder node. 
+		/* queue initialization with a place holder. the queue maintains a placeholder node.
 		 * the first actual data node enqueued is inserted at the back and becomes the second
-		 * node in terms of the entire queue. 
-		 *     
+		 * node in terms of the entire queue.
+		 *
 		 *     PH -> DN1 -> DN2 -> ... -> DNX
 		 *     ^                          ^
 		 *     q_head                     q_tail
@@ -522,7 +522,7 @@ got_sid:
 		 * get_first_session_query() returns the data of DN1, not the data held in PH.
 		 *
 		 * the first dequeing operations kills PH.
- 		 * 
+ 		 *
 		 *     DN1 -> DN2 -> ... -> DNX
 		 *     ^                    ^
 		 *     q_head               q_tail
@@ -565,7 +565,7 @@ int hio_svc_marc_querywithbchars (hio_svc_marc_t* marc, hio_oow_t flagged_sid, h
 		HIO_ASSERT (hio, sq->sent == 0);
 
 		sq->sent = 1;
-		if (hio_dev_mar_querywithbchars(sess->dev, sq->qptr, sq->qlen) <= -1) 
+		if (hio_dev_mar_querywithbchars(sess->dev, sq->qptr, sq->qlen) <= -1)
 		{
 			sq->sent = 0;
 			if (!sess->dev->broken)

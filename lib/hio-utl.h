@@ -323,7 +323,7 @@ HIO_EXPORT hio_cmgr_t* hio_get_utf8_cmgr (
 );
 
 /**
- * The hio_conv_uchars_to_utf8() function converts a unicode character string \a ucs 
+ * The hio_conv_uchars_to_utf8() function converts a unicode character string \a ucs
  * to a UTF8 string and writes it into the buffer pointed to by \a bcs, but
  * not more than \a bcslen bytes including the terminating null.
  *
@@ -372,7 +372,7 @@ HIO_EXPORT int hio_conv_uchars_to_utf8 (
  *  n = hio_conv_utf8_to_uchars (bcs, &bcslen, ucs, &ucslen);
  *  if (n <= -1) { invalid/incomplenete sequence or buffer to small }
  * \endcode
- * 
+ *
  * The resulting \a ucslen can still be greater than 0 even if the return
  * value is negative. The value indiates the number of characters converted
  * before the error has occurred.
@@ -421,19 +421,19 @@ HIO_EXPORT hio_oow_t hio_utf8_to_uc (
  * TIME CALCULATION WITH OVERFLOW/UNDERFLOW DETECTION
  * ========================================================================= */
 
-/** 
+/**
  * The hio_add_ntime() function adds two time structures pointed to by \a x and \a y
  * and stores the result in the structure pointed to by \a z. If it detects overflow/
  * underflow, it stores the largest/least possible value respectively.
  * You may use the HIO_ADD_NTIME() macro if overflow/underflow check isn't needed.
  */
 HIO_EXPORT void hio_add_ntime (
-	hio_ntime_t*       z, 
+	hio_ntime_t*       z,
 	const hio_ntime_t* x,
 	const hio_ntime_t* y
 );
 
-/** 
+/**
  * The hio_sub_ntime() function subtracts the time value \a y from the time value \a x
  * and stores the result in the structure pointed to by \a z. If it detects overflow/
  * underflow, it stores the largest/least possible value respectively.
@@ -490,9 +490,9 @@ static HIO_INLINE hio_uint32_t hio_bswap32 (hio_uint32_t x)
 	__asm__ volatile ("bswapl %0" : "=r"(x) : "0"(x));
 	return x;
 #else
-	return ((x >> 24)) | 
-	       ((x >>  8) & ((hio_uint32_t)0xff << 8)) | 
-	       ((x <<  8) & ((hio_uint32_t)0xff << 16)) | 
+	return ((x >> 24)) |
+	       ((x >>  8) & ((hio_uint32_t)0xff << 8)) |
+	       ((x <<  8) & ((hio_uint32_t)0xff << 16)) |
 	       ((x << 24));
 #endif
 }
@@ -507,13 +507,13 @@ static HIO_INLINE hio_uint64_t hio_bswap64 (hio_uint64_t x)
 	__asm__ volatile ("bswapq %0" : "=r"(x) : "0"(x));
 	return x;
 #else
-	return ((x >> 56)) | 
-	       ((x >> 40) & ((hio_uint64_t)0xff << 8)) | 
-	       ((x >> 24) & ((hio_uint64_t)0xff << 16)) | 
-	       ((x >>  8) & ((hio_uint64_t)0xff << 24)) | 
-	       ((x <<  8) & ((hio_uint64_t)0xff << 32)) | 
-	       ((x << 24) & ((hio_uint64_t)0xff << 40)) | 
-	       ((x << 40) & ((hio_uint64_t)0xff << 48)) | 
+	return ((x >> 56)) |
+	       ((x >> 40) & ((hio_uint64_t)0xff << 8)) |
+	       ((x >> 24) & ((hio_uint64_t)0xff << 16)) |
+	       ((x >>  8) & ((hio_uint64_t)0xff << 24)) |
+	       ((x <<  8) & ((hio_uint64_t)0xff << 32)) |
+	       ((x << 24) & ((hio_uint64_t)0xff << 40)) |
+	       ((x << 40) & ((hio_uint64_t)0xff << 48)) |
 	       ((x << 56));
 #endif
 }
@@ -522,7 +522,7 @@ static HIO_INLINE hio_uint64_t hio_bswap64 (hio_uint64_t x)
 #if defined(HIO_HAVE_UINT128_T)
 static HIO_INLINE hio_uint128_t hio_bswap128 (hio_uint128_t x)
 {
-	return ((x >> 120)) | 
+	return ((x >> 120)) |
 	       ((x >> 104) & ((hio_uint128_t)0xff << 8)) |
 	       ((x >>  88) & ((hio_uint128_t)0xff << 16)) |
 	       ((x >>  72) & ((hio_uint128_t)0xff << 24)) |

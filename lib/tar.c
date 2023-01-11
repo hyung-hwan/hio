@@ -16,7 +16,7 @@ static int verify_checksum(const char *p)
 {
 	int n, u = 0;
 
-	for (n = 0; n < 512; n++) 
+	for (n = 0; n < 512; n++)
 	{
 		if (n < 148 || n > 155)
 			/* Standard tar checksum adds unsigned bytes. */
@@ -37,16 +37,16 @@ static int create_dir (hio_bch_t *pathname, int mode)
 
 	pathlen = hio_count_bcstr(pathname);
 
-	/* Strip trailing '/' TODO: improve ...*/ 
+	/* Strip trailing '/' TODO: improve ...*/
 	if (pathname[pathlen - 1] == '/')
 		pathname[pathlen - 1] = '\0';
 
 	n = mkdir(pathname, mode);
-	if (n <= -1) 
+	if (n <= -1)
 	{
 		/* On failure, try creating parent directory. */
 		p = hio_rfind_bchar_in_bcstr(pathname, '/');
-		if (p) 
+		if (p)
 		{
 			*p = '\0';
 			create_dir(pathname, 0755);
@@ -123,7 +123,7 @@ static int x_process_header (hio_tar_t* tar)
 	hdr = (hio_tar_hdr_t*)tar->x.blk.buf;
 
 	/* all-zero byte block ends the archive */
-	if (HIO_MEMCMP(hdr, _end_block, HIO_TAR_BLKSIZE) == 0) 
+	if (HIO_MEMCMP(hdr, _end_block, HIO_TAR_BLKSIZE) == 0)
 	{
 		/* two all-zero blocks are expected as the EOF indicator */
 		tar->x.state = HIO_TAR_STATE_END;
@@ -156,7 +156,7 @@ static int x_process_header (hio_tar_t* tar)
 		    hio_becs_cat(&tar->x.hi.filename, hdr->name) == (hio_oow_t)-1) return -1;
 
 		filename = HIO_BECS_PTR(&tar->x.hi.filename);
-		switch (hdr->typeflag) 
+		switch (hdr->typeflag)
 		{
 			case HIO_TAR_LNKTYPE:
 				link (hdr->linkname, filename);
@@ -164,7 +164,7 @@ static int x_process_header (hio_tar_t* tar)
 			case HIO_TAR_SYMTYPE:
 				symlink (hdr->linkname, filename); /* TODO: error check */
 				break;
-			case HIO_TAR_CHRTYPE: 
+			case HIO_TAR_CHRTYPE:
 				mknod (filename, S_IFCHR | tar->x.hi.filemode,  ((tar->x.hi.devmajor << 8) | tar->x.hi.devminor));
 				break;
 			case HIO_TAR_BLKTYPE:

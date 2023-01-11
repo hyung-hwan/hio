@@ -56,7 +56,7 @@ const hio_bch_t* hio_http_status_to_bcstr (int code)
 		case HIO_HTTP_STATUS_NO_CONTENT:            msg = "No Content"; break;
 		case HIO_HTTP_STATUS_RESET_CONTENT:         msg = "Reset Content"; break;
 		case HIO_HTTP_STATUS_PARTIAL_CONTENT:       msg = "Partial Content"; break;
-		
+
 		case 300: msg = "Multiple Choices"; break;
 		case HIO_HTTP_STATUS_MOVED_PERMANENTLY:     msg = "Moved Permanently"; break;
 		case 302: msg = "Found"; break;
@@ -118,7 +118,7 @@ const hio_bch_t* hio_http_method_to_bcstr (hio_http_method_t type)
 		"OPTIONS",
 		"TRACE",
 		"CONNECT"
-	}; 
+	};
 
 	return (type < 0 || type >= HIO_COUNTOF(names))? HIO_NULL: names[type];
 }
@@ -161,10 +161,10 @@ hio_http_method_t hio_bcstr_to_http_method (const hio_bch_t* name)
 		entry = &mtab[mid];
 
 		n = hio_comp_bcstr(name, entry->name, 1);
-		if (n < 0) 
+		if (n < 0)
 		{
 			/* if left, right, mid were of hio_oow_t,
-			 * you would need the following line. 
+			 * you would need the following line.
 			if (mid == 0) break;
 			 */
 			right = mid - 1;
@@ -194,10 +194,10 @@ hio_http_method_t hio_bchars_to_http_method (const hio_bch_t* nameptr, hio_oow_t
 		entry = &mtab[mid];
 
 		n = hio_comp_bchars_bcstr(nameptr, namelen, entry->name, 1);
-		if (n < 0) 
+		if (n < 0)
 		{
 			/* if left, right, mid were of hio_oow_t,
-			 * you would need the following line. 
+			 * you would need the following line.
 			if (mid == 0) break;
 			 */
 			right = mid - 1;
@@ -211,7 +211,7 @@ hio_http_method_t hio_bchars_to_http_method (const hio_bch_t* nameptr, hio_oow_t
 
 int hio_parse_http_range_bcstr (const hio_bch_t* str, hio_http_range_t* range)
 {
-	/* NOTE: this function does not support a range set 
+	/* NOTE: this function does not support a range set
 	 *       like bytes=1-20,30-50 */
 
 	hio_foff_t from, to;
@@ -264,7 +264,7 @@ struct mname_t
 	const hio_bch_t* s;
 	const hio_bch_t* l;
 };
-	
+
 static mname_t wday_name[] =
 {
 	{ "Sun", "Sunday" },
@@ -387,7 +387,7 @@ hio_bch_t* hio_fmt_http_time_to_bcstr (const hio_ntime_t* nt, hio_bch_t* buf, hi
 	t = nt->sec;
 	gmtime_r (&t, &bt); /* TODO: create hio_sys_gmtime() and make it system dependent */
 
-	hio_fmttobcstr (HIO_NULL, buf, bufsz, 
+	hio_fmttobcstr (HIO_NULL, buf, bufsz,
 		"%hs, %d %hs %d %02d:%02d:%02d GMT",
 		wday_name[bt.tm_wday].s,
 		bt.tm_mday,
@@ -412,7 +412,7 @@ int hio_is_perenced_http_bcstr (const hio_bch_t* str)
 			{
 				/* return true if the first valid percent-encoded sequence is found */
 				int w = HIO_XDIGIT_TO_NUM(*(p + 2));
-				if (w >= 0) return 1; 
+				if (w >= 0) return 1;
 			}
 		}
 
@@ -628,7 +628,8 @@ int hio_scan_http_qparam (hio_bch_t* qparam, int (*qparamcb) (hio_bcs_t* key, hi
 
 hio_oow_t hio_escape_html_bchars (const hio_bch_t* str, hio_oow_t sln, hio_bch_t* buf, hio_oow_t len)
 {
-	hio_bch_t* ptr, * end = str + sln;
+	hio_bch_t* ptr;
+	const hio_bch_t* end = str + sln;
 	hio_oow_t reqlen = 0;
 
 	for (ptr = (hio_bch_t*)str; ptr < end; ptr++)

@@ -46,6 +46,7 @@ struct hio_svc_fcgic_t
 
 struct hio_svc_fcgic_sess_t
 {
+	int active;
 	hio_oow_t sid;
 	hio_svc_fcgic_conn_t* conn;
 	hio_svc_fcgic_on_read_t on_read;
@@ -65,20 +66,29 @@ struct hio_svc_fcgic_conn_t
 		hio_oow_t free; /* the index to the first free session slot */
 	} sess;
 
+	struct
+	{
+		enum
+		{
+			R_AWAITING_HEADER,
+			R_AWAITING_BODY
+		} state;
+
+		hio_uint8_t   type;
+		hio_uint16_t  id;
+		hio_uint16_t  content_len;
+		hio_uint8_t   padding_len;
+
+		hio_uint8_t buf[1024]; /* TODO: make it smaller... */
+		hio_oow_t len;
+	} r; /* space to parse incoming reply header */
+
 	hio_svc_fcgic_conn_t* next;
 };
 
 struct fcgic_sck_xtn_t
 {
 	hio_svc_fcgic_conn_t* conn;
-#if 0
-	struct
-	{
-		hio_uint8_t* ptr;
-		hio_oow_t  len;
-		hio_oow_t  capa;
-	} rbuf; /* used by tcp socket */
-#endif
 };
 typedef struct fcgic_sck_xtn_t fcgic_sck_xtn_t;
 
@@ -111,13 +121,14 @@ typedef struct fcgic_fcgi_msg_xtn_t fcgic_fcgi_msg_xtn_t;
 #endif
 
 static int make_connection_socket (hio_svc_fcgic_conn_t* conn);
+static void release_session (hio_svc_fcgic_sess_t* sess);
 
 static void sck_on_disconnect (hio_dev_sck_t* sck)
 {
 	fcgic_sck_xtn_t* sck_xtn = hio_dev_sck_getxtn(sck);
 	hio_svc_fcgic_conn_t* conn = sck_xtn->conn;
 
-printf ("DISCONNECT SOCKET .................. sck->%p conn->%p\n", sck, conn);	
+printf ("DISCONNECT SOCKET .................. sck->%p conn->%p\n", sck, conn);
 
 	if (conn)
 	{
@@ -130,6 +141,18 @@ printf ("DISCONNECT SOCKET .................. sck->%p conn->%p\n", sck, conn);
 			make_connection_socket(conn); /* don't care about failure for now */
 		}
 #else
+		hio_oow_t i;
+		for (i = 0; i < conn->sess.capa; i++)
+		{
+			hio_svc_fcgic_sess_t* sess;
+			sess = &conn->sess.ptr[i + 1];
+			if (sess->active)
+			{
+				/* TODO: release the session???*/
+				release_session (sess); /* TODO: is this correct?? */
+				/* or do we fire a callback??? */
+			}
+		}
 		conn->dev = HIO_NULL;
 #endif
 	}
@@ -137,7 +160,14 @@ printf ("DISCONNECT SOCKET .................. sck->%p conn->%p\n", sck, conn);
 
 static void sck_on_connect (hio_dev_sck_t* sck)
 {
-	printf ("CONNECTED >>>>>>>>>>>>>>>>>>>>>>>>>>\n");
+	fcgic_sck_xtn_t* sck_xtn = hio_dev_sck_getxtn(sck);
+	hio_svc_fcgic_conn_t* conn = sck_xtn->conn;
+
+printf ("CONNECTED >>>>>>>>>>>>>>>>>>>>>>>>>>\n");
+
+	/* reinitialize the input parsing information */
+	HIO_MEMSET (&conn->r, 0, HIO_SIZEOF(conn->r));
+	conn->r.state = R_AWAITING_HEADER;
 }
 
 static int sck_on_write (hio_dev_sck_t* sck, hio_iolen_t wrlen, void* wrctx, const hio_skad_t* dstaddr)
@@ -145,23 +175,91 @@ static int sck_on_write (hio_dev_sck_t* sck, hio_iolen_t wrlen, void* wrctx, con
 	return 0;
 }
 
-static int sck_on_read (hio_dev_sck_t* sck, const void* buf, hio_iolen_t len, const hio_skad_t* srcaddr)
+static int sck_on_read (hio_dev_sck_t* sck, const void* data, hio_iolen_t dlen, const hio_skad_t* srcaddr)
 {
 	fcgic_sck_xtn_t* sck_xtn = hio_dev_sck_getxtn(sck);
 	hio_svc_fcgic_conn_t* conn = sck_xtn->conn;
+	hio_t* hio = conn->fcgic->hio;
 
-	if (len == 0)
+	if (dlen <= -1)
 	{
+		/* error or timeout */
+/* fire all related fcgi sessions?? -> handled on disconnect */
+	}
+	else if (dlen == 0)
+	{
+		/* EOF */
 		hio_dev_sck_halt (sck);
+/* fire all related fcgi sessions?? -> handled on disconnect?? */
 	}
 	else
 	{
-		/* TODO: parse the reply ..*/
+		do
+		{
+			if (conn->r.state == R_AWAITING_HEADER)
+			{
+				hio_fcgi_record_header_t* h;
+				hio_iolen_t reqlen, cplen;
+				HIO_ASSERT (hio, conn->r.len < HIO_SIZEOF(*h));
 
-		/*sess = get_session(using the session id);*/
-		/*sess->on_read (sess, ptr, len);*/
+				reqlen = HIO_SIZEOF(*h) - conn->r.len;
+				cplen = (dlen > reqlen)? reqlen: dlen;
+				HIO_MEMCPY (&conn->r.buf[conn->r.len], data, cplen);
+				conn->r.len += cplen;
+
+				data += cplen;
+				dlen -= cplen;
+
+				if (conn->r.len < HIO_SIZEOF(*h))
+				{
+					/* not enough data to complete a header*/
+					HIO_ASSERT (hio, dlen == 0);
+					break;
+				}
+
+				h = (hio_fcgi_record_header_t*)conn->r.buf;
+				conn->r.type = h->type;
+				conn->r.id = hio_ntoh16(h->id);
+				conn->r.content_len = hio_ntoh16(h->content_len);
+				conn->r.padding_len = hio_ntoh16(h->padding_len);
+				conn->r.len = 0;
+				conn->r.state == R_AWAITING_BODY;
+			}
+			else /* R_AWAITING_BODY */
+			{
+				switch (conn->r.type)
+				{
+					case HIO_FCGI_END_REQUEST:
+
+					case HIO_FCGI_STDOUT:
+					case HIO_FCGI_STDERR:
+
+					default:
+						/* discard the record */
+						goto done;
+				}
+
+
+				if (conn->r.id >= 1 && conn->r.id <= conn->sess.capa)
+				{
+					hio_svc_fcgic_sess_t* sess;
+					sess = &conn->sess.ptr[conn->r.id - 1];
+					if (sess->active)
+					{
+						sess->on_read (sess, data, dlen);
+						/* TODO: return code check??? */
+					}
+				}
+				else
+				{
+					/* invalid sid */
+					/* TODO: logging or something*/
+				}
+			}
+		} while (dlen > 0);
 	}
 
+done:
 	return 0;
 }
 
@@ -218,7 +316,7 @@ static int make_connection_socket (hio_svc_fcgic_conn_t* conn)
 		return -1;
 	}
 
-	printf ("MAKING CONNECTION %p %p\n", conn->dev, sck);
+printf ("MAKING CONNECTION %p %p\n", conn->dev, sck);
 	HIO_ASSERT (hio, conn->dev == HIO_NULL);
 
 	conn->dev = sck;
@@ -236,8 +334,9 @@ static hio_svc_fcgic_conn_t* get_connection (hio_svc_fcgic_t* fcgic, const hio_s
 		if (hio_equal_skads(&conn->addr, fcgis_addr, 1))
 		{
 			if (conn->sess.free != INVALID_SID ||
-			    conn->sess.capa <= (CONN_SESS_CAPA_MAX - CONN_SESS_INC)) 
+			    conn->sess.capa <= (CONN_SESS_CAPA_MAX - CONN_SESS_INC))
 			{
+				/* the connection has room for more sessions */
 				if (!conn->dev) make_connection_socket(conn); /* conn->dev will still be null if connection fails*/
 				return conn;
 			}
@@ -274,7 +373,7 @@ static void free_connections (hio_svc_fcgic_t* fcgic)
 	while (conn)
 	{
 		next = conn->next;
-		if (conn->dev) 
+		if (conn->dev)
 		{
 			struct fcgic_sck_xtn_t* sck_xtn;
 			sck_xtn = hio_dev_sck_getxtn(conn->dev);
@@ -307,6 +406,8 @@ static hio_svc_fcgic_sess_t* new_session (hio_svc_fcgic_t* fcgic, const hio_skad
 
 		for (i = conn->sess.capa ; i < newcapa; i++)
 		{
+			/* management records use 0 for requestId.
+			 * but application records have a nonzero requestId. */
 			newptr[i].sid = i + 1;
 			newptr[i].conn = conn;
 		}
@@ -322,6 +423,7 @@ static hio_svc_fcgic_sess_t* new_session (hio_svc_fcgic_t* fcgic, const hio_skad
 
 	sess->sid = conn->sess.free;
 	sess->on_read = on_read;
+	sess->active = 1;
 	HIO_ASSERT (hio, sess->conn == conn);
 	HIO_ASSERT (hio, sess->conn->fcgic == fcgic);
 
@@ -330,6 +432,7 @@ static hio_svc_fcgic_sess_t* new_session (hio_svc_fcgic_t* fcgic, const hio_skad
 
 static void release_session (hio_svc_fcgic_sess_t* sess)
 {
+	sess->active = 0;
 	sess->sid = sess->conn->sess.free;
 	sess->conn->sess.free = sess->sid;
 }
@@ -344,7 +447,7 @@ hio_svc_fcgic_t* hio_svc_fcgic_start (hio_t* hio, const hio_svc_fcgic_tmout_t* t
 	fcgic->hio = hio;
 	fcgic->svc_stop = (hio_svc_stop_t)hio_svc_fcgic_stop;
 
-	if (tmout) 
+	if (tmout)
 	{
 		fcgic->tmout = *tmout;
 		fcgic->tmout_set = 1;
@@ -370,6 +473,8 @@ void hio_svc_fcgic_stop (hio_svc_fcgic_t* fcgic)
 
 	HIO_SVCL_UNLINK_SVC (fcgic);
 	hio_freemem (hio, fcgic);
+
+	HIO_DEBUG1 (hio, "FCGIC - STOPPED SERVICE %p\n", fcgic);
 }
 
 hio_svc_fcgic_sess_t* hio_svc_fcgic_tie (hio_svc_fcgic_t* fcgic, const hio_skad_t* addr, hio_svc_fcgic_on_read_t on_read)
@@ -429,6 +534,9 @@ int hio_svc_fcgic_writeparam (hio_svc_fcgic_sess_t* sess, const void* key, hio_i
 		return -1;
 	}
 
+/* TODO: buffer key value pairs. flush on the end of param of buffer full.
+* can merge multipl key values pairs in one FCGI_PARAMS packets....
+*/
 	HIO_MEMSET (&h, 0, HIO_SIZEOF(h));
 	h.version = HIO_FCGI_VERSION;
 	h.type = HIO_FCGI_PARAMS;

@@ -79,7 +79,7 @@ static void desched_connect_timeout (hio_dev_t* dev)
 	hio_t* hio = dev->hio;
 	hio_dev_mar_t* rdev = (hio_dev_mar_t*)dev;
 
-	if (rdev->ctmridx != HIO_TMRIDX_INVALID) 
+	if (rdev->ctmridx != HIO_TMRIDX_INVALID)
 	{
 		hio_deltmrjob (hio, rdev->ctmridx);
 		HIO_ASSERT (hio, rdev->ctmridx == HIO_TMRIDX_INVALID);
@@ -93,7 +93,7 @@ static int dev_mar_make (hio_dev_t* dev, void* ctx)
 	hio_dev_mar_make_t* mi = (hio_dev_mar_make_t*)ctx;
 
 	rdev->hnd = mysql_init(HIO_NULL);
-	if (HIO_UNLIKELY(!rdev->hnd)) 
+	if (HIO_UNLIKELY(!rdev->hnd))
 	{
 		hio_seterrnum (hio, HIO_ESYSMEM);
 		return -1;
@@ -118,10 +118,10 @@ static int dev_mar_make (hio_dev_t* dev, void* ctx)
 
 	/* remember the timeout settings. use a negative second to indicate no timeout.
 	 * the saved values will be used in scheduling a timer job for each relevant operation.
-	 * Timing out can't be implemented with the standard MYSQL TIMEOUT options in 
+	 * Timing out can't be implemented with the standard MYSQL TIMEOUT options in
 	 * the asynchronous mode. that is, this sample code doesn't work.
 		unsigned int tmout;
-		tmout = mi->tmout.c.sec; // mysql supports the granularity of seconds only 
+		tmout = mi->tmout.c.sec; // mysql supports the granularity of seconds only
 		if (tmout >= 0) mysql_options(rdev->hnd, MYSQL_OPT_CONNECT_TIMEOUT, &tmout);
 		tmout = mi->tmout.r.sec;
 		if (tmout >= 0) mysql_options(rdev->hnd, MYSQL_OPT_READ_TIMEOUT, &tmout);
@@ -157,16 +157,16 @@ static int dev_mar_kill (hio_dev_t* dev, int force)
 
 	desched_connect_timeout (dev);
 
-	/* if rdev->connected is 0 at this point, 
+	/* if rdev->connected is 0 at this point,
 	 * the underlying socket of this device is down */
 	if (HIO_LIKELY(rdev->on_disconnect)) rdev->on_disconnect (rdev);
 
 	/* hack */
-	if (!rdev->broken) 
+	if (!rdev->broken)
 	{
 		/* mysql_free_result() blocks if not all rows have been read.
 		 * mysql_close() also blocks to transmit COM_QUIT,
-		 * in this context, it is not appropriate to call 
+		 * in this context, it is not appropriate to call
 		 * mysql_free_result_start()/mysql_free_result_cont() and
 		 * mysql_close_start()/mysql_close_cont().
 		 * let me just call shutdown on the underlying socket to work around this issue.
@@ -186,7 +186,7 @@ static int dev_mar_kill (hio_dev_t* dev, int force)
 
 	if (rdev->hnd)
 	{
-		mysql_close (rdev->hnd); 
+		mysql_close (rdev->hnd);
 		rdev->hnd = HIO_NULL;
 	}
 
@@ -297,7 +297,7 @@ static int dev_mar_ioctl (hio_dev_t* dev, int cmd, void* arg)
 			{
 				if (HIO_UNLIKELY(!tmp)) /* connection attempt failed immediately */
 				{
-					/* immediate failure doesn't invoke on_discoonect(). 
+					/* immediate failure doesn't invoke on_discoonect().
 					 * the caller must check the return code of this function. */
 
 					rdev->connected = 0;
@@ -348,7 +348,7 @@ static int dev_mar_ioctl (hio_dev_t* dev, int cmd, void* arg)
 			else
 			{
 				/* query sent immediately */
-				if (err) 
+				if (err)
 				{
 					/* but there is an error */
 					if (err == 1 || err == -1) err = mysql_errno(rdev->hnd);
@@ -365,7 +365,7 @@ static int dev_mar_ioctl (hio_dev_t* dev, int cmd, void* arg)
 						rdev->connected = 0;
 						rdev->broken = 1;
 						/* remember the previous handle - this may be needed by the poll/select based multiplexer */
-						rdev->broken_syshnd = syshnd; 
+						rdev->broken_syshnd = syshnd;
 
 						watch_mysql (rdev, 0);
 						hio_dev_mar_halt (rdev); /* i can't keep this device alive regardless of the caller's post-action */
@@ -403,7 +403,7 @@ static int dev_mar_ioctl (hio_dev_t* dev, int cmd, void* arg)
 	}
 }
 
-static hio_dev_mth_t dev_mar_methods = 
+static hio_dev_mth_t dev_mar_methods =
 {
 	dev_mar_make,
 	dev_mar_kill,
@@ -491,8 +491,8 @@ static int dev_evcb_mar_ready (hio_dev_t* dev, int events)
 					{
 						/* connection attempt failed */
 
-						/* the mysql client library closes the underlying socket handle 
-						 * whenever the connection attempt fails. this prevents hio from 
+						/* the mysql client library closes the underlying socket handle
+						 * whenever the connection attempt fails. this prevents hio from
 						 * managing the the mysql connections properly. this also causes
 						 * race condition if this library is used in multi-threaded programs. */
 
@@ -500,21 +500,21 @@ static int dev_evcb_mar_ready (hio_dev_t* dev, int events)
 						rdev->broken = 1; /* trick dev_mar_getsyshnd() to return rdev->broken_syshnd. */
 						/* remember the previous handle - this may be needed by the poll/select based multiplexer
 						 * mysql_get_socket() over a failed mariadb handle ends up with segfault */
-						rdev->broken_syshnd = syshnd; 
+						rdev->broken_syshnd = syshnd;
 
 						/* this attempts to trigger the low-level multiplxer to delete 'syshnd' closed by mysql_real_connect_cont().
-						 * the underlying low-level operation may fail. but i don't care. the best is not to open 
+						 * the underlying low-level operation may fail. but i don't care. the best is not to open
 						 * new file descriptor between mysql_real_connect_cont() and watch_mysql(rdev, 0).
-						 * 
+						 *
 						 * close(6); <- mysql_real_connect_cont();
 						 * epoll_ctl(4, EPOLL_CTL_DEL, 6, 0x7ffc785e7154) = -1 EBADF (Bad file descriptor) <- by hio_dev_watch() in watch_mysql
 						 */
 						watch_mysql (rdev, 0);
 
-						/* on_disconnect() will be called without on_connect(). 
-						 * you may assume that the initial connection attempt failed. 
+						/* on_disconnect() will be called without on_connect().
+						 * you may assume that the initial connection attempt failed.
 						 * reconnection doesn't apply in this context. */
-						hio_dev_mar_halt (rdev); 
+						hio_dev_mar_halt (rdev);
 					}
 				}
 			}
@@ -549,7 +549,7 @@ static int dev_evcb_mar_ready (hio_dev_t* dev, int events)
 						if (err == CR_SERVER_LOST || err == CR_SERVER_GONE_ERROR || err == CR_COMMANDS_OUT_OF_SYNC || err == ER_CONNECTION_KILLED)
 						{
 							/*
-							preserving the error information here isn't very useful because 
+							preserving the error information here isn't very useful because
 							the info won't survive until on_disconnect() is called...
 							hio_seterrbfmt (hio, HIO_ECONLOST, "%hs", mysql_error(rdev->hnd));
 							*/
@@ -610,7 +610,7 @@ static int dev_evcb_mar_ready (hio_dev_t* dev, int events)
 				if (!status)
 				{
 					/* row is available */
-					if (!row) 
+					if (!row)
 					{
 						/* the last row has been received - cleanup before invoking the callback */
 						watch_mysql (rdev, status);

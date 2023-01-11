@@ -97,7 +97,7 @@ typedef struct hio_dhcp6_pktinf_t hio_dhcp6_pktinf_t;
 
 /* ---------------------------------------------------------------- */
 
-typedef struct hio_svc_dhcs_t hio_svc_dhcs_t; 
+typedef struct hio_svc_dhcs_t hio_svc_dhcs_t;
 
 /* ---------------------------------------------------------------- */
 

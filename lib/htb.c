@@ -76,7 +76,7 @@ HIO_INLINE pair_t* hio_htb_allocpair (hio_htb_t* htb, void* kptr, hio_oow_t klen
 		 * the actual key area */
 		if (kptr) HIO_MEMCPY (KPTR(n), kptr, KTOB(htb,klen));
 	}
-	else 
+	else
 	{
 		KPTR(n) = kcop(htb, kptr, klen);
 		if (KPTR(n) == HIO_NULL)
@@ -94,13 +94,13 @@ HIO_INLINE pair_t* hio_htb_allocpair (hio_htb_t* htb, void* kptr, hio_oow_t klen
 	else if (vcop == HIO_HTB_COPIER_INLINE)
 	{
 		VPTR(n) = n + 1;
-		if (kcop == HIO_HTB_COPIER_INLINE) 
+		if (kcop == HIO_HTB_COPIER_INLINE)
 			VPTR(n) = (hio_uint8_t*)VPTR(n) + HIO_ALIGN_POW2(KTOB(htb,klen), HIO_SIZEOF_VOID_P);
 		/* if vptr is HIO_NULL, the inline copier does not fill
 		 * the actual value area */
 		if (vptr) HIO_MEMCPY (VPTR(n), vptr, VTOB(htb,vlen));
 	}
-	else 
+	else
 	{
 		VPTR(n) = vcop (htb, vptr, vlen);
 		if (VPTR(n) != HIO_NULL)
@@ -117,19 +117,19 @@ HIO_INLINE pair_t* hio_htb_allocpair (hio_htb_t* htb, void* kptr, hio_oow_t klen
 
 HIO_INLINE void hio_htb_freepair (hio_htb_t* htb, pair_t* pair)
 {
-	if (htb->style->freeer[HIO_HTB_KEY] != HIO_NULL) 
+	if (htb->style->freeer[HIO_HTB_KEY] != HIO_NULL)
 		htb->style->freeer[HIO_HTB_KEY] (htb, KPTR(pair), KLEN(pair));
 	if (htb->style->freeer[HIO_HTB_VAL] != HIO_NULL)
 		htb->style->freeer[HIO_HTB_VAL] (htb, VPTR(pair), VLEN(pair));
-	hio_freemem (htb->hio, pair);	
+	hio_freemem (htb->hio, pair);
 }
 
 static HIO_INLINE pair_t* change_pair_val (hio_htb_t* htb, pair_t* pair, void* vptr, hio_oow_t vlen)
 {
-	if (VPTR(pair) == vptr && VLEN(pair) == vlen) 
+	if (VPTR(pair) == vptr && VLEN(pair) == vlen)
 	{
 		/* if the old value and the new value are the same,
-		 * it just calls the handler for this condition. 
+		 * it just calls the handler for this condition.
 		 * No value replacement occurs. */
 		if (htb->style->keeper != HIO_NULL)
 		{
@@ -163,7 +163,7 @@ static HIO_INLINE pair_t* change_pair_val (hio_htb_t* htb, pair_t* pair, void* v
 				return p;
 			}
 		}
-		else 
+		else
 		{
 			void* nvptr = vcop(htb, vptr, vlen);
 			if (HIO_UNLIKELY(!nvptr)) return HIO_NULL;
@@ -172,7 +172,7 @@ static HIO_INLINE pair_t* change_pair_val (hio_htb_t* htb, pair_t* pair, void* v
 		}
 
 		/* free up the old value */
-		if (htb->style->freeer[HIO_HTB_VAL] != HIO_NULL) 
+		if (htb->style->freeer[HIO_HTB_VAL] != HIO_NULL)
 		{
 			htb->style->freeer[HIO_HTB_VAL] (htb, ovptr, ovlen);
 		}
@@ -278,11 +278,11 @@ void hio_htb_close (hio_htb_t* htb)
 
 int hio_htb_init (hio_htb_t* htb, hio_t* hio, hio_oow_t capa, int factor, int kscale, int vscale)
 {
-	/* The initial capacity should be greater than 0. 
+	/* The initial capacity should be greater than 0.
 	 * Otherwise, it is adjusted to 1 in the release mode */
 	HIO_ASSERT (hio, capa > 0);
 
-	/* The load factor should be between 0 and 100 inclusive. 
+	/* The load factor should be between 0 and 100 inclusive.
 	 * In the release mode, a value out of the range is adjusted to 100 */
 	HIO_ASSERT (hio, factor >= 0 && factor <= 100);
 
@@ -351,7 +351,7 @@ pair_t* hio_htb_search (const hio_htb_t* htb, const void* kptr, hio_oow_t klen)
 	hc = htb->style->hasher(htb,kptr,klen) % htb->capa;
 	pair = htb->bucket[hc];
 
-	while (pair != HIO_NULL) 
+	while (pair != HIO_NULL)
 	{
 		if (htb->style->comper(htb, KPTR(pair), KLEN(pair), kptr, klen) == 0)
 		{
@@ -374,9 +374,9 @@ static HIO_INLINE int reorganize (hio_htb_t* htb)
 	{
 		new_capa = htb->style->sizer (htb, htb->capa + 1);
 
-		/* if no change in capacity, return success 
+		/* if no change in capacity, return success
 		 * without reorganization */
-		if (new_capa == htb->capa) return 0; 
+		if (new_capa == htb->capa) return 0;
 
 		/* adjust to 1 if the new capacity is not reasonable */
 		if (new_capa <= 0) new_capa = 1;
@@ -389,7 +389,7 @@ static HIO_INLINE int reorganize (hio_htb_t* htb)
 	}
 
 	new_buck = (pair_t**)hio_allocmem(htb->hio, new_capa * HIO_SIZEOF(pair_t*));
-	if (HIO_UNLIKELY(!new_buck)) 
+	if (HIO_UNLIKELY(!new_buck))
 	{
 		/* reorganization is disabled once it fails */
 		htb->threshold = 0;
@@ -403,7 +403,7 @@ static HIO_INLINE int reorganize (hio_htb_t* htb)
 	{
 		pair_t* pair = htb->bucket[i];
 
-		while (pair != HIO_NULL) 
+		while (pair != HIO_NULL)
 		{
 			pair_t* next = NEXT(pair);
 
@@ -439,11 +439,11 @@ static HIO_INLINE pair_t* insert (hio_htb_t* htb, void* kptr, hio_oow_t klen, vo
 	pair = htb->bucket[hc];
 	prev = HIO_NULL;
 
-	while (pair != HIO_NULL) 
+	while (pair != HIO_NULL)
 	{
 		next = NEXT(pair);
 
-		if (htb->style->comper (htb, KPTR(pair), KLEN(pair), kptr, klen) == 0) 
+		if (htb->style->comper (htb, KPTR(pair), KLEN(pair), kptr, klen) == 0)
 		{
 			/* found a pair with a matching key */
 			switch (opt)
@@ -451,25 +451,25 @@ static HIO_INLINE pair_t* insert (hio_htb_t* htb, void* kptr, hio_oow_t klen, vo
 				case UPSERT:
 				case UPDATE:
 					p = change_pair_val (htb, pair, vptr, vlen);
-					if (p == HIO_NULL) 
+					if (p == HIO_NULL)
 					{
 						/* error in changing the value */
-						return HIO_NULL; 
+						return HIO_NULL;
 					}
-					if (p != pair) 
+					if (p != pair)
 					{
 						/* old pair destroyed. new pair reallocated.
 						 * relink to include the new pair but to drop
 						 * the old pair. */
 						if (prev == HIO_NULL) htb->bucket[hc] = p;
 						else NEXT(prev) = p;
-						NEXT(p) = next; 
+						NEXT(p) = next;
 					}
 					return p;
 
 				case ENSERT:
 					/* return existing pair */
-					return pair; 
+					return pair;
 
 				case INSERT:
 					/* return failure */
@@ -482,7 +482,7 @@ static HIO_INLINE pair_t* insert (hio_htb_t* htb, void* kptr, hio_oow_t klen, vo
 		pair = next;
 	}
 
-	if (opt == UPDATE) 
+	if (opt == UPDATE)
 	{
 		hio_seterrnum (htb->hio, HIO_ENOENT);
 		return HIO_NULL;
@@ -492,7 +492,7 @@ static HIO_INLINE pair_t* insert (hio_htb_t* htb, void* kptr, hio_oow_t klen, vo
 	{
 		/* ingore reorganization error as it simply means
 		 * more bucket collision and performance penalty. */
-		if (reorganize(htb) == 0) 
+		if (reorganize(htb) == 0)
 		{
 			hc = htb->style->hasher(htb,kptr,klen) % htb->capa;
 		}
@@ -540,27 +540,27 @@ pair_t* hio_htb_cbsert (hio_htb_t* htb, void* kptr, hio_oow_t klen, cbserter_t c
 	pair = htb->bucket[hc];
 	prev = HIO_NULL;
 
-	while (pair != HIO_NULL) 
+	while (pair != HIO_NULL)
 	{
 		next = NEXT(pair);
 
-		if (htb->style->comper(htb, KPTR(pair), KLEN(pair), kptr, klen) == 0) 
+		if (htb->style->comper(htb, KPTR(pair), KLEN(pair), kptr, klen) == 0)
 		{
 			/* found a pair with a matching key */
 			p = cbserter(htb, pair, kptr, klen, ctx);
-			if (p == HIO_NULL) 
+			if (p == HIO_NULL)
 			{
 				/* error returned by the callback function */
-				return HIO_NULL; 
+				return HIO_NULL;
 			}
-			if (p != pair) 
+			if (p != pair)
 			{
 				/* old pair destroyed. new pair reallocated.
 				 * relink to include the new pair but to drop
 				 * the old pair. */
 				if (prev == HIO_NULL) htb->bucket[hc] = p;
 				else NEXT(prev) = p;
-				NEXT(p) = next; 
+				NEXT(p) = next;
 			}
 			return p;
 		}
@@ -600,11 +600,11 @@ int hio_htb_delete (hio_htb_t* htb, const void* kptr, hio_oow_t klen)
 	pair = htb->bucket[hc];
 	prev = HIO_NULL;
 
-	while (pair != HIO_NULL) 
+	while (pair != HIO_NULL)
 	{
-		if (htb->style->comper(htb, KPTR(pair), KLEN(pair), kptr, klen) == 0) 
+		if (htb->style->comper(htb, KPTR(pair), KLEN(pair), kptr, klen) == 0)
 		{
-			if (prev == HIO_NULL) 
+			if (prev == HIO_NULL)
 				htb->bucket[hc] = NEXT(pair);
 			else NEXT(prev) = NEXT(pair);
 
@@ -627,11 +627,11 @@ void hio_htb_clear (hio_htb_t* htb)
 	hio_oow_t i;
 	pair_t* pair, * next;
 
-	for (i = 0; i < htb->capa; i++) 
+	for (i = 0; i < htb->capa; i++)
 	{
 		pair = htb->bucket[i];
 
-		while (pair != HIO_NULL) 
+		while (pair != HIO_NULL)
 		{
 			next = NEXT(pair);
 			hio_htb_freepair (htb, pair);
@@ -648,11 +648,11 @@ void hio_htb_walk (hio_htb_t* htb, walker_t walker, void* ctx)
 	hio_oow_t i;
 	pair_t* pair, * next;
 
-	for (i = 0; i < htb->capa; i++) 
+	for (i = 0; i < htb->capa; i++)
 	{
 		pair = htb->bucket[i];
 
-		while (pair != HIO_NULL) 
+		while (pair != HIO_NULL)
 		{
 			next = NEXT(pair);
 			if (walker(htb, pair, ctx) == HIO_HTB_WALK_STOP) return;
@@ -676,7 +676,7 @@ pair_t* hio_htb_getfirstpair (hio_htb_t* htb, hio_htb_itr_t* itr)
 	for (i = 0; i < htb->capa; i++)
 	{
 		pair = htb->bucket[i];
-		if (pair) 
+		if (pair)
 		{
 			itr->buckno = i;
 			itr->pair = pair;
@@ -693,7 +693,7 @@ pair_t* hio_htb_getnextpair (hio_htb_t* htb, hio_htb_itr_t* itr)
 	pair_t* pair;
 
 	pair = NEXT(itr->pair);
-	if (pair) 
+	if (pair)
 	{
 		/* no change in bucket number */
 		itr->pair = pair;
@@ -703,7 +703,7 @@ pair_t* hio_htb_getnextpair (hio_htb_t* htb, hio_htb_itr_t* itr)
 	for (i = itr->buckno + 1; i < htb->capa; i++)
 	{
 		pair = htb->bucket[i];
-		if (pair) 
+		if (pair)
 		{
 			itr->buckno = i;
 			itr->pair = pair;
@@ -718,7 +718,7 @@ hio_oow_t hio_htb_dflhash (const hio_htb_t* htb, const void* kptr, hio_oow_t kle
 {
 	hio_oow_t h;
 	HIO_HASH_BYTES (h, kptr, klen);
-	return h ; 
+	return h ;
 }
 
 int hio_htb_dflcomp (const hio_htb_t* htb, const void* kptr1, hio_oow_t klen1, const void* kptr2, hio_oow_t klen2)

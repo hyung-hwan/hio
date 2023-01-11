@@ -58,7 +58,7 @@ typedef struct param_t param_t;
 
 static void free_param (hio_t* hio, param_t* param)
 {
-	if (param->argv && param->argv != param->fixed_argv) 
+	if (param->argv && param->argv != param->fixed_argv)
 		hio_freemem (hio, param->argv);
 	if (param->mcmd) hio_freemem (hio, param->mcmd);
 	HIO_MEMSET (param, 0, HIO_SIZEOF(*param));
@@ -100,8 +100,8 @@ static int make_param (hio_t* hio, const void* cmd, int flags, param_t* param)
 			hio_dupbcstr(hio, cmd, HIO_NULL);
 		if (HIO_UNLIKELY(!mcmd)) goto oops;
 
-		fcnt = hio_split_bcstr(mcmd, "", '\"', '\"', '\\'); 
-		if (fcnt <= 0) 
+		fcnt = hio_split_bcstr(mcmd, "", '\"', '\"', '\\');
+		if (fcnt <= 0)
 		{
 			/* no field or an error */
 			hio_seterrnum (hio, HIO_EINVAL);
@@ -142,7 +142,7 @@ static pid_t standard_fork_and_exec (hio_dev_pro_t* dev, int pfds[], hio_dev_pro
 	pid_t pid;
 
 	pid = fork();
-	if (pid == -1) 
+	if (pid == -1)
 	{
 		hio_seterrwithsyserr (hio, 0, errno);
 		return -1;
@@ -218,7 +218,7 @@ static pid_t standard_fork_and_exec (hio_dev_pro_t* dev, int pfds[], hio_dev_pro
 			if ((mi->flags & HIO_DEV_PRO_OUTTONUL) && dup2(devnull, 1) == -1) goto slave_oops;
 			if ((mi->flags & HIO_DEV_PRO_ERRTONUL) && dup2(devnull, 2) == -1) goto slave_oops;
 
-			close (devnull); 
+			close (devnull);
 			devnull = HIO_SYSHND_INVALID;
 		}
 
@@ -229,7 +229,7 @@ static pid_t standard_fork_and_exec (hio_dev_pro_t* dev, int pfds[], hio_dev_pro
 		execv (param->argv[0], param->argv);
 
 		/* if exec fails, free 'param' parameter which is an inherited pointer */
-		free_param (hio, param); 
+		free_param (hio, param);
 
 	slave_oops:
 		if (devnull != HIO_SYSHND_INVALID) close(devnull);
@@ -390,7 +390,7 @@ static int dev_pro_make_master (hio_dev_t* dev, void* ctx)
 		rdev->slave_count++;
 	}
 
-	for (i = 0; i < HIO_COUNTOF(rdev->slave); i++) 
+	for (i = 0; i < HIO_COUNTOF(rdev->slave); i++)
 	{
 		if (rdev->slave[i]) rdev->slave[i]->master = rdev;
 	}
@@ -401,8 +401,8 @@ static int dev_pro_make_master (hio_dev_t* dev, void* ctx)
 	rdev->on_write = info->on_write;
 	rdev->on_close = info->on_close;
 
-	HIO_DEBUG7 (hio, "PRO(%p) -  slave[%d] %p slave[%d] %p slave[%d] %p\n", dev, 
-		HIO_DEV_PRO_IN, rdev->slave[HIO_DEV_PRO_IN], 
+	HIO_DEBUG7 (hio, "PRO(%p) -  slave[%d] %p slave[%d] %p slave[%d] %p\n", dev,
+		HIO_DEV_PRO_IN, rdev->slave[HIO_DEV_PRO_IN],
 		HIO_DEV_PRO_OUT, rdev->slave[HIO_DEV_PRO_OUT],
 		HIO_DEV_PRO_ERR, rdev->slave[HIO_DEV_PRO_ERR]);
 	return 0;
@@ -413,7 +413,7 @@ oops:
 		if (pfds[i] != HIO_SYSHND_INVALID) close (pfds[i]);
 	}
 
-	if (rdev->mcmd) 
+	if (rdev->mcmd)
 	{
 		hio_freemem (hio, rdev->mcmd);
 		free_param (hio, &param);
@@ -538,7 +538,7 @@ static int dev_pro_kill_slave (hio_dev_t* dev, int force)
 		if (master->slave[rdev->id])
 		{
 			/* this call is started by the slave device itself. */
-			if (master->slave_count <= 0) 
+			if (master->slave_count <= 0)
 			{
 				/* if this is the last slave, kill the master also */
 				hio_dev_kill ((hio_dev_t*)master);
@@ -576,7 +576,7 @@ static int dev_pro_read_slave (hio_dev_t* dev, void* buf, hio_iolen_t* len, hio_
 	ssize_t x;
 
 	/* the read and write operation happens on different slave devices.
-	 * the write EOF indication doesn't affect this device 
+	 * the write EOF indication doesn't affect this device
 	if (HIO_UNLIKELY(pro->pfd == HIO_SYSHND_INVALID))
 	{
 		hio_seterrnum (pro->hio, HIO_EBADHND);
@@ -604,7 +604,7 @@ static int dev_pro_write_slave (hio_dev_t* dev, const void* data, hio_iolen_t* l
 
 	/* this check is not needed because HIO_DEV_CAP_OUT_CLOSED is set on the device by the core
 	 * when EOF indication is successful(return value 1 and *iovcnt 0).
-	 * If HIO_DEV_CAP_OUT_CLOSED, the core doesn't invoke the write method 
+	 * If HIO_DEV_CAP_OUT_CLOSED, the core doesn't invoke the write method
 	if (HIO_UNLIKELY(pro->pfd == HIO_SYSHND_INVALID))
 	{
 		hio_seterrnum (pro->hio, HIO_EBADHND);
@@ -646,7 +646,7 @@ static int dev_pro_writev_slave (hio_dev_t* dev, const hio_iovec_t* iov, hio_iol
 
 	/* this check is not needed because HIO_DEV_CAP_OUT_CLOSED is set on the device by the core
 	 * when EOF indication is successful(return value 1 and *iovcnt 0).
-	 * If HIO_DEV_CAP_OUT_CLOSED, the core doesn't invoke the write method 
+	 * If HIO_DEV_CAP_OUT_CLOSED, the core doesn't invoke the write method
 	if (HIO_UNLIKELY(pro->pfd == HIO_SYSHND_INVALID))
 	{
 		hio_seterrnum (pro->hio, HIO_EBADHND);
@@ -712,11 +712,11 @@ static int dev_pro_ioctl (hio_dev_t* dev, int cmd, void* arg)
 			if (rdev->slave[sid])
 			{
 				/* unlike dev_pro_kill_master(), i don't nullify rdev->slave[sid].
-				 * so i treat the closing ioctl as if it's a kill request 
+				 * so i treat the closing ioctl as if it's a kill request
 				 * initiated by the slave device itself. */
 				hio_dev_kill ((hio_dev_t*)rdev->slave[sid]);
 
-				/* if this is the last slave, the master is destroyed as well. 
+				/* if this is the last slave, the master is destroyed as well.
 				 * therefore, using rdev is unsafe in the assertion below is unsafe.
 				 *HIO_ASSERT (hio, rdev->slave[sid] == HIO_NULL); */
 			}
@@ -742,7 +742,7 @@ static int dev_pro_ioctl (hio_dev_t* dev, int cmd, void* arg)
 	}
 }
 
-static hio_dev_mth_t dev_pro_methods = 
+static hio_dev_mth_t dev_pro_methods =
 {
 	dev_pro_make_master,
 	dev_pro_kill_master,
@@ -817,7 +817,7 @@ static int pro_ready_slave (hio_dev_t* dev, int events)
 
 	if (events & HIO_DEV_EVENT_HUP)
 	{
-		if (events & (HIO_DEV_EVENT_PRI | HIO_DEV_EVENT_IN | HIO_DEV_EVENT_OUT)) 
+		if (events & (HIO_DEV_EVENT_PRI | HIO_DEV_EVENT_IN | HIO_DEV_EVENT_OUT))
 		{
 			/* probably half-open? */
 			return 1;
@@ -878,17 +878,17 @@ static hio_dev_pro_slave_t* make_slave (hio_t* hio, slave_info_t* si)
 	{
 		case HIO_DEV_PRO_IN:
 			return (hio_dev_pro_slave_t*)hio_dev_make(
-				hio, HIO_SIZEOF(hio_dev_pro_t), 
+				hio, HIO_SIZEOF(hio_dev_pro_t),
 				&dev_pro_methods_slave, &dev_pro_event_callbacks_slave_in, si);
 
 		case HIO_DEV_PRO_OUT:
 			return (hio_dev_pro_slave_t*)hio_dev_make(
-				hio, HIO_SIZEOF(hio_dev_pro_t), 
+				hio, HIO_SIZEOF(hio_dev_pro_t),
 				&dev_pro_methods_slave, &dev_pro_event_callbacks_slave_out, si);
 
 		case HIO_DEV_PRO_ERR:
 			return (hio_dev_pro_slave_t*)hio_dev_make(
-				hio, HIO_SIZEOF(hio_dev_pro_t), 
+				hio, HIO_SIZEOF(hio_dev_pro_t),
 				&dev_pro_methods_slave, &dev_pro_event_callbacks_slave_err, si);
 
 		default:
@@ -900,7 +900,7 @@ static hio_dev_pro_slave_t* make_slave (hio_t* hio, slave_info_t* si)
 hio_dev_pro_t* hio_dev_pro_make (hio_t* hio, hio_oow_t xtnsize, const hio_dev_pro_make_t* info)
 {
 	return (hio_dev_pro_t*)hio_dev_make(
-		hio, HIO_SIZEOF(hio_dev_pro_t) + xtnsize, 
+		hio, HIO_SIZEOF(hio_dev_pro_t) + xtnsize,
 		&dev_pro_methods, &dev_pro_event_callbacks, (void*)info);
 }
 

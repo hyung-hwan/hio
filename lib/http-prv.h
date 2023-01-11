@@ -83,6 +83,7 @@ struct hio_svc_httc_t
 	HIO_SVC_HEADER;
 };
 
+/* client list */
 #define HIO_SVC_HTTS_CLIL_APPEND_CLI(lh,cli) do { \
 	(cli)->cli_next = (lh); \
 	(cli)->cli_prev = (lh)->cli_prev; \

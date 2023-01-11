@@ -27,7 +27,7 @@ static int print_qparam (hio_bcs_t* key, hio_bcs_t* val, void* ctx)
 	return 0;
 }
 
-static void on_htts_thr_request (hio_t* hio, hio_dev_thr_iopair_t* iop, hio_svc_htts_thr_func_info_t* tfi, void* ctx)
+static void on_htts_thr_request (hio_svc_htts_t* htts, hio_dev_thr_iopair_t* iop, hio_svc_htts_thr_func_info_t* tfi, void* ctx)
 {
 	FILE* fp;
 	int i;
@@ -62,7 +62,7 @@ static void on_htts_thr_request (hio_t* hio, hio_dev_thr_iopair_t* iop, hio_svc_
 	fclose (fp);
 }
 
-static void on_htts_thr2_request (hio_t* hio, hio_dev_thr_iopair_t* iop, hio_svc_htts_thr_func_info_t* tfi, void* ctx)
+static void on_htts_thr2_request (hio_svc_htts_t* htts, hio_dev_thr_iopair_t* iop, hio_svc_htts_thr_func_info_t* tfi, void* ctx)
 {
 	FILE* fp, * sf;
 
@@ -113,7 +113,7 @@ int process_http_request (hio_svc_htts_t* htts, hio_dev_sck_t* csck, hio_htre_t*
 {
 	hio_t* hio = hio_svc_htts_gethio(htts);
 //	hio_svc_htts_cli_t* cli = hio_dev_sck_getxtn(csck);
-	hio_http_method_t mth;
+//	hio_http_method_t mth;
 
 	/* percent-decode the query path to the original buffer
 	 * since i'm not going to need it in the original form
@@ -149,7 +149,7 @@ if (hio_htre_getcontentlen(req) > 0)
 }
 #endif
 
-	mth = hio_htre_getqmethodtype(req);
+//	mth = hio_htre_getqmethodtype(req);
 	/* determine what to do once the header fields are all received.
 	 * i don't want to delay this until the contents are received.
 	 * if you don't like this behavior, you must implement your own
@@ -208,7 +208,7 @@ if (hio_htre_getcontentlen(req) > 0)
 			{
 				hio_skad_t fcgis_addr;
 				hio_bcstrtoskad(hio, "127.0.0.1:9000", &fcgis_addr);
-				x = hio_svc_htts_dofcgi(htts, csck, req, &fcgis_addr, 0);
+				x = hio_svc_htts_dofcgi(htts, csck, req, &fcgis_addr, "", qpath + 5, 0);
 			}
 			else
 				x = hio_svc_htts_dofile(htts, csck, req, "", qpath, "text/plain", 0, HIO_NULL);

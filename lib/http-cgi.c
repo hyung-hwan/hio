@@ -107,7 +107,7 @@ static int cgi_write_to_client (cgi_t* cgi, const void* data, hio_iolen_t dlen)
 	cgi->ever_attempted_to_write_to_client = 1;
 
 	cgi->num_pending_writes_to_client++;
-	if (hio_dev_sck_write(cgi->client->sck, data, dlen, HIO_NULL, HIO_NULL) <= -1) 
+	if (hio_dev_sck_write(cgi->client->sck, data, dlen, HIO_NULL, HIO_NULL) <= -1)
 	{
 		cgi->num_pending_writes_to_client--;
 		return -1;
@@ -126,7 +126,7 @@ static int cgi_writev_to_client (cgi_t* cgi, hio_iovec_t* iov, hio_iolen_t iovcn
 	cgi->ever_attempted_to_write_to_client = 1;
 
 	cgi->num_pending_writes_to_client++;
-	if (hio_dev_sck_writev(cgi->client->sck, iov, iovcnt, HIO_NULL, HIO_NULL) <= -1) 
+	if (hio_dev_sck_writev(cgi->client->sck, iov, iovcnt, HIO_NULL, HIO_NULL) <= -1)
 	{
 		cgi->num_pending_writes_to_client--;
 		return -1;
@@ -177,7 +177,7 @@ static int cgi_write_last_chunk_to_client (cgi_t* cgi)
 static int cgi_write_to_peer (cgi_t* cgi, const void* data, hio_iolen_t dlen)
 {
 	cgi->num_pending_writes_to_peer++;
-	if (hio_dev_pro_write(cgi->peer, data, dlen, HIO_NULL) <= -1) 
+	if (hio_dev_pro_write(cgi->peer, data, dlen, HIO_NULL) <= -1)
 	{
 		cgi->num_pending_writes_to_peer--;
 		return -1;
@@ -203,7 +203,7 @@ static HIO_INLINE void cgi_mark_over (cgi_t* cgi, int over_bits)
 
 	if (!(old_over & CGI_OVER_READ_FROM_CLIENT) && (cgi->over & CGI_OVER_READ_FROM_CLIENT))
 	{
-		if (hio_dev_sck_read(cgi->client->sck, 0) <= -1) 
+		if (hio_dev_sck_read(cgi->client->sck, 0) <= -1)
 		{
 			HIO_DEBUG2 (cgi->htts->hio, "HTTS(%p) - halting client(%p) for failure to disable input watching\n", cgi->htts, cgi->client->sck);
 			hio_dev_sck_halt (cgi->client->sck);
@@ -212,7 +212,7 @@ static HIO_INLINE void cgi_mark_over (cgi_t* cgi, int over_bits)
 
 	if (!(old_over & CGI_OVER_READ_FROM_PEER) && (cgi->over & CGI_OVER_READ_FROM_PEER))
 	{
-		if (cgi->peer && hio_dev_pro_read(cgi->peer, HIO_DEV_PRO_OUT, 0) <= -1) 
+		if (cgi->peer && hio_dev_pro_read(cgi->peer, HIO_DEV_PRO_OUT, 0) <= -1)
 		{
 			HIO_DEBUG2 (cgi->htts->hio, "HTTS(%p) - halting peer(%p) for failure to disable input watching\n", cgi->htts, cgi->peer);
 			hio_dev_pro_halt (cgi->peer);
@@ -222,7 +222,7 @@ static HIO_INLINE void cgi_mark_over (cgi_t* cgi, int over_bits)
 	if (old_over != CGI_OVER_ALL && cgi->over == CGI_OVER_ALL)
 	{
 		/* ready to stop */
-		if (cgi->peer) 
+		if (cgi->peer)
 		{
 			HIO_DEBUG2 (cgi->htts->hio, "HTTS(%p) - halting peer(%p) as it is unneeded\n", cgi->htts, cgi->peer);
 			hio_dev_pro_halt (cgi->peer);
@@ -234,7 +234,7 @@ static HIO_INLINE void cgi_mark_over (cgi_t* cgi, int over_bits)
 			HIO_ASSERT (cgi->htts->hio, cgi->client->rsrc == (hio_svc_htts_rsrc_t*)cgi);
 
 /*printf ("DETACHING FROM THE MAIN CLIENT RSRC... state -> %p\n", cgi->client->rsrc);*/
-			HIO_SVC_HTTS_RSRC_DETACH (cgi->client->rsrc);
+			HIO_SVC_HTTS_RSRC_UNREF (cgi->client->rsrc);
 			/* cgi must not be accessed from here down as it could have been destroyed */
 		}
 		else
@@ -246,8 +246,9 @@ static HIO_INLINE void cgi_mark_over (cgi_t* cgi, int over_bits)
 	}
 }
 
-static void cgi_on_kill (cgi_t* cgi)
+static void cgi_on_kill (hio_svc_htts_rsrc_t* rsrc)
 {
+	cgi_t* cgi = (cgi_t*)rsrc;
 	hio_t* hio = cgi->htts->hio;
 
 	HIO_DEBUG2 (hio, "HTTS(%p) - killing cgi client(%p)\n", cgi->htts, cgi->client->sck);
@@ -323,7 +324,7 @@ static void peer_on_close (hio_dev_pro_t* pro, hio_dev_pro_sid_t sid)
 
 			HIO_ASSERT (hio, peer_xtn->cgi != HIO_NULL);
 /*printf ("DETACHING FROM CGI PEER DEVICE.....................%p   %d\n", peer->cgi, (int)peer->cgi->rsrc_refcnt);*/
-			HIO_SVC_HTTS_RSRC_DETACH (peer_xtn->cgi);
+			HIO_SVC_HTTS_RSRC_UNREF (peer_xtn->cgi);
 
 			if (cgi->peer_htrd)
 			{
@@ -332,7 +333,7 @@ static void peer_on_close (hio_dev_pro_t* pro, hio_dev_pro_sid_t sid)
 				peer_xtn = hio_htrd_getxtn(cgi->peer_htrd);
 				HIO_ASSERT (hio, peer_xtn->cgi != HIO_NULL);
 /*printf ("DETACHING FROM CGI PEER HTRD.....................%p   %d\n", peer->cgi, (int)peer->cgi->rsrc_refcnt);*/
-				HIO_SVC_HTTS_RSRC_DETACH (peer_xtn->cgi);
+				HIO_SVC_HTTS_RSRC_UNREF (peer_xtn->cgi);
 			}
 
 			break;
@@ -343,7 +344,7 @@ static void peer_on_close (hio_dev_pro_t* pro, hio_dev_pro_sid_t sid)
 
 			if (!(cgi->over & CGI_OVER_READ_FROM_PEER))
 			{
-				if (cgi_write_last_chunk_to_client(cgi) <= -1) 
+				if (cgi_write_last_chunk_to_client(cgi) <= -1)
 					cgi_halt_participating_devices (cgi);
 				else
 					cgi_mark_over (cgi, CGI_OVER_READ_FROM_PEER);
@@ -400,7 +401,7 @@ static int peer_on_read (hio_dev_pro_t* pro, hio_dev_pro_sid_t sid, const void* 
 
 		HIO_ASSERT (hio, !(cgi->over & CGI_OVER_READ_FROM_PEER));
 
-		if (hio_htrd_feed(cgi->peer_htrd, data, dlen, &rem) <= -1) 
+		if (hio_htrd_feed(cgi->peer_htrd, data, dlen, &rem) <= -1)
 		{
 			HIO_DEBUG3 (hio, "HTTS(%p) - unable to feed peer htrd - peer %p(pid=%u)\n", cgi->htts, pro, (unsigned int)pro->child_pid);
 
@@ -410,10 +411,10 @@ static int peer_on_read (hio_dev_pro_t* pro, hio_dev_pro_sid_t sid, const void* 
 				cgi_send_final_status_to_client (cgi, HIO_HTTP_STATUS_INTERNAL_SERVER_ERROR, 1); /* don't care about error because it jumps to oops below anyway */
 			}
 
-			goto oops; 
+			goto oops;
 		}
 
-		if (rem > 0) 
+		if (rem > 0)
 		{
 			/* If the script specifies Content-Length and produces longer data, it will come here */
 /*printf ("AAAAAAAAAAAAAAAAAa EEEEEXcessive DATA..................\n");*/
@@ -541,7 +542,7 @@ static int peer_htrd_push_content (hio_htrd_t* htrd, hio_htre_t* req, const hio_
 			hio_oow_t llen;
 
 			/* hio_fmt_uintmax_to_bcstr() null-terminates the output. only HIO_COUNTOF(lbuf) - 1
-			 * is enough to hold '\r' and '\n' at the back without '\0'. */ 
+			 * is enough to hold '\r' and '\n' at the back without '\0'. */
 			llen = hio_fmt_uintmax_to_bcstr(lbuf, HIO_COUNTOF(lbuf) - 1, dlen, 16 | HIO_FMT_UINTMAX_UPPERCASE, 0, '\0', HIO_NULL);
 			lbuf[llen++] = '\r';
 			lbuf[llen++] = '\n';
@@ -861,13 +862,13 @@ static int peer_on_fork (hio_dev_pro_t* pro, void* fork_ctx)
 		if (environ) environ[0] = '\0';
 	}
 #endif
-	if (path) 
+	if (path)
 	{
 		setenv ("PATH", path, 1);
 		hio_freemem (hio, path);
 	}
 
-	if (lang) 
+	if (lang)
 	{
 		setenv ("LANG", lang, 1);
 		hio_freemem (hio, lang);
@@ -973,7 +974,7 @@ int hio_svc_htts_docgi (hio_svc_htts_t* htts, hio_dev_sck_t* csck, hio_htre_t* r
 	csck->on_disconnect = cgi_client_on_disconnect;
 
 	HIO_ASSERT (hio, cli->rsrc == HIO_NULL);
-	HIO_SVC_HTTS_RSRC_ATTACH ((hio_svc_htts_rsrc_t*)cgi, cli->rsrc); /* cli->rsrc = cgi */
+	HIO_SVC_HTTS_RSRC_REF ((hio_svc_htts_rsrc_t*)cgi, cli->rsrc); /* cli->rsrc = cgi */
 
 	if (access(mi.cmd, X_OK) == -1)
 	{
@@ -984,7 +985,7 @@ int hio_svc_htts_docgi (hio_svc_htts_t* htts, hio_dev_sck_t* csck, hio_htre_t* r
 	cgi->peer = hio_dev_pro_make(hio, HIO_SIZEOF(*peer_xtn), &mi);
 	if (HIO_UNLIKELY(!cgi->peer)) goto oops;
 	peer_xtn = hio_dev_pro_getxtn(cgi->peer);
-	HIO_SVC_HTTS_RSRC_ATTACH ((hio_svc_htts_rsrc_t*)cgi, peer_xtn->cgi); /* peer->cgi in pro = cgi */
+	HIO_SVC_HTTS_RSRC_REF ((hio_svc_htts_rsrc_t*)cgi, peer_xtn->cgi); /* peer->cgi in pro = cgi */
 
 	cgi->peer_htrd = hio_htrd_open(hio, HIO_SIZEOF(*peer_xtn));
 	if (HIO_UNLIKELY(!cgi->peer_htrd)) goto oops;
@@ -992,13 +993,13 @@ int hio_svc_htts_docgi (hio_svc_htts_t* htts, hio_dev_sck_t* csck, hio_htre_t* r
 	hio_htrd_setrecbs (cgi->peer_htrd, &peer_htrd_recbs);
 
 	peer_xtn = hio_htrd_getxtn(cgi->peer_htrd);
-	HIO_SVC_HTTS_RSRC_ATTACH ((hio_svc_htts_rsrc_t*)cgi, peer_xtn->cgi); /* peer->cgi in htrd = cgi */
+	HIO_SVC_HTTS_RSRC_REF ((hio_svc_htts_rsrc_t*)cgi, peer_xtn->cgi); /* peer->cgi in htrd = cgi */
 
 #if !defined(CGI_ALLOW_UNLIMITED_REQ_CONTENT_LENGTH)
 	if (cgi->req_content_length_unlimited)
 	{
 		/* Transfer-Encoding is chunked. no content-length is known in advance. */
-		
+
 		/* option 1. buffer contents. if it gets too large, send 413 Request Entity Too Large.
 		 * option 2. send 411 Length Required immediately
 		 * option 3. set Content-Length to -1 and use EOF to indicate the end of content [Non-Standard] */
@@ -1011,17 +1012,17 @@ int hio_svc_htts_docgi (hio_svc_htts_t* htts, hio_dev_sck_t* csck, hio_htre_t* r
 	{
 		/* TODO: Expect: 100-continue? who should handle this? cgi? or the http server? */
 		/* CAN I LET the cgi SCRIPT handle this? */
-		if (!(options & HIO_SVC_HTTS_CGI_NO_100_CONTINUE) && 
-		    hio_comp_http_version_numbers(&req->version, 1, 1) >= 0 && 
-		   (cgi->req_content_length_unlimited || cgi->req_content_length > 0)) 
+		if (!(options & HIO_SVC_HTTS_CGI_NO_100_CONTINUE) &&
+		    hio_comp_http_version_numbers(&req->version, 1, 1) >= 0 &&
+		   (cgi->req_content_length_unlimited || cgi->req_content_length > 0))
 		{
-			/* 
+			/*
 			 * Don't send 100 Continue if http verions is lower than 1.1
-			 * [RFC7231] 
+			 * [RFC7231]
 			 *  A server that receives a 100-continue expectation in an HTTP/1.0
 			 *  request MUST ignore that expectation.
 			 *
-			 * Don't send 100 Continue if expected content lenth is 0. 
+			 * Don't send 100 Continue if expected content lenth is 0.
 			 * [RFC7231]
 			 *  A server MAY omit sending a 100 (Continue) response if it has
 			 *  already received some or all of the message body for the
@@ -1078,7 +1079,7 @@ int hio_svc_htts_docgi (hio_svc_htts_t* htts, hio_dev_sck_t* csck, hio_htre_t* r
 	if (req->flags & HIO_HTRE_ATTR_KEEPALIVE)
 	{
 		cgi->keep_alive = 1;
-		cgi->res_mode_to_cli = CGI_RES_MODE_CHUNKED; 
+		cgi->res_mode_to_cli = CGI_RES_MODE_CHUNKED;
 		/* the mode still can get switched to CGI_RES_MODE_LENGTH if the cgi script emits Content-Length */
 	}
 	else

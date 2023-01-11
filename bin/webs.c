@@ -51,15 +51,17 @@ static void untar_write_status_code (int fd, int code)
 	}
 }
 
-static void untar (hio_t* hio, hio_dev_thr_iopair_t* iop, hio_svc_htts_thr_func_info_t* tfi, void* ctx)
+static void untar (hio_svc_htts_t* htts, hio_dev_thr_iopair_t* iop, hio_svc_htts_thr_func_info_t* tfi, void* ctx)
 {
 	FILE* wfp = HIO_NULL;
+	hio_t* hio;
 	htts_ext_t* ext;
 	hio_tar_t* tar = HIO_NULL;
 	hio_uint8_t buf[4096];
 	ssize_t n;
 
-	ext = hio_svc_htts_getxtn(tfi->htts);
+	hio = hio_svc_htts_gethio(htts);
+	ext = hio_svc_htts_getxtn(htts);
 
 /* TODO: error handling on write() failure */
 	wfp = fdopen(iop->wfd, "w");
@@ -317,11 +319,19 @@ static int process_http_request (hio_svc_htts_t* htts, hio_dev_sck_t* csck, hio_
 		/* don't care about the path for now. TODO: make this secure and reasonable */
 		if (hio_svc_htts_dothr(htts, csck, req, untar, HIO_NULL, 0) <= -1) goto oops;
 	}
+	else if (mth == HIO_HTTP_OPTIONS)
+	{
+		//if (hio_svc_htts_dofun(htts, csck, req, options, HIO_NULL, 0) <= -1) goto oops;
+	}
 	else if (hio_comp_bcstr(qpath_ext, ".php", 0) == 0)
 	{
 		hio_skad_t skad;
 		hio_bcstrtoskad(hio, "10.30.0.133:9000", &skad);
-		if (hio_svc_htts_dofcgi(htts, csck, req, &skad, 0) <= -1) goto oops;
+		/*if (hio_svc_htts_dofcgi(htts, csck, req, &skad, ext->ai->docroot, qpath, 0) <= -1) goto oops;*/
+		/* if the document root is relative, it is hard to gurantee that the same document is
+		 * true to the fcgi server which is a different process. so map it a blank string for now.
+		 * TODO: accept a separate document root for the fcgi server and use it below */
+		if (hio_svc_htts_dofcgi(htts, csck, req, &skad, "", qpath, 0) <= -1) goto oops;
 		/*if (hio_svc_htts_dotxt(htts, csck, req, HIO_HTTP_STATUS_INTERNAL_SERVER_ERROR, "text/plain", "what the...", 0) <= -1) goto oops;*/
 	}
 	else // if (mth == HIO_HTTP_GET || mth == HIO_HTTP_POST)

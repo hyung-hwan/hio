@@ -34,11 +34,11 @@ struct hio_svc_dhcs_t
 };
 
 
-/*                         
+/*
                    binding address         link address for relay.
 lo                 ip address of lo        unspec
-lo/::1,            [::1]:547               
-lo/[::1]:544       [::1]:544                           
+lo/::1,            [::1]:547
+lo/[::1]:544       [::1]:544
 lo/[::1]:544/xxx   [::1]:544               xxx
 
 join multicast group??
@@ -60,7 +60,7 @@ static hio_dev_sck_t* open_socket (hio_t* hio, hio_svc_dhcs_cfg_t* cfg)
 	int f;
 
 	f = hio_skad_get_family(&cfg->bind_addr);
-	if (f != HIO_AF_INET && f != HIO_AF_INET6) 
+	if (f != HIO_AF_INET && f != HIO_AF_INET6)
 	{
 		hio_seterrbfmt (hio, HIO_EINVAL, "invalid bind address family");
 		goto oops;
@@ -69,7 +69,7 @@ static hio_dev_sck_t* open_socket (hio_t* hio, hio_svc_dhcs_cfg_t* cfg)
 	HIO_MEMSET (&m, 0, HIO_SIZEOF(m));
 	m.type = (f == HIO_AF_INET? HIO_DEV_SCK_UDP4: HIO_DEV_SCK_UDP6);
 	//m.options = HIO_DEV_SCK_MAKE_LENIENT;
-	//m.on_write = 
+	//m.on_write =
 	//m.on_read = ...
 	//m.on_connect = ...
 	//m.on_disconnect = ...
@@ -142,8 +142,8 @@ oops:
 	if (dhcs)
 	{
 		if (sck) hio_dev_sck_kill (sck);
-/*TODO: 
-		for (i = 0; i < local_nbinds; i++) 
+/*TODO:
+		for (i = 0; i < local_nbinds; i++)
 		{
 			if (dhcs->sck[i]) hio_dev_sck_kill(dhcs->sck[i])
 		}*/

@@ -123,10 +123,10 @@ const hio_bch_t* hio_get_mime_type_by_ext(const hio_bch_t* ext)
 		entry = &mime_type_tab[mid];
 
 		n = hio_comp_bcstr(ext, entry->ext, 1);
-		if (n < 0) 
+		if (n < 0)
 		{
 			/* if left, right, mid were of hio_oow_t,
-			 * you would need the following line. 
+			 * you would need the following line.
 			if (mid == 0) break;
 			 */
 			right = mid - 1;

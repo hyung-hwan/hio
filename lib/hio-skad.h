@@ -86,8 +86,8 @@ typedef struct hio_skad_t hio_skad_t;
 #define HIO_IP4AD_STRLEN (15) /* not including the terminating '\0' */
 #define HIO_IP6AD_STRLEN (45) /* not including the terminating '\0'. pure IPv6 address, not including the scope(e.g. %10, %eth0) */
 
-/* size large enough to hold the ip address plus port number. 
- * [IPV6ADDR%SCOPE]:PORT -> 9 for [] % : and PORT 
+/* size large enough to hold the ip address plus port number.
+ * [IPV6ADDR%SCOPE]:PORT -> 9 for [] % : and PORT
  * Let's reserve 16 for SCOPE and not include the terminting '\0'
  */
 #define HIO_SKAD_IP_STRLEN (HIO_IP6AD_STRLEN + 25)
@@ -101,7 +101,7 @@ typedef struct hio_skad_t hio_skad_t;
 #include <hio-pac1.h>
 struct HIO_PACKED hio_ethad_t
 {
-	hio_uint8_t v[HIO_ETHAD_LEN]; 
+	hio_uint8_t v[HIO_ETHAD_LEN];
 };
 typedef struct hio_ethad_t hio_ethad_t;
 
@@ -113,7 +113,7 @@ typedef struct hio_ip4ad_t hio_ip4ad_t;
 
 struct HIO_PACKED hio_ip6ad_t
 {
-	hio_uint8_t v[HIO_IP6AD_LEN]; 
+	hio_uint8_t v[HIO_IP6AD_LEN];
 };
 typedef struct hio_ip6ad_t hio_ip6ad_t;
 #include <hio-upac.h>
@@ -182,7 +182,7 @@ HIO_EXPORT void hio_skad_init_for_ip_with_bytes (
 	hio_skad_t*        skad,
 	hio_uint16_t       port,
 	const hio_uint8_t* bytes,
-	hio_oow_t          len 
+	hio_oow_t          len
 );
 
 HIO_EXPORT void hio_skad_init_for_eth (

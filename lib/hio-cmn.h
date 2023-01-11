@@ -25,7 +25,7 @@
 #ifndef _HIO_CMN_H_
 #define _HIO_CMN_H_
 
-/* WARNING: NEVER CHANGE/DELETE THE FOLLOWING HIO_HAVE_CFG_H DEFINITION. 
+/* WARNING: NEVER CHANGE/DELETE THE FOLLOWING HIO_HAVE_CFG_H DEFINITION.
  *          IT IS USED FOR DEPLOYMENT BY MAKEFILE.AM */
 /*#define HIO_HAVE_CFG_H*/
 
@@ -49,7 +49,7 @@
 
 #if defined(EMSCRIPTEN)
 #	if defined(HIO_SIZEOF___INT128)
-#		undef HIO_SIZEOF___INT128 
+#		undef HIO_SIZEOF___INT128
 #		define HIO_SIZEOF___INT128 0
 #	endif
 #	if defined(HIO_SIZEOF_LONG) && defined(HIO_SIZEOF_INT) && (HIO_SIZEOF_LONG > HIO_SIZEOF_INT)
@@ -291,7 +291,7 @@
 	typedef hio_int64_t hio_intptr_t;
 	typedef hio_uint32_t hio_ushortptr_t;
 	typedef hio_int32_t hio_shortptr_t;
-#elif defined(HIO_HAVE_UINT128_T) && (HIO_SIZEOF_VOID_P == 16) 
+#elif defined(HIO_HAVE_UINT128_T) && (HIO_SIZEOF_VOID_P == 16)
 	typedef hio_uint128_t hio_uintptr_t;
 	typedef hio_int128_t hio_intptr_t;
 	typedef hio_uint64_t hio_ushortptr_t;
@@ -405,7 +405,7 @@ typedef unsigned char           hio_bchu_t; /* unsigned version of hio_bch_t for
 #	define HIO_SIZEOF_UCH_T 4
 
 #elif defined(__GNUC__) && defined(__CHAR16_TYPE__)
-	typedef __CHAR16_TYPE__    hio_uch_t; 
+	typedef __CHAR16_TYPE__    hio_uch_t;
 	typedef hio_uint16_t       hio_uchu_t; /* same as hio_uch_t as it is already unsigned */
 #	define HIO_SIZEOF_UCH_T 2
 #else
@@ -613,7 +613,7 @@ struct hio_ntime_t
 #endif
 
 /* make a bit mask that can mask off low n bits */
-#define HIO_LBMASK(type,n) (~(~((type)0) << (n))) 
+#define HIO_LBMASK(type,n) (~(~((type)0) << (n)))
 #define HIO_LBMASK_SAFE(type,n) (((n) < HIO_BITSOF(type))? HIO_LBMASK(type,n): ~(type)0)
 
 /* make a bit mask that can mask off hig n bits */
@@ -637,7 +637,7 @@ struct hio_ntime_t
 	(value = (((type)(value)) | (((bits) & HIO_LBMASK(type,length)) << (offset))))
 
 
-/** 
+/**
  * The HIO_BITS_MAX() macros calculates the maximum value that the 'nbits'
  * bits of an unsigned integer of the given 'type' can hold.
  * \code
@@ -652,12 +652,12 @@ struct hio_ntime_t
  * ========================================================================= */
 typedef struct hio_mmgr_t hio_mmgr_t;
 
-/** 
+/**
  * allocate a memory chunk of the size \a n.
  * \return pointer to a memory chunk on success, #HIO_NULL on failure.
  */
 typedef void* (*hio_mmgr_alloc_t)   (hio_mmgr_t* mmgr, hio_oow_t n);
-/** 
+/**
  * resize a memory chunk pointed to by \a ptr to the size \a n.
  * \return pointer to a memory chunk on success, #HIO_NULL on failure.
  */
@@ -670,13 +670,13 @@ typedef void  (*hio_mmgr_free_t)    (hio_mmgr_t* mmgr, void* ptr);
 /**
  * The hio_mmgr_t type defines the memory management interface.
  * As the type is merely a structure, it is just used as a single container
- * for memory management functions with a pointer to user-defined data. 
- * The user-defined data pointer \a ctx is passed to each memory management 
- * function whenever it is called. You can allocate, reallocate, and free 
+ * for memory management functions with a pointer to user-defined data.
+ * The user-defined data pointer \a ctx is passed to each memory management
+ * function whenever it is called. You can allocate, reallocate, and free
  * a memory chunk.
  *
  * For example, a hio_xxx_open() function accepts a pointer of the hio_mmgr_t
- * type and the xxx object uses it to manage dynamic data within the object. 
+ * type and the xxx object uses it to manage dynamic data within the object.
  */
 struct hio_mmgr_t
 {
@@ -693,12 +693,12 @@ struct hio_mmgr_t
 #define HIO_MMGR_ALLOC(mmgr,size) ((mmgr)->alloc(mmgr,size))
 
 /**
- * The HIO_MMGR_REALLOC() macro resizes a memory block pointed to by \a ptr 
+ * The HIO_MMGR_REALLOC() macro resizes a memory block pointed to by \a ptr
  * to the \a size bytes using the \a mmgr memory manager.
  */
 #define HIO_MMGR_REALLOC(mmgr,ptr,size) ((mmgr)->realloc(mmgr,ptr,size))
 
-/** 
+/**
  * The HIO_MMGR_FREE() macro deallocates the memory block pointed to by \a ptr.
  */
 #define HIO_MMGR_FREE(mmgr,ptr) ((mmgr)->free(mmgr,ptr))
@@ -710,7 +710,7 @@ struct hio_mmgr_t
 typedef struct hio_cmgr_t hio_cmgr_t;
 
 typedef hio_oow_t (*hio_cmgr_bctouc_t) (
-	const hio_bch_t*   mb, 
+	const hio_bch_t*   mb,
 	hio_oow_t         size,
 	hio_uch_t*         wc
 );
@@ -722,8 +722,8 @@ typedef hio_oow_t (*hio_cmgr_uctobc_t) (
 );
 
 /**
- * The hio_cmgr_t type defines the character-level interface to 
- * multibyte/wide-character conversion. This interface doesn't 
+ * The hio_cmgr_t type defines the character-level interface to
+ * multibyte/wide-character conversion. This interface doesn't
  * provide any facility to store conversion state in a context
  * independent manner. This leads to the limitation that it can
  * handle a stateless multibyte encoding only.
@@ -741,7 +741,7 @@ struct hio_cmgr_t
 #if defined(_WIN32) || (defined(__WATCOMC__) && !defined(__WINDOWS_386__))
 #	define HIO_IMPORT __declspec(dllimport)
 #	define HIO_EXPORT __declspec(dllexport)
-#	define HIO_PRIVATE 
+#	define HIO_PRIVATE
 #elif defined(__GNUC__) && (__GNUC__>=4)
 #	define HIO_IMPORT __attribute__((visibility("default")))
 #	define HIO_EXPORT __attribute__((visibility("default")))
@@ -758,12 +758,12 @@ struct hio_cmgr_t
 #	define HIO_INLINE inline
 #	define HIO_HAVE_INLINE
 #elif defined(__GNUC__) && defined(__GNUC_GNU_INLINE__)
-	/* gcc disables inline when -std=c89 or -ansi is used. 
+	/* gcc disables inline when -std=c89 or -ansi is used.
 	 * so use __inline__ supported by gcc regardless of the options */
 #	define HIO_INLINE /*extern*/ __inline__
 #	define HIO_HAVE_INLINE
 #else
-#	define HIO_INLINE 
+#	define HIO_INLINE
 #	undef HIO_HAVE_INLINE
 #endif
 
@@ -833,7 +833,7 @@ struct hio_cmgr_t
 */
 
 
-#if defined(__has_builtin) 
+#if defined(__has_builtin)
 	#if __has_builtin(__builtin_ctz)
 		#define HIO_HAVE_BUILTIN_CTZ
 	#endif
@@ -845,41 +845,41 @@ struct hio_cmgr_t
 	#endif
 
 	#if __has_builtin(__builtin_uadd_overflow)
-		#define HIO_HAVE_BUILTIN_UADD_OVERFLOW 
+		#define HIO_HAVE_BUILTIN_UADD_OVERFLOW
 	#endif
 	#if __has_builtin(__builtin_uaddl_overflow)
-		#define HIO_HAVE_BUILTIN_UADDL_OVERFLOW 
+		#define HIO_HAVE_BUILTIN_UADDL_OVERFLOW
 	#endif
 	#if __has_builtin(__builtin_uaddll_overflow)
-		#define HIO_HAVE_BUILTIN_UADDLL_OVERFLOW 
+		#define HIO_HAVE_BUILTIN_UADDLL_OVERFLOW
 	#endif
 	#if __has_builtin(__builtin_umul_overflow)
-		#define HIO_HAVE_BUILTIN_UMUL_OVERFLOW 
+		#define HIO_HAVE_BUILTIN_UMUL_OVERFLOW
 	#endif
 	#if __has_builtin(__builtin_umull_overflow)
-		#define HIO_HAVE_BUILTIN_UMULL_OVERFLOW 
+		#define HIO_HAVE_BUILTIN_UMULL_OVERFLOW
 	#endif
 	#if __has_builtin(__builtin_umulll_overflow)
-		#define HIO_HAVE_BUILTIN_UMULLL_OVERFLOW 
+		#define HIO_HAVE_BUILTIN_UMULLL_OVERFLOW
 	#endif
 
 	#if __has_builtin(__builtin_sadd_overflow)
-		#define HIO_HAVE_BUILTIN_SADD_OVERFLOW 
+		#define HIO_HAVE_BUILTIN_SADD_OVERFLOW
 	#endif
 	#if __has_builtin(__builtin_saddl_overflow)
-		#define HIO_HAVE_BUILTIN_SADDL_OVERFLOW 
+		#define HIO_HAVE_BUILTIN_SADDL_OVERFLOW
 	#endif
 	#if __has_builtin(__builtin_saddll_overflow)
-		#define HIO_HAVE_BUILTIN_SADDLL_OVERFLOW 
+		#define HIO_HAVE_BUILTIN_SADDLL_OVERFLOW
 	#endif
 	#if __has_builtin(__builtin_smul_overflow)
-		#define HIO_HAVE_BUILTIN_SMUL_OVERFLOW 
+		#define HIO_HAVE_BUILTIN_SMUL_OVERFLOW
 	#endif
 	#if __has_builtin(__builtin_smull_overflow)
-		#define HIO_HAVE_BUILTIN_SMULL_OVERFLOW 
+		#define HIO_HAVE_BUILTIN_SMULL_OVERFLOW
 	#endif
 	#if __has_builtin(__builtin_smulll_overflow)
-		#define HIO_HAVE_BUILTIN_SMULLL_OVERFLOW 
+		#define HIO_HAVE_BUILTIN_SMULLL_OVERFLOW
 	#endif
 
 	#if __has_builtin(__builtin_expect)
@@ -919,7 +919,7 @@ struct hio_cmgr_t
 
 #elif defined(__GNUC__) && defined(__GNUC_MINOR__)
 
-	#if (__GNUC__ >= 4) 
+	#if (__GNUC__ >= 4)
 		#define HIO_HAVE_SYNC_LOCK_TEST_AND_SET
 		#define HIO_HAVE_SYNC_LOCK_RELEASE
 
@@ -975,7 +975,7 @@ struct hio_cmgr_t
 #if defined(__GNUC__)
 #	define HIO_PACKED __attribute__((__packed__))
 #else
-#	define HIO_PACKED 
+#	define HIO_PACKED
 #endif
 
 /* =========================================================================

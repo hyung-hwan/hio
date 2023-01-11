@@ -25,7 +25,7 @@
 #include "hio-prv.h"
 #include <hio-fmt.h>
 #include <stdlib.h> /* malloc, free, etc */
-  
+
 #define DEV_CAP_ALL_WATCHED (HIO_DEV_CAP_IN_WATCHED | HIO_DEV_CAP_OUT_WATCHED | HIO_DEV_CAP_PRI_WATCHED)
 
 static void clear_unneeded_cfmbs (hio_t* hio);
@@ -120,7 +120,7 @@ int hio_init (hio_t* hio, hio_mmgr_t* mmgr, hio_cmgr_t* cmgr, hio_bitmask_t feat
 	 * routine still function despite some side-effects when
 	 * reallocation fails */
 	/* +1 required for consistency with put_oocs and put_ooch in fmtout.c */
-	hio->log.ptr = hio_allocmem(hio, (hio->log.capa + 1) * HIO_SIZEOF(*hio->log.ptr)); 
+	hio->log.ptr = hio_allocmem(hio, (hio->log.capa + 1) * HIO_SIZEOF(*hio->log.ptr));
 	if (HIO_UNLIKELY(!hio->log.ptr)) goto oops;
 
 	/* inititalize the system-side logging */
@@ -179,7 +179,7 @@ void hio_fini (hio_t* hio)
 		hio_svc_t* svc;
 
 		svc = HIO_SVCL_FIRST_SVC(&hio->actsvc);
-		if (svc->svc_stop) 
+		if (svc->svc_stop)
 		{
 			/* the stop callback must unregister itself */
 			svc->svc_stop (svc);
@@ -208,7 +208,7 @@ void hio_fini (hio_t* hio)
 	for (dev = HIO_DEVL_FIRST_DEV(&hio->zmbdev); !HIO_DEVL_IS_NIL_DEV(&hio->zmbdev, dev); )
 	{
 		kill_and_free_device (dev, 1);
-		if (HIO_DEVL_FIRST_DEV(&hio->zmbdev) == dev) 
+		if (HIO_DEVL_FIRST_DEV(&hio->zmbdev) == dev)
 		{
 			/* the deive has not been freed. go on to the next one */
 			next_dev = dev->dev_next;
@@ -228,7 +228,7 @@ void hio_fini (hio_t* hio)
 	while (!HIO_DEVL_IS_EMPTY(&diehard))
 	{
 		/* if the kill method returns failure, it can leak some resource
-		 * because the device is freed regardless of the failure when 2 
+		 * because the device is freed regardless of the failure when 2
 		 * is given to kill_and_free_device(). */
 		dev = HIO_DEVL_FIRST_DEV(&diehard);
 		HIO_ASSERT (hio, !(dev->dev_cap & (HIO_DEV_CAP_ACTIVE | HIO_DEV_CAP_HALTED | HIO_DEV_CAP_ZOMBIE)));
@@ -287,7 +287,7 @@ int hio_setoption (hio_t* hio, hio_option_t id, const void* value)
 
 			v1 = hio_dupbcstr(hio, value, HIO_NULL);
 			if (HIO_UNLIKELY(!v1)) return -1;
-			
+
 			v2 = hio_dupbtoucstr(hio, value, HIO_NULL, 1);
 			if (HIO_UNLIKELY(!v2))
 			{
@@ -459,7 +459,7 @@ static void fire_cwq_handlers (hio_t* hio)
 		hio_dev_t* dev_to_halt;
 
 		cwq = HIO_CWQ_HEAD(&hio->cwq);
-		if (cwq->dev->dev_evcb->on_write(cwq->dev, cwq->olen, cwq->ctx, &cwq->dstaddr) <= -1) 
+		if (cwq->dev->dev_evcb->on_write(cwq->dev, cwq->olen, cwq->ctx, &cwq->dstaddr) <= -1)
 		{
 			dev_to_halt = cwq->dev;
 		}
@@ -483,7 +483,7 @@ static void fire_cwq_handlers (hio_t* hio)
 			hio_freemem (hio, cwq);
 		}
 
-		if (dev_to_halt) 
+		if (dev_to_halt)
 		{
 			HIO_DEBUG2 (hio, "DEV(%p) - halting a device for on_write error upon write completion[1] - %js\n", dev_to_halt, hio_geterrmsg(hio));
 			hio_dev_halt (dev_to_halt);
@@ -506,7 +506,7 @@ static void fire_cwq_handlers_for_dev (hio_t* hio, hio_dev_t* dev, int for_kill)
 			hio_dev_t* dev_to_halt;
 			hio_oow_t cwqfl_index;
 
-			if (cwq->dev->dev_evcb->on_write(cwq->dev, cwq->olen, cwq->ctx, &cwq->dstaddr) <= -1) 
+			if (cwq->dev->dev_evcb->on_write(cwq->dev, cwq->olen, cwq->ctx, &cwq->dstaddr) <= -1)
 			{
 				dev_to_halt = cwq->dev;
 			}
@@ -563,7 +563,7 @@ static HIO_INLINE void handle_event (hio_t* hio, hio_dev_t* dev, int events, int
 		 *   >= 1 - everything is ok. */
 		x = dev->dev_evcb->ready(dev, xevents);
 		if (x <= -1)
-		{ 
+		{
 			HIO_DEBUG2 (hio, "DEV(%p) - halting a device for ready callback error - %js\n", dev, hio_geterrmsg(hio));
 			hio_dev_halt (dev);
 			return;
@@ -634,9 +634,9 @@ static HIO_INLINE void handle_event (hio_t* hio, hio_dev_t* dev, int events, int
 					/* finished writing a single write request */
 					int y, out_closed = 0;
 
-					if (q->len <= 0 && (dev->dev_cap & HIO_DEV_CAP_STREAM)) 
+					if (q->len <= 0 && (dev->dev_cap & HIO_DEV_CAP_STREAM))
 					{
-						/* it was a zero-length write request. 
+						/* it was a zero-length write request.
 						 * for a stream, it is to close the output. */
 						dev->dev_cap |= HIO_DEV_CAP_OUT_CLOSED;
 						dev->dev_cap |= HIO_DEV_CAP_RENEW_REQUIRED;
@@ -657,7 +657,7 @@ static HIO_INLINE void handle_event (hio_t* hio, hio_dev_t* dev, int events, int
 
 					if (out_closed)
 					{
-						/* drain all pending requests. 
+						/* drain all pending requests.
 						 * callbacks are skipped for drained requests */
 						while (!HIO_WQ_IS_EMPTY(&dev->wq))
 						{
@@ -736,13 +736,13 @@ static HIO_INLINE void handle_event (hio_t* hio, hio_dev_t* dev, int events, int
 			else /*if (x >= 1) */
 			{
 				/* call on_write() callbacks enqueued fro the device before calling on_read().
-				 * if on_write() callback is delayed, there can be out-of-order execution 
+				 * if on_write() callback is delayed, there can be out-of-order execution
 				 * between on_read() and on_write() callbacks. for instance, if a write request
-				 * is started from within on_read() callback, and the input data is available 
+				 * is started from within on_read() callback, and the input data is available
 				 * in the next iteration of this loop, the on_read() callback is triggered
 				 * before the on_write() callbacks scheduled before that on_read() callback. */
 			#if 0
-				if (dev->cw_count > 0) 
+				if (dev->cw_count > 0)
 				{
 					fire_cwq_handlers_for_dev (hio, dev);
 					/* it will still invoke the on_read() callbak below even if
@@ -751,12 +751,12 @@ static HIO_INLINE void handle_event (hio_t* hio, hio_dev_t* dev, int events, int
 			#else
 				/* currently fire_cwq_handlers_for_dev() scans the entire cwq list.
 				 * i might as well triggger handlers for all devices */
-				fire_cwq_handlers (hio); 
+				fire_cwq_handlers (hio);
 			#endif
 
-				if (len <= 0 && (dev->dev_cap & HIO_DEV_CAP_STREAM)) 
+				if (len <= 0 && (dev->dev_cap & HIO_DEV_CAP_STREAM))
 				{
-					/* EOF received. for a stream device, a zero-length 
+					/* EOF received. for a stream device, a zero-length
 					 * read is interpreted as EOF. */
 					dev->dev_cap |= HIO_DEV_CAP_IN_CLOSED;
 					dev->dev_cap |= HIO_DEV_CAP_RENEW_REQUIRED;
@@ -765,7 +765,7 @@ static HIO_INLINE void handle_event (hio_t* hio, hio_dev_t* dev, int events, int
 					if (dev->dev_evcb->on_read(dev, hio->bigbuf, len, &srcaddr) <= -1 ||
 					    (dev->dev_cap & HIO_DEV_CAP_OUT_CLOSED))
 					{
-						/* 1. input ended and its reporting failed or 
+						/* 1. input ended and its reporting failed or
 						 * 2. input ended and no writing is possible */
 						if (dev->dev_cap & HIO_DEV_CAP_OUT_CLOSED)
 							HIO_DEBUG1 (hio, "DEV(%p) - halting a stream device on input EOF as output is also closed\n", dev);
@@ -806,7 +806,7 @@ static HIO_INLINE void handle_event (hio_t* hio, hio_dev_t* dev, int events, int
 	if (dev)
 	{
 		if (events & (HIO_DEV_EVENT_ERR | HIO_DEV_EVENT_HUP))
-		{ 
+		{
 			/* if error or hangup has been reported on the device,
 			 * halt the device. this check is performed after
 			 * EPOLLIN or EPOLLOUT check because EPOLLERR or EPOLLHUP
@@ -823,7 +823,7 @@ static HIO_INLINE void handle_event (hio_t* hio, hio_dev_t* dev, int events, int
 			dev->dev_cap |= HIO_DEV_CAP_IN_CLOSED | HIO_DEV_CAP_OUT_CLOSED;
 			dev->dev_cap |= HIO_DEV_CAP_RENEW_REQUIRED;
 		}
-		else if (dev && rdhup) 
+		else if (dev && rdhup)
 		{
 			if (events & (HIO_DEV_EVENT_IN | HIO_DEV_EVENT_OUT | HIO_DEV_EVENT_PRI))
 			{
@@ -862,7 +862,7 @@ static void clear_unneeded_cfmbs (hio_t* hio)
 	while (!HIO_CFMBL_IS_NIL_CFMB(&hio->cfmb, cur))
 	{
 		next = HIO_CFMBL_NEXT_CFMB(cur);
-		if (cur->cfmb_checker(hio, cur)) 
+		if (cur->cfmb_checker(hio, cur))
 		{
 			HIO_CFMBL_UNLINK_CFMB (cur);
 			hio_freemem (hio, cur);
@@ -874,7 +874,7 @@ static void clear_unneeded_cfmbs (hio_t* hio)
 static void kill_all_halted_devices (hio_t* hio)
 {
 	/* kill all halted devices */
-	while (!HIO_DEVL_IS_EMPTY(&hio->hltdev)) 
+	while (!HIO_DEVL_IS_EMPTY(&hio->hltdev))
 	{
 		hio_dev_t* dev = HIO_DEVL_FIRST_DEV(&hio->hltdev);
 		HIO_DEBUG1 (hio, "MIO - Killing HALTED device %p\n", dev);
@@ -892,12 +892,12 @@ static HIO_INLINE int __exec (hio_t* hio)
 	/* execute callbacks for completed write operations */
 	fire_cwq_handlers (hio);
 
-	/* execute the scheduled jobs before checking devices with the 
+	/* execute the scheduled jobs before checking devices with the
 	 * multiplexer. the scheduled jobs can safely destroy the devices */
 	hio_firetmrjobs (hio, HIO_NULL, HIO_NULL);
 
-	/* execute callbacks for completed write operations again in case 
-	 * some works initiated in the timer jobs have complted and added to CWQ. 
+	/* execute callbacks for completed write operations again in case
+	 * some works initiated in the timer jobs have complted and added to CWQ.
 	 * e.g. write() in a timer job gets completed immediately. */
 	fire_cwq_handlers (hio);
 
@@ -917,7 +917,7 @@ static HIO_INLINE int __exec (hio_t* hio)
 			tmout.nsec = 0;
 		}
 
-		if (hio_sys_waitmux(hio, &tmout, handle_event) <= -1) 
+		if (hio_sys_waitmux(hio, &tmout, handle_event) <= -1)
 		{
 			HIO_DEBUG0 (hio, "MIO - WARNING - Failed to wait on mutiplexer\n");
 			ret = -1;
@@ -992,7 +992,7 @@ hio_dev_t* hio_dev_make (hio_t* hio, hio_oow_t dev_size, hio_dev_mth_t* dev_mth,
 {
 	hio_dev_t* dev = HIO_NULL;
 
-	if (dev_size < HIO_SIZEOF(hio_dev_t)) 
+	if (dev_size < HIO_SIZEOF(hio_dev_t))
 	{
 		hio_seterrnum (hio, HIO_EINVAL);
 		if (dev_mth->fail_before_make) dev_mth->fail_before_make (make_ctx);
@@ -1000,7 +1000,7 @@ hio_dev_t* hio_dev_make (hio_t* hio, hio_oow_t dev_size, hio_dev_mth_t* dev_mth,
 	}
 
 	dev = (hio_dev_t*)hio_callocmem(hio, dev_size);
-	if (HIO_UNLIKELY(!dev)) 
+	if (HIO_UNLIKELY(!dev))
 	{
 		if (dev_mth->fail_before_make) dev_mth->fail_before_make (make_ctx);
 		goto oops;
@@ -1013,7 +1013,7 @@ hio_dev_t* hio_dev_make (hio_t* hio, hio_oow_t dev_size, hio_dev_mth_t* dev_mth,
 	dev->dev_cap = HIO_DEV_CAP_IN | HIO_DEV_CAP_OUT;
 	dev->dev_mth = dev_mth;
 	dev->dev_evcb = dev_evcb;
-	HIO_INIT_NTIME (&dev->rtmout, 0, 0); 
+	HIO_INIT_NTIME (&dev->rtmout, 0, 0);
 	dev->rtmridx = HIO_TMRIDX_INVALID;
 	HIO_WQ_INIT (&dev->wq);
 	dev->cw_count = 0;
@@ -1027,7 +1027,7 @@ hio_dev_t* hio_dev_make (hio_t* hio, hio_oow_t dev_size, hio_dev_mth_t* dev_mth,
 	HIO_ASSERT (hio, dev->dev_prev == HIO_NULL);
 	HIO_ASSERT (hio, dev->dev_next == HIO_NULL);
 
-	/* set some internal capability bits according to the capabilities 
+	/* set some internal capability bits according to the capabilities
 	 * removed by the device making callback for convenience sake. */
 	dev->dev_cap &= HIO_DEV_CAP_ALL_MASK; /* keep valid capability bits only. drop all internal-use bits */
 	if (!(dev->dev_cap & HIO_DEV_CAP_IN)) dev->dev_cap |= HIO_DEV_CAP_IN_CLOSED;
@@ -1046,16 +1046,16 @@ oops_after_make:
 	if (kill_and_free_device(dev, 0) <= -1)
 	{
 		/* schedule a timer job that reattempts to destroy the device */
-		if (schedule_kill_zombie_job(dev) <= -1) 
+		if (schedule_kill_zombie_job(dev) <= -1)
 		{
 			/* job scheduling failed. i have no choice but to
 			 * destroy the device now.
-			 * 
+			 *
 			 * NOTE: this while loop can block the process
 			 *       if the kill method keep returning failure */
 			while (kill_and_free_device(dev, 1) <= -1)
 			{
-				if (hio->stopreq != HIO_STOPREQ_NONE) 
+				if (hio->stopreq != HIO_STOPREQ_NONE)
 				{
 					/* i can't wait until destruction attempt gets
 					 * fully successful. there is a chance that some
@@ -1082,7 +1082,7 @@ static int kill_and_free_device (hio_dev_t* dev, int force)
 	HIO_ASSERT (hio, !(dev->dev_cap & HIO_DEV_CAP_HALTED));
 
 	HIO_DEBUG1 (hio, "MIO - Calling kill method on device %p\n", dev);
-	if (dev->dev_mth->kill(dev, force) <= -1) 
+	if (dev->dev_mth->kill(dev, force) <= -1)
 	{
 		HIO_DEBUG1 (hio, "MIO - Failure by kill method on device %p\n", dev);
 
@@ -1126,7 +1126,7 @@ static void kill_zombie_job_handler (hio_t* hio, const hio_ntime_t* now, hio_tmr
 			/* i have to choice but to free up the devide by force */
 			while (kill_and_free_device(dev, 1) <= -1)
 			{
-				if (hio->stopreq != HIO_STOPREQ_NONE) 
+				if (hio->stopreq != HIO_STOPREQ_NONE)
 				{
 					/* i can't wait until destruction attempt gets
 					 * fully successful. there is a chance that some
@@ -1223,7 +1223,7 @@ kill_device:
 			/* i have no choice but to free up the devide by force */
 			while (kill_and_free_device(dev, 1) <= -1)
 			{
-				if (hio->stopreq  != HIO_STOPREQ_NONE) 
+				if (hio->stopreq  != HIO_STOPREQ_NONE)
 				{
 					/* i can't wait until destruction attempt gets
 					 * fully successful. there is a chance that some
@@ -1279,10 +1279,10 @@ int hio_dev_watch (hio_dev_t* dev, hio_dev_watch_cmd_t cmd, int events)
 	 * it's different from not hanving HIO_DEV_CAP_IN and HIO_DEV_CAP_OUT.
 	 * a non-virtual device without the capabilities still gets attention
 	 * of the system multiplexer for hangup and error. */
-	if (dev->dev_cap & HIO_DEV_CAP_VIRTUAL) 
+	if (dev->dev_cap & HIO_DEV_CAP_VIRTUAL)
 	{
 		/* UGLY HACK - you may start a device with VIRTUAL set upon creation when START is attempted.
-		 *             later, if you mask off VIRTUAL, you may perform normal IO and call 
+		 *             later, if you mask off VIRTUAL, you may perform normal IO and call
 		 *             hio_dev_watch() with UPDATE. if SUSPENDED is set, UPDATE works */
 		if (cmd == HIO_DEV_WATCH_START) dev->dev_cap |= HIO_DEV_CAP_WATCH_SUSPENDED;
 		/* END UGLY HACK */
@@ -1296,8 +1296,8 @@ int hio_dev_watch (hio_dev_t* dev, hio_dev_watch_cmd_t cmd, int events)
 	{
 		case HIO_DEV_WATCH_START:
 			/* request input watching when a device is started.
-			 * if the device is set with HIO_DEV_CAP_IN_DISABLED and/or 
-			 * is not set with HIO_DEV_CAP_IN, input wathcing is excluded 
+			 * if the device is set with HIO_DEV_CAP_IN_DISABLED and/or
+			 * is not set with HIO_DEV_CAP_IN, input wathcing is excluded
 			 * after this 'switch' block */
 			events = HIO_DEV_EVENT_IN;
 			mux_cmd = HIO_SYS_MUX_CMD_INSERT;
@@ -1309,7 +1309,7 @@ int hio_dev_watch (hio_dev_t* dev, hio_dev_watch_cmd_t cmd, int events)
 			 * output watching is requested only if there're enqueued data for writing.
 			 * if you want to enable input watching while renewing, call this function like this.
 			 *  hio_dev_wtach (dev, HIO_DEV_WATCH_RENEW, HIO_DEV_EVENT_IN);
-			 * if you want input watching disabled while renewing, call this function like this. 
+			 * if you want input watching disabled while renewing, call this function like this.
 			 *  hio_dev_wtach (dev, HIO_DEV_WATCH_RENEW, 0); */
 			if (HIO_WQ_IS_EMPTY(&dev->wq)) events &= ~HIO_DEV_EVENT_OUT;
 			else events |= HIO_DEV_EVENT_OUT;
@@ -1338,7 +1338,7 @@ int hio_dev_watch (hio_dev_t* dev, hio_dev_watch_cmd_t cmd, int events)
 	 * by reducing the variety of event bits that the caller has to handle. */
 	if ((events & HIO_DEV_EVENT_IN) && !(dev->dev_cap & (HIO_DEV_CAP_IN_CLOSED | HIO_DEV_CAP_IN_DISABLED)))
 	{
-		if (dev->dev_cap & HIO_DEV_CAP_IN) 
+		if (dev->dev_cap & HIO_DEV_CAP_IN)
 		{
 			if (dev->dev_cap & HIO_DEV_CAP_PRI) dev_cap |= HIO_DEV_CAP_PRI_WATCHED;
 			dev_cap |= HIO_DEV_CAP_IN_WATCHED;
@@ -1373,11 +1373,11 @@ static void on_read_timeout (hio_t* hio, const hio_ntime_t* now, hio_tmrjob_t* j
 	dev = (hio_dev_t*)job->ctx;
 
 	hio_seterrnum (hio, HIO_ETMOUT);
-	x = dev->dev_evcb->on_read(dev, HIO_NULL, -1, HIO_NULL); 
+	x = dev->dev_evcb->on_read(dev, HIO_NULL, -1, HIO_NULL);
 
 	HIO_ASSERT (hio, dev->rtmridx == HIO_TMRIDX_INVALID);
 
-	if (x <= -1) 
+	if (x <= -1)
 	{
 		HIO_DEBUG2 (hio, "DEV(%p) - halting a device for on_read error upon timeout - %js\n", dev, hio_geterrmsg(hio));
 		hio_dev_halt (dev);
@@ -1437,7 +1437,7 @@ update_timer:
 		tmrjob.idxptr = &dev->rtmridx;
 
 		dev->rtmridx = hio_instmrjob(hio, &tmrjob);
-		if (dev->rtmridx == HIO_TMRIDX_INVALID) 
+		if (dev->rtmridx == HIO_TMRIDX_INVALID)
 		{
 			/* if timer registration fails, timeout will never be triggered */
 			return -1;
@@ -1467,13 +1467,13 @@ static void on_write_timeout (hio_t* hio, const hio_ntime_t* now, hio_tmrjob_t* 
 	dev = q->dev;
 
 	hio_seterrnum (hio, HIO_ETMOUT);
-	x = dev->dev_evcb->on_write(dev, -1, q->ctx, &q->dstaddr); 
+	x = dev->dev_evcb->on_write(dev, -1, q->ctx, &q->dstaddr);
 
 	HIO_ASSERT (hio, q->tmridx == HIO_TMRIDX_INVALID);
 	HIO_WQ_UNLINK(q);
 	hio_freemem (hio, q);
 
-	if (x <= -1) 
+	if (x <= -1)
 	{
 		HIO_DEBUG2 (hio, "DEV(%p) - halting a device for on_write error upon timeout - %js\n", dev, hio_geterrmsg(hio));
 		hio_dev_halt (dev);
@@ -1577,7 +1577,7 @@ static HIO_INLINE int __enqueue_pending_write (hio_dev_t* dev, hio_iolen_t olen,
 		tmrjob.idxptr = &q->tmridx;
 
 		q->tmridx = hio_instmrjob(hio, &tmrjob);
-		if (q->tmridx == HIO_TMRIDX_INVALID) 
+		if (q->tmridx == HIO_TMRIDX_INVALID)
 		{
 			hio_freemem (hio, q);
 			return -1;
@@ -1650,7 +1650,7 @@ static HIO_INLINE int __enqueue_pending_sendfile (hio_dev_t* dev, hio_iolen_t ol
 		tmrjob.idxptr = &q->tmridx;
 
 		q->tmridx = hio_instmrjob(hio, &tmrjob);
-		if (q->tmridx == HIO_TMRIDX_INVALID) 
+		if (q->tmridx == HIO_TMRIDX_INVALID)
 		{
 			hio_freemem (hio, q);
 			return -1;
@@ -1690,9 +1690,9 @@ static HIO_INLINE int __dev_write (hio_dev_t* dev, const void* data, hio_iolen_t
 	uptr = data;
 	urem = len;
 
-	if (!HIO_WQ_IS_EMPTY(&dev->wq)) 
+	if (!HIO_WQ_IS_EMPTY(&dev->wq))
 	{
-		/* the writing queue is not empty. 
+		/* the writing queue is not empty.
 		 * enqueue this request immediately */
 		goto enqueue_data;
 	}
@@ -1705,17 +1705,17 @@ static HIO_INLINE int __dev_write (hio_dev_t* dev, const void* data, hio_iolen_t
 			ulen = urem;
 			x = dev->dev_mth->write(dev, data, &ulen, dstaddr);
 			if (x <= -1) return -1;
-			else if (x == 0) 
+			else if (x == 0)
 			{
-				/* [NOTE] 
-				 * the write queue is empty at this moment. a zero-length 
+				/* [NOTE]
+				 * the write queue is empty at this moment. a zero-length
 				 * request for a stream device can still get enqueued if the
 				 * write callback returns 0 though i can't figure out if there
-				 * is a compelling reason to do so 
+				 * is a compelling reason to do so
 				 */
 				goto enqueue_data; /* enqueue remaining data */
 			}
-			else 
+			else
 			{
 				/* the write callback should return at most the number of requested
 				 * bytes. but returning more is harmless as urem is of a signed type.
@@ -1735,7 +1735,7 @@ static HIO_INLINE int __dev_write (hio_dev_t* dev, const void* data, hio_iolen_t
 		}
 
 		/* if i trigger the write completion callback here, the performance
-		 * may increase, but there can be annoying recursion issues if the 
+		 * may increase, but there can be annoying recursion issues if the
 		 * callback requests another writing operation. it's imperative to
 		 * delay the callback until this write function is finished.
 		 * ---> if (dev->dev_evcb->on_write(dev, len, wrctx, dstaddr) <= -1) return -1; */
@@ -1751,7 +1751,7 @@ static HIO_INLINE int __dev_write (hio_dev_t* dev, const void* data, hio_iolen_t
 
 		/* partial writing is still considered ok for a non-stream device. */
 
-		/* read the comment in the 'if' block above for why i enqueue the write completion event 
+		/* read the comment in the 'if' block above for why i enqueue the write completion event
 		 * instead of calling the event callback here...
 		 *  ---> if (dev->dev_evcb->on_write(dev, ulen, wrctx, dstaddr) <= -1) return -1; */
 		goto enqueue_completed_write;
@@ -1785,7 +1785,7 @@ static HIO_INLINE int __dev_writev (hio_dev_t* dev, hio_iovec_t* iov, hio_iolen_
 	for (i = 0; i < iovcnt; i++) len += iov[i].iov_len;
 	urem = len;
 
-	if (!HIO_WQ_IS_EMPTY(&dev->wq)) 
+	if (!HIO_WQ_IS_EMPTY(&dev->wq))
 	{
 		/* if the writing queue is not empty, enqueue this request immediately */
 		goto enqueue_data;
@@ -1802,13 +1802,13 @@ static HIO_INLINE int __dev_writev (hio_dev_t* dev, hio_iovec_t* iov, hio_iolen_
 			dcnt = iovcnt - index;
 			x = dev->dev_mth->writev(dev, &iov[index], &dcnt, dstaddr);
 			if (x <= -1) return -1;
-			else if (x == 0) 
+			else if (x == 0)
 			{
-				/* [NOTE] 
-				 * the write queue is empty at this moment. a zero-length 
+				/* [NOTE]
+				 * the write queue is empty at this moment. a zero-length
 				 * request for a stream device can still get enqueued if the
 				 * write callback returns 0 though i can't figure out if there
-				 * is a compelling reason to do so 
+				 * is a compelling reason to do so
 				 */
 				goto enqueue_data; /* enqueue remaining data */
 			}
@@ -1840,7 +1840,7 @@ static HIO_INLINE int __dev_writev (hio_dev_t* dev, hio_iovec_t* iov, hio_iolen_
 		}
 
 		/* if i trigger the write completion callback here, the performance
-		 * may increase, but there can be annoying recursion issues if the 
+		 * may increase, but there can be annoying recursion issues if the
 		 * callback requests another writing operation. it's imperative to
 		 * delay the callback until this write function is finished.
 		 * ---> if (dev->dev_evcb->on_write(dev, len, wrctx, dstaddr) <= -1) return -1; */
@@ -1858,7 +1858,7 @@ static HIO_INLINE int __dev_writev (hio_dev_t* dev, hio_iovec_t* iov, hio_iolen_
 		urem -= dcnt;
 		/* partial writing is still considered ok for a non-stream device. */
 
-		/* read the comment in the 'if' block above for why i enqueue the write completion event 
+		/* read the comment in the 'if' block above for why i enqueue the write completion event
 		 * instead of calling the event callback here...
 		 *  ---> if (dev->dev_evcb->on_write(dev, ulen, wrctx, dstaddr) <= -1) return -1; */
 		goto enqueue_completed_write;
@@ -1895,9 +1895,9 @@ static int __dev_sendfile (hio_dev_t* dev, hio_syshnd_t in_fd, hio_foff_t foff, 
 	uoff = foff;
 	urem = len;
 
-	if (!HIO_WQ_IS_EMPTY(&dev->wq)) 
+	if (!HIO_WQ_IS_EMPTY(&dev->wq))
 	{
-		/* the writing queue is not empty. 
+		/* the writing queue is not empty.
 		 * enqueue this request immediately */
 		goto enqueue_data;
 	}
@@ -1910,17 +1910,17 @@ static int __dev_sendfile (hio_dev_t* dev, hio_syshnd_t in_fd, hio_foff_t foff, 
 			ulen = urem;
 			x = dev->dev_mth->sendfile(dev, in_fd, uoff, &ulen);
 			if (x <= -1) return -1;
-			else if (x == 0) 
+			else if (x == 0)
 			{
-				/* [NOTE] 
-				 * the write queue is empty at this moment. a zero-length 
+				/* [NOTE]
+				 * the write queue is empty at this moment. a zero-length
 				 * request for a stream device can still get enqueued if the
 				 * write callback returns 0 though i can't figure out if there
-				 * is a compelling reason to do so 
+				 * is a compelling reason to do so
 				 */
 				goto enqueue_data; /* enqueue remaining data */
 			}
-			else 
+			else
 			{
 				/* the write callback should return at most the number of requested
 				 * bytes. but returning more is harmless as urem is of a signed type.
@@ -1940,7 +1940,7 @@ static int __dev_sendfile (hio_dev_t* dev, hio_syshnd_t in_fd, hio_foff_t foff, 
 		}
 
 		/* if i trigger the write completion callback here, the performance
-		 * may increase, but there can be annoying recursion issues if the 
+		 * may increase, but there can be annoying recursion issues if the
 		 * callback requests another writing operation. it's imperative to
 		 * delay the callback until this write function is finished.
 		 * ---> if (dev->dev_evcb->on_write(dev, len, wrctx, dstaddr) <= -1) return -1; */
@@ -1996,8 +1996,8 @@ int hio_dev_timedsendfile (hio_dev_t* dev, hio_syshnd_t in_fd, hio_foff_t foff, 
 void hio_gettime (hio_t* hio, hio_ntime_t* now)
 {
 	hio_sys_gettime (hio, now);
-	/* in hio_init(), hio->init_time has been set to the initialization time. 
-	 * the time returned here gets offset by hio->init_time and 
+	/* in hio_init(), hio->init_time has been set to the initialization time.
+	 * the time returned here gets offset by hio->init_time and
 	 * thus becomes relative to it. this way, it is kept small such that it
 	 * can be represented in a small integer with leaving almost zero chance
 	 * of overflow. */
@@ -2062,9 +2062,9 @@ static int fmt_put_bchars_to_uch_buf (hio_fmtout_t* fmtout, const hio_bch_t* ptr
 	ucslen = b->capa - b->len;
 	n = hio_conv_bchars_to_uchars_with_cmgr(ptr, &bcslen, &b->ptr[b->len], &ucslen, (b->hio? b->hio->_cmgr: hio_get_utf8_cmgr()), 1);
 	b->len += ucslen;
-	if (n <= -1) 
+	if (n <= -1)
 	{
-		if (n == -2) 
+		if (n == -2)
 		{
 			return 0; /* buffer full. stop */
 		}
@@ -2248,7 +2248,7 @@ hio_oow_t hio_dev_cap_to_bcstr (hio_bitmask_t cap, hio_bch_t* buf, hio_oow_t siz
 	if (cap & HIO_DEV_CAP_WATCH_STARTED) len += hio_copy_bcstr(&buf[len], size - len, "watch_started|");
 	if (cap & HIO_DEV_CAP_WATCH_SUSPENDED) len += hio_copy_bcstr(&buf[len], size - len, "watch_suspended|");
 	if (cap & HIO_DEV_CAP_WATCH_REREG_REQUIRED) len += hio_copy_bcstr(&buf[len], size - len, "watch_rereg_required|");
-	
+
 	if (buf[len - 1] == '|') buf[--len] = '\0';
 	return len;
 }

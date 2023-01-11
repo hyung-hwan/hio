@@ -25,7 +25,7 @@
 #include <hio-md5.h>
 #include "hio-prv.h"
 
-/* 
+/*
    Copyright (C) 1991-2, RSA Data Security, Inc. Created 1991. All
    rights reserved.
 
@@ -33,12 +33,12 @@
    is identified as the "RSA Data Security, Inc. MD5 Message-Digest
    Algorithm" in all material mentioning or referencing this software
    or this function.
- 
+
    License is also granted to make and use derivative works provided
    that such works are identified as "derived from the RSA Data
    Security, Inc. MD5 Message-Digest Algorithm" in all material
    mentioning or referencing the derived work.
- 
+
    RSA Data Security, Inc. makes no representations concerning either
    the merchantability of this software or the suitability of this
    software for any particular purpose. It is provided "as is"
@@ -136,12 +136,12 @@ void hio_md5_update (hio_md5_t* md5, const void* data, hio_uint32_t len)
 	part_len = 64 - index;
 
 	/* transform as many times as possible */
-	if (len >= part_len) 
+	if (len >= part_len)
 	{
 		HIO_MEMCPY (&md5->buffer[index], input, part_len);
 		__transform (md5->state, md5->buffer);
 
-		for (i = part_len; i + 63 < len; i += 64) 
+		for (i = part_len; i + 63 < len; i += 64)
 			__transform (md5->state, &input[i]);
 		index = 0;
 	}
@@ -286,8 +286,8 @@ static void __transform (hio_uint32_t state[4], hio_uint8_t block[64])
 static void __encode (hio_uint8_t* output, hio_uint32_t* input, hio_oow_t len)
 {
 	hio_oow_t i, j;
-	
-	for (i = 0, j = 0; j < len; i++, j += 4) 
+
+	for (i = 0, j = 0; j < len; i++, j += 4)
 	{
 		output[j + 0] = (hio_uint8_t)((input[i] >>  0) & 0xFF);
 		output[j + 1] = (hio_uint8_t)((input[i] >>  8) & 0xFF);
@@ -300,7 +300,7 @@ static void __decode (hio_uint32_t* output, hio_uint8_t* input, hio_oow_t len)
 {
 	hio_oow_t i, j;
 
-	for (i = 0, j = 0; j < len; i++, j += 4) 
+	for (i = 0, j = 0; j < len; i++, j += 4)
 	{
 		output[i] = input[j] | (input[j + 1] << 8) | (input[j + 2] << 16) | (input[j + 3] << 24);
 	}

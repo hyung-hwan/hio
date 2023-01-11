@@ -60,7 +60,7 @@ static hio_errnum_t errno_to_errnum (int errcode)
 	#endif
 
 	#if defined(EAGAIN) && defined(EWOULDBLOCK) && (EAGAIN != EWOULDBLOCK)
-		case EAGAIN: 
+		case EAGAIN:
 		case EWOULDBLOCK: return HIO_EAGAIN;
 	#elif defined(EAGAIN)
 		case EAGAIN: return HIO_EAGAIN;
@@ -152,14 +152,14 @@ static hio_errnum_t os2err_to_errnum (APIRET errcode)
 		case ERROR_NOT_ENOUGH_MEMORY:
 			return HIO_ESYSMEM;
 
-		case ERROR_INVALID_PARAMETER: 
+		case ERROR_INVALID_PARAMETER:
 		case ERROR_INVALID_NAME:
 			return HIO_EINVAL;
 
-		case ERROR_INVALID_HANDLE: 
+		case ERROR_INVALID_HANDLE:
 			return HIO_EBADHND;
 
-		case ERROR_ACCESS_DENIED: 
+		case ERROR_ACCESS_DENIED:
 		case ERROR_SHARING_VIOLATION:
 			return HIO_EACCES;
 
@@ -196,7 +196,7 @@ static hio_errnum_t macerr_to_errnum (int errcode)
 			return HIO_ENOENT;
 
 		/*TODO: add more mappings */
-		default: 
+		default:
 			return HIO_ESYSERR;
 	}
 }
@@ -206,14 +206,14 @@ hio_errnum_t hio_sys_syserrstrb (hio_t* hio, int syserr_type, int syserr_code, h
 {
 	switch (syserr_type)
 	{
-		case 1: 
+		case 1:
 		#if defined(_WIN32)
 			if (buf)
 			{
 				DWORD rc;
 				rc = FormatMessageA (
 					FORMAT_MESSAGE_FROM_SYSTEM | FORMAT_MESSAGE_IGNORE_INSERTS,
-					NULL, syserr_code, MAKELANGID(LANG_NEUTRAL, SUBLANG_DEFAULT), 
+					NULL, syserr_code, MAKELANGID(LANG_NEUTRAL, SUBLANG_DEFAULT),
 					buf, len, HIO_NULL
 				);
 				while (rc > 0 && buf[rc - 1] == '\r' || buf[rc - 1] == '\n') buf[--rc] = '\0';

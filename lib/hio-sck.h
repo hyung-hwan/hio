@@ -107,7 +107,7 @@ struct hio_iphdr_t
 typedef struct hio_iphdr_t hio_iphdr_t;
 
 
-struct HIO_PACKED hio_icmphdr_t 
+struct HIO_PACKED hio_icmphdr_t
 {
 	hio_uint8_t type; /* message type */
 	hio_uint8_t code; /* subcode */
@@ -189,7 +189,7 @@ typedef struct hio_icmphdr_t hio_icmphdr_t;
 
 enum hio_dev_sck_ioctl_cmd_t
 {
-	HIO_DEV_SCK_BIND, 
+	HIO_DEV_SCK_BIND,
 	HIO_DEV_SCK_CONNECT,
 	HIO_DEV_SCK_LISTEN
 };
@@ -377,7 +377,7 @@ struct hio_dev_sck_t
 
 	int state;
 
-	/* remote peer address for a stream socket. valid if one of the 
+	/* remote peer address for a stream socket. valid if one of the
 	 * followings is set in state:
 	 *   HIO_DEV_TCP_ACCEPTING_SSL
 	 *   HIO_DEV_TCP_ACCEPTED
@@ -387,7 +387,7 @@ struct hio_dev_sck_t
 	 *
 	 * also used as a placeholder to store source address for
 	 * a stateless socket */
-	hio_skad_t remoteaddr; 
+	hio_skad_t remoteaddr;
 
 	/* local socket address */
 	hio_skad_t localaddr;

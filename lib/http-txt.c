@@ -64,7 +64,7 @@ static void txt_halt_participating_devices (txt_t* txt)
 static int txt_write_to_client (txt_t* txt, const void* data, hio_iolen_t dlen)
 {
 	txt->num_pending_writes_to_client++;
-	if (hio_dev_sck_write(txt->client->sck, data, dlen, HIO_NULL, HIO_NULL) <= -1) 
+	if (hio_dev_sck_write(txt->client->sck, data, dlen, HIO_NULL, HIO_NULL) <= -1)
 	{
 		txt->num_pending_writes_to_client--;
 		return -1;
@@ -76,7 +76,7 @@ static int txt_write_to_client (txt_t* txt, const void* data, hio_iolen_t dlen)
 static int txt_writev_to_client (txt_t* txt, hio_iovec_t* iov, hio_iolen_t iovcnt)
 {
 	txt->num_pending_writes_to_client++;
-	if (hio_dev_sck_writev(txt->client->sck, iov, iovcnt, HIO_NULL, HIO_NULL) <= -1) 
+	if (hio_dev_sck_writev(txt->client->sck, iov, iovcnt, HIO_NULL, HIO_NULL) <= -1)
 	{
 		txt->num_pending_writes_to_client--;
 		return -1;
@@ -125,7 +125,7 @@ static HIO_INLINE void txt_mark_over (txt_t* txt, int over_bits)
 
 	if (!(old_over & TXT_OVER_READ_FROM_CLIENT) && (txt->over & TXT_OVER_READ_FROM_CLIENT))
 	{
-		if (hio_dev_sck_read(txt->client->sck, 0) <= -1) 
+		if (hio_dev_sck_read(txt->client->sck, 0) <= -1)
 		{
 			HIO_DEBUG2 (txt->htts->hio, "HTTS(%p) - halting client(%p) for failure to disable input watching\n", txt->htts, txt->client->sck);
 			hio_dev_sck_halt (txt->client->sck);
@@ -141,7 +141,7 @@ static HIO_INLINE void txt_mark_over (txt_t* txt, int over_bits)
 			HIO_ASSERT (txt->htts->hio, txt->client->rsrc == (hio_svc_htts_rsrc_t*)txt);
 
 /*printf ("DETACHING FROM THE MAIN CLIENT RSRC... state -> %p\n", txt->client->rsrc);*/
-			HIO_SVC_HTTS_RSRC_DETACH (txt->client->rsrc);
+			HIO_SVC_HTTS_RSRC_UNREF (txt->client->rsrc);
 			/* txt must not be access from here down as it could have been destroyed */
 		}
 		else
@@ -153,8 +153,9 @@ static HIO_INLINE void txt_mark_over (txt_t* txt, int over_bits)
 	}
 }
 
-static void txt_on_kill (txt_t* txt)
+static void txt_on_kill (hio_svc_htts_rsrc_t* rsrc)
 {
+	txt_t* txt = (txt_t*)rsrc;
 	hio_t* hio = txt->htts->hio;
 
 	HIO_DEBUG2 (hio, "HTTS(%p) - killing txt client(%p)\n", txt->htts, txt->client->sck);
@@ -180,7 +181,7 @@ static void txt_on_kill (txt_t* txt)
 	if (txt->client_htrd_recbs_changed)
 	{
 		/* restore the callbacks */
-		hio_htrd_setrecbs (txt->client->htrd, &txt->client_htrd_org_recbs); 
+		hio_htrd_setrecbs (txt->client->htrd, &txt->client_htrd_org_recbs);
 	}
 
 	if (!txt->client_disconnected)
@@ -251,7 +252,7 @@ static int txt_client_on_read (hio_dev_sck_t* sck, const void* buf, hio_iolen_t 
 		/* EOF on the client side. arrange to close */
 		HIO_DEBUG3 (hio, "HTTPS(%p) - EOF from client %p(hnd=%d)\n", txt->client->htts, sck, (int)sck->hnd);
 		txt->client_eof_detected = 1;
- 
+
 		if (!(txt->over & TXT_OVER_READ_FROM_CLIENT)) /* if this is true, EOF is received without txt_client_htrd_poke() */
 		{
 			txt_mark_over (txt, TXT_OVER_READ_FROM_CLIENT);
@@ -345,7 +346,7 @@ int hio_svc_htts_dotxt (hio_svc_htts_t* htts, hio_dev_sck_t* csck, hio_htre_t* r
 	csck->on_disconnect = txt_client_on_disconnect;
 
 	HIO_ASSERT (hio, cli->rsrc == HIO_NULL);
-	HIO_SVC_HTTS_RSRC_ATTACH ((hio_svc_htts_rsrc_t*)txt, cli->rsrc);
+	HIO_SVC_HTTS_RSRC_REF ((hio_svc_htts_rsrc_t*)txt, cli->rsrc);
 
 	if (req->flags & HIO_HTRE_ATTR_EXPECT100)
 	{

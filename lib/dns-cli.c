@@ -44,7 +44,7 @@ struct hio_svc_dnc_t
 	hio_dev_sck_t* tcp_sck;
 	hio_skad_t serv_addr;
 
-	hio_ntime_t send_tmout; 
+	hio_ntime_t send_tmout;
 	hio_ntime_t reply_tmout; /* default reply timeout */
 
 	/* For a question sent out, it may wait for a corresponding answer.
@@ -52,8 +52,8 @@ struct hio_svc_dnc_t
 	 * to this value over udp and to 1 over tcp. if max_tries is 0,
 	 * it sends out the question but never waits for a response.
 	 * For a non-question message sent out, it never waits for a response
-	 * regardless of max_tries. */ 
-	hio_oow_t max_tries; 
+	 * regardless of max_tries. */
+	hio_oow_t max_tries;
 
 	hio_dns_cookie_t cookie;
 
@@ -139,7 +139,7 @@ static hio_dns_msg_t* make_dns_msg (hio_svc_dnc_t* dnc, hio_dns_bhdr_t* bdns, hi
 	msgxtn->on_done = on_done;
 	msgxtn->wtmout = dnc->send_tmout;
 	msgxtn->rtmout = dnc->reply_tmout;
-	msgxtn->rmaxtries = dnc->max_tries; 
+	msgxtn->rmaxtries = dnc->max_tries;
 	msgxtn->rtries = 0;
 	msgxtn->servaddr = dnc->serv_addr;
 
@@ -178,7 +178,7 @@ static int handle_tcp_packet (hio_dev_sck_t* dev, hio_dns_pkt_t* pkt, hio_uint16
 	hio_uint16_t id;
 	hio_dns_msg_t* reqmsg;
 
-	if (!pkt->qr) 
+	if (!pkt->qr)
 	{
 		HIO_DEBUG0 (hio, "DNC - dropping dns request received over tcp ...\n"); /* TODO: add source info */
 		return 0; /* drop request. nothing to do */
@@ -277,7 +277,7 @@ static int on_tcp_read (hio_dev_sck_t* dev, const void* data, hio_iolen_t dlen, 
 		}
 		else
 		{
-			if (HIO_LIKELY(rem >= 2)) 
+			if (HIO_LIKELY(rem >= 2))
 			{
 				pktlen = ((hio_uint16_t)*(hio_uint8_t*)dptr << 8) | *((hio_uint8_t*)dptr + 1);
 				dptr += 2; rem -= 2;
@@ -408,7 +408,7 @@ static void on_tcp_connect (hio_dev_sck_t* dev)
 		dnc_dns_msg_xtn_t* reqmsgxtn = dnc_dns_msg_getxtn(reqmsg);
 		hio_dns_msg_t* nextreqmsg = reqmsgxtn->next;
 
-		if (reqmsgxtn->dev == dev && reqmsgxtn->rtries == 0) 
+		if (reqmsgxtn->dev == dev && reqmsgxtn->rtries == 0)
 		{
 			if (write_dns_msg_over_tcp(dev, reqmsg) <= -1)
 			{
@@ -455,7 +455,7 @@ static void on_tcp_disconnect (hio_dev_sck_t* dev)
 	}
 
 	/* let's forget about the tcp socket */
-	dnc->tcp_sck = HIO_NULL; 
+	dnc->tcp_sck = HIO_NULL;
 }
 
 static int switch_reqmsg_transport_to_tcp (hio_svc_dnc_t* dnc, hio_dns_msg_t* reqmsg)
@@ -501,14 +501,14 @@ static int switch_reqmsg_transport_to_tcp (hio_svc_dnc_t* dnc, hio_dns_msg_t* re
 		cinfo.remoteaddr = reqmsgxtn->servaddr;
 		cinfo.connect_tmout = reqmsgxtn->rtmout; /* TOOD: create a separate connect timeout or treate rtmout as a whole transaction time and calculate the remaining time from the transaction start, and use it */
 
-		if (hio_dev_sck_connect(dnc->tcp_sck, &cinfo) <= -1) 
+		if (hio_dev_sck_connect(dnc->tcp_sck, &cinfo) <= -1)
 		{
 			hio_dev_sck_kill (dnc->tcp_sck);
 			dnc->tcp_sck = HIO_NULL;
 			return -1; /* the connect request hasn't been honored. */
 		}
 	}
-	
+
 	/* switch the belonging device to the tcp socket since the connect request has been acknowledged. */
 	HIO_ASSERT (hio, reqmsgxtn->rtmridx == HIO_TMRIDX_INVALID); /* ensure no timer job scheduled at this moment */
 	reqmsgxtn->dev = dnc->tcp_sck;
@@ -546,13 +546,13 @@ static int on_udp_read (hio_dev_sck_t* dev, const void* data, hio_iolen_t dlen, 
 		return 0;
 	}
 
-	if (HIO_UNLIKELY(dlen < HIO_SIZEOF(*pkt))) 
+	if (HIO_UNLIKELY(dlen < HIO_SIZEOF(*pkt)))
 	{
 		HIO_DEBUG0 (hio, "DNC - dns packet too small from ....\n"); /* TODO: add source packet */
 		return 0; /* drop */
 	}
 	pkt = (hio_dns_pkt_t*)data;
-	if (!pkt->qr) 
+	if (!pkt->qr)
 	{
 		HIO_DEBUG0 (hio, "DNC - dropping dns request received ...\n"); /* TODO: add source info */
 		return 0; /* drop request */
@@ -898,7 +898,7 @@ static void on_dnc_resolve (hio_svc_dnc_t* dnc, hio_dns_msg_t* reqmsg, hio_errnu
 			goto done;
 		}
 
-		if (pi->hdr.rcode != HIO_DNS_RCODE_NOERROR) 
+		if (pi->hdr.rcode != HIO_DNS_RCODE_NOERROR)
 		{
 			status = HIO_EINVAL;
 			goto no_data;
@@ -928,7 +928,7 @@ static void on_dnc_resolve (hio_svc_dnc_t* dnc, hio_dns_msg_t* reqmsg, hio_errnu
 			 * the query type i stored in the extension space. */
 			switch (resolxtn->qtype)
 			{
-				case HIO_DNS_RRT_Q_ANY: 
+				case HIO_DNS_RRT_Q_ANY:
 				case HIO_DNS_RRT_Q_AFXR: /* AFXR doesn't make sense in the brief mode. just treat it like ANY */
 					/* no A or AAAA found. so give the first entry in the answer */
 					goto match_found;
@@ -1003,7 +1003,7 @@ hio_dns_msg_t* hio_svc_dnc_resolve (hio_svc_dnc_t* dnc, const hio_bch_t* qname, 
 		beopt_cookie.code = HIO_DNS_EOPT_COOKIE;
 		beopt_cookie.dptr = &dnc->cookie.data;
 
-		beopt_cookie.dlen = HIO_DNS_COOKIE_CLIENT_LEN; 
+		beopt_cookie.dlen = HIO_DNS_COOKIE_CLIENT_LEN;
 		if (dnc->cookie.server_len > 0) beopt_cookie.dlen += dnc->cookie.server_len;
 
 		/* compute the client cookie */
@@ -1031,9 +1031,9 @@ hio_dns_msg_t* hio_svc_dnc_resolve (hio_svc_dnc_t* dnc, const hio_bch_t* qname, 
 			 *
 			 * ASSUMPTIONS:
 			 *  the eopt entries are at the back of the packet.
-			 *  only 1 eopt entry(HIO_DNS_EOPT_COOKIE) has been added. 
-			 * 
-			 * manipulate the data length of the EDNS0 RR and COOKIE option 
+			 *  only 1 eopt entry(HIO_DNS_EOPT_COOKIE) has been added.
+			 *
+			 * manipulate the data length of the EDNS0 RR and COOKIE option
 			 * as if the server cookie data has not been added.
 			 */
 			hio_dns_rrtr_t* edns_rrtr;
@@ -1100,7 +1100,7 @@ int hio_svc_dnc_checkclientcookie (hio_svc_dnc_t* dnc, hio_dns_msg_t* reqmsg, hi
 
 /* TODO: afxr client ... */
 
-/* TODO: trace function to do its own recursive resolution?... 
+/* TODO: trace function to do its own recursive resolution?...
 hio_dns_msg_t* hio_svc_dnc_trace (hio_svc_dnc_t* dnc, const hio_bch_t* qname, hio_dns_rrt_t qtype, int resolve_flags, hio_svc_dnc_on_resolve_t on_resolve, hio_oow_t xtnsize)
 {
 }

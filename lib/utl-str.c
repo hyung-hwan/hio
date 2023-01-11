@@ -22,11 +22,11 @@
     THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  */
 
-/* 
+/*
  * Do NOT edit utl-str.c. Edit utl-str.c.m4 instead.
- * 
+ *
  * Generate utl-str.c with m4
- *   $ m4 utl-str.c.m4 > utl-str.c  
+ *   $ m4 utl-str.c.m4 > utl-str.c
  */
 
 #include "hio-prv.h"
@@ -34,57 +34,57 @@
 
 static int match_uch_class (const hio_uch_t* pp, hio_uch_t sc, int* matched)
 {
-	if (hio_comp_ucstr_bcstr_limited(pp, "[:upper:]", 9, 0) == 0) 
+	if (hio_comp_ucstr_bcstr_limited(pp, "[:upper:]", 9, 0) == 0)
 	{
 		*matched = hio_is_uch_upper(sc);
 		return 9;
 	}
-	else if (hio_comp_ucstr_bcstr_limited(pp, "[:lower:]", 9, 0) == 0) 
+	else if (hio_comp_ucstr_bcstr_limited(pp, "[:lower:]", 9, 0) == 0)
 	{
 		*matched = hio_is_uch_lower(sc);
 		return 9;
 	}
-	else if (hio_comp_ucstr_bcstr_limited(pp, "[:alpha:]", 9, 0) == 0) 
+	else if (hio_comp_ucstr_bcstr_limited(pp, "[:alpha:]", 9, 0) == 0)
 	{
 		*matched = hio_is_uch_alpha(sc);
 		return 9;
 	}
-	else if (hio_comp_ucstr_bcstr_limited(pp, "[:digit:]", 9, 0) == 0) 
+	else if (hio_comp_ucstr_bcstr_limited(pp, "[:digit:]", 9, 0) == 0)
 	{
 		*matched = hio_is_uch_digit(sc);
 		return 9;
 	}
-	else if (hio_comp_ucstr_bcstr_limited(pp, "[:xdigit:]", 10, 0) == 0) 
+	else if (hio_comp_ucstr_bcstr_limited(pp, "[:xdigit:]", 10, 0) == 0)
 	{
 		*matched = hio_is_uch_xdigit(sc);
 		return 10;
 	}
-	else if (hio_comp_ucstr_bcstr_limited(pp, "[:alnum:]", 9, 0) == 0) 
+	else if (hio_comp_ucstr_bcstr_limited(pp, "[:alnum:]", 9, 0) == 0)
 	{
 		*matched = hio_is_uch_alnum(sc);
 		return 9;
 	}
-	else if (hio_comp_ucstr_bcstr_limited(pp, "[:space:]", 9, 0) == 0) 
+	else if (hio_comp_ucstr_bcstr_limited(pp, "[:space:]", 9, 0) == 0)
 	{
 		*matched = hio_is_uch_space(sc);
 		return 9;
 	}
-	else if (hio_comp_ucstr_bcstr_limited(pp, "[:print:]", 9, 0) == 0) 
+	else if (hio_comp_ucstr_bcstr_limited(pp, "[:print:]", 9, 0) == 0)
 	{
 		*matched = hio_is_uch_print(sc);
 		return 9;
 	}
-	else if (hio_comp_ucstr_bcstr_limited(pp, "[:graph:]", 9, 0) == 0) 
+	else if (hio_comp_ucstr_bcstr_limited(pp, "[:graph:]", 9, 0) == 0)
 	{
 		*matched = hio_is_uch_graph(sc);
 		return 9;
 	}
-	else if (hio_comp_ucstr_bcstr_limited(pp, "[:cntrl:]", 9, 0) == 0) 
+	else if (hio_comp_ucstr_bcstr_limited(pp, "[:cntrl:]", 9, 0) == 0)
 	{
 		*matched = hio_is_uch_cntrl(sc);
 		return 9;
 	}
-	else if (hio_comp_ucstr_bcstr_limited(pp, "[:punct:]", 9, 0) == 0) 
+	else if (hio_comp_ucstr_bcstr_limited(pp, "[:punct:]", 9, 0) == 0)
 	{
 		*matched = hio_is_uch_punct(sc);
 		return 9;
@@ -95,57 +95,57 @@ static int match_uch_class (const hio_uch_t* pp, hio_uch_t sc, int* matched)
 
 static int match_bch_class (const hio_bch_t* pp, hio_bch_t sc, int* matched)
 {
-	if (hio_comp_bcstr_limited(pp, "[:upper:]", 9, 0) == 0) 
+	if (hio_comp_bcstr_limited(pp, "[:upper:]", 9, 0) == 0)
 	{
 		*matched = hio_is_bch_upper(sc);
 		return 9;
 	}
-	else if (hio_comp_bcstr_limited(pp, "[:lower:]", 9, 0) == 0) 
+	else if (hio_comp_bcstr_limited(pp, "[:lower:]", 9, 0) == 0)
 	{
 		*matched = hio_is_bch_lower(sc);
 		return 9;
 	}
-	else if (hio_comp_bcstr_limited(pp, "[:alpha:]", 9, 0) == 0) 
+	else if (hio_comp_bcstr_limited(pp, "[:alpha:]", 9, 0) == 0)
 	{
 		*matched = hio_is_bch_alpha(sc);
 		return 9;
 	}
-	else if (hio_comp_bcstr_limited(pp, "[:digit:]", 9, 0) == 0) 
+	else if (hio_comp_bcstr_limited(pp, "[:digit:]", 9, 0) == 0)
 	{
 		*matched = hio_is_bch_digit(sc);
 		return 9;
 	}
-	else if (hio_comp_bcstr_limited(pp, "[:xdigit:]", 10, 0) == 0) 
+	else if (hio_comp_bcstr_limited(pp, "[:xdigit:]", 10, 0) == 0)
 	{
 		*matched = hio_is_bch_xdigit(sc);
 		return 10;
 	}
-	else if (hio_comp_bcstr_limited(pp, "[:alnum:]", 9, 0) == 0) 
+	else if (hio_comp_bcstr_limited(pp, "[:alnum:]", 9, 0) == 0)
 	{
 		*matched = hio_is_bch_alnum(sc);
 		return 9;
 	}
-	else if (hio_comp_bcstr_limited(pp, "[:space:]", 9, 0) == 0) 
+	else if (hio_comp_bcstr_limited(pp, "[:space:]", 9, 0) == 0)
 	{
 		*matched = hio_is_bch_space(sc);
 		return 9;
 	}
-	else if (hio_comp_bcstr_limited(pp, "[:print:]", 9, 0) == 0) 
+	else if (hio_comp_bcstr_limited(pp, "[:print:]", 9, 0) == 0)
 	{
 		*matched = hio_is_bch_print(sc);
 		return 9;
 	}
-	else if (hio_comp_bcstr_limited(pp, "[:graph:]", 9, 0) == 0) 
+	else if (hio_comp_bcstr_limited(pp, "[:graph:]", 9, 0) == 0)
 	{
 		*matched = hio_is_bch_graph(sc);
 		return 9;
 	}
-	else if (hio_comp_bcstr_limited(pp, "[:cntrl:]", 9, 0) == 0) 
+	else if (hio_comp_bcstr_limited(pp, "[:cntrl:]", 9, 0) == 0)
 	{
 		*matched = hio_is_bch_cntrl(sc);
 		return 9;
 	}
-	else if (hio_comp_bcstr_limited(pp, "[:punct:]", 9, 0) == 0) 
+	else if (hio_comp_bcstr_limited(pp, "[:punct:]", 9, 0) == 0)
 	{
 		*matched = hio_is_bch_punct(sc);
 		return 9;
@@ -169,7 +169,7 @@ int hio_comp_uchars (const hio_uch_t* str1, hio_oow_t len1, const hio_uch_t* str
 		while (str1 < end1)
 		{
 			c1 = hio_to_uch_lower(*str1);
-			if (str2 < end2) 
+			if (str2 < end2)
 			{
 				c2 = hio_to_uch_lower(*str2);
 				if (c1 > c2) return 1;
@@ -184,7 +184,7 @@ int hio_comp_uchars (const hio_uch_t* str1, hio_oow_t len1, const hio_uch_t* str
 		while (str1 < end1)
 		{
 			c1 = *str1;
-			if (str2 < end2) 
+			if (str2 < end2)
 			{
 				c2 = *str2;
 				if (c1 > c2) return 1;
@@ -209,7 +209,7 @@ int hio_comp_bchars (const hio_bch_t* str1, hio_oow_t len1, const hio_bch_t* str
 		while (str1 < end1)
 		{
 			c1 = hio_to_bch_lower(*str1);
-			if (str2 < end2) 
+			if (str2 < end2)
 			{
 				c2 = hio_to_bch_lower(*str2);
 				if (c1 > c2) return 1;
@@ -224,7 +224,7 @@ int hio_comp_bchars (const hio_bch_t* str1, hio_oow_t len1, const hio_bch_t* str
 		while (str1 < end1)
 		{
 			c1 = *str1;
-			if (str2 < end2) 
+			if (str2 < end2)
 			{
 				c2 = *str2;
 				if (c1 > c2) return 1;
@@ -342,14 +342,14 @@ int hio_comp_uchars_ucstr (const hio_uch_t* str1, hio_oow_t len, const hio_uch_t
 {
 	/* for "abc\0" of length 4 vs "abc", the fourth character
 	 * of the first string is equal to the terminating null of
-	 * the second string. the first string is still considered 
+	 * the second string. the first string is still considered
 	 * bigger */
 	if (ignorecase)
 	{
 		const hio_uch_t* end = str1 + len;
 		hio_uch_t c1;
 		hio_uch_t c2;
-		while (str1 < end && *str2 != '\0') 
+		while (str1 < end && *str2 != '\0')
 		{
 			c1 = hio_to_uch_lower(*str1);
 			c2 = hio_to_uch_lower(*str2);
@@ -361,7 +361,7 @@ int hio_comp_uchars_ucstr (const hio_uch_t* str1, hio_oow_t len, const hio_uch_t
 	else
 	{
 		const hio_uch_t* end = str1 + len;
-		while (str1 < end && *str2 != '\0') 
+		while (str1 < end && *str2 != '\0')
 		{
 			if (*str1 != *str2) return ((hio_uchu_t)*str1 > (hio_uchu_t)*str2)? 1: -1;
 			str1++; str2++;
@@ -374,14 +374,14 @@ int hio_comp_bchars_bcstr (const hio_bch_t* str1, hio_oow_t len, const hio_bch_t
 {
 	/* for "abc\0" of length 4 vs "abc", the fourth character
 	 * of the first string is equal to the terminating null of
-	 * the second string. the first string is still considered 
+	 * the second string. the first string is still considered
 	 * bigger */
 	if (ignorecase)
 	{
 		const hio_bch_t* end = str1 + len;
 		hio_bch_t c1;
 		hio_bch_t c2;
-		while (str1 < end && *str2 != '\0') 
+		while (str1 < end && *str2 != '\0')
 		{
 			c1 = hio_to_bch_lower(*str1);
 			c2 = hio_to_bch_lower(*str2);
@@ -393,7 +393,7 @@ int hio_comp_bchars_bcstr (const hio_bch_t* str1, hio_oow_t len, const hio_bch_t
 	else
 	{
 		const hio_bch_t* end = str1 + len;
-		while (str1 < end && *str2 != '\0') 
+		while (str1 < end && *str2 != '\0')
 		{
 			if (*str1 != *str2) return ((hio_bchu_t)*str1 > (hio_bchu_t)*str2)? 1: -1;
 			str1++; str2++;
@@ -416,7 +416,7 @@ hio_oow_t hio_concat_uchars_to_ucstr (hio_uch_t* buf, hio_oow_t bsz, const hio_u
 
 	end = str + len;
 
-	while (p < p2) 
+	while (p < p2)
 	{
 		if (str >= end) break;
 		*p++ = *str++;
@@ -440,7 +440,7 @@ hio_oow_t hio_concat_bchars_to_bcstr (hio_bch_t* buf, hio_oow_t bsz, const hio_b
 
 	end = str + len;
 
-	while (p < p2) 
+	while (p < p2)
 	{
 		if (str >= end) break;
 		*p++ = *str++;
@@ -461,7 +461,7 @@ hio_oow_t hio_concat_ucstr (hio_uch_t* buf, hio_oow_t bsz, const hio_uch_t* str)
 	p = buf + blen;
 	p2 = buf + bsz - 1;
 
-	while (p < p2) 
+	while (p < p2)
 	{
 		if (*str == '\0') break;
 		*p++ = *str++;
@@ -482,7 +482,7 @@ hio_oow_t hio_concat_bcstr (hio_bch_t* buf, hio_oow_t bsz, const hio_bch_t* str)
 	p = buf + blen;
 	p2 = buf + bsz - 1;
 
-	while (p < p2) 
+	while (p < p2)
 	{
 		if (*str == '\0') break;
 		*p++ = *str++;
@@ -743,15 +743,15 @@ hio_oow_t hio_copy_fmt_ucses_to_ucstr (hio_uch_t* buf, hio_oow_t bsz, const hio_
 	hio_uch_t* b = buf;
 	hio_uch_t* end = buf + bsz - 1;
 	const hio_uch_t* f = fmt;
- 
+
 	if (bsz <= 0) return 0;
- 
+
 	while (*f != '\0')
 	{
 		if (*f == '\\')
 		{
 			/* get the escaped character and treat it normally.
-			 * if the escaper is the last character, treat it 
+			 * if the escaper is the last character, treat it
 			 * normally also. */
 			if (f[1] != '\0') f++;
 		}
@@ -761,24 +761,24 @@ hio_oow_t hio_copy_fmt_ucses_to_ucstr (hio_uch_t* buf, hio_oow_t bsz, const hio_
 			{
 				const hio_uch_t* tmp, * tmpend;
 				hio_oow_t idx = 0;
- 
+
 				tmp = f;
 				f += 2;
- 
+
 				do idx = idx * 10 + (*f++ - '0');
 				while (*f >= '0' && *f <= '9');
-	
+
 				if (*f != '}')
 				{
 					f = tmp;
 					goto normal;
 				}
- 
+
 				f++;
-				
+
 				tmp = str[idx].ptr;
 				tmpend = tmp + str[idx].len;
- 
+
 				while (tmp < tmpend)
 				{
 					if (b >= end) goto fini;
@@ -788,12 +788,12 @@ hio_oow_t hio_copy_fmt_ucses_to_ucstr (hio_uch_t* buf, hio_oow_t bsz, const hio_
 			}
 			else if (f[1] == '$') f++;
 		}
- 
+
 	normal:
 		if (b >= end) break;
 		*b++ = *f++;
 	}
- 
+
 fini:
 	*b = '\0';
 	return b - buf;
@@ -804,15 +804,15 @@ hio_oow_t hio_copy_fmt_bcses_to_bcstr (hio_bch_t* buf, hio_oow_t bsz, const hio_
 	hio_bch_t* b = buf;
 	hio_bch_t* end = buf + bsz - 1;
 	const hio_bch_t* f = fmt;
- 
+
 	if (bsz <= 0) return 0;
- 
+
 	while (*f != '\0')
 	{
 		if (*f == '\\')
 		{
 			/* get the escaped character and treat it normally.
-			 * if the escaper is the last character, treat it 
+			 * if the escaper is the last character, treat it
 			 * normally also. */
 			if (f[1] != '\0') f++;
 		}
@@ -822,24 +822,24 @@ hio_oow_t hio_copy_fmt_bcses_to_bcstr (hio_bch_t* buf, hio_oow_t bsz, const hio_
 			{
 				const hio_bch_t* tmp, * tmpend;
 				hio_oow_t idx = 0;
- 
+
 				tmp = f;
 				f += 2;
- 
+
 				do idx = idx * 10 + (*f++ - '0');
 				while (*f >= '0' && *f <= '9');
-	
+
 				if (*f != '}')
 				{
 					f = tmp;
 					goto normal;
 				}
- 
+
 				f++;
-				
+
 				tmp = str[idx].ptr;
 				tmpend = tmp + str[idx].len;
- 
+
 				while (tmp < tmpend)
 				{
 					if (b >= end) goto fini;
@@ -849,12 +849,12 @@ hio_oow_t hio_copy_fmt_bcses_to_bcstr (hio_bch_t* buf, hio_oow_t bsz, const hio_
 			}
 			else if (f[1] == '$') f++;
 		}
- 
+
 	normal:
 		if (b >= end) break;
 		*b++ = *f++;
 	}
- 
+
 fini:
 	*b = '\0';
 	return b - buf;
@@ -865,14 +865,14 @@ hio_oow_t hio_count_ucstr (const hio_uch_t* str)
 	const hio_uch_t* ptr = str;
 	while (*ptr != '\0') ptr++;
 	return ptr - str;
-} 
+}
 
 hio_oow_t hio_count_bcstr (const hio_bch_t* str)
 {
 	const hio_bch_t* ptr = str;
 	while (*ptr != '\0') ptr++;
 	return ptr - str;
-} 
+}
 
 hio_oow_t hio_count_ucstr_limited (const hio_uch_t* str, hio_oow_t maxlen)
 {
@@ -1048,13 +1048,13 @@ hio_uch_t* hio_find_uchars_in_uchars (const hio_uch_t* str, hio_oow_t strsz, con
 
 	if (subsz == 0) return (hio_uch_t*)str;
 	if (strsz < subsz) return HIO_NULL;
-	
+
 	end = str + strsz - subsz;
 	subp = sub + subsz;
 
 	if (HIO_UNLIKELY(ignorecase))
 	{
-		while (str <= end) 
+		while (str <= end)
 		{
 			const hio_uch_t* x = str;
 			const hio_uch_t* y = sub;
@@ -1071,7 +1071,7 @@ hio_uch_t* hio_find_uchars_in_uchars (const hio_uch_t* str, hio_oow_t strsz, con
 	}
 	else
 	{
-		while (str <= end) 
+		while (str <= end)
 		{
 			const hio_uch_t* x = str;
 			const hio_uch_t* y = sub;
@@ -1096,13 +1096,13 @@ hio_bch_t* hio_find_bchars_in_bchars (const hio_bch_t* str, hio_oow_t strsz, con
 
 	if (subsz == 0) return (hio_bch_t*)str;
 	if (strsz < subsz) return HIO_NULL;
-	
+
 	end = str + strsz - subsz;
 	subp = sub + subsz;
 
 	if (HIO_UNLIKELY(ignorecase))
 	{
-		while (str <= end) 
+		while (str <= end)
 		{
 			const hio_bch_t* x = str;
 			const hio_bch_t* y = sub;
@@ -1119,7 +1119,7 @@ hio_bch_t* hio_find_bchars_in_bchars (const hio_bch_t* str, hio_oow_t strsz, con
 	}
 	else
 	{
-		while (str <= end) 
+		while (str <= end)
 		{
 			const hio_bch_t* x = str;
 			const hio_bch_t* y = sub;
@@ -1150,12 +1150,12 @@ hio_uch_t* hio_rfind_uchars_in_uchars (const hio_uch_t* str, hio_oow_t strsz, co
 
 	if (HIO_UNLIKELY(ignorecase))
 	{
-		while (p >= str) 
+		while (p >= str)
 		{
 			const hio_uch_t* x = p;
 			const hio_uch_t* y = sub;
 
-			while (1) 
+			while (1)
 			{
 				if (y >= subp) return (hio_uch_t*)p;
 				if (hio_to_uch_lower(*x) != hio_to_uch_lower(*y)) break;
@@ -1167,17 +1167,17 @@ hio_uch_t* hio_rfind_uchars_in_uchars (const hio_uch_t* str, hio_oow_t strsz, co
 	}
 	else
 	{
-		while (p >= str) 
+		while (p >= str)
 		{
 			const hio_uch_t* x = p;
 			const hio_uch_t* y = sub;
 
-			while (1) 
+			while (1)
 			{
 				if (y >= subp) return (hio_uch_t*)p;
 				if (*x != *y) break;
 				x++; y++;
-			}	
+			}
 
 			p--;
 		}
@@ -1198,12 +1198,12 @@ hio_bch_t* hio_rfind_bchars_in_bchars (const hio_bch_t* str, hio_oow_t strsz, co
 
 	if (HIO_UNLIKELY(ignorecase))
 	{
-		while (p >= str) 
+		while (p >= str)
 		{
 			const hio_bch_t* x = p;
 			const hio_bch_t* y = sub;
 
-			while (1) 
+			while (1)
 			{
 				if (y >= subp) return (hio_bch_t*)p;
 				if (hio_to_bch_lower(*x) != hio_to_bch_lower(*y)) break;
@@ -1215,17 +1215,17 @@ hio_bch_t* hio_rfind_bchars_in_bchars (const hio_bch_t* str, hio_oow_t strsz, co
 	}
 	else
 	{
-		while (p >= str) 
+		while (p >= str)
 		{
 			const hio_bch_t* x = p;
 			const hio_bch_t* y = sub;
 
-			while (1) 
+			while (1)
 			{
 				if (y >= subp) return (hio_bch_t*)p;
 				if (*x != *y) break;
 				x++; y++;
-			}	
+			}
 
 			p--;
 		}
@@ -1240,30 +1240,30 @@ hio_oow_t hio_compact_uchars (hio_uch_t* str, hio_oow_t len)
 	int followed_by_space = 0;
 	int state = 0;
 
-	while (p < end) 
+	while (p < end)
 	{
-		if (state == 0) 
+		if (state == 0)
 		{
-			if (!(*p)) 
+			if (!(*p))
 			{
 				*q++ = *p;
 				state = 1;
 			}
 		}
-		else if (state == 1) 
+		else if (state == 1)
 		{
-			if ((*p)) 
+			if ((*p))
 			{
-				if (!followed_by_space) 
+				if (!followed_by_space)
 				{
 					followed_by_space = 1;
 					*q++ = *p;
 				}
 			}
-			else 
+			else
 			{
 				followed_by_space = 0;
-				*q++ = *p;	
+				*q++ = *p;
 			}
 		}
 
@@ -1279,30 +1279,30 @@ hio_oow_t hio_compact_bchars (hio_bch_t* str, hio_oow_t len)
 	int followed_by_space = 0;
 	int state = 0;
 
-	while (p < end) 
+	while (p < end)
 	{
-		if (state == 0) 
+		if (state == 0)
 		{
-			if (!(*p)) 
+			if (!(*p))
 			{
 				*q++ = *p;
 				state = 1;
 			}
 		}
-		else if (state == 1) 
+		else if (state == 1)
 		{
-			if ((*p)) 
+			if ((*p))
 			{
-				if (!followed_by_space) 
+				if (!followed_by_space)
 				{
 					followed_by_space = 1;
 					*q++ = *p;
 				}
 			}
-			else 
+			else
 			{
 				followed_by_space = 0;
-				*q++ = *p;	
+				*q++ = *p;
 			}
 		}
 
@@ -1401,11 +1401,11 @@ hio_uch_t* hio_trim_uchars (const hio_uch_t* str, hio_oow_t* len, int flags)
 
 		if (e)
 		{
-			if (flags & HIO_TRIM_UCHARS_RIGHT) 
+			if (flags & HIO_TRIM_UCHARS_RIGHT)
 			{
 				*len -= end - e - 1;
 			}
-			if (flags & HIO_TRIM_UCHARS_LEFT) 
+			if (flags & HIO_TRIM_UCHARS_LEFT)
 			{
 				*len -= s - str;
 				str = s;
@@ -1414,7 +1414,7 @@ hio_uch_t* hio_trim_uchars (const hio_uch_t* str, hio_oow_t* len, int flags)
 		else
 		{
 			/* the entire string need to be deleted */
-			if ((flags & HIO_TRIM_UCHARS_RIGHT) || 
+			if ((flags & HIO_TRIM_UCHARS_RIGHT) ||
 			    (flags & HIO_TRIM_UCHARS_LEFT)) *len = 0;
 		}
 	}
@@ -1443,11 +1443,11 @@ hio_bch_t* hio_trim_bchars (const hio_bch_t* str, hio_oow_t* len, int flags)
 
 		if (e)
 		{
-			if (flags & HIO_TRIM_BCHARS_RIGHT) 
+			if (flags & HIO_TRIM_BCHARS_RIGHT)
 			{
 				*len -= end - e - 1;
 			}
-			if (flags & HIO_TRIM_BCHARS_LEFT) 
+			if (flags & HIO_TRIM_BCHARS_LEFT)
 			{
 				*len -= s - str;
 				str = s;
@@ -1456,7 +1456,7 @@ hio_bch_t* hio_trim_bchars (const hio_bch_t* str, hio_oow_t* len, int flags)
 		else
 		{
 			/* the entire string need to be deleted */
-			if ((flags & HIO_TRIM_BCHARS_RIGHT) || 
+			if ((flags & HIO_TRIM_BCHARS_RIGHT) ||
 			    (flags & HIO_TRIM_BCHARS_LEFT)) *len = 0;
 		}
 	}
@@ -1472,35 +1472,35 @@ int hio_split_ucstr (hio_uch_t* s, const hio_uch_t* delim, hio_uch_t lquote, hio
 	int cnt = 0;
 
 	if (delim == HIO_NULL) delim_mode = 0;
-	else 
+	else
 	{
 		delim_mode = 1;
 		for (d = (hio_uch_t*)delim; *d != '\0'; d++)
 			if (!hio_is_uch_space(*d)) delim_mode = 2;
 	}
 
-	if (delim_mode == 0) 
+	if (delim_mode == 0)
 	{
 		/* skip preceding space characters */
 		while (hio_is_uch_space(*p)) p++;
 
 		/* when 0 is given as "delim", it has an effect of cutting
 		   preceding and trailing space characters off "s". */
-		if (lquote != '\0' && *p == lquote) 
+		if (lquote != '\0' && *p == lquote)
 		{
 			hio_copy_ucstr_unlimited (p, p + 1);
 
-			for (;;) 
+			for (;;)
 			{
 				if (*p == '\0') return -1;
 
-				if (escape != '\0' && *p == escape) 
+				if (escape != '\0' && *p == escape)
 				{
 					hio_copy_ucstr_unlimited (p, p + 1);
 				}
-				else 
+				else
 				{
-					if (*p == rquote) 
+					if (*p == rquote)
 					{
 						p++;
 						break;
@@ -1515,18 +1515,18 @@ int hio_split_ucstr (hio_uch_t* s, const hio_uch_t* delim, hio_uch_t lquote, hio
 			if (*p != '\0') return -1;
 
 			if (sp == 0 && ep == 0) s[0] = '\0';
-			else 
+			else
 			{
 				ep[1] = '\0';
 				if (s != (hio_uch_t*)sp) hio_copy_ucstr_unlimited (s, sp);
 				cnt++;
 			}
 		}
-		else 
+		else
 		{
-			while (*p) 
+			while (*p)
 			{
-				if (!hio_is_uch_space(*p)) 
+				if (!hio_is_uch_space(*p))
 				{
 					if (sp == 0) sp = p;
 					ep = p;
@@ -1535,7 +1535,7 @@ int hio_split_ucstr (hio_uch_t* s, const hio_uch_t* delim, hio_uch_t lquote, hio
 			}
 
 			if (sp == 0 && ep == 0) s[0] = '\0';
-			else 
+			else
 			{
 				ep[1] = '\0';
 				if (s != (hio_uch_t*)sp) hio_copy_ucstr_unlimited (s, sp);
@@ -1543,31 +1543,31 @@ int hio_split_ucstr (hio_uch_t* s, const hio_uch_t* delim, hio_uch_t lquote, hio
 			}
 		}
 	}
-	else if (delim_mode == 1) 
+	else if (delim_mode == 1)
 	{
 		hio_uch_t* o;
 
-		while (*p) 
+		while (*p)
 		{
 			o = p;
 			while (hio_is_uch_space(*p)) p++;
 			if (o != p) { hio_copy_ucstr_unlimited (o, p); p = o; }
 
-			if (lquote != '\0' && *p == lquote) 
+			if (lquote != '\0' && *p == lquote)
 			{
 				hio_copy_ucstr_unlimited (p, p + 1);
 
-				for (;;) 
+				for (;;)
 				{
 					if (*p == '\0') return -1;
 
-					if (escape != '\0' && *p == escape) 
+					if (escape != '\0' && *p == escape)
 					{
 						hio_copy_ucstr_unlimited (p, p + 1);
 					}
-					else 
+					else
 					{
-						if (*p == rquote) 
+						if (*p == rquote)
 						{
 							*p++ = '\0';
 							cnt++;
@@ -1577,17 +1577,17 @@ int hio_split_ucstr (hio_uch_t* s, const hio_uch_t* delim, hio_uch_t lquote, hio
 					p++;
 				}
 			}
-			else 
+			else
 			{
 				o = p;
-				for (;;) 
+				for (;;)
 				{
-					if (*p == '\0') 
+					if (*p == '\0')
 					{
 						if (o != p) cnt++;
 						break;
 					}
-					if (hio_is_uch_space(*p)) 
+					if (hio_is_uch_space(*p))
 					{
 						*p++ = '\0';
 						cnt++;
@@ -1603,27 +1603,27 @@ int hio_split_ucstr (hio_uch_t* s, const hio_uch_t* delim, hio_uch_t lquote, hio
 		hio_uch_t* o;
 		int ok;
 
-		while (*p != '\0') 
+		while (*p != '\0')
 		{
 			o = p;
 			while (hio_is_uch_space(*p)) p++;
 			if (o != p) { hio_copy_ucstr_unlimited (o, p); p = o; }
 
-			if (lquote != '\0' && *p == lquote) 
+			if (lquote != '\0' && *p == lquote)
 			{
 				hio_copy_ucstr_unlimited (p, p + 1);
 
-				for (;;) 
+				for (;;)
 				{
 					if (*p == '\0') return -1;
 
-					if (escape != '\0' && *p == escape) 
+					if (escape != '\0' && *p == escape)
 					{
 						hio_copy_ucstr_unlimited (p, p + 1);
 					}
-					else 
+					else
 					{
-						if (*p == rquote) 
+						if (*p == rquote)
 						{
 							*p++ = '\0';
 							cnt++;
@@ -1636,9 +1636,9 @@ int hio_split_ucstr (hio_uch_t* s, const hio_uch_t* delim, hio_uch_t lquote, hio
 				ok = 0;
 				while (hio_is_uch_space(*p)) p++;
 				if (*p == '\0') ok = 1;
-				for (d = (hio_uch_t*)delim; *d != '\0'; d++) 
+				for (d = (hio_uch_t*)delim; *d != '\0'; d++)
 				{
-					if (*p == *d) 
+					if (*p == *d)
 					{
 						ok = 1;
 						hio_copy_ucstr_unlimited (p, p + 1);
@@ -1647,15 +1647,15 @@ int hio_split_ucstr (hio_uch_t* s, const hio_uch_t* delim, hio_uch_t lquote, hio
 				}
 				if (ok == 0) return -1;
 			}
-			else 
+			else
 			{
 				o = p; sp = ep = 0;
 
-				for (;;) 
+				for (;;)
 				{
-					if (*p == '\0') 
+					if (*p == '\0')
 					{
-						if (ep) 
+						if (ep)
 						{
 							ep[1] = '\0';
 							p = &ep[1];
@@ -1663,16 +1663,16 @@ int hio_split_ucstr (hio_uch_t* s, const hio_uch_t* delim, hio_uch_t lquote, hio
 						cnt++;
 						break;
 					}
-					for (d = (hio_uch_t*)delim; *d != '\0'; d++) 
+					for (d = (hio_uch_t*)delim; *d != '\0'; d++)
 					{
-						if (*p == *d)  
+						if (*p == *d)
 						{
-							if (sp == HIO_NULL) 
+							if (sp == HIO_NULL)
 							{
 								hio_copy_ucstr_unlimited (o, p); p = o;
 								*p++ = '\0';
 							}
-							else 
+							else
 							{
 								hio_copy_ucstr_unlimited (&ep[1], p);
 								hio_copy_ucstr_unlimited (o, sp);
@@ -1686,7 +1686,7 @@ int hio_split_ucstr (hio_uch_t* s, const hio_uch_t* delim, hio_uch_t lquote, hio
 						}
 					}
 
-					if (!hio_is_uch_space(*p)) 
+					if (!hio_is_uch_space(*p))
 					{
 						if (sp == HIO_NULL) sp = p;
 						ep = p;
@@ -1710,35 +1710,35 @@ int hio_split_bcstr (hio_bch_t* s, const hio_bch_t* delim, hio_bch_t lquote, hio
 	int cnt = 0;
 
 	if (delim == HIO_NULL) delim_mode = 0;
-	else 
+	else
 	{
 		delim_mode = 1;
 		for (d = (hio_bch_t*)delim; *d != '\0'; d++)
 			if (!hio_is_bch_space(*d)) delim_mode = 2;
 	}
 
-	if (delim_mode == 0) 
+	if (delim_mode == 0)
 	{
 		/* skip preceding space characters */
 		while (hio_is_bch_space(*p)) p++;
 
 		/* when 0 is given as "delim", it has an effect of cutting
 		   preceding and trailing space characters off "s". */
-		if (lquote != '\0' && *p == lquote) 
+		if (lquote != '\0' && *p == lquote)
 		{
 			hio_copy_bcstr_unlimited (p, p + 1);
 
-			for (;;) 
+			for (;;)
 			{
 				if (*p == '\0') return -1;
 
-				if (escape != '\0' && *p == escape) 
+				if (escape != '\0' && *p == escape)
 				{
 					hio_copy_bcstr_unlimited (p, p + 1);
 				}
-				else 
+				else
 				{
-					if (*p == rquote) 
+					if (*p == rquote)
 					{
 						p++;
 						break;
@@ -1753,18 +1753,18 @@ int hio_split_bcstr (hio_bch_t* s, const hio_bch_t* delim, hio_bch_t lquote, hio
 			if (*p != '\0') return -1;
 
 			if (sp == 0 && ep == 0) s[0] = '\0';
-			else 
+			else
 			{
 				ep[1] = '\0';
 				if (s != (hio_bch_t*)sp) hio_copy_bcstr_unlimited (s, sp);
 				cnt++;
 			}
 		}
-		else 
+		else
 		{
-			while (*p) 
+			while (*p)
 			{
-				if (!hio_is_bch_space(*p)) 
+				if (!hio_is_bch_space(*p))
 				{
 					if (sp == 0) sp = p;
 					ep = p;
@@ -1773,7 +1773,7 @@ int hio_split_bcstr (hio_bch_t* s, const hio_bch_t* delim, hio_bch_t lquote, hio
 			}
 
 			if (sp == 0 && ep == 0) s[0] = '\0';
-			else 
+			else
 			{
 				ep[1] = '\0';
 				if (s != (hio_bch_t*)sp) hio_copy_bcstr_unlimited (s, sp);
@@ -1781,31 +1781,31 @@ int hio_split_bcstr (hio_bch_t* s, const hio_bch_t* delim, hio_bch_t lquote, hio
 			}
 		}
 	}
-	else if (delim_mode == 1) 
+	else if (delim_mode == 1)
 	{
 		hio_bch_t* o;
 
-		while (*p) 
+		while (*p)
 		{
 			o = p;
 			while (hio_is_bch_space(*p)) p++;
 			if (o != p) { hio_copy_bcstr_unlimited (o, p); p = o; }
 
-			if (lquote != '\0' && *p == lquote) 
+			if (lquote != '\0' && *p == lquote)
 			{
 				hio_copy_bcstr_unlimited (p, p + 1);
 
-				for (;;) 
+				for (;;)
 				{
 					if (*p == '\0') return -1;
 
-					if (escape != '\0' && *p == escape) 
+					if (escape != '\0' && *p == escape)
 					{
 						hio_copy_bcstr_unlimited (p, p + 1);
 					}
-					else 
+					else
 					{
-						if (*p == rquote) 
+						if (*p == rquote)
 						{
 							*p++ = '\0';
 							cnt++;
@@ -1815,17 +1815,17 @@ int hio_split_bcstr (hio_bch_t* s, const hio_bch_t* delim, hio_bch_t lquote, hio
 					p++;
 				}
 			}
-			else 
+			else
 			{
 				o = p;
-				for (;;) 
+				for (;;)
 				{
-					if (*p == '\0') 
+					if (*p == '\0')
 					{
 						if (o != p) cnt++;
 						break;
 					}
-					if (hio_is_bch_space(*p)) 
+					if (hio_is_bch_space(*p))
 					{
 						*p++ = '\0';
 						cnt++;
@@ -1841,27 +1841,27 @@ int hio_split_bcstr (hio_bch_t* s, const hio_bch_t* delim, hio_bch_t lquote, hio
 		hio_bch_t* o;
 		int ok;
 
-		while (*p != '\0') 
+		while (*p != '\0')
 		{
 			o = p;
 			while (hio_is_bch_space(*p)) p++;
 			if (o != p) { hio_copy_bcstr_unlimited (o, p); p = o; }
 
-			if (lquote != '\0' && *p == lquote) 
+			if (lquote != '\0' && *p == lquote)
 			{
 				hio_copy_bcstr_unlimited (p, p + 1);
 
-				for (;;) 
+				for (;;)
 				{
 					if (*p == '\0') return -1;
 
-					if (escape != '\0' && *p == escape) 
+					if (escape != '\0' && *p == escape)
 					{
 						hio_copy_bcstr_unlimited (p, p + 1);
 					}
-					else 
+					else
 					{
-						if (*p == rquote) 
+						if (*p == rquote)
 						{
 							*p++ = '\0';
 							cnt++;
@@ -1874,9 +1874,9 @@ int hio_split_bcstr (hio_bch_t* s, const hio_bch_t* delim, hio_bch_t lquote, hio
 				ok = 0;
 				while (hio_is_bch_space(*p)) p++;
 				if (*p == '\0') ok = 1;
-				for (d = (hio_bch_t*)delim; *d != '\0'; d++) 
+				for (d = (hio_bch_t*)delim; *d != '\0'; d++)
 				{
-					if (*p == *d) 
+					if (*p == *d)
 					{
 						ok = 1;
 						hio_copy_bcstr_unlimited (p, p + 1);
@@ -1885,15 +1885,15 @@ int hio_split_bcstr (hio_bch_t* s, const hio_bch_t* delim, hio_bch_t lquote, hio
 				}
 				if (ok == 0) return -1;
 			}
-			else 
+			else
 			{
 				o = p; sp = ep = 0;
 
-				for (;;) 
+				for (;;)
 				{
-					if (*p == '\0') 
+					if (*p == '\0')
 					{
-						if (ep) 
+						if (ep)
 						{
 							ep[1] = '\0';
 							p = &ep[1];
@@ -1901,16 +1901,16 @@ int hio_split_bcstr (hio_bch_t* s, const hio_bch_t* delim, hio_bch_t lquote, hio
 						cnt++;
 						break;
 					}
-					for (d = (hio_bch_t*)delim; *d != '\0'; d++) 
+					for (d = (hio_bch_t*)delim; *d != '\0'; d++)
 					{
-						if (*p == *d)  
+						if (*p == *d)
 						{
-							if (sp == HIO_NULL) 
+							if (sp == HIO_NULL)
 							{
 								hio_copy_bcstr_unlimited (o, p); p = o;
 								*p++ = '\0';
 							}
-							else 
+							else
 							{
 								hio_copy_bcstr_unlimited (&ep[1], p);
 								hio_copy_bcstr_unlimited (o, sp);
@@ -1924,7 +1924,7 @@ int hio_split_bcstr (hio_bch_t* s, const hio_bch_t* delim, hio_bch_t lquote, hio
 						}
 					}
 
-					if (!hio_is_bch_space(*p)) 
+					if (!hio_is_bch_space(*p))
 					{
 						if (sp == HIO_NULL) sp = p;
 						ep = p;
@@ -1946,7 +1946,7 @@ hio_uch_t* hio_tokenize_uchars (const hio_uch_t* s, hio_oow_t len, const hio_uch
 	const hio_uch_t* end = s + len;
 	const hio_uch_t* sp = HIO_NULL, * ep = HIO_NULL;
 	const hio_uch_t* delim_end = delim + delim_len;
-	hio_uch_t c; 
+	hio_uch_t c;
 	int delim_mode;
 
 #define __DELIM_NULL      0
@@ -1955,13 +1955,13 @@ hio_uch_t* hio_tokenize_uchars (const hio_uch_t* s, hio_oow_t len, const hio_uch
 #define __DELIM_NOSPACES  3
 #define __DELIM_COMPOSITE 4
 	if (delim == HIO_NULL) delim_mode = __DELIM_NULL;
-	else 
+	else
 	{
 		delim_mode = __DELIM_EMPTY;
 
-		for (d = delim; d < delim_end; d++) 
+		for (d = delim; d < delim_end; d++)
 		{
-			if (hio_is_uch_space(*d)) 
+			if (hio_is_uch_space(*d))
 			{
 				if (delim_mode == __DELIM_EMPTY)
 					delim_mode = __DELIM_SPACES;
@@ -1985,20 +1985,20 @@ hio_uch_t* hio_tokenize_uchars (const hio_uch_t* s, hio_oow_t len, const hio_uch
 
 		/* TODO: verify the following statement... */
 		if (delim_mode == __DELIM_SPACES && delim_len == 1 && delim[0] != ' ') delim_mode = __DELIM_NOSPACES;
-	}		
-	
-	if (delim_mode == __DELIM_NULL) 
-	{ 
-		/* when HIO_NULL is given as "delim", it trims off the 
+	}
+
+	if (delim_mode == __DELIM_NULL)
+	{
+		/* when HIO_NULL is given as "delim", it trims off the
 		 * leading and trailing spaces characters off the source
 		 * string "s" eventually. */
 
 		while (p < end && hio_is_uch_space(*p)) p++;
-		while (p < end) 
+		while (p < end)
 		{
 			c = *p;
 
-			if (!hio_is_uch_space(c)) 
+			if (!hio_is_uch_space(c))
 			{
 				if (sp == HIO_NULL) sp = p;
 				ep = p;
@@ -2016,13 +2016,13 @@ hio_uch_t* hio_tokenize_uchars (const hio_uch_t* s, hio_oow_t len, const hio_uch
 			ep = p++;
 		}
 	}
-	else if (delim_mode == __DELIM_SPACES) 
+	else if (delim_mode == __DELIM_SPACES)
 	{
 		/* each token is delimited by space characters. all leading
 		 * and trailing spaces are removed. */
 
 		while (p < end && hio_is_uch_space(*p)) p++;
-		while (p < end) 
+		while (p < end)
 		{
 			c = *p;
 			if (hio_is_uch_space(c)) break;
@@ -2033,14 +2033,14 @@ hio_uch_t* hio_tokenize_uchars (const hio_uch_t* s, hio_oow_t len, const hio_uch
 	}
 	else if (delim_mode == __DELIM_NOSPACES)
 	{
-		/* each token is delimited by one of charaters 
+		/* each token is delimited by one of charaters
 		 * in the delimeter set "delim". */
 		if (ignorecase)
 		{
-			while (p < end) 
+			while (p < end)
 			{
 				c = hio_to_uch_lower(*p);
-				for (d = delim; d < delim_end; d++) 
+				for (d = delim; d < delim_end; d++)
 				{
 					if (c == hio_to_uch_lower(*d)) goto exit_loop;
 				}
@@ -2051,10 +2051,10 @@ hio_uch_t* hio_tokenize_uchars (const hio_uch_t* s, hio_oow_t len, const hio_uch
 		}
 		else
 		{
-			while (p < end) 
+			while (p < end)
 			{
 				c = *p;
-				for (d = delim; d < delim_end; d++) 
+				for (d = delim; d < delim_end; d++)
 				{
 					if (c == *d) goto exit_loop;
 				}
@@ -2064,7 +2064,7 @@ hio_uch_t* hio_tokenize_uchars (const hio_uch_t* s, hio_oow_t len, const hio_uch
 			}
 		}
 	}
-	else /* if (delim_mode == __DELIM_COMPOSITE) */ 
+	else /* if (delim_mode == __DELIM_COMPOSITE) */
 	{
 		/* each token is delimited by one of non-space charaters
 		 * in the delimeter set "delim". however, all space characters
@@ -2072,15 +2072,15 @@ hio_uch_t* hio_tokenize_uchars (const hio_uch_t* s, hio_oow_t len, const hio_uch
 		while (p < end && hio_is_uch_space(*p)) p++;
 		if (ignorecase)
 		{
-			while (p < end) 
+			while (p < end)
 			{
 				c = hio_to_uch_lower(*p);
-				if (hio_is_uch_space(c)) 
+				if (hio_is_uch_space(c))
 				{
 					p++;
 					continue;
 				}
-				for (d = delim; d < delim_end; d++) 
+				for (d = delim; d < delim_end; d++)
 				{
 					if (c == hio_to_uch_lower(*d)) goto exit_loop;
 				}
@@ -2090,15 +2090,15 @@ hio_uch_t* hio_tokenize_uchars (const hio_uch_t* s, hio_oow_t len, const hio_uch
 		}
 		else
 		{
-			while (p < end) 
+			while (p < end)
 			{
 				c = *p;
-				if (hio_is_uch_space(c)) 
+				if (hio_is_uch_space(c))
 				{
 					p++;
 					continue;
 				}
-				for (d = delim; d < delim_end; d++) 
+				for (d = delim; d < delim_end; d++)
 				{
 					if (c == *d) goto exit_loop;
 				}
@@ -2109,12 +2109,12 @@ hio_uch_t* hio_tokenize_uchars (const hio_uch_t* s, hio_oow_t len, const hio_uch
 	}
 
 exit_loop:
-	if (sp == HIO_NULL) 
+	if (sp == HIO_NULL)
 	{
 		tok->ptr = HIO_NULL;
 		tok->len = (hio_oow_t)0;
 	}
-	else 
+	else
 	{
 		tok->ptr = (hio_uch_t*)sp;
 		tok->len = ep - sp + 1;
@@ -2132,7 +2132,7 @@ hio_bch_t* hio_tokenize_bchars (const hio_bch_t* s, hio_oow_t len, const hio_bch
 	const hio_bch_t* end = s + len;
 	const hio_bch_t* sp = HIO_NULL, * ep = HIO_NULL;
 	const hio_bch_t* delim_end = delim + delim_len;
-	hio_bch_t c; 
+	hio_bch_t c;
 	int delim_mode;
 
 #define __DELIM_NULL      0
@@ -2141,13 +2141,13 @@ hio_bch_t* hio_tokenize_bchars (const hio_bch_t* s, hio_oow_t len, const hio_bch
 #define __DELIM_NOSPACES  3
 #define __DELIM_COMPOSITE 4
 	if (delim == HIO_NULL) delim_mode = __DELIM_NULL;
-	else 
+	else
 	{
 		delim_mode = __DELIM_EMPTY;
 
-		for (d = delim; d < delim_end; d++) 
+		for (d = delim; d < delim_end; d++)
 		{
-			if (hio_is_bch_space(*d)) 
+			if (hio_is_bch_space(*d))
 			{
 				if (delim_mode == __DELIM_EMPTY)
 					delim_mode = __DELIM_SPACES;
@@ -2171,20 +2171,20 @@ hio_bch_t* hio_tokenize_bchars (const hio_bch_t* s, hio_oow_t len, const hio_bch
 
 		/* TODO: verify the following statement... */
 		if (delim_mode == __DELIM_SPACES && delim_len == 1 && delim[0] != ' ') delim_mode = __DELIM_NOSPACES;
-	}		
-	
-	if (delim_mode == __DELIM_NULL) 
-	{ 
-		/* when HIO_NULL is given as "delim", it trims off the 
+	}
+
+	if (delim_mode == __DELIM_NULL)
+	{
+		/* when HIO_NULL is given as "delim", it trims off the
 		 * leading and trailing spaces characters off the source
 		 * string "s" eventually. */
 
 		while (p < end && hio_is_bch_space(*p)) p++;
-		while (p < end) 
+		while (p < end)
 		{
 			c = *p;
 
-			if (!hio_is_bch_space(c)) 
+			if (!hio_is_bch_space(c))
 			{
 				if (sp == HIO_NULL) sp = p;
 				ep = p;
@@ -2202,13 +2202,13 @@ hio_bch_t* hio_tokenize_bchars (const hio_bch_t* s, hio_oow_t len, const hio_bch
 			ep = p++;
 		}
 	}
-	else if (delim_mode == __DELIM_SPACES) 
+	else if (delim_mode == __DELIM_SPACES)
 	{
 		/* each token is delimited by space characters. all leading
 		 * and trailing spaces are removed. */
 
 		while (p < end && hio_is_bch_space(*p)) p++;
-		while (p < end) 
+		while (p < end)
 		{
 			c = *p;
 			if (hio_is_bch_space(c)) break;
@@ -2219,14 +2219,14 @@ hio_bch_t* hio_tokenize_bchars (const hio_bch_t* s, hio_oow_t len, const hio_bch
 	}
 	else if (delim_mode == __DELIM_NOSPACES)
 	{
-		/* each token is delimited by one of charaters 
+		/* each token is delimited by one of charaters
 		 * in the delimeter set "delim". */
 		if (ignorecase)
 		{
-			while (p < end) 
+			while (p < end)
 			{
 				c = hio_to_bch_lower(*p);
-				for (d = delim; d < delim_end; d++) 
+				for (d = delim; d < delim_end; d++)
 				{
 					if (c == hio_to_bch_lower(*d)) goto exit_loop;
 				}
@@ -2237,10 +2237,10 @@ hio_bch_t* hio_tokenize_bchars (const hio_bch_t* s, hio_oow_t len, const hio_bch
 		}
 		else
 		{
-			while (p < end) 
+			while (p < end)
 			{
 				c = *p;
-				for (d = delim; d < delim_end; d++) 
+				for (d = delim; d < delim_end; d++)
 				{
 					if (c == *d) goto exit_loop;
 				}
@@ -2250,7 +2250,7 @@ hio_bch_t* hio_tokenize_bchars (const hio_bch_t* s, hio_oow_t len, const hio_bch
 			}
 		}
 	}
-	else /* if (delim_mode == __DELIM_COMPOSITE) */ 
+	else /* if (delim_mode == __DELIM_COMPOSITE) */
 	{
 		/* each token is delimited by one of non-space charaters
 		 * in the delimeter set "delim". however, all space characters
@@ -2258,15 +2258,15 @@ hio_bch_t* hio_tokenize_bchars (const hio_bch_t* s, hio_oow_t len, const hio_bch
 		while (p < end && hio_is_bch_space(*p)) p++;
 		if (ignorecase)
 		{
-			while (p < end) 
+			while (p < end)
 			{
 				c = hio_to_bch_lower(*p);
-				if (hio_is_bch_space(c)) 
+				if (hio_is_bch_space(c))
 				{
 					p++;
 					continue;
 				}
-				for (d = delim; d < delim_end; d++) 
+				for (d = delim; d < delim_end; d++)
 				{
 					if (c == hio_to_bch_lower(*d)) goto exit_loop;
 				}
@@ -2276,15 +2276,15 @@ hio_bch_t* hio_tokenize_bchars (const hio_bch_t* s, hio_oow_t len, const hio_bch
 		}
 		else
 		{
-			while (p < end) 
+			while (p < end)
 			{
 				c = *p;
-				if (hio_is_bch_space(c)) 
+				if (hio_is_bch_space(c))
 				{
 					p++;
 					continue;
 				}
-				for (d = delim; d < delim_end; d++) 
+				for (d = delim; d < delim_end; d++)
 				{
 					if (c == *d) goto exit_loop;
 				}
@@ -2295,12 +2295,12 @@ hio_bch_t* hio_tokenize_bchars (const hio_bch_t* s, hio_oow_t len, const hio_bch
 	}
 
 exit_loop:
-	if (sp == HIO_NULL) 
+	if (sp == HIO_NULL)
 	{
 		tok->ptr = HIO_NULL;
 		tok->len = (hio_oow_t)0;
 	}
-	else 
+	else
 	{
 		tok->ptr = (hio_bch_t*)sp;
 		tok->len = ep - sp + 1;
@@ -2323,7 +2323,7 @@ hio_oow_t hio_byte_to_ucstr (hio_uint8_t byte, hio_uch_t* buf, hio_oow_t size, i
 	radix_char = (flagged_radix & HIO_BYTE_TO_UCSTR_LOWERCASE)? 'a': 'A';
 	if (radix < 2 || radix > 36 || size <= 0) return 0;
 
-	do 
+	do
 	{
 		hio_uint8_t digit = byte % radix;
 		if (digit < 10) *p++ = digit + '0';
@@ -2332,9 +2332,9 @@ hio_oow_t hio_byte_to_ucstr (hio_uint8_t byte, hio_uch_t* buf, hio_oow_t size, i
 	}
 	while (byte > 0);
 
-	if (fill != '\0') 
+	if (fill != '\0')
 	{
-		while (size - 1 > p - tmp) 
+		while (size - 1 > p - tmp)
 		{
 			*bp++ = fill;
 			size--;
@@ -2357,7 +2357,7 @@ hio_oow_t hio_byte_to_bcstr (hio_uint8_t byte, hio_bch_t* buf, hio_oow_t size, i
 	radix_char = (flagged_radix & HIO_BYTE_TO_BCSTR_LOWERCASE)? 'a': 'A';
 	if (radix < 2 || radix > 36 || size <= 0) return 0;
 
-	do 
+	do
 	{
 		hio_uint8_t digit = byte % radix;
 		if (digit < 10) *p++ = digit + '0';
@@ -2366,9 +2366,9 @@ hio_oow_t hio_byte_to_bcstr (hio_uint8_t byte, hio_bch_t* buf, hio_oow_t size, i
 	}
 	while (byte > 0);
 
-	if (fill != '\0') 
+	if (fill != '\0')
 	{
-		while (size - 1 > p - tmp) 
+		while (size - 1 > p - tmp)
 		{
 			*bp++ = fill;
 			size--;
@@ -2392,14 +2392,14 @@ hio_oow_t hio_intmax_to_ucstr (hio_intmax_t value, int radix, const hio_uch_t* p
 	if (t == 0)
 	{
 		/* zero */
-		if (buf == HIO_NULL) 
+		if (buf == HIO_NULL)
 		{
-			/* if buf is not given, 
+			/* if buf is not given,
 			 * return the number of bytes required */
 			return prefix_len + 1;
 		}
 
-		if (size < prefix_len+1) 
+		if (size < prefix_len+1)
 		{
 			/* buffer too small */
 			return (hio_oow_t)-1;
@@ -2429,7 +2429,7 @@ hio_oow_t hio_intmax_to_ucstr (hio_intmax_t value, int radix, const hio_uch_t* p
 	t = value;
 	if (t < 0) t = -t;
 
-	while (t > 0) 
+	while (t > 0)
 	{
 		rem = t % radix;
 		if (rem >= 10)
@@ -2439,9 +2439,9 @@ hio_oow_t hio_intmax_to_ucstr (hio_intmax_t value, int radix, const hio_uch_t* p
 		t /= radix;
 	}
 
-	if (value < 0) 
+	if (value < 0)
 	{
-		for (i = 1; i <= prefix_len; i++) 
+		for (i = 1; i <= prefix_len; i++)
 		{
 			buf[i] = prefix[i-1];
 			len--;
@@ -2468,14 +2468,14 @@ hio_oow_t hio_intmax_to_bcstr (hio_intmax_t value, int radix, const hio_bch_t* p
 	if (t == 0)
 	{
 		/* zero */
-		if (buf == HIO_NULL) 
+		if (buf == HIO_NULL)
 		{
-			/* if buf is not given, 
+			/* if buf is not given,
 			 * return the number of bytes required */
 			return prefix_len + 1;
 		}
 
-		if (size < prefix_len+1) 
+		if (size < prefix_len+1)
 		{
 			/* buffer too small */
 			return (hio_oow_t)-1;
@@ -2505,7 +2505,7 @@ hio_oow_t hio_intmax_to_bcstr (hio_intmax_t value, int radix, const hio_bch_t* p
 	t = value;
 	if (t < 0) t = -t;
 
-	while (t > 0) 
+	while (t > 0)
 	{
 		rem = t % radix;
 		if (rem >= 10)
@@ -2515,9 +2515,9 @@ hio_oow_t hio_intmax_to_bcstr (hio_intmax_t value, int radix, const hio_bch_t* p
 		t /= radix;
 	}
 
-	if (value < 0) 
+	if (value < 0)
 	{
-		for (i = 1; i <= prefix_len; i++) 
+		for (i = 1; i <= prefix_len; i++)
 		{
 			buf[i] = prefix[i-1];
 			len--;
@@ -2544,14 +2544,14 @@ hio_oow_t hio_uintmax_to_ucstr (hio_uintmax_t value, int radix, const hio_uch_t*
 	if (t == 0)
 	{
 		/* zero */
-		if (buf == HIO_NULL) 
+		if (buf == HIO_NULL)
 		{
-			/* if buf is not given, 
+			/* if buf is not given,
 			 * return the number of bytes required */
 			return prefix_len + 1;
 		}
 
-		if (size < prefix_len+1) 
+		if (size < prefix_len+1)
 		{
 			/* buffer too small */
 			return (hio_oow_t)-1;
@@ -2581,7 +2581,7 @@ hio_oow_t hio_uintmax_to_ucstr (hio_uintmax_t value, int radix, const hio_uch_t*
 	t = value;
 	if (t < 0) t = -t;
 
-	while (t > 0) 
+	while (t > 0)
 	{
 		rem = t % radix;
 		if (rem >= 10)
@@ -2591,9 +2591,9 @@ hio_oow_t hio_uintmax_to_ucstr (hio_uintmax_t value, int radix, const hio_uch_t*
 		t /= radix;
 	}
 
-	if (value < 0) 
+	if (value < 0)
 	{
-		for (i = 1; i <= prefix_len; i++) 
+		for (i = 1; i <= prefix_len; i++)
 		{
 			buf[i] = prefix[i-1];
 			len--;
@@ -2620,14 +2620,14 @@ hio_oow_t hio_uintmax_to_bcstr (hio_uintmax_t value, int radix, const hio_bch_t*
 	if (t == 0)
 	{
 		/* zero */
-		if (buf == HIO_NULL) 
+		if (buf == HIO_NULL)
 		{
-			/* if buf is not given, 
+			/* if buf is not given,
 			 * return the number of bytes required */
 			return prefix_len + 1;
 		}
 
-		if (size < prefix_len+1) 
+		if (size < prefix_len+1)
 		{
 			/* buffer too small */
 			return (hio_oow_t)-1;
@@ -2657,7 +2657,7 @@ hio_oow_t hio_uintmax_to_bcstr (hio_uintmax_t value, int radix, const hio_bch_t*
 	t = value;
 	if (t < 0) t = -t;
 
-	while (t > 0) 
+	while (t > 0)
 	{
 		rem = t % radix;
 		if (rem >= 10)
@@ -2667,9 +2667,9 @@ hio_oow_t hio_uintmax_to_bcstr (hio_uintmax_t value, int radix, const hio_bch_t*
 		t /= radix;
 	}
 
-	if (value < 0) 
+	if (value < 0)
 	{
-		for (i = 1; i <= prefix_len; i++) 
+		for (i = 1; i <= prefix_len; i++)
 		{
 			buf[i] = prefix[i-1];
 			len--;
@@ -2693,7 +2693,7 @@ hio_intmax_t hio_uchars_to_intmax (const hio_uch_t* str, hio_oow_t len, int opti
 	int digit, negative = 0;
 	int base = HIO_UCHARS_TO_INTMAX_GET_OPTION_BASE(option);
 
-	p = str; 
+	p = str;
 	end = str + len;
 
 	if (HIO_UCHARS_TO_INTMAX_GET_OPTION_LTRIM(option))
@@ -2705,7 +2705,7 @@ hio_intmax_t hio_uchars_to_intmax (const hio_uch_t* str, hio_oow_t len, int opti
 	/* check for a sign */
 	while (p < end)
 	{
-		if (*p == '-') 
+		if (*p == '-')
 		{
 			negative = ~negative;
 			p++;
@@ -2716,9 +2716,9 @@ hio_intmax_t hio_uchars_to_intmax (const hio_uch_t* str, hio_oow_t len, int opti
 
 	/* check for a binary/octal/hexadecimal notation */
 	rem = end - p;
-	if (base == 0) 
+	if (base == 0)
 	{
-		if (rem >= 1 && *p == '0') 
+		if (rem >= 1 && *p == '0')
 		{
 			p++;
 
@@ -2726,7 +2726,7 @@ hio_intmax_t hio_uchars_to_intmax (const hio_uch_t* str, hio_oow_t len, int opti
 			else if (*p == 'x' || *p == 'X')
 			{
 				p++; base = 16;
-			} 
+			}
 			else if (*p == 'b' || *p == 'B')
 			{
 				p++; base = 2;
@@ -2734,14 +2734,14 @@ hio_intmax_t hio_uchars_to_intmax (const hio_uch_t* str, hio_oow_t len, int opti
 			else base = 8;
 		}
 		else base = 10;
-	} 
+	}
 	else if (rem >= 2 && base == 16)
 	{
-		if (*p == '0' && (*(p + 1) == 'x' || *(p + 1) == 'X')) p += 2; 
+		if (*p == '0' && (*(p + 1) == 'x' || *(p + 1) == 'X')) p += 2;
 	}
 	else if (rem >= 2 && base == 2)
 	{
-		if (*p == '0' && (*(p + 1) == 'b' || *(p + 1) == 'B')) p += 2; 
+		if (*p == '0' && (*(p + 1) == 'b' || *(p + 1) == 'B')) p += 2;
 	}
 
 	/* process the digits */
@@ -2785,7 +2785,7 @@ hio_intmax_t hio_uchars_to_intmax (const hio_uch_t* str, hio_oow_t len, int opti
 
 	/* base 8: at least a zero digit has been seen.
 	 * other case: p > pp to be able to have at least 1 meaningful digit. */
-	if (is_sober) *is_sober = (base == 8 || p > pp); 
+	if (is_sober) *is_sober = (base == 8 || p > pp);
 
 	if (HIO_UCHARS_TO_INTMAX_GET_OPTION_RTRIM(option))
 	{
@@ -2806,7 +2806,7 @@ hio_intmax_t hio_bchars_to_intmax (const hio_bch_t* str, hio_oow_t len, int opti
 	int digit, negative = 0;
 	int base = HIO_BCHARS_TO_INTMAX_GET_OPTION_BASE(option);
 
-	p = str; 
+	p = str;
 	end = str + len;
 
 	if (HIO_BCHARS_TO_INTMAX_GET_OPTION_LTRIM(option))
@@ -2818,7 +2818,7 @@ hio_intmax_t hio_bchars_to_intmax (const hio_bch_t* str, hio_oow_t len, int opti
 	/* check for a sign */
 	while (p < end)
 	{
-		if (*p == '-') 
+		if (*p == '-')
 		{
 			negative = ~negative;
 			p++;
@@ -2829,9 +2829,9 @@ hio_intmax_t hio_bchars_to_intmax (const hio_bch_t* str, hio_oow_t len, int opti
 
 	/* check for a binary/octal/hexadecimal notation */
 	rem = end - p;
-	if (base == 0) 
+	if (base == 0)
 	{
-		if (rem >= 1 && *p == '0') 
+		if (rem >= 1 && *p == '0')
 		{
 			p++;
 
@@ -2839,7 +2839,7 @@ hio_intmax_t hio_bchars_to_intmax (const hio_bch_t* str, hio_oow_t len, int opti
 			else if (*p == 'x' || *p == 'X')
 			{
 				p++; base = 16;
-			} 
+			}
 			else if (*p == 'b' || *p == 'B')
 			{
 				p++; base = 2;
@@ -2847,14 +2847,14 @@ hio_intmax_t hio_bchars_to_intmax (const hio_bch_t* str, hio_oow_t len, int opti
 			else base = 8;
 		}
 		else base = 10;
-	} 
+	}
 	else if (rem >= 2 && base == 16)
 	{
-		if (*p == '0' && (*(p + 1) == 'x' || *(p + 1) == 'X')) p += 2; 
+		if (*p == '0' && (*(p + 1) == 'x' || *(p + 1) == 'X')) p += 2;
 	}
 	else if (rem >= 2 && base == 2)
 	{
-		if (*p == '0' && (*(p + 1) == 'b' || *(p + 1) == 'B')) p += 2; 
+		if (*p == '0' && (*(p + 1) == 'b' || *(p + 1) == 'B')) p += 2;
 	}
 
 	/* process the digits */
@@ -2898,7 +2898,7 @@ hio_intmax_t hio_bchars_to_intmax (const hio_bch_t* str, hio_oow_t len, int opti
 
 	/* base 8: at least a zero digit has been seen.
 	 * other case: p > pp to be able to have at least 1 meaningful digit. */
-	if (is_sober) *is_sober = (base == 8 || p > pp); 
+	if (is_sober) *is_sober = (base == 8 || p > pp);
 
 	if (HIO_BCHARS_TO_INTMAX_GET_OPTION_RTRIM(option))
 	{
@@ -2919,7 +2919,7 @@ hio_uintmax_t hio_uchars_to_uintmax (const hio_uch_t* str, hio_oow_t len, int op
 	int digit;
 	int base = HIO_UCHARS_TO_UINTMAX_GET_OPTION_BASE(option);
 
-	p = str; 
+	p = str;
 	end = str + len;
 
 	if (HIO_UCHARS_TO_UINTMAX_GET_OPTION_LTRIM(option))
@@ -2937,9 +2937,9 @@ hio_uintmax_t hio_uchars_to_uintmax (const hio_uch_t* str, hio_oow_t len, int op
 
 	/* check for a binary/octal/hexadecimal notation */
 	rem = end - p;
-	if (base == 0) 
+	if (base == 0)
 	{
-		if (rem >= 1 && *p == '0') 
+		if (rem >= 1 && *p == '0')
 		{
 			p++;
 
@@ -2947,7 +2947,7 @@ hio_uintmax_t hio_uchars_to_uintmax (const hio_uch_t* str, hio_oow_t len, int op
 			else if (*p == 'x' || *p == 'X')
 			{
 				p++; base = 16;
-			} 
+			}
 			else if (*p == 'b' || *p == 'B')
 			{
 				p++; base = 2;
@@ -2955,14 +2955,14 @@ hio_uintmax_t hio_uchars_to_uintmax (const hio_uch_t* str, hio_oow_t len, int op
 			else base = 8;
 		}
 		else base = 10;
-	} 
+	}
 	else if (rem >= 2 && base == 16)
 	{
-		if (*p == '0' && (*(p + 1) == 'x' || *(p + 1) == 'X')) p += 2; 
+		if (*p == '0' && (*(p + 1) == 'x' || *(p + 1) == 'X')) p += 2;
 	}
 	else if (rem >= 2 && base == 2)
 	{
-		if (*p == '0' && (*(p + 1) == 'b' || *(p + 1) == 'B')) p += 2; 
+		if (*p == '0' && (*(p + 1) == 'b' || *(p + 1) == 'B')) p += 2;
 	}
 
 	/* process the digits */
@@ -3006,7 +3006,7 @@ hio_uintmax_t hio_uchars_to_uintmax (const hio_uch_t* str, hio_oow_t len, int op
 
 	/* base 8: at least a zero digit has been seen.
 	 * other case: p > pp to be able to have at least 1 meaningful digit. */
-	if (is_sober) *is_sober = (base == 8 || p > pp); 
+	if (is_sober) *is_sober = (base == 8 || p > pp);
 
 	if (HIO_UCHARS_TO_UINTMAX_GET_OPTION_RTRIM(option))
 	{
@@ -3027,7 +3027,7 @@ hio_uintmax_t hio_bchars_to_uintmax (const hio_bch_t* str, hio_oow_t len, int op
 	int digit;
 	int base = HIO_BCHARS_TO_UINTMAX_GET_OPTION_BASE(option);
 
-	p = str; 
+	p = str;
 	end = str + len;
 
 	if (HIO_BCHARS_TO_UINTMAX_GET_OPTION_LTRIM(option))
@@ -3045,9 +3045,9 @@ hio_uintmax_t hio_bchars_to_uintmax (const hio_bch_t* str, hio_oow_t len, int op
 
 	/* check for a binary/octal/hexadecimal notation */
 	rem = end - p;
-	if (base == 0) 
+	if (base == 0)
 	{
-		if (rem >= 1 && *p == '0') 
+		if (rem >= 1 && *p == '0')
 		{
 			p++;
 
@@ -3055,7 +3055,7 @@ hio_uintmax_t hio_bchars_to_uintmax (const hio_bch_t* str, hio_oow_t len, int op
 			else if (*p == 'x' || *p == 'X')
 			{
 				p++; base = 16;
-			} 
+			}
 			else if (*p == 'b' || *p == 'B')
 			{
 				p++; base = 2;
@@ -3063,14 +3063,14 @@ hio_uintmax_t hio_bchars_to_uintmax (const hio_bch_t* str, hio_oow_t len, int op
 			else base = 8;
 		}
 		else base = 10;
-	} 
+	}
 	else if (rem >= 2 && base == 16)
 	{
-		if (*p == '0' && (*(p + 1) == 'x' || *(p + 1) == 'X')) p += 2; 
+		if (*p == '0' && (*(p + 1) == 'x' || *(p + 1) == 'X')) p += 2;
 	}
 	else if (rem >= 2 && base == 2)
 	{
-		if (*p == '0' && (*(p + 1) == 'b' || *(p + 1) == 'B')) p += 2; 
+		if (*p == '0' && (*(p + 1) == 'b' || *(p + 1) == 'B')) p += 2;
 	}
 
 	/* process the digits */
@@ -3114,7 +3114,7 @@ hio_uintmax_t hio_bchars_to_uintmax (const hio_bch_t* str, hio_oow_t len, int op
 
 	/* base 8: at least a zero digit has been seen.
 	 * other case: p > pp to be able to have at least 1 meaningful digit. */
-	if (is_sober) *is_sober = (base == 8 || p > pp); 
+	if (is_sober) *is_sober = (base == 8 || p > pp);
 
 	if (HIO_BCHARS_TO_UINTMAX_GET_OPTION_RTRIM(option))
 	{
@@ -3134,16 +3134,16 @@ int hio_fnmat_uchars_i (const hio_uch_t* str, hio_oow_t slen, const hio_uch_t* p
 	const hio_uch_t* pe = ptn + plen;
 	hio_uch_t sc, pc, pc2;
 
-	while (1) 
+	while (1)
 	{
-		if (pp < pe && HIO_FNMAT_IS_ESC(*pp) && !(flags & HIO_FNMAT_NOESCAPE)) 
+		if (pp < pe && HIO_FNMAT_IS_ESC(*pp) && !(flags & HIO_FNMAT_NOESCAPE))
 		{
 			/* pattern is escaped and escaping is allowed. */
 
-			if ((++pp) >= pe) 
+			if ((++pp) >= pe)
 			{
-				/* 
-				 * the last character of the pattern is an WCS_ESC. 
+				/*
+				 * the last character of the pattern is an WCS_ESC.
 				 * matching is performed as if the end of the pattern is
 				 * reached just without an WCS_ESC.
 				 */
@@ -3154,27 +3154,27 @@ int hio_fnmat_uchars_i (const hio_uch_t* str, hio_oow_t slen, const hio_uch_t* p
 			if (sp >= se) return 0; /* premature string termination */
 
 			sc = *sp; pc = *pp; /* pc is just a normal character */
-			if ((flags & HIO_FNMAT_IGNORECASE) != 0) 
+			if ((flags & HIO_FNMAT_IGNORECASE) != 0)
 			{
 				/* make characters to lower-case */
 				sc = hio_to_uch_lower(sc);
-				pc = hio_to_uch_lower(pc); 
+				pc = hio_to_uch_lower(pc);
 			}
 
 			if (sc != pc) return 0;
-			sp++; pp++; 
+			sp++; pp++;
 			continue;
 		}
-		if (pp >= pe) 
+		if (pp >= pe)
 		{
-			/* 
-			 * the end of the pattern has been reached. 
+			/*
+			 * the end of the pattern has been reached.
 			 * the string must terminate too.
 			 */
 			return sp >= se;
 		}
 
-		if (sp >= se) 
+		if (sp >= se)
 		{
 			/* the string terminats prematurely */
 			while (pp < pe && *pp == '*') pp++;
@@ -3183,23 +3183,23 @@ int hio_fnmat_uchars_i (const hio_uch_t* str, hio_oow_t slen, const hio_uch_t* p
 
 		sc = *sp; pc = *pp;
 
-		if (sc == '.' && (flags & HIO_FNMAT_PERIOD)) 
+		if (sc == '.' && (flags & HIO_FNMAT_PERIOD))
 		{
-			/* 
-			 * a leading period in the staring must match 
-			 * a period in the pattern explicitly 
+			/*
+			 * a leading period in the staring must match
+			 * a period in the pattern explicitly
 			 */
-			if ((!no_first_period && sp == str) || 
-			    (HIO_FNMAT_IS_SEP(sp[-1]) && (flags & HIO_FNMAT_PATHNAME))) 
+			if ((!no_first_period && sp == str) ||
+			    (HIO_FNMAT_IS_SEP(sp[-1]) && (flags & HIO_FNMAT_PATHNAME)))
 			{
 				if (pc != '.') return 0;
 				sp++; pp++;
 				continue;
 			}
 		}
-		else if (HIO_FNMAT_IS_SEP(sc) && (flags & HIO_FNMAT_PATHNAME)) 
+		else if (HIO_FNMAT_IS_SEP(sc) && (flags & HIO_FNMAT_PATHNAME))
 		{
-			while (pc == '*') 
+			while (pc == '*')
 			{
 				if ((++pp) >= pe) return 0;
 				pc = *pp;
@@ -3212,21 +3212,21 @@ int hio_fnmat_uchars_i (const hio_uch_t* str, hio_oow_t slen, const hio_uch_t* p
 		}
 
 		/* the handling of special pattern characters begins here */
-		if (pc == '?') 
+		if (pc == '?')
 		{
 			/* match any single character */
-			sp++; pp++; 
-		} 
-		else if (pc == '*') 
-		{ 
+			sp++; pp++;
+		}
+		else if (pc == '*')
+		{
 			/* match zero or more characters */
 
 			/* compact asterisks */
 			do { pp++; } while (pp < pe && *pp == '*');
 
-			if (pp >= pe) 
+			if (pp >= pe)
 			{
-				/* 
+				/*
 				 * if the last character in the pattern is an asterisk,
 				 * the string should not have any directory separators
 				 * when HIO_FNMAT_PATHNAME is set.
@@ -3241,31 +3241,31 @@ int hio_fnmat_uchars_i (const hio_uch_t* str, hio_oow_t slen, const hio_uch_t* p
 				}
 				return 1;
 			}
-			else 
+			else
 			{
-				do 
+				do
 				{
 					if (hio_fnmat_uchars_i(sp, se - sp, pp, pe - pp, flags, 1)) return 1;
 					if (HIO_FNMAT_IS_SEP(*sp) && (flags & HIO_FNMAT_PATHNAME)) break;
 					sp++;
-				} 
+				}
 				while (sp < se);
 
 				return 0;
 			}
 		}
-		else if (pc == '[') 
+		else if (pc == '[')
 		{
 			/* match range */
 			int negate = 0;
 			int matched = 0;
 
 			if ((++pp) >= pe) return 0;
-			if (*pp == '!') { negate = 1; pp++; } 
+			if (*pp == '!') { negate = 1; pp++; }
 
-			while (pp < pe && *pp != ']') 
+			while (pp < pe && *pp != ']')
 			{
-				if (*pp == '[') 
+				if (*pp == '[')
 				{
 					hio_oow_t pl = pe - pp;
 
@@ -3279,9 +3279,9 @@ int hio_fnmat_uchars_i (const hio_uch_t* str, hio_oow_t slen, const hio_uch_t* p
 						}
 					}
 
-					/* 
-					 * characters in an invalid class name are 
-					 * just treated as normal characters 
+					/*
+					 * characters in an invalid class name are
+					 * just treated as normal characters
 					 */
 				}
 
@@ -3291,44 +3291,44 @@ int hio_fnmat_uchars_i (const hio_uch_t* str, hio_oow_t slen, const hio_uch_t* p
 				if (pp >= pe) break;
 
 				pc = *pp;
-				if ((flags & HIO_FNMAT_IGNORECASE) != 0) 
+				if ((flags & HIO_FNMAT_IGNORECASE) != 0)
 				{
-					sc = hio_to_uch_lower(sc); 
-					pc = hio_to_uch_lower(pc); 
+					sc = hio_to_uch_lower(sc);
+					pc = hio_to_uch_lower(pc);
 				}
 
-				if (pp + 1 < pe && pp[1] == '-') 
+				if (pp + 1 < pe && pp[1] == '-')
 				{
 					pp += 2; /* move the a character next to a dash */
 
-					if (pp >= pe) 
+					if (pp >= pe)
 					{
 						if (sc >= pc) matched = 1;
 						break;
 					}
 
-					if (HIO_FNMAT_IS_ESC(*pp) && !(flags & HIO_FNMAT_NOESCAPE)) 
+					if (HIO_FNMAT_IS_ESC(*pp) && !(flags & HIO_FNMAT_NOESCAPE))
 					{
-						if ((++pp) >= pe) 
+						if ((++pp) >= pe)
 						{
 							if (sc >= pc) matched = 1;
 							break;
 						}
 					}
-					else if (*pp == ']') 
+					else if (*pp == ']')
 					{
 						if (sc >= pc) matched = 1;
 						break;
 					}
 
 					pc2 = *pp;
-					if ((flags & HIO_FNMAT_IGNORECASE) != 0) 
-						pc2 = hio_to_uch_lower(pc2); 
+					if ((flags & HIO_FNMAT_IGNORECASE) != 0)
+						pc2 = hio_to_uch_lower(pc2);
 
 					if (sc >= pc && sc <= pc2) matched = 1;
 					pp++;
 				}
-				else 
+				else
 				{
 					if (sc == pc) matched = 1;
 					pp++;
@@ -3339,13 +3339,13 @@ int hio_fnmat_uchars_i (const hio_uch_t* str, hio_oow_t slen, const hio_uch_t* p
 			if (!matched) return 0;
 			sp++; if (pp < pe) pp++;
 		}
-		else 
+		else
 		{
 			/* a normal character */
-			if ((flags & HIO_FNMAT_IGNORECASE) != 0) 
+			if ((flags & HIO_FNMAT_IGNORECASE) != 0)
 			{
-				sc = hio_to_uch_lower(sc); 
-				pc = hio_to_uch_lower(pc); 
+				sc = hio_to_uch_lower(sc);
+				pc = hio_to_uch_lower(pc);
 			}
 
 			if (sc != pc) return 0;
@@ -3365,16 +3365,16 @@ int hio_fnmat_bchars_i (const hio_bch_t* str, hio_oow_t slen, const hio_bch_t* p
 	const hio_bch_t* pe = ptn + plen;
 	hio_bch_t sc, pc, pc2;
 
-	while (1) 
+	while (1)
 	{
-		if (pp < pe && HIO_FNMAT_IS_ESC(*pp) && !(flags & HIO_FNMAT_NOESCAPE)) 
+		if (pp < pe && HIO_FNMAT_IS_ESC(*pp) && !(flags & HIO_FNMAT_NOESCAPE))
 		{
 			/* pattern is escaped and escaping is allowed. */
 
-			if ((++pp) >= pe) 
+			if ((++pp) >= pe)
 			{
-				/* 
-				 * the last character of the pattern is an WCS_ESC. 
+				/*
+				 * the last character of the pattern is an WCS_ESC.
 				 * matching is performed as if the end of the pattern is
 				 * reached just without an WCS_ESC.
 				 */
@@ -3385,27 +3385,27 @@ int hio_fnmat_bchars_i (const hio_bch_t* str, hio_oow_t slen, const hio_bch_t* p
 			if (sp >= se) return 0; /* premature string termination */
 
 			sc = *sp; pc = *pp; /* pc is just a normal character */
-			if ((flags & HIO_FNMAT_IGNORECASE) != 0) 
+			if ((flags & HIO_FNMAT_IGNORECASE) != 0)
 			{
 				/* make characters to lower-case */
 				sc = hio_to_bch_lower(sc);
-				pc = hio_to_bch_lower(pc); 
+				pc = hio_to_bch_lower(pc);
 			}
 
 			if (sc != pc) return 0;
-			sp++; pp++; 
+			sp++; pp++;
 			continue;
 		}
-		if (pp >= pe) 
+		if (pp >= pe)
 		{
-			/* 
-			 * the end of the pattern has been reached. 
+			/*
+			 * the end of the pattern has been reached.
 			 * the string must terminate too.
 			 */
 			return sp >= se;
 		}
 
-		if (sp >= se) 
+		if (sp >= se)
 		{
 			/* the string terminats prematurely */
 			while (pp < pe && *pp == '*') pp++;
@@ -3414,23 +3414,23 @@ int hio_fnmat_bchars_i (const hio_bch_t* str, hio_oow_t slen, const hio_bch_t* p
 
 		sc = *sp; pc = *pp;
 
-		if (sc == '.' && (flags & HIO_FNMAT_PERIOD)) 
+		if (sc == '.' && (flags & HIO_FNMAT_PERIOD))
 		{
-			/* 
-			 * a leading period in the staring must match 
-			 * a period in the pattern explicitly 
+			/*
+			 * a leading period in the staring must match
+			 * a period in the pattern explicitly
 			 */
-			if ((!no_first_period && sp == str) || 
-			    (HIO_FNMAT_IS_SEP(sp[-1]) && (flags & HIO_FNMAT_PATHNAME))) 
+			if ((!no_first_period && sp == str) ||
+			    (HIO_FNMAT_IS_SEP(sp[-1]) && (flags & HIO_FNMAT_PATHNAME)))
 			{
 				if (pc != '.') return 0;
 				sp++; pp++;
 				continue;
 			}
 		}
-		else if (HIO_FNMAT_IS_SEP(sc) && (flags & HIO_FNMAT_PATHNAME)) 
+		else if (HIO_FNMAT_IS_SEP(sc) && (flags & HIO_FNMAT_PATHNAME))
 		{
-			while (pc == '*') 
+			while (pc == '*')
 			{
 				if ((++pp) >= pe) return 0;
 				pc = *pp;
@@ -3443,21 +3443,21 @@ int hio_fnmat_bchars_i (const hio_bch_t* str, hio_oow_t slen, const hio_bch_t* p
 		}
 
 		/* the handling of special pattern characters begins here */
-		if (pc == '?') 
+		if (pc == '?')
 		{
 			/* match any single character */
-			sp++; pp++; 
-		} 
-		else if (pc == '*') 
-		{ 
+			sp++; pp++;
+		}
+		else if (pc == '*')
+		{
 			/* match zero or more characters */
 
 			/* compact asterisks */
 			do { pp++; } while (pp < pe && *pp == '*');
 
-			if (pp >= pe) 
+			if (pp >= pe)
 			{
-				/* 
+				/*
 				 * if the last character in the pattern is an asterisk,
 				 * the string should not have any directory separators
 				 * when HIO_FNMAT_PATHNAME is set.
@@ -3472,31 +3472,31 @@ int hio_fnmat_bchars_i (const hio_bch_t* str, hio_oow_t slen, const hio_bch_t* p
 				}
 				return 1;
 			}
-			else 
+			else
 			{
-				do 
+				do
 				{
 					if (hio_fnmat_bchars_i(sp, se - sp, pp, pe - pp, flags, 1)) return 1;
 					if (HIO_FNMAT_IS_SEP(*sp) && (flags & HIO_FNMAT_PATHNAME)) break;
 					sp++;
-				} 
+				}
 				while (sp < se);
 
 				return 0;
 			}
 		}
-		else if (pc == '[') 
+		else if (pc == '[')
 		{
 			/* match range */
 			int negate = 0;
 			int matched = 0;
 
 			if ((++pp) >= pe) return 0;
-			if (*pp == '!') { negate = 1; pp++; } 
+			if (*pp == '!') { negate = 1; pp++; }
 
-			while (pp < pe && *pp != ']') 
+			while (pp < pe && *pp != ']')
 			{
-				if (*pp == '[') 
+				if (*pp == '[')
 				{
 					hio_oow_t pl = pe - pp;
 
@@ -3510,9 +3510,9 @@ int hio_fnmat_bchars_i (const hio_bch_t* str, hio_oow_t slen, const hio_bch_t* p
 						}
 					}
 
-					/* 
-					 * characters in an invalid class name are 
-					 * just treated as normal characters 
+					/*
+					 * characters in an invalid class name are
+					 * just treated as normal characters
 					 */
 				}
 
@@ -3522,44 +3522,44 @@ int hio_fnmat_bchars_i (const hio_bch_t* str, hio_oow_t slen, const hio_bch_t* p
 				if (pp >= pe) break;
 
 				pc = *pp;
-				if ((flags & HIO_FNMAT_IGNORECASE) != 0) 
+				if ((flags & HIO_FNMAT_IGNORECASE) != 0)
 				{
-					sc = hio_to_bch_lower(sc); 
-					pc = hio_to_bch_lower(pc); 
+					sc = hio_to_bch_lower(sc);
+					pc = hio_to_bch_lower(pc);
 				}
 
-				if (pp + 1 < pe && pp[1] == '-') 
+				if (pp + 1 < pe && pp[1] == '-')
 				{
 					pp += 2; /* move the a character next to a dash */
 
-					if (pp >= pe) 
+					if (pp >= pe)
 					{
 						if (sc >= pc) matched = 1;
 						break;
 					}
 
-					if (HIO_FNMAT_IS_ESC(*pp) && !(flags & HIO_FNMAT_NOESCAPE)) 
+					if (HIO_FNMAT_IS_ESC(*pp) && !(flags & HIO_FNMAT_NOESCAPE))
 					{
-						if ((++pp) >= pe) 
+						if ((++pp) >= pe)
 						{
 							if (sc >= pc) matched = 1;
 							break;
 						}
 					}
-					else if (*pp == ']') 
+					else if (*pp == ']')
 					{
 						if (sc >= pc) matched = 1;
 						break;
 					}
 
 					pc2 = *pp;
-					if ((flags & HIO_FNMAT_IGNORECASE) != 0) 
-						pc2 = hio_to_bch_lower(pc2); 
+					if ((flags & HIO_FNMAT_IGNORECASE) != 0)
+						pc2 = hio_to_bch_lower(pc2);
 
 					if (sc >= pc && sc <= pc2) matched = 1;
 					pp++;
 				}
-				else 
+				else
 				{
 					if (sc == pc) matched = 1;
 					pp++;
@@ -3570,13 +3570,13 @@ int hio_fnmat_bchars_i (const hio_bch_t* str, hio_oow_t slen, const hio_bch_t* p
 			if (!matched) return 0;
 			sp++; if (pp < pe) pp++;
 		}
-		else 
+		else
 		{
 			/* a normal character */
-			if ((flags & HIO_FNMAT_IGNORECASE) != 0) 
+			if ((flags & HIO_FNMAT_IGNORECASE) != 0)
 			{
-				sc = hio_to_bch_lower(sc); 
-				pc = hio_to_bch_lower(pc); 
+				sc = hio_to_bch_lower(sc);
+				pc = hio_to_bch_lower(pc);
 			}
 
 			if (sc != pc) return 0;

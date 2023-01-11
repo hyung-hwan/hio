@@ -25,8 +25,8 @@
 #include <hio-path.h>
 #include "hio-prv.h"
 
-/* TODO: support the \\?\ prefix and the \\.\ prefix on windows 
- *       support \\?\UNC\server\path which is equivalent to \\server\path. 
+/* TODO: support the \\?\ prefix and the \\.\ prefix on windows
+ *       support \\?\UNC\server\path which is equivalent to \\server\path.
  * */
 /* ------------------------------------------------------------------ */
 /*  UCH IMPLEMENTATION                                                */
@@ -80,7 +80,7 @@ hio_oow_t hio_canon_ucstr_path (const hio_uch_t* path, hio_uch_t* canon, int fla
 #endif
 	hio_oow_t canon_len;
 
-	if (path[0] == '\0') 
+	if (path[0] == '\0')
 	{
 		/* if the source is empty, no translation is needed */
 		canon[0] = '\0';
@@ -98,20 +98,20 @@ hio_oow_t hio_canon_ucstr_path (const hio_uch_t* path, hio_uch_t* canon, int fla
 		*dst++ = *ptr++; /* colon */
 
 		is_drive = 1;
-		if (HIO_IS_PATH_SEP(*ptr)) 
+		if (HIO_IS_PATH_SEP(*ptr))
 		{
 			*dst++ = *ptr++; /* root directory */
 			has_root = 1;
 		}
 	}
-	else if (HIO_IS_PATH_SEP(*ptr)) 
+	else if (HIO_IS_PATH_SEP(*ptr))
 	{
 		*dst++ = *ptr++; /* root directory */
 		has_root = 1;
 
 	#if defined(_WIN32)
 		/* handle UNC path for Windows */
-		if (HIO_IS_PATH_SEP(*ptr)) 
+		if (HIO_IS_PATH_SEP(*ptr))
 		{
 			*dst++ = *ptr++;
 
@@ -131,14 +131,14 @@ hio_oow_t hio_canon_ucstr_path (const hio_uch_t* path, hio_uch_t* canon, int fla
 	#endif
 	}
 #else
-	if (HIO_IS_PATH_SEP(*ptr)) 
+	if (HIO_IS_PATH_SEP(*ptr))
 	{
 		*dst++ = *ptr++; /* root directory */
 		has_root = 1;
 	}
 #endif
 
-	/* non_root_start points to the beginning of the canonicalized 
+	/* non_root_start points to the beginning of the canonicalized
 	 * path excluding the root directory part. */
 	non_root_start = dst;
 
@@ -170,7 +170,7 @@ hio_oow_t hio_canon_ucstr_path (const hio_uch_t* path, hio_uch_t* canon, int fla
 			hio_uch_t* tmp;
 
 			tmp = dst;
-			if (tmp > non_root_start) 
+			if (tmp > non_root_start)
 			{
 				/* there is a previous segment. */
 
@@ -180,10 +180,10 @@ hio_oow_t hio_canon_ucstr_path (const hio_uch_t* path, hio_uch_t* canon, int fla
 				while (tmp > non_root_start)
 				{
 					tmp--;
-					if (HIO_IS_PATH_SEP(*tmp)) 
+					if (HIO_IS_PATH_SEP(*tmp))
 					{
 						tmp++; /* position it next to the separator */
-						break; 
+						break;
 					}
 				}
 			}
@@ -194,7 +194,7 @@ hio_oow_t hio_canon_ucstr_path (const hio_uch_t* path, hio_uch_t* canon, int fla
 				 * Eat up the previous segment if it exists.
 				 *
 				 * If it doesn't exist, tmp == dst so dst = tmp
-				 * keeps dst unchanged. If it exists, 
+				 * keeps dst unchanged. If it exists,
 				 * tmp != dst. so dst = tmp changes dst.
 				 *
 				 * path  /abc/def/..
@@ -202,7 +202,7 @@ hio_oow_t hio_canon_ucstr_path (const hio_uch_t* path, hio_uch_t* canon, int fla
 				 *              seg ptr
 				 *
 				 * canon /abc/def/
-				 *            ^   ^   
+				 *            ^   ^
 				 *           tmp dst
 				 */
 				dst = tmp;
@@ -219,7 +219,7 @@ hio_oow_t hio_canon_ucstr_path (const hio_uch_t* path, hio_uch_t* canon, int fla
 					goto normal;
 				}
 
-				if (prevlen == 3 && tmp[0] == '.' && tmp[1] == '.') 
+				if (prevlen == 3 && tmp[0] == '.' && tmp[1] == '.')
 				{
 					/* nothing to eat away because the previous segment is ../
 					 *
@@ -241,7 +241,7 @@ hio_oow_t hio_canon_ucstr_path (const hio_uch_t* path, hio_uch_t* canon, int fla
 		{
 		normal:
 			while (seg < ptr) *dst++ = *seg++;
-			if (HIO_IS_PATH_SEP(*ptr)) 
+			if (HIO_IS_PATH_SEP(*ptr))
 			{
 				/* this segment ended with a separator */
 				*dst++ = *seg++; /* copy the separator */
@@ -251,16 +251,16 @@ hio_oow_t hio_canon_ucstr_path (const hio_uch_t* path, hio_uch_t* canon, int fla
 	}
 	while (1);
 
-	if (dst > non_root_start && HIO_IS_PATH_SEP(dst[-1]) && 
-	    ((flags & HIO_CANON_BCSTR_PATH_DROP_TRAILING_SEP) || !HIO_IS_PATH_SEP(ptr[-1]))) 
+	if (dst > non_root_start && HIO_IS_PATH_SEP(dst[-1]) &&
+	    ((flags & HIO_CANON_BCSTR_PATH_DROP_TRAILING_SEP) || !HIO_IS_PATH_SEP(ptr[-1])))
 	{
 		/* if the canoncal path composed so far ends with a separator
 		 * and the original path didn't end with the separator, delete
-		 * the ending separator. 
+		 * the ending separator.
 		 * also delete it if HIO_CANON_BCSTR_PATH_DROP_TRAILING_SEP is set.
 		 *
 		 *   dst > non_root_start:
-		 *     there is at least 1 character after the root directory 
+		 *     there is at least 1 character after the root directory
 		 *     part.
 		 *   HIO_IS_PATH_SEP(dst[-1]):
 		 *     the canonical path ends with a separator.
@@ -270,14 +270,14 @@ hio_oow_t hio_canon_ucstr_path (const hio_uch_t* path, hio_uch_t* canon, int fla
 		dst[-1] = '\0';
 		canon_len = dst - canon - 1;
 	}
-	else 
+	else
 	{
 		/* just null-terminate the canonical path normally */
-		dst[0] = '\0';	
+		dst[0] = '\0';
 		canon_len = dst - canon;
 	}
 
-	if (canon_len <= 0) 
+	if (canon_len <= 0)
 	{
 		if (!(flags & HIO_CANON_UCSTR_PATH_EMPTY_SINGLE_DOT))
 		{
@@ -288,15 +288,15 @@ hio_oow_t hio_canon_ucstr_path (const hio_uch_t* path, hio_uch_t* canon, int fla
 			canon_len = 1;
 		}
 	}
-	else 
+	else
 	{
-		/* drop a traling separator if the last segment is 
+		/* drop a traling separator if the last segment is
 		 * double slashes */
 
 		int adj_base_len = 3;
 
 #if defined(_WIN32) || defined(__OS2__) || defined(__DOS__)
-		if (is_drive && !has_root) 
+		if (is_drive && !has_root)
 		{
 			/* A path like A:..\\\ need some adjustment for
 			 * finalization below. */
@@ -307,7 +307,7 @@ hio_oow_t hio_canon_ucstr_path (const hio_uch_t* path, hio_uch_t* canon, int fla
 		if (canon_len == adj_base_len)
 		{
 			/* i don't have to retain a trailing separator
-			 * if the last segment is double slashes because 
+			 * if the last segment is double slashes because
 			 * the double slahses indicate a directory obviously */
 			if (canon[canon_len-3] == '.' &&
 			    canon[canon_len-2] == '.' &&
@@ -385,7 +385,7 @@ hio_oow_t hio_canon_bcstr_path (const hio_bch_t* path, hio_bch_t* canon, int fla
 #endif
 	hio_oow_t canon_len;
 
-	if (path[0] == '\0') 
+	if (path[0] == '\0')
 	{
 		/* if the source is empty, no translation is needed */
 		canon[0] = '\0';
@@ -403,20 +403,20 @@ hio_oow_t hio_canon_bcstr_path (const hio_bch_t* path, hio_bch_t* canon, int fla
 		*dst++ = *ptr++; /* colon */
 
 		is_drive = 1;
-		if (HIO_IS_PATH_SEP(*ptr)) 
+		if (HIO_IS_PATH_SEP(*ptr))
 		{
 			*dst++ = *ptr++; /* root directory */
 			has_root = 1;
 		}
 	}
-	else if (HIO_IS_PATH_SEP(*ptr)) 
+	else if (HIO_IS_PATH_SEP(*ptr))
 	{
 		*dst++ = *ptr++; /* root directory */
 		has_root = 1;
 
 	#if defined(_WIN32)
 		/* handle UNC path for Windows */
-		if (HIO_IS_PATH_SEP(*ptr)) 
+		if (HIO_IS_PATH_SEP(*ptr))
 		{
 			*dst++ = *ptr++;
 
@@ -436,14 +436,14 @@ hio_oow_t hio_canon_bcstr_path (const hio_bch_t* path, hio_bch_t* canon, int fla
 	#endif
 	}
 #else
-	if (HIO_IS_PATH_SEP(*ptr)) 
+	if (HIO_IS_PATH_SEP(*ptr))
 	{
 		*dst++ = *ptr++; /* root directory */
 		has_root = 1;
 	}
 #endif
 
-	/* non_root_start points to the beginning of the canonicalized 
+	/* non_root_start points to the beginning of the canonicalized
 	 * path excluding the root directory part. */
 	non_root_start = dst;
 
@@ -475,7 +475,7 @@ hio_oow_t hio_canon_bcstr_path (const hio_bch_t* path, hio_bch_t* canon, int fla
 			hio_bch_t* tmp;
 
 			tmp = dst;
-			if (tmp > non_root_start) 
+			if (tmp > non_root_start)
 			{
 				/* there is a previous segment. */
 
@@ -485,10 +485,10 @@ hio_oow_t hio_canon_bcstr_path (const hio_bch_t* path, hio_bch_t* canon, int fla
 				while (tmp > non_root_start)
 				{
 					tmp--;
-					if (HIO_IS_PATH_SEP(*tmp)) 
+					if (HIO_IS_PATH_SEP(*tmp))
 					{
 						tmp++; /* position it next to the separator */
-						break; 
+						break;
 					}
 				}
 			}
@@ -499,7 +499,7 @@ hio_oow_t hio_canon_bcstr_path (const hio_bch_t* path, hio_bch_t* canon, int fla
 				 * Eat up the previous segment if it exists.
 				 *
 				 * If it doesn't exist, tmp == dst so dst = tmp
-				 * keeps dst unchanged. If it exists, 
+				 * keeps dst unchanged. If it exists,
 				 * tmp != dst. so dst = tmp changes dst.
 				 *
 				 * path  /abc/def/..
@@ -507,7 +507,7 @@ hio_oow_t hio_canon_bcstr_path (const hio_bch_t* path, hio_bch_t* canon, int fla
 				 *              seg ptr
 				 *
 				 * canon /abc/def/
-				 *            ^   ^   
+				 *            ^   ^
 				 *           tmp dst
 				 */
 				dst = tmp;
@@ -524,7 +524,7 @@ hio_oow_t hio_canon_bcstr_path (const hio_bch_t* path, hio_bch_t* canon, int fla
 					goto normal;
 				}
 
-				if (prevlen == 3 && tmp[0] == '.' && tmp[1] == '.') 
+				if (prevlen == 3 && tmp[0] == '.' && tmp[1] == '.')
 				{
 					/* nothing to eat away because the previous segment is ../
 					 *
@@ -546,7 +546,7 @@ hio_oow_t hio_canon_bcstr_path (const hio_bch_t* path, hio_bch_t* canon, int fla
 		{
 		normal:
 			while (seg < ptr) *dst++ = *seg++;
-			if (HIO_IS_PATH_SEP(*ptr)) 
+			if (HIO_IS_PATH_SEP(*ptr))
 			{
 				/* this segment ended with a separator */
 				*dst++ = *seg++; /* copy the separator */
@@ -556,16 +556,16 @@ hio_oow_t hio_canon_bcstr_path (const hio_bch_t* path, hio_bch_t* canon, int fla
 	}
 	while (1);
 
-	if (dst > non_root_start && HIO_IS_PATH_SEP(dst[-1]) && 
-	    ((flags & HIO_CANON_BCSTR_PATH_DROP_TRAILING_SEP) || !HIO_IS_PATH_SEP(ptr[-1]))) 
+	if (dst > non_root_start && HIO_IS_PATH_SEP(dst[-1]) &&
+	    ((flags & HIO_CANON_BCSTR_PATH_DROP_TRAILING_SEP) || !HIO_IS_PATH_SEP(ptr[-1])))
 	{
 		/* if the canoncal path composed so far ends with a separator
 		 * and the original path didn't end with the separator, delete
-		 * the ending separator. 
+		 * the ending separator.
 		 * also delete it if HIO_CANON_BCSTR_PATH_DROP_TRAILING_SEP is set.
 		 *
 		 *   dst > non_root_start:
-		 *     there is at least 1 character after the root directory 
+		 *     there is at least 1 character after the root directory
 		 *     part.
 		 *   HIO_IS_PATH_SEP(dst[-1]):
 		 *     the canonical path ends with a separator.
@@ -575,14 +575,14 @@ hio_oow_t hio_canon_bcstr_path (const hio_bch_t* path, hio_bch_t* canon, int fla
 		dst[-1] = '\0';
 		canon_len = dst - canon - 1;
 	}
-	else 
+	else
 	{
 		/* just null-terminate the canonical path normally */
 		dst[0] = '\0';
 		canon_len = dst - canon;
 	}
 
-	if (canon_len <= 0) 
+	if (canon_len <= 0)
 	{
 		if (!(flags & HIO_CANON_BCSTR_PATH_EMPTY_SINGLE_DOT))
 		{
@@ -593,15 +593,15 @@ hio_oow_t hio_canon_bcstr_path (const hio_bch_t* path, hio_bch_t* canon, int fla
 			canon_len = 1;
 		}
 	}
-	else 
+	else
 	{
-		/* drop a traling separator if the last segment is 
+		/* drop a traling separator if the last segment is
 		 * double slashes */
 
 		int adj_base_len = 3;
 
 #if defined(_WIN32) || defined(__OS2__) || defined(__DOS__)
-		if (is_drive && !has_root) 
+		if (is_drive && !has_root)
 		{
 			/* A path like A:..\\\ need some adjustment for
 			 * finalization below. */
@@ -612,7 +612,7 @@ hio_oow_t hio_canon_bcstr_path (const hio_bch_t* path, hio_bch_t* canon, int fla
 		if (canon_len == adj_base_len)
 		{
 			/* i don't have to retain a trailing separator
-			 * if the last segment is double slashes because 
+			 * if the last segment is double slashes because
 			 * the double slahses indicate a directory obviously */
 			if (canon[canon_len-3] == '.' &&
 			    canon[canon_len-2] == '.' &&

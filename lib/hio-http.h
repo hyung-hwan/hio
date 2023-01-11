@@ -44,18 +44,18 @@ enum hio_http_range_type_t
 typedef enum hio_http_range_type_t hio_http_range_type_t;
 /**
  * The hio_http_range_t type defines a structure that can represent
- * a value for the \b Range: http header. 
+ * a value for the \b Range: http header.
  *
- * If type is #HIO_HTTP_RANGE_PREFIX, 'to' is meaningless and 'from' indicates 
- * the number of bytes from the start. 
+ * If type is #HIO_HTTP_RANGE_PREFIX, 'to' is meaningless and 'from' indicates
+ * the number of bytes from the start.
  *  - 500-    => from the 501st bytes all the way to the back.
- * 
- * If type is #HIO_HTTP_RANGE_SUFFIX, 'from' is meaningless and 'to' indicates 
- * the number of bytes from the back. 
+ *
+ * If type is #HIO_HTTP_RANGE_SUFFIX, 'from' is meaningless and 'to' indicates
+ * the number of bytes from the back.
  *  - -500    => last 500 bytes
  *
  * If type is #HIO_HTTP_RANGE_PROPER, 'from' and 'to' represents a proper range
- * where the value of 0 indicates the first byte. This doesn't require any 
+ * where the value of 0 indicates the first byte. This doesn't require any
  * adjustment.
  *  - 0-999   => first 1000 bytes
  *  - 99-     => from the 100th bytes to the end.
@@ -98,8 +98,8 @@ struct hio_svc_htts_rsrc_t
 	HIO_SVC_HTTS_RSRC_HEADER;
 };
 
-#define HIO_SVC_HTTS_RSRC_ATTACH(rsrc, var) do { (var) = (rsrc); ++(rsrc)->rsrc_refcnt; } while(0)
-#define HIO_SVC_HTTS_RSRC_DETACH(rsrc_var) do { if (--(rsrc_var)->rsrc_refcnt == 0) { hio_svc_htts_rsrc_t* __rsrc_tmp = (rsrc_var); (rsrc_var) = HIO_NULL; hio_svc_htts_rsrc_kill(__rsrc_tmp); } else { (rsrc_var) = HIO_NULL; } } while(0)
+#define HIO_SVC_HTTS_RSRC_REF(rsrc, var) do { (var) = (rsrc); ++(rsrc)->rsrc_refcnt; } while(0)
+#define HIO_SVC_HTTS_RSRC_UNREF(rsrc_var) do { if (--(rsrc_var)->rsrc_refcnt == 0) { hio_svc_htts_rsrc_t* __rsrc_tmp = (rsrc_var); (rsrc_var) = HIO_NULL; hio_svc_htts_rsrc_kill(__rsrc_tmp); } else { (rsrc_var) = HIO_NULL; } } while(0)
 
 
 /* -------------------------------------------------------------- */
@@ -113,8 +113,6 @@ typedef int (*hio_svc_htts_proc_req_t) (
 /* -------------------------------------------------------------- */
 struct hio_svc_htts_thr_func_info_t
 {
-	hio_svc_htts_t*    htts;
-
 	hio_http_method_t  req_method;
 	hio_http_version_t req_version;
 	hio_bch_t*         req_path;
@@ -129,10 +127,32 @@ struct hio_svc_htts_thr_func_info_t
 typedef struct hio_svc_htts_thr_func_info_t hio_svc_htts_thr_func_info_t;
 
 typedef void (*hio_svc_htts_thr_func_t) (
-	hio_t*                        hio,
+	hio_svc_htts_t*               htts,
 	hio_dev_thr_iopair_t*         iop,
 	hio_svc_htts_thr_func_info_t* tfi,
 	void*                         ctx
+);
+
+/* -------------------------------------------------------------- */
+
+struct hio_svc_htts_fun_func_info_t
+{
+	hio_http_method_t  req_method;
+	hio_http_version_t req_version;
+	hio_bch_t*         req_path;
+	hio_bch_t*         req_param;
+	int                req_x_http_method_override; /* -1 or hio_http_method_t */
+
+	/* TODO: header table */
+
+	hio_skad_t         client_addr;
+	hio_skad_t         server_addr;
+};
+typedef struct hio_svc_htts_fun_func_info_t hio_svc_htts_fun_func_info_t;
+
+typedef void (*hio_svc_htts_fun_func_t) (
+	hio_svc_htts_t*    htts,
+	void*              ctx
 );
 
 /* -------------------------------------------------------------- */
@@ -240,7 +260,7 @@ HIO_EXPORT int hio_is_perenced_http_bcstr (
  * \return the length of the output string.
  */
 HIO_EXPORT hio_oow_t hio_perdec_http_bcstr (
-	const hio_bch_t* str, 
+	const hio_bch_t* str,
 	hio_bch_t*       buf,
 	hio_oow_t*       ndecs
 );
@@ -250,7 +270,7 @@ HIO_EXPORT hio_oow_t hio_perdec_http_bcstr (
  * It doesn't insert the terminating null.
  */
 HIO_EXPORT hio_oow_t hio_perdec_http_bcs (
-	const hio_bcs_t* str, 
+	const hio_bcs_t* str,
 	hio_bch_t*       buf,
 	hio_oow_t*       ndecs
 );
@@ -265,7 +285,7 @@ HIO_EXPORT hio_oow_t hio_perdec_http_bcs (
  *         string that would have been written if the buffer has been large enough.
  */
 HIO_EXPORT hio_oow_t hio_perenc_http_bcstr (
-	const hio_bch_t* str, 
+	const hio_bch_t* str,
 	hio_bch_t*       buf,
 	hio_oow_t        len,
 	int              opt /**< 0 or bitwise-OR'ed of #hio_perenc_http_bcstr_opt_t */
@@ -302,6 +322,7 @@ HIO_EXPORT hio_oow_t hio_escape_html_bcstr (
 	hio_bch_t*       buf,
 	hio_oow_t        len
 );
+
 /* ------------------------------------------------------------------------- */
 /* HTTP SERVER SERVICE                                                       */
 /* ------------------------------------------------------------------------- */
@@ -373,6 +394,8 @@ HIO_EXPORT int hio_svc_htts_dofcgi (
 	hio_dev_sck_t*    csck,
 	hio_htre_t*       req,
 	const hio_skad_t* fcgis_addr,
+	const hio_bch_t*  docroot,
+	const hio_bch_t*  script,
 	int               options /**< 0 or bitwise-Ored of #hio_svc_htts_file_option_t enumerators */
 );
 
@@ -418,7 +441,7 @@ HIO_EXPORT void hio_svc_htts_rsrc_kill (
 
 
 HIO_EXPORT void hio_svc_htts_fmtgmtime (
-	hio_svc_htts_t*    htts, 
+	hio_svc_htts_t*    htts,
 	const hio_ntime_t* nt,
 	hio_bch_t*         buf,
 	hio_oow_t          len

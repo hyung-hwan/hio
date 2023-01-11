@@ -29,8 +29,8 @@
 #include <stdarg.h>
 
 /** string pointer and length as a aggregate */
-#define HIO_BECS_BCS(s)      (&((s)->val))  
-#define HIO_BECS_CS(s)       (&((s)->val))  
+#define HIO_BECS_BCS(s)      (&((s)->val))
+#define HIO_BECS_CS(s)       (&((s)->val))
 /** string length */
 #define HIO_BECS_LEN(s)      ((s)->val.len)
 /** string pointer */
@@ -40,13 +40,13 @@
 /** string capacity */
 #define HIO_BECS_CAPA(s)     ((s)->capa)
 /** character at the given position */
-#define HIO_BECS_CHAR(s,idx) ((s)->val.ptr[idx]) 
+#define HIO_BECS_CHAR(s,idx) ((s)->val.ptr[idx])
 /**< last character. unsafe if length <= 0 */
 #define HIO_BECS_LASTCHAR(s) ((s)->val.ptr[(s)->val.len-1])
 
 /** string pointer and length as a aggregate */
-#define HIO_UECS_UCS(s)      (&((s)->val))  
-#define HIO_UECS_CS(s )      (&((s)->val))  
+#define HIO_UECS_UCS(s)      (&((s)->val))
+#define HIO_UECS_CS(s )      (&((s)->val))
 /** string length */
 #define HIO_UECS_LEN(s)      ((s)->val.len)
 /** string pointer */
@@ -56,7 +56,7 @@
 /** string capacity */
 #define HIO_UECS_CAPA(s)     ((s)->capa)
 /** character at the given position */
-#define HIO_UECS_CHAR(s,idx) ((s)->val.ptr[idx]) 
+#define HIO_UECS_CHAR(s,idx) ((s)->val.ptr[idx])
 /**< last character. unsafe if length <= 0 */
 #define HIO_UECS_LASTCHAR(s) ((s)->val.ptr[(s)->val.len-1])
 
@@ -138,7 +138,7 @@ HIO_EXPORT void hio_becs_close (
 
 /**
  * The hio_becs_init() function initializes a dynamically resizable string
- * If the parameter capa is 0, it doesn't allocate the internal buffer 
+ * If the parameter capa is 0, it doesn't allocate the internal buffer
  * in advance and always succeeds.
  * \return 0 on success, -1 on failure.
  */
@@ -217,7 +217,7 @@ static HIO_INLINE hio_oow_t hio_becs_getcapa (hio_becs_t* becs) { return HIO_BEC
  * The hio_becs_setcapa() function sets the new capacity. If the new capacity
  * is smaller than the old, the overflowing characters are removed from
  * from the buffer.
- * \return (hio_oow_t)-1 on failure, new capacity on success 
+ * \return (hio_oow_t)-1 on failure, new capacity on success
  */
 HIO_EXPORT hio_oow_t hio_becs_setcapa (
 	hio_becs_t* becs,
@@ -235,7 +235,7 @@ static HIO_INLINE hio_oow_t hio_becs_getlen (hio_becs_t* becs) { return HIO_BECS
 
 /**
  * The hio_becs_setlen() function changes the string length.
- * \return (hio_oow_t)-1 on failure, new length on success 
+ * \return (hio_oow_t)-1 on failure, new length on success
  */
 HIO_EXPORT hio_oow_t hio_becs_setlen (
 	hio_becs_t* becs,
@@ -312,25 +312,25 @@ HIO_EXPORT hio_oow_t hio_becs_amend (
 );
 
 HIO_EXPORT hio_oow_t hio_becs_vfcat (
-	hio_becs_t*       str, 
+	hio_becs_t*       str,
 	const hio_bch_t*  fmt,
 	va_list            ap
 );
 
 HIO_EXPORT hio_oow_t hio_becs_fcat (
-	hio_becs_t*       str, 
+	hio_becs_t*       str,
 	const hio_bch_t*  fmt,
 	...
 );
 
 HIO_EXPORT hio_oow_t hio_becs_vfmt (
-	hio_becs_t*       str, 
+	hio_becs_t*       str,
 	const hio_bch_t*  fmt,
 	va_list            ap
 );
 
 HIO_EXPORT hio_oow_t hio_becs_fmt (
-	hio_becs_t*       str, 
+	hio_becs_t*       str,
 	const hio_bch_t*  fmt,
 	...
 );
@@ -352,7 +352,7 @@ HIO_EXPORT void hio_uecs_close (
 
 /**
  * The hio_uecs_init() function initializes a dynamically resizable string
- * If the parameter capa is 0, it doesn't allocate the internal buffer 
+ * If the parameter capa is 0, it doesn't allocate the internal buffer
  * in advance and always succeeds.
  * \return 0 on success, -1 on failure.
  */
@@ -431,7 +431,7 @@ static HIO_INLINE hio_oow_t hio_uecs_getcapa (hio_uecs_t* uecs) { return HIO_UEC
  * The hio_uecs_setcapa() function sets the new capacity. If the new capacity
  * is smaller than the old, the overflowing characters are removed from
  * from the buffer.
- * \return (hio_oow_t)-1 on failure, new capacity on success 
+ * \return (hio_oow_t)-1 on failure, new capacity on success
  */
 HIO_EXPORT hio_oow_t hio_uecs_setcapa (
 	hio_uecs_t* uecs,
@@ -449,7 +449,7 @@ static HIO_INLINE hio_oow_t hio_uecs_getlen (hio_uecs_t* uecs) { return HIO_UECS
 
 /**
  * The hio_uecs_setlen() function changes the string length.
- * \return (hio_oow_t)-1 on failure, new length on success 
+ * \return (hio_oow_t)-1 on failure, new length on success
  */
 HIO_EXPORT hio_oow_t hio_uecs_setlen (
 	hio_uecs_t* uecs,
@@ -527,25 +527,25 @@ HIO_EXPORT hio_oow_t hio_uecs_amend (
 );
 
 HIO_EXPORT hio_oow_t hio_uecs_vfcat (
-	hio_uecs_t*       str, 
+	hio_uecs_t*       str,
 	const hio_uch_t*  fmt,
 	va_list            ap
 );
 
 HIO_EXPORT hio_oow_t hio_uecs_fcat (
-	hio_uecs_t*       str, 
+	hio_uecs_t*       str,
 	const hio_uch_t*  fmt,
 	...
 );
 
 HIO_EXPORT hio_oow_t hio_uecs_vfmt (
-	hio_uecs_t*       str, 
+	hio_uecs_t*       str,
 	const hio_uch_t*  fmt,
 	va_list            ap
 );
 
 HIO_EXPORT hio_oow_t hio_uecs_fmt (
-	hio_uecs_t*       str, 
+	hio_uecs_t*       str,
 	const hio_uch_t*  fmt,
 	...
 );

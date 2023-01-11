@@ -81,7 +81,7 @@ enum hio_dns_rrt_t
 	HIO_DNS_RRT_NS = 2,
 	HIO_DNS_RRT_MD = 3, /* mail destination. RFC973 replaced this with MX*/
 	HIO_DNS_RRT_MF = 4, /* mail forwarder. RFC973 replaced this with MX */
-	
+
 	HIO_DNS_RRT_CNAME = 5,
 	HIO_DNS_RRT_SOA = 6,
 
@@ -103,7 +103,7 @@ enum hio_dns_rrt_t
 	HIO_DNS_RRT_RRSIG = 46,
 
 /*
- * [RFC1035] 
+ * [RFC1035]
  *  QTYPE fields appear in the question part of a query.  QTYPES are a
  *  superset of TYPEs, hence all TYPEs are valid QTYPEs.  In addition, the
  *  following QTYPEs are defined:
@@ -127,7 +127,7 @@ enum hio_dns_rrc_t
 	HIO_DNS_RRC_NONE = 254,
 
 /*
- * 
+ *
  * QCLASS fields appear in the question section of a query.  QCLASS values
  * are a superset of CLASS values; every CLASS is a valid QCLASS.  In
  * addition to CLASS values, the following QCLASSes are defined:
@@ -305,7 +305,7 @@ typedef struct hio_dns_brr_t hio_dns_brr_t;
 
 #if 0
 /* A RDATA */
-struct hio_dns_brrd_a_t 
+struct hio_dns_brrd_a_t
 {
 };
 typedef struct hio_dns_brrd_a_t hio_dns_brrd_a_t;
@@ -330,7 +330,7 @@ typedef struct hio_dns_brrd_mx_t hio_dns_brrd_mx_t;
 struct hio_dns_brrd_soa_t
 {
 	hio_bch_t*   mname;
-	hio_bch_t*   rname; 
+	hio_bch_t*   rname;
 	hio_uint32_t serial;
 	hio_uint32_t refresh;
 	hio_uint32_t retry;
@@ -355,7 +355,7 @@ struct hio_dns_bedns_t
 	hio_uint16_t     uplen; /* udp payload len - will be placed in the qclass field of RR. */
 
 	/* the ttl field(32 bits) of RR holds extended rcode, version, dnssecok */
-	hio_uint8_t      version; 
+	hio_uint8_t      version;
 	hio_uint8_t      dnssecok;
 
 	hio_oow_t        beonum; /* option count */
@@ -454,7 +454,7 @@ struct hio_dns_pkt_info_t
 	{
 		int exist;
 		hio_uint16_t uplen; /* udp payload len - will be placed in the qclass field of RR. */
-		hio_uint8_t  version; 
+		hio_uint8_t  version;
 		hio_uint8_t  dnssecok;
 		hio_dns_cookie_t cookie;
 	} edns;
@@ -539,10 +539,10 @@ HIO_EXPORT hio_dns_msg_t* hio_svc_dnc_resolve (
 );
 
 /*
- * -1: cookie in the request but no client cookie in the response. this may be ok or not ok depending on your policy 
+ * -1: cookie in the request but no client cookie in the response. this may be ok or not ok depending on your policy
  * 0: client cookie mismatch in the request in the response
  * 1: client cookie match in the request in the response
- * 2: no client cookie in the requset. so it deson't case about the response 
+ * 2: no client cookie in the requset. so it deson't case about the response
  */
 HIO_EXPORT int hio_svc_dnc_checkclientcookie (
 	hio_svc_dnc_t*      dnc,
@@ -587,7 +587,7 @@ HIO_EXPORT void hio_dns_free_msg (
 	hio_dns_msg_t*        msg
 );
 
-/* 
+/*
  * return the pointer to the client cookie data in the packet.
  * if cookie is not HIO_NULL, it copies the client cookie there.
  */

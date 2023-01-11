@@ -183,7 +183,7 @@ static hio_syshnd_t dev_shw_getsyshnd (hio_dev_t* dev)
 	return rdev->hnd;
 }
 
-static hio_dev_mth_t dev_shw_methods = 
+static hio_dev_mth_t dev_shw_methods =
 {
 	dev_shw_make,
 	dev_shw_kill,
@@ -213,10 +213,10 @@ static int shw_ready (hio_dev_t* dev, int events)
 
 	if (events & HIO_DEV_EVENT_HUP)
 	{
-		if (events & (HIO_DEV_EVENT_PRI | HIO_DEV_EVENT_IN | HIO_DEV_EVENT_OUT)) 
+		if (events & (HIO_DEV_EVENT_PRI | HIO_DEV_EVENT_IN | HIO_DEV_EVENT_OUT))
 		{
 			/* probably half-open? */
-			return shw->on_ready? shw->on_ready(shw, events): 1; 
+			return shw->on_ready? shw->on_ready(shw, events): 1;
 		}
 
 		hio_seterrnum (hio, HIO_EDEVHUP);
@@ -252,7 +252,7 @@ static hio_dev_evcb_t dev_shw_event_callbacks =
 hio_dev_shw_t* hio_dev_shw_make (hio_t* hio, hio_oow_t xtnsize, const hio_dev_shw_make_t* info)
 {
 	return (hio_dev_shw_t*)hio_dev_make(
-		hio, HIO_SIZEOF(hio_dev_shw_t) + xtnsize, 
+		hio, HIO_SIZEOF(hio_dev_shw_t) + xtnsize,
 		&dev_shw_methods, &dev_shw_event_callbacks, (void*)info);
 }
 

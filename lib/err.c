@@ -71,7 +71,7 @@ static hio_ooch_t* errstr[] =
 };
 
 
-/* -------------------------------------------------------------------------- 
+/* --------------------------------------------------------------------------
  * ERROR NUMBER TO STRING CONVERSION
  * -------------------------------------------------------------------------- */
 const hio_ooch_t* hio_errnum_to_errstr (hio_errnum_t errnum)
@@ -80,7 +80,7 @@ const hio_ooch_t* hio_errnum_to_errstr (hio_errnum_t errnum)
 	return (errnum >= 0 && errnum < HIO_COUNTOF(errstr))? errstr[errnum]: e_unknown;
 }
 
-/* -------------------------------------------------------------------------- 
+/* --------------------------------------------------------------------------
  * ERROR NUMBER/MESSAGE HANDLING
  * -------------------------------------------------------------------------- */
 const hio_ooch_t* hio_geterrstr (hio_t* hio)
@@ -145,8 +145,8 @@ const hio_ooch_t* hio_backuperrmsg (hio_t* hio)
 void hio_seterrnum (hio_t* hio, hio_errnum_t errnum)
 {
 	if (hio->_shuterr) return;
-	hio->errnum = errnum; 
-	hio->errmsg.len = 0; 
+	hio->errnum = errnum;
+	hio->errmsg.len = 0;
 }
 
 static int err_bcs (hio_fmtout_t* fmtout, const hio_bch_t* ptr, hio_oow_t len)
@@ -297,12 +297,12 @@ void hio_seterrbfmtwithsyserr (hio_t* hio, int syserr_type, int syserr_code, con
 	va_list ap;
 
 	if (hio->_shuterr) return;
-	
+
 	/*
 	if (hio->vmprim.syserrstrb)
 	{*/
 		errnum = hio_sys_syserrstrb(hio, syserr_type, syserr_code, hio->errmsg.tmpbuf.bch, HIO_COUNTOF(hio->errmsg.tmpbuf.bch));
-		
+
 		va_start (ap, fmt);
 		hio_seterrbfmtv (hio, errnum, fmt, ap);
 		va_end (ap);
@@ -355,7 +355,7 @@ void hio_seterrufmtwithsyserr (hio_t* hio, int syserr_type, int syserr_code, con
 	va_list ap;
 
 	if (hio->_shuterr) return;
-	
+
 	/*if (hio->vmprim.syserrstrb)
 	{*/
 		errnum = hio_sys_syserrstrb(hio, syserr_type, syserr_code, hio->errmsg.tmpbuf.bch, HIO_COUNTOF(hio->errmsg.tmpbuf.bch));

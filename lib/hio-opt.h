@@ -28,8 +28,8 @@
 #include "hio-cmn.h"
 
 /** \file
- * This file defines functions and data structures to process 
- * command-line arguments. 
+ * This file defines functions and data structures to process
+ * command-line arguments.
  */
 
 typedef struct hio_uopt_t hio_uopt_t;
@@ -52,7 +52,7 @@ struct hio_uopt_t
 	hio_uch_t*       arg; /* argument associated with an option */
 
 	/* output */
-	const hio_uch_t* lngopt; 
+	const hio_uch_t* lngopt;
 
 	/* input + output */
 	int              ind; /* index into parent argv vector */
@@ -81,7 +81,7 @@ struct hio_bopt_t
 	hio_bch_t*       arg; /**< argument associated with an option */
 
 	/* output */
-	const hio_bch_t* lngopt; 
+	const hio_bch_t* lngopt;
 
 	/* input + output */
 	int              ind; /**< index into parent argv vector */
@@ -96,31 +96,31 @@ extern "C" {
 
 /**
  * The hio_getuopt() function processes the \a argc command-line arguments
- * pointed to by \a argv as configured in \a opt. It can process two 
- * different option styles: a single character starting with '-', and a 
- * long name starting with '--'. 
+ * pointed to by \a argv as configured in \a opt. It can process two
+ * different option styles: a single character starting with '-', and a
+ * long name starting with '--'.
  *
  * A character in \a opt.str is treated as a single character option. Should
  * it require a parameter, specify ':' after it.
  *
- * Two special returning option characters indicate special error conditions. 
+ * Two special returning option characters indicate special error conditions.
  * - \b ? indicates a bad option stored in the \a opt->opt field.
  * - \b : indicates a bad parameter for an option stored in the \a opt->opt field.
  *
  * @return an option character on success, #HIO_UCI_EOF on no more options.
  */
 HIO_EXPORT hio_uci_t hio_getuopt (
-	int                argc, /* argument count */ 
+	int                argc, /* argument count */
 	hio_uch_t* const*  argv, /* argument array */
 	hio_uopt_t*        opt   /* option configuration */
 );
 
 /**
- * The hio_getbopt() function is analogous to hio_getuopt() except that 
+ * The hio_getbopt() function is analogous to hio_getuopt() except that
  * it accepts character strings of the #hio_bch_t type.
  */
 HIO_EXPORT hio_bci_t hio_getbopt (
-	int                argc, /* argument count */ 
+	int                argc, /* argument count */
 	hio_bch_t* const*  argv, /* argument array */
 	hio_bopt_t*        opt   /* option configuration */
 );

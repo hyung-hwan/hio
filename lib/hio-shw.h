@@ -25,7 +25,7 @@
 #ifndef _HIO_SHW_H_
 #define _HIO_SHW_H_
 
-/* system handle wrapper - 
+/* system handle wrapper -
  *   turn a raw system handle/file descriptor to a device object
  */
 #include <hio.h>

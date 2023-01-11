@@ -104,8 +104,8 @@ struct hio_htrd_t
 		{
 			hio_becs_t raw; /* buffer to hold raw octets */
 			hio_becs_t tra; /* buffer for handling trailers */
-		} b; 
-	} fed; 
+		} b;
+	} fed;
 
 	hio_htre_t re;
 	int        clean;
@@ -127,7 +127,7 @@ HIO_EXPORT hio_htrd_t* hio_htrd_open (
  * The hio_htrd_close() function destroys a htrd processor.
  */
 HIO_EXPORT void hio_htrd_close (
-	hio_htrd_t* htrd 
+	hio_htrd_t* htrd
 );
 
 HIO_EXPORT int hio_htrd_init (
@@ -172,8 +172,8 @@ HIO_EXPORT void hio_htrd_setrecbs (
 );
 
 /**
- * The hio_htrd_feed() function accepts htrd request octets and invokes a 
- * callback function if it has processed a proper htrd request. 
+ * The hio_htrd_feed() function accepts htrd request octets and invokes a
+ * callback function if it has processed a proper htrd request.
  */
 HIO_EXPORT int hio_htrd_feed (
 	hio_htrd_t*        htrd, /**< htrd */
@@ -184,9 +184,9 @@ HIO_EXPORT int hio_htrd_feed (
 
 /**
  * The hio_htrd_halt() function indicates the end of feeeding
- * if the current response should be processed until the 
+ * if the current response should be processed until the
  * connection is closed.
- */ 
+ */
 HIO_EXPORT int hio_htrd_halt (
 	hio_htrd_t* htrd
 );
