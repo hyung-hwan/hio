@@ -81,27 +81,27 @@ typedef struct hio_svc_httc_t hio_svc_httc_t;
 
 /* -------------------------------------------------------------- */
 
-typedef struct hio_svc_htts_rsrc_t hio_svc_htts_rsrc_t;
+typedef struct hio_svc_htts_task_t hio_svc_htts_task_t;
 
-typedef void (*hio_svc_htts_rsrc_on_kill_t) (
-	hio_svc_htts_rsrc_t* rsrc
+typedef void (*hio_svc_htts_task_on_kill_t) (
+	hio_svc_htts_task_t* task
 );
 
-#define HIO_SVC_HTTS_RSRC_HEADER \
+#define HIO_SVC_HTTS_TASK_HEADER \
 	hio_svc_htts_t* htts; \
-	hio_oow_t rsrc_size; \
-	hio_oow_t rsrc_refcnt; \
-	hio_svc_htts_rsrc_t* task_prev; \
-	hio_svc_htts_rsrc_t* task_next; \
-	hio_svc_htts_rsrc_on_kill_t rsrc_on_kill
+	hio_oow_t task_size; \
+	hio_oow_t task_refcnt; \
+	hio_svc_htts_task_t* task_prev; \
+	hio_svc_htts_task_t* task_next; \
+	hio_svc_htts_task_on_kill_t task_on_kill
 
-struct hio_svc_htts_rsrc_t
+struct hio_svc_htts_task_t
 {
-	HIO_SVC_HTTS_RSRC_HEADER;
+	HIO_SVC_HTTS_TASK_HEADER;
 };
 
-#define HIO_SVC_HTTS_RSRC_REF(rsrc, var) do { (var) = (rsrc); ++(rsrc)->rsrc_refcnt; } while(0)
-#define HIO_SVC_HTTS_RSRC_UNREF(rsrc_var) do { if (--(rsrc_var)->rsrc_refcnt == 0) { hio_svc_htts_rsrc_t* __rsrc_tmp = (rsrc_var); (rsrc_var) = HIO_NULL; hio_svc_htts_rsrc_kill(__rsrc_tmp); } else { (rsrc_var) = HIO_NULL; } } while(0)
+#define HIO_SVC_HTTS_TASK_REF(task, var) do { (var) = (task); ++(task)->task_refcnt; } while(0)
+#define HIO_SVC_HTTS_TASK_UNREF(task_var) do { if (--(task_var)->task_refcnt == 0) { hio_svc_htts_task_t* __task_tmp = (task_var); (task_var) = HIO_NULL; hio_svc_htts_task_kill(__task_tmp); } else { (task_var) = HIO_NULL; } } while(0)
 
 
 /* -------------------------------------------------------------- */
@@ -431,14 +431,14 @@ HIO_EXPORT int hio_svc_htts_dotxt (
 	int                 options
 );
 
-HIO_EXPORT hio_svc_htts_rsrc_t* hio_svc_htts_rsrc_make (
+HIO_EXPORT hio_svc_htts_task_t* hio_svc_htts_task_make (
 	hio_svc_htts_t*              htts,
-	hio_oow_t                    rsrc_size,
-	hio_svc_htts_rsrc_on_kill_t  on_kill
+	hio_oow_t                    task_size,
+	hio_svc_htts_task_on_kill_t  on_kill
 );
 
-HIO_EXPORT void hio_svc_htts_rsrc_kill (
-	hio_svc_htts_rsrc_t*         rsrc
+HIO_EXPORT void hio_svc_htts_task_kill (
+	hio_svc_htts_task_t*         task
 );
 
 

@@ -24,7 +24,7 @@ typedef enum fcgi_res_mode_t fcgi_res_mode_t;
 
 struct fcgi_t
 {
-	HIO_SVC_HTTS_RSRC_HEADER;
+	HIO_SVC_HTTS_TASK_HEADER;
 
 	hio_oow_t num_pending_writes_to_client;
 	hio_oow_t num_pending_writes_to_peer;
@@ -160,10 +160,10 @@ printf (">>>>>>>>>>>> disableing client read watching ...................\n");
 		if (fcgi->keep_alive)
 		{
 			/* how to arrange to delete this fcgi object and put the socket back to the normal waiting state??? */
-			HIO_ASSERT (fcgi->htts->hio, fcgi->client->rsrc == (hio_svc_htts_rsrc_t*)fcgi);
+			HIO_ASSERT (fcgi->htts->hio, fcgi->client->task == (hio_svc_htts_task_t*)fcgi);
 
-/*printf ("DETACHING FROM THE MAIN CLIENT RSRC... state -> %p\n", fcgi->client->rsrc);*/
-			HIO_SVC_HTTS_RSRC_UNREF (fcgi->client->rsrc);
+/*printf ("DETACHING FROM THE MAIN CLIENT TASK... state -> %p\n", fcgi->client->task);*/
+			HIO_SVC_HTTS_TASK_UNREF (fcgi->client->task);
 			/* fcgi must not be accessed from here down as it could have been destroyed */
 		}
 		else
@@ -221,7 +221,7 @@ static int fcgi_client_htrd_poke (hio_htrd_t* htrd, hio_htre_t* req)
 	hio_svc_htts_cli_htrd_xtn_t* htrdxtn = (hio_svc_htts_cli_htrd_xtn_t*)hio_htrd_getxtn(htrd);
 	hio_dev_sck_t* sck = htrdxtn->sck;
 	hio_svc_htts_cli_t* cli = hio_dev_sck_getxtn(sck);
-	fcgi_t* fcgi = (fcgi_t*)cli->rsrc;
+	fcgi_t* fcgi = (fcgi_t*)cli->task;
 
 	/* indicate end of STDIN */
 	if (hio_svc_fcgic_writestdin(fcgi->peer, HIO_NULL, 0) <= -1) return -1;
@@ -235,7 +235,7 @@ static int fcgi_client_htrd_push_content (hio_htrd_t* htrd, hio_htre_t* req, con
 	hio_svc_htts_cli_htrd_xtn_t* htrdxtn = (hio_svc_htts_cli_htrd_xtn_t*)hio_htrd_getxtn(htrd);
 	hio_dev_sck_t* sck = htrdxtn->sck;
 	hio_svc_htts_cli_t* cli = hio_dev_sck_getxtn(sck);
-	fcgi_t* fcgi = (fcgi_t*)cli->rsrc;
+	fcgi_t* fcgi = (fcgi_t*)cli->task;
 
 	HIO_ASSERT (sck->hio, cli->sck == sck);
 
@@ -253,7 +253,7 @@ static hio_htrd_recbs_t fcgi_client_htrd_recbs =
 static void fcgi_client_on_disconnect (hio_dev_sck_t* sck)
 {
 	hio_svc_htts_cli_t* cli = hio_dev_sck_getxtn(sck);
-	fcgi_t* fcgi = (fcgi_t*)cli->rsrc;
+	fcgi_t* fcgi = (fcgi_t*)cli->task;
 	fcgi->client_disconnected = 1;
 printf ("client disconnected ............................\n");
 	fcgi->client_org_on_disconnect (sck);
@@ -263,7 +263,7 @@ static int fcgi_client_on_read (hio_dev_sck_t* sck, const void* buf, hio_iolen_t
 {
 	hio_t* hio = sck->hio;
 	hio_svc_htts_cli_t* cli = hio_dev_sck_getxtn(sck);
-	fcgi_t* fcgi = (fcgi_t*)cli->rsrc;
+	fcgi_t* fcgi = (fcgi_t*)cli->task;
 
 	HIO_ASSERT (hio, sck == cli->sck);
 
@@ -320,7 +320,7 @@ static int fcgi_client_on_write (hio_dev_sck_t* sck, hio_iolen_t wrlen, void* wr
 {
 	hio_t* hio = sck->hio;
 	hio_svc_htts_cli_t* cli = hio_dev_sck_getxtn(sck);
-	fcgi_t* fcgi = (fcgi_t*)cli->rsrc;
+	fcgi_t* fcgi = (fcgi_t*)cli->task;
 
 	if (wrlen <= -1)
 	{
@@ -371,9 +371,9 @@ printf ("GOT FCGI DATA.............[%.*s]\n", (int)len, buf);
 	return 0;
 }
 
-static void fcgi_on_kill (hio_svc_htts_rsrc_t* rsrc)
+static void fcgi_on_kill (hio_svc_htts_task_t* task)
 {
-	fcgi_t* fcgi = (fcgi_t*)rsrc;
+	fcgi_t* fcgi = (fcgi_t*)task;
 	hio_t* hio = fcgi->htts->hio;
 
 	HIO_DEBUG2 (hio, "HTTS(%p) - killing fcgi client(%p)\n", fcgi->htts, fcgi->client->sck);
@@ -501,7 +501,7 @@ int hio_svc_htts_dofcgi (hio_svc_htts_t* htts, hio_dev_sck_t* csck, hio_htre_t* 
 		goto oops;
 	}
 
-	fcgi = (fcgi_t*)hio_svc_htts_rsrc_make(htts, HIO_SIZEOF(*fcgi), fcgi_on_kill);
+	fcgi = (fcgi_t*)hio_svc_htts_task_make(htts, HIO_SIZEOF(*fcgi), fcgi_on_kill);
 	if (HIO_UNLIKELY(!fcgi)) goto oops;
 
 	fcgi->client = cli;
@@ -519,8 +519,8 @@ int hio_svc_htts_dofcgi (hio_svc_htts_t* htts, hio_dev_sck_t* csck, hio_htre_t* 
 	csck->on_write = fcgi_client_on_write;
 	csck->on_disconnect = fcgi_client_on_disconnect;
 
-	HIO_ASSERT (hio, cli->rsrc == HIO_NULL);
-	HIO_SVC_HTTS_RSRC_REF ((hio_svc_htts_rsrc_t*)fcgi, cli->rsrc); /* cli->rsrc = fcgi */
+	HIO_ASSERT (hio, cli->task == HIO_NULL);
+	HIO_SVC_HTTS_TASK_REF ((hio_svc_htts_task_t*)fcgi, cli->task); /* cli->task = fcgi */
 
 	/* create a session in in the fcgi client service */
 	fcgi->peer = hio_svc_fcgic_tie(htts->fcgic, fcgis_addr, fcgi_peer_on_read);

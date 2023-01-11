@@ -47,7 +47,7 @@ struct hio_svc_htts_cli_t
 	hio_htrd_t* htrd;
 	hio_becs_t* sbuf; /* temporary buffer for status line formatting */
 
-	hio_svc_htts_rsrc_t* rsrc;
+	hio_svc_htts_task_t* task;
 	hio_ntime_t last_active;
 };
 
@@ -72,7 +72,7 @@ struct hio_svc_htts_t
 	hio_svc_fcgic_t* fcgic;
 
 	hio_svc_htts_cli_t cli; /* list head for client list */
-	hio_svc_htts_rsrc_t task; /* list head for task list */
+	hio_svc_htts_task_t task; /* list head for task list */
 	hio_tmridx_t idle_tmridx;
 
 	hio_bch_t* server_name;

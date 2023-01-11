@@ -51,7 +51,7 @@ typedef enum file_res_mode_t file_res_mode_t;
 
 struct file_t
 {
-	HIO_SVC_HTTS_RSRC_HEADER;
+	HIO_SVC_HTTS_TASK_HEADER;
 
 	int options;
 	hio_svc_htts_file_cbs_t* cbs;
@@ -226,16 +226,16 @@ static void file_mark_over (file_t* file, int over_bits)
 		#endif
 
 			/* how to arrange to delete this file object and put the socket back to the normal waiting state??? */
-			HIO_ASSERT (file->htts->hio, file->client->rsrc == (hio_svc_htts_rsrc_t*)file);
-			HIO_SVC_HTTS_RSRC_UNREF (file->client->rsrc);
-			/* the file resource must not be accessed from here down as it could have been destroyed */
+			HIO_ASSERT (file->htts->hio, file->client->task == (hio_svc_htts_task_t*)file);
+			HIO_SVC_HTTS_TASK_UNREF (file->client->task);
+			/* the file task must not be accessed from here down as it could have been destroyed */
 		}
 		else
 		{
 			HIO_DEBUG4 (file->htts->hio, "HTTS(%p) - file(c=%d,p=%d) halting client for %hs\n", file->htts, (int)file->client->sck->hnd, file->peer, (file->client_eof_detected? "EOF detected": "no keep-alive"));
 			hio_dev_sck_shutdown (file->client->sck, HIO_DEV_SCK_SHUTDOWN_WRITE);
 			hio_dev_sck_halt (file->client->sck);
-			/* the file resource will be detached from file->client->rsrc by the upstream disconnect handler in http_svr.c */
+			/* the file task will be detached from file->client->task by the upstream disconnect handler in http_svr.c */
 		}
 	}
 }
@@ -269,9 +269,9 @@ static int file_write_to_peer (file_t* file, const void* data, hio_iolen_t dlen)
 	return 0;
 }
 
-static void file_on_kill (hio_svc_htts_rsrc_t* rsrc)
+static void file_on_kill (hio_svc_htts_task_t* task)
 {
-	file_t* file = (file_t*)rsrc;
+	file_t* file = (file_t*)task;
 	hio_t* hio = file->htts->hio;
 
 	HIO_DEBUG3 (hio, "HTTS(%p) - file(c=%d,p=%d) on_kill\n", file->htts, (int)file->client->sck->hnd, file->peer);
@@ -322,7 +322,7 @@ static void file_client_on_disconnect (hio_dev_sck_t* sck)
 {
 	hio_t* hio = sck->hio;
 	hio_svc_htts_cli_t* cli = hio_dev_sck_getxtn(sck);
-	file_t* file = (file_t*)cli->rsrc;
+	file_t* file = (file_t*)cli->task;
 
 	HIO_ASSERT (hio, sck == cli->sck);
 	HIO_ASSERT (hio, sck == file->client->sck);
@@ -333,15 +333,15 @@ static void file_client_on_disconnect (hio_dev_sck_t* sck)
 	file->client_org_on_disconnect (sck);
 
 	/* the original disconnect handler (listener_on_disconnect in http-svr.c)
-	 * frees the file resource attached to the client. so it must not be accessed */
-	HIO_ASSERT (hio, cli->rsrc == HIO_NULL);
+	 * frees the file task attached to the client. so it must not be accessed */
+	HIO_ASSERT (hio, cli->task == HIO_NULL);
 }
 
 static int file_client_on_read (hio_dev_sck_t* sck, const void* buf, hio_iolen_t len, const hio_skad_t* srcaddr)
 {
 	hio_t* hio = sck->hio;
 	hio_svc_htts_cli_t* cli = hio_dev_sck_getxtn(sck);
-	file_t* file = (file_t*)cli->rsrc;
+	file_t* file = (file_t*)cli->task;
 
 	HIO_ASSERT (hio, sck == cli->sck);
 	HIO_ASSERT (hio, sck == file->client->sck);
@@ -400,7 +400,7 @@ static int file_client_on_write (hio_dev_sck_t* sck, hio_iolen_t wrlen, void* wr
 {
 	hio_t* hio = sck->hio;
 	hio_svc_htts_cli_t* cli = hio_dev_sck_getxtn(sck);
-	file_t* file = (file_t*)cli->rsrc;
+	file_t* file = (file_t*)cli->task;
 
 	HIO_ASSERT (hio, sck == cli->sck);
 	HIO_ASSERT (hio, sck == file->client->sck);
@@ -452,7 +452,7 @@ static int file_client_htrd_poke (hio_htrd_t* htrd, hio_htre_t* req)
 	hio_svc_htts_cli_htrd_xtn_t* htrdxtn = (hio_svc_htts_cli_htrd_xtn_t*)hio_htrd_getxtn(htrd);
 	hio_dev_sck_t* sck = htrdxtn->sck;
 	hio_svc_htts_cli_t* cli = hio_dev_sck_getxtn(sck);
-	file_t* file = (file_t*)cli->rsrc;
+	file_t* file = (file_t*)cli->task;
 
 	/* indicate EOF to the client peer */
 	if (file_write_to_peer(file, HIO_NULL, 0) <= -1) return -1;
@@ -471,7 +471,7 @@ static int file_client_htrd_push_content (hio_htrd_t* htrd, hio_htre_t* req, con
 	hio_svc_htts_cli_htrd_xtn_t* htrdxtn = (hio_svc_htts_cli_htrd_xtn_t*)hio_htrd_getxtn(htrd);
 	hio_dev_sck_t* sck = htrdxtn->sck;
 	hio_svc_htts_cli_t* cli = hio_dev_sck_getxtn(sck);
-	file_t* file = (file_t*)cli->rsrc;
+	file_t* file = (file_t*)cli->task;
 
 	HIO_ASSERT (sck->hio, cli->sck == sck);
 	return file_write_to_peer(file, data, dlen);
@@ -783,7 +783,7 @@ int hio_svc_htts_dofile (hio_svc_htts_t* htts, hio_dev_sck_t* csck, hio_htre_t* 
 	actual_file = hio_svc_htts_dupmergepaths(htts, docroot, filepath);
 	if (HIO_UNLIKELY(!actual_file)) goto oops;
 
-	file = (file_t*)hio_svc_htts_rsrc_make(htts, HIO_SIZEOF(*file), file_on_kill);
+	file = (file_t*)hio_svc_htts_task_make(htts, HIO_SIZEOF(*file), file_on_kill);
 	if (HIO_UNLIKELY(!file)) goto oops;
 
 	file->options = options;
@@ -796,7 +796,7 @@ int hio_svc_htts_dofile (hio_svc_htts_t* htts, hio_dev_sck_t* csck, hio_htre_t* 
 	file->req_method = hio_htre_getqmethodtype(req);
 	file->req_content_length_unlimited = hio_htre_getreqcontentlen(req, &file->req_content_length);
 	file->req_qpath = req_qpath;
-	req_qpath = HIO_NULL; /* delegated to the file resource */
+	req_qpath = HIO_NULL; /* delegated to the file task */
 	file->req_qpath_ending_with_slash = (hio_htre_getqpathlen(req) > 0 && hio_htre_getqpath(req)[hio_htre_getqpathlen(req) - 1] == '/');
 	file->req_qpath_is_root = (hio_htre_getqpathlen(req) == 1 && hio_htre_getqpath(req)[0] == '/');
 
@@ -810,8 +810,8 @@ int hio_svc_htts_dofile (hio_svc_htts_t* htts, hio_dev_sck_t* csck, hio_htre_t* 
 	file->peer_tmridx = HIO_TMRIDX_INVALID;
 	file->peer = -1;
 
-	HIO_ASSERT (hio, cli->rsrc == HIO_NULL); /* you must not call this function while cli->rsrc is not HIO_NULL */
-	HIO_SVC_HTTS_RSRC_REF ((hio_svc_htts_rsrc_t*)file, cli->rsrc); /* cli->rsrc = file with ref-count up */
+	HIO_ASSERT (hio, cli->task == HIO_NULL); /* you must not call this function while cli->task is not HIO_NULL */
+	HIO_SVC_HTTS_TASK_REF ((hio_svc_htts_task_t*)file, cli->task); /* cli->task = file with ref-count up */
 
 
 #if !defined(FILE_ALLOW_UNLIMITED_REQ_CONTENT_LENGTH)

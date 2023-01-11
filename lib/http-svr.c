@@ -58,7 +58,7 @@ static int init_client (hio_svc_htts_cli_t* cli, hio_dev_sck_t* sck)
 	cli->l_idx = INVALID_LIDX; /* not a listening socket anymore */
 	cli->htrd = HIO_NULL;
 	cli->sbuf = HIO_NULL;
-	cli->rsrc = HIO_NULL;
+	cli->task = HIO_NULL;
 	/* keep this linked regardless of success or failure because the disconnect() callback
 	 * will call fini_client(). the error handler code after 'oops:' doesn't get this unlinked */
 	HIO_SVC_HTTS_CLIL_APPEND_CLI (&cli->htts->cli, cli);
@@ -100,11 +100,11 @@ oops:
 
 static void fini_client (hio_svc_htts_cli_t* cli)
 {
-	HIO_DEBUG5 (cli->sck->hio, "HTTS(%p) - finalizing client(c=%p,sck=%p[%d],rsrc=%p)\n", cli->htts, cli, cli->sck, (int)cli->sck->hnd, cli->rsrc);
+	HIO_DEBUG5 (cli->sck->hio, "HTTS(%p) - finalizing client(c=%p,sck=%p[%d],task=%p)\n", cli->htts, cli, cli->sck, (int)cli->sck->hnd, cli->task);
 
-	if (cli->rsrc)
+	if (cli->task)
 	{
-		HIO_SVC_HTTS_RSRC_UNREF (cli->rsrc);
+		HIO_SVC_HTTS_TASK_UNREF (cli->task);
 	}
 
 	if (cli->sbuf)
@@ -143,10 +143,10 @@ static int listener_on_read (hio_dev_sck_t* sck, const void* buf, hio_iolen_t le
 
 	HIO_ASSERT (hio, cli->l_idx == INVALID_LIDX);
 
-	/* if a resource has been set(cli->rsrc not NULL), the resource must take over
+	/* if a task has been set(cli->task not NULL) on the client, the task must take over
 	 * this handler. this handler is never called unless the the overriding handler
 	 * call this. */
-	HIO_ASSERT (hio, cli->rsrc == HIO_NULL);
+	HIO_ASSERT (hio, cli->task == HIO_NULL);
 
 	if (len <= -1)
 	{
@@ -169,7 +169,7 @@ static int listener_on_read (hio_dev_sck_t* sck, const void* buf, hio_iolen_t le
 
 	if (rem > 0)
 	{
-		if (cli->rsrc)
+		if (cli->task)
 		{
 			/* TODO store this to client buffer. once the current resource is completed, arrange to call on_read() with it */
 		}
@@ -193,10 +193,10 @@ static int listener_on_write (hio_dev_sck_t* sck, hio_iolen_t wrlen, void* wrctx
 	hio_svc_htts_cli_t* cli = hio_dev_sck_getxtn(sck);
 	HIO_ASSERT (sck->hio, cli->l_idx == INVALID_LIDX);
 
-	/* if a resource has been set(cli->rsrc not NULL), the resource must take over
+	/* if a resource has been set(cli->task not NULL), the resource must take over
 	 * this handler. this handler is never called unless the the overriding handler
 	 * call this. */
-	HIO_ASSERT (sck->hio, cli->rsrc == HIO_NULL);
+	HIO_ASSERT (sck->hio, cli->task == HIO_NULL);
 
 	/* anyways, nothing to do upon write completion */
 
@@ -308,7 +308,7 @@ static void halt_idle_clients (hio_t* hio, const hio_ntime_t* now, hio_tmrjob_t*
 
 	for (cli = HIO_SVC_HTTS_CLIL_FIRST_CLI(&htts->cli); !HIO_SVC_HTTS_CLIL_IS_NIL_CLI(&htts->cli, cli); cli = cli->cli_next)
 	{
-		if (!cli->rsrc)
+		if (!cli->task)
 		{
 			hio_ntime_t t;
 			HIO_SUB_NTIME(&t, now, &cli->last_active);
@@ -541,8 +541,8 @@ void hio_svc_htts_stop (hio_svc_htts_t* htts)
 
 	while (!HIO_SVC_HTTS_TASKL_IS_EMPTY(&htts->task))
 	{
-		hio_svc_htts_rsrc_t* task = HIO_SVC_HTTS_TASKL_FIRST_TASK(&htts->task);
-		hio_svc_htts_rsrc_kill (task);
+		hio_svc_htts_task_t* task = HIO_SVC_HTTS_TASKL_FIRST_TASK(&htts->task);
+		hio_svc_htts_task_kill (task);
 	}
 
 	HIO_SVCL_UNLINK_SVC (htts);
@@ -627,53 +627,53 @@ int hio_svc_htts_getsockaddr (hio_svc_htts_t* htts, hio_oow_t idx, hio_skad_t* s
 
 /* ----------------------------------------------------------------- */
 
-/* rsrc_size must be the total size to allocate including the header.
+/* task_size must be the total size to allocate including the header.
  *
- * For instance, if you define a resource like below,
+ * For instance, if you define a task like below,
  *
- * struct my_rsrc_t
+ * struct my_task_t
  * {
- * 	HIO_SVC_HTTS_RSRC_HEADER;
+ * 	HIO_SVC_HTTS_TASK_HEADER;
  * 	int a;
  * 	int b;
  * };
  *
- * you can pass sizeof(my_rsrc_t) to hio_svc_htts_rsrc_make()
+ * you can pass sizeof(my_task_t) to hio_svc_htts_task_make()
  */
-hio_svc_htts_rsrc_t* hio_svc_htts_rsrc_make (hio_svc_htts_t* htts, hio_oow_t rsrc_size, hio_svc_htts_rsrc_on_kill_t on_kill)
+hio_svc_htts_task_t* hio_svc_htts_task_make (hio_svc_htts_t* htts, hio_oow_t task_size, hio_svc_htts_task_on_kill_t on_kill)
 {
 	hio_t* hio = htts->hio;
-	hio_svc_htts_rsrc_t* rsrc;
+	hio_svc_htts_task_t* task;
 
-	HIO_DEBUG1 (hio, "HTTS(%p) - allocating resource\n", htts);
+	HIO_DEBUG1 (hio, "HTTS(%p) - allocating task\n", htts);
 
-	rsrc = hio_callocmem(hio, rsrc_size);
-	if (HIO_UNLIKELY(!rsrc))
+	task = hio_callocmem(hio, task_size);
+	if (HIO_UNLIKELY(!task))
 	{
-		HIO_DEBUG1 (hio, "HTTS(%p) - failed to allocate resource\n", htts);
+		HIO_DEBUG1 (hio, "HTTS(%p) - failed to allocate task\n", htts);
 		return HIO_NULL;
 	}
 
-	rsrc->htts = htts;
-	rsrc->rsrc_size = rsrc_size;
-	rsrc->rsrc_refcnt = 0;
-	rsrc->rsrc_on_kill = on_kill;
+	task->htts = htts;
+	task->task_size = task_size;
+	task->task_refcnt = 0;
+	task->task_on_kill = on_kill;
 
-	HIO_DEBUG2 (hio, "HTTS(%p) - allocated resource %p\n", htts, rsrc);
-	return rsrc;
+	HIO_DEBUG2 (hio, "HTTS(%p) - allocated task %p\n", htts, task);
+	return task;
 }
 
-void hio_svc_htts_rsrc_kill (hio_svc_htts_rsrc_t* rsrc)
+void hio_svc_htts_task_kill (hio_svc_htts_task_t* task)
 {
-	hio_svc_htts_t* htts = rsrc->htts;
+	hio_svc_htts_t* htts = task->htts;
 	hio_t* hio = htts->hio;
 
-	HIO_DEBUG2 (hio, "HTTS(%p) - destroying resource %p\n", htts, rsrc);
+	HIO_DEBUG2 (hio, "HTTS(%p) - destroying task %p\n", htts, task);
 
-	if (rsrc->rsrc_on_kill) rsrc->rsrc_on_kill (rsrc);
-	hio_freemem (hio, rsrc);
+	if (task->task_on_kill) task->task_on_kill (task);
+	hio_freemem (hio, task);
 
-	HIO_DEBUG2 (hio, "HTTS(%p) - destroyed resource %p\n", htts, rsrc);
+	HIO_DEBUG2 (hio, "HTTS(%p) - destroyed task %p\n", htts, task);
 }
 
 /* ----------------------------------------------------------------- */
