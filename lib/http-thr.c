@@ -69,6 +69,7 @@ struct thr_task_t
 	hio_dev_sck_t* csck;
 	hio_svc_htts_cli_t* client;
 	hio_http_version_t req_version; /* client request */
+	hio_http_method_t req_method;
 
 	unsigned int over: 4; /* must be large enough to accomodate THR_TASK_OVER_ALL */
 	unsigned int keep_alive: 1;
@@ -152,15 +153,21 @@ static int thr_task_send_final_status_to_client (thr_task_t* thr_task, int statu
 {
 	hio_svc_htts_cli_t* cli = thr_task->client;
 	hio_bch_t dtbuf[64];
+	const hio_bch_t* status_msg;
 
 	hio_svc_htts_fmtgmtime (cli->htts, HIO_NULL, dtbuf, HIO_COUNTOF(dtbuf));
+	status_msg = hio_http_status_to_bcstr(status_code);
 
 	if (!force_close) force_close = !thr_task->keep_alive;
-	if (hio_becs_fmt(cli->sbuf, "HTTP/%d.%d %d %hs\r\nServer: %hs\r\nDate: %s\r\nConnection: %hs\r\nContent-Length: 0\r\n\r\n",
+	if (hio_becs_fmt(cli->sbuf, "HTTP/%d.%d %d %hs\r\nServer: %hs\r\nDate: %s\r\nConnection: %hs\r\n",
 		thr_task->req_version.major, thr_task->req_version.minor,
-		status_code, hio_http_status_to_bcstr(status_code),
+		status_code, status_msg,
 		cli->htts->server_name, dtbuf,
 		(force_close? "close": "keep-alive")) == (hio_oow_t)-1) return -1;
+
+	if (thr_task->req_method == HIO_HTTP_HEAD && status_code != HIO_HTTP_STATUS_OK) status_msg = "";
+
+	if (hio_becs_fcat(cli->sbuf, "Content-Type: text/plain\r\nContent-Length: %zu\r\n\r\n%hs", hio_count_bcstr(status_msg), status_msg) == (hio_oow_t)-1) return -1;
 
 	return (thr_task_write_to_client(thr_task, HIO_BECS_PTR(cli->sbuf), HIO_BECS_LEN(cli->sbuf)) <= -1 ||
 	        (force_close && thr_task_write_to_client(thr_task, HIO_NULL, 0) <= -1))? -1: 0;
@@ -311,7 +318,7 @@ static void thr_task_on_kill (hio_svc_htts_task_t* task)
 	thr_task->client_org_on_disconnect = HIO_NULL;
 	thr_task->client_htrd_recbs_changed = 0;
 
-	HIO_SVC_HTTS_TASKL_UNLINK_TASK (thr_task); /* detach from the htts service */
+	if (thr_task->task_next) HIO_SVC_HTTS_TASKL_UNLINK_TASK (thr_task); /* detach from the htts service only if it's attached */
 	HIO_DEBUG5 (hio, "HTTS(%p) - thr(t=%p,c=%p[%d],p=%p) - killed the task\n", thr_task->htts, thr_task, thr_task->client, (thr_task->csck? thr_task->csck->hnd: -1), thr_task->peer);
 }
 
@@ -920,6 +927,7 @@ int hio_svc_htts_dothr (hio_svc_htts_t* htts, hio_dev_sck_t* csck, hio_htre_t* r
 
 	/*thr_task->num_pending_writes_to_client = 0;
 	thr_task->num_pending_writes_to_peer = 0;*/
+	thr_task->req_method = hio_htre_getqmethodtype(req);
 	thr_task->req_version = *hio_htre_getversion(req);
 	thr_task->req_content_length_unlimited = hio_htre_getreqcontentlen(req, &thr_task->req_content_length);
 
@@ -1044,7 +1052,7 @@ int hio_svc_htts_dothr (hio_svc_htts_t* htts, hio_dev_sck_t* csck, hio_htre_t* r
 	/* TODO: store current input watching state and use it when destroying the thr_task data */
 	if (hio_dev_sck_read(csck, !(thr_task->over & THR_TASK_OVER_READ_FROM_CLIENT)) <= -1) goto oops;
 
-	HIO_SVC_HTTS_TASKL_APPEND_TASK(&htts->task, thr_task);
+	HIO_SVC_HTTS_TASKL_APPEND_TASK (&htts->task, thr_task);
 	return 0;
 
 oops:
