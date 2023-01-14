@@ -39,7 +39,7 @@ dnl include utl-str.m4 for c++ template functions far below
 include(`utl-str.m4')
 dnl ---------------------------------------------------------------------------
 
-/* ========================================================================= 
+/* =========================================================================
  * STRING
  * ========================================================================= */
 enum hio_trim_flag_t
@@ -640,7 +640,7 @@ HIO_EXPORT int hio_fnmat_bchars_i (
 #define HIO_BYTE_TO_BCSTR_LOWERCASE HIO_BYTE_TO_OOCSTR_LOWERCASE
 
 HIO_EXPORT hio_oow_t hio_byte_to_bcstr (
-	hio_uint8_t   byte,  
+	hio_uint8_t   byte,
 	hio_bch_t*    buf,
 	hio_oow_t     size,
 	int           flagged_radix,
@@ -648,7 +648,7 @@ HIO_EXPORT hio_oow_t hio_byte_to_bcstr (
 );
 
 HIO_EXPORT hio_oow_t hio_byte_to_ucstr (
-	hio_uint8_t   byte,  
+	hio_uint8_t   byte,
 	hio_uch_t*    buf,
 	hio_oow_t     size,
 	int           flagged_radix,
@@ -664,32 +664,32 @@ HIO_EXPORT hio_oow_t hio_byte_to_ucstr (
 /* ------------------------------------------------------------------------- */
 
 HIO_EXPORT hio_oow_t hio_intmax_to_ucstr (
-	hio_intmax_t     value, 
-	int              radix, 
+	hio_intmax_t     value,
+	int              radix,
 	const hio_uch_t* prefix,
 	hio_uch_t*       buf,
 	hio_oow_t        size
 );
 
 HIO_EXPORT hio_oow_t hio_intmax_to_bcstr (
-	hio_intmax_t     value, 
-	int              radix, 
+	hio_intmax_t     value,
+	int              radix,
 	const hio_bch_t* prefix,
 	hio_bch_t*       buf,
 	hio_oow_t        size
 );
 
 HIO_EXPORT hio_oow_t hio_uintmax_to_ucstr (
-	hio_uintmax_t     value, 
-	int              radix, 
+	hio_uintmax_t     value,
+	int              radix,
 	const hio_uch_t* prefix,
 	hio_uch_t*       buf,
 	hio_oow_t        size
 );
 
 HIO_EXPORT hio_oow_t hio_uintmax_to_bcstr (
-	hio_uintmax_t     value, 
-	int              radix, 
+	hio_uintmax_t     value,
+	int              radix,
 	const hio_bch_t* prefix,
 	hio_bch_t*       buf,
 	hio_oow_t        size
