@@ -182,7 +182,7 @@ static int thr_task_write_last_chunk_to_client (thr_task_t* thr_task)
 	else
 	{
 		if (thr_task->res_mode_to_cli == THR_TASK_RES_MODE_CHUNKED &&
-			thr_task_write_to_client(thr_task, "0\r\n\r\n", 5) <= -1) return -1;
+		    thr_task_write_to_client(thr_task, "0\r\n\r\n", 5) <= -1) return -1;
 	}
 
 	if (!thr_task->keep_alive && thr_task_write_to_client(thr_task, HIO_NULL, 0) <= -1) return -1;
@@ -191,17 +191,20 @@ static int thr_task_write_last_chunk_to_client (thr_task_t* thr_task)
 
 static int thr_task_write_to_peer (thr_task_t* thr_task, const void* data, hio_iolen_t dlen)
 {
-	thr_task->num_pending_writes_to_peer++;
-	if (hio_dev_thr_write(thr_task->peer, data, dlen, HIO_NULL) <= -1)
+	if (thr_task->peer)
 	{
-		thr_task->num_pending_writes_to_peer--;
-		return -1;
-	}
+		thr_task->num_pending_writes_to_peer++;
+		if (hio_dev_thr_write(thr_task->peer, data, dlen, HIO_NULL) <= -1)
+		{
+			thr_task->num_pending_writes_to_peer--;
+			return -1;
+		}
 
 /* TODO: check if it's already finished or something.. */
-	if (thr_task->num_pending_writes_to_peer > THR_TASK_PENDING_IO_THRESHOLD)
-	{
-		if (hio_dev_sck_read(thr_task->csck, 0) <= -1) return -1;
+		if (thr_task->num_pending_writes_to_peer > THR_TASK_PENDING_IO_THRESHOLD)
+		{
+			if (thr_task->csck, hio_dev_sck_read(thr_task->csck, 0) <= -1) return -1;
+		}
 	}
 	return 0;
 }
@@ -308,7 +311,7 @@ static void thr_task_on_kill (hio_svc_htts_task_t* task)
 
 		if (!thr_task->keep_alive || hio_dev_sck_read(thr_task->csck, 1) <= -1)
 		{
-			HIO_DEBUG2 (hio, "HTTS(%p) - halting client(%p) for failure to enable input watching\n", thr_task->htts, thr_task->csck);
+			HIO_DEBUG5 (hio, "HTTS(%p) - thr(t=%p,c=%p[%d],p=%p) - halting client for failure to enable input watching\n", thr_task->htts, thr_task, thr_task->client, (thr_task->csck? thr_task->csck->hnd: -1), thr_task->peer);
 			hio_dev_sck_halt (thr_task->csck);
 		}
 	}
@@ -394,11 +397,13 @@ static int thr_peer_on_read (hio_dev_thr_t* thr, const void* data, hio_iolen_t d
 
 		if (!(thr_task->over & THR_TASK_OVER_READ_FROM_PEER))
 		{
+			int n;
 			/* the thr script could be misbehaviing.
 			 * it still has to read more but EOF is read.
 			 * otherwise client_peer_htrd_poke() should have been called */
-			if (thr_task_write_last_chunk_to_client(thr_task) <= -1) goto oops;
+			n = thr_task_write_last_chunk_to_client(thr_task);
 			thr_task_mark_over (thr_task, THR_TASK_OVER_READ_FROM_PEER);
+			if (n <= -1) goto oops;
 		}
 	}
 	else
@@ -557,28 +562,19 @@ static int thr_peer_htrd_push_content (hio_htrd_t* htrd, hio_htre_t* req, const 
 			iov[2].iov_ptr = "\r\n";
 			iov[2].iov_len = 2;
 
-			if (thr_task_writev_to_client(thr_task, iov, HIO_COUNTOF(iov)) <= -1)
-			{
-				goto oops;
-			}
+			if (thr_task_writev_to_client(thr_task, iov, HIO_COUNTOF(iov)) <= -1) goto oops;
 			break;
 		}
 
 		case THR_TASK_RES_MODE_CLOSE:
 		case THR_TASK_RES_MODE_LENGTH:
-			if (thr_task_write_to_client(thr_task, data, dlen) <= -1)
-			{
-				goto oops;
-			}
+			if (thr_task_write_to_client(thr_task, data, dlen) <= -1) goto oops;
 			break;
 	}
 
 	if (thr_task->num_pending_writes_to_client > THR_TASK_PENDING_IO_THRESHOLD)
 	{
-		if (hio_dev_thr_read(thr_task->peer, 0) <= -1)
-		{
-			goto oops;
-		}
+		if (hio_dev_thr_read(thr_task->peer, 0) <= -1) goto oops;
 	}
 
 	return 0;
@@ -686,7 +682,7 @@ static void thr_client_on_disconnect (hio_dev_sck_t* sck)
 	hio_t* hio = sck->hio;
 
 	HIO_ASSERT (hio, sck = thr_task->csck);
-	HIO_DEBUG4 (hio, "HTTS(%p) - thr(t=%p,c=%p,csck=%p) - client socket disconnect notified\n", htts, thr_task, sck, cli);
+	HIO_DEBUG4 (hio, "HTTS(%p) - thr(t=%p,c=%p,csck=%p) - client socket disconnect notified\n", htts, thr_task, cli, sck);
 
 	thr_task->client_disconnected = 1;
 	thr_task->csck = HIO_NULL;
@@ -698,7 +694,7 @@ static void thr_client_on_disconnect (hio_dev_sck_t* sck)
 		 * thr_task must not be accessed from here down */
 	}
 
-	HIO_DEBUG4 (hio, "HTTS(%p) - thr(t=%p,c=%p,csck=%p) - client socket disconnect handled\n", htts, thr_task, sck, cli);
+	HIO_DEBUG4 (hio, "HTTS(%p) - thr(t=%p,c=%p,csck=%p) - client socket disconnect handled\n", htts, thr_task, cli, sck);
 	/* Note: after this callback, the actual device pointed to by 'sck' will be freed in the main loop. */
 }
 

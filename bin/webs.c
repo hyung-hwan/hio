@@ -321,7 +321,14 @@ static int process_http_request (hio_svc_htts_t* htts, hio_dev_sck_t* csck, hio_
 	}
 	else if (mth == HIO_HTTP_OPTIONS)
 	{
+/* TODO: write proper handler for preflight */
 		//if (hio_svc_htts_dofun(htts, csck, req, options, HIO_NULL, 0) <= -1) goto oops;
+		const hio_bch_t* msg = "HTTP/1.1 200 OK\r\nContent-Length: 0\r\nAccess-Control-Allow-Origin: *\r\nAccess-Control-Allow-Methods: *\r\nAccess-Control-Allow-Headers: *\r\nAccess-Control-Allow-Credentials: true\r\n\r\n";
+		hio_dev_sck_write(csck, msg, strlen(msg), HIO_NULL, HIO_NULL);
+	}
+	else if (hio_comp_bcstr(qpath_ext, ".cgi", 0) == 0)
+	{
+		if (hio_svc_htts_docgi(htts, csck, req, ext->ai->docroot, qpath, 0) <= -1) goto oops;
 	}
 	else if (hio_comp_bcstr(qpath_ext, ".php", 0) == 0)
 	{
