@@ -153,20 +153,26 @@ static int cgi_send_final_status_to_client (cgi_t* cgi, int status_code, int for
 	hio_svc_htts_cli_t* cli = cgi->client;
 	hio_bch_t dtbuf[64];
 	const hio_bch_t* status_msg;
+	hio_oow_t content_len;
 
 	hio_svc_htts_fmtgmtime (cli->htts, HIO_NULL, dtbuf, HIO_COUNTOF(dtbuf));
 	status_msg = hio_http_status_to_bcstr(status_code);
+	content_len = hio_count_bcstr(status_msg);
 
 	if (!force_close) force_close = !cgi->keep_alive;
-	if (hio_becs_fmt(cli->sbuf, "HTTP/%d.%d %d %hs\r\nServer: %hs\r\nDate: %s\r\nConnection: %hs\r\n",
+	if (hio_becs_fmt(cli->sbuf, "HTTP/%d.%d %d %hs\r\nServer: %hs\r\nDate: %hs\r\nConnection: %hs\r\n",
 		cgi->req_version.major, cgi->req_version.minor,
 		status_code, status_msg,
 		cli->htts->server_name, dtbuf,
 		(force_close? "close": "keep-alive")) == (hio_oow_t)-1) return -1;
 
-	if (cgi->req_method == HIO_HTTP_HEAD && status_code != HIO_HTTP_STATUS_OK) status_msg = "";
+	if (cgi->req_method == HIO_HTTP_HEAD)
+	{
+		if (status_code != HIO_HTTP_STATUS_OK) content_len = 0;
+		status_msg = "";
+	}
 
-    if (hio_becs_fcat(cli->sbuf, "Content-Type: text/plain\r\nContent-Length: %zu\r\n\r\n%hs", hio_count_bcstr(status_msg), status_msg) == (hio_oow_t)-1) return -1;
+    if (hio_becs_fcat(cli->sbuf, "Content-Type: text/plain\r\nContent-Length: %zu\r\n\r\n%hs", content_len, status_msg) == (hio_oow_t)-1) return -1;
 
 	return (cgi_write_to_client(cgi, HIO_BECS_PTR(cli->sbuf), HIO_BECS_LEN(cli->sbuf)) <= -1 ||
 	        (force_close && cgi_write_to_client(cgi, HIO_NULL, 0) <= -1))? -1: 0;
@@ -333,7 +339,7 @@ static void cgi_peer_on_close (hio_dev_pro_t* pro, hio_dev_pro_sid_t sid)
 	switch (sid)
 	{
 		case HIO_DEV_PRO_MASTER:
-			HIO_DEBUG3 (hio, "HTTS(%p) - peer %p(pid=%d) closing master\n", cgi->client->htts, pro, (int)pro->child_pid);
+			HIO_DEBUG3 (hio, "HTTS(%p) - peer %p(pid=%d) closing master\n", cgi->htts, pro, (int)pro->child_pid);
 			cgi->peer = HIO_NULL; /* clear this peer from the state */
 
 			HIO_ASSERT (hio, peer_xtn->cgi != HIO_NULL);
@@ -352,7 +358,7 @@ static void cgi_peer_on_close (hio_dev_pro_t* pro, hio_dev_pro_sid_t sid)
 
 		case HIO_DEV_PRO_OUT:
 			HIO_ASSERT (hio, cgi->peer == pro);
-			HIO_DEBUG4 (hio, "HTTS(%p) - peer %p(pid=%d) closing slave[%d]\n", cgi->client->htts, pro, (int)pro->child_pid, sid);
+			HIO_DEBUG4 (hio, "HTTS(%p) - peer %p(pid=%d) closing slave[%d]\n", cgi->htts, pro, (int)pro->child_pid, sid);
 
 			if (!(cgi->over & CGI_OVER_READ_FROM_PEER))
 			{
@@ -364,13 +370,13 @@ static void cgi_peer_on_close (hio_dev_pro_t* pro, hio_dev_pro_sid_t sid)
 			break;
 
 		case HIO_DEV_PRO_IN:
-			HIO_DEBUG4 (hio, "HTTS(%p) - peer %p(pid=%d) closing slave[%d]\n", cgi->client->htts, pro, (int)pro->child_pid, sid);
+			HIO_DEBUG4 (hio, "HTTS(%p) - peer %p(pid=%d) closing slave[%d]\n", cgi->htts, pro, (int)pro->child_pid, sid);
 			cgi_mark_over (cgi, CGI_OVER_WRITE_TO_PEER);
 			break;
 
 		case HIO_DEV_PRO_ERR:
 		default:
-			HIO_DEBUG4 (hio, "HTTS(%p) - peer %p(pid=%d) closing slave[%d]\n", cgi->client->htts, pro, (int)pro->child_pid, sid);
+			HIO_DEBUG4 (hio, "HTTS(%p) - peer %p(pid=%d) closing slave[%d]\n", cgi->htts, pro, (int)pro->child_pid, sid);
 			/* do nothing */
 			break;
 	}
@@ -387,13 +393,13 @@ static int cgi_peer_on_read (hio_dev_pro_t* pro, hio_dev_pro_sid_t sid, const vo
 
 	if (dlen <= -1)
 	{
-		HIO_DEBUG3 (hio, "HTTS(%p) - read error from peer %p(pid=%u)\n", cgi->client->htts, pro, (unsigned int)pro->child_pid);
+		HIO_DEBUG3 (hio, "HTTS(%p) - read error from peer %p(pid=%u)\n", cgi->htts, pro, (unsigned int)pro->child_pid);
 		goto oops;
 	}
 
 	if (dlen == 0)
 	{
-		HIO_DEBUG3 (hio, "HTTS(%p) - EOF from peer %p(pid=%u)\n", cgi->client->htts, pro, (unsigned int)pro->child_pid);
+		HIO_DEBUG3 (hio, "HTTS(%p) - EOF from peer %p(pid=%u)\n", cgi->htts, pro, (unsigned int)pro->child_pid);
 
 		if (!(cgi->over & CGI_OVER_READ_FROM_PEER))
 		{
@@ -539,7 +545,7 @@ static int peer_htrd_push_content (hio_htrd_t* htrd, hio_htre_t* req, const hio_
 	cgi_peer_xtn_t* peer = hio_htrd_getxtn(htrd);
 	cgi_t* cgi = peer->cgi;
 
-	HIO_ASSERT (cgi->client->htts->hio, htrd == cgi->peer_htrd);
+	HIO_ASSERT (cgi->htts->hio, htrd == cgi->peer_htrd);
 
 	switch (cgi->res_mode_to_cli)
 	{
@@ -635,7 +641,7 @@ static int cgi_peer_on_write (hio_dev_pro_t* pro, hio_iolen_t wrlen, void* wrctx
 
 	if (wrlen <= -1)
 	{
-		HIO_DEBUG3 (hio, "HTTS(%p) - unable to write to peer %p(pid=%u)\n", cgi->client->htts, pro, (int)pro->child_pid);
+		HIO_DEBUG3 (hio, "HTTS(%p) - unable to write to peer %p(pid=%u)\n", cgi->htts, pro, (int)pro->child_pid);
 		goto oops;
 	}
 	else if (wrlen == 0)
@@ -645,7 +651,7 @@ static int cgi_peer_on_write (hio_dev_pro_t* pro, hio_iolen_t wrlen, void* wrctx
 
 		cgi->num_pending_writes_to_peer--;
 		HIO_ASSERT (hio, cgi->num_pending_writes_to_peer == 0);
-		HIO_DEBUG3 (hio, "HTTS(%p) - indicated EOF to peer %p(pid=%u)\n", cgi->client->htts, pro, (int)pro->child_pid);
+		HIO_DEBUG3 (hio, "HTTS(%p) - indicated EOF to peer %p(pid=%u)\n", cgi->htts, pro, (int)pro->child_pid);
 		/* indicated EOF to the peer side. i need no more data from the client side.
 		 * i don't need to enable input watching in the client side either */
 		cgi_mark_over (cgi, CGI_OVER_WRITE_TO_PEER);
@@ -722,7 +728,7 @@ static int cgi_client_on_read (hio_dev_sck_t* sck, const void* buf, hio_iolen_t 
 	if (len == 0)
 	{
 		/* EOF on the client side. arrange to close */
-		HIO_DEBUG3 (hio, "HTTS(%p) - EOF from client %p(hnd=%d)\n", cgi->client->htts, sck, (int)sck->hnd);
+		HIO_DEBUG3 (hio, "HTTS(%p) - EOF from client %p(hnd=%d)\n", cgi->htts, sck, (int)sck->hnd);
 		cgi->client_eof_detected = 1;
 
 		if (!(cgi->over & CGI_OVER_READ_FROM_CLIENT)) /* if this is true, EOF is received without cgi_client_htrd_poke() */
@@ -772,7 +778,7 @@ static int cgi_client_on_write (hio_dev_sck_t* sck, hio_iolen_t wrlen, void* wrc
 		/* if the connect is keep-alive, this part may not be called */
 		cgi->num_pending_writes_to_client--;
 		HIO_ASSERT (hio, cgi->num_pending_writes_to_client == 0);
-		HIO_DEBUG3 (hio, "HTTS(%p) - indicated EOF to client %p(%d)\n", cgi->client->htts, sck, (int)sck->hnd);
+		HIO_DEBUG3 (hio, "HTTS(%p) - indicated EOF to client %p(%d)\n", cgi->htts, sck, (int)sck->hnd);
 		/* since EOF has been indicated to the client, it must not write to the client any further.
 		 * this also means that i don't need any data from the peer side either.
 		 * i don't need to enable input watching on the peer side */

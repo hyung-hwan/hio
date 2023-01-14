@@ -29,7 +29,10 @@ struct fcgi_t
 	hio_oow_t num_pending_writes_to_client;
 	hio_oow_t num_pending_writes_to_peer;
 	hio_svc_fcgic_sess_t* peer;
+
+	hio_dev_sck_t* csck;
 	hio_svc_htts_cli_t* client;
+	hio_http_method_t req_method;
 	hio_http_version_t req_version; /* client request */
 
 	unsigned int over: 4; /* must be large enough to accomodate FCGI_OVER_ALL */
@@ -81,13 +84,13 @@ static int begin_request ()
 
 static void fcgi_halt_participating_devices (fcgi_t* fcgi)
 {
-	HIO_ASSERT (fcgi->client->htts->hio, fcgi->client != HIO_NULL);
-	HIO_ASSERT (fcgi->client->htts->hio, fcgi->client->sck != HIO_NULL);
+	HIO_ASSERT (fcgi->htts->hio, fcgi->client != HIO_NULL);
+	HIO_ASSERT (fcgi->htts->hio, fcgi->csck != HIO_NULL);
 
 /* TODO: include fcgi session id in the output in place of peer??? */
-	HIO_DEBUG3 (fcgi->client->htts->hio, "HTTS(%p) - Halting participating devices in fcgi state %p(client=%p)\n", fcgi->client->htts, fcgi, fcgi->client->sck);
+	HIO_DEBUG3 (fcgi->htts->hio, "HTTS(%p) - Halting participating devices in fcgi state %p(client=%p)\n", fcgi->htts, fcgi, fcgi->csck);
 
-	hio_dev_sck_halt (fcgi->client->sck);
+	hio_dev_sck_halt (fcgi->csck);
 
 #if 0
 	/* check for peer as it may not have been started */
@@ -111,7 +114,7 @@ static int fcgi_write_to_peer (fcgi_t* fcgi, const void* data, hio_iolen_t dlen)
 	if (fcgi->num_pending_writes_to_peer > FCGI_PENDING_IO_THRESHOLD)
 	{
 		/* disable input watching */
-		if (hio_dev_sck_read(fcgi->client->sck, 0) <= -1) return -1;
+		if (hio_dev_sck_read(fcgi->csck, 0) <= -1) return -1;
 	}
 	return 0;
 }
@@ -123,15 +126,15 @@ static HIO_INLINE void fcgi_mark_over (fcgi_t* fcgi, int over_bits)
 	old_over = fcgi->over;
 	fcgi->over |= over_bits;
 
-	HIO_DEBUG4 (fcgi->htts->hio, "HTTS(%p) - client=%p new-bits=%x over=%x\n", fcgi->htts, fcgi->client->sck, (int)over_bits, (int)fcgi->over);
+	HIO_DEBUG4 (fcgi->htts->hio, "HTTS(%p) - client=%p new-bits=%x over=%x\n", fcgi->htts, fcgi->csck, (int)over_bits, (int)fcgi->over);
 
 	if (!(old_over & FCGI_OVER_READ_FROM_CLIENT) && (fcgi->over & FCGI_OVER_READ_FROM_CLIENT))
 	{
 printf (">>>>>>>>>>>> disableing client read watching ...................\n");
-		if (hio_dev_sck_read(fcgi->client->sck, 0) <= -1)
+		if (hio_dev_sck_read(fcgi->csck, 0) <= -1)
 		{
-			HIO_DEBUG2 (fcgi->htts->hio, "HTTS(%p) - halting client(%p) for failure to disable input watching\n", fcgi->htts, fcgi->client->sck);
-			hio_dev_sck_halt (fcgi->client->sck);
+			HIO_DEBUG2 (fcgi->htts->hio, "HTTS(%p) - halting client(%p) for failure to disable input watching\n", fcgi->htts, fcgi->csck);
+			hio_dev_sck_halt (fcgi->csck);
 		}
 	}
 
@@ -168,9 +171,9 @@ printf (">>>>>>>>>>>> disableing client read watching ...................\n");
 		}
 		else
 		{
-			HIO_DEBUG2 (fcgi->htts->hio, "HTTS(%p) - halting client(%p) for no keep-alive\n", fcgi->htts, fcgi->client->sck);
-			hio_dev_sck_shutdown (fcgi->client->sck, HIO_DEV_SCK_SHUTDOWN_WRITE);
-			hio_dev_sck_halt (fcgi->client->sck);
+			HIO_DEBUG2 (fcgi->htts->hio, "HTTS(%p) - halting client(%p) for no keep-alive\n", fcgi->htts, fcgi->csck);
+			hio_dev_sck_shutdown (fcgi->csck, HIO_DEV_SCK_SHUTDOWN_WRITE);
+			hio_dev_sck_halt (fcgi->csck);
 		}
 	}
 }
@@ -180,7 +183,7 @@ static int fcgi_write_to_client (fcgi_t* fcgi, const void* data, hio_iolen_t dle
 	fcgi->ever_attempted_to_write_to_client = 1;
 
 	fcgi->num_pending_writes_to_client++;
-	if (hio_dev_sck_write(fcgi->client->sck, data, dlen, HIO_NULL, HIO_NULL) <= -1)
+	if (hio_dev_sck_write(fcgi->csck, data, dlen, HIO_NULL, HIO_NULL) <= -1)
 	{
 		fcgi->num_pending_writes_to_client--;
 		return -1;
@@ -200,15 +203,27 @@ static int fcgi_send_final_status_to_client (fcgi_t* fcgi, int status_code, int 
 {
 	hio_svc_htts_cli_t* cli = fcgi->client;
 	hio_bch_t dtbuf[64];
+	const hio_bch_t* status_msg;
+	hio_oow_t content_len;
 
 	hio_svc_htts_fmtgmtime (cli->htts, HIO_NULL, dtbuf, HIO_COUNTOF(dtbuf));
+	status_msg = hio_http_status_to_bcstr(status_code);
+	content_len = hio_count_bcstr(status_msg);
 
 	if (!force_close) force_close = !fcgi->keep_alive;
-	if (hio_becs_fmt(cli->sbuf, "HTTP/%d.%d %d %hs\r\nServer: %hs\r\nDate: %s\r\nConnection: %hs\r\nContent-Length: 0\r\n\r\n",
+	if (hio_becs_fmt(cli->sbuf, "HTTP/%d.%d %d %hs\r\nServer: %hs\r\nDate: %hs\r\nConnection: %hs\r\n",
 		fcgi->req_version.major, fcgi->req_version.minor,
-		status_code, hio_http_status_to_bcstr(status_code),
+		status_code, status_msg,
 		cli->htts->server_name, dtbuf,
 		(force_close? "close": "keep-alive")) == (hio_oow_t)-1) return -1;
+
+	if (fcgi->req_method == HIO_HTTP_HEAD)
+	{
+		if (status_code != HIO_HTTP_STATUS_OK) content_len = 0;
+		status_msg = "";
+	}
+
+	if (hio_becs_fcat(cli->sbuf, "Content-Type: text/plain\r\nContent-Length: %zu\r\n\r\n%hs", content_len, status_msg) == (hio_oow_t)-1) return -1;
 
 	return (fcgi_write_to_client(fcgi, HIO_BECS_PTR(cli->sbuf), HIO_BECS_LEN(cli->sbuf)) <= -1 ||
 	        (force_close && fcgi_write_to_client(fcgi, HIO_NULL, 0) <= -1))? -1: 0;
@@ -285,7 +300,7 @@ static int fcgi_client_on_read (hio_dev_sck_t* sck, const void* buf, hio_iolen_t
 	if (len == 0)
 	{
 		/* EOF on the client side. arrange to close */
-		HIO_DEBUG3 (hio, "HTTS(%p) - EOF from client %p(hnd=%d)\n", fcgi->client->htts, sck, (int)sck->hnd);
+		HIO_DEBUG3 (hio, "HTTS(%p) - EOF from client %p(hnd=%d)\n", fcgi->htts, sck, (int)sck->hnd);
 
 		if (!(fcgi->over & FCGI_OVER_READ_FROM_CLIENT)) /* if this is true, EOF is received without fcgi_client_htrd_poke() */
 		{
@@ -333,7 +348,7 @@ static int fcgi_client_on_write (hio_dev_sck_t* sck, hio_iolen_t wrlen, void* wr
 		/* if the connect is keep-alive, this part may not be called */
 		fcgi->num_pending_writes_to_client--;
 		HIO_ASSERT (hio, fcgi->num_pending_writes_to_client == 0);
-		HIO_DEBUG3 (hio, "HTTS(%p) - indicated EOF to client %p(%d)\n", fcgi->client->htts, sck, (int)sck->hnd);
+		HIO_DEBUG3 (hio, "HTTS(%p) - indicated EOF to client %p(%d)\n", fcgi->htts, sck, (int)sck->hnd);
 		/* since EOF has been indicated to the client, it must not write to the client any further.
 		 * this also means that i don't need any data from the peer side either.
 		 * i don't need to enable input watching on the peer side */
@@ -376,7 +391,7 @@ static void fcgi_on_kill (hio_svc_htts_task_t* task)
 	fcgi_t* fcgi = (fcgi_t*)task;
 	hio_t* hio = fcgi->htts->hio;
 
-	HIO_DEBUG2 (hio, "HTTS(%p) - killing fcgi client(%p)\n", fcgi->htts, fcgi->client->sck);
+	HIO_DEBUG2 (hio, "HTTS(%p) - killing fcgi client(%p)\n", fcgi->htts, fcgi->csck);
 
 #if 0
 	if (fcgi->peer)
@@ -389,38 +404,31 @@ static void fcgi_on_kill (hio_svc_htts_task_t* task)
 	}
 #endif
 
-	if (fcgi->client_org_on_read)
+	if (fcgi->csck)
 	{
-		fcgi->client->sck->on_read = fcgi->client_org_on_read;
-		fcgi->client_org_on_read = HIO_NULL;
-	}
+		HIO_ASSERT (hio, fcgi->client != HIO_NULL);
 
-	if (fcgi->client_org_on_write)
-	{
-		fcgi->client->sck->on_write = fcgi->client_org_on_write;
-		fcgi->client_org_on_write = HIO_NULL;
-	}
+		if (fcgi->client_org_on_read) fcgi->csck->on_read = fcgi->client_org_on_read;
+		if (fcgi->client_org_on_write) fcgi->csck->on_write = fcgi->client_org_on_write;
+		if (fcgi->client_org_on_disconnect) fcgi->csck->on_disconnect = fcgi->client_org_on_disconnect;
+		if (fcgi->client_htrd_recbs_changed) hio_htrd_setrecbs (fcgi->client->htrd, &fcgi->client_htrd_org_recbs);
 
-	if (fcgi->client_org_on_disconnect)
-	{
-		fcgi->client->sck->on_disconnect = fcgi->client_org_on_disconnect;
-		fcgi->client_org_on_disconnect = HIO_NULL;
-	}
-
-	if (fcgi->client_htrd_recbs_changed)
-	{
-		/* restore the callbacks */
-		hio_htrd_setrecbs (fcgi->client->htrd, &fcgi->client_htrd_org_recbs);
-	}
-
-	if (!fcgi->client_disconnected)
-	{
-		if (!fcgi->keep_alive || hio_dev_sck_read(fcgi->client->sck, 1) <= -1)
+		if (!fcgi->client_disconnected)
 		{
-			HIO_DEBUG2 (hio, "HTTS(%p) - halting client(%p) for failure to enable input watching\n", fcgi->htts, fcgi->client->sck);
-			hio_dev_sck_halt (fcgi->client->sck);
+			if (!fcgi->keep_alive || hio_dev_sck_read(fcgi->csck, 1) <= -1)
+			{
+				HIO_DEBUG2 (hio, "HTTS(%p) - halting client(%p) for failure to enable input watching\n", fcgi->htts, fcgi->csck);
+				hio_dev_sck_halt (fcgi->csck);
+			}
 		}
 	}
+
+	fcgi->client_org_on_read = HIO_NULL;
+	fcgi->client_org_on_write = HIO_NULL;
+	fcgi->client_org_on_disconnect = HIO_NULL;
+	fcgi->client_htrd_recbs_changed = 0;
+
+	if (fcgi->task_next) HIO_SVC_HTTS_TASKL_UNLINK_TASK (fcgi); /* detach from the htts service only if it's attached */
 }
 
 static int write_params (fcgi_t* fcgi, hio_dev_sck_t* csck, hio_htre_t* req, const hio_bch_t* docroot, const hio_bch_t* script)
@@ -432,7 +440,7 @@ static int write_params (fcgi_t* fcgi, hio_dev_sck_t* csck, hio_htre_t* req, con
 	hio_oow_t content_length;
 	hio_bch_t* actual_script = HIO_NULL;
 
-	HIO_ASSERT (hio, fcgi->client->sck == csck);
+	HIO_ASSERT (hio, fcgi->csck == csck);
 
 	actual_script = hio_svc_htts_dupmergepaths(fcgi->htts, docroot, script);
 	if (!actual_script) goto oops;
@@ -479,6 +487,7 @@ static int write_params (fcgi_t* fcgi, hio_dev_sck_t* csck, hio_htre_t* req, con
 
 	//hio_htre_walkheaders (req,)
 
+	hio_freemem (hio, actual_script);
 	return 0;
 
 oops:
@@ -504,9 +513,11 @@ int hio_svc_htts_dofcgi (hio_svc_htts_t* htts, hio_dev_sck_t* csck, hio_htre_t* 
 	fcgi = (fcgi_t*)hio_svc_htts_task_make(htts, HIO_SIZEOF(*fcgi), fcgi_on_kill);
 	if (HIO_UNLIKELY(!fcgi)) goto oops;
 
+	fcgi->csck = csck;
 	fcgi->client = cli;
 	/*fcgi->num_pending_writes_to_client = 0;
 	fcgi->num_pending_writes_to_peer = 0;*/
+	fcgi->req_method = hio_htre_getqmethodtype(req);
 	fcgi->req_version = *hio_htre_getversion(req);
 	fcgi->req_content_length_unlimited = hio_htre_getreqcontentlen(req, &fcgi->req_content_length);
 
@@ -627,6 +638,8 @@ int hio_svc_htts_dofcgi (hio_svc_htts_t* htts, hio_dev_sck_t* csck, hio_htre_t* 
 
 	/* TODO: store current input watching state and use it when destroying the cgi data */
 	if (hio_dev_sck_read(csck, !(fcgi->over & FCGI_OVER_READ_FROM_CLIENT)) <= -1) goto oops;
+
+	HIO_SVC_HTTS_TASKL_APPEND_TASK (&htts->task, fcgi);
 	return 0;
 
 oops:

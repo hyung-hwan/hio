@@ -154,20 +154,26 @@ static int thr_task_send_final_status_to_client (thr_task_t* thr_task, int statu
 	hio_svc_htts_cli_t* cli = thr_task->client;
 	hio_bch_t dtbuf[64];
 	const hio_bch_t* status_msg;
+	hio_oow_t content_len;
 
 	hio_svc_htts_fmtgmtime (cli->htts, HIO_NULL, dtbuf, HIO_COUNTOF(dtbuf));
 	status_msg = hio_http_status_to_bcstr(status_code);
+	content_len = hio_count_bcstr(status_msg);
 
 	if (!force_close) force_close = !thr_task->keep_alive;
-	if (hio_becs_fmt(cli->sbuf, "HTTP/%d.%d %d %hs\r\nServer: %hs\r\nDate: %s\r\nConnection: %hs\r\n",
+	if (hio_becs_fmt(cli->sbuf, "HTTP/%d.%d %d %hs\r\nServer: %hs\r\nDate: %hs\r\nConnection: %hs\r\n",
 		thr_task->req_version.major, thr_task->req_version.minor,
 		status_code, status_msg,
 		cli->htts->server_name, dtbuf,
 		(force_close? "close": "keep-alive")) == (hio_oow_t)-1) return -1;
 
-	if (thr_task->req_method == HIO_HTTP_HEAD && status_code != HIO_HTTP_STATUS_OK) status_msg = "";
+	if (thr_task->req_method == HIO_HTTP_HEAD)
+	{
+		if (status_code != HIO_HTTP_STATUS_OK) content_len = 0;
+		status_msg = "";
+	}
 
-	if (hio_becs_fcat(cli->sbuf, "Content-Type: text/plain\r\nContent-Length: %zu\r\n\r\n%hs", hio_count_bcstr(status_msg), status_msg) == (hio_oow_t)-1) return -1;
+	if (hio_becs_fcat(cli->sbuf, "Content-Type: text/plain\r\nContent-Length: %zu\r\n\r\n%hs", content_len, status_msg) == (hio_oow_t)-1) return -1;
 
 	return (thr_task_write_to_client(thr_task, HIO_BECS_PTR(cli->sbuf), HIO_BECS_LEN(cli->sbuf)) <= -1 ||
 	        (force_close && thr_task_write_to_client(thr_task, HIO_NULL, 0) <= -1))? -1: 0;

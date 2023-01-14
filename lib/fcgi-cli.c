@@ -145,7 +145,7 @@ printf ("DISCONNECT SOCKET .................. sck->%p conn->%p\n", sck, conn);
 		for (i = 0; i < conn->sess.capa; i++)
 		{
 			hio_svc_fcgic_sess_t* sess;
-			sess = &conn->sess.ptr[i + 1];
+			sess = &conn->sess.ptr[i];
 			if (sess->active)
 			{
 				/* TODO: release the session???*/
@@ -410,6 +410,7 @@ static hio_svc_fcgic_sess_t* new_session (hio_svc_fcgic_t* fcgic, const hio_skad
 			 * but application records have a nonzero requestId. */
 			newptr[i].sid = i + 1;
 			newptr[i].conn = conn;
+			newptr[i].active = 0;
 		}
 		newptr[i - 1].sid = INVALID_SID;
 		conn->sess.free = conn->sess.capa;
