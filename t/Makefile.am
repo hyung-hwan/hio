@@ -8,10 +8,18 @@ CPPFLAGS_COMMON = \
 	-I$(includedir)
 CFLAGS_COMMON =
 LDFLAGS_COMMON=-L$(abs_builddir)/../lib  -L$(libdir)
-## place $(LIBM)  here as all programs below are C only programs linked
+## place $(LIBM) here as all programs below are C only programs linked
 ## against the C/C++ hybrid library. Read comments in ../bin/Makefile.am
 ## for more information.
 LIBADD_COMMON = ../lib/libhio.la $(LIBM)
+
+
+noinst_PROGRAMS = t-cgi
+t_cgi_source = t-cgi.c
+t_cgi_CPPFLAGS = $(CPPFLAGS_COMMON)
+t_cgi_CFLAGS = $(CFLAGS_COMMON)
+t_cgi_LDFLAGS = $(LDFLAGS_COMMON)
+t_cgi_LDADD = $(LIBADD_COMMON)
 
 check_SCRIPTS = s-001.sh
 EXTRA_DIST = $(check_SCRIPTS)

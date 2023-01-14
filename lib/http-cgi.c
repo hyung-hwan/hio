@@ -869,6 +869,9 @@ static int cgi_peer_on_fork (hio_dev_pro_t* pro, void* fork_ctx)
 	hio_becs_t dbuf;
 
 	qparam = hio_htre_getqparam(fc->req);
+	/* the anchor/fragment is never part of the server-side URL.
+	 * the client must discard that part before sending to the server.
+	 * hio_htre_getqanchor() is just disregarded here. */
 
 	tmpstr = getenv("PATH");
 	if (!tmpstr) tmpstr = "";
@@ -917,6 +920,7 @@ static int cgi_peer_on_fork (hio_dev_pro_t* pro, void* fork_ctx)
 
 	setenv ("REQUEST_METHOD", hio_htre_getqmethodname(fc->req), 1);
 	setenv ("REQUEST_URI", hio_htre_getqpath(fc->req), 1);
+
 	if (qparam) setenv ("QUERY_STRING", qparam, 1);
 
 	if (hio_htre_getreqcontentlen(fc->req, &content_length) == 0)

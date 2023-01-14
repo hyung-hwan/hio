@@ -13,6 +13,7 @@
 # PARTICULAR PURPOSE.
 
 @SET_MAKE@
+
 VPATH = @srcdir@
 am__is_gnu_make = { \
   if test -z '$(MAKELEVEL)'; then \
@@ -87,6 +88,7 @@ PRE_UNINSTALL = :
 POST_UNINSTALL = :
 build_triplet = @build@
 host_triplet = @host@
+noinst_PROGRAMS = t-cgi$(EXEEXT)
 check_PROGRAMS = t-001$(EXEEXT) t-002$(EXEEXT) t-003$(EXEEXT) \
 	t-004$(EXEEXT) t-005$(EXEEXT)
 subdir = t
@@ -104,6 +106,7 @@ mkinstalldirs = $(install_sh) -d
 CONFIG_HEADER = $(top_builddir)/lib/hio-cfg.h
 CONFIG_CLEAN_FILES =
 CONFIG_CLEAN_VPATH_FILES =
+PROGRAMS = $(noinst_PROGRAMS)
 am_t_001_OBJECTS = t_001-t-001.$(OBJEXT)
 t_001_OBJECTS = $(am_t_001_OBJECTS)
 am__DEPENDENCIES_1 =
@@ -140,6 +143,12 @@ t_005_DEPENDENCIES = $(am__DEPENDENCIES_2)
 t_005_LINK = $(LIBTOOL) $(AM_V_lt) --tag=CC $(AM_LIBTOOLFLAGS) \
 	$(LIBTOOLFLAGS) --mode=link $(CCLD) $(t_005_CFLAGS) $(CFLAGS) \
 	$(t_005_LDFLAGS) $(LDFLAGS) -o $@
+t_cgi_SOURCES = t-cgi.c
+t_cgi_OBJECTS = t_cgi-t-cgi.$(OBJEXT)
+t_cgi_DEPENDENCIES = $(am__DEPENDENCIES_2)
+t_cgi_LINK = $(LIBTOOL) $(AM_V_lt) --tag=CC $(AM_LIBTOOLFLAGS) \
+	$(LIBTOOLFLAGS) --mode=link $(CCLD) $(t_cgi_CFLAGS) $(CFLAGS) \
+	$(t_cgi_LDFLAGS) $(LDFLAGS) -o $@
 AM_V_P = $(am__v_P_@AM_V@)
 am__v_P_ = $(am__v_P_@AM_DEFAULT_V@)
 am__v_P_0 = false
@@ -157,7 +166,8 @@ depcomp = $(SHELL) $(top_srcdir)/ac/depcomp
 am__maybe_remake_depfiles = depfiles
 am__depfiles_remade = ./$(DEPDIR)/t_001-t-001.Po \
 	./$(DEPDIR)/t_002-t-002.Po ./$(DEPDIR)/t_003-t-003.Po \
-	./$(DEPDIR)/t_004-t-004.Po ./$(DEPDIR)/t_005-t-005.Po
+	./$(DEPDIR)/t_004-t-004.Po ./$(DEPDIR)/t_005-t-005.Po \
+	./$(DEPDIR)/t_cgi-t-cgi.Po
 am__mv = mv -f
 COMPILE = $(CC) $(DEFS) $(DEFAULT_INCLUDES) $(INCLUDES) $(AM_CPPFLAGS) \
 	$(CPPFLAGS) $(AM_CFLAGS) $(CFLAGS)
@@ -178,9 +188,9 @@ am__v_CCLD_ = $(am__v_CCLD_@AM_DEFAULT_V@)
 am__v_CCLD_0 = @echo "  CCLD    " $@;
 am__v_CCLD_1 = 
 SOURCES = $(t_001_SOURCES) $(t_002_SOURCES) $(t_003_SOURCES) \
-	$(t_004_SOURCES) $(t_005_SOURCES)
+	$(t_004_SOURCES) $(t_005_SOURCES) t-cgi.c
 DIST_SOURCES = $(t_001_SOURCES) $(t_002_SOURCES) $(t_003_SOURCES) \
-	$(t_004_SOURCES) $(t_005_SOURCES)
+	$(t_004_SOURCES) $(t_005_SOURCES) t-cgi.c
 am__can_run_installinfo = \
   case $$AM_UPDATE_INFO_DIR in \
     n|no|NO) false;; \
@@ -557,6 +567,11 @@ CPPFLAGS_COMMON = \
 CFLAGS_COMMON = 
 LDFLAGS_COMMON = -L$(abs_builddir)/../lib  -L$(libdir)
 LIBADD_COMMON = ../lib/libhio.la $(LIBM)
+t_cgi_source = t-cgi.c
+t_cgi_CPPFLAGS = $(CPPFLAGS_COMMON)
+t_cgi_CFLAGS = $(CFLAGS_COMMON)
+t_cgi_LDFLAGS = $(LDFLAGS_COMMON)
+t_cgi_LDADD = $(LIBADD_COMMON)
 check_SCRIPTS = s-001.sh
 EXTRA_DIST = $(check_SCRIPTS)
 t_001_SOURCES = t-001.c t.h
@@ -632,6 +647,15 @@ clean-checkPROGRAMS:
 	echo " rm -f" $$list; \
 	rm -f $$list
 
+clean-noinstPROGRAMS:
+	@list='$(noinst_PROGRAMS)'; test -n "$$list" || exit 0; \
+	echo " rm -f" $$list; \
+	rm -f $$list || exit $$?; \
+	test -n "$(EXEEXT)" || exit 0; \
+	list=`for p in $$list; do echo "$$p"; done | sed 's/$(EXEEXT)$$//'`; \
+	echo " rm -f" $$list; \
+	rm -f $$list
+
 t-001$(EXEEXT): $(t_001_OBJECTS) $(t_001_DEPENDENCIES) $(EXTRA_t_001_DEPENDENCIES) 
 	@rm -f t-001$(EXEEXT)
 	$(AM_V_CCLD)$(t_001_LINK) $(t_001_OBJECTS) $(t_001_LDADD) $(LIBS)
@@ -652,6 +676,10 @@ t-005$(EXEEXT): $(t_005_OBJECTS) $(t_005_DEPENDENCIES) $(EXTRA_t_005_DEPENDENCIE
 	@rm -f t-005$(EXEEXT)
 	$(AM_V_CCLD)$(t_005_LINK) $(t_005_OBJECTS) $(t_005_LDADD) $(LIBS)
 
+t-cgi$(EXEEXT): $(t_cgi_OBJECTS) $(t_cgi_DEPENDENCIES) $(EXTRA_t_cgi_DEPENDENCIES) 
+	@rm -f t-cgi$(EXEEXT)
+	$(AM_V_CCLD)$(t_cgi_LINK) $(t_cgi_OBJECTS) $(t_cgi_LDADD) $(LIBS)
+
 mostlyclean-compile:
 	-rm -f *.$(OBJEXT)
 
@@ -663,6 +691,7 @@ distclean-compile:
 @AMDEP_TRUE@@am__include@ @am__quote@./$(DEPDIR)/t_003-t-003.Po@am__quote@ # am--include-marker
 @AMDEP_TRUE@@am__include@ @am__quote@./$(DEPDIR)/t_004-t-004.Po@am__quote@ # am--include-marker
 @AMDEP_TRUE@@am__include@ @am__quote@./$(DEPDIR)/t_005-t-005.Po@am__quote@ # am--include-marker
+@AMDEP_TRUE@@am__include@ @am__quote@./$(DEPDIR)/t_cgi-t-cgi.Po@am__quote@ # am--include-marker
 
 $(am__depfiles_remade):
 	@$(MKDIR_P) $(@D)
@@ -763,6 +792,20 @@ t_005-t-005.obj: t-005.c
 @AMDEP_TRUE@@am__fastdepCC_FALSE@	$(AM_V_CC)source='t-005.c' object='t_005-t-005.obj' libtool=no @AMDEPBACKSLASH@
 @AMDEP_TRUE@@am__fastdepCC_FALSE@	DEPDIR=$(DEPDIR) $(CCDEPMODE) $(depcomp) @AMDEPBACKSLASH@
 @am__fastdepCC_FALSE@	$(AM_V_CC@am__nodep@)$(CC) $(DEFS) $(DEFAULT_INCLUDES) $(INCLUDES) $(t_005_CPPFLAGS) $(CPPFLAGS) $(t_005_CFLAGS) $(CFLAGS) -c -o t_005-t-005.obj `if test -f 't-005.c'; then $(CYGPATH_W) 't-005.c'; else $(CYGPATH_W) '$(srcdir)/t-005.c'; fi`
+
+t_cgi-t-cgi.o: t-cgi.c
+@am__fastdepCC_TRUE@	$(AM_V_CC)$(CC) $(DEFS) $(DEFAULT_INCLUDES) $(INCLUDES) $(t_cgi_CPPFLAGS) $(CPPFLAGS) $(t_cgi_CFLAGS) $(CFLAGS) -MT t_cgi-t-cgi.o -MD -MP -MF $(DEPDIR)/t_cgi-t-cgi.Tpo -c -o t_cgi-t-cgi.o `test -f 't-cgi.c' || echo '$(srcdir)/'`t-cgi.c
+@am__fastdepCC_TRUE@	$(AM_V_at)$(am__mv) $(DEPDIR)/t_cgi-t-cgi.Tpo $(DEPDIR)/t_cgi-t-cgi.Po
+@AMDEP_TRUE@@am__fastdepCC_FALSE@	$(AM_V_CC)source='t-cgi.c' object='t_cgi-t-cgi.o' libtool=no @AMDEPBACKSLASH@
+@AMDEP_TRUE@@am__fastdepCC_FALSE@	DEPDIR=$(DEPDIR) $(CCDEPMODE) $(depcomp) @AMDEPBACKSLASH@
+@am__fastdepCC_FALSE@	$(AM_V_CC@am__nodep@)$(CC) $(DEFS) $(DEFAULT_INCLUDES) $(INCLUDES) $(t_cgi_CPPFLAGS) $(CPPFLAGS) $(t_cgi_CFLAGS) $(CFLAGS) -c -o t_cgi-t-cgi.o `test -f 't-cgi.c' || echo '$(srcdir)/'`t-cgi.c
+
+t_cgi-t-cgi.obj: t-cgi.c
+@am__fastdepCC_TRUE@	$(AM_V_CC)$(CC) $(DEFS) $(DEFAULT_INCLUDES) $(INCLUDES) $(t_cgi_CPPFLAGS) $(CPPFLAGS) $(t_cgi_CFLAGS) $(CFLAGS) -MT t_cgi-t-cgi.obj -MD -MP -MF $(DEPDIR)/t_cgi-t-cgi.Tpo -c -o t_cgi-t-cgi.obj `if test -f 't-cgi.c'; then $(CYGPATH_W) 't-cgi.c'; else $(CYGPATH_W) '$(srcdir)/t-cgi.c'; fi`
+@am__fastdepCC_TRUE@	$(AM_V_at)$(am__mv) $(DEPDIR)/t_cgi-t-cgi.Tpo $(DEPDIR)/t_cgi-t-cgi.Po
+@AMDEP_TRUE@@am__fastdepCC_FALSE@	$(AM_V_CC)source='t-cgi.c' object='t_cgi-t-cgi.obj' libtool=no @AMDEPBACKSLASH@
+@AMDEP_TRUE@@am__fastdepCC_FALSE@	DEPDIR=$(DEPDIR) $(CCDEPMODE) $(depcomp) @AMDEPBACKSLASH@
+@am__fastdepCC_FALSE@	$(AM_V_CC@am__nodep@)$(CC) $(DEFS) $(DEFAULT_INCLUDES) $(INCLUDES) $(t_cgi_CPPFLAGS) $(CPPFLAGS) $(t_cgi_CFLAGS) $(CFLAGS) -c -o t_cgi-t-cgi.obj `if test -f 't-cgi.c'; then $(CYGPATH_W) 't-cgi.c'; else $(CYGPATH_W) '$(srcdir)/t-cgi.c'; fi`
 
 mostlyclean-libtool:
 	-rm -f *.lo
@@ -1050,7 +1093,7 @@ check-am: all-am
 	$(MAKE) $(AM_MAKEFLAGS) $(check_PROGRAMS) $(check_SCRIPTS)
 	$(MAKE) $(AM_MAKEFLAGS) check-TESTS
 check: check-am
-all-am: Makefile
+all-am: Makefile $(PROGRAMS)
 installdirs:
 install: install-am
 install-exec: install-exec-am
@@ -1088,7 +1131,7 @@ maintainer-clean-generic:
 clean: clean-am
 
 clean-am: clean-checkPROGRAMS clean-generic clean-libtool \
-	mostlyclean-am
+	clean-noinstPROGRAMS mostlyclean-am
 
 distclean: distclean-am
 		-rm -f ./$(DEPDIR)/t_001-t-001.Po
@@ -1096,6 +1139,7 @@ distclean: distclean-am
 	-rm -f ./$(DEPDIR)/t_003-t-003.Po
 	-rm -f ./$(DEPDIR)/t_004-t-004.Po
 	-rm -f ./$(DEPDIR)/t_005-t-005.Po
+	-rm -f ./$(DEPDIR)/t_cgi-t-cgi.Po
 	-rm -f Makefile
 distclean-am: clean-am distclean-compile distclean-generic \
 	distclean-tags
@@ -1146,6 +1190,7 @@ maintainer-clean: maintainer-clean-am
 	-rm -f ./$(DEPDIR)/t_003-t-003.Po
 	-rm -f ./$(DEPDIR)/t_004-t-004.Po
 	-rm -f ./$(DEPDIR)/t_005-t-005.Po
+	-rm -f ./$(DEPDIR)/t_cgi-t-cgi.Po
 	-rm -f Makefile
 maintainer-clean-am: distclean-am maintainer-clean-generic
 
@@ -1168,17 +1213,18 @@ uninstall-am:
 
 .PHONY: CTAGS GTAGS TAGS all all-am am--depfiles check check-TESTS \
 	check-am clean clean-checkPROGRAMS clean-generic clean-libtool \
-	cscopelist-am ctags ctags-am distclean distclean-compile \
-	distclean-generic distclean-libtool distclean-tags distdir dvi \
-	dvi-am html html-am info info-am install install-am \
-	install-data install-data-am install-dvi install-dvi-am \
-	install-exec install-exec-am install-html install-html-am \
-	install-info install-info-am install-man install-pdf \
-	install-pdf-am install-ps install-ps-am install-strip \
-	installcheck installcheck-am installdirs maintainer-clean \
-	maintainer-clean-generic mostlyclean mostlyclean-compile \
-	mostlyclean-generic mostlyclean-libtool pdf pdf-am ps ps-am \
-	recheck tags tags-am uninstall uninstall-am
+	clean-noinstPROGRAMS cscopelist-am ctags ctags-am distclean \
+	distclean-compile distclean-generic distclean-libtool \
+	distclean-tags distdir dvi dvi-am html html-am info info-am \
+	install install-am install-data install-data-am install-dvi \
+	install-dvi-am install-exec install-exec-am install-html \
+	install-html-am install-info install-info-am install-man \
+	install-pdf install-pdf-am install-ps install-ps-am \
+	install-strip installcheck installcheck-am installdirs \
+	maintainer-clean maintainer-clean-generic mostlyclean \
+	mostlyclean-compile mostlyclean-generic mostlyclean-libtool \
+	pdf pdf-am ps ps-am recheck tags tags-am uninstall \
+	uninstall-am
 
 .PRECIOUS: Makefile
 
