@@ -62,7 +62,7 @@ test_file_list_dir()
 
 test_cgi()
 {
-	local msg="hio-webs file-list-dir"
+	local msg="hio-webs cgi"
 	local srvaddr=127.0.0.1:54321
 	local tmpdir="/tmp/s-001.$$"
 
@@ -74,9 +74,29 @@ test_cgi()
 	local jid=$!
 	sleep 0.5
 
-	local hc=$(curl -s -w '%{http_code}\n' -o /dev/null "http://${srvaddr}/t.cgi?abc=def#qq")
+	local hc=$(curl -s -w '%{http_code}\n' -o "${tmpdir}/t.out" "http://${srvaddr}/t.cgi?abc=def ")
 	tap_ensure "$hc" "200" "$msg - got $hc"
 
+	local request_method=$(grep -E "^REQUEST_METHOD:" "${tmpdir}/t.out" | cut -d: -f2)
+	local request_uri=$(grep -E "^REQUEST_URI:" "${tmpdir}/t.out" | cut -d: -f2)
+	local query_string=$(grep -E "^QUERY_STRING:" "${tmpdir}/t.out" | cut -d: -f2)
+
+	tap_ensure "$request_method", "GET", "$msg - request_method"
+	tap_ensure "$request_uri", "/t.cgi", "$msg - request_uri"
+	tap_ensure "$query_string", "abc=def", "$msg - query_string"
+
+	local hc=$(curl -s -w '%{http_code}\n' -X POST --data-binary "hello world" -o "${tmpdir}/t.out" "http://${srvaddr}/t.cgi?abc=def ")
+	tap_ensure "$hc" "200" "$msg - got $hc"
+
+	local request_method=$(grep -E "^REQUEST_METHOD:" "${tmpdir}/t.out" | cut -d: -f2)
+	local request_uri=$(grep -E "^REQUEST_URI:" "${tmpdir}/t.out" | cut -d: -f2)
+	local query_string=$(grep -E "^QUERY_STRING:" "${tmpdir}/t.out" | cut -d: -f2)
+
+	tap_ensure "$request_method", "POST", "$msg - request_method"
+	tap_ensure "$request_uri", "/t.cgi", "$msg - request_uri"
+	tap_ensure "$query_string", "abc=def", "$msg - query_string"
+
+## TODO: write more...
 	rm -rf "${tmpdir}"
 
 	kill -TERM ${jid}
