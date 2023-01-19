@@ -74,9 +74,11 @@ test_cgi()
 	local jid=$!
 	sleep 0.5
 
-	local hc=$(curl -s -w '%{http_code}\n' -o "${tmpdir}/t.out" "http://${srvaddr}/t.cgi?abc=def ")
+	local hc=$(curl -s -w '%{http_code}\n' -o "${tmpdir}/t.out" "http://${srvaddr}/t.cgi?abc=def")
 	tap_ensure "$hc" "200" "$msg - got $hc"
 
+ls -ld ${tmpdir}
+ls -l ${tmpdir}
 	local request_method=$(grep -E "^REQUEST_METHOD:" "${tmpdir}/t.out" | cut -d: -f2)
 	local request_uri=$(grep -E "^REQUEST_URI:" "${tmpdir}/t.out" | cut -d: -f2)
 	local query_string=$(grep -E "^QUERY_STRING:" "${tmpdir}/t.out" | cut -d: -f2)
@@ -85,7 +87,8 @@ test_cgi()
 	tap_ensure "$request_uri", "/t.cgi", "$msg - request_uri"
 	tap_ensure "$query_string", "abc=def", "$msg - query_string"
 
-	local hc=$(curl -s -w '%{http_code}\n' -X POST --data-binary "hello world" -o "${tmpdir}/t.out" "http://${srvaddr}/t.cgi?abc=def ")
+
+	local hc=$(curl -s -w '%{http_code}\n' -X POST --data-binary "hello world" -o "${tmpdir}/t.out" "http://${srvaddr}/t.cgi?abc=def")
 	tap_ensure "$hc" "200" "$msg - got $hc"
 
 	local request_method=$(grep -E "^REQUEST_METHOD:" "${tmpdir}/t.out" | cut -d: -f2)
