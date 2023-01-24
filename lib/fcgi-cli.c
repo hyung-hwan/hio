@@ -26,9 +26,6 @@
 #include <hio-sck.h>
 #include "hio-prv.h"
 
-
-typedef struct hio_svc_fcgic_conn_t hio_svc_fcgic_conn_t;
-
 struct hio_svc_fcgic_t
 {
 	HIO_SVC_HEADER;
@@ -43,14 +40,6 @@ struct hio_svc_fcgic_t
 #define CONN_SESS_CAPA_MAX (65536)
 #define CONN_SESS_INC  (32)
 #define INVALID_SID HIO_TYPE_MAX(hio_oow_t)
-
-struct hio_svc_fcgic_sess_t
-{
-	int active;
-	hio_oow_t sid;
-	hio_svc_fcgic_conn_t* conn;
-	hio_svc_fcgic_on_read_t on_read;
-};
 
 struct hio_svc_fcgic_conn_t
 {
@@ -79,8 +68,9 @@ struct hio_svc_fcgic_conn_t
 		hio_uint16_t  content_len;
 		hio_uint8_t   padding_len;
 
-		hio_uint8_t buf[1024]; /* TODO: make it smaller... */
-		hio_oow_t len;
+		hio_uint32_t body_len; /* content_len+ padding_len */
+		hio_uint8_t buf[65792]; /* TODO: make it smaller by fireing on_read more frequently? */
+		hio_oow_t len; /* current bufferred length */
 	} r; /* space to parse incoming reply header */
 
 	hio_svc_fcgic_conn_t* next;
@@ -91,34 +81,6 @@ struct fcgic_sck_xtn_t
 	hio_svc_fcgic_conn_t* conn;
 };
 typedef struct fcgic_sck_xtn_t fcgic_sck_xtn_t;
-
-
-#if 0
-/* ----------------------------------------------------------------------- */
-
-struct fcgic_fcgi_msg_xtn_t
-{
-	hio_dev_sck_t* dev;
-	hio_tmridx_t   rtmridx;
-	//hio_fcgi_msg_t* prev;
-	//hio_fcgi_msg_t* next;
-	hio_skad_t     servaddr;
-	//hio_svc_fcgic_on_done_t on_done;
-	hio_ntime_t    wtmout;
-	hio_ntime_t    rtmout;
-	int            rmaxtries; /* maximum number of tries to receive a reply */
-	int            rtries; /* number of tries made so far */
-	int            pending;
-};
-typedef struct fcgic_fcgi_msg_xtn_t fcgic_fcgi_msg_xtn_t;
-
-#if defined(HIO_HAVE_INLINE)
-	static HIO_INLINE fcgic_fcgi_msg_xtn_t* fcgic_fcgi_msg_getxtn(hio_fcgi_msg_t* msg) { return (fcgic_fcgi_msg_xtn_t*)((hio_uint8_t*)hio_fcgi_msg_to_pkt(msg) + msg->pktalilen); }
-#else
-#	define fcgic_fcgi_msg_getxtn(msg) ((fcgic_fcgi_msg_xtn_t*)((hio_uint8_t*)hio_fcgi_msg_to_pkt(msg) + msg->pktalilen))
-#endif
-
-#endif
 
 static int make_connection_socket (hio_svc_fcgic_conn_t* conn);
 static void release_session (hio_svc_fcgic_sess_t* sess);
@@ -185,6 +147,7 @@ static int sck_on_read (hio_dev_sck_t* sck, const void* data, hio_iolen_t dlen, 
 	{
 		/* error or timeout */
 /* fire all related fcgi sessions?? -> handled on disconnect */
+		hio_dev_sck_halt (sck);
 	}
 	else if (dlen == 0)
 	{
@@ -194,12 +157,15 @@ static int sck_on_read (hio_dev_sck_t* sck, const void* data, hio_iolen_t dlen, 
 	}
 	else
 	{
+printf ("got DATA From FCGI CLIENT>... dlen=%d [%.*s]\n", (int)dlen, (int)dlen, data);		
 		do
 		{
+			hio_iolen_t reqlen, cplen;
+
 			if (conn->r.state == R_AWAITING_HEADER)
 			{
 				hio_fcgi_record_header_t* h;
-				hio_iolen_t reqlen, cplen;
+
 				HIO_ASSERT (hio, conn->r.len < HIO_SIZEOF(*h));
 
 				reqlen = HIO_SIZEOF(*h) - conn->r.len;
@@ -217,44 +183,93 @@ static int sck_on_read (hio_dev_sck_t* sck, const void* data, hio_iolen_t dlen, 
 					break;
 				}
 
+				/* header complted */
 				h = (hio_fcgi_record_header_t*)conn->r.buf;
 				conn->r.type = h->type;
 				conn->r.id = hio_ntoh16(h->id);
 				conn->r.content_len = hio_ntoh16(h->content_len);
-				conn->r.padding_len = hio_ntoh16(h->padding_len);
-				conn->r.len = 0;
-				conn->r.state == R_AWAITING_BODY;
+				conn->r.padding_len = h->padding_len;
+
+				conn->r.state = R_AWAITING_BODY;
+				conn->r.body_len = conn->r.content_len + conn->r.padding_len;
+				conn->r.len = 0; /* reset to 0 to use the buffer to hold body */
+printf ("header completed remaining data %d expected body_len %d\n", (int)dlen, (int)conn->r.body_len);
+
+				/* the expected body length must not be too long */
+				HIO_ASSERT (hio, conn->r.body_len <= HIO_SIZEOF(conn->r.buf)); 
+
+				if (conn->r.type == HIO_FCGI_END_REQUEST && conn->r.content_len < HIO_SIZEOF(hio_fcgi_end_request_body_t))
+				{
+					/* invalid content_len encountered */
+					/* TODO: logging*/
+					hio_dev_sck_halt (sck);
+					goto done;
+				}
+
+				if (conn->r.content_len == 0)
+				{
+	printf ("fireing without body\n");
+					goto got_body;
+				}
 			}
 			else /* R_AWAITING_BODY */
 			{
-				switch (conn->r.type)
+				hio_svc_fcgic_sess_t* sess;
+
+				reqlen = conn->r.body_len - conn->r.len;
+				cplen = (dlen > reqlen)? reqlen: dlen;
+				HIO_MEMCPY (&conn->r.buf[conn->r.len], data, cplen);
+				conn->r.len += cplen;
+
+				data += cplen;
+				dlen -= cplen;
+
+				if (conn->r.len < conn->r.body_len)
 				{
-					case HIO_FCGI_END_REQUEST:
-
-					case HIO_FCGI_STDOUT:
-					case HIO_FCGI_STDERR:
-
-					default:
-						/* discard the record */
-						goto done;
+					HIO_ASSERT (hio, dlen == 0);
+					break;
 				}
 
+			got_body:
+				sess = (conn->r.id >= 1 && conn->r.id <= conn->sess.capa)? &conn->sess.ptr[conn->r.id - 1]: HIO_NULL;
 
-				if (conn->r.id >= 1 && conn->r.id <= conn->sess.capa)
+				if (!sess || !sess->active)
 				{
-					hio_svc_fcgic_sess_t* sess;
-					sess = &conn->sess.ptr[conn->r.id - 1];
-					if (sess->active)
+					/* discard the record. no associated sessoin or inactive session */
+					goto back_to_header;
+				}
+
+				/* the complete body is in conn->r.buf */
+				if (conn->r.type == HIO_FCGI_END_REQUEST)
+				{
+					hio_fcgi_end_request_body_t* erb = conn->r.buf;
+
+					if (erb->proto_status != HIO_FCGI_REQUEST_COMPLETE)
 					{
-						sess->on_read (sess, data, dlen);
-						/* TODO: return code check??? */
+						/* error */
+						hio_uint32_t app_status = hio_ntoh32(erb->app_status);
 					}
+					conn->r.content_len = 0; /* to indicate the end of input*/
 				}
-				else
+				else if (conn->r.content_len == 0 || conn->r.type != HIO_FCGI_STDOUT)
 				{
-					/* invalid sid */
-					/* TODO: logging or something*/
+					/* discard the record */
+					/* TODO: log stderr to a file?? or handle it differently according to options given - discard or write to file */
+					/* TODO: logging */
+					goto back_to_header;
 				}
+
+				HIO_ASSERT (hio, conn->r.content_len <= conn->r.len);
+				sess->on_read (sess, conn->r.buf, conn->r.content_len); /* TODO: tell between stdout and stderr */
+
+			back_to_header:
+				conn->r.state = R_AWAITING_HEADER;
+				conn->r.len = 0;
+				conn->r.body_len = 0;
+				conn->r.content_len = 0;
+				conn->r.padding_len = 0;
+
+printf ("body completed remaining data %d\n", (int)dlen);
 			}
 		} while (dlen > 0);
 	}
@@ -386,7 +401,7 @@ static void free_connections (hio_svc_fcgic_t* fcgic)
 	}
 }
 
-static hio_svc_fcgic_sess_t* new_session (hio_svc_fcgic_t* fcgic, const hio_skad_t* fcgis_addr, hio_svc_fcgic_on_read_t on_read)
+static hio_svc_fcgic_sess_t* new_session (hio_svc_fcgic_t* fcgic, const hio_skad_t* fcgis_addr, hio_svc_fcgic_on_read_t on_read, void* ctx)
 {
 	hio_t* hio = fcgic->hio;
 	hio_svc_fcgic_conn_t* conn;
@@ -425,6 +440,7 @@ static hio_svc_fcgic_sess_t* new_session (hio_svc_fcgic_t* fcgic, const hio_skad
 	sess->sid = conn->sess.free;
 	sess->on_read = on_read;
 	sess->active = 1;
+	sess->ctx = ctx;
 	HIO_ASSERT (hio, sess->conn == conn);
 	HIO_ASSERT (hio, sess->conn->fcgic == fcgic);
 
@@ -478,10 +494,10 @@ void hio_svc_fcgic_stop (hio_svc_fcgic_t* fcgic)
 	HIO_DEBUG1 (hio, "FCGIC - STOPPED SERVICE %p\n", fcgic);
 }
 
-hio_svc_fcgic_sess_t* hio_svc_fcgic_tie (hio_svc_fcgic_t* fcgic, const hio_skad_t* addr, hio_svc_fcgic_on_read_t on_read)
+hio_svc_fcgic_sess_t* hio_svc_fcgic_tie (hio_svc_fcgic_t* fcgic, const hio_skad_t* addr, hio_svc_fcgic_on_read_t on_read, void* ctx)
 {
 	/* TODO: reference counting for safety?? */
-	return new_session(fcgic, addr, on_read);
+	return new_session(fcgic, addr, on_read, ctx);
 }
 
 void hio_svc_fcgic_untie (hio_svc_fcgic_sess_t* sess)

@@ -112,7 +112,7 @@ static int cgi_write_to_client (cgi_t* cgi, const void* data, hio_iolen_t dlen)
 		cgi->ever_attempted_to_write_to_client = 1;
 
 		cgi->num_pending_writes_to_client++;
-		if (hio_dev_sck_write(cgi->client->sck, data, dlen, HIO_NULL, HIO_NULL) <= -1)
+		if (hio_dev_sck_write(cgi->csck, data, dlen, HIO_NULL, HIO_NULL) <= -1)
 		{
 			cgi->num_pending_writes_to_client--;
 			return -1;
@@ -134,7 +134,7 @@ static int cgi_writev_to_client (cgi_t* cgi, hio_iovec_t* iov, hio_iolen_t iovcn
 		cgi->ever_attempted_to_write_to_client = 1;
 
 		cgi->num_pending_writes_to_client++;
-		if (hio_dev_sck_writev(cgi->client->sck, iov, iovcnt, HIO_NULL, HIO_NULL) <= -1)
+		if (hio_dev_sck_writev(cgi->csck, iov, iovcnt, HIO_NULL, HIO_NULL) <= -1)
 		{
 			cgi->num_pending_writes_to_client--;
 			return -1;
@@ -280,7 +280,7 @@ static void cgi_on_kill (hio_svc_htts_task_t* task)
 	cgi_t* cgi = (cgi_t*)task;
 	hio_t* hio = cgi->htts->hio;
 
-    HIO_DEBUG5 (hio, "HTTS(%p) - cgi(t=%p,c=%p[%d],p=%p) - killing the task\n", cgi->htts, cgi, cgi->client, (cgi->csck? cgi->csck->hnd: -1), cgi->peer);
+	HIO_DEBUG5 (hio, "HTTS(%p) - cgi(t=%p,c=%p[%d],p=%p) - killing the task\n", cgi->htts, cgi, cgi->client, (cgi->csck? cgi->csck->hnd: -1), cgi->peer);
 
 	if (cgi->peer)
 	{
@@ -304,17 +304,17 @@ static void cgi_on_kill (hio_svc_htts_task_t* task)
 	{
 		HIO_ASSERT (hio, cgi->client != HIO_NULL);
 
-		if (cgi->client_org_on_read) cgi->client->sck->on_read = cgi->client_org_on_read;
-		if (cgi->client_org_on_write) cgi->client->sck->on_write = cgi->client_org_on_write;
-		if (cgi->client_org_on_disconnect) cgi->client->sck->on_disconnect = cgi->client_org_on_disconnect;
+		if (cgi->client_org_on_read) cgi->csck->on_read = cgi->client_org_on_read;
+		if (cgi->client_org_on_write) cgi->csck->on_write = cgi->client_org_on_write;
+		if (cgi->client_org_on_disconnect) cgi->csck->on_disconnect = cgi->client_org_on_disconnect;
 		if (cgi->client_htrd_recbs_changed) hio_htrd_setrecbs (cgi->client->htrd, &cgi->client_htrd_org_recbs);
 
 		if (!cgi->client_disconnected)
 		{
-			if (!cgi->keep_alive || hio_dev_sck_read(cgi->client->sck, 1) <= -1)
+			if (!cgi->keep_alive || hio_dev_sck_read(cgi->csck, 1) <= -1)
 			{
 				HIO_DEBUG5 (hio, "HTTS(%p) - cgi(t=%p,c=%p[%d],p=%p) - halting client for failure to enable input watching\n", cgi->htts, cgi, cgi->client, (cgi->csck? cgi->csck->hnd: -1), cgi->peer);
-				hio_dev_sck_halt (cgi->client->sck);
+				hio_dev_sck_halt (cgi->csck);
 			}
 		}
 
@@ -664,7 +664,7 @@ static int cgi_peer_on_write (hio_dev_pro_t* pro, hio_iolen_t wrlen, void* wrctx
 		if (cgi->num_pending_writes_to_peer == CGI_PENDING_IO_THRESHOLD)
 		{
 			if (!(cgi->over & CGI_OVER_READ_FROM_CLIENT) &&
-			    hio_dev_sck_read(cgi->client->sck, 1) <= -1) goto oops;
+			    hio_dev_sck_read(cgi->csck, 1) <= -1) goto oops;
 		}
 
 		if ((cgi->over & CGI_OVER_READ_FROM_CLIENT) && cgi->num_pending_writes_to_peer <= 0)

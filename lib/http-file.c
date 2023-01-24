@@ -98,7 +98,7 @@ static int file_send_contents_to_client (file_t* file);
 static void file_halt_participating_devices (file_t* file)
 {
 	HIO_ASSERT (file->htts->hio, file->client != HIO_NULL);
-	HIO_ASSERT (file->htts->hio, file->client->sck != HIO_NULL);
+	HIO_ASSERT (file->htts->hio, file->csck != HIO_NULL);
 
 	HIO_DEBUG3 (file->htts->hio, "HTTS(%p) - file(c=%d,p=%d) Halting participating devices\n", file->htts, (int)file->csck->hnd, (int)file->peer);
 
@@ -331,7 +331,6 @@ static void file_client_on_disconnect (hio_dev_sck_t* sck)
 	hio_svc_htts_t* htts = file->htts;
 
 	HIO_ASSERT (hio, sck == cli->sck);
-	HIO_ASSERT (hio, sck == file->client->sck);
 	HIO_ASSERT (hio, sck == file->csck);
 
 	HIO_DEBUG4 (hio, "HTTS(%p) - file(t=%p,c=%p,csck=%p) - client socket disconnect notified\n", htts, file, sck, cli);
@@ -357,7 +356,6 @@ static int file_client_on_read (hio_dev_sck_t* sck, const void* buf, hio_iolen_t
 	file_t* file = (file_t*)cli->task;
 
 	HIO_ASSERT (hio, sck == cli->sck);
-	HIO_ASSERT (hio, sck == file->client->sck);
 	HIO_ASSERT (hio, sck == file->csck);
 
 	if (len <= -1)
@@ -417,7 +415,6 @@ static int file_client_on_write (hio_dev_sck_t* sck, hio_iolen_t wrlen, void* wr
 	file_t* file = (file_t*)cli->task;
 
 	HIO_ASSERT (hio, sck == cli->sck);
-	HIO_ASSERT (hio, sck == file->client->sck);
 	HIO_ASSERT (hio, sck == file->csck);
 
 	if (wrlen <= -1)

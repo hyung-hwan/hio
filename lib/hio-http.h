@@ -164,6 +164,11 @@ enum hio_svc_htts_cgi_option_t
 	HIO_SVC_HTTS_CGI_NO_100_CONTINUE = (1 << 0)
 };
 
+enum hio_svc_htts_fcgi_option_t
+{
+	HIO_SVC_HTTS_FCGI_NO_100_CONTINUE = (1 << 0)
+};
+
 enum hio_svc_htts_file_option_t
 {
 	HIO_SVC_HTTS_FILE_NO_100_CONTINUE  = (1 << 0),
