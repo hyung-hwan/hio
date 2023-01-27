@@ -233,7 +233,7 @@ HIO_EXPORT void hio_skad_set_chan (
 );
 
 HIO_EXPORT hio_oow_t hio_skad_get_ipad_bytes (
-	hio_skad_t*       skad,
+	const hio_skad_t* skad,
 	void*             buf,
 	hio_oow_t         len
 );

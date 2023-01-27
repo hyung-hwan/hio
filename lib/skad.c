@@ -1506,7 +1506,7 @@ void hio_skad_set_chan (hio_skad_t* _skad, hio_uint16_t chan)
 	}
 }
 
-hio_oow_t hio_skad_get_ipad_bytes (hio_skad_t* _skad, void* buf, hio_oow_t len)
+hio_oow_t hio_skad_get_ipad_bytes (const hio_skad_t* _skad, void* buf, hio_oow_t len)
 {
 	hio_skad_alt_t* skad = (hio_skad_alt_t*)_skad;
 	hio_oow_t outlen = 0;

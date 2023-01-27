@@ -2,6 +2,7 @@
 #include <hio-fmt.h>
 #include <hio-chr.h>
 #include <hio-fcgi.h>
+#include <unistd.h>
 
 #define FCGI_ALLOW_UNLIMITED_REQ_CONTENT_LENGTH
 
@@ -526,7 +527,7 @@ oops:
 	return 0;
 }
 
-static int fcgi_peer_on_untie (hio_svc_fcgic_sess_t* peer, void* ctx)
+static void fcgi_peer_on_untie (hio_svc_fcgic_sess_t* peer, void* ctx)
 {
 	fcgi_t* fcgi = (fcgi_t*)ctx;
 	if (fcgi->peer) fcgi->peer = HIO_NULL; /* in case this untie event originates from the fcgi client itself */
@@ -795,7 +796,7 @@ int hio_svc_htts_dofcgi (hio_svc_htts_t* htts, hio_dev_sck_t* csck, hio_htre_t* 
 	hio_htrd_setoption (fcgi->peer_htrd, HIO_HTRD_SKIP_INITIAL_LINE | HIO_HTRD_RESPONSE);
 	hio_htrd_setrecbs (fcgi->peer_htrd, &peer_htrd_recbs);
 	pxtn = hio_htrd_getxtn(fcgi->peer_htrd);
-	HIO_SVC_HTTS_TASK_REF ((hio_svc_htts_task_t*)fcgi, pxtn->fcgi); /* peer->fcgi in htrd = fcgi */
+	HIO_SVC_HTTS_TASK_REF (fcgi, pxtn->fcgi); /* peer->fcgi in htrd = fcgi */
 
 	/* create a session in in the fcgi client service */
 	fcgi->peer = hio_svc_fcgic_tie(htts->fcgic, fcgis_addr, fcgi_peer_on_read, fcgi_peer_on_untie, fcgi);
@@ -903,7 +904,7 @@ int hio_svc_htts_dofcgi (hio_svc_htts_t* htts, hio_dev_sck_t* csck, hio_htre_t* 
 	/* TODO: store current input watching state and use it when destroying the fcgi data */
 	if (hio_dev_sck_read(csck, !(fcgi->over & FCGI_OVER_READ_FROM_CLIENT)) <= -1) goto oops;
 
-	HIO_SVC_HTTS_TASKL_APPEND_TASK (&htts->task, fcgi);
+	HIO_SVC_HTTS_TASKL_APPEND_TASK (&htts->task, (hio_svc_htts_task_t*)fcgi);
 	return 0;
 
 oops:

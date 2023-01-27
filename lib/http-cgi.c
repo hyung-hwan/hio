@@ -1022,7 +1022,7 @@ int hio_svc_htts_docgi (hio_svc_htts_t* htts, hio_dev_sck_t* csck, hio_htre_t* r
 	cgi->peer = hio_dev_pro_make(hio, HIO_SIZEOF(*peer_xtn), &mi);
 	if (HIO_UNLIKELY(!cgi->peer)) goto oops;
 	peer_xtn = hio_dev_pro_getxtn(cgi->peer);
-	HIO_SVC_HTTS_TASK_REF ((hio_svc_htts_task_t*)cgi, peer_xtn->cgi); /* peer->cgi in pro = cgi */
+	HIO_SVC_HTTS_TASK_REF (cgi, peer_xtn->cgi); /* peer->cgi in pro = cgi */
 
 	cgi->peer_htrd = hio_htrd_open(hio, HIO_SIZEOF(*peer_xtn));
 	if (HIO_UNLIKELY(!cgi->peer_htrd)) goto oops;
@@ -1030,7 +1030,7 @@ int hio_svc_htts_docgi (hio_svc_htts_t* htts, hio_dev_sck_t* csck, hio_htre_t* r
 	hio_htrd_setrecbs (cgi->peer_htrd, &peer_htrd_recbs);
 
 	peer_xtn = hio_htrd_getxtn(cgi->peer_htrd);
-	HIO_SVC_HTTS_TASK_REF ((hio_svc_htts_task_t*)cgi, peer_xtn->cgi); /* peer->cgi in htrd = cgi */
+	HIO_SVC_HTTS_TASK_REF (cgi, peer_xtn->cgi); /* peer->cgi in htrd = cgi */
 
 #if !defined(CGI_ALLOW_UNLIMITED_REQ_CONTENT_LENGTH)
 	if (cgi->req_content_length_unlimited)
@@ -1129,7 +1129,7 @@ int hio_svc_htts_docgi (hio_svc_htts_t* htts, hio_dev_sck_t* csck, hio_htre_t* r
 	if (hio_dev_sck_read(csck, !(cgi->over & CGI_OVER_READ_FROM_CLIENT)) <= -1) goto oops;
 	hio_freemem (hio, fc.actual_script);
 
-	HIO_SVC_HTTS_TASKL_APPEND_TASK (&htts->task, cgi);
+	HIO_SVC_HTTS_TASKL_APPEND_TASK (&htts->task, (hio_svc_htts_task_t*)cgi);
 	return 0;
 
 oops:

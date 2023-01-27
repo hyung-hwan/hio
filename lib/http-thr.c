@@ -209,7 +209,7 @@ static int thr_task_write_to_peer (thr_task_t* thr_task, const void* data, hio_i
 /* TODO: check if it's already finished or something.. */
 		if (thr_task->num_pending_writes_to_peer > THR_TASK_PENDING_IO_THRESHOLD)
 		{
-			if (thr_task->csck, hio_dev_sck_read(thr_task->csck, 0) <= -1) return -1;
+			if (thr_task->csck && hio_dev_sck_read(thr_task->csck, 0) <= -1) return -1;
 		}
 	}
 	return 0;
@@ -957,7 +957,7 @@ int hio_svc_htts_dothr (hio_svc_htts_t* htts, hio_dev_sck_t* csck, hio_htre_t* r
 
 	/* attach the thr task to the peer thread device */
 	thr_peer = hio_dev_thr_getxtn(thr_task->peer);
-	HIO_SVC_HTTS_TASK_REF ((hio_svc_htts_task_t*)thr_task, thr_peer->task);
+	HIO_SVC_HTTS_TASK_REF (thr_task, thr_peer->task);
 
 	thr_task->peer_htrd = hio_htrd_open(hio, HIO_SIZEOF(*thr_peer));
 	if (HIO_UNLIKELY(!thr_task->peer_htrd)) goto oops;
@@ -966,7 +966,7 @@ int hio_svc_htts_dothr (hio_svc_htts_t* htts, hio_dev_sck_t* csck, hio_htre_t* r
 
 	/* attach the thr task to the htrd parser set on the peer thread device */
 	thr_peer = hio_htrd_getxtn(thr_task->peer_htrd);
-	HIO_SVC_HTTS_TASK_REF ((hio_svc_htts_task_t*)thr_task, thr_peer->task);
+	HIO_SVC_HTTS_TASK_REF (thr_task, thr_peer->task);
 
 #if !defined(THR_ALLOW_UNLIMITED_REQ_CONTENT_LENGTH)
 	if (thr_task->req_content_length_unlimited)
@@ -1054,7 +1054,7 @@ int hio_svc_htts_dothr (hio_svc_htts_t* htts, hio_dev_sck_t* csck, hio_htre_t* r
 	/* TODO: store current input watching state and use it when destroying the thr_task data */
 	if (hio_dev_sck_read(csck, !(thr_task->over & THR_TASK_OVER_READ_FROM_CLIENT)) <= -1) goto oops;
 
-	HIO_SVC_HTTS_TASKL_APPEND_TASK (&htts->task, thr_task);
+	HIO_SVC_HTTS_TASKL_APPEND_TASK (&htts->task, (hio_svc_htts_task_t*)thr_task);
 	return 0;
 
 oops:

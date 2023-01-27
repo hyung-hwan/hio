@@ -995,7 +995,7 @@ int hio_svc_htts_dofile (hio_svc_htts_t* htts, hio_dev_sck_t* csck, hio_htre_t* 
 	if (hio_dev_sck_read(csck, !(file->over & FILE_OVER_READ_FROM_CLIENT)) <= -1) goto oops;
 	hio_freemem (hio, actual_file);
 
-	HIO_SVC_HTTS_TASKL_APPEND_TASK (&htts->task, file);
+	HIO_SVC_HTTS_TASKL_APPEND_TASK (&htts->task, (hio_svc_htts_task_t*)file);
 	return 0;
 
 oops:
