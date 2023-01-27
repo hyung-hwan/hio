@@ -215,25 +215,13 @@ static HIO_INLINE void fcgi_mark_over (fcgi_t* fcgi, int over_bits)
 
 	if (!(old_over & FCGI_OVER_READ_FROM_PEER) && (fcgi->over & FCGI_OVER_READ_FROM_PEER))
 	{
-#if 0 // TODO:
-		if (fcgi->peer && hio_dev_pro_read(fcgi->peer, HIO_DEV_PRO_OUT, 0) <= -1)
-		{
-			HIO_DEBUG2 (fcgi->htts->hio, "HTTS(%p) - halting peer(%p) for failure to disable input watching\n", fcgi->htts, fcgi->peer);
-			hio_dev_pro_halt (fcgi->peer);
-		}
-#endif
+		if (fcgi->peer) hio_svc_fcgic_untie(fcgi->peer);
 	}
 
 	if (old_over != FCGI_OVER_ALL && fcgi->over == FCGI_OVER_ALL)
 	{
 		/* ready to stop */
-#if 0 // TODO:
-		if (fcgi->peer)
-		{
-			HIO_DEBUG2 (fcgi->htts->hio, "HTTS(%p) - halting peer(%p) as it is unneeded\n", fcgi->htts, fcgi->peer);
-			hio_dev_pro_halt (fcgi->peer); // TODO: untie???
-		}
-#endif
+		if (fcgi->peer) hio_svc_fcgic_untie(fcgi->peer);
 
 		if (fcgi->csck)
 		{
@@ -477,9 +465,9 @@ oops:
 }
 
 
-static int fcgi_peer_on_read (hio_svc_fcgic_sess_t* peer, const void* data, hio_iolen_t dlen)
+static int fcgi_peer_on_read (hio_svc_fcgic_sess_t* peer, const void* data, hio_iolen_t dlen, void* ctx)
 {
-	fcgi_t* fcgi = hio_svc_fcgic_getsessctx(peer);
+	fcgi_t* fcgi = (fcgi_t*)ctx;
 	hio_svc_htts_t* htts = fcgi->htts;
 	hio_t* hio = htts->hio;
 	
@@ -536,6 +524,13 @@ static int fcgi_peer_on_read (hio_svc_fcgic_sess_t* peer, const void* data, hio_
 oops:
 	fcgi_halt_participating_devices (fcgi); /* TODO: kill the session only??? */
 	return 0;
+}
+
+static int fcgi_peer_on_untie (hio_svc_fcgic_sess_t* peer, void* ctx)
+{
+	fcgi_t* fcgi = (fcgi_t*)ctx;
+	if (fcgi->peer) fcgi->peer = HIO_NULL; /* in case this untie event originates from the fcgi client itself */
+	fcgi_halt_participating_devices (fcgi); /* TODO: kill the session only??? */
 }
 
 static int peer_capture_response_header (hio_htre_t* req, const hio_bch_t* key, const hio_htre_hdrval_t* val, void* ctx)
@@ -803,7 +798,7 @@ int hio_svc_htts_dofcgi (hio_svc_htts_t* htts, hio_dev_sck_t* csck, hio_htre_t* 
 	HIO_SVC_HTTS_TASK_REF ((hio_svc_htts_task_t*)fcgi, pxtn->fcgi); /* peer->fcgi in htrd = fcgi */
 
 	/* create a session in in the fcgi client service */
-	fcgi->peer = hio_svc_fcgic_tie(htts->fcgic, fcgis_addr, fcgi_peer_on_read, fcgi);
+	fcgi->peer = hio_svc_fcgic_tie(htts->fcgic, fcgis_addr, fcgi_peer_on_read, fcgi_peer_on_untie, fcgi);
 	if (HIO_UNLIKELY(!fcgi->peer)) goto oops;
 
 	/* send FCGI_BEGIN_REQUEST */

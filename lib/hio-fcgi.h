@@ -123,19 +123,16 @@ typedef struct hio_svc_fcgic_conn_t hio_svc_fcgic_conn_t;
 /* ---------------------------------------------------------------- */
 
 typedef int (*hio_svc_fcgic_on_read_t) (
-   hio_svc_fcgic_sess_t* sess,
-   const void*           data,
-   hio_iolen_t           dlen
+	hio_svc_fcgic_sess_t* sess,
+	const void*           data,
+	hio_iolen_t           dlen,
+	void*                 ctx
 );
 
-struct hio_svc_fcgic_sess_t
-{
-	int active;
-	hio_oow_t sid;
-	hio_svc_fcgic_conn_t* conn;
-	hio_svc_fcgic_on_read_t on_read;
-	void* ctx;
-};
+typedef void (*hio_svc_fcgic_on_untie_t) (
+	hio_svc_fcgic_sess_t* sess,
+	void*                 ctx;
+);
 
 /* ---------------------------------------------------------------- */
 #if defined(__cplusplus)
@@ -160,10 +157,11 @@ static HIO_INLINE hio_t* hio_svc_fcgic_gethio(hio_svc_fcgic_t* svc) { return hio
 #endif
 
 HIO_EXPORT hio_svc_fcgic_sess_t* hio_svc_fcgic_tie (
-	hio_svc_fcgic_t*        fcgic,
-	const hio_skad_t*       fcgis_addr,
-	hio_svc_fcgic_on_read_t on_read,
-	void*                   ctx
+	hio_svc_fcgic_t*         fcgic,
+	const hio_skad_t*        fcgis_addr,
+	hio_svc_fcgic_on_read_t  on_read,
+	hio_svc_fcgic_on_untie_t on_untie,
+	void*                    ctx
 );
 
 HIO_EXPORT void hio_svc_fcgic_untie (
@@ -187,12 +185,6 @@ HIO_EXPORT int hio_svc_fcgic_writestdin (
    const void*           data,
    hio_iolen_t           size
 );
-
-#if defined(HIO_HAVE_INLINE)
-static HIO_INLINE void* hio_svc_fcgic_getsessctx (hio_svc_fcgic_sess_t* sess) { return sess->ctx; }
-#else
-#define hio_svc_fcgic_getsessctx(sess) ((sess)->ctx)
-#endif
 
 #if defined(__cplusplus)
 }

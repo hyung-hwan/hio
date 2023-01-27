@@ -76,6 +76,16 @@ struct hio_svc_fcgic_conn_t
 	hio_svc_fcgic_conn_t* next;
 };
 
+struct hio_svc_fcgic_sess_t
+{
+	int active;
+	hio_oow_t sid;
+	hio_svc_fcgic_conn_t* conn;
+	hio_svc_fcgic_on_read_t on_read;
+	hio_svc_fcgic_on_untie_t on_untie;
+	void* ctx;
+};
+
 struct fcgic_sck_xtn_t
 {
 	hio_svc_fcgic_conn_t* conn;
@@ -110,9 +120,7 @@ printf ("DISCONNECT SOCKET .................. sck->%p conn->%p\n", sck, conn);
 			sess = &conn->sess.ptr[i];
 			if (sess->active)
 			{
-				/* TODO: release the session???*/
 				release_session (sess); /* TODO: is this correct?? */
-				/* or do we fire a callback??? */
 			}
 		}
 		conn->dev = HIO_NULL;
@@ -260,7 +268,7 @@ printf ("header completed remaining data %d expected body_len %d\n", (int)dlen, 
 				}
 
 				HIO_ASSERT (hio, conn->r.content_len <= conn->r.len);
-				sess->on_read (sess, conn->r.buf, conn->r.content_len); /* TODO: tell between stdout and stderr */
+				sess->on_read (sess, conn->r.buf, conn->r.content_len, sess->ctx); /* TODO: tell between stdout and stderr */
 
 			back_to_header:
 				conn->r.state = R_AWAITING_HEADER;
@@ -322,6 +330,7 @@ static int make_connection_socket (hio_svc_fcgic_conn_t* conn)
 
 	HIO_MEMSET (&ci, 0, HIO_SIZEOF(ci));
 	ci.remoteaddr = conn->addr;
+	/*ci.connect_tmout.sec = 5; TODO: make this configurable */
 
 	if (hio_dev_sck_connect(sck, &ci) <= -1)
 	{
@@ -401,7 +410,7 @@ static void free_connections (hio_svc_fcgic_t* fcgic)
 	}
 }
 
-static hio_svc_fcgic_sess_t* new_session (hio_svc_fcgic_t* fcgic, const hio_skad_t* fcgis_addr, hio_svc_fcgic_on_read_t on_read, void* ctx)
+static hio_svc_fcgic_sess_t* new_session (hio_svc_fcgic_t* fcgic, const hio_skad_t* fcgis_addr, hio_svc_fcgic_on_read_t on_read, hio_svc_fcgic_on_untie_t on_untie, void* ctx)
 {
 	hio_t* hio = fcgic->hio;
 	hio_svc_fcgic_conn_t* conn;
@@ -439,6 +448,7 @@ static hio_svc_fcgic_sess_t* new_session (hio_svc_fcgic_t* fcgic, const hio_skad
 
 	sess->sid = conn->sess.free;
 	sess->on_read = on_read;
+	sess->on_untie = on_untie;
 	sess->active = 1;
 	sess->ctx = ctx;
 	HIO_ASSERT (hio, sess->conn == conn);
@@ -449,6 +459,7 @@ static hio_svc_fcgic_sess_t* new_session (hio_svc_fcgic_t* fcgic, const hio_skad
 
 static void release_session (hio_svc_fcgic_sess_t* sess)
 {
+	if (sess->on_untie) sess->on_untie (sess, sess->ctx);
 	sess->active = 0;
 	sess->sid = sess->conn->sess.free;
 	sess->conn->sess.free = sess->sid;
@@ -494,10 +505,10 @@ void hio_svc_fcgic_stop (hio_svc_fcgic_t* fcgic)
 	HIO_DEBUG1 (hio, "FCGIC - STOPPED SERVICE %p\n", fcgic);
 }
 
-hio_svc_fcgic_sess_t* hio_svc_fcgic_tie (hio_svc_fcgic_t* fcgic, const hio_skad_t* addr, hio_svc_fcgic_on_read_t on_read, void* ctx)
+hio_svc_fcgic_sess_t* hio_svc_fcgic_tie (hio_svc_fcgic_t* fcgic, const hio_skad_t* addr, hio_svc_fcgic_on_read_t on_read, hio_svc_fcgic_on_untie_t on_untie, void* ctx)
 {
 	/* TODO: reference counting for safety?? */
-	return new_session(fcgic, addr, on_read, ctx);
+	return new_session(fcgic, addr, on_read, on_untie, ctx);
 }
 
 void hio_svc_fcgic_untie (hio_svc_fcgic_sess_t* sess)
