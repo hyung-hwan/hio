@@ -25,15 +25,15 @@
 #include <hio-pty.h>
 #include "hio-prv.h"
 
+#include <stdlib.h>
+#include <fcntl.h>
 #include <unistd.h>
 #include <errno.h>
 #include <sys/wait.h>
 #include <sys/uio.h>
 #include <sys/ioctl.h>
-#include <stdlib.h>
-#include <fcntl.h>
 #include <signal.h>
-#include <stdlib.h>
+
 
 #if defined(HAVE_PTY_H)
 #	include <pty.h>

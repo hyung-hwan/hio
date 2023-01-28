@@ -6,6 +6,10 @@ AC_CONFIG_HEADERS([lib/hio-cfg.h])
 AC_CONFIG_AUX_DIR([ac])
 AC_CONFIG_MACRO_DIR([m4])
 
+dnl define feature-enabling macros
+AC_USE_SYSTEM_EXTENSIONS()
+
+
 dnl use CC and CPP for compilation tests with .c test programs.
 AC_LANG(C)
 
