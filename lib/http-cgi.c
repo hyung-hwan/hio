@@ -120,7 +120,7 @@ static int cgi_write_to_client (cgi_t* cgi, const void* data, hio_iolen_t dlen)
 
 		if (cgi->num_pending_writes_to_client > CGI_PENDING_IO_THRESHOLD)
 		{
-			/* disable reading on the output stream of the peer */
+			/* the client side is probably stuck. disable reading on the output stream of the peer */
 			if (hio_dev_pro_read(cgi->peer, HIO_DEV_PRO_OUT, 0) <= -1) return -1;
 		}
 	}
@@ -172,7 +172,7 @@ static int cgi_send_final_status_to_client (cgi_t* cgi, int status_code, int for
 		status_msg = "";
 	}
 
-    if (hio_becs_fcat(cli->sbuf, "Content-Type: text/plain\r\nContent-Length: %zu\r\n\r\n%hs", content_len, status_msg) == (hio_oow_t)-1) return -1;
+	if (hio_becs_fcat(cli->sbuf, "Content-Type: text/plain\r\nContent-Length: %zu\r\n\r\n%hs", content_len, status_msg) == (hio_oow_t)-1) return -1;
 
 	return (cgi_write_to_client(cgi, HIO_BECS_PTR(cli->sbuf), HIO_BECS_LEN(cli->sbuf)) <= -1 ||
 	        (force_close && cgi_write_to_client(cgi, HIO_NULL, 0) <= -1))? -1: 0;
@@ -317,12 +317,12 @@ static void cgi_on_kill (hio_svc_htts_task_t* task)
 				hio_dev_sck_halt (cgi->csck);
 			}
 		}
-
-		cgi->client_org_on_read = HIO_NULL;
-		cgi->client_org_on_write = HIO_NULL;
-		cgi->client_org_on_disconnect = HIO_NULL;
-		cgi->client_htrd_recbs_changed = 0;
 	}
+
+	cgi->client_org_on_read = HIO_NULL;
+	cgi->client_org_on_write = HIO_NULL;
+	cgi->client_org_on_disconnect = HIO_NULL;
+	cgi->client_htrd_recbs_changed = 0;
 
 	if (cgi->task_next) HIO_SVC_HTTS_TASKL_UNLINK_TASK (cgi); /* detach from the htts service only if it's attached */
 	HIO_DEBUG5 (hio, "HTTS(%p) - thr(t=%p,c=%p[%d],p=%p) - killed the task\n", cgi->htts, cgi, cgi->client, (cgi->csck? cgi->csck->hnd: -1), cgi->peer);
