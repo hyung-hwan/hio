@@ -62,22 +62,17 @@ struct fcgi_peer_xtn_t
 };
 typedef struct fcgi_peer_xtn_t fcgi_peer_xtn_t;
 
+static void unbind_task_from_client (fcgi_t* fcgi, int rcdown);
+static void unbind_task_from_peer (fcgi_t* fcgi, int rcdown);
+
 static void fcgi_halt_participating_devices (fcgi_t* fcgi)
 {
-	HIO_ASSERT (fcgi->htts->hio, fcgi->client != HIO_NULL);
-	HIO_ASSERT (fcgi->htts->hio, fcgi->csck != HIO_NULL);
-
 /* TODO: include fcgi session id in the output in place of peer??? */
-	HIO_DEBUG3 (fcgi->htts->hio, "HTTS(%p) - Halting participating devices in fcgi state %p(client=%p)\n", fcgi->htts, fcgi, fcgi->csck);
+	HIO_DEBUG5 (fcgi->htts->hio, "HTTS(%p) - cgi(t=%p,c=%p(%d),p=%p) Halting participating devices\n", fcgi->htts, fcgi, fcgi->csck, (fcgi->csck? fcgi->csck->hnd: -1), fcgi->peer);
 
-	hio_dev_sck_halt (fcgi->csck);
 
-	/* check for peer as it may not have been started */
-	if (fcgi->peer)
-	{
-		hio_svc_fcgic_untie (fcgi->peer); /* this is not a delayed operation unlike hio_dev_sck_halt. TODO: check if this is a buggy idea */
-		fcgi->peer = HIO_NULL;
-	}
+	if (fcgi->csck) hio_dev_sck_halt (fcgi->csck);
+	unbind_task_from_peer (fcgi, 1);
 }
 
 static int fcgi_write_to_client (fcgi_t* fcgi, const void* data, hio_iolen_t dlen)
@@ -227,27 +222,35 @@ static HIO_INLINE void fcgi_mark_over (fcgi_t* fcgi, int over_bits)
 
 	if (!(old_over & FCGI_OVER_READ_FROM_PEER) && (fcgi->over & FCGI_OVER_READ_FROM_PEER))
 	{
-		if (fcgi->peer) hio_svc_fcgic_untie(fcgi->peer); /* the untie callback will reset fcgi->peer to HIO_NULL */
+		if (fcgi->peer)
+		{
+			hio_svc_fcgic_untie(fcgi->peer); /* the untie callback will reset fcgi->peer to HIO_NULL */
+			HIO_SVC_HTTS_TASK_RCDOWN((hio_svc_htts_task_t*)fcgi); /* ref down from fcgi->peer->ctx. unable to use UNREF() */
+		}
 	}
 
 	if (old_over != FCGI_OVER_ALL && fcgi->over == FCGI_OVER_ALL)
 	{
 		/* ready to stop */
-		if (fcgi->peer) hio_svc_fcgic_untie(fcgi->peer);
+		if (fcgi->peer)
+		{
+			hio_svc_fcgic_untie(fcgi->peer);
+			HIO_SVC_HTTS_TASK_RCDOWN((hio_svc_htts_task_t*)fcgi); /* ref down from fcgi->peer->ctx. unable to use UNREF() */
+		}
 
 		if (fcgi->csck)
 		{
 			if (fcgi->keep_alive && !fcgi->client_eof_detected)
 			{
-				/* how to arrange to delete this fcgi object and put the socket back to the normal waiting state??? */
+/* how to arrange to delete this fcgi object and put the socket back to the normal waiting state??? */
 				HIO_ASSERT (fcgi->htts->hio, fcgi->client->task == (hio_svc_htts_task_t*)fcgi);
+				unbind_task_from_client (fcgi, 1);
 
-				HIO_SVC_HTTS_TASK_UNREF (fcgi->client->task);
-				/* fcgi must not be accessed from here down as it could have been destroyed */
+				/* fcgi must not be accessed from here down as it could have been destroyed in unbind_task_from_client() */
 			}
 			else
 			{
-				HIO_DEBUG2 (fcgi->htts->hio, "HTTS(%p) - halting client(%p) for no keep-alive\n", fcgi->htts, fcgi->csck);
+				HIO_DEBUG2 (hio, "HTTS(%p) - halting client(%p) for no keep-alive\n", fcgi->htts, fcgi->csck);
 				hio_dev_sck_shutdown (fcgi->csck, HIO_DEV_SCK_SHUTDOWN_WRITE);
 				hio_dev_sck_halt (fcgi->csck);
 			}
@@ -260,17 +263,21 @@ static void fcgi_on_kill (hio_svc_htts_task_t* task)
 	fcgi_t* fcgi = (fcgi_t*)task;
 	hio_t* hio = fcgi->htts->hio;
 
-	HIO_DEBUG2 (hio, "HTTS(%p) - killing fcgi client(%p)\n", fcgi->htts, fcgi->csck);
+	HIO_DEBUG5 (hio, "HTTS(%p) - fcgi(t=%p,c=%p[%d],p=%p) - killing the task\n", fcgi->htts, fcgi, fcgi->client, (fcgi->csck? fcgi->csck->hnd: -1), fcgi->peer);
 
-	if (fcgi->peer)
-	{
-		hio_svc_fcgic_untie(fcgi->peer);
-	}
+	/* [NOTE] 
+	 * 1. if hio_svc_htts_task_kill() is called, fcgi->peer, fcgi->peer_htrd, fcgi->csck, 
+	 *    fcgi->client may not not null. 
+	 * 2. this call-back function doesn't decrement the reference count on fcgi because 
+	 *     this is the fcgi destruction call-back.
+	 */
+
+	if (fcgi->peer) hio_svc_fcgic_untie (fcgi->peer);
 
 	if (fcgi->peer_htrd)
 	{
 		fcgi_peer_xtn_t* pxtn = hio_htrd_getxtn(fcgi->peer_htrd);
-		pxtn->fcgi = HIO_NULL; /* peer->fcgi many not be NULL if the resource is killed regardless of the reference count */
+		pxtn->fcgi = HIO_NULL; 
 
 		hio_htrd_close (fcgi->peer_htrd);
 		fcgi->peer_htrd = HIO_NULL;
@@ -279,30 +286,14 @@ static void fcgi_on_kill (hio_svc_htts_task_t* task)
 	if (fcgi->csck)
 	{
 		HIO_ASSERT (hio, fcgi->client != HIO_NULL);
-
-		if (fcgi->client_org_on_read) fcgi->csck->on_read = fcgi->client_org_on_read;
-		if (fcgi->client_org_on_write) fcgi->csck->on_write = fcgi->client_org_on_write;
-		if (fcgi->client_org_on_disconnect) fcgi->csck->on_disconnect = fcgi->client_org_on_disconnect;
-		if (fcgi->client_htrd_recbs_changed) hio_htrd_setrecbs (fcgi->client->htrd, &fcgi->client_htrd_org_recbs);
-
-		if (!fcgi->client_disconnected)
-		{
-			if (!fcgi->keep_alive || hio_dev_sck_read(fcgi->csck, 1) <= -1)
-			{
-				HIO_DEBUG2 (hio, "HTTS(%p) - halting client(%p) for failure to enable input watching\n", fcgi->htts, fcgi->csck);
-				hio_dev_sck_halt (fcgi->csck);
-			}
-		}
+		unbind_task_from_client (fcgi, 0);
 	}
 
-	fcgi->client_org_on_read = HIO_NULL;
-	fcgi->client_org_on_write = HIO_NULL;
-	fcgi->client_org_on_disconnect = HIO_NULL;
-	fcgi->client_htrd_recbs_changed = 0;
+	/* detach from the htts service only if it's attached */
+	if (fcgi->task_next) HIO_SVC_HTTS_TASKL_UNLINK_TASK (fcgi); 
 
-	if (fcgi->task_next) HIO_SVC_HTTS_TASKL_UNLINK_TASK (fcgi); /* detach from the htts service only if it's attached */
+	HIO_DEBUG5 (hio, "HTTS(%p) - fcgi(t=%p,c=%p[%d],p=%p) - killed the task\n", fcgi->htts, fcgi, fcgi->client, (fcgi->csck? fcgi->csck->hnd: -1), fcgi->peer);
 }
-
 
 static void fcgi_peer_on_untie (hio_svc_fcgic_sess_t* peer, void* ctx)
 {
@@ -312,6 +303,8 @@ static void fcgi_peer_on_untie (hio_svc_fcgic_sess_t* peer, void* ctx)
 	 * fcgi_halt_participating_devices() calls hio_svc_fcgi_untie() again 
 	 * to cause an infinite loop if we don't reset fcgi->peer to HIO_NULL here */
 	fcgi->peer = HIO_NULL; 
+// TTTT
+	//fcgi_write_last_chunk_to_client (fcgi);
 	fcgi_halt_participating_devices (fcgi); /* TODO: kill the session only??? */
 }
 
@@ -461,7 +454,6 @@ static int peer_htrd_peek (hio_htrd_t* htrd, hio_htre_t* req)
 
 static int peer_htrd_poke (hio_htrd_t* htrd, hio_htre_t* req)
 {
-	/* client request got completed */
 	fcgi_peer_xtn_t* peer = hio_htrd_getxtn(htrd);
 	fcgi_t* fcgi = peer->fcgi;
 
@@ -538,10 +530,8 @@ static int fcgi_client_htrd_poke (hio_htrd_t* htrd, hio_htre_t* req)
 	hio_svc_htts_cli_t* cli = hio_dev_sck_getxtn(sck);
 	fcgi_t* fcgi = (fcgi_t*)cli->task;
 
-	//if (!fcgi) return 0;
-	
 	/* indicate end of STDIN */
-	if (fcgi_write_stdin_to_peer(fcgi->peer, HIO_NULL, 0) <= -1) return -1;
+	if (fcgi_write_stdin_to_peer(fcgi, HIO_NULL, 0) <= -1) return -1;
 
 	fcgi_mark_over (fcgi, FCGI_OVER_READ_FROM_CLIENT);
 	return 0;
@@ -557,7 +547,7 @@ static int fcgi_client_htrd_push_content (hio_htrd_t* htrd, hio_htre_t* req, con
 	HIO_ASSERT (sck->hio, cli->sck == sck);
 
 	/* write the contents to fcgi server as stdin*/
-	return fcgi_write_stdin_to_peer(fcgi->peer, data, dlen);
+	return fcgi_write_stdin_to_peer(fcgi, data, dlen);
 }
 
 static hio_htrd_recbs_t fcgi_client_htrd_recbs =
@@ -570,21 +560,25 @@ static hio_htrd_recbs_t fcgi_client_htrd_recbs =
 static void fcgi_client_on_disconnect (hio_dev_sck_t* sck)
 {
 	hio_svc_htts_cli_t* cli = hio_dev_sck_getxtn(sck);
+	hio_t* hio = sck->hio;
 	hio_svc_htts_t* htts = cli->htts;
 	fcgi_t* fcgi = (fcgi_t*)cli->task;
-	hio_t* hio = sck->hio;
 
-	HIO_ASSERT (hio, sck == fcgi->csck);
 	HIO_DEBUG4 (hio, "HTTS(%p) - fcgi(t=%p,c=%p,csck=%p) - client socket disconnect handled\n", htts, fcgi, cli, sck);
 
-	fcgi->client_disconnected = 1;
-	fcgi->csck = HIO_NULL;
-	fcgi->client = HIO_NULL;
-	if (fcgi->client_org_on_disconnect)
+	/* fcgi may be null if there is no associated task or 
+	 * the previously associated one is already gone */
+	if (fcgi)
 	{
-		fcgi->client_org_on_disconnect (sck);
-		/* this original callback destroys the associated resource.
-		 * cgi must not be accessed from here down */
+		HIO_ASSERT (hio, sck == fcgi->csck);
+
+		/* set fcgi->client_disconnect to 1 before unbind_task_from_client() 
+		 * because fcgi can be destroyed if its reference count hits 0 */
+		fcgi->client_disconnected = 1; 
+		unbind_task_from_client (fcgi, 1);
+
+		/* this is the original callback restored in unbind_task_from_client() */
+		if (sck->on_disconnect) sck->on_disconnect (sck);
 	}
 
 	HIO_DEBUG4 (hio, "HTTS(%p) - fcgi(t=%p,c=%p,csck=%p) - client socket disconnect handled\n", htts, fcgi, cli, sck);
@@ -622,7 +616,7 @@ static int fcgi_client_on_read (hio_dev_sck_t* sck, const void* buf, hio_iolen_t
 		{
 			/* indicate eof to the write side */
 			int n;
-			n = fcgi_write_stdin_to_peer(fcgi->peer, HIO_NULL, 0);
+			n = fcgi_write_stdin_to_peer(fcgi, HIO_NULL, 0);
 			fcgi_mark_over (fcgi, FCGI_OVER_READ_FROM_CLIENT);
 			if (n <= -1) goto oops;
 		}
@@ -763,12 +757,143 @@ oops:
 	return -1;
 }
 
+static void bind_task_to_client (fcgi_t* fcgi, hio_dev_sck_t* csck)
+{
+	hio_svc_htts_cli_t* cli = hio_dev_sck_getxtn(csck);
+
+	HIO_ASSERT (fcgi->htts->hio, cli->sck == csck);
+	HIO_ASSERT (fcgi->htts->hio, cli->task == HIO_NULL);
+
+	fcgi->csck = csck;
+	fcgi->client = cli;
+
+	/* remember the client socket's io event handlers */
+	fcgi->client_org_on_read = csck->on_read;
+	fcgi->client_org_on_write = csck->on_write;
+	fcgi->client_org_on_disconnect = csck->on_disconnect;
+
+	/* set new io events handlers on the client socket */
+	csck->on_read = fcgi_client_on_read;
+	csck->on_write = fcgi_client_on_write;
+	csck->on_disconnect = fcgi_client_on_disconnect;
+
+	cli->task = (hio_svc_htts_task_t*)fcgi;
+	HIO_SVC_HTTS_TASK_RCUP (fcgi);
+}
+
+static void unbind_task_from_client (fcgi_t* fcgi, int rcdown)
+{
+	hio_dev_sck_t* csck = fcgi->csck;
+
+	HIO_ASSERT (fcgi->htts->hio, fcgi->client != HIO_NULL);
+	HIO_ASSERT (fcgi->htts->hio, fcgi->csck != HIO_NULL);
+	HIO_ASSERT (fcgi->htts->hio, fcgi->client->task == (hio_svc_htts_task_t*)fcgi);
+	HIO_ASSERT (fcgi->htts->hio, fcgi->client->htrd != HIO_NULL);
+
+	if (fcgi->client_htrd_recbs_changed) 
+	{
+		hio_htrd_setrecbs (fcgi->client->htrd, &fcgi->client_htrd_org_recbs);
+		fcgi->client_htrd_recbs_changed = 0;
+	}
+
+	if (fcgi->client_org_on_read)
+	{
+		csck->on_read = fcgi->client_org_on_read;
+		fcgi->client_org_on_read = HIO_NULL;
+	}
+
+	if (fcgi->client_org_on_write)
+	{
+		csck->on_write = fcgi->client_org_on_write;
+		fcgi->client_org_on_write = HIO_NULL;
+	}
+
+	if (fcgi->client_org_on_disconnect)
+	{
+		csck->on_disconnect = fcgi->client_org_on_disconnect;
+		fcgi->client_org_on_disconnect = HIO_NULL;
+	}
+
+	/* there is some ordering issue in using HIO_SVC_HTTS_TASK_UNREF()
+	 * because it can destroy the fcgi itself. so reset fcgi->client->task
+	 * to null and call RCDOWN() later */
+	fcgi->client->task = HIO_NULL;
+	fcgi->client = HIO_NULL;
+	fcgi->csck = HIO_NULL;
+
+	if (!fcgi->client_disconnected && (!fcgi->keep_alive || hio_dev_sck_read(csck, 1) <= -1))
+	{
+		HIO_DEBUG2 (fcgi->htts->hio, "HTTS(%p) - halting client(%p) for failure to enable input watching\n", fcgi->htts, csck);
+		hio_dev_sck_halt (csck);
+	}
+
+	if (rcdown) HIO_SVC_HTTS_TASK_RCDOWN ((hio_svc_htts_task_t*)fcgi);
+}
+
+static int bind_task_to_peer (fcgi_t* fcgi, const hio_skad_t* fcgis_addr)
+{
+	hio_htrd_t* htrd;
+	fcgi_peer_xtn_t* pxtn;
+
+	htrd = hio_htrd_open(fcgi->htts->hio, HIO_SIZEOF(*pxtn));
+	if (HIO_UNLIKELY(!htrd)) return -1;
+
+	hio_htrd_setoption (htrd, HIO_HTRD_SKIP_INITIAL_LINE | HIO_HTRD_RESPONSE);
+	hio_htrd_setrecbs (htrd, &peer_htrd_recbs);
+
+	fcgi->peer = hio_svc_fcgic_tie(fcgi->htts->fcgic, fcgis_addr, fcgi_peer_on_read, fcgi_peer_on_untie, fcgi);
+	if (HIO_UNLIKELY(!fcgi->peer)) 
+	{
+		hio_htrd_close (htrd);
+		return -1;
+	}
+
+	pxtn = hio_htrd_getxtn(htrd);
+	pxtn->fcgi = fcgi;
+	fcgi->peer_htrd = htrd;
+
+	HIO_SVC_HTTS_TASK_RCUP (fcgi); /* for peer_htrd extension */
+	HIO_SVC_HTTS_TASK_RCUP (fcgi); /* for fcgi->peer->ctx in the tie() */
+
+	return 0;
+}
+
+static void unbind_task_from_peer (fcgi_t* fcgi, int rcdown)
+{
+	int n = 0;
+
+	if (fcgi->peer_htrd)
+	{
+		hio_htrd_close (fcgi->peer_htrd);
+		fcgi->peer_htrd = HIO_NULL;
+		n++;
+	}
+
+	if (fcgi->peer)
+	{
+ 		/* hio-svc_fcgic_untie() is not a delayed operation unlike hio_dev_sck_halt(). 
+		 * TODO: check if this is a buggy idea */
+		hio_svc_fcgic_untie (fcgi->peer);
+		fcgi->peer = HIO_NULL;
+		n++;
+
+	}
+
+
+	if (rcdown) 
+	{
+		while (n > 0)
+		{
+			n--;
+			HIO_SVC_HTTS_TASK_RCDOWN((hio_svc_htts_task_t*)fcgi);
+		}
+	}
+}
+
 int hio_svc_htts_dofcgi (hio_svc_htts_t* htts, hio_dev_sck_t* csck, hio_htre_t* req, const hio_skad_t* fcgis_addr, const hio_bch_t* docroot, const hio_bch_t* script, int options)
 {
 	hio_t* hio = htts->hio;
-	hio_svc_htts_cli_t* cli = hio_dev_sck_getxtn(csck);
 	fcgi_t* fcgi = HIO_NULL;
-	fcgi_peer_xtn_t* pxtn;
 
 	/* ensure that you call this function before any contents is received */
 	HIO_ASSERT (hio, hio_htre_getcontentlen(req) == 0);
@@ -782,36 +907,14 @@ int hio_svc_htts_dofcgi (hio_svc_htts_t* htts, hio_dev_sck_t* csck, hio_htre_t* 
 	fcgi = (fcgi_t*)hio_svc_htts_task_make(htts, HIO_SIZEOF(*fcgi), fcgi_on_kill);
 	if (HIO_UNLIKELY(!fcgi)) goto oops;
 
-	fcgi->csck = csck;
-	fcgi->client = cli;
 	/*fcgi->num_pending_writes_to_client = 0;
 	fcgi->num_pending_writes_to_peer = 0;*/
 	fcgi->req_method = hio_htre_getqmethodtype(req);
 	fcgi->req_version = *hio_htre_getversion(req);
 	fcgi->req_content_length_unlimited = hio_htre_getreqcontentlen(req, &fcgi->req_content_length);
 
-	/* remember the client socket's io event handlers */
-	fcgi->client_org_on_read = csck->on_read;
-	fcgi->client_org_on_write = csck->on_write;
-	fcgi->client_org_on_disconnect = csck->on_disconnect;
-	/* set new io events handlers on the client socket */
-	csck->on_read = fcgi_client_on_read;
-	csck->on_write = fcgi_client_on_write;
-	csck->on_disconnect = fcgi_client_on_disconnect;
-
-	HIO_ASSERT (hio, cli->task == HIO_NULL);
-	HIO_SVC_HTTS_TASK_REF ((hio_svc_htts_task_t*)fcgi, cli->task); /* cli->task = fcgi */
-
-	fcgi->peer_htrd = hio_htrd_open(hio, HIO_SIZEOF(*pxtn));
-	if (HIO_UNLIKELY(!fcgi->peer_htrd)) goto oops;
-	hio_htrd_setoption (fcgi->peer_htrd, HIO_HTRD_SKIP_INITIAL_LINE | HIO_HTRD_RESPONSE);
-	hio_htrd_setrecbs (fcgi->peer_htrd, &peer_htrd_recbs);
-	pxtn = hio_htrd_getxtn(fcgi->peer_htrd);
-	HIO_SVC_HTTS_TASK_REF (fcgi, pxtn->fcgi); /* peer->fcgi in htrd = fcgi */
-
-	/* create a session in in the fcgi client service */
-	fcgi->peer = hio_svc_fcgic_tie(htts->fcgic, fcgis_addr, fcgi_peer_on_read, fcgi_peer_on_untie, fcgi);
-	if (HIO_UNLIKELY(!fcgi->peer)) goto oops;
+	bind_task_to_client (fcgi, csck);
+	if (bind_task_to_peer(fcgi, fcgis_addr) <= -1) goto oops;
 
 	/* send FCGI_BEGIN_REQUEST */
 	if (hio_svc_fcgic_beginrequest(fcgi->peer) <= -1) goto oops;
@@ -892,7 +995,7 @@ int hio_svc_htts_dofcgi (hio_svc_htts_t* htts, hio_dev_sck_t* csck, hio_htre_t* 
 		{
 			/* no content to be uploaded from the client */
 			/* indicate end of stdin to the peer and disable input wathching from the client */
-			if (fcgi_write_stdin_to_peer(fcgi->peer, HIO_NULL, 0) <= -1) goto oops;
+			if (fcgi_write_stdin_to_peer(fcgi, HIO_NULL, 0) <= -1) goto oops;
 			fcgi_mark_over (fcgi, FCGI_OVER_READ_FROM_CLIENT | FCGI_OVER_WRITE_TO_PEER);
 		}
 #if defined(FCGI_ALLOW_UNLIMITED_REQ_CONTENT_LENGTH)

@@ -120,8 +120,6 @@ struct hio_svc_fcgic_tmout_t
 typedef struct hio_svc_fcgic_sess_t hio_svc_fcgic_sess_t;
 typedef struct hio_svc_fcgic_conn_t hio_svc_fcgic_conn_t;
 
-/* ---------------------------------------------------------------- */
-
 typedef int (*hio_svc_fcgic_on_read_t) (
 	hio_svc_fcgic_sess_t* sess,
 	const void*           data,
@@ -133,6 +131,17 @@ typedef void (*hio_svc_fcgic_on_untie_t) (
 	hio_svc_fcgic_sess_t* sess,
 	void*                 ctx;
 );
+
+struct hio_svc_fcgic_sess_t
+{
+	int active;
+	hio_oow_t sid;
+	hio_svc_fcgic_conn_t* conn;
+	hio_svc_fcgic_on_read_t on_read;
+	hio_svc_fcgic_on_untie_t on_untie;
+	void* ctx;
+};
+
 
 /* ---------------------------------------------------------------- */
 #if defined(__cplusplus)

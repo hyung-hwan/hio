@@ -481,11 +481,17 @@ typedef enum hio_dev_event_t hio_dev_event_t;
 	hio_t* hio; \
 	hio_cfmb_t* cfmb_next; \
 	hio_cfmb_t* cfmb_prev; \
-	hio_cfmb_checker_t cfmb_checker
+	hio_cfmb_checker_t cfmb_checker; \
+	hio_cfmb_freeer_t cfmb_freeer
 
 typedef struct hio_cfmb_t hio_cfmb_t;
 
 typedef int (*hio_cfmb_checker_t) (
+	hio_t*       hio,
+	hio_cfmb_t*  cfmb
+);
+
+typedef int (*hio_cfmb_freeer_t) (
 	hio_t*       hio,
 	hio_cfmb_t*  cfmb
 );
@@ -612,6 +618,17 @@ typedef enum hio_log_mask_t hio_log_mask_t;
 #define HIO_LOG8(hio,mask,fmt,a1,a2,a3,a4,a5,a6,a7,a8) do { if (HIO_LOG_ENABLED(hio,mask)) hio_logbfmt(hio, mask, fmt, a1, a2, a3, a4, a5, a6, a7, a8); } while(0)
 #define HIO_LOG9(hio,mask,fmt,a1,a2,a3,a4,a5,a6,a7,a8,a9) do { if (HIO_LOG_ENABLED(hio,mask)) hio_logbfmt(hio, mask, fmt, a1, a2, a3, a4, a5, a6, a7, a8, a9); } while(0)
 
+#define HIO_DLOG0(hio,mask,fmt) do { if (HIO_LOG_ENABLED(hio,mask)) hio_logbfmt(hio, mask, ("%s:%u " fmt), __FILE__, (unsigned int)__LINE__); } while(0)
+#define HIO_DLOG1(hio,mask,fmt,a1) do { if (HIO_LOG_ENABLED(hio,mask)) hio_logbfmt(hio, mask, ("%s:%u " fmt), __FILE__, (unsigned int)__LINE__, a1); } while(0)
+#define HIO_DLOG2(hio,mask,fmt,a1,a2) do { if (HIO_LOG_ENABLED(hio,mask)) hio_logbfmt(hio, mask, ("%s:%u " fmt), __FILE__, (unsigned int)__LINE__, a1, a2); } while(0)
+#define HIO_DLOG3(hio,mask,fmt,a1,a2,a3) do { if (HIO_LOG_ENABLED(hio,mask)) hio_logbfmt(hio, mask, ("%s:%u " fmt), __FILE__, (unsigned int)__LINE__, a1, a2, a3); } while(0)
+#define HIO_DLOG4(hio,mask,fmt,a1,a2,a3,a4) do { if (HIO_LOG_ENABLED(hio,mask)) hio_logbfmt(hio, mask, ("%s:%u " fmt), __FILE__, (unsigned int)__LINE__, a1, a2, a3, a4); } while(0)
+#define HIO_DLOG5(hio,mask,fmt,a1,a2,a3,a4,a5) do { if (HIO_LOG_ENABLED(hio,mask)) hio_logbfmt(hio, mask, ("%s:%u " fmt), __FILE__, (unsigned int)__LINE__, a1, a2, a3, a4, a5); } while(0)
+#define HIO_DLOG6(hio,mask,fmt,a1,a2,a3,a4,a5,a6) do { if (HIO_LOG_ENABLED(hio,mask)) hio_logbfmt(hio, mask, ("%s:%u " fmt), __FILE__, (unsigned int)__LINE__, a1, a2, a3, a4, a5, a6); } while(0)
+#define HIO_DLOG7(hio,mask,fmt,a1,a2,a3,a4,a5,a6,a7) do { if (HIO_LOG_ENABLED(hio,mask)) hio_logbfmt(hio, mask, ("%s:%u " fmt), __FILE__, (unsigned int)__LINE__, a1, a2, a3, a4, a5, a6, a7); } while(0)
+#define HIO_DLOG8(hio,mask,fmt,a1,a2,a3,a4,a5,a6,a7,a8) do { if (HIO_LOG_ENABLED(hio,mask)) hio_logbfmt(hio, mask, ("%s:%u " fmt), __FILE__, (unsigned int)__LINE__, a1, a2, a3, a4, a5, a6, a7, a8); } while(0)
+#define HIO_DLOG9(hio,mask,fmt,a1,a2,a3,a4,a5,a6,a7,a8,a9) do { if (HIO_LOG_ENABLED(hio,mask)) hio_logbfmt(hio, mask, ("%s:%u " fmt), __FILE__, (unsigned int)__LINE__, a1, a2, a3, a4, a5, a6, a7, a8, a9); } while(0)
+
 #if defined(HIO_BUILD_RELEASE)
 	/* [NOTE]
 	 *  get rid of debugging message totally regardless of
@@ -628,16 +645,16 @@ typedef enum hio_log_mask_t hio_log_mask_t;
 #	define HIO_DEBUG8(hio,fmt,a1,a2,a3,a4,a5,a6,a7,a8)
 #	define HIO_DEBUG9(hio,fmt,a1,a2,a3,a4,a5,a6,a7,a8,a9)
 #else
-#	define HIO_DEBUG0(hio,fmt) HIO_LOG0(hio, HIO_LOG_DEBUG | HIO_LOG_UNTYPED, fmt)
-#	define HIO_DEBUG1(hio,fmt,a1) HIO_LOG1(hio, HIO_LOG_DEBUG | HIO_LOG_UNTYPED, fmt, a1)
-#	define HIO_DEBUG2(hio,fmt,a1,a2) HIO_LOG2(hio, HIO_LOG_DEBUG | HIO_LOG_UNTYPED, fmt, a1, a2)
-#	define HIO_DEBUG3(hio,fmt,a1,a2,a3) HIO_LOG3(hio, HIO_LOG_DEBUG | HIO_LOG_UNTYPED, fmt, a1, a2, a3)
-#	define HIO_DEBUG4(hio,fmt,a1,a2,a3,a4) HIO_LOG4(hio, HIO_LOG_DEBUG | HIO_LOG_UNTYPED, fmt, a1, a2, a3, a4)
-#	define HIO_DEBUG5(hio,fmt,a1,a2,a3,a4,a5) HIO_LOG5(hio, HIO_LOG_DEBUG | HIO_LOG_UNTYPED, fmt, a1, a2, a3, a4, a5)
-#	define HIO_DEBUG6(hio,fmt,a1,a2,a3,a4,a5,a6) HIO_LOG6(hio, HIO_LOG_DEBUG | HIO_LOG_UNTYPED, fmt, a1, a2, a3, a4, a5, a6)
-#	define HIO_DEBUG7(hio,fmt,a1,a2,a3,a4,a5,a6,a7) HIO_LOG7(hio, HIO_LOG_DEBUG | HIO_LOG_UNTYPED, fmt, a1, a2, a3, a4, a5, a6, a7)
-#	define HIO_DEBUG8(hio,fmt,a1,a2,a3,a4,a5,a6,a7,a8) HIO_LOG8(hio, HIO_LOG_DEBUG | HIO_LOG_UNTYPED, fmt, a1, a2, a3, a4, a5, a6, a7, a8)
-#	define HIO_DEBUG9(hio,fmt,a1,a2,a3,a4,a5,a6,a7,a8,a9) HIO_LOG9(hio, HIO_LOG_DEBUG | HIO_LOG_UNTYPED, fmt, a1, a2, a3, a4, a5, a6, a7, a8, a9)
+#	define HIO_DEBUG0(hio,fmt) HIO_DLOG0(hio, HIO_LOG_DEBUG | HIO_LOG_UNTYPED, fmt)
+#	define HIO_DEBUG1(hio,fmt,a1) HIO_DLOG1(hio, HIO_LOG_DEBUG | HIO_LOG_UNTYPED, fmt, a1)
+#	define HIO_DEBUG2(hio,fmt,a1,a2) HIO_DLOG2(hio, HIO_LOG_DEBUG | HIO_LOG_UNTYPED, fmt, a1, a2)
+#	define HIO_DEBUG3(hio,fmt,a1,a2,a3) HIO_DLOG3(hio, HIO_LOG_DEBUG | HIO_LOG_UNTYPED, fmt, a1, a2, a3)
+#	define HIO_DEBUG4(hio,fmt,a1,a2,a3,a4) HIO_DLOG4(hio, HIO_LOG_DEBUG | HIO_LOG_UNTYPED, fmt, a1, a2, a3, a4)
+#	define HIO_DEBUG5(hio,fmt,a1,a2,a3,a4,a5) HIO_DLOG5(hio, HIO_LOG_DEBUG | HIO_LOG_UNTYPED, fmt, a1, a2, a3, a4, a5)
+#	define HIO_DEBUG6(hio,fmt,a1,a2,a3,a4,a5,a6) HIO_DLOG6(hio, HIO_LOG_DEBUG | HIO_LOG_UNTYPED, fmt, a1, a2, a3, a4, a5, a6)
+#	define HIO_DEBUG7(hio,fmt,a1,a2,a3,a4,a5,a6,a7) HIO_DLOG7(hio, HIO_LOG_DEBUG | HIO_LOG_UNTYPED, fmt, a1, a2, a3, a4, a5, a6, a7)
+#	define HIO_DEBUG8(hio,fmt,a1,a2,a3,a4,a5,a6,a7,a8) HIO_DLOG8(hio, HIO_LOG_DEBUG | HIO_LOG_UNTYPED, fmt, a1, a2, a3, a4, a5, a6, a7, a8)
+#	define HIO_DEBUG9(hio,fmt,a1,a2,a3,a4,a5,a6,a7,a8,a9) HIO_DLOG9(hio, HIO_LOG_DEBUG | HIO_LOG_UNTYPED, fmt, a1, a2, a3, a4, a5, a6, a7, a8, a9)
 #endif
 
 #define HIO_INFO0(hio,fmt) HIO_LOG0(hio, HIO_LOG_INFO | HIO_LOG_UNTYPED, fmt)
@@ -1153,7 +1170,8 @@ HIO_EXPORT void hio_freemem (
 HIO_EXPORT void hio_addcfmb (
 	hio_t*             hio,
 	hio_cfmb_t*        cfmb,
-	hio_cfmb_checker_t checker
+	hio_cfmb_checker_t checker,
+	hio_cfmb_freeer_t  freeer
 );
 
 /* =========================================================================

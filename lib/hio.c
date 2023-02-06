@@ -862,10 +862,11 @@ static void clear_unneeded_cfmbs (hio_t* hio)
 	while (!HIO_CFMBL_IS_NIL_CFMB(&hio->cfmb, cur))
 	{
 		next = HIO_CFMBL_NEXT_CFMB(cur);
-		if (cur->cfmb_checker(hio, cur))
+		if (!cur->cfmb_checker || cur->cfmb_checker(hio, cur))
 		{
 			HIO_CFMBL_UNLINK_CFMB (cur);
-			hio_freemem (hio, cur);
+			/*hio_freemem (hio, cur);*/
+			cur->cfmb_freeer (hio, cur);
 		}
 		cur = next;
 	}
@@ -879,6 +880,7 @@ static void kill_all_halted_devices (hio_t* hio)
 		hio_dev_t* dev = HIO_DEVL_FIRST_DEV(&hio->hltdev);
 		HIO_DEBUG1 (hio, "MIO - Killing HALTED device %p\n", dev);
 		hio_dev_kill (dev);
+		HIO_DEBUG1 (hio, "MIO - Killed HALTED device %p\n", dev);
 	}
 }
 
@@ -2035,9 +2037,10 @@ void hio_freemem (hio_t* hio, void* ptr)
 }
 /* ------------------------------------------------------------------------ */
 
-void hio_addcfmb (hio_t* hio, hio_cfmb_t* cfmb, hio_cfmb_checker_t checker)
+void hio_addcfmb (hio_t* hio, hio_cfmb_t* cfmb, hio_cfmb_checker_t checker, hio_cfmb_freeer_t freeer)
 {
 	cfmb->cfmb_checker = checker;
+	cfmb->cfmb_freeer = freeer? freeer: hio_freemem;
 	HIO_CFMBL_APPEND_CFMB (&hio->cfmb, cfmb);
 }
 

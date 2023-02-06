@@ -323,7 +323,7 @@ static int dev_thr_kill_master (hio_dev_t* dev, int force)
 		hio_freemem (hio, ti);
 	#else
 		/* schedule a resource destroyer */
-		hio_addcfmb (hio, ti, ready_to_free_thr_info);
+		hio_addcfmb (hio, ti, ready_to_free_thr_info, HIO_NULL);
 	#endif
 	}
 

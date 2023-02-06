@@ -94,9 +94,6 @@ typedef struct cgi_peer_xtn_t cgi_peer_xtn_t;
 
 static void cgi_halt_participating_devices (cgi_t* cgi)
 {
-	HIO_ASSERT (cgi->htts->hio, cgi->client != HIO_NULL);
-	HIO_ASSERT (cgi->htts->hio, cgi->csck != HIO_NULL);
-
 	HIO_DEBUG5 (cgi->htts->hio, "HTTS(%p) - cgi(t=%p,c=%p(%d),p=%p) Halting participating devices\n", cgi->htts, cgi, cgi->csck, (cgi->csck? cgi->csck->hnd: -1), cgi->peer);
 
 	if (cgi->csck) hio_dev_sck_halt (cgi->csck);
@@ -325,7 +322,7 @@ static void cgi_on_kill (hio_svc_htts_task_t* task)
 	cgi->client_htrd_recbs_changed = 0;
 
 	if (cgi->task_next) HIO_SVC_HTTS_TASKL_UNLINK_TASK (cgi); /* detach from the htts service only if it's attached */
-	HIO_DEBUG5 (hio, "HTTS(%p) - thr(t=%p,c=%p[%d],p=%p) - killed the task\n", cgi->htts, cgi, cgi->client, (cgi->csck? cgi->csck->hnd: -1), cgi->peer);
+	HIO_DEBUG5 (hio, "HTTS(%p) - cgi(t=%p,c=%p[%d],p=%p) - killed the task\n", cgi->htts, cgi, cgi->client, (cgi->csck? cgi->csck->hnd: -1), cgi->peer);
 }
 
 static void cgi_peer_on_close (hio_dev_pro_t* pro, hio_dev_pro_sid_t sid)
@@ -971,6 +968,8 @@ int hio_svc_htts_docgi (hio_svc_htts_t* htts, hio_dev_sck_t* csck, hio_htre_t* r
 
 	/* ensure that you call this function before any contents is received */
 	HIO_ASSERT (hio, hio_htre_getcontentlen(req) == 0);
+	HIO_ASSERT (hio, cli->sck == csck);
+
 
 	HIO_MEMSET (&fc, 0, HIO_SIZEOF(fc));
 	fc.cli = cli;
@@ -993,14 +992,14 @@ int hio_svc_htts_docgi (hio_svc_htts_t* htts, hio_dev_sck_t* csck, hio_htre_t* r
 	if (HIO_UNLIKELY(!cgi)) goto oops;
 
 	cgi->options = options;
-	cgi->csck = csck;
-	cgi->client = cli;
 	/*cgi->num_pending_writes_to_client = 0;
 	cgi->num_pending_writes_to_peer = 0;*/
 	cgi->req_method = hio_htre_getqmethodtype(req);
 	cgi->req_version = *hio_htre_getversion(req);
 	cgi->req_content_length_unlimited = hio_htre_getreqcontentlen(req, &cgi->req_content_length);
 
+	cgi->csck = csck;
+	cgi->client = cli;
 	/* remember the client socket's io event handlers */
 	cgi->client_org_on_read = csck->on_read;
 	cgi->client_org_on_write = csck->on_write;

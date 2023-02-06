@@ -97,9 +97,6 @@ typedef struct thr_peer_xtn_t thr_peer_xtn_t;
 
 static void thr_task_halt_participating_devices (thr_task_t* thr_task)
 {
-	HIO_ASSERT (thr_task->htts->hio, thr_task->client != HIO_NULL);
-	HIO_ASSERT (thr_task->htts->hio, thr_task->csck != HIO_NULL);
-
 	HIO_DEBUG4 (thr_task->htts->hio, "HTTS(%p) - Halting participating devices in thr task %p(csck=%p,peer=%p)\n", thr_task->htts, thr_task, thr_task->csck, thr_task->peer);
 
 	if (thr_task->csck) hio_dev_sck_halt (thr_task->csck);

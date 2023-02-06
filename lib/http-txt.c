@@ -58,10 +58,8 @@ typedef struct txt_t txt_t;
 
 static void txt_halt_participating_devices (txt_t* txt)
 {
-	HIO_ASSERT (txt->htts->hio, txt->client != HIO_NULL);
-	HIO_ASSERT (txt->htts->hio, txt->csck != HIO_NULL);
 	HIO_DEBUG3 (txt->htts->hio, "HTTS(%p) - Halting participating devices in txt state %p(client=%p)\n", txt->htts, txt, txt->csck);
-	hio_dev_sck_halt (txt->csck);
+	if (txt->csck) hio_dev_sck_halt (txt->csck);
 }
 
 static int txt_write_to_client (txt_t* txt, const void* data, hio_iolen_t dlen)
@@ -334,18 +332,19 @@ int hio_svc_htts_dotxt (hio_svc_htts_t* htts, hio_dev_sck_t* csck, hio_htre_t* r
 
 	/* ensure that you call this function before any contents is received */
 	HIO_ASSERT (hio, hio_htre_getcontentlen(req) == 0);
+	HIO_ASSERT (hio, cli->sck == csck);
 
 	txt = (txt_t*)hio_svc_htts_task_make(htts, HIO_SIZEOF(*txt), txt_on_kill);
 	if (HIO_UNLIKELY(!txt)) goto oops;
 
 	txt->options = options;
-	txt->csck = csck;
-	txt->client = cli;
 	/*txt->num_pending_writes_to_client = 0;*/
 	txt->req_method = hio_htre_getqmethodtype(req);
 	txt->req_version = *hio_htre_getversion(req);
 	txt->req_content_length_unlimited = hio_htre_getreqcontentlen(req, &txt->req_content_length);
 
+	txt->csck = csck;
+	txt->client = cli;
 	txt->client_org_on_read = csck->on_read;
 	txt->client_org_on_write = csck->on_write;
 	txt->client_org_on_disconnect = csck->on_disconnect;

@@ -43,6 +43,8 @@ struct hio_svc_fcgic_t
 
 struct hio_svc_fcgic_conn_t
 {
+        HIO_CFMB_HEADER;
+
 	hio_svc_fcgic_t* fcgic;
 	hio_skad_t addr;
 	hio_dev_sck_t* dev;
@@ -74,16 +76,6 @@ struct hio_svc_fcgic_conn_t
 	} r; /* space to parse incoming reply header */
 
 	hio_svc_fcgic_conn_t* next;
-};
-
-struct hio_svc_fcgic_sess_t
-{
-	int active;
-	hio_oow_t sid;
-	hio_svc_fcgic_conn_t* conn;
-	hio_svc_fcgic_on_read_t on_read;
-	hio_svc_fcgic_on_untie_t on_untie;
-	void* ctx;
 };
 
 struct fcgic_sck_xtn_t
@@ -340,9 +332,7 @@ static int make_connection_socket (hio_svc_fcgic_conn_t* conn)
 		return -1;
 	}
 
-printf ("MAKING CONNECTION %p %p\n", conn->dev, sck);
 	HIO_ASSERT (hio, conn->dev == HIO_NULL);
-
 	conn->dev = sck;
 	return 0;
 }
@@ -388,6 +378,13 @@ static hio_svc_fcgic_conn_t* get_connection (hio_svc_fcgic_t* fcgic, const hio_s
 	return conn;
 }
 
+static void destroy_connection_memory (hio_t* hio, hio_cfmb_t* cfmb)
+{
+	hio_svc_fcgic_conn_t* conn = (hio_svc_fcgic_conn_t*)cfmb;
+	if (conn->sess.ptr) hio_freemem (hio, conn->sess.ptr);
+	hio_freemem (hio, conn);
+}
+
 static void free_connections (hio_svc_fcgic_t* fcgic)
 {
 	hio_t* hio = fcgic->hio;
@@ -404,8 +401,9 @@ static void free_connections (hio_svc_fcgic_t* fcgic)
 			sck_xtn->conn = HIO_NULL;
 			hio_dev_sck_halt (conn->dev);
 		}
-		hio_freemem (hio, conn->sess.ptr);
-		hio_freemem (hio, conn);
+
+		/* delay destruction of conn->session.ptr and conn */
+		hio_addcfmb (hio, conn, HIO_NULL, destroy_connection_memory);
 		conn = next;
 	}
 }
@@ -425,7 +423,7 @@ static hio_svc_fcgic_sess_t* new_session (hio_svc_fcgic_t* fcgic, const hio_skad
 		hio_svc_fcgic_sess_t* newptr;
 
 		newcapa = conn->sess.capa + CONN_SESS_INC;
-		newptr = hio_reallocmem(hio, conn->sess.ptr, HIO_SIZEOF(*sess) * newcapa);
+		newptr = (hio_svc_fcgic_sess_t*)hio_reallocmem(hio, conn->sess.ptr, HIO_SIZEOF(*sess) * newcapa);
 		if (HIO_UNLIKELY(!newptr)) return HIO_NULL;
 
 		for (i = conn->sess.capa ; i < newcapa; i++)
@@ -508,6 +506,12 @@ void hio_svc_fcgic_stop (hio_svc_fcgic_t* fcgic)
 hio_svc_fcgic_sess_t* hio_svc_fcgic_tie (hio_svc_fcgic_t* fcgic, const hio_skad_t* addr, hio_svc_fcgic_on_read_t on_read, hio_svc_fcgic_on_untie_t on_untie, void* ctx)
 {
 	/* TODO: reference counting for safety?? */
+#if 0
+	hio_svc_fcgic_sess_t* sess;
+	sess = new_session(fcgic, addr, on_read, on_untie, ctx);
+	if (HIO_UNLIKELY(!sess)) return -1;
+	return sess->sid;
+#endif
 	return new_session(fcgic, addr, on_read, on_untie, ctx);
 }
 
@@ -631,6 +635,7 @@ int hio_svc_fcgic_writestdin (hio_svc_fcgic_sess_t* sess, const void* data, hio_
 	hio_iovec_t iov[2];
 	hio_fcgi_record_header_t h;
 
+printf (">>>>>>>>>>>>>>>>>>>>>>[%p] %p\n", sess, sess->conn);
 	if (!sess->conn->dev)
 	{
 		/* TODO: set error **/

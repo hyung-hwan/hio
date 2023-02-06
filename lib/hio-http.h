@@ -100,9 +100,27 @@ struct hio_svc_htts_task_t
 	HIO_SVC_HTTS_TASK_HEADER;
 };
 
+#define HIO_SVC_HTTS_TASK_RCUP(task) (++(task)->task_refcnt)
 
-#define HIO_SVC_HTTS_TASK_REF(task, var) do { (var) = (task); ++(task)->task_refcnt; } while(0)
-#define HIO_SVC_HTTS_TASK_UNREF(task_var) do { if (--(task_var)->task_refcnt == 0) { hio_svc_htts_task_t* __task_tmp = (hio_svc_htts_task_t*)(task_var); (task_var) = HIO_NULL; hio_svc_htts_task_kill(__task_tmp); } else { (task_var) = HIO_NULL; } } while(0)
+#define HIO_SVC_HTTS_TASK_RCDOWN(task_var) do { \
+	if (--(task_var)->task_refcnt == 0) hio_svc_htts_task_kill(task_var); \
+} while(0)
+
+#define HIO_SVC_HTTS_TASK_REF(task, var) do { \
+	(var) = (task); \
+	HIO_SVC_HTTS_TASK_RCUP(task); \
+} while(0)
+
+#define HIO_SVC_HTTS_TASK_UNREF(task_var) do { \
+	if (--(task_var)->task_refcnt == 0) { \
+		hio_svc_htts_task_t* __task_tmp = (hio_svc_htts_task_t*)(task_var); \
+		(task_var) = HIO_NULL; \
+		hio_svc_htts_task_kill(__task_tmp); \
+	} \
+	else { \
+		(task_var) = HIO_NULL; \
+	} \
+} while(0)
 
 
 /* -------------------------------------------------------------- */

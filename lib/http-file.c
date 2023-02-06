@@ -97,9 +97,6 @@ static int file_send_contents_to_client (file_t* file);
 
 static void file_halt_participating_devices (file_t* file)
 {
-	HIO_ASSERT (file->htts->hio, file->client != HIO_NULL);
-	HIO_ASSERT (file->htts->hio, file->csck != HIO_NULL);
-
 	HIO_DEBUG3 (file->htts->hio, "HTTS(%p) - file(c=%d,p=%d) Halting participating devices\n", file->htts, (int)file->csck->hnd, (int)file->peer);
 
 	/* only the client socket device.
@@ -800,9 +797,7 @@ int hio_svc_htts_dofile (hio_svc_htts_t* htts, hio_dev_sck_t* csck, hio_htre_t* 
 
 	file->options = options;
 	file->cbs = cbs; /* the given pointer must outlive the lifespan of the while file handling cycle. */
-	file->csck = csck;
-	file->client = cli;
-	file->sendfile_ok = hio_dev_sck_sendfileok(cli->sck);
+	file->sendfile_ok = hio_dev_sck_sendfileok(csck);
 	/*file->num_pending_writes_to_client = 0;
 	file->num_pending_writes_to_peer = 0;*/
 	file->req_version = *hio_htre_getversion(req);
@@ -813,6 +808,8 @@ int hio_svc_htts_dofile (hio_svc_htts_t* htts, hio_dev_sck_t* csck, hio_htre_t* 
 	file->req_qpath_ending_with_slash = (hio_htre_getqpathlen(req) > 0 && hio_htre_getqpath(req)[hio_htre_getqpathlen(req) - 1] == '/');
 	file->req_qpath_is_root = (hio_htre_getqpathlen(req) == 1 && hio_htre_getqpath(req)[0] == '/');
 
+	file->csck = csck;
+	file->client = cli;
 	file->client_org_on_read = csck->on_read;
 	file->client_org_on_write = csck->on_write;
 	file->client_org_on_disconnect = csck->on_disconnect;
