@@ -43,6 +43,7 @@ struct fcgi_t
 	unsigned int keep_alive: 1;
 	unsigned int req_content_length_unlimited: 1;
 	unsigned int ever_attempted_to_write_to_client: 1;
+	unsigned int last_chunk_sent: 1;
 	unsigned int client_disconnected: 1;
 	unsigned int client_eof_detected: 1;
 	unsigned int client_htrd_recbs_changed: 1;
@@ -163,17 +164,22 @@ static int fcgi_send_final_status_to_client (fcgi_t* fcgi, int status_code, int 
 
 static int fcgi_write_last_chunk_to_client (fcgi_t* fcgi)
 {
-	if (!fcgi->ever_attempted_to_write_to_client)
+	if (!fcgi->last_chunk_sent)
 	{
-		if (fcgi_send_final_status_to_client(fcgi, HIO_HTTP_STATUS_INTERNAL_SERVER_ERROR, 0) <= -1) return -1;
-	}
-	else
-	{
-		if (fcgi->res_mode_to_cli == FCGI_RES_MODE_CHUNKED &&
-		    fcgi_write_to_client(fcgi, "0\r\n\r\n", 5) <= -1) return -1;
-	}
+		fcgi->last_chunk_sent = 1;
 
-	if (!fcgi->keep_alive && fcgi_write_to_client(fcgi, HIO_NULL, 0) <= -1) return -1;
+		if (!fcgi->ever_attempted_to_write_to_client)
+		{
+			if (fcgi_send_final_status_to_client(fcgi, HIO_HTTP_STATUS_INTERNAL_SERVER_ERROR, 0) <= -1) return -1;
+		}
+		else
+		{
+			if (fcgi->res_mode_to_cli == FCGI_RES_MODE_CHUNKED &&
+				fcgi_write_to_client(fcgi, "0\r\n\r\n", 5) <= -1) return -1;
+		}
+
+		if (!fcgi->keep_alive && fcgi_write_to_client(fcgi, HIO_NULL, 0) <= -1) return -1;
+	}
 	return 0;
 }
 
@@ -303,8 +309,7 @@ static void fcgi_peer_on_untie (hio_svc_fcgic_sess_t* peer, void* ctx)
 	 * fcgi_halt_participating_devices() calls hio_svc_fcgi_untie() again 
 	 * to cause an infinite loop if we don't reset fcgi->peer to HIO_NULL here */
 	fcgi->peer = HIO_NULL; 
-// TTTT
-	//fcgi_write_last_chunk_to_client (fcgi);
+	fcgi_write_last_chunk_to_client (fcgi);
 	fcgi_halt_participating_devices (fcgi); /* TODO: kill the session only??? */
 }
 
@@ -890,48 +895,16 @@ static void unbind_task_from_peer (fcgi_t* fcgi, int rcdown)
 	}
 }
 
-int hio_svc_htts_dofcgi (hio_svc_htts_t* htts, hio_dev_sck_t* csck, hio_htre_t* req, const hio_skad_t* fcgis_addr, const hio_bch_t* docroot, const hio_bch_t* script, int options)
+static int setup_for_expect100 (fcgi_t* fcgi, hio_htre_t* req, int options)
 {
-	hio_t* hio = htts->hio;
-	fcgi_t* fcgi = HIO_NULL;
-
-	/* ensure that you call this function before any contents is received */
-	HIO_ASSERT (hio, hio_htre_getcontentlen(req) == 0);
-
-	if (HIO_UNLIKELY(!htts->fcgic))
-	{
-		hio_seterrbfmt (hio, HIO_ENOCAPA, "fcgi client service not enabled");
-		goto oops;
-	}
-
-	fcgi = (fcgi_t*)hio_svc_htts_task_make(htts, HIO_SIZEOF(*fcgi), fcgi_on_kill);
-	if (HIO_UNLIKELY(!fcgi)) goto oops;
-
-	/*fcgi->num_pending_writes_to_client = 0;
-	fcgi->num_pending_writes_to_peer = 0;*/
-	fcgi->req_method = hio_htre_getqmethodtype(req);
-	fcgi->req_version = *hio_htre_getversion(req);
-	fcgi->req_content_length_unlimited = hio_htre_getreqcontentlen(req, &fcgi->req_content_length);
-
-	bind_task_to_client (fcgi, csck);
-	if (bind_task_to_peer(fcgi, fcgis_addr) <= -1) goto oops;
-
-	/* send FCGI_BEGIN_REQUEST */
-	if (hio_svc_fcgic_beginrequest(fcgi->peer) <= -1) goto oops;
-	/* write FCGI_PARAM */
-	if (write_params(fcgi, csck, req, docroot, script) <= -1) goto oops;
-	if (hio_svc_fcgic_writeparam(fcgi->peer, HIO_NULL, 0, HIO_NULL, 0) <= -1) goto oops; /* end of params */
-
 #if !defined(FCGI_ALLOW_UNLIMITED_REQ_CONTENT_LENGTH)
 	if (fcgi->req_content_length_unlimited)
 	{
 		/* Transfer-Encoding is chunked. no content-length is known in advance. */
-
 		/* option 1. buffer contents. if it gets too large, send 413 Request Entity Too Large.
 		 * option 2. send 411 Length Required immediately
 		 * option 3. set Content-Length to -1 and use EOF to indicate the end of content [Non-Standard] */
-
-		if (fcgi_send_final_status_to_client(fcgi, HIO_HTTP_STATUS_LENGTH_REQUIRED, 1) <= -1) goto oops;
+		if (fcgi_send_final_status_to_client(fcgi, HIO_HTTP_STATUS_LENGTH_REQUIRED, 1) <= -1) return -1;
 	}
 #endif
 
@@ -959,8 +932,8 @@ int hio_svc_htts_dofcgi (hio_svc_htts_t* htts, hio_dev_sck_t* csck, hio_htre_t* 
 			hio_bch_t msgbuf[64];
 			hio_oow_t msglen;
 
-			msglen = hio_fmttobcstr(hio, msgbuf, HIO_COUNTOF(msgbuf), "HTTP/%d.%d %d %hs\r\n\r\n", fcgi->req_version.major, fcgi->req_version.minor, HIO_HTTP_STATUS_CONTINUE, hio_http_status_to_bcstr(HIO_HTTP_STATUS_CONTINUE));
-			if (fcgi_write_to_client(fcgi, msgbuf, msglen) <= -1) goto oops;
+			msglen = hio_fmttobcstr(fcgi->htts->hio, msgbuf, HIO_COUNTOF(msgbuf), "HTTP/%d.%d %d %hs\r\n\r\n", fcgi->req_version.major, fcgi->req_version.minor, HIO_HTTP_STATUS_CONTINUE, hio_http_status_to_bcstr(HIO_HTTP_STATUS_CONTINUE));
+			if (fcgi_write_to_client(fcgi, msgbuf, msglen) <= -1) return -1;
 			fcgi->ever_attempted_to_write_to_client = 0; /* reset this as it's polluted for 100 continue */
 		}
 	}
@@ -968,9 +941,14 @@ int hio_svc_htts_dofcgi (hio_svc_htts_t* htts, hio_dev_sck_t* csck, hio_htre_t* 
 	{
 		/* 417 Expectation Failed */
 		fcgi_send_final_status_to_client(fcgi, HIO_HTTP_STATUS_EXPECTATION_FAILED, 1);
-		goto oops;
+		return -1;
 	}
 
+	return 0;
+}
+
+static int setup_for_content_length(fcgi_t* fcgi, hio_htre_t* req)
+{
 #if defined(FCGI_ALLOW_UNLIMITED_REQ_CONTENT_LENGTH)
 	if (fcgi->req_content_length_unlimited)
 	{
@@ -995,7 +973,7 @@ int hio_svc_htts_dofcgi (hio_svc_htts_t* htts, hio_dev_sck_t* csck, hio_htre_t* 
 		{
 			/* no content to be uploaded from the client */
 			/* indicate end of stdin to the peer and disable input wathching from the client */
-			if (fcgi_write_stdin_to_peer(fcgi, HIO_NULL, 0) <= -1) goto oops;
+			if (fcgi_write_stdin_to_peer(fcgi, HIO_NULL, 0) <= -1) return -1;
 			fcgi_mark_over (fcgi, FCGI_OVER_READ_FROM_CLIENT | FCGI_OVER_WRITE_TO_PEER);
 		}
 #if defined(FCGI_ALLOW_UNLIMITED_REQ_CONTENT_LENGTH)
@@ -1015,8 +993,45 @@ int hio_svc_htts_dofcgi (hio_svc_htts_t* htts, hio_dev_sck_t* csck, hio_htre_t* 
 		fcgi->res_mode_to_cli = FCGI_RES_MODE_CLOSE;
 	}
 
+	return 0;
+}
+int hio_svc_htts_dofcgi (hio_svc_htts_t* htts, hio_dev_sck_t* csck, hio_htre_t* req, const hio_skad_t* fcgis_addr, const hio_bch_t* docroot, const hio_bch_t* script, int options)
+{
+	hio_t* hio = htts->hio;
+	fcgi_t* fcgi = HIO_NULL;
+
+	/* ensure that you call this function before any contents is received */
+	HIO_ASSERT (hio, hio_htre_getcontentlen(req) == 0);
+
+	if (HIO_UNLIKELY(!htts->fcgic))
+	{
+		hio_seterrbfmt (hio, HIO_ENOCAPA, "fcgi client service not enabled");
+		goto oops;
+	}
+
+	fcgi = (fcgi_t*)hio_svc_htts_task_make(htts, HIO_SIZEOF(*fcgi), fcgi_on_kill);
+	if (HIO_UNLIKELY(!fcgi)) goto oops;
+
+	/*fcgi->num_pending_writes_to_client = 0;
+	fcgi->num_pending_writes_to_peer = 0;*/
+	fcgi->req_method = hio_htre_getqmethodtype(req);
+	fcgi->req_version = *hio_htre_getversion(req);
+	fcgi->req_content_length_unlimited = hio_htre_getreqcontentlen(req, &fcgi->req_content_length);
+
+	bind_task_to_client (fcgi, csck);
+	if (bind_task_to_peer(fcgi, fcgis_addr) <= -1) goto oops;
+
+	if (setup_for_expect100(fcgi, req, options) <= -1) goto oops;
+	if (setup_for_content_length(fcgi, req) <= -1) goto oops;
+
 	/* TODO: store current input watching state and use it when destroying the fcgi data */
 	if (hio_dev_sck_read(csck, !(fcgi->over & FCGI_OVER_READ_FROM_CLIENT)) <= -1) goto oops;
+
+	/* send FCGI_BEGIN_REQUEST */
+	if (hio_svc_fcgic_beginrequest(fcgi->peer) <= -1) goto oops;
+	/* write FCGI_PARAM */
+	if (write_params(fcgi, csck, req, docroot, script) <= -1) goto oops;
+	if (hio_svc_fcgic_writeparam(fcgi->peer, HIO_NULL, 0, HIO_NULL, 0) <= -1) goto oops; /* end of params */
 
 	HIO_SVC_HTTS_TASKL_APPEND_TASK (&htts->task, (hio_svc_htts_task_t*)fcgi);
 	return 0;
