@@ -140,6 +140,8 @@ struct hio_svc_fcgic_sess_t
 	hio_svc_fcgic_on_read_t on_read;
 	hio_svc_fcgic_on_untie_t on_untie;
 	void* ctx;
+
+	hio_svc_fcgic_sess_t* next;
 };
 
 

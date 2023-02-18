@@ -37,13 +37,17 @@ struct hio_svc_fcgic_t
 	hio_svc_fcgic_conn_t* conns;
 };
 
+#if 0
+#define CONN_SESS_CAPA_MAX (4)
+#define CONN_SESS_INC  (2)
+#else
 #define CONN_SESS_CAPA_MAX (65536)
-#define CONN_SESS_INC  (32)
-#define INVALID_SID HIO_TYPE_MAX(hio_oow_t)
+#define CONN_SESS_INC  (64)
+#endif
 
 struct hio_svc_fcgic_conn_t
 {
-        HIO_CFMB_HEADER;
+	HIO_CFMB_HEADER;
 
 	hio_svc_fcgic_t* fcgic;
 	hio_skad_t addr;
@@ -52,9 +56,9 @@ struct hio_svc_fcgic_conn_t
 
 	struct
 	{
-		hio_svc_fcgic_sess_t* ptr;
+		hio_svc_fcgic_sess_t** ptr;
 		hio_oow_t capa;
-		hio_oow_t free; /* the index to the first free session slot */
+		hio_svc_fcgic_sess_t* free;
 	} sess;
 
 	struct
@@ -109,8 +113,8 @@ printf ("DISCONNECT SOCKET .................. sck->%p conn->%p\n", sck, conn);
 		for (i = 0; i < conn->sess.capa; i++)
 		{
 			hio_svc_fcgic_sess_t* sess;
-			sess = &conn->sess.ptr[i];
-			if (sess->active)
+			sess = conn->sess.ptr[i];
+			if (sess && sess->active)
 			{
 				release_session (sess); /* TODO: is this correct?? */
 			}
@@ -134,6 +138,7 @@ printf ("CONNECTED >>>>>>>>>>>>>>>>>>>>>>>>>>\n");
 
 static int sck_on_write (hio_dev_sck_t* sck, hio_iolen_t wrlen, void* wrctx, const hio_skad_t* dstaddr)
 {
+/*printf ("WROTE DATA TO CGI SERVER %d\n", (int)wrlen);*/
 	return 0;
 }
 
@@ -143,6 +148,7 @@ static int sck_on_read (hio_dev_sck_t* sck, const void* data, hio_iolen_t dlen, 
 	hio_svc_fcgic_conn_t* conn = sck_xtn->conn;
 	hio_t* hio = conn->fcgic->hio;
 
+/*printf ("READ DATA FROM CGI SERVER %d\n", (int)dlen);*/
 	if (dlen <= -1)
 	{
 		/* error or timeout */
@@ -157,7 +163,6 @@ static int sck_on_read (hio_dev_sck_t* sck, const void* data, hio_iolen_t dlen, 
 	}
 	else
 	{
-printf ("got DATA From FCGI CLIENT>... dlen=%d [%.*s]\n", (int)dlen, (int)dlen, data);		
 		do
 		{
 			hio_iolen_t reqlen, cplen;
@@ -193,7 +198,6 @@ printf ("got DATA From FCGI CLIENT>... dlen=%d [%.*s]\n", (int)dlen, (int)dlen, 
 				conn->r.state = R_AWAITING_BODY;
 				conn->r.body_len = conn->r.content_len + conn->r.padding_len;
 				conn->r.len = 0; /* reset to 0 to use the buffer to hold body */
-printf ("header completed remaining data %d expected body_len %d\n", (int)dlen, (int)conn->r.body_len);
 
 				/* the expected body length must not be too long */
 				HIO_ASSERT (hio, conn->r.body_len <= HIO_SIZEOF(conn->r.buf)); 
@@ -206,11 +210,7 @@ printf ("header completed remaining data %d expected body_len %d\n", (int)dlen, 
 					goto done;
 				}
 
-				if (conn->r.content_len == 0)
-				{
-	printf ("fireing without body\n");
-					goto got_body;
-				}
+				if (conn->r.content_len == 0) goto got_body;
 			}
 			else /* R_AWAITING_BODY */
 			{
@@ -231,11 +231,13 @@ printf ("header completed remaining data %d expected body_len %d\n", (int)dlen, 
 				}
 
 			got_body:
-				sess = (conn->r.id >= 1 && conn->r.id <= conn->sess.capa)? &conn->sess.ptr[conn->r.id - 1]: HIO_NULL;
+				/* get session by session id */
+				sess = (conn->r.id >= 1 && conn->r.id <= conn->sess.capa)? conn->sess.ptr[conn->r.id - 1]: HIO_NULL;
 
 				if (!sess || !sess->active)
 				{
 					/* discard the record. no associated sessoin or inactive session */
+printf ("UNKNOWN SESSION ..................... %p  %d\n", sess, conn->r.id);
 					goto back_to_header;
 				}
 
@@ -268,8 +270,6 @@ printf ("header completed remaining data %d expected body_len %d\n", (int)dlen, 
 				conn->r.body_len = 0;
 				conn->r.content_len = 0;
 				conn->r.padding_len = 0;
-
-printf ("body completed remaining data %d\n", (int)dlen);
 			}
 		} while (dlen > 0);
 	}
@@ -322,7 +322,7 @@ static int make_connection_socket (hio_svc_fcgic_conn_t* conn)
 
 	HIO_MEMSET (&ci, 0, HIO_SIZEOF(ci));
 	ci.remoteaddr = conn->addr;
-	/*ci.connect_tmout.sec = 5; TODO: make this configurable */
+	ci.connect_tmout.sec = 5; /* TODO: make this configurable */
 
 	if (hio_dev_sck_connect(sck, &ci) <= -1)
 	{
@@ -347,8 +347,7 @@ static hio_svc_fcgic_conn_t* get_connection (hio_svc_fcgic_t* fcgic, const hio_s
 	{
 		if (hio_equal_skads(&conn->addr, fcgis_addr, 1))
 		{
-			if (conn->sess.free != INVALID_SID ||
-			    conn->sess.capa <= (CONN_SESS_CAPA_MAX - CONN_SESS_INC))
+			if (!conn->sess.free || conn->sess.capa <= (CONN_SESS_CAPA_MAX - CONN_SESS_INC))
 			{
 				/* the connection has room for more sessions */
 				if (!conn->dev) make_connection_socket(conn); /* conn->dev will still be null if connection fails*/
@@ -364,7 +363,7 @@ static hio_svc_fcgic_conn_t* get_connection (hio_svc_fcgic_t* fcgic, const hio_s
 	conn->fcgic = fcgic;
 	conn->addr = *fcgis_addr;
 	conn->sess.capa = 0;
-	conn->sess.free = INVALID_SID;
+	conn->sess.free = HIO_NULL;
 
 	if (make_connection_socket(conn) <= -1)
 	{
@@ -381,7 +380,17 @@ static hio_svc_fcgic_conn_t* get_connection (hio_svc_fcgic_t* fcgic, const hio_s
 static void destroy_connection_memory (hio_t* hio, hio_cfmb_t* cfmb)
 {
 	hio_svc_fcgic_conn_t* conn = (hio_svc_fcgic_conn_t*)cfmb;
-	if (conn->sess.ptr) hio_freemem (hio, conn->sess.ptr);
+	if (conn->sess.ptr) 
+	{
+		hio_oow_t i;
+
+		/* destroy the session blocks allocated in new_session(). */
+		for (i = 0; i < conn->sess.capa; i += CONN_SESS_INC)
+			hio_freemem (hio, conn->sess.ptr[i]);
+
+		/* destroy the session pointer bucket */
+		hio_freemem (hio, conn->sess.ptr);
+	}
 	hio_freemem (hio, conn);
 }
 
@@ -403,7 +412,7 @@ static void free_connections (hio_svc_fcgic_t* fcgic)
 		}
 
 		/* delay destruction of conn->session.ptr and conn */
-		hio_addcfmb (hio, conn, HIO_NULL, destroy_connection_memory);
+		hio_addcfmb (hio, (hio_cfmb_t*)conn, HIO_NULL, destroy_connection_memory);
 		conn = next;
 	}
 }
@@ -417,34 +426,44 @@ static hio_svc_fcgic_sess_t* new_session (hio_svc_fcgic_t* fcgic, const hio_skad
 	conn = get_connection(fcgic, fcgis_addr);
 	if (HIO_UNLIKELY(!conn)) return HIO_NULL;
 
-	if (conn->sess.free == INVALID_SID)
+	if (!conn->sess.free)
 	{
 		hio_oow_t newcapa, i;
-		hio_svc_fcgic_sess_t* newptr;
+		hio_svc_fcgic_sess_t** newptr;
+		hio_svc_fcgic_sess_t* newblk;
 
+		/* create a new session block */
+		newblk = (hio_svc_fcgic_sess_t*)hio_callocmem(hio, HIO_SIZEOF(*sess) * CONN_SESS_INC);
+		if (HIO_UNLIKELY(!newblk)) return HIO_NULL;
+
+		/* reallocate the session pointer bucket */
 		newcapa = conn->sess.capa + CONN_SESS_INC;
-		newptr = (hio_svc_fcgic_sess_t*)hio_reallocmem(hio, conn->sess.ptr, HIO_SIZEOF(*sess) * newcapa);
-		if (HIO_UNLIKELY(!newptr)) return HIO_NULL;
+		newptr = (hio_svc_fcgic_sess_t**)hio_reallocmem(hio, conn->sess.ptr, HIO_SIZEOF(*newptr) * newcapa);
+		if (HIO_UNLIKELY(!newptr)) 
+		{
+			hio_freemem (hio, newblk);
+			return HIO_NULL;
+		}
 
-		for (i = conn->sess.capa ; i < newcapa; i++)
+		for (i = 0; i < CONN_SESS_INC; i++)
 		{
 			/* management records use 0 for requestId.
 			 * but application records have a nonzero requestId. */
-			newptr[i].sid = i + 1;
-			newptr[i].conn = conn;
-			newptr[i].active = 0;
+			newptr[conn->sess.capa + i] = &newblk[i];
+			newblk[i].sid = i + conn->sess.capa;
+			newblk[i].conn = conn;
+			newblk[i].active = 0;
+			newblk[i].next = &newblk[i + 1];
 		}
-		newptr[i - 1].sid = INVALID_SID;
-		conn->sess.free = conn->sess.capa;
-
+		newblk[i - 1].next = HIO_NULL;
+		conn->sess.free = &newblk[0];
 		conn->sess.capa = newcapa;
 		conn->sess.ptr = newptr;
 	}
 
-	sess = &conn->sess.ptr[conn->sess.free];
-	conn->sess.free = sess->sid;
-
-	sess->sid = conn->sess.free;
+	sess = conn->sess.free;
+	conn->sess.free = sess->next;
+	
 	sess->on_read = on_read;
 	sess->on_untie = on_untie;
 	sess->active = 1;
@@ -459,8 +478,8 @@ static void release_session (hio_svc_fcgic_sess_t* sess)
 {
 	if (sess->on_untie) sess->on_untie (sess, sess->ctx);
 	sess->active = 0;
-	sess->sid = sess->conn->sess.free;
-	sess->conn->sess.free = sess->sid;
+	sess->next = sess->conn->sess.free;
+	sess->conn->sess.free = sess;
 }
 
 hio_svc_fcgic_t* hio_svc_fcgic_start (hio_t* hio, const hio_svc_fcgic_tmout_t* tmout)
@@ -506,12 +525,6 @@ void hio_svc_fcgic_stop (hio_svc_fcgic_t* fcgic)
 hio_svc_fcgic_sess_t* hio_svc_fcgic_tie (hio_svc_fcgic_t* fcgic, const hio_skad_t* addr, hio_svc_fcgic_on_read_t on_read, hio_svc_fcgic_on_untie_t on_untie, void* ctx)
 {
 	/* TODO: reference counting for safety?? */
-#if 0
-	hio_svc_fcgic_sess_t* sess;
-	sess = new_session(fcgic, addr, on_read, on_untie, ctx);
-	if (HIO_UNLIKELY(!sess)) return -1;
-	return sess->sid;
-#endif
 	return new_session(fcgic, addr, on_read, on_untie, ctx);
 }
 
@@ -536,7 +549,9 @@ int hio_svc_fcgic_beginrequest (hio_svc_fcgic_sess_t* sess)
 	HIO_MEMSET (&h, 0, HIO_SIZEOF(h));
 	h.version = HIO_FCGI_VERSION;
 	h.type = HIO_FCGI_BEGIN_REQUEST;
-	h.id = h.id = hio_hton16(sess->sid);
+	/* management records use 0 for requestId.
+	 * but application records have a nonzero requestId. */
+	h.id = hio_hton16(sess->sid + 1);
 	h.content_len = hio_hton16(HIO_SIZEOF(b));
 	h.padding_len = 0;
 
@@ -572,7 +587,7 @@ int hio_svc_fcgic_writeparam (hio_svc_fcgic_sess_t* sess, const void* key, hio_i
 	HIO_MEMSET (&h, 0, HIO_SIZEOF(h));
 	h.version = HIO_FCGI_VERSION;
 	h.type = HIO_FCGI_PARAMS;
-	h.id = hio_hton16(sess->sid);
+	h.id = hio_hton16(sess->sid + 1);
 	h.content_len = 0;
 
 	/* TODO: check ksz and vsz can't exceed max 32bit value. */
@@ -645,7 +660,7 @@ printf (">>>>>>>>>>>>>>>>>>>>>>[%p] %p\n", sess, sess->conn);
 	HIO_MEMSET (&h, 0, HIO_SIZEOF(h));
 	h.version = HIO_FCGI_VERSION;
 	h.type = HIO_FCGI_STDIN;
-	h.id = hio_hton16(sess->sid);
+	h.id = hio_hton16(sess->sid + 1);
 	h.content_len = hio_hton16(size);
 
 	iov[0].iov_ptr = &h;

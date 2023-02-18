@@ -71,7 +71,6 @@ static void fcgi_halt_participating_devices (fcgi_t* fcgi)
 /* TODO: include fcgi session id in the output in place of peer??? */
 	HIO_DEBUG5 (fcgi->htts->hio, "HTTS(%p) - cgi(t=%p,c=%p(%d),p=%p) Halting participating devices\n", fcgi->htts, fcgi, fcgi->csck, (fcgi->csck? fcgi->csck->hnd: -1), fcgi->peer);
 
-
 	if (fcgi->csck) hio_dev_sck_halt (fcgi->csck);
 	unbind_task_from_peer (fcgi, 1);
 }
@@ -138,6 +137,8 @@ static int fcgi_send_final_status_to_client (fcgi_t* fcgi, int status_code, int 
 	hio_bch_t dtbuf[64];
 	const hio_bch_t* status_msg;
 	hio_oow_t content_len;
+
+	if (!cli) return; /* client unbound or no binding client */
 
 	hio_svc_htts_fmtgmtime (cli->htts, HIO_NULL, dtbuf, HIO_COUNTOF(dtbuf));
 	status_msg = hio_http_status_to_bcstr(status_code);
@@ -230,7 +231,7 @@ static HIO_INLINE void fcgi_mark_over (fcgi_t* fcgi, int over_bits)
 	{
 		if (fcgi->peer)
 		{
-			hio_svc_fcgic_untie(fcgi->peer); /* the untie callback will reset fcgi->peer to HIO_NULL */
+			hio_svc_fcgic_untie (fcgi->peer); /* the untie callback will reset fcgi->peer to HIO_NULL */
 			HIO_SVC_HTTS_TASK_RCDOWN((hio_svc_htts_task_t*)fcgi); /* ref down from fcgi->peer->ctx. unable to use UNREF() */
 		}
 	}
@@ -240,7 +241,7 @@ static HIO_INLINE void fcgi_mark_over (fcgi_t* fcgi, int over_bits)
 		/* ready to stop */
 		if (fcgi->peer)
 		{
-			hio_svc_fcgic_untie(fcgi->peer);
+			hio_svc_fcgic_untie (fcgi->peer);
 			HIO_SVC_HTTS_TASK_RCDOWN((hio_svc_htts_task_t*)fcgi); /* ref down from fcgi->peer->ctx. unable to use UNREF() */
 		}
 
