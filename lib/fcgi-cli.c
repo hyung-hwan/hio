@@ -131,7 +131,27 @@ printf ("FCGIC SOCKET CONNECTED >>>>>>>>>>>>>>>>>>>>>>>>>>\n");
 
 static int sck_on_write (hio_dev_sck_t* sck, hio_iolen_t wrlen, void* wrctx, const hio_skad_t* dstaddr)
 {
-/*printf ("WROTE DATA TO CGI SERVER %d\n", (int)wrlen);*/
+	/* the lower 2 bits of the context is set to be the packet type in
+	 *  hio_svc_fcgic_beginrequest()
+	 *  hio_svc_fcgic_writeparam()
+	 *  hio_svc_fcgic_writestdin()
+	 */
+	hio_svc_fcgic_sess_t* sess = (hio_svc_fcgic_sess_t*)((hio_oow_t)wrctx & ~(hio_oow_t)0x3);
+	hio_oow_t type = ((hio_oow_t)wrctx & 0x3);
+	static hio_fcgi_req_type_t rqtype[] =
+	{
+		HIO_FCGI_BEGIN_REQUEST,
+		HIO_FCGI_PARAMS,
+		HIO_FCGI_STDIN
+	};
+
+	if (wrlen > 0)
+	{
+		HIO_ASSERT (sess->conn->hio, wrlen >= HIO_SIZEOF(hio_fcgi_record_header_t));
+		wrlen -= HIO_SIZEOF(hio_fcgi_record_header_t);
+	}
+
+	sess->on_write (sess, rqtype[type], wrlen, sess->ctx);
 	return 0;
 }
 
@@ -151,8 +171,8 @@ static int sck_on_read (hio_dev_sck_t* sck, const void* data, hio_iolen_t dlen, 
 	else if (dlen == 0)
 	{
 		/* EOF */
-		hio_dev_sck_halt (sck);
 /* fire all related fcgi sessions?? -> handled on disconnect?? */
+		hio_dev_sck_halt (sck);
 	}
 	else
 	{
@@ -230,12 +250,9 @@ static int sck_on_read (hio_dev_sck_t* sck, const void* data, hio_iolen_t dlen, 
 				if (!sess || !sess->active)
 				{
 					/* discard the record. no associated sessoin or inactive session */
-HIO_DEBUG2 (hio, "UNKNOWN SESSION ..................... %p  %d\n", sess, conn->r.id);
-if (sess) HIO_DEBUG1 (hio, "UNKNOWN SESSION active? %d\n", sess->active);
 					goto back_to_header;
 				}
 
-HIO_DEBUG2 (hio, "OK SESSION ..................... %p  %d\n", sess, conn->r.id);
 				/* the complete body is in conn->r.buf */
 				if (conn->r.type == HIO_FCGI_END_REQUEST)
 				{
@@ -412,7 +429,7 @@ static void free_connections (hio_svc_fcgic_t* fcgic)
 	}
 }
 
-static hio_svc_fcgic_sess_t* new_session (hio_svc_fcgic_t* fcgic, const hio_skad_t* fcgis_addr, hio_svc_fcgic_on_read_t on_read, hio_svc_fcgic_on_untie_t on_untie, void* ctx)
+static hio_svc_fcgic_sess_t* new_session (hio_svc_fcgic_t* fcgic, const hio_skad_t* fcgis_addr, hio_svc_fcgic_on_read_t on_read, hio_svc_fcgic_on_write_t on_write, hio_svc_fcgic_on_untie_t on_untie, void* ctx)
 {
 	hio_t* hio = fcgic->hio;
 	hio_svc_fcgic_conn_t* conn;
@@ -460,6 +477,7 @@ static hio_svc_fcgic_sess_t* new_session (hio_svc_fcgic_t* fcgic, const hio_skad
 	conn->sess.free = sess->next;
 	
 	sess->on_read = on_read;
+	sess->on_write = on_write;
 	sess->on_untie = on_untie;
 	sess->active = 1;
 	sess->ctx = ctx;
@@ -517,10 +535,10 @@ void hio_svc_fcgic_stop (hio_svc_fcgic_t* fcgic)
 	HIO_DEBUG1 (hio, "FCGIC - STOPPED SERVICE %p\n", fcgic);
 }
 
-hio_svc_fcgic_sess_t* hio_svc_fcgic_tie (hio_svc_fcgic_t* fcgic, const hio_skad_t* addr, hio_svc_fcgic_on_read_t on_read, hio_svc_fcgic_on_untie_t on_untie, void* ctx)
+hio_svc_fcgic_sess_t* hio_svc_fcgic_tie (hio_svc_fcgic_t* fcgic, const hio_skad_t* addr, hio_svc_fcgic_on_read_t on_read, hio_svc_fcgic_on_write_t on_write, hio_svc_fcgic_on_untie_t on_untie, void* ctx)
 {
 	/* TODO: reference counting for safety?? */
-	return new_session(fcgic, addr, on_read, on_untie, ctx);
+	return new_session(fcgic, addr, on_read, on_write, on_untie, ctx);
 }
 
 void hio_svc_fcgic_untie (hio_svc_fcgic_sess_t* sess)
@@ -534,6 +552,7 @@ int hio_svc_fcgic_beginrequest (hio_svc_fcgic_sess_t* sess)
 	hio_iovec_t iov[2];
 	hio_fcgi_record_header_t h;
 	hio_fcgi_begin_request_body_t b;
+	void* wrctx;
 
 	if (!sess->conn->dev)
 	{
@@ -559,8 +578,10 @@ int hio_svc_fcgic_beginrequest (hio_svc_fcgic_sess_t* sess)
 	iov[1].iov_ptr = &b;
 	iov[1].iov_len = HIO_SIZEOF(b);
 
+	HIO_ASSERT (sess->conn->hio, ((hio_oow_t)sess & 3) == 0);
+	wrctx = ((hio_oow_t)sess | 0);  /* see the sck_on_write()  */
 /* TODO: check if sess->conn->dev is still valid */
-	return hio_dev_sck_writev(sess->conn->dev, iov, 2, HIO_NULL, HIO_NULL);
+	return hio_dev_sck_writev(sess->conn->dev, iov, 2, wrctx, HIO_NULL);
 }
 
 int hio_svc_fcgic_writeparam (hio_svc_fcgic_sess_t* sess, const void* key, hio_iolen_t ksz, const void* val, hio_iolen_t vsz)
@@ -569,6 +590,7 @@ int hio_svc_fcgic_writeparam (hio_svc_fcgic_sess_t* sess, const void* key, hio_i
 	hio_fcgi_record_header_t h;
 	hio_uint8_t sz[8];
 	hio_oow_t szc = 0;
+	void* wrctx;
 
 	if (!sess->conn->dev)
 	{
@@ -637,13 +659,16 @@ int hio_svc_fcgic_writeparam (hio_svc_fcgic_sess_t* sess, const void* key, hio_i
 		iov[3].iov_len = vsz;
 	}
 
-	return hio_dev_sck_writev(sess->conn->dev, iov, (ksz > 0? 4: 1), HIO_NULL, HIO_NULL);
+	HIO_ASSERT (sess->conn->hio, ((hio_oow_t)sess & 3) == 0);
+	wrctx = ((hio_oow_t)sess | 1);  /* see the sck_on_write()  */
+	return hio_dev_sck_writev(sess->conn->dev, iov, (ksz > 0? 4: 1), wrctx, HIO_NULL);
 }
 
 int hio_svc_fcgic_writestdin (hio_svc_fcgic_sess_t* sess, const void* data, hio_iolen_t size)
 {
 	hio_iovec_t iov[2];
 	hio_fcgi_record_header_t h;
+	void* wrctx;
 
 	if (!sess->conn->dev)
 	{
@@ -665,6 +690,8 @@ int hio_svc_fcgic_writestdin (hio_svc_fcgic_sess_t* sess, const void* data, hio_
 		iov[1].iov_len = size;
 	}
 
+	HIO_ASSERT (sess->conn->hio, ((hio_oow_t)sess & 3) == 0);
+	wrctx = ((hio_oow_t)sess | 2);  /* see the sck_on_write()  */
 /* TODO: check if sess->conn->dev is still valid */
-	return hio_dev_sck_writev(sess->conn->dev, iov, (size > 0? 2: 1), HIO_NULL, HIO_NULL);
+	return hio_dev_sck_writev(sess->conn->dev, iov, (size > 0? 2: 1), wrctx, HIO_NULL);
 }

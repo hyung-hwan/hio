@@ -219,6 +219,7 @@ static HIO_INLINE void fcgi_mark_over (fcgi_t* fcgi, int over_bits)
 
 	if (!(old_over & FCGI_OVER_READ_FROM_CLIENT) && (fcgi->over & FCGI_OVER_READ_FROM_CLIENT))
 	{
+		/* finished reading from the client. stop watching read */
 		if (fcgi->csck && hio_dev_sck_read(fcgi->csck, 0) <= -1)
 		{
 			HIO_DEBUG2 (fcgi->htts->hio, "HTTS(%p) - halting client(%p) for failure to disable input watching\n", fcgi->htts, fcgi->csck);
@@ -246,6 +247,7 @@ static HIO_INLINE void fcgi_mark_over (fcgi_t* fcgi, int over_bits)
 
 		if (fcgi->csck)
 		{
+HIO_DEBUG2 (hio, "HTTS(%p) - ALL OVER keeping client(%p) alive\n", fcgi->htts, fcgi->csck);
 			if (fcgi->keep_alive && !fcgi->client_eof_detected)
 			{
 				HIO_DEBUG2 (hio, "HTTS(%p) - keeping client(%p) alive\n", fcgi->htts, fcgi->csck);
@@ -374,6 +376,24 @@ static int fcgi_peer_on_read (hio_svc_fcgic_sess_t* peer, const void* data, hio_
 
 oops:
 	fcgi_halt_participating_devices (fcgi); /* TODO: kill the session only??? */
+	return 0;
+}
+
+static int fcgi_peer_on_write (hio_svc_fcgic_sess_t* peer, hio_fcgi_req_type_t rqtype, hio_iolen_t wrlen, void* wrctx)
+{
+	fcgi_t* fcgi = (fcgi_t*)wrctx;
+
+	if (wrlen <= -1) goto oops;
+
+	if (rqtype == HIO_FCGI_STDIN && wrlen == 0)
+	{
+		/* completely wrote end of stdin to the cgi server */
+		fcgi_mark_over (fcgi, FCGI_OVER_WRITE_TO_PEER);
+	}
+	return 0;
+
+oops:
+	fcgi_halt_participating_devices (fcgi);
 	return 0;
 }
 
@@ -905,6 +925,8 @@ static void unbind_task_from_client (fcgi_t* fcgi, int rcdown)
 		fcgi->client_org_on_disconnect = HIO_NULL;
 	}
 
+HIO_DEBUG2 (csck->hio, "UNBINDING CLEINT FROM TASK... client=%p csck=%p\n", fcgi->client, csck);
+
 	/* there is some ordering issue in using HIO_SVC_HTTS_TASK_UNREF()
 	 * because it can destroy the fcgi itself. so reset fcgi->client->task
 	 * to null and call RCDOWN() later */
@@ -932,7 +954,7 @@ static int bind_task_to_peer (fcgi_t* fcgi, const hio_skad_t* fcgis_addr)
 	hio_htrd_setoption (htrd, HIO_HTRD_SKIP_INITIAL_LINE | HIO_HTRD_RESPONSE);
 	hio_htrd_setrecbs (htrd, &peer_htrd_recbs);
 
-	fcgi->peer = hio_svc_fcgic_tie(fcgi->htts->fcgic, fcgis_addr, fcgi_peer_on_read, fcgi_peer_on_untie, fcgi);
+	fcgi->peer = hio_svc_fcgic_tie(fcgi->htts->fcgic, fcgis_addr, fcgi_peer_on_read, fcgi_peer_on_write, fcgi_peer_on_untie, fcgi);
 	if (HIO_UNLIKELY(!fcgi->peer)) 
 	{
 		hio_htrd_close (htrd);
@@ -1064,7 +1086,6 @@ static int setup_for_content_length(fcgi_t* fcgi, hio_htre_t* req)
 	}
 #endif
 
-#if 0
 	/* this may change later if Content-Length is included in the fcgi output */
 	if (req->flags & HIO_HTRE_ATTR_KEEPALIVE)
 	{
@@ -1073,7 +1094,6 @@ static int setup_for_content_length(fcgi_t* fcgi, hio_htre_t* req)
 		/* the mode still can get switched to FCGI_RES_MODE_LENGTH if the fcgi script emits Content-Length */
 	}
 	else
-#endif
 	{
 		fcgi->keep_alive = 0;
 		fcgi->res_mode_to_cli = FCGI_RES_MODE_CLOSE;

@@ -443,6 +443,58 @@ oops:
 	return 0;
 }
 
+static int cgi_peer_on_write (hio_dev_pro_t* pro, hio_iolen_t wrlen, void* wrctx)
+{
+	hio_t* hio = pro->hio;
+	cgi_peer_xtn_t* peer = hio_dev_pro_getxtn(pro);
+	cgi_t* cgi = peer->cgi;
+
+	if (cgi == HIO_NULL) return 0; /* there is nothing i can do. the cgi is being cleared or has been cleared already. */
+
+	HIO_ASSERT (hio, cgi->peer == pro);
+
+	if (wrlen <= -1)
+	{
+		HIO_DEBUG3 (hio, "HTTS(%p) - unable to write to peer %p(pid=%u)\n", cgi->htts, pro, (int)pro->child_pid);
+		goto oops;
+	}
+	else if (wrlen == 0)
+	{
+		/* indicated EOF */
+		/* do nothing here as i didn't increment num_pending_writes_to_peer when making the write request */
+
+		cgi->num_pending_writes_to_peer--;
+		HIO_ASSERT (hio, cgi->num_pending_writes_to_peer == 0);
+		HIO_DEBUG3 (hio, "HTTS(%p) - indicated EOF to peer %p(pid=%u)\n", cgi->htts, pro, (int)pro->child_pid);
+		/* indicated EOF to the peer side. i need no more data from the client side.
+		 * i don't need to enable input watching in the client side either */
+		cgi_mark_over (cgi, CGI_OVER_WRITE_TO_PEER);
+	}
+	else
+	{
+		HIO_ASSERT (hio, cgi->num_pending_writes_to_peer > 0);
+
+		cgi->num_pending_writes_to_peer--;
+		if (cgi->num_pending_writes_to_peer == CGI_PENDING_IO_THRESHOLD)
+		{
+			if (!(cgi->over & CGI_OVER_READ_FROM_CLIENT) &&
+			    hio_dev_sck_read(cgi->csck, 1) <= -1) goto oops;
+		}
+
+		if ((cgi->over & CGI_OVER_READ_FROM_CLIENT) && cgi->num_pending_writes_to_peer <= 0)
+		{
+			cgi_mark_over (cgi, CGI_OVER_WRITE_TO_PEER);
+		}
+	}
+
+	return 0;
+
+oops:
+	cgi_halt_participating_devices (cgi);
+	return 0;
+}
+
+
 static int peer_capture_response_header (hio_htre_t* req, const hio_bch_t* key, const hio_htre_hdrval_t* val, void* ctx)
 {
 	hio_svc_htts_cli_t* cli = (hio_svc_htts_cli_t*)ctx;
@@ -656,57 +708,6 @@ static hio_htrd_recbs_t cgi_client_htrd_recbs =
 	cgi_client_htrd_poke,
 	cgi_client_htrd_push_content
 };
-
-static int cgi_peer_on_write (hio_dev_pro_t* pro, hio_iolen_t wrlen, void* wrctx)
-{
-	hio_t* hio = pro->hio;
-	cgi_peer_xtn_t* peer = hio_dev_pro_getxtn(pro);
-	cgi_t* cgi = peer->cgi;
-
-	if (cgi == HIO_NULL) return 0; /* there is nothing i can do. the cgi is being cleared or has been cleared already. */
-
-	HIO_ASSERT (hio, cgi->peer == pro);
-
-	if (wrlen <= -1)
-	{
-		HIO_DEBUG3 (hio, "HTTS(%p) - unable to write to peer %p(pid=%u)\n", cgi->htts, pro, (int)pro->child_pid);
-		goto oops;
-	}
-	else if (wrlen == 0)
-	{
-		/* indicated EOF */
-		/* do nothing here as i didn't increment num_pending_writes_to_peer when making the write request */
-
-		cgi->num_pending_writes_to_peer--;
-		HIO_ASSERT (hio, cgi->num_pending_writes_to_peer == 0);
-		HIO_DEBUG3 (hio, "HTTS(%p) - indicated EOF to peer %p(pid=%u)\n", cgi->htts, pro, (int)pro->child_pid);
-		/* indicated EOF to the peer side. i need no more data from the client side.
-		 * i don't need to enable input watching in the client side either */
-		cgi_mark_over (cgi, CGI_OVER_WRITE_TO_PEER);
-	}
-	else
-	{
-		HIO_ASSERT (hio, cgi->num_pending_writes_to_peer > 0);
-
-		cgi->num_pending_writes_to_peer--;
-		if (cgi->num_pending_writes_to_peer == CGI_PENDING_IO_THRESHOLD)
-		{
-			if (!(cgi->over & CGI_OVER_READ_FROM_CLIENT) &&
-			    hio_dev_sck_read(cgi->csck, 1) <= -1) goto oops;
-		}
-
-		if ((cgi->over & CGI_OVER_READ_FROM_CLIENT) && cgi->num_pending_writes_to_peer <= 0)
-		{
-			cgi_mark_over (cgi, CGI_OVER_WRITE_TO_PEER);
-		}
-	}
-
-	return 0;
-
-oops:
-	cgi_halt_participating_devices (cgi);
-	return 0;
-}
 
 static void cgi_client_on_disconnect (hio_dev_sck_t* sck)
 {

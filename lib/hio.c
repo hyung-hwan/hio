@@ -746,7 +746,7 @@ static HIO_INLINE void handle_event (hio_t* hio, hio_dev_t* dev, int events, int
 			}
 			else /*if (x >= 1) */
 			{
-				/* call on_write() callbacks enqueued fro the device before calling on_read().
+				/* call on_write() callbacks enqueued from the device before calling on_read().
 				 * if on_write() callback is delayed, there can be out-of-order execution
 				 * between on_read() and on_write() callbacks. for instance, if a write request
 				 * is started from within on_read() callback, and the input data is available

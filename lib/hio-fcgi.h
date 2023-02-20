@@ -127,6 +127,13 @@ typedef int (*hio_svc_fcgic_on_read_t) (
 	void*                 ctx
 );
 
+typedef int (*hio_svc_fcgic_on_write_t) (
+	hio_svc_fcgic_sess_t* sess,
+	hio_fcgi_req_type_t   rqtype,
+	hio_iolen_t           wrlen,
+	void*                 wrctx
+);
+
 typedef void (*hio_svc_fcgic_on_untie_t) (
 	hio_svc_fcgic_sess_t* sess,
 	void*                 ctx;
@@ -138,6 +145,7 @@ struct hio_svc_fcgic_sess_t
 	hio_oow_t sid;
 	hio_svc_fcgic_conn_t* conn;
 	hio_svc_fcgic_on_read_t on_read;
+	hio_svc_fcgic_on_write_t on_write;
 	hio_svc_fcgic_on_untie_t on_untie;
 	void* ctx;
 
@@ -171,6 +179,7 @@ HIO_EXPORT hio_svc_fcgic_sess_t* hio_svc_fcgic_tie (
 	hio_svc_fcgic_t*         fcgic,
 	const hio_skad_t*        fcgis_addr,
 	hio_svc_fcgic_on_read_t  on_read,
+	hio_svc_fcgic_on_write_t on_write,
 	hio_svc_fcgic_on_untie_t on_untie,
 	void*                    ctx
 );
