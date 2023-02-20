@@ -364,6 +364,9 @@ hio_svc_htts_t* hio_svc_htts_start (hio_t* hio, hio_oow_t xtnsize, hio_dev_sck_b
 		htts->fcgic_tmout = *fcgic_tmout;
 	}
 
+	htts->becbuf = hio_becs_open(hio, 0, 256);
+	if (HIO_UNLIKELY(!htts->becbuf)) goto oops;
+
 	htts->l.sck = (hio_dev_sck_t**)hio_callocmem(hio, HIO_SIZEOF(*htts->l.sck) * nbinds);
 	if (HIO_UNLIKELY(!htts->l.sck)) goto oops;
 	htts->l.count = nbinds;
@@ -515,6 +518,7 @@ oops:
 			hio_freemem (hio, htts->l.sck);
 		}
 
+		if (htts->becbuf) hio_becs_close (htts->becbuf);
 		hio_freemem (hio, htts);
 	}
 	return HIO_NULL;
@@ -560,6 +564,7 @@ void hio_svc_htts_stop (hio_svc_htts_t* htts)
 
 	if (htts->l.sck) hio_freemem (hio, htts->l.sck);
 
+	if (htts->becbuf) hio_becs_close (htts->becbuf);
 	hio_freemem (hio, htts);
 
 	HIO_DEBUG1 (hio, "HTTS - STOPPED SERVICE %p\n", htts);

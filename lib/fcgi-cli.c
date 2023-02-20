@@ -549,6 +549,8 @@ void hio_svc_fcgic_untie (hio_svc_fcgic_sess_t* sess)
 
 int hio_svc_fcgic_beginrequest (hio_svc_fcgic_sess_t* sess)
 {
+	hio_svc_fcgic_conn_t* conn = sess->conn;
+	hio_t* hio = conn->hio;
 	hio_iovec_t iov[2];
 	hio_fcgi_record_header_t h;
 	hio_fcgi_begin_request_body_t b;
@@ -556,7 +558,7 @@ int hio_svc_fcgic_beginrequest (hio_svc_fcgic_sess_t* sess)
 
 	if (!sess->conn->dev)
 	{
-		/* TODO: set error **/
+		hio_seterrbfmt (hio, HIO_EPERM, "fcgi not connected");
 		return -1;
 	}
 
@@ -580,32 +582,25 @@ int hio_svc_fcgic_beginrequest (hio_svc_fcgic_sess_t* sess)
 
 	HIO_ASSERT (sess->conn->hio, ((hio_oow_t)sess & 3) == 0);
 	wrctx = ((hio_oow_t)sess | 0);  /* see the sck_on_write()  */
-/* TODO: check if sess->conn->dev is still valid */
 	return hio_dev_sck_writev(sess->conn->dev, iov, 2, wrctx, HIO_NULL);
 }
 
 int hio_svc_fcgic_writeparam (hio_svc_fcgic_sess_t* sess, const void* key, hio_iolen_t ksz, const void* val, hio_iolen_t vsz)
 {
+	hio_svc_fcgic_conn_t* conn = sess->conn;
+	hio_t* hio = conn->hio;
 	hio_iovec_t iov[4];
 	hio_fcgi_record_header_t h;
 	hio_uint8_t sz[8];
 	hio_oow_t szc = 0;
+	hio_oow_t plen = 0;
 	void* wrctx;
 
-	if (!sess->conn->dev)
+	if (!conn->dev)
 	{
-		/* TODO: set error **/
+		hio_seterrbfmt (hio, HIO_EPERM, "fcgi not connected");
 		return -1;
 	}
-
-/* TODO: buffer key value pairs. flush on the end of param of buffer full.
-* can merge multipl key values pairs in one FCGI_PARAMS packets....
-*/
-	HIO_MEMSET (&h, 0, HIO_SIZEOF(h));
-	h.version = HIO_FCGI_VERSION;
-	h.type = HIO_FCGI_PARAMS;
-	h.id = hio_hton16(sess->sid + 1);
-	h.content_len = 0;
 
 	/* TODO: check ksz and vsz can't exceed max 32bit value. */
 	/* limit sizes to the max of the signed 32-bit interger
@@ -613,6 +608,7 @@ int hio_svc_fcgic_writeparam (hio_svc_fcgic_sess_t* sess, const void* key, hio_i
 	*  so a size can't hit the unsigned max. */
 	ksz &= HIO_TYPE_MAX(hio_int32_t);
 	vsz &= HIO_TYPE_MAX(hio_int32_t);
+
 	if (ksz > 0)
 	{
 		if (ksz > 0x7F)
@@ -639,14 +635,21 @@ int hio_svc_fcgic_writeparam (hio_svc_fcgic_sess_t* sess, const void* key, hio_i
 			sz[szc++] = vsz;
 		}
 
-		h.content_len = szc + ksz + vsz;
-		/* TODO: check content_len overflows... */
+		plen = szc + ksz + vsz;
+		if (plen > 0xFFFF)
+		{
+			hio_seterrbfmt (hio, HIO_EINVAL, "fcgi parameter too large");
+			return -1;
+		}
 	}
 
-	h.content_len = hio_hton16(h.content_len);
+	HIO_MEMSET (&h, 0, HIO_SIZEOF(h));
+	h.version = HIO_FCGI_VERSION;
+	h.type = HIO_FCGI_PARAMS;
+	h.id = hio_hton16(sess->sid + 1);
+	h.content_len = hio_hton16(plen);
 	h.padding_len = 0;
 
-/* TODO: some buffering of parameters??? if the key/value isn't long enough, it may trigger many system calls*/
 	iov[0].iov_ptr = &h;
 	iov[0].iov_len = HIO_SIZEOF(h);
 	if (ksz > 0)
@@ -666,13 +669,15 @@ int hio_svc_fcgic_writeparam (hio_svc_fcgic_sess_t* sess, const void* key, hio_i
 
 int hio_svc_fcgic_writestdin (hio_svc_fcgic_sess_t* sess, const void* data, hio_iolen_t size)
 {
+	hio_svc_fcgic_conn_t* conn = sess->conn;
+	hio_t* hio = conn->hio;
 	hio_iovec_t iov[2];
 	hio_fcgi_record_header_t h;
 	void* wrctx;
 
 	if (!sess->conn->dev)
 	{
-		/* TODO: set error **/
+		hio_seterrbfmt (hio, HIO_EPERM, "fcgi not connected");
 		return -1;
 	}
 
@@ -692,6 +697,5 @@ int hio_svc_fcgic_writestdin (hio_svc_fcgic_sess_t* sess, const void* data, hio_
 
 	HIO_ASSERT (sess->conn->hio, ((hio_oow_t)sess & 3) == 0);
 	wrctx = ((hio_oow_t)sess | 2);  /* see the sck_on_write()  */
-/* TODO: check if sess->conn->dev is still valid */
 	return hio_dev_sck_writev(sess->conn->dev, iov, (size > 0? 2: 1), wrctx, HIO_NULL);
 }

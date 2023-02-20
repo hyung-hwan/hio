@@ -61,7 +61,6 @@ enum hio_fcgi_role_t
 };
 typedef enum hio_fcgi_role_t hio_fcgi_role_t;
 
-
 /* flag in fcgi_begin_request_body */
 #define HIO_FCGI_KEEP_CONN  1
 

@@ -732,8 +732,7 @@ static int fcgi_client_on_write (hio_dev_sck_t* sck, hio_iolen_t wrlen, void* wr
 		if (fcgi->peer && fcgi->num_pending_writes_to_client == FCGI_PENDING_IO_THRESHOLD_TO_CLIENT)
 		{
 		#if 0 // TODO
-			if (!(fcgi->over & FCGI_OVER_READ_FROM_PEER) &&
-			    hio_svc_fcgic_read(fcgi->peer, 1) <= -1) goto oops;
+			if (!(fcgi->over & FCGI_OVER_READ_FROM_PEER) && hio_svc_fcgic_read(fcgi->peer, 1) <= -1) goto oops;
 		#endif
 		}
 
@@ -767,33 +766,33 @@ static int peer_capture_request_header (hio_htre_t* req, const hio_bch_t* key, c
 		if (hio_comp_bcstr(key, "Content-Type", 1) == 0)
 		{
 			/* don't prefix CONTENT_TYPE with HTTP_ */
-			hio_becs_clear (hio->becbuf);
+			hio_becs_clear (htts->becbuf);
 		}
 		else
 		{
-			if (hio_becs_cpy(hio->becbuf, "HTTP_") == (hio_oow_t)-1) return -1;
+			if (hio_becs_cpy(htts->becbuf, "HTTP_") == (hio_oow_t)-1) return -1;
 		}
 
-		if (hio_becs_cat(hio->becbuf, key) == (hio_oow_t)-1 ||
-		    hio_becs_ccat(hio->becbuf, '\0') == (hio_oow_t)-1) return -1;
+		if (hio_becs_cat(htts->becbuf, key) == (hio_oow_t)-1 ||
+		    hio_becs_ccat(htts->becbuf, '\0') == (hio_oow_t)-1) return -1;
 
-		for (ptr = HIO_BECS_PTR(hio->becbuf); *ptr; ptr++)
+		for (ptr = HIO_BECS_PTR(htts->becbuf); *ptr; ptr++)
 		{
 			*ptr = hio_to_bch_upper(*ptr);
 			if (*ptr =='-') *ptr = '_';
 		}
 
-		val_offset = HIO_BECS_LEN(hio->becbuf);
-		if (hio_becs_cat(hio->becbuf, val->ptr) == (hio_oow_t)-1) return -1;
+		val_offset = HIO_BECS_LEN(htts->becbuf);
+		if (hio_becs_cat(htts->becbuf, val->ptr) == (hio_oow_t)-1) return -1;
 		val = val->next;
 		while (val)
 		{
-			if (hio_becs_cat(hio->becbuf, ",") == (hio_oow_t)-1 ||
-			    hio_becs_cat(hio->becbuf, val->ptr) == (hio_oow_t)-1) return -1;
+			if (hio_becs_cat(htts->becbuf, ",") == (hio_oow_t)-1 ||
+			    hio_becs_cat(htts->becbuf, val->ptr) == (hio_oow_t)-1) return -1;
 			val = val->next;
 		}
 
-		hio_svc_fcgic_writeparam(fcgi->peer, HIO_BECS_PTR(hio->becbuf), val_offset - 1, HIO_BECS_CPTR(hio->becbuf, val_offset), HIO_BECS_LEN(hio->becbuf) - val_offset);
+		hio_svc_fcgic_writeparam(fcgi->peer, HIO_BECS_PTR(htts->becbuf), val_offset - 1, HIO_BECS_CPTR(htts->becbuf, val_offset), HIO_BECS_LEN(htts->becbuf) - val_offset);
 		/* TODO: error handling? */
 	}
 
