@@ -54,7 +54,10 @@ struct hio_devaddr_t
 
 /* ========================================================================= */
 
-typedef struct hio_t hio_t;
+/*
+ * defined in hio-cmn.h
+ *typedef struct hio_t hio_t;
+ */
 typedef struct hio_dev_t hio_dev_t;
 typedef struct hio_dev_mth_t hio_dev_mth_t;
 typedef struct hio_dev_evcb_t hio_dev_evcb_t;
@@ -734,6 +737,7 @@ struct hio_t
 
 	hio_bitmask_t _features;
 
+	hio_stopreq_t stopreq;  /* stop request to abort hio_loop() */
 	unsigned short int _shuterr;
 	unsigned short int _fini_in_progress;
 
@@ -766,14 +770,14 @@ struct hio_t
 		} xbuf; /* buffer to support sprintf */
 	} sprintf;
 
-	hio_stopreq_t stopreq;  /* stop request to abort hio_loop() */
+	hio_becs_t* becbuf; /* temporary buffer for some string manipulation */
+	hio_uint8_t bigbuf[65535]; /* TODO: make this dynamic depending on devices added. device may indicate a buffer size required??? */
 
 	hio_cfmb_t cfmb; /* list head of cfmbs */
 	hio_dev_t actdev; /* list head of active devices */
 	hio_dev_t hltdev; /* list head of halted devices */
 	hio_dev_t zmbdev; /* list head of zombie devices */
 
-	hio_uint8_t bigbuf[65535]; /* TODO: make this dynamic depending on devices added. device may indicate a buffer size required??? */
 
 	hio_ntime_t init_time;
 	struct

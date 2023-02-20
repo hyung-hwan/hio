@@ -252,7 +252,7 @@ void* thr_func (void* arg)
 	htts_bind_info[1].ssl_keyfile = "localhost.key";
 #endif
 
-	htts = hio_svc_htts_start(hio, 0, htts_bind_info, HIO_COUNTOF(htts_bind_info), process_http_request);
+	htts = hio_svc_htts_start(hio, 0, htts_bind_info, HIO_COUNTOF(htts_bind_info), process_http_request, HIO_NULL);
 	if (!htts) 
 	{
 		printf ("Unable to start htts\n");

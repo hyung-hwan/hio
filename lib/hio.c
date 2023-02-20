@@ -24,6 +24,7 @@
 
 #include "hio-prv.h"
 #include <hio-fmt.h>
+#include <hio-ecs.h>
 #include <stdlib.h> /* malloc, free, etc */
 
 #define DEV_CAP_ALL_WATCHED (HIO_DEV_CAP_IN_WATCHED | HIO_DEV_CAP_OUT_WATCHED | HIO_DEV_CAP_PRI_WATCHED)
@@ -123,6 +124,9 @@ int hio_init (hio_t* hio, hio_mmgr_t* mmgr, hio_cmgr_t* cmgr, hio_bitmask_t feat
 	hio->log.ptr = hio_allocmem(hio, (hio->log.capa + 1) * HIO_SIZEOF(*hio->log.ptr));
 	if (HIO_UNLIKELY(!hio->log.ptr)) goto oops;
 
+	hio->becbuf = hio_becs_open(hio, 0, 256);
+	if (HIO_UNLIKELY(!hio->becbuf)) goto oops;
+
 	/* inititalize the system-side logging */
 	if (HIO_UNLIKELY(hio_sys_init(hio) <= -1)) goto oops;
 	sys_inited = 1;
@@ -149,6 +153,7 @@ oops:
 
 	if (sys_inited) hio_sys_fini (hio);
 
+	if (hio->becbuf) hio_freemem (hio, hio->becbuf);
 	if (hio->log.ptr) hio_freemem (hio, hio->log.ptr);
 	hio->log.capa = 0;
 	return -1;
@@ -244,6 +249,12 @@ void hio_fini (hio_t* hio)
 	while (!HIO_CFMBL_IS_EMPTY(&hio->cfmb)) clear_unneeded_cfmbs (hio);
 
 	hio_sys_fini (hio); /* finalize the system dependent data */
+
+	if (hio->becbuf)
+	{
+		hio_becs_close (hio->becbuf);
+		hio->becbuf = HIO_NULL;
+	}
 
 	if (hio->log.ptr)
 	{

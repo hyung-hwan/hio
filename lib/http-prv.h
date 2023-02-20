@@ -77,6 +77,9 @@ struct hio_svc_htts_t
 
 	hio_bch_t* server_name;
 	hio_bch_t server_name_buf[64];
+
+	int fcgic_tmout_set;
+	hio_svc_fcgic_tmout_t fcgic_tmout;
 };
 
 struct hio_svc_httc_t

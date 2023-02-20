@@ -304,6 +304,7 @@ static int process_http_request (hio_svc_htts_t* htts, hio_dev_sck_t* csck, hio_
 	hio_t* hio = hio_svc_htts_gethio(htts);
 	hio_http_method_t mth;
 	const hio_bch_t* qpath, * qpath_ext;
+	int proto_len;
 
 	static hio_svc_htts_file_cbs_t fcbs = { file_get_mime_type, file_open_dir_list, HIO_NULL };
 
@@ -313,6 +314,19 @@ static int process_http_request (hio_svc_htts_t* htts, hio_dev_sck_t* csck, hio_
 	qpath = hio_htre_getqpath(req);
 	qpath_ext = hio_rfind_bchar_in_bcstr(qpath, '.');
 	if (!qpath_ext) qpath_ext = "";
+
+	/* TODO: log remote address and other information .... */
+	HIO_INFO3 (hio, "%.*hs %hs\n", hio_htre_getqmethodlen(req), hio_htre_getqmethodname(req), qpath);
+
+	if (((proto_len = 7) && hio_comp_bcstr_limited(qpath, "http://", 7, 1) == 0) ||
+	    ((proto_len = 8) && hio_comp_bcstr_limited(qpath, "https://", 8, 1) == 0))
+	{
+		const hio_bch_t* tmp;
+		tmp = hio_find_bchar_in_bcstr(qpath + proto_len, '/');
+		if (tmp) qpath = tmp; /* skip http://domain.name */
+
+		/* TODO: support proxy .... */
+	}
 
 	if (mth == HIO_HTTP_OTHER && hio_comp_bcstr(hio_htre_getqmethodname(req), "UNTAR", 1) == 0 && hio_comp_bcstr(qpath_ext, ".tar", 0) == 0)
 	{
@@ -330,15 +344,17 @@ static int process_http_request (hio_svc_htts_t* htts, hio_dev_sck_t* csck, hio_
 	{
 		if (hio_svc_htts_docgi(htts, csck, req, ext->ai->docroot, qpath, 0) <= -1) goto oops;
 	}
-	else if (hio_comp_bcstr(qpath_ext, ".php", 0) == 0)
+	else if (hio_comp_bcstr(qpath_ext, ".php", 0) == 0 || hio_comp_bcstr(qpath_ext, ".ant", 0) == 0 /*|| hio_comp_bcstr_limited(qpath, "http://", 7, 1) == 0*/)
 	{
 		hio_skad_t skad;
 		hio_bcstrtoskad(hio, "10.30.0.133:9000", &skad);
+
+		HIO_DEBUG2 (hio, "fcgi %hs %hs\n", ext->ai->docroot, qpath);
 		/*if (hio_svc_htts_dofcgi(htts, csck, req, &skad, ext->ai->docroot, qpath, 0) <= -1) goto oops;*/
 		/* if the document root is relative, it is hard to gurantee that the same document is
 		 * true to the fcgi server which is a different process. so map it a blank string for now.
 		 * TODO: accept a separate document root for the fcgi server and use it below */
-		if (hio_svc_htts_dofcgi(htts, csck, req, &skad, "", qpath, 0) <= -1) goto oops;
+		if (hio_svc_htts_dofcgi(htts, csck, req, &skad, ext->ai->docroot, qpath, 0) <= -1) goto oops;
 		/*if (hio_svc_htts_dotxt(htts, csck, req, HIO_HTTP_STATUS_INTERNAL_SERVER_ERROR, "text/plain", "what the...", 0) <= -1) goto oops;*/
 	}
 	else // if (mth == HIO_HTTP_GET || mth == HIO_HTTP_POST)
@@ -368,6 +384,7 @@ int webs_start (hio_t* hio, const arg_info_t* ai)
 	hio_oow_t bic;
 	hio_svc_htts_t* webs;
 	htts_ext_t* ext;
+	hio_svc_fcgic_tmout_t fcgic_tmout;
 
 	bic = 0;
 	ptr = ai->laddrs;
@@ -389,7 +406,11 @@ int webs_start (hio_t* hio, const arg_info_t* ai)
 		}
 	}
 
-	webs = hio_svc_htts_start(hio, HIO_SIZEOF(htts_ext_t), bi, bic, process_http_request);
+	HIO_MEMSET (&fcgic_tmout, 0, HIO_SIZEOF(fcgic_tmout));
+	fcgic_tmout.c.sec = 5;
+	fcgic_tmout.r.sec = 60;
+
+	webs = hio_svc_htts_start(hio, HIO_SIZEOF(htts_ext_t), bi, bic, process_http_request, &fcgic_tmout);
 	if (!webs) return -1; /* TODO: logging */
 
 	ext = hio_svc_htts_getxtn(webs);

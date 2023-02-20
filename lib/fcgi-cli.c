@@ -88,7 +88,7 @@ struct fcgic_sck_xtn_t
 };
 typedef struct fcgic_sck_xtn_t fcgic_sck_xtn_t;
 
-static int make_connection_socket (hio_svc_fcgic_conn_t* conn);
+static int make_connection_socket (hio_svc_fcgic_t* fcigc, hio_svc_fcgic_conn_t* conn);
 static void release_session (hio_svc_fcgic_sess_t* sess);
 
 static void sck_on_disconnect (hio_dev_sck_t* sck)
@@ -100,15 +100,6 @@ printf ("DISCONNECT SOCKET .................. sck->%p conn->%p\n", sck, conn);
 
 	if (conn)
 	{
-/* TODO: arrange to create it again if the server is not closing... */
-/* if (.... ) */
-#if 0
-		if (sck->hio->stopreq == HIO_STOPREQ_NONE)
-		{
-			/* this may create a busy loop if the connection attempt fails repeatedly */
-			make_connection_socket(conn); /* don't care about failure for now */
-		}
-#else
 		hio_oow_t i;
 		for (i = 0; i < conn->sess.capa; i++)
 		{
@@ -120,7 +111,6 @@ printf ("DISCONNECT SOCKET .................. sck->%p conn->%p\n", sck, conn);
 			}
 		}
 		conn->dev = HIO_NULL;
-#endif
 	}
 }
 
@@ -129,11 +119,14 @@ static void sck_on_connect (hio_dev_sck_t* sck)
 	fcgic_sck_xtn_t* sck_xtn = hio_dev_sck_getxtn(sck);
 	hio_svc_fcgic_conn_t* conn = sck_xtn->conn;
 
-printf ("CONNECTED >>>>>>>>>>>>>>>>>>>>>>>>>>\n");
+printf ("FCGIC SOCKET CONNECTED >>>>>>>>>>>>>>>>>>>>>>>>>>\n");
 
 	/* reinitialize the input parsing information */
 	HIO_MEMSET (&conn->r, 0, HIO_SIZEOF(conn->r));
 	conn->r.state = R_AWAITING_HEADER;
+
+	if (conn->fcgic->tmout_set)
+		hio_dev_sck_timedread (sck, 1, &conn->fcgic->tmout.r);
 }
 
 static int sck_on_write (hio_dev_sck_t* sck, hio_iolen_t wrlen, void* wrctx, const hio_skad_t* dstaddr)
@@ -237,10 +230,12 @@ static int sck_on_read (hio_dev_sck_t* sck, const void* data, hio_iolen_t dlen, 
 				if (!sess || !sess->active)
 				{
 					/* discard the record. no associated sessoin or inactive session */
-printf ("UNKNOWN SESSION ..................... %p  %d\n", sess, conn->r.id);
+HIO_DEBUG2 (hio, "UNKNOWN SESSION ..................... %p  %d\n", sess, conn->r.id);
+if (sess) HIO_DEBUG1 (hio, "UNKNOWN SESSION active? %d\n", sess->active);
 					goto back_to_header;
 				}
 
+HIO_DEBUG2 (hio, "OK SESSION ..................... %p  %d\n", sess, conn->r.id);
 				/* the complete body is in conn->r.buf */
 				if (conn->r.type == HIO_FCGI_END_REQUEST)
 				{
@@ -278,7 +273,7 @@ done:
 	return 0;
 }
 
-static int make_connection_socket (hio_svc_fcgic_conn_t* conn)
+static int make_connection_socket (hio_svc_fcgic_t* fcgic, hio_svc_fcgic_conn_t* conn)
 {
 	hio_t* hio = conn->fcgic->hio;
 	hio_dev_sck_t* sck;
@@ -322,7 +317,7 @@ static int make_connection_socket (hio_svc_fcgic_conn_t* conn)
 
 	HIO_MEMSET (&ci, 0, HIO_SIZEOF(ci));
 	ci.remoteaddr = conn->addr;
-	ci.connect_tmout.sec = 5; /* TODO: make this configurable */
+	if (fcgic->tmout_set) ci.connect_tmout = fcgic->tmout.c;
 
 	if (hio_dev_sck_connect(sck, &ci) <= -1)
 	{
@@ -350,7 +345,7 @@ static hio_svc_fcgic_conn_t* get_connection (hio_svc_fcgic_t* fcgic, const hio_s
 			if (!conn->sess.free || conn->sess.capa <= (CONN_SESS_CAPA_MAX - CONN_SESS_INC))
 			{
 				/* the connection has room for more sessions */
-				if (!conn->dev) make_connection_socket(conn); /* conn->dev will still be null if connection fails*/
+				if (!conn->dev) make_connection_socket(fcgic, conn); /* conn->dev will still be null if connection fails*/
 				return conn;
 			}
 		}
@@ -365,7 +360,7 @@ static hio_svc_fcgic_conn_t* get_connection (hio_svc_fcgic_t* fcgic, const hio_s
 	conn->sess.capa = 0;
 	conn->sess.free = HIO_NULL;
 
-	if (make_connection_socket(conn) <= -1)
+	if (make_connection_socket(fcgic, conn) <= -1)
 	{
 		hio_freemem (hio, conn);
 		return HIO_NULL;
@@ -598,7 +593,7 @@ int hio_svc_fcgic_writeparam (hio_svc_fcgic_sess_t* sess, const void* key, hio_i
 	vsz &= HIO_TYPE_MAX(hio_int32_t);
 	if (ksz > 0)
 	{
-		if (ksz > 0xFF)
+		if (ksz > 0x7F)
 		{
 			sz[szc++] = (ksz >> 24) | 0x80;
 			sz[szc++] = (ksz >> 16) & 0xFF;
@@ -610,7 +605,7 @@ int hio_svc_fcgic_writeparam (hio_svc_fcgic_sess_t* sess, const void* key, hio_i
 			sz[szc++] = ksz;
 		}
 
-		if (vsz > 0xFF)
+		if (vsz > 0x7F)
 		{
 			sz[szc++] = (vsz >> 24) | 0x80;
 			sz[szc++] = (vsz >> 16) & 0xFF;
@@ -650,7 +645,6 @@ int hio_svc_fcgic_writestdin (hio_svc_fcgic_sess_t* sess, const void* data, hio_
 	hio_iovec_t iov[2];
 	hio_fcgi_record_header_t h;
 
-printf (">>>>>>>>>>>>>>>>>>>>>>[%p] %p\n", sess, sess->conn);
 	if (!sess->conn->dev)
 	{
 		/* TODO: set error **/

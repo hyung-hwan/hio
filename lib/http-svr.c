@@ -330,7 +330,8 @@ static void halt_idle_clients (hio_t* hio, const hio_ntime_t* now, hio_tmrjob_t*
 }
 
 /* ------------------------------------------------------------------------ */
-hio_svc_htts_t* hio_svc_htts_start (hio_t* hio, hio_oow_t xtnsize, hio_dev_sck_bind_t* binds, hio_oow_t nbinds, hio_svc_htts_proc_req_t proc_req)
+
+hio_svc_htts_t* hio_svc_htts_start (hio_t* hio, hio_oow_t xtnsize, hio_dev_sck_bind_t* binds, hio_oow_t nbinds, hio_svc_htts_proc_req_t proc_req, const hio_svc_fcgic_tmout_t* fcgic_tmout)
 {
 	hio_svc_htts_t* htts = HIO_NULL;
 	union
@@ -356,6 +357,12 @@ hio_svc_htts_t* hio_svc_htts_start (hio_t* hio, hio_oow_t xtnsize, hio_dev_sck_b
 	htts->svc_stop = hio_svc_htts_stop;
 	htts->proc_req = proc_req;
 	htts->idle_tmridx = HIO_TMRIDX_INVALID;
+
+	if (fcgic_tmout)
+	{
+		htts->fcgic_tmout_set = 1;
+		htts->fcgic_tmout = *fcgic_tmout;
+	}
 
 	htts->l.sck = (hio_dev_sck_t**)hio_callocmem(hio, HIO_SIZEOF(*htts->l.sck) * nbinds);
 	if (HIO_UNLIKELY(!htts->l.sck)) goto oops;
@@ -468,7 +475,8 @@ hio_svc_htts_t* hio_svc_htts_start (hio_t* hio, hio_oow_t xtnsize, hio_dev_sck_b
 	HIO_SVC_HTTS_CLIL_INIT (&htts->cli);
 	HIO_SVC_HTTS_TASKL_INIT (&htts->task);
 
-	htts->fcgic = hio_svc_fcgic_start(hio, HIO_NULL); /* TODO: set timeout properly */
+	htts->fcgic = hio_svc_fcgic_start(htts->hio, (htts->fcgic_tmout_set? &htts->fcgic_tmout: HIO_NULL));
+
 	if (HIO_UNLIKELY(!htts->fcgic))
 	{
 		/* TODO: only warning ... */
@@ -675,9 +683,6 @@ void hio_svc_htts_task_kill (hio_svc_htts_task_t* task)
 
 	HIO_DEBUG2 (hio, "HTTS(%p) - destroyed task %p\n", htts, task);
 }
-
-/* ----------------------------------------------------------------- */
-
 
 /* ----------------------------------------------------------------- */
 

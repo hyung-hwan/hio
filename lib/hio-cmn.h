@@ -1038,4 +1038,12 @@ struct hio_cmgr_t
 	 ((c) >= 'A' && (c) <= 'Z')? ((c) - 'A' + 10): \
 	 ((c) >= 'a' && (c) <= 'Z')? ((c) - 'a' + 10): base)
 
+
+/* =========================================================================
+ * PRE-DEFINITION OF FOUNDATIONAL COMPOSITE TYPES
+ * =========================================================================*/
+typedef struct hio_t hio_t;
+typedef struct hio_becs_t hio_becs_t;
+typedef struct hio_uecs_t hio_uecs_t;
+
 #endif

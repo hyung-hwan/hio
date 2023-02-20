@@ -479,6 +479,7 @@ static int peer_htrd_peek (hio_htrd_t* htrd, hio_htre_t* req)
 	hio_svc_htts_cli_t* cli = cgi->client;
 	hio_bch_t dtbuf[64];
 	int status_code = HIO_HTTP_STATUS_OK;
+	const hio_bch_t* status_line = HIO_NULL;
 
 	if (req->attr.content_length)
 	{
@@ -489,19 +490,49 @@ static int peer_htrd_peek (hio_htrd_t* htrd, hio_htre_t* req)
 	if (req->attr.status)
 	{
 		int is_sober;
-		const hio_bch_t* endptr;
+		const hio_bch_t* begptr, * endptr;
 		hio_intmax_t v;
+		hio_oow_t code_len;
+		hio_oow_t desc_len;
 
-		v = hio_bchars_to_intmax(req->attr.status, hio_count_bcstr(req->attr.status), HIO_BCHARS_TO_INTMAX_MAKE_OPTION(0,0,0,10), &endptr, &is_sober);
-		if (*endptr == '\0' && is_sober && v > 0 && v <= HIO_TYPE_MAX(int)) status_code = v;
+		endptr = req->attr.status;
+		while (hio_is_bch_space(*endptr)) endptr++;
+		begptr = endptr;
+		while (hio_is_bch_digit(*endptr)) endptr++;
+		code_len = endptr - begptr;
+
+		while (hio_is_bch_space(*endptr)) endptr++;
+		begptr = endptr;
+		while (*endptr != '\0') endptr++;
+		desc_len = endptr - begptr;
+
+		/* the status line could be simply "Status: 302" or more verbose like "Status: 302 Moved"
+		 * the value may contain more than numbers */
+		if (code_len > 0 && desc_len > 0)
+		{
+			status_line = req->attr.status;
+		}
+		else
+		{
+			v = hio_bchars_to_intmax(req->attr.status, hio_count_bcstr(req->attr.status), HIO_BCHARS_TO_INTMAX_MAKE_OPTION(0,0,0,10), &endptr, &is_sober);
+			if (*endptr == '\0' && is_sober && v > 0 && v <= HIO_TYPE_MAX(int)) status_code = v;
+		}
 	}
 
 	hio_svc_htts_fmtgmtime (cli->htts, HIO_NULL, dtbuf, HIO_COUNTOF(dtbuf));
 
-	if (hio_becs_fmt(cli->sbuf, "HTTP/%d.%d %d %hs\r\nServer: %hs\r\nDate: %hs\r\n",
-		cgi->req_version.major, cgi->req_version.minor,
-		status_code, hio_http_status_to_bcstr(status_code),
-		cli->htts->server_name, dtbuf) == (hio_oow_t)-1) return -1;
+	if (hio_becs_fmt(cli->sbuf, "HTTP/%d.%d ", cgi->req_version.major, cgi->req_version.minor) == (hio_oow_t)-1) return -1;
+	if (status_line)
+	{
+		if (hio_becs_fcat(cli->sbuf, "%hs\r\n", status_line) == (hio_oow_t)-1) return -1;
+	}
+	else
+	{
+		if (hio_becs_fcat(cli->sbuf, "%d %hs\r\n", status_code, hio_http_status_to_bcstr(status_code)) == (hio_oow_t)-1) return -1;
+	}
+
+	if (hio_becs_fcat(cli->sbuf, "Server: %hs\r\nDate: %hs\r\n", cli->htts->server_name, dtbuf) == (hio_oow_t)-1) return -1;
+
 
 	if (hio_htre_walkheaders(req, peer_capture_response_header, cli) <= -1) return -1;
 

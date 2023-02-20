@@ -354,11 +354,12 @@ HIO_EXPORT hio_oow_t hio_escape_html_bcstr (
 /* ------------------------------------------------------------------------- */
 
 HIO_EXPORT hio_svc_htts_t* hio_svc_htts_start (
-	hio_t*                    hio,
-	hio_oow_t                 xtnsize,
-	hio_dev_sck_bind_t*       binds,
-	hio_oow_t                 nbinds,
-	hio_svc_htts_proc_req_t   proc_req
+	hio_t*                       hio,
+	hio_oow_t                    xtnsize,
+	hio_dev_sck_bind_t*          binds,
+	hio_oow_t                    nbinds,
+	hio_svc_htts_proc_req_t      proc_req,
+	const hio_svc_fcgic_tmout_t* fcgic_tmout
 );
 
 HIO_EXPORT void hio_svc_htts_stop (

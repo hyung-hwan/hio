@@ -14,10 +14,8 @@ enum fcgi_res_mode_t
 };
 typedef enum fcgi_res_mode_t fcgi_res_mode_t;
 
-
 #define FCGI_PENDING_IO_THRESHOLD_TO_CLIENT 50
 #define FCGI_PENDING_IO_THRESHOLD_TO_PEER 50
-
 
 #define FCGI_OVER_READ_FROM_CLIENT (1 << 0)
 #define FCGI_OVER_READ_FROM_PEER   (1 << 1)
@@ -69,7 +67,7 @@ static void unbind_task_from_peer (fcgi_t* fcgi, int rcdown);
 static void fcgi_halt_participating_devices (fcgi_t* fcgi)
 {
 /* TODO: include fcgi session id in the output in place of peer??? */
-	HIO_DEBUG5 (fcgi->htts->hio, "HTTS(%p) - cgi(t=%p,c=%p(%d),p=%p) Halting participating devices\n", fcgi->htts, fcgi, fcgi->csck, (fcgi->csck? fcgi->csck->hnd: -1), fcgi->peer);
+	HIO_DEBUG5 (fcgi->htts->hio, "HTTS(%p) - fcgi(t=%p,c=%p(%d),p=%p) Halting participating devices\n", fcgi->htts, fcgi, fcgi->csck, (fcgi->csck? fcgi->csck->hnd: -1), fcgi->peer);
 
 	if (fcgi->csck) hio_dev_sck_halt (fcgi->csck);
 	unbind_task_from_peer (fcgi, 1);
@@ -81,6 +79,7 @@ static int fcgi_write_to_client (fcgi_t* fcgi, const void* data, hio_iolen_t dle
 	{
 		fcgi->ever_attempted_to_write_to_client = 1;
 
+HIO_DEBUG2 (fcgi->htts->hio, "WR TO C[%.*hs]\n", dlen, data);
 		fcgi->num_pending_writes_to_client++;
 		if (hio_dev_sck_write(fcgi->csck, data, dlen, HIO_NULL, HIO_NULL) <= -1)
 		{
@@ -138,7 +137,7 @@ static int fcgi_send_final_status_to_client (fcgi_t* fcgi, int status_code, int 
 	const hio_bch_t* status_msg;
 	hio_oow_t content_len;
 
-	if (!cli) return; /* client unbound or no binding client */
+	if (!cli) return 0; /* client unbound or no binding client */
 
 	hio_svc_htts_fmtgmtime (cli->htts, HIO_NULL, dtbuf, HIO_COUNTOF(dtbuf));
 	status_msg = hio_http_status_to_bcstr(status_code);
@@ -249,10 +248,9 @@ static HIO_INLINE void fcgi_mark_over (fcgi_t* fcgi, int over_bits)
 		{
 			if (fcgi->keep_alive && !fcgi->client_eof_detected)
 			{
-/* how to arrange to delete this fcgi object and put the socket back to the normal waiting state??? */
+				HIO_DEBUG2 (hio, "HTTS(%p) - keeping client(%p) alive\n", fcgi->htts, fcgi->csck);
 				HIO_ASSERT (fcgi->htts->hio, fcgi->client->task == (hio_svc_htts_task_t*)fcgi);
 				unbind_task_from_client (fcgi, 1);
-
 				/* fcgi must not be accessed from here down as it could have been destroyed in unbind_task_from_client() */
 			}
 			else
@@ -305,13 +303,17 @@ static void fcgi_on_kill (hio_svc_htts_task_t* task)
 static void fcgi_peer_on_untie (hio_svc_fcgic_sess_t* peer, void* ctx)
 {
 	fcgi_t* fcgi = (fcgi_t*)ctx;
+	hio_t* hio = fcgi->htts->hio;
 
 	/* in case this untie event originates from the fcgi client itself.
 	 * fcgi_halt_participating_devices() calls hio_svc_fcgi_untie() again 
 	 * to cause an infinite loop if we don't reset fcgi->peer to HIO_NULL here */
+
+	HIO_DEBUG5 (hio, "HTTS(%p) - fcgi(t=%p,c=%p[%d],p=%p) - peer untied\n", fcgi->htts, fcgi, fcgi->client, (fcgi->csck? fcgi->csck->hnd: -1), fcgi->peer);
+
 	fcgi->peer = HIO_NULL; 
 	fcgi_write_last_chunk_to_client (fcgi);
-	fcgi_halt_participating_devices (fcgi); /* TODO: kill the session only??? */
+	unbind_task_from_peer (fcgi, 1);
 }
 
 static int fcgi_peer_on_read (hio_svc_fcgic_sess_t* peer, const void* data, hio_iolen_t dlen, void* ctx)
@@ -412,6 +414,7 @@ static int peer_htrd_peek (hio_htrd_t* htrd, hio_htre_t* req)
 	hio_svc_htts_cli_t* cli = fcgi->client;
 	hio_bch_t dtbuf[64];
 	int status_code = HIO_HTTP_STATUS_OK;
+	const hio_bch_t* status_line = HIO_NULL;
 
 	if (req->attr.content_length)
 	{
@@ -422,19 +425,48 @@ static int peer_htrd_peek (hio_htrd_t* htrd, hio_htre_t* req)
 	if (req->attr.status)
 	{
 		int is_sober;
-		const hio_bch_t* endptr;
+		const hio_bch_t* begptr, * endptr;
 		hio_intmax_t v;
+		hio_oow_t code_len;
+		hio_oow_t desc_len;
 
-		v = hio_bchars_to_intmax(req->attr.status, hio_count_bcstr(req->attr.status), HIO_BCHARS_TO_INTMAX_MAKE_OPTION(0,0,0,10), &endptr, &is_sober);
-		if (*endptr == '\0' && is_sober && v > 0 && v <= HIO_TYPE_MAX(int)) status_code = v;
+		endptr = req->attr.status;
+		while (hio_is_bch_space(*endptr)) endptr++;
+		begptr = endptr;
+		while (hio_is_bch_digit(*endptr)) endptr++;
+		code_len = endptr - begptr;
+
+		while (hio_is_bch_space(*endptr)) endptr++;
+		begptr = endptr;
+		while (*endptr != '\0') endptr++;
+		desc_len = endptr - begptr;
+
+		/* the status line could be simply "Status: 302" or more verbose like "Status: 302 Moved"
+		 * the value may contain more than numbers */
+		if (code_len > 0 && desc_len > 0)
+		{
+			status_line = req->attr.status;
+		}
+		else
+		{
+			v = hio_bchars_to_intmax(req->attr.status, hio_count_bcstr(req->attr.status), HIO_BCHARS_TO_INTMAX_MAKE_OPTION(0,0,0,10), &endptr, &is_sober);
+			if (*endptr == '\0' && is_sober && v > 0 && v <= HIO_TYPE_MAX(int)) status_code = v;
+		}
 	}
 
 	hio_svc_htts_fmtgmtime (cli->htts, HIO_NULL, dtbuf, HIO_COUNTOF(dtbuf));
 
-	if (hio_becs_fmt(cli->sbuf, "HTTP/%d.%d %d %hs\r\nServer: %hs\r\nDate: %hs\r\n",
-		fcgi->req_version.major, fcgi->req_version.minor,
-		status_code, hio_http_status_to_bcstr(status_code),
-		cli->htts->server_name, dtbuf) == (hio_oow_t)-1) return -1;
+	if (hio_becs_fmt(cli->sbuf, "HTTP/%d.%d ", fcgi->req_version.major, fcgi->req_version.minor) == (hio_oow_t)-1) return -1;
+	if (status_line)
+	{
+		if (hio_becs_fcat(cli->sbuf, "%hs\r\n", status_line) == (hio_oow_t)-1) return -1;
+	}
+	else
+	{
+		if (hio_becs_fcat(cli->sbuf, "%d %hs\r\n", status_code, hio_http_status_to_bcstr(status_code)) == (hio_oow_t)-1) return -1;
+	}
+
+	if (hio_becs_fcat(cli->sbuf, "Server: %hs\r\nDate: %hs\r\n", cli->htts->server_name, dtbuf) == (hio_oow_t)-1) return -1;
 
 	if (hio_htre_walkheaders(req, peer_capture_response_header, cli) <= -1) return -1;
 
@@ -698,6 +730,56 @@ oops:
 	return 0;
 }
 
+static int peer_capture_request_header (hio_htre_t* req, const hio_bch_t* key, const hio_htre_hdrval_t* val, void* ctx)
+{
+	fcgi_t* fcgi = (fcgi_t*)ctx;
+	hio_svc_htts_t* htts = fcgi->htts;
+	hio_t* hio = htts->hio;
+
+	if (hio_comp_bcstr(key, "Connection", 1) != 0 &&
+	    hio_comp_bcstr(key, "Transfer-Encoding", 1) != 0 &&
+	    hio_comp_bcstr(key, "Content-Length", 1) != 0 &&
+	    hio_comp_bcstr(key, "Expect", 1) != 0)
+	{
+		hio_oow_t val_offset;
+		hio_bch_t* ptr;
+
+		if (hio_comp_bcstr(key, "Content-Type", 1) == 0)
+		{
+			/* don't prefix CONTENT_TYPE with HTTP_ */
+			hio_becs_clear (hio->becbuf);
+		}
+		else
+		{
+			if (hio_becs_cpy(hio->becbuf, "HTTP_") == (hio_oow_t)-1) return -1;
+		}
+
+		if (hio_becs_cat(hio->becbuf, key) == (hio_oow_t)-1 ||
+		    hio_becs_ccat(hio->becbuf, '\0') == (hio_oow_t)-1) return -1;
+
+		for (ptr = HIO_BECS_PTR(hio->becbuf); *ptr; ptr++)
+		{
+			*ptr = hio_to_bch_upper(*ptr);
+			if (*ptr =='-') *ptr = '_';
+		}
+
+		val_offset = HIO_BECS_LEN(hio->becbuf);
+		if (hio_becs_cat(hio->becbuf, val->ptr) == (hio_oow_t)-1) return -1;
+		val = val->next;
+		while (val)
+		{
+			if (hio_becs_cat(hio->becbuf, ",") == (hio_oow_t)-1 ||
+			    hio_becs_cat(hio->becbuf, val->ptr) == (hio_oow_t)-1) return -1;
+			val = val->next;
+		}
+
+		hio_svc_fcgic_writeparam(fcgi->peer, HIO_BECS_PTR(hio->becbuf), val_offset - 1, HIO_BECS_CPTR(hio->becbuf, val_offset), HIO_BECS_LEN(hio->becbuf) - val_offset);
+		/* TODO: error handling? */
+	}
+
+	return 0;
+}
+
 
 static int write_params (fcgi_t* fcgi, hio_dev_sck_t* csck, hio_htre_t* req, const hio_bch_t* docroot, const hio_bch_t* script)
 {
@@ -707,6 +789,7 @@ static int write_params (fcgi_t* fcgi, hio_dev_sck_t* csck, hio_htre_t* req, con
 	const hio_bch_t* qparam;
 	hio_oow_t content_length;
 	hio_bch_t* actual_script = HIO_NULL;
+	hio_becs_t dbuf;
 
 	HIO_ASSERT (hio, fcgi->csck == csck);
 
@@ -727,7 +810,8 @@ static int write_params (fcgi_t* fcgi, hio_dev_sck_t* csck, hio_htre_t* req, con
 	if (hio_svc_fcgic_writeparam(fcgi->peer, "REQUEST_URI", 11, hio_htre_getqpath(req), hio_htre_getqpathlen(req)) <= -1) goto oops;
 
     qparam = hio_htre_getqparam(req);
-	if (qparam && hio_svc_fcgic_writeparam(fcgi->peer, "QUERY_STRING", 12, qparam, hio_count_bcstr(qparam)) <= -1) goto oops;
+	if (!qparam) qparam = "";
+	if (hio_svc_fcgic_writeparam(fcgi->peer, "QUERY_STRING", 12, qparam, hio_count_bcstr(qparam)) <= -1) goto oops;
 
 	if (hio_htre_getreqcontentlen(req, &content_length) == 0)
 	{
@@ -753,7 +837,8 @@ static int write_params (fcgi_t* fcgi, hio_dev_sck_t* csck, hio_htre_t* req, con
 	len = hio_skadtobcstr (hio, &csck->remoteaddr, tmp, HIO_COUNTOF(tmp), HIO_SKAD_TO_BCSTR_PORT);
 	if (hio_svc_fcgic_writeparam(fcgi->peer,  "REMOTE_PORT", 11, tmp, len) <= -1) goto oops;
 
-	//hio_htre_walkheaders (req,)
+	hio_htre_walkheaders (req, peer_capture_request_header, fcgi);
+	/* [NOTE] trailers are not available when this cgi resource is started. let's not call hio_htre_walktrailers() */
 
 	hio_freemem (hio, actual_script);
 	return 0;
@@ -882,9 +967,7 @@ static void unbind_task_from_peer (fcgi_t* fcgi, int rcdown)
 		hio_svc_fcgic_untie (fcgi->peer);
 		fcgi->peer = HIO_NULL;
 		n++;
-
 	}
-
 
 	if (rcdown) 
 	{
@@ -981,6 +1064,7 @@ static int setup_for_content_length(fcgi_t* fcgi, hio_htre_t* req)
 	}
 #endif
 
+#if 0
 	/* this may change later if Content-Length is included in the fcgi output */
 	if (req->flags & HIO_HTRE_ATTR_KEEPALIVE)
 	{
@@ -989,6 +1073,7 @@ static int setup_for_content_length(fcgi_t* fcgi, hio_htre_t* req)
 		/* the mode still can get switched to FCGI_RES_MODE_LENGTH if the fcgi script emits Content-Length */
 	}
 	else
+#endif
 	{
 		fcgi->keep_alive = 0;
 		fcgi->res_mode_to_cli = FCGI_RES_MODE_CLOSE;
@@ -996,6 +1081,7 @@ static int setup_for_content_length(fcgi_t* fcgi, hio_htre_t* req)
 
 	return 0;
 }
+
 int hio_svc_htts_dofcgi (hio_svc_htts_t* htts, hio_dev_sck_t* csck, hio_htre_t* req, const hio_skad_t* fcgis_addr, const hio_bch_t* docroot, const hio_bch_t* script, int options)
 {
 	hio_t* hio = htts->hio;

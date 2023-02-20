@@ -60,8 +60,11 @@
 /**< last character. unsafe if length <= 0 */
 #define HIO_UECS_LASTCHAR(s) ((s)->val.ptr[(s)->val.len-1])
 
+/*
+ * defined in hio-cmn.h
 typedef struct hio_becs_t hio_becs_t;
 typedef struct hio_uecs_t hio_uecs_t;
+*/
 
 typedef hio_oow_t (*hio_becs_sizer_t) (
 	hio_becs_t* data,
