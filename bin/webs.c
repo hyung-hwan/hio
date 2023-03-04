@@ -298,6 +298,15 @@ oops:
 	return -1;
 }
 
+static void htts_task_on_kill (hio_svc_htts_task_t* task)
+{
+	hio_svc_htts_t* htts = task->htts;
+	hio_t* hio = hio_svc_htts_gethio(htts);
+
+	/* TODO: pretty log message */
+	HIO_INFO3 (hio, "DONE [%hs] [%hs] [%hs] ......................................\n", task->task_req_qmth, task->task_req_qpath, hio_http_status_to_bcstr(task->task_status_code));
+}
+
 static int process_http_request (hio_svc_htts_t* htts, hio_dev_sck_t* csck, hio_htre_t* req)
 {
 	htts_ext_t* ext = hio_svc_htts_getxtn(htts);
@@ -331,7 +340,7 @@ static int process_http_request (hio_svc_htts_t* htts, hio_dev_sck_t* csck, hio_
 	if (mth == HIO_HTTP_OTHER && hio_comp_bcstr(hio_htre_getqmethodname(req), "UNTAR", 1) == 0 && hio_comp_bcstr(qpath_ext, ".tar", 0) == 0)
 	{
 		/* don't care about the path for now. TODO: make this secure and reasonable */
-		if (hio_svc_htts_dothr(htts, csck, req, untar, HIO_NULL, 0) <= -1) goto oops;
+		if (hio_svc_htts_dothr(htts, csck, req, untar, HIO_NULL, 0, htts_task_on_kill) <= -1) goto oops;
 	}
 	else if (mth == HIO_HTTP_OPTIONS)
 	{
@@ -342,7 +351,7 @@ static int process_http_request (hio_svc_htts_t* htts, hio_dev_sck_t* csck, hio_
 	}
 	else if (hio_comp_bcstr(qpath_ext, ".cgi", 0) == 0)
 	{
-		if (hio_svc_htts_docgi(htts, csck, req, ext->ai->docroot, qpath, 0) <= -1) goto oops;
+		if (hio_svc_htts_docgi(htts, csck, req, ext->ai->docroot, qpath, 0, htts_task_on_kill) <= -1) goto oops;
 	}
 	else if (hio_comp_bcstr(qpath_ext, ".php", 0) == 0 || hio_comp_bcstr(qpath_ext, ".ant", 0) == 0 /*|| hio_comp_bcstr_limited(qpath, "http://", 7, 1) == 0*/)
 	{
@@ -354,14 +363,14 @@ static int process_http_request (hio_svc_htts_t* htts, hio_dev_sck_t* csck, hio_
 		/* if the document root is relative, it is hard to gurantee that the same document is
 		 * true to the fcgi server which is a different process. so map it a blank string for now.
 		 * TODO: accept a separate document root for the fcgi server and use it below */
-		if (hio_svc_htts_dofcgi(htts, csck, req, &skad, ext->ai->docroot, qpath, 0) <= -1) goto oops;
+		if (hio_svc_htts_dofcgi(htts, csck, req, &skad, ext->ai->docroot, qpath, 0, htts_task_on_kill) <= -1) goto oops;
 		/*if (hio_svc_htts_dotxt(htts, csck, req, HIO_HTTP_STATUS_INTERNAL_SERVER_ERROR, "text/plain", "what the...", 0) <= -1) goto oops;*/
 	}
 	else // if (mth == HIO_HTTP_GET || mth == HIO_HTTP_POST)
 	{
 		/* TODO: proper mime-type */
 		/* TODO: make HIO_SVC_HTTS_FILE_DIR a cli option */
-		if (hio_svc_htts_dofile(htts, csck, req, ext->ai->docroot, qpath, HIO_NULL, 0, &fcbs) <= -1) goto oops;
+		if (hio_svc_htts_dofile(htts, csck, req, ext->ai->docroot, qpath, HIO_NULL, 0, htts_task_on_kill, &fcbs) <= -1) goto oops;
 	}
 #if 0
 	else

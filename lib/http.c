@@ -59,7 +59,7 @@ const hio_bch_t* hio_http_status_to_bcstr (int code)
 
 		case 300: msg = "Multiple Choices"; break;
 		case HIO_HTTP_STATUS_MOVED_PERMANENTLY:     msg = "Moved Permanently"; break;
-		case 302: msg = "Found"; break;
+		case HIO_HTTP_STATUS_MOVED_TEMPORARILY:     msg = "Moved Temporarily"; break;
 		case 303: msg = "See Other"; break;
 		case HIO_HTTP_STATUS_NOT_MODIFIED:          msg = "Not Modified"; break;
 		case 305: msg = "Use Proxy"; break;
@@ -67,11 +67,11 @@ const hio_bch_t* hio_http_status_to_bcstr (int code)
 		case 308: msg = "Permanent Redirect"; break;
 
 		case HIO_HTTP_STATUS_BAD_REQUEST:           msg = "Bad Request"; break;
-		case 401: msg = "Unauthorized"; break;
+		case HIO_HTTP_STATUS_UNAUTHORIZED:          msg = "Unauthorized"; break;
 		case 402: msg = "Payment Required"; break;
 		case HIO_HTTP_STATUS_FORBIDDEN:             msg = "Forbidden"; break;
 		case HIO_HTTP_STATUS_NOT_FOUND:             msg = "Not Found"; break;
-		case HIO_HTTP_STATUS_METHOD_NOT_ALLOWED:   msg = "Method Not Allowed"; break;
+		case HIO_HTTP_STATUS_METHOD_NOT_ALLOWED:    msg = "Method Not Allowed"; break;
 		case 406: msg = "Not Acceptable"; break;
 		case 407: msg = "Proxy Authentication Required"; break;
 		case 408: msg = "Request Timeout"; break;
@@ -96,7 +96,7 @@ const hio_bch_t* hio_http_status_to_bcstr (int code)
 		case 504: msg = "Gateway Timeout"; break;
 		case 505: msg = "HTTP Version Not Supported"; break;
 
-		default: msg = "Unknown Error"; break;
+		default: msg = "Unknown"; break;
 	}
 
 	return msg;

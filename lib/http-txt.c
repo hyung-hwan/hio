@@ -33,11 +33,12 @@ struct txt_t
 {
 	HIO_SVC_HTTS_TASK_HEADER;
 
+	hio_svc_htts_task_on_kill_t on_kill; /* user-provided on_kill callback */
+
 	int options;
 	hio_oow_t num_pending_writes_to_client;
 
 	hio_dev_sck_t* csck;
-	hio_svc_htts_cli_t* client;
 
 	unsigned int over: 2; /* must be large enough to accomodate TXT_OVER_ALL */
 	unsigned int keep_alive: 1;
@@ -92,7 +93,7 @@ static int txt_writev_to_client (txt_t* txt, hio_iovec_t* iov, hio_iolen_t iovcn
 
 static int txt_send_final_status_to_client (txt_t* txt, int status_code, const hio_bch_t* content_type, const hio_bch_t* content_text, int force_close)
 {
-	hio_svc_htts_cli_t* cli = txt->client;
+	hio_svc_htts_cli_t* cli = txt->task_client;
 	hio_bch_t dtbuf[64];
 	hio_oow_t content_text_len = 0;
 
@@ -120,6 +121,7 @@ static int txt_send_final_status_to_client (txt_t* txt, int status_code, const h
 
 	if (hio_becs_fcat(cli->sbuf, "Content-Length: %zu\r\n\r\n", content_text_len) == (hio_oow_t)-1) return -1;
 
+	txt->task_status_code = status_code;
 	return (txt_write_to_client(txt, HIO_BECS_PTR(cli->sbuf), HIO_BECS_LEN(cli->sbuf)) <= -1 ||
 	        (content_text_len > 0 && txt_write_to_client(txt, content_text, content_text_len) <= -1) ||
 	        (force_close && txt_write_to_client(txt, HIO_NULL, 0) <= -1))? -1: 0;
@@ -149,10 +151,10 @@ static HIO_INLINE void txt_mark_over (txt_t* txt, int over_bits)
 		if (txt->keep_alive && !txt->client_eof_detected)
 		{
 			/* how to arrange to delete this txt object and put the socket back to the normal waiting state??? */
-			HIO_ASSERT (txt->htts->hio, txt->client->task == (hio_svc_htts_task_t*)txt);
+			HIO_ASSERT (txt->htts->hio, txt->task_client->task == (hio_svc_htts_task_t*)txt);
 
-/*printf ("DETACHING FROM THE MAIN CLIENT TASK... state -> %p\n", txt->client->task);*/
-			HIO_SVC_HTTS_TASK_UNREF (txt->client->task);
+/*printf ("DETACHING FROM THE MAIN CLIENT TASK... state -> %p\n", txt->task_client->task);*/
+			HIO_SVC_HTTS_TASK_UNREF (txt->task_client->task);
 			/* txt must not be access from here down as it could have been destroyed */
 		}
 		else
@@ -171,15 +173,17 @@ static void txt_on_kill (hio_svc_htts_task_t* task)
 
 	HIO_DEBUG2 (hio, "HTTS(%p) - killing txt client(%p)\n", txt->htts, txt->csck);
 
+	if (txt->on_kill) txt->on_kill (task);
+
 	if (txt->csck)
 	{
-		HIO_ASSERT (hio, txt->client != HIO_NULL);
+		HIO_ASSERT (hio, txt->task_client != HIO_NULL);
 
 		if (txt->client_org_on_read) txt->csck->on_read = txt->client_org_on_read;
 		if (txt->client_org_on_write) txt->csck->on_write = txt->client_org_on_write;
 		if (txt->client_org_on_disconnect) txt->csck->on_disconnect = txt->client_org_on_disconnect;
 		if (txt->client_htrd_recbs_changed)
-		hio_htrd_setrecbs (txt->client->htrd, &txt->client_htrd_org_recbs);
+		hio_htrd_setrecbs (txt->task_client->htrd, &txt->client_htrd_org_recbs);
 
 		if (!txt->client_disconnected)
 		{
@@ -322,7 +326,7 @@ oops:
 	return 0;
 }
 
-int hio_svc_htts_dotxt (hio_svc_htts_t* htts, hio_dev_sck_t* csck, hio_htre_t* req, int status_code, const hio_bch_t* content_type, const hio_bch_t* content_text, int options)
+int hio_svc_htts_dotxt (hio_svc_htts_t* htts, hio_dev_sck_t* csck, hio_htre_t* req, int status_code, const hio_bch_t* content_type, const hio_bch_t* content_text, int options, hio_svc_htts_task_on_kill_t on_kill)
 {
 	hio_t* hio = htts->hio;
 	hio_svc_htts_cli_t* cli = hio_dev_sck_getxtn(csck);
@@ -332,15 +336,16 @@ int hio_svc_htts_dotxt (hio_svc_htts_t* htts, hio_dev_sck_t* csck, hio_htre_t* r
 	HIO_ASSERT (hio, hio_htre_getcontentlen(req) == 0);
 	HIO_ASSERT (hio, cli->sck == csck);
 
-	txt = (txt_t*)hio_svc_htts_task_make(htts, HIO_SIZEOF(*txt), txt_on_kill, req);
+	txt = (txt_t*)hio_svc_htts_task_make(htts, HIO_SIZEOF(*txt), txt_on_kill, req, cli);
 	if (HIO_UNLIKELY(!txt)) goto oops;
 
+	txt->on_kill = on_kill;
 	txt->options = options;
 	/*txt->num_pending_writes_to_client = 0;*/
 	txt->req_content_length_unlimited = hio_htre_getreqcontentlen(req, &txt->req_content_length);
 
 	txt->csck = csck;
-	txt->client = cli;
+	txt->task_client = cli;
 	txt->client_org_on_read = csck->on_read;
 	txt->client_org_on_write = csck->on_write;
 	txt->client_org_on_disconnect = csck->on_disconnect;
@@ -365,9 +370,9 @@ int hio_svc_htts_dotxt (hio_svc_htts_t* htts, hio_dev_sck_t* csck, hio_htre_t* r
 	if (txt->req_content_length_unlimited || txt->req_content_length > 0)
 	{
 		/* change the callbacks to subscribe to contents to be uploaded */
-		txt->client_htrd_org_recbs = *hio_htrd_getrecbs(txt->client->htrd);
+		txt->client_htrd_org_recbs = *hio_htrd_getrecbs(txt->task_client->htrd);
 		txt_client_htrd_recbs.peek = txt->client_htrd_org_recbs.peek;
-		hio_htrd_setrecbs (txt->client->htrd, &txt_client_htrd_recbs);
+		hio_htrd_setrecbs (txt->task_client->htrd, &txt_client_htrd_recbs);
 		txt->client_htrd_recbs_changed = 1;
 	}
 	else

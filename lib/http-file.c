@@ -53,6 +53,8 @@ struct file_t
 {
 	HIO_SVC_HTTS_TASK_HEADER;
 
+	hio_svc_htts_task_on_kill_t on_kill; /* user-provided on_kill callback */
+
 	int options;
 	hio_svc_htts_file_cbs_t* cbs;
 	hio_oow_t num_pending_writes_to_client;
@@ -68,14 +70,10 @@ struct file_t
 	hio_bch_t peer_etag[128];
 
 	hio_dev_sck_t* csck;
-	hio_svc_htts_cli_t* client;
-	hio_bch_t* req_qpath;
 
 	unsigned int over: 4; /* must be large enough to accomodate FILE_OVER_ALL */
 	unsigned int keep_alive: 1;
 	unsigned int req_content_length_unlimited: 1;
-	unsigned int req_qpath_ending_with_slash: 1;
-	unsigned int req_qpath_is_root: 1;
 	unsigned int ever_attempted_to_write_to_client: 1;
 	unsigned int client_eof_detected: 1;
 	unsigned int client_disconnected: 1;
@@ -136,9 +134,9 @@ static int file_sendfile_to_client (file_t* file, hio_foff_t foff, hio_iolen_t l
 	return 0;
 }
 
-static int file_send_final_status_to_client (file_t* file, int status_code, int force_close, int dir_redirect)
+static int file_send_final_status_to_client (file_t* file, int status_code, int force_close)
 {
-	hio_svc_htts_cli_t* cli = file->client;
+	hio_svc_htts_cli_t* cli = file->task_client;
 	hio_bch_t dtbuf[64];
 	const hio_bch_t* status_msg;
 	hio_oow_t content_len;
@@ -160,16 +158,17 @@ static int file_send_final_status_to_client (file_t* file, int status_code, int 
 		status_msg = "";
 	}
 
-	if (dir_redirect)
+	if (status_code == HIO_HTTP_STATUS_MOVED_PERMANENTLY || status_code == HIO_HTTP_STATUS_MOVED_TEMPORARILY)
 	{
 		/* don't send content body when the status code is 3xx. include the Location header only. */
-		if (hio_becs_fcat(cli->sbuf, "Content-Type: text/plain\r\nContent-Length: 0\r\nLocation: %hs/\r\n\r\n", file->req_qpath) == (hio_oow_t)-1) return -1;
+		if (hio_becs_fcat(cli->sbuf, "Content-Type: text/plain\r\nContent-Length: 0\r\nLocation: %hs%hs\r\n\r\n", file->task_req_qpath, (file->task_req_qpath_ending_with_slash? "": "/")) == (hio_oow_t)-1) return -1;
 	}
 	else
 	{
 		if (hio_becs_fcat(cli->sbuf, "Content-Type: text/plain\r\nContent-Length: %zu\r\n\r\n%hs", content_len, status_msg) == (hio_oow_t)-1) return -1;
 	}
 
+	file->task_status_code = status_code;
 	return (file_write_to_client(file, HIO_BECS_PTR(cli->sbuf), HIO_BECS_LEN(cli->sbuf)) <= -1 ||
 	        (force_close && file_write_to_client(file, HIO_NULL, 0) <= -1))? -1: 0;
 }
@@ -236,8 +235,8 @@ static void file_mark_over (file_t* file, int over_bits)
 			#endif
 
 				/* how to arrange to delete this file object and put the socket back to the normal waiting state??? */
-				HIO_ASSERT (file->htts->hio, file->client->task == (hio_svc_htts_task_t*)file);
-				HIO_SVC_HTTS_TASK_UNREF (file->client->task);
+				HIO_ASSERT (file->htts->hio, file->task_client->task == (hio_svc_htts_task_t*)file);
+				HIO_SVC_HTTS_TASK_UNREF (file->task_client->task);
 				/* the file task must not be accessed from here down as it could have been destroyed */
 			}
 			else
@@ -245,7 +244,7 @@ static void file_mark_over (file_t* file, int over_bits)
 				HIO_DEBUG4 (file->htts->hio, "HTTS(%p) - file(c=%d,p=%d) halting client for %hs\n", file->htts, (int)file->csck->hnd, file->peer, (file->client_eof_detected? "EOF detected": "no keep-alive"));
 				hio_dev_sck_shutdown (file->csck, HIO_DEV_SCK_SHUTDOWN_WRITE);
 				hio_dev_sck_halt (file->csck);
-				/* the file task will be detached from file->client->task by the upstream disconnect handler in http_svr.c */
+				/* the file task will be detached from file->task_client->task by the upstream disconnect handler in http_svr.c */
 			}
 		}
 	}
@@ -285,26 +284,22 @@ static void file_on_kill (hio_svc_htts_task_t* task)
 	file_t* file = (file_t*)task;
 	hio_t* hio = file->htts->hio;
 
-	HIO_DEBUG5 (hio, "HTTS(%p) - file(t=%p,c=%p[%d],p=%d) - killing the task\n", file->htts, file, file->client, (file->csck? file->csck->hnd: -1), file->peer);
+	HIO_DEBUG5 (hio, "HTTS(%p) - file(t=%p,c=%p[%d],p=%d) - killing the task\n", file->htts, file, file->task_client, (file->csck? file->csck->hnd: -1), file->peer);
+
+	if (file->on_kill) file->on_kill (task);
 
 	file_close_peer (file);
-
-	if (file->req_qpath)
-	{
-		hio_freemem (hio, file->req_qpath);
-		file->req_qpath = HIO_NULL;
-	}
 
 	if (file->csck)
 	{
 		if (file->client_org_on_read) file->csck->on_read = file->client_org_on_read;
 		if (file->client_org_on_write) file->csck->on_write = file->client_org_on_write;
 		if (file->client_org_on_disconnect) file->csck->on_disconnect = file->client_org_on_disconnect;
-		if (file->client_htrd_recbs_changed) hio_htrd_setrecbs (file->client->htrd, &file->client_htrd_org_recbs);
+		if (file->client_htrd_recbs_changed) hio_htrd_setrecbs (file->task_client->htrd, &file->client_htrd_org_recbs);
 
 		if (!file->keep_alive || hio_dev_sck_read(file->csck, 1) <= -1)
 		{
-			HIO_DEBUG5 (hio, "HTTS(%p) - file(t=%p,c=%p[%d],p=%d) - halting client for failure to enable input watching\n", file->htts, file, file->client, (file->csck? file->csck->hnd: -1), file->peer);
+			HIO_DEBUG5 (hio, "HTTS(%p) - file(t=%p,c=%p[%d],p=%d) - halting client for failure to enable input watching\n", file->htts, file, file->task_client, (file->csck? file->csck->hnd: -1), file->peer);
 			hio_dev_sck_halt (file->csck);
 		}
 	}
@@ -315,7 +310,7 @@ static void file_on_kill (hio_svc_htts_task_t* task)
 	file->client_htrd_recbs_changed = 0;
 
 	if (file->task_next) HIO_SVC_HTTS_TASKL_UNLINK_TASK (file); /* detach from the htts service only if it's attached */
-	HIO_DEBUG5 (hio, "HTTS(%p) - file(t=%p,c=%p[%d],p=%d) - killed the task\n", file->htts, file, file->client, (file->csck? file->csck->hnd: -1), file->peer);
+	HIO_DEBUG5 (hio, "HTTS(%p) - file(t=%p,c=%p[%d],p=%d) - killed the task\n", file->htts, file, file->task_client, (file->csck? file->csck->hnd: -1), file->peer);
 }
 
 static void file_client_on_disconnect (hio_dev_sck_t* sck)
@@ -332,7 +327,7 @@ static void file_client_on_disconnect (hio_dev_sck_t* sck)
 
 	file->client_disconnected = 1;
 	file->csck = HIO_NULL;
-	file->client = HIO_NULL;
+	file->task_client = HIO_NULL;
 	if (file->client_org_on_disconnect)
 	{
 		file->client_org_on_disconnect (sck);
@@ -356,21 +351,21 @@ static int file_client_on_read (hio_dev_sck_t* sck, const void* buf, hio_iolen_t
 	if (len <= -1)
 	{
 		/* read error */
-		HIO_DEBUG3 (cli->htts->hio, "HTTS(%p) - file(c=%d,p=%d) read error on client\n", file->client->htts, (int)sck->hnd, file->peer);
+		HIO_DEBUG3 (cli->htts->hio, "HTTS(%p) - file(c=%d,p=%d) read error on client\n", file->task_client->htts, (int)sck->hnd, file->peer);
 		goto oops;
 	}
 
 	if (file->peer <= -1)
 	{
 		/* the peer is gone or not even opened */
-		HIO_DEBUG3 (cli->htts->hio, "HTTS(%p) - file(c=%d,p=%d) read on client, no peer to write\n", file->client->htts, (int)sck->hnd, file->peer);
+		HIO_DEBUG3 (cli->htts->hio, "HTTS(%p) - file(c=%d,p=%d) read on client, no peer to write\n", file->task_client->htts, (int)sck->hnd, file->peer);
 		goto oops; /* do what?  just return 0? */
 	}
 
 	if (len == 0)
 	{
 		/* EOF on the client side. arrange to close */
-		HIO_DEBUG3 (cli->htts->hio, "HTTS(%p) - file(c=%d,p=%d) EOF detected on client\n", file->client->htts, (int)sck->hnd, file->peer);
+		HIO_DEBUG3 (cli->htts->hio, "HTTS(%p) - file(c=%d,p=%d) EOF detected on client\n", file->task_client->htts, (int)sck->hnd, file->peer);
 		file->client_eof_detected = 1;
 
 		if (!(file->over & FILE_OVER_READ_FROM_CLIENT)) /* if this is true, EOF is received without file_client_htrd_poke() */
@@ -392,7 +387,7 @@ static int file_client_on_read (hio_dev_sck_t* sck, const void* buf, hio_iolen_t
 		if (rem > 0)
 		{
 			/* TODO store this to client buffer. once the current resource is completed, arrange to call on_read() with it */
-			HIO_DEBUG3 (cli->htts->hio, "HTTS(%p) - file(c=%d,p=%d) excessive data after contents on client\n", file->client->htts, (int)sck->hnd, file->peer);
+			HIO_DEBUG3 (cli->htts->hio, "HTTS(%p) - file(c=%d,p=%d) excessive data after contents on client\n", file->task_client->htts, (int)sck->hnd, file->peer);
 		}
 	}
 
@@ -414,7 +409,7 @@ static int file_client_on_write (hio_dev_sck_t* sck, hio_iolen_t wrlen, void* wr
 
 	if (wrlen <= -1)
 	{
-		HIO_DEBUG3 (hio, "HTTS(%p) - file(c=%d,p=%d) unable to write to client\n", file->client->htts, (int)sck->hnd, file->peer);
+		HIO_DEBUG3 (hio, "HTTS(%p) - file(c=%d,p=%d) unable to write to client\n", file->task_client->htts, (int)sck->hnd, file->peer);
 		goto oops;
 	}
 
@@ -423,7 +418,7 @@ static int file_client_on_write (hio_dev_sck_t* sck, hio_iolen_t wrlen, void* wr
 		/* if the connect is keep-alive, this part may not be called */
 		file->num_pending_writes_to_client--;
 		HIO_ASSERT (hio, file->num_pending_writes_to_client == 0);
-		HIO_DEBUG3 (hio, "HTTS(%p) - file(c=%d,p=%d) indicated EOF to client\n", file->client->htts, (int)sck->hnd, file->peer);
+		HIO_DEBUG3 (hio, "HTTS(%p) - file(c=%d,p=%d) indicated EOF to client\n", file->task_client->htts, (int)sck->hnd, file->peer);
 		/* since EOF has been indicated to the client, it must not write to the client any further.
 		 * this also means that i don't need any data from the peer side either.
 		 * i don't need to enable input watching on the peer side */
@@ -466,7 +461,7 @@ static int file_client_htrd_poke (hio_htrd_t* htrd, hio_htre_t* req)
 
 	if (file->task_req_method != HIO_HTTP_GET)
 	{
-		if (file_send_final_status_to_client(file, HIO_HTTP_STATUS_OK, 0, 0) <= -1) return -1;
+		if (file_send_final_status_to_client(file, HIO_HTTP_STATUS_OK, 0) <= -1) return -1;
 	}
 
 	file_mark_over (file, FILE_OVER_READ_FROM_CLIENT);
@@ -495,7 +490,7 @@ static hio_htrd_recbs_t file_client_htrd_recbs =
 
 static int file_send_header_to_client (file_t* file, int status_code, int force_close, const hio_bch_t* mime_type)
 {
-	hio_svc_htts_cli_t* cli = file->client;
+	hio_svc_htts_cli_t* cli = file->task_client;
 	hio_bch_t dtbuf[64];
 	hio_foff_t content_length;
 
@@ -727,7 +722,7 @@ static int open_peer_with_mode (file_t* file, const hio_bch_t* actual_file, int 
 	{
 		int alt_fd;
 
-		if (!file->req_qpath_ending_with_slash)
+		if (!file->task_req_qpath_ending_with_slash)
 		{
 			*error_status = HIO_HTTP_STATUS_MOVED_PERMANENTLY;
 			close (file->peer);
@@ -735,7 +730,7 @@ static int open_peer_with_mode (file_t* file, const hio_bch_t* actual_file, int 
 			return -1;
 		}
 
-		alt_fd = file->cbs->open_dir_list(file->htts, file->req_qpath, actual_file, res_mime_type, file->cbs->ctx);
+		alt_fd = file->cbs->open_dir_list(file->htts, file->task_req_qpath, actual_file, res_mime_type, file->cbs->ctx);
 		if (alt_fd >= 0)
 		{
 			close (file->peer);
@@ -747,7 +742,7 @@ static int open_peer_with_mode (file_t* file, const hio_bch_t* actual_file, int 
 		if (res_mime_type && file->cbs && file->cbs->get_mime_type)
 		{
 			const hio_bch_t* mime_type;
-			mime_type = file->cbs->get_mime_type(file->htts, file->req_qpath, actual_file, file->cbs->ctx);
+			mime_type = file->cbs->get_mime_type(file->htts, file->task_req_qpath, actual_file, file->cbs->ctx);
 			if (mime_type) *res_mime_type = mime_type;
 		}
 	}
@@ -767,14 +762,12 @@ static HIO_INLINE void set_tcp_cork (hio_dev_sck_t* sck)
 #endif
 }
 
-int hio_svc_htts_dofile (hio_svc_htts_t* htts, hio_dev_sck_t* csck, hio_htre_t* req, const hio_bch_t* docroot, const hio_bch_t* filepath, const hio_bch_t* mime_type, int options, hio_svc_htts_file_cbs_t* cbs)
+int hio_svc_htts_dofile (hio_svc_htts_t* htts, hio_dev_sck_t* csck, hio_htre_t* req, const hio_bch_t* docroot, const hio_bch_t* filepath, const hio_bch_t* mime_type, int options, hio_svc_htts_task_on_kill_t on_kill, hio_svc_htts_file_cbs_t* cbs)
 {
 	hio_t* hio = htts->hio;
 	hio_svc_htts_cli_t* cli = hio_dev_sck_getxtn(csck);
 	file_t* file = HIO_NULL;
 	hio_bch_t* actual_file = HIO_NULL;
-	hio_bch_t* req_qpath = HIO_NULL;
-	int dir_redirect = 0;
 	int status_code;
 
 	/* ensure that you call this function before any contents is received */
@@ -783,29 +776,22 @@ int hio_svc_htts_dofile (hio_svc_htts_t* htts, hio_dev_sck_t* csck, hio_htre_t* 
 
 	HIO_DEBUG5 (hio, "HTTS(%p) - file(c=%d) - [%hs] %hs%hs\n", htts, (int)csck->hnd, cli->cli_addr_bcstr, (docroot[0] == '/' && docroot[1] == '\0' && filepath[0] == '/'? "": docroot), filepath);
 
-/* TODO: may have to use getorgqpath() for the percent-decoding... */
-	req_qpath = hio_dupbcstr(hio, hio_htre_getqpath(req), HIO_NULL);
-	if (HIO_UNLIKELY(!req_qpath)) goto oops;
-
 	actual_file = hio_svc_htts_dupmergepaths(htts, docroot, filepath);
 	if (HIO_UNLIKELY(!actual_file)) goto oops;
 
-	file = (file_t*)hio_svc_htts_task_make(htts, HIO_SIZEOF(*file), file_on_kill, req);
+	file = (file_t*)hio_svc_htts_task_make(htts, HIO_SIZEOF(*file), file_on_kill, req, cli);
 	if (HIO_UNLIKELY(!file)) goto oops;
 
+	file->on_kill = on_kill;
 	file->options = options;
 	file->cbs = cbs; /* the given pointer must outlive the lifespan of the while file handling cycle. */
 	file->sendfile_ok = hio_dev_sck_sendfileok(csck);
 	/*file->num_pending_writes_to_client = 0;
 	file->num_pending_writes_to_peer = 0;*/
 	file->req_content_length_unlimited = hio_htre_getreqcontentlen(req, &file->req_content_length);
-	file->req_qpath = req_qpath;
-	req_qpath = HIO_NULL; /* delegated to the file task */
-	file->req_qpath_ending_with_slash = (hio_htre_getqpathlen(req) > 0 && hio_htre_getqpath(req)[hio_htre_getqpathlen(req) - 1] == '/');
-	file->req_qpath_is_root = (hio_htre_getqpathlen(req) == 1 && hio_htre_getqpath(req)[0] == '/');
 
 	file->csck = csck;
-	file->client = cli;
+	file->task_client = cli;
 	file->client_org_on_read = csck->on_read;
 	file->client_org_on_write = csck->on_write;
 	file->client_org_on_disconnect = csck->on_disconnect;
@@ -827,7 +813,7 @@ int hio_svc_htts_dofile (hio_svc_htts_t* htts, hio_dev_sck_t* csck, hio_htre_t* 
 		/* option 1. buffer contents. if it gets too large, send 413 Request Entity Too Large.
 		 * option 2. send 411 Length Required immediately
 		 * option 3. set Content-Length to -1 and use EOF to indicate the end of content [Non-Standard] */
-		if (file_send_final_status_to_client(file, HIO_HTTP_STATUS_LENGTH_REQUIRED, 1, 0) <= -1) goto oops;
+		if (file_send_final_status_to_client(file, HIO_HTTP_STATUS_LENGTH_REQUIRED, 1) <= -1) goto oops;
 	}
 #endif
 
@@ -849,7 +835,7 @@ int hio_svc_htts_dofile (hio_svc_htts_t* htts, hio_dev_sck_t* csck, hio_htre_t* 
 	else if (req->flags & HIO_HTRE_ATTR_EXPECT)
 	{
 		/* 417 Expectation Failed */
-		file_send_final_status_to_client (file, HIO_HTTP_STATUS_EXPECTATION_FAILED, 1, 0);
+		file_send_final_status_to_client (file, HIO_HTTP_STATUS_EXPECTATION_FAILED, 1);
 		goto oops;
 	}
 
@@ -857,9 +843,9 @@ int hio_svc_htts_dofile (hio_svc_htts_t* htts, hio_dev_sck_t* csck, hio_htre_t* 
 	if (file->req_content_length_unlimited)
 	{
 		/* change the callbacks to subscribe to contents to be uploaded */
-		file->client_htrd_org_recbs = *hio_htrd_getrecbs(file->client->htrd);
+		file->client_htrd_org_recbs = *hio_htrd_getrecbs(file->task_client->htrd);
 		file_client_htrd_recbs.peek = file->client_htrd_org_recbs.peek;
-		hio_htrd_setrecbs (file->client->htrd, &file_client_htrd_recbs);
+		hio_htrd_setrecbs (file->task_client->htrd, &file_client_htrd_recbs);
 		file->client_htrd_recbs_changed = 1;
 	}
 	else
@@ -868,9 +854,9 @@ int hio_svc_htts_dofile (hio_svc_htts_t* htts, hio_dev_sck_t* csck, hio_htre_t* 
 		if (file->req_content_length > 0)
 		{
 			/* change the callbacks to subscribe to contents to be uploaded */
-			file->client_htrd_org_recbs = *hio_htrd_getrecbs(file->client->htrd);
+			file->client_htrd_org_recbs = *hio_htrd_getrecbs(file->task_client->htrd);
 			file_client_htrd_recbs.peek = file->client_htrd_org_recbs.peek;
-			hio_htrd_setrecbs (file->client->htrd, &file_client_htrd_recbs);
+			hio_htrd_setrecbs (file->task_client->htrd, &file_client_htrd_recbs);
 			file->client_htrd_recbs_changed = 1;
 		}
 		else
@@ -909,12 +895,8 @@ int hio_svc_htts_dofile (hio_svc_htts_t* htts, hio_dev_sck_t* csck, hio_htre_t* 
 		{
 			const hio_bch_t* actual_mime_type = mime_type;
 
-			if (open_peer_with_mode(file, actual_file, O_RDONLY, &status_code, (mime_type? HIO_NULL: &actual_mime_type)) <= -1)
-			{
-				dir_redirect = (status_code == HIO_HTTP_STATUS_MOVED_PERMANENTLY); /* to handle the special rediret of a directory not ending with a slash in the request url */
-				goto done_with_status_code;
-			}
-			if (process_range_header(file, req, &status_code) <= -1) goto done_with_status_code;
+			if (open_peer_with_mode(file, actual_file, O_RDONLY, &status_code, (mime_type? HIO_NULL: &actual_mime_type)) <= -1 ||
+			    process_range_header(file, req, &status_code) <= -1) goto done_with_status_code;
 
 			if (HIO_LIKELY(file->task_req_method == HIO_HTTP_GET))
 			{
@@ -978,7 +960,7 @@ int hio_svc_htts_dofile (hio_svc_htts_t* htts, hio_dev_sck_t* csck, hio_htre_t* 
 		default:
 			status_code = HIO_HTTP_STATUS_METHOD_NOT_ALLOWED;
 		done_with_status_code:
-			if (file_send_final_status_to_client(file, status_code, 0, dir_redirect) <= -1) goto oops;
+			if (file_send_final_status_to_client(file, status_code, 0) <= -1) goto oops;
 		done_with_status_code_2:
 			file_mark_over (file, FILE_OVER_READ_FROM_PEER | FILE_OVER_WRITE_TO_PEER);
 			break;
@@ -995,6 +977,5 @@ oops:
 	HIO_DEBUG2 (hio, "HTTS(%p) - file(c=%d) failure\n", htts, csck->hnd);
 	if (file) file_halt_participating_devices (file);
 	if (actual_file) hio_freemem (hio, actual_file);
-	if (req_qpath) hio_freemem (hio, req_qpath);
 	return -1;
 }

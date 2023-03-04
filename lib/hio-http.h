@@ -82,6 +82,7 @@ typedef struct hio_svc_httc_t hio_svc_httc_t;
 /* -------------------------------------------------------------- */
 
 typedef struct hio_svc_htts_task_t hio_svc_htts_task_t;
+typedef struct hio_svc_htts_cli_t hio_svc_htts_cli_t;
 
 typedef void (*hio_svc_htts_task_on_kill_t) (
 	hio_svc_htts_task_t* task
@@ -95,7 +96,13 @@ typedef void (*hio_svc_htts_task_on_kill_t) (
 	hio_svc_htts_task_t* task_next; \
 	hio_svc_htts_task_on_kill_t task_on_kill; \
 	hio_http_version_t task_req_version; \
-	hio_http_method_t task_req_method
+	hio_http_method_t task_req_method; \
+	unsigned int task_req_qpath_ending_with_slash: 1; \
+	unsigned int task_req_qpath_is_root: 1; \
+	hio_bch_t* task_req_qmth; \
+	hio_bch_t* task_req_qpath; \
+	hio_http_status_t task_status_code; \
+	hio_svc_htts_cli_t* task_client
 
 struct hio_svc_htts_task_t
 {
@@ -410,59 +417,65 @@ HIO_EXPORT int hio_svc_htts_getsockaddr (
 );
 
 HIO_EXPORT int hio_svc_htts_docgi (
-	hio_svc_htts_t*  htts,
-	hio_dev_sck_t*   csck,
-	hio_htre_t*      req,
-	const hio_bch_t* docroot,
-	const hio_bch_t* script,
-	int              options
+	hio_svc_htts_t*             htts,
+	hio_dev_sck_t*              csck,
+	hio_htre_t*                 req,
+	const hio_bch_t*            docroot,
+	const hio_bch_t*            script,
+	int                         options,
+	hio_svc_htts_task_on_kill_t on_kill
 );
 
 HIO_EXPORT int hio_svc_htts_dofcgi (
-	hio_svc_htts_t*   htts,
-	hio_dev_sck_t*    csck,
-	hio_htre_t*       req,
-	const hio_skad_t* fcgis_addr,
-	const hio_bch_t*  docroot,
-	const hio_bch_t*  script,
-	int               options /**< 0 or bitwise-Ored of #hio_svc_htts_file_option_t enumerators */
+	hio_svc_htts_t*             htts,
+	hio_dev_sck_t*              csck,
+	hio_htre_t*                 req,
+	const hio_skad_t*           fcgis_addr,
+	const hio_bch_t*            docroot,
+	const hio_bch_t*            script,
+	int                         options, /**< 0 or bitwise-Ored of #hio_svc_htts_file_option_t enumerators */
+	hio_svc_htts_task_on_kill_t on_kill
 );
 
 HIO_EXPORT int hio_svc_htts_dofile (
-	hio_svc_htts_t*          htts,
-	hio_dev_sck_t*           csck,
-	hio_htre_t*              req,
-	const hio_bch_t*         docroot,
-	const hio_bch_t*         filepath,
-	const hio_bch_t*         mime_type,
-	int                      options,
-	hio_svc_htts_file_cbs_t* cbs
+	hio_svc_htts_t*             htts,
+	hio_dev_sck_t*              csck,
+	hio_htre_t*                 req,
+	const hio_bch_t*            docroot,
+	const hio_bch_t*            filepath,
+	const hio_bch_t*            mime_type,
+	int                         options,
+	hio_svc_htts_task_on_kill_t on_kill,
+	hio_svc_htts_file_cbs_t*    cbs
 );
 
 HIO_EXPORT int hio_svc_htts_dothr (
-	hio_svc_htts_t*         htts,
-	hio_dev_sck_t*          csck,
-	hio_htre_t*             req,
-	hio_svc_htts_thr_func_t func,
-	void*                   ctx,
-	int                     options
+	hio_svc_htts_t*             htts,
+	hio_dev_sck_t*              csck,
+	hio_htre_t*                 req,
+	hio_svc_htts_thr_func_t     func,
+	void*                       ctx,
+	int                         options,
+	hio_svc_htts_task_on_kill_t on_kill
 );
 
 HIO_EXPORT int hio_svc_htts_dotxt (
-	hio_svc_htts_t*     htts,
-	hio_dev_sck_t*      csck,
-	hio_htre_t*         req,
-	int                 status_code,
-	const hio_bch_t*    content_type,
-	const hio_bch_t*    content_text,
-	int                 options
+	hio_svc_htts_t*             htts,
+	hio_dev_sck_t*              csck,
+	hio_htre_t*                 req,
+	int                         status_code,
+	const hio_bch_t*            content_type,
+	const hio_bch_t*            content_text,
+	int                         options,
+	hio_svc_htts_task_on_kill_t on_kill
 );
 
 HIO_EXPORT hio_svc_htts_task_t* hio_svc_htts_task_make (
 	hio_svc_htts_t*              htts,
 	hio_oow_t                    task_size,
 	hio_svc_htts_task_on_kill_t  on_kill,
-	hio_htre_t*                  req
+	hio_htre_t*                  req,
+	hio_svc_htts_cli_t*          client
 );
 
 HIO_EXPORT void hio_svc_htts_task_kill (

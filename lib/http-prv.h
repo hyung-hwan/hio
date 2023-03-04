@@ -30,7 +30,6 @@
 #include <hio-sck.h>
 #include "hio-prv.h"
 
-typedef struct hio_svc_htts_cli_t hio_svc_htts_cli_t;
 struct hio_svc_htts_cli_t
 {
 	hio_svc_htts_cli_t* cli_prev;

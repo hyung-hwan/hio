@@ -61,13 +61,14 @@ struct thr_task_t
 {
 	HIO_SVC_HTTS_TASK_HEADER;
 
+	hio_svc_htts_task_on_kill_t on_kill; /* user-provided on_kill callback */
+
 	int options;
 	hio_oow_t num_pending_writes_to_client;
 	hio_oow_t num_pending_writes_to_peer;
 	hio_dev_thr_t* peer;
 	hio_htrd_t* peer_htrd;
 	hio_dev_sck_t* csck;
-	hio_svc_htts_cli_t* client;
 
 	unsigned int over: 4; /* must be large enough to accomodate THR_TASK_OVER_ALL */
 	unsigned int keep_alive: 1;
@@ -146,7 +147,7 @@ static int thr_task_writev_to_client (thr_task_t* thr_task, hio_iovec_t* iov, hi
 
 static int thr_task_send_final_status_to_client (thr_task_t* thr_task, int status_code, int force_close)
 {
-	hio_svc_htts_cli_t* cli = thr_task->client;
+	hio_svc_htts_cli_t* cli = thr_task->task_client;
 	hio_bch_t dtbuf[64];
 	const hio_bch_t* status_msg;
 	hio_oow_t content_len;
@@ -170,6 +171,7 @@ static int thr_task_send_final_status_to_client (thr_task_t* thr_task, int statu
 
 	if (hio_becs_fcat(cli->sbuf, "Content-Type: text/plain\r\nContent-Length: %zu\r\n\r\n%hs", content_len, status_msg) == (hio_oow_t)-1) return -1;
 
+	thr_task->task_status_code = status_code;
 	return (thr_task_write_to_client(thr_task, HIO_BECS_PTR(cli->sbuf), HIO_BECS_LEN(cli->sbuf)) <= -1 ||
 	        (force_close && thr_task_write_to_client(thr_task, HIO_NULL, 0) <= -1))? -1: 0;
 }
@@ -219,13 +221,13 @@ static HIO_INLINE void thr_task_mark_over (thr_task_t* thr_task, int over_bits)
 	old_over = thr_task->over;
 	thr_task->over |= over_bits;
 
-	HIO_DEBUG8 (hio, "HTTS(%p) - thr(t=%p,c=%p[%d],p=%p) - old_over=%x | new-bits=%x => over=%x\n", thr_task->htts, thr_task, thr_task->client, (thr_task->csck? thr_task->csck->hnd: -1), thr_task->peer, (int)old_over, (int)over_bits, (int)thr_task->over);
+	HIO_DEBUG8 (hio, "HTTS(%p) - thr(t=%p,c=%p[%d],p=%p) - old_over=%x | new-bits=%x => over=%x\n", thr_task->htts, thr_task, thr_task->task_client, (thr_task->csck? thr_task->csck->hnd: -1), thr_task->peer, (int)old_over, (int)over_bits, (int)thr_task->over);
 
 	if (!(old_over & THR_TASK_OVER_READ_FROM_CLIENT) && (thr_task->over & THR_TASK_OVER_READ_FROM_CLIENT))
 	{
 		if (thr_task->csck && hio_dev_sck_read(thr_task->csck, 0) <= -1)
 		{
-			HIO_DEBUG5 (hio, "HTTS(%p) - thr(t=%p,c=%p[%d],p=%p) - halting client for failure to disable input watching\n", thr_task->htts, thr_task, thr_task->client, (thr_task->csck? thr_task->csck->hnd: -1), thr_task->peer);
+			HIO_DEBUG5 (hio, "HTTS(%p) - thr(t=%p,c=%p[%d],p=%p) - halting client for failure to disable input watching\n", thr_task->htts, thr_task, thr_task->task_client, (thr_task->csck? thr_task->csck->hnd: -1), thr_task->peer);
 			hio_dev_sck_halt (thr_task->csck);
 		}
 	}
@@ -234,7 +236,7 @@ static HIO_INLINE void thr_task_mark_over (thr_task_t* thr_task, int over_bits)
 	{
 		if (thr_task->peer && hio_dev_thr_read(thr_task->peer, 0) <= -1)
 		{
-			HIO_DEBUG5 (hio, "HTTS(%p) - thr(t=%p,c=%p[%d],p=%p) - halting peer for failure to disable input watching\n", thr_task->htts, thr_task, thr_task->client, (thr_task->csck? thr_task->csck->hnd: -1), thr_task->peer);
+			HIO_DEBUG5 (hio, "HTTS(%p) - thr(t=%p,c=%p[%d],p=%p) - halting peer for failure to disable input watching\n", thr_task->htts, thr_task, thr_task->task_client, (thr_task->csck? thr_task->csck->hnd: -1), thr_task->peer);
 			hio_dev_thr_halt (thr_task->peer);
 		}
 	}
@@ -244,24 +246,24 @@ static HIO_INLINE void thr_task_mark_over (thr_task_t* thr_task, int over_bits)
 		/* ready to stop */
 		if (thr_task->peer)
 		{
-			HIO_DEBUG5 (hio, "HTTS(%p) - thr(t=%p,c=%p[%d],p=%p) - halting peer as it is unneeded\n", thr_task->htts, thr_task, thr_task->client, (thr_task->csck? thr_task->csck->hnd: -1), thr_task->peer);
+			HIO_DEBUG5 (hio, "HTTS(%p) - thr(t=%p,c=%p[%d],p=%p) - halting peer as it is unneeded\n", thr_task->htts, thr_task, thr_task->task_client, (thr_task->csck? thr_task->csck->hnd: -1), thr_task->peer);
 			hio_dev_thr_halt (thr_task->peer);
 		}
 
 		if (thr_task->csck)
 		{
-			HIO_ASSERT (hio, thr_task->client != HIO_NULL);
+			HIO_ASSERT (hio, thr_task->task_client != HIO_NULL);
 
 			if (thr_task->keep_alive && !thr_task->client_eof_detected)
 			{
 				/* how to arrange to delete this thr_task object and put the socket back to the normal waiting state??? */
-				HIO_ASSERT (thr_task->htts->hio, thr_task->client->task == (hio_svc_htts_task_t*)thr_task);
-				HIO_SVC_HTTS_TASK_UNREF (thr_task->client->task);
+				HIO_ASSERT (thr_task->htts->hio, thr_task->task_client->task == (hio_svc_htts_task_t*)thr_task);
+				HIO_SVC_HTTS_TASK_UNREF (thr_task->task_client->task);
 				/* IMPORTANT: thr_task must not be accessed from here down as it could have been destroyed */
 			}
 			else
 			{
-				HIO_DEBUG5 (hio, "HTTS(%p) - thr(t=%p,c=%p[%d],p=%p) - halting client for no keep-alive\n", thr_task->htts, thr_task, thr_task->client, (thr_task->csck? thr_task->csck->hnd: -1), thr_task->peer);
+				HIO_DEBUG5 (hio, "HTTS(%p) - thr(t=%p,c=%p[%d],p=%p) - halting client for no keep-alive\n", thr_task->htts, thr_task, thr_task->task_client, (thr_task->csck? thr_task->csck->hnd: -1), thr_task->peer);
 				hio_dev_sck_shutdown (thr_task->csck, HIO_DEV_SCK_SHUTDOWN_WRITE);
 				hio_dev_sck_halt (thr_task->csck);
 			}
@@ -274,7 +276,9 @@ static void thr_task_on_kill (hio_svc_htts_task_t* task)
 	thr_task_t* thr_task = (thr_task_t*)task;
 	hio_t* hio = thr_task->htts->hio;
 
-	HIO_DEBUG5 (hio, "HTTS(%p) - thr(t=%p,c=%p[%d],p=%p) - killing the task\n", thr_task->htts, thr_task, thr_task->client, (thr_task->csck? thr_task->csck->hnd: -1), thr_task->peer);
+	HIO_DEBUG5 (hio, "HTTS(%p) - thr(t=%p,c=%p[%d],p=%p) - killing the task\n", thr_task->htts, thr_task, thr_task->task_client, (thr_task->csck? thr_task->csck->hnd: -1), thr_task->peer);
+
+	if (thr_task->on_kill) thr_task->on_kill (task);
 
 	if (thr_task->peer)
 	{
@@ -302,17 +306,17 @@ static void thr_task_on_kill (hio_svc_htts_task_t* task)
 
 	if (thr_task->csck)
 	{
-		HIO_ASSERT (hio, thr_task->client != HIO_NULL);
+		HIO_ASSERT (hio, thr_task->task_client != HIO_NULL);
 
 		/* restore callbacks */
 		if (thr_task->client_org_on_read) thr_task->csck->on_read = thr_task->client_org_on_read;
 		if (thr_task->client_org_on_write) thr_task->csck->on_write = thr_task->client_org_on_write;
 		if (thr_task->client_org_on_disconnect) thr_task->csck->on_disconnect = thr_task->client_org_on_disconnect;
-		if (thr_task->client_htrd_recbs_changed) hio_htrd_setrecbs (thr_task->client->htrd, &thr_task->client_htrd_org_recbs);
+		if (thr_task->client_htrd_recbs_changed) hio_htrd_setrecbs (thr_task->task_client->htrd, &thr_task->client_htrd_org_recbs);
 
 		if (!thr_task->keep_alive || hio_dev_sck_read(thr_task->csck, 1) <= -1)
 		{
-			HIO_DEBUG5 (hio, "HTTS(%p) - thr(t=%p,c=%p[%d],p=%p) - halting client for failure to enable input watching\n", thr_task->htts, thr_task, thr_task->client, (thr_task->csck? thr_task->csck->hnd: -1), thr_task->peer);
+			HIO_DEBUG5 (hio, "HTTS(%p) - thr(t=%p,c=%p[%d],p=%p) - halting client for failure to enable input watching\n", thr_task->htts, thr_task, thr_task->task_client, (thr_task->csck? thr_task->csck->hnd: -1), thr_task->peer);
 			hio_dev_sck_halt (thr_task->csck);
 		}
 	}
@@ -323,7 +327,7 @@ static void thr_task_on_kill (hio_svc_htts_task_t* task)
 	thr_task->client_htrd_recbs_changed = 0;
 
 	if (thr_task->task_next) HIO_SVC_HTTS_TASKL_UNLINK_TASK (thr_task); /* detach from the htts service only if it's attached */
-	HIO_DEBUG5 (hio, "HTTS(%p) - thr(t=%p,c=%p[%d],p=%p) - killed the task\n", thr_task->htts, thr_task, thr_task->client, (thr_task->csck? thr_task->csck->hnd: -1), thr_task->peer);
+	HIO_DEBUG5 (hio, "HTTS(%p) - thr(t=%p,c=%p[%d],p=%p) - killed the task\n", thr_task->htts, thr_task, thr_task->task_client, (thr_task->csck? thr_task->csck->hnd: -1), thr_task->peer);
 }
 
 static void thr_peer_on_close (hio_dev_thr_t* thr, hio_dev_thr_sid_t sid)
@@ -474,7 +478,7 @@ static int thr_peer_htrd_peek (hio_htrd_t* htrd, hio_htre_t* req)
 {
 	thr_peer_xtn_t* thr_peer = hio_htrd_getxtn(htrd);
 	thr_task_t* thr_task = thr_peer->task;
-	hio_svc_htts_cli_t* cli = thr_task->client;
+	hio_svc_htts_cli_t* cli = thr_task->task_client;
 	hio_bch_t dtbuf[64];
 	int status_code = HIO_HTTP_STATUS_OK;
 
@@ -687,7 +691,7 @@ static void thr_client_on_disconnect (hio_dev_sck_t* sck)
 
 	thr_task->client_disconnected = 1;
 	thr_task->csck = HIO_NULL;
-	thr_task->client = HIO_NULL;
+	thr_task->task_client = HIO_NULL;
 	if (thr_task->client_org_on_disconnect)
 	{
 		thr_task->client_org_on_disconnect (sck);
@@ -871,7 +875,7 @@ static int thr_capture_request_header (hio_htre_t* req, const hio_bch_t* key, co
 	return 0;
 }
 
-int hio_svc_htts_dothr (hio_svc_htts_t* htts, hio_dev_sck_t* csck, hio_htre_t* req, hio_svc_htts_thr_func_t func, void* ctx, int options)
+int hio_svc_htts_dothr (hio_svc_htts_t* htts, hio_dev_sck_t* csck, hio_htre_t* req, hio_svc_htts_thr_func_t func, void* ctx, int options, hio_svc_htts_task_on_kill_t on_kill)
 {
 	hio_t* hio = htts->hio;
 	hio_svc_htts_cli_t* cli = hio_dev_sck_getxtn(csck);
@@ -915,12 +919,13 @@ int hio_svc_htts_dothr (hio_svc_htts_t* htts, hio_dev_sck_t* csck, hio_htre_t* r
 	mi.on_write = thr_peer_on_write;
 	mi.on_close = thr_peer_on_close;
 
-	thr_task = (thr_task_t*)hio_svc_htts_task_make(htts, HIO_SIZEOF(*thr_task), thr_task_on_kill, req);
+	thr_task = (thr_task_t*)hio_svc_htts_task_make(htts, HIO_SIZEOF(*thr_task), thr_task_on_kill, req, cli);
 	if (HIO_UNLIKELY(!thr_task)) goto oops;
 
+	thr_task->on_kill = on_kill;
 	thr_task->options = options;
 	thr_task->csck = csck;
-	thr_task->client = cli; /* for faster access without going through csck. */
+	thr_task->task_client = cli; /* for faster access without going through csck. */
 
 	/*thr_task->num_pending_writes_to_client = 0;
 	thr_task->num_pending_writes_to_peer = 0;*/
@@ -1018,9 +1023,9 @@ int hio_svc_htts_dothr (hio_svc_htts_t* htts, hio_dev_sck_t* csck, hio_htre_t* r
 	if (have_content)
 	{
 		/* change the callbacks to subscribe to contents to be uploaded */
-		thr_task->client_htrd_org_recbs = *hio_htrd_getrecbs(thr_task->client->htrd);
+		thr_task->client_htrd_org_recbs = *hio_htrd_getrecbs(thr_task->task_client->htrd);
 		thr_client_htrd_recbs.peek = thr_task->client_htrd_org_recbs.peek;
-		hio_htrd_setrecbs (thr_task->client->htrd, &thr_client_htrd_recbs);
+		hio_htrd_setrecbs (thr_task->task_client->htrd, &thr_client_htrd_recbs);
 		thr_task->client_htrd_recbs_changed = 1;
 	}
 	else
