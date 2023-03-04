@@ -38,8 +38,6 @@ struct txt_t
 
 	hio_dev_sck_t* csck;
 	hio_svc_htts_cli_t* client;
-	hio_http_method_t req_method;
-	hio_http_version_t req_version; /* client request */
 
 	unsigned int over: 2; /* must be large enough to accomodate TXT_OVER_ALL */
 	unsigned int keep_alive: 1;
@@ -103,7 +101,7 @@ static int txt_send_final_status_to_client (txt_t* txt, int status_code, const h
 	if (!force_close) force_close = !txt->keep_alive;
 
 	if (hio_becs_fmt(cli->sbuf, "HTTP/%d.%d %d %hs\r\nServer: %hs\r\nDate: %hs\r\nConnection: %hs\r\n",
-		txt->req_version.major, txt->req_version.minor,
+		txt->task_req_version.major, txt->task_req_version.minor,
 		status_code, hio_http_status_to_bcstr(status_code),
 		cli->htts->server_name, dtbuf,
 		(force_close? "close": "keep-alive")) == (hio_oow_t)-1) return -1;
@@ -111,7 +109,7 @@ static int txt_send_final_status_to_client (txt_t* txt, int status_code, const h
 	if (content_text)
 	{
 		content_text_len = hio_count_bcstr(content_text);
-		if (txt->req_method == HIO_HTTP_HEAD)
+		if (txt->task_req_method == HIO_HTTP_HEAD)
 		{
 			if (status_code != HIO_HTTP_STATUS_OK) content_text_len = 0;
 			content_text = "";
@@ -334,13 +332,11 @@ int hio_svc_htts_dotxt (hio_svc_htts_t* htts, hio_dev_sck_t* csck, hio_htre_t* r
 	HIO_ASSERT (hio, hio_htre_getcontentlen(req) == 0);
 	HIO_ASSERT (hio, cli->sck == csck);
 
-	txt = (txt_t*)hio_svc_htts_task_make(htts, HIO_SIZEOF(*txt), txt_on_kill);
+	txt = (txt_t*)hio_svc_htts_task_make(htts, HIO_SIZEOF(*txt), txt_on_kill, req);
 	if (HIO_UNLIKELY(!txt)) goto oops;
 
 	txt->options = options;
 	/*txt->num_pending_writes_to_client = 0;*/
-	txt->req_method = hio_htre_getqmethodtype(req);
-	txt->req_version = *hio_htre_getversion(req);
 	txt->req_content_length_unlimited = hio_htre_getreqcontentlen(req, &txt->req_content_length);
 
 	txt->csck = csck;

@@ -93,7 +93,9 @@ typedef void (*hio_svc_htts_task_on_kill_t) (
 	hio_oow_t task_refcnt; \
 	hio_svc_htts_task_t* task_prev; \
 	hio_svc_htts_task_t* task_next; \
-	hio_svc_htts_task_on_kill_t task_on_kill
+	hio_svc_htts_task_on_kill_t task_on_kill; \
+	hio_http_version_t task_req_version; \
+	hio_http_method_t task_req_method
 
 struct hio_svc_htts_task_t
 {
@@ -459,7 +461,8 @@ HIO_EXPORT int hio_svc_htts_dotxt (
 HIO_EXPORT hio_svc_htts_task_t* hio_svc_htts_task_make (
 	hio_svc_htts_t*              htts,
 	hio_oow_t                    task_size,
-	hio_svc_htts_task_on_kill_t  on_kill
+	hio_svc_htts_task_on_kill_t  on_kill,
+	hio_htre_t*                  req
 );
 
 HIO_EXPORT void hio_svc_htts_task_kill (

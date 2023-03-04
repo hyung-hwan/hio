@@ -653,7 +653,7 @@ int hio_svc_htts_getsockaddr (hio_svc_htts_t* htts, hio_oow_t idx, hio_skad_t* s
  *
  * you can pass sizeof(my_task_t) to hio_svc_htts_task_make()
  */
-hio_svc_htts_task_t* hio_svc_htts_task_make (hio_svc_htts_t* htts, hio_oow_t task_size, hio_svc_htts_task_on_kill_t on_kill)
+hio_svc_htts_task_t* hio_svc_htts_task_make (hio_svc_htts_t* htts, hio_oow_t task_size, hio_svc_htts_task_on_kill_t on_kill, hio_htre_t* req)
 {
 	hio_t* hio = htts->hio;
 	hio_svc_htts_task_t* task;
@@ -671,6 +671,8 @@ hio_svc_htts_task_t* hio_svc_htts_task_make (hio_svc_htts_t* htts, hio_oow_t tas
 	task->task_size = task_size;
 	task->task_refcnt = 0;
 	task->task_on_kill = on_kill;
+	task->task_req_method = hio_htre_getqmethodtype(req);
+	task->task_req_version = *hio_htre_getversion(req);
 
 	HIO_DEBUG2 (hio, "HTTS(%p) - allocated task %p\n", htts, task);
 	return task;

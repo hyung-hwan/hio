@@ -69,8 +69,6 @@ struct file_t
 
 	hio_dev_sck_t* csck;
 	hio_svc_htts_cli_t* client;
-	hio_http_version_t req_version; /* client request */
-	hio_http_method_t req_method;
 	hio_bch_t* req_qpath;
 
 	unsigned int over: 4; /* must be large enough to accomodate FILE_OVER_ALL */
@@ -151,12 +149,12 @@ static int file_send_final_status_to_client (file_t* file, int status_code, int 
 
 	if (!force_close) force_close = !file->keep_alive;
 	if (hio_becs_fmt(cli->sbuf, "HTTP/%d.%d %d %hs\r\nServer: %hs\r\nDate: %hs\r\nConnection: %hs\r\n",
-		file->req_version.major, file->req_version.minor,
+		file->task_req_version.major, file->task_req_version.minor,
 		status_code, status_msg,
 		cli->htts->server_name, dtbuf,
 		(force_close? "close": "keep-alive")) == (hio_oow_t)-1) return -1;
 
-	if (file->req_method == HIO_HTTP_HEAD)
+	if (file->task_req_method == HIO_HTTP_HEAD)
 	{
 		if (status_code != HIO_HTTP_STATUS_OK) content_len = 0;
 		status_msg = "";
@@ -264,7 +262,7 @@ static int file_write_to_peer (file_t* file, const void* data, hio_iolen_t dlen)
 	else
 	{
 		hio_iolen_t pos, rem, n;
-		if (file->req_method == HIO_HTTP_GET) return 0;
+		if (file->task_req_method == HIO_HTTP_GET) return 0;
 		if (file->peer <= -1) return 0; /* peer open proabably failed */
 
 		/* TODO: async file io -> create a file device?? */
@@ -437,7 +435,7 @@ static int file_client_on_write (hio_dev_sck_t* sck, hio_iolen_t wrlen, void* wr
 		HIO_ASSERT (hio, file->num_pending_writes_to_client > 0);
 		file->num_pending_writes_to_client--;
 
-		if (file->req_method == HIO_HTTP_GET)
+		if (file->task_req_method == HIO_HTTP_GET)
 			file_send_contents_to_client (file);
 
 		if ((file->over & FILE_OVER_READ_FROM_PEER) && file->num_pending_writes_to_client <= 0)
@@ -466,7 +464,7 @@ static int file_client_htrd_poke (hio_htrd_t* htrd, hio_htre_t* req)
 	/* indicate EOF to the client peer */
 	if (file_write_to_peer(file, HIO_NULL, 0) <= -1) return -1;
 
-	if (file->req_method != HIO_HTTP_GET)
+	if (file->task_req_method != HIO_HTTP_GET)
 	{
 		if (file_send_final_status_to_client(file, HIO_HTTP_STATUS_OK, 0, 0) <= -1) return -1;
 	}
@@ -509,7 +507,7 @@ static int file_send_header_to_client (file_t* file, int status_code, int force_
 	if (status_code == HIO_HTTP_STATUS_OK && file->total_size != content_length) status_code = HIO_HTTP_STATUS_PARTIAL_CONTENT;
 
 	if (hio_becs_fmt(cli->sbuf, "HTTP/%d.%d %d %hs\r\nServer: %hs\r\nDate: %s\r\nConnection: %hs\r\nAccept-Ranges: bytes\r\n",
-		file->req_version.major, file->req_version.minor,
+		file->task_req_version.major, file->task_req_version.minor,
 		status_code, hio_http_status_to_bcstr(status_code),
 		cli->htts->server_name, dtbuf,
 		(force_close? "close": "keep-alive")) == (hio_oow_t)-1) return -1;
@@ -518,7 +516,7 @@ static int file_send_header_to_client (file_t* file, int status_code, int force_
 	if (mime_type && mime_type[0] != '\0' &&
 	    hio_becs_fcat(cli->sbuf, "Content-Type: %hs\r\n", mime_type) == (hio_oow_t)-1) return -1;
 
-	if ((file->req_method == HIO_HTTP_GET || file->req_method == HIO_HTTP_HEAD) &&
+	if ((file->task_req_method == HIO_HTTP_GET || file->task_req_method == HIO_HTTP_HEAD) &&
 	    hio_becs_fcat(cli->sbuf, "ETag: %hs\r\n", file->peer_etag) == (hio_oow_t)-1) return -1;
 
 	if (status_code == HIO_HTTP_STATUS_PARTIAL_CONTENT &&
@@ -792,7 +790,7 @@ int hio_svc_htts_dofile (hio_svc_htts_t* htts, hio_dev_sck_t* csck, hio_htre_t* 
 	actual_file = hio_svc_htts_dupmergepaths(htts, docroot, filepath);
 	if (HIO_UNLIKELY(!actual_file)) goto oops;
 
-	file = (file_t*)hio_svc_htts_task_make(htts, HIO_SIZEOF(*file), file_on_kill);
+	file = (file_t*)hio_svc_htts_task_make(htts, HIO_SIZEOF(*file), file_on_kill, req);
 	if (HIO_UNLIKELY(!file)) goto oops;
 
 	file->options = options;
@@ -800,8 +798,6 @@ int hio_svc_htts_dofile (hio_svc_htts_t* htts, hio_dev_sck_t* csck, hio_htre_t* 
 	file->sendfile_ok = hio_dev_sck_sendfileok(csck);
 	/*file->num_pending_writes_to_client = 0;
 	file->num_pending_writes_to_peer = 0;*/
-	file->req_version = *hio_htre_getversion(req);
-	file->req_method = hio_htre_getqmethodtype(req);
 	file->req_content_length_unlimited = hio_htre_getreqcontentlen(req, &file->req_content_length);
 	file->req_qpath = req_qpath;
 	req_qpath = HIO_NULL; /* delegated to the file task */
@@ -840,12 +836,12 @@ int hio_svc_htts_dofile (hio_svc_htts_t* htts, hio_dev_sck_t* csck, hio_htre_t* 
 		if (!(options & HIO_SVC_HTTS_FILE_NO_100_CONTINUE) &&
 		    hio_comp_http_version_numbers(&req->version, 1, 1) >= 0 &&
 		   (file->req_content_length_unlimited || file->req_content_length > 0) &&
-		   (file->req_method != HIO_HTTP_GET && file->req_method != HIO_HTTP_HEAD))
+		   (file->task_req_method != HIO_HTTP_GET && file->task_req_method != HIO_HTTP_HEAD))
 		{
 			hio_bch_t msgbuf[64];
 			hio_oow_t msglen;
 
-			msglen = hio_fmttobcstr(hio, msgbuf, HIO_COUNTOF(msgbuf), "HTTP/%d.%d %d %hs\r\n\r\n", file->req_version.major, file->req_version.minor, HIO_HTTP_STATUS_CONTINUE, hio_http_status_to_bcstr(HIO_HTTP_STATUS_CONTINUE));
+			msglen = hio_fmttobcstr(hio, msgbuf, HIO_COUNTOF(msgbuf), "HTTP/%d.%d %d %hs\r\n\r\n", file->task_req_version.major, file->task_req_version.minor, HIO_HTTP_STATUS_CONTINUE, hio_http_status_to_bcstr(HIO_HTTP_STATUS_CONTINUE));
 			if (file_write_to_client(file, msgbuf, msglen) <= -1) goto oops;
 			file->ever_attempted_to_write_to_client = 0; /* reset this as it's polluted for 100 continue */
 		}
@@ -906,7 +902,7 @@ int hio_svc_htts_dofile (hio_svc_htts_t* htts, hio_dev_sck_t* csck, hio_htre_t* 
 		file->res_mode_to_cli = FILE_RES_MODE_CLOSE;
 	}
 
-	switch (file->req_method)
+	switch (file->task_req_method)
 	{
 		case HIO_HTTP_GET:
 		case HIO_HTTP_HEAD:
@@ -920,7 +916,7 @@ int hio_svc_htts_dofile (hio_svc_htts_t* htts, hio_dev_sck_t* csck, hio_htre_t* 
 			}
 			if (process_range_header(file, req, &status_code) <= -1) goto done_with_status_code;
 
-			if (HIO_LIKELY(file->req_method == HIO_HTTP_GET))
+			if (HIO_LIKELY(file->task_req_method == HIO_HTTP_GET))
 			{
 				if (file->etag_match)
 				{

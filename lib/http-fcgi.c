@@ -34,8 +34,6 @@ struct fcgi_t
 
 	hio_dev_sck_t* csck;
 	hio_svc_htts_cli_t* client;
-	hio_http_method_t req_method;
-	hio_http_version_t req_version; /* client request */
 
 	unsigned int over: 4; /* must be large enough to accomodate FCGI_OVER_ALL */
 	unsigned int keep_alive: 1;
@@ -145,12 +143,12 @@ static int fcgi_send_final_status_to_client (fcgi_t* fcgi, int status_code, int 
 
 	if (!force_close) force_close = !fcgi->keep_alive;
 	if (hio_becs_fmt(cli->sbuf, "HTTP/%d.%d %d %hs\r\nServer: %hs\r\nDate: %hs\r\nConnection: %hs\r\n",
-		fcgi->req_version.major, fcgi->req_version.minor,
+		fcgi->task_req_version.major, fcgi->task_req_version.minor,
 		status_code, status_msg,
 		cli->htts->server_name, dtbuf,
 		(force_close? "close": "keep-alive")) == (hio_oow_t)-1) return -1;
 
-	if (fcgi->req_method == HIO_HTTP_HEAD)
+	if (fcgi->task_req_method == HIO_HTTP_HEAD)
 	{
 		if (status_code != HIO_HTTP_STATUS_OK) content_len = 0;
 		status_msg = "";
@@ -275,7 +273,7 @@ static void fcgi_on_kill (hio_svc_htts_task_t* task)
 	/* [NOTE] 
 	 * 1. if hio_svc_htts_task_kill() is called, fcgi->peer, fcgi->peer_htrd, fcgi->csck, 
 	 *    fcgi->client may not not null. 
-	 * 2. this call-back function doesn't decrement the reference count on fcgi because 
+	 * 2. this callback function doesn't decrement the reference count on fcgi because
 	 *     this is the fcgi destruction call-back.
 	 */
 
@@ -476,7 +474,7 @@ static int peer_htrd_peek (hio_htrd_t* htrd, hio_htre_t* req)
 
 	hio_svc_htts_fmtgmtime (cli->htts, HIO_NULL, dtbuf, HIO_COUNTOF(dtbuf));
 
-	if (hio_becs_fmt(cli->sbuf, "HTTP/%d.%d ", fcgi->req_version.major, fcgi->req_version.minor) == (hio_oow_t)-1) return -1;
+	if (hio_becs_fmt(cli->sbuf, "HTTP/%d.%d ", fcgi->task_req_version.major, fcgi->task_req_version.minor) == (hio_oow_t)-1) return -1;
 	if (status_line)
 	{
 		if (hio_becs_fcat(cli->sbuf, "%hs\r\n", status_line) == (hio_oow_t)-1) return -1;
@@ -1037,7 +1035,7 @@ static int setup_for_expect100 (fcgi_t* fcgi, hio_htre_t* req, int options)
 			hio_bch_t msgbuf[64];
 			hio_oow_t msglen;
 
-			msglen = hio_fmttobcstr(fcgi->htts->hio, msgbuf, HIO_COUNTOF(msgbuf), "HTTP/%d.%d %d %hs\r\n\r\n", fcgi->req_version.major, fcgi->req_version.minor, HIO_HTTP_STATUS_CONTINUE, hio_http_status_to_bcstr(HIO_HTTP_STATUS_CONTINUE));
+			msglen = hio_fmttobcstr(fcgi->htts->hio, msgbuf, HIO_COUNTOF(msgbuf), "HTTP/%d.%d %d %hs\r\n\r\n", fcgi->task_req_version.major, fcgi->task_req_version.minor, HIO_HTTP_STATUS_CONTINUE, hio_http_status_to_bcstr(HIO_HTTP_STATUS_CONTINUE));
 			if (fcgi_write_to_client(fcgi, msgbuf, msglen) <= -1) return -1;
 			fcgi->ever_attempted_to_write_to_client = 0; /* reset this as it's polluted for 100 continue */
 		}
@@ -1115,13 +1113,11 @@ int hio_svc_htts_dofcgi (hio_svc_htts_t* htts, hio_dev_sck_t* csck, hio_htre_t* 
 		goto oops;
 	}
 
-	fcgi = (fcgi_t*)hio_svc_htts_task_make(htts, HIO_SIZEOF(*fcgi), fcgi_on_kill);
+	fcgi = (fcgi_t*)hio_svc_htts_task_make(htts, HIO_SIZEOF(*fcgi), fcgi_on_kill, req);
 	if (HIO_UNLIKELY(!fcgi)) goto oops;
 
 	/*fcgi->num_pending_writes_to_client = 0;
 	fcgi->num_pending_writes_to_peer = 0;*/
-	fcgi->req_method = hio_htre_getqmethodtype(req);
-	fcgi->req_version = *hio_htre_getversion(req);
 	fcgi->req_content_length_unlimited = hio_htre_getreqcontentlen(req, &fcgi->req_content_length);
 
 	bind_task_to_client (fcgi, csck);

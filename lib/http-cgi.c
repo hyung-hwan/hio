@@ -66,8 +66,6 @@ struct cgi_t
 
 	hio_dev_sck_t* csck;
 	hio_svc_htts_cli_t* client;
-	hio_http_version_t req_version; /* client request */
-	hio_http_method_t req_method;
 
 	unsigned int over: 4; /* must be large enough to accomodate CGI_OVER_ALL */
 	unsigned int keep_alive: 1;
@@ -158,12 +156,12 @@ static int cgi_send_final_status_to_client (cgi_t* cgi, int status_code, int for
 
 	if (!force_close) force_close = !cgi->keep_alive;
 	if (hio_becs_fmt(cli->sbuf, "HTTP/%d.%d %d %hs\r\nServer: %hs\r\nDate: %hs\r\nConnection: %hs\r\n",
-		cgi->req_version.major, cgi->req_version.minor,
+		cgi->task_req_version.major, cgi->task_req_version.minor,
 		status_code, status_msg,
 		cli->htts->server_name, dtbuf,
 		(force_close? "close": "keep-alive")) == (hio_oow_t)-1) return -1;
 
-	if (cgi->req_method == HIO_HTTP_HEAD)
+	if (cgi->task_req_method == HIO_HTTP_HEAD)
 	{
 		if (status_code != HIO_HTTP_STATUS_OK) content_len = 0;
 		status_msg = "";
@@ -573,7 +571,7 @@ static int peer_htrd_peek (hio_htrd_t* htrd, hio_htre_t* req)
 
 	hio_svc_htts_fmtgmtime (cli->htts, HIO_NULL, dtbuf, HIO_COUNTOF(dtbuf));
 
-	if (hio_becs_fmt(cli->sbuf, "HTTP/%d.%d ", cgi->req_version.major, cgi->req_version.minor) == (hio_oow_t)-1) return -1;
+	if (hio_becs_fmt(cli->sbuf, "HTTP/%d.%d ", cgi->task_req_version.major, cgi->task_req_version.minor) == (hio_oow_t)-1) return -1;
 	if (status_line)
 	{
 		if (hio_becs_fcat(cli->sbuf, "%hs\r\n", status_line) == (hio_oow_t)-1) return -1;
@@ -1020,14 +1018,12 @@ int hio_svc_htts_docgi (hio_svc_htts_t* htts, hio_dev_sck_t* csck, hio_htre_t* r
 	mi.on_fork = cgi_peer_on_fork;
 	mi.fork_ctx = &fc;
 
-	cgi = (cgi_t*)hio_svc_htts_task_make(htts, HIO_SIZEOF(*cgi), cgi_on_kill);
+	cgi = (cgi_t*)hio_svc_htts_task_make(htts, HIO_SIZEOF(*cgi), cgi_on_kill, req);
 	if (HIO_UNLIKELY(!cgi)) goto oops;
 
 	cgi->options = options;
 	/*cgi->num_pending_writes_to_client = 0;
 	cgi->num_pending_writes_to_peer = 0;*/
-	cgi->req_method = hio_htre_getqmethodtype(req);
-	cgi->req_version = *hio_htre_getversion(req);
 	cgi->req_content_length_unlimited = hio_htre_getreqcontentlen(req, &cgi->req_content_length);
 
 	cgi->csck = csck;
@@ -1100,7 +1096,7 @@ int hio_svc_htts_docgi (hio_svc_htts_t* htts, hio_dev_sck_t* csck, hio_htre_t* r
 			hio_bch_t msgbuf[64];
 			hio_oow_t msglen;
 
-			msglen = hio_fmttobcstr(hio, msgbuf, HIO_COUNTOF(msgbuf), "HTTP/%d.%d %d %hs\r\n\r\n", cgi->req_version.major, cgi->req_version.minor, HIO_HTTP_STATUS_CONTINUE, hio_http_status_to_bcstr(HIO_HTTP_STATUS_CONTINUE));
+			msglen = hio_fmttobcstr(hio, msgbuf, HIO_COUNTOF(msgbuf), "HTTP/%d.%d %d %hs\r\n\r\n", cgi->task_req_version.major, cgi->task_req_version.minor, HIO_HTTP_STATUS_CONTINUE, hio_http_status_to_bcstr(HIO_HTTP_STATUS_CONTINUE));
 			if (cgi_write_to_client(cgi, msgbuf, msglen) <= -1) goto oops;
 			cgi->ever_attempted_to_write_to_client = 0; /* reset this as it's polluted for 100 continue */
 		}

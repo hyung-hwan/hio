@@ -68,8 +68,6 @@ struct thr_task_t
 	hio_htrd_t* peer_htrd;
 	hio_dev_sck_t* csck;
 	hio_svc_htts_cli_t* client;
-	hio_http_version_t req_version; /* client request */
-	hio_http_method_t req_method;
 
 	unsigned int over: 4; /* must be large enough to accomodate THR_TASK_OVER_ALL */
 	unsigned int keep_alive: 1;
@@ -159,12 +157,12 @@ static int thr_task_send_final_status_to_client (thr_task_t* thr_task, int statu
 
 	if (!force_close) force_close = !thr_task->keep_alive;
 	if (hio_becs_fmt(cli->sbuf, "HTTP/%d.%d %d %hs\r\nServer: %hs\r\nDate: %hs\r\nConnection: %hs\r\n",
-		thr_task->req_version.major, thr_task->req_version.minor,
+		thr_task->task_req_version.major, thr_task->task_req_version.minor,
 		status_code, status_msg,
 		cli->htts->server_name, dtbuf,
 		(force_close? "close": "keep-alive")) == (hio_oow_t)-1) return -1;
 
-	if (thr_task->req_method == HIO_HTTP_HEAD)
+	if (thr_task->task_req_method == HIO_HTTP_HEAD)
 	{
 		if (status_code != HIO_HTTP_STATUS_OK) content_len = 0;
 		status_msg = "";
@@ -499,7 +497,7 @@ static int thr_peer_htrd_peek (hio_htrd_t* htrd, hio_htre_t* req)
 	hio_svc_htts_fmtgmtime (cli->htts, HIO_NULL, dtbuf, HIO_COUNTOF(dtbuf));
 
 	if (hio_becs_fmt(cli->sbuf, "HTTP/%d.%d %d %hs\r\nServer: %hs\r\nDate: %hs\r\n",
-		thr_task->req_version.major, thr_task->req_version.minor,
+		thr_task->task_req_version.major, thr_task->task_req_version.minor,
 		status_code, hio_http_status_to_bcstr(status_code),
 		cli->htts->server_name, dtbuf) == (hio_oow_t)-1) return -1;
 
@@ -917,7 +915,7 @@ int hio_svc_htts_dothr (hio_svc_htts_t* htts, hio_dev_sck_t* csck, hio_htre_t* r
 	mi.on_write = thr_peer_on_write;
 	mi.on_close = thr_peer_on_close;
 
-	thr_task = (thr_task_t*)hio_svc_htts_task_make(htts, HIO_SIZEOF(*thr_task), thr_task_on_kill);
+	thr_task = (thr_task_t*)hio_svc_htts_task_make(htts, HIO_SIZEOF(*thr_task), thr_task_on_kill, req);
 	if (HIO_UNLIKELY(!thr_task)) goto oops;
 
 	thr_task->options = options;
@@ -926,8 +924,6 @@ int hio_svc_htts_dothr (hio_svc_htts_t* htts, hio_dev_sck_t* csck, hio_htre_t* r
 
 	/*thr_task->num_pending_writes_to_client = 0;
 	thr_task->num_pending_writes_to_peer = 0;*/
-	thr_task->req_method = hio_htre_getqmethodtype(req);
-	thr_task->req_version = *hio_htre_getversion(req);
 	thr_task->req_content_length_unlimited = hio_htre_getreqcontentlen(req, &thr_task->req_content_length);
 
 	thr_task->client_org_on_read = csck->on_read;
@@ -1002,7 +998,7 @@ int hio_svc_htts_dothr (hio_svc_htts_t* htts, hio_dev_sck_t* csck, hio_htre_t* r
 			hio_bch_t msgbuf[64];
 			hio_oow_t msglen;
 
-			msglen = hio_fmttobcstr(hio, msgbuf, HIO_COUNTOF(msgbuf), "HTTP/%d.%d %d %hs\r\n\r\n", thr_task->req_version.major, thr_task->req_version.minor, HIO_HTTP_STATUS_CONTINUE, hio_http_status_to_bcstr(HIO_HTTP_STATUS_CONTINUE));
+			msglen = hio_fmttobcstr(hio, msgbuf, HIO_COUNTOF(msgbuf), "HTTP/%d.%d %d %hs\r\n\r\n", thr_task->task_req_version.major, thr_task->task_req_version.minor, HIO_HTTP_STATUS_CONTINUE, hio_http_status_to_bcstr(HIO_HTTP_STATUS_CONTINUE));
 			if (thr_task_write_to_client(thr_task, msgbuf, msglen) <= -1) goto oops;
 			thr_task->ever_attempted_to_write_to_client = 0; /* reset this as it's polluted for 100 continue */
 		}
