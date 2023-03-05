@@ -69,8 +69,6 @@ struct file_t
 	hio_tmridx_t peer_tmridx;
 	hio_bch_t peer_etag[128];
 
-	hio_dev_sck_t* csck;
-
 	unsigned int over: 4; /* must be large enough to accomodate FILE_OVER_ALL */
 	unsigned int keep_alive: 1;
 	unsigned int req_content_length_unlimited: 1;
@@ -93,21 +91,21 @@ static int file_send_contents_to_client (file_t* file);
 
 static void file_halt_participating_devices (file_t* file)
 {
-	HIO_DEBUG3 (file->htts->hio, "HTTS(%p) - file(c=%d,p=%d) Halting participating devices\n", file->htts, (int)file->csck->hnd, (int)file->peer);
+	HIO_DEBUG3 (file->htts->hio, "HTTS(%p) - file(c=%d,p=%d) Halting participating devices\n", file->htts, (int)file->task_csck->hnd, (int)file->peer);
 
 	/* only the client socket device.
 	 * the peer side is just a file descriptor - no hio-managed device */
-	if (file->csck) hio_dev_sck_halt (file->csck);
+	if (file->task_csck) hio_dev_sck_halt (file->task_csck);
 }
 
 static int file_write_to_client (file_t* file, const void* data, hio_iolen_t dlen)
 {
-	if (file->csck)
+	if (file->task_csck)
 	{
 		file->ever_attempted_to_write_to_client = 1;
 
 		file->num_pending_writes_to_client++;
-		if (hio_dev_sck_write(file->csck, data, dlen, HIO_NULL, HIO_NULL) <= -1)  /* TODO: use sendfile here.. */
+		if (hio_dev_sck_write(file->task_csck, data, dlen, HIO_NULL, HIO_NULL) <= -1)  /* TODO: use sendfile here.. */
 		{
 			file->num_pending_writes_to_client--;
 			return -1;
@@ -119,12 +117,12 @@ static int file_write_to_client (file_t* file, const void* data, hio_iolen_t dle
 
 static int file_sendfile_to_client (file_t* file, hio_foff_t foff, hio_iolen_t len)
 {
-	if (file->csck)
+	if (file->task_csck)
 	{
 		file->ever_attempted_to_write_to_client = 1;
 
 		file->num_pending_writes_to_client++;
-		if (hio_dev_sck_sendfile(file->csck, file->peer, foff, len, HIO_NULL) <= -1)
+		if (hio_dev_sck_sendfile(file->task_csck, file->peer, foff, len, HIO_NULL) <= -1)
 		{
 			file->num_pending_writes_to_client--;
 			return -1;
@@ -200,14 +198,14 @@ static void file_mark_over (file_t* file, int over_bits)
 	old_over = file->over;
 	file->over |= over_bits;
 
-	HIO_DEBUG6 (file->htts->hio, "HTTS(%p) - file(c=%d,p=%d) updating mark - old_over=%x | new-bits=%x => over=%x\n", file->htts, (int)file->csck->hnd, file->peer, (int)old_over, (int)over_bits, (int)file->over);
+	HIO_DEBUG6 (file->htts->hio, "HTTS(%p) - file(c=%d,p=%d) updating mark - old_over=%x | new-bits=%x => over=%x\n", file->htts, (int)file->task_csck->hnd, file->peer, (int)old_over, (int)over_bits, (int)file->over);
 
 	if (!(old_over & FILE_OVER_READ_FROM_CLIENT) && (file->over & FILE_OVER_READ_FROM_CLIENT))
 	{
-		if (file->csck && hio_dev_sck_read(file->csck, 0) <= -1)
+		if (file->task_csck && hio_dev_sck_read(file->task_csck, 0) <= -1)
 		{
-			HIO_DEBUG3 (file->htts->hio, "HTTS(%p) - file(c=%d,p=%d) halting client for failure to disable input watching\n", file->htts, (int)file->csck->hnd, file->peer);
-			hio_dev_sck_halt (file->csck);
+			HIO_DEBUG3 (file->htts->hio, "HTTS(%p) - file(c=%d,p=%d) halting client for failure to disable input watching\n", file->htts, (int)file->task_csck->hnd, file->peer);
+			hio_dev_sck_halt (file->task_csck);
 		}
 	}
 
@@ -221,19 +219,19 @@ static void file_mark_over (file_t* file, int over_bits)
 	if (old_over != FILE_OVER_ALL && file->over == FILE_OVER_ALL)
 	{
 		/* ready to stop */
-		HIO_DEBUG3 (file->htts->hio, "HTTS(%p) - file(c=%d,p=%d) halting peer as it is unneeded\n", file->htts, (int)file->csck->hnd, file->peer);
+		HIO_DEBUG3 (file->htts->hio, "HTTS(%p) - file(c=%d,p=%d) halting peer as it is unneeded\n", file->htts, (int)file->task_csck->hnd, file->peer);
 		file_close_peer (file);
 
-		if (HIO_LIKELY(file->csck))
+		if (HIO_LIKELY(file->task_csck))
 		{
 			if (file->keep_alive && !file->client_eof_detected)
 			{
 			#if defined(TCP_CORK)
 				int tcp_cork = 0;
 				#if defined(SOL_TCP)
-				hio_dev_sck_setsockopt(file->csck, SOL_TCP, TCP_CORK, &tcp_cork, HIO_SIZEOF(tcp_cork));
+				hio_dev_sck_setsockopt(file->task_csck, SOL_TCP, TCP_CORK, &tcp_cork, HIO_SIZEOF(tcp_cork));
 				#elif defined(IPPROTO_TCP)
-				hio_dev_sck_setsockopt(file->csck, IPPROTO_TCP, TCP_CORK, &tcp_cork, HIO_SIZEOF(tcp_cork));
+				hio_dev_sck_setsockopt(file->task_csck, IPPROTO_TCP, TCP_CORK, &tcp_cork, HIO_SIZEOF(tcp_cork));
 				#endif
 			#endif
 
@@ -244,9 +242,9 @@ static void file_mark_over (file_t* file, int over_bits)
 			}
 			else
 			{
-				HIO_DEBUG4 (file->htts->hio, "HTTS(%p) - file(c=%d,p=%d) halting client for %hs\n", file->htts, (int)file->csck->hnd, file->peer, (file->client_eof_detected? "EOF detected": "no keep-alive"));
-				hio_dev_sck_shutdown (file->csck, HIO_DEV_SCK_SHUTDOWN_WRITE);
-				hio_dev_sck_halt (file->csck);
+				HIO_DEBUG4 (file->htts->hio, "HTTS(%p) - file(c=%d,p=%d) halting client for %hs\n", file->htts, (int)file->task_csck->hnd, file->peer, (file->client_eof_detected? "EOF detected": "no keep-alive"));
+				hio_dev_sck_shutdown (file->task_csck, HIO_DEV_SCK_SHUTDOWN_WRITE);
+				hio_dev_sck_halt (file->task_csck);
 				/* the file task will be detached from file->task_client->task by the upstream disconnect handler in http_svr.c */
 			}
 		}
@@ -287,23 +285,23 @@ static void file_on_kill (hio_svc_htts_task_t* task)
 	file_t* file = (file_t*)task;
 	hio_t* hio = file->htts->hio;
 
-	HIO_DEBUG5 (hio, "HTTS(%p) - file(t=%p,c=%p[%d],p=%d) - killing the task\n", file->htts, file, file->task_client, (file->csck? file->csck->hnd: -1), file->peer);
+	HIO_DEBUG5 (hio, "HTTS(%p) - file(t=%p,c=%p[%d],p=%d) - killing the task\n", file->htts, file, file->task_client, (file->task_csck? file->task_csck->hnd: -1), file->peer);
 
 	if (file->on_kill) file->on_kill (task);
 
 	file_close_peer (file);
 
-	if (file->csck)
+	if (file->task_csck)
 	{
-		if (file->client_org_on_read) file->csck->on_read = file->client_org_on_read;
-		if (file->client_org_on_write) file->csck->on_write = file->client_org_on_write;
-		if (file->client_org_on_disconnect) file->csck->on_disconnect = file->client_org_on_disconnect;
+		if (file->client_org_on_read) file->task_csck->on_read = file->client_org_on_read;
+		if (file->client_org_on_write) file->task_csck->on_write = file->client_org_on_write;
+		if (file->client_org_on_disconnect) file->task_csck->on_disconnect = file->client_org_on_disconnect;
 		if (file->client_htrd_recbs_changed) hio_htrd_setrecbs (file->task_client->htrd, &file->client_htrd_org_recbs);
 
-		if (!file->keep_alive || hio_dev_sck_read(file->csck, 1) <= -1)
+		if (!file->keep_alive || hio_dev_sck_read(file->task_csck, 1) <= -1)
 		{
-			HIO_DEBUG5 (hio, "HTTS(%p) - file(t=%p,c=%p[%d],p=%d) - halting client for failure to enable input watching\n", file->htts, file, file->task_client, (file->csck? file->csck->hnd: -1), file->peer);
-			hio_dev_sck_halt (file->csck);
+			HIO_DEBUG5 (hio, "HTTS(%p) - file(t=%p,c=%p[%d],p=%d) - halting client for failure to enable input watching\n", file->htts, file, file->task_client, (file->task_csck? file->task_csck->hnd: -1), file->peer);
+			hio_dev_sck_halt (file->task_csck);
 		}
 	}
 
@@ -313,7 +311,7 @@ static void file_on_kill (hio_svc_htts_task_t* task)
 	file->client_htrd_recbs_changed = 0;
 
 	if (file->task_next) HIO_SVC_HTTS_TASKL_UNLINK_TASK (file); /* detach from the htts service only if it's attached */
-	HIO_DEBUG5 (hio, "HTTS(%p) - file(t=%p,c=%p[%d],p=%d) - killed the task\n", file->htts, file, file->task_client, (file->csck? file->csck->hnd: -1), file->peer);
+	HIO_DEBUG5 (hio, "HTTS(%p) - file(t=%p,c=%p[%d],p=%d) - killed the task\n", file->htts, file, file->task_client, (file->task_csck? file->task_csck->hnd: -1), file->peer);
 }
 
 static void file_client_on_disconnect (hio_dev_sck_t* sck)
@@ -324,12 +322,12 @@ static void file_client_on_disconnect (hio_dev_sck_t* sck)
 	hio_svc_htts_t* htts = file->htts;
 
 	HIO_ASSERT (hio, sck == cli->sck);
-	HIO_ASSERT (hio, sck == file->csck);
+	HIO_ASSERT (hio, sck == file->task_csck);
 
 	HIO_DEBUG4 (hio, "HTTS(%p) - file(t=%p,c=%p,csck=%p) - client socket disconnect notified\n", htts, file, sck, cli);
 
 	file->client_disconnected = 1;
-	file->csck = HIO_NULL;
+	file->task_csck = HIO_NULL;
 	file->task_client = HIO_NULL;
 	if (file->client_org_on_disconnect)
 	{
@@ -349,7 +347,7 @@ static int file_client_on_read (hio_dev_sck_t* sck, const void* buf, hio_iolen_t
 	file_t* file = (file_t*)cli->task;
 
 	HIO_ASSERT (hio, sck == cli->sck);
-	HIO_ASSERT (hio, sck == file->csck);
+	HIO_ASSERT (hio, sck == file->task_csck);
 
 	if (len <= -1)
 	{
@@ -408,7 +406,7 @@ static int file_client_on_write (hio_dev_sck_t* sck, hio_iolen_t wrlen, void* wr
 	file_t* file = (file_t*)cli->task;
 
 	HIO_ASSERT (hio, sck == cli->sck);
-	HIO_ASSERT (hio, sck == file->csck);
+	HIO_ASSERT (hio, sck == file->task_csck);
 
 	if (wrlen <= -1)
 	{
@@ -528,6 +526,7 @@ static int file_send_header_to_client (file_t* file, int status_code, int force_
 
 	if (hio_becs_fcat(cli->sbuf, "Content-Length: %ju\r\n\r\n", (hio_uintmax_t)content_length) == (hio_oow_t)-1) return -1;
 
+	file->task_status_code = status_code;
 	return file_write_to_client(file, HIO_BECS_PTR(cli->sbuf), HIO_BECS_LEN(cli->sbuf));
 }
 
@@ -782,7 +781,7 @@ int hio_svc_htts_dofile (hio_svc_htts_t* htts, hio_dev_sck_t* csck, hio_htre_t* 
 	actual_file = hio_svc_htts_dupmergepaths(htts, docroot, filepath);
 	if (HIO_UNLIKELY(!actual_file)) goto oops;
 
-	file = (file_t*)hio_svc_htts_task_make(htts, HIO_SIZEOF(*file), file_on_kill, req, cli);
+	file = (file_t*)hio_svc_htts_task_make(htts, HIO_SIZEOF(*file), file_on_kill, req, csck);
 	if (HIO_UNLIKELY(!file)) goto oops;
 
 	file->on_kill = on_kill;
@@ -793,8 +792,6 @@ int hio_svc_htts_dofile (hio_svc_htts_t* htts, hio_dev_sck_t* csck, hio_htre_t* 
 	file->num_pending_writes_to_peer = 0;*/
 	file->req_content_length_unlimited = hio_htre_getreqcontentlen(req, &file->req_content_length);
 
-	file->csck = csck;
-	file->task_client = cli;
 	file->client_org_on_read = csck->on_read;
 	file->client_org_on_write = csck->on_write;
 	file->client_org_on_disconnect = csck->on_disconnect;
@@ -913,7 +910,7 @@ int hio_svc_htts_dofile (hio_svc_htts_t* htts, hio_dev_sck_t* csck, hio_htre_t* 
 			#if defined(HAVE_POSIX_FADVISE)
 				posix_fadvise (file->peer, file->start_offset, file->end_offset - file->start_offset + 1, POSIX_FADV_SEQUENTIAL);
 			#endif
-				set_tcp_cork (file->csck);
+				set_tcp_cork (file->task_csck);
 
 				if (file_send_header_to_client(file, HIO_HTTP_STATUS_OK, 0, actual_mime_type) <= -1) goto oops;
 				if (file_send_contents_to_client(file) <= -1) goto oops;

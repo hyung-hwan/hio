@@ -38,8 +38,6 @@ struct txt_t
 	int options;
 	hio_oow_t num_pending_writes_to_client;
 
-	hio_dev_sck_t* csck;
-
 	unsigned int over: 2; /* must be large enough to accomodate TXT_OVER_ALL */
 	unsigned int keep_alive: 1;
 	unsigned int req_content_length_unlimited: 1;
@@ -57,16 +55,16 @@ typedef struct txt_t txt_t;
 
 static void txt_halt_participating_devices (txt_t* txt)
 {
-	HIO_DEBUG3 (txt->htts->hio, "HTTS(%p) - Halting participating devices in txt state %p(client=%p)\n", txt->htts, txt, txt->csck);
-	if (txt->csck) hio_dev_sck_halt (txt->csck);
+	HIO_DEBUG3 (txt->htts->hio, "HTTS(%p) - Halting participating devices in txt state %p(client=%p)\n", txt->htts, txt, txt->task_csck);
+	if (txt->task_csck) hio_dev_sck_halt (txt->task_csck);
 }
 
 static int txt_write_to_client (txt_t* txt, const void* data, hio_iolen_t dlen)
 {
-	if (txt->csck)
+	if (txt->task_csck)
 	{
 		txt->num_pending_writes_to_client++;
-		if (hio_dev_sck_write(txt->csck, data, dlen, HIO_NULL, HIO_NULL) <= -1)
+		if (hio_dev_sck_write(txt->task_csck, data, dlen, HIO_NULL, HIO_NULL) <= -1)
 		{
 			txt->num_pending_writes_to_client--;
 			return -1;
@@ -78,10 +76,10 @@ static int txt_write_to_client (txt_t* txt, const void* data, hio_iolen_t dlen)
 #if 0
 static int txt_writev_to_client (txt_t* txt, hio_iovec_t* iov, hio_iolen_t iovcnt)
 {
-	if (txt->csck)
+	if (txt->task_csck)
 	{
 		txt->num_pending_writes_to_client++;
-		if (hio_dev_sck_writev(txt->csck, iov, iovcnt, HIO_NULL, HIO_NULL) <= -1)
+		if (hio_dev_sck_writev(txt->task_csck, iov, iovcnt, HIO_NULL, HIO_NULL) <= -1)
 		{
 			txt->num_pending_writes_to_client--;
 			return -1;
@@ -134,14 +132,14 @@ static HIO_INLINE void txt_mark_over (txt_t* txt, int over_bits)
 	old_over = txt->over;
 	txt->over |= over_bits;
 
-	HIO_DEBUG4 (txt->htts->hio, "HTTS(%p) - client=%p new-bits=%x over=%x\n", txt->htts, txt->csck, (int)over_bits, (int)txt->over);
+	HIO_DEBUG4 (txt->htts->hio, "HTTS(%p) - client=%p new-bits=%x over=%x\n", txt->htts, txt->task_csck, (int)over_bits, (int)txt->over);
 
 	if (!(old_over & TXT_OVER_READ_FROM_CLIENT) && (txt->over & TXT_OVER_READ_FROM_CLIENT))
 	{
-		if (hio_dev_sck_read(txt->csck, 0) <= -1)
+		if (hio_dev_sck_read(txt->task_csck, 0) <= -1)
 		{
-			HIO_DEBUG2 (txt->htts->hio, "HTTS(%p) - halting client(%p) for failure to disable input watching\n", txt->htts, txt->csck);
-			hio_dev_sck_halt (txt->csck);
+			HIO_DEBUG2 (txt->htts->hio, "HTTS(%p) - halting client(%p) for failure to disable input watching\n", txt->htts, txt->task_csck);
+			hio_dev_sck_halt (txt->task_csck);
 		}
 	}
 
@@ -159,9 +157,9 @@ static HIO_INLINE void txt_mark_over (txt_t* txt, int over_bits)
 		}
 		else
 		{
-			HIO_DEBUG2 (txt->htts->hio, "HTTS(%p) - halting client(%p) for no keep-alive\n", txt->htts, txt->csck);
-			hio_dev_sck_shutdown (txt->csck, HIO_DEV_SCK_SHUTDOWN_WRITE);
-			hio_dev_sck_halt (txt->csck);
+			HIO_DEBUG2 (txt->htts->hio, "HTTS(%p) - halting client(%p) for no keep-alive\n", txt->htts, txt->task_csck);
+			hio_dev_sck_shutdown (txt->task_csck, HIO_DEV_SCK_SHUTDOWN_WRITE);
+			hio_dev_sck_halt (txt->task_csck);
 		}
 	}
 }
@@ -171,26 +169,26 @@ static void txt_on_kill (hio_svc_htts_task_t* task)
 	txt_t* txt = (txt_t*)task;
 	hio_t* hio = txt->htts->hio;
 
-	HIO_DEBUG2 (hio, "HTTS(%p) - killing txt client(%p)\n", txt->htts, txt->csck);
+	HIO_DEBUG2 (hio, "HTTS(%p) - killing txt client(%p)\n", txt->htts, txt->task_csck);
 
 	if (txt->on_kill) txt->on_kill (task);
 
-	if (txt->csck)
+	if (txt->task_csck)
 	{
 		HIO_ASSERT (hio, txt->task_client != HIO_NULL);
 
-		if (txt->client_org_on_read) txt->csck->on_read = txt->client_org_on_read;
-		if (txt->client_org_on_write) txt->csck->on_write = txt->client_org_on_write;
-		if (txt->client_org_on_disconnect) txt->csck->on_disconnect = txt->client_org_on_disconnect;
+		if (txt->client_org_on_read) txt->task_csck->on_read = txt->client_org_on_read;
+		if (txt->client_org_on_write) txt->task_csck->on_write = txt->client_org_on_write;
+		if (txt->client_org_on_disconnect) txt->task_csck->on_disconnect = txt->client_org_on_disconnect;
 		if (txt->client_htrd_recbs_changed)
 		hio_htrd_setrecbs (txt->task_client->htrd, &txt->client_htrd_org_recbs);
 
 		if (!txt->client_disconnected)
 		{
-			if (!txt->keep_alive || hio_dev_sck_read(txt->csck, 1) <= -1)
+			if (!txt->keep_alive || hio_dev_sck_read(txt->task_csck, 1) <= -1)
 			{
-				HIO_DEBUG2 (hio, "HTTS(%p) - halting client(%p) for failure to enable input watching\n", txt->htts, txt->csck);
-				hio_dev_sck_halt (txt->csck);
+				HIO_DEBUG2 (hio, "HTTS(%p) - halting client(%p) for failure to enable input watching\n", txt->htts, txt->task_csck);
+				hio_dev_sck_halt (txt->task_csck);
 			}
 		}
 	}
@@ -336,7 +334,7 @@ int hio_svc_htts_dotxt (hio_svc_htts_t* htts, hio_dev_sck_t* csck, hio_htre_t* r
 	HIO_ASSERT (hio, hio_htre_getcontentlen(req) == 0);
 	HIO_ASSERT (hio, cli->sck == csck);
 
-	txt = (txt_t*)hio_svc_htts_task_make(htts, HIO_SIZEOF(*txt), txt_on_kill, req, cli);
+	txt = (txt_t*)hio_svc_htts_task_make(htts, HIO_SIZEOF(*txt), txt_on_kill, req, csck);
 	if (HIO_UNLIKELY(!txt)) goto oops;
 
 	txt->on_kill = on_kill;
@@ -344,8 +342,6 @@ int hio_svc_htts_dotxt (hio_svc_htts_t* htts, hio_dev_sck_t* csck, hio_htre_t* r
 	/*txt->num_pending_writes_to_client = 0;*/
 	txt->req_content_length_unlimited = hio_htre_getreqcontentlen(req, &txt->req_content_length);
 
-	txt->csck = csck;
-	txt->task_client = cli;
 	txt->client_org_on_read = csck->on_read;
 	txt->client_org_on_write = csck->on_write;
 	txt->client_org_on_disconnect = csck->on_disconnect;

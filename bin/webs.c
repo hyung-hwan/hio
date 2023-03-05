@@ -304,7 +304,7 @@ static void htts_task_on_kill (hio_svc_htts_task_t* task)
 	hio_t* hio = hio_svc_htts_gethio(htts);
 
 	/* TODO: pretty log message */
-	HIO_INFO3 (hio, "DONE [%hs] [%hs] [%hs] ......................................\n", task->task_req_qmth, task->task_req_qpath, hio_http_status_to_bcstr(task->task_status_code));
+	HIO_INFO3 (hio, "DONE [%hs] [%hs] [%d] ......................................\n", task->task_req_qmth, task->task_req_qpath, (int)task->task_status_code);
 }
 
 static int process_http_request (hio_svc_htts_t* htts, hio_dev_sck_t* csck, hio_htre_t* req)

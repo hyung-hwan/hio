@@ -102,6 +102,7 @@ typedef void (*hio_svc_htts_task_on_kill_t) (
 	hio_bch_t* task_req_qmth; \
 	hio_bch_t* task_req_qpath; \
 	hio_http_status_t task_status_code; \
+	hio_dev_sck_t* task_csck; \
 	hio_svc_htts_cli_t* task_client
 
 struct hio_svc_htts_task_t
@@ -481,13 +482,12 @@ HIO_EXPORT hio_svc_htts_task_t* hio_svc_htts_task_make (
 	hio_oow_t                    task_size,
 	hio_svc_htts_task_on_kill_t  on_kill,
 	hio_htre_t*                  req,
-	hio_svc_htts_cli_t*          client
+	hio_dev_sck_t*               csck
 );
 
 HIO_EXPORT void hio_svc_htts_task_kill (
 	hio_svc_htts_task_t*         task
 );
-
 
 HIO_EXPORT void hio_svc_htts_fmtgmtime (
 	hio_svc_htts_t*    htts,

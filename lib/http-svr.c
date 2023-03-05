@@ -653,7 +653,7 @@ int hio_svc_htts_getsockaddr (hio_svc_htts_t* htts, hio_oow_t idx, hio_skad_t* s
  *
  * you can pass sizeof(my_task_t) to hio_svc_htts_task_make()
  */
-hio_svc_htts_task_t* hio_svc_htts_task_make (hio_svc_htts_t* htts, hio_oow_t task_size, hio_svc_htts_task_on_kill_t on_kill, hio_htre_t* req, hio_svc_htts_cli_t* cli)
+hio_svc_htts_task_t* hio_svc_htts_task_make (hio_svc_htts_t* htts, hio_oow_t task_size, hio_svc_htts_task_on_kill_t on_kill, hio_htre_t* req, hio_dev_sck_t* csck)
 {
 	hio_t* hio = htts->hio;
 	hio_svc_htts_task_t* task;
@@ -681,7 +681,8 @@ hio_svc_htts_task_t* hio_svc_htts_task_make (hio_svc_htts_t* htts, hio_oow_t tas
 	task->task_req_qpath_is_root = (hio_htre_getqpathlen(req) == 1 && hio_htre_getqpath(req)[0] == '/');
 	task->task_req_qmth = (hio_bch_t*)((hio_uint8_t*)task + task_size);
 	task->task_req_qpath = task->task_req_qmth + qmth_len + 1;
-	task->task_client = cli;
+	task->task_csck = csck;
+	task->task_client = (hio_svc_htts_cli_t*)hio_dev_sck_getxtn(csck);
 
 	HIO_MEMCPY (task->task_req_qmth, hio_htre_getqmethodname(req),qmth_len + 1);
 	HIO_MEMCPY (task->task_req_qpath, hio_htre_getqpath(req), qpath_len + 1);
@@ -747,12 +748,12 @@ int hio_svc_https_task_sendfinal (hio_svc_htts_task_t* task, int status_code, co
 	}
 	else
 	{
-		if (hio_becs_fcat(cli->sbuf, "nContent-Length: %zu\r\n\r\n%hs", content_len, content_text) == (hio_oow_t)-1) return -1;
+		if (hio_becs_fcat(cli->sbuf, "Content-Length: %zu\r\n\r\n%hs", content_len, content_text) == (hio_oow_t)-1) return -1;
 	}
 
 	task->task_status_code = status_code;
 	return (task_write_to_client(task, HIO_BECS_PTR(cli->sbuf), HIO_BECS_LEN(cli->sbuf)) <= -1 ||
-	        (force_close && task_write_to_client(file, HIO_NULL, 0) <= -1))? -1: 0;
+	        (force_close && task_write_to_client(task, HIO_NULL, 0) <= -1))? -1: 0;
 }
 #endif
 
