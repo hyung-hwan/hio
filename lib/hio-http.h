@@ -358,6 +358,12 @@ HIO_EXPORT hio_oow_t hio_escape_html_bcstr (
 	hio_oow_t        len
 );
 
+HIO_EXPORT int hio_parse_http_status_header_value (
+	const hio_bch_t*  status_value,  /* value of the Status header */
+	int*              status_code,   /* [OUT] parsed status code*/
+	const hio_bch_t** status_desc    /* [OUT] parsed status description - HIO_NULL if omitted in the value */
+);
+
 /* ------------------------------------------------------------------------- */
 /* HTTP SERVER SERVICE                                                       */
 /* ------------------------------------------------------------------------- */

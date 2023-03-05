@@ -63,18 +63,18 @@ const hio_bch_t* hio_http_status_to_bcstr (int code)
 		case 303: msg = "See Other"; break;
 		case HIO_HTTP_STATUS_NOT_MODIFIED:          msg = "Not Modified"; break;
 		case 305: msg = "Use Proxy"; break;
-		case 307: msg = "Temporary Redirect"; break;
-		case 308: msg = "Permanent Redirect"; break;
+		case HIO_HTTP_STATUS_TEMPORARY_REDIRECT:    msg = "Temporary Redirect"; break;
+		case HIO_HTTP_STATUS_PERMANENT_REDIRECT:    msg = "Permanent Redirect"; break;
 
 		case HIO_HTTP_STATUS_BAD_REQUEST:           msg = "Bad Request"; break;
 		case HIO_HTTP_STATUS_UNAUTHORIZED:          msg = "Unauthorized"; break;
-		case 402: msg = "Payment Required"; break;
+		case HIO_HTTP_STATUS_PAYMENT_REQUIRED:      msg = "Payment Required"; break;
 		case HIO_HTTP_STATUS_FORBIDDEN:             msg = "Forbidden"; break;
 		case HIO_HTTP_STATUS_NOT_FOUND:             msg = "Not Found"; break;
 		case HIO_HTTP_STATUS_METHOD_NOT_ALLOWED:    msg = "Method Not Allowed"; break;
-		case 406: msg = "Not Acceptable"; break;
-		case 407: msg = "Proxy Authentication Required"; break;
-		case 408: msg = "Request Timeout"; break;
+		case HIO_HTTP_STATUS_NOT_ACCEPTABLE:        msg = "Not Acceptable"; break;
+		case HIO_HTTP_STATUS_PROXY_AUTH_REQUIRED:   msg = "Proxy Authentication Required"; break;
+		case HIO_HTTP_STATUS_REQUEST_TIMEOUT:       msg = "Request Timeout"; break;
 		case 409: msg = "Conflict"; break;
 		case 410: msg = "Gone"; break;
 		case HIO_HTTP_STATUS_LENGTH_REQUIRED:       msg = "Length Required"; break;
@@ -740,4 +740,45 @@ hio_oow_t hio_escape_html_bcstr (const hio_bch_t* str, hio_bch_t* buf, hio_oow_t
 
 
 	return reqlen;
+}
+
+int hio_parse_http_status_header_value (const hio_bch_t* status_value, int* status_code, const hio_bch_t** status_desc)
+{
+	const hio_bch_t* begptr, * endptr;
+	int v_is_sober = 1;
+	hio_intmax_t v = 0;
+	hio_oow_t code_len;
+	hio_oow_t desc_len;
+
+	endptr = status_value;
+	while (hio_is_bch_space(*endptr)) endptr++;
+	begptr = endptr;
+	while (hio_is_bch_digit(*endptr))
+	{
+		v = v * 10 + (*endptr - '0');
+		if (v > HIO_TYPE_MAX(int)) v_is_sober = 0;
+		endptr++;
+	}
+	code_len = endptr - begptr;
+
+	while (hio_is_bch_space(*endptr)) endptr++;
+	begptr = endptr;
+	while (*endptr != '\0') endptr++;
+	desc_len = endptr - begptr;
+
+	if (v_is_sober)
+	{
+		*status_code = v;
+		*status_desc = HIO_NULL;
+		if (code_len > 0 && desc_len > 0)
+		{
+			/* the status line could be simply "Status: 302" or more verbose like "Status: 302 Moved"
+			 * the value may contain more than numbers */
+			*status_desc = begptr;
+		}
+		return 0;
+	}
+
+	/* no sober - do not update *status_code and *status_desc */
+	return -1; 	/* not sober */
 }

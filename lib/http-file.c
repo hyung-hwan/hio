@@ -158,7 +158,10 @@ static int file_send_final_status_to_client (file_t* file, int status_code, int 
 		status_msg = "";
 	}
 
-	if (status_code == HIO_HTTP_STATUS_MOVED_PERMANENTLY || status_code == HIO_HTTP_STATUS_MOVED_TEMPORARILY)
+	if (status_code == HIO_HTTP_STATUS_MOVED_PERMANENTLY ||
+	    status_code == HIO_HTTP_STATUS_MOVED_TEMPORARILY ||
+	    status_code == HIO_HTTP_STATUS_TEMPORARY_REDIRECT ||
+		status_code == HIO_HTTP_STATUS_PERMANENT_REDIRECT)
 	{
 		/* don't send content body when the status code is 3xx. include the Location header only. */
 		if (hio_becs_fcat(cli->sbuf, "Content-Type: text/plain\r\nContent-Length: 0\r\nLocation: %hs%hs\r\n\r\n", file->task_req_qpath, (file->task_req_qpath_ending_with_slash? "": "/")) == (hio_oow_t)-1) return -1;

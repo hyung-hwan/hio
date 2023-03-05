@@ -730,7 +730,10 @@ int hio_svc_https_task_sendfinal (hio_svc_htts_task_t* task, int status_code, co
 		if (status_code != HIO_HTTP_STATUS_OK) content_len = 0;
 		content_text = "";
 	}
-	else if (status_code == HIO_HTTP_STATUS_MOVED_PERMANENTLY || status_code == HIO_HTTP_STATUS_MOVED_TEMPORARILY)
+	else if (status_code == HIO_HTTP_STATUS_MOVED_PERMANENTLY ||
+	         status_code == HIO_HTTP_STATUS_MOVED_TEMPORARILY ||
+	         status_code == HIO_HTTP_STATUS_TEMPORARY_REDIRECT ||
+		     status_code == HIO_HTTP_STATUS_PERMANENT_REDIRECT)
 	{
 		content_len = 0;
 	}
@@ -830,5 +833,3 @@ int hio_svc_htts_writetosidechan (hio_svc_htts_t* htts, hio_oow_t idx, const voi
 
 	return hio_dev_sck_writetosidechan(htts->l.sck[idx], dptr, dlen);
 }
-
-
