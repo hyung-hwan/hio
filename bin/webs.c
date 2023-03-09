@@ -359,12 +359,13 @@ static int process_http_request (hio_svc_htts_t* htts, hio_dev_sck_t* csck, hio_
 		hio_bcstrtoskad(hio, "10.30.0.133:9000", &skad);
 
 		HIO_DEBUG2 (hio, "fcgi %hs %hs\n", ext->ai->docroot, qpath);
-		/*if (hio_svc_htts_dofcgi(htts, csck, req, &skad, ext->ai->docroot, qpath, 0) <= -1) goto oops;*/
-		/* if the document root is relative, it is hard to gurantee that the same document is
-		 * true to the fcgi server which is a different process. so map it a blank string for now.
-		 * TODO: accept a separate document root for the fcgi server and use it below */
+
+	#if 0
+		if (hio_svc_htts_dotxt(htts, csck, req, HIO_HTTP_STATUS_INTERNAL_SERVER_ERROR, "text/plain", "what the...", 0, htts_task_on_kill) <= -1) goto oops;
+	#else
+		/* TODO: accept a separate document root for the fcgi server and use it below */
 		if (hio_svc_htts_dofcgi(htts, csck, req, &skad, ext->ai->docroot, qpath, 0, htts_task_on_kill) <= -1) goto oops;
-		/*if (hio_svc_htts_dotxt(htts, csck, req, HIO_HTTP_STATUS_INTERNAL_SERVER_ERROR, "text/plain", "what the...", 0) <= -1) goto oops;*/
+	#endif
 	}
 	else // if (mth == HIO_HTTP_GET || mth == HIO_HTTP_POST)
 	{

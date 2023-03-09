@@ -70,7 +70,6 @@ struct file_t
 	hio_bch_t peer_etag[128];
 
 	unsigned int over: 4; /* must be large enough to accomodate FILE_OVER_ALL */
-	unsigned int keep_alive: 1;
 	unsigned int req_content_length_unlimited: 1;
 	unsigned int ever_attempted_to_write_to_client: 1;
 	unsigned int client_eof_detected: 1;
@@ -135,41 +134,8 @@ static int file_sendfile_to_client (file_t* file, hio_foff_t foff, hio_iolen_t l
 static int file_send_final_status_to_client (file_t* file, int status_code, int force_close)
 {
 	hio_svc_htts_cli_t* cli = file->task_client;
-	hio_bch_t dtbuf[64];
-	const hio_bch_t* status_msg;
-	hio_oow_t content_len;
-
-	hio_svc_htts_fmtgmtime (cli->htts, HIO_NULL, dtbuf, HIO_COUNTOF(dtbuf));
-	status_msg = hio_http_status_to_bcstr(status_code);
-	content_len = hio_count_bcstr(status_msg);
-
-	if (!force_close) force_close = !file->keep_alive;
-	if (hio_becs_fmt(cli->sbuf, "HTTP/%d.%d %d %hs\r\nServer: %hs\r\nDate: %hs\r\nConnection: %hs\r\n",
-		file->task_req_version.major, file->task_req_version.minor,
-		status_code, status_msg,
-		cli->htts->server_name, dtbuf,
-		(force_close? "close": "keep-alive")) == (hio_oow_t)-1) return -1;
-
-	if (file->task_req_method == HIO_HTTP_HEAD)
-	{
-		if (status_code != HIO_HTTP_STATUS_OK) content_len = 0;
-		status_msg = "";
-	}
-
-	if (status_code == HIO_HTTP_STATUS_MOVED_PERMANENTLY ||
-	    status_code == HIO_HTTP_STATUS_MOVED_TEMPORARILY ||
-	    status_code == HIO_HTTP_STATUS_TEMPORARY_REDIRECT ||
-		status_code == HIO_HTTP_STATUS_PERMANENT_REDIRECT)
-	{
-		/* don't send content body when the status code is 3xx. include the Location header only. */
-		if (hio_becs_fcat(cli->sbuf, "Content-Type: text/plain\r\nContent-Length: 0\r\nLocation: %hs%hs\r\n\r\n", file->task_req_qpath, (file->task_req_qpath_ending_with_slash? "": "/")) == (hio_oow_t)-1) return -1;
-	}
-	else
-	{
-		if (hio_becs_fcat(cli->sbuf, "Content-Type: text/plain\r\nContent-Length: %zu\r\n\r\n%hs", content_len, status_msg) == (hio_oow_t)-1) return -1;
-	}
-
-	file->task_status_code = status_code;
+	if (!cli) return 0; /* client disconnected probably */
+	if (hio_svc_htts_task_buildfinalres(file, status_code, HIO_NULL, HIO_NULL, force_close) <= -1) return -1;
 	return (file_write_to_client(file, HIO_BECS_PTR(cli->sbuf), HIO_BECS_LEN(cli->sbuf)) <= -1 ||
 	        (force_close && file_write_to_client(file, HIO_NULL, 0) <= -1))? -1: 0;
 }
@@ -224,7 +190,7 @@ static void file_mark_over (file_t* file, int over_bits)
 
 		if (HIO_LIKELY(file->task_csck))
 		{
-			if (file->keep_alive && !file->client_eof_detected)
+			if (file->task_keep_client_alive && !file->client_eof_detected)
 			{
 			#if defined(TCP_CORK)
 				int tcp_cork = 0;
@@ -298,7 +264,7 @@ static void file_on_kill (hio_svc_htts_task_t* task)
 		if (file->client_org_on_disconnect) file->task_csck->on_disconnect = file->client_org_on_disconnect;
 		if (file->client_htrd_recbs_changed) hio_htrd_setrecbs (file->task_client->htrd, &file->client_htrd_org_recbs);
 
-		if (!file->keep_alive || hio_dev_sck_read(file->task_csck, 1) <= -1)
+		if (!file->task_keep_client_alive || hio_dev_sck_read(file->task_csck, 1) <= -1)
 		{
 			HIO_DEBUG5 (hio, "HTTS(%p) - file(t=%p,c=%p[%d],p=%d) - halting client for failure to enable input watching\n", file->htts, file, file->task_client, (file->task_csck? file->task_csck->hnd: -1), file->peer);
 			hio_dev_sck_halt (file->task_csck);
@@ -497,7 +463,7 @@ static int file_send_header_to_client (file_t* file, int status_code, int force_
 
 	hio_svc_htts_fmtgmtime (cli->htts, HIO_NULL, dtbuf, HIO_COUNTOF(dtbuf));
 
-	if (!force_close) force_close = !file->keep_alive;
+	if (!force_close) force_close = !file->task_keep_client_alive;
 
 	content_length = file->end_offset - file->start_offset + 1;
 	if (status_code == HIO_HTTP_STATUS_OK && file->total_size != content_length) status_code = HIO_HTTP_STATUS_PARTIAL_CONTENT;
@@ -876,17 +842,7 @@ int hio_svc_htts_dofile (hio_svc_htts_t* htts, hio_dev_sck_t* csck, hio_htre_t* 
 	}
 #endif
 
-	/* this may change later if Content-Length is included in the file output */
-	if (req->flags & HIO_HTRE_ATTR_KEEPALIVE)
-	{
-		file->keep_alive = 1;
-		file->res_mode_to_cli = FILE_RES_MODE_LENGTH;
-	}
-	else
-	{
-		file->keep_alive = 0;
-		file->res_mode_to_cli = FILE_RES_MODE_CLOSE;
-	}
+	file->res_mode_to_cli = file->task_keep_client_alive? FILE_RES_MODE_LENGTH: FILE_RES_MODE_CLOSE;
 
 	switch (file->task_req_method)
 	{

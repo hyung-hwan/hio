@@ -39,7 +39,6 @@ struct txt_t
 	hio_oow_t num_pending_writes_to_client;
 
 	unsigned int over: 2; /* must be large enough to accomodate TXT_OVER_ALL */
-	unsigned int keep_alive: 1;
 	unsigned int req_content_length_unlimited: 1;
 	unsigned int client_eof_detected: 1;
 	unsigned int client_disconnected: 1;
@@ -92,36 +91,9 @@ static int txt_writev_to_client (txt_t* txt, hio_iovec_t* iov, hio_iolen_t iovcn
 static int txt_send_final_status_to_client (txt_t* txt, int status_code, const hio_bch_t* content_type, const hio_bch_t* content_text, int force_close)
 {
 	hio_svc_htts_cli_t* cli = txt->task_client;
-	hio_bch_t dtbuf[64];
-	hio_oow_t content_text_len = 0;
-
-	hio_svc_htts_fmtgmtime (cli->htts, HIO_NULL, dtbuf, HIO_COUNTOF(dtbuf));
-
-	if (!force_close) force_close = !txt->keep_alive;
-
-	if (hio_becs_fmt(cli->sbuf, "HTTP/%d.%d %d %hs\r\nServer: %hs\r\nDate: %hs\r\nConnection: %hs\r\n",
-		txt->task_req_version.major, txt->task_req_version.minor,
-		status_code, hio_http_status_to_bcstr(status_code),
-		cli->htts->server_name, dtbuf,
-		(force_close? "close": "keep-alive")) == (hio_oow_t)-1) return -1;
-
-	if (content_text)
-	{
-		content_text_len = hio_count_bcstr(content_text);
-		if (txt->task_req_method == HIO_HTTP_HEAD)
-		{
-			if (status_code != HIO_HTTP_STATUS_OK) content_text_len = 0;
-			content_text = "";
-		}
-
-		if (content_type && hio_becs_fcat(cli->sbuf, "Content-Type: %hs\r\n", content_type) == (hio_oow_t)-1) return -1;
-	}
-
-	if (hio_becs_fcat(cli->sbuf, "Content-Length: %zu\r\n\r\n", content_text_len) == (hio_oow_t)-1) return -1;
-
-	txt->task_status_code = status_code;
+	if (!cli) return 0; /* client disconnected probably */
+	if (hio_svc_htts_task_buildfinalres(txt, status_code, content_type, content_text, force_close) <= -1) return -1;
 	return (txt_write_to_client(txt, HIO_BECS_PTR(cli->sbuf), HIO_BECS_LEN(cli->sbuf)) <= -1 ||
-	        (content_text_len > 0 && txt_write_to_client(txt, content_text, content_text_len) <= -1) ||
 	        (force_close && txt_write_to_client(txt, HIO_NULL, 0) <= -1))? -1: 0;
 }
 
@@ -146,7 +118,7 @@ static HIO_INLINE void txt_mark_over (txt_t* txt, int over_bits)
 	if (old_over != TXT_OVER_ALL && txt->over == TXT_OVER_ALL)
 	{
 		/* ready to stop */
-		if (txt->keep_alive && !txt->client_eof_detected)
+		if (txt->task_keep_client_alive && !txt->client_eof_detected)
 		{
 			/* how to arrange to delete this txt object and put the socket back to the normal waiting state??? */
 			HIO_ASSERT (txt->htts->hio, txt->task_client->task == (hio_svc_htts_task_t*)txt);
@@ -185,7 +157,7 @@ static void txt_on_kill (hio_svc_htts_task_t* task)
 
 		if (!txt->client_disconnected)
 		{
-			if (!txt->keep_alive || hio_dev_sck_read(txt->task_csck, 1) <= -1)
+			if (!txt->task_keep_client_alive || hio_dev_sck_read(txt->task_csck, 1) <= -1)
 			{
 				HIO_DEBUG2 (hio, "HTTS(%p) - halting client(%p) for failure to enable input watching\n", txt->htts, txt->task_csck);
 				hio_dev_sck_halt (txt->task_csck);
@@ -377,9 +349,6 @@ int hio_svc_htts_dotxt (hio_svc_htts_t* htts, hio_dev_sck_t* csck, hio_htre_t* r
 		/* indicate EOF to the peer and disable input wathching from the client */
 		txt_mark_over (txt, TXT_OVER_READ_FROM_CLIENT);
 	}
-
-	/* this may change later if Content-Length is included in the txt output */
-	txt->keep_alive = !!(req->flags & HIO_HTRE_ATTR_KEEPALIVE);
 
 	/* TODO: store current input watching state and use it when destroying the txt data */
 	if (hio_dev_sck_read(csck, !(txt->over & TXT_OVER_READ_FROM_CLIENT)) <= -1) goto oops;

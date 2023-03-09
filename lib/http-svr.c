@@ -675,14 +675,15 @@ hio_svc_htts_task_t* hio_svc_htts_task_make (hio_svc_htts_t* htts, hio_oow_t tas
 	task->task_size = task_size;
 	task->task_refcnt = 0;
 	task->task_on_kill = on_kill;
-	task->task_req_method = hio_htre_getqmethodtype(req);
-	task->task_req_version = *hio_htre_getversion(req);
-	task->task_req_qpath_ending_with_slash = (hio_htre_getqpathlen(req) > 0 && hio_htre_getqpath(req)[hio_htre_getqpathlen(req) - 1] == '/');
-	task->task_req_qpath_is_root = (hio_htre_getqpathlen(req) == 1 && hio_htre_getqpath(req)[0] == '/');
-	task->task_req_qmth = (hio_bch_t*)((hio_uint8_t*)task + task_size);
-	task->task_req_qpath = task->task_req_qmth + qmth_len + 1;
 	task->task_csck = csck;
 	task->task_client = (hio_svc_htts_cli_t*)hio_dev_sck_getxtn(csck);
+	task->task_keep_client_alive = !!(req->flags & HIO_HTRE_ATTR_KEEPALIVE);
+	task->task_req_qpath_ending_with_slash = (hio_htre_getqpathlen(req) > 0 && hio_htre_getqpath(req)[hio_htre_getqpathlen(req) - 1] == '/');
+	task->task_req_qpath_is_root = (hio_htre_getqpathlen(req) == 1 && hio_htre_getqpath(req)[0] == '/');
+	task->task_req_method = hio_htre_getqmethodtype(req);
+	task->task_req_version = *hio_htre_getversion(req);
+	task->task_req_qmth = (hio_bch_t*)((hio_uint8_t*)task + task_size);
+	task->task_req_qpath = task->task_req_qmth + qmth_len + 1;
 
 	HIO_MEMCPY (task->task_req_qmth, hio_htre_getqmethodname(req),qmth_len + 1);
 	HIO_MEMCPY (task->task_req_qpath, hio_htre_getqpath(req), qpath_len + 1);
@@ -704,18 +705,27 @@ void hio_svc_htts_task_kill (hio_svc_htts_task_t* task)
 	HIO_DEBUG2 (hio, "HTTS(%p) - destroyed task %p\n", htts, task);
 }
 
-#if 0
-int hio_svc_https_task_sendfinal (hio_svc_htts_task_t* task, int status_code, const hio_bch_t* content_type, const hio_bch_t* content_text, int force_close)
+int hio_svc_htts_task_buildfinalres (hio_svc_htts_task_t* task, int status_code, const hio_bch_t* content_type, const hio_bch_t* content_text, int force_close)
 {
+	hio_svc_htts_t* htts = task->htts;
+	hio_t* hio = htts->hio;
 	hio_svc_htts_cli_t* cli = task->task_client;
 	hio_bch_t dtbuf[64];
 	hio_oow_t content_len;
 	const hio_bch_t* status_msg;
+	int redir = 0;
+
+	if (!cli) 
+	{
+		/* the client has probably been disconnected */
+		HIO_ASSERT (hio, task->task_csck == HIO_NULL);
+		return 0;
+	}
 
 	status_msg = hio_http_status_to_bcstr(status_code);
 	hio_svc_htts_fmtgmtime (task->htts, HIO_NULL, dtbuf, HIO_COUNTOF(dtbuf));
 
-	if (!force_close) force_close = !task->task_keep_alive;
+	if (!force_close) force_close = !task->task_keep_client_alive;
 	if (hio_becs_fmt(cli->sbuf, "HTTP/%d.%d %d %hs\r\nServer: %hs\r\nDate: %hs\r\nConnection: %hs\r\n",
 		task->task_req_version.major, task->task_req_version.minor,
 		status_code, status_msg,
@@ -724,6 +734,8 @@ int hio_svc_https_task_sendfinal (hio_svc_htts_task_t* task, int status_code, co
 
 	if (!content_text) content_text = status_msg;
 
+	if (content_type && hio_becs_fcat(cli->sbuf, "Content-Type: %hs\r\n", content_type) == (hio_oow_t)-1) return -1;
+
 	content_len = hio_count_bcstr(content_text);
 	if (task->task_req_method == HIO_HTTP_HEAD)
 	{
@@ -731,17 +743,11 @@ int hio_svc_https_task_sendfinal (hio_svc_htts_task_t* task, int status_code, co
 		if (status_code != HIO_HTTP_STATUS_OK) content_len = 0;
 		content_text = "";
 	}
-	else if (status_code == HIO_HTTP_STATUS_MOVED_PERMANENTLY ||
-	         status_code == HIO_HTTP_STATUS_MOVED_TEMPORARILY ||
-	         status_code == HIO_HTTP_STATUS_TEMPORARY_REDIRECT ||
-		     status_code == HIO_HTTP_STATUS_PERMANENT_REDIRECT)
-	{
-		content_len = 0;
-	}
 
-	if (content_type && hio_becs_fcat(cli->sbuf, "Content-Type: %hs\r\n", content_type) == (hio_oow_t)-1) return -1;
-
-	if (status_code == HIO_HTTP_STATUS_MOVED_PERMANENTLY || status_code == HIO_HTTP_STATUS_MOVED_TEMPORARILY)
+	if (status_code == HIO_HTTP_STATUS_MOVED_PERMANENTLY ||
+	    status_code == HIO_HTTP_STATUS_MOVED_TEMPORARILY ||
+	    status_code == HIO_HTTP_STATUS_TEMPORARY_REDIRECT ||
+	    status_code == HIO_HTTP_STATUS_PERMANENT_REDIRECT)
 	{
 		/* don't send content body when the status code is 3xx. include the Location header only. */
 		if (hio_becs_fcat(cli->sbuf, "Content-Length: 0\r\nLocation: %hs%hs\r\n\r\n", task->task_req_qpath, (task->task_req_qpath_ending_with_slash? "": "/")) == (hio_oow_t)-1) return -1;
@@ -750,12 +756,13 @@ int hio_svc_https_task_sendfinal (hio_svc_htts_task_t* task, int status_code, co
 	{
 		if (hio_becs_fcat(cli->sbuf, "Content-Length: %zu\r\n\r\n%hs", content_len, content_text) == (hio_oow_t)-1) return -1;
 	}
+	
+	task->task_status_code = status_code; /* remember the status code sent to the client. doesn't matter if it fails to write or not */
+//	if (hio_dev_sck_write(task->task_csck, HIO_BECS_PTR(cli->sbuf), HIO_BECS_LEN(cli->sbuf), HIO_NULL, HIO_NULL) <= -1) return -1;
+//	if (force_close && hio_dev_sck_write(task->task_csck, HIO_NULL, 0, HIO_NULL, HIO_NULL) <= -1) return -1;
 
-	task->task_status_code = status_code;
-	return (task_write_to_client(task, HIO_BECS_PTR(cli->sbuf), HIO_BECS_LEN(cli->sbuf)) <= -1 ||
-	        (force_close && task_write_to_client(task, HIO_NULL, 0) <= -1))? -1: 0;
+	return 0;
 }
-#endif
 
 /* ----------------------------------------------------------------- */
 

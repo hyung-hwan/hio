@@ -95,15 +95,16 @@ typedef void (*hio_svc_htts_task_on_kill_t) (
 	hio_svc_htts_task_t* task_prev; \
 	hio_svc_htts_task_t* task_next; \
 	hio_svc_htts_task_on_kill_t task_on_kill; \
-	hio_http_version_t task_req_version; \
-	hio_http_method_t task_req_method; \
+	hio_dev_sck_t* task_csck; \
+	hio_svc_htts_cli_t* task_client; \
+	unsigned int task_keep_client_alive: 1; \
 	unsigned int task_req_qpath_ending_with_slash: 1; \
 	unsigned int task_req_qpath_is_root: 1; \
+	hio_http_version_t task_req_version; \
+	hio_http_method_t task_req_method; \
 	hio_bch_t* task_req_qmth; \
 	hio_bch_t* task_req_qpath; \
-	hio_http_status_t task_status_code; \
-	hio_dev_sck_t* task_csck; \
-	hio_svc_htts_cli_t* task_client
+	hio_http_status_t task_status_code;
 
 struct hio_svc_htts_task_t
 {
@@ -487,6 +488,14 @@ HIO_EXPORT hio_svc_htts_task_t* hio_svc_htts_task_make (
 
 HIO_EXPORT void hio_svc_htts_task_kill (
 	hio_svc_htts_task_t*         task
+);
+
+HIO_EXPORT int hio_svc_htts_task_buildfinalres (
+	hio_svc_htts_task_t* task,
+	int                  status_code,
+	const hio_bch_t*     content_type,
+	const hio_bch_t*     content_text,
+	int                  force_close
 );
 
 HIO_EXPORT void hio_svc_htts_fmtgmtime (

@@ -67,7 +67,6 @@ struct cgi_t
 	hio_htrd_t* peer_htrd;
 
 	unsigned int over: 4; /* must be large enough to accomodate CGI_OVER_ALL */
-	unsigned int keep_alive: 1;
 	unsigned int req_content_length_unlimited: 1;
 	unsigned int ever_attempted_to_write_to_client: 1;
 	unsigned int client_eof_detected: 1;
@@ -145,30 +144,8 @@ static int cgi_writev_to_client (cgi_t* cgi, hio_iovec_t* iov, hio_iolen_t iovcn
 static int cgi_send_final_status_to_client (cgi_t* cgi, int status_code, int force_close)
 {
 	hio_svc_htts_cli_t* cli = cgi->task_client;
-	hio_bch_t dtbuf[64];
-	const hio_bch_t* status_msg;
-	hio_oow_t content_len;
-
-	hio_svc_htts_fmtgmtime (cli->htts, HIO_NULL, dtbuf, HIO_COUNTOF(dtbuf));
-	status_msg = hio_http_status_to_bcstr(status_code);
-	content_len = hio_count_bcstr(status_msg);
-
-	if (!force_close) force_close = !cgi->keep_alive;
-	if (hio_becs_fmt(cli->sbuf, "HTTP/%d.%d %d %hs\r\nServer: %hs\r\nDate: %hs\r\nConnection: %hs\r\n",
-		cgi->task_req_version.major, cgi->task_req_version.minor,
-		status_code, status_msg,
-		cli->htts->server_name, dtbuf,
-		(force_close? "close": "keep-alive")) == (hio_oow_t)-1) return -1;
-
-	if (cgi->task_req_method == HIO_HTTP_HEAD)
-	{
-		if (status_code != HIO_HTTP_STATUS_OK) content_len = 0;
-		status_msg = "";
-	}
-
-	if (hio_becs_fcat(cli->sbuf, "Content-Type: text/plain\r\nContent-Length: %zu\r\n\r\n%hs", content_len, status_msg) == (hio_oow_t)-1) return -1;
-
-	cgi->task_status_code = status_code;
+	if (!cli) return 0; /* client disconnected probably */
+	if (hio_svc_htts_task_buildfinalres(cgi, status_code, HIO_NULL, HIO_NULL, force_close) <= -1) return -1;
 	return (cgi_write_to_client(cgi, HIO_BECS_PTR(cli->sbuf), HIO_BECS_LEN(cli->sbuf)) <= -1 ||
 	        (force_close && cgi_write_to_client(cgi, HIO_NULL, 0) <= -1))? -1: 0;
 }
@@ -185,7 +162,7 @@ static int cgi_write_last_chunk_to_client (cgi_t* cgi)
 		    cgi_write_to_client(cgi, "0\r\n\r\n", 5) <= -1) return -1;
 	}
 
-	if (!cgi->keep_alive && cgi_write_to_client(cgi, HIO_NULL, 0) <= -1) return -1;
+	if (!cgi->task_keep_client_alive && cgi_write_to_client(cgi, HIO_NULL, 0) <= -1) return -1;
 	return 0;
 }
 
@@ -252,7 +229,7 @@ static HIO_INLINE void cgi_mark_over (cgi_t* cgi, int over_bits)
 		{
 			HIO_ASSERT (hio, cgi->task_client != HIO_NULL);
 
-			if (cgi->keep_alive && !cgi->client_eof_detected)
+			if (cgi->task_keep_client_alive && !cgi->client_eof_detected)
 			{
 				/* how to arrange to delete this cgi object and put the socket back to the normal waiting state??? */
 				HIO_ASSERT (cgi->htts->hio, cgi->task_client->task == (hio_svc_htts_task_t*)cgi);
@@ -308,7 +285,7 @@ static void cgi_on_kill (hio_svc_htts_task_t* task)
 
 		if (!cgi->client_disconnected)
 		{
-			if (!cgi->keep_alive || hio_dev_sck_read(cgi->task_csck, 1) <= -1)
+			if (!cgi->task_keep_client_alive || hio_dev_sck_read(cgi->task_csck, 1) <= -1)
 			{
 				HIO_DEBUG5 (hio, "HTTS(%p) - cgi(t=%p,c=%p[%d],p=%p) - halting client for failure to enable input watching\n", cgi->htts, cgi, cgi->task_client, (cgi->task_csck? cgi->task_csck->hnd: -1), cgi->peer);
 				hio_dev_sck_halt (cgi->task_csck);
@@ -561,7 +538,7 @@ static int peer_htrd_peek (hio_htrd_t* htrd, hio_htre_t* req)
 			break;
 
 		case CGI_RES_MODE_LENGTH:
-			if (hio_becs_cat(cli->sbuf, (cgi->keep_alive? "Connection: keep-alive\r\n": "Connection: close\r\n")) == (hio_oow_t)-1) return -1;
+			if (hio_becs_cat(cli->sbuf, (cgi->task_keep_client_alive? "Connection: keep-alive\r\n": "Connection: close\r\n")) == (hio_oow_t)-1) return -1;
 	}
 
 	if (hio_becs_cat(cli->sbuf, "\r\n") == (hio_oow_t)-1) return -1;
@@ -1101,18 +1078,8 @@ int hio_svc_htts_docgi (hio_svc_htts_t* htts, hio_dev_sck_t* csck, hio_htre_t* r
 	}
 #endif
 
-	/* this may change later if Content-Length is included in the cgi output */
-	if (req->flags & HIO_HTRE_ATTR_KEEPALIVE)
-	{
-		cgi->keep_alive = 1;
-		cgi->res_mode_to_cli = CGI_RES_MODE_CHUNKED;
-		/* the mode still can get switched to CGI_RES_MODE_LENGTH if the cgi script emits Content-Length */
-	}
-	else
-	{
-		cgi->keep_alive = 0;
-		cgi->res_mode_to_cli = CGI_RES_MODE_CLOSE;
-	}
+	cgi->res_mode_to_cli = cgi->task_keep_client_alive? CGI_RES_MODE_CHUNKED: CGI_RES_MODE_CLOSE;
+	/* the mode still can get switched from CGI_RES_MODE_CHUNKED to CGI_RES_MODE_LENGTH if the cgi script emits Content-Length */
 
 	/* TODO: store current input watching state and use it when destroying the cgi data */
 	if (hio_dev_sck_read(csck, !(cgi->over & CGI_OVER_READ_FROM_CLIENT)) <= -1) goto oops;
