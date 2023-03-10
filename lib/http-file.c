@@ -457,6 +457,7 @@ static hio_htrd_recbs_t file_client_htrd_recbs =
 
 static int file_send_header_to_client (file_t* file, int status_code, int force_close, const hio_bch_t* mime_type)
 {
+#if 0
 	hio_svc_htts_cli_t* cli = file->task_client;
 	hio_bch_t dtbuf[64];
 	hio_foff_t content_length;
@@ -494,6 +495,43 @@ static int file_send_header_to_client (file_t* file, int status_code, int force_
 
 	file->task_status_code = status_code;
 	return file_write_to_client(file, HIO_BECS_PTR(cli->sbuf), HIO_BECS_LEN(cli->sbuf));
+#else
+	hio_svc_htts_cli_t* cli = file->task_client;
+	hio_foff_t content_length;
+
+	if (HIO_UNLIKELY(!cli))
+	{
+		/* client disconnected or not connectd */
+		return 0;
+	}
+
+	content_length = file->end_offset - file->start_offset + 1;
+	if (status_code == HIO_HTTP_STATUS_OK && file->total_size != content_length) status_code = HIO_HTTP_STATUS_PARTIAL_CONTENT;
+
+	if (hio_svc_htts_task_startreshdr(file, status_code, HIO_NULL, 0) <= -1) return -1;
+
+
+	if (mime_type && mime_type[0] != '\0' && hio_svc_htts_task_addreshdr(file, "Content-Type", mime_type) <= -1) return -1;
+
+	if ((file->task_req_method == HIO_HTTP_GET || file->task_req_method == HIO_HTTP_HEAD) &&
+	    hio_svc_htts_task_addreshdr(file, "ETag", file->peer_etag) <= -1) return -1;
+
+	if (status_code == HIO_HTTP_STATUS_PARTIAL_CONTENT &&
+	    hio_svc_htts_task_addreshdrfmt(file, "Content-Ranges", "bytes %ju-%ju/%ju", (hio_uintmax_t)file->start_offset, (hio_uintmax_t)file->end_offset, (hio_uintmax_t)file->total_size) <= -1) return -1;
+
+/* ----- */
+// TODO: Allow-Contents
+// Allow-Headers... support custom headers...
+	if (hio_svc_htts_task_addreshdr(file, "Access-Control-Allow-Origin", "*") <= -1) return -1;
+/* ----- */
+
+	if (hio_svc_htts_task_addreshdrfmt(file, "Content-Length", "%ju", (hio_uintmax_t)content_length) <= -1) return -1;
+
+	if (hio_svc_htts_task_endreshdr(file) <= -1) return -1;
+
+	file->task_status_code = status_code;
+	return file_write_to_client(file, HIO_BECS_PTR(cli->sbuf), HIO_BECS_LEN(cli->sbuf));
+#endif
 }
 
 static void send_contents_to_client_later (hio_t* hio, const hio_ntime_t* now, hio_tmrjob_t* tmrjob)

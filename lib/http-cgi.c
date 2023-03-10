@@ -474,31 +474,7 @@ oops:
 
 static int peer_capture_response_header (hio_htre_t* req, const hio_bch_t* key, const hio_htre_hdrval_t* val, void* ctx)
 {
-	hio_svc_htts_cli_t* cli = (hio_svc_htts_cli_t*)ctx;
-
-	/* capture a header except Status, Connection, Transfer-Encoding, and Server */
-	if (hio_comp_bcstr(key, "Status", 1) != 0 &&
-	    hio_comp_bcstr(key, "Connection", 1) != 0 &&
-	    hio_comp_bcstr(key, "Transfer-Encoding", 1) != 0 &&
-	    hio_comp_bcstr(key, "Server", 1) != 0 &&
-	    hio_comp_bcstr(key, "Date", 1) != 0)
-	{
-		do
-		{
-			if (hio_becs_cat(cli->sbuf, key) == (hio_oow_t)-1 ||
-			    hio_becs_cat(cli->sbuf, ": ") == (hio_oow_t)-1 ||
-			    hio_becs_cat(cli->sbuf, val->ptr) == (hio_oow_t)-1 ||
-			    hio_becs_cat(cli->sbuf, "\r\n") == (hio_oow_t)-1)
-			{
-				return -1;
-			}
-
-			val = val->next;
-		}
-		while (val);
-	}
-
-	return 0;
+	return hio_svc_htts_task_addreshdrs((cgi_t*)ctx, key, val);
 }
 
 static int peer_htrd_peek (hio_htrd_t* htrd, hio_htre_t* req)
@@ -506,42 +482,24 @@ static int peer_htrd_peek (hio_htrd_t* htrd, hio_htre_t* req)
 	cgi_peer_xtn_t* peer = hio_htrd_getxtn(htrd);
 	cgi_t* cgi = peer->cgi;
 	hio_svc_htts_cli_t* cli = cgi->task_client;
-	hio_bch_t dtbuf[64];
 	int status_code = HIO_HTTP_STATUS_OK;
 	const hio_bch_t* status_desc = HIO_NULL;
+	int chunked;
 
-	if (req->attr.content_length)
+	if (HIO_UNLIKELY(!cli))
 	{
-// TOOD: remove content_length if content_length is negative or not numeric.
-		cgi->res_mode_to_cli = CGI_RES_MODE_LENGTH;
+		/* client disconnected or not connectd */
+		return 0;
 	}
 
+	if (req->attr.content_length) cgi->res_mode_to_cli = CGI_RES_MODE_LENGTH;
 	if (req->attr.status) hio_parse_http_status_header_value(req->attr.status, &status_code, &status_desc);
 
-	hio_svc_htts_fmtgmtime (cli->htts, HIO_NULL, dtbuf, HIO_COUNTOF(dtbuf));
+	chunked = cgi->task_keep_client_alive && !req->attr.content_length;
 
-	if (hio_becs_fmt(cli->sbuf, "HTTP/%d.%d ", cgi->task_req_version.major, cgi->task_req_version.minor) == (hio_oow_t)-1) return -1;
-	if (hio_becs_fcat(cli->sbuf, "%d %hs\r\n", status_code, (status_desc? status_desc: hio_http_status_to_bcstr(status_code))) == (hio_oow_t)-1) return -1;
-	if (hio_becs_fcat(cli->sbuf, "Server: %hs\r\nDate: %hs\r\n", cli->htts->server_name, dtbuf) == (hio_oow_t)-1) return -1;
-
-	if (hio_htre_walkheaders(req, peer_capture_response_header, cli) <= -1) return -1;
-
-	switch (cgi->res_mode_to_cli)
-	{
-		case CGI_RES_MODE_CHUNKED:
-			if (hio_becs_cat(cli->sbuf, "Transfer-Encoding: chunked\r\n") == (hio_oow_t)-1) return -1;
-			/*if (hio_becs_cat(cli->sbuf, "Connection: keep-alive\r\n") == (hio_oow_t)-1) return -1;*/
-			break;
-
-		case CGI_RES_MODE_CLOSE:
-			if (hio_becs_cat(cli->sbuf, "Connection: close\r\n") == (hio_oow_t)-1) return -1;
-			break;
-
-		case CGI_RES_MODE_LENGTH:
-			if (hio_becs_cat(cli->sbuf, (cgi->task_keep_client_alive? "Connection: keep-alive\r\n": "Connection: close\r\n")) == (hio_oow_t)-1) return -1;
-	}
-
-	if (hio_becs_cat(cli->sbuf, "\r\n") == (hio_oow_t)-1) return -1;
+	if (hio_svc_htts_task_startreshdr(cgi, status_code, status_desc, chunked) <= -1 ||
+	    hio_htre_walkheaders(req, peer_capture_response_header, cgi) <= -1 ||
+	    hio_svc_htts_task_endreshdr(cgi) <= -1) return -1;
 
 	cgi->task_status_code = status_code;
 	return cgi_write_to_client(cgi, HIO_BECS_PTR(cli->sbuf), HIO_BECS_LEN(cli->sbuf));

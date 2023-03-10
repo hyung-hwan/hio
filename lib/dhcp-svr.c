@@ -30,6 +30,7 @@ struct hio_svc_dhcs_t
 {
 	HIO_SVC_HEADER;
 
+	int stopping;
 	hio_dev_sck_t* sck;
 };
 
@@ -122,6 +123,7 @@ hio_svc_dhcs_t* hio_svc_dhcs_start (hio_t* hio, const hio_skad_t* local_binds, h
 	if (HIO_UNLIKELY(!dhcs)) goto oops;
 
 	dhcs->hio = hio;
+	dhcs->svc_stop = (hio_svc_stop_t)hio_svc_dhcs_stop;
 
 	for (i = 0; i < local_nbinds; i++)
 	{
@@ -150,4 +152,17 @@ oops:
 		hio_freemem (hio, dhcs);
 	}
 	return HIO_NULL;
+}
+
+void hio_svc_dhcs_stop (hio_svc_dhcs_t* dhcs)
+{
+	hio_t* hio = dhcs->hio;
+
+	HIO_DEBUG1 (hio, "FCGIC - STOPPING SERVICE %p\n", dhcs);
+	dhcs->stopping = 1;
+
+	HIO_SVCL_UNLINK_SVC (dhcs);
+	hio_freemem (hio, dhcs);
+
+	HIO_DEBUG1 (hio, "FCGIC - STOPPED SERVICE %p\n", dhcs);
 }

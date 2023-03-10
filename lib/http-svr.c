@@ -25,6 +25,7 @@
 #include "http-prv.h"
 #include <hio-path.h>
 #include <errno.h>
+#include <stdarg.h>
 
 #define INVALID_LIDX HIO_TYPE_MAX(hio_oow_t)
 
@@ -713,13 +714,12 @@ int hio_svc_htts_task_buildfinalres (hio_svc_htts_task_t* task, int status_code,
 	hio_bch_t dtbuf[64];
 	hio_oow_t content_len;
 	const hio_bch_t* status_msg;
-	int redir = 0;
 
-	if (!cli) 
+	if (HIO_UNLIKELY(!cli))
 	{
 		/* the client has probably been disconnected */
 		HIO_ASSERT (hio, task->task_csck == HIO_NULL);
-		return 0;
+		return 0; /* no data */
 	}
 
 	status_msg = hio_http_status_to_bcstr(status_code);
@@ -761,6 +761,87 @@ int hio_svc_htts_task_buildfinalres (hio_svc_htts_task_t* task, int status_code,
 //	if (hio_dev_sck_write(task->task_csck, HIO_BECS_PTR(cli->sbuf), HIO_BECS_LEN(cli->sbuf), HIO_NULL, HIO_NULL) <= -1) return -1;
 //	if (force_close && hio_dev_sck_write(task->task_csck, HIO_NULL, 0, HIO_NULL, HIO_NULL) <= -1) return -1;
 
+	return 1;
+}
+
+int hio_svc_htts_task_startreshdr (hio_svc_htts_task_t* task, int status_code, const hio_bch_t* status_desc, int chunked)
+{
+	hio_svc_htts_cli_t* cli = task->task_client;
+	hio_bch_t dtbuf[64];
+
+	HIO_ASSERT (task->htts->hio, cli != HIO_NULL);
+
+	hio_svc_htts_fmtgmtime (cli->htts, HIO_NULL, dtbuf, HIO_COUNTOF(dtbuf));
+
+	if (hio_becs_fmt(cli->sbuf, "HTTP/%d.%d ", task->task_req_version.major, task->task_req_version.minor) == (hio_oow_t)-1) return -1;
+	if (hio_becs_fcat(cli->sbuf, "%d %hs\r\n", status_code, (status_desc? status_desc: hio_http_status_to_bcstr(status_code))) == (hio_oow_t)-1) return -1;
+	if (hio_becs_fcat(cli->sbuf, "Server: %hs\r\nDate: %hs\r\n", cli->htts->server_name, dtbuf) == (hio_oow_t)-1) return -1;
+
+	if (chunked && hio_becs_cat(cli->sbuf, "Transfer-Encoding: chunked\r\n") == (hio_oow_t)-1) return -1;
+	if (hio_becs_cat(cli->sbuf, (task->task_keep_client_alive? "Connection: keep-alive\r\n": "Connection: close\r\n")) == (hio_oow_t)-1) return -1;
+
+	return 0;
+}
+
+static int is_res_header_acceptable (const hio_bch_t* key)
+{
+	return hio_comp_bcstr(key, "Status", 1) != 0 &&
+	       hio_comp_bcstr(key, "Connection", 1) != 0 &&
+	       hio_comp_bcstr(key, "Transfer-Encoding", 1) != 0 &&
+	       hio_comp_bcstr(key, "Server", 1) != 0 &&
+	       hio_comp_bcstr(key, "Date", 1) != 0;
+}
+
+int hio_svc_htts_task_addreshdrs (hio_svc_htts_task_t* task, const hio_bch_t* key, const hio_htre_hdrval_t* value)
+{
+	hio_svc_htts_cli_t* cli = task->task_client;
+	HIO_ASSERT (task->htts->hio, cli != HIO_NULL);
+
+	if (!is_res_header_acceptable(key)) return 0; /* ignore it*/
+	while (value)
+	{
+		if (hio_becs_fcat(cli->sbuf, "%hs: %hs\r\n", key, value->ptr) == (hio_oow_t)-1) return -1;
+		value = value->next;
+	}
+
+	return 0;
+}
+
+int hio_svc_htts_task_addreshdr (hio_svc_htts_task_t* task, const hio_bch_t* key, const hio_bch_t* value)
+{
+	hio_svc_htts_cli_t* cli = task->task_client;
+	HIO_ASSERT (task->htts->hio, cli != HIO_NULL);
+
+	if (!is_res_header_acceptable(key)) return 0; /* just ignore it*/
+	if (hio_becs_fcat(cli->sbuf, "%hs: %hs\r\n", key, value) == (hio_oow_t)-1) return -1;
+	return 0;
+}
+
+int hio_svc_htts_task_addreshdrfmt (hio_svc_htts_task_t* task, const hio_bch_t* key, const hio_bch_t* vfmt, ...)
+{
+	hio_svc_htts_cli_t* cli = task->task_client;
+	va_list ap;
+	HIO_ASSERT (task->htts->hio, cli != HIO_NULL);
+
+	if (!is_res_header_acceptable(key)) return 0; /* just ignore it*/
+	if (hio_becs_fcat(cli->sbuf, "%hs: ", key) == (hio_oow_t)-1) return -1;
+	va_start (ap, vfmt);
+	if (hio_becs_vfcat(cli->sbuf, vfmt, ap) == (hio_oow_t)-1) 
+	{
+		va_end (ap);
+		return -1;
+	}
+	va_end (ap);
+	if (hio_becs_cat(cli->sbuf, "\r\n") == (hio_oow_t)-1) return -1;
+	return 0;
+}
+
+int hio_svc_htts_task_endreshdr (hio_svc_htts_task_t* task)
+{
+	hio_svc_htts_cli_t* cli = task->task_client;
+
+	HIO_ASSERT (task->htts->hio, cli != HIO_NULL);
+	if (hio_becs_cat(cli->sbuf, "\r\n") == (hio_oow_t)-1) return -1;
 	return 0;
 }
 

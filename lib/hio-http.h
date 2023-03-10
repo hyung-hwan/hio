@@ -498,6 +498,36 @@ HIO_EXPORT int hio_svc_htts_task_buildfinalres (
 	int                  force_close
 );
 
+HIO_EXPORT int hio_svc_htts_task_startreshdr (
+	hio_svc_htts_task_t* task,
+	int                  status_code,
+	const hio_bch_t*     status_desc,
+	int                  chunked
+);
+
+HIO_EXPORT int hio_svc_htts_task_addreshdrs (
+	hio_svc_htts_task_t*     task,
+	const hio_bch_t*         key,
+	const hio_htre_hdrval_t* value
+);
+
+HIO_EXPORT int hio_svc_htts_task_addreshdr (
+	hio_svc_htts_task_t* task,
+	const hio_bch_t*     key,
+	const hio_bch_t*     value
+);
+
+HIO_EXPORT int hio_svc_htts_task_addreshdrfmt (
+	hio_svc_htts_task_t* task,
+	const hio_bch_t*     key,
+	const hio_bch_t*     vfmt,
+	...
+);
+
+HIO_EXPORT int hio_svc_htts_task_endreshdr (
+	hio_svc_htts_task_t* task
+);
+
 HIO_EXPORT void hio_svc_htts_fmtgmtime (
 	hio_svc_htts_t*    htts,
 	const hio_ntime_t* nt,
