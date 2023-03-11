@@ -24,6 +24,7 @@
 
 #include "http-prv.h"
 #include <hio-path.h>
+#include <hio-fmt.h>
 #include <errno.h>
 #include <stdarg.h>
 
@@ -780,6 +781,7 @@ int hio_svc_htts_task_startreshdr (hio_svc_htts_task_t* task, int status_code, c
 	if (chunked && hio_becs_cat(cli->sbuf, "Transfer-Encoding: chunked\r\n") == (hio_oow_t)-1) return -1;
 	if (hio_becs_cat(cli->sbuf, (task->task_keep_client_alive? "Connection: keep-alive\r\n": "Connection: close\r\n")) == (hio_oow_t)-1) return -1;
 
+	task->task_res_chunked = 1;
 	return 0;
 }
 
@@ -839,9 +841,92 @@ int hio_svc_htts_task_addreshdrfmt (hio_svc_htts_task_t* task, const hio_bch_t* 
 int hio_svc_htts_task_endreshdr (hio_svc_htts_task_t* task)
 {
 	hio_svc_htts_cli_t* cli = task->task_client;
-
 	HIO_ASSERT (task->htts->hio, cli != HIO_NULL);
+
 	if (hio_becs_cat(cli->sbuf, "\r\n") == (hio_oow_t)-1) return -1;
+/* TODO: can i send here??? */
+	return 0;
+}
+
+static int write_raw_to_client (hio_svc_htts_task_t* task, const void* data, hio_iolen_t dlen)
+{
+	HIO_ASSERT (task->htts->hio, task->task_client != HIO_NULL);
+	HIO_ASSERT (task->htts->hio, task->task_csck != HIO_NULL);
+
+	//task->ever_attempted_to_write_to_client = 1;
+
+HIO_DEBUG2 (task->htts->hio, "WR TO C[%.*hs]\n", dlen, data);
+
+	//task->num_pending_writes_to_client++;
+	if (hio_dev_sck_write(task->task_csck, data, dlen, HIO_NULL, HIO_NULL) <= -1)
+	{
+		//task->num_pending_writes_to_client--;
+		return -1;
+	}
+
+	return 0;
+}
+
+static int write_chunk_to_client (hio_svc_htts_task_t* task, const void* data, hio_iolen_t dlen)
+{
+	hio_iovec_t iov[3];
+	hio_bch_t lbuf[16];
+	hio_oow_t llen;
+
+	HIO_ASSERT (task->htts->hio, task->task_client != HIO_NULL);
+	HIO_ASSERT (task->htts->hio, task->task_csck != HIO_NULL);
+
+	/* hio_fmt_uintmax_to_bcstr() null-terminates the output. only HIO_COUNTOF(lbuf) - 1
+	 * is enough to hold '\r' and '\n' at the back without '\0'. */
+	llen = hio_fmt_uintmax_to_bcstr(lbuf, HIO_COUNTOF(lbuf) - 1, dlen, 16 | HIO_FMT_UINTMAX_UPPERCASE, 0, '\0', HIO_NULL);
+	lbuf[llen++] = '\r';
+	lbuf[llen++] = '\n';
+
+	iov[0].iov_ptr = lbuf;
+	iov[0].iov_len = llen;
+	iov[1].iov_ptr = (void*)data;
+	iov[1].iov_len = dlen;
+	iov[2].iov_ptr = "\r\n";
+	iov[2].iov_len = 2;
+
+HIO_DEBUG2 (task->htts->hio, "WR(CHNK) TO C[%.*hs]\n", dlen, data);
+
+	//task->ever_attempted_to_write_to_client = 1;
+	//task->num_pending_writes_to_client++;
+	if (hio_dev_sck_writev(task->task_csck, iov, HIO_COUNTOF(iov), HIO_NULL, HIO_NULL) <= -1)
+	{
+		//task->num_pending_writes_to_client--;
+		return -1;
+	}
+
+	return 0;
+}
+
+int hio_svc_htts_task_addresbody (hio_svc_htts_task_t* task, const void* data, hio_iolen_t dlen)
+{
+	return task->task_res_chunked? write_chunk_to_client(task, data, dlen): write_raw_to_client(task, data, dlen);
+}
+
+int hio_svc_htts_task_endbody (hio_svc_htts_task_t* task)
+{
+	/* send the last chunk */
+
+	if (!task->task_res_ended)
+	{
+		task->task_res_ended = 1;
+
+//		if (!task->ever_attempted_to_write_to_client)
+//		{
+//			if (fcgi_send_final_status_to_client(fcgi, HIO_HTTP_STATUS_INTERNAL_SERVER_ERROR, 0) <= -1) return -1;
+//		}
+//		else
+		{
+			if (task->task_res_chunked && write_raw_to_client(task, "0\r\n\r\n", 5) <= -1) return -1;
+		}
+
+		if (!task->task_keep_client_alive && write_raw_to_client(task, HIO_NULL, 0) <= -1) return -1;
+	}
+
 	return 0;
 }
 

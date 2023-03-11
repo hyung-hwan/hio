@@ -100,6 +100,8 @@ typedef void (*hio_svc_htts_task_on_kill_t) (
 	unsigned int task_keep_client_alive: 1; \
 	unsigned int task_req_qpath_ending_with_slash: 1; \
 	unsigned int task_req_qpath_is_root: 1; \
+	unsigned int task_res_chunked: 1; \
+	unsigned int task_res_ended: 1; \
 	hio_http_version_t task_req_version; \
 	hio_http_method_t task_req_method; \
 	hio_bch_t* task_req_qmth; \
