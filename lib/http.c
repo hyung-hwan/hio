@@ -90,11 +90,10 @@ const hio_bch_t* hio_http_status_to_bcstr (int code)
 		case 431: msg = "Request Header Fields Too Large"; break;
 
 		case HIO_HTTP_STATUS_INTERNAL_SERVER_ERROR: msg = "Internal Server Error"; break;
-		case 501: msg = "Not Implemented"; break;
-		case 502: msg = "Bad Gateway"; break;
-		case 503: msg = "Service Unavailable"; break;
-		case 504: msg = "Gateway Timeout"; break;
-		case 505: msg = "HTTP Version Not Supported"; break;
+		case HIO_HTTP_STATUS_NOT_IMPLEMENTED: msg = "Not Implemented"; break;
+		case HIO_HTTP_STATUS_BAD_GATEWAY: msg = "Bad Gateway"; break;
+		case HIO_HTTP_STATUS_SERVICE_UNAVAILABLE: msg = "Service Unavailable"; break;
+		case HIO_HTTP_STATUS_VERSION_NOT_SUPPORTED: msg = "HTTP Version Not Supported"; break;
 
 		default: msg = "Unknown"; break;
 	}

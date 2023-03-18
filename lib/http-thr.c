@@ -70,12 +70,10 @@ struct thr_task_t
 	hio_htrd_t* peer_htrd;
 
 	unsigned int over: 4; /* must be large enough to accomodate THR_OVER_ALL */
-	unsigned int req_content_length_unlimited: 1;
 	unsigned int ever_attempted_to_write_to_client: 1;
 	unsigned int client_eof_detected: 1;
 	unsigned int client_disconnected: 1;
 	unsigned int client_htrd_recbs_changed: 1;
-	hio_oow_t req_content_length; /* client request content length */
 	thr_res_mode_t res_mode_to_cli;
 
 	hio_dev_sck_on_read_t client_org_on_read;
@@ -143,13 +141,9 @@ static int thr_writev_to_client (thr_task_t* thr, hio_iovec_t* iov, hio_iolen_t 
 	return 0;
 }
 
-static int thr_send_final_status_to_client (thr_task_t* thr, int status_code, int force_close)
+static HIO_INLINE int thr_send_final_status_to_client (thr_task_t* thr, int status_code, int force_close)
 {
-	hio_svc_htts_cli_t* cli = thr->task_client;
-	if (!cli) return 0; /* client disconnected probably */
-	if (hio_svc_htts_task_buildfinalres(thr, status_code, HIO_NULL, HIO_NULL, force_close) <= -1) return -1;
-	return (thr_write_to_client(thr, HIO_BECS_PTR(cli->sbuf), HIO_BECS_LEN(cli->sbuf)) <= -1 ||
-	        (force_close && thr_write_to_client(thr, HIO_NULL, 0) <= -1))? -1: 0;
+	return hio_svc_htts_task_sendfinalres(thr, status_code, HIO_NULL, HIO_NULL, force_close);
 }
 
 static int thr_write_last_chunk_to_client (thr_task_t* thr)
@@ -428,51 +422,6 @@ static int peer_capture_response_header (hio_htre_t* req, const hio_bch_t* key, 
 
 static int thr_peer_htrd_peek (hio_htrd_t* htrd, hio_htre_t* req)
 {
-#if 0
-	thr_peer_xtn_t* peer_xtn = hio_htrd_getxtn(htrd);
-	thr_task_t* thr = peer_xtn->task;
-	hio_svc_htts_cli_t* cli = thr->task_client;
-	hio_bch_t dtbuf[64];
-	int status_code = HIO_HTTP_STATUS_OK;
-	const hio_bch_t* status_desc = HIO_NULL;
-
-	if (req->attr.content_length)
-	{
-// TOOD: remove content_length if content_length is negative or not numeric.
-		thr->res_mode_to_cli = THR_RES_MODE_LENGTH;
-	}
-
-	if (req->attr.status) hio_parse_http_status_header_value(req->attr.status, &status_code, &status_desc);
-
-	hio_svc_htts_fmtgmtime (cli->htts, HIO_NULL, dtbuf, HIO_COUNTOF(dtbuf));
-
-	if (hio_becs_fmt(cli->sbuf, "HTTP/%d.%d %d %hs\r\nServer: %hs\r\nDate: %hs\r\n",
-		thr->task_req_version.major, thr->task_req_version.minor,
-		status_code, (status_desc? status_desc: hio_http_status_to_bcstr(status_code)),
-		cli->htts->server_name, dtbuf) == (hio_oow_t)-1) return -1;
-
-	if (hio_htre_walkheaders(req, thr_peer_capture_response_header, cli) <= -1) return -1;
-
-	switch (thr->res_mode_to_cli)
-	{
-		case THR_RES_MODE_CHUNKED:
-			if (hio_becs_cat(cli->sbuf, "Transfer-Encoding: chunked\r\n") == (hio_oow_t)-1) return -1;
-			/*if (hio_becs_cat(cli->sbuf, "Connection: keep-alive\r\n") == (hio_oow_t)-1) return -1;*/
-			break;
-
-		case THR_RES_MODE_CLOSE:
-			if (hio_becs_cat(cli->sbuf, "Connection: close\r\n") == (hio_oow_t)-1) return -1;
-			break;
-
-		case THR_RES_MODE_LENGTH:
-			if (hio_becs_cat(cli->sbuf, (thr->task_keep_client_alive? "Connection: keep-alive\r\n": "Connection: close\r\n")) == (hio_oow_t)-1) return -1;
-	}
-
-	if (hio_becs_cat(cli->sbuf, "\r\n") == (hio_oow_t)-1) return -1;
-
-	thr->task_status_code = status_code;
-	return thr_write_to_client(thr, HIO_BECS_PTR(cli->sbuf), HIO_BECS_LEN(cli->sbuf));
-#else
 	thr_peer_xtn_t* peer = hio_htrd_getxtn(htrd);
 	thr_task_t* thr = peer->task;
 	hio_svc_htts_cli_t* cli = thr->task_client;
@@ -496,9 +445,7 @@ static int thr_peer_htrd_peek (hio_htrd_t* htrd, hio_htre_t* req)
 	    hio_htre_walkheaders(req, peer_capture_response_header, thr) <= -1 ||
 	    hio_svc_htts_task_endreshdr(thr) <= -1) return -1;
 
-	thr->task_status_code = status_code;
-	return thr_write_to_client(thr, HIO_BECS_PTR(cli->sbuf), HIO_BECS_LEN(cli->sbuf));
-#endif
+	return 0;
 }
 
 static int thr_peer_htrd_poke (hio_htrd_t* htrd, hio_htre_t* req)
@@ -899,10 +846,6 @@ int hio_svc_htts_dothr (hio_svc_htts_t* htts, hio_dev_sck_t* csck, hio_htre_t* r
 	thr->on_kill = on_kill;
 	thr->options = options;
 
-	/*thr->num_pending_writes_to_client = 0;
-	thr->num_pending_writes_to_peer = 0;*/
-	thr->req_content_length_unlimited = hio_htre_getreqcontentlen(req, &thr->req_content_length);
-
 	thr->client_org_on_read = csck->on_read;
 	thr->client_org_on_write = csck->on_write;
 	thr->client_org_on_disconnect = csck->on_disconnect;
@@ -939,7 +882,7 @@ int hio_svc_htts_dothr (hio_svc_htts_t* htts, hio_dev_sck_t* csck, hio_htre_t* r
 	HIO_SVC_HTTS_TASK_REF (thr, peer_xtn->task);
 
 #if !defined(THR_ALLOW_UNLIMITED_REQ_CONTENT_LENGTH)
-	if (thr->req_content_length_unlimited)
+	if (thr->task_req_conlen_unlimited)
 	{
 		/* Transfer-Encoding is chunked. no content-length is known in advance. */
 
@@ -955,9 +898,8 @@ int hio_svc_htts_dothr (hio_svc_htts_t* htts, hio_dev_sck_t* csck, hio_htre_t* r
 	{
 		/* TODO: Expect: 100-continue? who should handle this? thr? or the http server? */
 		/* CAN I LET the thr SCRIPT handle this? */
-		if (!(options & HIO_SVC_HTTS_THR_NO_100_CONTINUE) &&
-		    hio_comp_http_version_numbers(&req->version, 1, 1) >= 0 &&
-		   (thr->req_content_length_unlimited || thr->req_content_length > 0))
+		if (hio_comp_http_version_numbers(&req->version, 1, 1) >= 0 &&
+		   (thr->task_req_conlen_unlimited || thr->task_req_conlen > 0))
 		{
 			/*
 			 * Don't send 100 Continue if http verions is lower than 1.1
@@ -988,9 +930,9 @@ int hio_svc_htts_dothr (hio_svc_htts_t* htts, hio_dev_sck_t* csck, hio_htre_t* r
 	}
 
 #if defined(THR_ALLOW_UNLIMITED_REQ_CONTENT_LENGTH)
-	have_content = thr->req_content_length > 0 || thr->req_content_length_unlimited;
+	have_content = thr->task_req_conlen > 0 || thr->task_req_conlen_unlimited;
 #else
-	have_content = thr->req_content_length > 0;
+	have_content = thr->task_req_conlen > 0;
 #endif
 	if (have_content)
 	{

@@ -197,9 +197,9 @@ if (hio_htre_getcontentlen(req) > 0)
 			const hio_bch_t* qpath = hio_htre_getqpath(req);
 			int x;
 			if (hio_comp_bcstr_limited(qpath, "/thr/", 5, 1) == 0)
-				x = hio_svc_htts_dothr(htts, csck, req, on_htts_thr_request, HIO_NULL, HIO_SVC_HTTS_THR_NO_100_CONTINUE, HIO_NULL);
+				x = hio_svc_htts_dothr(htts, csck, req, on_htts_thr_request, HIO_NULL, 0, HIO_NULL);
 			else if (hio_comp_bcstr_limited(qpath, "/thr2/", 6, 1) == 0)
-				x = hio_svc_htts_dothr(htts, csck, req, on_htts_thr2_request, HIO_NULL, HIO_SVC_HTTS_THR_NO_100_CONTINUE, HIO_NULL);
+				x = hio_svc_htts_dothr(htts, csck, req, on_htts_thr2_request, HIO_NULL, 0, HIO_NULL);
 			else if (hio_comp_bcstr_limited(qpath, "/txt/", 5, 1) == 0)
 				x = hio_svc_htts_dotxt(htts, csck, req, HIO_HTTP_STATUS_OK, "text/plain", qpath, 0, HIO_NULL);
 			else if (hio_comp_bcstr_limited(qpath, "/cgi/", 5, 1) == 0)

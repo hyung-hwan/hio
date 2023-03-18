@@ -1110,7 +1110,7 @@ free_device:
 		HIO_DEBUG1 (hio, "MIO - Unset ZOMBIE on device %p\n", dev);
 	}
 
-	HIO_DEBUG1 (hio, "MIO - Freeing device %p\n", dev);
+	HIO_DEBUG1 (hio, "MIO - Freeed device %p\n", dev);
 	hio_freemem (hio, dev);
 	return 0;
 }

@@ -39,11 +39,9 @@ struct txt_t
 	hio_oow_t num_pending_writes_to_client;
 
 	unsigned int over: 2; /* must be large enough to accomodate TXT_OVER_ALL */
-	unsigned int req_content_length_unlimited: 1;
 	unsigned int client_eof_detected: 1;
 	unsigned int client_disconnected: 1;
 	unsigned int client_htrd_recbs_changed: 1;
-	hio_oow_t req_content_length; /* client request content length */
 
 	hio_dev_sck_on_read_t client_org_on_read;
 	hio_dev_sck_on_write_t client_org_on_write;
@@ -72,29 +70,9 @@ static int txt_write_to_client (txt_t* txt, const void* data, hio_iolen_t dlen)
 	return 0;
 }
 
-#if 0
-static int txt_writev_to_client (txt_t* txt, hio_iovec_t* iov, hio_iolen_t iovcnt)
-{
-	if (txt->task_csck)
-	{
-		txt->num_pending_writes_to_client++;
-		if (hio_dev_sck_writev(txt->task_csck, iov, iovcnt, HIO_NULL, HIO_NULL) <= -1)
-		{
-			txt->num_pending_writes_to_client--;
-			return -1;
-		}
-	}
-	return 0;
-}
-#endif
-
 static int txt_send_final_status_to_client (txt_t* txt, int status_code, const hio_bch_t* content_type, const hio_bch_t* content_text, int force_close)
 {
-	hio_svc_htts_cli_t* cli = txt->task_client;
-	if (!cli) return 0; /* client disconnected probably */
-	if (hio_svc_htts_task_buildfinalres(txt, status_code, content_type, content_text, force_close) <= -1) return -1;
-	return (txt_write_to_client(txt, HIO_BECS_PTR(cli->sbuf), HIO_BECS_LEN(cli->sbuf)) <= -1 ||
-	        (force_close && txt_write_to_client(txt, HIO_NULL, 0) <= -1))? -1: 0;
+	return hio_svc_htts_task_sendfinalres(txt, status_code, content_type, content_text, force_close);
 }
 
 static HIO_INLINE void txt_mark_over (txt_t* txt, int over_bits)
@@ -311,8 +289,6 @@ int hio_svc_htts_dotxt (hio_svc_htts_t* htts, hio_dev_sck_t* csck, hio_htre_t* r
 
 	txt->on_kill = on_kill;
 	txt->options = options;
-	/*txt->num_pending_writes_to_client = 0;*/
-	txt->req_content_length_unlimited = hio_htre_getreqcontentlen(req, &txt->req_content_length);
 
 	txt->client_org_on_read = csck->on_read;
 	txt->client_org_on_write = csck->on_write;
@@ -335,7 +311,7 @@ int hio_svc_htts_dotxt (hio_svc_htts_t* htts, hio_dev_sck_t* csck, hio_htre_t* r
 		goto oops;
 	}
 
-	if (txt->req_content_length_unlimited || txt->req_content_length > 0)
+	if (txt->task_req_conlen_unlimited || txt->task_req_conlen > 0)
 	{
 		/* change the callbacks to subscribe to contents to be uploaded */
 		txt->client_htrd_org_recbs = *hio_htrd_getrecbs(txt->task_client->htrd);

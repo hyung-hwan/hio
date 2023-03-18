@@ -30,6 +30,14 @@
 
 #define INVALID_LIDX HIO_TYPE_MAX(hio_oow_t)
 
+static int htts_svr_wrctx;
+
+/* ------------------------------------------------------------------------ */
+
+static int client_on_read (hio_dev_sck_t* sck, const void* buf, hio_iolen_t len, const hio_skad_t* srcaddr);
+static int client_on_write (hio_dev_sck_t* sck, hio_iolen_t wrlen, void* wrctx, const hio_skad_t* dstaddr);
+static void client_on_disconnect (hio_dev_sck_t* sck);
+
 /* ------------------------------------------------------------------------ */
 static int client_htrd_peek_request (hio_htrd_t* htrd, hio_htre_t* req)
 {
@@ -81,7 +89,13 @@ static int init_client (hio_svc_htts_cli_t* cli, hio_dev_sck_t* sck)
 	hio_htrd_setrecbs (cli->htrd, &client_htrd_recbs);
 
 	hio_gettime (sck->hio, &cli->last_active);
-	HIO_DEBUG4 (sck->hio, "HTTS(%p) - initialized client(%p,%p,%d)\n", cli->htts, cli, sck, (int)sck->hnd);
+
+	HIO_DEBUG4 (sck->hio, "HTTS(%p) - client(c=%p,csck=%d[%d]) - initialized\n", cli->htts, cli, sck, (int)sck->hnd);
+
+	sck->on_read = client_on_read;
+	sck->on_write = client_on_write;
+	sck->on_disconnect = client_on_disconnect;
+
 	return 0;
 
 oops:
@@ -102,10 +116,16 @@ oops:
 
 static void fini_client (hio_svc_htts_cli_t* cli)
 {
-	HIO_DEBUG5 (cli->sck->hio, "HTTS(%p) - finalizing client(c=%p,sck=%p[%d],task=%p)\n", cli->htts, cli, cli->sck, (int)cli->sck->hnd, cli->task);
+	HIO_DEBUG4(cli->sck->hio, "HTTS(%p) - client(c=%p,sck=%p[%d]) - finalizing\n", cli->htts, cli, cli->sck, (int)cli->sck->hnd);
 
 	if (cli->task)
 	{
+		cli->task->task_keep_client_alive = 0;
+
+		/* the client socket is not valid any longer. let's forget it */
+		cli->task->task_client = HIO_NULL;
+		cli->task->task_csck = HIO_NULL;
+
 		HIO_SVC_HTTS_TASK_UNREF (cli->task);
 	}
 
@@ -129,63 +149,18 @@ static void fini_client (hio_svc_htts_cli_t* cli)
 	cli->sck = HIO_NULL;
 	cli->htts = HIO_NULL;
 	*/
+
+	HIO_DEBUG4(cli->sck->hio, "HTTS(%p) - client(c=%p,sck=%p[%d]) - finalized\n", cli->htts, cli, cli->sck, (int)cli->sck->hnd);
 }
 
 /* ------------------------------------------------------------------------ */
 
 static int listener_on_read (hio_dev_sck_t* sck, const void* buf, hio_iolen_t len, const hio_skad_t* srcaddr)
 {
-	/* unlike the function name, this callback is set on both the listener and the client.
-	 * however, it must never be triggered for the listener */
-
-	hio_t* hio = sck->hio;
-	hio_svc_htts_cli_t* cli = hio_dev_sck_getxtn(sck);
-	hio_oow_t rem;
-	int x;
-
-	HIO_ASSERT (hio, cli->l_idx == INVALID_LIDX);
-
-	/* if a task has been set(cli->task not NULL) on the client, the task must take over
-	 * this handler. this handler is never called unless the the overriding handler
-	 * call this. */
-	HIO_ASSERT (hio, cli->task == HIO_NULL);
-
-	if (len <= -1)
-	{
-		HIO_DEBUG3 (hio, "HTTS(%p) - unable to read client %p(%d)\n", cli->htts, sck, (int)sck->hnd);
-		goto oops;
-	}
-
-	if (len == 0)
-	{
-		HIO_DEBUG3 (hio, "HTTS(%p) - EOF on client %p(%d)\n", cli->htts, sck, (int)sck->hnd);
-		goto oops;
-	}
-
-	hio_gettime (hio, &cli->last_active);
-	if ((x = hio_htrd_feed(cli->htrd, buf, len, &rem)) <= -1)
-	{
-		HIO_DEBUG3 (hio, "HTTS(%p) - feed error onto client htrd %p(%d)\n", cli->htts, sck, (int)sck->hnd);
-		goto oops;
-	}
-
-	if (rem > 0)
-	{
-		if (cli->task)
-		{
-			/* TODO store this to client buffer. once the current resource is completed, arrange to call on_read() with it */
-		}
-		else
-		{
-			/* TODO: no resource in action. so feed one more time */
-		}
-	}
-
+	/* unlike the function name, this callback is set on both the listener and the client initially.
+	 * init_client() changes the socket's on_read to client_on_read. so this hander must never be called */
+	if (len <= -1) hio_dev_sck_halt (sck);
 	return 0;
-
-oops:
-	hio_dev_sck_halt (sck);
-	return 0; /* still return success here. instead call halt() */
 }
 
 static int listener_on_write (hio_dev_sck_t* sck, hio_iolen_t wrlen, void* wrctx, const hio_skad_t* dstaddr)
@@ -195,13 +170,14 @@ static int listener_on_write (hio_dev_sck_t* sck, hio_iolen_t wrlen, void* wrctx
 	hio_svc_htts_cli_t* cli = hio_dev_sck_getxtn(sck);
 	HIO_ASSERT (sck->hio, cli->l_idx == INVALID_LIDX);
 
+#if 0
 	/* if a resource has been set(cli->task not NULL), the resource must take over
 	 * this handler. this handler is never called unless the the overriding handler
 	 * call this. */
 	HIO_ASSERT (sck->hio, cli->task == HIO_NULL);
+#endif
 
 	/* anyways, nothing to do upon write completion */
-
 	return 0;
 }
 
@@ -261,7 +237,7 @@ static void listener_on_disconnect (hio_dev_sck_t* sck)
 			 * on_disconnected() with this code is called without corresponding on_connect().
 			 * the cli extension are is not initialized yet */
 			HIO_ASSERT (hio, sck != xtn->sck);
-			//HIO_ASSERT (hio, cli->sck == cli->htts->lsck); /* the field is a copy of the extension are of the listener socket. so it should point to the listner socket */
+			/*HIO_ASSERT (hio, cli->sck == cli->htts->lsck);*/ /* the field is a copy of the extension are of the listener socket. so it should point to the listner socket */
 			HIO_DEBUG3 (hio, "HTTS(%p) - LISTENER UNABLE TO SSL-ACCEPT CLIENT %p[%d]\n", htts, sck, (int)sck->hnd);
 			return;
 
@@ -288,13 +264,124 @@ static void listener_on_disconnect (hio_dev_sck_t* sck)
 	else
 	{
 		/* client socket */
-		HIO_DEBUG3 (hio, "HTTS(%p) - client socket disconnect %p[%d]\n", xtn->htts, sck, (int)sck->hnd);
-		HIO_ASSERT (hio, xtn->sck == sck);
-		fini_client (xtn);
+		client_on_disconnect (sck);
 	}
 }
 
+/* --------------------------------------------------------------- */
+
+
+static int client_on_read (hio_dev_sck_t* sck, const void* buf, hio_iolen_t len, const hio_skad_t* srcaddr)
+{
+	hio_svc_htts_cli_t* cli = hio_dev_sck_getxtn(sck);
+	hio_t* hio = sck->hio;
+	hio_svc_htts_t* htts = cli->htts;
+	hio_svc_htts_task_t* task = cli->task;
+	hio_oow_t rem;
+	int x;
+
+	HIO_ASSERT (hio, cli->l_idx == INVALID_LIDX);
+
+	if (len <= -1)
+	{
+		HIO_DEBUG3 (hio, "HTTS(%p) - unable to read client %p(%d)\n", htts, sck, (int)sck->hnd);
+		if (task) task->task_keep_client_alive = 0;
+		goto oops;
+	}
+
+	if (len == 0)
+	{
+		HIO_DEBUG3 (hio, "HTTS(%p) - EOF on client %p(%d)\n", htts, sck, (int)sck->hnd);
+		if (task) task->task_keep_client_alive = 0;
+		goto oops;
+	}
+
+	hio_gettime (hio, &cli->last_active);
+	if ((x = hio_htrd_feed(cli->htrd, buf, len, &rem)) <= -1)
+	{
+		HIO_DEBUG3 (hio, "HTTS(%p) - feed error onto client htrd %p(%d)\n", htts, sck, (int)sck->hnd);
+		goto oops;
+	}
+
+	if (rem > 0)
+	{
+		HIO_DEBUG3 (hio, "HTTS(%p) - excessive data after contents by client %p(%d)\n", htts, sck, (int)sck->hnd);
+		if (cli->task)
+		{
+			/* TODO store this to client buffer. once the current resource is completed, arrange to call on_read() with it */
+		}
+		else
+		{
+			/* TODO: no resource in action. so feed one more time */
+		}
+	}
+
+	return 0;
+
+oops:
+	if (sck->on_read == client_on_read)
+	{
+		 /* halt only if clinet_on_read() is the current handler.
+		  * client_on_read() can be chain-called by the overriding handler */
+		hio_dev_sck_halt (sck);
+	}
+	return 0; /* still return success here. instead call halt() */
+}
+
+static int client_on_write (hio_dev_sck_t* sck, hio_iolen_t wrlen, void* wrctx, const hio_skad_t* dstaddr)
+{
+	hio_svc_htts_cli_t* cli = hio_dev_sck_getxtn(sck);
+	hio_t* hio = sck->hio;
+	hio_svc_htts_t* htts = cli->htts;
+	hio_svc_htts_task_t* task = cli->task;
+
+	HIO_ASSERT (hio, cli->l_idx == INVALID_LIDX);
+
+	/* handle event if it's write by self */
+	if (wrctx == &htts_svr_wrctx)
+	{
+		if (wrlen <= -1)
+		{
+			HIO_DEBUG3 (hio, "HTTS(%p) - unable to write to client %p(%d)\n", htts, sck, (int)sck->hnd);
+			hio_dev_sck_halt (sck);
+		}
+		else if (wrlen == 0)
+		{
+			/* if connect: is keep-alive, this part may not be called */
+			task->task_res_pending_writes--;
+		}
+		else
+		{
+			HIO_ASSERT (hio, task->task_res_pending_writes > 0);
+			task->task_res_pending_writes--;
+		}
+	}
+
+	return 0;
+}
+
+static void client_on_disconnect (hio_dev_sck_t* sck)
+{
+	hio_t* hio = sck->hio;
+	hio_svc_htts_cli_t* cli = hio_dev_sck_getxtn(sck);
+	hio_svc_htts_t* htts = cli->htts;
+	hio_svc_htts_task_t* task = cli->task;
+
+	/* called if init_client() has swapped the on_disconnect handler successfully */
+
+	HIO_ASSERT (hio, cli->sck == sck);
+	HIO_ASSERT (hio, cli->l_idx == INVALID_LIDX);
+
+	HIO_DEBUG4 (hio, "HTTS(%p) - task(t=%p,c=%p,csck=%p) - handling client socket disconnect\n", htts, task, cli, sck);
+
+	fini_client (cli);
+
+	HIO_DEBUG4 (hio, "HTTS(%p) - task(t=%p,c=%p,csck=%p) - handled client socket disconnect\n", htts, task, cli, sck);
+	/* Note: after this callback, the actual device pointed to by 'sck' will be freed in the main loop. */
+}
+
 /* ------------------------------------------------------------------------ */
+
 #define MAX_CLIENT_IDLE 10
 
 static void halt_idle_clients (hio_t* hio, const hio_ntime_t* now, hio_tmrjob_t* job)
@@ -547,18 +634,23 @@ void hio_svc_htts_stop (hio_svc_htts_t* htts)
 		if (htts->l.sck[i]) hio_dev_sck_kill (htts->l.sck[i]);
 	}
 
+HIO_DEBUG0 (hio, "11111111111111111\n");
 	while (!HIO_SVC_HTTS_CLIL_IS_EMPTY(&htts->cli))
 	{
 		hio_svc_htts_cli_t* cli = HIO_SVC_HTTS_CLIL_FIRST_CLI(&htts->cli);
+		HIO_ASSERT (hio, cli->sck != HIO_NULL);
+HIO_DEBUG1 (hio, "cli-> %p\n", cli->sck);
 		hio_dev_sck_kill (cli->sck);
 	}
 
+HIO_DEBUG0 (hio, "222222222222222222\n");
 	while (!HIO_SVC_HTTS_TASKL_IS_EMPTY(&htts->task))
 	{
 		hio_svc_htts_task_t* task = HIO_SVC_HTTS_TASKL_FIRST_TASK(&htts->task);
 		hio_svc_htts_task_kill (task);
 	}
 
+HIO_DEBUG0 (hio, "3333333333333333\n");
 	HIO_SVCL_UNLINK_SVC (htts);
 	if (htts->server_name && htts->server_name != htts->server_name_buf) hio_freemem (hio, htts->server_name);
 
@@ -684,11 +776,19 @@ hio_svc_htts_task_t* hio_svc_htts_task_make (hio_svc_htts_t* htts, hio_oow_t tas
 	task->task_req_qpath_is_root = (hio_htre_getqpathlen(req) == 1 && hio_htre_getqpath(req)[0] == '/');
 	task->task_req_method = hio_htre_getqmethodtype(req);
 	task->task_req_version = *hio_htre_getversion(req);
+	task->task_req_conlen_unlimited = hio_htre_getreqcontentlen(req, &task->task_req_conlen);
+	task->task_req_flags = req->flags;
 	task->task_req_qmth = (hio_bch_t*)((hio_uint8_t*)task + task_size);
 	task->task_req_qpath = task->task_req_qmth + qmth_len + 1;
 
 	HIO_MEMCPY (task->task_req_qmth, hio_htre_getqmethodname(req),qmth_len + 1);
 	HIO_MEMCPY (task->task_req_qpath, hio_htre_getqpath(req), qpath_len + 1);
+
+	/* originally set to listener_on_write/listener_on_disconnect, but set to
+	 * client_on_write/client_on_disconnect in init_client() when the client socket is accepted */
+	HIO_ASSERT (hio, csck->on_read == client_on_read);
+	HIO_ASSERT (hio, csck->on_write == client_on_write);
+	HIO_ASSERT (hio, csck->on_disconnect == client_on_disconnect);
 
 	HIO_DEBUG2 (hio, "HTTS(%p) - allocated task %p\n", htts, task);
 	return task;
@@ -707,7 +807,188 @@ void hio_svc_htts_task_kill (hio_svc_htts_task_t* task)
 	HIO_DEBUG2 (hio, "HTTS(%p) - destroyed task %p\n", htts, task);
 }
 
-int hio_svc_htts_task_buildfinalres (hio_svc_htts_task_t* task, int status_code, const hio_bch_t* content_type, const hio_bch_t* content_text, int force_close)
+int hio_svc_htts_task_startreshdr (hio_svc_htts_task_t* task, int status_code, const hio_bch_t* status_desc, int chunked)
+{
+	hio_svc_htts_cli_t* cli = task->task_client;
+	hio_bch_t dtbuf[64];
+
+	HIO_ASSERT (task->htts->hio, cli != HIO_NULL);
+	HIO_ASSERT (task->htts->hio, !task->task_res_started);
+	HIO_ASSERT (task->htts->hio, !task->task_res_ended);
+
+	hio_svc_htts_fmtgmtime (cli->htts, HIO_NULL, dtbuf, HIO_COUNTOF(dtbuf));
+
+	if (hio_becs_fmt(cli->sbuf, "HTTP/%d.%d ", task->task_req_version.major, task->task_req_version.minor) == (hio_oow_t)-1) return -1;
+	if (hio_becs_fcat(cli->sbuf, "%d %hs\r\n", status_code, (status_desc? status_desc: hio_http_status_to_bcstr(status_code))) == (hio_oow_t)-1) return -1;
+	if (hio_becs_fcat(cli->sbuf, "Server: %hs\r\nDate: %hs\r\n", cli->htts->server_name, dtbuf) == (hio_oow_t)-1) return -1;
+
+	if (chunked && hio_becs_cat(cli->sbuf, "Transfer-Encoding: chunked\r\n") == (hio_oow_t)-1) return -1;
+	if (hio_becs_cat(cli->sbuf, (task->task_keep_client_alive? "Connection: keep-alive\r\n": "Connection: close\r\n")) == (hio_oow_t)-1) return -1;
+
+	task->task_res_chunked = chunked;
+	task->task_res_started = 1;
+	task->task_status_code = status_code;
+	return 0;
+}
+
+static int is_res_header_acceptable (const hio_bch_t* key)
+{
+	return hio_comp_bcstr(key, "Status", 1) != 0 &&
+	       hio_comp_bcstr(key, "Connection", 1) != 0 &&
+	       hio_comp_bcstr(key, "Transfer-Encoding", 1) != 0 &&
+	       hio_comp_bcstr(key, "Server", 1) != 0 &&
+	       hio_comp_bcstr(key, "Date", 1) != 0;
+}
+
+int hio_svc_htts_task_addreshdrs (hio_svc_htts_task_t* task, const hio_bch_t* key, const hio_htre_hdrval_t* value)
+{
+	hio_svc_htts_cli_t* cli = task->task_client;
+
+	HIO_ASSERT (task->htts->hio, cli != HIO_NULL);
+	HIO_ASSERT (task->htts->hio, task->task_res_started);
+	HIO_ASSERT (task->htts->hio, !task->task_res_ended);
+
+	if (!is_res_header_acceptable(key)) return 0; /* ignore it*/
+	while (value)
+	{
+		if (hio_becs_fcat(cli->sbuf, "%hs: %hs\r\n", key, value->ptr) == (hio_oow_t)-1) return -1;
+		value = value->next;
+	}
+
+	return 0;
+}
+
+int hio_svc_htts_task_addreshdr (hio_svc_htts_task_t* task, const hio_bch_t* key, const hio_bch_t* value)
+{
+	hio_svc_htts_cli_t* cli = task->task_client;
+	HIO_ASSERT (task->htts->hio, cli != HIO_NULL);
+	HIO_ASSERT (task->htts->hio, task->task_res_started);
+	HIO_ASSERT (task->htts->hio, !task->task_res_ended);
+
+	if (!is_res_header_acceptable(key)) return 0; /* just ignore it*/
+	if (hio_becs_fcat(cli->sbuf, "%hs: %hs\r\n", key, value) == (hio_oow_t)-1) return -1;
+	return 0;
+}
+
+int hio_svc_htts_task_addreshdrfmt (hio_svc_htts_task_t* task, const hio_bch_t* key, const hio_bch_t* vfmt, ...)
+{
+	hio_svc_htts_cli_t* cli = task->task_client;
+	va_list ap;
+
+	HIO_ASSERT (task->htts->hio, cli != HIO_NULL);
+	HIO_ASSERT (task->htts->hio, task->task_res_started);
+	HIO_ASSERT (task->htts->hio, !task->task_res_ended);
+
+	if (!is_res_header_acceptable(key)) return 0; /* just ignore it*/
+	if (hio_becs_fcat(cli->sbuf, "%hs: ", key) == (hio_oow_t)-1) return -1;
+	va_start (ap, vfmt);
+	if (hio_becs_vfcat(cli->sbuf, vfmt, ap) == (hio_oow_t)-1)
+	{
+		va_end (ap);
+		return -1;
+	}
+	va_end (ap);
+	if (hio_becs_cat(cli->sbuf, "\r\n") == (hio_oow_t)-1) return -1;
+	return 0;
+}
+
+static int write_raw_to_client (hio_svc_htts_task_t* task, const void* data, hio_iolen_t dlen)
+{
+	HIO_ASSERT (task->htts->hio, task->task_client != HIO_NULL);
+	HIO_ASSERT (task->htts->hio, task->task_csck != HIO_NULL);
+
+//HIO_DEBUG2 (task->htts->hio, "WR TO C[%.*hs]\n", dlen, data);
+
+	task->task_res_ever_sent = 1;
+	task->task_res_pending_writes++;
+	if (hio_dev_sck_write(task->task_csck, data, dlen, &htts_svr_wrctx, HIO_NULL) <= -1)
+	{
+		task->task_res_pending_writes--;
+		return -1;
+	}
+
+	return 0;
+}
+
+static int write_chunk_to_client (hio_svc_htts_task_t* task, const void* data, hio_iolen_t dlen)
+{
+	hio_iovec_t iov[3];
+	hio_bch_t lbuf[16];
+	hio_oow_t llen;
+
+	HIO_ASSERT (task->htts->hio, task->task_client != HIO_NULL);
+	HIO_ASSERT (task->htts->hio, task->task_csck != HIO_NULL);
+
+	/* hio_fmt_uintmax_to_bcstr() null-terminates the output. only HIO_COUNTOF(lbuf) - 1
+	 * is enough to hold '\r' and '\n' at the back without '\0'. */
+	llen = hio_fmt_uintmax_to_bcstr(lbuf, HIO_COUNTOF(lbuf) - 1, dlen, 16 | HIO_FMT_UINTMAX_UPPERCASE, 0, '\0', HIO_NULL);
+	lbuf[llen++] = '\r';
+	lbuf[llen++] = '\n';
+
+	iov[0].iov_ptr = lbuf;
+	iov[0].iov_len = llen;
+	iov[1].iov_ptr = (void*)data;
+	iov[1].iov_len = dlen;
+	iov[2].iov_ptr = "\r\n";
+	iov[2].iov_len = 2;
+
+//HIO_DEBUG2 (task->htts->hio, "WR(CHNK) TO C[%.*hs]\n", dlen, data);
+
+	task->task_res_ever_sent = 1;
+	task->task_res_pending_writes++;
+	if (hio_dev_sck_writev(task->task_csck, iov, HIO_COUNTOF(iov), &htts_svr_wrctx, HIO_NULL) <= -1)
+	{
+		task->task_res_pending_writes--;
+		return -1;
+	}
+
+	return 0;
+}
+
+int hio_svc_htts_task_endreshdr (hio_svc_htts_task_t* task)
+{
+	hio_svc_htts_cli_t* cli = task->task_client;
+	HIO_ASSERT (task->htts->hio, cli != HIO_NULL);
+	HIO_ASSERT (task->htts->hio, task->task_res_started);
+	HIO_ASSERT (task->htts->hio, !task->task_res_ended);
+
+	if (hio_becs_cat(cli->sbuf, "\r\n") == (hio_oow_t)-1) return -1;
+	if (task->task_csck && write_raw_to_client(task, HIO_BECS_PTR(cli->sbuf), HIO_BECS_LEN(cli->sbuf)) <= -1) return -1;
+
+/*(force_close && fcgi_write_to_client(fcgi, HIO_NULL, 0) <= -1))? -1: 0;*/
+	return 0;
+}
+
+int hio_svc_htts_task_addresbody (hio_svc_htts_task_t* task, const void* data, hio_iolen_t dlen)
+{
+	if (!task->task_csck) return 0;
+	return task->task_res_chunked? write_chunk_to_client(task, data, dlen): write_raw_to_client(task, data, dlen);
+}
+
+int hio_svc_htts_task_endbody (hio_svc_htts_task_t* task)
+{
+	/* send the last chunk */
+
+	if (!task->task_res_ended)
+	{
+		task->task_res_ended = 1;
+
+		if (!task->task_res_ever_sent)
+		{
+			if (hio_svc_htts_task_sendfinalres(task, HIO_HTTP_STATUS_INTERNAL_SERVER_ERROR, HIO_NULL, HIO_NULL, 0) <= -1) return -1;
+		}
+		else
+		{
+			if (task->task_csck && task->task_res_chunked && write_raw_to_client(task, "0\r\n\r\n", 5) <= -1) return -1;
+		}
+
+		if (task->task_csck && !task->task_keep_client_alive && write_raw_to_client(task, HIO_NULL, 0) <= -1) return -1;
+	}
+
+	return 0;
+}
+
+int hio_svc_htts_task_sendfinalres (hio_svc_htts_task_t* task, int status_code, const hio_bch_t* content_type, const hio_bch_t* content_text, int force_close)
 {
 	hio_svc_htts_t* htts = task->htts;
 	hio_t* hio = htts->hio;
@@ -757,179 +1038,65 @@ int hio_svc_htts_task_buildfinalres (hio_svc_htts_task_t* task, int status_code,
 	{
 		if (hio_becs_fcat(cli->sbuf, "Content-Length: %zu\r\n\r\n%hs", content_len, content_text) == (hio_oow_t)-1) return -1;
 	}
-	
+
 	task->task_status_code = status_code; /* remember the status code sent to the client. doesn't matter if it fails to write or not */
-//	if (hio_dev_sck_write(task->task_csck, HIO_BECS_PTR(cli->sbuf), HIO_BECS_LEN(cli->sbuf), HIO_NULL, HIO_NULL) <= -1) return -1;
-//	if (force_close && hio_dev_sck_write(task->task_csck, HIO_NULL, 0, HIO_NULL, HIO_NULL) <= -1) return -1;
+
+	if (write_raw_to_client(task, HIO_BECS_PTR(cli->sbuf), HIO_BECS_LEN(cli->sbuf)) <= -1) return -1;
+	if (force_close && write_raw_to_client(task, HIO_NULL, 0) <= -1) return -1;
 
 	return 1;
 }
 
-int hio_svc_htts_task_startreshdr (hio_svc_htts_task_t* task, int status_code, const hio_bch_t* status_desc, int chunked)
+int hio_svc_htts_task_handleexpect100 (hio_svc_htts_task_t* task, int options)
 {
-	hio_svc_htts_cli_t* cli = task->task_client;
-	hio_bch_t dtbuf[64];
-
-	HIO_ASSERT (task->htts->hio, cli != HIO_NULL);
-
-	hio_svc_htts_fmtgmtime (cli->htts, HIO_NULL, dtbuf, HIO_COUNTOF(dtbuf));
-
-	if (hio_becs_fmt(cli->sbuf, "HTTP/%d.%d ", task->task_req_version.major, task->task_req_version.minor) == (hio_oow_t)-1) return -1;
-	if (hio_becs_fcat(cli->sbuf, "%d %hs\r\n", status_code, (status_desc? status_desc: hio_http_status_to_bcstr(status_code))) == (hio_oow_t)-1) return -1;
-	if (hio_becs_fcat(cli->sbuf, "Server: %hs\r\nDate: %hs\r\n", cli->htts->server_name, dtbuf) == (hio_oow_t)-1) return -1;
-
-	if (chunked && hio_becs_cat(cli->sbuf, "Transfer-Encoding: chunked\r\n") == (hio_oow_t)-1) return -1;
-	if (hio_becs_cat(cli->sbuf, (task->task_keep_client_alive? "Connection: keep-alive\r\n": "Connection: close\r\n")) == (hio_oow_t)-1) return -1;
-
-	task->task_res_chunked = 1;
-	return 0;
-}
-
-static int is_res_header_acceptable (const hio_bch_t* key)
-{
-	return hio_comp_bcstr(key, "Status", 1) != 0 &&
-	       hio_comp_bcstr(key, "Connection", 1) != 0 &&
-	       hio_comp_bcstr(key, "Transfer-Encoding", 1) != 0 &&
-	       hio_comp_bcstr(key, "Server", 1) != 0 &&
-	       hio_comp_bcstr(key, "Date", 1) != 0;
-}
-
-int hio_svc_htts_task_addreshdrs (hio_svc_htts_task_t* task, const hio_bch_t* key, const hio_htre_hdrval_t* value)
-{
-	hio_svc_htts_cli_t* cli = task->task_client;
-	HIO_ASSERT (task->htts->hio, cli != HIO_NULL);
-
-	if (!is_res_header_acceptable(key)) return 0; /* ignore it*/
-	while (value)
+#if !defined(TASK_ALLOW_UNLIMITED_REQ_CONTENT_LENGTH)
+	if (task->task_req_conlen_unlimited)
 	{
-		if (hio_becs_fcat(cli->sbuf, "%hs: %hs\r\n", key, value->ptr) == (hio_oow_t)-1) return -1;
-		value = value->next;
+		/* Transfer-Encoding is chunked. no content-length is known in advance. */
+		/* option 1. buffer contents. if it gets too large, send 413 Request Entity Too Large.
+		 * option 2. send 411 Length Required immediately
+		 * option 3. set Content-Length to -1 and use EOF to indicate the end of content [Non-Standard] */
+		if (hio_svc_htts_task_sendfinalres(task, HIO_HTTP_STATUS_LENGTH_REQUIRED, HIO_NULL, HIO_NULL, 1) <= -1) return -1;
 	}
+#endif
 
-	return 0;
-}
-
-int hio_svc_htts_task_addreshdr (hio_svc_htts_task_t* task, const hio_bch_t* key, const hio_bch_t* value)
-{
-	hio_svc_htts_cli_t* cli = task->task_client;
-	HIO_ASSERT (task->htts->hio, cli != HIO_NULL);
-
-	if (!is_res_header_acceptable(key)) return 0; /* just ignore it*/
-	if (hio_becs_fcat(cli->sbuf, "%hs: %hs\r\n", key, value) == (hio_oow_t)-1) return -1;
-	return 0;
-}
-
-int hio_svc_htts_task_addreshdrfmt (hio_svc_htts_task_t* task, const hio_bch_t* key, const hio_bch_t* vfmt, ...)
-{
-	hio_svc_htts_cli_t* cli = task->task_client;
-	va_list ap;
-	HIO_ASSERT (task->htts->hio, cli != HIO_NULL);
-
-	if (!is_res_header_acceptable(key)) return 0; /* just ignore it*/
-	if (hio_becs_fcat(cli->sbuf, "%hs: ", key) == (hio_oow_t)-1) return -1;
-	va_start (ap, vfmt);
-	if (hio_becs_vfcat(cli->sbuf, vfmt, ap) == (hio_oow_t)-1) 
+	if (task->task_req_flags & HIO_HTRE_ATTR_EXPECT100)
 	{
-		va_end (ap);
-		return -1;
-	}
-	va_end (ap);
-	if (hio_becs_cat(cli->sbuf, "\r\n") == (hio_oow_t)-1) return -1;
-	return 0;
-}
-
-int hio_svc_htts_task_endreshdr (hio_svc_htts_task_t* task)
-{
-	hio_svc_htts_cli_t* cli = task->task_client;
-	HIO_ASSERT (task->htts->hio, cli != HIO_NULL);
-
-	if (hio_becs_cat(cli->sbuf, "\r\n") == (hio_oow_t)-1) return -1;
-/* TODO: can i send here??? */
-	return 0;
-}
-
-static int write_raw_to_client (hio_svc_htts_task_t* task, const void* data, hio_iolen_t dlen)
-{
-	HIO_ASSERT (task->htts->hio, task->task_client != HIO_NULL);
-	HIO_ASSERT (task->htts->hio, task->task_csck != HIO_NULL);
-
-	//task->ever_attempted_to_write_to_client = 1;
-
-HIO_DEBUG2 (task->htts->hio, "WR TO C[%.*hs]\n", dlen, data);
-
-	//task->num_pending_writes_to_client++;
-	if (hio_dev_sck_write(task->task_csck, data, dlen, HIO_NULL, HIO_NULL) <= -1)
-	{
-		//task->num_pending_writes_to_client--;
-		return -1;
-	}
-
-	return 0;
-}
-
-static int write_chunk_to_client (hio_svc_htts_task_t* task, const void* data, hio_iolen_t dlen)
-{
-	hio_iovec_t iov[3];
-	hio_bch_t lbuf[16];
-	hio_oow_t llen;
-
-	HIO_ASSERT (task->htts->hio, task->task_client != HIO_NULL);
-	HIO_ASSERT (task->htts->hio, task->task_csck != HIO_NULL);
-
-	/* hio_fmt_uintmax_to_bcstr() null-terminates the output. only HIO_COUNTOF(lbuf) - 1
-	 * is enough to hold '\r' and '\n' at the back without '\0'. */
-	llen = hio_fmt_uintmax_to_bcstr(lbuf, HIO_COUNTOF(lbuf) - 1, dlen, 16 | HIO_FMT_UINTMAX_UPPERCASE, 0, '\0', HIO_NULL);
-	lbuf[llen++] = '\r';
-	lbuf[llen++] = '\n';
-
-	iov[0].iov_ptr = lbuf;
-	iov[0].iov_len = llen;
-	iov[1].iov_ptr = (void*)data;
-	iov[1].iov_len = dlen;
-	iov[2].iov_ptr = "\r\n";
-	iov[2].iov_len = 2;
-
-HIO_DEBUG2 (task->htts->hio, "WR(CHNK) TO C[%.*hs]\n", dlen, data);
-
-	//task->ever_attempted_to_write_to_client = 1;
-	//task->num_pending_writes_to_client++;
-	if (hio_dev_sck_writev(task->task_csck, iov, HIO_COUNTOF(iov), HIO_NULL, HIO_NULL) <= -1)
-	{
-		//task->num_pending_writes_to_client--;
-		return -1;
-	}
-
-	return 0;
-}
-
-int hio_svc_htts_task_addresbody (hio_svc_htts_task_t* task, const void* data, hio_iolen_t dlen)
-{
-	return task->task_res_chunked? write_chunk_to_client(task, data, dlen): write_raw_to_client(task, data, dlen);
-}
-
-int hio_svc_htts_task_endbody (hio_svc_htts_task_t* task)
-{
-	/* send the last chunk */
-
-	if (!task->task_res_ended)
-	{
-		task->task_res_ended = 1;
-
-//		if (!task->ever_attempted_to_write_to_client)
-//		{
-//			if (fcgi_send_final_status_to_client(fcgi, HIO_HTTP_STATUS_INTERNAL_SERVER_ERROR, 0) <= -1) return -1;
-//		}
-//		else
+		/* TODO: Expect: 100-continue? who should handle this? fcgi? or the http server? */
+		/* CAN I LET the fcgi SCRIPT handle this? */
+		if (hio_comp_http_version_numbers(&task->task_req_version, 1, 1) >= 0 &&
+		    (task->task_req_conlen_unlimited || task->task_req_conlen > 0) &&
+			(task->task_req_method != HIO_HTTP_GET && task->task_req_method != HIO_HTTP_HEAD))
 		{
-			if (task->task_res_chunked && write_raw_to_client(task, "0\r\n\r\n", 5) <= -1) return -1;
+			/*
+			 * Don't send 100 Continue if http verions is lower than 1.1
+			 * [RFC7231]
+			 *  A server that receives a 100-continue expectation in an HTTP/1.0
+			 *  request MUST ignore that expectation.
+			 *
+			 * Don't send 100 Continue if expected content length is 0.
+			 * [RFC7231]
+			 *  A server MAY omit sending a 100 (Continue) response if it has
+			 *  already received some or all of the message body for the
+			 *  corresponding request, or if the framing indicates that there is
+			 *  no message body.
+			 */
+			hio_bch_t msgbuf[64];
+			hio_oow_t msglen;
+			msglen = hio_fmttobcstr(task->htts->hio, msgbuf, HIO_COUNTOF(msgbuf), "HTTP/%d.%d %d %hs\r\n\r\n", task->task_req_version.major, task->task_req_version.minor, HIO_HTTP_STATUS_CONTINUE, hio_http_status_to_bcstr(HIO_HTTP_STATUS_CONTINUE));
+			if (task->task_csck && write_raw_to_client(task, msgbuf, msglen) <= -1) return -1;
+			task->task_res_ever_sent = 0; /* reset this as it's polluted for 100 continue */
 		}
-
-		if (!task->task_keep_client_alive && write_raw_to_client(task, HIO_NULL, 0) <= -1) return -1;
+	}
+	else if (task->task_req_flags & HIO_HTRE_ATTR_EXPECT)
+	{
+		/* 417 Expectation Failed */
+		hio_svc_htts_task_sendfinalres(task, HIO_HTTP_STATUS_EXPECTATION_FAILED, HIO_NULL, HIO_NULL, 1);
+		return -1;
 	}
 
 	return 0;
 }
-
 /* ----------------------------------------------------------------- */
 
 int hio_svc_htts_doproxy (hio_svc_htts_t* htts, hio_dev_sck_t* csck, hio_htre_t* req, const hio_bch_t* upstream)

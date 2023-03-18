@@ -100,13 +100,19 @@ typedef void (*hio_svc_htts_task_on_kill_t) (
 	unsigned int task_keep_client_alive: 1; \
 	unsigned int task_req_qpath_ending_with_slash: 1; \
 	unsigned int task_req_qpath_is_root: 1; \
+	unsigned int task_req_conlen_unlimited: 1; \
 	unsigned int task_res_chunked: 1; \
+	unsigned int task_res_started: 1; \
 	unsigned int task_res_ended: 1; \
+	unsigned int task_res_ever_sent: 1; \
+	int task_req_flags; \
 	hio_http_version_t task_req_version; \
 	hio_http_method_t task_req_method; \
 	hio_bch_t* task_req_qmth; \
 	hio_bch_t* task_req_qpath; \
-	hio_http_status_t task_status_code;
+	hio_oow_t task_req_conlen; \
+	hio_http_status_t task_status_code; \
+	hio_ooi_t task_res_pending_writes;
 
 struct hio_svc_htts_task_t
 {
@@ -191,28 +197,30 @@ typedef void (*hio_svc_htts_fun_func_t) (
 
 /* -------------------------------------------------------------- */
 
+#if 0
 enum hio_svc_htts_cgi_option_t
 {
-	HIO_SVC_HTTS_CGI_NO_100_CONTINUE = (1 << 0)
+	/* no option yet */
 };
 
 enum hio_svc_htts_fcgi_option_t
 {
-	HIO_SVC_HTTS_FCGI_NO_100_CONTINUE = (1 << 0)
+	/* no option yet */
 };
+#endif
 
 enum hio_svc_htts_file_option_t
 {
-	HIO_SVC_HTTS_FILE_NO_100_CONTINUE  = (1 << 0),
-	HIO_SVC_HTTS_FILE_READ_ONLY        = (1 << 1)
-};
-
-enum hio_svc_htts_thr_option_t
-{
-	HIO_SVC_HTTS_THR_NO_100_CONTINUE = (1 << 0)
+	HIO_SVC_HTTS_FILE_READ_ONLY        = (1 << 0)
 };
 
 #if 0
+enum hio_svc_htts_thr_option_t
+{
+	/* no option yet */
+};
+
+
 enum hio_svc_htts_txt_option_t
 {
 	/* no option yet */
@@ -492,7 +500,7 @@ HIO_EXPORT void hio_svc_htts_task_kill (
 	hio_svc_htts_task_t*         task
 );
 
-HIO_EXPORT int hio_svc_htts_task_buildfinalres (
+HIO_EXPORT int hio_svc_htts_task_sendfinalres (
 	hio_svc_htts_task_t* task,
 	int                  status_code,
 	const hio_bch_t*     content_type,
@@ -528,6 +536,11 @@ HIO_EXPORT int hio_svc_htts_task_addreshdrfmt (
 
 HIO_EXPORT int hio_svc_htts_task_endreshdr (
 	hio_svc_htts_task_t* task
+);
+
+HIO_EXPORT int hio_svc_htts_task_handleexpect100 (
+	hio_svc_htts_task_t* task,
+	int                  options
 );
 
 HIO_EXPORT void hio_svc_htts_fmtgmtime (

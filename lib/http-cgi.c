@@ -67,12 +67,10 @@ struct cgi_t
 	hio_htrd_t* peer_htrd;
 
 	unsigned int over: 4; /* must be large enough to accomodate CGI_OVER_ALL */
-	unsigned int req_content_length_unlimited: 1;
 	unsigned int ever_attempted_to_write_to_client: 1;
 	unsigned int client_eof_detected: 1;
 	unsigned int client_disconnected: 1;
 	unsigned int client_htrd_recbs_changed: 1;
-	hio_oow_t req_content_length; /* client request content length */
 	cgi_res_mode_t res_mode_to_cli;
 
 	hio_dev_sck_on_read_t client_org_on_read;
@@ -105,6 +103,7 @@ static int cgi_write_to_client (cgi_t* cgi, const void* data, hio_iolen_t dlen)
 		cgi->ever_attempted_to_write_to_client = 1;
 
 		cgi->num_pending_writes_to_client++;
+printf ("cgi->num %d\n", cgi->num_pending_writes_to_client);
 		if (hio_dev_sck_write(cgi->task_csck, data, dlen, HIO_NULL, HIO_NULL) <= -1)
 		{
 			cgi->num_pending_writes_to_client--;
@@ -127,6 +126,7 @@ static int cgi_writev_to_client (cgi_t* cgi, hio_iovec_t* iov, hio_iolen_t iovcn
 		cgi->ever_attempted_to_write_to_client = 1;
 
 		cgi->num_pending_writes_to_client++;
+
 		if (hio_dev_sck_writev(cgi->task_csck, iov, iovcnt, HIO_NULL, HIO_NULL) <= -1)
 		{
 			cgi->num_pending_writes_to_client--;
@@ -141,13 +141,9 @@ static int cgi_writev_to_client (cgi_t* cgi, hio_iovec_t* iov, hio_iolen_t iovcn
 	return 0;
 }
 
-static int cgi_send_final_status_to_client (cgi_t* cgi, int status_code, int force_close)
+static HIO_INLINE int cgi_send_final_status_to_client (cgi_t* cgi, int status_code, int force_close)
 {
-	hio_svc_htts_cli_t* cli = cgi->task_client;
-	if (!cli) return 0; /* client disconnected probably */
-	if (hio_svc_htts_task_buildfinalres(cgi, status_code, HIO_NULL, HIO_NULL, force_close) <= -1) return -1;
-	return (cgi_write_to_client(cgi, HIO_BECS_PTR(cli->sbuf), HIO_BECS_LEN(cli->sbuf)) <= -1 ||
-	        (force_close && cgi_write_to_client(cgi, HIO_NULL, 0) <= -1))? -1: 0;
+	return hio_svc_htts_task_sendfinalres(cgi, status_code, HIO_NULL, HIO_NULL, force_close);
 }
 
 static int cgi_write_last_chunk_to_client (cgi_t* cgi)
@@ -501,17 +497,20 @@ static int peer_htrd_peek (hio_htrd_t* htrd, hio_htre_t* req)
 	    hio_htre_walkheaders(req, peer_capture_response_header, cgi) <= -1 ||
 	    hio_svc_htts_task_endreshdr(cgi) <= -1) return -1;
 
-	cgi->task_status_code = status_code;
-	return cgi_write_to_client(cgi, HIO_BECS_PTR(cli->sbuf), HIO_BECS_LEN(cli->sbuf));
+	return 0;
 }
 
 static int peer_htrd_poke (hio_htrd_t* htrd, hio_htre_t* req)
 {
-	/* client request got completed */
+	/* peer response got completed */
 	cgi_peer_xtn_t* peer = hio_htrd_getxtn(htrd);
 	cgi_t* cgi = peer->cgi;
 
+#if 1
 	if (cgi_write_last_chunk_to_client(cgi) <= -1) return -1;
+#else
+	if (hio_svc_htts_task_endbody(cgi) <= -1) return -1; ????
+#endif
 
 	cgi_mark_over (cgi, CGI_OVER_READ_FROM_PEER);
 	return 0;
@@ -641,7 +640,7 @@ static int cgi_client_on_read (hio_dev_sck_t* sck, const void* buf, hio_iolen_t 
 	if (len <= -1)
 	{
 		/* read error */
-		HIO_DEBUG2 (cli->htts->hio, "HTTS(%p) - read error on client %p(%d)\n", sck, (int)sck->hnd);
+		HIO_DEBUG3 (cli->htts->hio, "HTTS(%p) - read error on client %p(%d)\n", cgi->htts, sck, (int)sck->hnd);
 		goto oops;
 	}
 
@@ -693,9 +692,11 @@ static int cgi_client_on_write (hio_dev_sck_t* sck, hio_iolen_t wrlen, void* wrc
 	hio_svc_htts_cli_t* cli = hio_dev_sck_getxtn(sck);
 	cgi_t* cgi = (cgi_t*)cli->task;
 
+printf ("on_write cgi->num %d wrlen=%d\n", cgi->num_pending_writes_to_client, (int)wrlen);
+
 	if (wrlen <= -1)
 	{
-		HIO_DEBUG3 (hio, "HTTS(%p) - unable to write to client %p(%d)\n", sck->hio, sck, (int)sck->hnd);
+		HIO_DEBUG3 (hio, "HTTS(%p) - unable to write to client %p(%d)\n", cgi->htts, sck, (int)sck->hnd);
 		goto oops;
 	}
 
@@ -715,6 +716,7 @@ static int cgi_client_on_write (hio_dev_sck_t* sck, hio_iolen_t wrlen, void* wrc
 		HIO_ASSERT (hio, cgi->num_pending_writes_to_client > 0);
 
 		cgi->num_pending_writes_to_client--;
+
 		if (cgi->peer && cgi->num_pending_writes_to_client == CGI_PENDING_IO_THRESHOLD)
 		{
 			if (!(cgi->over & CGI_OVER_READ_FROM_PEER) &&
@@ -921,9 +923,6 @@ int hio_svc_htts_docgi (hio_svc_htts_t* htts, hio_dev_sck_t* csck, hio_htre_t* r
 
 	cgi->on_kill = on_kill;
 	cgi->options = options;
-	/*cgi->num_pending_writes_to_client = 0;
-	cgi->num_pending_writes_to_peer = 0;*/
-	cgi->req_content_length_unlimited = hio_htre_getreqcontentlen(req, &cgi->req_content_length);
 
 	/* remember the client socket's io event handlers */
 	cgi->client_org_on_read = csck->on_read;
@@ -957,7 +956,7 @@ int hio_svc_htts_docgi (hio_svc_htts_t* htts, hio_dev_sck_t* csck, hio_htre_t* r
 	HIO_SVC_HTTS_TASK_REF (cgi, peer_xtn->cgi); /* peer->cgi in htrd = cgi */
 
 #if !defined(CGI_ALLOW_UNLIMITED_REQ_CONTENT_LENGTH)
-	if (cgi->req_content_length_unlimited)
+	if (cgi->task_req_conlen_unlimited)
 	{
 		/* Transfer-Encoding is chunked. no content-length is known in advance. */
 
@@ -973,9 +972,8 @@ int hio_svc_htts_docgi (hio_svc_htts_t* htts, hio_dev_sck_t* csck, hio_htre_t* r
 	{
 		/* TODO: Expect: 100-continue? who should handle this? cgi? or the http server? */
 		/* CAN I LET the cgi SCRIPT handle this? */
-		if (!(options & HIO_SVC_HTTS_CGI_NO_100_CONTINUE) &&
-		    hio_comp_http_version_numbers(&req->version, 1, 1) >= 0 &&
-		   (cgi->req_content_length_unlimited || cgi->req_content_length > 0))
+		if (hio_comp_http_version_numbers(&req->version, 1, 1) >= 0 &&
+		   (cgi->task_req_conlen_unlimited || cgi->task_req_conlen > 0))
 		{
 			/*
 			 * Don't send 100 Continue if http verions is lower than 1.1
@@ -1006,7 +1004,7 @@ int hio_svc_htts_docgi (hio_svc_htts_t* htts, hio_dev_sck_t* csck, hio_htre_t* r
 	}
 
 #if defined(CGI_ALLOW_UNLIMITED_REQ_CONTENT_LENGTH)
-	if (cgi->req_content_length_unlimited)
+	if (cgi->task_req_conlen_unlimited)
 	{
 		/* change the callbacks to subscribe to contents to be uploaded */
 		cgi->client_htrd_org_recbs = *hio_htrd_getrecbs(cgi->task_client->htrd);
@@ -1017,7 +1015,7 @@ int hio_svc_htts_docgi (hio_svc_htts_t* htts, hio_dev_sck_t* csck, hio_htre_t* r
 	else
 	{
 #endif
-		if (cgi->req_content_length > 0)
+		if (cgi->task_req_conlen > 0)
 		{
 			/* change the callbacks to subscribe to contents to be uploaded */
 			cgi->client_htrd_org_recbs = *hio_htrd_getrecbs(cgi->task_client->htrd);
