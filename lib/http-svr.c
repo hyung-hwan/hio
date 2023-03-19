@@ -634,23 +634,19 @@ void hio_svc_htts_stop (hio_svc_htts_t* htts)
 		if (htts->l.sck[i]) hio_dev_sck_kill (htts->l.sck[i]);
 	}
 
-HIO_DEBUG0 (hio, "11111111111111111\n");
 	while (!HIO_SVC_HTTS_CLIL_IS_EMPTY(&htts->cli))
 	{
 		hio_svc_htts_cli_t* cli = HIO_SVC_HTTS_CLIL_FIRST_CLI(&htts->cli);
 		HIO_ASSERT (hio, cli->sck != HIO_NULL);
-HIO_DEBUG1 (hio, "cli-> %p\n", cli->sck);
 		hio_dev_sck_kill (cli->sck);
 	}
 
-HIO_DEBUG0 (hio, "222222222222222222\n");
 	while (!HIO_SVC_HTTS_TASKL_IS_EMPTY(&htts->task))
 	{
 		hio_svc_htts_task_t* task = HIO_SVC_HTTS_TASKL_FIRST_TASK(&htts->task);
 		hio_svc_htts_task_kill (task);
 	}
 
-HIO_DEBUG0 (hio, "3333333333333333\n");
 	HIO_SVCL_UNLINK_SVC (htts);
 	if (htts->server_name && htts->server_name != htts->server_name_buf) hio_freemem (hio, htts->server_name);
 

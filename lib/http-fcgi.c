@@ -6,14 +6,6 @@
 
 #define FCGI_ALLOW_UNLIMITED_REQ_CONTENT_LENGTH
 
-enum fcgi_res_mode_t
-{
-	FCGI_RES_MODE_CHUNKED,
-	FCGI_RES_MODE_CLOSE,
-	FCGI_RES_MODE_LENGTH
-};
-typedef enum fcgi_res_mode_t fcgi_res_mode_t;
-
 #define FCGI_PENDING_IO_THRESHOLD_TO_CLIENT 50
 #define FCGI_PENDING_IO_THRESHOLD_TO_PEER 50
 
@@ -29,14 +21,12 @@ struct fcgi_t
 
 	hio_svc_htts_task_on_kill_t on_kill; /* user-provided on_kill callback */
 
-	hio_oow_t num_pending_writes_to_client;
-	hio_oow_t num_pending_writes_to_peer;
+	hio_oow_t peer_pending_writes;
 	hio_svc_fcgic_sess_t* peer;
 	hio_htrd_t* peer_htrd;
 
 	unsigned int over: 4; /* must be large enough to accomodate FCGI_OVER_ALL */
 	unsigned int client_htrd_recbs_changed: 1;
-	fcgi_res_mode_t res_mode_to_cli;
 
 	hio_dev_sck_on_read_t client_org_on_read;
 	hio_dev_sck_on_write_t client_org_on_write;
@@ -63,25 +53,19 @@ static void fcgi_halt_participating_devices (fcgi_t* fcgi)
 	unbind_task_from_peer (fcgi, 1);
 }
 
-static HIO_INLINE int fcgi_send_final_status_to_client (fcgi_t* fcgi, int status_code, int force_close)
-{
-	return hio_svc_htts_task_sendfinalres(fcgi, status_code, HIO_NULL, HIO_NULL, force_close);
-}
-
 static int fcgi_write_stdin_to_peer (fcgi_t* fcgi, const void* data, hio_iolen_t dlen)
 {
 	if (fcgi->peer)
 	{
-		fcgi->num_pending_writes_to_peer++;
+		fcgi->peer_pending_writes++;
 		if (hio_svc_fcgic_writestdin(fcgi->peer, data, dlen) <= -1) /* TODO: write STDIN, PARAM? */
 		{
-			fcgi->num_pending_writes_to_peer--;
+			fcgi->peer_pending_writes--;
 			return -1;
 		}
-
 #if 0
 	/* TODO: check if it's already finished or something.. */
-		if (fcgi->num_pending_writes_to_peer > FCGI_PENDING_IO_THRESHOLD_TO_PEER)
+		if (fcgi->peer_pending_writes > FCGI_PENDING_IO_THRESHOLD_TO_PEER)
 		{
 			/* disable input watching */
 			if (hio_dev_sck_read(fcgi->task_csck, 0) <= -1) return -1;
@@ -165,19 +149,9 @@ static void fcgi_on_kill (hio_svc_htts_task_t* task)
 	 * 1. if hio_svc_htts_task_kill() is called, fcgi->peer, fcgi->peer_htrd, fcgi->task_csck, 
 	 *    fcgi->task_client may not not null. 
 	 * 2. this callback function doesn't decrement the reference count on fcgi because
-	 *     this is the fcgi destruction call-back.
+	 *    it is the task destruction callback. (passing 0 to unbind_task_from_peer/client)
 	 */
-
-	if (fcgi->peer) hio_svc_fcgic_untie (fcgi->peer);
-
-	if (fcgi->peer_htrd)
-	{
-		fcgi_peer_xtn_t* pxtn = hio_htrd_getxtn(fcgi->peer_htrd);
-		pxtn->fcgi = HIO_NULL; 
-
-		hio_htrd_close (fcgi->peer_htrd);
-		fcgi->peer_htrd = HIO_NULL;
-	}
+	unbind_task_from_peer (fcgi, 0);
 
 	if (fcgi->task_csck)
 	{
@@ -202,7 +176,7 @@ static void fcgi_peer_on_untie (hio_svc_fcgic_sess_t* peer, void* ctx)
 
 	HIO_DEBUG5 (hio, "HTTS(%p) - fcgi(t=%p,c=%p[%d],p=%p) - untieing peer\n", fcgi->htts, fcgi, fcgi->task_client, (fcgi->task_csck? fcgi->task_csck->hnd: -1), fcgi->peer);
 
-	fcgi->peer = HIO_NULL; 
+	fcgi->peer = HIO_NULL;  /* to avoid infinite loop as explained above */
 	hio_svc_htts_task_endbody (fcgi);
 	unbind_task_from_peer (fcgi, 1);
 
@@ -248,7 +222,7 @@ static int fcgi_peer_on_read (hio_svc_fcgic_sess_t* peer, const void* data, hio_
 
 			if (!fcgi->task_res_started && !(fcgi->over & FCGI_OVER_WRITE_TO_CLIENT))
 			{
-				fcgi_send_final_status_to_client (fcgi, HIO_HTTP_STATUS_BAD_GATEWAY, 1); /* don't care about error because it jumps to oops below anyway */
+				hio_svc_htts_task_sendfinalres (fcgi, HIO_HTTP_STATUS_BAD_GATEWAY, HIO_NULL, HIO_NULL, 1); /* don't care about error because it jumps to oops below anyway */
 			}
 
 			goto oops;
@@ -298,14 +272,13 @@ static int peer_htrd_peek (hio_htrd_t* htrd, hio_htre_t* req)
 	fcgi_peer_xtn_t* peer = hio_htrd_getxtn(htrd);
 	fcgi_t* fcgi = peer->fcgi;
 	hio_svc_htts_cli_t* cli = fcgi->task_client;
-	int status_code = HIO_HTTP_STATUS_OK;
-	const hio_bch_t* status_desc = HIO_NULL;
-	int chunked;
 
 	if (HIO_LIKELY(cli)) /* only if the client is still connected */
 	{
-		// TOOD: remove content_length if content_length is negative or not numeric.
-		if (req->attr.content_length) fcgi->res_mode_to_cli = FCGI_RES_MODE_LENGTH;
+		int status_code = HIO_HTTP_STATUS_OK;
+		const hio_bch_t* status_desc = HIO_NULL;
+		int chunked;
+
 		if (req->attr.status) hio_parse_http_status_header_value(req->attr.status, &status_code, &status_desc);
 
 		chunked = fcgi->task_keep_client_alive && !req->attr.content_length;
@@ -603,6 +576,8 @@ oops:
 	return -1;
 }
 
+/* ----------------------------------------------------------------------- */
+
 static void bind_task_to_client (fcgi_t* fcgi, hio_dev_sck_t* csck)
 {
 	hio_svc_htts_cli_t* cli = hio_dev_sck_getxtn(csck);
@@ -679,6 +654,8 @@ static void unbind_task_from_client (fcgi_t* fcgi, int rcdown)
 	if (rcdown) HIO_SVC_HTTS_TASK_RCDOWN ((hio_svc_htts_task_t*)fcgi);
 }
 
+/* ----------------------------------------------------------------------- */
+
 static int bind_task_to_peer (fcgi_t* fcgi, const hio_skad_t* fcgis_addr)
 {
 	hio_htrd_t* htrd;
@@ -727,7 +704,7 @@ static void unbind_task_from_peer (fcgi_t* fcgi, int rcdown)
 		n++;
 	}
 
-	if (rcdown) 
+	if (rcdown)
 	{
 		while (n > 0)
 		{
@@ -736,6 +713,8 @@ static void unbind_task_from_peer (fcgi_t* fcgi, int rcdown)
 		}
 	}
 }
+
+/* ----------------------------------------------------------------------- */
 
 static int setup_for_content_length(fcgi_t* fcgi, hio_htre_t* req)
 {
@@ -770,11 +749,10 @@ static int setup_for_content_length(fcgi_t* fcgi, hio_htre_t* req)
 	}
 #endif
 
-	fcgi->res_mode_to_cli = fcgi->task_keep_client_alive? FCGI_RES_MODE_CHUNKED: FCGI_RES_MODE_CLOSE;
-	/* the mode still can get switched from FCGI_RES_MODE_CHUNKED to FCGI_RES_MODE_LENGTH if the fcgi script emits Content-Length */
-
 	return 0;
 }
+
+/* ----------------------------------------------------------------------- */
 
 int hio_svc_htts_dofcgi (hio_svc_htts_t* htts, hio_dev_sck_t* csck, hio_htre_t* req, const hio_skad_t* fcgis_addr, const hio_bch_t* docroot, const hio_bch_t* script, int options, hio_svc_htts_task_on_kill_t on_kill)
 {
