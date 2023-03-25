@@ -961,6 +961,21 @@ int hio_svc_htts_task_addresbody (hio_svc_htts_task_t* task, const void* data, h
 	return task->task_res_chunked? write_chunk_to_client(task, data, dlen): write_raw_to_client(task, data, dlen);
 }
 
+int hio_svc_htts_task_addresbodyfromfile (hio_svc_htts_task_t* task, int fd, hio_foff_t foff, hio_iolen_t len)
+{
+	if (task->task_csck)
+	{
+		task->task_res_pending_writes++;
+		if (hio_dev_sck_sendfile(task->task_csck, fd, foff, len, &htts_svr_wrctx) <= -1)
+		{
+			task->task_res_pending_writes--;
+			return -1;
+		}
+	}
+
+	return 0;
+}
+
 int hio_svc_htts_task_endbody (hio_svc_htts_task_t* task)
 {
 	/* send the last chunk */

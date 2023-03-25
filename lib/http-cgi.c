@@ -98,7 +98,6 @@ static int cgi_write_to_peer (cgi_t* cgi, const void* data, hio_iolen_t dlen)
 			return -1;
 		}
 
-	/* TODO: check if it's already finished or something.. */
 		if (cgi->peer_pending_writes > CGI_PENDING_IO_THRESHOLD)
 		{
 			/* suspend input watching */
@@ -159,7 +158,7 @@ static HIO_INLINE void cgi_mark_over (cgi_t* cgi, int over_bits)
 			}
 			else
 			{
-				HIO_DEBUG5 (hio, "HTTS(%p) - cgi(t=%p,c=%p[%d],p=%p) - halting client for no keep-alive\n", cgi->htts, cgi, cgi->task_client, (cgi->task_csck? cgi->task_csck->hnd: -1), cgi->peer);
+				HIO_DEBUG5 (hio, "HTTS(%p) - cgi(t=%p,c=%p[%d],p=%p) - halting client\n", cgi->htts, cgi, cgi->task_client, (cgi->task_csck? cgi->task_csck->hnd: -1), cgi->peer);
 				hio_dev_sck_shutdown (cgi->task_csck, HIO_DEV_SCK_SHUTDOWN_WRITE);
 				hio_dev_sck_halt (cgi->task_csck);
 			}
@@ -800,6 +799,7 @@ static void unbind_task_from_client (cgi_t* cgi, int rcdown)
 
 	if (rcdown) HIO_SVC_HTTS_TASK_RCDOWN ((hio_svc_htts_task_t*)cgi);
 }
+
 /* ----------------------------------------------------------------------- */
 
 static int bind_task_to_peer (cgi_t* cgi, hio_dev_sck_t* csck, hio_htre_t* req, const hio_bch_t* docroot, const hio_bch_t* script)

@@ -538,6 +538,24 @@ HIO_EXPORT int hio_svc_htts_task_endreshdr (
 	hio_svc_htts_task_t* task
 );
 
+HIO_EXPORT int hio_svc_htts_task_addresbody (
+	hio_svc_htts_task_t* task,
+	const void*          data,
+	hio_iolen_t          dlen
+);
+
+HIO_EXPORT int hio_svc_htts_task_addresbodyfromfile (
+	hio_svc_htts_task_t* task,
+	int                 fd,
+	hio_foff_t          foff,
+	hio_iolen_t         len
+);
+
+HIO_EXPORT int hio_svc_htts_task_endbody (
+	hio_svc_htts_task_t* task
+);
+
+
 HIO_EXPORT int hio_svc_htts_task_handleexpect100 (
 	hio_svc_htts_task_t* task,
 	int                  options

@@ -126,7 +126,7 @@ static HIO_INLINE void fcgi_mark_over (fcgi_t* fcgi, int over_bits)
 			}
 			else
 			{
-				HIO_DEBUG2 (hio, "HTTS(%p) - halting client(%p) for no keep-alive\n", fcgi->htts, fcgi->task_csck);
+				HIO_DEBUG2 (hio, "HTTS(%p) - halting client(%p)\n", fcgi->htts, fcgi->task_csck);
 				hio_dev_sck_shutdown (fcgi->task_csck, HIO_DEV_SCK_SHUTDOWN_WRITE);
 				hio_dev_sck_halt (fcgi->task_csck);
 			}
