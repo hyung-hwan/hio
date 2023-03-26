@@ -242,7 +242,7 @@ void* thr_func (void* arg)
 	hio_setoption (hio, HIO_LOG_TARGET_BCSTR, "/dev/stderr");
 
 	memset (&htts_bind_info, 0, HIO_SIZEOF(htts_bind_info));
-	hio_skad_init_for_qx (&htts_bind_info[0].localaddr);
+	hio_skad_init_for_qx (&htts_bind_info[0].localaddr); /* QX socket device */
 
 	hio_bcstrtoskad (hio, "0.0.0.0:9988", &htts_bind_info[1].localaddr);
 	htts_bind_info[1].options = HIO_DEV_SCK_BIND_REUSEADDR | HIO_DEV_SCK_BIND_REUSEPORT | HIO_DEV_SCK_BIND_IGNERR;

@@ -74,6 +74,7 @@ struct file_t
 typedef struct file_t file_t;
 
 static void unbind_task_from_client (file_t* file, int rcdown);
+static void unbind_task_from_peer (file_t* file, int rcdown);
 static int file_send_contents_to_client (file_t* file);
 
 static HIO_INLINE void set_tcp_cork (hio_dev_sck_t* sck, int tcp_cork)
@@ -91,26 +92,8 @@ static void file_halt_participating_devices (file_t* file)
 {
 	HIO_DEBUG3 (file->htts->hio, "HTTS(%p) - file(c=%d,p=%d) Halting participating devices\n", file->htts, (int)file->task_csck->hnd, (int)file->peer);
 
-	/* only the client socket device.
-	 * the peer side is just a file descriptor - no hio-managed device */
 	if (file->task_csck) hio_dev_sck_halt (file->task_csck);
-}
-
-static void file_close_peer (file_t* file)
-{
-	hio_t* hio = file->htts->hio;
-
-	if (file->peer_tmridx != HIO_TMRIDX_INVALID)
-	{
-		hio_deltmrjob (hio, file->peer_tmridx);
-		HIO_ASSERT (hio, file->peer_tmridx == HIO_TMRIDX_INVALID);
-	}
-
-	if (file->peer >= 0)
-	{
-		close (file->peer);
-		file->peer = -1;
-	}
+	unbind_task_from_peer (file, 1);
 }
 
 static void file_mark_over (file_t* file, int over_bits)
@@ -144,7 +127,7 @@ static void file_mark_over (file_t* file, int over_bits)
 	{
 		/* ready to stop */
 		HIO_DEBUG3 (hio, "HTTS(%p) - file(c=%d,p=%d) halting peer as it is unneeded\n", htts, (int)file->task_csck->hnd, file->peer);
-		file_close_peer (file);
+		unbind_task_from_peer (file, 1);
 
 		if (file->task_csck)
 		{
@@ -206,7 +189,9 @@ static void file_on_kill (hio_svc_htts_task_t* task)
 
 	if (file->on_kill) file->on_kill (task);
 
-	file_close_peer (file);
+	/* this callback function doesn't decrement the reference count on file because
+	 * it is the task destruction callback. (passing 0 to unbind_task_from_peer/client) */
+	unbind_task_from_peer (file, 0);
 
 	if (file->task_csck)
 	{
@@ -237,6 +222,11 @@ static void file_client_on_disconnect (hio_dev_sck_t* sck)
 
 		/* detach the task from the client and the client socket */
 		unbind_task_from_client (file, 1);
+
+		/* the current file peer implemenation is not async. so there is no IO event associated
+		 * when the client side is disconnecte, simple close the peer side as it's not needed.
+		 * this behavior is different from http-fcgi or http-cgi */
+		unbind_task_from_peer (file, 1);
 
 		/* call the parent handler*/
 		/*if (file->client_org_on_disconnect) file->client_org_on_disconnect (sck);*/
@@ -276,7 +266,6 @@ static int file_client_on_read (hio_dev_sck_t* sck, const void* buf, hio_iolen_t
 	{
 		/* EOF on the client side. arrange to close */
 		HIO_DEBUG3 (cli->htts->hio, "HTTS(%p) - file(c=%d,p=%d) EOF detected on client\n", file->htts, (int)sck->hnd, file->peer);
-		//file->client_eof_detected = 1;
 
 		if (!(file->over & FILE_OVER_READ_FROM_CLIENT)) /* if this is true, EOF is received without file_client_htrd_poke() */
 		{
@@ -639,6 +628,8 @@ static int open_peer_with_mode (file_t* file, const hio_bch_t* actual_file, int 
 	return 0;
 }
 
+/* ----------------------------------------------------------------------- */
+
 static void bind_task_to_client (file_t* file, hio_dev_sck_t* csck)
 {
 	hio_svc_htts_cli_t* cli = hio_dev_sck_getxtn(csck);
@@ -715,6 +706,127 @@ static void unbind_task_from_client (file_t* file, int rcdown)
 	if (rcdown) HIO_SVC_HTTS_TASK_RCDOWN ((hio_svc_htts_task_t*)file);
 }
 
+/* ----------------------------------------------------------------------- */
+
+static int bind_task_to_peer (file_t* file, hio_htre_t* req, const hio_bch_t* file_path, const hio_bch_t* mime_type)
+{
+	int status_code;
+
+	switch (file->task_req_method)
+	{
+		case HIO_HTTP_GET:
+		case HIO_HTTP_HEAD:
+		{
+			const hio_bch_t* actual_mime_type = mime_type;
+
+			if (open_peer_with_mode(file, file_path, O_RDONLY, &status_code, (mime_type? HIO_NULL: &actual_mime_type)) <= -1 ||
+			    process_range_header(file, req, &status_code) <= -1) goto done_with_status_code;
+
+			if (HIO_LIKELY(file->task_req_method == HIO_HTTP_GET))
+			{
+				if (file->etag_match)
+				{
+					status_code = HIO_HTTP_STATUS_NOT_MODIFIED;
+					goto done_with_status_code;
+				}
+
+				/* normal full transfer */
+			#if defined(HAVE_POSIX_FADVISE)
+				posix_fadvise (file->peer, file->start_offset, file->end_offset - file->start_offset + 1, POSIX_FADV_SEQUENTIAL);
+			#endif
+				set_tcp_cork (file->task_csck, 1);
+
+				if (file_send_header_to_client(file, HIO_HTTP_STATUS_OK, 0, actual_mime_type) <= -1) goto oops;
+				if (file_send_contents_to_client(file) <= -1) goto oops;
+			}
+			else
+			{
+				if (file_send_header_to_client(file, HIO_HTTP_STATUS_OK, 0, actual_mime_type) <= -1) goto oops;
+				/* no content must be transmitted for HEAD despite Content-Length in the header. */
+				goto done_with_status_code_2;
+			}
+			break;
+		}
+
+		case HIO_HTTP_POST:
+		case HIO_HTTP_PUT:
+			if (file->options & HIO_SVC_HTTS_FILE_READ_ONLY)
+			{
+				status_code = HIO_HTTP_STATUS_METHOD_NOT_ALLOWED;
+				goto done_with_status_code;
+			}
+
+			if (open_peer_with_mode(file, file_path, O_WRONLY | O_TRUNC | O_CREAT, &status_code, HIO_NULL) <= -1) goto done_with_status_code;
+
+			/* the client input must be written to the peer side */
+			file_mark_over (file, FILE_OVER_READ_FROM_PEER);
+			break;
+
+		case HIO_HTTP_DELETE:
+			if (file->options & HIO_SVC_HTTS_FILE_READ_ONLY)
+			{
+				status_code = HIO_HTTP_STATUS_METHOD_NOT_ALLOWED;
+				goto done_with_status_code;
+			}
+
+			if (unlink(file_path) <= -1)
+			{
+				if (errno != EISDIR || (errno == EISDIR && rmdir(file_path) <= -1))
+				{
+					status_code = ERRNO_TO_STATUS_CODE(errno);
+					goto done_with_status_code;
+				}
+			}
+
+			status_code = HIO_HTTP_STATUS_OK;
+			goto done_with_status_code;
+
+		default:
+			status_code = HIO_HTTP_STATUS_METHOD_NOT_ALLOWED;
+		done_with_status_code:
+			if (hio_svc_htts_task_sendfinalres(file, status_code, HIO_NULL, HIO_NULL, 0) <= -1) goto oops;
+		done_with_status_code_2:
+			file_mark_over (file, FILE_OVER_READ_FROM_PEER | FILE_OVER_WRITE_TO_PEER);
+			break;
+	}
+
+	HIO_SVC_HTTS_TASK_RCUP (file); /* for file->peer opened */
+	return 0;
+
+oops:
+	return -1;
+}
+
+static void unbind_task_from_peer (file_t* file, int rcdown)
+{
+	hio_svc_htts_t* htts = file->htts;
+	hio_t* hio = htts->hio;
+	int n = 0;
+
+	if (file->peer_tmridx != HIO_TMRIDX_INVALID)
+	{
+		hio_deltmrjob (hio, file->peer_tmridx);
+		HIO_ASSERT (hio, file->peer_tmridx == HIO_TMRIDX_INVALID);
+	}
+
+	if (file->peer >= 0)
+	{
+		close (file->peer);
+		file->peer = -1;
+		n++;
+	}
+
+    if (rcdown)
+	{
+		while (n > 0)
+		{
+			n--;
+			HIO_SVC_HTTS_TASK_RCDOWN((hio_svc_htts_task_t*)file);
+		}
+	}
+}
+
+/* ----------------------------------------------------------------------- */
 
 static int setup_for_content_length(file_t* file, hio_htre_t* req)
 {
@@ -764,7 +876,6 @@ int hio_svc_htts_dofile (hio_svc_htts_t* htts, hio_dev_sck_t* csck, hio_htre_t* 
 	hio_svc_htts_cli_t* cli = hio_dev_sck_getxtn(csck);
 	file_t* file = HIO_NULL;
 	hio_bch_t* actual_file = HIO_NULL;
-	int status_code;
 
 	/* ensure that you call this function before any contents is received */
 	HIO_ASSERT (hio, hio_htre_getcontentlen(req) == 0);
@@ -782,91 +893,15 @@ int hio_svc_htts_dofile (hio_svc_htts_t* htts, hio_dev_sck_t* csck, hio_htre_t* 
 	file->options = options;
 	file->cbs = cbs; /* the given pointer must outlive the lifespan of the while file handling cycle. */
 	file->sendfile_ok = hio_dev_sck_sendfileok(csck);
-
-	bind_task_to_client (file, csck);
 	file->peer_tmridx = HIO_TMRIDX_INVALID;
 	file->peer = -1;
 
+	bind_task_to_client (file, csck);
+	
 	if (hio_svc_htts_task_handleexpect100(file, options) <= -1) goto oops;
 	if (setup_for_content_length(file, req) <= -1) goto oops;
 
-	switch (file->task_req_method)
-	{
-		case HIO_HTTP_GET:
-		case HIO_HTTP_HEAD:
-		{
-			const hio_bch_t* actual_mime_type = mime_type;
-
-			if (open_peer_with_mode(file, actual_file, O_RDONLY, &status_code, (mime_type? HIO_NULL: &actual_mime_type)) <= -1 ||
-			    process_range_header(file, req, &status_code) <= -1) goto done_with_status_code;
-
-			if (HIO_LIKELY(file->task_req_method == HIO_HTTP_GET))
-			{
-				if (file->etag_match)
-				{
-					status_code = HIO_HTTP_STATUS_NOT_MODIFIED;
-					goto done_with_status_code;
-				}
-
-				/* normal full transfer */
-			#if defined(HAVE_POSIX_FADVISE)
-				posix_fadvise (file->peer, file->start_offset, file->end_offset - file->start_offset + 1, POSIX_FADV_SEQUENTIAL);
-			#endif
-				set_tcp_cork (file->task_csck, 1);
-
-				if (file_send_header_to_client(file, HIO_HTTP_STATUS_OK, 0, actual_mime_type) <= -1) goto oops;
-				if (file_send_contents_to_client(file) <= -1) goto oops;
-			}
-			else
-			{
-				if (file_send_header_to_client(file, HIO_HTTP_STATUS_OK, 0, actual_mime_type) <= -1) goto oops;
-				/* no content must be transmitted for HEAD despite Content-Length in the header. */
-				goto done_with_status_code_2;
-			}
-			break;
-		}
-
-		case HIO_HTTP_POST:
-		case HIO_HTTP_PUT:
-			if (file->options & HIO_SVC_HTTS_FILE_READ_ONLY)
-			{
-				status_code = HIO_HTTP_STATUS_METHOD_NOT_ALLOWED;
-				goto done_with_status_code;
-			}
-
-			if (open_peer_with_mode(file, actual_file, O_WRONLY | O_TRUNC | O_CREAT, &status_code, HIO_NULL) <= -1) goto done_with_status_code;
-
-			/* the client input must be written to the peer side */
-			file_mark_over (file, FILE_OVER_READ_FROM_PEER);
-			break;
-
-		case HIO_HTTP_DELETE:
-			if (file->options & HIO_SVC_HTTS_FILE_READ_ONLY)
-			{
-				status_code = HIO_HTTP_STATUS_METHOD_NOT_ALLOWED;
-				goto done_with_status_code;
-			}
-
-			if (unlink(actual_file) <= -1)
-			{
-				if (errno != EISDIR || (errno == EISDIR && rmdir(actual_file) <= -1))
-				{
-					status_code = ERRNO_TO_STATUS_CODE(errno);
-					goto done_with_status_code;
-				}
-			}
-
-			status_code = HIO_HTTP_STATUS_OK;
-			goto done_with_status_code;
-
-		default:
-			status_code = HIO_HTTP_STATUS_METHOD_NOT_ALLOWED;
-		done_with_status_code:
-			if (hio_svc_htts_task_sendfinalres(file, status_code, HIO_NULL, HIO_NULL, 0) <= -1) goto oops;
-		done_with_status_code_2:
-			file_mark_over (file, FILE_OVER_READ_FROM_PEER | FILE_OVER_WRITE_TO_PEER);
-			break;
-	}
+	if (bind_task_to_peer(file, req, actual_file, mime_type) <= -1) goto oops;
 
 	/* TODO: store current input watching state and use it when destroying the file data */
 	if (hio_dev_sck_read(csck, !(file->over & FILE_OVER_READ_FROM_CLIENT)) <= -1) goto oops;
