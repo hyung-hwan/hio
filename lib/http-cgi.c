@@ -898,7 +898,14 @@ static void unbind_task_from_peer (cgi_t* cgi, int rcdown)
 
 static int setup_for_content_length(cgi_t* cgi, hio_htre_t* req)
 {
+	int have_content;
+
 #if defined(CGI_ALLOW_UNLIMITED_REQ_CONTENT_LENGTH)
+	have_content = cgi->task_req_conlen > 0 || cgi->task_req_conlen_unlimited;
+#else
+	have_content = cgi->task_req_conlen > 0;
+#endif
+
 	if (cgi->task_req_conlen_unlimited)
 	{
 		/* change the callbacks to subscribe to contents to be uploaded */
@@ -909,25 +916,11 @@ static int setup_for_content_length(cgi_t* cgi, hio_htre_t* req)
 	}
 	else
 	{
-#endif
-		if (cgi->task_req_conlen > 0)
-		{
-			/* change the callbacks to subscribe to contents to be uploaded */
-			cgi->client_htrd_org_recbs = *hio_htrd_getrecbs(cgi->task_client->htrd);
-			cgi_client_htrd_recbs.peek = cgi->client_htrd_org_recbs.peek;
-			hio_htrd_setrecbs (cgi->task_client->htrd, &cgi_client_htrd_recbs);
-			cgi->client_htrd_recbs_changed = 1;
-		}
-		else
-		{
-			/* no content to be uploaded from the client */
-			/* indicate EOF to the peer and disable input wathching from the client */
-			if (cgi_write_to_peer(cgi, HIO_NULL, 0) <= -1) return -1;
-			cgi_mark_over (cgi, CGI_OVER_READ_FROM_CLIENT | CGI_OVER_WRITE_TO_PEER);
-		}
-#if defined(CGI_ALLOW_UNLIMITED_REQ_CONTENT_LENGTH)
+		/* no content to be uploaded from the client */
+		/* indicate EOF to the peer and disable input wathching from the client */
+		if (cgi_write_to_peer(cgi, HIO_NULL, 0) <= -1) return -1;
+		cgi_mark_over (cgi, CGI_OVER_READ_FROM_CLIENT | CGI_OVER_WRITE_TO_PEER);
 	}
-#endif
 
 	return 0;
 }

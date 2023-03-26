@@ -718,8 +718,15 @@ static void unbind_task_from_peer (fcgi_t* fcgi, int rcdown)
 
 static int setup_for_content_length(fcgi_t* fcgi, hio_htre_t* req)
 {
+	int have_content;
+
 #if defined(FCGI_ALLOW_UNLIMITED_REQ_CONTENT_LENGTH)
-	if (fcgi->task_req_conlen_unlimited)
+	have_content = fcgi->task_req_conlen > 0 || fcgi->task_req_conlen_unlimited;
+#else
+	have_content = fcgi->task_req_conlen > 0;
+#endif
+
+	if (have_content)
 	{
 		/* change the callbacks to subscribe to contents to be uploaded */
 		fcgi->client_htrd_org_recbs = *hio_htrd_getrecbs(fcgi->task_client->htrd);
@@ -729,25 +736,11 @@ static int setup_for_content_length(fcgi_t* fcgi, hio_htre_t* req)
 	}
 	else
 	{
-#endif
-		if (fcgi->task_req_conlen > 0)
-		{
-			/* change the callbacks to subscribe to contents to be uploaded */
-			fcgi->client_htrd_org_recbs = *hio_htrd_getrecbs(fcgi->task_client->htrd);
-			fcgi_client_htrd_recbs.peek = fcgi->client_htrd_org_recbs.peek;
-			hio_htrd_setrecbs (fcgi->task_client->htrd, &fcgi_client_htrd_recbs);
-			fcgi->client_htrd_recbs_changed = 1;
-		}
-		else
-		{
-			/* no content to be uploaded from the client */
-			/* indicate end of stdin to the peer and disable input wathching from the client */
-			if (fcgi_write_stdin_to_peer(fcgi, HIO_NULL, 0) <= -1) return -1;
-			fcgi_mark_over (fcgi, FCGI_OVER_READ_FROM_CLIENT | FCGI_OVER_WRITE_TO_PEER);
-		}
-#if defined(FCGI_ALLOW_UNLIMITED_REQ_CONTENT_LENGTH)
+		/* no content to be uploaded from the client */
+		/* indicate end of stdin to the peer and disable input wathching from the client */
+		if (fcgi_write_stdin_to_peer(fcgi, HIO_NULL, 0) <= -1) return -1;
+		fcgi_mark_over (fcgi, FCGI_OVER_READ_FROM_CLIENT | FCGI_OVER_WRITE_TO_PEER);
 	}
-#endif
 
 	return 0;
 }

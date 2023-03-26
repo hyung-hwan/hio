@@ -830,8 +830,15 @@ static void unbind_task_from_peer (file_t* file, int rcdown)
 
 static int setup_for_content_length(file_t* file, hio_htre_t* req)
 {
+	int have_content;
+
 #if defined(FILE_ALLOW_UNLIMITED_REQ_CONTENT_LENGTH)
-	if (file->task_req_conlen_unlimited)
+	have_content = file->task_req_conlen > 0 || file->task_req_conlen_unlimited;
+#else
+	have_content = file->task_req_conlen > 0;
+#endif
+
+	if (have_content)
 	{
 		/* change the callbacks to subscribe to contents to be uploaded */
 		file->client_htrd_org_recbs = *hio_htrd_getrecbs(file->task_client->htrd);
@@ -841,31 +848,17 @@ static int setup_for_content_length(file_t* file, hio_htre_t* req)
 	}
 	else
 	{
-#endif
-		if (file->task_req_conlen > 0)
-		{
-			/* change the callbacks to subscribe to contents to be uploaded */
-			file->client_htrd_org_recbs = *hio_htrd_getrecbs(file->task_client->htrd);
-			file_client_htrd_recbs.peek = file->client_htrd_org_recbs.peek;
-			hio_htrd_setrecbs (file->task_client->htrd, &file_client_htrd_recbs);
-			file->client_htrd_recbs_changed = 1;
-		}
-		else
-		{
-			/* no content to be uploaded from the client */
-		#if 0
-			/* indicate EOF to the peer and disable input wathching from the client */
-			if (file_write_to_peer(file, HIO_NULL, 0) <= -1) goto oops;
-			HIO_ASSERT (hio, file->over | FILE_OVER_WRITE_TO_PEER); /* must be set by the call to file_write_to_peer() above */
-			file_mark_over (file, FILE_OVER_READ_FROM_CLIENT);
-		#else
-			/* no peer is open yet. so simply set the mars forcibly instead of calling file_write_to_peer() with null data */
-			file_mark_over (file, FILE_OVER_READ_FROM_CLIENT | FILE_OVER_WRITE_TO_PEER);
-		#endif
-		}
-#if defined(FILE_ALLOW_UNLIMITED_REQ_CONTENT_LENGTH)
+		/* no content to be uploaded from the client */
+	#if 0
+		/* indicate EOF to the peer and disable input wathching from the client */
+		if (file_write_to_peer(file, HIO_NULL, 0) <= -1) goto oops;
+		HIO_ASSERT (hio, file->over | FILE_OVER_WRITE_TO_PEER); /* must be set by the call to file_write_to_peer() above */
+		file_mark_over (file, FILE_OVER_READ_FROM_CLIENT);
+	#else
+		/* no peer is open yet. so simply set the mars forcibly instead of calling file_write_to_peer() with null data */
+		file_mark_over (file, FILE_OVER_READ_FROM_CLIENT | FILE_OVER_WRITE_TO_PEER);
+	#endif
 	}
-#endif
 
 	return 0;
 }
