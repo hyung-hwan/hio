@@ -770,7 +770,7 @@ int hio_svc_htts_dofcgi (hio_svc_htts_t* htts, hio_dev_sck_t* csck, hio_htre_t* 
 	bind_task_to_client (fcgi, csck);
 	if (bind_task_to_peer(fcgi, fcgis_addr) <= -1) goto oops;
 
-	if (hio_svc_htts_task_handleexpect100(fcgi, options) <= -1) goto oops;
+	if (hio_svc_htts_task_handleexpect100(fcgi) <= -1) goto oops;
 	if (setup_for_content_length(fcgi, req) <= -1) goto oops;
 
 	/* TODO: store current input watching state and use it when destroying the fcgi data */

@@ -555,10 +555,8 @@ HIO_EXPORT int hio_svc_htts_task_endbody (
 	hio_svc_htts_task_t* task
 );
 
-
 HIO_EXPORT int hio_svc_htts_task_handleexpect100 (
-	hio_svc_htts_task_t* task,
-	int                  options
+	hio_svc_htts_task_t* task
 );
 
 HIO_EXPORT void hio_svc_htts_fmtgmtime (

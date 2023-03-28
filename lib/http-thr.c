@@ -526,13 +526,12 @@ static int thr_client_on_write (hio_dev_sck_t* sck, hio_iolen_t wrlen, void* wrc
 
 	if (wrlen == 0)
 	{
-		HIO_DEBUG3 (hio, "HTTS(%p) - indicated EOF to client %p(%d)\n", thr->htts, sck, (int)sck->hnd);
 		/* since EOF has been indicated to the client, it must not write to the client any further.
 		 * this also means that i don't need any data from the peer side either.
 		 * i don't need to enable input watching on the peer side */
 		thr_mark_over (thr, THR_OVER_WRITE_TO_CLIENT);
 	}
-	else
+	else if (wrlen > 0)
 	{
 		if (thr->peer && thr->task_res_pending_writes == THR_PENDING_IO_THRESHOLD)
 		{
@@ -853,7 +852,7 @@ int hio_svc_htts_dothr (hio_svc_htts_t* htts, hio_dev_sck_t* csck, hio_htre_t* r
 	bind_task_to_client (thr, csck);
 	if (bind_task_to_peer(thr, csck, req, func, ctx) <= -1) goto oops;
 
-	if (hio_svc_htts_task_handleexpect100(thr, options) <= -1) goto oops;
+	if (hio_svc_htts_task_handleexpect100(thr) <= -1) goto oops;
 	if (setup_for_content_length(thr, req) <= -1) goto oops;
 
 	/* TODO: store current input watching state and use it when destroying the thr data */

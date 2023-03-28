@@ -891,7 +891,7 @@ int hio_svc_htts_dofile (hio_svc_htts_t* htts, hio_dev_sck_t* csck, hio_htre_t* 
 
 	bind_task_to_client (file, csck);
 	
-	if (hio_svc_htts_task_handleexpect100(file, options) <= -1) goto oops;
+	if (hio_svc_htts_task_handleexpect100(file) <= -1) goto oops;
 	if (setup_for_content_length(file, req) <= -1) goto oops;
 
 	if (bind_task_to_peer(file, req, actual_file, mime_type) <= -1) goto oops;

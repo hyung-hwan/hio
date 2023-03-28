@@ -535,7 +535,7 @@ static int cgi_client_on_write (hio_dev_sck_t* sck, hio_iolen_t wrlen, void* wrc
 		 * i don't need to enable input watching on the peer side */
 		cgi_mark_over (cgi, CGI_OVER_WRITE_TO_CLIENT);
 	}
-	else
+	else if (wrlen > 0)
 	{
 		if (cgi->peer && cgi->task_res_pending_writes == CGI_PENDING_IO_THRESHOLD)
 		{
@@ -707,6 +707,8 @@ static int cgi_peer_on_fork (hio_dev_pro_t* pro, void* fork_ctx)
 
 	return 0;
 }
+
+/* ----------------------------------------------------------------------- */
 
 static void bind_task_to_client (cgi_t* cgi, hio_dev_sck_t* csck)
 {
@@ -935,7 +937,7 @@ int hio_svc_htts_docgi (hio_svc_htts_t* htts, hio_dev_sck_t* csck, hio_htre_t* r
 		goto oops; /* TODO: must not go to oops.  just destroy the cgi and finalize the request .. */
 	}
 
-	if (hio_svc_htts_task_handleexpect100(cgi, options) <= -1) goto oops;
+	if (hio_svc_htts_task_handleexpect100(cgi) <= -1) goto oops;
 	if (setup_for_content_length(cgi, req) <= -1) goto oops;
 
 	/* TODO: store current input watching state and use it when destroying the cgi data */

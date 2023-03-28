@@ -1058,7 +1058,7 @@ int hio_svc_htts_task_sendfinalres (hio_svc_htts_task_t* task, int status_code, 
 	return 1;
 }
 
-int hio_svc_htts_task_handleexpect100 (hio_svc_htts_task_t* task, int options)
+int hio_svc_htts_task_handleexpect100 (hio_svc_htts_task_t* task)
 {
 #if !defined(TASK_ALLOW_UNLIMITED_REQ_CONTENT_LENGTH)
 	if (task->task_req_conlen_unlimited)
