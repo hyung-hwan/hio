@@ -200,7 +200,7 @@ static void cgi_peer_on_close (hio_dev_pro_t* pro, hio_dev_pro_sid_t sid)
 	cgi_peer_xtn_t* peer_xtn = hio_dev_pro_getxtn(pro);
 	cgi_t* cgi = peer_xtn->cgi;
 
-	if (!cgi) return; /* cgi state already gone */
+	if (!cgi) return; /* cgi task already gone */
 
 	switch (sid)
 	{
@@ -403,7 +403,7 @@ static int peer_htrd_push_content (hio_htrd_t* htrd, hio_htre_t* req, const hio_
 	n = hio_svc_htts_task_addresbody(cgi, data, dlen);
 	if (cgi->task_res_pending_writes > CGI_PENDING_IO_THRESHOLD)
 	{
-		if (hio_dev_pro_read(cgi->peer, HIO_DEV_PRO_OUT, 0) <= -1) return -1;
+		if (hio_dev_pro_read(cgi->peer, HIO_DEV_PRO_OUT, 0) <= -1) n = -1;
 	}
 
 	return n;
@@ -468,7 +468,7 @@ static void cgi_client_on_disconnect (hio_dev_sck_t* sck)
 
 		/* call the parent handler*/
 		/*if (fcgi->client_org_on_disconnect) fcgi->client_org_on_disconnect (sck);*/
-		if (sck->on_disconnect) sck->on_disconnect (sck); /* restored to the orginal parent handelr in unbind_task_from_client() */
+		if (sck->on_disconnect) sck->on_disconnect (sck); /* restored to the orginal parent handler in unbind_task_from_client() */
 
 		HIO_SVC_HTTS_TASK_RCDOWN (cgi);
 	}
@@ -508,22 +508,6 @@ static int cgi_client_on_read (hio_dev_sck_t* sck, const void* buf, hio_iolen_t 
 			if (x <= -1) goto oops;
 		}
 	}
-#if 0
-	else
-	{
-		hio_oow_t rem;
-
-		HIO_ASSERT (hio, !(cgi->over & CGI_OVER_READ_FROM_CLIENT));
-
-		if (hio_htrd_feed(cli->htrd, buf, len, &rem) <= -1) goto oops;
-
-		if (rem > 0)
-		{
-			/* TODO store this to client buffer. once the current resource is completed, arrange to call on_read() with it */
-			HIO_DEBUG3 (hio, "HTTS(%p) - excessive data after contents by cgi client %p(%d)\n", sck->hio, sck, (int)sck->hnd);
-		}
-	}
-#endif
 
 	if (n <= -1) goto oops;
 	return 0;
