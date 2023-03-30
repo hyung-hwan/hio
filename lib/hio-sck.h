@@ -623,6 +623,11 @@ HIO_EXPORT hio_uint16_t hio_checksum_ip (
 	hio_oow_t   len
 );
 
+HIO_EXPORT int hio_get_stream_sck_type_from_skad (
+	const hio_skad_t*   skad,
+	hio_dev_sck_type_t* type
+);
+
 #if defined(__cplusplus)
 }
 #endif

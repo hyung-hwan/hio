@@ -467,6 +467,26 @@ HIO_EXPORT int hio_svc_htts_dofile (
 	hio_svc_htts_file_cbs_t*    cbs
 );
 
+HIO_EXPORT int hio_svc_htts_dofcgi (
+	hio_svc_htts_t*             htts,
+	hio_dev_sck_t*              csck,
+	hio_htre_t*                 req,
+	const hio_skad_t*           fcgis_addr,
+	const hio_bch_t*            docroot,
+	const hio_bch_t*            script,
+	int                         options, /**< 0 or bitwise-Ored of #hio_svc_htts_file_option_t enumerators */
+	hio_svc_htts_task_on_kill_t on_kill
+);
+
+HIO_EXPORT int hio_svc_htts_doprxy (
+	hio_svc_htts_t*             htts,
+	hio_dev_sck_t*              csck,
+	hio_htre_t*                 req,
+	const hio_skad_t*           tgt_addr,
+	int                         options,
+	hio_svc_htts_task_on_kill_t on_kill
+);
+
 HIO_EXPORT int hio_svc_htts_dothr (
 	hio_svc_htts_t*             htts,
 	hio_dev_sck_t*              csck,
@@ -487,6 +507,9 @@ HIO_EXPORT int hio_svc_htts_dotxt (
 	int                         options,
 	hio_svc_htts_task_on_kill_t on_kill
 );
+
+
+
 
 HIO_EXPORT hio_svc_htts_task_t* hio_svc_htts_task_make (
 	hio_svc_htts_t*              htts,

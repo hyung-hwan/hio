@@ -86,6 +86,7 @@ libhio_la_SOURCES = \
 	http-fcgi.c \
 	http-file.c \
 	http-prv.h \
+	http-prxy.c \
 	http-svr.c \
 	http-thr.c \
 	http-txt.c \

@@ -299,27 +299,11 @@ static int make_connection_socket (hio_svc_fcgic_t* fcgic, hio_svc_fcgic_conn_t*
 	fcgic_sck_xtn_t* sck_xtn;
 
 	HIO_MEMSET (&mi, 0, HIO_SIZEOF(mi));
-	switch (hio_skad_get_family(&conn->addr))
+	if (hio_get_stream_sck_type_from_skad(&conn->addr, &mi.type) <= -1)
 	{
-		case HIO_AF_INET:
-			mi.type = HIO_DEV_SCK_TCP4;
-			break;
-
-		case HIO_AF_INET6:
-			mi.type = HIO_DEV_SCK_TCP6;
-			break;
-
-	#if defined(HIO_AF_UNIX)
-		case HIO_AF_UNIX:
-			mi.type = HIO_DEV_SCK_UNIX;
-			break;
-	#endif
-
-		default:
-			hio_seterrnum (hio, HIO_EINVAL);
-			return -1;
+		hio_seterrnum (hio, HIO_EINVAL);
+		return -1;
 	}
-
 	mi.options = HIO_DEV_SCK_MAKE_LENIENT;
 	mi.on_write = sck_on_write;
 	mi.on_read = sck_on_read;

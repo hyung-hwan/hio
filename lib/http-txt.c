@@ -118,8 +118,6 @@ static int txt_client_htrd_poke (hio_htrd_t* htrd, hio_htre_t* req)
 	hio_svc_htts_cli_t* cli = hio_dev_sck_getxtn(sck);
 	txt_t* txt = (txt_t*)cli->task;
 
-/*printf (">> CLIENT REQUEST COMPLETED\n");*/
-
 	txt_mark_over (txt, TXT_OVER_READ_FROM_CLIENT);
 	return 0;
 }

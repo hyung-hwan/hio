@@ -91,6 +91,16 @@ static void on_htts_thr2_request (hio_svc_htts_t* htts, hio_dev_thr_iopair_t* io
 		fprintf (fp, "Status: %d\r\n", HIO_HTTP_STATUS_OK);
 		fprintf (fp, "Content-Type: text/html\r\n\r\n");
 
+		/* echo back the posted data */
+		while (1)
+		{
+			ssize_t n = read(iop->rfd, buf, sizeof(buf));
+			if (n <= 0) break;
+			fwrite (buf, 1, n, fp);
+		}
+
+
+		/* output the file contents */
 		while (!feof(sf) && !ferror(sf))
 		{
 			size_t n;
@@ -196,6 +206,7 @@ if (hio_htre_getcontentlen(req) > 0)
 		{
 			const hio_bch_t* qpath = hio_htre_getqpath(req);
 			int x;
+
 			if (hio_comp_bcstr_limited(qpath, "/thr/", 5, 1) == 0)
 				x = hio_svc_htts_dothr(htts, csck, req, on_htts_thr_request, HIO_NULL, 0, HIO_NULL);
 			else if (hio_comp_bcstr_limited(qpath, "/thr2/", 6, 1) == 0)
@@ -332,7 +343,7 @@ static void tcp_sck_on_connect (hio_dev_sck_t* tcp)
 	else if (tcp->state & HIO_DEV_SCK_ACCEPTED)
 	{
 		/* TODO: pass it to distributor??? */
-/* THIS PART WON"T BE CALLED FOR tcp_sck_on_raw_accept.. */
+		/* THIS PART WON'T BE CALLED FOR tcp_sck_on_raw_accept.. */
 	}
 }
 

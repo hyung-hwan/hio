@@ -2645,3 +2645,30 @@ hio_uint16_t hio_checksum_ip (const void* hdr, hio_oow_t len)
 	return (hio_uint16_t)~sum;
 }
 
+/* ========================================================================= */
+
+int hio_get_stream_sck_type_from_skad (const hio_skad_t* skad, hio_dev_sck_type_t* type)
+{
+	/* if you like SCTP or something, use your own mapping.
+	 * this utility defaults to TCP for INET and INET6 */
+
+	switch (hio_skad_get_family(skad))
+	{
+		case HIO_AF_INET:
+			*type = HIO_DEV_SCK_TCP4;
+			return 0;
+
+		case HIO_AF_INET6:
+			*type = HIO_DEV_SCK_TCP6;
+			return 0;
+
+	#if defined(HIO_AF_UNIX)
+		case HIO_AF_UNIX:
+			*type = HIO_DEV_SCK_UNIX;
+			return 0;
+	#endif
+	}
+
+	return -1;
+}
+
