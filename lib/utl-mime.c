@@ -102,6 +102,8 @@ static hio_mime_type_t mime_type_tab[] =
 	{"xlsx", "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet"},
 	{"xml", "application/xml"},
 	{"xul", "application/vnd.mozilla.xul+xml"},
+	{"yaml", "application/x-yaml"},
+	{"yml", "application/x-yaml"},
 	{"zip", "application/zip"}
 };
 
