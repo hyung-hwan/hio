@@ -1122,6 +1122,7 @@ static int dev_sck_sendfile_stream (hio_dev_t* dev, hio_syshnd_t in_fd, hio_foff
 			return -1;
 		}
 		*len = x;
+		if (x == 0) return 0; /* treat it like EWOULDBLOCK? */
 #else
 		hio_seterrnum (hio, HIO_ENOIMPL);
 		return -1;

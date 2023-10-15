@@ -404,4 +404,3 @@ void hio_seterrufmtwithsyserr (hio_t* hio, int syserr_type, int syserr_code, con
 		}
 	}*/
 }
-
