@@ -173,6 +173,15 @@ void hio_fini (hio_t* hio)
 		}
 	}
 
+	/* clean up unfired cwq entries - calling fire_cwq_handlers() might not be good here. */
+	while (!HIO_CWQ_IS_EMPTY(&hio->cwq))
+	{
+		hio_cwq_t* cwq;
+		cwq = HIO_CWQ_HEAD(&hio->cwq);
+		HIO_CWQ_UNLINK (cwq);
+		hio_freemem (hio, cwq);
+	}
+
 	/* kill services before killing devices */
 	while (!HIO_SVCL_IS_EMPTY(&hio->actsvc))
 	{

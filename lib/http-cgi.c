@@ -865,6 +865,10 @@ static void unbind_task_from_peer (cgi_t* cgi, int rcdown)
 
 	if (cgi->peer)
 	{
+		cgi_peer_xtn_t* peer_xtn;
+		peer_xtn = hio_dev_pro_getxtn(cgi->peer);
+		peer_xtn->cgi = HIO_NULL;
+
 		hio_dev_pro_kill (cgi->peer);
 		cgi->peer = HIO_NULL;
 		n++;

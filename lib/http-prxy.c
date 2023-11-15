@@ -862,6 +862,10 @@ static void unbind_task_from_peer (prxy_t* prxy, int rcdown)
 
 	if (prxy->peer)
 	{
+		prxy_peer_xtn_t* peer_xtn;
+		peer_xtn = hio_dev_pro_getxtn(prxy->peer);
+		peer_xtn->prxy = HIO_NULL;
+
 		hio_dev_pro_kill (prxy->peer);
 		prxy->peer = HIO_NULL;
 		n++;

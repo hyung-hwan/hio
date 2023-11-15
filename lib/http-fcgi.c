@@ -697,7 +697,7 @@ static void unbind_task_from_peer (fcgi_t* fcgi, int rcdown)
 
 	if (fcgi->peer)
 	{
- 		/* hio-svc_fcgic_untie() is not a delayed operation unlike hio_dev_sck_halt(). 
+		/* hio_svc_fcgic_untie() is not a delayed operation unlike hio_dev_sck_halt().
 		 * TODO: check if this is a buggy idea */
 		hio_svc_fcgic_untie (fcgi->peer);
 		fcgi->peer = HIO_NULL;
