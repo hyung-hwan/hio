@@ -96,7 +96,7 @@ static void sck_on_disconnect (hio_dev_sck_t* sck)
 	fcgic_sck_xtn_t* sck_xtn = hio_dev_sck_getxtn(sck);
 	hio_svc_fcgic_conn_t* conn = sck_xtn->conn;
 
-printf ("DISCONNECT SOCKET .................. sck->%p conn->%p\n", sck, conn);
+/*printf ("DISCONNECT SOCKET .................. sck->%p conn->%p\n", sck, conn); */
 
 	if (conn)
 	{
@@ -119,7 +119,7 @@ static void sck_on_connect (hio_dev_sck_t* sck)
 	fcgic_sck_xtn_t* sck_xtn = hio_dev_sck_getxtn(sck);
 	hio_svc_fcgic_conn_t* conn = sck_xtn->conn;
 
-printf ("FCGIC SOCKET CONNECTED >>>>>>>>>>>>>>>>>>>>>>>>>>\n");
+/* printf ("FCGIC SOCKET CONNECTED >>>>>>>>>>>>>>>>>>>>>>>>>>\n"); */
 
 	/* reinitialize the input parsing information */
 	HIO_MEMSET (&conn->r, 0, HIO_SIZEOF(conn->r));
@@ -373,7 +373,7 @@ static hio_svc_fcgic_conn_t* get_connection (hio_svc_fcgic_t* fcgic, const hio_s
 	return conn;
 }
 
-static void destroy_connection_memory (hio_t* hio, hio_cfmb_t* cfmb)
+static int destroy_connection_memory (hio_t* hio, hio_cfmb_t* cfmb)
 {
 	hio_svc_fcgic_conn_t* conn = (hio_svc_fcgic_conn_t*)cfmb;
 	if (conn->sess.ptr) 
@@ -388,6 +388,7 @@ static void destroy_connection_memory (hio_t* hio, hio_cfmb_t* cfmb)
 		hio_freemem (hio, conn->sess.ptr);
 	}
 	hio_freemem (hio, conn);
+	return 0;
 }
 
 static void free_connections (hio_svc_fcgic_t* fcgic)
@@ -565,7 +566,7 @@ int hio_svc_fcgic_beginrequest (hio_svc_fcgic_sess_t* sess)
 	iov[1].iov_len = HIO_SIZEOF(b);
 
 	HIO_ASSERT (sess->conn->hio, ((hio_oow_t)sess & 3) == 0);
-	wrctx = ((hio_oow_t)sess | 0);  /* see the sck_on_write()  */
+	wrctx = (void*)((hio_oow_t)sess | 0);  /* see the sck_on_write()  */
 	return hio_dev_sck_writev(sess->conn->dev, iov, 2, wrctx, HIO_NULL);
 }
 
@@ -647,7 +648,7 @@ int hio_svc_fcgic_writeparam (hio_svc_fcgic_sess_t* sess, const void* key, hio_i
 	}
 
 	HIO_ASSERT (sess->conn->hio, ((hio_oow_t)sess & 3) == 0);
-	wrctx = ((hio_oow_t)sess | 1);  /* see the sck_on_write()  */
+	wrctx = (void*)((hio_oow_t)sess | 1);  /* see the sck_on_write()  */
 	return hio_dev_sck_writev(sess->conn->dev, iov, (ksz > 0? 4: 1), wrctx, HIO_NULL);
 }
 
@@ -680,6 +681,6 @@ int hio_svc_fcgic_writestdin (hio_svc_fcgic_sess_t* sess, const void* data, hio_
 	}
 
 	HIO_ASSERT (sess->conn->hio, ((hio_oow_t)sess & 3) == 0);
-	wrctx = ((hio_oow_t)sess | 2);  /* see the sck_on_write()  */
+	wrctx = (void*)((hio_oow_t)sess | 2);  /* see the sck_on_write()  */
 	return hio_dev_sck_writev(sess->conn->dev, iov, (size > 0? 2: 1), wrctx, HIO_NULL);
 }
