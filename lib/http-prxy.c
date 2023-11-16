@@ -893,7 +893,7 @@ static int setup_for_content_length(prxy_t* prxy, hio_htre_t* req)
 	have_content = prxy->task_req_conlen > 0;
 #endif
 
-	if (prxy->task_req_conlen_unlimited)
+	if (have_content)
 	{
 		/* change the callbacks to subscribe to contents to be uploaded */
 		prxy->client_htrd_org_recbs = *hio_htrd_getrecbs(prxy->task_client->htrd);

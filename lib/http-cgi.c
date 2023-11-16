@@ -465,7 +465,7 @@ static void cgi_client_on_disconnect (hio_dev_sck_t* sck)
 
 	if (cgi)
 	{
-		HIO_SVC_HTTS_TASK_RCUP (cgi);
+		HIO_SVC_HTTS_TASK_RCUP ((hio_svc_htts_task_t*)cgi); /* for temporary protection */
 
 		/* detach the task from the client and the client socket */
 		unbind_task_from_client (cgi, 1);
@@ -474,7 +474,12 @@ static void cgi_client_on_disconnect (hio_dev_sck_t* sck)
 		/*if (fcgi->client_org_on_disconnect) fcgi->client_org_on_disconnect (sck);*/
 		if (sck->on_disconnect) sck->on_disconnect (sck); /* restored to the orginal parent handler in unbind_task_from_client() */
 
-		HIO_SVC_HTTS_TASK_RCDOWN (cgi);
+		/* if the client side is closed, the data from the child process is not read and the write() of the child process call may block.
+		 * just close the input side of the pipe to the child to prevense this situation */
+		if (cgi->peer) hio_dev_pro_close(cgi->peer, HIO_DEV_PRO_IN);
+		if (cgi->peer) hio_dev_pro_close(cgi->peer, HIO_DEV_PRO_OUT);
+
+		HIO_SVC_HTTS_TASK_RCDOWN ((hio_svc_htts_task_t*)cgi);
 	}
 
 	HIO_DEBUG4 (hio, "HTTS(%p) - cgi(t=%p,c=%p,csck=%p) - client socket disconnect handled\n", htts, cgi, cli, sck);
@@ -901,7 +906,7 @@ static int setup_for_content_length(cgi_t* cgi, hio_htre_t* req)
 	have_content = cgi->task_req_conlen > 0;
 #endif
 
-	if (cgi->task_req_conlen_unlimited)
+	if (have_content)
 	{
 		/* change the callbacks to subscribe to contents to be uploaded */
 		cgi->client_htrd_org_recbs = *hio_htrd_getrecbs(cgi->task_client->htrd);

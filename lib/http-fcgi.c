@@ -263,7 +263,8 @@ oops:
 
 static int peer_capture_response_header (hio_htre_t* req, const hio_bch_t* key, const hio_htre_hdrval_t* val, void* ctx)
 {
-	return hio_svc_htts_task_addreshdrs((fcgi_t*)ctx, key, val);
+	fcgi_t* fcgi = (fcgi_t*)ctx;
+	return hio_svc_htts_task_addreshdrs((hio_svc_htts_task_t*)fcgi, key, val);
 }
 
 static int peer_htrd_peek (hio_htrd_t* htrd, hio_htre_t* req)
@@ -369,7 +370,7 @@ static void fcgi_client_on_disconnect (hio_dev_sck_t* sck)
 	{
 		HIO_ASSERT (hio, sck == fcgi->task_csck);
 
-		HIO_SVC_HTTS_TASK_RCUP (fcgi);
+		HIO_SVC_HTTS_TASK_RCUP ((hio_svc_htts_task_t*)fcgi);
 
 		/* detach the task from the client and the client socket */
 		unbind_task_from_client (fcgi, 1);
@@ -378,7 +379,7 @@ static void fcgi_client_on_disconnect (hio_dev_sck_t* sck)
 		/*if (fcgi->client_org_on_disconnect) fcgi->client_org_on_disconnect (sck);*/
 		if (sck->on_disconnect) sck->on_disconnect (sck); /* restored to the orginal parent handelr in unbind_task_from_client() */
 
-		HIO_SVC_HTTS_TASK_RCDOWN (fcgi);
+		HIO_SVC_HTTS_TASK_RCDOWN ((hio_svc_htts_task_t*)fcgi);
 	}
 
 	HIO_DEBUG4 (hio, "HTTS(%p) - fcgi(t=%p,c=%p,csck=%p) - handled client socket disconnect\n", htts, fcgi, cli, sck);
@@ -797,7 +798,7 @@ oops:
 	{
 		if (bound_to_peer) unbind_task_from_peer (fcgi, 1);
 		if (bound_to_client) unbind_task_from_client (fcgi, 1);
-		fcgi_halt_participating_devices ((hio_svc_htts_task_t*)fcgi);
+		fcgi_halt_participating_devices (fcgi);
 		HIO_SVC_HTTS_TASK_RCDOWN ((hio_svc_htts_task_t*)fcgi);
 	}
 	return -1;

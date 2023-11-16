@@ -90,9 +90,11 @@ static HIO_INLINE void set_tcp_cork (hio_dev_sck_t* sck, int tcp_cork)
 
 static void file_halt_participating_devices (file_t* file)
 {
-	HIO_DEBUG3 (file->htts->hio, "HTTS(%p) - file(c=%d,p=%d) Halting participating devices\n", file->htts, (int)file->task_csck->hnd, (int)file->peer);
+	hio_dev_sck_t* csck = file->task_csck;
 
-	if (file->task_csck) hio_dev_sck_halt (file->task_csck);
+	HIO_DEBUG3 (file->htts->hio, "HTTS(%p) - file(c=%d,p=%d) Halting participating devices\n", file->htts, (int)(csck? csck->hnd: -1), (int)file->peer);
+
+	if (csck) hio_dev_sck_halt (csck);
 	unbind_task_from_peer (file, 1);
 }
 
@@ -218,7 +220,7 @@ static void file_client_on_disconnect (hio_dev_sck_t* sck)
 
 	if (file)
 	{
-		HIO_SVC_HTTS_TASK_RCUP (file);
+		HIO_SVC_HTTS_TASK_RCUP ((hio_svc_htts_task_t*)file);
 
 		/* detach the task from the client and the client socket */
 		unbind_task_from_client (file, 1);
@@ -232,7 +234,7 @@ static void file_client_on_disconnect (hio_dev_sck_t* sck)
 		/*if (file->client_org_on_disconnect) file->client_org_on_disconnect (sck);*/
 		if (sck->on_disconnect) sck->on_disconnect (sck); /* restored to the orginal parent handelr in unbind_task_from_client() */
 
-		HIO_SVC_HTTS_TASK_RCDOWN (file);
+		HIO_SVC_HTTS_TASK_RCDOWN ((hio_svc_htts_task_t*)file);
 	}
 
 	HIO_DEBUG4 (hio, "HTTS(%p) - file(t=%p,c=%p,csck=%p) - client socket disconnect handled\n", htts, file, sck, cli);
@@ -344,7 +346,7 @@ static int file_client_htrd_poke (hio_htrd_t* htrd, hio_htre_t* req)
 
 	if (file->task_req_method != HIO_HTTP_GET)
 	{
-		if (hio_svc_htts_task_sendfinalres(file, HIO_HTTP_STATUS_OK, HIO_NULL, HIO_NULL, 0) <= -1) return -1;
+		if (hio_svc_htts_task_sendfinalres((hio_svc_htts_task_t*)file, HIO_HTTP_STATUS_OK, HIO_NULL, HIO_NULL, 0) <= -1) return -1;
 	}
 
 	file_mark_over (file, FILE_OVER_READ_FROM_CLIENT);
@@ -385,25 +387,25 @@ static int file_send_header_to_client (file_t* file, int status_code, int force_
 	content_length = file->end_offset - file->start_offset + 1;
 	if (status_code == HIO_HTTP_STATUS_OK && file->total_size != content_length) status_code = HIO_HTTP_STATUS_PARTIAL_CONTENT;
 
-	if (hio_svc_htts_task_startreshdr(file, status_code, HIO_NULL, 0) <= -1) return -1;
+	if (hio_svc_htts_task_startreshdr((hio_svc_htts_task_t*)file, status_code, HIO_NULL, 0) <= -1) return -1;
 
-	if (mime_type && mime_type[0] != '\0' && hio_svc_htts_task_addreshdr(file, "Content-Type", mime_type) <= -1) return -1;
+	if (mime_type && mime_type[0] != '\0' && hio_svc_htts_task_addreshdr((hio_svc_htts_task_t*)file, "Content-Type", mime_type) <= -1) return -1;
 
 	if ((file->task_req_method == HIO_HTTP_GET || file->task_req_method == HIO_HTTP_HEAD) &&
-	    hio_svc_htts_task_addreshdr(file, "ETag", file->peer_etag) <= -1) return -1;
+	    hio_svc_htts_task_addreshdr((hio_svc_htts_task_t*)file, "ETag", file->peer_etag) <= -1) return -1;
 
 	if (status_code == HIO_HTTP_STATUS_PARTIAL_CONTENT &&
-	    hio_svc_htts_task_addreshdrfmt(file, "Content-Ranges", "bytes %ju-%ju/%ju", (hio_uintmax_t)file->start_offset, (hio_uintmax_t)file->end_offset, (hio_uintmax_t)file->total_size) <= -1) return -1;
+	    hio_svc_htts_task_addreshdrfmt((hio_svc_htts_task_t*)file, "Content-Ranges", "bytes %ju-%ju/%ju", (hio_uintmax_t)file->start_offset, (hio_uintmax_t)file->end_offset, (hio_uintmax_t)file->total_size) <= -1) return -1;
 
 /* ----- */
 // TODO: Allow-Contents
 // Allow-Headers... support custom headers...
-	if (hio_svc_htts_task_addreshdr(file, "Access-Control-Allow-Origin", "*") <= -1) return -1;
+	if (hio_svc_htts_task_addreshdr((hio_svc_htts_task_t*)file, "Access-Control-Allow-Origin", "*") <= -1) return -1;
 /* ----- */
 
-	if (hio_svc_htts_task_addreshdrfmt(file, "Content-Length", "%ju", (hio_uintmax_t)content_length) <= -1) return -1;
+	if (hio_svc_htts_task_addreshdrfmt((hio_svc_htts_task_t*)file, "Content-Length", "%ju", (hio_uintmax_t)content_length) <= -1) return -1;
 
-	if (hio_svc_htts_task_endreshdr(file) <= -1) return -1;
+	if (hio_svc_htts_task_endreshdr((hio_svc_htts_task_t*)file) <= -1) return -1;
 
 	return 0;
 }
@@ -430,7 +432,7 @@ static int file_send_contents_to_client (file_t* file)
 	if (file->sendfile_ok)
 	{
 		if (lim > 0x7FFF0000) lim = 0x7FFF0000; /* TODO: change this... */
-		if (hio_svc_htts_task_addresbodyfromfile(file, file->peer, file->cur_offset, lim) <= -1) return -1;
+		if (hio_svc_htts_task_addresbodyfromfile((hio_svc_htts_task_t*)file, file->peer, file->cur_offset, lim) <= -1) return -1;
 		file->cur_offset += lim;
 	}
 	else
@@ -462,8 +464,8 @@ static int file_send_contents_to_client (file_t* file)
 			return -1;
 		}
 
-		//if (file_write_to_client(file, file->peer_buf, n) <= -1) return -1;
-		if (hio_svc_htts_task_addresbody(file, file->peer_buf, n) <= -1) return -1;
+		/*if (file_write_to_client(file, file->peer_buf, n) <= -1) return -1;*/
+		if (hio_svc_htts_task_addresbody((hio_svc_htts_task_t*)file, file->peer_buf, n) <= -1) return -1;
 
 		file->cur_offset += n;
 
@@ -793,7 +795,7 @@ static int bind_task_to_peer (file_t* file, hio_htre_t* req, const hio_bch_t* fi
 	/* the task can be terminated because the requested job has been
 	 * completed or it can't proceed for various reasons */
 oops_with_status_code:
-	hio_svc_htts_task_sendfinalres(file, status_code, HIO_NULL, HIO_NULL, 0);
+	hio_svc_htts_task_sendfinalres((hio_svc_htts_task_t*)file, status_code, HIO_NULL, HIO_NULL, 0);
 oops_with_status_code_2:
 	file_mark_over (file, FILE_OVER_READ_FROM_PEER | FILE_OVER_WRITE_TO_PEER);
 oops:
@@ -898,7 +900,7 @@ int hio_svc_htts_dofile (hio_svc_htts_t* htts, hio_dev_sck_t* csck, hio_htre_t* 
 	bind_task_to_client (file, csck); /* the file task's reference count is incremented */
 	bound_to_client = 1;
 	
-	if (hio_svc_htts_task_handleexpect100(file) <= -1) goto oops;
+	if (hio_svc_htts_task_handleexpect100((hio_svc_htts_task_t*)file) <= -1) goto oops;
 	if (setup_for_content_length(file, req) <= -1) goto oops;
 
 	if (bind_task_to_peer(file, req, actual_file, mime_type) <= -1) goto oops;
