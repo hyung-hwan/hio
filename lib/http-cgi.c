@@ -31,6 +31,7 @@
 #include <fcntl.h>
 #include <sys/stat.h>
 #include <stdlib.h> /* setenv, clearenv */
+#include <errno.h>
 
 #if defined(HAVE_CRT_EXTERNS_H)
 #	include <crt_externs.h> /* _NSGetEnviron */
@@ -116,7 +117,7 @@ static HIO_INLINE void cgi_mark_over (cgi_t* cgi, int over_bits)
 	old_over = cgi->over;
 	cgi->over |= over_bits;
 
-    HIO_DEBUG8 (hio, "HTTS(%p) - cgi(t=%p,c=%p[%d],p=%p) - old_over=%x | new-bits=%x => over=%x\n", cgi->htts, cgi, cgi->task_client, (cgi->task_csck? cgi->task_csck->hnd: -1), cgi->peer, (int)old_over, (int)over_bits, (int)cgi->over);
+	HIO_DEBUG8 (hio, "HTTS(%p) - cgi(t=%p,c=%p[%d],p=%p) - old_over=%x | new-bits=%x => over=%x\n", cgi->htts, cgi, cgi->task_client, (cgi->task_csck? cgi->task_csck->hnd: -1), cgi->peer, (int)old_over, (int)over_bits, (int)cgi->over);
 
 	if (!(old_over & CGI_OVER_READ_FROM_CLIENT) && (cgi->over & CGI_OVER_READ_FROM_CLIENT))
 	{
@@ -206,8 +207,11 @@ static void cgi_peer_on_close (hio_dev_pro_t* pro, hio_dev_pro_sid_t sid)
 	{
 		case HIO_DEV_PRO_MASTER:
 			HIO_DEBUG3 (hio, "HTTS(%p) - peer %p(pid=%d) closing master\n", cgi->htts, pro, (int)pro->child_pid);
+
 			/* reset cgi->peer before calling unbind_task_from_peer() because this is the peer close callback */
 			cgi->peer = HIO_NULL;
+			HIO_SVC_HTTS_TASK_RCDOWN((hio_svc_htts_task_t*)cgi); /* if not reset, this would be done in unbind_task_from_peer */
+
 			unbind_task_from_peer (cgi, 1);
 			break;
 
@@ -373,8 +377,8 @@ static int peer_htrd_peek (hio_htrd_t* htrd, hio_htre_t* req)
 		chunked = cgi->task_keep_client_alive && !req->attr.content_length;
 
 		if (hio_svc_htts_task_startreshdr(cgi, status_code, status_desc, chunked) <= -1 ||
-			hio_htre_walkheaders(req, peer_capture_response_header, cgi) <= -1 ||
-			hio_svc_htts_task_endreshdr(cgi) <= -1) return -1;
+		    hio_htre_walkheaders(req, peer_capture_response_header, cgi) <= -1 ||
+		    hio_svc_htts_task_endreshdr(cgi) <= -1) return -1;
 	}
 
 	return 0;
@@ -817,6 +821,7 @@ static int bind_task_to_peer (cgi_t* cgi, hio_dev_sck_t* csck, hio_htre_t* req, 
 	if (access(mi.cmd, X_OK) == -1)
 	{
 		/* not executable */
+		hio_seterrwithsyserr (hio, 0, errno);
 		hio_freemem (hio, fc.actual_script);
 		return -2;
 	}
@@ -922,7 +927,7 @@ int hio_svc_htts_docgi (hio_svc_htts_t* htts, hio_dev_sck_t* csck, hio_htre_t* r
 	hio_t* hio = htts->hio;
 	hio_svc_htts_cli_t* cli = hio_dev_sck_getxtn(csck);
 	cgi_t* cgi = HIO_NULL;
-	int n;
+	int n, bound_to_client = 0, bound_to_peer = 0;
 
 	/* ensure that you call this function before any contents is received */
 	HIO_ASSERT (hio, hio_htre_getcontentlen(req) == 0);
@@ -930,16 +935,20 @@ int hio_svc_htts_docgi (hio_svc_htts_t* htts, hio_dev_sck_t* csck, hio_htre_t* r
 
 	cgi = (cgi_t*)hio_svc_htts_task_make(htts, HIO_SIZEOF(*cgi), cgi_on_kill, req, csck);
 	if (HIO_UNLIKELY(!cgi)) goto oops;
+	HIO_SVC_HTTS_TASK_RCUP((hio_svc_htts_task_t*)cgi);
 
 	cgi->on_kill = on_kill;
 	cgi->options = options;
 
 	bind_task_to_client (cgi, csck);
+	bound_to_client = 1;
+
 	if ((n = bind_task_to_peer(cgi, csck, req, docroot, script)) <= -1)
 	{
 		hio_svc_htts_task_sendfinalres(cgi, (n == 2? HIO_HTTP_STATUS_FORBIDDEN: HIO_HTTP_STATUS_INTERNAL_SERVER_ERROR), HIO_NULL, HIO_NULL, 1);
-		goto oops; /* TODO: must not go to oops.  just destroy the cgi and finalize the request .. */
+		goto oops;
 	}
+	bound_to_peer = 1;
 
 	if (hio_svc_htts_task_handleexpect100(cgi) <= -1) goto oops;
 	if (setup_for_content_length(cgi, req) <= -1) goto oops;
@@ -948,10 +957,17 @@ int hio_svc_htts_docgi (hio_svc_htts_t* htts, hio_dev_sck_t* csck, hio_htre_t* r
 	if (hio_dev_sck_read(csck, !(cgi->over & CGI_OVER_READ_FROM_CLIENT)) <= -1) goto oops;
 
 	HIO_SVC_HTTS_TASKL_APPEND_TASK (&htts->task, (hio_svc_htts_task_t*)cgi);
+	HIO_SVC_HTTS_TASK_RCDOWN((hio_svc_htts_task_t*)cgi);
 	return 0;
 
 oops:
-	HIO_DEBUG2 (hio, "HTTS(%p) - FAILURE in docgi - socket(%p)\n", htts, csck);
-	if (cgi) cgi_halt_participating_devices (cgi);
+	HIO_DEBUG3 (hio, "HTTS(%p) - FAILURE in docgi - socket(%p) - %js\n", htts, csck, hio_geterrmsg(hio));
+	if (cgi)
+	{
+		if (bound_to_peer) unbind_task_from_peer (cgi, 1);
+		if (bound_to_client) unbind_task_from_client (cgi, 1);
+		cgi_halt_participating_devices (cgi);
+		HIO_SVC_HTTS_TASK_RCDOWN((hio_svc_htts_task_t*)cgi);
+	}
 	return -1;
 }

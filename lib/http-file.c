@@ -873,6 +873,7 @@ int hio_svc_htts_dofile (hio_svc_htts_t* htts, hio_dev_sck_t* csck, hio_htre_t* 
 	hio_svc_htts_cli_t* cli = hio_dev_sck_getxtn(csck);
 	file_t* file = HIO_NULL;
 	hio_bch_t* actual_file = HIO_NULL;
+	int bound_to_client = 0, bound_to_peer = 0;
 
 	/* ensure that you call this function before any contents is received */
 	HIO_ASSERT (hio, hio_htre_getcontentlen(req) == 0);
@@ -885,7 +886,7 @@ int hio_svc_htts_dofile (hio_svc_htts_t* htts, hio_dev_sck_t* csck, hio_htre_t* 
 
 	file = (file_t*)hio_svc_htts_task_make(htts, HIO_SIZEOF(*file), file_on_kill, req, csck);
 	if (HIO_UNLIKELY(!file)) goto oops;
-	HIO_SVC_HTTS_TASK_RCUP (file); /* for temporary protection */
+	HIO_SVC_HTTS_TASK_RCUP ((hio_svc_htts_task_t*)file); /* for temporary protection */
 
 	file->on_kill = on_kill;
 	file->options = options;
@@ -895,26 +896,31 @@ int hio_svc_htts_dofile (hio_svc_htts_t* htts, hio_dev_sck_t* csck, hio_htre_t* 
 	file->peer = -1;
 
 	bind_task_to_client (file, csck); /* the file task's reference count is incremented */
+	bound_to_client = 1;
 	
 	if (hio_svc_htts_task_handleexpect100(file) <= -1) goto oops;
 	if (setup_for_content_length(file, req) <= -1) goto oops;
 
 	if (bind_task_to_peer(file, req, actual_file, mime_type) <= -1) goto oops;
+	bound_to_peer = 1;
 
 	/* TODO: store current input watching state and use it when destroying the file data */
 	if (hio_dev_sck_read(csck, !(file->over & FILE_OVER_READ_FROM_CLIENT)) <= -1) goto oops;
 	hio_freemem (hio, actual_file);
 
 	HIO_SVC_HTTS_TASKL_APPEND_TASK (&htts->task, (hio_svc_htts_task_t*)file);
-	HIO_SVC_HTTS_TASK_RCDOWN (file);
+	HIO_SVC_HTTS_TASK_RCDOWN ((hio_svc_htts_task_t*)file);
 	return 0;
 
 oops:
 	HIO_DEBUG2 (hio, "HTTS(%p) - file(c=%d) failure\n", htts, csck->hnd);
 	if (file)
 	{
+		if (bound_to_peer) unbind_task_from_peer (file, 0);
+		if (bound_to_client) unbind_task_from_client (file, 0);
+
 		file_halt_participating_devices (file);
-		HIO_SVC_HTTS_TASK_RCDOWN (file);
+		HIO_SVC_HTTS_TASK_RCDOWN ((hio_svc_htts_task_t*)file);
 	}
 	if (actual_file) hio_freemem (hio, actual_file);
 	return -1;

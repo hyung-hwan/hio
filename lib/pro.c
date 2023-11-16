@@ -408,7 +408,7 @@ static int dev_pro_make_master (hio_dev_t* dev, void* ctx)
 	return 0;
 
 oops:
-	for (i = minidx; i < maxidx; i++)
+	for (i = minidx; i <= maxidx; i++)
 	{
 		if (pfds[i] != HIO_SYSHND_INVALID) close (pfds[i]);
 	}

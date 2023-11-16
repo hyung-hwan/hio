@@ -335,6 +335,10 @@ static int client_on_write (hio_dev_sck_t* sck, hio_iolen_t wrlen, void* wrctx, 
 	hio_svc_htts_t* htts = cli->htts;
 	hio_svc_htts_task_t* task = cli->task;
 
+	/* the callback may get called after the client structure has been delinked from the task structure.
+	 * in this case, `task` points to HIO_NULL. this can happen because the task doesn't wait until
+	 * this write callback has been invoked terminates the job after having sent some reply data */
+
 	HIO_ASSERT (hio, cli->l_idx == INVALID_LIDX);
 
 	/* handle event if it's write by self */
@@ -348,12 +352,15 @@ static int client_on_write (hio_dev_sck_t* sck, hio_iolen_t wrlen, void* wrctx, 
 		else if (wrlen == 0)
 		{
 			/* if connect: is keep-alive, this part may not be called */
-			task->task_res_pending_writes--;
+			if (task) task->task_res_pending_writes--;
 		}
 		else
 		{
-			HIO_ASSERT (hio, task->task_res_pending_writes > 0);
-			task->task_res_pending_writes--;
+			if (task)
+			{
+				HIO_ASSERT (hio, task->task_res_pending_writes > 0);
+				task->task_res_pending_writes--;
+			}
 		}
 	}
 

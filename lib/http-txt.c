@@ -331,6 +331,7 @@ int hio_svc_htts_dotxt (hio_svc_htts_t* htts, hio_dev_sck_t* csck, hio_htre_t* r
 	hio_t* hio = htts->hio;
 	hio_svc_htts_cli_t* cli = hio_dev_sck_getxtn(csck);
 	txt_t* txt = HIO_NULL;
+	int bound_to_client = 0;
 
 	/* ensure that you call this function before any contents is received */
 	HIO_ASSERT (hio, hio_htre_getcontentlen(req) == 0);
@@ -338,11 +339,14 @@ int hio_svc_htts_dotxt (hio_svc_htts_t* htts, hio_dev_sck_t* csck, hio_htre_t* r
 
 	txt = (txt_t*)hio_svc_htts_task_make(htts, HIO_SIZEOF(*txt), txt_on_kill, req, csck);
 	if (HIO_UNLIKELY(!txt)) goto oops;
+	HIO_SVC_HTTS_TASK_RCUP ((hio_svc_htts_task_t*)txt);
+
 
 	txt->on_kill = on_kill;
 	txt->options = options;
 
 	bind_task_to_client (txt, csck);
+	bound_to_client = 1;
 
 	if (req->flags & HIO_HTRE_ATTR_EXPECT100)
 	{
@@ -363,10 +367,16 @@ int hio_svc_htts_dotxt (hio_svc_htts_t* htts, hio_dev_sck_t* csck, hio_htre_t* r
 	if (hio_svc_htts_task_sendfinalres(txt, HIO_HTTP_STATUS_OK, content_type, content_text, 0) <= -1) goto oops;
 
 	HIO_SVC_HTTS_TASKL_APPEND_TASK (&htts->task, (hio_svc_htts_task_t*)txt);
+	HIO_SVC_HTTS_TASK_RCDOWN ((hio_svc_htts_task_t*)txt);
 	return 0;
 
 oops:
 	HIO_DEBUG2 (hio, "HTTS(%p) - FAILURE in dotxt - socket(%p)\n", htts, csck);
-	if (txt) txt_halt_participating_devices (txt);
+	if (txt)
+	{
+		if (bound_to_client) unbind_task_from_client (txt, 1);
+		txt_halt_participating_devices (txt);
+		HIO_SVC_HTTS_TASK_RCDOWN ((hio_svc_htts_task_t*)txt);
+	}
 	return -1;
 }

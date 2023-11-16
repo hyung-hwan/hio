@@ -919,6 +919,7 @@ int hio_svc_htts_doprxy (hio_svc_htts_t* htts, hio_dev_sck_t* csck, hio_htre_t* 
 	hio_t* hio = htts->hio;
 	hio_svc_htts_cli_t* cli = hio_dev_sck_getxtn(csck);
 	prxy_t* prxy = HIO_NULL;
+	int bound_to_client = 0, bound_to_peer = 0;
 	int n;
 
 	/* ensure that you call this function before any contents is received */
@@ -927,16 +928,20 @@ int hio_svc_htts_doprxy (hio_svc_htts_t* htts, hio_dev_sck_t* csck, hio_htre_t* 
 
 	prxy = (prxy_t*)hio_svc_htts_task_make(htts, HIO_SIZEOF(*prxy), prxy_on_kill, req, csck);
 	if (HIO_UNLIKELY(!prxy)) goto oops;
+	HIO_SVC_HTTS_TASK_RCUP ((hio_svc_htts_task_t*)prxy);
 
 	prxy->on_kill = on_kill;
 	prxy->options = options;
 
 	bind_task_to_client (prxy, csck);
+	bound_to_client = 1;
+
 	if ((n = bind_task_to_peer(prxy, csck, req, tgt_addr)) <= -1)
 	{
 		hio_svc_htts_task_sendfinalres(prxy, (n == 2? HIO_HTTP_STATUS_FORBIDDEN: HIO_HTTP_STATUS_INTERNAL_SERVER_ERROR), HIO_NULL, HIO_NULL, 1);
 		goto oops; /* TODO: must not go to oops.  just destroy the prxy and finalize the request .. */
 	}
+	bound_to_peer = 1;
 
 	if (hio_svc_htts_task_handleexpect100(prxy) <= -1) goto oops;
 	if (setup_for_content_length(prxy, req) <= -1) goto oops;
@@ -945,10 +950,17 @@ int hio_svc_htts_doprxy (hio_svc_htts_t* htts, hio_dev_sck_t* csck, hio_htre_t* 
 	if (hio_dev_sck_read(csck, !(prxy->over & PRXY_OVER_READ_FROM_CLIENT)) <= -1) goto oops;
 
 	HIO_SVC_HTTS_TASKL_APPEND_TASK (&htts->task, (hio_svc_htts_task_t*)prxy);
+	HIO_SVC_HTTS_TASK_RCDOWN ((hio_svc_htts_task_t*)prxy);
 	return 0;
 
 oops:
 	HIO_DEBUG2 (hio, "HTTS(%p) - FAILURE in doprxy - socket(%p)\n", htts, csck);
-	if (prxy) prxy_halt_participating_devices (prxy);
+	if (prxy)
+	{
+		if (bound_to_peer) unbind_task_from_peer (prxy, 1);
+		if (bound_to_client) unbind_task_from_client (prxy, 1);
+		prxy_halt_participating_devices (prxy);
+		HIO_SVC_HTTS_TASK_RCDOWN ((hio_svc_htts_task_t*)prxy);
+	}
 	return -1;
 }

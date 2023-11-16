@@ -752,6 +752,7 @@ int hio_svc_htts_dofcgi (hio_svc_htts_t* htts, hio_dev_sck_t* csck, hio_htre_t* 
 	hio_t* hio = htts->hio;
 	hio_svc_htts_cli_t* cli = hio_dev_sck_getxtn(csck);
 	fcgi_t* fcgi = HIO_NULL;
+	int bound_to_client = 0, bound_to_peer = 0;
 
 	/* ensure that you call this function before any contents is received */
 	HIO_ASSERT (hio, hio_htre_getcontentlen(req) == 0);
@@ -764,11 +765,15 @@ int hio_svc_htts_dofcgi (hio_svc_htts_t* htts, hio_dev_sck_t* csck, hio_htre_t* 
 
 	fcgi = (fcgi_t*)hio_svc_htts_task_make(htts, HIO_SIZEOF(*fcgi), fcgi_on_kill, req, csck);
 	if (HIO_UNLIKELY(!fcgi)) goto oops;
+	HIO_SVC_HTTS_TASK_RCUP ((hio_svc_htts_task_t*)fcgi);
 
 	fcgi->on_kill = on_kill; /* custom on_kill handler by the caller */
 
 	bind_task_to_client (fcgi, csck);
+	bound_to_client = 1;
+
 	if (bind_task_to_peer(fcgi, fcgis_addr) <= -1) goto oops;
+	bound_to_peer = 1;
 
 	if (hio_svc_htts_task_handleexpect100(fcgi) <= -1) goto oops;
 	if (setup_for_content_length(fcgi, req) <= -1) goto oops;
@@ -783,10 +788,17 @@ int hio_svc_htts_dofcgi (hio_svc_htts_t* htts, hio_dev_sck_t* csck, hio_htre_t* 
 	if (hio_svc_fcgic_writeparam(fcgi->peer, HIO_NULL, 0, HIO_NULL, 0) <= -1) goto oops; /* end of params */
 
 	HIO_SVC_HTTS_TASKL_APPEND_TASK (&htts->task, (hio_svc_htts_task_t*)fcgi);
+	HIO_SVC_HTTS_TASK_RCDOWN ((hio_svc_htts_task_t*)fcgi);
 	return 0;
 
 oops:
 	HIO_DEBUG2 (hio, "HTTS(%p) - FAILURE in dofcgi - socket(%p)\n", htts, csck);
-	if (fcgi) fcgi_halt_participating_devices (fcgi);
+	if (fcgi)
+	{
+		if (bound_to_peer) unbind_task_from_peer (fcgi, 1);
+		if (bound_to_client) unbind_task_from_client (fcgi, 1);
+		fcgi_halt_participating_devices ((hio_svc_htts_task_t*)fcgi);
+		HIO_SVC_HTTS_TASK_RCDOWN ((hio_svc_htts_task_t*)fcgi);
+	}
 	return -1;
 }
