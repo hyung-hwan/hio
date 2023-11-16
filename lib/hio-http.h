@@ -119,6 +119,8 @@ struct hio_svc_htts_task_t
 	HIO_SVC_HTTS_TASK_HEADER;
 };
 
+#define HIO_SVC_HTTS_TASK_RC(task) ((task)->task_refcnt)
+
 #define HIO_SVC_HTTS_TASK_RCUP(task) (++(task)->task_refcnt)
 
 #define HIO_SVC_HTTS_TASK_RCDOWN(task_var) do { \

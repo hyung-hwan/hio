@@ -720,14 +720,14 @@ static int bind_task_to_peer (file_t* file, hio_htre_t* req, const hio_bch_t* fi
 			const hio_bch_t* actual_mime_type = mime_type;
 
 			if (open_peer_with_mode(file, file_path, O_RDONLY, &status_code, (mime_type? HIO_NULL: &actual_mime_type)) <= -1 ||
-			    process_range_header(file, req, &status_code) <= -1) goto done_with_status_code;
+			    process_range_header(file, req, &status_code) <= -1) goto oops_with_status_code;
 
 			if (HIO_LIKELY(file->task_req_method == HIO_HTTP_GET))
 			{
 				if (file->etag_match)
 				{
 					status_code = HIO_HTTP_STATUS_NOT_MODIFIED;
-					goto done_with_status_code;
+					goto oops_with_status_code;
 				}
 
 				/* normal full transfer */
@@ -743,7 +743,7 @@ static int bind_task_to_peer (file_t* file, hio_htre_t* req, const hio_bch_t* fi
 			{
 				if (file_send_header_to_client(file, HIO_HTTP_STATUS_OK, 0, actual_mime_type) <= -1) goto oops;
 				/* no content must be transmitted for HEAD despite Content-Length in the header. */
-				goto done_with_status_code_2;
+				goto oops_with_status_code_2;
 			}
 			break;
 		}
@@ -753,10 +753,10 @@ static int bind_task_to_peer (file_t* file, hio_htre_t* req, const hio_bch_t* fi
 			if (file->options & HIO_SVC_HTTS_FILE_READ_ONLY)
 			{
 				status_code = HIO_HTTP_STATUS_METHOD_NOT_ALLOWED;
-				goto done_with_status_code;
+				goto oops_with_status_code;
 			}
 
-			if (open_peer_with_mode(file, file_path, O_WRONLY | O_TRUNC | O_CREAT, &status_code, HIO_NULL) <= -1) goto done_with_status_code;
+			if (open_peer_with_mode(file, file_path, O_WRONLY | O_TRUNC | O_CREAT, &status_code, HIO_NULL) <= -1) goto oops_with_status_code;
 
 			/* the client input must be written to the peer side */
 			file_mark_over (file, FILE_OVER_READ_FROM_PEER);
@@ -766,7 +766,7 @@ static int bind_task_to_peer (file_t* file, hio_htre_t* req, const hio_bch_t* fi
 			if (file->options & HIO_SVC_HTTS_FILE_READ_ONLY)
 			{
 				status_code = HIO_HTTP_STATUS_METHOD_NOT_ALLOWED;
-				goto done_with_status_code;
+				goto oops_with_status_code;
 			}
 
 			if (unlink(file_path) <= -1)
@@ -774,25 +774,28 @@ static int bind_task_to_peer (file_t* file, hio_htre_t* req, const hio_bch_t* fi
 				if (errno != EISDIR || (errno == EISDIR && rmdir(file_path) <= -1))
 				{
 					status_code = ERRNO_TO_STATUS_CODE(errno);
-					goto done_with_status_code;
+					goto oops_with_status_code;
 				}
 			}
 
 			status_code = HIO_HTTP_STATUS_OK;
-			goto done_with_status_code;
+			goto oops_with_status_code;
 
 		default:
 			status_code = HIO_HTTP_STATUS_METHOD_NOT_ALLOWED;
-		done_with_status_code:
-			if (hio_svc_htts_task_sendfinalres(file, status_code, HIO_NULL, HIO_NULL, 0) <= -1) goto oops;
-		done_with_status_code_2:
-			file_mark_over (file, FILE_OVER_READ_FROM_PEER | FILE_OVER_WRITE_TO_PEER);
-			break;
+			goto oops_with_status_code;
 	}
 
 	HIO_SVC_HTTS_TASK_RCUP (file); /* for file->peer opened */
 	return 0;
 
+
+	/* the task can be terminated because the requested job has been
+	 * completed or it can't proceed for various reasons */
+oops_with_status_code:
+	hio_svc_htts_task_sendfinalres(file, status_code, HIO_NULL, HIO_NULL, 0);
+oops_with_status_code_2:
+	file_mark_over (file, FILE_OVER_READ_FROM_PEER | FILE_OVER_WRITE_TO_PEER);
 oops:
 	return -1;
 }
@@ -816,10 +819,11 @@ static void unbind_task_from_peer (file_t* file, int rcdown)
 		n++;
 	}
 
-    if (rcdown)
+	if (rcdown)
 	{
 		while (n > 0)
 		{
+HIO_DEBUG1(hio, "RCDOWN.... %d\n", n);
 			n--;
 			HIO_SVC_HTTS_TASK_RCDOWN((hio_svc_htts_task_t*)file);
 		}
@@ -881,6 +885,7 @@ int hio_svc_htts_dofile (hio_svc_htts_t* htts, hio_dev_sck_t* csck, hio_htre_t* 
 
 	file = (file_t*)hio_svc_htts_task_make(htts, HIO_SIZEOF(*file), file_on_kill, req, csck);
 	if (HIO_UNLIKELY(!file)) goto oops;
+	HIO_SVC_HTTS_TASK_RCUP (file); /* for temporary protection */
 
 	file->on_kill = on_kill;
 	file->options = options;
@@ -889,7 +894,7 @@ int hio_svc_htts_dofile (hio_svc_htts_t* htts, hio_dev_sck_t* csck, hio_htre_t* 
 	file->peer_tmridx = HIO_TMRIDX_INVALID;
 	file->peer = -1;
 
-	bind_task_to_client (file, csck);
+	bind_task_to_client (file, csck); /* the file task's reference count is incremented */
 	
 	if (hio_svc_htts_task_handleexpect100(file) <= -1) goto oops;
 	if (setup_for_content_length(file, req) <= -1) goto oops;
@@ -901,11 +906,16 @@ int hio_svc_htts_dofile (hio_svc_htts_t* htts, hio_dev_sck_t* csck, hio_htre_t* 
 	hio_freemem (hio, actual_file);
 
 	HIO_SVC_HTTS_TASKL_APPEND_TASK (&htts->task, (hio_svc_htts_task_t*)file);
+	HIO_SVC_HTTS_TASK_RCDOWN (file);
 	return 0;
 
 oops:
 	HIO_DEBUG2 (hio, "HTTS(%p) - file(c=%d) failure\n", htts, csck->hnd);
-	if (file) file_halt_participating_devices (file);
+	if (file)
+	{
+		file_halt_participating_devices (file);
+		HIO_SVC_HTTS_TASK_RCDOWN (file);
+	}
 	if (actual_file) hio_freemem (hio, actual_file);
 	return -1;
 }

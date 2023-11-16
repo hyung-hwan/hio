@@ -159,6 +159,7 @@ void hio_fini (hio_t* hio)
 	hio_dev_t* dev, * next_dev;
 	hio_dev_t diehard;
 	hio_oow_t i;
+	hio_oow_t nactdevs = 0, nhltdevs = 0, nzmbdevs = 0, ndieharddevs = 0; /* statistics */
 
 	hio->_fini_in_progress = 1;
 
@@ -204,12 +205,14 @@ void hio_fini (hio_t* hio)
 	while (!HIO_DEVL_IS_EMPTY(&hio->actdev))
 	{
 		hio_dev_kill (HIO_DEVL_FIRST_DEV(&hio->actdev));
+		nactdevs++;
 	}
 
 	/* kill all halted devices */
 	while (!HIO_DEVL_IS_EMPTY(&hio->hltdev))
 	{
 		hio_dev_kill (HIO_DEVL_FIRST_DEV(&hio->hltdev));
+		nhltdevs++;
 	}
 
 	/* clean up all zombie devices */
@@ -219,7 +222,7 @@ void hio_fini (hio_t* hio)
 		kill_and_free_device (dev, 1);
 		if (HIO_DEVL_FIRST_DEV(&hio->zmbdev) == dev)
 		{
-			/* the deive has not been freed. go on to the next one */
+			/* the device has not been freed. go on to the next one */
 			next_dev = dev->dev_next;
 
 			/* remove the device from the zombie device list */
@@ -231,7 +234,11 @@ void hio_fini (hio_t* hio)
 
 			dev = next_dev;
 		}
-		else dev = HIO_DEVL_FIRST_DEV(&hio->zmbdev);
+		else
+		{
+			nzmbdevs++;
+			dev = HIO_DEVL_FIRST_DEV(&hio->zmbdev);
+		}
 	}
 
 	while (!HIO_DEVL_IS_EMPTY(&diehard))
@@ -243,6 +250,7 @@ void hio_fini (hio_t* hio)
 		HIO_ASSERT (hio, !(dev->dev_cap & (HIO_DEV_CAP_ACTIVE | HIO_DEV_CAP_HALTED | HIO_DEV_CAP_ZOMBIE)));
 		HIO_DEVL_UNLINK_DEV (dev);
 		kill_and_free_device (dev, 2);
+		ndieharddevs++;
 	}
 
 	/* purge scheduled timer jobs and kill the timer */
@@ -2019,7 +2027,7 @@ void hio_gettime (hio_t* hio, hio_ntime_t* now)
 void* hio_allocmem (hio_t* hio, hio_oow_t size)
 {
 	void* ptr;
-	ptr = HIO_MMGR_ALLOC (hio->_mmgr, size);
+	ptr = HIO_MMGR_ALLOC(hio->_mmgr, size);
 	if (!ptr) hio_seterrnum (hio, HIO_ESYSMEM);
 	return ptr;
 }
@@ -2027,7 +2035,7 @@ void* hio_allocmem (hio_t* hio, hio_oow_t size)
 void* hio_callocmem (hio_t* hio, hio_oow_t size)
 {
 	void* ptr;
-	ptr = HIO_MMGR_ALLOC (hio->_mmgr, size);
+	ptr = HIO_MMGR_ALLOC(hio->_mmgr, size);
 	if (!ptr) hio_seterrnum (hio, HIO_ESYSMEM);
 	else HIO_MEMSET (ptr, 0, size);
 	return ptr;
@@ -2035,7 +2043,7 @@ void* hio_callocmem (hio_t* hio, hio_oow_t size)
 
 void* hio_reallocmem (hio_t* hio, void* ptr, hio_oow_t size)
 {
-	ptr = HIO_MMGR_REALLOC (hio->_mmgr, ptr, size);
+	ptr = HIO_MMGR_REALLOC(hio->_mmgr, ptr, size);
 	if (!ptr) hio_seterrnum (hio, HIO_ESYSMEM);
 	return ptr;
 }

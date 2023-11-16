@@ -648,9 +648,7 @@ struct hdr_cbserter_ctx_t
 	hio_oow_t  vlen;
 };
 
-static hio_htb_pair_t* hdr_cbserter (
-	hio_htb_t* htb, hio_htb_pair_t* pair,
-	void* kptr, hio_oow_t klen, void* ctx)
+static hio_htb_pair_t* hdr_cbserter (hio_htb_t* htb, hio_htb_pair_t* pair, void* kptr, hio_oow_t klen, void* ctx)
 {
 	struct hdr_cbserter_ctx_t* tx = (struct hdr_cbserter_ctx_t*)ctx;
 

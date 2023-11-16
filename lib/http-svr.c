@@ -616,7 +616,7 @@ oops:
 void hio_svc_htts_stop (hio_svc_htts_t* htts)
 {
 	hio_t* hio = htts->hio;
-	hio_oow_t i;
+	hio_oow_t i, ntasks = 0;
 
 	HIO_DEBUG1 (hio, "HTTS - STOPPING SERVICE %p\n", htts);
 
@@ -645,6 +645,7 @@ void hio_svc_htts_stop (hio_svc_htts_t* htts)
 	{
 		hio_svc_htts_task_t* task = HIO_SVC_HTTS_TASKL_FIRST_TASK(&htts->task);
 		hio_svc_htts_task_kill (task);
+		ntasks++;
 	}
 
 	HIO_SVCL_UNLINK_SVC (htts);
@@ -657,7 +658,8 @@ void hio_svc_htts_stop (hio_svc_htts_t* htts)
 	if (htts->becbuf) hio_becs_close (htts->becbuf);
 	hio_freemem (hio, htts);
 
-	HIO_DEBUG1 (hio, "HTTS - STOPPED SERVICE %p\n", htts);
+	/* it's not a good sign if the number of remaining tasks is greater than 0 */
+	HIO_DEBUG2 (hio, "HTTS - STOPPED SERVICE %p - killed %zu remaining tasks\n", htts, ntasks);
 }
 
 void* hio_svc_htts_getxtn (hio_svc_htts_t* htts)
