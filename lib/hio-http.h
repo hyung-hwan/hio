@@ -68,12 +68,22 @@ struct hio_http_range_t
 };
 typedef struct hio_http_range_t hio_http_range_t;
 
-enum hio_perenc_http_opt_t
+enum hio_perenc_http_option_t
 {
 	HIO_PERENC_HTTP_KEEP_SLASH = (1 << 0)
 };
-typedef enum hio_perenc_http_opt_t hio_perenc_bcstr_opt_t;
+typedef enum hio_perenc_http_option_t hio_perenc_bcstr_option_t;
 
+/* -------------------------------------------------------------- */
+
+enum hio_svc_htts_option_t
+{
+        HIO_SVC_HTTS_TASK_MAX,
+        HIO_SVC_HTTS_TASK_CGI_MAX,
+        HIO_SVC_HTTS_FCGI_TMOUT,
+};
+
+typedef enum hio_svc_htts_option_t hio_svc_htts_option_t;
 
 /* -------------------------------------------------------------- */
 typedef struct hio_svc_htts_t hio_svc_htts_t;
@@ -393,6 +403,18 @@ HIO_EXPORT hio_svc_htts_t* hio_svc_htts_start (
 
 HIO_EXPORT void hio_svc_htts_stop (
 	hio_svc_htts_t* htts
+);
+
+HIO_EXPORT int hio_svc_htts_getoption (
+	hio_svc_htts_t*       htts,
+	hio_svc_htts_option_t id,
+	void*                 value
+);
+
+HIO_EXPORT int hio_svc_htts_setoption (
+	hio_svc_htts_t*       htts,
+	hio_svc_htts_option_t id,
+	const void*           value
 );
 
 HIO_EXPORT void* hio_svc_htts_getxtn (

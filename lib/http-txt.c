@@ -142,7 +142,7 @@ static void txt_client_on_disconnect (hio_dev_sck_t* sck)
 
 	if (txt)
 	{
-		HIO_SVC_HTTS_TASK_RCUP (txt);
+		HIO_SVC_HTTS_TASK_RCUP ((hio_svc_htts_task_t*)txt);
 
 		unbind_task_from_client (txt, 1);
 
@@ -150,7 +150,7 @@ static void txt_client_on_disconnect (hio_dev_sck_t* sck)
 		/*if (txt->client_org_on_disconnect) txt->client_org_on_disconnect (sck);*/
 		if (sck->on_disconnect) sck->on_disconnect (sck); /* restored to the orginal parent handler in unbind_task_from_client() */
 
-		HIO_SVC_HTTS_TASK_RCDOWN (txt);
+		HIO_SVC_HTTS_TASK_RCDOWN ((hio_svc_htts_task_t*)txt);
 	}
 }
 
@@ -307,7 +307,7 @@ static int setup_for_content_length(txt_t* txt, hio_htre_t* req)
 	have_content = txt->task_req_conlen > 0;
 #endif
 
-	if (txt->task_req_conlen_unlimited)
+	if (have_content)
 	{
 		/* change the callbacks to subscribe to contents to be uploaded */
 		txt->client_htrd_org_recbs = *hio_htrd_getrecbs(txt->task_client->htrd);
