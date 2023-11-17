@@ -1477,9 +1477,9 @@ fcntl (rdev->hnd, F_SETFL, flags | O_NONBLOCK);
 					}
 					else
 					{
-						HIO_INIT_NTIME (&rdev->tmout, 0, 0); /* just in case */
+						HIO_INIT_NTIME (&rdev->tmout, -1, 0); /* just in case */
 
-						if (HIO_IS_POS_NTIME(&conn->connect_tmout))
+						if (!HIO_IS_NEG_NTIME(&conn->connect_tmout))
 						{
 							if (schedule_timer_job_after(rdev, &conn->connect_tmout, connect_timedout) <= -1)
 							{
@@ -1761,7 +1761,7 @@ static int harvest_outgoing_connection (hio_dev_sck_t* rdev)
 				/* rdev->tmout has been set to the deadline of the connect task
 				 * when the CONNECT IOCTL command has been executed. use the
 				 * same deadline here */
-				if (HIO_IS_POS_NTIME(&rdev->tmout) &&
+				if (!HIO_IS_NEG_NTIME(&rdev->tmout) &&
 				    schedule_timer_job_at(rdev, &rdev->tmout, ssl_connect_timedout) <= -1)
 				{
 					HIO_DEBUG1 (hio, "SCK(%p) - ssl-connect timeout scheduling failed. halting\n", rdev);
@@ -1907,7 +1907,7 @@ static int make_accepted_client_connection (hio_dev_sck_t* rdev, hio_syshnd_t cl
 		/* let the client device know the SSL context to use */
 		clidev->ssl_ctx = rdev->ssl_ctx;
 
-		if (HIO_IS_POS_NTIME(&rdev->tmout) &&
+		if (!HIO_IS_NEG_NTIME(&rdev->tmout) &&
 		    schedule_timer_job_after(clidev, &rdev->tmout, ssl_accept_timedout) <= -1)
 		{
 			/* timer job scheduling failed. halt the device */

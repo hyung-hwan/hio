@@ -79,8 +79,7 @@ typedef enum hio_perenc_http_option_t hio_perenc_bcstr_option_t;
 enum hio_svc_htts_option_t
 {
         HIO_SVC_HTTS_TASK_MAX,
-        HIO_SVC_HTTS_TASK_CGI_MAX,
-        HIO_SVC_HTTS_FCGI_TMOUT,
+        HIO_SVC_HTTS_TASK_CGI_MAX
 };
 
 typedef enum hio_svc_htts_option_t hio_svc_htts_option_t;
@@ -397,13 +396,22 @@ HIO_EXPORT hio_svc_htts_t* hio_svc_htts_start (
 	hio_oow_t                    xtnsize,
 	hio_dev_sck_bind_t*          binds,
 	hio_oow_t                    nbinds,
-	hio_svc_htts_proc_req_t      proc_req,
-	const hio_svc_fcgic_tmout_t* fcgic_tmout
+	hio_svc_htts_proc_req_t      proc_req
 );
 
 HIO_EXPORT void hio_svc_htts_stop (
 	hio_svc_htts_t* htts
 );
+
+HIO_EXPORT void* hio_svc_htts_getxtn (
+	hio_svc_htts_t* htts
+);
+
+#if defined(HIO_HAVE_INLINE)
+static HIO_INLINE hio_t* hio_svc_htts_gethio(hio_svc_htts_t* svc) { return hio_svc_gethio((hio_svc_t*)svc); }
+#else
+#	define hio_svc_htts_gethio(svc) hio_svc_gethio(svc)
+#endif
 
 HIO_EXPORT int hio_svc_htts_getoption (
 	hio_svc_htts_t*       htts,
@@ -417,15 +425,10 @@ HIO_EXPORT int hio_svc_htts_setoption (
 	const void*           value
 );
 
-HIO_EXPORT void* hio_svc_htts_getxtn (
-	hio_svc_htts_t* htts
+HIO_EXPORT int hio_svc_htts_enablefcgic (
+	hio_svc_htts_t*        htts,
+	hio_svc_fcgic_tmout_t* tmout
 );
-
-#if defined(HIO_HAVE_INLINE)
-static HIO_INLINE hio_t* hio_svc_htts_gethio(hio_svc_htts_t* svc) { return hio_svc_gethio((hio_svc_t*)svc); }
-#else
-#	define hio_svc_htts_gethio(svc) hio_svc_gethio(svc)
-#endif
 
 HIO_EXPORT int hio_svc_htts_writetosidechan (
 	hio_svc_htts_t* htts,

@@ -825,7 +825,6 @@ static void unbind_task_from_peer (file_t* file, int rcdown)
 	{
 		while (n > 0)
 		{
-HIO_DEBUG1(hio, "RCDOWN.... %d\n", n);
 			n--;
 			HIO_SVC_HTTS_TASK_RCDOWN((hio_svc_htts_task_t*)file);
 		}

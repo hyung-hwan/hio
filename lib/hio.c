@@ -1444,7 +1444,7 @@ update_timer:
 		dev->rtmridx = HIO_TMRIDX_INVALID;
 	}
 
-	if (tmout && HIO_IS_POS_NTIME(tmout))
+	if (tmout && !HIO_IS_NEG_NTIME(tmout))
 	{
 		hio_tmrjob_t tmrjob;
 
@@ -1584,7 +1584,7 @@ static HIO_INLINE int __enqueue_pending_write (hio_dev_t* dev, hio_iolen_t olen,
 		j += iov[i].iov_len;
 	}
 
-	if (tmout && HIO_IS_POS_NTIME(tmout))
+	if (tmout && !HIO_IS_NEG_NTIME(tmout))
 	{
 		hio_tmrjob_t tmrjob;
 
@@ -1657,7 +1657,7 @@ static HIO_INLINE int __enqueue_pending_sendfile (hio_dev_t* dev, hio_iolen_t ol
 	((wq_sendfile_data_t*)q->ptr)->in_fd = in_fd;
 	((wq_sendfile_data_t*)q->ptr)->foff = foff;
 
-	if (tmout && HIO_IS_POS_NTIME(tmout))
+	if (tmout && !HIO_IS_NEG_NTIME(tmout))
 	{
 		hio_tmrjob_t tmrjob;
 

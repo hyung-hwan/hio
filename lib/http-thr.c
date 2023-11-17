@@ -184,7 +184,7 @@ static void thr_on_kill (hio_svc_htts_task_t* task)
 	 *    it is the task destruction callback. (passing 0 to unbind_task_from_peer/client)
 	 */
 
-	unbind_task_from_peer (task, 0);
+	unbind_task_from_peer (thr, 0);
 
 	if (thr->task_csck)
 	{
@@ -301,7 +301,8 @@ oops:
 
 static int peer_capture_response_header (hio_htre_t* req, const hio_bch_t* key, const hio_htre_hdrval_t* val, void* ctx)
 {
-	return hio_svc_htts_task_addreshdrs((thr_t*)ctx, key, val);
+	thr_t* thr = (thr_t*)ctx;
+	return hio_svc_htts_task_addreshdrs(thr, key, val);
 }
 
 static int thr_peer_htrd_peek (hio_htrd_t* htrd, hio_htre_t* req)

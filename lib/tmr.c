@@ -240,7 +240,7 @@ int hio_schedtmrjobafter (hio_t* hio, const hio_ntime_t* fire_after, hio_tmrjob_
 {
 	hio_ntime_t fire_at;
 
-	HIO_ASSERT (hio, HIO_IS_POS_NTIME(fire_after));
+	HIO_ASSERT (hio, !HIO_IS_NEG_NTIME(fire_after));
 
 	hio_gettime (hio, &fire_at);
 	HIO_ADD_NTIME (&fire_at, &fire_at, fire_after);

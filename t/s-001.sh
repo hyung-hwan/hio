@@ -12,6 +12,7 @@ test_default_index()
 	mkdir -p "${tmpdir}"
 
 	## check if index.html is retrieved
+	echo ../bin/hio-webs --file-no-list-dir "${srvaddr}" "${tmpdir}" 2>/dev/null &
 	../bin/hio-webs --file-no-list-dir "${srvaddr}" "${tmpdir}" 2>/dev/null &
 	local jid=$!
 

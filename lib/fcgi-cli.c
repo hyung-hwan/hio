@@ -31,7 +31,6 @@ struct hio_svc_fcgic_t
 	HIO_SVC_HEADER;
 
 	int stopping;
-	int tmout_set;
 	hio_svc_fcgic_tmout_t tmout;
 
 	hio_svc_fcgic_conn_t* conns;
@@ -125,7 +124,7 @@ static void sck_on_connect (hio_dev_sck_t* sck)
 	HIO_MEMSET (&conn->r, 0, HIO_SIZEOF(conn->r));
 	conn->r.state = R_AWAITING_HEADER;
 
-	if (conn->fcgic->tmout_set)
+	if (!HIO_IS_NEG_NTIME(&conn->fcgic->tmout.r))
 		hio_dev_sck_timedread (sck, 1, &conn->fcgic->tmout.r);
 }
 
@@ -318,7 +317,7 @@ static int make_connection_socket (hio_svc_fcgic_t* fcgic, hio_svc_fcgic_conn_t*
 
 	HIO_MEMSET (&ci, 0, HIO_SIZEOF(ci));
 	ci.remoteaddr = conn->addr;
-	if (fcgic->tmout_set) ci.connect_tmout = fcgic->tmout.c;
+	ci.connect_tmout = fcgic->tmout.c;
 
 	if (hio_dev_sck_connect(sck, &ci) <= -1)
 	{
@@ -489,12 +488,11 @@ hio_svc_fcgic_t* hio_svc_fcgic_start (hio_t* hio, const hio_svc_fcgic_tmout_t* t
 
 	fcgic->hio = hio;
 	fcgic->svc_stop = (hio_svc_stop_t)hio_svc_fcgic_stop;
+	HIO_INIT_NTIME(&fcgic->tmout.c, -1, 0);
+	HIO_INIT_NTIME(&fcgic->tmout.r, -1, 0);
+	HIO_INIT_NTIME(&fcgic->tmout.w, -1, 0);
 
-	if (tmout)
-	{
-		fcgic->tmout = *tmout;
-		fcgic->tmout_set = 1;
-	}
+	if (tmout) fcgic->tmout = *tmout;
 
 	HIO_SVCL_APPEND_SVC (&hio->actsvc, (hio_svc_t*)fcgic);
 	HIO_DEBUG1 (hio, "FCGIC - STARTED SERVICE %p\n", fcgic);

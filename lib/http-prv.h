@@ -79,8 +79,17 @@ struct hio_svc_htts_t
 
 	hio_becs_t* becbuf; /* temporary buffer for any work */
 
-	int fcgic_tmout_set;
-	hio_svc_fcgic_tmout_t fcgic_tmout;
+	struct
+	{
+		hio_oow_t task_max;
+		hio_oow_t task_cgi_max;
+	} option;
+
+	struct
+	{
+		hio_ooi_t ntasks;
+		hio_ooi_t ntask_cgis;
+	} stat;
 };
 
 struct hio_svc_httc_t

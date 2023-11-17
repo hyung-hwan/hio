@@ -135,7 +135,7 @@ typedef int (*hio_svc_fcgic_on_write_t) (
 
 typedef void (*hio_svc_fcgic_on_untie_t) (
 	hio_svc_fcgic_sess_t* sess,
-	void*                 ctx;
+	void*                 ctx
 );
 
 struct hio_svc_fcgic_sess_t

@@ -1094,7 +1094,7 @@ static int fmt_outv (hio_fmtout_t* fmtout, va_list ap)
 			sign = 0;
 			if (lm_flag & LF_J)
 			{
-			#if 0 && defined(__GNUC__) && \
+			#if 1 && !defined(__clang__) && defined(__GNUC__) && \
 			    (HIO_SIZEOF_UINTMAX_T > HIO_SIZEOF_OOW_T) && \
 			    (HIO_SIZEOF_UINTMAX_T != HIO_SIZEOF_LONG_LONG) && \
 			    (HIO_SIZEOF_UINTMAX_T != HIO_SIZEOF_LONG)
@@ -1106,7 +1106,7 @@ static int fmt_outv (hio_fmtout_t* fmtout, va_list ap)
 				#if defined(HIO_ENDIAN_BIG)
 					num = num << (8 * HIO_SIZEOF(hio_oow_t)) | (va_arg(ap, hio_oow_t));
 				#else
-					register int shift = i * HIO_SIZEOF(hio_oow_t);
+					int shift = i * HIO_SIZEOF(hio_oow_t);
 					hio_oow_t x = va_arg(ap, hio_oow_t);
 					num |= (hio_uintmax_t)x << (shift * HIO_BITS_PER_BYTE);
 				#endif
@@ -1136,7 +1136,7 @@ static int fmt_outv (hio_fmtout_t* fmtout, va_list ap)
 		handle_sign:
 			if (lm_flag & LF_J)
 			{
-			#if 0 && defined(__GNUC__) && \
+			#if 1 && !defined(__clang__) && defined(__GNUC__) && \
 			    (HIO_SIZEOF_INTMAX_T > HIO_SIZEOF_OOI_T) && \
 			    (HIO_SIZEOF_UINTMAX_T != HIO_SIZEOF_LONG_LONG) && \
 			    (HIO_SIZEOF_UINTMAX_T != HIO_SIZEOF_LONG)
@@ -1148,7 +1148,7 @@ static int fmt_outv (hio_fmtout_t* fmtout, va_list ap)
 				#if defined(HIO_ENDIAN_BIG)
 					num = num << (8 * HIO_SIZEOF(hio_oow_t)) | (va_arg(ap, hio_oow_t));
 				#else
-					register int shift = i * HIO_SIZEOF(hio_oow_t);
+					int shift = i * HIO_SIZEOF(hio_oow_t);
 					hio_oow_t x = va_arg(ap, hio_oow_t);
 					num |= (hio_uintmax_t)x << (shift * HIO_BITS_PER_BYTE);
 				#endif

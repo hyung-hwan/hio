@@ -619,7 +619,7 @@ HIO_DEBUG1 (hio, "DNC - unable to receive dns response in time over udp - msgid:
 	{
 		hio_ntime_t* tmout;
 
-		tmout = HIO_IS_POS_NTIME(&msgxtn->wtmout)? &msgxtn->wtmout: HIO_NULL;
+		tmout = HIO_IS_NEG_NTIME(&msgxtn->wtmout)? HIO_NULL: &msgxtn->wtmout;
 HIO_DEBUG1 (hio, "DNC - sending dns question again over udp - msgid:%d\n", (int)hio_ntoh16(hio_dns_msg_to_pkt(reqmsg)->id));
 		if (hio_dev_sck_timedwrite(dev, hio_dns_msg_to_pkt(reqmsg), reqmsg->pktlen, tmout, reqmsg, &msgxtn->servaddr) >= 0) return; /* resent */
 
@@ -810,7 +810,7 @@ static HIO_INLINE int send_dns_msg (hio_svc_dnc_t* dnc, hio_dns_msg_t* msg, int 
 
 	HIO_DEBUG1 (dnc->hio, "DNC - sending dns message over udp - msgid:%d\n", (int)hio_ntoh16(hio_dns_msg_to_pkt(msg)->id));
 
-	tmout = HIO_IS_POS_NTIME(&msgxtn->wtmout)? &msgxtn->wtmout: HIO_NULL;
+	tmout = HIO_IS_NEG_NTIME(&msgxtn->wtmout)? HIO_NULL: &msgxtn->wtmout;
 /* TODO: optionally, override dnc->serv_addr and use the target address passed as a parameter */
 	return hio_dev_sck_timedwrite(dnc->udp_sck, hio_dns_msg_to_pkt(msg), msg->pktlen, tmout, msg, &msgxtn->servaddr);
 }

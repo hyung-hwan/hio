@@ -192,6 +192,7 @@ static void cgi_on_kill (hio_svc_htts_task_t* task)
 	}
 
 	if (cgi->task_next) HIO_SVC_HTTS_TASKL_UNLINK_TASK (cgi); /* detach from the htts service only if it's attached */
+	cgi->htts->stat.ntask_cgis--;
 	HIO_DEBUG5 (hio, "HTTS(%p) - cgi(t=%p,c=%p[%d],p=%p) - killed the task\n", cgi->htts, cgi, cgi->task_client, (cgi->task_csck? cgi->task_csck->hnd: -1), cgi->peer);
 }
 
@@ -938,9 +939,16 @@ int hio_svc_htts_docgi (hio_svc_htts_t* htts, hio_dev_sck_t* csck, hio_htre_t* r
 	HIO_ASSERT (hio, hio_htre_getcontentlen(req) == 0);
 	HIO_ASSERT (hio, cli->sck == csck);
 
+	if (htts->stat.ntask_cgis >= htts->option.task_cgi_max)
+	{
+		hio_seterrbfmt (hio, HIO_ENOCAPA, "too many cgi tasks");
+		return -1;
+	}
+
 	cgi = (cgi_t*)hio_svc_htts_task_make(htts, HIO_SIZEOF(*cgi), cgi_on_kill, req, csck);
 	if (HIO_UNLIKELY(!cgi)) goto oops;
 	HIO_SVC_HTTS_TASK_RCUP((hio_svc_htts_task_t*)cgi);
+	htts->stat.ntask_cgis++;
 
 	cgi->on_kill = on_kill;
 	cgi->options = options;

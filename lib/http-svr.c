@@ -427,7 +427,7 @@ static void halt_idle_clients (hio_t* hio, const hio_ntime_t* now, hio_tmrjob_t*
 
 /* ------------------------------------------------------------------------ */
 
-hio_svc_htts_t* hio_svc_htts_start (hio_t* hio, hio_oow_t xtnsize, hio_dev_sck_bind_t* binds, hio_oow_t nbinds, hio_svc_htts_proc_req_t proc_req, const hio_svc_fcgic_tmout_t* fcgic_tmout)
+hio_svc_htts_t* hio_svc_htts_start (hio_t* hio, hio_oow_t xtnsize, hio_dev_sck_bind_t* binds, hio_oow_t nbinds, hio_svc_htts_proc_req_t proc_req)
 {
 	hio_svc_htts_t* htts = HIO_NULL;
 	union
@@ -454,11 +454,8 @@ hio_svc_htts_t* hio_svc_htts_start (hio_t* hio, hio_oow_t xtnsize, hio_dev_sck_b
 	htts->proc_req = proc_req;
 	htts->idle_tmridx = HIO_TMRIDX_INVALID;
 
-	if (fcgic_tmout)
-	{
-		htts->fcgic_tmout_set = 1;
-		htts->fcgic_tmout = *fcgic_tmout;
-	}
+	htts->option.task_max = HIO_TYPE_MAX(hio_oow_t);
+	htts->option.task_cgi_max = HIO_TYPE_MAX(hio_oow_t);
 
 	htts->becbuf = hio_becs_open(hio, 0, 256);
 	if (HIO_UNLIKELY(!htts->becbuf)) goto oops;
@@ -574,13 +571,6 @@ hio_svc_htts_t* hio_svc_htts_start (hio_t* hio, hio_oow_t xtnsize, hio_dev_sck_b
 	HIO_SVC_HTTS_CLIL_INIT (&htts->cli);
 	HIO_SVC_HTTS_TASKL_INIT (&htts->task);
 
-	htts->fcgic = hio_svc_fcgic_start(htts->hio, (htts->fcgic_tmout_set? &htts->fcgic_tmout: HIO_NULL));
-
-	if (HIO_UNLIKELY(!htts->fcgic))
-	{
-		/* TODO: only warning ... */
-	}
-
 	HIO_DEBUG1 (hio, "HTTS - STARTED SERVICE %p\n", htts);
 
 	{
@@ -672,6 +662,58 @@ void hio_svc_htts_stop (hio_svc_htts_t* htts)
 void* hio_svc_htts_getxtn (hio_svc_htts_t* htts)
 {
 	return (void*)(htts + 1);
+}
+
+
+int hio_svc_htts_getoption (hio_svc_htts_t* htts, hio_svc_htts_option_t id, void* value)
+{
+	switch (id)
+	{
+		case HIO_SVC_HTTS_TASK_MAX:
+			*(hio_oow_t*)value = htts->option.task_max;
+			break;
+
+		case HIO_SVC_HTTS_TASK_CGI_MAX:
+			*(hio_oow_t*)value = htts->option.task_cgi_max;
+			break;
+
+		default:
+			goto einval;
+	}
+
+	return 0;
+
+einval:
+        hio_seterrnum (htts->hio, HIO_EINVAL);
+}
+
+int hio_svc_htts_setoption (hio_svc_htts_t* htts, hio_svc_htts_option_t id, const void* value)
+{
+	switch (id)
+	{
+		case HIO_SVC_HTTS_TASK_MAX:
+			htts->option.task_max = *(const hio_oow_t*)value;
+			break;
+		case HIO_SVC_HTTS_TASK_CGI_MAX:
+			htts->option.task_cgi_max = *(const hio_oow_t*)value;
+			break;
+
+		default:
+			goto einval;
+	}
+
+	return 0;
+
+einval:
+        hio_seterrnum (htts->hio, HIO_EINVAL);
+        return -1;
+}
+
+int hio_svc_htts_enablefcgic (hio_svc_htts_t* htts, hio_svc_fcgic_tmout_t* tmout)
+{
+	if (htts->fcgic) return 0;
+	htts->fcgic = hio_svc_fcgic_start(htts->hio, tmout);
+	return htts->fcgic? 0: -1;
 }
 
 int hio_svc_htts_setservernamewithbcstr (hio_svc_htts_t* htts, const hio_bch_t* name)
@@ -795,6 +837,7 @@ hio_svc_htts_task_t* hio_svc_htts_task_make (hio_svc_htts_t* htts, hio_oow_t tas
 	HIO_ASSERT (hio, csck->on_write == client_on_write);
 	HIO_ASSERT (hio, csck->on_disconnect == client_on_disconnect);
 
+	htts->stat.ntasks++;
 	HIO_DEBUG2 (hio, "HTTS(%p) - allocated task %p\n", htts, task);
 	return task;
 }
@@ -809,6 +852,7 @@ void hio_svc_htts_task_kill (hio_svc_htts_task_t* task)
 	if (task->task_on_kill) task->task_on_kill (task);
 	hio_freemem (hio, task);
 
+	htts->stat.ntasks--;
 	HIO_DEBUG2 (hio, "HTTS(%p) - destroyed task %p\n", htts, task);
 }
 

@@ -417,11 +417,25 @@ int webs_start (hio_t* hio, const arg_info_t* ai)
 	}
 
 	HIO_MEMSET (&fcgic_tmout, 0, HIO_SIZEOF(fcgic_tmout));
-	fcgic_tmout.c.sec = 5;
-	fcgic_tmout.r.sec = 60;
+	HIO_INIT_NTIME(&fcgic_tmout.c, 5, 0);
+	HIO_INIT_NTIME(&fcgic_tmout.r, 60, 0);
+	HIO_INIT_NTIME(&fcgic_tmout.w, -1, 0);
 
-	webs = hio_svc_htts_start(hio, HIO_SIZEOF(htts_ext_t), bi, bic, process_http_request, &fcgic_tmout);
+	webs = hio_svc_htts_start(hio, HIO_SIZEOF(htts_ext_t), bi, bic, process_http_request);
 	if (!webs) return -1; /* TODO: logging */
+
+	{
+		hio_oow_t ov;
+		ov = 1000;
+		hio_svc_htts_setoption (webs, HIO_SVC_HTTS_TASK_CGI_MAX, &ov);
+	}
+
+	if (hio_svc_htts_enablefcgic(webs, &fcgic_tmout) <= -1)
+	{
+		/* TODO: logging */
+		hio_svc_htts_stop (webs);
+		return -1;
+	}
 
 	ext = hio_svc_htts_getxtn(webs);
 	ext->ai = ai;
