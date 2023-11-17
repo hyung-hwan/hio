@@ -39,6 +39,38 @@ static int client_on_write (hio_dev_sck_t* sck, hio_iolen_t wrlen, void* wrctx, 
 static void client_on_disconnect (hio_dev_sck_t* sck);
 
 /* ------------------------------------------------------------------------ */
+
+static int inc_ntasks (hio_svc_htts_t* htts)
+{
+	int ok;
+	do
+	{
+		hio_oow_t ntasks;
+		ntasks = HCL_ATOMIC_LOAD(&htts->stat.ntasks);
+		if (ntasks >= htts->option.task_cgi_max)
+		{
+			hio_seterrbfmt (htts->hio, HIO_ENOCAPA, "too many tasks");
+			return -1;
+		}
+		ok = HCL_ATOMIC_CMP_XCHG(&htts->stat.ntasks, &ntasks, ntasks + 1);
+	}
+	while (!ok);
+	return 0;
+}
+
+static void dec_ntasks (hio_svc_htts_t* htts)
+{
+	int ok;
+	do
+	{
+		hio_oow_t ntasks;
+		ntasks = HCL_ATOMIC_LOAD(&htts->stat.ntasks);
+		ok = HCL_ATOMIC_CMP_XCHG(&htts->stat.ntasks, &ntasks, ntasks - 1);
+	}
+	while (!ok);
+}
+
+/* ------------------------------------------------------------------------ */
 static int client_htrd_peek_request (hio_htrd_t* htrd, hio_htre_t* req)
 {
 	hio_svc_htts_cli_htrd_xtn_t* htrdxtn = (hio_svc_htts_cli_htrd_xtn_t*)hio_htrd_getxtn(htrd);
@@ -805,10 +837,13 @@ hio_svc_htts_task_t* hio_svc_htts_task_make (hio_svc_htts_t* htts, hio_oow_t tas
 	qpath_len = hio_htre_getqpathlen(req);
 	qmth_len = hio_htre_getqmethodlen(req);
 
+	if (inc_ntasks(htts) <= -1) return HIO_NULL;
+
 	task = hio_callocmem(hio, task_size + qmth_len + 1 + qpath_len + 1);
 	if (HIO_UNLIKELY(!task))
 	{
 		HIO_DEBUG1 (hio, "HTTS(%p) - failed to allocate task\n", htts);
+		dec_ntasks (htts);
 		return HIO_NULL;
 	}
 
@@ -837,7 +872,6 @@ hio_svc_htts_task_t* hio_svc_htts_task_make (hio_svc_htts_t* htts, hio_oow_t tas
 	HIO_ASSERT (hio, csck->on_write == client_on_write);
 	HIO_ASSERT (hio, csck->on_disconnect == client_on_disconnect);
 
-	htts->stat.ntasks++;
 	HIO_DEBUG2 (hio, "HTTS(%p) - allocated task %p\n", htts, task);
 	return task;
 }
@@ -852,7 +886,7 @@ void hio_svc_htts_task_kill (hio_svc_htts_task_t* task)
 	if (task->task_on_kill) task->task_on_kill (task);
 	hio_freemem (hio, task);
 
-	htts->stat.ntasks--;
+	dec_ntasks (htts);
 	HIO_DEBUG2 (hio, "HTTS(%p) - destroyed task %p\n", htts, task);
 }
 

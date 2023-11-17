@@ -48,6 +48,8 @@
 #define CGI_OVER_WRITE_TO_PEER    (1 << 3)
 #define CGI_OVER_ALL (CGI_OVER_READ_FROM_CLIENT | CGI_OVER_READ_FROM_PEER | CGI_OVER_WRITE_TO_CLIENT | CGI_OVER_WRITE_TO_PEER)
 
+/* ----------------------------------------------------------------------- */
+
 struct cgi_t
 {
 	HIO_SVC_HTTS_TASK_HEADER;
@@ -75,8 +77,44 @@ struct cgi_peer_xtn_t
 };
 typedef struct cgi_peer_xtn_t cgi_peer_xtn_t;
 
+/* ----------------------------------------------------------------------- */
+
 static void unbind_task_from_client (cgi_t* cgi, int rcdown);
 static void unbind_task_from_peer (cgi_t* cgi, int rcdown);
+
+/* ----------------------------------------------------------------------- */
+
+static int inc_ntask_cgis (hio_svc_htts_t* htts)
+{
+	int ok;
+	do
+	{
+		hio_oow_t ntask_cgis;
+		ntask_cgis = HCL_ATOMIC_LOAD(&htts->stat.ntask_cgis);
+		if (ntask_cgis >= htts->option.task_cgi_max)
+		{
+			hio_seterrbfmt (htts->hio, HIO_ENOCAPA, "too many cgi tasks");
+			return -1;
+		}
+		ok = HCL_ATOMIC_CMP_XCHG(&htts->stat.ntask_cgis, &ntask_cgis, ntask_cgis + 1);
+	}
+	while (!ok);
+	return 0;
+}
+
+static void dec_ntask_cgis (hio_svc_htts_t* htts)
+{
+	int ok;
+	do
+	{
+		hio_oow_t ntask_cgis;
+		ntask_cgis = HCL_ATOMIC_LOAD(&htts->stat.ntask_cgis);
+		ok = HCL_ATOMIC_CMP_XCHG(&htts->stat.ntask_cgis, &ntask_cgis, ntask_cgis - 1);
+	}
+	while (!ok);
+}
+
+/* ----------------------------------------------------------------------- */
 
 static void cgi_halt_participating_devices (cgi_t* cgi)
 {
@@ -192,7 +230,8 @@ static void cgi_on_kill (hio_svc_htts_task_t* task)
 	}
 
 	if (cgi->task_next) HIO_SVC_HTTS_TASKL_UNLINK_TASK (cgi); /* detach from the htts service only if it's attached */
-	cgi->htts->stat.ntask_cgis--;
+	dec_ntask_cgis (cgi->htts);
+
 	HIO_DEBUG5 (hio, "HTTS(%p) - cgi(t=%p,c=%p[%d],p=%p) - killed the task\n", cgi->htts, cgi, cgi->task_client, (cgi->task_csck? cgi->task_csck->hnd: -1), cgi->peer);
 }
 
@@ -939,16 +978,14 @@ int hio_svc_htts_docgi (hio_svc_htts_t* htts, hio_dev_sck_t* csck, hio_htre_t* r
 	HIO_ASSERT (hio, hio_htre_getcontentlen(req) == 0);
 	HIO_ASSERT (hio, cli->sck == csck);
 
-	if (htts->stat.ntask_cgis >= htts->option.task_cgi_max)
-	{
-		hio_seterrbfmt (hio, HIO_ENOCAPA, "too many cgi tasks");
-		return -1;
-	}
-
+	if (inc_ntask_cgis(htts) <= -1) return -1;
 	cgi = (cgi_t*)hio_svc_htts_task_make(htts, HIO_SIZEOF(*cgi), cgi_on_kill, req, csck);
-	if (HIO_UNLIKELY(!cgi)) goto oops;
+	if (HIO_UNLIKELY(!cgi))
+	{
+		dec_ntask_cgis (htts);
+		goto oops;
+	}
 	HIO_SVC_HTTS_TASK_RCUP((hio_svc_htts_task_t*)cgi);
-	htts->stat.ntask_cgis++;
 
 	cgi->on_kill = on_kill;
 	cgi->options = options;

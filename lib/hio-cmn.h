@@ -963,6 +963,14 @@ struct hio_cmgr_t
 	#endif
 #endif
 
+#if defined(__clang__) || (defined(__GNUC__) && (__GNUC__ > 4 || (__GNUC__ == 4 && __GNUC_MINOR__ >= 7)))
+	#define HCL_ATOMIC_LOAD(dst) __atomic_load_n(dst, __ATOMIC_RELAXED)
+	#define HCL_ATOMIC_CMP_XCHG(dst,expected,desired) \
+		__atomic_compare_exchange_n(dst, expected, desired, 0, __ATOMIC_RELAXED, __ATOMIC_RELAXED)
+#else
+	#error NOT SUPPORTED
+#endif
+
 #if defined(HIO_HAVE_BUILTIN_EXPECT)
 #	define HIO_LIKELY(x) (__builtin_expect(!!(x),1))
 #	define HIO_UNLIKELY(x) (__builtin_expect(!!(x),0))
