@@ -2,6 +2,7 @@
 #include <hio-tar.h>
 #include <hio-opt.h>
 #include <hio-prv.h>
+#include <hio-utl.h>
 #include <signal.h>
 #include <string.h>
 #include <stdio.h>
@@ -14,6 +15,7 @@
 
 struct arg_info_t
 {
+	const char* logopt;
 	const char* laddrs;
 	const char* docroot;
 	int file_list_dir;
@@ -443,6 +445,8 @@ int webs_start (hio_t* hio, const arg_info_t* ai)
 	return 0;
 }
 
+/* ========================================================================= */
+
 static hio_t* g_hio = HIO_NULL;
 
 static void handle_sigint (int sig)
@@ -450,21 +454,156 @@ static void handle_sigint (int sig)
 	if (g_hio) hio_stop (g_hio, HIO_STOPREQ_TERMINATION);
 }
 
+
+static int handle_logopt (hio_t* hio, const hio_bch_t* logstr)
+{
+	hio_bch_t* cm, * flt;
+	hio_bitmask_t logmask;
+	hio_oow_t tlen, i;
+	hio_bcs_t fname;
+
+	static struct
+	{
+		const char* name;
+		int op; /* 0: bitwise-OR, 1: bitwise-AND */
+		hio_bitmask_t mask;
+	} xtab[] =
+	{
+		{ "",            0, 0 },
+
+		{ "core",        0, HIO_LOG_CORE },
+		{ "dev",         0, HIO_LOG_DEV },
+		{ "timer",       0, HIO_LOG_TIMER },
+
+		/* select a specific level */
+		{ "fatal",      0, HIO_LOG_FATAL },
+		{ "error",      0, HIO_LOG_ERROR },
+		{ "warn",       0, HIO_LOG_WARN },
+		{ "info",       0, HIO_LOG_INFO },
+		{ "debug",      0, HIO_LOG_DEBUG },
+
+		/* select a specific level or higher */
+		{ "fatal+",     0, HIO_LOG_FATAL },
+		{ "error+",     0, HIO_LOG_FATAL | HIO_LOG_ERROR },
+		{ "warn+",      0, HIO_LOG_FATAL | HIO_LOG_ERROR | HIO_LOG_WARN },
+		{ "info+",      0, HIO_LOG_FATAL | HIO_LOG_ERROR | HIO_LOG_WARN | HIO_LOG_INFO },
+		{ "debug+",     0, HIO_LOG_FATAL | HIO_LOG_ERROR | HIO_LOG_WARN | HIO_LOG_INFO | HIO_LOG_DEBUG },
+
+		/* select a specific level or lower */
+		{ "fatal-",     0, HIO_LOG_FATAL | HIO_LOG_ERROR | HIO_LOG_WARN | HIO_LOG_INFO | HIO_LOG_DEBUG },
+		{ "error-",     0, HIO_LOG_ERROR | HIO_LOG_WARN | HIO_LOG_INFO | HIO_LOG_DEBUG },
+		{ "warn-",      0, HIO_LOG_WARN | HIO_LOG_INFO | HIO_LOG_DEBUG },
+		{ "info-",      0, HIO_LOG_INFO | HIO_LOG_DEBUG },
+		{ "debug-",     0, HIO_LOG_DEBUG },
+
+		/* exclude a specific level */
+		{ "-fatal",     1, ~HIO_LOG_FATAL },
+		{ "-error",     1, ~HIO_LOG_ERROR },
+		{ "-warn",      1, ~HIO_LOG_WARN },
+		{ "-info",      1, ~HIO_LOG_INFO },
+		{ "-debug",     1, ~HIO_LOG_DEBUG },
+	};
+
+	cm = hio_find_bchar_in_bcstr(logstr, ',');
+	if (cm)
+	{
+		fname.len = cm - logstr;
+		logmask = 0;
+
+		do
+		{
+			flt = cm + 1;
+
+			cm = hio_find_bchar_in_bcstr(flt, ',');
+			tlen = (cm)? (cm - flt): hio_count_bcstr(flt);
+
+			for (i = 0; i < HIO_COUNTOF(xtab); i++)
+			{
+				if (hio_comp_bchars_bcstr(flt, tlen, xtab[i].name, 0) == 0)
+				{
+					if (xtab[i].op) logmask &= xtab[i].mask;
+					else logmask |= xtab[i].mask;
+					break;
+				}
+			}
+
+			if (i >= HIO_COUNTOF(xtab))
+			{
+				fprintf (stderr, "ERROR: unrecognized value  - [%.*s] - [%s]\n", (int)tlen, flt, logstr);
+				return -1;
+			}
+		}
+		while (cm);
+
+
+		if (!(logmask & HIO_LOG_ALL_TYPES)) logmask |= HIO_LOG_ALL_TYPES;  /* no types specified. force to all types */
+		if (!(logmask & HIO_LOG_ALL_LEVELS)) logmask |= HIO_LOG_ALL_LEVELS;  /* no levels specified. force to all levels */
+	}
+	else
+	{
+		logmask = HIO_LOG_ALL_LEVELS | HIO_LOG_ALL_TYPES;
+		fname.len = hio_count_bcstr(logstr);
+	}
+
+	fname.ptr = (hio_bch_t*)logstr;
+	hio_setoption (hio, HIO_LOG_TARGET_BCS, &fname);
+
+	logmask |= HIO_LOG_GUARDED;
+	hio_setoption (hio, HIO_LOG_MASK, &logmask);
+	return 0;
+}
+
+#if defined(HIO_BUILD_DEBUG)
+#if 0
+static int handle_dbgopt (hio_t* hio, const hio_bch_t* str)
+{
+	/*xtn_t* xtn = (xtn_t*)hio_getxtn(hio);*/
+	const hio_bch_t* cm, * flt;
+	hio_oow_t len;
+	hio_bitmask_t trait, dbgopt = 0;
+
+	cm = str - 1;
+	do
+	{
+		flt = cm + 1;
+
+		cm = hio_find_bchar_in_bcstr(flt, ',');
+		len = cm? (cm - flt): hio_count_bcstr(flt);
+		if (hio_comp_bchars_bcstr(flt, len, "htts") == 0)  dbgopt |= HIO_TRAIT_DEBUG_HTTS;
+		else if (hio_comp_bchars_bcstr(flt, len, "bigint") == 0)  dbgopt |= HIO_TRAIT_DEBUG_BIGINT;
+		else
+		{
+			fprintf (stderr, "ERROR: unknown debug option value - %.*s\n", (int)len, flt);
+			return -1;
+		}
+	}
+	while (cm);
+
+	hio_getoption (hio, HIO_TRAIT, &trait);
+	trait |= dbgopt;
+	hio_setoption (hio, HIO_TRAIT, &trait);
+	return 0;
+}
+#endif
+#endif
+
 static int process_args (int argc, char* argv[], arg_info_t* ai)
 {
 	static hio_bopt_lng_t lopt[] =
 	{
 		{ "file-no-list-dir", '\0' },
 		{ "file-no-load-index-page", '\0'},
+		{ ":log",             'l' },
 		{ HIO_NULL, '\0'}
 	};
 	static hio_bopt_t opt =
 	{
-		"",
+		"l:",
 		lopt
 	};
 
 	hio_bci_t c;
+	const char* logopt = HIO_NULL;
 
 	if (argc < 3)
 	{
@@ -481,6 +620,10 @@ static int process_args (int argc, char* argv[], arg_info_t* ai)
 	{
 		switch (c)
 		{
+			case 'l':
+				logopt = opt.arg;
+				break;
+
 			case '\0':
 				if (strcasecmp(opt.lngopt, "file-no-list-dir") == 0)
 				{
@@ -493,6 +636,8 @@ static int process_args (int argc, char* argv[], arg_info_t* ai)
 					break;
 				}
 				goto print_usage;
+
+
 
 			case ':':
 				if (opt.lngopt)
@@ -508,6 +653,7 @@ static int process_args (int argc, char* argv[], arg_info_t* ai)
 
 	if (argc - opt.ind != 2) goto print_usage;
 
+	ai->logopt = logopt;
 	ai->laddrs = argv[opt.ind++];
 	ai->docroot = argv[opt.ind++];
 	return 0;
@@ -537,13 +683,8 @@ int main (int argc, char* argv[])
 		goto oops;
 	}
 
-	hio_setoption (hio, HIO_LOG_TARGET_BCSTR, "/dev/stderr");
-	{
-		hio_bitmask_t logmask;
-		hio_getoption (hio, HIO_LOG_MASK, &logmask);
-		logmask |= HIO_LOG_GUARDED;
-		hio_setoption (hio, HIO_LOG_MASK, &logmask);
-	}
+	if (ai.logopt && handle_logopt(hio, ai.logopt) <= -1) goto oops;
+
 	
 	g_hio = hio;
 
