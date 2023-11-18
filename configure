@@ -15025,6 +15025,15 @@ then :
   printf "%s\n" "#define HAVE_NET_IF_DL_H 1" >>confdefs.h
 
 fi
+ac_fn_c_check_header_compile "$LINENO" "netinet/if_ether.h" "ac_cv_header_netinet_if_ether_h" "
+	#include <sys/types.h>
+	#include <sys/socket.h>
+"
+if test "x$ac_cv_header_netinet_if_ether_h" = xyes
+then :
+  printf "%s\n" "#define HAVE_NETINET_IF_ETHER_H 1" >>confdefs.h
+
+fi
 ac_fn_c_check_header_compile "$LINENO" "netpacket/packet.h" "ac_cv_header_netpacket_packet_h" "
 	#include <sys/types.h>
 	#include <sys/socket.h>

@@ -32,10 +32,15 @@
 #include <errno.h>
 #include <string.h> /* strerror */
 
-#include <netinet/in.h>
-#include <arpa/inet.h>
-#include <net/if.h>
-#include <netinet/if_ether.h>
+#if defined(HAVE_NETINET_IN_H)
+#	include <netinet/in.h>
+#endif
+#if defined(HAVE_NET_IF_H)
+#	include <net/if.h>
+#endif
+#if defined(HAVE_NETINET_IF_ETHER_H)
+#	include <netinet/if_ether.h>
+#endif
 
 #if defined(HAVE_NETINET_SCTP_H)
 #	include <netinet/sctp.h>
