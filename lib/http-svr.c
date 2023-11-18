@@ -42,7 +42,17 @@ static void client_on_disconnect (hio_dev_sck_t* sck);
 
 static int inc_ntasks (hio_svc_htts_t* htts)
 {
-#if defined(HCL_ATOMIC_LOAD) && defined(HCL_ATOMIC_CMP_XCHG)
+#if !(defined(HCL_ATOMIC_LOAD) && defined(HCL_ATOMIC_CMP_XCHG))
+	hio_spl_lock (&htts->stat.spl_ntasks);
+	if (htts->stat.ntasks >= htts->option.task_max)
+	{
+		hio_spl_unlock (&htts->stat.spl_ntasks);
+		hio_seterrbfmt (htts->hio, HIO_ENOCAPA, "too many tasks");
+		return -1;
+	}
+	htts->stat.ntasks++;
+	hio_spl_unlock (&htts->stat.spl_ntasks);
+#else
 	int ok;
 	do
 	{
@@ -56,20 +66,17 @@ static int inc_ntasks (hio_svc_htts_t* htts)
 		ok = HCL_ATOMIC_CMP_XCHG(&htts->stat.ntasks, &ntasks, ntasks + 1);
 	}
 	while (!ok);
-#else
-	if (htts->stat.ntasks >= htts->option.task_max)
-	{
-		hio_seterrbfmt (htts->hio, HIO_ENOCAPA, "too many tasks");
-		return -1;
-	}
-	htts->stat.ntasks++;
 #endif
 	return 0;
 }
 
 static void dec_ntasks (hio_svc_htts_t* htts)
 {
-#if defined(HCL_ATOMIC_LOAD) && defined(HCL_ATOMIC_CMP_XCHG)
+#if !(defined(HCL_ATOMIC_LOAD) && defined(HCL_ATOMIC_CMP_XCHG))
+	hio_spl_lock (&htts->stat.spl_ntasks);
+	htts->stat.ntasks--;
+	hio_spl_unlock (&htts->stat.spl_ntasks);
+#else
 	int ok;
 	do
 	{
@@ -78,8 +85,6 @@ static void dec_ntasks (hio_svc_htts_t* htts)
 		ok = HCL_ATOMIC_CMP_XCHG(&htts->stat.ntasks, &ntasks, ntasks - 1);
 	}
 	while (!ok);
-#else
-	htts->stat.ntasks--;
 #endif
 }
 
@@ -629,6 +634,13 @@ hio_svc_htts_t* hio_svc_htts_start (hio_t* hio, hio_oow_t xtnsize, hio_dev_sck_b
 		}
 	}
 
+
+#if !(defined(HCL_ATOMIC_LOAD) && defined(HCL_ATOMIC_CMP_XCHG))
+	hio_spl_init (&htts->stat.spl_ntasks);
+	hio_spl_init (&htts->stat.spl_ntask_cgis);
+#endif
+
+
 	return htts;
 
 oops:
@@ -729,7 +741,8 @@ int hio_svc_htts_getoption (hio_svc_htts_t* htts, hio_svc_htts_option_t id, void
 	return 0;
 
 einval:
-        hio_seterrnum (htts->hio, HIO_EINVAL);
+	hio_seterrnum (htts->hio, HIO_EINVAL);
+	return -1;
 }
 
 int hio_svc_htts_setoption (hio_svc_htts_t* htts, hio_svc_htts_option_t id, const void* value)

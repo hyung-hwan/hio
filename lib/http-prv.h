@@ -28,6 +28,7 @@
 #include <hio-http.h>
 #include <hio-htrd.h>
 #include <hio-sck.h>
+#include <hio-spl.h>
 #include "hio-prv.h"
 
 struct hio_svc_htts_cli_t
@@ -89,6 +90,10 @@ struct hio_svc_htts_t
 	{
 		hio_ooi_t ntasks;
 		hio_ooi_t ntask_cgis;
+	#if !(defined(HCL_ATOMIC_LOAD) && defined(HCL_ATOMIC_CMP_XCHG))
+		hio_spl_t spl_ntasks;
+		hio_spl_t spl_ntask_cgis;
+	#endif
 	} stat;
 };
 

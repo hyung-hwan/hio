@@ -46,7 +46,7 @@ static HIO_INLINE void hio_spl_init (hio_spl_t* spl) { *spl = HIO_SPL_INIT; }
 
 #if defined(HIO_HAVE_INLINE)
 static HIO_INLINE int hio_spl_trylock (hio_spl_t* spl) { return !__sync_lock_test_and_set(spl, 1); }
-static HIO_INLINE void hio_spl_lock (hio_spl_t* spl) { do {} while(__sync_lock_test_and_set(spl, 1)); }
+static HIO_INLINE void hio_spl_lock (hio_spl_t* spl) { while(__sync_lock_test_and_set(spl, 1)); }
 static HIO_INLINE void hio_spl_unlock (hio_spl_t* spl) { __sync_lock_release(spl); }
 #else
 #	define hio_spl_trylock(spl) (!__sync_lock_test_and_set(spl, 1))

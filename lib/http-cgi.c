@@ -63,6 +63,7 @@ struct cgi_t
 
 	unsigned int over: 4; /* must be large enough to accomodate CGI_OVER_ALL */
 	unsigned int client_htrd_recbs_changed: 1;
+	unsigned int ntask_cgis_inced: 1;
 
 	hio_dev_sck_on_read_t client_org_on_read;
 	hio_dev_sck_on_write_t client_org_on_write;
@@ -86,7 +87,17 @@ static void unbind_task_from_peer (cgi_t* cgi, int rcdown);
 
 static int inc_ntask_cgis (hio_svc_htts_t* htts)
 {
-#if defined(HCL_ATOMIC_LOAD) && defined(HCL_ATOMIC_CMP_XCHG)
+#if !(defined(HCL_ATOMIC_LOAD) && defined(HCL_ATOMIC_CMP_XCHG))
+	hio_spl_lock (&htts->stat.spl_ntask_cgis);
+	if (htts->stat.ntask_cgis >= htts->option.task_cgi_max)
+	{
+		hio_spl_unlock (&htts->stat.spl_ntask_cgis);
+		hio_seterrbfmt (htts->hio, HIO_ENOCAPA, "too many cgi tasks");
+		return -1;
+	}
+	htts->stat.ntask_cgis++;
+	hio_spl_unlock (&htts->stat.spl_ntask_cgis);
+#else
 	int ok;
 	do
 	{
@@ -100,20 +111,17 @@ static int inc_ntask_cgis (hio_svc_htts_t* htts)
 		ok = HCL_ATOMIC_CMP_XCHG(&htts->stat.ntask_cgis, &ntask_cgis, ntask_cgis + 1);
 	}
 	while (!ok);
-#else
-	if (htts->stat.ntask_cgis >= htts->option.task_cgi_max)
-	{
-		hio_seterrbfmt (htts->hio, HIO_ENOCAPA, "too many cgi tasks");
-		return -1;
-	}
-	htts->stat.ntask_cgis++;
 #endif
 	return 0;
 }
 
 static void dec_ntask_cgis (hio_svc_htts_t* htts)
 {
-#if defined(HCL_ATOMIC_LOAD) && defined(HCL_ATOMIC_CMP_XCHG)
+#if !(defined(HCL_ATOMIC_LOAD) && defined(HCL_ATOMIC_CMP_XCHG))
+	hio_spl_lock (&htts->stat.spl_ntask_cgis);
+	htts->stat.ntask_cgis--;
+	hio_spl_unlock (&htts->stat.spl_ntask_cgis);
+#else
 	int ok;
 	do
 	{
@@ -122,8 +130,6 @@ static void dec_ntask_cgis (hio_svc_htts_t* htts)
 		ok = HCL_ATOMIC_CMP_XCHG(&htts->stat.ntask_cgis, &ntask_cgis, ntask_cgis - 1);
 	}
 	while (!ok);
-#else
-	htts->stat.ntask_cgis--;
 #endif
 }
 
@@ -243,7 +249,12 @@ static void cgi_on_kill (hio_svc_htts_task_t* task)
 	}
 
 	if (cgi->task_next) HIO_SVC_HTTS_TASKL_UNLINK_TASK (cgi); /* detach from the htts service only if it's attached */
-	dec_ntask_cgis (cgi->htts);
+
+	if (cgi->ntask_cgis_inced)
+	{
+		dec_ntask_cgis (cgi->htts);
+		cgi->ntask_cgis_inced = 0;
+	}
 
 	HIO_DEBUG5 (hio, "HTTS(%p) - cgi(t=%p,c=%p[%d],p=%p) - killed the task\n", cgi->htts, cgi, cgi->task_client, (cgi->task_csck? cgi->task_csck->hnd: -1), cgi->peer);
 }
@@ -992,7 +1003,7 @@ int hio_svc_htts_docgi (hio_svc_htts_t* htts, hio_dev_sck_t* csck, hio_htre_t* r
 	hio_svc_htts_cli_t* cli = hio_dev_sck_getxtn(csck);
 	cgi_t* cgi = HIO_NULL;
 	int n, status_code = HIO_HTTP_STATUS_INTERNAL_SERVER_ERROR;
-	int bound_to_client = 0, bound_to_peer = 0;
+	int bound_to_client = 0, bound_to_peer = 0, ntask_cgi_inced = 0;
 
 	/* ensure that you call this function before any contents is received */
 	HIO_ASSERT (hio, hio_htre_getcontentlen(req) == 0);
@@ -1012,7 +1023,7 @@ int hio_svc_htts_docgi (hio_svc_htts_t* htts, hio_dev_sck_t* csck, hio_htre_t* r
 		status_code = HIO_HTTP_STATUS_SERVICE_UNAVAILABLE;
 		goto oops;
 	}
-
+	cgi->ntask_cgis_inced = 1;
 	cgi->options = options;
 
 	bind_task_to_client (cgi, csck);
@@ -1035,7 +1046,8 @@ int hio_svc_htts_docgi (hio_svc_htts_t* htts, hio_dev_sck_t* csck, hio_htre_t* r
 	HIO_SVC_HTTS_TASK_RCDOWN((hio_svc_htts_task_t*)cgi);
 
 	/* set the on_kill callback only if this function can return success.
-	 * the on_kill callback won't be executed if this function returns failure. */
+	 * the on_kill callback won't be executed if this function returns failure.
+	 * however, the internal callback cgi_on_kill is still called */
 	cgi->on_kill = on_kill;
 	return 0;
 

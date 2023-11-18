@@ -427,7 +427,7 @@ int webs_start (hio_t* hio, const arg_info_t* ai)
 
 	{
 		hio_oow_t ov;
-		ov = 100;
+		ov = 200;
 		hio_svc_htts_setoption (webs, HIO_SVC_HTTS_TASK_CGI_MAX, &ov);
 	}
 
