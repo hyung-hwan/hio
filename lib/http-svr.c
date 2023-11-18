@@ -51,7 +51,6 @@ static int inc_ntasks (hio_svc_htts_t* htts)
 		if (ntasks >= htts->option.task_max)
 		{
 			hio_seterrbfmt (htts->hio, HIO_ENOCAPA, "too many tasks");
-			printf ("too many tasks...\n");
 			return -1;
 		}
 		ok = HCL_ATOMIC_CMP_XCHG(&htts->stat.ntasks, &ntasks, ntasks + 1);

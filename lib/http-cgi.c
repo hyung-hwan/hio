@@ -95,7 +95,6 @@ static int inc_ntask_cgis (hio_svc_htts_t* htts)
 		if (ntask_cgis >= htts->option.task_cgi_max)
 		{
 			hio_seterrbfmt (htts->hio, HIO_ENOCAPA, "too many cgi tasks");
-			printf ("too many cgi task....\n");
 			return -1;
 		}
 		ok = HCL_ATOMIC_CMP_XCHG(&htts->stat.ntask_cgis, &ntask_cgis, ntask_cgis + 1);

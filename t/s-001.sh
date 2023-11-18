@@ -68,7 +68,8 @@ test_cgi()
 	local tmpdir="/tmp/s-001.$$"
 
 	mkdir -p "${tmpdir}"
-	cp -pf t-cgi "${tmpdir}/t.cgi"
+	cp -pf "${srcdir}/t-cgi.sh" "${tmpdir}/t.cgi"
+	chmod ugo+x "${tmpdir}/t.cgi"
 
 	## check directory listing against an empty directory
 	../bin/hio-webs "${srvaddr}" "${tmpdir}" 2>/dev/null &
@@ -80,6 +81,12 @@ test_cgi()
 
 ls -ld ${tmpdir}
 ls -l ${tmpdir}
+echo "--------------------"
+cat ${tmpdir}/t.out
+echo "--------------------"
+cat ${tmpdir}/t.cgi
+echo "--------------------"
+
 	local request_method=$(grep -E "^REQUEST_METHOD:" "${tmpdir}/t.out" | cut -d: -f2)
 	local request_uri=$(grep -E "^REQUEST_URI:" "${tmpdir}/t.out" | cut -d: -f2)
 	local query_string=$(grep -E "^QUERY_STRING:" "${tmpdir}/t.out" | cut -d: -f2)
