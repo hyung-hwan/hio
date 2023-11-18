@@ -917,6 +917,13 @@ struct hio_cmgr_t
 		#define HIO_HAVE_BUILTIN_BSWAP128
 	#endif
 
+	#if __has_builtin(__atomic_load_n)
+		#define HIO_HAVE_BUILTIN_ATOMIC_LOAD_N
+	#endif
+	#if __has_builtin(__atomic_compare_exchange_n)
+		#define HIO_HAVE_BUILTIN_ATOMIC_COMPARE_EXCHANGE_N
+	#endif
+
 #elif defined(__GNUC__) && defined(__GNUC_MINOR__)
 
 	#if (__GNUC__ >= 4)
@@ -933,6 +940,11 @@ struct hio_cmgr_t
 		#define HIO_HAVE_BUILTIN_CTZL
 		#define HIO_HAVE_BUILTIN_CTZLL
 		#define HIO_HAVE_BUILTIN_EXPECT
+	#endif
+
+	#if (__GNUC__ > 4 || (__GNUC__ == 4 && __GNUC_MINOR__ >= 7))
+		#define HIO_HAVE_BUILTIN_ATOMIC_LOAD_N
+		#define HIO_HAVE_BUILTIN_ATOMIC_COMPARE_EXCHANGE_N
 	#endif
 
 	#if (__GNUC__ >= 5)
@@ -963,12 +975,12 @@ struct hio_cmgr_t
 	#endif
 #endif
 
-#if defined(__clang__) || (defined(__GNUC__) && (__GNUC__ > 4 || (__GNUC__ == 4 && __GNUC_MINOR__ >= 7)))
-	#define HCL_ATOMIC_LOAD(dst) __atomic_load_n(dst, __ATOMIC_RELAXED)
-	#define HCL_ATOMIC_CMP_XCHG(dst,expected,desired) \
+#if defined(HIO_HAVE_BUILTIN_ATOMIC_LOAD_N)
+#	define HCL_ATOMIC_LOAD(dst) __atomic_load_n(dst, __ATOMIC_RELAXED)
+#endif
+#if defined(HIO_HAVE_BUILTIN_ATOMIC_COMPARE_EXCHANGE_N)
+#	define HCL_ATOMIC_CMP_XCHG(dst,expected,desired) \
 		__atomic_compare_exchange_n(dst, expected, desired, 0, __ATOMIC_RELAXED, __ATOMIC_RELAXED)
-#else
-	#error NOT SUPPORTED
 #endif
 
 #if defined(HIO_HAVE_BUILTIN_EXPECT)

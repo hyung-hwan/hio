@@ -212,7 +212,7 @@ static int sck_on_read (hio_dev_sck_t* sck, const void* data, hio_iolen_t dlen, 
 				conn->r.len = 0; /* reset to 0 to use the buffer to hold body */
 
 				/* the expected body length must not be too long */
-				HIO_ASSERT (hio, conn->r.body_len <= HIO_SIZEOF(conn->r.buf)); 
+				HIO_ASSERT (hio, conn->r.body_len <= HIO_SIZEOF(conn->r.buf));
 
 				if (conn->r.type == HIO_FCGI_END_REQUEST && conn->r.content_len < HIO_SIZEOF(hio_fcgi_end_request_body_t))
 				{
@@ -375,7 +375,7 @@ static hio_svc_fcgic_conn_t* get_connection (hio_svc_fcgic_t* fcgic, const hio_s
 static int destroy_connection_memory (hio_t* hio, hio_cfmb_t* cfmb)
 {
 	hio_svc_fcgic_conn_t* conn = (hio_svc_fcgic_conn_t*)cfmb;
-	if (conn->sess.ptr) 
+	if (conn->sess.ptr)
 	{
 		hio_oow_t i;
 
@@ -435,7 +435,7 @@ static hio_svc_fcgic_sess_t* new_session (hio_svc_fcgic_t* fcgic, const hio_skad
 		/* reallocate the session pointer bucket */
 		newcapa = conn->sess.capa + CONN_SESS_INC;
 		newptr = (hio_svc_fcgic_sess_t**)hio_reallocmem(hio, conn->sess.ptr, HIO_SIZEOF(*newptr) * newcapa);
-		if (HIO_UNLIKELY(!newptr)) 
+		if (HIO_UNLIKELY(!newptr))
 		{
 			hio_freemem (hio, newblk);
 			return HIO_NULL;
@@ -459,7 +459,7 @@ static hio_svc_fcgic_sess_t* new_session (hio_svc_fcgic_t* fcgic, const hio_skad
 
 	sess = conn->sess.free;
 	conn->sess.free = sess->next;
-	
+
 	sess->on_read = on_read;
 	sess->on_write = on_write;
 	sess->on_untie = on_untie;

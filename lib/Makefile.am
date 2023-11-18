@@ -59,6 +59,7 @@ include_HEADERS = \
 	hio-sck.h \
 	hio-shw.h \
 	hio-skad.h \
+	hio-spl.h \
 	hio-str.h \
 	hio-tar.h \
 	hio-thr.h \

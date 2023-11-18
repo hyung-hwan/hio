@@ -42,24 +42,35 @@ static void client_on_disconnect (hio_dev_sck_t* sck);
 
 static int inc_ntasks (hio_svc_htts_t* htts)
 {
+#if defined(HCL_ATOMIC_LOAD) && defined(HCL_ATOMIC_CMP_XCHG)
 	int ok;
 	do
 	{
 		hio_oow_t ntasks;
 		ntasks = HCL_ATOMIC_LOAD(&htts->stat.ntasks);
-		if (ntasks >= htts->option.task_cgi_max)
+		if (ntasks >= htts->option.task_max)
 		{
 			hio_seterrbfmt (htts->hio, HIO_ENOCAPA, "too many tasks");
+			printf ("too many tasks...\n");
 			return -1;
 		}
 		ok = HCL_ATOMIC_CMP_XCHG(&htts->stat.ntasks, &ntasks, ntasks + 1);
 	}
 	while (!ok);
+#else
+	if (htts->stat.ntasks >= htts->option.task_max)
+	{
+		hio_seterrbfmt (htts->hio, HIO_ENOCAPA, "too many tasks");
+		return -1;
+	}
+	htts->stat.ntasks++;
+#endif
 	return 0;
 }
 
 static void dec_ntasks (hio_svc_htts_t* htts)
 {
+#if defined(HCL_ATOMIC_LOAD) && defined(HCL_ATOMIC_CMP_XCHG)
 	int ok;
 	do
 	{
@@ -68,6 +79,9 @@ static void dec_ntasks (hio_svc_htts_t* htts)
 		ok = HCL_ATOMIC_CMP_XCHG(&htts->stat.ntasks, &ntasks, ntasks - 1);
 	}
 	while (!ok);
+#else
+	htts->stat.ntasks--;
+#endif
 }
 
 /* ------------------------------------------------------------------------ */
@@ -482,7 +496,7 @@ hio_svc_htts_t* hio_svc_htts_start (hio_t* hio, hio_oow_t xtnsize, hio_dev_sck_b
 	HIO_DEBUG1 (hio, "HTTS - STARTING SERVICE %p\n", htts);
 
 	htts->hio = hio;
-	htts->svc_stop = hio_svc_htts_stop;
+	htts->svc_stop = (hio_svc_stop_t)hio_svc_htts_stop;
 	htts->proc_req = proc_req;
 	htts->idle_tmridx = HIO_TMRIDX_INVALID;
 
@@ -1145,7 +1159,7 @@ int hio_svc_htts_task_sendfinalres (hio_svc_htts_task_t* task, int status_code, 
 	return 1;
 }
 
-int hio_svc_htts_task_handleexpect100 (hio_svc_htts_task_t* task)
+int hio_svc_htts_task_handleexpect100 (hio_svc_htts_task_t* task, int no_continue)
 {
 #if !defined(TASK_ALLOW_UNLIMITED_REQ_CONTENT_LENGTH)
 	if (task->task_req_conlen_unlimited)
@@ -1160,30 +1174,33 @@ int hio_svc_htts_task_handleexpect100 (hio_svc_htts_task_t* task)
 
 	if (task->task_req_flags & HIO_HTRE_ATTR_EXPECT100)
 	{
-		/* TODO: Expect: 100-continue? who should handle this? fcgi? or the http server? */
-		/* CAN I LET the fcgi SCRIPT handle this? */
-		if (hio_comp_http_version_numbers(&task->task_req_version, 1, 1) >= 0 &&
-		    (task->task_req_conlen_unlimited || task->task_req_conlen > 0) &&
-			(task->task_req_method != HIO_HTTP_GET && task->task_req_method != HIO_HTTP_HEAD))
+		if (!no_continue)
 		{
-			/*
-			 * Don't send 100 Continue if http verions is lower than 1.1
-			 * [RFC7231]
-			 *  A server that receives a 100-continue expectation in an HTTP/1.0
-			 *  request MUST ignore that expectation.
-			 *
-			 * Don't send 100 Continue if expected content length is 0.
-			 * [RFC7231]
-			 *  A server MAY omit sending a 100 (Continue) response if it has
-			 *  already received some or all of the message body for the
-			 *  corresponding request, or if the framing indicates that there is
-			 *  no message body.
-			 */
-			hio_bch_t msgbuf[64];
-			hio_oow_t msglen;
-			msglen = hio_fmttobcstr(task->htts->hio, msgbuf, HIO_COUNTOF(msgbuf), "HTTP/%d.%d %d %hs\r\n\r\n", task->task_req_version.major, task->task_req_version.minor, HIO_HTTP_STATUS_CONTINUE, hio_http_status_to_bcstr(HIO_HTTP_STATUS_CONTINUE));
-			if (task->task_csck && write_raw_to_client(task, msgbuf, msglen) <= -1) return -1;
-			task->task_res_ever_sent = 0; /* reset this as it's polluted for 100 continue */
+			/* TODO: Expect: 100-continue? who should handle this? fcgi? or the http server? */
+				/* CAN I LET the fcgi SCRIPT handle this? */
+			if (hio_comp_http_version_numbers(&task->task_req_version, 1, 1) >= 0 &&
+			    (task->task_req_conlen_unlimited || task->task_req_conlen > 0) &&
+			    (task->task_req_method != HIO_HTTP_GET && task->task_req_method != HIO_HTTP_HEAD))
+			{
+				/*
+				 * Don't send 100 Continue if http verions is lower than 1.1
+				 * [RFC7231]
+				 *  A server that receives a 100-continue expectation in an HTTP/1.0
+				 *  request MUST ignore that expectation.
+				 *
+				 * Don't send 100 Continue if expected content length is 0.
+				 * [RFC7231]
+				 *  A server MAY omit sending a 100 (Continue) response if it has
+				 *  already received some or all of the message body for the
+				 *  corresponding request, or if the framing indicates that there is
+				 *  no message body.
+				 */
+				hio_bch_t msgbuf[64];
+				hio_oow_t msglen;
+				msglen = hio_fmttobcstr(task->htts->hio, msgbuf, HIO_COUNTOF(msgbuf), "HTTP/%d.%d %d %hs\r\n\r\n", task->task_req_version.major, task->task_req_version.minor, HIO_HTTP_STATUS_CONTINUE, hio_http_status_to_bcstr(HIO_HTTP_STATUS_CONTINUE));
+				if (task->task_csck && write_raw_to_client(task, msgbuf, msglen) <= -1) return -1;
+				task->task_res_ever_sent = 0; /* reset this as it's polluted for 100 continue */
+			}
 		}
 	}
 	else if (task->task_req_flags & HIO_HTRE_ATTR_EXPECT)
@@ -1272,3 +1289,4 @@ int hio_svc_htts_writetosidechan (hio_svc_htts_t* htts, hio_oow_t idx, const voi
 
 	return hio_dev_sck_writetosidechan(htts->l.sck[idx], dptr, dlen);
 }
+

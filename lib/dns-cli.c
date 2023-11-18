@@ -730,7 +730,7 @@ hio_svc_dnc_t* hio_svc_dnc_start (hio_t* hio, const hio_skad_t* serv_addr, const
 	if (HIO_UNLIKELY(!dnc)) goto oops;
 
 	dnc->hio = hio;
-	dnc->svc_stop = hio_svc_dnc_stop;
+	dnc->svc_stop = (hio_svc_stop_t)hio_svc_dnc_stop;
 	dnc->serv_addr = *serv_addr;
 	dnc->send_tmout = *send_tmout;
 	dnc->reply_tmout = *reply_tmout;

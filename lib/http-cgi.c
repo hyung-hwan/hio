@@ -86,6 +86,7 @@ static void unbind_task_from_peer (cgi_t* cgi, int rcdown);
 
 static int inc_ntask_cgis (hio_svc_htts_t* htts)
 {
+#if defined(HCL_ATOMIC_LOAD) && defined(HCL_ATOMIC_CMP_XCHG)
 	int ok;
 	do
 	{
@@ -94,16 +95,26 @@ static int inc_ntask_cgis (hio_svc_htts_t* htts)
 		if (ntask_cgis >= htts->option.task_cgi_max)
 		{
 			hio_seterrbfmt (htts->hio, HIO_ENOCAPA, "too many cgi tasks");
+			printf ("too many cgi task....\n");
 			return -1;
 		}
 		ok = HCL_ATOMIC_CMP_XCHG(&htts->stat.ntask_cgis, &ntask_cgis, ntask_cgis + 1);
 	}
 	while (!ok);
+#else
+	if (htts->stat.ntask_cgis >= htts->option.task_cgi_max)
+	{
+		hio_seterrbfmt (htts->hio, HIO_ENOCAPA, "too many cgi tasks");
+		return -1;
+	}
+	htts->stat.ntask_cgis++;
+#endif
 	return 0;
 }
 
 static void dec_ntask_cgis (hio_svc_htts_t* htts)
 {
+#if defined(HCL_ATOMIC_LOAD) && defined(HCL_ATOMIC_CMP_XCHG)
 	int ok;
 	do
 	{
@@ -112,6 +123,9 @@ static void dec_ntask_cgis (hio_svc_htts_t* htts)
 		ok = HCL_ATOMIC_CMP_XCHG(&htts->stat.ntask_cgis, &ntask_cgis, ntask_cgis - 1);
 	}
 	while (!ok);
+#else
+	htts->stat.ntask_cgis--;
+#endif
 }
 
 /* ----------------------------------------------------------------------- */
@@ -785,54 +799,59 @@ static void bind_task_to_client (cgi_t* cgi, hio_dev_sck_t* csck)
 static void unbind_task_from_client (cgi_t* cgi, int rcdown)
 {
 	hio_dev_sck_t* csck = cgi->task_csck;
+	hio_svc_htts_cli_t* cli = hio_dev_sck_getxtn(csck);
 
-	HIO_ASSERT (cgi->htts->hio, cgi->task_client != HIO_NULL);
-	HIO_ASSERT (cgi->htts->hio, cgi->task_csck != HIO_NULL);
-	HIO_ASSERT (cgi->htts->hio, cgi->task_client->task == (hio_svc_htts_task_t*)cgi);
-	HIO_ASSERT (cgi->htts->hio, cgi->task_client->htrd != HIO_NULL);
-
-	if (cgi->client_htrd_recbs_changed)
+	if (cli->task) /* only if it's bound */
 	{
-		hio_htrd_setrecbs (cgi->task_client->htrd, &cgi->client_htrd_org_recbs);
-		cgi->client_htrd_recbs_changed = 0;
+		HIO_ASSERT (cgi->htts->hio, cgi->task_client != HIO_NULL);
+		HIO_ASSERT (cgi->htts->hio, cgi->task_csck != HIO_NULL); /* cgi->task_csck is set by hio_svc_htts_task_make() */
+		HIO_ASSERT (cgi->htts->hio, cgi->task_client->task == (hio_svc_htts_task_t*)cgi);
+		HIO_ASSERT (cgi->htts->hio, cgi->task_client->htrd != HIO_NULL);
+
+		if (cgi->client_htrd_recbs_changed)
+		{
+			hio_htrd_setrecbs (cgi->task_client->htrd, &cgi->client_htrd_org_recbs);
+			cgi->client_htrd_recbs_changed = 0;
+		}
+
+		if (cgi->client_org_on_read)
+		{
+			csck->on_read = cgi->client_org_on_read;
+			cgi->client_org_on_read = HIO_NULL;
+		}
+
+		if (cgi->client_org_on_write)
+		{
+			csck->on_write = cgi->client_org_on_write;
+			cgi->client_org_on_write = HIO_NULL;
+		}
+
+		if (cgi->client_org_on_disconnect)
+		{
+			csck->on_disconnect = cgi->client_org_on_disconnect;
+			cgi->client_org_on_disconnect = HIO_NULL;
+		}
+
+		/* there is some ordering issue in using HIO_SVC_HTTS_TASK_UNREF()
+		 * because it can destroy the cgi itself. so reset cgi->task_client->task
+		 * to null and call RCDOWN() later */
+		cgi->task_client->task = HIO_NULL;
+
+		/* these two lines are also done in csck_on_disconnect() in http-svr.c because the socket is destroyed.
+		 * the same lines here are because the task is unbound while the socket is still alive */
+		cgi->task_client = HIO_NULL;
+		cgi->task_csck = HIO_NULL;
+
+		/* enable input watching on the socket being unbound */
+		if (cgi->task_keep_client_alive && hio_dev_sck_read(csck, 1) <= -1)
+		{
+			HIO_DEBUG2 (cgi->htts->hio, "HTTS(%p) - halting client(%p) for failure to enable input watching\n", cgi->htts, csck);
+			hio_dev_sck_halt (csck);
+		}
+
+		if (rcdown) HIO_SVC_HTTS_TASK_RCDOWN ((hio_svc_htts_task_t*)cgi);
+
 	}
-
-	if (cgi->client_org_on_read)
-	{
-		csck->on_read = cgi->client_org_on_read;
-		cgi->client_org_on_read = HIO_NULL;
-	}
-
-	if (cgi->client_org_on_write)
-	{
-		csck->on_write = cgi->client_org_on_write;
-		cgi->client_org_on_write = HIO_NULL;
-	}
-
-	if (cgi->client_org_on_disconnect)
-	{
-		csck->on_disconnect = cgi->client_org_on_disconnect;
-		cgi->client_org_on_disconnect = HIO_NULL;
-	}
-
-	/* there is some ordering issue in using HIO_SVC_HTTS_TASK_UNREF()
-	 * because it can destroy the cgi itself. so reset cgi->task_client->task
-	 * to null and call RCDOWN() later */
-	cgi->task_client->task = HIO_NULL;
-
-	/* these two lines are also done in csck_on_disconnect() in http-svr.c because the socket is destroyed.
-	 * the same lines here are because the task is unbound while the socket is still alive */
-	cgi->task_client = HIO_NULL;
-	cgi->task_csck = HIO_NULL;
-
-	/* enable input watching on the socket being unbound */
-	if (cgi->task_keep_client_alive && hio_dev_sck_read(csck, 1) <= -1)
-	{
-		HIO_DEBUG2 (cgi->htts->hio, "HTTS(%p) - halting client(%p) for failure to enable input watching\n", cgi->htts, csck);
-		hio_dev_sck_halt (csck);
-	}
-
-	if (rcdown) HIO_SVC_HTTS_TASK_RCDOWN ((hio_svc_htts_task_t*)cgi);
 }
 
 /* ----------------------------------------------------------------------- */
@@ -885,6 +904,7 @@ static int bind_task_to_peer (cgi_t* cgi, hio_dev_sck_t* csck, hio_htre_t* req, 
 	{
 		hio_freemem (hio, fc.actual_script);
 		hio_dev_pro_kill (cgi->peer);
+		cgi->peer = HIO_NULL;
 		return -1;
 	}
 
@@ -972,22 +992,28 @@ int hio_svc_htts_docgi (hio_svc_htts_t* htts, hio_dev_sck_t* csck, hio_htre_t* r
 	hio_t* hio = htts->hio;
 	hio_svc_htts_cli_t* cli = hio_dev_sck_getxtn(csck);
 	cgi_t* cgi = HIO_NULL;
-	int n, bound_to_client = 0, bound_to_peer = 0;
+	int n, status_code = HIO_HTTP_STATUS_INTERNAL_SERVER_ERROR;
+	int bound_to_client = 0, bound_to_peer = 0;
 
 	/* ensure that you call this function before any contents is received */
 	HIO_ASSERT (hio, hio_htre_getcontentlen(req) == 0);
 	HIO_ASSERT (hio, cli->sck == csck);
 
-	if (inc_ntask_cgis(htts) <= -1) return -1;
-	cgi = (cgi_t*)hio_svc_htts_task_make(htts, HIO_SIZEOF(*cgi), cgi_on_kill, req, csck);
-	if (HIO_UNLIKELY(!cgi))
+	if (cli->task)
 	{
-		dec_ntask_cgis (htts);
+		hio_seterrbfmt (hio, HIO_EPERM, "duplicate task request prohibited");
 		goto oops;
 	}
-	HIO_SVC_HTTS_TASK_RCUP((hio_svc_htts_task_t*)cgi);
 
-	cgi->on_kill = on_kill;
+	cgi = (cgi_t*)hio_svc_htts_task_make(htts, HIO_SIZEOF(*cgi), cgi_on_kill, req, csck);
+	if (HIO_UNLIKELY(!cgi)) goto oops;
+	HIO_SVC_HTTS_TASK_RCUP((hio_svc_htts_task_t*)cgi);
+	if (inc_ntask_cgis(htts) <= -1)
+	{
+		status_code = HIO_HTTP_STATUS_SERVICE_UNAVAILABLE;
+		goto oops;
+	}
+
 	cgi->options = options;
 
 	bind_task_to_client (cgi, csck);
@@ -995,12 +1021,12 @@ int hio_svc_htts_docgi (hio_svc_htts_t* htts, hio_dev_sck_t* csck, hio_htre_t* r
 
 	if ((n = bind_task_to_peer(cgi, csck, req, docroot, script)) <= -1)
 	{
-		hio_svc_htts_task_sendfinalres(cgi, (n == 2? HIO_HTTP_STATUS_FORBIDDEN: HIO_HTTP_STATUS_INTERNAL_SERVER_ERROR), HIO_NULL, HIO_NULL, 1);
+		if (n == -2) status_code == HIO_HTTP_STATUS_FORBIDDEN;
 		goto oops;
 	}
 	bound_to_peer = 1;
 
-	if (hio_svc_htts_task_handleexpect100(cgi) <= -1) goto oops;
+	if (hio_svc_htts_task_handleexpect100(cgi, 0) <= -1) goto oops;
 	if (setup_for_content_length(cgi, req) <= -1) goto oops;
 
 	/* TODO: store current input watching state and use it when destroying the cgi data */
@@ -1008,12 +1034,17 @@ int hio_svc_htts_docgi (hio_svc_htts_t* htts, hio_dev_sck_t* csck, hio_htre_t* r
 
 	HIO_SVC_HTTS_TASKL_APPEND_TASK (&htts->task, (hio_svc_htts_task_t*)cgi);
 	HIO_SVC_HTTS_TASK_RCDOWN((hio_svc_htts_task_t*)cgi);
+
+	/* set the on_kill callback only if this function can return success.
+	 * the on_kill callback won't be executed if this function returns failure. */
+	cgi->on_kill = on_kill;
 	return 0;
 
 oops:
 	HIO_DEBUG3 (hio, "HTTS(%p) - FAILURE in docgi - socket(%p) - %js\n", htts, csck, hio_geterrmsg(hio));
 	if (cgi)
 	{
+		hio_svc_htts_task_sendfinalres(cgi, status_code, HIO_NULL, HIO_NULL, 1);
 		if (bound_to_peer) unbind_task_from_peer (cgi, 1);
 		if (bound_to_client) unbind_task_from_client (cgi, 1);
 		cgi_halt_participating_devices (cgi);

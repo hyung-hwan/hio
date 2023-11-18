@@ -528,15 +528,12 @@ HIO_EXPORT int hio_svc_htts_dotxt (
 	hio_svc_htts_t*             htts,
 	hio_dev_sck_t*              csck,
 	hio_htre_t*                 req,
-	int                         status_code,
+	int                         res_status_code,
 	const hio_bch_t*            content_type,
 	const hio_bch_t*            content_text,
 	int                         options,
 	hio_svc_htts_task_on_kill_t on_kill
 );
-
-
-
 
 HIO_EXPORT hio_svc_htts_task_t* hio_svc_htts_task_make (
 	hio_svc_htts_t*              htts,
@@ -606,7 +603,8 @@ HIO_EXPORT int hio_svc_htts_task_endbody (
 );
 
 HIO_EXPORT int hio_svc_htts_task_handleexpect100 (
-	hio_svc_htts_task_t* task
+	hio_svc_htts_task_t* task,
+	int                  no_continue
 );
 
 HIO_EXPORT void hio_svc_htts_fmtgmtime (

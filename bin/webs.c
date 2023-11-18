@@ -361,7 +361,6 @@ static int process_http_request (hio_svc_htts_t* htts, hio_dev_sck_t* csck, hio_
 		hio_bcstrtoskad(hio, "10.30.0.133:9000", &skad);
 
 		HIO_DEBUG2 (hio, "fcgi %hs %hs\n", ext->ai->docroot, qpath);
-
 	#if 0
 		if (hio_svc_htts_dotxt(htts, csck, req, HIO_HTTP_STATUS_INTERNAL_SERVER_ERROR, "text/plain", "what the...", 0, htts_task_on_kill) <= -1) goto oops;
 	#else
@@ -378,7 +377,7 @@ static int process_http_request (hio_svc_htts_t* htts, hio_dev_sck_t* csck, hio_
 #if 0
 	else
 	{
-		if (hio_svc_htts_dotxt(htts, csck, req, HIO_HTTP_STATUS_FORBIDDEN, "text/plain", hio_http_status_to_bcstr(403), 0) <= -1) goto oops;
+		if (hio_svc_htts_dotxt(htts, csck, req, HIO_HTTP_STATUS_FORBIDDEN, "text/plain", hio_http_status_to_bcstr(403), 0, htts_task_on_kill) <= -1) goto oops;
 	}
 #endif
 	return 0;
@@ -428,7 +427,7 @@ int webs_start (hio_t* hio, const arg_info_t* ai)
 
 	{
 		hio_oow_t ov;
-		ov = 1000;
+		ov = 100;
 		hio_svc_htts_setoption (webs, HIO_SVC_HTTS_TASK_CGI_MAX, &ov);
 	}
 

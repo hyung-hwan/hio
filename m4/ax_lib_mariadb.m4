@@ -47,7 +47,7 @@ AC_DEFUN([AX_LIB_MARIADB],
     MARIADB_CONFIG=""
 
     AC_ARG_WITH([mariadb],
-        AC_HELP_STRING([--with-mariadb-config@<:@=PATH@:>@], [specify path to the mariadb_config utility]),
+        AS_HELP_STRING([--with-mariadb-config@<:@=PATH@:>@], [specify path to the mariadb_config utility]),
         [ MARIADB_CONFIG="$withval" ],
         [MARIADB_CONFIG=""]
     )
