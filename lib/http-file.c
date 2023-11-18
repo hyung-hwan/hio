@@ -315,7 +315,9 @@ static int file_client_on_write (hio_dev_sck_t* sck, hio_iolen_t wrlen, void* wr
 	else if (wrlen > 0)
 	{
 		if (file->task_req_method == HIO_HTTP_GET)
-			file_send_contents_to_client (file);
+		{
+			if (file_send_contents_to_client (file) <= -1) goto oops;
+		}
 
 		if ((file->over & FILE_OVER_READ_FROM_PEER) && file->task_res_pending_writes <= 0)
 		{
@@ -459,11 +461,10 @@ static int file_send_contents_to_client (file_t* file)
 		else if (n == 0)
 		{
 			/* no more data to read - this must not happen unless file size changed while the file is open. */
-	/* TODO: I probably must close the connection by force??? */
+			/* TODO: I probably must close the connection by force??? */
 			file_mark_over (file, FILE_OVER_READ_FROM_PEER);
 			return -1;
 		}
-
 		/*if (file_write_to_client(file, file->peer_buf, n) <= -1) return -1;*/
 		if (hio_svc_htts_task_addresbody((hio_svc_htts_task_t*)file, file->peer_buf, n) <= -1) return -1;
 
