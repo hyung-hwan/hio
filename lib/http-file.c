@@ -135,6 +135,7 @@ static void file_mark_over (file_t* file, int over_bits)
 		{
 			if (file->task_keep_client_alive)
 			{
+				/* TODO: restore to the original value... */
 				set_tcp_cork (file->task_csck, 0);
 
 				/* the file task must not be accessed from here down as it could have been destroyed */
@@ -226,7 +227,7 @@ static void file_client_on_disconnect (hio_dev_sck_t* sck)
 		unbind_task_from_client (file, 1);
 
 		/* the current file peer implemenation is not async. so there is no IO event associated
-		 * when the client side is disconnecte, simple close the peer side as it's not needed.
+		 * when the client side is disconnected, simple close the peer side as it's not needed.
 		 * this behavior is different from http-fcgi or http-cgi */
 		unbind_task_from_peer (file, 1);
 
@@ -316,7 +317,7 @@ static int file_client_on_write (hio_dev_sck_t* sck, hio_iolen_t wrlen, void* wr
 	{
 		if (file->task_req_method == HIO_HTTP_GET)
 		{
-			if (file_send_contents_to_client (file) <= -1) goto oops;
+			if (file_send_contents_to_client (file) <= -1) n = -1;
 		}
 
 		if ((file->over & FILE_OVER_READ_FROM_PEER) && file->task_res_pending_writes <= 0)
@@ -326,10 +327,6 @@ static int file_client_on_write (hio_dev_sck_t* sck, hio_iolen_t wrlen, void* wr
 	}
 
 	if (n <= -1 || wrlen <= -1) file_halt_participating_devices (file);
-	return 0;
-
-oops:
-	file_halt_participating_devices (file);
 	return 0;
 }
 
@@ -741,6 +738,7 @@ static int bind_task_to_peer (file_t* file, hio_htre_t* req, const hio_bch_t* fi
 			#if defined(HAVE_POSIX_FADVISE)
 				posix_fadvise (file->peer, file->start_offset, file->end_offset - file->start_offset + 1, POSIX_FADV_SEQUENTIAL);
 			#endif
+				/* TODO: store the current value and let the program restore to the current value when exiting.. */
 				set_tcp_cork (file->task_csck, 1);
 
 				if (file_send_header_to_client(file, HIO_HTTP_STATUS_OK, 0, actual_mime_type) <= -1) goto oops;

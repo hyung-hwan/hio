@@ -2057,7 +2057,7 @@ void hio_freemem (hio_t* hio, void* ptr)
 void hio_addcfmb (hio_t* hio, hio_cfmb_t* cfmb, hio_cfmb_checker_t checker, hio_cfmb_freeer_t freeer)
 {
 	cfmb->cfmb_checker = checker;
-	cfmb->cfmb_freeer = freeer? freeer: hio_freemem;
+	cfmb->cfmb_freeer = freeer? freeer: (hio_cfmb_freeer_t)hio_freemem;
 	HIO_CFMBL_APPEND_CFMB (&hio->cfmb, cfmb);
 }
 

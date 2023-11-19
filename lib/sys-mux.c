@@ -22,6 +22,7 @@
     THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  */
 
+#define _GNU_SOURCE
 #include "sys-prv.h"
 
 #include <fcntl.h>
@@ -84,6 +85,9 @@ int hio_sys_initmux (hio_t* hio)
 		mux->pd.dptr[idx] = HIO_NULL;
 		mux->map.ptr[mux->ctrlp[0]] = idx;
 	}
+#elif defined(USE_SELECT)
+	FD_ZERO (&mux->rfds);
+	FD_ZERO (&mux->wfds);
 
 #elif defined(USE_KQUEUE)
 	#if defined(HAVE_KQUEUE1) && defined(O_CLOEXEC)
@@ -187,6 +191,10 @@ void hio_sys_finimux (hio_t* hio)
 		mux->pd.dptr = HIO_NULL;
 	}
 	mux->pd.capa = 0;
+
+#elif defined(USE_SELECT)
+
+	/* nothing to do */
 
 #elif defined(USE_KQUEUE)
 	if (mux->ctrlp[0] != HIO_SYSHND_INVALID)
@@ -409,6 +417,8 @@ int hio_sys_ctrlmux (hio_t* hio, hio_sys_mux_cmd_t cmd, hio_dev_t* dev, int dev_
 			return -1;
 	}
 
+#elif defined(USE_SELECT)
+
 #elif defined(USE_KQUEUE)
 
 	hio_sys_mux_t* mux = &hio->sysdep->mux;
@@ -628,6 +638,35 @@ int hio_sys_waitmux (hio_t* hio, const hio_ntime_t* tmout, hio_sys_mux_evtcb_t e
 			event_handler (hio, dev, events, 0);
 		}
 	}
+
+#elif defined(USE_SELECT)
+
+/* TODO: not complete */
+	hio_sys_mux_t* mux = &hio->sysdep->mux;
+	struct timeval tv;
+	struct rfds, wfds;
+	int n;
+
+	tv.tv_sec = tmout->sec;
+	tv.tv_usec = tmout->nsec / HIO_NSEC_PER_USEC;
+
+	rfds = mux->rfds;
+	wfds = mux->wfds;
+
+	n = select(mux->maxfd + 1, rfds, wfds, NULL, &tv);
+	if (n <= -1)
+	{
+		if (errno == EINTR) return 0; /* it's actually ok */
+		/* other errors are critical - EBADF, EFAULT, EINVAL */
+		hio_seterrwithsyserr (hio, 0, errno);
+		return -1;
+	}
+
+	if (FD_ISSET(rfds, xxx))
+	{
+	}
+
+
 #elif defined(USE_KQUEUE)
 
 	hio_sys_mux_t* mux = &hio->sysdep->mux;

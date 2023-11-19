@@ -69,6 +69,14 @@ struct hio_sys_mux_t
 	int ctrlp[2];
 };
 
+#elif defined(USE_SELECT)
+struct hio_sys_mux_t
+{
+	fd_set rfds;
+	fd_set wfds;
+};
+
+
 #elif defined(USE_KQUEUE)
 
 struct hio_sys_mux_t
