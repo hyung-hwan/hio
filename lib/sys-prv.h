@@ -33,13 +33,12 @@
 #	include <sys/types.h>
 #	include <sys/event.h>
 #	define USE_KQUEUE
-/*
 #elif defined(HAVE_SYS_EPOLL_H)
 #	include <sys/epoll.h>
 #	define USE_EPOLL
 #elif defined(HAVE_SYS_POLL_H)
 #	include <sys/poll.h>
-#	define USE_POLL*/
+#	define USE_POLL
 #elif defined(HAVE_SYS_SELECT_H)
 /*#	define FD_SETSIZE 4096*/
 #	include <sys/select.h>
