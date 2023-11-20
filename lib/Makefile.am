@@ -71,6 +71,7 @@ lib_LTLIBRARIES = libhio.la
 libhio_la_SOURCES = \
 	chr.c \
 	dhcp-svr.c \
+	dhcp-msg.c \
 	dns.c \
 	dns-cli.c \
 	ecs.c \
