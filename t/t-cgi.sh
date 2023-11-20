@@ -1,0 +1,9 @@
+#!/bin/sh
+echo -n -e "Content-type: text/plain\r\n\r\n"
+
+echo "REQUEST_METHOD:$REQUEST_METHOD"
+echo "REQUEST_URI:$REQUEST_URI"
+echo "QUERY_STRING:$QUERY_STRING"
+echo "REMOTE_ADDR:$REMOTE_ADDR"
+echo "REMOTE_PORT:$REMOTE_PORT"
+echo "CONTENT_LENGTH:$CONTENT_LENGTH"
