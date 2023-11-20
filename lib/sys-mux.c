@@ -86,8 +86,9 @@ int hio_sys_initmux (hio_t* hio)
 		mux->map.ptr[mux->ctrlp[0]] = idx;
 	}
 #elif defined(USE_SELECT)
-	FD_ZERO (&mux->rfds);
-	FD_ZERO (&mux->wfds);
+	FD_ZERO (&mux->rset);
+	FD_ZERO (&mux->wset);
+	mux->maxhnd = -1;
 
 #elif defined(USE_KQUEUE)
 	#if defined(HAVE_KQUEUE1) && defined(O_CLOEXEC)
@@ -193,8 +194,21 @@ void hio_sys_finimux (hio_t* hio)
 	mux->pd.capa = 0;
 
 #elif defined(USE_SELECT)
+	FD_ZERO (&mux->rset);
+	FD_ZERO (&mux->wset);
 
-	/* nothing to do */
+	if (mux->me.ptr)
+	{
+		int i;
+		for (i = 0; i < mux->me.ubound; i++)
+		{
+			if (mux->me.ptr[i]) hio_freemem (hio, mux->me.ptr[i]);
+		}
+		hio_freemem (hio, mux->me.ptr);
+		mux->me.ubound = 0;
+		mux->me.ptr = HIO_NULL;
+		mux->maxhnd = -1;
+	}
 
 #elif defined(USE_KQUEUE)
 	if (mux->ctrlp[0] != HIO_SYSHND_INVALID)
@@ -341,7 +355,6 @@ int hio_sys_ctrlmux (hio_t* hio, hio_sys_mux_cmd_t cmd, hio_dev_t* dev, int dev_
 			mux->pd.dptr[idx] = dev;
 
 			mux->map.ptr[hnd] = idx;
-
 			return 0;
 
 		case HIO_SYS_MUX_CMD_UPDATE:
@@ -418,6 +431,166 @@ int hio_sys_ctrlmux (hio_t* hio, hio_sys_mux_cmd_t cmd, hio_dev_t* dev, int dev_
 	}
 
 #elif defined(USE_SELECT)
+	hio_sys_mux_t* mux = &hio->sysdep->mux;
+	hio_syshnd_t hnd;
+
+	hnd = dev->dev_mth->getsyshnd(dev);
+	if (hnd >= FD_SETSIZE)
+	{
+		hio_seterrbfmt (hio, HIO_EINVAL, "device handle too hig");
+		return -1;
+	}
+
+	switch (cmd)
+	{
+		case HIO_SYS_MUX_CMD_INSERT:
+		{
+			hio_mux_slct_evt_t* mevt;
+			int events = 0;
+
+			/* TODO: windows seems to return a pretty high file descriptors
+			 *       using an array to store information may not be so effcient.
+			 *       devise a different way to maintain information */
+			if (hnd >= mux->me.ubound)
+			{
+				hio_mux_slct_evt_t** tmp;
+				int ubound;
+
+				ubound = hnd + 1;
+				ubound = HIO_ALIGN_POW2(ubound, 128);
+
+				tmp = hio_reallocmem(hio, mux->me.ptr, HIO_SIZEOF(*mux->me.ptr) * ubound);
+				if (!tmp) return -1;
+
+				HIO_MEMSET (&tmp[mux->me.ubound], 0, HIO_SIZEOF(*mux->me.ptr) * (ubound - mux->me.ubound));
+				mux->me.ptr = tmp;
+				mux->me.ubound = ubound;
+			}
+
+			mevt = mux->me.ptr[hnd];
+			if (!mevt)
+			{
+				mevt = hio_allocmem(hio, HIO_SIZEOF(*mevt));
+				if (!mevt) return -1;
+				mux->me.ptr[hnd] = mevt;
+			}
+			HIO_MEMSET (mevt, 0, HIO_SIZEOF(*mevt));
+
+			if (dev_cap & HIO_DEV_CAP_IN_WATCHED)
+			{
+				FD_SET (hnd, &mux->rset);
+				mevt->mask |= HIO_DEV_EVENT_IN;
+			}
+			if (dev_cap & HIO_DEV_CAP_OUT_WATCHED)
+			{
+				FD_SET (hnd, &mux->wset);
+				mevt->mask |= HIO_DEV_EVENT_OUT;
+			}
+
+			mevt->dev = dev;
+
+			if (hnd > mux->maxhnd) mux->maxhnd = hnd;
+			mux->size++;
+			return 0;
+		}
+
+		case HIO_SYS_MUX_CMD_UPDATE:
+		{
+			hio_mux_slct_evt_t* mevt;
+
+			if (mux->size <= 0 || hnd < 0 || hnd >= mux->me.ubound)
+			{
+				hio_seterrbfmt (hio, HIO_EINVAL, "invalid multiplexer state");
+				return -1;
+			}
+
+			mevt = mux->me.ptr[hnd];
+			if (!mevt || mevt->dev != dev)
+			{
+				/* already deleted??? */
+				hio_seterrbfmt (hio, HIO_EINVAL, "invalid multiplexer state");
+				return -1;
+			}
+
+			/* the code doesn't care if the handle is set in the rset or wset already.
+			 * such a check doesn't really bring benefit. */
+			if (dev_cap & HIO_DEV_CAP_IN_WATCHED)
+			{
+				FD_SET (hnd, &mux->rset);
+				mevt->mask |= HIO_DEV_EVENT_IN;
+			}
+			else
+			{
+				FD_CLR (hnd, &mux->rset);
+				mevt->mask &= ~HIO_DEV_EVENT_IN;
+			}
+			if (dev_cap & HIO_DEV_CAP_OUT_WATCHED)
+			{
+				FD_SET (hnd, &mux->wset);
+				mevt->mask |= HIO_DEV_EVENT_OUT;
+			}
+			else
+			{
+				FD_CLR (hnd, &mux->wset);
+				mevt->mask &= ~HIO_DEV_EVENT_OUT;
+			}
+
+			return 0;
+		}
+
+		case HIO_SYS_MUX_CMD_DELETE:
+		{
+			hio_mux_slct_evt_t* mevt;
+
+			if (mux->size <= 0 || hnd < 0 || hnd >= mux->me.ubound)
+			{
+				hio_seterrbfmt (hio, HIO_EINVAL, "invalid multiplexer state");
+				return -1;
+			}
+
+			mevt = mux->me.ptr[hnd];
+			if (!mevt || mevt->dev != dev)
+			{
+				/* already deleted??? */
+				hio_seterrbfmt (hio, HIO_EINVAL, "invalid multiplexer state");
+				return -1;
+			}
+
+			if (mevt->mask & HIO_DEV_EVENT_IN) FD_CLR (hnd, &mux->rset);
+			if (mevt->mask & HIO_DEV_EVENT_OUT) FD_CLR (hnd, &mux->wset);
+
+			if (hnd == mux->maxhnd)
+			{
+				hio_syshnd_t i;
+
+				for (i = hnd; i > 0; )
+				{
+					hio_mux_slct_evt_t* xevt;
+					xevt = mux->me.ptr[--i];
+					if (xevt && xevt->dev)
+					{
+						hio_syshnd_t xhnd = xevt->dev->dev_mth->getsyshnd(xevt->dev);
+						HIO_ASSERT (hio, i == xhnd);
+						mux->maxhnd = xhnd;
+						goto done;
+					}
+				}
+
+				mux->maxhnd = -1;
+				HIO_ASSERT (hio, mux->size == 1);
+			}
+
+	done:
+			mevt->dev = HIO_NULL;
+			mevt->mask = 0;
+			mux->size--;
+			return 0;
+		}
+
+		default:
+			hio_seterrnum (hio, HIO_EINVAL);
+			return -1;
+	}
 
 #elif defined(USE_KQUEUE)
 
@@ -640,20 +813,18 @@ int hio_sys_waitmux (hio_t* hio, const hio_ntime_t* tmout, hio_sys_mux_evtcb_t e
 	}
 
 #elif defined(USE_SELECT)
-
-/* TODO: not complete */
 	hio_sys_mux_t* mux = &hio->sysdep->mux;
 	struct timeval tv;
-	struct rfds, wfds;
 	int n;
 
 	tv.tv_sec = tmout->sec;
-	tv.tv_usec = tmout->nsec / HIO_NSEC_PER_USEC;
+	tv.tv_usec = tmout->nsec / HIO_NSECS_PER_USEC;
 
-	rfds = mux->rfds;
-	wfds = mux->wfds;
+	mux->tmprset = mux->rset;
+	mux->tmpwset = mux->wset;
 
-	n = select(mux->maxfd + 1, rfds, wfds, NULL, &tv);
+/* TODO: call select with exceptset? */
+	n = select(mux->maxhnd + 1, &mux->tmprset, &mux->tmpwset, NULL, &tv);
 	if (n <= -1)
 	{
 		if (errno == EINTR) return 0; /* it's actually ok */
@@ -662,8 +833,25 @@ int hio_sys_waitmux (hio_t* hio, const hio_ntime_t* tmout, hio_sys_mux_evtcb_t e
 		return -1;
 	}
 
-	if (FD_ISSET(rfds, xxx))
+	if (n > 0)
 	{
+		hio_syshnd_t i;
+		hio_mux_slct_evt_t* evt;
+
+		for (i = 0; i <= mux->maxhnd; i++)
+		{
+			int events = 0;
+			hio_syshnd_t hnd;
+
+			evt = mux->me.ptr[i];
+			if (!evt || !evt->dev) continue;
+
+			hnd = evt->dev->dev_mth->getsyshnd(evt->dev);
+			if ((evt->mask & HIO_DEV_EVENT_IN) && FD_ISSET(hnd, &mux->tmprset)) events |= HIO_DEV_EVENT_IN;
+			if ((evt->mask & HIO_DEV_EVENT_OUT) && FD_ISSET(hnd, &mux->tmpwset)) events |= HIO_DEV_EVENT_OUT;
+
+			event_handler (hio, evt->dev, events, 0);
+		}
 	}
 
 

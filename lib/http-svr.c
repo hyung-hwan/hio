@@ -439,7 +439,7 @@ static void client_on_disconnect (hio_dev_sck_t* sck)
 
 /* ------------------------------------------------------------------------ */
 
-#define MAX_CLIENT_IDLE 10
+#define MAX_CLIENT_IDLE 10 /*TODO: make this configurable... */
 
 static void halt_idle_clients (hio_t* hio, const hio_ntime_t* now, hio_tmrjob_t* job)
 {

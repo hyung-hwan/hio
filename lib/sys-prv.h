@@ -33,12 +33,17 @@
 #	include <sys/types.h>
 #	include <sys/event.h>
 #	define USE_KQUEUE
+/*
 #elif defined(HAVE_SYS_EPOLL_H)
 #	include <sys/epoll.h>
 #	define USE_EPOLL
 #elif defined(HAVE_SYS_POLL_H)
 #	include <sys/poll.h>
-#	define USE_POLL
+#	define USE_POLL*/
+#elif defined(HAVE_SYS_SELECT_H)
+/*#	define FD_SETSIZE 4096*/
+#	include <sys/select.h>
+#	define USE_SELECT
 #else
 #	error NO SUPPORTED MULTIPLEXER
 #endif
@@ -70,21 +75,36 @@ struct hio_sys_mux_t
 };
 
 #elif defined(USE_SELECT)
+
+struct hio_mux_slct_evt_t
+{
+	hio_dev_t* dev;
+	int        mask;
+};
+typedef struct hio_mux_slct_evt_t hio_mux_slct_evt_t;
+
 struct hio_sys_mux_t
 {
-	fd_set rfds;
-	fd_set wfds;
+	fd_set rset;
+	fd_set wset;
+	fd_set tmprset;
+	fd_set tmpwset;
+	int size;
+	hio_syshnd_t maxhnd;
+	struct
+	{
+		hio_mux_slct_evt_t** ptr;
+		int ubound;
+	} me;
+	int ctrlp[2];
 };
-
 
 #elif defined(USE_KQUEUE)
 
 struct hio_sys_mux_t
 {
 	int kq;
-
 	struct kevent revs[1024]; /* TODO: is it a good size? */
-
 	int ctrlp[2];
 };
 
@@ -94,7 +114,6 @@ struct hio_sys_mux_t
 {
 	int hnd;
 	struct epoll_event revs[1024]; /* TODO: is it a good size? */
-
 	int ctrlp[2];
 };
 
