@@ -50,6 +50,7 @@ struct file_t
 
 	int options;
 	hio_svc_htts_file_cbs_t* cbs;
+	int csck_tcp_cork;
 
 	hio_oow_t num_pending_writes_to_peer;
 	int sendfile_ok;
@@ -76,6 +77,20 @@ typedef struct file_t file_t;
 static void unbind_task_from_client (file_t* file, int rcdown);
 static void unbind_task_from_peer (file_t* file, int rcdown);
 static int file_send_contents_to_client (file_t* file);
+
+static HIO_INLINE int get_tcp_cork (hio_dev_sck_t* sck)
+{
+	int n = -1;
+	hio_scklen_t len = HIO_SIZEOF(n);
+#if defined(TCP_CORK)
+	#if defined(SOL_TCP)
+	hio_dev_sck_getsockopt (sck, SOL_TCP, TCP_CORK, &n, &len);
+	#elif defined(IPPROTO_TCP)
+	hio_dev_sck_getsockopt (sck, IPPROTO_TCP, TCP_CORK, &n, &len);
+	#endif
+#endif
+	return n;
+}
 
 static HIO_INLINE void set_tcp_cork (hio_dev_sck_t* sck, int tcp_cork)
 {
@@ -135,8 +150,7 @@ static void file_mark_over (file_t* file, int over_bits)
 		{
 			if (file->task_keep_client_alive)
 			{
-				/* TODO: restore to the original value... */
-				set_tcp_cork (file->task_csck, 0);
+				if (file->csck_tcp_cork >= 0) set_tcp_cork (file->task_csck, file->csck_tcp_cork);
 
 				/* the file task must not be accessed from here down as it could have been destroyed */
 				HIO_DEBUG2 (hio, "HTTS(%p) - keeping client(%p) alive\n", htts, file->task_csck);
@@ -739,7 +753,8 @@ static int bind_task_to_peer (file_t* file, hio_htre_t* req, const hio_bch_t* fi
 				posix_fadvise (file->peer, file->start_offset, file->end_offset - file->start_offset + 1, POSIX_FADV_SEQUENTIAL);
 			#endif
 				/* TODO: store the current value and let the program restore to the current value when exiting.. */
-				set_tcp_cork (file->task_csck, 1);
+				file->csck_tcp_cork = get_tcp_cork (file->task_csck);
+				if (file->csck_tcp_cork >= 0) set_tcp_cork (file->task_csck, 1);
 
 				if (file_send_header_to_client(file, HIO_HTTP_STATUS_OK, 0, actual_mime_type) <= -1) goto oops;
 				if (file_send_contents_to_client(file) <= -1) goto oops;
