@@ -248,7 +248,7 @@ static int sck_on_read (hio_dev_sck_t* sck, const void* data, hio_iolen_t dlen, 
 
 				if (!sess || !sess->active)
 				{
-					/* discard the record. no associated sessoin or inactive session */
+					/* discard the record. no associated session or inactive session */
 					goto back_to_header;
 				}
 

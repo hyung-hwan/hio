@@ -388,7 +388,7 @@ static void fcgi_client_on_disconnect (hio_dev_sck_t* sck)
 
 static int fcgi_client_on_read (hio_dev_sck_t* sck, const void* buf, hio_iolen_t len, const hio_skad_t* srcaddr)
 {
-	hio_t* hio = sck->hio;
+	hio_t* hio HIO_UNUSED = sck->hio;
 	hio_svc_htts_cli_t* cli = hio_dev_sck_getxtn(sck);
 	fcgi_t* fcgi = (fcgi_t*)cli->task;
 	int n;
@@ -429,7 +429,7 @@ oops:
 
 static int fcgi_client_on_write (hio_dev_sck_t* sck, hio_iolen_t wrlen, void* wrctx, const hio_skad_t* dstaddr)
 {
-	hio_t* hio = sck->hio;
+	hio_t* hio HIO_UNUSED = sck->hio;
 	hio_svc_htts_cli_t* cli = hio_dev_sck_getxtn(sck);
 	fcgi_t* fcgi = (fcgi_t*)cli->task;
 	int n;
@@ -464,7 +464,7 @@ static int peer_capture_request_header (hio_htre_t* req, const hio_bch_t* key, c
 {
 	fcgi_t* fcgi = (fcgi_t*)ctx;
 	hio_svc_htts_t* htts = fcgi->htts;
-	hio_t* hio = htts->hio;
+	hio_t* hio HIO_UNUSED = htts->hio;
 
 	if (hio_comp_bcstr(key, "Connection", 1) != 0 &&
 	    hio_comp_bcstr(key, "Transfer-Encoding", 1) != 0 &&

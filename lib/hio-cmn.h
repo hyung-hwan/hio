@@ -773,6 +773,14 @@ struct hio_cmgr_t
 #	define HIO_UNUSED
 #endif
 
+#if defined(__STDC_VERSION__) && (__STDC_VERSION__ >= 202311L)
+#	define HIO_NORETURN noreturn
+#elif defined(__STDC_VERSION__) && (__STDC_VERSION__ >= 201112L)
+#	define HIO_NORETURN _Noreturn
+#else
+#	define HIO_NORETURN
+#endif
+
 /**
  * The HIO_TYPE_IS_SIGNED() macro determines if a type is signed.
  * \code
@@ -1004,7 +1012,9 @@ struct hio_cmgr_t
 #define HIO_STATIC_JOIN_INNER(x, y) x ## y
 #define HIO_STATIC_JOIN(x, y) HIO_STATIC_JOIN_INNER(x, y)
 
-#if defined(__STDC_VERSION__) && (__STDC_VERSION__ >= 201112L)
+#if defined(__STDC_VERSION__) && (__STDC_VERSION__ >= 202311L)
+#	define HIO_STATIC_ASSERT(expr)  static_assert (expr, "invalid assertion")
+#elif defined(__STDC_VERSION__) && (__STDC_VERSION__ >= 201112L)
 #	define HIO_STATIC_ASSERT(expr)  _Static_assert (expr, "invalid assertion")
 #elif defined(__cplusplus) && (__cplusplus >= 201103L)
 #	define HIO_STATIC_ASSERT(expr) static_assert (expr, "invalid assertion")

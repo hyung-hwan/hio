@@ -1031,7 +1031,7 @@ int hio_svc_htts_docgi (hio_svc_htts_t* htts, hio_dev_sck_t* csck, hio_htre_t* r
 
 	if ((n = bind_task_to_peer(cgi, csck, req, docroot, script)) <= -1)
 	{
-		if (n == -2) status_code == HIO_HTTP_STATUS_FORBIDDEN;
+		if (n == -2) status_code = HIO_HTTP_STATUS_FORBIDDEN;
 		goto oops;
 	}
 	bound_to_peer = 1;
