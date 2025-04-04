@@ -945,7 +945,7 @@ oops:
 	HIO_DEBUG2 (hio, "HTTS(%p) - file(c=%d) failure\n", htts, csck->hnd);
 	if (file)
 	{
-		hio_svc_htts_task_sendfinalres(file, status_code, HIO_NULL, HIO_NULL, 1);
+		hio_svc_htts_task_sendfinalres((hio_svc_htts_task_t*)file, status_code, HIO_NULL, HIO_NULL, 1);
 		if (bound_to_peer) unbind_task_from_peer (file, 0);
 		if (bound_to_client) unbind_task_from_client (file, 0);
 		file_halt_participating_devices (file);

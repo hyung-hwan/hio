@@ -358,13 +358,13 @@ int hio_svc_htts_dotxt (hio_svc_htts_t* htts, hio_dev_sck_t* csck, hio_htre_t* r
 	bind_task_to_client (txt, csck);
 	bound_to_client = 1;
 
-	if (hio_svc_htts_task_handleexpect100(txt, 1) <= -1) goto oops;
+	if (hio_svc_htts_task_handleexpect100((hio_svc_htts_task_t*)txt, 1) <= -1) goto oops;
 	if (setup_for_content_length(txt, req) <= -1) goto oops;
 
 	/* TODO: store current input watching state and use it when destroying the txt data */
 	if (hio_dev_sck_read(csck, !(txt->over & TXT_OVER_READ_FROM_CLIENT)) <= -1) goto oops;
 
-	if (hio_svc_htts_task_sendfinalres(txt, res_status_code, content_type, content_text, 0) <= -1) goto oops;
+	if (hio_svc_htts_task_sendfinalres((hio_svc_htts_task_t*)txt, res_status_code, content_type, content_text, 0) <= -1) goto oops;
 
 	HIO_SVC_HTTS_TASKL_APPEND_TASK (&htts->task, (hio_svc_htts_task_t*)txt);
 	HIO_SVC_HTTS_TASK_RCDOWN ((hio_svc_htts_task_t*)txt);
@@ -378,7 +378,7 @@ oops:
 	HIO_DEBUG2 (hio, "HTTS(%p) - FAILURE in dotxt - socket(%p)\n", htts, csck);
 	if (txt)
 	{
-		hio_svc_htts_task_sendfinalres(txt, status_code, HIO_NULL, HIO_NULL, 1);
+		hio_svc_htts_task_sendfinalres((hio_svc_htts_task_t*)txt, status_code, HIO_NULL, HIO_NULL, 1);
 		if (bound_to_client) unbind_task_from_client (txt, 1);
 		txt_halt_participating_devices (txt);
 		HIO_SVC_HTTS_TASK_RCDOWN ((hio_svc_htts_task_t*)txt);

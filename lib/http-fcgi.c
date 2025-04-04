@@ -177,7 +177,7 @@ static void fcgi_peer_on_untie (hio_svc_fcgic_sess_t* peer, void* ctx)
 	HIO_DEBUG5 (hio, "HTTS(%p) - fcgi(t=%p,c=%p[%d],p=%p) - untieing peer\n", fcgi->htts, fcgi, fcgi->task_client, (fcgi->task_csck? fcgi->task_csck->hnd: -1), fcgi->peer);
 
 	fcgi->peer = HIO_NULL;  /* to avoid infinite loop as explained above */
-	hio_svc_htts_task_endbody (fcgi);
+	hio_svc_htts_task_endbody ((hio_svc_htts_task_t*)fcgi);
 	unbind_task_from_peer (fcgi, 1);
 
 	HIO_DEBUG5 (hio, "HTTS(%p) - fcgi(t=%p,c=%p[%d],p=%p) - untied peer\n", fcgi->htts, fcgi, fcgi->task_client, (fcgi->task_csck? fcgi->task_csck->hnd: -1), fcgi->peer);
@@ -205,7 +205,7 @@ static int fcgi_peer_on_read (hio_svc_fcgic_sess_t* peer, const void* data, hio_
 			/* the fcgi script could be misbehaving.
 			 * it still has to read more but EOF is read.
 			 * otherwise peer_htrd_poke() should have been called */
-			n = hio_svc_htts_task_endbody(fcgi);
+			n = hio_svc_htts_task_endbody((hio_svc_htts_task_t*)fcgi);
 			fcgi_mark_over (fcgi, FCGI_OVER_READ_FROM_PEER);
 			if (n <= -1) goto oops;
 		}
@@ -222,7 +222,7 @@ static int fcgi_peer_on_read (hio_svc_fcgic_sess_t* peer, const void* data, hio_
 
 			if (!fcgi->task_res_started && !(fcgi->over & FCGI_OVER_WRITE_TO_CLIENT))
 			{
-				hio_svc_htts_task_sendfinalres (fcgi, HIO_HTTP_STATUS_BAD_GATEWAY, HIO_NULL, HIO_NULL, 1); /* don't care about error because it jumps to oops below anyway */
+				hio_svc_htts_task_sendfinalres ((hio_svc_htts_task_t*)fcgi, HIO_HTTP_STATUS_BAD_GATEWAY, HIO_NULL, HIO_NULL, 1); /* don't care about error because it jumps to oops below anyway */
 			}
 
 			goto oops;
@@ -284,9 +284,9 @@ static int peer_htrd_peek (hio_htrd_t* htrd, hio_htre_t* req)
 
 		chunked = fcgi->task_keep_client_alive && !req->attr.content_length;
 
-		if (hio_svc_htts_task_startreshdr(fcgi, status_code, status_desc, chunked) <= -1 ||
+		if (hio_svc_htts_task_startreshdr((hio_svc_htts_task_t*)fcgi, status_code, status_desc, chunked) <= -1 ||
 			hio_htre_walkheaders(req, peer_capture_response_header, fcgi) <= -1 ||
-			hio_svc_htts_task_endreshdr(fcgi) <= -1) return -1;
+			hio_svc_htts_task_endreshdr((hio_svc_htts_task_t*)fcgi) <= -1) return -1;
 	}
 
 	return 0;
@@ -299,7 +299,7 @@ static int peer_htrd_poke (hio_htrd_t* htrd, hio_htre_t* req)
 	fcgi_t* fcgi = peer->fcgi;
 	int n;
 
-	n = hio_svc_htts_task_endbody(fcgi);
+	n = hio_svc_htts_task_endbody((hio_svc_htts_task_t*)fcgi);
 	fcgi_mark_over (fcgi, FCGI_OVER_READ_FROM_PEER);
 	return n;
 }
@@ -309,7 +309,7 @@ static int peer_htrd_push_content (hio_htrd_t* htrd, hio_htre_t* req, const hio_
 	fcgi_peer_xtn_t* peer = hio_htrd_getxtn(htrd);
 	fcgi_t* fcgi = peer->fcgi;
 	HIO_ASSERT (fcgi->htts->hio, htrd == fcgi->peer_htrd);
-	return hio_svc_htts_task_addresbody(fcgi, data, dlen);
+	return hio_svc_htts_task_addresbody((hio_svc_htts_task_t*)fcgi, data, dlen);
 }
 
 static hio_htrd_recbs_t peer_htrd_recbs =
@@ -786,7 +786,7 @@ int hio_svc_htts_dofcgi (hio_svc_htts_t* htts, hio_dev_sck_t* csck, hio_htre_t* 
 	if (bind_task_to_peer(fcgi, fcgis_addr) <= -1) goto oops;
 	bound_to_peer = 1;
 
-	if (hio_svc_htts_task_handleexpect100(fcgi, 0) <= -1) goto oops;
+	if (hio_svc_htts_task_handleexpect100((hio_svc_htts_task_t*)fcgi, 0) <= -1) goto oops;
 	if (setup_for_content_length(fcgi, req) <= -1) goto oops;
 
 	/* TODO: store current input watching state and use it when destroying the fcgi data */
@@ -810,7 +810,7 @@ oops:
 	HIO_DEBUG2 (hio, "HTTS(%p) - FAILURE in dofcgi - socket(%p)\n", htts, csck);
 	if (fcgi)
 	{
-		hio_svc_htts_task_sendfinalres(fcgi, status_code, HIO_NULL, HIO_NULL, 1);
+		hio_svc_htts_task_sendfinalres((hio_svc_htts_task_t*)fcgi, status_code, HIO_NULL, HIO_NULL, 1);
 		if (bound_to_peer) unbind_task_from_peer (fcgi, 1);
 		if (bound_to_client) unbind_task_from_client (fcgi, 1);
 		fcgi_halt_participating_devices (fcgi);

@@ -219,7 +219,7 @@ static void thr_peer_on_close (hio_dev_thr_t* peer, hio_dev_thr_sid_t sid)
 
 			if (!(thr->over & THR_OVER_READ_FROM_PEER))
 			{
-				if (hio_svc_htts_task_endbody(thr) <= -1)
+				if (hio_svc_htts_task_endbody((hio_svc_htts_task_t*)thr) <= -1)
 					thr_halt_participating_devices (thr);
 				else
 					thr_mark_over (thr, THR_OVER_READ_FROM_PEER);
@@ -261,7 +261,7 @@ static int thr_peer_on_read (hio_dev_thr_t* peer, const void* data, hio_iolen_t 
 			/* the thr script could be misbehaviing.
 			 * it still has to read more but EOF is read.
 			 * otherwise client_peer_htrd_poke() should have been called */
-			n = hio_svc_htts_task_endbody(thr);
+			n = hio_svc_htts_task_endbody((hio_svc_htts_task_t*)thr);
 			thr_mark_over (thr, THR_OVER_READ_FROM_PEER);
 			if (n <= -1) goto oops;
 		}
@@ -278,7 +278,7 @@ static int thr_peer_on_read (hio_dev_thr_t* peer, const void* data, hio_iolen_t 
 
 			if (!thr->task_res_started && !(thr->over & THR_OVER_WRITE_TO_CLIENT))
 			{
-				hio_svc_htts_task_sendfinalres (thr, HIO_HTTP_STATUS_BAD_GATEWAY, HIO_NULL, HIO_NULL, 1); /* don't care about error because it jumps to oops below anyway */
+				hio_svc_htts_task_sendfinalres ((hio_svc_htts_task_t*)thr, HIO_HTTP_STATUS_BAD_GATEWAY, HIO_NULL, HIO_NULL, 1); /* don't care about error because it jumps to oops below anyway */
 			}
 
 			goto oops;
@@ -302,7 +302,7 @@ oops:
 static int peer_capture_response_header (hio_htre_t* req, const hio_bch_t* key, const hio_htre_hdrval_t* val, void* ctx)
 {
 	thr_t* thr = (thr_t*)ctx;
-	return hio_svc_htts_task_addreshdrs(thr, key, val);
+	return hio_svc_htts_task_addreshdrs((hio_svc_htts_task_t*)thr, key, val);
 }
 
 static int thr_peer_htrd_peek (hio_htrd_t* htrd, hio_htre_t* req)
@@ -321,9 +321,9 @@ static int thr_peer_htrd_peek (hio_htrd_t* htrd, hio_htre_t* req)
 
 		chunked = thr->task_keep_client_alive && !req->attr.content_length;
 
-		if (hio_svc_htts_task_startreshdr(thr, status_code, status_desc, chunked) <= -1 ||
+		if (hio_svc_htts_task_startreshdr((hio_svc_htts_task_t*)thr, status_code, status_desc, chunked) <= -1 ||
 			hio_htre_walkheaders(req, peer_capture_response_header, thr) <= -1 ||
-			hio_svc_htts_task_endreshdr(thr) <= -1) return -1;
+			hio_svc_htts_task_endreshdr((hio_svc_htts_task_t*)thr) <= -1) return -1;
 	}
 
 	return 0;
@@ -336,7 +336,7 @@ static int thr_peer_htrd_poke (hio_htrd_t* htrd, hio_htre_t* req)
 	thr_t* thr = pxtn->task;
 	int n;
 
-	n = hio_svc_htts_task_endbody(thr);
+	n = hio_svc_htts_task_endbody((hio_svc_htts_task_t*)thr);
 	thr_mark_over (thr, THR_OVER_READ_FROM_PEER);
 	return n;
 }
@@ -349,7 +349,7 @@ static int thr_peer_htrd_push_content (hio_htrd_t* htrd, hio_htre_t* req, const 
 
 	HIO_ASSERT (thr->htts->hio, htrd == thr->peer_htrd);
 
-	n = hio_svc_htts_task_addresbody(thr, data, dlen);
+	n = hio_svc_htts_task_addresbody((hio_svc_htts_task_t*)thr, data, dlen);
 	if (thr->task_res_pending_writes > THR_PENDING_IO_THRESHOLD)
 	{
 		if (hio_dev_thr_read(thr->peer, 0) <= -1) n = -1;
@@ -461,7 +461,7 @@ static void thr_client_on_disconnect (hio_dev_sck_t* sck)
 
 	if (thr)
 	{
-		HIO_SVC_HTTS_TASK_RCUP (thr);
+		HIO_SVC_HTTS_TASK_RCUP ((hio_svc_htts_task_t*)thr);
 
 		unbind_task_from_client (thr, 1);
 
@@ -469,7 +469,7 @@ static void thr_client_on_disconnect (hio_dev_sck_t* sck)
 		/*if (thr->client_org_on_disconnect) thr->client_org_on_disconnect (sck);*/
 		if (sck->on_disconnect) sck->on_disconnect (sck); /* restored to the orginal parent handler in unbind_task_from_client() */
 
-		HIO_SVC_HTTS_TASK_RCDOWN (thr);
+		HIO_SVC_HTTS_TASK_RCDOWN ((hio_svc_htts_task_t*)thr);
 	}
 
 	HIO_DEBUG4 (hio, "HTTS(%p) - thr(t=%p,c=%p,csck=%p) - client socket disconnect handled\n", htts, thr, cli, sck);
@@ -869,7 +869,7 @@ int hio_svc_htts_dothr (hio_svc_htts_t* htts, hio_dev_sck_t* csck, hio_htre_t* r
 	if (bind_task_to_peer(thr, csck, req, func, ctx) <= -1) goto oops;
 	bound_to_peer = 1;
 
-	if (hio_svc_htts_task_handleexpect100(thr, 0) <= -1) goto oops;
+	if (hio_svc_htts_task_handleexpect100((hio_svc_htts_task_t*)thr, 0) <= -1) goto oops;
 	if (setup_for_content_length(thr, req) <= -1) goto oops;
 
 	/* TODO: store current input watching state and use it when destroying the thr data */
@@ -887,7 +887,7 @@ oops:
 	HIO_DEBUG2 (hio, "HTTS(%p) - FAILURE in dothr - socket(%p)\n", htts, csck);
 	if (thr)
 	{
-		hio_svc_htts_task_sendfinalres(thr, status_code, HIO_NULL, HIO_NULL, 1);
+		hio_svc_htts_task_sendfinalres((hio_svc_htts_task_t*)thr, status_code, HIO_NULL, HIO_NULL, 1);
 		if (bound_to_peer) unbind_task_from_peer (thr, 1);
 		if (bound_to_client) unbind_task_from_client (thr, 1);
 		thr_halt_participating_devices (thr);

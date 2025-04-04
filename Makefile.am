@@ -4,7 +4,7 @@ ACLOCAL_AMFLAGS = -I m4
 EXTRA_DIST =
 
 SUBDIRS = lib bin t
-DIST_SUBDIRS = $(SUBDIRS) 
+DIST_SUBDIRS = $(SUBDIRS)
 
 distclean-local:
 	rm -rf $(top_srcdir)/autom4te.cache

@@ -286,7 +286,7 @@ static void cgi_peer_on_close (hio_dev_pro_t* pro, hio_dev_pro_sid_t sid)
 
 			if (!(cgi->over & CGI_OVER_READ_FROM_PEER))
 			{
-				if (hio_svc_htts_task_endbody(cgi) <= -1)
+				if (hio_svc_htts_task_endbody((hio_svc_htts_task_t*)cgi) <= -1)
 					cgi_halt_participating_devices (cgi);
 				else
 					cgi_mark_over (cgi, CGI_OVER_READ_FROM_PEER);
@@ -331,7 +331,7 @@ static int cgi_peer_on_read (hio_dev_pro_t* pro, hio_dev_pro_sid_t sid, const vo
 			/* the cgi script could be misbehaving.
 			 * it still has to read more but EOF is read.
 			 * otherwise peer_htrd_poke() should have been called */
-			n = hio_svc_htts_task_endbody(cgi);
+			n = hio_svc_htts_task_endbody((hio_svc_htts_task_t*)cgi);
 			cgi_mark_over (cgi, CGI_OVER_READ_FROM_PEER);
 			if (n <= -1) goto oops;
 		}
@@ -348,7 +348,7 @@ static int cgi_peer_on_read (hio_dev_pro_t* pro, hio_dev_pro_sid_t sid, const vo
 
 			if (!cgi->task_res_started && !(cgi->over & CGI_OVER_WRITE_TO_CLIENT))
 			{
-				hio_svc_htts_task_sendfinalres (cgi, HIO_HTTP_STATUS_BAD_GATEWAY, HIO_NULL, HIO_NULL, 1); /* don't care about error because it jumps to oops below anyway */
+				hio_svc_htts_task_sendfinalres ((hio_svc_htts_task_t*)cgi, HIO_HTTP_STATUS_BAD_GATEWAY, HIO_NULL, HIO_NULL, 1); /* don't care about error because it jumps to oops below anyway */
 			}
 
 			goto oops;
@@ -421,7 +421,7 @@ oops:
 
 static int peer_capture_response_header (hio_htre_t* req, const hio_bch_t* key, const hio_htre_hdrval_t* val, void* ctx)
 {
-	return hio_svc_htts_task_addreshdrs((cgi_t*)ctx, key, val);
+	return hio_svc_htts_task_addreshdrs((hio_svc_htts_task_t*)(cgi_t*)ctx, key, val);
 }
 
 static int peer_htrd_peek (hio_htrd_t* htrd, hio_htre_t* req)
@@ -440,9 +440,9 @@ static int peer_htrd_peek (hio_htrd_t* htrd, hio_htre_t* req)
 
 		chunked = cgi->task_keep_client_alive && !req->attr.content_length;
 
-		if (hio_svc_htts_task_startreshdr(cgi, status_code, status_desc, chunked) <= -1 ||
+		if (hio_svc_htts_task_startreshdr((hio_svc_htts_task_t*)cgi, status_code, status_desc, chunked) <= -1 ||
 		    hio_htre_walkheaders(req, peer_capture_response_header, cgi) <= -1 ||
-		    hio_svc_htts_task_endreshdr(cgi) <= -1) return -1;
+		    hio_svc_htts_task_endreshdr((hio_svc_htts_task_t*)cgi) <= -1) return -1;
 	}
 
 	return 0;
@@ -455,7 +455,7 @@ static int peer_htrd_poke (hio_htrd_t* htrd, hio_htre_t* req)
 	cgi_t* cgi = peer->cgi;
 	int n;
 
-	n = hio_svc_htts_task_endbody(cgi);
+	n = hio_svc_htts_task_endbody((hio_svc_htts_task_t*)cgi);
 	cgi_mark_over (cgi, CGI_OVER_READ_FROM_PEER);
 	return n;
 }
@@ -468,7 +468,7 @@ static int peer_htrd_push_content (hio_htrd_t* htrd, hio_htre_t* req, const hio_
 
 	HIO_ASSERT (cgi->htts->hio, htrd == cgi->peer_htrd);
 
-	n = hio_svc_htts_task_addresbody(cgi, data, dlen);
+	n = hio_svc_htts_task_addresbody((hio_svc_htts_task_t*)cgi, data, dlen);
 	if (cgi->task_res_pending_writes > CGI_PENDING_IO_THRESHOLD)
 	{
 		if (hio_dev_pro_read(cgi->peer, HIO_DEV_PRO_OUT, 0) <= -1) n = -1;
@@ -1036,7 +1036,7 @@ int hio_svc_htts_docgi (hio_svc_htts_t* htts, hio_dev_sck_t* csck, hio_htre_t* r
 	}
 	bound_to_peer = 1;
 
-	if (hio_svc_htts_task_handleexpect100(cgi, 0) <= -1) goto oops;
+	if (hio_svc_htts_task_handleexpect100((hio_svc_htts_task_t*)cgi, 0) <= -1) goto oops;
 	if (setup_for_content_length(cgi, req) <= -1) goto oops;
 
 	/* TODO: store current input watching state and use it when destroying the cgi data */
@@ -1055,7 +1055,7 @@ oops:
 	HIO_DEBUG3 (hio, "HTTS(%p) - FAILURE in docgi - socket(%p) - %js\n", htts, csck, hio_geterrmsg(hio));
 	if (cgi)
 	{
-		hio_svc_htts_task_sendfinalres(cgi, status_code, HIO_NULL, HIO_NULL, 1);
+		hio_svc_htts_task_sendfinalres((hio_svc_htts_task_t*)cgi, status_code, HIO_NULL, HIO_NULL, 1);
 		if (bound_to_peer) unbind_task_from_peer (cgi, 1);
 		if (bound_to_client) unbind_task_from_client (cgi, 1);
 		cgi_halt_participating_devices (cgi);

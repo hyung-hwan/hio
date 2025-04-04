@@ -668,7 +668,7 @@ static int dev_pro_writev_slave (hio_dev_t* dev, const hio_iovec_t* iov, hio_iol
 		return 1; /* indicate that the operation got successful. the core will execute on_write() with 0. */
 	}
 
-	x = writev(pro->pfd, iov, *iovcnt);
+	x = writev(pro->pfd, (struct iovec*)iov, *iovcnt);
 	if (x <= -1)
 	{
 		if (errno == EINPROGRESS || errno == EWOULDBLOCK || errno == EAGAIN) return 0;  /* no data can be written */

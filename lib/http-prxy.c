@@ -23,7 +23,7 @@
  */
 
 #include "http-prv.h"
-#include <hio-pro.h>
+#include <hio-sck.h>
 #include <hio-fmt.h>
 #include <hio-chr.h>
 #include <hio-dns.h>
@@ -56,7 +56,7 @@ struct prxy_t
 
 	int options;
 	hio_oow_t peer_pending_writes;
-	hio_dev_pro_t* peer;
+	hio_dev_sck_t* peer;
 	hio_htrd_t* peer_htrd;
 
 	unsigned int over: 4; /* must be large enough to accomodate PRXY_OVER_ALL */
@@ -85,7 +85,7 @@ static void prxy_halt_participating_devices (prxy_t* prxy)
 	if (prxy->task_csck) hio_dev_sck_halt (prxy->task_csck);
 
 	/* check for peer as it may not have been started */
-	if (prxy->peer) hio_dev_pro_halt (prxy->peer);
+	if (prxy->peer) hio_dev_sck_halt (prxy->peer);
 }
 
 static int prxy_write_to_peer (prxy_t* prxy, const void* data, hio_iolen_t dlen)
@@ -93,7 +93,7 @@ static int prxy_write_to_peer (prxy_t* prxy, const void* data, hio_iolen_t dlen)
 	if (prxy->peer)
 	{
 		prxy->peer_pending_writes++;
-		if (hio_dev_pro_write(prxy->peer, data, dlen, HIO_NULL) <= -1)
+		if (hio_dev_sck_write(prxy->peer, data, dlen, HIO_NULL, HIO_NULL) <= -1)
 		{
 			prxy->peer_pending_writes--;
 			return -1;
@@ -130,10 +130,10 @@ static HIO_INLINE void prxy_mark_over (prxy_t* prxy, int over_bits)
 
 	if (!(old_over & PRXY_OVER_READ_FROM_PEER) && (prxy->over & PRXY_OVER_READ_FROM_PEER))
 	{
-		if (prxy->peer && hio_dev_pro_read(prxy->peer, HIO_DEV_PRO_OUT, 0) <= -1)
+		if (prxy->peer && hio_dev_sck_read(prxy->peer, 0) <= -1)
 		{
 			HIO_DEBUG5 (hio, "HTTS(%p) - prxy(t=%p,c=%p[%d],p=%p) - halting peer for failure to disable input watching\n", prxy->htts, prxy, prxy->task_client, (prxy->task_csck? prxy->task_csck->hnd: -1), prxy->peer);
-			hio_dev_pro_halt (prxy->peer);
+			hio_dev_sck_halt (prxy->peer);
 		}
 	}
 
@@ -143,7 +143,7 @@ static HIO_INLINE void prxy_mark_over (prxy_t* prxy, int over_bits)
 		if (prxy->peer)
 		{
 			HIO_DEBUG5 (hio, "HTTS(%p) - prxy(t=%p,c=%p[%d],p=%p) - halting unneeded peer\n", prxy->htts, prxy, prxy->task_client, (prxy->task_csck? prxy->task_csck->hnd: -1), prxy->peer);
-			hio_dev_pro_halt (prxy->peer);
+			hio_dev_sck_halt (prxy->peer);
 		}
 
 		if (prxy->task_csck)
@@ -249,7 +249,7 @@ static int prxy_peer_on_read (hio_dev_sck_t* sck, const void* data, hio_iolen_t 
 			/* the prxy script could be misbehaving.
 			 * it still has to read more but EOF is read.
 			 * otherwise peer_htrd_poke() should have been called */
-			n = hio_svc_htts_task_endbody(prxy);
+			n = hio_svc_htts_task_endbody((hio_svc_htts_task_t*)prxy);
 			prxy_mark_over (prxy, PRXY_OVER_READ_FROM_PEER);
 			if (n <= -1) goto oops;
 		}
@@ -266,7 +266,7 @@ static int prxy_peer_on_read (hio_dev_sck_t* sck, const void* data, hio_iolen_t 
 
 			if (!prxy->task_res_started && !(prxy->over & PRXY_OVER_WRITE_TO_CLIENT))
 			{
-				hio_svc_htts_task_sendfinalres (prxy, HIO_HTTP_STATUS_BAD_GATEWAY, HIO_NULL, HIO_NULL, 1); /* don't care about error because it jumps to oops below anyway */
+				hio_svc_htts_task_sendfinalres ((hio_svc_htts_task_t*)prxy, HIO_HTTP_STATUS_BAD_GATEWAY, HIO_NULL, HIO_NULL, 1); /* don't care about error because it jumps to oops below anyway */
 			}
 
 			goto oops;
@@ -288,7 +288,7 @@ oops:
 static int prxy_peer_on_write (hio_dev_sck_t* sck, hio_iolen_t wrlen, void* wrctx, const hio_skad_t* dstaddr)
 {
 	hio_t* hio = sck->hio;
-	prxy_peer_xtn_t* peer = hio_dev_pro_getxtn(sck);
+	prxy_peer_xtn_t* peer = hio_dev_sck_getxtn(sck);
 	prxy_t* prxy = peer->prxy;
 
 	if (!prxy) return 0; /* there is nothing i can do. the prxy is being cleared or has been cleared already. */
@@ -339,7 +339,7 @@ oops:
 
 static int peer_capture_response_header (hio_htre_t* req, const hio_bch_t* key, const hio_htre_hdrval_t* val, void* ctx)
 {
-	return hio_svc_htts_task_addreshdrs((prxy_t*)ctx, key, val);
+	return hio_svc_htts_task_addreshdrs((hio_svc_htts_task_t*)(prxy_t*)ctx, key, val);
 }
 
 static int peer_htrd_peek (hio_htrd_t* htrd, hio_htre_t* req)
@@ -358,9 +358,9 @@ static int peer_htrd_peek (hio_htrd_t* htrd, hio_htre_t* req)
 
 		chunked = prxy->task_keep_client_alive && !req->attr.content_length;
 
-		if (hio_svc_htts_task_startreshdr(prxy, status_code, status_desc, chunked) <= -1 ||
+		if (hio_svc_htts_task_startreshdr((hio_svc_htts_task_t*)prxy, status_code, status_desc, chunked) <= -1 ||
 			hio_htre_walkheaders(req, peer_capture_response_header, prxy) <= -1 ||
-			hio_svc_htts_task_endreshdr(prxy) <= -1) return -1;
+			hio_svc_htts_task_endreshdr((hio_svc_htts_task_t*)prxy) <= -1) return -1;
 	}
 
 	return 0;
@@ -373,7 +373,7 @@ static int peer_htrd_poke (hio_htrd_t* htrd, hio_htre_t* req)
 	prxy_t* prxy = peer->prxy;
 	int n;
 
-	n = hio_svc_htts_task_endbody(prxy);
+	n = hio_svc_htts_task_endbody((hio_svc_htts_task_t*)prxy);
 	prxy_mark_over (prxy, PRXY_OVER_READ_FROM_PEER);
 	return n;
 }
@@ -386,10 +386,10 @@ static int peer_htrd_push_content (hio_htrd_t* htrd, hio_htre_t* req, const hio_
 
 	HIO_ASSERT (prxy->htts->hio, htrd == prxy->peer_htrd);
 
-	n = hio_svc_htts_task_addresbody(prxy, data, dlen);
+	n = hio_svc_htts_task_addresbody((hio_svc_htts_task_t*)prxy, data, dlen);
 	if (prxy->task_res_pending_writes > PRXY_PENDING_IO_THRESHOLD)
 	{
-		if (hio_dev_pro_read(prxy->peer, HIO_DEV_PRO_OUT, 0) <= -1) n = -1;
+		if (hio_dev_sck_read(prxy->peer, 0) <= -1) n = -1;
 	}
 
 	return n;
@@ -447,7 +447,7 @@ static void prxy_client_on_disconnect (hio_dev_sck_t* sck)
 
 	if (prxy)
 	{
-		HIO_SVC_HTTS_TASK_RCUP (prxy);
+		HIO_SVC_HTTS_TASK_RCUP ((hio_svc_htts_task_t*)prxy);
 
 		/* detach the task from the client and the client socket */
 		unbind_task_from_client (prxy, 1);
@@ -456,7 +456,7 @@ static void prxy_client_on_disconnect (hio_dev_sck_t* sck)
 		/*if (fprxy->client_org_on_disconnect) fprxy->client_org_on_disconnect (sck);*/
 		if (sck->on_disconnect) sck->on_disconnect (sck); /* restored to the orginal parent handler in unbind_task_from_client() */
 
-		HIO_SVC_HTTS_TASK_RCDOWN (prxy);
+		HIO_SVC_HTTS_TASK_RCDOWN ((hio_svc_htts_task_t*)prxy);
 	}
 
 	HIO_DEBUG4 (hio, "HTTS(%p) - prxy(t=%p,c=%p,csck=%p) - client socket disconnect handled\n", htts, prxy, cli, sck);
@@ -527,7 +527,7 @@ static int prxy_client_on_write (hio_dev_sck_t* sck, hio_iolen_t wrlen, void* wr
 		{
 			/* enable input watching */
 			if (!(prxy->over & PRXY_OVER_READ_FROM_PEER) &&
-			    hio_dev_pro_read(prxy->peer, HIO_DEV_PRO_OUT, 1) <= -1) n = -1;
+			    hio_dev_sck_read(prxy->peer, 1) <= -1) n = -1;
 		}
 
 		if ((prxy->over & PRXY_OVER_READ_FROM_PEER) && prxy->task_res_pending_writes <= 0)
@@ -591,7 +591,7 @@ static int peer_capture_request_header (hio_htre_t* req, const hio_bch_t* key, c
 	return 0;
 }
 
-static int prxy_peer_on_fork (hio_dev_pro_t* pro, void* fork_ctx)
+static int prxy_peer_on_fork (hio_dev_sck_t* pro, void* fork_ctx)
 {
 	hio_t* hio = pro->hio; /* in this callback, the pro device is not fully up. however, the hio field is guaranteed to be available */
 	peer_fork_ctx_t* fc = (peer_fork_ctx_t*)fork_ctx;
@@ -837,7 +837,7 @@ static int bind_task_to_peer (prxy_t* prxy, hio_dev_sck_t* csck, hio_htre_t* req
 	prxy->peer = sck;
 	prxy->peer_htrd = htrd;
 
-	pxtn = hio_dev_pro_getxtn(prxy->peer);
+	pxtn = hio_dev_sck_getxtn(prxy->peer);
 	pxtn->prxy = prxy;
 	HIO_SVC_HTTS_TASK_RCUP (prxy);
 
@@ -867,10 +867,10 @@ static void unbind_task_from_peer (prxy_t* prxy, int rcdown)
 	if (prxy->peer)
 	{
 		prxy_peer_xtn_t* peer_xtn;
-		peer_xtn = hio_dev_pro_getxtn(prxy->peer);
+		peer_xtn = hio_dev_sck_getxtn(prxy->peer);
 		peer_xtn->prxy = HIO_NULL;
 
-		hio_dev_pro_kill (prxy->peer);
+		hio_dev_sck_kill (prxy->peer);
 		prxy->peer = HIO_NULL;
 		n++;
 	}
@@ -947,12 +947,12 @@ int hio_svc_htts_doprxy (hio_svc_htts_t* htts, hio_dev_sck_t* csck, hio_htre_t* 
 
 	if ((n = bind_task_to_peer(prxy, csck, req, tgt_addr)) <= -1)
 	{
-		hio_svc_htts_task_sendfinalres(prxy, (n == 2? HIO_HTTP_STATUS_FORBIDDEN: HIO_HTTP_STATUS_INTERNAL_SERVER_ERROR), HIO_NULL, HIO_NULL, 1);
+		hio_svc_htts_task_sendfinalres((hio_svc_htts_task_t*)prxy, (n == 2? HIO_HTTP_STATUS_FORBIDDEN: HIO_HTTP_STATUS_INTERNAL_SERVER_ERROR), HIO_NULL, HIO_NULL, 1);
 		goto oops; /* TODO: must not go to oops.  just destroy the prxy and finalize the request .. */
 	}
 	bound_to_peer = 1;
 
-	if (hio_svc_htts_task_handleexpect100(prxy, 0) <= -1) goto oops;
+	if (hio_svc_htts_task_handleexpect100((hio_svc_htts_task_t*)prxy, 0) <= -1) goto oops;
 	if (setup_for_content_length(prxy, req) <= -1) goto oops;
 
 	/* TODO: store current input watching state and use it when destroying the prxy data */
@@ -970,7 +970,7 @@ oops:
 	HIO_DEBUG2 (hio, "HTTS(%p) - FAILURE in doprxy - socket(%p)\n", htts, csck);
 	if (prxy)
 	{
-		hio_svc_htts_task_sendfinalres(prxy, status_code, HIO_NULL, HIO_NULL, 1);
+		hio_svc_htts_task_sendfinalres((hio_svc_htts_task_t*)prxy, status_code, HIO_NULL, HIO_NULL, 1);
 		if (bound_to_peer) unbind_task_from_peer (prxy, 1);
 		if (bound_to_client) unbind_task_from_client (prxy, 1);
 		prxy_halt_participating_devices (prxy);

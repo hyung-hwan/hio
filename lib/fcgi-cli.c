@@ -255,7 +255,7 @@ static int sck_on_read (hio_dev_sck_t* sck, const void* data, hio_iolen_t dlen, 
 				/* the complete body is in conn->r.buf */
 				if (conn->r.type == HIO_FCGI_END_REQUEST)
 				{
-					hio_fcgi_end_request_body_t* erb = conn->r.buf;
+					hio_fcgi_end_request_body_t* erb = (hio_fcgi_end_request_body_t*)conn->r.buf;
 
 					if (erb->proto_status != HIO_FCGI_REQUEST_COMPLETE)
 					{

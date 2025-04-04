@@ -47,11 +47,11 @@ int hio_dhcp4_init_pktbuf (hio_dhcp4_pktbuf_t* pkt, void* buf, hio_oow_t capa)
 int hio_dhcp4_add_option (hio_dhcp4_pktbuf_t* pkt, int code, void* optr, hio_uint8_t olen)
 {
 	hio_dhcp4_opt_hdr_t* opthdr;
-	magic_cookie_t* cookie; 
+	magic_cookie_t* cookie;
 	int optlen;
 
 /* TODO: support to override sname and file */
-	if (pkt->len < HIO_SIZEOF(*pkt->hdr) || pkt->capa < pkt->len) 
+	if (pkt->len < HIO_SIZEOF(*pkt->hdr) || pkt->capa < pkt->len)
 	{
 		/* the pktbuf_t structure got messy */
 		return -1;
@@ -139,13 +139,13 @@ static hio_uint8_t* get_option_start (const hio_dhcp4_pkt_hdr_t* pkt, hio_oow_t 
 	hio_oow_t optlen;
 
 	/* check if a packet is large enough to hold the known header */
-	if (len < HIO_SIZEOF(hio_dhcp4_pkt_hdr_t)) return HIO_NULL; 
+	if (len < HIO_SIZEOF(hio_dhcp4_pkt_hdr_t)) return HIO_NULL;
 
 	/* get the length of option fields */
 	optlen = len - HIO_SIZEOF(hio_dhcp4_pkt_hdr_t);
 
 	/* check if a packet is large enough to have a magic cookie */
-	if (optlen < HIO_SIZEOF(*cookie)) return HIO_NULL; 
+	if (optlen < HIO_SIZEOF(*cookie)) return HIO_NULL;
 
 	/* get the pointer to the beginning of options */
 	cookie = (magic_cookie_t*)(pkt + 1);
@@ -186,7 +186,7 @@ int hio_dhcp4_walk_options (const hio_dhcp4_pktinf_t* pkt, hio_dhcp4_opt_walker_
 			opt += HIO_SIZEOF(*opthdr);
 
 			/* no len field exists for PADDING and END */
-			if (opthdr->code == HIO_DHCP4_OPT_PADDING) continue; 
+			if (opthdr->code == HIO_DHCP4_OPT_PADDING) continue;
 			if (opthdr->code == HIO_DHCP4_OPT_END) break;
 
 			if (opt + opthdr->len >= end) return -1; /* the length field is wrong */
@@ -337,7 +337,7 @@ hio_dhcp6_opt_hdr_t* hio_dhcp6_find_option (const hio_dhcp6_pktinf_t* pkt, int c
 
 	while (rem >= HIO_SIZEOF(hio_dhcp6_opt_hdr_t))
 	{
-		if (hio_ntoh16(opt->code) == code) 
+		if (hio_ntoh16(opt->code) == code)
 		{
 			if (rem - HIO_SIZEOF(hio_dhcp6_opt_hdr_t) < hio_ntoh16(opt->len)) return HIO_NULL; /* probably the packet is ill-formed */
 			return opt;
@@ -347,7 +347,7 @@ hio_dhcp6_opt_hdr_t* hio_dhcp6_find_option (const hio_dhcp6_pktinf_t* pkt, int c
 		if (rem < opt_len) break;
 		rem -= opt_len;
 		opt = (hio_dhcp6_opt_hdr_t*)((hio_uint8_t*)(opt + 1) + hio_ntoh16(opt->len));
-		
+
 	}
 
 	return HIO_NULL;

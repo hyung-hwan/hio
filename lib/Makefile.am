@@ -3,7 +3,7 @@ AUTOMAKE_OPTIONS = nostdinc
 CPPFLAGS_ALL_COMMON = \
 	-I$(abs_builddir) \
 	-I$(abs_srcdir) \
-	-I$(includedir)	
+	-I$(includedir)
 
 CFLAGS_ALL_COMMON  =
 LDFLAGS_ALL_COMMON = -L$(abs_builddir) -L$(libdir)
@@ -15,10 +15,10 @@ EXTRA_DIST = \
 
 BUILT_SOURCES = \
 	hio-str.h \
-	utl-str.c 
+	utl-str.c
 
 ##################################################
-# MAIN LIBRARY 
+# MAIN LIBRARY
 ##################################################
 
 CPPFLAGS_LIB_COMMON = $(CPPFLAGS_ALL_COMMON)
@@ -146,7 +146,7 @@ endif
 install-data-hook:
 	@echo "#ifndef _HIO_CFG_H_" > "$(DESTDIR)$(includedir)/hio-cfg.h"
 	@echo "#define _HIO_CFG_H_" >> "$(DESTDIR)$(includedir)/hio-cfg.h"
-	@$(EGREP) "#define[ ]+HIO_" "$(abs_builddir)/hio-cfg.h" >> "$(DESTDIR)$(includedir)/hio-cfg.h" 
+	@$(EGREP) "#define[ ]+HIO_" "$(abs_builddir)/hio-cfg.h" >> "$(DESTDIR)$(includedir)/hio-cfg.h"
 	@echo "#endif" >> "$(DESTDIR)$(includedir)/hio-cfg.h"
 	@rm -f "$(DESTDIR)$(includedir)/hio-cfg.h.in"
 	@$(SED) 's|/\*#define HIO_HAVE_CFG_H\*/|#define HIO_HAVE_CFG_H|' "$(srcdir)/hio-cmn.h" > "$(DESTDIR)$(includedir)/hio-cmn.h"
@@ -157,6 +157,6 @@ uninstall-hook:
 hio-str.h: utl-str.m4 hio-str.h.m4
 	m4 -I$(srcdir) $(srcdir)/hio-str.h.m4 > $(srcdir)/hio-str.h
 
-utl-str.c: utl-str.m4 utl-str.c.m4 
+utl-str.c: utl-str.m4 utl-str.c.m4
 	m4 -I$(srcdir) $(srcdir)/utl-str.c.m4 > $(srcdir)/utl-str.c
 

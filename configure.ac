@@ -1,6 +1,6 @@
 dnl AC_PREREQ([2.71])
 
-AC_INIT([hio],[0.1.0],[Chung, Hyung-Hwan (hyunghwan.chung@gmail.com)],[],[http://code.miflux.com/@hio])
+AC_INIT([hio],[0.1.0],[Chung, Hyung-Hwan (hyunghwan.chung@gmail.com)],[],[http://code.miflux.com/hyung-hwan/hio])
 
 AC_CONFIG_HEADERS([lib/hio-cfg.h])
 AC_CONFIG_AUX_DIR([ac])
@@ -124,7 +124,7 @@ AC_CHECK_HEADERS([sys/stropts.h sys/macstat.h linux/ethtool.h linux/sockios.h])
 AC_CHECK_HEADERS([quadmath.h crt_externs.h sys/prctl.h paths.h pty.h])
 
 dnl check data types
-dnl AC_CHECK_TYPE([wchar_t], 
+dnl AC_CHECK_TYPE([wchar_t],
 dnl 	[ AC_DEFINE([HAVE_WCHAR_T_IN_STDDEF_H],
 dnl	           [],[wchar_t is available in stddef.h]) ],
 dnl	[],
@@ -171,7 +171,7 @@ then
 	AC_CHECK_LIB([socket], [connect], [
 		SOCKET_LIBS="$SOCKET_LIBS -lsocket"
 		AC_DEFINE(HAVE_CONNECT, 1)
-	]) 
+	])
 
 	if test "x$ac_cv_lib_socket_connect" = xno
 	then
@@ -250,14 +250,14 @@ AC_CHECK_LIB([pthread], [pthread_mutex_trylock],  [
 ])
 
 dnl ===== enable-all-static =====
-AC_ARG_ENABLE([all-static], 
+AC_ARG_ENABLE([all-static],
 	[AS_HELP_STRING([--enable-all-static],[build the full static binaries(default. no)])],
 	enable_all_static_is=$enableval,
 	enable_all_static_is=no
 )
 AM_CONDITIONAL(ENABLE_ALL_STATIC, test "x${enable_all_static_is}" = "xyes")
 
-AC_ARG_WITH([all-static-libs], 
+AC_ARG_WITH([all-static-libs],
 	[AS_HELP_STRING([--with-all-static-libs[[=lib-list]]],[specify extra libraries to add for building the full static binaries])],
 	[],
 	[with_all_static_libs=]
@@ -265,8 +265,15 @@ AC_ARG_WITH([all-static-libs],
 ALL_STATIC_LIBS="$with_all_static_libs"
 AC_SUBST(ALL_STATIC_LIBS)
 
+dnl ===== enable-quadmath =====
+AC_ARG_ENABLE([quadmath],
+	[AS_HELP_STRING([--enable-quadmath],[attempt to support 128-bit floating point number if available(default. no)])],
+	enable_quadmath_is=$enableval,
+	enable_quadmath_is=no
+)
+
 dnl ===== enable-ssl =====
-AC_ARG_ENABLE([ssl], 
+AC_ARG_ENABLE([ssl],
 	[AS_HELP_STRING([--enable-ssl],[build the library in the ssl mode (default. yes)])],
 	enable_ssl_is=$enableval,
 	enable_ssl_is=yes
@@ -277,13 +284,13 @@ then
 
 	dnl check for an SSL library
 	dnl i used SSL_library_init at first.
-	dnl starting from  openssl 1.1.0, SSL_library_init was made to a macro 
+	dnl starting from  openssl 1.1.0, SSL_library_init was made to a macro
 	dnl aliasing OPENSSL_init_ssl.
 	dnl   #define SSL_library_init() OPENSSL_init_ssl(0, NULL)
 	dnl instead of checking both, now i use SSL_new.
 	AC_CHECK_FUNCS([SSL_new])
 
-	if test "x$ac_cv_func_SSL_new" = "xyes" 
+	if test "x$ac_cv_func_SSL_new" = "xyes"
 	then
 		AC_DEFINE(HAVE_SSL, 1, [ssl support])
 	else
@@ -364,8 +371,8 @@ AC_CHECK_TYPES([struct lifconf, struct lifreq, struct if_laddrreq], [], [],
 	 #endif])
 
 AC_CHECK_MEMBERS([struct sockaddr_in6.sin6_scope_id], [], [],
-	[#include <sys/types.h> 
-	 #include <sys/socket.h> 
+	[#include <sys/types.h>
+	 #include <sys/socket.h>
 	 #include <netinet/in.h>])
 
 AC_CHECK_TYPES([struct timespec], [], [],
@@ -378,8 +385,8 @@ AC_CHECK_TYPES([struct timespec], [], [],
 	 #endif])
 
 AC_CHECK_TYPES([struct ip_mreqn], [], [],
-	[#include <sys/types.h> 
-	 #include <sys/socket.h> 
+	[#include <sys/types.h>
+	 #include <sys/socket.h>
 	 #include <netinet/in.h>])
 
 AC_MSG_CHECKING([for va_copy])
@@ -395,7 +402,7 @@ AC_LINK_IFELSE([AC_LANG_PROGRAM([[#include <stdarg.h>]], [[
 AC_MSG_CHECKING([for __va_copy])
 AC_LINK_IFELSE([AC_LANG_PROGRAM([[#include <stdarg.h>]], [[
 		va_list x, y;
-		__va_copy(x,y); 
+		__va_copy(x,y);
 	]])],[
 		AC_MSG_RESULT(yes)
 		AC_DEFINE([HAVE___VA_COPY], [1], [__va_copy is available])
@@ -423,7 +430,7 @@ AC_RUN_IFELSE([AC_LANG_SOURCE([[#include <string.h>
 	 	dnl cross-compiling, assume yes
 	 	AC_MSG_RESULT(unknown)
 		AC_DEFINE([HAVE_STRFTIME_SMALL_Z], [1], [strftime supports %z])
-	
+
 ])
 
 dnl check the size of primitive data types
@@ -491,9 +498,9 @@ then
 		{
 			unsigned short chan;
 		}
-		struct sockaddr_in_x { 
-			struct sockaddr_in a; 
-			struct sockaddr_extra_t u; 
+		struct sockaddr_in_x {
+			struct sockaddr_in a;
+			struct sockaddr_extra_t u;
 		};
 	])
 	AC_CHECK_SIZEOF(struct sockaddr_in6_x,,[
@@ -503,9 +510,9 @@ then
 		{
 			unsigned short chan;
 		};
-		struct sockaddr_in6_x { 
+		struct sockaddr_in6_x {
 			struct sockaddr_in6 a;
-			struct sockaddr_extra_t u; 
+			struct sockaddr_extra_t u;
 		};
 	])
 
@@ -569,9 +576,9 @@ else
 		{
 			unsigned short chan;
 		};
-		struct sockaddr_in_x { 
-			struct sockaddr_in a; 
-			struct sockaddr_extra_t u; 
+		struct sockaddr_in_x {
+			struct sockaddr_in a;
+			struct sockaddr_extra_t u;
 		};
 	])
 	AC_CHECK_SIZEOF(struct sockaddr_in6_x,,[
@@ -582,9 +589,9 @@ else
 		{
 			unsigned short chan;
 		};
-		struct sockaddr_in6_x { 
+		struct sockaddr_in6_x {
 			struct sockaddr_in6 a;
-			struct sockaddr_extra_t u; 
+			struct sockaddr_extra_t u;
 		};
 	])
 
@@ -637,14 +644,14 @@ else
 	AC_DEFINE_UNQUOTED(HIO_OFFSETOF_SA_FAMILY, ${ac_cv_offsetof_sa_family}, [offsetof(struct sockaddr, sa_family)])
 fi
 
-dnl gcc 3.4.3 on opensolaris x86 gave this warning without -msse or 
+dnl gcc 3.4.3 on opensolaris x86 gave this warning without -msse or
 dnl something similar.
 dnl    SSE vector argument without SSE enabled changes the ABI
-dnl it also ended with an internal compiler error while compiling 
+dnl it also ended with an internal compiler error while compiling
 dnl some expressions like 'v % base' where v is of the __int128_t type.
 dnl so i've added this check to determine if the compiler has
 dnl proper support for __int128_t.
-dnl 
+dnl
 dnl Changing ac_cv_sizeof___int128_t here doesn't corret SIZEOF___INT128_T
 dnl since it's already generated. It only affects HIO_SIZEOF___INT128_T below.
 if test ${ac_cv_sizeof___int128_t} -gt 0
@@ -672,7 +679,13 @@ then
 	)
 fi
 
-dnl Some compilers doesn't seem to have full support for __float128 
+dnl if quamath is not enabled, zero the sizeof float128
+if test "x${enable_quadmath_is}" == "xno"
+then
+	ac_cv_sizeof___float128=0
+fi
+
+dnl Some compilers doesn't seem to have full support for __float128
 dnl even if the type is available.
 if test ${ac_cv_sizeof___float128} -gt 0
 then
@@ -684,7 +697,6 @@ then
 		]])],[AC_MSG_RESULT(yes)],[
 			AC_MSG_RESULT(no)
 			ac_cv_sizeof___float128=0
-		
 	])
 fi
 
@@ -700,10 +712,10 @@ then
 		LIBS="$LIBM $LIBS"
 		AC_CHECK_FUNCS([quadmath_snprintf])
 		LIBS="$OLDLIBS"
-	
+
 		if test "$ac_cv_func_quadmath_snprintf" = "no"
 		then
-			dnl quadmath_snprintf not avalable in the 
+			dnl quadmath_snprintf not avalable in the
 			dnl standard math lib.
 
 			AC_CHECK_LIB([quadmath], [quadmath_snprintf], [
@@ -714,7 +726,7 @@ then
 
 			if test "$ac_cv_lib_quadmath_quadmath_snprintf" = "no"
 			then
-				dnl quadmath_snprintf not avalable in the 
+				dnl quadmath_snprintf not avalable in the
 				dnl quadmath lib.
 
 				ac_cv_sizeof___float128=0
@@ -807,7 +819,7 @@ else
 	AC_SUBST(BUILD_MODE, "release")
 fi
 
-AC_ARG_ENABLE([wide-char], 
+AC_ARG_ENABLE([wide-char],
 	[AS_HELP_STRING([--enable-wide-char],[Use the wide-character type as the default character type. one of yes, no, yes:2, yes:4, no:2, no:4 (default. yes)])],
 	enable_wide_char_is=$enableval,
 	enable_wide_char_is=yes
@@ -819,7 +831,7 @@ then
 	if test "${platform_win32}" = "yes"
 	then
 		[CFLAGS="$CFLAGS -DUNICODE -D_UNICODE"]
-	fi 
+	fi
 elif test "${enable_wide_char_is}" = "yes:2"
 then
 	AC_DEFINE([HIO_WIDE_CHAR_SIZE],[2],[Wide-character type size])
@@ -878,9 +890,9 @@ AC_SUBST(HIO_PROJECT_AUTHOR, "${PACKAGE_BUGREPORT}")
 AC_SUBST(HIO_PROJECT_URL, "${PACKAGE_URL}")
 
 AC_CONFIG_FILES([
-	Makefile 
+	Makefile
 	Dockerfile
-	lib/Makefile 
+	lib/Makefile
 	bin/Makefile
 	t/Makefile
 	pkgs/hio.spec
@@ -888,7 +900,7 @@ AC_CONFIG_FILES([
 AC_OUTPUT
 
 [
-echo 
+echo
 echo "-[SUMMARY]---------------------------------------------------------------"
 echo "Configured for ${host}"
 echo "  Build mode : ${BUILD_MODE}"
