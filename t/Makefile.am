@@ -17,7 +17,7 @@ LIBADD_COMMON = ../lib/libhio.la $(LIBM)
 check_SCRIPTS = s-001.sh
 EXTRA_DIST = $(check_SCRIPTS) tap.inc t-cgi.sh
 
-check_PROGRAMS = t-001 t-002 t-003 t-004 t-005
+check_PROGRAMS = t-001 t-002 t-003 t-004 t-005 t-006 t-007 t-008
 
 t_001_SOURCES = t-001.c tap.h
 t_001_CPPFLAGS = $(CPPFLAGS_COMMON)
@@ -48,6 +48,26 @@ t_005_CPPFLAGS = $(CPPFLAGS_COMMON)
 t_005_CFLAGS = $(CFLAGS_COMMON)
 t_005_LDFLAGS = $(LDFLAGS_COMMON)
 t_005_LDADD = $(LIBADD_COMMON)
+
+## t-006/t-007/t-008 exercise the core loop itself and reach into
+## hio-prv.h for the timer entry points, hence the extra include path.
+t_006_SOURCES = t-006.c tap.h
+t_006_CPPFLAGS = $(CPPFLAGS_COMMON)
+t_006_CFLAGS = $(CFLAGS_COMMON)
+t_006_LDFLAGS = $(LDFLAGS_COMMON)
+t_006_LDADD = $(LIBADD_COMMON)
+
+t_007_SOURCES = t-007.c tap.h
+t_007_CPPFLAGS = $(CPPFLAGS_COMMON)
+t_007_CFLAGS = $(CFLAGS_COMMON)
+t_007_LDFLAGS = $(LDFLAGS_COMMON)
+t_007_LDADD = $(LIBADD_COMMON)
+
+t_008_SOURCES = t-008.c tap.h
+t_008_CPPFLAGS = $(CPPFLAGS_COMMON)
+t_008_CFLAGS = $(CFLAGS_COMMON)
+t_008_LDFLAGS = $(LDFLAGS_COMMON)
+t_008_LDADD = $(LIBADD_COMMON)
 
 LOG_DRIVER = env AM_TAP_AWK='$(AWK)' $(SHELL) $(top_srcdir)/ac/tap-driver.sh
 TESTS = $(check_PROGRAMS) $(check_SCRIPTS)

@@ -602,16 +602,14 @@ static HIO_INLINE void handle_event (hio_t* hio, hio_dev_t* dev, int events, int
 		{
 			hio_wq_t* q;
 			const hio_uint8_t* uptr;
-			hio_iolen_t urem, ulen;
+			hio_iolen_t ulen;
 			int x;
 
 			q = HIO_WQ_HEAD(&dev->wq);
-
-			uptr = q->ptr;
-			urem = q->len;
+			uptr = q->sendfile? q->ptr: &q->ptr[q->off];
 
 		send_leftover:
-			ulen = urem;
+			ulen = q->len;
 			if (q->sendfile)
 			{
 				x = dev->dev_mth->sendfile(dev, ((wq_sendfile_data_t*)uptr)->in_fd, ((wq_sendfile_data_t*)uptr)->foff, &ulen);
@@ -629,9 +627,7 @@ static HIO_INLINE void handle_event (hio_t* hio, hio_dev_t* dev, int events, int
 			}
 			else if (x == 0)
 			{
-				/* keep the left-over */
-				if (!q->sendfile) HIO_MEMMOVE (q->ptr, uptr, urem);
-				q->len = urem;
+				/* keep the left-over as is */
 				break;
 			}
 			else
@@ -642,16 +638,17 @@ static HIO_INLINE void handle_event (hio_t* hio, hio_dev_t* dev, int events, int
 				}
 				else
 				{
-					uptr += ulen;
+					uptr += ulen; /* advance the pointer to the remaining data */
+					q->off += ulen; /* advance the offset to the remaining data */
 				}
-				urem -= ulen;
+				q->len -= ulen; /* data remining in the buffer */
 
-				if (urem <= 0)
+				if (q->len <= 0)
 				{
 					/* finished writing a single write request */
 					int y, out_closed = 0;
 
-					if (q->len <= 0 && (dev->dev_cap & HIO_DEV_CAP_STREAM))
+					if (q->olen <= 0 && (dev->dev_cap & HIO_DEV_CAP_STREAM))
 					{
 						/* it was a zero-length write request.
 						 * for a stream, it is to close the output. */
@@ -1576,6 +1573,7 @@ static HIO_INLINE int __enqueue_pending_write (hio_dev_t* dev, hio_iolen_t olen,
 	}
 
 	q->ptr = (hio_uint8_t*)(q + 1) + q->dstaddr.len;
+	q->off = 0;
 	q->len = urem;
 	q->olen = olen; /* original length to use when invoking on_write() */
 	for (i = iov_index, j = 0; i < iov_cnt; i++)
@@ -1651,6 +1649,7 @@ static HIO_INLINE int __enqueue_pending_sendfile (hio_dev_t* dev, hio_iolen_t ol
 	}
 
 	q->ptr = (hio_uint8_t*)(q + 1) + q->dstaddr.len;
+	q->off = 0; /* initialized to 0 but not used for sendfile. */
 	q->len = urem;
 	q->olen = olen; /* original length to use when invoking on_write() */
 

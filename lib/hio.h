@@ -349,6 +349,7 @@ struct hio_wq_t
 	hio_iolen_t     olen; /* original data length */
 	hio_uint8_t*    ptr;  /* pointer to data */
 	hio_iolen_t     len;  /* remaining data length */
+	hio_iolen_t     off;  /* data offset for queued data. */
 	void*           ctx;
 	hio_dev_t*      dev; /* back-pointer to the device */
 
