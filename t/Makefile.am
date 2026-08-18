@@ -21,8 +21,8 @@ EXTRA_DIST = $(check_SCRIPTS) tap.inc t-cgi.sh
 TESTPROGS = t-001 t-002 t-003 t-004 t-005 t-006 t-007 t-008
 
 ## helpers the test scripts drive. built with the tests, but not tests
-## themselves - fcgis is a server and would never exit.
-HELPERPROGS = fcgis
+## themselves - they are servers and would never exit.
+HELPERPROGS = fcgis httssvr
 
 check_PROGRAMS = $(TESTPROGS) $(HELPERPROGS)
 
@@ -82,6 +82,13 @@ fcgis_CPPFLAGS = $(CPPFLAGS_COMMON)
 fcgis_CFLAGS = $(CFLAGS_COMMON)
 fcgis_LDFLAGS = $(LDFLAGS_COMMON)
 fcgis_LDADD = $(LIBADD_COMMON)
+
+## an http server exercising the htts task types, driven by s-002.sh
+httssvr_SOURCES = httssvr.c
+httssvr_CPPFLAGS = $(CPPFLAGS_COMMON)
+httssvr_CFLAGS = $(CFLAGS_COMMON)
+httssvr_LDFLAGS = $(LDFLAGS_COMMON)
+httssvr_LDADD = $(LIBADD_COMMON)
 
 LOG_DRIVER = env AM_TAP_AWK='$(AWK)' $(SHELL) $(top_srcdir)/ac/tap-driver.sh
 TESTS = $(TESTPROGS) $(check_SCRIPTS)

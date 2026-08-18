@@ -1,13 +1,13 @@
 #!/bin/sh
 
 # End-to-end coverage for the http task modules that s-001.sh does not
-# reach. hio-t06 routes by path prefix, so txt, thr and fcgi are all
+# reach. httssvr routes by path prefix, so txt, thr and fcgi are all
 # exercisable here; fcgi talks to fcgis, the minimal responder in
 # this directory.
 #
 # prxy is still uncovered: http-prxy.c never connects its peer socket
 # (no hio_dev_sck_connect anywhere in the file) so the task cannot
-# currently reach an upstream. t06 has a /prxy/ route ready for when
+# currently reach an upstream. httssvr has a /prxy/ route ready for when
 # that is finished.
 
 [ -z "$srcdir" ] && srcdir=$(dirname "$0")
@@ -18,7 +18,7 @@ SRVADDR="127.0.0.1:${SRVPORT}"
 
 start_server()
 {
-	# the fcgi task needs a responder listening on the port t06 targets
+	# the fcgi task needs a responder listening on the port httssvr targets
 	fcgiready="/tmp/s-002-fcgi.$$.ready"
 	rm -f "${fcgiready}"
 	./fcgis 127.0.0.1:9000 "${fcgiready}" >/dev/null 2>&1 &
@@ -31,7 +31,7 @@ start_server()
 	done
 	[ -f "${fcgiready}" ] || fcgipid=""
 
-	../bin/hio-t06 >/dev/null 2>&1 &
+	./httssvr >/dev/null 2>&1 &
 	srvpid=$!
 	# wait for the listener rather than sleeping a fixed amount
 	i=0
@@ -56,7 +56,7 @@ stop_server()
 
 test_fcgi()
 {
-	local msg="hio-t06 fcgi task"
+	local msg="httssvr fcgi task"
 
 	if [ -z "${fcgipid}" ]; then
 		tap_fail "$msg - fcgis did not come up"
@@ -75,7 +75,7 @@ test_fcgi()
 
 test_txt()
 {
-	local msg="hio-t06 txt task"
+	local msg="httssvr txt task"
 
 	local hc=$(curl -s -m 5 -w '%{http_code}' -o /dev/null "http://${SRVADDR}/txt/hello")
 	tap_ensure "$hc" "200" "$msg - got $hc"
@@ -94,7 +94,7 @@ test_txt()
 
 test_thr()
 {
-	local msg="hio-t06 thr task"
+	local msg="httssvr thr task"
 
 	local hc=$(curl -s -m 5 -w '%{http_code}' -o /dev/null "http://${SRVADDR}/thr/x")
 	tap_ensure "$hc" "200" "$msg - got $hc"
@@ -114,7 +114,7 @@ test_thr()
 
 test_mixed_load()
 {
-	local msg="hio-t06 mixed task load"
+	local msg="httssvr mixed task load"
 	local ok=0 i=0
 
 	# alternate task types on the same server to shake out cross-task
@@ -140,7 +140,7 @@ if start_server; then
 	test_mixed_load
 	stop_server
 else
-	tap_skip "hio-t06 did not come up"
+	tap_skip "httssvr did not come up"
 fi
 
 tap_end

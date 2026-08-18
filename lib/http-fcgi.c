@@ -597,8 +597,8 @@ static int bind_task_to_peer (fcgi_t* fcgi, const hio_skad_t* fcgis_addr)
 	htrd = hio_htrd_open(fcgi->htts->hio, HIO_SIZEOF(*pxtn));
 	if (HIO_UNLIKELY(!htrd)) return -1;
 
-	hio_htrd_setoption (htrd, HIO_HTRD_SKIP_INITIAL_LINE | HIO_HTRD_RESPONSE);
-	hio_htrd_setrecbs (htrd, &peer_htrd_recbs);
+	hio_htrd_setoption(htrd, HIO_HTRD_SKIP_INITIAL_LINE | HIO_HTRD_RESPONSE);
+	hio_htrd_setrecbs(htrd, &peer_htrd_recbs);
 
 	fcgi->peer = hio_svc_fcgic_tie(fcgi->htts->fcgic, fcgis_addr, fcgi_peer_on_read, fcgi_peer_on_write, fcgi_peer_on_untie, fcgi);
 	if (HIO_UNLIKELY(!fcgi->peer))
@@ -664,7 +664,7 @@ static int setup_for_content_length(fcgi_t* fcgi, hio_htre_t* req)
 		/* change the callbacks to subscribe to contents to be uploaded */
 		fcgi->task_client_htrd_org_recbs = *hio_htrd_getrecbs(fcgi->task_client->htrd);
 		fcgi_client_htrd_recbs.peek = fcgi->task_client_htrd_org_recbs.peek;
-		hio_htrd_setrecbs (fcgi->task_client->htrd, &fcgi_client_htrd_recbs);
+		hio_htrd_setrecbs(fcgi->task_client->htrd, &fcgi_client_htrd_recbs);
 		fcgi->task_client_htrd_recbs_changed = 1;
 	}
 	else
@@ -672,7 +672,7 @@ static int setup_for_content_length(fcgi_t* fcgi, hio_htre_t* req)
 		/* no content to be uploaded from the client */
 		/* indicate end of stdin to the peer and disable input wathching from the client */
 		if (fcgi_write_stdin_to_peer(fcgi, HIO_NULL, 0) <= -1) return -1;
-		fcgi_mark_over (fcgi, FCGI_OVER_READ_FROM_CLIENT | FCGI_OVER_WRITE_TO_PEER);
+		fcgi_mark_over(fcgi, FCGI_OVER_READ_FROM_CLIENT | FCGI_OVER_WRITE_TO_PEER);
 	}
 
 	return 0;
@@ -715,16 +715,33 @@ int hio_svc_htts_dofcgi (hio_svc_htts_t* htts, hio_dev_sck_t* csck, hio_htre_t* 
 	bound_to_peer = 1;
 
 	if (hio_svc_htts_task_handleexpect100((hio_svc_htts_task_t*)fcgi, 0) <= -1) goto oops;
-	if (setup_for_content_length(fcgi, req) <= -1) goto oops;
 
-	/* TODO: store current input watching state and use it when destroying the fcgi data */
-	if (hio_dev_sck_read(csck, !(fcgi->over & FCGI_OVER_READ_FROM_CLIENT)) <= -1) goto oops;
+	/* [NOTE] the records must reach the peer in the order the FastCGI
+	 * specification lays down: FCGI_BEGIN_REQUEST, then the FCGI_PARAMS
+	 * stream, then the FCGI_STDIN stream. setup_for_content_length() ends
+	 * the stdin stream for a request that carries no body, so it has to
+	 * run after the params - not before, or the peer sees the end of a
+	 * request that has not been begun.
+	 *
+	 * if a call like this is made to this funciton:
+	 *  fcgi_write_stdin_to_peer(fcgi, HIO_NULL, 0)
+	 * setup_for_content_length() marks the end of stream.
+	 * if i call setup_for_content_length() after beginrequest(),
+	 * it always sends FCGI_BEGIN_REQUEST even for a body-less request.
+	 */
 
 	/* send FCGI_BEGIN_REQUEST */
 	if (hio_svc_fcgic_beginrequest(fcgi->peer) <= -1) goto oops;
 	/* write FCGI_PARAM */
 	if (write_params(fcgi, csck, req, docroot, script) <= -1) goto oops;
 	if (hio_svc_fcgic_writeparam(fcgi->peer, HIO_NULL, 0, HIO_NULL, 0) <= -1) goto oops; /* end of params */
+
+	/* this may end the stdin stream, so it must follow the params above.
+	 * it also settles the 'over' bits that the read arming below reads. */
+	if (setup_for_content_length(fcgi, req) <= -1) goto oops;
+
+	/* TODO: store current input watching state and use it when destroying the fcgi data */
+	if (hio_dev_sck_read(csck, !(fcgi->over & FCGI_OVER_READ_FROM_CLIENT)) <= -1) goto oops;
 
 	HIO_SVC_HTTS_TASKL_APPEND_TASK (&htts->task, (hio_svc_htts_task_t*)fcgi);
 	HIO_SVC_HTTS_TASK_RCDOWN ((hio_svc_htts_task_t*)fcgi);

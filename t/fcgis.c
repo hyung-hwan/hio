@@ -139,13 +139,11 @@ static int consume_records (hio_dev_sck_t* sck, conn_xtn_t* cx)
 		                        (int)hdr.type, (int)hio_ntoh16(hdr.id), (int)clen, (int)cx->len);
 		if (cx->len < total) break; /* wait for the rest of this record */
 
-		/* [NOTE] the records do not necessarily arrive in the order the
-		 * specification lays down. hio's own client emits the empty STDIN
-		 * that ends a body-less request *before* BEGIN_REQUEST, because
-		 * hio_svc_htts_dofcgi() calls setup_for_content_length() ahead of
-		 * hio_svc_fcgic_beginrequest(). so rather than answering on any
-		 * one record, track the three conditions and answer once they all
-		 * hold. that works for either ordering. */
+		/* Answer once the request has been begun and both of its streams
+		 * have ended, rather than on any single record. A responder has no
+		 * business assuming the three arrive in one particular order, and
+		 * tracking them separately keeps this working whatever order a
+		 * client picks. */
 		switch (hdr.type)
 		{
 			case HIO_FCGI_BEGIN_REQUEST:
