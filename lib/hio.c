@@ -1721,7 +1721,7 @@ static HIO_INLINE int __dev_write (hio_dev_t* dev, const void* data, hio_iolen_t
 		do
 		{
 			ulen = urem;
-			x = dev->dev_mth->write(dev, data, &ulen, dstaddr);
+			x = dev->dev_mth->write(dev, uptr, &ulen, dstaddr);
 			if (x <= -1) return -1;
 			else if (x == 0)
 			{

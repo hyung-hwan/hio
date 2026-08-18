@@ -319,9 +319,47 @@ static void test_short_write_no_queue (void)
 	n = drain_peer(peerfd, got, sizeof(got));
 	OK (n == PATLEN, "both halves reach the peer");
 
-	todo ("known issue: __dev_write() passes the unadvanced 'data' pointer on every loop iteration (hio.c:1725), so the second half re-sends the first", 1);
 	OK (n == PATLEN && memcmp(got, g_pattern, PATLEN) == 0,
 	    "a short write resumes from where it stopped rather than restarting");
+
+	hio_dev_kill ((hio_dev_t*)dev);
+	close (peerfd);
+}
+
+static void test_short_writes_then_queue (void)
+{
+	/* the realistic socket pattern: a couple of short writes get through,
+	 * then the send buffer fills. whatever is left has to be enqueued from
+	 * the point the loop stopped at, so this covers the handoff between
+	 * __dev_write()'s cursor and the write queue rather than either alone. */
+	tdev_t* dev;
+	int peerfd;
+	hio_uint8_t got[PATLEN * 2];
+	int n, rounds;
+
+	obs_reset ();
+	g_wr_chunk = 30;
+	g_wr_calls_left = 2;      /* two 30-byte slices, then EAGAIN */
+
+	dev = make_tdev(&peerfd);
+	if (!dev) { skip ("device creation failed", 4); return; }
+
+	hio_dev_write ((hio_dev_t*)dev, g_pattern, PATLEN, (void*)0xD1, HIO_NULL);
+	OK (g_wr_calls == 3, "two slices went out and the third call reported EAGAIN");
+	OK (!HIO_WQ_IS_EMPTY(&dev->wq), "the unwritten remainder is queued");
+
+	g_wr_chunk = 0;
+	for (rounds = 0; rounds < 5 && !HIO_WQ_IS_EMPTY(&dev->wq); rounds++)
+	{
+		g_wr_calls_left = 10;
+		pump ();
+	}
+	OK (g_cw_n == 1 && g_cw_len[0] == PATLEN && g_cw_ctx[0] == (void*)0xD1,
+	    "the request completes once with its original length");
+
+	n = drain_peer(peerfd, got, sizeof(got));
+	OK (n == PATLEN && memcmp(got, g_pattern, PATLEN) == 0,
+	    "the queued remainder picks up exactly where the short writes stopped");
 
 	hio_dev_kill ((hio_dev_t*)dev);
 	close (peerfd);
@@ -686,6 +724,7 @@ int main (void)
 
 	test_immediate_write ();
 	test_short_write_no_queue ();
+	test_short_writes_then_queue ();
 	test_eagain_queues ();
 	test_queue_drains_in_slices ();
 	test_writev ();
