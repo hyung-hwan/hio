@@ -403,7 +403,7 @@ int hio_ucharstoskad (hio_t* hio, const hio_uch_t* str, hio_oow_t len, hio_skad_
 
 	if (p >= end)
 	{
-		hio_seterrbfmt (hio, HIO_EINVAL, "blank address");
+		hio_seterrbfmt(hio, HIO_EINVAL, "blank address");
 		return -1;
 	}
 
@@ -429,7 +429,7 @@ int hio_ucharstoskad (hio_t* hio, const hio_uch_t* str, hio_oow_t len, hio_skad_
 		skad->un.sun_family = AF_UNIX;
 		return 0;
 #else
-		hio_seterrbfmt (hio, HIO_ENOIMPL, "unix address not supported");
+		hio_seterrbfmt(hio, HIO_ENOIMPL, "unix address not supported");
 		return -1;
 #endif
 	}
@@ -455,7 +455,7 @@ int hio_ucharstoskad (hio_t* hio, const hio_uch_t* str, hio_oow_t len, hio_skad_
 			if (p >= end)
 			{
 				/* premature end */
-				hio_seterrbfmt (hio, HIO_EINVAL, "scope id blank");
+				hio_seterrbfmt(hio, HIO_EINVAL, "scope id blank");
 				return -1;
 			}
 
@@ -468,7 +468,7 @@ int hio_ucharstoskad (hio_t* hio, const hio_uch_t* str, hio_oow_t len, hio_skad_
 					x = skad->in6.a.sin6_scope_id * 10 + (*p - '0');
 					if (x < skad->in6.a.sin6_scope_id)
 					{
-						hio_seterrbfmt (hio, HIO_EINVAL, "scope id too large");
+						hio_seterrbfmt(hio, HIO_EINVAL, "scope id too large");
 						return -1; /* overflow */
 					}
 					skad->in6.a.sin6_scope_id = x;
@@ -527,7 +527,7 @@ int hio_ucharstoskad (hio_t* hio, const hio_uch_t* str, hio_oow_t len, hio_skad_
 				if (p >= end)
 				{
 					/* premature end */
-					hio_seterrbfmt (hio, HIO_EINVAL, "scope id blank");
+					hio_seterrbfmt(hio, HIO_EINVAL, "scope id blank");
 					return -1;
 				}
 
@@ -540,7 +540,7 @@ int hio_ucharstoskad (hio_t* hio, const hio_uch_t* str, hio_oow_t len, hio_skad_
 						x = skad->in6.a.sin6_scope_id * 10 + (*p - '0');
 						if (x < skad->in6.a.sin6_scope_id)
 						{
-							hio_seterrbfmt (hio, HIO_EINVAL, "scope id too large");
+							hio_seterrbfmt(hio, HIO_EINVAL, "scope id too large");
 							return -1; /* overflow */
 						}
 						skad->in6.a.sin6_scope_id = x;
@@ -591,7 +591,7 @@ int hio_ucharstoskad (hio_t* hio, const hio_uch_t* str, hio_oow_t len, hio_skad_
 		if (tmp.len <= 0 || tmp.len >= 6 ||
 		    port > HIO_TYPE_MAX(hio_uint16_t))
 		{
-			hio_seterrbfmt (hio, HIO_EINVAL, "port number blank or too large");
+			hio_seterrbfmt(hio, HIO_EINVAL, "port number blank or too large");
 			return -1;
 		}
 
@@ -608,11 +608,11 @@ int hio_ucharstoskad (hio_t* hio, const hio_uch_t* str, hio_oow_t len, hio_skad_
 	return 0;
 
 unrecog:
-	hio_seterrbfmt (hio, HIO_EINVAL, "unrecognized address");
+	hio_seterrbfmt(hio, HIO_EINVAL, "unrecognized address");
 	return -1;
 
 no_rbrack:
-	hio_seterrbfmt (hio, HIO_EINVAL, "missing right bracket");
+	hio_seterrbfmt(hio, HIO_EINVAL, "missing right bracket");
 	return -1;
 }
 
@@ -630,7 +630,7 @@ int hio_bcharstoskad (hio_t* hio, const hio_bch_t* str, hio_oow_t len, hio_skad_
 
 	if (p >= end)
 	{
-		hio_seterrbfmt (hio, HIO_EINVAL, "blank address");
+		hio_seterrbfmt(hio, HIO_EINVAL, "blank address");
 		return -1;
 	}
 
@@ -652,7 +652,7 @@ int hio_bcharstoskad (hio_t* hio, const hio_bch_t* str, hio_oow_t len, hio_skad_
 		skad->un.sun_family = AF_UNIX;
 		return 0;
 #else
-		hio_seterrbfmt (hio, HIO_ENOIMPL, "unix address not supported");
+		hio_seterrbfmt(hio, HIO_ENOIMPL, "unix address not supported");
 		return -1;
 #endif
 	}
@@ -677,7 +677,7 @@ int hio_bcharstoskad (hio_t* hio, const hio_bch_t* str, hio_oow_t len, hio_skad_
 			if (p >= end)
 			{
 				/* premature end */
-				hio_seterrbfmt (hio, HIO_EINVAL, "scope id blank");
+				hio_seterrbfmt(hio, HIO_EINVAL, "scope id blank");
 				return -1;
 			}
 
@@ -690,7 +690,7 @@ int hio_bcharstoskad (hio_t* hio, const hio_bch_t* str, hio_oow_t len, hio_skad_
 					x = skad->in6.a.sin6_scope_id * 10 + (*p - '0');
 					if (x < skad->in6.a.sin6_scope_id)
 					{
-						hio_seterrbfmt (hio, HIO_EINVAL, "scope id too large");
+						hio_seterrbfmt(hio, HIO_EINVAL, "scope id too large");
 						return -1; /* overflow */
 					}
 					skad->in6.a.sin6_scope_id = x;
@@ -750,7 +750,7 @@ int hio_bcharstoskad (hio_t* hio, const hio_bch_t* str, hio_oow_t len, hio_skad_
 				if (p >= end)
 				{
 					/* premature end */
-					hio_seterrbfmt (hio, HIO_EINVAL, "scope id blank");
+					hio_seterrbfmt(hio, HIO_EINVAL, "scope id blank");
 					return -1;
 				}
 
@@ -763,7 +763,7 @@ int hio_bcharstoskad (hio_t* hio, const hio_bch_t* str, hio_oow_t len, hio_skad_
 						x = skad->in6.a.sin6_scope_id * 10 + (*p - '0');
 						if (x < skad->in6.a.sin6_scope_id)
 						{
-							hio_seterrbfmt (hio, HIO_EINVAL, "scope id too large");
+							hio_seterrbfmt(hio, HIO_EINVAL, "scope id too large");
 							return -1; /* overflow */
 						}
 						skad->in6.a.sin6_scope_id = x;
@@ -814,7 +814,7 @@ int hio_bcharstoskad (hio_t* hio, const hio_bch_t* str, hio_oow_t len, hio_skad_
 		if (tmp.len <= 0 || tmp.len >= 6 ||
 		    port > HIO_TYPE_MAX(hio_uint16_t))
 		{
-			hio_seterrbfmt (hio, HIO_EINVAL, "port number blank or too large");
+			hio_seterrbfmt(hio, HIO_EINVAL, "port number blank or too large");
 			return -1;
 		}
 
@@ -831,11 +831,11 @@ int hio_bcharstoskad (hio_t* hio, const hio_bch_t* str, hio_oow_t len, hio_skad_
 	return 0;
 
 unrecog:
-	hio_seterrbfmt (hio, HIO_EINVAL, "unrecognized address");
+	hio_seterrbfmt(hio, HIO_EINVAL, "unrecognized address");
 	return -1;
 
 no_rbrack:
-	hio_seterrbfmt (hio, HIO_EINVAL, "missing right bracket");
+	hio_seterrbfmt(hio, HIO_EINVAL, "missing right bracket");
 	return -1;
 }
 

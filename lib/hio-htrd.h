@@ -25,7 +25,9 @@
 #ifndef _HIO_HTRD_H_
 #define _HIO_HTRD_H_
 
-#include <hio-http.h>
+/* [NOTE] this header deliberately does not include hio-http.h. hio-http.h
+ * needs hio_htrd_recbs_t by value, so the dependency runs that way only.
+ * everything used here comes from hio-htre.h. */
 #include <hio-htre.h>
 
 typedef struct hio_htrd_t hio_htrd_t;

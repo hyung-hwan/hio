@@ -156,7 +156,7 @@ static int dev_thr_make_master (hio_dev_t* dev, void* ctx)
 #if defined(HAVE_PIPE2) && defined(O_CLOEXEC) && defined(O_NONBLOCK)
 	pipe_error:
 #endif
-		hio_seterrwithsyserr (hio, 0, errno);
+		hio_seterrwithsyserr(hio, 0, errno);
 		goto oops;
 	}
 
@@ -395,7 +395,7 @@ static int dev_thr_read_slave (hio_dev_t* dev, void* buf, hio_iolen_t* len, hio_
 	 * the write EOF indication doesn't affect this device
 	if (HIO_UNLIKELY(thr->pfd == HIO_SYSHND_INVALID))
 	{
-		hio_seterrnum (thr->hio, HIO_EBADHND);
+		hio_seterrnum(thr->hio, HIO_EBADHND);
 		return -1;
 	}*/
 	HIO_ASSERT(thr->hio, thr->pfd != HIO_SYSHND_INVALID); /* use this assertion to check if my claim above is right */
@@ -405,7 +405,7 @@ static int dev_thr_read_slave (hio_dev_t* dev, void* buf, hio_iolen_t* len, hio_
 	{
 		if (errno == EINPROGRESS || errno == EWOULDBLOCK || errno == EAGAIN) return 0;  /* no data available */
 		if (errno == EINTR) return 0;
-		hio_seterrwithsyserr (thr->hio, 0, errno);
+		hio_seterrwithsyserr(thr->hio, 0, errno);
 		return -1;
 	}
 
@@ -423,7 +423,7 @@ static int dev_thr_write_slave (hio_dev_t* dev, const void* data, hio_iolen_t* l
 	 * If HIO_DEV_CAP_OUT_CLOSED, the core doesn't invoke the write method
 	if (HIO_UNLIKELY(thr->pfd == HIO_SYSHND_INVALID))
 	{
-		hio_seterrnum (thr->hio, HIO_EBADHND);
+		hio_seterrnum(thr->hio, HIO_EBADHND);
 		return -1;
 	}*/
 	HIO_ASSERT(thr->hio, thr->pfd != HIO_SYSHND_INVALID); /* use this assertion to check if my claim above is right */
@@ -447,7 +447,7 @@ static int dev_thr_write_slave (hio_dev_t* dev, const void* data, hio_iolen_t* l
 	{
 		if (errno == EINPROGRESS || errno == EWOULDBLOCK || errno == EAGAIN) return 0;  /* no data can be written */
 		if (errno == EINTR) return 0;
-		hio_seterrwithsyserr (thr->hio, 0, errno);
+		hio_seterrwithsyserr(thr->hio, 0, errno);
 		return -1;
 	}
 
@@ -465,7 +465,7 @@ static int dev_thr_writev_slave (hio_dev_t* dev, const hio_iovec_t* iov, hio_iol
 	 * If HIO_DEV_CAP_OUT_CLOSED, the core doesn't invoke the write method
 	if (HIO_UNLIKELY(thr->pfd == HIO_SYSHND_INVALID))
 	{
-		hio_seterrnum (thr->hio, HIO_EBADHND);
+		hio_seterrnum(thr->hio, HIO_EBADHND);
 		return -1;
 	}*/
 	HIO_ASSERT(thr->hio, thr->pfd != HIO_SYSHND_INVALID); /* use this assertion to check if my claim above is right */
@@ -489,7 +489,7 @@ static int dev_thr_writev_slave (hio_dev_t* dev, const hio_iovec_t* iov, hio_iol
 	{
 		if (errno == EINPROGRESS || errno == EWOULDBLOCK || errno == EAGAIN) return 0;  /* no data can be written */
 		if (errno == EINTR) return 0;
-		hio_seterrwithsyserr (thr->hio, 0, errno);
+		hio_seterrwithsyserr(thr->hio, 0, errno);
 		return -1;
 	}
 
@@ -521,7 +521,7 @@ static int dev_thr_ioctl (hio_dev_t* dev, int cmd, void* arg)
 
 			if (HIO_UNLIKELY(sid != HIO_DEV_THR_IN && sid != HIO_DEV_THR_OUT))
 			{
-				hio_seterrnum (hio, HIO_EINVAL);
+				hio_seterrnum(hio, HIO_EINVAL);
 				return -1;
 			}
 
@@ -546,7 +546,7 @@ static int dev_thr_ioctl (hio_dev_t* dev, int cmd, void* arg)
 			{
 				if (kill(rdev->child_pid, SIGKILL) == -1)
 				{
-					hio_seterrwithsyserr (hio, 0, errno);
+					hio_seterrwithsyserr(hio, 0, errno);
 					return -1;
 				}
 			}
@@ -555,7 +555,7 @@ static int dev_thr_ioctl (hio_dev_t* dev, int cmd, void* arg)
 			return 0;
 
 		default:
-			hio_seterrnum (hio, HIO_EINVAL);
+			hio_seterrnum(hio, HIO_EINVAL);
 			return -1;
 	}
 }
@@ -595,21 +595,21 @@ static hio_dev_mth_t dev_thr_methods_slave =
 static int thr_ready (hio_dev_t* dev, int events)
 {
 	/* virtual device. no I/O */
-	hio_seterrnum (dev->hio, HIO_EINTERN);
+	hio_seterrnum(dev->hio, HIO_EINTERN);
 	return -1;
 }
 
 static int thr_on_read (hio_dev_t* dev, const void* data, hio_iolen_t len, const hio_devaddr_t* srcaddr)
 {
 	/* virtual device. no I/O */
-	hio_seterrnum (dev->hio, HIO_EINTERN);
+	hio_seterrnum(dev->hio, HIO_EINTERN);
 	return -1;
 }
 
 static int thr_on_write (hio_dev_t* dev, hio_iolen_t wrlen, void* wrctx, const hio_devaddr_t* dstaddr)
 {
 	/* virtual device. no I/O */
-	hio_seterrnum (dev->hio, HIO_EINTERN);
+	hio_seterrnum(dev->hio, HIO_EINTERN);
 	return -1;
 }
 
@@ -629,7 +629,7 @@ static int thr_ready_slave (hio_dev_t* dev, int events)
 
 	if (events & HIO_DEV_EVENT_ERR)
 	{
-		hio_seterrnum (hio, HIO_EDEVERR);
+		hio_seterrnum(hio, HIO_EDEVERR);
 		return -1;
 	}
 
@@ -641,7 +641,7 @@ static int thr_ready_slave (hio_dev_t* dev, int events)
 			return 1;
 		}
 
-		hio_seterrnum (hio, HIO_EDEVHUP);
+		hio_seterrnum(hio, HIO_EDEVHUP);
 		return -1;
 	}
 
@@ -692,7 +692,7 @@ static hio_dev_thr_slave_t* make_slave (hio_t* hio, slave_info_t* si)
 				&dev_thr_methods_slave, &dev_thr_event_callbacks_slave_out, si);
 
 		default:
-			hio_seterrnum (hio, HIO_EINVAL);
+			hio_seterrnum(hio, HIO_EINVAL);
 			return HIO_NULL;
 	}
 }
@@ -722,7 +722,7 @@ int hio_dev_thr_read (hio_dev_thr_t* dev, int enabled)
 	}
 	else
 	{
-		hio_seterrnum (dev->hio, HIO_ENOCAPA); /* TODO: is it the right error number? */
+		hio_seterrnum(dev->hio, HIO_ENOCAPA); /* TODO: is it the right error number? */
 		return -1;
 	}
 }
@@ -735,7 +735,7 @@ int hio_dev_thr_timedread (hio_dev_thr_t* dev, int enabled, const hio_ntime_t* t
 	}
 	else
 	{
-		hio_seterrnum (dev->hio, HIO_ENOCAPA); /* TODO: is it the right error number? */
+		hio_seterrnum(dev->hio, HIO_ENOCAPA); /* TODO: is it the right error number? */
 		return -1;
 	}
 }
@@ -748,7 +748,7 @@ int hio_dev_thr_write (hio_dev_thr_t* dev, const void* data, hio_iolen_t dlen, v
 	}
 	else
 	{
-		hio_seterrnum (dev->hio, HIO_ENOCAPA); /* TODO: is it the right error number? */
+		hio_seterrnum(dev->hio, HIO_ENOCAPA); /* TODO: is it the right error number? */
 		return -1;
 	}
 }
@@ -761,7 +761,7 @@ int hio_dev_thr_timedwrite (hio_dev_thr_t* dev, const void* data, hio_iolen_t dl
 	}
 	else
 	{
-		hio_seterrnum (dev->hio, HIO_ENOCAPA); /* TODO: is it the right error number? */
+		hio_seterrnum(dev->hio, HIO_ENOCAPA); /* TODO: is it the right error number? */
 		return -1;
 	}
 }

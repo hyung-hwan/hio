@@ -46,6 +46,6 @@ void hio_rco_unref (hio_rco_t* obj)
 	{
 		/* cache hio above - the block is gone by the time we free it */
 		if (obj->rco_fini) obj->rco_fini(obj);
-		hio_freemem (hio, obj);
+		hio_freemem(hio, obj);
 	}
 }

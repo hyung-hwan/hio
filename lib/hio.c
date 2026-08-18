@@ -1350,7 +1350,7 @@ int hio_dev_watch (hio_dev_t* dev, hio_dev_watch_cmd_t cmd, int events)
 			goto ctrl_mux;
 
 		default:
-			hio_seterrnum (dev->hio, HIO_EINVAL);
+			hio_seterrnum(dev->hio, HIO_EINVAL);
 			return -1;
 	}
 
@@ -2085,7 +2085,7 @@ void* hio_reallocmem (hio_t* hio, void* ptr, hio_oow_t size)
 
 void hio_freemem (hio_t* hio, void* ptr)
 {
-	HIO_MMGR_FREE (hio->_mmgr, ptr);
+	HIO_MMGR_FREE(hio->_mmgr, ptr);
 }
 /* ------------------------------------------------------------------------ */
 
@@ -2125,7 +2125,7 @@ static int fmt_put_bchars_to_uch_buf (hio_fmtout_t* fmtout, const hio_bch_t* ptr
 		}
 		else
 		{
-			hio_seterrnum (b->hio, HIO_EECERR);
+			hio_seterrnum(b->hio, HIO_EECERR);
 			return -1;
 		}
 	}
@@ -2143,7 +2143,7 @@ static int fmt_put_uchars_to_uch_buf (hio_fmtout_t* fmtout, const hio_uch_t* ptr
 	b->len += n;
 	if (n < len)
 	{
-		if (b->hio) hio_seterrnum (b->hio, HIO_EBUFFULL);
+		if (b->hio) hio_seterrnum(b->hio, HIO_EBUFFULL);
 		return 0; /* stop. insufficient buffer */
 	}
 
@@ -2178,9 +2178,9 @@ hio_oow_t hio_fmttoucstr (hio_t* hio, hio_uch_t* buf, hio_oow_t bufsz, const hio
 	hio_oow_t x;
 	va_list ap;
 
-	va_start (ap, fmt);
+	va_start(ap, fmt);
 	x = hio_vfmttoucstr(hio, buf, bufsz, fmt, ap);
-	va_end (ap);
+	va_end(ap);
 
 	return x;
 }
@@ -2207,7 +2207,7 @@ static int fmt_put_bchars_to_bch_buf (hio_fmtout_t* fmtout, const hio_bch_t* ptr
 	b->len += n;
 	if (n < len)
 	{
-		if (b->hio) hio_seterrnum (b->hio, HIO_EBUFFULL);
+		if (b->hio) hio_seterrnum(b->hio, HIO_EBUFFULL);
 		return 0; /* stop. insufficient buffer */
 	}
 
@@ -2232,7 +2232,7 @@ static int fmt_put_uchars_to_bch_buf (hio_fmtout_t* fmtout, const hio_uch_t* ptr
 		}
 		else
 		{
-			hio_seterrnum (b->hio, HIO_EECERR);
+			hio_seterrnum(b->hio, HIO_EECERR);
 			return -1;
 		}
 	}
@@ -2267,9 +2267,9 @@ hio_oow_t hio_fmttobcstr (hio_t* hio, hio_bch_t* buf, hio_oow_t bufsz, const hio
 	hio_oow_t x;
 	va_list ap;
 
-	va_start (ap, fmt);
+	va_start(ap, fmt);
 	x = hio_vfmttobcstr(hio, buf, bufsz, fmt, ap);
-	va_end (ap);
+	va_end(ap);
 
 	return x;
 }

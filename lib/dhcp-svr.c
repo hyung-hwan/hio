@@ -63,7 +63,7 @@ static hio_dev_sck_t* open_socket (hio_t* hio, hio_svc_dhcs_cfg_t* cfg)
 	f = hio_skad_get_family(&cfg->bind_addr);
 	if (f != HIO_AF_INET && f != HIO_AF_INET6)
 	{
-		hio_seterrbfmt (hio, HIO_EINVAL, "invalid bind address family");
+		hio_seterrbfmt(hio, HIO_EINVAL, "invalid bind address family");
 		goto oops;
 	}
 

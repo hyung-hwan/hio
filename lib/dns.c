@@ -196,7 +196,7 @@ static int parse_domain_name (hio_t* hio, hio_dns_pkt_info_t* pi)
 	return 0;
 
 oops:
-	hio_seterrnum (hio, HIO_EINVAL);
+	hio_seterrnum(hio, HIO_EINVAL);
 	return -1;
 }
 
@@ -226,7 +226,7 @@ static int parse_question_rr (hio_t* hio, hio_oow_t pos, hio_dns_pkt_info_t* pi)
 	return 0;
 
 oops:
-	hio_seterrnum (hio, HIO_EINVAL);
+	hio_seterrnum(hio, HIO_EINVAL);
 	return -1;
 }
 
@@ -457,7 +457,7 @@ static int parse_answer_rr (hio_t* hio, hio_dns_rr_part_t rr_part, hio_oow_t pos
 	return 0;
 
 oops:
-	hio_seterrnum (hio, HIO_EINVAL);
+	hio_seterrnum(hio, HIO_EINVAL);
 	return -1;
 }
 
@@ -688,7 +688,7 @@ static int encode_rrdata_in_dns_msg (hio_t* hio, const hio_dns_brr_t* rr, hio_ui
 
 
 inval:
-	hio_seterrnum (hio, HIO_EINVAL);
+	hio_seterrnum(hio, HIO_EINVAL);
 	return -1;
 }
 
@@ -710,7 +710,7 @@ hio_dns_msg_t* hio_dns_make_msg (hio_t* hio, hio_dns_bhdr_t* bhdr, hio_dns_bqr_t
 		dnlen = to_dn_capa(qr[i].qname);
 		if (HIO_UNLIKELY(dnlen <= 0))
 		{
-			hio_seterrnum (hio, HIO_EINVAL);
+			hio_seterrnum(hio, HIO_EINVAL);
 			return HIO_NULL;
 		}
 		pktlen += dnlen + HIO_SIZEOF(*qrtr);
@@ -722,7 +722,7 @@ hio_dns_msg_t* hio_dns_make_msg (hio_t* hio, hio_dns_bhdr_t* bhdr, hio_dns_bqr_t
 		dnlen = to_dn_capa(rr[i].rrname);
 		if (HIO_UNLIKELY(dnlen <= 0))
 		{
-			hio_seterrnum (hio, HIO_EINVAL);
+			hio_seterrnum(hio, HIO_EINVAL);
 			return HIO_NULL;
 		}
 		if (HIO_UNLIKELY(encode_rrdata_in_dns_msg(hio, &rr[i], &rrdata_len, HIO_NULL) <= -1)) return HIO_NULL;
@@ -742,7 +742,7 @@ hio_dns_msg_t* hio_dns_make_msg (hio_t* hio, hio_dns_bhdr_t* bhdr, hio_dns_bqr_t
 			edns_dlen += HIO_SIZEOF(hio_dns_eopt_t) + beopt->dlen;
 			if (HIO_UNLIKELY(edns_dlen > HIO_TYPE_MAX(hio_uint16_t)))
 			{
-				hio_seterrbfmt (hio, HIO_EINVAL, "edns options too large");
+				hio_seterrbfmt(hio, HIO_EINVAL, "edns options too large");
 				return HIO_NULL;
 			}
 			beopt++;
@@ -755,7 +755,7 @@ hio_dns_msg_t* hio_dns_make_msg (hio_t* hio, hio_dns_bhdr_t* bhdr, hio_dns_bqr_t
 		if (HIO_UNLIKELY(bhdr->rcode > 0x0F))
 		{
 			/* rcode is larger than 4 bits. but edns info is not provided */
-			hio_seterrbfmt (hio, HIO_EINVAL, "rcode too large without edns - %d", bhdr->rcode);
+			hio_seterrbfmt(hio, HIO_EINVAL, "rcode too large without edns - %d", bhdr->rcode);
 			return HIO_NULL;
 		}
 	}

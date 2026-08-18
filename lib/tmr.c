@@ -203,7 +203,7 @@ hio_tmrjob_t* hio_gettmrjob (hio_t* hio, hio_tmridx_t index)
 {
 	if (index < 0 || index >= hio->tmr.size)
 	{
-		hio_seterrbfmt (hio, HIO_ENOENT, "unable to get timer job as the given index is out of range");
+		hio_seterrbfmt(hio, HIO_ENOENT, "unable to get timer job as the given index is out of range");
 		return HIO_NULL;
 	}
 
@@ -214,7 +214,7 @@ int hio_gettmrjobdeadline (hio_t* hio, hio_tmridx_t index, hio_ntime_t* deadline
 {
 	if (index < 0 || index >= hio->tmr.size)
 	{
-		hio_seterrbfmt (hio, HIO_ENOENT, "unable to get timer job deadline as the given index is out of range");
+		hio_seterrbfmt(hio, HIO_ENOENT, "unable to get timer job deadline as the given index is out of range");
 		return -1;
 	}
 

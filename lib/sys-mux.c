@@ -95,14 +95,14 @@ int hio_sys_initmux (hio_t* hio)
 	mux->kq = kqueue1(O_CLOEXEC);
 	if (mux->kq <= -1)
 	{
-		hio_seterrwithsyserr (hio, 0, errno);
+		hio_seterrwithsyserr(hio, 0, errno);
 		return -1;
 	}
 	#else
 	mux->kq = kqueue();
 	if (mux->kq <= -1)
 	{
-		hio_seterrwithsyserr (hio, 0, errno);
+		hio_seterrwithsyserr(hio, 0, errno);
 		return -1;
 	}
 	else
@@ -128,7 +128,7 @@ int hio_sys_initmux (hio_t* hio)
 	if (mux->hnd == -1)
 	{
 		if (errno == ENOSYS) goto normal_epoll_create; /* kernel doesn't support it */
-		hio_seterrwithsyserr (hio, 0, errno);
+		hio_seterrwithsyserr(hio, 0, errno);
 		return -1;
 	}
 	goto epoll_create_done;
@@ -139,7 +139,7 @@ normal_epoll_create:
 	mux->hnd = epoll_create(16384); /* TODO: choose proper initial size? */
 	if (mux->hnd == -1)
 	{
-		hio_seterrwithsyserr (hio, 0, errno);
+		hio_seterrwithsyserr(hio, 0, errno);
 		return -1;
 	}
 #if defined(FD_CLOEXEC)
@@ -328,7 +328,7 @@ int hio_sys_ctrlmux (hio_t* hio, hio_sys_mux_cmd_t cmd, hio_dev_t* dev, int dev_
 	{
 		if (hnd >= mux->map.capa)
 		{
-			hio_seterrnum (hio, HIO_ENOENT);
+			hio_seterrnum(hio, HIO_ENOENT);
 			return -1;
 		}
 	}
@@ -339,7 +339,7 @@ int hio_sys_ctrlmux (hio_t* hio, hio_sys_mux_cmd_t cmd, hio_dev_t* dev, int dev_
 		case HIO_SYS_MUX_CMD_INSERT:
 			if (idx != MUX_INDEX_INVALID) /* not valid index and not MUX_INDEX_SUSPENDED */
 			{
-				hio_seterrnum (hio, HIO_EEXIST);
+				hio_seterrnum(hio, HIO_EEXIST);
 				return -1;
 			}
 
@@ -365,7 +365,7 @@ int hio_sys_ctrlmux (hio_t* hio, hio_sys_mux_cmd_t cmd, hio_dev_t* dev, int dev_
 
 			if (idx == MUX_INDEX_INVALID)
 			{
-				hio_seterrnum (hio, HIO_ENOENT);
+				hio_seterrnum(hio, HIO_ENOENT);
 				return -1;
 			}
 			else if (idx == MUX_INDEX_SUSPENDED)
@@ -389,7 +389,7 @@ int hio_sys_ctrlmux (hio_t* hio, hio_sys_mux_cmd_t cmd, hio_dev_t* dev, int dev_
 		case HIO_SYS_MUX_CMD_DELETE:
 			if (idx == MUX_INDEX_INVALID)
 			{
-				hio_seterrnum (hio, HIO_ENOENT);
+				hio_seterrnum(hio, HIO_ENOENT);
 				return -1;
 			}
 			else if (idx == MUX_INDEX_SUSPENDED)
@@ -426,7 +426,7 @@ int hio_sys_ctrlmux (hio_t* hio, hio_sys_mux_cmd_t cmd, hio_dev_t* dev, int dev_
 			return 0;
 
 		default:
-			hio_seterrnum (hio, HIO_EINVAL);
+			hio_seterrnum(hio, HIO_EINVAL);
 			return -1;
 	}
 
@@ -437,7 +437,7 @@ int hio_sys_ctrlmux (hio_t* hio, hio_sys_mux_cmd_t cmd, hio_dev_t* dev, int dev_
 	hnd = dev->dev_mth->getsyshnd(dev);
 	if (hnd >= FD_SETSIZE)
 	{
-		hio_seterrbfmt (hio, HIO_EINVAL, "device handle too hig");
+		hio_seterrbfmt(hio, HIO_EINVAL, "device handle too hig");
 		return -1;
 	}
 
@@ -500,7 +500,7 @@ int hio_sys_ctrlmux (hio_t* hio, hio_sys_mux_cmd_t cmd, hio_dev_t* dev, int dev_
 
 			if (mux->size <= 0 || hnd < 0 || hnd >= mux->me.ubound)
 			{
-				hio_seterrbfmt (hio, HIO_EINVAL, "invalid multiplexer state");
+				hio_seterrbfmt(hio, HIO_EINVAL, "invalid multiplexer state");
 				return -1;
 			}
 
@@ -508,7 +508,7 @@ int hio_sys_ctrlmux (hio_t* hio, hio_sys_mux_cmd_t cmd, hio_dev_t* dev, int dev_
 			if (!mevt || mevt->dev != dev)
 			{
 				/* already deleted??? */
-				hio_seterrbfmt (hio, HIO_EINVAL, "invalid multiplexer state");
+				hio_seterrbfmt(hio, HIO_EINVAL, "invalid multiplexer state");
 				return -1;
 			}
 
@@ -544,7 +544,7 @@ int hio_sys_ctrlmux (hio_t* hio, hio_sys_mux_cmd_t cmd, hio_dev_t* dev, int dev_
 
 			if (mux->size <= 0 || hnd < 0 || hnd >= mux->me.ubound)
 			{
-				hio_seterrbfmt (hio, HIO_EINVAL, "invalid multiplexer state");
+				hio_seterrbfmt(hio, HIO_EINVAL, "invalid multiplexer state");
 				return -1;
 			}
 
@@ -552,7 +552,7 @@ int hio_sys_ctrlmux (hio_t* hio, hio_sys_mux_cmd_t cmd, hio_dev_t* dev, int dev_
 			if (!mevt || mevt->dev != dev)
 			{
 				/* already deleted??? */
-				hio_seterrbfmt (hio, HIO_EINVAL, "invalid multiplexer state");
+				hio_seterrbfmt(hio, HIO_EINVAL, "invalid multiplexer state");
 				return -1;
 			}
 
@@ -588,7 +588,7 @@ int hio_sys_ctrlmux (hio_t* hio, hio_sys_mux_cmd_t cmd, hio_dev_t* dev, int dev_
 		}
 
 		default:
-			hio_seterrnum (hio, HIO_EINVAL);
+			hio_seterrnum(hio, HIO_EINVAL);
 			return -1;
 	}
 
@@ -614,7 +614,7 @@ int hio_sys_ctrlmux (hio_t* hio, hio_sys_mux_cmd_t cmd, hio_dev_t* dev, int dev_
 			int i_flag, o_flag;
 			if (HIO_UNLIKELY(dev->dev_cap & HIO_DEV_CAP_WATCH_SUSPENDED))
 			{
-				hio_seterrnum (hio, HIO_EEXIST);
+				hio_seterrnum(hio, HIO_EEXIST);
 				return -1;
 			}
 
@@ -661,13 +661,13 @@ int hio_sys_ctrlmux (hio_t* hio, hio_sys_mux_cmd_t cmd, hio_dev_t* dev, int dev_
 			break;
 
 		default:
-			hio_seterrnum (hio, HIO_EINVAL);
+			hio_seterrnum(hio, HIO_EINVAL);
 			return -1;
 	}
 
 	if (x <= -1)
 	{
-		hio_seterrwithsyserr (hio, 0, errno);
+		hio_seterrwithsyserr(hio, 0, errno);
 		return -1;
 	}
 
@@ -707,7 +707,7 @@ int hio_sys_ctrlmux (hio_t* hio, hio_sys_mux_cmd_t cmd, hio_dev_t* dev, int dev_
 		case HIO_SYS_MUX_CMD_INSERT:
 			if (HIO_UNLIKELY(dev->dev_cap & HIO_DEV_CAP_WATCH_SUSPENDED))
 			{
-				hio_seterrnum (hio, HIO_EEXIST);
+				hio_seterrnum(hio, HIO_EEXIST);
 				return -1;
 			}
 
@@ -754,13 +754,13 @@ int hio_sys_ctrlmux (hio_t* hio, hio_sys_mux_cmd_t cmd, hio_dev_t* dev, int dev_
 			break;
 
 		default:
-			hio_seterrnum (hio, HIO_EINVAL);
+			hio_seterrnum(hio, HIO_EINVAL);
 			return -1;
 	}
 
 	if (x == -1)
 	{
-		hio_seterrwithsyserr (hio, 0, errno);
+		hio_seterrwithsyserr(hio, 0, errno);
 		return -1;
 	}
 
@@ -780,7 +780,7 @@ int hio_sys_waitmux (hio_t* hio, const hio_ntime_t* tmout, hio_sys_mux_evtcb_t e
 	if (nentries == -1)
 	{
 		if (errno == EINTR) return 0;
-		hio_seterrwithsyserr (hio, 0, errno);
+		hio_seterrwithsyserr(hio, 0, errno);
 		return -1;
 	}
 
@@ -829,7 +829,7 @@ int hio_sys_waitmux (hio_t* hio, const hio_ntime_t* tmout, hio_sys_mux_evtcb_t e
 	{
 		if (errno == EINTR) return 0; /* it's actually ok */
 		/* other errors are critical - EBADF, EFAULT, EINVAL */
-		hio_seterrwithsyserr (hio, 0, errno);
+		hio_seterrwithsyserr(hio, 0, errno);
 		return -1;
 	}
 
@@ -869,7 +869,7 @@ int hio_sys_waitmux (hio_t* hio, const hio_ntime_t* tmout, hio_sys_mux_evtcb_t e
 	{
 		if (errno == EINTR) return 0; /* it's actually ok */
 		/* other errors are critical - EBADF, EFAULT, EINVAL */
-		hio_seterrwithsyserr (hio, 0, errno);
+		hio_seterrwithsyserr(hio, 0, errno);
 		return -1;
 	}
 
@@ -912,7 +912,7 @@ int hio_sys_waitmux (hio_t* hio, const hio_ntime_t* tmout, hio_sys_mux_evtcb_t e
 	{
 		if (errno == EINTR) return 0; /* it's actually ok */
 		/* other errors are critical - EBADF, EFAULT, EINVAL */
-		hio_seterrwithsyserr (hio, 0, errno);
+		hio_seterrwithsyserr(hio, 0, errno);
 		return -1;
 	}
 

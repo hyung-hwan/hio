@@ -300,7 +300,7 @@ static int make_connection_socket (hio_svc_fcgic_t* fcgic, hio_svc_fcgic_conn_t*
 	HIO_MEMSET(&mi, 0, HIO_SIZEOF(mi));
 	if (hio_get_stream_sck_type_from_skad(&conn->addr, &mi.type) <= -1)
 	{
-		hio_seterrnum (hio, HIO_EINVAL);
+		hio_seterrnum(hio, HIO_EINVAL);
 		return -1;
 	}
 	mi.options = HIO_DEV_SCK_MAKE_LENIENT;
@@ -541,7 +541,7 @@ int hio_svc_fcgic_beginrequest (hio_svc_fcgic_sess_t* sess)
 
 	if (!sess->conn->dev)
 	{
-		hio_seterrbfmt (hio, HIO_EPERM, "fcgi not connected");
+		hio_seterrbfmt(hio, HIO_EPERM, "fcgi not connected");
 		return -1;
 	}
 
@@ -581,7 +581,7 @@ int hio_svc_fcgic_writeparam (hio_svc_fcgic_sess_t* sess, const void* key, hio_i
 
 	if (!conn->dev)
 	{
-		hio_seterrbfmt (hio, HIO_EPERM, "fcgi not connected");
+		hio_seterrbfmt(hio, HIO_EPERM, "fcgi not connected");
 		return -1;
 	}
 
@@ -621,7 +621,7 @@ int hio_svc_fcgic_writeparam (hio_svc_fcgic_sess_t* sess, const void* key, hio_i
 		plen = szc + ksz + vsz;
 		if (plen > 0xFFFF)
 		{
-			hio_seterrbfmt (hio, HIO_EINVAL, "fcgi parameter too large");
+			hio_seterrbfmt(hio, HIO_EINVAL, "fcgi parameter too large");
 			return -1;
 		}
 	}
@@ -660,7 +660,7 @@ int hio_svc_fcgic_writestdin (hio_svc_fcgic_sess_t* sess, const void* data, hio_
 
 	if (!sess->conn->dev)
 	{
-		hio_seterrbfmt (hio, HIO_EPERM, "fcgi not connected");
+		hio_seterrbfmt(hio, HIO_EPERM, "fcgi not connected");
 		return -1;
 	}
 

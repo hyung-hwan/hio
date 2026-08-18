@@ -1347,9 +1347,9 @@ int hio_bfmt_out (hio_fmtout_t* fmtout, const hio_bch_t* fmt, ...)
 	fmtout->fmt_type = HIO_FMTOUT_FMT_TYPE_BCH;
 	fmtout->fmt_str = fmt;
 
-	va_start (ap, fmt);
+	va_start(ap, fmt);
 	n = fmt_outv(fmtout, ap);
-	va_end (ap);
+	va_end(ap);
 
 	fmtout->fmt_str = fmt_str;
 	fmtout->fmt_type = fmt_type;
@@ -1369,9 +1369,9 @@ int hio_ufmt_out (hio_fmtout_t* fmtout, const hio_uch_t* fmt, ...)
 	fmtout->fmt_type = HIO_FMTOUT_FMT_TYPE_UCH;
 	fmtout->fmt_str = fmt;
 
-	va_start (ap, fmt);
+	va_start(ap, fmt);
 	n = fmt_outv(fmtout, ap);
-	va_end (ap);
+	va_end(ap);
 
 	fmtout->fmt_str = fmt_str;
 	fmtout->fmt_type = fmt_type;
@@ -1586,9 +1586,9 @@ hio_ooi_t hio_logbfmt (hio_t* hio, hio_bitmask_t mask, const hio_bch_t* fmt, ...
 	hio_ooi_t x;
 	va_list ap;
 
-	va_start (ap, fmt);
+	va_start(ap, fmt);
 	x = hio_logbfmtv(hio, mask, fmt, ap);
-	va_end (ap);
+	va_end(ap);
 
 	return x;
 }
@@ -1657,9 +1657,9 @@ hio_ooi_t hio_logufmt (hio_t* hio, hio_bitmask_t mask, const hio_uch_t* fmt, ...
 	hio_ooi_t x;
 	va_list ap;
 
-	va_start (ap, fmt);
+	va_start(ap, fmt);
 	x = hio_logufmtv(hio, mask, fmt, ap);
-	va_end (ap);
+	va_end(ap);
 
 	return x;
 }

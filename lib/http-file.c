@@ -45,7 +45,6 @@
 struct file_t
 {
 	HIO_SVC_HTTS_TASK_HEADER;
-	hio_dev_sck_evcb_link_t client_evcb_link; /* this task's layer on the client socket */
 
 	hio_svc_htts_task_on_kill_t on_kill; /* user-provided on_kill callback */
 
@@ -65,15 +64,11 @@ struct file_t
 	hio_bch_t peer_etag[128];
 
 	unsigned int over: 4; /* must be large enough to accomodate FILE_OVER_ALL */
-	unsigned int client_htrd_recbs_changed: 1;
-	unsigned int client_evcb_pushed: 1;
 	unsigned int etag_match: 1;
 
-	hio_htrd_recbs_t client_htrd_org_recbs;
 };
 typedef struct file_t file_t;
 
-static void unbind_task_from_client (file_t* file, int rcdown);
 static void unbind_task_from_peer (file_t* file, int rcdown);
 static int file_send_contents_to_client (file_t* file);
 
@@ -154,7 +149,7 @@ static void file_mark_over (file_t* file, int over_bits)
 				/* the file task must not be accessed from here down as it could have been destroyed */
 				HIO_DEBUG2 (hio, "HTTS(%p) - keeping client(%p) alive\n", htts, file->task_csck);
 				HIO_ASSERT(hio, file->task_client->task == (hio_svc_htts_task_t*)file);
-				unbind_task_from_client(file, 1);
+				hio_svc_htts_task_unbindfromclient((hio_svc_htts_task_t*)file, 1);
 			}
 			else
 			{
@@ -212,7 +207,7 @@ static void file_on_kill (hio_svc_htts_task_t* task)
 	if (file->task_csck)
 	{
 		HIO_ASSERT(hio, file->task_client != HIO_NULL);
-		unbind_task_from_client(file, 0);
+		hio_svc_htts_task_unbindfromclient((hio_svc_htts_task_t*)file, 0);
 	}
 
 	if (file->task_next) HIO_SVC_HTTS_TASKL_UNLINK_TASK(file); /* detach from the htts service only if it's attached */
@@ -237,7 +232,7 @@ static void file_client_on_disconnect (hio_dev_sck_t* sck)
 		HIO_SVC_HTTS_TASK_RCUP((hio_svc_htts_task_t*)file);
 
 		/* detach the task from the client and the client socket */
-		unbind_task_from_client(file, 1);
+		hio_svc_htts_task_unbindfromclient((hio_svc_htts_task_t*)file, 1);
 
 		/* the current file peer implemenation is not async. so there is no IO event associated
 		 * when the client side is disconnected, simple close the peer side as it's not needed.
@@ -649,71 +644,7 @@ static int open_peer_with_mode (file_t* file, const hio_bch_t* actual_file, int 
 
 /* ----------------------------------------------------------------------- */
 
-static void bind_task_to_client (file_t* file, hio_dev_sck_t* csck)
-{
-	hio_svc_htts_cli_t* cli = hio_dev_sck_getxtn(csck);
 
-	HIO_ASSERT(file->htts->hio, cli->sck == csck);
-	HIO_ASSERT(file->htts->hio, cli->task == HIO_NULL);
-
-	/* file->task_client and file->task_csck are set in hio_svc_htts_task_make() */
-
-	/* install this task's handlers over whatever the socket was using.
-	 * the displaced set is remembered in the link, and 'file' becomes the
-	 * layer context the handlers read back with hio_dev_sck_getevcbctx() */
-	hio_dev_sck_pushevcb (csck, &file->client_evcb_link, &file_client_evcb, file);
-	file->client_evcb_pushed = 1;
-
-	cli->task = (hio_svc_htts_task_t*)file;
-	HIO_SVC_HTTS_TASK_RCUP(file);
-}
-
-static void unbind_task_from_client (file_t* file, int rcdown)
-{
-	hio_dev_sck_t* csck = file->task_csck;
-
-	/* [NOTE] don't test hio_dev_sck_getxtn(csck) for boundness. it is
-	 * pointer arithmetic and never yields HIO_NULL, so it is always true.
-	 * the socket pointer itself is the real indicator. */
-	if (csck) /* only if it's bound */
-	{
-		HIO_ASSERT(file->htts->hio, file->task_client != HIO_NULL);
-		HIO_ASSERT(file->htts->hio, file->task_csck != HIO_NULL);
-		HIO_ASSERT(file->htts->hio, file->task_client->task == (hio_svc_htts_task_t*)file);
-		HIO_ASSERT(file->htts->hio, file->task_client->htrd != HIO_NULL);
-
-		if (file->client_htrd_recbs_changed)
-		{
-			hio_htrd_setrecbs(file->task_client->htrd, &file->client_htrd_org_recbs);
-			file->client_htrd_recbs_changed = 0;
-		}
-
-		if (file->client_evcb_pushed)
-		{
-			hio_dev_sck_popevcb(csck);
-			file->client_evcb_pushed = 0;
-		}
-
-		/* there is some ordering issue in using HIO_SVC_HTTS_TASK_UNREF()
-		 * because it can destroy the file itself. so reset file->task_client->task
-		 * to null and call RCDOWN() later */
-		file->task_client->task = HIO_NULL;
-
-		/* these two lines are also done in csck_on_disconnect() in http-svr.c because the socket is destroyed.
-		 * the same lines here are because the task is unbound while the socket is still alive */
-		file->task_client = HIO_NULL;
-		file->task_csck = HIO_NULL;
-
-		/* enable input watching on the socket being unbound */
-		if (file->task_keep_client_alive && hio_dev_sck_read(csck, 1) <= -1)
-		{
-			HIO_DEBUG2(file->htts->hio, "HTTS(%p) - halting client(%p) for failure to enable input watching\n", file->htts, csck);
-			hio_dev_sck_halt (csck);
-		}
-
-		if (rcdown) HIO_SVC_HTTS_TASK_RCDOWN((hio_svc_htts_task_t*)file);
-	}
-}
 
 /* ----------------------------------------------------------------------- */
 
@@ -855,10 +786,10 @@ static int setup_for_content_length(file_t* file, hio_htre_t* req)
 	if (have_content)
 	{
 		/* change the callbacks to subscribe to contents to be uploaded */
-		file->client_htrd_org_recbs = *hio_htrd_getrecbs(file->task_client->htrd);
-		file_client_htrd_recbs.peek = file->client_htrd_org_recbs.peek;
+		file->task_client_htrd_org_recbs = *hio_htrd_getrecbs(file->task_client->htrd);
+		file_client_htrd_recbs.peek = file->task_client_htrd_org_recbs.peek;
 		hio_htrd_setrecbs(file->task_client->htrd, &file_client_htrd_recbs);
-		file->client_htrd_recbs_changed = 1;
+		file->task_client_htrd_recbs_changed = 1;
 	}
 	else
 	{
@@ -894,7 +825,7 @@ int hio_svc_htts_dofile (hio_svc_htts_t* htts, hio_dev_sck_t* csck, hio_htre_t* 
 
 	if (cli->task)
 	{
-		hio_seterrbfmt (hio, HIO_EPERM, "duplicate task request prohibited");
+		hio_seterrbfmt(hio, HIO_EPERM, "duplicate task request prohibited");
 		goto oops;
 	}
 
@@ -911,7 +842,7 @@ int hio_svc_htts_dofile (hio_svc_htts_t* htts, hio_dev_sck_t* csck, hio_htre_t* 
 	file->peer_tmridx = HIO_TMRIDX_INVALID;
 	file->peer = -1;
 
-	bind_task_to_client(file, csck); /* the file task's reference count is incremented */
+	hio_svc_htts_task_bindtoclient((hio_svc_htts_task_t*)file, csck, &file_client_evcb); /* the file task's reference count is incremented */
 	bound_to_client = 1;
 
 	if (hio_svc_htts_task_handleexpect100((hio_svc_htts_task_t*)file, 0) <= -1) goto oops;
@@ -938,7 +869,7 @@ oops:
 	{
 		hio_svc_htts_task_sendfinalres((hio_svc_htts_task_t*)file, status_code, HIO_NULL, HIO_NULL, 1);
 		if (bound_to_peer) unbind_task_from_peer(file, 0);
-		if (bound_to_client) unbind_task_from_client(file, 0);
+		if (bound_to_client) hio_svc_htts_task_unbindfromclient((hio_svc_htts_task_t*)file, 0);
 		file_halt_participating_devices(file);
 		if (actual_file) hio_freemem(hio, actual_file);
 		HIO_SVC_HTTS_TASK_RCDOWN((hio_svc_htts_task_t*)file);

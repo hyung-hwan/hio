@@ -61,12 +61,7 @@ struct thr_t
 	hio_htrd_t* peer_htrd;
 
 	unsigned int over: 4; /* must be large enough to accomodate THR_OVER_ALL */
-	unsigned int client_htrd_recbs_changed: 1;
 
-	hio_dev_sck_on_read_t client_org_on_read;
-	hio_dev_sck_on_write_t client_org_on_write;
-	hio_dev_sck_on_disconnect_t client_org_on_disconnect;
-	hio_htrd_recbs_t client_htrd_org_recbs;
 };
 
 typedef struct thr_t thr_t;
@@ -77,7 +72,6 @@ struct thr_peer_xtn_t
 };
 typedef struct thr_peer_xtn_t thr_peer_xtn_t;
 
-static void unbind_task_from_client (thr_t* thr, int rcdown);
 static void unbind_task_from_peer (thr_t* thr, int rcdown);
 
 static void thr_halt_participating_devices (thr_t* thr)
@@ -155,7 +149,7 @@ static HIO_INLINE void thr_mark_over (thr_t* thr, int over_bits)
 			{
 				/* how to arrange to delete this thr object and put the socket back to the normal waiting state??? */
 				HIO_ASSERT(thr->htts->hio, thr->task_client->task == (hio_svc_htts_task_t*)thr);
-				unbind_task_from_client (thr, 1);
+				hio_svc_htts_task_unbindfromclient((hio_svc_htts_task_t*)thr, 1);
 				/* IMPORTANT: thr must not be accessed from here down as it could have been destroyed */
 			}
 			else
@@ -189,7 +183,7 @@ static void thr_on_kill (hio_svc_htts_task_t* task)
 	if (thr->task_csck)
 	{
 		HIO_ASSERT(hio, thr->task_client != HIO_NULL);
-		unbind_task_from_client (thr, 0);
+		hio_svc_htts_task_unbindfromclient((hio_svc_htts_task_t*)thr, 0);
 	}
 
 	if (thr->task_next) HIO_SVC_HTTS_TASKL_UNLINK_TASK (thr); /* detach from the htts service only if it's attached */
@@ -391,6 +385,18 @@ static int thr_client_htrd_push_content (hio_htrd_t* htrd, hio_htre_t* req, cons
 	return thr_write_to_peer(thr, data, dlen);
 }
 
+static int thr_client_on_read (hio_dev_sck_t* sck, const void* buf, hio_iolen_t len, const hio_skad_t* srcaddr);
+static int thr_client_on_write (hio_dev_sck_t* sck, hio_iolen_t wrlen, void* wrctx, const hio_skad_t* dstaddr);
+static void thr_client_on_disconnect (hio_dev_sck_t* sck);
+
+/* the handler set this task layers onto the client socket */
+static hio_dev_sck_evcb_t thr_client_evcb =
+{
+	thr_client_on_read,
+	thr_client_on_write,
+	thr_client_on_disconnect
+};
+
 static hio_htrd_recbs_t thr_client_htrd_recbs =
 {
 	HIO_NULL,
@@ -463,7 +469,7 @@ static void thr_client_on_disconnect (hio_dev_sck_t* sck)
 	{
 		HIO_SVC_HTTS_TASK_RCUP ((hio_svc_htts_task_t*)thr);
 
-		unbind_task_from_client (thr, 1);
+		hio_svc_htts_task_unbindfromclient((hio_svc_htts_task_t*)thr, 1);
 
 		/* call the parent handler*/
 		/*if (thr->client_org_on_disconnect) thr->client_org_on_disconnect (sck);*/
@@ -478,6 +484,7 @@ static void thr_client_on_disconnect (hio_dev_sck_t* sck)
 
 static int thr_client_on_read (hio_dev_sck_t* sck, const void* buf, hio_iolen_t len, const hio_skad_t* srcaddr)
 {
+	hio_dev_sck_evcb_t* parent = hio_dev_sck_getparentevcb(sck);
 	hio_t* hio = sck->hio;
 	hio_svc_htts_cli_t* cli = hio_dev_sck_getxtn(sck);
 	thr_t* thr = (thr_t*)cli->task;
@@ -485,7 +492,7 @@ static int thr_client_on_read (hio_dev_sck_t* sck, const void* buf, hio_iolen_t 
 
 	HIO_ASSERT(hio, sck == cli->sck);
 
-	n = thr->client_org_on_read? thr->client_org_on_read(sck, buf, len, srcaddr): 0;
+	n = parent && parent->on_read? parent->on_read(sck, buf, len, srcaddr): 0;
 
 	if (len <= -1)
 	{
@@ -518,12 +525,13 @@ oops:
 
 static int thr_client_on_write (hio_dev_sck_t* sck, hio_iolen_t wrlen, void* wrctx, const hio_skad_t* dstaddr)
 {
+	hio_dev_sck_evcb_t* parent = hio_dev_sck_getparentevcb(sck);
 	hio_t* hio = sck->hio;
 	hio_svc_htts_cli_t* cli = hio_dev_sck_getxtn(sck);
 	thr_t* thr = (thr_t*)cli->task;
 	int n;
 
-	n = thr->client_org_on_write? thr->client_org_on_write(sck, wrlen, wrctx, dstaddr): 0;
+	n = parent && parent->on_write? parent->on_write(sck, wrlen, wrctx, dstaddr): 0;
 
 	if (wrlen == 0)
 	{
@@ -621,81 +629,8 @@ static int thr_capture_request_header (hio_htre_t* req, const hio_bch_t* key, co
 
 /* ----------------------------------------------------------------------- */
 
-static void bind_task_to_client (thr_t* thr, hio_dev_sck_t* csck)
-{
-	hio_svc_htts_cli_t* cli = hio_dev_sck_getxtn(csck);
-
-	HIO_ASSERT(thr->htts->hio, cli->sck == csck);
-	HIO_ASSERT(thr->htts->hio, cli->task == HIO_NULL);
-
-	thr->client_org_on_read = csck->on_read;
-	thr->client_org_on_write = csck->on_write;
-	thr->client_org_on_disconnect = csck->on_disconnect;
-	csck->on_read = thr_client_on_read;
-	csck->on_write = thr_client_on_write;
-	csck->on_disconnect = thr_client_on_disconnect;
-
-	cli->task = (hio_svc_htts_task_t*)thr;
-	HIO_SVC_HTTS_TASK_RCUP (thr);
-}
 
 
-static void unbind_task_from_client (thr_t* thr, int rcdown)
-{
-	hio_dev_sck_t* csck = thr->task_csck;
-	hio_svc_htts_cli_t* cli = hio_dev_sck_getxtn(csck);
-
-	if (cli->task) /* only if it's bound */
-	{
-		HIO_ASSERT(thr->htts->hio, thr->task_client != HIO_NULL);
-		HIO_ASSERT(thr->htts->hio, thr->task_csck != HIO_NULL);
-		HIO_ASSERT(thr->htts->hio, thr->task_client->task == (hio_svc_htts_task_t*)thr);
-		HIO_ASSERT(thr->htts->hio, thr->task_client->htrd != HIO_NULL);
-
-		if (thr->client_htrd_recbs_changed)
-		{
-			hio_htrd_setrecbs (thr->task_client->htrd, &thr->client_htrd_org_recbs);
-			thr->client_htrd_recbs_changed = 0;
-		}
-
-		if (thr->client_org_on_read)
-		{
-			csck->on_read = thr->client_org_on_read;
-			thr->client_org_on_read = HIO_NULL;
-		}
-
-		if (thr->client_org_on_write)
-		{
-			csck->on_write = thr->client_org_on_write;
-			thr->client_org_on_write = HIO_NULL;
-		}
-
-		if (thr->client_org_on_disconnect)
-		{
-			csck->on_disconnect = thr->client_org_on_disconnect;
-			thr->client_org_on_disconnect = HIO_NULL;
-		}
-
-		/* there is some ordering issue in using HIO_SVC_HTTS_TASK_UNREF()
-		* because it can destroy the thr itself. so reset thr->task_client->task
-		* to null and call RCDOWN() later */
-		thr->task_client->task = HIO_NULL;
-
-		/* these two lines are also done in csck_on_disconnect() in http-svr.c because the socket is destroyed.
-		* the same lines here are because the task is unbound while the socket is still alive */
-		thr->task_client = HIO_NULL;
-		thr->task_csck = HIO_NULL;
-
-		/* enable input watching on the socket being unbound */
-		if (thr->task_keep_client_alive && hio_dev_sck_read(csck, 1) <= -1)
-		{
-			HIO_DEBUG2 (thr->htts->hio, "HTTS(%p) - halting client(%p) for failure to enable input watching\n", thr->htts, csck);
-			hio_dev_sck_halt (csck);
-		}
-
-		if (rcdown) HIO_SVC_HTTS_TASK_RCDOWN ((hio_svc_htts_task_t*)thr);
-	}
-}
 
 /* ----------------------------------------------------------------------- */
 
@@ -821,10 +756,10 @@ static int setup_for_content_length(thr_t* thr, hio_htre_t* req)
 	if (have_content)
 	{
 		/* change the callbacks to subscribe to contents to be uploaded */
-		thr->client_htrd_org_recbs = *hio_htrd_getrecbs(thr->task_client->htrd);
-		thr_client_htrd_recbs.peek = thr->client_htrd_org_recbs.peek;
+		thr->task_client_htrd_org_recbs = *hio_htrd_getrecbs(thr->task_client->htrd);
+		thr_client_htrd_recbs.peek = thr->task_client_htrd_org_recbs.peek;
 		hio_htrd_setrecbs (thr->task_client->htrd, &thr_client_htrd_recbs);
-		thr->client_htrd_recbs_changed = 1;
+		thr->task_client_htrd_recbs_changed = 1;
 	}
 	else
 	{
@@ -853,7 +788,7 @@ int hio_svc_htts_dothr (hio_svc_htts_t* htts, hio_dev_sck_t* csck, hio_htre_t* r
 
 	if (cli->task)
 	{
-		hio_seterrbfmt (hio, HIO_EPERM, "duplicate task request prohibited");
+		hio_seterrbfmt(hio, HIO_EPERM, "duplicate task request prohibited");
 		goto oops;
 	}
 
@@ -863,7 +798,7 @@ int hio_svc_htts_dothr (hio_svc_htts_t* htts, hio_dev_sck_t* csck, hio_htre_t* r
 
 	thr->options = options;
 
-	bind_task_to_client (thr, csck);
+	hio_svc_htts_task_bindtoclient((hio_svc_htts_task_t*)thr, csck, &thr_client_evcb);
 	bound_to_client = 1;
 
 	if (bind_task_to_peer(thr, csck, req, func, ctx) <= -1) goto oops;
@@ -889,7 +824,7 @@ oops:
 	{
 		hio_svc_htts_task_sendfinalres((hio_svc_htts_task_t*)thr, status_code, HIO_NULL, HIO_NULL, 1);
 		if (bound_to_peer) unbind_task_from_peer (thr, 1);
-		if (bound_to_client) unbind_task_from_client (thr, 1);
+		if (bound_to_client) hio_svc_htts_task_unbindfromclient((hio_svc_htts_task_t*)thr, 1);
 		thr_halt_participating_devices (thr);
 		HIO_SVC_HTTS_TASK_RCDOWN ((hio_svc_htts_task_t*)thr);
 	}

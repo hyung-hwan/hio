@@ -132,7 +132,7 @@ done:
 	return sck;
 
 oops:
-	hio_seterrwithsyserr (hio, 0, errno);
+	hio_seterrwithsyserr(hio, 0, errno);
 	if (sck != HIO_SYSHND_INVALID) close (sck);
 	return HIO_SYSHND_INVALID;
 }
@@ -155,7 +155,7 @@ open_socket:
 			goto open_socket;
 		}
 	#endif
-		hio_seterrwithsyserr (hio, 0, errno);
+		hio_seterrwithsyserr(hio, 0, errno);
 		return HIO_SYSHND_INVALID;
 	}
 	else
@@ -170,7 +170,7 @@ open_socket:
 	    hio_makesyshndcloexec(hio, fd[0]) <= -1 ||
 	    hio_makesyshndcloexec(hio, fd[1]) <= -1)
 	{
-		hio_seterrwithsyserr (hio, 0, errno);
+		hio_seterrwithsyserr(hio, 0, errno);
 		close (fd[0]);
 		close (fd[1]);
 		return HIO_SYSHND_INVALID;
@@ -199,7 +199,7 @@ static hio_syshnd_t open_async_bpf (hio_t* hio)
 
 	return fd;
 oops:
-	hio_seterrwithsyserr (hio, 0, errno);
+	hio_seterrwithsyserr(hio, 0, errno);
 	if (fd != HIO_SYSHND_INVALID) close (fd);
 	return HIO_SYSHND_INVALID;
 }
@@ -386,7 +386,7 @@ static void set_ssl_error (hio_t* hio, int sslerr)
 {
 	hio_bch_t emsg[128];
 	ERR_error_string_n (sslerr, emsg, HIO_COUNTOF(emsg));
-	hio_seterrbfmt (hio, HIO_ESYSERR, "%hs", emsg);
+	hio_seterrbfmt(hio, HIO_ESYSERR, "%hs", emsg);
 }
 #endif
 
@@ -407,7 +407,7 @@ static int dev_sck_make (hio_dev_t* dev, void* ctx)
 
 	if (sck_type_map[arg->type].domain <= -1)
 	{
-		hio_seterrnum (hio, HIO_ENOIMPL); /* TODO: better error info? */
+		hio_seterrnum(hio, HIO_ENOIMPL); /* TODO: better error info? */
 		goto oops;
 	}
 
@@ -592,7 +592,7 @@ static int dev_sck_read_stream (hio_dev_t* dev, void* buf, hio_iolen_t* len, hio
 		{
 			if (errno == EINPROGRESS || errno == EWOULDBLOCK || errno == EAGAIN) return 0;  /* no data available */
 			if (errno == EINTR) return 0;
-			hio_seterrwithsyserr (hio, 0, errno);
+			hio_seterrwithsyserr(hio, 0, errno);
 			return -1;
 		}
 
@@ -618,7 +618,7 @@ static int dev_sck_read_stateless (hio_dev_t* dev, void* buf, hio_iolen_t* len, 
 		if (eno == EINPROGRESS || eno == EWOULDBLOCK || eno == EAGAIN) return 0;  /* no data available */
 		if (eno == EINTR) return 0;
 
-		hio_seterrwithsyserr (hio, 0, eno);
+		hio_seterrwithsyserr(hio, 0, eno);
 
 		HIO_DEBUG2 (hio, "SCK(%p) - recvfrom failure - %hs", rdev, strerror(eno));
 		return -1;
@@ -635,7 +635,7 @@ static int dev_sck_read_bpf (hio_dev_t* dev, void* buf, hio_iolen_t* len, hio_de
 {
 	hio_t* hio = dev->hio;
 	/*hio_dev_sck_t* rdev = (hio_dev_sck_t*)dev;*/
-	hio_seterrwithsyserr (hio, 0, HIO_ENOIMPL);
+	hio_seterrwithsyserr(hio, 0, HIO_ENOIMPL);
 	return -1;
 }
 
@@ -735,7 +735,7 @@ static int dev_sck_read_sctp_sp (hio_dev_t* dev, void* buf, hio_iolen_t* len, hi
 		if (eno == EINPROGRESS || eno == EWOULDBLOCK || eno == EAGAIN) return 0;  /* no data available */
 		if (eno == EINTR) return 0;
 
-		hio_seterrwithsyserr (hio, 0, eno);
+		hio_seterrwithsyserr(hio, 0, eno);
 
 		HIO_DEBUG2 (hio, "SCK(%p) - recvfrom failure - %hs", rdev, strerror(eno));
 		return -1;
@@ -803,7 +803,7 @@ static int dev_sck_write_stream (hio_dev_t* dev, const void* data, hio_iolen_t* 
 			 * the writing end of the socket, probably leaving it in the half-closed state */
 			if (shutdown(rdev->hnd, SHUT_WR) <= -1)
 			{
-				hio_seterrwithsyserr (hio, 0, errno);
+				hio_seterrwithsyserr(hio, 0, errno);
 				return -1;
 			}
 
@@ -821,7 +821,7 @@ static int dev_sck_write_stream (hio_dev_t* dev, const void* data, hio_iolen_t* 
 		{
 			if (errno == EINPROGRESS || errno == EWOULDBLOCK || errno == EAGAIN) return 0;  /* no data can be written */
 			if (errno == EINTR) return 0;
-			hio_seterrwithsyserr (hio, 0, errno);
+			hio_seterrwithsyserr(hio, 0, errno);
 			return -1;
 		}
 
@@ -888,7 +888,7 @@ static int dev_sck_writev_stream (hio_dev_t* dev, const hio_iovec_t* iov, hio_io
 			 * the socket, probably leaving it in the half-closed state */
 			if (shutdown(rdev->hnd, SHUT_WR) <= -1)
 			{
-				hio_seterrwithsyserr (hio, 0, errno);
+				hio_seterrwithsyserr(hio, 0, errno);
 				return -1;
 			}
 
@@ -915,7 +915,7 @@ static int dev_sck_writev_stream (hio_dev_t* dev, const hio_iovec_t* iov, hio_io
 		{
 			if (errno == EINPROGRESS || errno == EWOULDBLOCK || errno == EAGAIN) return 0;  /* no data can be written */
 			if (errno == EINTR) return 0;
-			hio_seterrwithsyserr (hio, 0, errno);
+			hio_seterrwithsyserr(hio, 0, errno);
 			return -1;
 		}
 
@@ -939,7 +939,7 @@ static int dev_sck_write_stateless (hio_dev_t* dev, const void* data, hio_iolen_
 	{
 		if (errno == EINPROGRESS || errno == EWOULDBLOCK || errno == EAGAIN) return 0;  /* no data can be written */
 		if (errno == EINTR) return 0;
-		hio_seterrwithsyserr (hio, 0, errno);
+		hio_seterrwithsyserr(hio, 0, errno);
 		return -1;
 	}
 
@@ -977,7 +977,7 @@ static int dev_sck_writev_stateless (hio_dev_t* dev, const hio_iovec_t* iov, hio
 	{
 		if (errno == EINPROGRESS || errno == EWOULDBLOCK || errno == EAGAIN) return 0;  /* no data can be written */
 		if (errno == EINTR) return 0;
-		hio_seterrwithsyserr (hio, 0, errno);
+		hio_seterrwithsyserr(hio, 0, errno);
 		return -1;
 	}
 
@@ -990,7 +990,7 @@ static int dev_sck_write_bpf (hio_dev_t* dev, const void* data, hio_iolen_t* len
 {
 	hio_t* hio = dev->hio;
 	/*hio_dev_sck_t* rdev = (hio_dev_sck_t*)dev;*/
-	hio_seterrwithsyserr (hio, 0, HIO_ENOIMPL);
+	hio_seterrwithsyserr(hio, 0, HIO_ENOIMPL);
 	return -1;
 }
 
@@ -998,7 +998,7 @@ static int dev_sck_writev_bpf (hio_dev_t* dev, const hio_iovec_t* iov, hio_iolen
 {
 	hio_t* hio = dev->hio;
 	/*hio_dev_sck_t* rdev = (hio_dev_sck_t*)dev;*/
-	hio_seterrwithsyserr (hio, 0, HIO_ENOIMPL);
+	hio_seterrwithsyserr(hio, 0, HIO_ENOIMPL);
 	return -1;
 }
 
@@ -1025,7 +1025,7 @@ static int dev_sck_write_sctp_sp (hio_dev_t* dev, const void* data, hio_iolen_t*
 	{
 		if (errno == EINPROGRESS || errno == EWOULDBLOCK || errno == EAGAIN) return 0;  /* no data can be written */
 		if (errno == EINTR) return 0;
-		hio_seterrwithsyserr (hio, 0, errno);
+		hio_seterrwithsyserr(hio, 0, errno);
 		return -1;
 	}
 
@@ -1050,7 +1050,7 @@ static int dev_sck_writev_sctp_sp (hio_dev_t* dev, const hio_iovec_t* iov, hio_i
 	{
 		if (errno == EINPROGRESS || errno == EWOULDBLOCK || errno == EAGAIN) return 0;  /* no data can be written */
 		if (errno == EINTR) return 0;
-		hio_seterrwithsyserr (hio, 0, errno);
+		hio_seterrwithsyserr(hio, 0, errno);
 		return -1;
 	}
 
@@ -1107,7 +1107,7 @@ static int dev_sck_sendfile_stream (hio_dev_t* dev, hio_syshnd_t in_fd, hio_foff
 			 * the writing end of the socket, probably leaving it in the half-closed state */
 			if (shutdown(rdev->hnd, SHUT_WR) <= -1)
 			{
-				hio_seterrwithsyserr (hio, 0, errno);
+				hio_seterrwithsyserr(hio, 0, errno);
 				return -1;
 			}
 
@@ -1123,13 +1123,13 @@ static int dev_sck_sendfile_stream (hio_dev_t* dev, hio_syshnd_t in_fd, hio_foff
 		{
 			if (errno == EINPROGRESS || errno == EWOULDBLOCK || errno == EAGAIN) return 0;  /* no data can be written */
 			if (errno == EINTR) return 0;
-			hio_seterrwithsyserr (hio, 0, errno);
+			hio_seterrwithsyserr(hio, 0, errno);
 			return -1;
 		}
 		*len = x;
 		if (x == 0) return 0; /* treat it like EWOULDBLOCK? */
 #else
-		hio_seterrnum (hio, HIO_ENOIMPL);
+		hio_seterrnum(hio, HIO_ENOIMPL);
 		return -1;
 #endif
 
@@ -1240,7 +1240,7 @@ static int dev_sck_ioctl (hio_dev_t* dev, int cmd, void* arg)
 			if (HIO_DEV_SCK_GET_PROGRESS(rdev))
 			{
 				/* can't bind again */
-				hio_seterrbfmt (hio, HIO_EPERM, "operation in progress. not allowed to bind again");
+				hio_seterrbfmt(hio, HIO_EPERM, "operation in progress. not allowed to bind again");
 				return -1;
 			}
 
@@ -1285,7 +1285,7 @@ static int dev_sck_ioctl (hio_dev_t* dev, int cmd, void* arg)
 				}
 			/* ignore it if not available
 			#else
-				hio_seterrnum (hio, HIO_ENOIMPL);
+				hio_seterrnum(hio, HIO_ENOIMPL);
 				return -1;
 			*/
 			#endif
@@ -1305,7 +1305,7 @@ static int dev_sck_ioctl (hio_dev_t* dev, int cmd, void* arg)
 				}
 			/* ignore it if not available
 			#else
-				hio_seterrnum (hio, HIO_ENOIMPL);
+				hio_seterrnum(hio, HIO_ENOIMPL);
 				return -1;
 			*/
 			#endif
@@ -1322,7 +1322,7 @@ static int dev_sck_ioctl (hio_dev_t* dev, int cmd, void* arg)
 				}
 			/* ignore it if not available
 			#else
-				hio_seterrnum (hio, HIO_ENOIMPL);
+				hio_seterrnum(hio, HIO_ENOIMPL);
 				return -1;
 			*/
 			#endif
@@ -1349,7 +1349,7 @@ static int dev_sck_ioctl (hio_dev_t* dev, int cmd, void* arg)
 			#if defined(USE_SSL)
 				if (!bnd->ssl_certfile || !bnd->ssl_keyfile)
 				{
-					hio_seterrbfmt (hio, HIO_EINVAL, "SSL certficate/key file not set");
+					hio_seterrbfmt(hio, HIO_EINVAL, "SSL certficate/key file not set");
 					return -1;
 				}
 
@@ -1377,7 +1377,7 @@ static int dev_sck_ioctl (hio_dev_t* dev, int cmd, void* arg)
 
 				SSL_CTX_set_options(ssl_ctx, SSL_OP_NO_SSLv2); /* no outdated SSLv2 by default */
 			#else
-				hio_seterrnum (hio, HIO_ENOIMPL);
+				hio_seterrnum(hio, HIO_ENOIMPL);
 				return -1;
 			#endif
 			}
@@ -1385,7 +1385,7 @@ static int dev_sck_ioctl (hio_dev_t* dev, int cmd, void* arg)
 			x = bind(rdev->hnd, (struct sockaddr*)&bnd->localaddr, hio_skad_get_size(&bnd->localaddr));
 			if (x <= -1)
 			{
-				hio_seterrwithsyserr (hio, 0, errno);
+				hio_seterrwithsyserr(hio, 0, errno);
 			#if defined(USE_SSL)
 				if (ssl_ctx) SSL_CTX_free (ssl_ctx);
 			#endif
@@ -1414,13 +1414,13 @@ static int dev_sck_ioctl (hio_dev_t* dev, int cmd, void* arg)
 			if (HIO_DEV_SCK_GET_PROGRESS(rdev))
 			{
 				/* can't connect again */
-				hio_seterrbfmt (hio, HIO_EPERM, "operation in progress. disallowed to connect again");
+				hio_seterrbfmt(hio, HIO_EPERM, "operation in progress. disallowed to connect again");
 				return -1;
 			}
 
 			if (!sck_type_map[rdev->type].connectable)
 			{
-				hio_seterrbfmt (hio, HIO_EPERM, "unconnectable socket device");
+				hio_seterrbfmt(hio, HIO_EPERM, "unconnectable socket device");
 				return -1;
 			}
 
@@ -1428,7 +1428,7 @@ static int dev_sck_ioctl (hio_dev_t* dev, int cmd, void* arg)
 			else if (sa->sa_family == AF_INET6) sl = HIO_SIZEOF(struct sockaddr_in6);
 			else
 			{
-				hio_seterrbfmt (hio, HIO_EINVAL, "unknown address family %d", sa->sa_family);
+				hio_seterrbfmt(hio, HIO_EINVAL, "unknown address family %d", sa->sa_family);
 				return -1;
 			}
 
@@ -1507,7 +1507,7 @@ fcntl (rdev->hnd, F_SETFL, flags | O_NONBLOCK);
 					}
 				}
 
-				hio_seterrwithsyserr (hio, 0, errno);
+				hio_seterrwithsyserr(hio, 0, errno);
 
 			oops_connect:
 				if (hio_dev_watch((hio_dev_t*)rdev, HIO_DEV_WATCH_UPDATE, HIO_DEV_EVENT_IN) <= -1)
@@ -1556,20 +1556,20 @@ fcntl (rdev->hnd, F_SETFL, flags | O_NONBLOCK);
 			if (HIO_DEV_SCK_GET_PROGRESS(rdev))
 			{
 				/* can't listen again */
-				hio_seterrbfmt (hio, HIO_EPERM, "operation in progress. disallowed to listen again");
+				hio_seterrbfmt(hio, HIO_EPERM, "operation in progress. disallowed to listen again");
 				return -1;
 			}
 
 			if (!sck_type_map[rdev->type].listenable)
 			{
-				hio_seterrbfmt (hio, HIO_EPERM, "unlistenable socket device");
+				hio_seterrbfmt(hio, HIO_EPERM, "unlistenable socket device");
 				return -1;
 			}
 
 			x = listen(rdev->hnd, lstn->backlogs);
 			if (x <= -1)
 			{
-				hio_seterrwithsyserr (hio, 0, errno);
+				hio_seterrwithsyserr(hio, 0, errno);
 				return -1;
 			}
 
@@ -1799,7 +1799,7 @@ static int harvest_outgoing_connection (hio_dev_sck_t* rdev)
 	}
 	else
 	{
-		hio_seterrwithsyserr (hio, 0, errcode);
+		hio_seterrwithsyserr(hio, 0, errcode);
 		return -1;
 	}
 }
@@ -1980,7 +1980,7 @@ static int accept_incoming_connection (hio_dev_sck_t* rdev)
 		if (errno == EINPROGRESS || errno == EWOULDBLOCK || errno == EAGAIN) return 0;
 		if (errno == EINTR) return 0; /* if interrupted by a signal, treat it as if it's EINPROGRESS */
 
-		hio_seterrwithsyserr (hio, 0, errno);
+		hio_seterrwithsyserr(hio, 0, errno);
 		return -1;
 	}
 
@@ -2007,11 +2007,11 @@ static int dev_evcb_sck_ready_stream (hio_dev_t* dev, int events)
 			 * errno resulting from getsockopt() doesn't reflect the actual
 			 * socket error. so errno is not used to set the error number.
 			 * instead, the generic device error HIO_EDEVERRR is used */
-			hio_seterrbfmt (hio, HIO_EDEVERR, "device error - unable to get SO_ERROR");
+			hio_seterrbfmt(hio, HIO_EDEVERR, "device error - unable to get SO_ERROR");
 		}
 		else
 		{
-			hio_seterrwithsyserr (hio, 0, errcode);
+			hio_seterrwithsyserr(hio, 0, errcode);
 		}
 		return -1;
 	}
@@ -2023,13 +2023,13 @@ static int dev_evcb_sck_ready_stream (hio_dev_t* dev, int events)
 			if (events & HIO_DEV_EVENT_HUP)
 			{
 				/* device hang-up */
-				hio_seterrnum (hio, HIO_EDEVHUP);
+				hio_seterrnum(hio, HIO_EDEVHUP);
 				return -1;
 			}
 			else if (events & (HIO_DEV_EVENT_PRI | HIO_DEV_EVENT_IN))
 			{
 				/* invalid event masks. generic device error */
-				hio_seterrbfmt (hio, HIO_EDEVERR, "device error - invalid event mask");
+				hio_seterrbfmt(hio, HIO_EDEVERR, "device error - invalid event mask");
 				return -1;
 			}
 			else if (events & HIO_DEV_EVENT_OUT)
@@ -2047,13 +2047,13 @@ static int dev_evcb_sck_ready_stream (hio_dev_t* dev, int events)
 			if (events & HIO_DEV_EVENT_HUP)
 			{
 				/* device hang-up */
-				hio_seterrnum (hio, HIO_EDEVHUP);
+				hio_seterrnum(hio, HIO_EDEVHUP);
 				return -1;
 			}
 			else if (events & HIO_DEV_EVENT_PRI)
 			{
 				/* invalid event masks. generic device error */
-				hio_seterrbfmt (hio, HIO_EDEVERR, "device error - invalid event mask");
+				hio_seterrbfmt(hio, HIO_EDEVERR, "device error - invalid event mask");
 				return -1;
 			}
 			else if (events & (HIO_DEV_EVENT_IN | HIO_DEV_EVENT_OUT))
@@ -2079,7 +2079,7 @@ static int dev_evcb_sck_ready_stream (hio_dev_t* dev, int events)
 				return 0; /* success. no actual I/O yet */
 			}
 		#else
-			hio_seterrnum (hio, HIO_EINTERN);
+			hio_seterrnum(hio, HIO_EINTERN);
 			return -1;
 		#endif
 
@@ -2088,12 +2088,12 @@ static int dev_evcb_sck_ready_stream (hio_dev_t* dev, int events)
 			if (events & HIO_DEV_EVENT_HUP)
 			{
 				/* device hang-up */
-				hio_seterrnum (hio, HIO_EDEVHUP);
+				hio_seterrnum(hio, HIO_EDEVHUP);
 				return -1;
 			}
 			else if (events & (HIO_DEV_EVENT_PRI | HIO_DEV_EVENT_OUT))
 			{
-				hio_seterrbfmt (hio, HIO_EDEVERR, "device error - invalid event mask");
+				hio_seterrbfmt(hio, HIO_EDEVERR, "device error - invalid event mask");
 				return -1;
 			}
 			else if (events & HIO_DEV_EVENT_IN)
@@ -2119,13 +2119,13 @@ static int dev_evcb_sck_ready_stream (hio_dev_t* dev, int events)
 			if (events & HIO_DEV_EVENT_HUP)
 			{
 				/* device hang-up */
-				hio_seterrnum (hio, HIO_EDEVHUP);
+				hio_seterrnum(hio, HIO_EDEVHUP);
 				return -1;
 			}
 			else if (events & HIO_DEV_EVENT_PRI)
 			{
 				/* invalid event masks. generic device error */
-				hio_seterrbfmt (hio, HIO_EDEVERR, "device error - invalid event mask");
+				hio_seterrbfmt(hio, HIO_EDEVERR, "device error - invalid event mask");
 				return -1;
 			}
 			else if (events & (HIO_DEV_EVENT_IN | HIO_DEV_EVENT_OUT))
@@ -2152,7 +2152,7 @@ static int dev_evcb_sck_ready_stream (hio_dev_t* dev, int events)
 				return 0; /* no reading or writing yet */
 			}
 		#else
-			hio_seterrnum (hio, HIO_EINTERN);
+			hio_seterrnum(hio, HIO_EINTERN);
 			return -1;
 		#endif
 
@@ -2166,7 +2166,7 @@ static int dev_evcb_sck_ready_stream (hio_dev_t* dev, int events)
 					return 1;
 				}
 
-				hio_seterrnum (hio, HIO_EDEVHUP);
+				hio_seterrnum(hio, HIO_EDEVHUP);
 				return -1;
 			}
 
@@ -2191,17 +2191,17 @@ static int dev_evcb_sck_ready_stateless (hio_dev_t* dev, int events)
 			 * errno resulting from getsockopt() doesn't reflect the actual
 			 * socket error. so errno is not used to set the error number.
 			 * instead, the generic device error HIO_EDEVERRR is used */
-			hio_seterrbfmt (hio, HIO_EDEVERR, "device error - unable to get SO_ERROR");
+			hio_seterrbfmt(hio, HIO_EDEVERR, "device error - unable to get SO_ERROR");
 		}
 		else
 		{
-			hio_seterrwithsyserr (rdev->hio, 0, errcode);
+			hio_seterrwithsyserr(rdev->hio, 0, errcode);
 		}
 		return -1;
 	}
 	else if (events & HIO_DEV_EVENT_HUP)
 	{
-		hio_seterrnum (hio, HIO_EDEVHUP);
+		hio_seterrnum(hio, HIO_EDEVHUP);
 		return -1;
 	}
 
@@ -2273,17 +2273,17 @@ static int dev_evcb_sck_ready_qx (hio_dev_t* dev, int events)
 			 * errno resulting from getsockopt() doesn't reflect the actual
 			 * socket error. so errno is not used to set the error number.
 			 * instead, the generic device error HIO_EDEVERRR is used */
-			hio_seterrbfmt (hio, HIO_EDEVERR, "device error - unable to get SO_ERROR");
+			hio_seterrbfmt(hio, HIO_EDEVERR, "device error - unable to get SO_ERROR");
 		}
 		else
 		{
-			hio_seterrwithsyserr (rdev->hio, 0, errcode);
+			hio_seterrwithsyserr(rdev->hio, 0, errcode);
 		}
 		return -1;
 	}
 	else if (events & HIO_DEV_EVENT_HUP)
 	{
-		hio_seterrnum (hio, HIO_EDEVHUP);
+		hio_seterrnum(hio, HIO_EDEVHUP);
 		return -1;
 	}
 
@@ -2302,7 +2302,7 @@ static int dev_evcb_sck_on_read_qx (hio_dev_t* dev, const void* data, hio_iolen_
 
 		if (dlen != HIO_SIZEOF(*qxmsg))
 		{
-			hio_seterrbfmt (hio, HIO_EINVAL, "wrong qx packet size");
+			hio_seterrbfmt(hio, HIO_EINVAL, "wrong qx packet size");
 			return 0;
 		}
 
@@ -2317,7 +2317,7 @@ static int dev_evcb_sck_on_read_qx (hio_dev_t* dev, const void* data, hio_iolen_
 		}
 		else
 		{
-			hio_seterrbfmt (hio, HIO_EINVAL, "wrong qx command code");
+			hio_seterrbfmt(hio, HIO_EINVAL, "wrong qx command code");
 			return 0;
 		}
 
@@ -2355,7 +2355,7 @@ static int dev_evcb_sck_ready_bpf (hio_dev_t* dev, int events)
 {
 	hio_t* hio = dev->hio;
 	/*hio_dev_sck_t* rdev = (hio_dev_sck_t*)dev;*/
-	hio_seterrnum (hio, HIO_ENOIMPL);
+	hio_seterrnum(hio, HIO_ENOIMPL);
 	return -1;
 }
 
@@ -2363,7 +2363,7 @@ static int dev_evcb_sck_on_read_bpf (hio_dev_t* dev, const void* data, hio_iolen
 {
 	hio_t* hio = dev->hio;
 	/*hio_dev_sck_t* rdev = (hio_dev_sck_t*)dev;*/
-	hio_seterrnum (hio, HIO_ENOIMPL);
+	hio_seterrnum(hio, HIO_ENOIMPL);
 	return -1;
 }
 
@@ -2371,7 +2371,7 @@ static int dev_evcb_sck_on_write_bpf (hio_dev_t* dev, hio_iolen_t wrlen, void* w
 {
 	hio_t* hio = dev->hio;
 	/*hio_dev_sck_t* rdev = (hio_dev_sck_t*)dev;*/
-	hio_seterrnum (hio, HIO_ENOIMPL);
+	hio_seterrnum(hio, HIO_ENOIMPL);
 	return -1;
 }
 
@@ -2390,7 +2390,7 @@ hio_dev_sck_t* hio_dev_sck_make (hio_t* hio, hio_oow_t xtnsize, const hio_dev_sc
 
 	if (info->type < 0 && info->type >= HIO_COUNTOF(sck_type_map))
 	{
-		hio_seterrnum (hio, HIO_EINVAL);
+		hio_seterrnum(hio, HIO_EINVAL);
 		return HIO_NULL;
 	}
 
@@ -2477,7 +2477,7 @@ int hio_dev_sck_setsockopt (hio_dev_sck_t* dev, int level, int optname, void* op
 {
 	int n;
 	n = setsockopt(dev->hnd, level, optname, optval, optlen);
-	if (n <= -1) hio_seterrwithsyserr (dev->hio, 0, errno);
+	if (n <= -1) hio_seterrwithsyserr(dev->hio, 0, errno);
 	return n;
 }
 
@@ -2485,7 +2485,7 @@ int hio_dev_sck_getsockopt (hio_dev_sck_t* dev, int level, int optname, void* op
 {
 	int n;
 	n = getsockopt(dev->hnd, level, optname, optval, optlen);
-	if (n <= -1) hio_seterrwithsyserr (dev->hio, 0, errno);
+	if (n <= -1) hio_seterrwithsyserr(dev->hio, 0, errno);
 	return n;
 }
 
@@ -2498,7 +2498,7 @@ int hio_dev_sck_getsockaddr (hio_dev_sck_t* dev, hio_skad_t* skad)
 	}
 	else if (getsockname(dev->hnd, (struct sockaddr*)skad, &addrlen) <= -1)
 	{
-		hio_seterrwithsyserr (dev->hio, 0, errno);
+		hio_seterrwithsyserr(dev->hio, 0, errno);
 		return -1;
 	}
 	return 0;
@@ -2513,7 +2513,7 @@ int hio_dev_sck_getpeeraddr (hio_dev_sck_t* dev, hio_skad_t* skad)
 	}
 	else if (getpeername(dev->hnd, (struct sockaddr*)skad, &addrlen) <= -1)
 	{
-		hio_seterrwithsyserr (dev->hio, 0, errno);
+		hio_seterrwithsyserr(dev->hio, 0, errno);
 		return -1;
 	}
 	return 0;
@@ -2555,7 +2555,7 @@ static int update_mcast_group (hio_dev_sck_t* dev, int join, const hio_skad_t* m
 		}
 	}
 
-	hio_seterrbfmt (hio_dev_sck_gethio(dev), HIO_EINVAL, "invalid multicast address family");
+	hio_seterrbfmt(hio_dev_sck_gethio(dev), HIO_EINVAL, "invalid multicast address family");
 	return -1;
 }
 
@@ -2588,13 +2588,13 @@ int hio_dev_sck_shutdown (hio_dev_sck_t* dev, int how)
 			break;
 
 		default:
-			hio_seterrnum (dev->hio, HIO_EINVAL);
+			hio_seterrnum(dev->hio, HIO_EINVAL);
 			return -1;
 	}
 
 	if (shutdown(dev->hnd, how) <= -1)
 	{
-		hio_seterrwithsyserr (dev->hio, 0, errno);
+		hio_seterrwithsyserr(dev->hio, 0, errno);
 		return -1;
 	}
 

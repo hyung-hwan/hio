@@ -23,6 +23,7 @@
  */
 
 #include <hio-htrd.h>
+#include <hio-http.h> /* hio_bchars_to_http_method() and friends */
 #include <hio-chr.h>
 #include <hio-path.h>
 #include "hio-prv.h"
@@ -118,10 +119,10 @@ static HIO_INLINE void clear_feed (hio_htrd_t* htrd)
 	/* clear necessary part of the request/response before
 	 * reading the next request/response */
 	htrd->clean = 1;
-	hio_htre_clear (&htrd->re);
+	hio_htre_clear(&htrd->re);
 
-	hio_becs_clear (&htrd->fed.b.tra);
-	hio_becs_clear (&htrd->fed.b.raw);
+	hio_becs_clear(&htrd->fed.b.tra);
+	hio_becs_clear(&htrd->fed.b.raw);
 
 	HIO_MEMSET(&htrd->fed.s, 0, HIO_SIZEOF(htrd->fed.s));
 }
@@ -145,8 +146,8 @@ hio_htrd_t* hio_htrd_open (hio_t* hio, hio_oow_t xtnsize)
 
 void hio_htrd_close (hio_htrd_t* htrd)
 {
-	hio_htrd_fini (htrd);
-	hio_freemem (htrd->hio, htrd);
+	hio_htrd_fini(htrd);
+	hio_freemem(htrd->hio, htrd);
 }
 
 int hio_htrd_init (hio_htrd_t* htrd, hio_t* hio)
@@ -426,7 +427,7 @@ badre:
 
 void hio_htrd_clear (hio_htrd_t* htrd)
 {
-	clear_feed (htrd);
+	clear_feed(htrd);
 	htrd->flags = 0;
 }
 
@@ -673,7 +674,7 @@ static hio_htb_pair_t* hdr_cbserter (hio_htb_t* htb, hio_htb_pair_t* pair, void*
 		p = hio_htb_allocpair(htb, kptr, klen, val, 0);
 		if (HIO_UNLIKELY(!p))
 		{
-			hio_freemem (htb->hio, val);
+			hio_freemem(htb->hio, val);
 			tx->htrd->errnum = HIO_HTRD_ENOMEM;
 		}
 		else
@@ -682,7 +683,7 @@ static hio_htb_pair_t* hdr_cbserter (hio_htb_t* htb, hio_htb_pair_t* pair, void*
 			{
 				/* Destroy the pair created here
 				 * as it is not added to the hash table yet */
-				hio_htb_freepair (htb, p);
+				hio_htb_freepair(htb, p);
 				p = HIO_NULL;
 			}
 		}
@@ -1162,7 +1163,7 @@ int hio_htrd_feed (hio_htrd_t* htrd, const hio_bch_t* req, hio_oow_t len, hio_oo
 					if (htrd->recbs.peek(htrd, &htrd->re) <= -1)
 					{
 						/* need to clear request on error?
-						clear_feed (htrd); */
+						clear_feed(htrd); */
 						return -1;
 					}
 ////////////////////////////////////////////////////////////////////////////////////////////////////
@@ -1386,7 +1387,7 @@ XXXXXXXX
 						if (n <= -1)
 						{
 							/* need to clear request on error?
-							clear_feed (htrd); */
+							clear_feed(htrd); */
 							return -1;
 						}
 
@@ -1401,7 +1402,7 @@ XXXXXXXX
 						if (n <= -1)
 						{
 							/* need to clear request on error?
-							clear_feed (htrd); */
+							clear_feed(htrd); */
 							return -1;
 						}
 					}
@@ -1411,7 +1412,7 @@ hio_printf (HIO_T("CONTENT_LENGTH %d, RAW HEADER LENGTH %d\n"),
 	(int)HIO_BECS_LEN(&htrd->re.content),
 	(int)HIO_BECS_LEN(&htrd->fed.b.raw));
 #endif
-					clear_feed (htrd);
+					clear_feed(htrd);
 
 					if (rem)
 					{
@@ -1488,7 +1489,7 @@ feedme_more:
 		if (n <= -1)
 		{
 			/* need to clear request on error?
-			clear_feed (htrd); */
+			clear_feed(htrd); */
 			return -1;
 		}
 	}
@@ -1511,12 +1512,12 @@ int hio_htrd_halt (hio_htrd_t* htrd)
 			if (n <= -1)
 			{
 				/* need to clear request on error?
-				clear_feed (htrd); */
+				clear_feed(htrd); */
 				return -1;
 			}
 		}
 
-		clear_feed (htrd);
+		clear_feed(htrd);
 	}
 
 	return 0;

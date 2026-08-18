@@ -110,7 +110,7 @@ static int make_param (hio_t* hio, const void* cmd, int flags, param_t* param)
 		if (fcnt <= 0)
 		{
 			/* no field or an error */
-			hio_seterrnum (hio, HIO_EINVAL);
+			hio_seterrnum(hio, HIO_EINVAL);
 			goto oops;
 		}
 
@@ -150,7 +150,7 @@ static pid_t standard_fork_and_exec (hio_dev_pty_t* dev, int pfds[], hio_dev_pty
 	pid = fork();
 	if (pid == -1)
 	{
-		hio_seterrwithsyserr (hio, 0, errno);
+		hio_seterrwithsyserr(hio, 0, errno);
 		return -1;
 	}
 
@@ -204,7 +204,7 @@ static int dev_pty_make (hio_dev_t* dev, void* ctx)
 	fd = posix_openpt(O_RDWR | O_NOCTTY);
 	if (fd == -1)
 	{
-		hio_seterrwithsyserr (hio, 0, errno);
+		hio_seterrwithsyserr(hio, 0, errno);
 		goto oops;
 	}
 
@@ -212,7 +212,7 @@ static int dev_pty_make (hio_dev_t* dev, void* ctx)
 
 	if (grantpt(pfds[0]) == -1 || unlockpt(pfds[0]) == -1)
 	{
-		hio_seterrwithsyserr (hio, 0, errno);
+		hio_seterrwithsyserr(hio, 0, errno);
 		goto oops;
 	}
 	else
@@ -240,7 +240,7 @@ static int dev_pty_make (hio_dev_t* dev, void* ctx)
 				ptr = tmp;
 				capa += 128;
 			}
-			hio_seterrwithsyserr (hio, 0, errno);
+			hio_seterrwithsyserr(hio, 0, errno);
 			goto oops;
 		}
 
@@ -253,7 +253,7 @@ static int dev_pty_make (hio_dev_t* dev, void* ctx)
 		pfds[1] = open(ptr, O_RDWR | O_NOCTTY);
 		if (pfds[1] == -1)
 		{
-			hio_seterrwithsyserr (hio, 0, errno);
+			hio_seterrwithsyserr(hio, 0, errno);
 			if (ptr != pts_name_buf) hio_freemem(hio, ptr);
 			goto oops;
 		}
@@ -264,7 +264,7 @@ static int dev_pty_make (hio_dev_t* dev, void* ctx)
 #elif defined(HAVE_OPENPTY)
 	if (openpty(&pfds[0], &pfds[1], HIO_NULL, HIO_NULL, HIO_NULL) == -1)
 	{
-		hio_seterrwithsyserr (hio, 0, errno);
+		hio_seterrwithsyserr(hio, 0, errno);
 		goto oops;
 	}
 #else
@@ -328,7 +328,7 @@ static int dev_pty_kill (hio_dev_t* dev, int force)
 				else
 				{
 					/* child process is still alive */
-					hio_seterrnum (hio, HIO_EAGAIN);
+					hio_seterrnum(hio, HIO_EAGAIN);
 					return -1;  /* call me again */
 				}
 			}
@@ -361,7 +361,7 @@ static int dev_pty_read (hio_dev_t* dev, void* buf, hio_iolen_t* len, hio_devadd
 
 	if (HIO_UNLIKELY(pty->hnd == HIO_SYSHND_INVALID))
 	{
-		hio_seterrnum (pty->hio, HIO_EBADHND);
+		hio_seterrnum(pty->hio, HIO_EBADHND);
 		return -1;
 	}
 
@@ -370,7 +370,7 @@ static int dev_pty_read (hio_dev_t* dev, void* buf, hio_iolen_t* len, hio_devadd
 	{
 		if (errno == EINPROGRESS || errno == EWOULDBLOCK || errno == EAGAIN) return 0;  /* no data available */
 		if (errno == EINTR) return 0;
-		hio_seterrwithsyserr (pty->hio, 0, errno);
+		hio_seterrwithsyserr(pty->hio, 0, errno);
 		return -1;
 	}
 
@@ -385,7 +385,7 @@ static int dev_pty_write (hio_dev_t* dev, const void* data, hio_iolen_t* len, co
 
 	if (HIO_UNLIKELY(pty->hnd == HIO_SYSHND_INVALID))
 	{
-		hio_seterrnum (pty->hio, HIO_EBADHND);
+		hio_seterrnum(pty->hio, HIO_EBADHND);
 		return -1;
 	}
 
@@ -407,7 +407,7 @@ static int dev_pty_write (hio_dev_t* dev, const void* data, hio_iolen_t* len, co
 	{
 		if (errno == EINPROGRESS || errno == EWOULDBLOCK || errno == EAGAIN) return 0;  /* no data can be written */
 		if (errno == EINTR) return 0;
-		hio_seterrwithsyserr (pty->hio, 0, errno);
+		hio_seterrwithsyserr(pty->hio, 0, errno);
 		return -1;
 	}
 
@@ -422,7 +422,7 @@ static int dev_pty_writev (hio_dev_t* dev, const hio_iovec_t* iov, hio_iolen_t* 
 
 	if (HIO_UNLIKELY(pty->hnd == HIO_SYSHND_INVALID))
 	{
-		hio_seterrnum (pty->hio, HIO_EBADHND);
+		hio_seterrnum(pty->hio, HIO_EBADHND);
 		return -1;
 	}
 
@@ -444,7 +444,7 @@ static int dev_pty_writev (hio_dev_t* dev, const hio_iovec_t* iov, hio_iolen_t* 
 	{
 		if (errno == EINPROGRESS || errno == EWOULDBLOCK || errno == EAGAIN) return 0;  /* no data can be written */
 		if (errno == EINTR) return 0;
-		hio_seterrwithsyserr (pty->hio, 0, errno);
+		hio_seterrwithsyserr(pty->hio, 0, errno);
 		return -1;
 	}
 
@@ -474,14 +474,14 @@ static int dev_pty_ioctl (hio_dev_t* dev, int cmd, void* arg)
 			{
 				if (kill(rdev->child_pid, SIGKILL) == -1)
 				{
-					hio_seterrwithsyserr (hio, 0, errno);
+					hio_seterrwithsyserr(hio, 0, errno);
 					return -1;
 				}
 			}
 			return 0;
 
 		default:
-			hio_seterrnum (hio, HIO_EINVAL);
+			hio_seterrnum(hio, HIO_EINVAL);
 			return -1;
 	}
 }
@@ -510,7 +510,7 @@ static int pty_ready (hio_dev_t* dev, int events)
 
 	if (events & HIO_DEV_EVENT_ERR)
 	{
-		hio_seterrnum (hio, HIO_EDEVERR);
+		hio_seterrnum(hio, HIO_EDEVERR);
 		return -1;
 	}
 
@@ -522,7 +522,7 @@ static int pty_ready (hio_dev_t* dev, int events)
 			return 1;
 		}
 
-		hio_seterrnum (hio, HIO_EDEVHUP);
+		hio_seterrnum(hio, HIO_EDEVHUP);
 		return -1;
 	}
 

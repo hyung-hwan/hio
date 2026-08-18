@@ -158,7 +158,7 @@ static void pop_read_state (hio_json_t* json)
 	}
 
 /* TODO: don't free this. move it to the free list? */
-	hio_freemem (json->hio, ss);
+	hio_freemem(json->hio, ss);
 }
 
 static void pop_all_read_states (hio_json_t* json)
@@ -184,11 +184,11 @@ static int invoke_data_inst (hio_json_t* json, hio_json_inst_t inst)
 			if (inst != HIO_JSON_INST_STRING && inst != __INST_WORD_STRING)
 			{
 				if (inst == HIO_JSON_INST_END_ARRAY)
-					hio_seterrbfmt (json->hio, HIO_EINVAL, "object key not a string - <array> at %zu:%zu", json->c_line, json->c_col);
+					hio_seterrbfmt(json->hio, HIO_EINVAL, "object key not a string - <array> at %zu:%zu", json->c_line, json->c_col);
 				else if (inst == HIO_JSON_INST_END_OBJECT)
-					hio_seterrbfmt (json->hio, HIO_EINVAL, "object key not a string - <object> at %zu:%zu", json->c_line, json->c_col);
+					hio_seterrbfmt(json->hio, HIO_EINVAL, "object key not a string - <object> at %zu:%zu", json->c_line, json->c_col);
 				else
-					hio_seterrbfmt (json->hio, HIO_EINVAL, "object key not a string - %.*js at %zu:%zu", json->tok.len, json->tok.ptr, json->tok_line, json->tok_col);
+					hio_seterrbfmt(json->hio, HIO_EINVAL, "object key not a string - %.*js at %zu:%zu", json->tok.len, json->tok.ptr, json->tok_line, json->tok_col);
 				return -1;
 			}
 
@@ -206,7 +206,7 @@ static int invoke_data_inst (hio_json_t* json, hio_json_inst_t inst)
 
 	if (inst == __INST_WORD_STRING)
 	{
-		hio_seterrbfmt (json->hio, HIO_EINVAL, "invalid word value - %.*js at line %zu:%zu", json->tok.len, json->tok.ptr, json->tok_line, json->tok_col);
+		hio_seterrbfmt(json->hio, HIO_EINVAL, "invalid word value - %.*js at line %zu:%zu", json->tok.len, json->tok.ptr, json->tok_line, json->tok_col);
 		return -1;
 	}
 
@@ -312,7 +312,7 @@ static int handle_string_value_char (hio_json_t* json, hio_ooci_t c)
 				if (n == 0 || n > HIO_COUNTOF(bcsbuf))
 				{
 					/* illegal character or buffer to small */
-					hio_seterrbfmt (json->hio, HIO_EECERR, "unable to convert %jc", json->state_stack->u.sv.acc);
+					hio_seterrbfmt(json->hio, HIO_EECERR, "unable to convert %jc", json->state_stack->u.sv.acc);
 					return -1;
 				}
 
@@ -425,7 +425,7 @@ static int handle_numeric_value_char (hio_json_t* json, hio_ooci_t c)
 	HIO_ASSERT(json->hio, json->tok.len > 0);
 	if (!hio_is_ooch_digit(json->tok.ptr[json->tok.len - 1]))
 	{
-		hio_seterrbfmt (json->hio, HIO_EINVAL, "invalid numeric value - %.*js", json->tok.len, json->tok.ptr);
+		hio_seterrbfmt(json->hio, HIO_EINVAL, "invalid numeric value - %.*js", json->tok.len, json->tok.ptr);
 		return -1;
 	}
 	if (invoke_data_inst(json, HIO_JSON_INST_NUMBER) <= -1) return -1;
@@ -454,7 +454,7 @@ static int handle_word_value_char (hio_json_t* json, hio_ooci_t c)
 	else if (json->option & HIO_JSON_PERMIT_WORD_KEY) inst = __INST_WORD_STRING; /* internal only */
 	else
 	{
-		hio_seterrbfmt (json->hio, HIO_EINVAL, "invalid word value - %.*js", json->tok.len, json->tok.ptr);
+		hio_seterrbfmt(json->hio, HIO_EINVAL, "invalid word value - %.*js", json->tok.len, json->tok.ptr);
 		return -1;
 	}
 
@@ -508,7 +508,7 @@ static int handle_start_char (hio_json_t* json, hio_ooci_t c)
 	}
 	else
 	{
-		hio_seterrbfmt (json->hio, HIO_EINVAL, "not starting with an allowed initial character - %jc at %zu:%zu", (hio_ooch_t)c, json->c_line,json->c_col);
+		hio_seterrbfmt(json->hio, HIO_EINVAL, "not starting with an allowed initial character - %jc at %zu:%zu", (hio_ooch_t)c, json->c_line,json->c_col);
 		return -1;
 	}
 }
@@ -536,7 +536,7 @@ static int handle_char_in_array (hio_json_t* json, hio_ooci_t c)
 	{
 		if (!json->state_stack->u.ia.got_value)
 		{
-			hio_seterrbfmt (json->hio, HIO_EINVAL, "redundant comma in array - %jc at %zu:%zu", (hio_ooch_t)c, json->c_line, json->c_col);
+			hio_seterrbfmt(json->hio, HIO_EINVAL, "redundant comma in array - %jc at %zu:%zu", (hio_ooch_t)c, json->c_line, json->c_col);
 			return -1;
 		}
 		json->state_stack->u.ia.got_value = 0;
@@ -552,7 +552,7 @@ static int handle_char_in_array (hio_json_t* json, hio_ooci_t c)
 			}
 			else
 			{
-				hio_seterrbfmt (json->hio, HIO_EINVAL, "comma required in array - %jc at %zu:%zu", (hio_ooch_t)c, json->c_line, json->c_col);
+				hio_seterrbfmt(json->hio, HIO_EINVAL, "comma required in array - %jc at %zu:%zu", (hio_ooch_t)c, json->c_line, json->c_col);
 				return -1;
 			}
 		}
@@ -588,7 +588,7 @@ static int handle_char_in_array (hio_json_t* json, hio_ooci_t c)
 		}
 		else
 		{
-			hio_seterrbfmt (json->hio, HIO_EINVAL, "wrong character inside array - %jc[%d] at %zu:%zu", (hio_ooch_t)c, (int)c, json->c_line, json->c_col);
+			hio_seterrbfmt(json->hio, HIO_EINVAL, "wrong character inside array - %jc[%d] at %zu:%zu", (hio_ooch_t)c, (int)c, json->c_line, json->c_col);
 			return -1;
 		}
 	}
@@ -612,7 +612,7 @@ static int handle_char_in_object (hio_json_t* json, hio_ooci_t c)
 		/* 0 - initial, 1 - got key, 2 -> got colon, 3 -> got value, 0 -> after comma */
 		if (json->state_stack->u.io.state == 1 || json->state_stack->u.io.state == 2)
 		{
-			hio_seterrbfmt (json->hio, HIO_EINVAL, "no value for a key in object at %zu:%zu", json->c_line, json->c_col);
+			hio_seterrbfmt(json->hio, HIO_EINVAL, "no value for a key in object at %zu:%zu", json->c_line, json->c_col);
 			return -1;
 		}
 
@@ -624,7 +624,7 @@ static int handle_char_in_object (hio_json_t* json, hio_ooci_t c)
 	{
 		if (json->state_stack->u.io.state != 1)
 		{
-			hio_seterrbfmt (json->hio, HIO_EINVAL, "redundant colon in object - %jc at %zu:%zu", (hio_ooch_t)c, json->c_line, json->c_col);
+			hio_seterrbfmt(json->hio, HIO_EINVAL, "redundant colon in object - %jc at %zu:%zu", (hio_ooch_t)c, json->c_line, json->c_col);
 			return -1;
 		}
 		json->state_stack->u.io.state++;
@@ -634,7 +634,7 @@ static int handle_char_in_object (hio_json_t* json, hio_ooci_t c)
 	{
 		if (json->state_stack->u.io.state != 3)
 		{
-			hio_seterrbfmt (json->hio, HIO_EINVAL, "comma without value or redundant comma in object - %jc at %zu:%zu", (hio_ooch_t)c, json->c_line, json->c_col);
+			hio_seterrbfmt(json->hio, HIO_EINVAL, "comma without value or redundant comma in object - %jc at %zu:%zu", (hio_ooch_t)c, json->c_line, json->c_col);
 			return -1;
 		}
 		json->state_stack->u.io.state = 0;
@@ -644,7 +644,7 @@ static int handle_char_in_object (hio_json_t* json, hio_ooci_t c)
 	{
 		if (json->state_stack->u.io.state == 1)
 		{
-			hio_seterrbfmt (json->hio, HIO_EINVAL, "colon required in object - %jc at %zu:%zu", (hio_ooch_t)c, json->c_line, json->c_col);
+			hio_seterrbfmt(json->hio, HIO_EINVAL, "colon required in object - %jc at %zu:%zu", (hio_ooch_t)c, json->c_line, json->c_col);
 			return -1;
 		}
 		else if (json->state_stack->u.io.state == 3)
@@ -655,7 +655,7 @@ static int handle_char_in_object (hio_json_t* json, hio_ooci_t c)
 			}
 			else
 			{
-				hio_seterrbfmt (json->hio, HIO_EINVAL, "comma required in object - %jc at %zu:%zu", (hio_ooch_t)c, json->c_line, json->c_col);
+				hio_seterrbfmt(json->hio, HIO_EINVAL, "comma required in object - %jc at %zu:%zu", (hio_ooch_t)c, json->c_line, json->c_col);
 			}
 		}
 
@@ -690,7 +690,7 @@ static int handle_char_in_object (hio_json_t* json, hio_ooci_t c)
 		}
 		else
 		{
-			hio_seterrbfmt (json->hio, HIO_EINVAL, "wrong character inside object - %jc[%d] at %zu:%zu", (hio_ooch_t)c, (int)c, json->c_line, json->c_col);
+			hio_seterrbfmt(json->hio, HIO_EINVAL, "wrong character inside object - %jc[%d] at %zu:%zu", (hio_ooch_t)c, (int)c, json->c_line, json->c_col);
 			return -1;
 		}
 	}
@@ -712,7 +712,7 @@ start_over:
 		}
 		else
 		{
-			hio_seterrbfmt (json->hio, HIO_EBADRE, "unexpected end of data at %zu:%zu", json->c_line, json->c_col);
+			hio_seterrbfmt(json->hio, HIO_EBADRE, "unexpected end of data at %zu:%zu", json->c_line, json->c_col);
 			return -1;
 		}
 	}
@@ -744,7 +744,7 @@ start_over:
 			break;
 
 		default:
-			hio_seterrbfmt (json->hio, HIO_EINTERN, "internal error - must not be called for state %d", (int)json->state_stack->state);
+			hio_seterrbfmt(json->hio, HIO_EINTERN, "internal error - must not be called for state %d", (int)json->state_stack->state);
 			return -1;
 	}
 
@@ -862,7 +862,7 @@ hio_json_t* hio_json_open (hio_t* hio, hio_oow_t xtnsize)
 void hio_json_close (hio_json_t* json)
 {
 	hio_json_fini (json);
-	hio_freemem (json->hio, json);
+	hio_freemem(json->hio, json);
 }
 
 static int do_nothing_on_inst  (hio_json_t* json, hio_json_inst_t inst, hio_oow_t level, hio_oow_t index, hio_json_state_t container_state, const hio_oocs_t* str, void* ctx)
@@ -891,7 +891,7 @@ void hio_json_fini (hio_json_t* json)
 	pop_all_read_states (json);
 	if (json->tok.ptr)
 	{
-		hio_freemem (json->hio, json->tok.ptr);
+		hio_freemem(json->hio, json->tok.ptr);
 		json->tok.ptr = HIO_NULL;
 	}
 }
@@ -984,7 +984,7 @@ static void pop_write_state (hio_jsonwr_t* jsonwr)
 	jsonwr->state_stack = ss->next;
 
 /* TODO: don't free this. move it to the free list? */
-	hio_freemem (jsonwr->hio, ss);
+	hio_freemem(jsonwr->hio, ss);
 }
 
 static void pop_all_write_states (hio_jsonwr_t* jsonwr)
@@ -1016,7 +1016,7 @@ hio_jsonwr_t* hio_jsonwr_open (hio_t* hio, hio_oow_t xtnsize, int flags)
 void hio_jsonwr_close (hio_jsonwr_t* jsonwr)
 {
 	hio_jsonwr_fini (jsonwr);
-	hio_freemem (jsonwr->hio, jsonwr);
+	hio_freemem(jsonwr->hio, jsonwr);
 }
 
 static int write_nothing (hio_jsonwr_t* jsonwr, const hio_bch_t* dptr, hio_oow_t dlen, void* ctx)
@@ -1207,7 +1207,7 @@ static int write_uchars (hio_jsonwr_t* jsonwr, int escape, const hio_uch_t* ptr,
 			n = hio->_cmgr->uctobc(*ptr, bcsbuf, HIO_COUNTOF(bcsbuf));
 			if (n == 0)
 			{
-				hio_seterrnum (hio, HIO_EECERR);
+				hio_seterrnum(hio, HIO_EECERR);
 				return -1;
 			}
 		}
@@ -1358,7 +1358,7 @@ int hio_jsonwr_write (hio_jsonwr_t* jsonwr, hio_json_inst_t inst, int is_uchars,
 		default:
 		incompatible_inst:
 			flush_wbuf (jsonwr);
-			hio_seterrbfmt (jsonwr->hio, HIO_EINVAL, "incompatiable write instruction - %d", (int)inst);
+			hio_seterrbfmt(jsonwr->hio, HIO_EINVAL, "incompatiable write instruction - %d", (int)inst);
 			return -1;
 	}
 
@@ -1379,7 +1379,7 @@ int hio_jsonwr_writeintmax (hio_jsonwr_t* jsonwr, hio_intmax_t v)
 
 incompatible_inst:
 	flush_wbuf (jsonwr);
-	hio_seterrbfmt (jsonwr->hio, HIO_EINVAL, "incompatiable integer write instruction");
+	hio_seterrbfmt(jsonwr->hio, HIO_EINVAL, "incompatiable integer write instruction");
 	return -1;
 }
 
@@ -1396,7 +1396,7 @@ int hio_jsonwr_writeuintmax (hio_jsonwr_t* jsonwr, hio_uintmax_t v)
 
 incompatible_inst:
 	flush_wbuf (jsonwr);
-	hio_seterrbfmt (jsonwr->hio, HIO_EINVAL, "incompatiable integer write instruction");
+	hio_seterrbfmt(jsonwr->hio, HIO_EINVAL, "incompatiable integer write instruction");
 	return -1;
 }
 

@@ -32,12 +32,12 @@ str_t* FN(open) (hio_t* hio, hio_oow_t xtnsize, hio_oow_t capa)
 	{
 		if (FN(init)(str, hio, capa) <= -1)
 		{
-			hio_freemem (hio, str);
+			hio_freemem(hio, str);
 			str = HIO_NULL;
 		}
 		else
 		{
-			HIO_MEMSET (str + 1, 0, xtnsize);
+			HIO_MEMSET(str + 1, 0, xtnsize);
 		}
 	}
 	return str;
@@ -45,13 +45,13 @@ str_t* FN(open) (hio_t* hio, hio_oow_t xtnsize, hio_oow_t capa)
 
 void FN(close) (str_t* str)
 {
-	FN(fini) (str);
-	hio_freemem (str->hio, str);
+	FN(fini)(str);
+	hio_freemem(str->hio, str);
 }
 
 int FN(init) (str_t* str, hio_t* hio, hio_oow_t capa)
 {
-	HIO_MEMSET (str, 0, HIO_SIZEOF(str_t));
+	HIO_MEMSET(str, 0, HIO_SIZEOF(str_t));
 
 	str->hio = hio;
 	str->sizer = HIO_NULL;
@@ -72,7 +72,7 @@ int FN(init) (str_t* str, hio_t* hio, hio_oow_t capa)
 
 void FN(fini) (str_t* str)
 {
-	if (str->val.ptr) hio_freemem (str->hio, str->val.ptr);
+	if (str->val.ptr) hio_freemem(str->hio, str->val.ptr);
 }
 
 int FN(yield) (str_t* str, cstr_t* buf, hio_oow_t newcapa)
@@ -199,7 +199,7 @@ hio_oow_t FN(ncpy) (str_t* str, const char_t* s, hio_oow_t len)
 		if (tmp == (hio_oow_t)-1) return (hio_oow_t)-1;
 	}
 
-	HIO_MEMCPY (&str->val.ptr[0], s, len * HIO_SIZEOF(*s));
+	HIO_MEMCPY(&str->val.ptr[0], s, len * HIO_SIZEOF(*s));
 	str->val.ptr[len] = '\0';
 	str->val.len = len;
 	return len;
@@ -274,7 +274,7 @@ hio_oow_t FN(ncat) (str_t* str, const char_t* s, hio_oow_t len)
 	}
 
 	/*
-	HIO_MEMCPY (&str->val.ptr[str->val.len], s, len*HIO_SIZEOF(*s));
+	HIO_MEMCPY(&str->val.ptr[str->val.len], s, len*HIO_SIZEOF(*s));
 	str->val.len += len;
 	str->val.ptr[str->val.len] = T('\0');
 	*/
@@ -349,7 +349,7 @@ hio_oow_t FN(amend) (str_t* str, hio_oow_t pos, hio_oow_t len, const char_t* rep
 
 	if (len > repl_len)
 	{
-		FN(del) (str, pos, len - repl_len);
+		FN(del)(str, pos, len - repl_len);
 	}
 	else if (len < repl_len)
 	{
@@ -390,7 +390,7 @@ hio_oow_t FN(vfcat) (str_t* str, const char_t* fmt, va_list ap)
 {
 	hio_fmtout_t fo;
 
-	HIO_MEMSET (&fo, 0, HIO_SIZEOF(fo));
+	HIO_MEMSET(&fo, 0, HIO_SIZEOF(fo));
 	fo.putbchars = FN(put_bchars);
 	fo.putuchars = FN(put_uchars);
 	fo.ctx = str;
@@ -408,9 +408,9 @@ hio_oow_t FN(fcat) (str_t* str, const char_t* fmt, ...)
 	hio_oow_t x;
 	va_list ap;
 
-	va_start (ap, fmt);
+	va_start(ap, fmt);
 	x = FN(vfcat)(str, fmt, ap);
-	va_end (ap);
+	va_end(ap);
 
 	return x;
 }
@@ -419,12 +419,12 @@ hio_oow_t FN(vfmt) (str_t* str, const char_t* fmt, va_list ap)
 {
 	hio_fmtout_t fo;
 
-	HIO_MEMSET (&fo, 0, HIO_SIZEOF(fo));
+	HIO_MEMSET(&fo, 0, HIO_SIZEOF(fo));
 	fo.putbchars = FN(put_bchars);
 	fo.putuchars = FN(put_uchars);
 	fo.ctx = str;
 
-	FN(clear) (str);
+	FN(clear)(str);
 
 #if defined(BUILD_UECS)
 	if (hio_ufmt_outv(&fo, fmt, ap) <= -1) return -1;
@@ -439,9 +439,9 @@ hio_oow_t FN(fmt) (str_t* str, const char_t* fmt, ...)
 	hio_oow_t x;
 	va_list ap;
 
-	va_start (ap, fmt);
+	va_start(ap, fmt);
 	x = FN(vfmt)(str, fmt, ap);
-	va_end (ap);
+	va_end(ap);
 
 	return x;
 }

@@ -85,13 +85,13 @@ int hio_makesyshndasync (hio_t* hio, hio_syshnd_t hnd)
 	if ((flags = fcntl(hnd, F_GETFL, 0)) <= -1 ||
 	    fcntl(hnd, F_SETFL, flags | O_NONBLOCK) <= -1)
 	{
-		hio_seterrwithsyserr (hio, 0, errno);
+		hio_seterrwithsyserr(hio, 0, errno);
 		return -1;
 	}
 
 	return 0;
 #else
-	hio_seterrnum (hio, HIO_ENOIMPL);
+	hio_seterrnum(hio, HIO_ENOIMPL);
 	return -1;
 #endif
 }
@@ -104,13 +104,13 @@ int hio_makesyshndcloexec (hio_t* hio, hio_syshnd_t hnd)
 	if ((flags = fcntl(hnd, F_GETFD, 0)) <= -1 ||
 	    fcntl(hnd, F_SETFD, flags | FD_CLOEXEC) <= -1)
 	{
-		hio_seterrwithsyserr (hio, 0, errno);
+		hio_seterrwithsyserr(hio, 0, errno);
 		return -1;
 	}
 
 	return 0;
 #else
-	hio_seterrnum (hio, HIO_ENOIMPL);
+	hio_seterrnum(hio, HIO_ENOIMPL);
 	return -1;
 #endif
 }

@@ -142,7 +142,7 @@ static int x_process_header (hio_tar_t* tar)
 		if (tar->x.hi.fp)
 		{
 			/* just in case */
-			fclose (tar->x.hi.fp);
+			fclose(tar->x.hi.fp);
 			tar->x.hi.fp = HIO_NULL;
 		}
 
@@ -185,7 +185,7 @@ static int x_process_header (hio_tar_t* tar)
 				fp = fopen(filename, "wb+");
 				if (!fp)
 				{
-					hio_seterrwithsyserr (tar->hio, 0, errno);
+					hio_seterrwithsyserr(tar->hio, 0, errno);
 					return -1;
 				}
 
@@ -221,7 +221,7 @@ static int x_process_content (hio_tar_t* tar)
 	if (tar->x.hi.filesize <= 0)
 	{
 		/* end of file */
-		fclose (tar->x.hi.fp);
+		fclose(tar->x.hi.fp);
 		tar->x.hi.fp = HIO_NULL;
 
 		tar->x.state = HIO_TAR_STATE_START;
@@ -238,7 +238,7 @@ int hio_tar_xfeed (hio_tar_t* tar, const void* ptr, hio_oow_t len)
 		if (tar->x.state != HIO_TAR_STATE_END || tar->x.blk.len > 0)
 		{
 			/* ERROR - premature end of file */
-			hio_seterrbfmt (tar->hio, HIO_EINVAL, "premature end of feed");
+			hio_seterrbfmt(tar->hio, HIO_EINVAL, "premature end of feed");
 			return -1;
 		}
 	}
@@ -271,7 +271,7 @@ int hio_tar_xfeed (hio_tar_t* tar, const void* ptr, hio_oow_t len)
 				case HIO_TAR_STATE_END:
 					if (HIO_MEMCMP(tar->x.blk.buf, _end_block, HIO_TAR_BLKSIZE) != 0)
 					{
-						hio_seterrbfmt (tar->hio, HIO_EINVAL, "trailing garbage at the end of feed");
+						hio_seterrbfmt(tar->hio, HIO_EINVAL, "trailing garbage at the end of feed");
 						return -1;
 					}
 					/* there may come multiple EOF marker blocks depending on the logical record size.

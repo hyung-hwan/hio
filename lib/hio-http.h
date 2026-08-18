@@ -27,6 +27,7 @@
 
 #include <hio-ecs.h>
 #include <hio-sck.h>
+#include <hio-htrd.h>
 #include <hio-htre.h>
 #include <hio-thr.h>
 #include <hio-fcgi.h>
@@ -106,6 +107,10 @@ typedef void (*hio_svc_htts_task_on_kill_t) (
 	hio_svc_htts_task_on_kill_t task_on_kill; \
 	hio_dev_sck_t* task_csck; \
 	hio_svc_htts_cli_t* task_client; \
+	hio_dev_sck_evcb_link_t task_client_evcb_link; \
+	hio_htrd_recbs_t task_client_htrd_org_recbs; \
+	unsigned int task_client_evcb_pushed: 1; \
+	unsigned int task_client_htrd_recbs_changed: 1; \
 	unsigned int task_keep_client_alive: 1; \
 	unsigned int task_req_qpath_ending_with_slash: 1; \
 	unsigned int task_req_qpath_is_root: 1; \
@@ -529,6 +534,23 @@ HIO_EXPORT hio_svc_htts_task_t* hio_svc_htts_task_make (
 	hio_svc_htts_task_on_kill_t  on_kill,
 	hio_htre_t*                  req,
 	hio_dev_sck_t*               csck
+);
+
+/* Take over the client socket for the lifetime of this task: layer 'evcb'
+ * on top of the socket's current handlers and make the task the client's
+ * current one. Undone by hio_svc_htts_task_unbindfromclient(). */
+HIO_EXPORT void hio_svc_htts_task_bindtoclient (
+	hio_svc_htts_task_t*      task,
+	hio_dev_sck_t*            csck,
+	const hio_dev_sck_evcb_t* evcb
+);
+
+/* Release the client socket. Pass a non-zero 'rcdown' to drop the reference
+ * the binding took; pass 0 when the caller is already inside the task's own
+ * destruction path. */
+HIO_EXPORT void hio_svc_htts_task_unbindfromclient (
+	hio_svc_htts_task_t*      task,
+	int                       rcdown
 );
 
 HIO_EXPORT void hio_svc_htts_task_kill (

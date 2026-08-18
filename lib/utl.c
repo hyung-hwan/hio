@@ -550,7 +550,7 @@ int hio_convbtouchars (hio_t* hio, const hio_bch_t* bcs, hio_oow_t* bcslen, hio_
 	if (n <= -1)
 	{
 		/* -1: illegal character, -2: buffer too small, -3: incomplete sequence */
-		hio_seterrnum (hio, (n == -2)? HIO_EBUFFULL: HIO_EECERR);
+		hio_seterrnum(hio, (n == -2)? HIO_EBUFFULL: HIO_EECERR);
 	}
 
 	return n;
@@ -565,7 +565,7 @@ int hio_convutobchars (hio_t* hio, const hio_uch_t* ucs, hio_oow_t* ucslen, hio_
 
 	if (n <= -1)
 	{
-		hio_seterrnum (hio, (n == -2)? HIO_EBUFFULL: HIO_EECERR);
+		hio_seterrnum(hio, (n == -2)? HIO_EBUFFULL: HIO_EECERR);
 	}
 
 	return n;
@@ -580,7 +580,7 @@ int hio_convbtoucstr (hio_t* hio, const hio_bch_t* bcs, hio_oow_t* bcslen, hio_u
 
 	if (n <= -1)
 	{
-		hio_seterrnum (hio, (n == -2)? HIO_EBUFFULL: HIO_EECERR);
+		hio_seterrnum(hio, (n == -2)? HIO_EBUFFULL: HIO_EECERR);
 	}
 
 	return n;
@@ -595,7 +595,7 @@ int hio_convutobcstr (hio_t* hio, const hio_uch_t* ucs, hio_oow_t* ucslen, hio_b
 
 	if (n <= -1)
 	{
-		hio_seterrnum (hio, (n == -2)? HIO_EBUFFULL: HIO_EECERR);
+		hio_seterrnum(hio, (n == -2)? HIO_EBUFFULL: HIO_EECERR);
 	}
 
 	return n;

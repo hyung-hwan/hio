@@ -483,7 +483,7 @@ static int switch_reqmsg_transport_to_tcp (hio_svc_dnc_t* dnc, hio_dns_msg_t* re
 				break;
 
 			default:
-				hio_seterrnum (hio, HIO_EINTERN);
+				hio_seterrnum(hio, HIO_EINTERN);
 				return -1;
 		}
 
@@ -748,7 +748,7 @@ hio_svc_dnc_t* hio_svc_dnc_start (hio_t* hio, const hio_skad_t* serv_addr, const
 			break;
 
 		default:
-			hio_seterrnum (hio, HIO_EINVAL);
+			hio_seterrnum(hio, HIO_EINVAL);
 			goto oops;
 	}
 	mkinfo.on_write = on_udp_write;
@@ -837,7 +837,7 @@ hio_dns_msg_t* hio_svc_dnc_sendreq (hio_svc_dnc_t* dnc, hio_dns_bhdr_t* bdns, hi
 	/* send a request without resource records */
 	if (bdns->rcode != HIO_DNS_RCODE_NOERROR)
 	{
-		hio_seterrnum (dnc->hio, HIO_EINVAL);
+		hio_seterrnum(dnc->hio, HIO_EINVAL);
 		return HIO_NULL;
 	}
 

@@ -60,7 +60,7 @@ static int get_sco_ifconf (hio_t* hio, struct ifconf* ifc)
 	h = socket(AF_INET, SOCK_DGRAM, 0);
 	if (h <= -1)
 	{
-		hio_seterrwithsyserr (hio, 0, errno);
+		hio_seterrwithsyserr(hio, 0, errno);
 		return -1;
 	}
 
@@ -70,13 +70,13 @@ static int get_sco_ifconf (hio_t* hio, struct ifconf* ifc)
 	#if defined(SIOCGIFANUM)
 	if (ioctl(h, SIOCGIFANUM, &num) <= -1)
 	{
-		hio_seterrwithsyserr (hio, 0, errno);
+		hio_seterrwithsyserr(hio, 0, errno);
 		goto oops;
 	}
 	#else
 	if (ioctl(h, SIOCGIFNUM, &num) <= -1)
 	{
-		hio_seterrwithsyserr (hio, 0, errno);
+		hio_seterrwithsyserr(hio, 0, errno);
 		goto oops;
 	}
 	#endif
@@ -94,7 +94,7 @@ static int get_sco_ifconf (hio_t* hio, struct ifconf* ifc)
 
 	if (ioctl(h, SIOCGIFCONF, ifc) <= -1)
 	{
-		hio_seterrwithsyserr (hio, 0, errno);
+		hio_seterrwithsyserr(hio, 0, errno);
 		goto oops;
 	}
 	close (h); h = -1;
@@ -118,15 +118,15 @@ int hio_bcstrtoifindex (hio_t* hio, const hio_bch_t* ptr, unsigned int* index)
 {
 #if defined(_WIN32)
 	/* TODO: */
-	hio_seterrnum (hio, HIO_ENOIMPL);
+	hio_seterrnum(hio, HIO_ENOIMPL);
 	return -1;
 #elif defined(__OS2__)
 	/* TODO: */
-	hio_seterrnum (hio, HIO_ENOIMPL);
+	hio_seterrnum(hio, HIO_ENOIMPL);
 	return -1;
 #elif defined(__DOS__)
 	/* TODO: */
-	hio_seterrnum (hio, HIO_ENOIMPL);
+	hio_seterrnum(hio, HIO_ENOIMPL);
 	return -1;
 
 #elif defined(SIOCGIFINDEX)
@@ -137,7 +137,7 @@ int hio_bcstrtoifindex (hio_t* hio, const hio_bch_t* ptr, unsigned int* index)
 	h = socket(AF_INET, SOCK_DGRAM, 0);
 	if (h <= -1)
 	{
-		hio_seterrwithsyserr (hio, 0, errno);
+		hio_seterrwithsyserr(hio, 0, errno);
 		return -1;
 	}
 
@@ -170,7 +170,7 @@ int hio_bcstrtoifindex (hio_t* hio, const hio_bch_t* ptr, unsigned int* index)
 	tmpidx = if_nametoindex(tmp);
 	if (tmpidx == 0)
 	{
-		hio_seterrwithsyserr (hio, 0, errno);
+		hio_seterrwithsyserr(hio, 0, errno);
 		return -1;
 	}
 	*index = tmpidx;
@@ -206,15 +206,15 @@ int hio_bcharstoifindex (hio_t* hio, const hio_bch_t* ptr, hio_oow_t len, unsign
 {
 #if defined(_WIN32)
 	/* TODO: */
-	hio_seterrnum (hio, HIO_ENOIMPL);
+	hio_seterrnum(hio, HIO_ENOIMPL);
 	return -1;
 #elif defined(__OS2__)
 	/* TODO: */
-	hio_seterrnum (hio, HIO_ENOIMPL);
+	hio_seterrnum(hio, HIO_ENOIMPL);
 	return -1;
 #elif defined(__DOS__)
 	/* TODO: */
-	hio_seterrnum (hio, HIO_ENOIMPL);
+	hio_seterrnum(hio, HIO_ENOIMPL);
 	return -1;
 
 #elif defined(SIOCGIFINDEX)
@@ -224,7 +224,7 @@ int hio_bcharstoifindex (hio_t* hio, const hio_bch_t* ptr, hio_oow_t len, unsign
 	h = socket(AF_INET, SOCK_DGRAM, 0);
 	if (h <= -1)
 	{
-		hio_seterrwithsyserr (hio, 0, errno);
+		hio_seterrwithsyserr(hio, 0, errno);
 		return -1;
 	}
 
@@ -254,7 +254,7 @@ int hio_bcharstoifindex (hio_t* hio, const hio_bch_t* ptr, hio_oow_t len, unsign
 	tmpidx = if_nametoindex(tmp);
 	if (tmpidx == 0)
 	{
-		hio_seterrwithsyserr (hio, 0, errno);
+		hio_seterrwithsyserr(hio, 0, errno);
 		return -1;
 	}
 	*index = tmpidx;
@@ -289,15 +289,15 @@ int hio_ucstrtoifindex (hio_t* hio, const hio_uch_t* ptr, unsigned int* index)
 {
 #if defined(_WIN32)
 	/* TODO: */
-	hio_seterrnum (hio, HIO_ENOIMPL);
+	hio_seterrnum(hio, HIO_ENOIMPL);
 	return -1;
 #elif defined(__OS2__)
 	/* TODO: */
-	hio_seterrnum (hio, HIO_ENOIMPL);
+	hio_seterrnum(hio, HIO_ENOIMPL);
 	return -1;
 #elif defined(__DOS__)
 	/* TODO: */
-	hio_seterrnum (hio, HIO_ENOIMPL);
+	hio_seterrnum(hio, HIO_ENOIMPL);
 	return -1;
 
 #elif defined(SIOCGIFINDEX)
@@ -308,7 +308,7 @@ int hio_ucstrtoifindex (hio_t* hio, const hio_uch_t* ptr, unsigned int* index)
 	h = socket(AF_INET, SOCK_DGRAM, 0);
 	if (h <= -1)
 	{
-		hio_seterrwithsyserr (hio, 0, errno);
+		hio_seterrwithsyserr(hio, 0, errno);
 		return -1;
 	}
 
@@ -340,7 +340,7 @@ int hio_ucstrtoifindex (hio_t* hio, const hio_uch_t* ptr, unsigned int* index)
 	tmpidx = if_nametoindex(tmp);
 	if (tmpidx == 0)
 	{
-		hio_seterrwithsyserr (hio, 0, errno);
+		hio_seterrwithsyserr(hio, 0, errno);
 		return -1;
 	}
 	*index = tmpidx;
@@ -381,15 +381,15 @@ int hio_ucharstoifindex (hio_t* hio, const hio_uch_t* ptr, hio_oow_t len, unsign
 {
 #if defined(_WIN32)
 	/* TODO: */
-	hio_seterrnum (hio, HIO_ENOIMPL);
+	hio_seterrnum(hio, HIO_ENOIMPL);
 	return -1;
 #elif defined(__OS2__)
 	/* TODO: */
-	hio_seterrnum (hio, HIO_ENOIMPL);
+	hio_seterrnum(hio, HIO_ENOIMPL);
 	return -1;
 #elif defined(__DOS__)
 	/* TODO: */
-	hio_seterrnum (hio, HIO_ENOIMPL);
+	hio_seterrnum(hio, HIO_ENOIMPL);
 	return -1;
 
 #elif defined(SIOCGIFINDEX)
@@ -400,7 +400,7 @@ int hio_ucharstoifindex (hio_t* hio, const hio_uch_t* ptr, hio_oow_t len, unsign
 	h = socket(AF_INET, SOCK_DGRAM, 0);
 	if (h <= -1)
 	{
-		hio_seterrwithsyserr (hio, 0, errno);
+		hio_seterrwithsyserr(hio, 0, errno);
 		return -1;
 	}
 
@@ -434,7 +434,7 @@ int hio_ucharstoifindex (hio_t* hio, const hio_uch_t* ptr, hio_oow_t len, unsign
 	tmpidx = if_nametoindex(tmp);
 	if (tmpidx == 0)
 	{
-		hio_seterrwithsyserr (hio, 0, errno);
+		hio_seterrwithsyserr(hio, 0, errno);
 		return -1;
 	}
 	*index = tmpidx;
@@ -476,15 +476,15 @@ int hio_ifindextobcstr (hio_t* hio, unsigned int index, hio_bch_t* buf, hio_oow_
 {
 #if defined(_WIN32)
 	/* TODO: */
-	hio_seterrnum (hio, HIO_ENOIMPL);
+	hio_seterrnum(hio, HIO_ENOIMPL);
 	return -1;
 #elif defined(__OS2__)
 	/* TODO: */
-	hio_seterrnum (hio, HIO_ENOIMPL);
+	hio_seterrnum(hio, HIO_ENOIMPL);
 	return -1;
 #elif defined(__DOS__)
 	/* TODO: */
-	hio_seterrnum (hio, HIO_ENOIMPL);
+	hio_seterrnum(hio, HIO_ENOIMPL);
 	return -1;
 
 #elif defined(SIOCGIFNAME)
@@ -495,7 +495,7 @@ int hio_ifindextobcstr (hio_t* hio, unsigned int index, hio_bch_t* buf, hio_oow_
 	h = socket(AF_INET, SOCK_DGRAM, 0);
 	if (h <= -1)
 	{
-		hio_seterrwithsyserr (hio, 0, errno);
+		hio_seterrwithsyserr(hio, 0, errno);
 		return -1;
 	}
 
@@ -511,7 +511,7 @@ int hio_ifindextobcstr (hio_t* hio, unsigned int index, hio_bch_t* buf, hio_oow_
 
 	if (x <= -1)
 	{
-		hio_seterrwithsyserr (hio, 0, errno);
+		hio_seterrwithsyserr(hio, 0, errno);
 		return -1;
 	}
 
@@ -521,7 +521,7 @@ int hio_ifindextobcstr (hio_t* hio, unsigned int index, hio_bch_t* buf, hio_oow_
 	hio_bch_t tmp[IF_NAMESIZE + 1];
 	if (if_indextoname (index, tmp) == HIO_NULL)
 	{
-		hio_seterrwithsyserr (hio, 0, errno);
+		hio_seterrwithsyserr(hio, 0, errno);
 		return -1;
 	}
 	return hio_copy_bcstr(buf, len, tmp);
@@ -538,7 +538,7 @@ int hio_ifindextobcstr (hio_t* hio, unsigned int index, hio_bch_t* buf, hio_oow_
 	num = ifc.ifc_len / HIO_SIZEOF(struct ifreq);
 	if (index > num)
 	{
-		hio_seterrnum (hio, HIO_ENOENT);
+		hio_seterrnum(hio, HIO_ENOENT);
 		free_sco_ifconf (hio, &ifc);
 		return -1;
 	}
@@ -556,15 +556,15 @@ int hio_ifindextoucstr (hio_t* hio, unsigned int index, hio_uch_t* buf, hio_oow_
 {
 #if defined(_WIN32)
 	/* TODO: */
-	hio_seterrnum (hio, HIO_ENOIMPL);
+	hio_seterrnum(hio, HIO_ENOIMPL);
 	return -1;
 #elif defined(__OS2__)
 	/* TODO: */
-	hio_seterrnum (hio, HIO_ENOIMPL);
+	hio_seterrnum(hio, HIO_ENOIMPL);
 	return -1;
 #elif defined(__DOS__)
 	/* TODO: */
-	hio_seterrnum (hio, HIO_ENOIMPL);
+	hio_seterrnum(hio, HIO_ENOIMPL);
 	return -1;
 
 #elif defined(SIOCGIFNAME)
@@ -576,7 +576,7 @@ int hio_ifindextoucstr (hio_t* hio, unsigned int index, hio_uch_t* buf, hio_oow_
 	h = socket(AF_INET, SOCK_DGRAM, 0);
 	if (h <= -1)
 	{
-		hio_seterrwithsyserr (hio, 0, errno);
+		hio_seterrwithsyserr(hio, 0, errno);
 		return -1;
 	}
 
@@ -592,7 +592,7 @@ int hio_ifindextoucstr (hio_t* hio, unsigned int index, hio_uch_t* buf, hio_oow_
 
 	if (x <= -1)
 	{
-		hio_seterrwithsyserr (hio, 0, errno);
+		hio_seterrwithsyserr(hio, 0, errno);
 		return -1;
 	}
 
@@ -609,7 +609,7 @@ int hio_ifindextoucstr (hio_t* hio, unsigned int index, hio_uch_t* buf, hio_oow_
 
 	if (if_indextoname(index, tmp) == HIO_NULL)
 	{
-		hio_seterrwithsyserr (hio, 0, errno);
+		hio_seterrwithsyserr(hio, 0, errno);
 		return -1;
 	}
 	wl = len;

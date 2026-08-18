@@ -95,7 +95,7 @@ static int dev_mar_make (hio_dev_t* dev, void* ctx)
 	rdev->hnd = mysql_init(HIO_NULL);
 	if (HIO_UNLIKELY(!rdev->hnd))
 	{
-		hio_seterrnum (hio, HIO_ESYSMEM);
+		hio_seterrnum(hio, HIO_ESYSMEM);
 		return -1;
 	}
 
@@ -104,7 +104,7 @@ static int dev_mar_make (hio_dev_t* dev, void* ctx)
 
 	if (mysql_options(rdev->hnd, MYSQL_OPT_NONBLOCK, 0) != 0)
 	{
-		hio_seterrbfmt (hio, HIO_ESYSERR, "%hs", mysql_error(rdev->hnd));
+		hio_seterrbfmt(hio, HIO_ESYSERR, "%hs", mysql_error(rdev->hnd));
 		mysql_close (rdev->hnd);
 		rdev->hnd = HIO_NULL;
 		return -1;
@@ -278,7 +278,7 @@ static int dev_mar_ioctl (hio_dev_t* dev, int cmd, void* arg)
 			if (HIO_DEV_MAR_GET_PROGRESS(rdev) != HIO_DEV_MAR_INITIAL)
 			{
 				/* can't connect again */
-				hio_seterrbfmt (hio, HIO_EPERM, "operation in progress. disallowed to connect again");
+				hio_seterrbfmt(hio, HIO_EPERM, "operation in progress. disallowed to connect again");
 				return -1;
 			}
 
@@ -304,7 +304,7 @@ static int dev_mar_ioctl (hio_dev_t* dev, int cmd, void* arg)
 					rdev->broken = 1;
 					rdev->broken_syshnd = HIO_SYSHND_INVALID;
 
-					hio_seterrbfmt (hio, HIO_ESYSERR, "%hs", mysql_error(rdev->hnd));
+					hio_seterrbfmt(hio, HIO_ESYSERR, "%hs", mysql_error(rdev->hnd));
 					return -1;
 				}
 
@@ -326,13 +326,13 @@ static int dev_mar_ioctl (hio_dev_t* dev, int cmd, void* arg)
 
 			if (!rdev->connected)
 			{
-				hio_seterrbfmt (hio, HIO_EPERM, "not connected. disallowed to query");
+				hio_seterrbfmt(hio, HIO_EPERM, "not connected. disallowed to query");
 				return -1;
 			}
 
 			if (rdev->res) /* TODO: more accurate check */
 			{
-				hio_seterrbfmt (hio, HIO_EPERM, "operation in progress. disallowed to query again");
+				hio_seterrbfmt(hio, HIO_EPERM, "operation in progress. disallowed to query again");
 				return -1;
 			}
 
@@ -353,7 +353,7 @@ static int dev_mar_ioctl (hio_dev_t* dev, int cmd, void* arg)
 					/* but there is an error */
 					if (err == 1 || err == -1) err = mysql_errno(rdev->hnd);
 
-					hio_seterrbfmt (hio, HIO_ESYSERR, "%hs [code=%d]", mysql_error(rdev->hnd), err);
+					hio_seterrbfmt(hio, HIO_ESYSERR, "%hs [code=%d]", mysql_error(rdev->hnd), err);
 					if (err == CR_SERVER_LOST || err == CR_SERVER_GONE_ERROR || err == CR_COMMANDS_OUT_OF_SYNC || err == ER_CONNECTION_KILLED)
 					{
 						/* the underlying socket is closed by the mysql client library when this happens.
@@ -369,7 +369,7 @@ static int dev_mar_ioctl (hio_dev_t* dev, int cmd, void* arg)
 
 						watch_mysql (rdev, 0);
 						hio_dev_mar_halt (rdev); /* i can't keep this device alive regardless of the caller's post-action */
-						hio_seterrbfmt (hio, HIO_ECONLOST, "%js", prev_errmsg);
+						hio_seterrbfmt(hio, HIO_ECONLOST, "%js", prev_errmsg);
 					}
 					return -1;
 				}
@@ -388,7 +388,7 @@ static int dev_mar_ioctl (hio_dev_t* dev, int cmd, void* arg)
 				rdev->res = mysql_use_result(rdev->hnd);
 				if (HIO_UNLIKELY(!rdev->res))
 				{
-					hio_seterrbfmt (hio, HIO_ESYSERR, "%hs", mysql_error(rdev->hnd));
+					hio_seterrbfmt(hio, HIO_ESYSERR, "%hs", mysql_error(rdev->hnd));
 					return -1;
 				}
 			}
@@ -398,7 +398,7 @@ static int dev_mar_ioctl (hio_dev_t* dev, int cmd, void* arg)
 		}
 
 		default:
-			hio_seterrnum (hio, HIO_EINVAL);
+			hio_seterrnum(hio, HIO_EINVAL);
 			return -1;
 	}
 }
@@ -439,11 +439,11 @@ static int dev_evcb_mar_ready (hio_dev_t* dev, int events)
 			 * errno resulting from getsockopt() doesn't reflect the actual
 			 * socket error. so errno is not used to set the error number.
 			 * instead, the generic device error HIO_EDEVERRR is used */
-			hio_seterrbfmt (hio, HIO_EDEVERR, "device error - unable to get SO_ERROR");
+			hio_seterrbfmt(hio, HIO_EDEVERR, "device error - unable to get SO_ERROR");
 		}
 		else
 		{
-			hio_seterrwithsyserr (hio, 0, errcode);
+			hio_seterrwithsyserr(hio, 0, errcode);
 		}
 
 		return -1;
@@ -551,7 +551,7 @@ static int dev_evcb_mar_ready (hio_dev_t* dev, int events)
 							/*
 							preserving the error information here isn't very useful because
 							the info won't survive until on_disconnect() is called...
-							hio_seterrbfmt (hio, HIO_ECONLOST, "%hs", mysql_error(rdev->hnd));
+							hio_seterrbfmt(hio, HIO_ECONLOST, "%hs", mysql_error(rdev->hnd));
 							*/
 
 							rdev->broken = 1;
@@ -636,7 +636,7 @@ static int dev_evcb_mar_ready (hio_dev_t* dev, int events)
 		}
 
 		default:
-			hio_seterrbfmt (hio, HIO_EINTERN, "invalid progress value in mar");
+			hio_seterrbfmt(hio, HIO_EINTERN, "invalid progress value in mar");
 			return -1;
 	}
 

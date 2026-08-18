@@ -80,7 +80,7 @@ static int dev_shw_read (hio_dev_t* dev, void* buf, hio_iolen_t* len, hio_devadd
 
 	if (HIO_UNLIKELY(shw->hnd == HIO_SYSHND_INVALID))
 	{
-		hio_seterrnum (shw->hio, HIO_EBADHND);
+		hio_seterrnum(shw->hio, HIO_EBADHND);
 		return -1;
 	}
 
@@ -89,7 +89,7 @@ static int dev_shw_read (hio_dev_t* dev, void* buf, hio_iolen_t* len, hio_devadd
 	{
 		if (errno == EINPROGRESS || errno == EWOULDBLOCK || errno == EAGAIN) return 0;  /* no data available */
 		if (errno == EINTR) return 0;
-		hio_seterrwithsyserr (shw->hio, 0, errno);
+		hio_seterrwithsyserr(shw->hio, 0, errno);
 		return -1;
 	}
 
@@ -104,7 +104,7 @@ static int dev_shw_write (hio_dev_t* dev, const void* data, hio_iolen_t* len, co
 
 	if (HIO_UNLIKELY(shw->hnd == HIO_SYSHND_INVALID))
 	{
-		hio_seterrnum (shw->hio, HIO_EBADHND);
+		hio_seterrnum(shw->hio, HIO_EBADHND);
 		return -1;
 	}
 
@@ -129,7 +129,7 @@ static int dev_shw_write (hio_dev_t* dev, const void* data, hio_iolen_t* len, co
 	{
 		if (errno == EINPROGRESS || errno == EWOULDBLOCK || errno == EAGAIN) return 0;  /* no data can be written */
 		if (errno == EINTR) return 0;
-		hio_seterrwithsyserr (shw->hio, 0, errno);
+		hio_seterrwithsyserr(shw->hio, 0, errno);
 		return -1;
 	}
 
@@ -144,7 +144,7 @@ static int dev_shw_writev (hio_dev_t* dev, const hio_iovec_t* iov, hio_iolen_t* 
 
 	if (HIO_UNLIKELY(shw->hnd == HIO_SYSHND_INVALID))
 	{
-		hio_seterrnum (shw->hio, HIO_EBADHND);
+		hio_seterrnum(shw->hio, HIO_EBADHND);
 		return -1;
 	}
 
@@ -169,7 +169,7 @@ static int dev_shw_writev (hio_dev_t* dev, const hio_iovec_t* iov, hio_iolen_t* 
 	{
 		if (errno == EINPROGRESS || errno == EWOULDBLOCK || errno == EAGAIN) return 0;  /* no data can be written */
 		if (errno == EINTR) return 0;
-		hio_seterrwithsyserr (shw->hio, 0, errno);
+		hio_seterrwithsyserr(shw->hio, 0, errno);
 		return -1;
 	}
 
@@ -207,7 +207,7 @@ static int shw_ready (hio_dev_t* dev, int events)
 
 	if (events & HIO_DEV_EVENT_ERR)
 	{
-		hio_seterrnum (hio, HIO_EDEVERR);
+		hio_seterrnum(hio, HIO_EDEVERR);
 		return -1;
 	}
 
@@ -219,7 +219,7 @@ static int shw_ready (hio_dev_t* dev, int events)
 			return shw->on_ready? shw->on_ready(shw, events): 1;
 		}
 
-		hio_seterrnum (hio, HIO_EDEVHUP);
+		hio_seterrnum(hio, HIO_EDEVHUP);
 		return -1;
 	}
 

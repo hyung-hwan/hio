@@ -76,7 +76,7 @@ hio_oow_t hio_becs_ncatuchars (hio_becs_t* str, const hio_uch_t* s, hio_oow_t le
 
 	ucslen = len;
 	bcslen = str->capa - str->val.len;
-	hio_conv_uchars_to_bchars_with_cmgr (s, &ucslen, &str->val.ptr[str->val.len], &bcslen, cmgr);
+	hio_conv_uchars_to_bchars_with_cmgr(s, &ucslen, &str->val.ptr[str->val.len], &bcslen, cmgr);
 	str->val.len += bcslen;
 	str->val.ptr[str->val.len] = '\0';
 
@@ -94,7 +94,7 @@ hio_oow_t hio_uecs_ncatbchars (hio_uecs_t* str, const hio_bch_t* s, hio_oow_t le
 
 	bcslen = len;
 	ucslen = str->capa - str->val.len;
-	hio_conv_bchars_to_uchars_with_cmgr (s, &bcslen, &str->val.ptr[str->val.len], &ucslen, cmgr, all);
+	hio_conv_bchars_to_uchars_with_cmgr(s, &bcslen, &str->val.ptr[str->val.len], &ucslen, cmgr, all);
 	str->val.len += ucslen;
 	str->val.ptr[str->val.len] = '\0';
 

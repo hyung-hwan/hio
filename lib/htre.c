@@ -36,7 +36,7 @@ static void free_hdrval (hio_htb_t* htb, void* vptr, hio_oow_t vlen)
 	{
 		tmp = val;
 		val = val->next;
-		hio_freemem (htb->hio, tmp);
+		hio_freemem(htb->hio, tmp);
 	}
 }
 
@@ -86,7 +86,7 @@ void hio_htre_fini (hio_htre_t* re)
 
 	if (re->orgqpath.buf)
 	{
-		hio_freemem (re->hio, re->orgqpath.buf);
+		hio_freemem(re->hio, re->orgqpath.buf);
 		re->orgqpath.buf = HIO_NULL;
 		re->orgqpath.capa = 0;
 		re->orgqpath.ptr = HIO_NULL;
@@ -287,7 +287,7 @@ int hio_htre_perdecqpath (hio_htre_t* re)
 		{
 			if (re->orgqpath.buf)
 			{
-				hio_freemem (re->hio, re->orgqpath.buf);
+				hio_freemem(re->hio, re->orgqpath.buf);
 				re->orgqpath.capa = 0;
 				re->orgqpath.ptr = HIO_NULL;
 				re->orgqpath.len = 0;

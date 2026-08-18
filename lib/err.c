@@ -206,9 +206,9 @@ void hio_seterrbfmt (hio_t* hio, hio_errnum_t errnum, const hio_bch_t* fmt, ...)
 	fo.putuchars = err_ucs;
 	fo.ctx = hio;
 
-	va_start (ap, fmt);
+	va_start(ap, fmt);
 	hio_bfmt_outv (&fo, fmt, ap);
-	va_end (ap);
+	va_end(ap);
 
 	hio->errnum = errnum;
 }
@@ -226,9 +226,9 @@ void hio_seterrufmt (hio_t* hio, hio_errnum_t errnum, const hio_uch_t* fmt, ...)
 	fo.putuchars = err_ucs;
 	fo.ctx = hio;
 
-	va_start (ap, fmt);
+	va_start(ap, fmt);
 	hio_ufmt_outv (&fo, fmt, ap);
-	va_end (ap);
+	va_end(ap);
 
 	hio->errnum = errnum;
 }
@@ -279,14 +279,14 @@ void hio_seterrwithsyserr (hio_t* hio, int syserr_type, int syserr_code)
 	/*if (hio->vmprim.syserrstrb)
 	{*/
 		errnum = /*hio->vmprim.*/hio_sys_syserrstrb(hio, syserr_type, syserr_code, hio->errmsg.tmpbuf.bch, HIO_COUNTOF(hio->errmsg.tmpbuf.bch));
-		hio_seterrbfmt (hio, errnum, "%hs", hio->errmsg.tmpbuf.bch);
+		hio_seterrbfmt(hio, errnum, "%hs", hio->errmsg.tmpbuf.bch);
 	/*
 	}
 	else
 	{
 		HIO_ASSERT(hio, hio->vmprim.syserrstru != HIO_NULL);
 		errnum = hio->vmprim.syserrstru(hio, syserr_type, syserr_code, hio->errmsg.tmpbuf.uch, HIO_COUNTOF(hio->errmsg.tmpbuf.uch));
-		hio_seterrbfmt (hio, errnum, "%ls", hio->errmsg.tmpbuf.uch);
+		hio_seterrbfmt(hio, errnum, "%ls", hio->errmsg.tmpbuf.uch);
 	}*/
 }
 
@@ -303,9 +303,9 @@ void hio_seterrbfmtwithsyserr (hio_t* hio, int syserr_type, int syserr_code, con
 	{*/
 		errnum = hio_sys_syserrstrb(hio, syserr_type, syserr_code, hio->errmsg.tmpbuf.bch, HIO_COUNTOF(hio->errmsg.tmpbuf.bch));
 
-		va_start (ap, fmt);
+		va_start(ap, fmt);
 		hio_seterrbfmtv (hio, errnum, fmt, ap);
-		va_end (ap);
+		va_end(ap);
 
 		if (HIO_COUNTOF(hio->errmsg.buf) - hio->errmsg.len >= 5)
 		{
@@ -327,9 +327,9 @@ void hio_seterrbfmtwithsyserr (hio_t* hio, int syserr_type, int syserr_code, con
 		HIO_ASSERT(hio, hio->vmprim.syserrstru != HIO_NULL);
 		errnum = hio_sys_syserrstru(hio, syserr_type, syserr_code, hio->errmsg.tmpbuf.uch, HIO_COUNTOF(hio->errmsg.tmpbuf.uch));
 
-		va_start (ap, fmt);
+		va_start(ap, fmt);
 		hio_seterrbfmtv (hio, errnum, fmt, ap);
-		va_end (ap);
+		va_end(ap);
 
 		if (HIO_COUNTOF(hio->errmsg.buf) - hio->errmsg.len >= 5)
 		{
@@ -360,9 +360,9 @@ void hio_seterrufmtwithsyserr (hio_t* hio, int syserr_type, int syserr_code, con
 	{*/
 		errnum = hio_sys_syserrstrb(hio, syserr_type, syserr_code, hio->errmsg.tmpbuf.bch, HIO_COUNTOF(hio->errmsg.tmpbuf.bch));
 
-		va_start (ap, fmt);
+		va_start(ap, fmt);
 		hio_seterrufmtv (hio, errnum, fmt, ap);
-		va_end (ap);
+		va_end(ap);
 
 		if (HIO_COUNTOF(hio->errmsg.buf) - hio->errmsg.len >= 5)
 		{
@@ -384,9 +384,9 @@ void hio_seterrufmtwithsyserr (hio_t* hio, int syserr_type, int syserr_code, con
 		HIO_ASSERT(hio, hio->vmprim.syserrstru != HIO_NULL);
 		errnum = hio_sys_syserrstru(hio, syserr_type, syserr_code, hio->errmsg.tmpbuf.uch, HIO_COUNTOF(hio->errmsg.tmpbuf.uch));
 
-		va_start (ap, fmt);
+		va_start(ap, fmt);
 		hio_seterrufmtv (hio, errnum, fmt, ap);
-		va_end (ap);
+		va_end(ap);
 
 		if (HIO_COUNTOF(hio->errmsg.buf) - hio->errmsg.len >= 5)
 		{

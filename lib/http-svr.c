@@ -49,7 +49,7 @@ static int inc_ntasks (hio_svc_htts_t* htts)
 	if (htts->stat.ntasks >= htts->option.task_max)
 	{
 		hio_spl_unlock (&htts->stat.spl_ntasks);
-		hio_seterrbfmt (htts->hio, HIO_ENOCAPA, "too many tasks");
+		hio_seterrbfmt(htts->hio, HIO_ENOCAPA, "too many tasks");
 		return -1;
 	}
 	htts->stat.ntasks++;
@@ -62,7 +62,7 @@ static int inc_ntasks (hio_svc_htts_t* htts)
 		ntasks = HCL_ATOMIC_LOAD(&htts->stat.ntasks);
 		if (ntasks >= htts->option.task_max)
 		{
-			hio_seterrbfmt (htts->hio, HIO_ENOCAPA, "too many tasks");
+			hio_seterrbfmt(htts->hio, HIO_ENOCAPA, "too many tasks");
 			return -1;
 		}
 		ok = HCL_ATOMIC_CMP_XCHG(&htts->stat.ntasks, &ntasks, ntasks + 1);
@@ -138,9 +138,9 @@ static int init_client (hio_svc_htts_cli_t* cli, hio_dev_sck_t* sck)
 	htrdxtn = hio_htrd_getxtn(cli->htrd);
 	htrdxtn->sck = sck; /* TODO: remember cli instead? */
 
-	hio_htrd_setrecbs (cli->htrd, &client_htrd_recbs);
+	hio_htrd_setrecbs(cli->htrd, &client_htrd_recbs);
 
-	hio_gettime (sck->hio, &cli->last_active);
+	hio_gettime(sck->hio, &cli->last_active);
 
 	HIO_DEBUG4(sck->hio, "HTTS(%p) - client(c=%p,csck=%d[%d]) - initialized\n", cli->htts, cli, sck, (int)sck->hnd);
 
@@ -160,7 +160,7 @@ oops:
 	}
 	if (cli->htrd)
 	{
-		hio_htrd_close (cli->htrd);
+		hio_htrd_close(cli->htrd);
 		cli->htrd = HIO_NULL;
 	}*/
 	return -1;
@@ -178,18 +178,18 @@ static void fini_client (hio_svc_htts_cli_t* cli)
 		cli->task->task_client = HIO_NULL;
 		cli->task->task_csck = HIO_NULL;
 
-		HIO_SVC_HTTS_TASK_UNREF (cli->task);
+		HIO_SVC_HTTS_TASK_UNREF(cli->task);
 	}
 
 	if (cli->sbuf)
 	{
-		hio_becs_close (cli->sbuf);
+		hio_becs_close(cli->sbuf);
 		cli->sbuf = HIO_NULL;
 	}
 
 	if (cli->htrd)
 	{
-		hio_htrd_close (cli->htrd);
+		hio_htrd_close(cli->htrd);
 		cli->htrd = HIO_NULL;
 	}
 
@@ -211,7 +211,7 @@ static int listener_on_read (hio_dev_sck_t* sck, const void* buf, hio_iolen_t le
 {
 	/* unlike the function name, this callback is set on both the listener and the client initially.
 	 * init_client() changes the socket's on_read to client_on_read. so this hander must never be called */
-	if (len <= -1) hio_dev_sck_halt (sck);
+	if (len <= -1) hio_dev_sck_halt(sck);
 	return 0;
 }
 
@@ -245,7 +245,7 @@ static void listener_on_connect (hio_dev_sck_t* sck)
 		if (init_client(cli, sck) <= -1)
 		{
 			HIO_DEBUG3(cli->htts->hio, "HTTS(%p) - halting client(%p,%d) for client intiaialization failure\n", cli->htts, sck, (int)sck->hnd);
-			hio_dev_sck_halt (sck);
+			hio_dev_sck_halt(sck);
 		}
 	}
 	else if (sck->state & HIO_DEV_SCK_CONNECTED)
@@ -375,7 +375,7 @@ oops:
 	{
 		 /* halt only if clinet_on_read() is the current handler.
 		  * client_on_read() can be chain-called by the overriding handler */
-		hio_dev_sck_halt (sck);
+		hio_dev_sck_halt(sck);
 	}
 	return 0; /* still return success here. instead call halt() */
 }
@@ -399,7 +399,7 @@ static int client_on_write (hio_dev_sck_t* sck, hio_iolen_t wrlen, void* wrctx, 
 		if (wrlen <= -1)
 		{
 			HIO_DEBUG3(hio, "HTTS(%p) - unable to write to client %p(%d)\n", htts, sck, (int)sck->hnd);
-			hio_dev_sck_halt (sck);
+			hio_dev_sck_halt(sck);
 		}
 		else if (wrlen == 0)
 		{
@@ -433,7 +433,7 @@ static void client_on_disconnect (hio_dev_sck_t* sck)
 
 	HIO_DEBUG4(hio, "HTTS(%p) - task(t=%p,c=%p,csck=%p) - handling client socket disconnect\n", htts, task, cli, sck);
 
-	fini_client (cli);
+	fini_client(cli);
 
 	HIO_DEBUG4(hio, "HTTS(%p) - task(t=%p,c=%p,csck=%p) - handled client socket disconnect\n", htts, task, cli, sck);
 	/* Note: after this callback, the actual device pointed to by 'sck' will be freed in the main loop. */
@@ -464,13 +464,13 @@ static void halt_idle_clients (hio_t* hio, const hio_ntime_t* now, hio_tmrjob_t*
 			if (HIO_CMP_NTIME(&t, &max_client_idle) >= 0)
 			{
 				HIO_DEBUG4(hio, "HTTS(%p) - Halting idle client(%p,%p,%d)\n", htts, cli, cli->sck, (int)cli->sck->hnd);
-				hio_dev_sck_halt (cli->sck);
+				hio_dev_sck_halt(cli->sck);
 			}
 		}
 	}
 
-	HIO_INIT_NTIME (&t, MAX_CLIENT_IDLE, 0);
-	HIO_ADD_NTIME (&t, &t, now);
+	HIO_INIT_NTIME(&t, MAX_CLIENT_IDLE, 0);
+	HIO_ADD_NTIME(&t, &t, now);
 	if (hio_schedtmrjobat(hio, &t, halt_idle_clients, &htts->idle_tmridx, htts) <= -1)
 	{
 		HIO_INFO1(hio, "HTTS(%p) - unable to reschedule idle client detector. continuting\n", htts);
@@ -492,7 +492,7 @@ hio_svc_htts_t* hio_svc_htts_start (hio_t* hio, hio_oow_t xtnsize, hio_dev_sck_b
 
 	if (HIO_UNLIKELY(nbinds <= 0))
 	{
-		hio_seterrnum (hio, HIO_EINVAL);
+		hio_seterrnum(hio, HIO_EINVAL);
 		goto oops;
 	}
 
@@ -585,7 +585,7 @@ hio_svc_htts_t* hio_svc_htts_start (hio_t* hio, hio_oow_t xtnsize, hio_dev_sck_b
 
 			HIO_MEMSET(&info, 0, HIO_SIZEOF(info));
 			info.l.backlogs = 4096; /* TODO: use configuration? */
-			HIO_INIT_NTIME (&info.l.accept_tmout, 5, 1); /* usedd for ssl accept */
+			HIO_INIT_NTIME(&info.l.accept_tmout, 5, 1); /* usedd for ssl accept */
 			if (hio_dev_sck_listen(sck, &info.l) <= -1)
 			{
 				if (HIO_LOG_ENABLED(hio, HIO_LOG_DEBUG))
@@ -615,20 +615,20 @@ hio_svc_htts_t* hio_svc_htts_start (hio_t* hio, hio_oow_t xtnsize, hio_dev_sck_b
 
 	if (noks <= 0) goto oops;
 
-	hio_fmttobcstr (htts->hio, htts->server_name_buf, HIO_COUNTOF(htts->server_name_buf), "%s-%d.%d.%d",
+	hio_fmttobcstr(htts->hio, htts->server_name_buf, HIO_COUNTOF(htts->server_name_buf), "%s-%d.%d.%d",
 		HIO_PACKAGE_NAME, (int)HIO_PACKAGE_VERSION_MAJOR, (int)HIO_PACKAGE_VERSION_MINOR, (int)HIO_PACKAGE_VERSION_PATCH);
 	htts->server_name = htts->server_name_buf;
 
-	HIO_SVCL_APPEND_SVC (&hio->actsvc, (hio_svc_t*)htts);
-	HIO_SVC_HTTS_CLIL_INIT (&htts->cli);
-	HIO_SVC_HTTS_TASKL_INIT (&htts->task);
+	HIO_SVCL_APPEND_SVC(&hio->actsvc, (hio_svc_t*)htts);
+	HIO_SVC_HTTS_CLIL_INIT(&htts->cli);
+	HIO_SVC_HTTS_TASKL_INIT(&htts->task);
 
 	HIO_DEBUG1(hio, "HTTS - STARTED SERVICE %p\n", htts);
 
 	{
 		hio_ntime_t t;
 
-		HIO_INIT_NTIME (&t, MAX_CLIENT_IDLE, 0);
+		HIO_INIT_NTIME(&t, MAX_CLIENT_IDLE, 0);
 		if (hio_schedtmrjobafter(hio, &t, halt_idle_clients, &htts->idle_tmridx, htts) <= -1)
 		{
 			HIO_INFO1(hio, "HTTS(%p) - unable to schedule idle client detector. continuting\n", htts);
@@ -663,7 +663,7 @@ oops:
 			hio_freemem(hio, htts->l.sck);
 		}
 
-		if (htts->becbuf) hio_becs_close (htts->becbuf);
+		if (htts->becbuf) hio_becs_close(htts->becbuf);
 		hio_freemem(hio, htts);
 	}
 	return HIO_NULL;
@@ -704,14 +704,14 @@ void hio_svc_htts_stop (hio_svc_htts_t* htts)
 		ntasks++;
 	}
 
-	HIO_SVCL_UNLINK_SVC (htts);
+	HIO_SVCL_UNLINK_SVC(htts);
 	if (htts->server_name && htts->server_name != htts->server_name_buf) hio_freemem(hio, htts->server_name);
 
 	if (htts->idle_tmridx != HIO_TMRIDX_INVALID) hio_deltmrjob (hio, htts->idle_tmridx);
 
 	if (htts->l.sck) hio_freemem(hio, htts->l.sck);
 
-	if (htts->becbuf) hio_becs_close (htts->becbuf);
+	if (htts->becbuf) hio_becs_close(htts->becbuf);
 	hio_freemem(hio, htts);
 
 	/* it's not a good sign if the number of remaining tasks is greater than 0 */
@@ -722,7 +722,6 @@ void* hio_svc_htts_getxtn (hio_svc_htts_t* htts)
 {
 	return (void*)(htts + 1);
 }
-
 
 int hio_svc_htts_getoption (hio_svc_htts_t* htts, hio_svc_htts_option_t id, void* value)
 {
@@ -743,7 +742,7 @@ int hio_svc_htts_getoption (hio_svc_htts_t* htts, hio_svc_htts_option_t id, void
 	return 0;
 
 einval:
-	hio_seterrnum (htts->hio, HIO_EINVAL);
+	hio_seterrnum(htts->hio, HIO_EINVAL);
 	return -1;
 }
 
@@ -765,7 +764,7 @@ int hio_svc_htts_setoption (hio_svc_htts_t* htts, hio_svc_htts_option_t id, cons
 	return 0;
 
 einval:
-        hio_seterrnum (htts->hio, HIO_EINVAL);
+        hio_seterrnum(htts->hio, HIO_EINVAL);
         return -1;
 }
 
@@ -800,13 +799,13 @@ hio_dev_sck_t* hio_svc_htts_getlistendev (hio_svc_htts_t* htts, hio_oow_t idx)
 {
 	if (idx >= htts->l.count)
 	{
-		hio_seterrbfmt (htts->hio, HIO_EINVAL, "index out of range");
+		hio_seterrbfmt(htts->hio, HIO_EINVAL, "index out of range");
 		return HIO_NULL;
 	}
 
 	if (!htts->l.sck[idx])
 	{
-		hio_seterrbfmt (htts->hio, HIO_EINVAL, "no listener at the given index");
+		hio_seterrbfmt(htts->hio, HIO_EINVAL, "no listener at the given index");
 		return HIO_NULL;
 	}
 
@@ -826,13 +825,13 @@ int hio_svc_htts_getsockaddr (hio_svc_htts_t* htts, hio_oow_t idx, hio_skad_t* s
 
 	if (idx >= htts->l.count)
 	{
-		hio_seterrbfmt (htts->hio, HIO_EINVAL, "index out of range");
+		hio_seterrbfmt(htts->hio, HIO_EINVAL, "index out of range");
 		return -1;
 	}
 
 	if (!htts->l.sck[idx])
 	{
-		hio_seterrbfmt (htts->hio, HIO_EINVAL, "no listener at the given index");
+		hio_seterrbfmt(htts->hio, HIO_EINVAL, "no listener at the given index");
 		return -1;
 	}
 
@@ -929,6 +928,94 @@ void hio_svc_htts_task_kill (hio_svc_htts_task_t* task)
 	HIO_RCO_UNREF(task);
 }
 
+/* ------------------------------------------------------------------------ */
+/* CLIENT BINDING                                                           */
+/*                                                                          */
+/* a task takes over the client socket for as long as it is servicing the   */
+/* request: it layers its own handlers on top of the ones the http service  */
+/* installed, and it becomes the client's current task. both are undone     */
+/* together, so they live here rather than being re-implemented by every    */
+/* protocol module.                                                         */
+/* ------------------------------------------------------------------------ */
+
+void hio_svc_htts_task_bindtoclient (hio_svc_htts_task_t* task, hio_dev_sck_t* csck, const hio_dev_sck_evcb_t* evcb)
+{
+	hio_svc_htts_cli_t* cli = hio_dev_sck_getxtn(csck);
+
+	HIO_ASSERT(task->htts->hio, cli->sck == csck);
+	HIO_ASSERT(task->htts->hio, cli->task == HIO_NULL);
+
+	/* task->task_client and task->task_csck are set in hio_svc_htts_task_make() */
+
+	/* layer this task's handlers over whatever the socket was using. the
+	 * displaced set is remembered in the link, and the task becomes the
+	 * layer context its handlers read back with hio_dev_sck_getevcbctx() */
+	hio_dev_sck_pushevcb(csck, &task->task_client_evcb_link, evcb, task);
+	task->task_client_evcb_pushed = 1;
+
+	cli->task = task;
+	HIO_SVC_HTTS_TASK_RCUP(task);
+
+	/* somehow the backpointer to the task is available via two means:
+	 *
+	 *  - cli->task
+	 *  - hio_dev_sck_getevcbctx()
+	 *
+	 * the two above returns the same pointer.
+	 */
+}
+
+void hio_svc_htts_task_unbindfromclient (hio_svc_htts_task_t* task, int rcdown)
+{
+	hio_dev_sck_t* csck = task->task_csck;
+
+	/* [NOTE] don't test hio_dev_sck_getxtn(csck) for boundness. it is
+	 * pointer arithmetic and never yields HIO_NULL, so it is always true.
+	 * the socket pointer itself is the real indicator. */
+	if (csck) /* only if it's bound */
+	{
+		hio_t* hio = task->htts->hio;
+
+		HIO_ASSERT(hio, task->task_client != HIO_NULL);
+		HIO_ASSERT(hio, task->task_client->task == task);
+		HIO_ASSERT(hio, task->task_client->htrd != HIO_NULL);
+
+		if (task->task_client_htrd_recbs_changed)
+		{
+			hio_htrd_setrecbs(task->task_client->htrd, &task->task_client_htrd_org_recbs);
+			task->task_client_htrd_recbs_changed = 0;
+		}
+
+		if (task->task_client_evcb_pushed)
+		{
+			hio_dev_sck_popevcb(csck);
+			task->task_client_evcb_pushed = 0;
+		}
+
+		/* there is some ordering issue in using HIO_SVC_HTTS_TASK_UNREF()
+		 * because it can destroy the task itself. so reset
+		 * task->task_client->task to null and call RCDOWN() later */
+		task->task_client->task = HIO_NULL;
+
+		/* these two lines are also done in client_on_disconnect() because the
+		 * socket is destroyed. the same lines here are because the task is
+		 * unbound while the socket is still alive */
+		task->task_client = HIO_NULL;
+		task->task_csck = HIO_NULL;
+
+		/* enable input watching on the socket being unbound */
+		if (task->task_keep_client_alive && hio_dev_sck_read(csck, 1) <= -1)
+		{
+			HIO_DEBUG2(hio, "HTTS(%p) - halting client(%p) for failure to enable input watching\n", task->htts, csck);
+			hio_dev_sck_halt(csck);
+		}
+
+		if (rcdown) HIO_SVC_HTTS_TASK_RCDOWN(task);
+	}
+}
+
+/* ------------------------------------------------------------------------ */
+
 int hio_svc_htts_task_startreshdr (hio_svc_htts_task_t* task, int status_code, const hio_bch_t* status_desc, int chunked)
 {
 	hio_svc_htts_cli_t* cli = task->task_client;
@@ -938,7 +1025,7 @@ int hio_svc_htts_task_startreshdr (hio_svc_htts_task_t* task, int status_code, c
 	HIO_ASSERT(task->htts->hio, !task->task_res_started);
 	HIO_ASSERT(task->htts->hio, !task->task_res_ended);
 
-	hio_svc_htts_fmtgmtime (cli->htts, HIO_NULL, dtbuf, HIO_COUNTOF(dtbuf));
+	hio_svc_htts_fmtgmtime(cli->htts, HIO_NULL, dtbuf, HIO_COUNTOF(dtbuf));
 
 	if (hio_becs_fmt(cli->sbuf, "HTTP/%d.%d ", task->task_req_version.major, task->task_req_version.minor) == (hio_oow_t)-1) return -1;
 	if (hio_becs_fcat(cli->sbuf, "%d %hs\r\n", status_code, (status_desc? status_desc: hio_http_status_to_bcstr(status_code))) == (hio_oow_t)-1) return -1;
@@ -1003,13 +1090,13 @@ int hio_svc_htts_task_addreshdrfmt (hio_svc_htts_task_t* task, const hio_bch_t* 
 
 	if (!is_res_header_acceptable(key)) return 0; /* just ignore it*/
 	if (hio_becs_fcat(cli->sbuf, "%hs: ", key) == (hio_oow_t)-1) return -1;
-	va_start (ap, vfmt);
+	va_start(ap, vfmt);
 	if (hio_becs_vfcat(cli->sbuf, vfmt, ap) == (hio_oow_t)-1)
 	{
-		va_end (ap);
+		va_end(ap);
 		return -1;
 	}
-	va_end (ap);
+	va_end(ap);
 	if (hio_becs_cat(cli->sbuf, "\r\n") == (hio_oow_t)-1) return -1;
 	return 0;
 }
@@ -1142,7 +1229,7 @@ int hio_svc_htts_task_sendfinalres (hio_svc_htts_task_t* task, int status_code, 
 	}
 
 	status_msg = hio_http_status_to_bcstr(status_code);
-	hio_svc_htts_fmtgmtime (task->htts, HIO_NULL, dtbuf, HIO_COUNTOF(dtbuf));
+	hio_svc_htts_fmtgmtime(task->htts, HIO_NULL, dtbuf, HIO_COUNTOF(dtbuf));
 
 	if (!force_close) force_close = !task->task_keep_client_alive;
 	if (hio_becs_fmt(cli->sbuf, "HTTP/%d.%d %d %hs\r\nServer: %hs\r\nDate: %hs\r\nConnection: %hs\r\n",
@@ -1299,7 +1386,7 @@ int hio_svc_htts_writetosidechan (hio_svc_htts_t* htts, hio_oow_t idx, const voi
 	if (idx >= htts->l.count)
 	{
 		/* don't set the error information - TODO: change hio_seterrbfmt thread-safe?
-		 *hio_seterrbfmt (htts->hio, HIO_EINVAL, "index out of range");*/
+		 *hio_seterrbfmt(htts->hio, HIO_EINVAL, "index out of range");*/
 		errno = EINVAL;
 		return -1;
 	}
@@ -1307,7 +1394,7 @@ int hio_svc_htts_writetosidechan (hio_svc_htts_t* htts, hio_oow_t idx, const voi
 	if (!htts->l.sck[idx])
 	{
 		/* don't set the error information
-		 *hio_seterrbfmt (htts->hio, HIO_EINVAL, "no listener at the given index"); */
+		 *hio_seterrbfmt(htts->hio, HIO_EINVAL, "no listener at the given index"); */
 		errno = EINVAL;
 		return -1;
 	}

@@ -62,13 +62,8 @@ struct cgi_t
 	hio_htrd_t* peer_htrd;
 
 	unsigned int over: 4; /* must be large enough to accomodate CGI_OVER_ALL */
-	unsigned int client_htrd_recbs_changed: 1;
 	unsigned int ntask_cgis_inced: 1;
 
-	hio_dev_sck_on_read_t client_org_on_read;
-	hio_dev_sck_on_write_t client_org_on_write;
-	hio_dev_sck_on_disconnect_t client_org_on_disconnect;
-	hio_htrd_recbs_t client_htrd_org_recbs;
 };
 typedef struct cgi_t cgi_t;
 
@@ -80,7 +75,6 @@ typedef struct cgi_peer_xtn_t cgi_peer_xtn_t;
 
 /* ----------------------------------------------------------------------- */
 
-static void unbind_task_from_client (cgi_t* cgi, int rcdown);
 static void unbind_task_from_peer (cgi_t* cgi, int rcdown);
 
 /* ----------------------------------------------------------------------- */
@@ -92,7 +86,7 @@ static int inc_ntask_cgis (hio_svc_htts_t* htts)
 	if (htts->stat.ntask_cgis >= htts->option.task_cgi_max)
 	{
 		hio_spl_unlock (&htts->stat.spl_ntask_cgis);
-		hio_seterrbfmt (htts->hio, HIO_ENOCAPA, "too many cgi tasks");
+		hio_seterrbfmt(htts->hio, HIO_ENOCAPA, "too many cgi tasks");
 		return -1;
 	}
 	htts->stat.ntask_cgis++;
@@ -105,7 +99,7 @@ static int inc_ntask_cgis (hio_svc_htts_t* htts)
 		ntask_cgis = HCL_ATOMIC_LOAD(&htts->stat.ntask_cgis);
 		if (ntask_cgis >= htts->option.task_cgi_max)
 		{
-			hio_seterrbfmt (htts->hio, HIO_ENOCAPA, "too many cgi tasks");
+			hio_seterrbfmt(htts->hio, HIO_ENOCAPA, "too many cgi tasks");
 			return -1;
 		}
 		ok = HCL_ATOMIC_CMP_XCHG(&htts->stat.ntask_cgis, &ntask_cgis, ntask_cgis + 1);
@@ -211,7 +205,7 @@ static HIO_INLINE void cgi_mark_over (cgi_t* cgi, int over_bits)
 			{
 				HIO_DEBUG5 (hio, "HTTS(%p) - cgi(t=%p,c=%p[%d],p=%p) - keeping client alive\n", cgi->htts, cgi, cgi->task_client, (cgi->task_csck? cgi->task_csck->hnd: -1), cgi->peer);
 				HIO_ASSERT(cgi->htts->hio, cgi->task_client->task == (hio_svc_htts_task_t*)cgi);
-				unbind_task_from_client (cgi, 1);
+				hio_svc_htts_task_unbindfromclient((hio_svc_htts_task_t*)cgi, 1);
 				/* cgi must not be accessed from here down as it could have been destroyed */
 			}
 			else
@@ -245,7 +239,7 @@ static void cgi_on_kill (hio_svc_htts_task_t* task)
 	if (cgi->task_csck)
 	{
 		HIO_ASSERT(hio, cgi->task_client != HIO_NULL);
-		unbind_task_from_client (cgi, 0);
+		hio_svc_htts_task_unbindfromclient((hio_svc_htts_task_t*)cgi, 0);
 	}
 
 	if (cgi->task_next) HIO_SVC_HTTS_TASKL_UNLINK_TASK (cgi); /* detach from the htts service only if it's attached */
@@ -510,6 +504,18 @@ static int cgi_client_htrd_push_content (hio_htrd_t* htrd, hio_htre_t* req, cons
 	return cgi_write_to_peer(cgi, data, dlen);
 }
 
+static int cgi_client_on_read (hio_dev_sck_t* sck, const void* buf, hio_iolen_t len, const hio_skad_t* srcaddr);
+static int cgi_client_on_write (hio_dev_sck_t* sck, hio_iolen_t wrlen, void* wrctx, const hio_skad_t* dstaddr);
+static void cgi_client_on_disconnect (hio_dev_sck_t* sck);
+
+/* the handler set this task layers onto the client socket */
+static hio_dev_sck_evcb_t cgi_client_evcb =
+{
+	cgi_client_on_read,
+	cgi_client_on_write,
+	cgi_client_on_disconnect
+};
+
 static hio_htrd_recbs_t cgi_client_htrd_recbs =
 {
 	HIO_NULL, /* this shall be set to an actual peer handler before hio_htrd_setrecbs() */
@@ -532,7 +538,7 @@ static void cgi_client_on_disconnect (hio_dev_sck_t* sck)
 		HIO_SVC_HTTS_TASK_RCUP ((hio_svc_htts_task_t*)cgi); /* for temporary protection */
 
 		/* detach the task from the client and the client socket */
-		unbind_task_from_client (cgi, 1);
+		hio_svc_htts_task_unbindfromclient((hio_svc_htts_task_t*)cgi, 1);
 
 		/* call the parent handler*/
 		/*if (fcgi->client_org_on_disconnect) fcgi->client_org_on_disconnect (sck);*/
@@ -552,6 +558,7 @@ static void cgi_client_on_disconnect (hio_dev_sck_t* sck)
 
 static int cgi_client_on_read (hio_dev_sck_t* sck, const void* buf, hio_iolen_t len, const hio_skad_t* srcaddr)
 {
+	hio_dev_sck_evcb_t* parent = hio_dev_sck_getparentevcb(sck);
 	hio_t* hio = sck->hio;
 	hio_svc_htts_cli_t* cli = hio_dev_sck_getxtn(sck);
 	cgi_t* cgi = (cgi_t*)cli->task;
@@ -559,7 +566,7 @@ static int cgi_client_on_read (hio_dev_sck_t* sck, const void* buf, hio_iolen_t 
 
 	HIO_ASSERT(hio, sck == cli->sck);
 
-	n = cgi->client_org_on_read? cgi->client_org_on_read(sck, buf, len, srcaddr): 0;
+	n = parent && parent->on_read? parent->on_read(sck, buf, len, srcaddr): 0;
 
 	if (len <= -1)
 	{
@@ -592,12 +599,13 @@ oops:
 
 static int cgi_client_on_write (hio_dev_sck_t* sck, hio_iolen_t wrlen, void* wrctx, const hio_skad_t* dstaddr)
 {
+	hio_dev_sck_evcb_t* parent = hio_dev_sck_getparentevcb(sck);
 	hio_t* hio = sck->hio;
 	hio_svc_htts_cli_t* cli = hio_dev_sck_getxtn(sck);
 	cgi_t* cgi = (cgi_t*)cli->task;
 	int n;
 
-	n = cgi->client_org_on_write? cgi->client_org_on_write(sck, wrlen, wrctx, dstaddr): 0;
+	n = parent && parent->on_write? parent->on_write(sck, wrlen, wrctx, dstaddr): 0;
 
 	if (wrlen == 0)
 	{
@@ -783,86 +791,7 @@ static int cgi_peer_on_fork (hio_dev_pro_t* pro, void* fork_ctx)
 
 /* ----------------------------------------------------------------------- */
 
-static void bind_task_to_client (cgi_t* cgi, hio_dev_sck_t* csck)
-{
-	hio_svc_htts_cli_t* cli = hio_dev_sck_getxtn(csck);
 
-	HIO_ASSERT(cgi->htts->hio, cli->sck == csck);
-	HIO_ASSERT(cgi->htts->hio, cli->task == HIO_NULL);
-
-	/* cgi->task_client and cgi->task_csck are set in hio_svc_htts_task_make() */
-
-	/* remember the client socket's io event handlers */
-	cgi->client_org_on_read = csck->on_read;
-	cgi->client_org_on_write = csck->on_write;
-	cgi->client_org_on_disconnect = csck->on_disconnect;
-
-	/* set new io events handlers on the client socket */
-	csck->on_read = cgi_client_on_read;
-	csck->on_write = cgi_client_on_write;
-	csck->on_disconnect = cgi_client_on_disconnect;
-
-	cli->task = (hio_svc_htts_task_t*)cgi;
-	HIO_SVC_HTTS_TASK_RCUP (cgi);
-}
-
-static void unbind_task_from_client (cgi_t* cgi, int rcdown)
-{
-	hio_dev_sck_t* csck = cgi->task_csck;
-	hio_svc_htts_cli_t* cli = hio_dev_sck_getxtn(csck);
-
-	if (cli->task) /* only if it's bound */
-	{
-		HIO_ASSERT(cgi->htts->hio, cgi->task_client != HIO_NULL);
-		HIO_ASSERT(cgi->htts->hio, cgi->task_csck != HIO_NULL); /* cgi->task_csck is set by hio_svc_htts_task_make() */
-		HIO_ASSERT(cgi->htts->hio, cgi->task_client->task == (hio_svc_htts_task_t*)cgi);
-		HIO_ASSERT(cgi->htts->hio, cgi->task_client->htrd != HIO_NULL);
-
-		if (cgi->client_htrd_recbs_changed)
-		{
-			hio_htrd_setrecbs (cgi->task_client->htrd, &cgi->client_htrd_org_recbs);
-			cgi->client_htrd_recbs_changed = 0;
-		}
-
-		if (cgi->client_org_on_read)
-		{
-			csck->on_read = cgi->client_org_on_read;
-			cgi->client_org_on_read = HIO_NULL;
-		}
-
-		if (cgi->client_org_on_write)
-		{
-			csck->on_write = cgi->client_org_on_write;
-			cgi->client_org_on_write = HIO_NULL;
-		}
-
-		if (cgi->client_org_on_disconnect)
-		{
-			csck->on_disconnect = cgi->client_org_on_disconnect;
-			cgi->client_org_on_disconnect = HIO_NULL;
-		}
-
-		/* there is some ordering issue in using HIO_SVC_HTTS_TASK_UNREF()
-		 * because it can destroy the cgi itself. so reset cgi->task_client->task
-		 * to null and call RCDOWN() later */
-		cgi->task_client->task = HIO_NULL;
-
-		/* these two lines are also done in csck_on_disconnect() in http-svr.c because the socket is destroyed.
-		 * the same lines here are because the task is unbound while the socket is still alive */
-		cgi->task_client = HIO_NULL;
-		cgi->task_csck = HIO_NULL;
-
-		/* enable input watching on the socket being unbound */
-		if (cgi->task_keep_client_alive && hio_dev_sck_read(csck, 1) <= -1)
-		{
-			HIO_DEBUG2 (cgi->htts->hio, "HTTS(%p) - halting client(%p) for failure to enable input watching\n", cgi->htts, csck);
-			hio_dev_sck_halt (csck);
-		}
-
-		if (rcdown) HIO_SVC_HTTS_TASK_RCDOWN ((hio_svc_htts_task_t*)cgi);
-
-	}
-}
 
 /* ----------------------------------------------------------------------- */
 
@@ -895,7 +824,7 @@ static int bind_task_to_peer (cgi_t* cgi, hio_dev_sck_t* csck, hio_htre_t* req, 
 	if (access(mi.cmd, X_OK) == -1)
 	{
 		/* not executable */
-		hio_seterrwithsyserr (hio, 0, errno);
+		hio_seterrwithsyserr(hio, 0, errno);
 		hio_freemem(hio, fc.actual_script);
 		return -2;
 	}
@@ -979,10 +908,10 @@ static int setup_for_content_length(cgi_t* cgi, hio_htre_t* req)
 	if (have_content)
 	{
 		/* change the callbacks to subscribe to contents to be uploaded */
-		cgi->client_htrd_org_recbs = *hio_htrd_getrecbs(cgi->task_client->htrd);
-		cgi_client_htrd_recbs.peek = cgi->client_htrd_org_recbs.peek;
+		cgi->task_client_htrd_org_recbs = *hio_htrd_getrecbs(cgi->task_client->htrd);
+		cgi_client_htrd_recbs.peek = cgi->task_client_htrd_org_recbs.peek;
 		hio_htrd_setrecbs (cgi->task_client->htrd, &cgi_client_htrd_recbs);
-		cgi->client_htrd_recbs_changed = 1;
+		cgi->task_client_htrd_recbs_changed = 1;
 	}
 	else
 	{
@@ -1011,7 +940,7 @@ int hio_svc_htts_docgi (hio_svc_htts_t* htts, hio_dev_sck_t* csck, hio_htre_t* r
 
 	if (cli->task)
 	{
-		hio_seterrbfmt (hio, HIO_EPERM, "duplicate task request prohibited");
+		hio_seterrbfmt(hio, HIO_EPERM, "duplicate task request prohibited");
 		goto oops;
 	}
 
@@ -1026,7 +955,7 @@ int hio_svc_htts_docgi (hio_svc_htts_t* htts, hio_dev_sck_t* csck, hio_htre_t* r
 	cgi->ntask_cgis_inced = 1;
 	cgi->options = options;
 
-	bind_task_to_client (cgi, csck);
+	hio_svc_htts_task_bindtoclient((hio_svc_htts_task_t*)cgi, csck, &cgi_client_evcb);
 	bound_to_client = 1;
 
 	if ((n = bind_task_to_peer(cgi, csck, req, docroot, script)) <= -1)
@@ -1057,7 +986,7 @@ oops:
 	{
 		hio_svc_htts_task_sendfinalres((hio_svc_htts_task_t*)cgi, status_code, HIO_NULL, HIO_NULL, 1);
 		if (bound_to_peer) unbind_task_from_peer (cgi, 1);
-		if (bound_to_client) unbind_task_from_client (cgi, 1);
+		if (bound_to_client) hio_svc_htts_task_unbindfromclient((hio_svc_htts_task_t*)cgi, 1);
 		cgi_halt_participating_devices (cgi);
 		HIO_SVC_HTTS_TASK_RCDOWN((hio_svc_htts_task_t*)cgi);
 	}

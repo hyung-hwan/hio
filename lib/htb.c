@@ -81,7 +81,7 @@ HIO_INLINE pair_t* hio_htb_allocpair (hio_htb_t* htb, void* kptr, hio_oow_t klen
 		KPTR(n) = kcop(htb, kptr, klen);
 		if (KPTR(n) == HIO_NULL)
 		{
-			hio_freemem (htb->hio, n);
+			hio_freemem(htb->hio, n);
 			return HIO_NULL;
 		}
 	}
@@ -107,7 +107,7 @@ HIO_INLINE pair_t* hio_htb_allocpair (hio_htb_t* htb, void* kptr, hio_oow_t klen
 		{
 			if (htb->style->freeer[HIO_HTB_KEY] != HIO_NULL)
 				htb->style->freeer[HIO_HTB_KEY] (htb, KPTR(n), KLEN(n));
-			hio_freemem (htb->hio, n);
+			hio_freemem(htb->hio, n);
 			return HIO_NULL;
 		}
 	}
@@ -121,7 +121,7 @@ HIO_INLINE void hio_htb_freepair (hio_htb_t* htb, pair_t* pair)
 		htb->style->freeer[HIO_HTB_KEY] (htb, KPTR(pair), KLEN(pair));
 	if (htb->style->freeer[HIO_HTB_VAL] != HIO_NULL)
 		htb->style->freeer[HIO_HTB_VAL] (htb, VPTR(pair), VLEN(pair));
-	hio_freemem (htb->hio, pair);
+	hio_freemem(htb->hio, pair);
 }
 
 static HIO_INLINE pair_t* change_pair_val (hio_htb_t* htb, pair_t* pair, void* vptr, hio_oow_t vlen)
@@ -273,7 +273,7 @@ hio_htb_t* hio_htb_open (hio_t* hio, hio_oow_t xtnsize, hio_oow_t capa, int fact
 void hio_htb_close (hio_htb_t* htb)
 {
 	hio_htb_fini (htb);
-	hio_freemem (htb->hio, htb);
+	hio_freemem(htb->hio, htb);
 }
 
 int hio_htb_init (hio_htb_t* htb, hio_t* hio, hio_oow_t capa, int factor, int kscale, int vscale)
@@ -319,7 +319,7 @@ int hio_htb_init (hio_htb_t* htb, hio_t* hio, hio_oow_t capa, int factor, int ks
 void hio_htb_fini (hio_htb_t* htb)
 {
 	hio_htb_clear (htb);
-	hio_freemem (htb->hio, htb->bucket);
+	hio_freemem(htb->hio, htb->bucket);
 }
 
 const style_t* hio_htb_getstyle (const hio_htb_t* htb)
@@ -361,7 +361,7 @@ pair_t* hio_htb_search (const hio_htb_t* htb, const void* kptr, hio_oow_t klen)
 		pair = NEXT(pair);
 	}
 
-	hio_seterrnum (htb->hio, HIO_ENOENT);
+	hio_seterrnum(htb->hio, HIO_ENOENT);
 	return HIO_NULL;
 }
 
@@ -416,7 +416,7 @@ static HIO_INLINE int reorganize (hio_htb_t* htb)
 		}
 	}
 
-	hio_freemem (htb->hio, htb->bucket);
+	hio_freemem(htb->hio, htb->bucket);
 	htb->bucket = new_buck;
 	htb->capa = new_capa;
 	htb->threshold = htb->capa * htb->factor / 100;
@@ -473,7 +473,7 @@ static HIO_INLINE pair_t* insert (hio_htb_t* htb, void* kptr, hio_oow_t klen, vo
 
 				case INSERT:
 					/* return failure */
-					hio_seterrnum (htb->hio, HIO_EEXIST);
+					hio_seterrnum(htb->hio, HIO_EEXIST);
 					return HIO_NULL;
 			}
 		}
@@ -484,7 +484,7 @@ static HIO_INLINE pair_t* insert (hio_htb_t* htb, void* kptr, hio_oow_t klen, vo
 
 	if (opt == UPDATE)
 	{
-		hio_seterrnum (htb->hio, HIO_ENOENT);
+		hio_seterrnum(htb->hio, HIO_ENOENT);
 		return HIO_NULL;
 	}
 
@@ -618,7 +618,7 @@ int hio_htb_delete (hio_htb_t* htb, const void* kptr, hio_oow_t klen)
 		pair = NEXT(pair);
 	}
 
-	hio_seterrnum (htb->hio, HIO_ENOENT);
+	hio_seterrnum(htb->hio, HIO_ENOENT);
 	return -1;
 }
 
