@@ -99,11 +99,7 @@ static HIO_INLINE void set_tcp_cork (hio_dev_sck_t* sck, int tcp_cork)
 
 static void file_halt_participating_devices (file_t* file)
 {
-	hio_dev_sck_t* csck = file->task_csck;
-
-	HIO_DEBUG3(file->htts->hio, "HTTS(%p) - file(c=%d,p=%d) Halting participating devices\n", file->htts, (int)(csck? csck->hnd: -1), (int)file->peer);
-
-	if (csck) hio_dev_sck_halt(csck);
+	hio_svc_htts_task_haltclient((hio_svc_htts_task_t*)file);
 	unbind_task_from_peer(file, 1);
 }
 

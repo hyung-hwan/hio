@@ -579,6 +579,11 @@ HIO_EXPORT void hio_svc_htts_task_stopreadingclient (
 	hio_svc_htts_task_t*      task
 );
 
+/* Give up on the client connection, without trying to keep it alive. */
+HIO_EXPORT void hio_svc_htts_task_haltclient (
+	hio_svc_htts_task_t*      task
+);
+
 /* Release the client: keep the connection for the next request on it, or
  * shut it down. The task may be destroyed by this call. */
 HIO_EXPORT void hio_svc_htts_task_finishclient (

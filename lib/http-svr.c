@@ -1052,7 +1052,15 @@ void hio_svc_htts_task_stopreadingclient(hio_svc_htts_task_t* task)
 	}
 }
 
-/* The task is done with the client: hand the connection back for the next
+/* give up on the client connection. unlike finishclient() this makes no
+ * attempt to keep it for another request. */
+void hio_svc_htts_task_haltclient (hio_svc_htts_task_t* task)
+{
+	HIO_DEBUG2(task->htts->hio, "HTTS(%p) - halting client(%p)\n", task->htts, task->task_csck);
+	if (task->task_csck) hio_dev_sck_halt(task->task_csck);
+}
+
+/* the task is done with the client: hand the connection back for the next
  * request on it, or shut it down. The task must not be touched after this
  * - releasing the client can destroy it. */
 void hio_svc_htts_task_finishclient (hio_svc_htts_task_t* task)

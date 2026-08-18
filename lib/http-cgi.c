@@ -131,11 +131,7 @@ static void dec_ntask_cgis (hio_svc_htts_t* htts)
 
 static void cgi_halt_participating_devices (cgi_t* cgi)
 {
-	HIO_DEBUG5 (cgi->htts->hio, "HTTS(%p) - cgi(t=%p,c=%p(%d),p=%p) Halting participating devices\n", cgi->htts, cgi, cgi->task_csck, (cgi->task_csck? cgi->task_csck->hnd: -1), cgi->peer);
-
-	if (cgi->task_csck) hio_dev_sck_halt(cgi->task_csck);
-
-	/* check for peer as it may not have been started */
+	hio_svc_htts_task_haltclient((hio_svc_htts_task_t*)cgi);
 	if (cgi->peer) hio_dev_pro_halt(cgi->peer);
 }
 
@@ -241,7 +237,7 @@ static void cgi_peer_on_close (hio_dev_pro_t* pro, hio_dev_pro_sid_t sid)
 			if (!(cgi->over & CGI_OVER_READ_FROM_PEER))
 			{
 				if (hio_svc_htts_task_endbody((hio_svc_htts_task_t*)cgi) <= -1)
-					cgi_halt_participating_devices (cgi);
+					cgi_halt_participating_devices(cgi);
 				else
 					cgi_mark_over(cgi, CGI_OVER_READ_FROM_PEER);
 			}
@@ -317,7 +313,7 @@ static int cgi_peer_on_read (hio_dev_pro_t* pro, hio_dev_pro_sid_t sid, const vo
 	return 0;
 
 oops:
-	cgi_halt_participating_devices (cgi);
+	cgi_halt_participating_devices(cgi);
 	return 0;
 }
 
@@ -368,7 +364,7 @@ static int cgi_peer_on_write (hio_dev_pro_t* pro, hio_iolen_t wrlen, void* wrctx
 	return 0;
 
 oops:
-	cgi_halt_participating_devices (cgi);
+	cgi_halt_participating_devices(cgi);
 	return 0;
 }
 
@@ -558,7 +554,7 @@ static int cgi_client_on_read (hio_dev_sck_t* sck, const void* buf, hio_iolen_t 
 	return 0;
 
 oops:
-	cgi_halt_participating_devices (cgi);
+	cgi_halt_participating_devices(cgi);
 	return 0;
 }
 
@@ -595,7 +591,7 @@ static int cgi_client_on_write (hio_dev_sck_t* sck, hio_iolen_t wrlen, void* wrc
 		}
 	}
 
-	if (n <= -1 || wrlen <= -1) cgi_halt_participating_devices (cgi);
+	if (n <= -1 || wrlen <= -1) cgi_halt_participating_devices(cgi);
 	return 0;
 }
 
@@ -951,7 +947,7 @@ oops:
 		hio_svc_htts_task_sendfinalres((hio_svc_htts_task_t*)cgi, status_code, HIO_NULL, HIO_NULL, 1);
 		if (bound_to_peer) unbind_task_from_peer (cgi, 1);
 		if (bound_to_client) hio_svc_htts_task_unbindfromclient((hio_svc_htts_task_t*)cgi, 1);
-		cgi_halt_participating_devices (cgi);
+		cgi_halt_participating_devices(cgi);
 		HIO_SVC_HTTS_TASK_RCDOWN((hio_svc_htts_task_t*)cgi);
 	}
 	return -1;

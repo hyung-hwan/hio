@@ -47,8 +47,7 @@ typedef struct txt_t txt_t;
 
 static void txt_halt_participating_devices (txt_t* txt)
 {
-	HIO_DEBUG3(txt->htts->hio, "HTTS(%p) - Halting participating devices in txt state %p(client=%p)\n", txt->htts, txt, txt->task_csck);
-	if (txt->task_csck) hio_dev_sck_halt(txt->task_csck);
+	hio_svc_htts_task_haltclient((hio_svc_htts_task_t*)txt);
 }
 
 static void txt_mark_over (txt_t* txt, int over_bits)
@@ -176,7 +175,7 @@ static int txt_client_on_read (hio_dev_sck_t* sck, const void* buf, hio_iolen_t 
 	return 0;
 
 oops:
-	txt_halt_participating_devices (txt);
+	txt_halt_participating_devices(txt);
 	return 0;
 }
 
@@ -202,7 +201,7 @@ static int txt_client_on_write (hio_dev_sck_t* sck, hio_iolen_t wrlen, void* wrc
 			txt_mark_over(txt, TXT_OVER_WRITE_TO_CLIENT);
 	}
 
-	if (n <= -1 || wrlen <= -1) txt_halt_participating_devices (txt);
+	if (n <= -1 || wrlen <= -1) txt_halt_participating_devices(txt);
 	return 0;
 }
 
@@ -290,7 +289,7 @@ oops:
 	{
 		hio_svc_htts_task_sendfinalres((hio_svc_htts_task_t*)txt, status_code, HIO_NULL, HIO_NULL, 1);
 		if (bound_to_client) hio_svc_htts_task_unbindfromclient((hio_svc_htts_task_t*)txt, 1);
-		txt_halt_participating_devices (txt);
+		txt_halt_participating_devices(txt);
 		HIO_SVC_HTTS_TASK_RCDOWN((hio_svc_htts_task_t*)txt);
 	}
 	return -1;

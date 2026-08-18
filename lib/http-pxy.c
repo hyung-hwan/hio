@@ -83,11 +83,7 @@ static void unbind_task_from_peer (pxy_t* pxy, int rcdown);
 
 static void pxy_halt_participating_devices (pxy_t* pxy)
 {
-	HIO_DEBUG5(pxy->htts->hio, "HTTS(%p) - pxy(t=%p,c=%p(%d),p=%p) Halting participating devices\n", pxy->htts, pxy, pxy->task_csck, (pxy->task_csck? pxy->task_csck->hnd: -1), pxy->peer);
-
-	if (pxy->task_csck) hio_dev_sck_halt(pxy->task_csck);
-
-	/* check for peer as it may not have been started */
+	hio_svc_htts_task_haltclient((hio_svc_htts_task_t*)pxy);
 	if (pxy->peer) hio_dev_sck_halt(pxy->peer);
 }
 
@@ -213,7 +209,7 @@ static void pxy_peer_on_connect (hio_dev_sck_t* sck)
 	if (flush_to_peer(pxy) <= -1)
 	{
 		HIO_DEBUG1(sck->hio, "HTTS(%p) - pxy unable to send the request to the peer\n", pxy->htts);
-		pxy_halt_participating_devices (pxy);
+		pxy_halt_participating_devices(pxy);
 	}
 }
 
@@ -235,7 +231,7 @@ static void pxy_peer_on_disconnect (hio_dev_sck_t* sck)
 			if (!(pxy->over & PXY_OVER_READ_FROM_PEER))
 			{
 				if (hio_svc_htts_task_endbody(pxy) <= -1)
-					pxy_halt_participating_devices (pxy);
+					pxy_halt_participating_devices(pxy);
 				else
 					pxy_mark_over(pxy, PXY_OVER_READ_FROM_PEER);
 			}
@@ -298,7 +294,7 @@ static int pxy_peer_on_read (hio_dev_sck_t* sck, const void* data, hio_iolen_t d
 	return 0;
 
 oops:
-	pxy_halt_participating_devices (pxy);
+	pxy_halt_participating_devices(pxy);
 	return 0;
 }
 
@@ -349,7 +345,7 @@ static int pxy_peer_on_write (hio_dev_sck_t* sck, hio_iolen_t wrlen, void* wrctx
 	return 0;
 
 oops:
-	pxy_halt_participating_devices (pxy);
+	pxy_halt_participating_devices(pxy);
 	return 0;
 }
 
@@ -535,7 +531,7 @@ static int pxy_client_on_read (hio_dev_sck_t* sck, const void* buf, hio_iolen_t 
 	return 0;
 
 oops:
-	pxy_halt_participating_devices (pxy);
+	pxy_halt_participating_devices(pxy);
 	return 0;
 }
 
@@ -572,7 +568,7 @@ static int pxy_client_on_write (hio_dev_sck_t* sck, hio_iolen_t wrlen, void* wrc
 		}
 	}
 
-	if (n <= -1 || wrlen <= -1) pxy_halt_participating_devices (pxy);
+	if (n <= -1 || wrlen <= -1) pxy_halt_participating_devices(pxy);
 	return 0;
 }
 
@@ -858,7 +854,7 @@ oops:
 		hio_svc_htts_task_sendfinalres((hio_svc_htts_task_t*)pxy, status_code, HIO_NULL, HIO_NULL, 1);
 		if (bound_to_peer) unbind_task_from_peer (pxy, 1);
 		if (bound_to_client) hio_svc_htts_task_unbindfromclient((hio_svc_htts_task_t*)pxy, 1);
-		pxy_halt_participating_devices (pxy);
+		pxy_halt_participating_devices(pxy);
 		HIO_SVC_HTTS_TASK_RCDOWN((hio_svc_htts_task_t*)pxy);
 	}
 	return -1;

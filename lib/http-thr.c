@@ -76,10 +76,7 @@ static void unbind_task_from_peer (thr_t* thr, int rcdown);
 
 static void thr_halt_participating_devices (thr_t* thr)
 {
-	HIO_DEBUG4(thr->htts->hio, "HTTS(%p) - Halting participating devices in thr task %p(csck=%p,peer=%p)\n", thr->htts, thr, thr->task_csck, thr->peer);
-
-	if (thr->task_csck) hio_dev_sck_halt(thr->task_csck);
-	/* check for peer as it may not have been started */
+	hio_svc_htts_task_haltclient((hio_svc_htts_task_t*)thr);
 	if (thr->peer) hio_dev_thr_halt(thr->peer);
 }
 
@@ -249,7 +246,7 @@ static int thr_peer_on_read (hio_dev_thr_t* peer, const void* data, hio_iolen_t 
 	return 0;
 
 oops:
-	thr_halt_participating_devices (thr);
+	thr_halt_participating_devices(thr);
 	return 0;
 }
 
@@ -411,7 +408,7 @@ static int thr_peer_on_write (hio_dev_thr_t* peer, hio_iolen_t wrlen, void* wrct
 	return 0;
 
 oops:
-	thr_halt_participating_devices (thr);
+	thr_halt_participating_devices(thr);
 	return 0;
 }
 
@@ -478,7 +475,7 @@ static int thr_client_on_read (hio_dev_sck_t* sck, const void* buf, hio_iolen_t 
 	return 0;
 
 oops:
-	thr_halt_participating_devices (thr);
+	thr_halt_participating_devices(thr);
 	return 0;
 }
 
@@ -513,7 +510,7 @@ static int thr_client_on_write (hio_dev_sck_t* sck, hio_iolen_t wrlen, void* wrc
 		}
 	}
 
-	if (n <= -1 || wrlen <= -1) thr_halt_participating_devices (thr);
+	if (n <= -1 || wrlen <= -1) thr_halt_participating_devices(thr);
 	return 0;
 }
 
@@ -783,7 +780,7 @@ oops:
 		hio_svc_htts_task_sendfinalres((hio_svc_htts_task_t*)thr, status_code, HIO_NULL, HIO_NULL, 1);
 		if (bound_to_peer) unbind_task_from_peer (thr, 1);
 		if (bound_to_client) hio_svc_htts_task_unbindfromclient((hio_svc_htts_task_t*)thr, 1);
-		thr_halt_participating_devices (thr);
+		thr_halt_participating_devices(thr);
 		HIO_SVC_HTTS_TASK_RCDOWN((hio_svc_htts_task_t*)thr);
 	}
 	return -1;

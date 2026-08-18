@@ -40,11 +40,8 @@ static void unbind_task_from_peer (fcgi_t* fcgi, int rcdown);
 
 static void fcgi_halt_participating_devices (fcgi_t* fcgi)
 {
-/* TODO: include fcgi session id in the output in place of peer??? */
-	HIO_DEBUG5 (fcgi->htts->hio, "HTTS(%p) - fcgi(t=%p,c=%p(%d),p=%p) Halting participating devices\n", fcgi->htts, fcgi, fcgi->task_csck, (fcgi->task_csck? fcgi->task_csck->hnd: -1), fcgi->peer);
-
-	if (fcgi->task_csck) hio_dev_sck_halt(fcgi->task_csck);
-	unbind_task_from_peer (fcgi, 1);
+	hio_svc_htts_task_haltclient((hio_svc_htts_task_t*)fcgi);
+	unbind_task_from_peer(fcgi, 1);
 }
 
 static int fcgi_write_stdin_to_peer (fcgi_t* fcgi, const void* data, hio_iolen_t dlen)
@@ -197,7 +194,7 @@ static int fcgi_peer_on_read (hio_svc_fcgic_sess_t* peer, const void* data, hio_
 	return 0;
 
 oops:
-	fcgi_halt_participating_devices (fcgi); /* TODO: kill the session only??? */
+	fcgi_halt_participating_devices(fcgi); /* TODO: kill the session only??? */
 	return 0;
 }
 
@@ -215,7 +212,7 @@ static int fcgi_peer_on_write (hio_svc_fcgic_sess_t* peer, hio_fcgi_req_type_t r
 	return 0;
 
 oops:
-	fcgi_halt_participating_devices (fcgi);
+	fcgi_halt_participating_devices(fcgi);
 	return 0;
 }
 
@@ -393,7 +390,7 @@ static int fcgi_client_on_read (hio_dev_sck_t* sck, const void* buf, hio_iolen_t
 	return 0;
 
 oops:
-	fcgi_halt_participating_devices (fcgi);
+	fcgi_halt_participating_devices(fcgi);
 	return 0;
 }
 
@@ -426,7 +423,7 @@ static int fcgi_client_on_write (hio_dev_sck_t* sck, hio_iolen_t wrlen, void* wr
 		}
 	}
 
-	if (n <= -1 || wrlen <= -1) fcgi_halt_participating_devices (fcgi);
+	if (n <= -1 || wrlen <= -1) fcgi_halt_participating_devices(fcgi);
 	return 0;
 }
 
@@ -722,7 +719,7 @@ oops:
 		hio_svc_htts_task_sendfinalres((hio_svc_htts_task_t*)fcgi, status_code, HIO_NULL, HIO_NULL, 1);
 		if (bound_to_peer) unbind_task_from_peer (fcgi, 1);
 		if (bound_to_client) hio_svc_htts_task_unbindfromclient((hio_svc_htts_task_t*)fcgi, 1);
-		fcgi_halt_participating_devices (fcgi);
+		fcgi_halt_participating_devices(fcgi);
 		HIO_SVC_HTTS_TASK_RCDOWN((hio_svc_htts_task_t*)fcgi);
 	}
 	return -1;
