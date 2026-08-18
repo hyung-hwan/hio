@@ -483,8 +483,13 @@ static int cgi_client_htrd_poke (hio_htrd_t* htrd, hio_htre_t* req)
 	/* client request got completed */
 	hio_svc_htts_cli_htrd_xtn_t* htrdxtn = (hio_svc_htts_cli_htrd_xtn_t*)hio_htrd_getxtn(htrd);
 	hio_dev_sck_t* sck = htrdxtn->sck;
+#if 0
 	hio_svc_htts_cli_t* cli = hio_dev_sck_getxtn(sck);
 	cgi_t* cgi = (cgi_t*)cli->task;
+#else
+	/* this one is one call only. it must return the same value as the above two lines */
+	cgi_t* cgi = hio_dev_sck_getevcbctx(sck);
+#endif
 
 	/* indicate EOF to the client peer */
 	if (cgi_write_to_peer(cgi, HIO_NULL, 0) <= -1) return -1;
