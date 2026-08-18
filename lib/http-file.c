@@ -219,7 +219,7 @@ static void file_client_on_disconnect (hio_dev_sck_t* sck)
 {
 	hio_t* hio = sck->hio;
 	hio_svc_htts_cli_t* cli = hio_dev_sck_getxtn(sck);
-	file_t* file = (file_t*)hio_dev_sck_getevcbctx(sck);
+	file_t* file = (file_t*)cli->task;
 	hio_svc_htts_t* htts = file->htts;
 
 	HIO_ASSERT(hio, sck == cli->sck);
@@ -242,7 +242,7 @@ static void file_client_on_disconnect (hio_dev_sck_t* sck)
 		/* call the parent handler. unbind_task_from_client() above popped
 		 * this task's layer off, so sck->on_disconnect is the handler that
 		 * was displaced when the layer was pushed. */
-		if (sck->on_disconnect) sck->on_disconnect(sck);
+		hio_svc_htts_client_default_on_disconnect (sck);
 
 		HIO_SVC_HTTS_TASK_RCDOWN((hio_svc_htts_task_t*)file);
 	}
@@ -255,7 +255,7 @@ static int file_client_on_read (hio_dev_sck_t* sck, const void* buf, hio_iolen_t
 {
 	hio_t* hio = sck->hio;
 	hio_svc_htts_cli_t* cli = hio_dev_sck_getxtn(sck);
-	file_t* file = (file_t*)hio_dev_sck_getevcbctx(sck);
+	file_t* file = (file_t*)cli->task;
 
 	HIO_ASSERT(hio, sck == cli->sck);
 	HIO_ASSERT(hio, sck == file->task_csck);
@@ -312,11 +312,11 @@ oops:
 static int file_client_on_write (hio_dev_sck_t* sck, hio_iolen_t wrlen, void* wrctx, const hio_skad_t* dstaddr)
 {
 	hio_t* hio = sck->hio;
-	file_t* file = (file_t*)hio_dev_sck_getevcbctx(sck);
-	hio_dev_sck_evcb_t* parent = hio_dev_sck_getparentevcb(sck);
+	hio_svc_htts_cli_t* cli = hio_dev_sck_getxtn(sck);
+	file_t* file = (file_t*)cli->task;
 	int n;
 
-	n = parent && parent->on_write? parent->on_write(sck, wrlen, wrctx, dstaddr): 0;
+	n = hio_svc_htts_client_default_on_write(sck, wrlen, wrctx, dstaddr);
 
 	if (wrlen == 0)
 	{
@@ -352,7 +352,8 @@ static int file_client_htrd_poke (hio_htrd_t* htrd, hio_htre_t* req)
 	/* client request got completed */
 	hio_svc_htts_cli_htrd_xtn_t* htrdxtn = (hio_svc_htts_cli_htrd_xtn_t*)hio_htrd_getxtn(htrd);
 	hio_dev_sck_t* sck = htrdxtn->sck;
-	file_t* file = (file_t*)hio_dev_sck_getevcbctx(sck);
+	hio_svc_htts_cli_t* cli = hio_dev_sck_getxtn(sck);
+	file_t* file = (file_t*)cli->task;
 
 	/* indicate EOF to the client peer */
 	if (file_write_to_peer(file, HIO_NULL, 0) <= -1) return -1;
@@ -371,7 +372,7 @@ static int file_client_htrd_push_content (hio_htrd_t* htrd, hio_htre_t* req, con
 	hio_svc_htts_cli_htrd_xtn_t* htrdxtn = (hio_svc_htts_cli_htrd_xtn_t*)hio_htrd_getxtn(htrd);
 	hio_dev_sck_t* sck = htrdxtn->sck;
 	hio_svc_htts_cli_t* cli = hio_dev_sck_getxtn(sck);
-	file_t* file = (file_t*)hio_dev_sck_getevcbctx(sck);
+	file_t* file = (file_t*)cli->task;
 
 	HIO_ASSERT(sck->hio, cli->sck == sck);
 	return file_write_to_peer(file, data, dlen);

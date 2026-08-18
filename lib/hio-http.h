@@ -107,9 +107,8 @@ typedef void (*hio_svc_htts_task_on_kill_t) (
 	hio_svc_htts_task_on_kill_t task_on_kill; \
 	hio_dev_sck_t* task_csck; \
 	hio_svc_htts_cli_t* task_client; \
-	hio_dev_sck_evcb_link_t task_client_evcb_link; \
+	const hio_dev_sck_evcb_t* task_evcb; \
 	hio_htrd_recbs_t task_client_htrd_org_recbs; \
-	unsigned int task_client_evcb_pushed: 1; \
 	unsigned int task_client_htrd_recbs_changed: 1; \
 	unsigned int task_keep_client_alive: 1; \
 	unsigned int task_req_qpath_ending_with_slash: 1; \
@@ -543,6 +542,27 @@ HIO_EXPORT void hio_svc_htts_task_bindtoclient (
 	hio_svc_htts_task_t*      task,
 	hio_dev_sck_t*            csck,
 	const hio_dev_sck_evcb_t* evcb
+);
+
+/* The http service's own client handling. While a task is bound its
+ * handlers run instead of these; a task that wants the default behaviour
+ * as well calls the matching function explicitly. */
+HIO_EXPORT int hio_svc_htts_client_default_on_read (
+	hio_dev_sck_t*    sck,
+	const void*       buf,
+	hio_iolen_t       len,
+	const hio_skad_t* srcaddr
+);
+
+HIO_EXPORT int hio_svc_htts_client_default_on_write (
+	hio_dev_sck_t*    sck,
+	hio_iolen_t       wrlen,
+	void*             wrctx,
+	const hio_skad_t* dstaddr
+);
+
+HIO_EXPORT void hio_svc_htts_client_default_on_disconnect (
+	hio_dev_sck_t*    sck
 );
 
 /* Release the client socket. Pass a non-zero 'rcdown' to drop the reference

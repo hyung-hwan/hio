@@ -326,6 +326,19 @@ static void listener_on_disconnect (hio_dev_sck_t* sck)
 static int client_on_read (hio_dev_sck_t* sck, const void* buf, hio_iolen_t len, const hio_skad_t* srcaddr)
 {
 	hio_svc_htts_cli_t* cli = hio_dev_sck_getxtn(sck);
+
+	/* a bound task services the client. it calls
+	 * hio_svc_htts_client_default_on_read() itself if it also wants the
+	 * handling below. */
+	if (cli->task && cli->task->task_evcb && cli->task->task_evcb->on_read)
+		return cli->task->task_evcb->on_read(sck, buf, len, srcaddr);
+
+	return hio_svc_htts_client_default_on_read(sck, buf, len, srcaddr);
+}
+
+int hio_svc_htts_client_default_on_read (hio_dev_sck_t* sck, const void* buf, hio_iolen_t len, const hio_skad_t* srcaddr)
+{
+	hio_svc_htts_cli_t* cli = hio_dev_sck_getxtn(sck);
 	hio_t* hio = sck->hio;
 	hio_svc_htts_t* htts = cli->htts;
 	hio_svc_htts_task_t* task = cli->task;
@@ -383,6 +396,16 @@ oops:
 static int client_on_write (hio_dev_sck_t* sck, hio_iolen_t wrlen, void* wrctx, const hio_skad_t* dstaddr)
 {
 	hio_svc_htts_cli_t* cli = hio_dev_sck_getxtn(sck);
+
+	if (cli->task && cli->task->task_evcb && cli->task->task_evcb->on_write)
+		return cli->task->task_evcb->on_write(sck, wrlen, wrctx, dstaddr);
+
+	return hio_svc_htts_client_default_on_write(sck, wrlen, wrctx, dstaddr);
+}
+
+int hio_svc_htts_client_default_on_write (hio_dev_sck_t* sck, hio_iolen_t wrlen, void* wrctx, const hio_skad_t* dstaddr)
+{
+	hio_svc_htts_cli_t* cli = hio_dev_sck_getxtn(sck);
 	hio_t* hio = sck->hio;
 	hio_svc_htts_t* htts = cli->htts;
 	hio_svc_htts_task_t* task = cli->task;
@@ -420,6 +443,19 @@ static int client_on_write (hio_dev_sck_t* sck, hio_iolen_t wrlen, void* wrctx, 
 }
 
 static void client_on_disconnect (hio_dev_sck_t* sck)
+{
+	hio_svc_htts_cli_t* cli = hio_dev_sck_getxtn(sck);
+
+	if (cli->task && cli->task->task_evcb && cli->task->task_evcb->on_disconnect)
+	{
+		cli->task->task_evcb->on_disconnect (sck);
+		return;
+	}
+
+	hio_svc_htts_client_default_on_disconnect (sck);
+}
+
+void hio_svc_htts_client_default_on_disconnect (hio_dev_sck_t* sck)
 {
 	hio_t* hio = sck->hio;
 	hio_svc_htts_cli_t* cli = hio_dev_sck_getxtn(sck);
@@ -947,22 +983,12 @@ void hio_svc_htts_task_bindtoclient (hio_svc_htts_task_t* task, hio_dev_sck_t* c
 
 	/* task->task_client and task->task_csck are set in hio_svc_htts_task_make() */
 
-	/* layer this task's handlers over whatever the socket was using. the
-	 * displaced set is remembered in the link, and the task becomes the
-	 * layer context its handlers read back with hio_dev_sck_getevcbctx() */
-	hio_dev_sck_pushevcb(csck, &task->task_client_evcb_link, evcb, task);
-	task->task_client_evcb_pushed = 1;
+	/* the socket keeps the service's handlers installed throughout. while
+	 * this task is the client's current one, they route to this table. */
+	task->task_evcb = evcb;
 
 	cli->task = task;
 	HIO_SVC_HTTS_TASK_RCUP(task);
-
-	/* somehow the backpointer to the task is available via two means:
-	 *
-	 *  - cli->task
-	 *  - hio_dev_sck_getevcbctx()
-	 *
-	 * the two above returns the same pointer.
-	 */
 }
 
 void hio_svc_htts_task_unbindfromclient (hio_svc_htts_task_t* task, int rcdown)
@@ -984,12 +1010,6 @@ void hio_svc_htts_task_unbindfromclient (hio_svc_htts_task_t* task, int rcdown)
 		{
 			hio_htrd_setrecbs(task->task_client->htrd, &task->task_client_htrd_org_recbs);
 			task->task_client_htrd_recbs_changed = 0;
-		}
-
-		if (task->task_client_evcb_pushed)
-		{
-			hio_dev_sck_popevcb(csck);
-			task->task_client_evcb_pushed = 0;
 		}
 
 		/* there is some ordering issue in using HIO_SVC_HTTS_TASK_UNREF()
@@ -1370,7 +1390,9 @@ hio_bch_t* hio_svc_htts_dupmergepaths (hio_svc_htts_t* htts, const hio_bch_t* ba
 	ta[idx++] = base;
 	if (path[0] != '\0')
 	{
-		if (base[hio_count_bcstr(base) - 1] != '/') ta[idx++] = "/";
+		/* [NOTE] guard the length. an empty base would index base[-1] */
+		hio_oow_t baselen = hio_count_bcstr(base);
+		if (baselen <= 0 || base[baselen - 1] != '/') ta[idx++] = "/";
 		ta[idx++] = path;
 	}
 	ta[idx++] = HIO_NULL;

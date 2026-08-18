@@ -2633,47 +2633,6 @@ int hio_dev_sck_writetosidechan (hio_dev_sck_t* dev, const void* dptr, hio_oow_t
 
 /* ========================================================================= */
 
-void hio_dev_sck_pushevcb (hio_dev_sck_t* dev, hio_dev_sck_evcb_link_t* link, const hio_dev_sck_evcb_t* evcb, void* ctx)
-{
-	link->saved.on_read = dev->on_read;
-	link->saved.on_write = dev->on_write;
-	link->saved.on_disconnect = dev->on_disconnect;
-	link->ctx = ctx;
-	link->prev = dev->evcb_top;
-	dev->evcb_top = link;
-
-	/* a null member means "leave the layer below in place" */
-	if (evcb->on_read) dev->on_read = evcb->on_read;
-	if (evcb->on_write) dev->on_write = evcb->on_write;
-	if (evcb->on_disconnect) dev->on_disconnect = evcb->on_disconnect;
-}
-
-hio_dev_sck_evcb_link_t* hio_dev_sck_popevcb (hio_dev_sck_t* dev)
-{
-	hio_dev_sck_evcb_link_t* link;
-
-	link = dev->evcb_top;
-	if (!link) return HIO_NULL; /* nothing in the stack */
-
-	dev->on_read = link->saved.on_read;
-	dev->on_write = link->saved.on_write;
-	dev->on_disconnect = link->saved.on_disconnect;
-
-	dev->evcb_top = link->prev;
-	link->prev = HIO_NULL;
-	return link;
-}
-
-void* hio_dev_sck_getevcbctx (hio_dev_sck_t* dev)
-{
-	return dev->evcb_top? dev->evcb_top->ctx: HIO_NULL;
-}
-
-hio_dev_sck_evcb_t* hio_dev_sck_getparentevcb (hio_dev_sck_t* dev)
-{
-	return dev->evcb_top? &dev->evcb_top->saved: HIO_NULL;
-}
-
 /* ========================================================================= */
 
 hio_uint16_t hio_checksum_ip (const void* hdr, hio_oow_t len)

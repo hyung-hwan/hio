@@ -258,7 +258,6 @@ typedef void (*hio_dev_sck_on_raw_accept_t) (
 );
 
 typedef struct hio_dev_sck_evcb_t hio_dev_sck_evcb_t;
-typedef struct hio_dev_sck_evcb_link_t hio_dev_sck_evcb_link_t;
 
 struct hio_dev_sck_evcb_t
 {
@@ -267,12 +266,6 @@ struct hio_dev_sck_evcb_t
 	hio_dev_sck_on_disconnect_t on_disconnect;
 };
 
-struct hio_dev_sck_evcb_link_t
-{
-	hio_dev_sck_evcb_t      saved;
-	void*                    ctx;
-	hio_dev_sck_evcb_link_t* prev;
-};
 
 enum hio_dev_sck_type_t
 {
@@ -412,7 +405,6 @@ struct hio_dev_sck_t
 	/* original destination address */
 	hio_skad_t orgdstaddr;
 
-	hio_dev_sck_evcb_link_t* evcb_top;
 
 	hio_dev_sck_on_write_t on_write;
 	hio_dev_sck_on_read_t on_read;
@@ -535,25 +527,6 @@ HIO_EXPORT int hio_dev_sck_timedwritev (
 	const hio_ntime_t*    tmout,
 	void*                 wrctx,
 	const hio_skad_t*     dstaddr
-);
-
-HIO_EXPORT void hio_dev_sck_pushevcb (
-	hio_dev_sck_t*       dev,
-	hio_dev_sck_evcb_link_t*  link,
-	const hio_dev_sck_evcb_t* evcb,
-	void*                 ctx
-);
-
-HIO_EXPORT hio_dev_sck_evcb_link_t* hio_dev_sck_popevcb (
-	hio_dev_sck_t*        dev
-);
-
-HIO_EXPORT void* hio_dev_sck_getevcbctx (
-	hio_dev_sck_t*        dev
-);
-
-HIO_EXPORT hio_dev_sck_evcb_t* hio_dev_sck_getparentevcb (
-	hio_dev_sck_t*        dev
 );
 
 #if defined(HIO_HAVE_INLINE)

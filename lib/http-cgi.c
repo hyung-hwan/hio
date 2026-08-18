@@ -488,7 +488,8 @@ static int cgi_client_htrd_poke (hio_htrd_t* htrd, hio_htre_t* req)
 	cgi_t* cgi = (cgi_t*)cli->task;
 #else
 	/* this one is one call only. it must return the same value as the above two lines */
-	cgi_t* cgi = hio_dev_sck_getevcbctx(sck);
+	hio_svc_htts_cli_t* cli = hio_dev_sck_getxtn(sck);
+	cgi_t* cgi = (cgi_t*)cli->task;
 #endif
 
 	/* indicate EOF to the client peer */
@@ -547,7 +548,7 @@ static void cgi_client_on_disconnect (hio_dev_sck_t* sck)
 
 		/* call the parent handler*/
 		/*if (fcgi->client_org_on_disconnect) fcgi->client_org_on_disconnect (sck);*/
-		if (sck->on_disconnect) sck->on_disconnect (sck); /* restored to the orginal parent handler in unbind_task_from_client() */
+		hio_svc_htts_client_default_on_disconnect (sck); /* restored to the orginal parent handler in unbind_task_from_client() */
 
 		/* if the client side is closed, the data from the child process is not read and the write() of the child process call may block.
 		 * just close the input side of the pipe to the child to prevense this situation */
@@ -563,7 +564,6 @@ static void cgi_client_on_disconnect (hio_dev_sck_t* sck)
 
 static int cgi_client_on_read (hio_dev_sck_t* sck, const void* buf, hio_iolen_t len, const hio_skad_t* srcaddr)
 {
-	hio_dev_sck_evcb_t* parent = hio_dev_sck_getparentevcb(sck);
 	hio_t* hio = sck->hio;
 	hio_svc_htts_cli_t* cli = hio_dev_sck_getxtn(sck);
 	cgi_t* cgi = (cgi_t*)cli->task;
@@ -571,7 +571,7 @@ static int cgi_client_on_read (hio_dev_sck_t* sck, const void* buf, hio_iolen_t 
 
 	HIO_ASSERT(hio, sck == cli->sck);
 
-	n = parent && parent->on_read? parent->on_read(sck, buf, len, srcaddr): 0;
+	n = hio_svc_htts_client_default_on_read(sck, buf, len, srcaddr);
 
 	if (len <= -1)
 	{
@@ -604,13 +604,12 @@ oops:
 
 static int cgi_client_on_write (hio_dev_sck_t* sck, hio_iolen_t wrlen, void* wrctx, const hio_skad_t* dstaddr)
 {
-	hio_dev_sck_evcb_t* parent = hio_dev_sck_getparentevcb(sck);
 	hio_t* hio = sck->hio;
 	hio_svc_htts_cli_t* cli = hio_dev_sck_getxtn(sck);
 	cgi_t* cgi = (cgi_t*)cli->task;
 	int n;
 
-	n = parent && parent->on_write? parent->on_write(sck, wrlen, wrctx, dstaddr): 0;
+	n = hio_svc_htts_client_default_on_write(sck, wrlen, wrctx, dstaddr);
 
 	if (wrlen == 0)
 	{

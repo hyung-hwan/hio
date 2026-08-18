@@ -14,7 +14,7 @@ LDFLAGS_COMMON=-L$(abs_builddir)/../lib  -L$(libdir)
 LIBADD_COMMON = ../lib/libhio.la $(LIBM)
 
 
-check_SCRIPTS = s-001.sh
+check_SCRIPTS = s-001.sh s-002.sh
 EXTRA_DIST = $(check_SCRIPTS) tap.inc t-cgi.sh
 
 check_PROGRAMS = t-001 t-002 t-003 t-004 t-005 t-006 t-007 t-008

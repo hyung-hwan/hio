@@ -460,7 +460,7 @@ static void prxy_client_on_disconnect (hio_dev_sck_t* sck)
 
 		/* call the parent handler*/
 		/*if (fprxy->client_org_on_disconnect) fprxy->client_org_on_disconnect (sck);*/
-		if (sck->on_disconnect) sck->on_disconnect (sck); /* restored to the orginal parent handler in unbind_task_from_client() */
+		hio_svc_htts_client_default_on_disconnect(sck); /* restored to the orginal parent handler in unbind_task_from_client() */
 
 		HIO_SVC_HTTS_TASK_RCDOWN ((hio_svc_htts_task_t*)prxy);
 	}
@@ -471,7 +471,6 @@ static void prxy_client_on_disconnect (hio_dev_sck_t* sck)
 
 static int prxy_client_on_read (hio_dev_sck_t* sck, const void* buf, hio_iolen_t len, const hio_skad_t* srcaddr)
 {
-	hio_dev_sck_evcb_t* parent = hio_dev_sck_getparentevcb(sck);
 	hio_t* hio = sck->hio;
 	hio_svc_htts_cli_t* cli = hio_dev_sck_getxtn(sck);
 	prxy_t* prxy = (prxy_t*)cli->task;
@@ -479,7 +478,7 @@ static int prxy_client_on_read (hio_dev_sck_t* sck, const void* buf, hio_iolen_t
 
 	HIO_ASSERT(hio, sck == cli->sck);
 
-	n = parent && parent->on_read? parent->on_read(sck, buf, len, srcaddr): 0;
+	n = hio_svc_htts_client_default_on_read(sck, buf, len, srcaddr);
 
 	if (len <= -1)
 	{
@@ -512,13 +511,12 @@ oops:
 
 static int prxy_client_on_write (hio_dev_sck_t* sck, hio_iolen_t wrlen, void* wrctx, const hio_skad_t* dstaddr)
 {
-	hio_dev_sck_evcb_t* parent = hio_dev_sck_getparentevcb(sck);
 	hio_t* hio = sck->hio;
 	hio_svc_htts_cli_t* cli = hio_dev_sck_getxtn(sck);
 	prxy_t* prxy = (prxy_t*)cli->task;
 	int n;
 
-	n = parent && parent->on_write? parent->on_write(sck, wrlen, wrctx, dstaddr): 0;
+	n = hio_svc_htts_client_default_on_write(sck, wrlen, wrctx, dstaddr);
 
 	if (wrlen == 0)
 	{

@@ -1029,11 +1029,7 @@ hio_dev_t* hio_dev_make (hio_t* hio, hio_oow_t dev_size, hio_dev_mth_t* dev_mth,
 	dev->dev_cap = HIO_DEV_CAP_IN | HIO_DEV_CAP_OUT;
 	dev->dev_mth = dev_mth;
 
-	dev->dev_evcb_base.evcb = dev_evcb;
-	dev->dev_evcb_base.ctx = HIO_NULL;
-	dev->dev_evcb_base.prev = HIO_NULL;
 	dev->dev_evcb = dev_evcb;
-	dev->dev_evcb_top = &dev->dev_evcb_base;
 
 	HIO_INIT_NTIME (&dev->rtmout, 0, 0);
 	dev->rtmridx = HIO_TMRIDX_INVALID;
@@ -2017,34 +2013,6 @@ int hio_dev_timedsendfile (hio_dev_t* dev, hio_syshnd_t in_fd, hio_foff_t foff, 
 
 /* -------------------------------------------------------------------------- */
 
-void hio_dev_pushevcb (hio_dev_t* dev, hio_dev_evcb_link_t* link, hio_dev_evcb_t *evcb, void* ctx)
-{
-	link->evcb = evcb;
-	link->ctx = ctx;
-	link->prev = dev->dev_evcb_top;
-
-	dev->dev_evcb_top = link;
-	dev->dev_evcb = evcb; /* cached */
-}
-
-hio_dev_evcb_link_t* hio_dev_popevcb (hio_dev_t* dev)
-{
-	hio_dev_evcb_link_t* link;
-
-	link = dev->dev_evcb_top;
-	if (!link->prev) return HIO_NULL; /* the base cannot be popped off */
-
-	dev->dev_evcb_top = link->prev;
-	dev->dev_evcb = link->prev->evcb;
-
-	link->prev = HIO_NULL; /* clear the stale pointer */
-	return link;
-}
-
-void * hio_dev_getevcbctx (hio_dev_t* dev)
-{
-	return dev->dev_evcb_top->ctx;
-}
 /* -------------------------------------------------------------------------- */
 
 void hio_gettime (hio_t* hio, hio_ntime_t* now)
