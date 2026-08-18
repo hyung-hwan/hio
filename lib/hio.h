@@ -539,6 +539,36 @@ struct hio_cfmb_t
 
 #define HIO_CFMBL_PREV_CFMB(cfmb) ((cfmb)->cfmb_prev)
 #define HIO_CFMBL_NEXT_CFMB(cfmb) ((cfmb)->cfmb_next)
+
+/* =========================================================================
+ * REFERENCE COUNTING
+ * ========================================================================= */
+typedef struct hio_rco_t hio_rco_t;
+typedef void (*hio_rco_fini_t) (hio_rco_t* obj);
+
+#define HIO_RCO_HEADER \
+	hio_t*           rco_hio; \
+	hio_oow_t        rco_refcnt; \
+	hio_rco_fini_t rco_fini
+
+struct hio_rco_t
+{
+	HIO_RCO_HEADER;
+};
+
+#define HIO_RCO_RC(obj)    (((hio_rco_t*)(obj))->rco_refcnt)
+#define HIO_RCO_REF(obj)   hio_rco_ref((hio_rco_t*)(obj))
+#define HIO_RCO_UNREF(obj) hio_rco_unref((hio_rco_t*)(obj))
+
+/* Clear the holder before dropping the reference, so the caller is never
+ * left holding a pointer to an object the drop may have destroyed. This
+ * is the form to reach for by default. */
+#define HIO_RCO_UNREF_CLEAR(var) do { \
+	hio_rco_t* __rco_tmp = (hio_rco_t*)(var); \
+	(var) = HIO_NULL; \
+	hio_rco_unref(__rco_tmp); \
+} while(0)
+
 /* =========================================================================
  * SERVICE
  * ========================================================================= */
@@ -589,6 +619,7 @@ struct hio_svc_t
 
 #define HIO_SVCL_PREV_SVC(svc) ((svc)->svc_prev)
 #define HIO_SVCL_NEXT_SVC(svc) ((svc)->svc_next)
+
 /* =========================================================================
  * MIO LOGGING
  * ========================================================================= */

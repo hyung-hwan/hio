@@ -34,6 +34,8 @@ static int htts_svr_wrctx;
 
 /* ------------------------------------------------------------------------ */
 
+static void task_rco_fini (hio_rco_t* rco);
+
 static int client_on_read (hio_dev_sck_t* sck, const void* buf, hio_iolen_t len, const hio_skad_t* srcaddr);
 static int client_on_write (hio_dev_sck_t* sck, hio_iolen_t wrlen, void* wrctx, const hio_skad_t* dstaddr);
 static void client_on_disconnect (hio_dev_sck_t* sck);
@@ -875,7 +877,6 @@ hio_svc_htts_task_t* hio_svc_htts_task_make (hio_svc_htts_t* htts, hio_oow_t tas
 
 	task->htts = htts;
 	task->task_size = task_size;
-	task->task_refcnt = 0;
 	task->task_on_kill = on_kill;
 	task->task_csck = csck;
 	task->task_client = (hio_svc_htts_cli_t*)hio_dev_sck_getxtn(csck);
@@ -889,6 +890,7 @@ hio_svc_htts_task_t* hio_svc_htts_task_make (hio_svc_htts_t* htts, hio_oow_t tas
 	task->task_req_qmth = (hio_bch_t*)((hio_uint8_t*)task + task_size);
 	task->task_req_qpath = task->task_req_qmth + qmth_len + 1;
 
+	hio_rco_init((hio_rco_t*)task, hio, task_rco_fini);
 	HIO_MEMCPY(task->task_req_qmth, hio_htre_getqmethodname(req),qmth_len + 1);
 	HIO_MEMCPY(task->task_req_qpath, hio_htre_getqpath(req), qpath_len + 1);
 
@@ -902,8 +904,18 @@ hio_svc_htts_task_t* hio_svc_htts_task_make (hio_svc_htts_t* htts, hio_oow_t tas
 	return task;
 }
 
+static void task_rco_fini (hio_rco_t* rco)
+{
+	hio_svc_htts_task_t* task = (hio_svc_htts_task_t*)rco;
+	hio_svc_htts_t* htts = task->htts;
+
+	if (task->task_on_kill) task->task_on_kill(task);
+	dec_ntasks(htts);
+}
+
 void hio_svc_htts_task_kill (hio_svc_htts_task_t* task)
 {
+#if 0
 	hio_svc_htts_t* htts = task->htts;
 	hio_t* hio = htts->hio;
 
@@ -914,6 +926,12 @@ void hio_svc_htts_task_kill (hio_svc_htts_task_t* task)
 
 	dec_ntasks (htts);
 	HIO_DEBUG2 (hio, "HTTS(%p) - destroyed task %p\n", htts, task);
+#else
+	hio_svc_htts_t* htts = task->htts;
+	HIO_DEBUG2(hio, "HTTS(%p) - destroying task %p\n", htts, task);
+	HIO_RCO_UNREF(task);
+	HIO_DEBUG2(hio, "HTTS(%p) - destroyed task %p\n", htts, task);
+#endif
 }
 
 int hio_svc_htts_task_startreshdr (hio_svc_htts_task_t* task, int status_code, const hio_bch_t* status_desc, int chunked)

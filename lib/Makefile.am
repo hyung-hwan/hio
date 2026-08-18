@@ -104,6 +104,7 @@ libhio_la_SOURCES = \
 	pro.c \
 	pty.c \
 	rad-msg.c \
+	rco.c \
 	sck.c \
 	shw.c \
 	skad.c \

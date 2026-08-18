@@ -98,9 +98,9 @@ typedef void (*hio_svc_htts_task_on_kill_t) (
 );
 
 #define HIO_SVC_HTTS_TASK_HEADER \
+	HIO_RCO_HEADER; \
 	hio_svc_htts_t* htts; \
 	hio_oow_t task_size; \
-	hio_oow_t task_refcnt; \
 	hio_svc_htts_task_t* task_prev; \
 	hio_svc_htts_task_t* task_next; \
 	hio_svc_htts_task_on_kill_t task_on_kill; \
@@ -128,30 +128,18 @@ struct hio_svc_htts_task_t
 	HIO_SVC_HTTS_TASK_HEADER;
 };
 
-#define HIO_SVC_HTTS_TASK_RC(task) ((task)->task_refcnt)
+#define HIO_SVC_HTTS_TASK_RC(task) HIO_RCO_RC(task)
 
-#define HIO_SVC_HTTS_TASK_RCUP(task) (++(task)->task_refcnt)
+#define HIO_SVC_HTTS_TASK_RCUP(task) HIO_RCO_REF(task)
 
-#define HIO_SVC_HTTS_TASK_RCDOWN(task_var) do { \
-	if (--(task_var)->task_refcnt == 0) hio_svc_htts_task_kill(task_var); \
-} while(0)
+#define HIO_SVC_HTTS_TASK_RCDOWN(task_var) HIO_RCO_UNREF(task)
 
 #define HIO_SVC_HTTS_TASK_REF(task, var) do { \
 	(var) = (task); \
 	HIO_SVC_HTTS_TASK_RCUP(task); \
 } while(0)
 
-#define HIO_SVC_HTTS_TASK_UNREF(task_var) do { \
-	if (--(task_var)->task_refcnt == 0) { \
-		hio_svc_htts_task_t* __task_tmp = (hio_svc_htts_task_t*)(task_var); \
-		(task_var) = HIO_NULL; \
-		hio_svc_htts_task_kill(__task_tmp); \
-	} \
-	else { \
-		(task_var) = HIO_NULL; \
-	} \
-} while(0)
-
+#define HIO_SVC_HTTS_TASK_UNREF(task_var) HIO_RCO_UNREF_CLEAR(task_var)
 
 /* -------------------------------------------------------------- */
 
