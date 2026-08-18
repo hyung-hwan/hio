@@ -89,9 +89,8 @@ PRE_UNINSTALL = :
 POST_UNINSTALL = :
 build_triplet = @build@
 host_triplet = @host@
-check_PROGRAMS = t-001$(EXEEXT) t-002$(EXEEXT) t-003$(EXEEXT) \
-	t-004$(EXEEXT) t-005$(EXEEXT) t-006$(EXEEXT) t-007$(EXEEXT) \
-	t-008$(EXEEXT)
+check_PROGRAMS = $(am__EXEEXT_1) $(am__EXEEXT_2)
+TESTS = $(am__EXEEXT_1) $(check_SCRIPTS)
 subdir = t
 ACLOCAL_M4 = $(top_srcdir)/aclocal.m4
 am__aclocal_m4_deps = $(top_srcdir)/m4/ax_check_sign.m4 \
@@ -107,15 +106,25 @@ mkinstalldirs = $(install_sh) -d
 CONFIG_HEADER = $(top_builddir)/lib/hio-cfg.h
 CONFIG_CLEAN_FILES =
 CONFIG_CLEAN_VPATH_FILES =
-am_t_001_OBJECTS = t_001-t-001.$(OBJEXT)
-t_001_OBJECTS = $(am_t_001_OBJECTS)
+am__EXEEXT_1 = t-001$(EXEEXT) t-002$(EXEEXT) t-003$(EXEEXT) \
+	t-004$(EXEEXT) t-005$(EXEEXT) t-006$(EXEEXT) t-007$(EXEEXT) \
+	t-008$(EXEEXT)
+am__EXEEXT_2 = fcgis$(EXEEXT)
+am_fcgis_OBJECTS = fcgis-fcgis.$(OBJEXT)
+fcgis_OBJECTS = $(am_fcgis_OBJECTS)
 am__DEPENDENCIES_1 =
 am__DEPENDENCIES_2 = ../lib/libhio.la $(am__DEPENDENCIES_1)
-t_001_DEPENDENCIES = $(am__DEPENDENCIES_2)
+fcgis_DEPENDENCIES = $(am__DEPENDENCIES_2)
 AM_V_lt = $(am__v_lt_@AM_V@)
 am__v_lt_ = $(am__v_lt_@AM_DEFAULT_V@)
 am__v_lt_0 = --silent
 am__v_lt_1 = 
+fcgis_LINK = $(LIBTOOL) $(AM_V_lt) --tag=CC $(AM_LIBTOOLFLAGS) \
+	$(LIBTOOLFLAGS) --mode=link $(CCLD) $(fcgis_CFLAGS) $(CFLAGS) \
+	$(fcgis_LDFLAGS) $(LDFLAGS) -o $@
+am_t_001_OBJECTS = t_001-t-001.$(OBJEXT)
+t_001_OBJECTS = $(am_t_001_OBJECTS)
+t_001_DEPENDENCIES = $(am__DEPENDENCIES_2)
 t_001_LINK = $(LIBTOOL) $(AM_V_lt) --tag=CC $(AM_LIBTOOLFLAGS) \
 	$(LIBTOOLFLAGS) --mode=link $(CCLD) $(t_001_CFLAGS) $(CFLAGS) \
 	$(t_001_LDFLAGS) $(LDFLAGS) -o $@
@@ -176,11 +185,11 @@ am__v_at_1 =
 DEFAULT_INCLUDES = 
 depcomp = $(SHELL) $(top_srcdir)/ac/depcomp
 am__maybe_remake_depfiles = depfiles
-am__depfiles_remade = ./$(DEPDIR)/t_001-t-001.Po \
-	./$(DEPDIR)/t_002-t-002.Po ./$(DEPDIR)/t_003-t-003.Po \
-	./$(DEPDIR)/t_004-t-004.Po ./$(DEPDIR)/t_005-t-005.Po \
-	./$(DEPDIR)/t_006-t-006.Po ./$(DEPDIR)/t_007-t-007.Po \
-	./$(DEPDIR)/t_008-t-008.Po
+am__depfiles_remade = ./$(DEPDIR)/fcgis-fcgis.Po \
+	./$(DEPDIR)/t_001-t-001.Po ./$(DEPDIR)/t_002-t-002.Po \
+	./$(DEPDIR)/t_003-t-003.Po ./$(DEPDIR)/t_004-t-004.Po \
+	./$(DEPDIR)/t_005-t-005.Po ./$(DEPDIR)/t_006-t-006.Po \
+	./$(DEPDIR)/t_007-t-007.Po ./$(DEPDIR)/t_008-t-008.Po
 am__mv = mv -f
 COMPILE = $(CC) $(DEFS) $(DEFAULT_INCLUDES) $(INCLUDES) $(AM_CPPFLAGS) \
 	$(CPPFLAGS) $(AM_CFLAGS) $(CFLAGS)
@@ -200,12 +209,12 @@ AM_V_CCLD = $(am__v_CCLD_@AM_V@)
 am__v_CCLD_ = $(am__v_CCLD_@AM_DEFAULT_V@)
 am__v_CCLD_0 = @echo "  CCLD    " $@;
 am__v_CCLD_1 = 
-SOURCES = $(t_001_SOURCES) $(t_002_SOURCES) $(t_003_SOURCES) \
-	$(t_004_SOURCES) $(t_005_SOURCES) $(t_006_SOURCES) \
-	$(t_007_SOURCES) $(t_008_SOURCES)
-DIST_SOURCES = $(t_001_SOURCES) $(t_002_SOURCES) $(t_003_SOURCES) \
-	$(t_004_SOURCES) $(t_005_SOURCES) $(t_006_SOURCES) \
-	$(t_007_SOURCES) $(t_008_SOURCES)
+SOURCES = $(fcgis_SOURCES) $(t_001_SOURCES) $(t_002_SOURCES) \
+	$(t_003_SOURCES) $(t_004_SOURCES) $(t_005_SOURCES) \
+	$(t_006_SOURCES) $(t_007_SOURCES) $(t_008_SOURCES)
+DIST_SOURCES = $(fcgis_SOURCES) $(t_001_SOURCES) $(t_002_SOURCES) \
+	$(t_003_SOURCES) $(t_004_SOURCES) $(t_005_SOURCES) \
+	$(t_006_SOURCES) $(t_007_SOURCES) $(t_008_SOURCES)
 am__can_run_installinfo = \
   case $$AM_UPDATE_INFO_DIR in \
     n|no|NO) false;; \
@@ -595,6 +604,8 @@ LDFLAGS_COMMON = -L$(abs_builddir)/../lib  -L$(libdir)
 LIBADD_COMMON = ../lib/libhio.la $(LIBM)
 check_SCRIPTS = s-001.sh s-002.sh
 EXTRA_DIST = $(check_SCRIPTS) tap.inc t-cgi.sh
+TESTPROGS = t-001 t-002 t-003 t-004 t-005 t-006 t-007 t-008
+HELPERPROGS = fcgis
 t_001_SOURCES = t-001.c tap.h
 t_001_CPPFLAGS = $(CPPFLAGS_COMMON)
 t_001_CFLAGS = $(CFLAGS_COMMON)
@@ -635,8 +646,12 @@ t_008_CPPFLAGS = $(CPPFLAGS_COMMON)
 t_008_CFLAGS = $(CFLAGS_COMMON)
 t_008_LDFLAGS = $(LDFLAGS_COMMON)
 t_008_LDADD = $(LIBADD_COMMON)
+fcgis_SOURCES = fcgis.c
+fcgis_CPPFLAGS = $(CPPFLAGS_COMMON)
+fcgis_CFLAGS = $(CFLAGS_COMMON)
+fcgis_LDFLAGS = $(LDFLAGS_COMMON)
+fcgis_LDADD = $(LIBADD_COMMON)
 LOG_DRIVER = env AM_TAP_AWK='$(AWK)' $(SHELL) $(top_srcdir)/ac/tap-driver.sh
-TESTS = $(check_PROGRAMS) $(check_SCRIPTS)
 TEST_EXTENSIONS = .sh
 SH_LOG_DRIVER = $(LOG_DRIVER)
 SH_LOG_COMPILER = /bin/sh
@@ -678,6 +693,10 @@ clean-checkPROGRAMS:
 	$(am__rm_f) $(check_PROGRAMS)
 	test -z "$(EXEEXT)" || $(am__rm_f) $(check_PROGRAMS:$(EXEEXT)=)
 
+fcgis$(EXEEXT): $(fcgis_OBJECTS) $(fcgis_DEPENDENCIES) $(EXTRA_fcgis_DEPENDENCIES) 
+	@rm -f fcgis$(EXEEXT)
+	$(AM_V_CCLD)$(fcgis_LINK) $(fcgis_OBJECTS) $(fcgis_LDADD) $(LIBS)
+
 t-001$(EXEEXT): $(t_001_OBJECTS) $(t_001_DEPENDENCIES) $(EXTRA_t_001_DEPENDENCIES) 
 	@rm -f t-001$(EXEEXT)
 	$(AM_V_CCLD)$(t_001_LINK) $(t_001_OBJECTS) $(t_001_LDADD) $(LIBS)
@@ -716,6 +735,7 @@ mostlyclean-compile:
 distclean-compile:
 	-rm -f *.tab.c
 
+@AMDEP_TRUE@@am__include@ @am__quote@./$(DEPDIR)/fcgis-fcgis.Po@am__quote@ # am--include-marker
 @AMDEP_TRUE@@am__include@ @am__quote@./$(DEPDIR)/t_001-t-001.Po@am__quote@ # am--include-marker
 @AMDEP_TRUE@@am__include@ @am__quote@./$(DEPDIR)/t_002-t-002.Po@am__quote@ # am--include-marker
 @AMDEP_TRUE@@am__include@ @am__quote@./$(DEPDIR)/t_003-t-003.Po@am__quote@ # am--include-marker
@@ -754,6 +774,20 @@ am--depfiles: $(am__depfiles_remade)
 @AMDEP_TRUE@@am__fastdepCC_FALSE@	$(AM_V_CC)source='$<' object='$@' libtool=yes @AMDEPBACKSLASH@
 @AMDEP_TRUE@@am__fastdepCC_FALSE@	DEPDIR=$(DEPDIR) $(CCDEPMODE) $(depcomp) @AMDEPBACKSLASH@
 @am__fastdepCC_FALSE@	$(AM_V_CC@am__nodep@)$(LTCOMPILE) -c -o $@ $<
+
+fcgis-fcgis.o: fcgis.c
+@am__fastdepCC_TRUE@	$(AM_V_CC)$(CC) $(DEFS) $(DEFAULT_INCLUDES) $(INCLUDES) $(fcgis_CPPFLAGS) $(CPPFLAGS) $(fcgis_CFLAGS) $(CFLAGS) -MT fcgis-fcgis.o -MD -MP -MF $(DEPDIR)/fcgis-fcgis.Tpo -c -o fcgis-fcgis.o `test -f 'fcgis.c' || echo '$(srcdir)/'`fcgis.c
+@am__fastdepCC_TRUE@	$(AM_V_at)$(am__mv) $(DEPDIR)/fcgis-fcgis.Tpo $(DEPDIR)/fcgis-fcgis.Po
+@AMDEP_TRUE@@am__fastdepCC_FALSE@	$(AM_V_CC)source='fcgis.c' object='fcgis-fcgis.o' libtool=no @AMDEPBACKSLASH@
+@AMDEP_TRUE@@am__fastdepCC_FALSE@	DEPDIR=$(DEPDIR) $(CCDEPMODE) $(depcomp) @AMDEPBACKSLASH@
+@am__fastdepCC_FALSE@	$(AM_V_CC@am__nodep@)$(CC) $(DEFS) $(DEFAULT_INCLUDES) $(INCLUDES) $(fcgis_CPPFLAGS) $(CPPFLAGS) $(fcgis_CFLAGS) $(CFLAGS) -c -o fcgis-fcgis.o `test -f 'fcgis.c' || echo '$(srcdir)/'`fcgis.c
+
+fcgis-fcgis.obj: fcgis.c
+@am__fastdepCC_TRUE@	$(AM_V_CC)$(CC) $(DEFS) $(DEFAULT_INCLUDES) $(INCLUDES) $(fcgis_CPPFLAGS) $(CPPFLAGS) $(fcgis_CFLAGS) $(CFLAGS) -MT fcgis-fcgis.obj -MD -MP -MF $(DEPDIR)/fcgis-fcgis.Tpo -c -o fcgis-fcgis.obj `if test -f 'fcgis.c'; then $(CYGPATH_W) 'fcgis.c'; else $(CYGPATH_W) '$(srcdir)/fcgis.c'; fi`
+@am__fastdepCC_TRUE@	$(AM_V_at)$(am__mv) $(DEPDIR)/fcgis-fcgis.Tpo $(DEPDIR)/fcgis-fcgis.Po
+@AMDEP_TRUE@@am__fastdepCC_FALSE@	$(AM_V_CC)source='fcgis.c' object='fcgis-fcgis.obj' libtool=no @AMDEPBACKSLASH@
+@AMDEP_TRUE@@am__fastdepCC_FALSE@	DEPDIR=$(DEPDIR) $(CCDEPMODE) $(depcomp) @AMDEPBACKSLASH@
+@am__fastdepCC_FALSE@	$(AM_V_CC@am__nodep@)$(CC) $(DEFS) $(DEFAULT_INCLUDES) $(INCLUDES) $(fcgis_CPPFLAGS) $(CPPFLAGS) $(fcgis_CFLAGS) $(CFLAGS) -c -o fcgis-fcgis.obj `if test -f 'fcgis.c'; then $(CYGPATH_W) 'fcgis.c'; else $(CYGPATH_W) '$(srcdir)/fcgis.c'; fi`
 
 t_001-t-001.o: t-001.c
 @am__fastdepCC_TRUE@	$(AM_V_CC)$(CC) $(DEFS) $(DEFAULT_INCLUDES) $(INCLUDES) $(t_001_CPPFLAGS) $(CPPFLAGS) $(t_001_CFLAGS) $(CFLAGS) -MT t_001-t-001.o -MD -MP -MF $(DEPDIR)/t_001-t-001.Tpo -c -o t_001-t-001.o `test -f 't-001.c' || echo '$(srcdir)/'`t-001.c
@@ -1240,6 +1274,7 @@ clean-am: clean-checkPROGRAMS clean-generic clean-libtool \
 	mostlyclean-am
 
 distclean: distclean-am
+	-rm -f ./$(DEPDIR)/fcgis-fcgis.Po
 	-rm -f ./$(DEPDIR)/t_001-t-001.Po
 	-rm -f ./$(DEPDIR)/t_002-t-002.Po
 	-rm -f ./$(DEPDIR)/t_003-t-003.Po
@@ -1293,6 +1328,7 @@ install-ps-am:
 installcheck-am:
 
 maintainer-clean: maintainer-clean-am
+	-rm -f ./$(DEPDIR)/fcgis-fcgis.Po
 	-rm -f ./$(DEPDIR)/t_001-t-001.Po
 	-rm -f ./$(DEPDIR)/t_002-t-002.Po
 	-rm -f ./$(DEPDIR)/t_003-t-003.Po

@@ -167,7 +167,7 @@ void hio_firetmrjobs (hio_t* hio, const hio_ntime_t* tm, hio_oow_t* firecnt)
 
 	/* if the current time is not specified, get it from the system */
 	if (tm) now = *tm;
-	else hio_gettime (hio, &now);
+	else hio_gettime(hio, &now);
 
 	while (hio->tmr.size > 0)
 	{
@@ -192,10 +192,10 @@ int hio_gettmrtmout (hio_t* hio, const hio_ntime_t* tm, hio_ntime_t* tmout)
 
 	/* if the current time is not specified, get it from the system */
 	if (tm) now = *tm;
-	else hio_gettime (hio, &now);
+	else hio_gettime(hio, &now);
 
-	HIO_SUB_NTIME (tmout, &hio->tmr.jobs[0].when, &now);
-	if (tmout->sec < 0) HIO_CLEAR_NTIME (tmout);
+	HIO_SUB_NTIME(tmout, &hio->tmr.jobs[0].when, &now);
+	if (tmout->sec < 0) HIO_CLEAR_NTIME(tmout);
 	return 1; /* tmout is set */
 }
 
@@ -242,8 +242,8 @@ int hio_schedtmrjobafter (hio_t* hio, const hio_ntime_t* fire_after, hio_tmrjob_
 
 	HIO_ASSERT(hio, !HIO_IS_NEG_NTIME(fire_after));
 
-	hio_gettime (hio, &fire_at);
-	HIO_ADD_NTIME (&fire_at, &fire_at, fire_after);
+	hio_gettime(hio, &fire_at);
+	HIO_ADD_NTIME(&fire_at, &fire_at, fire_after);
 
 	return hio_schedtmrjobat(hio, &fire_at, handler, tmridx, ctx);
 }

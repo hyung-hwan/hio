@@ -51,9 +51,9 @@ int hio_sys_init (hio_t* hio)
 	return 0;
 
 oops:
-	if (time_inited) hio_sys_finitime (hio);
-	if (mux_inited) hio_sys_finimux (hio);
-	if (log_inited) hio_sys_finilog (hio);
+	if (time_inited) hio_sys_finitime(hio);
+	if (mux_inited) hio_sys_finimux(hio);
+	if (log_inited) hio_sys_finilog(hio);
 	if (hio->sysdep)
 	{
 		hio_freemem(hio, hio->sysdep);
@@ -64,9 +64,9 @@ oops:
 
 void hio_sys_fini (hio_t* hio)
 {
-	hio_sys_finitime (hio);
-	if (hio->_features & HIO_FEATURE_MUX) hio_sys_finimux (hio);
-	if (hio->_features & HIO_FEATURE_LOG) hio_sys_finilog (hio);
+	hio_sys_finitime(hio);
+	if (hio->_features & HIO_FEATURE_MUX) hio_sys_finimux(hio);
+	if (hio->_features & HIO_FEATURE_LOG) hio_sys_finilog(hio);
 
 	hio_freemem(hio, hio->sysdep);
 	hio->sysdep = HIO_NULL;

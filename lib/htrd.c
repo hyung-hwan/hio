@@ -164,10 +164,10 @@ int hio_htrd_init (hio_htrd_t* htrd, hio_t* hio)
 
 	if (hio_htre_init(&htrd->re, hio) <= -1)
 	{
-		hio_becs_fini (&htrd->fed.b.tra);
-		hio_becs_fini (&htrd->fed.b.raw);
+		hio_becs_fini(&htrd->fed.b.tra);
+		hio_becs_fini(&htrd->fed.b.raw);
 #if 0
-		hio_becs_fini (&htrd->tmp.qparam);
+		hio_becs_fini(&htrd->tmp.qparam);
 #endif
 		return -1;
 	}
@@ -178,12 +178,12 @@ int hio_htrd_init (hio_htrd_t* htrd, hio_t* hio)
 
 void hio_htrd_fini (hio_htrd_t* htrd)
 {
-	hio_htre_fini (&htrd->re);
+	hio_htre_fini(&htrd->re);
 
-	hio_becs_fini (&htrd->fed.b.tra);
-	hio_becs_fini (&htrd->fed.b.raw);
+	hio_becs_fini(&htrd->fed.b.tra);
+	hio_becs_fini(&htrd->fed.b.raw);
 #if 0
-	hio_becs_fini (&htrd->tmp.qparam);
+	hio_becs_fini(&htrd->tmp.qparam);
 #endif
 }
 

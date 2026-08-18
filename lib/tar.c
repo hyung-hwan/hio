@@ -146,7 +146,7 @@ static int x_process_header (hio_tar_t* tar)
 			tar->x.hi.fp = HIO_NULL;
 		}
 
-		hio_becs_clear (&tar->x.hi.filename);
+		hio_becs_clear(&tar->x.hi.filename);
 		if (tar->x.root[0] != '\0')
 		{
 			if (hio_becs_cat(&tar->x.hi.filename, tar->x.root) == (hio_oow_t)-1) return -1;
@@ -159,22 +159,22 @@ static int x_process_header (hio_tar_t* tar)
 		switch (hdr->typeflag)
 		{
 			case HIO_TAR_LNKTYPE:
-				link (hdr->linkname, filename);
+				link(hdr->linkname, filename);
 				break;
 			case HIO_TAR_SYMTYPE:
-				symlink (hdr->linkname, filename); /* TODO: error check */
+				symlink(hdr->linkname, filename); /* TODO: error check */
 				break;
 			case HIO_TAR_CHRTYPE:
-				mknod (filename, S_IFCHR | tar->x.hi.filemode,  ((tar->x.hi.devmajor << 8) | tar->x.hi.devminor));
+				mknod(filename, S_IFCHR | tar->x.hi.filemode,  ((tar->x.hi.devmajor << 8) | tar->x.hi.devminor));
 				break;
 			case HIO_TAR_BLKTYPE:
-				mknod (filename, S_IFBLK | tar->x.hi.filemode,  ((tar->x.hi.devmajor << 8) | tar->x.hi.devminor));
+				mknod(filename, S_IFBLK | tar->x.hi.filemode,  ((tar->x.hi.devmajor << 8) | tar->x.hi.devminor));
 				break;
 			case HIO_TAR_DIRTYPE:
-				create_dir (filename, tar->x.hi.filemode);
+				create_dir(filename, tar->x.hi.filemode);
 				break;
 			case HIO_TAR_FIFOTYPE:
-				mkfifo (filename, tar->x.hi.filemode);
+				mkfifo(filename, tar->x.hi.filemode);
 				break;
 
 			case HIO_TAR_CONTTYPE: /* treate it like REGTYPE for now */
@@ -189,7 +189,7 @@ static int x_process_header (hio_tar_t* tar)
 					return -1;
 				}
 
-				fchmod (fileno(fp), tar->x.hi.filemode);
+				fchmod(fileno(fp), tar->x.hi.filemode);
 
 				tar->x.hi.fp = fp;
 				tar->x.state = HIO_TAR_STATE_FILE;

@@ -215,6 +215,14 @@ if (hio_htre_getcontentlen(req) > 0)
 				x = hio_svc_htts_dotxt(htts, csck, req, HIO_HTTP_STATUS_OK, "text/plain", qpath, 0, HIO_NULL);
 			else if (hio_comp_bcstr_limited(qpath, "/cgi/", 5, 1) == 0)
 				x = hio_svc_htts_docgi(htts, csck, req, "", qpath + 4, 0, HIO_NULL);
+			else if (hio_comp_bcstr_limited(qpath, "/prxy/", 6, 1) == 0)
+			{
+				/* forward to an upstream http server. the test harness runs
+				 * one on this port. */
+				hio_skad_t prxy_addr;
+				hio_bcstrtoskad(hio, "127.0.0.1:9001", &prxy_addr);
+				x = hio_svc_htts_doprxy(htts, csck, req, &prxy_addr, 0, HIO_NULL);
+			}
 			else if (hio_comp_bcstr_limited(qpath, "/fcgi/", 5, 1) == 0)
 			{
 				hio_skad_t fcgis_addr;
@@ -268,6 +276,18 @@ void* thr_func (void* arg)
 	{
 		printf ("Unable to start htts\n");
 		goto oops;
+	}
+
+	{
+		/* the fcgi task refuses with 503 unless the client service is up.
+		 * the timeouts must be non-zero: a zeroed 'c' is a 0-second connect
+		 * deadline, so the peer is untied before it ever connects. */
+		hio_svc_fcgic_tmout_t fcgic_tmout;
+		memset (&fcgic_tmout, 0, HIO_SIZEOF(fcgic_tmout));
+		HIO_INIT_NTIME (&fcgic_tmout.c, 5, 0);
+		HIO_INIT_NTIME (&fcgic_tmout.r, 60, 0);
+		HIO_INIT_NTIME (&fcgic_tmout.w, -1, 0);
+		hio_svc_htts_enablefcgic (htts, &fcgic_tmout);
 	}
 
 	pthread_mutex_lock (&g_htts_mutex);

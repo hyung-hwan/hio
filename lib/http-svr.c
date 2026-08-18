@@ -361,7 +361,7 @@ int hio_svc_htts_client_default_on_read (hio_dev_sck_t* sck, const void* buf, hi
 		goto oops;
 	}
 
-	hio_gettime (hio, &cli->last_active);
+	hio_gettime(hio, &cli->last_active);
 	if ((x = hio_htrd_feed(cli->htrd, buf, len, &rem)) <= -1)
 	{
 		HIO_DEBUG3(hio, "HTTS(%p) - feed error onto client htrd %p(%d)\n", htts, sck, (int)sck->hnd);

@@ -483,7 +483,7 @@ static int peer_capture_request_header (hio_htre_t* req, const hio_bch_t* key, c
 		if (hio_comp_bcstr(key, "Content-Type", 1) == 0)
 		{
 			/* don't prefix CONTENT_TYPE with HTTP_ */
-			hio_becs_clear (htts->becbuf);
+			hio_becs_clear(htts->becbuf);
 		}
 		else
 		{

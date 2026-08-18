@@ -1482,7 +1482,7 @@ fcntl (rdev->hnd, F_SETFL, flags | O_NONBLOCK);
 					}
 					else
 					{
-						HIO_INIT_NTIME (&rdev->tmout, -1, 0); /* just in case */
+						HIO_INIT_NTIME(&rdev->tmout, -1, 0); /* just in case */
 
 						if (!HIO_IS_NEG_NTIME(&conn->connect_tmout))
 						{
@@ -1502,7 +1502,7 @@ fcntl (rdev->hnd, F_SETFL, flags | O_NONBLOCK);
 					#if defined(USE_SSL)
 						rdev->ssl_ctx = ssl_ctx;
 					#endif
-						HIO_DEV_SCK_SET_PROGRESS (rdev, HIO_DEV_SCK_CONNECTING);
+						HIO_DEV_SCK_SET_PROGRESS(rdev, HIO_DEV_SCK_CONNECTING);
 						return 0;
 					}
 				}
@@ -1543,7 +1543,7 @@ fcntl (rdev->hnd, F_SETFL, flags | O_NONBLOCK);
 				rdev->ssl_ctx = ssl_ctx;
 			#endif
 				/* set progress CONNECTING so that the ready handler invokes on_connect() */
-				HIO_DEV_SCK_SET_PROGRESS (rdev, HIO_DEV_SCK_CONNECTING);
+				HIO_DEV_SCK_SET_PROGRESS(rdev, HIO_DEV_SCK_CONNECTING);
 				return 0;
 			}
 		}
@@ -1591,7 +1591,7 @@ fcntl (rdev->hnd, F_SETFL, flags | O_NONBLOCK);
 
 			rdev->tmout = lstn->accept_tmout;
 
-			HIO_DEV_SCK_SET_PROGRESS (rdev, HIO_DEV_SCK_LISTENING);
+			HIO_DEV_SCK_SET_PROGRESS(rdev, HIO_DEV_SCK_LISTENING);
 			return 0;
 		}
 	}
@@ -1759,7 +1759,7 @@ static int harvest_outgoing_connection (hio_dev_sck_t* rdev)
 			if (x == 0)
 			{
 				/* underlying socket connected but not SSL-connected */
-				HIO_DEV_SCK_SET_PROGRESS (rdev, HIO_DEV_SCK_CONNECTING_SSL);
+				HIO_DEV_SCK_SET_PROGRESS(rdev, HIO_DEV_SCK_CONNECTING_SSL);
 
 				HIO_ASSERT(hio, rdev->tmrjob_index == HIO_TMRIDX_INVALID);
 
@@ -1784,7 +1784,7 @@ static int harvest_outgoing_connection (hio_dev_sck_t* rdev)
 		{
 		ssl_connected:
 	#endif
-			HIO_DEV_SCK_SET_PROGRESS (rdev, HIO_DEV_SCK_CONNECTED);
+			HIO_DEV_SCK_SET_PROGRESS(rdev, HIO_DEV_SCK_CONNECTED);
 			if (rdev->on_connect) rdev->on_connect (rdev);
 	#if defined(USE_SSL)
 		}
@@ -1905,7 +1905,7 @@ static int make_accepted_client_connection (hio_dev_sck_t* rdev, hio_syshnd_t cl
 
 	if (rdev->ssl_ctx)
 	{
-		HIO_DEV_SCK_SET_PROGRESS (clidev, HIO_DEV_SCK_ACCEPTING_SSL);
+		HIO_DEV_SCK_SET_PROGRESS(clidev, HIO_DEV_SCK_ACCEPTING_SSL);
 		HIO_ASSERT(hio, clidev->state & HIO_DEV_SCK_ACCEPTING_SSL);
 		/* actual SSL acceptance must be completed in the client device */
 
@@ -1922,7 +1922,7 @@ static int make_accepted_client_connection (hio_dev_sck_t* rdev, hio_syshnd_t cl
 	}
 	else
 	{
-		HIO_DEV_SCK_SET_PROGRESS (clidev, HIO_DEV_SCK_ACCEPTED);
+		HIO_DEV_SCK_SET_PROGRESS(clidev, HIO_DEV_SCK_ACCEPTED);
 		/*if (clidev->on_connect(clidev) <= -1) hio_dev_sck_halt (clidev);*/
 		if (clidev->on_connect) clidev->on_connect (clidev);
 	}
@@ -2070,7 +2070,7 @@ static int dev_evcb_sck_ready_stream (hio_dev_t* dev, int events)
 					rdev->tmrjob_index = HIO_TMRIDX_INVALID;
 				}
 
-				HIO_DEV_SCK_SET_PROGRESS (rdev, HIO_DEV_SCK_CONNECTED);
+				HIO_DEV_SCK_SET_PROGRESS(rdev, HIO_DEV_SCK_CONNECTED);
 				if (rdev->on_connect) rdev->on_connect (rdev);
 				return 0;
 			}
@@ -2142,7 +2142,7 @@ static int dev_evcb_sck_ready_stream (hio_dev_t* dev, int events)
 					rdev->tmrjob_index = HIO_TMRIDX_INVALID;
 				}
 
-				HIO_DEV_SCK_SET_PROGRESS (rdev, HIO_DEV_SCK_ACCEPTED);
+				HIO_DEV_SCK_SET_PROGRESS(rdev, HIO_DEV_SCK_ACCEPTED);
 				if (rdev->on_connect) rdev->on_connect (rdev);
 
 				return 0;

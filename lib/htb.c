@@ -272,7 +272,7 @@ hio_htb_t* hio_htb_open (hio_t* hio, hio_oow_t xtnsize, hio_oow_t capa, int fact
 
 void hio_htb_close (hio_htb_t* htb)
 {
-	hio_htb_fini (htb);
+	hio_htb_fini(htb);
 	hio_freemem(htb->hio, htb);
 }
 
@@ -318,7 +318,7 @@ int hio_htb_init (hio_htb_t* htb, hio_t* hio, hio_oow_t capa, int factor, int ks
 
 void hio_htb_fini (hio_htb_t* htb)
 {
-	hio_htb_clear (htb);
+	hio_htb_clear(htb);
 	hio_freemem(htb->hio, htb->bucket);
 }
 

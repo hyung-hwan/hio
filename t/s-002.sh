@@ -1,9 +1,14 @@
 #!/bin/sh
 
 # End-to-end coverage for the http task modules that s-001.sh does not
-# reach. hio-t06 routes by path prefix, so txt and thr are exercisable
-# without an upstream server. fcgi and prxy still need one and stay
-# uncovered here.
+# reach. hio-t06 routes by path prefix, so txt, thr and fcgi are all
+# exercisable here; fcgi talks to fcgis, the minimal responder in
+# this directory.
+#
+# prxy is still uncovered: http-prxy.c never connects its peer socket
+# (no hio_dev_sck_connect anywhere in the file) so the task cannot
+# currently reach an upstream. t06 has a /prxy/ route ready for when
+# that is finished.
 
 [ -z "$srcdir" ] && srcdir=$(dirname "$0")
 . "${srcdir}/tap.inc"
@@ -13,6 +18,19 @@ SRVADDR="127.0.0.1:${SRVPORT}"
 
 start_server()
 {
+	# the fcgi task needs a responder listening on the port t06 targets
+	fcgiready="/tmp/s-002-fcgi.$$.ready"
+	rm -f "${fcgiready}"
+	./fcgis 127.0.0.1:9000 "${fcgiready}" >/dev/null 2>&1 &
+	fcgipid=$!
+	# it creates the ready file once it is accepting, so nothing races it
+	i=0
+	while [ $i -lt 50 ] && [ ! -f "${fcgiready}" ]; do
+		i=$((i + 1))
+		sleep 0.1
+	done
+	[ -f "${fcgiready}" ] || fcgipid=""
+
 	../bin/hio-t06 >/dev/null 2>&1 &
 	srvpid=$!
 	# wait for the listener rather than sleeping a fixed amount
@@ -29,6 +47,30 @@ stop_server()
 {
 	kill -TERM ${srvpid} 2>/dev/null
 	wait ${srvpid} 2>/dev/null
+	if [ -n "${fcgipid}" ]; then
+		kill -TERM ${fcgipid} 2>/dev/null
+		wait ${fcgipid} 2>/dev/null
+	fi
+	rm -f "${fcgiready}"
+}
+
+test_fcgi()
+{
+	local msg="hio-t06 fcgi task"
+
+	if [ -z "${fcgipid}" ]; then
+		tap_fail "$msg - fcgis did not come up"
+		tap_fail "$msg - fcgis did not come up"
+		return
+	fi
+
+	local hc=$(curl -s -m 10 -w '%{http_code}' -o /dev/null "http://${SRVADDR}/fcgi/x.php")
+	tap_ensure "$hc" "200" "$msg - got $hc"
+
+	# the body can only come from the responder, so this proves the
+	# request traversed the fcgi task and the FastCGI protocol both ways
+	local body=$(curl -s -m 10 "http://${SRVADDR}/fcgi/x.php" | tr -d '\r\n')
+	tap_ensure "$body" "fcgi-ok" "$msg - body came from the fcgi responder"
 }
 
 test_txt()
@@ -94,6 +136,7 @@ test_mixed_load()
 if start_server; then
 	test_txt
 	test_thr
+	test_fcgi
 	test_mixed_load
 	stop_server
 else

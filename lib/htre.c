@@ -78,11 +78,11 @@ int hio_htre_init (hio_htre_t* re, hio_t* hio)
 void hio_htre_fini (hio_htre_t* re)
 {
 #if 0
-	hio_becs_fini (&re->iniline);
+	hio_becs_fini(&re->iniline);
 #endif
-	hio_becs_fini (&re->content);
-	hio_htb_fini (&re->trailers);
-	hio_htb_fini (&re->hdrtab);
+	hio_becs_fini(&re->content);
+	hio_htb_fini(&re->trailers);
+	hio_htb_fini(&re->hdrtab);
 
 	if (re->orgqpath.buf)
 	{
@@ -115,12 +115,12 @@ void hio_htre_clear (hio_htre_t* re)
 	HIO_MEMSET(&re->version, 0, HIO_SIZEOF(re->version));
 	HIO_MEMSET(&re->attr, 0, HIO_SIZEOF(re->attr));
 
-	hio_htb_clear (&re->hdrtab);
-	hio_htb_clear (&re->trailers);
+	hio_htb_clear(&re->hdrtab);
+	hio_htb_clear(&re->trailers);
 
-	hio_becs_clear (&re->content);
+	hio_becs_clear(&re->content);
 #if 0
-	hio_becs_clear (&re->iniline);
+	hio_becs_clear(&re->iniline);
 #endif
 }
 
@@ -241,7 +241,7 @@ void hio_htre_discardcontent (hio_htre_t* re)
 		 * designed to serve a certain usage pattern not including
 		 * weird combinations.
 		 */
-		hio_becs_clear (&re->content);
+		hio_becs_clear(&re->content);
 		if (re->concb)
 		{
 			/* indicate end of content */

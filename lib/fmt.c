@@ -1283,15 +1283,15 @@ static int fmt_outv (hio_fmtout_t* fmtout, va_list ap)
 
 done:
 #if defined(HIO_ENABLE_FLTFMT)
-	if (fb.fmt.ptr != fb.fmt.sbuf) HIO_MMGR_FREE (fmtout->mmgr, fb.fmt.ptr);
-	if (fb.out.ptr != fb.out.sbuf) HIO_MMGR_FREE (fmtout->mmgr, fb.out.ptr);
+	if (fb.fmt.ptr != fb.fmt.sbuf) HIO_MMGR_FREE(fmtout->mmgr, fb.fmt.ptr);
+	if (fb.out.ptr != fb.out.sbuf) HIO_MMGR_FREE(fmtout->mmgr, fb.out.ptr);
 #endif
 	return 0;
 
 oops:
 #if defined(HIO_ENABLE_FLTFMT)
-	if (fb.fmt.ptr != fb.fmt.sbuf) HIO_MMGR_FREE (fmtout->mmgr, fb.fmt.ptr);
-	if (fb.out.ptr != fb.out.sbuf) HIO_MMGR_FREE (fmtout->mmgr, fb.out.ptr);
+	if (fb.fmt.ptr != fb.fmt.sbuf) HIO_MMGR_FREE(fmtout->mmgr, fb.fmt.ptr);
+	if (fb.out.ptr != fb.out.sbuf) HIO_MMGR_FREE(fmtout->mmgr, fb.out.ptr);
 #endif
 	return -1;
 }

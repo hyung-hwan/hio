@@ -101,7 +101,7 @@ void hio_sys_gettime (hio_t* hio, hio_ntime_t* now)
 	msec = elapsed - HIO_SEC_TO_MSEC(et.sec);
 	et.nsec = HIO_MSEC_TO_NSEC(msec);
 
-	HIO_ADD_NTIME (&xtn->tc_last_ret , &xtn->tc_last_ret, &et);
+	HIO_ADD_NTIME(&xtn->tc_last_ret , &xtn->tc_last_ret, &et);
 	*now = xtn->tc_last_ret;
 
 #elif defined(__DOS__) && (defined(_INTELC32_) || defined(__WATCOMC__))
@@ -126,7 +126,7 @@ void hio_sys_gettime (hio_t* hio, hio_ntime_t* now)
 	#	error UNSUPPORTED CLOCKS_PER_SEC
 	#endif
 
-	HIO_ADD_NTIME (&xtn->tc_last_ret , &xtn->tc_last_ret, &et);
+	HIO_ADD_NTIME(&xtn->tc_last_ret , &xtn->tc_last_ret, &et);
 	*now = xtn->tc_last_ret;
 
 #elif defined(macintosh)
@@ -134,18 +134,18 @@ void hio_sys_gettime (hio_t* hio, hio_ntime_t* now)
 	hio_uint64_t tick64;
 	Microseconds (&tick);
 	tick64 = *(hio_uint64_t*)&tick;
-	HIO_INIT_NTIME (now, HIO_USEC_TO_SEC(tick64), HIO_USEC_TO_NSEC(tick64));
+	HIO_INIT_NTIME(now, HIO_USEC_TO_SEC(tick64), HIO_USEC_TO_NSEC(tick64));
 #elif defined(HAVE_CLOCK_GETTIME) && defined(CLOCK_MONOTONIC)
 	struct timespec ts;
-	clock_gettime (CLOCK_MONOTONIC, &ts);
+	clock_gettime(CLOCK_MONOTONIC, &ts);
 	HIO_INIT_NTIME(now, ts.tv_sec, ts.tv_nsec);
 #elif defined(HAVE_CLOCK_GETTIME) && defined(CLOCK_REALTIME)
 	struct timespec ts;
-	clock_gettime (CLOCK_REALTIME, &ts);
+	clock_gettime(CLOCK_REALTIME, &ts);
 	HIO_INIT_NTIME(now, ts.tv_sec, ts.tv_nsec);
 #else
 	struct timeval tv;
-	gettimeofday (&tv, HIO_NULL);
+	gettimeofday(&tv, HIO_NULL);
 	HIO_INIT_NTIME(now, tv.tv_sec, HIO_USEC_TO_NSEC(tv.tv_usec));
 #endif
 }
@@ -155,11 +155,11 @@ void hio_sys_getrealtime (hio_t* hio, hio_ntime_t* now)
 {
 #if defined(HAVE_CLOCK_GETTIME) && defined(CLOCK_REALTIME)
 	struct timespec ts;
-	clock_gettime (CLOCK_REALTIME, &ts);
+	clock_gettime(CLOCK_REALTIME, &ts);
 	HIO_INIT_NTIME(now, ts.tv_sec, ts.tv_nsec);
 #else
 	struct timeval tv;
-	gettimeofday (&tv, HIO_NULL);
+	gettimeofday(&tv, HIO_NULL);
 	HIO_INIT_NTIME(now, tv.tv_sec, HIO_USEC_TO_NSEC(tv.tv_usec));
 #endif
 }

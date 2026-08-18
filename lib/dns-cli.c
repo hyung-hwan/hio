@@ -341,8 +341,8 @@ static int on_tcp_write (hio_dev_sck_t* dev, hio_iolen_t wrlen, void* wrctx, con
 
 		HIO_MEMSET(&tmrjob, 0, HIO_SIZEOF(tmrjob));
 		tmrjob.ctx = msg;
-		hio_gettime (hio, &tmrjob.when);
-		HIO_ADD_NTIME (&tmrjob.when, &tmrjob.when, &msgxtn->rtmout);
+		hio_gettime(hio, &tmrjob.when);
+		HIO_ADD_NTIME(&tmrjob.when, &tmrjob.when, &msgxtn->rtmout);
 		tmrjob.handler = on_tcp_reply_timeout;
 		tmrjob.idxptr = &msgxtn->rtmridx;
 		msgxtn->rtmridx = hio_instmrjob(hio, &tmrjob);
@@ -655,8 +655,8 @@ static int on_udp_write (hio_dev_sck_t* dev, hio_iolen_t wrlen, void* wrctx, con
 		HIO_DEBUG1 (hio, "DNC - sent dns question over udp - msgid:%d\n", (int)hio_ntoh16(hio_dns_msg_to_pkt(msg)->id));
 		HIO_MEMSET(&tmrjob, 0, HIO_SIZEOF(tmrjob));
 		tmrjob.ctx = msg;
-		hio_gettime (hio, &tmrjob.when);
-		HIO_ADD_NTIME (&tmrjob.when, &tmrjob.when, &msgxtn->rtmout);
+		hio_gettime(hio, &tmrjob.when);
+		HIO_ADD_NTIME(&tmrjob.when, &tmrjob.when, &msgxtn->rtmout);
 		tmrjob.handler = on_udp_reply_timeout;
 		tmrjob.idxptr = &msgxtn->rtmridx;
 		msgxtn->rtmridx = hio_instmrjob(hio, &tmrjob);
@@ -771,7 +771,7 @@ hio_svc_dnc_t* hio_svc_dnc_start (hio_t* hio, const hio_skad_t* serv_addr, const
 
 
 	/* initialize the dns cookie key */
-	hio_gettime (hio, &now);
+	hio_gettime(hio, &now);
 	HIO_MEMCPY(&dnc->cookie.key[0], &now.sec, (HIO_SIZEOF(now.sec) < 8? HIO_SIZEOF(now.sec): 8));
 	HIO_MEMCPY(&dnc->cookie.key[8], &now.nsec, (HIO_SIZEOF(now.nsec) < 8? HIO_SIZEOF(now.nsec): 8));
 

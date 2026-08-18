@@ -1,5 +1,5 @@
 /*
-    Copyright (c) 2016-2018 Chung, Hyung-Hwan. All rights reserved.
+    Copyright (c) 2016-2020 Chung, Hyung-Hwan. All rights reserved.
 
     Redistribution and use in source and binary forms, with or without
     modification, are permitted provided that the following conditions
@@ -1015,7 +1015,7 @@ hio_jsonwr_t* hio_jsonwr_open (hio_t* hio, hio_oow_t xtnsize, int flags)
 
 void hio_jsonwr_close (hio_jsonwr_t* jsonwr)
 {
-	hio_jsonwr_fini (jsonwr);
+	hio_jsonwr_fini(jsonwr);
 	hio_freemem(jsonwr->hio, jsonwr);
 }
 

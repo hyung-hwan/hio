@@ -46,7 +46,7 @@
 static void on_connect_timeout (hio_t* hio, const hio_ntime_t* now, hio_tmrjob_t* job)
 {
 	hio_dev_mar_t* rdev = (hio_dev_mar_t*)job->ctx;
-	hio_dev_mar_halt (rdev);
+	hio_dev_mar_halt(rdev);
 }
 
 static int sched_connect_timeout (hio_dev_t* dev)
@@ -59,8 +59,8 @@ static int sched_connect_timeout (hio_dev_t* dev)
 	{
 		HIO_MEMSET(&tmrjob, 0, HIO_SIZEOF(tmrjob));
 		tmrjob.ctx = rdev;
-		hio_gettime (hio, &tmrjob.when);
-		HIO_ADD_NTIME (&tmrjob.when, &tmrjob.when, &rdev->tmout.c);
+		hio_gettime(hio, &tmrjob.when);
+		HIO_ADD_NTIME(&tmrjob.when, &tmrjob.when, &rdev->tmout.c);
 		tmrjob.handler = on_connect_timeout;
 		tmrjob.idxptr = &rdev->ctmridx;
 		rdev->ctmridx = hio_instmrjob(hio, &tmrjob);
@@ -81,7 +81,7 @@ static void desched_connect_timeout (hio_dev_t* dev)
 
 	if (rdev->ctmridx != HIO_TMRIDX_INVALID)
 	{
-		hio_deltmrjob (hio, rdev->ctmridx);
+		hio_deltmrjob(hio, rdev->ctmridx);
 		HIO_ASSERT(hio, rdev->ctmridx == HIO_TMRIDX_INVALID);
 	}
 }
@@ -105,7 +105,7 @@ static int dev_mar_make (hio_dev_t* dev, void* ctx)
 	if (mysql_options(rdev->hnd, MYSQL_OPT_NONBLOCK, 0) != 0)
 	{
 		hio_seterrbfmt(hio, HIO_ESYSERR, "%hs", mysql_error(rdev->hnd));
-		mysql_close (rdev->hnd);
+		mysql_close(rdev->hnd);
 		rdev->hnd = HIO_NULL;
 		return -1;
 	}
@@ -155,11 +155,11 @@ static int dev_mar_kill (hio_dev_t* dev, int force)
 	hio_t* hio = dev->hio;
 	hio_dev_mar_t* rdev = (hio_dev_mar_t*)dev;
 
-	desched_connect_timeout (dev);
+	desched_connect_timeout(dev);
 
 	/* if rdev->connected is 0 at this point,
 	 * the underlying socket of this device is down */
-	if (HIO_LIKELY(rdev->on_disconnect)) rdev->on_disconnect (rdev);
+	if (HIO_LIKELY(rdev->on_disconnect)) rdev->on_disconnect(rdev);
 
 	/* hack */
 	if (!rdev->broken)
@@ -174,19 +174,19 @@ static int dev_mar_kill (hio_dev_t* dev, int force)
 		 */
 		if (rdev->connected)
 		{
-			shutdown (mysql_get_socket(rdev->hnd), SHUT_RDWR);
+			shutdown(mysql_get_socket(rdev->hnd), SHUT_RDWR);
 		}
 	}
 
 	if (rdev->res)
 	{
-		mysql_free_result (rdev->res);
+		mysql_free_result(rdev->res);
 		rdev->res = HIO_NULL;
 	}
 
 	if (rdev->hnd)
 	{
-		mysql_close (rdev->hnd);
+		mysql_close(rdev->hnd);
 		rdev->hnd = HIO_NULL;
 	}
 
@@ -245,12 +245,12 @@ static void start_fetch_row (hio_dev_mar_t* rdev)
 
 	status = mysql_fetch_row_start(&row, rdev->res);
 
-	HIO_DEV_MAR_SET_PROGRESS (rdev, HIO_DEV_MAR_ROW_FETCHING);
+	HIO_DEV_MAR_SET_PROGRESS(rdev, HIO_DEV_MAR_ROW_FETCHING);
 	if (status)
 	{
 		/* row not fetched */
 		rdev->row_fetched_deferred = 0;
-		watch_mysql (rdev, status);
+		watch_mysql(rdev, status);
 	}
 	else
 	{
@@ -258,7 +258,7 @@ static void start_fetch_row (hio_dev_mar_t* rdev)
 		rdev->row_fetched_deferred = 1;
 		rdev->row_wstatus = status;
 		rdev->row = row;
-		watch_mysql (rdev, MYSQL_WAIT_READ | MYSQL_WAIT_WRITE);
+		watch_mysql(rdev, MYSQL_WAIT_READ | MYSQL_WAIT_WRITE);
 	}
 }
 
@@ -289,9 +289,9 @@ static int dev_mar_ioctl (hio_dev_t* dev, int cmd, void* arg)
 			if (status)
 			{
 				/* not connected */
-				sched_connect_timeout (dev);
-				HIO_DEV_MAR_SET_PROGRESS (rdev, HIO_DEV_MAR_CONNECTING);
-				watch_mysql (rdev, status);
+				sched_connect_timeout(dev);
+				HIO_DEV_MAR_SET_PROGRESS(rdev, HIO_DEV_MAR_CONNECTING);
+				watch_mysql(rdev, status);
 			}
 			else
 			{
@@ -309,11 +309,11 @@ static int dev_mar_ioctl (hio_dev_t* dev, int cmd, void* arg)
 				}
 
 				/* connected immediately. postpone actual handling to the ready() callback */
-				HIO_DEV_MAR_SET_PROGRESS (rdev, HIO_DEV_MAR_CONNECTING);
+				HIO_DEV_MAR_SET_PROGRESS(rdev, HIO_DEV_MAR_CONNECTING);
 				rdev->connected_deferred = 1; /* to let the ready() handler to trigger on_connect() */
 				/* regiter it in the multiplexer so that the ready() handler is
 				 * invoked to call the on_connect() callback */
-				watch_mysql (rdev, MYSQL_WAIT_READ | MYSQL_WAIT_WRITE); /* TODO: verify this */
+				watch_mysql(rdev, MYSQL_WAIT_READ | MYSQL_WAIT_WRITE); /* TODO: verify this */
 			}
 			return 0;
 		}
@@ -339,11 +339,11 @@ static int dev_mar_ioctl (hio_dev_t* dev, int cmd, void* arg)
 
 			syshnd = mysql_get_socket(rdev->hnd);
 			status = mysql_real_query_start(&err, rdev->hnd, qstr->ptr, qstr->len);
-			HIO_DEV_MAR_SET_PROGRESS (rdev, HIO_DEV_MAR_QUERY_STARTING);
+			HIO_DEV_MAR_SET_PROGRESS(rdev, HIO_DEV_MAR_QUERY_STARTING);
 			if (status)
 			{
 				/* not done */
-				watch_mysql (rdev, status);
+				watch_mysql(rdev, status);
 			}
 			else
 			{
@@ -367,8 +367,8 @@ static int dev_mar_ioctl (hio_dev_t* dev, int cmd, void* arg)
 						/* remember the previous handle - this may be needed by the poll/select based multiplexer */
 						rdev->broken_syshnd = syshnd;
 
-						watch_mysql (rdev, 0);
-						hio_dev_mar_halt (rdev); /* i can't keep this device alive regardless of the caller's post-action */
+						watch_mysql(rdev, 0);
+						hio_dev_mar_halt(rdev); /* i can't keep this device alive regardless of the caller's post-action */
 						hio_seterrbfmt(hio, HIO_ECONLOST, "%js", prev_errmsg);
 					}
 					return -1;
@@ -376,7 +376,7 @@ static int dev_mar_ioctl (hio_dev_t* dev, int cmd, void* arg)
 
 				/* sent without an error */
 				rdev->query_started_deferred = 1;
-				watch_mysql (rdev, MYSQL_WAIT_READ | MYSQL_WAIT_WRITE);
+				watch_mysql(rdev, MYSQL_WAIT_READ | MYSQL_WAIT_WRITE);
 			}
 			return 0;
 		}
@@ -393,7 +393,7 @@ static int dev_mar_ioctl (hio_dev_t* dev, int cmd, void* arg)
 				}
 			}
 
-			start_fetch_row (rdev);
+			start_fetch_row(rdev);
 			return 0;
 		}
 
@@ -458,8 +458,8 @@ static int dev_evcb_mar_ready (hio_dev_t* dev, int events)
 				/* connection esablished dev_mar_ioctl() but postponed to this function */
 				rdev->connected_deferred = 0;
 				rdev->connected = 1; /* really connected */
-				HIO_DEV_MAR_SET_PROGRESS (rdev, HIO_DEV_MAR_CONNECTED);
-				if (rdev->on_connect) rdev->on_connect (rdev);
+				HIO_DEV_MAR_SET_PROGRESS(rdev, HIO_DEV_MAR_CONNECTED);
+				if (rdev->on_connect) rdev->on_connect(rdev);
 			}
 			else
 			{
@@ -473,7 +473,7 @@ static int dev_evcb_mar_ready (hio_dev_t* dev, int events)
 				if (status)
 				{
 					/* connection in progress */
-					watch_mysql (rdev, status);
+					watch_mysql(rdev, status);
 				}
 				else
 				{
@@ -481,11 +481,11 @@ static int dev_evcb_mar_ready (hio_dev_t* dev, int events)
 					if (tmp)
 					{
 						/* established ok */
-						desched_connect_timeout (dev);
-						watch_mysql (rdev, status);
+						desched_connect_timeout(dev);
+						watch_mysql(rdev, status);
 						rdev->connected = 1; /* really connected */
-						HIO_DEV_MAR_SET_PROGRESS (rdev, HIO_DEV_MAR_CONNECTED);
-						if (rdev->on_connect) rdev->on_connect (rdev);
+						HIO_DEV_MAR_SET_PROGRESS(rdev, HIO_DEV_MAR_CONNECTED);
+						if (rdev->on_connect) rdev->on_connect(rdev);
 					}
 					else
 					{
@@ -509,12 +509,12 @@ static int dev_evcb_mar_ready (hio_dev_t* dev, int events)
 						 * close(6); <- mysql_real_connect_cont();
 						 * epoll_ctl(4, EPOLL_CTL_DEL, 6, 0x7ffc785e7154) = -1 EBADF (Bad file descriptor) <- by hio_dev_watch() in watch_mysql
 						 */
-						watch_mysql (rdev, 0);
+						watch_mysql(rdev, 0);
 
 						/* on_disconnect() will be called without on_connect().
 						 * you may assume that the initial connection attempt failed.
 						 * reconnection doesn't apply in this context. */
-						hio_dev_mar_halt (rdev);
+						hio_dev_mar_halt(rdev);
 					}
 				}
 			}
@@ -524,8 +524,8 @@ static int dev_evcb_mar_ready (hio_dev_t* dev, int events)
 			if (rdev->query_started_deferred)
 			{
 				rdev->query_started_deferred = 0;
-				HIO_DEV_MAR_SET_PROGRESS (rdev, HIO_DEV_MAR_QUERY_STARTED);
-				if (rdev->on_query_started) rdev->on_query_started (rdev, 0, HIO_NULL);
+				HIO_DEV_MAR_SET_PROGRESS(rdev, HIO_DEV_MAR_QUERY_STARTED);
+				if (rdev->on_query_started) rdev->on_query_started(rdev, 0, HIO_NULL);
 			}
 			else
 			{
@@ -537,7 +537,7 @@ static int dev_evcb_mar_ready (hio_dev_t* dev, int events)
 
 				if (status)
 				{
-					watch_mysql (rdev, status);
+					watch_mysql(rdev, status);
 				}
 				else
 				{
@@ -556,22 +556,22 @@ static int dev_evcb_mar_ready (hio_dev_t* dev, int events)
 
 							rdev->broken = 1;
 							rdev->broken_syshnd = syshnd;
-							watch_mysql (rdev, 0);
-							hio_dev_mar_halt (rdev); /* i can't keep this device alive regardless of the caller's post-action */
+							watch_mysql(rdev, 0);
+							hio_dev_mar_halt(rdev); /* i can't keep this device alive regardless of the caller's post-action */
 							/* don't invoke on_query_started(). in this case, on_disconnect() will be called later */
 						}
 						else
 						{
 							/* query not sent for other reasons. probably nothing to watch? */
-							watch_mysql (rdev, 0); /* TODO: use status instead of 0? is status reliable in this context? */
-							if (rdev->on_query_started) rdev->on_query_started (rdev, err, mysql_error(rdev->hnd));
+							watch_mysql(rdev, 0); /* TODO: use status instead of 0? is status reliable in this context? */
+							if (rdev->on_query_started) rdev->on_query_started(rdev, err, mysql_error(rdev->hnd));
 						}
 					}
 					else
 					{
 						/* query really sent */
-						HIO_DEV_MAR_SET_PROGRESS (rdev, HIO_DEV_MAR_QUERY_STARTED);
-						if (rdev->on_query_started) rdev->on_query_started (rdev, 0, HIO_NULL);
+						HIO_DEV_MAR_SET_PROGRESS(rdev, HIO_DEV_MAR_QUERY_STARTED);
+						if (rdev->on_query_started) rdev->on_query_started(rdev, 0, HIO_NULL);
 					}
 				}
 			}
@@ -591,16 +591,16 @@ static int dev_evcb_mar_ready (hio_dev_t* dev, int events)
 				if (!row)
 				{
 					HIO_ASSERT(hio, rdev->res != HIO_NULL);
-					mysql_free_result (rdev->res); /* this doesn't block after the last row */
+					mysql_free_result(rdev->res); /* this doesn't block after the last row */
 					rdev->res = HIO_NULL;
 
-					watch_mysql (rdev, rdev->row_wstatus);
+					watch_mysql(rdev, rdev->row_wstatus);
 				}
 
-				HIO_DEV_MAR_SET_PROGRESS (rdev, HIO_DEV_MAR_ROW_FETCHED);
-				if (HIO_LIKELY(rdev->on_row_fetched)) rdev->on_row_fetched (rdev, row);
+				HIO_DEV_MAR_SET_PROGRESS(rdev, HIO_DEV_MAR_ROW_FETCHED);
+				if (HIO_LIKELY(rdev->on_row_fetched)) rdev->on_row_fetched(rdev, row);
 
-				if (row) start_fetch_row (rdev);
+				if (row) start_fetch_row(rdev);
 			}
 			else
 			{
@@ -613,22 +613,22 @@ static int dev_evcb_mar_ready (hio_dev_t* dev, int events)
 					if (!row)
 					{
 						/* the last row has been received - cleanup before invoking the callback */
-						watch_mysql (rdev, status);
+						watch_mysql(rdev, status);
 
 						HIO_ASSERT(hio, rdev->res != HIO_NULL);
-						mysql_free_result (rdev->res); /* this doesn't block after the last row */
+						mysql_free_result(rdev->res); /* this doesn't block after the last row */
 						rdev->res = HIO_NULL;
 					}
 
-					HIO_DEV_MAR_SET_PROGRESS (rdev, HIO_DEV_MAR_ROW_FETCHED);
-					if (HIO_LIKELY(rdev->on_row_fetched)) rdev->on_row_fetched (rdev, row);
+					HIO_DEV_MAR_SET_PROGRESS(rdev, HIO_DEV_MAR_ROW_FETCHED);
+					if (HIO_LIKELY(rdev->on_row_fetched)) rdev->on_row_fetched(rdev, row);
 
-					if (row) start_fetch_row (rdev); /* arrange to fetch the next row */
+					if (row) start_fetch_row(rdev); /* arrange to fetch the next row */
 				}
 				else
 				{
 					/* no row is available */
-					watch_mysql (rdev, status);
+					watch_mysql(rdev, status);
 				}
 			}
 
@@ -680,5 +680,5 @@ int hio_dev_mar_fetchrows (hio_dev_mar_t* dev)
 hio_oow_t hio_dev_mar_escapebchars (hio_dev_mar_t* dev, const hio_bch_t* qstr, hio_oow_t qlen, hio_bch_t* buf)
 {
 	hio_dev_mar_t* rdev = (hio_dev_mar_t*)dev;
-	return mysql_real_escape_string (rdev->hnd, buf, qstr, qlen);
+	return mysql_real_escape_string(rdev->hnd, buf, qstr, qlen);
 }

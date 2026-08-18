@@ -82,7 +82,7 @@ hio_t* hio_open (hio_mmgr_t* mmgr, hio_oow_t xtnsize, hio_cmgr_t* cmgr, hio_bitm
 		if (hio_init(hio, mmgr, cmgr, features, tmrcapa) <= -1)
 		{
 			if (errinfo) hio_geterrinf (hio, errinfo);
-			HIO_MMGR_FREE (mmgr, hio);
+			HIO_MMGR_FREE(mmgr, hio);
 			hio = HIO_NULL;
 		}
 		else HIO_MEMSET(hio + 1, 0, xtnsize);
@@ -98,8 +98,8 @@ hio_t* hio_open (hio_mmgr_t* mmgr, hio_oow_t xtnsize, hio_cmgr_t* cmgr, hio_bitm
 
 void hio_close (hio_t* hio)
 {
-	hio_fini (hio);
-	HIO_MMGR_FREE (hio->_mmgr, hio);
+	hio_fini(hio);
+	HIO_MMGR_FREE(hio->_mmgr, hio);
 }
 
 int hio_init (hio_t* hio, hio_mmgr_t* mmgr, hio_cmgr_t* cmgr, hio_bitmask_t features, hio_oow_t tmrcapa)
@@ -141,13 +141,13 @@ int hio_init (hio_t* hio, hio_mmgr_t* mmgr, hio_cmgr_t* cmgr, hio_bitmask_t feat
 	HIO_CWQ_INIT (&hio->cwq);
 	HIO_SVCL_INIT (&hio->actsvc);
 
-	hio_sys_gettime (hio, &hio->init_time);
+	hio_sys_gettime(hio, &hio->init_time);
 	return 0;
 
 oops:
 	if (hio->tmr.jobs) hio_freemem(hio, hio->tmr.jobs);
 
-	if (sys_inited) hio_sys_fini (hio);
+	if (sys_inited) hio_sys_fini(hio);
 
 	if (hio->log.ptr) hio_freemem(hio, hio->log.ptr);
 	hio->log.capa = 0;
@@ -260,7 +260,7 @@ void hio_fini (hio_t* hio)
 	/* clear unneeded cfmbs insistently - a misbehaving checker will make this cleaning step loop forever*/
 	while (!HIO_CFMBL_IS_EMPTY(&hio->cfmb)) clear_unneeded_cfmbs (hio);
 
-	hio_sys_fini (hio); /* finalize the system dependent data */
+	hio_sys_fini(hio); /* finalize the system dependent data */
 
 	if (hio->log.ptr)
 	{
@@ -731,8 +731,8 @@ static HIO_INLINE void handle_event (hio_t* hio, hio_dev_t* dev, int events, int
 
 				HIO_MEMSET(&tmrjob, 0, HIO_SIZEOF(tmrjob));
 				tmrjob.ctx = dev;
-				hio_gettime (hio, &tmrjob.when);
-				HIO_ADD_NTIME (&tmrjob.when, &tmrjob.when, &dev->rtmout);
+				hio_gettime(hio, &tmrjob.when);
+				HIO_ADD_NTIME(&tmrjob.when, &tmrjob.when, &dev->rtmout);
 				tmrjob.handler = on_read_timeout;
 				tmrjob.idxptr = &dev->rtmridx;
 
@@ -1031,7 +1031,7 @@ hio_dev_t* hio_dev_make (hio_t* hio, hio_oow_t dev_size, hio_dev_mth_t* dev_mth,
 
 	dev->dev_evcb = dev_evcb;
 
-	HIO_INIT_NTIME (&dev->rtmout, 0, 0);
+	HIO_INIT_NTIME(&dev->rtmout, 0, 0);
 	dev->rtmridx = HIO_TMRIDX_INVALID;
 	HIO_WQ_INIT (&dev->wq);
 	dev->cw_count = 0;
@@ -1163,12 +1163,12 @@ static int schedule_kill_zombie_job (hio_dev_t* dev)
 	hio_tmrjob_t kill_zombie_job;
 	hio_ntime_t tmout;
 
-	HIO_INIT_NTIME (&tmout, 3, 0); /* TODO: take it from configuration */
+	HIO_INIT_NTIME(&tmout, 3, 0); /* TODO: take it from configuration */
 
 	HIO_MEMSET(&kill_zombie_job, 0, HIO_SIZEOF(kill_zombie_job));
 	kill_zombie_job.ctx = dev;
-	hio_gettime (hio, &kill_zombie_job.when);
-	HIO_ADD_NTIME (&kill_zombie_job.when, &kill_zombie_job.when, &tmout);
+	hio_gettime(hio, &kill_zombie_job.when);
+	HIO_ADD_NTIME(&kill_zombie_job.when, &kill_zombie_job.when, &tmout);
 	kill_zombie_job.handler = kill_zombie_job_handler;
 	/*kill_zombie_job.idxptr = &rdev->tmridx_kill_zombie;*/
 
@@ -1449,8 +1449,8 @@ update_timer:
 
 		HIO_MEMSET(&tmrjob, 0, HIO_SIZEOF(tmrjob));
 		tmrjob.ctx = dev;
-		hio_gettime (hio, &tmrjob.when);
-		HIO_ADD_NTIME (&tmrjob.when, &tmrjob.when, tmout);
+		hio_gettime(hio, &tmrjob.when);
+		HIO_ADD_NTIME(&tmrjob.when, &tmrjob.when, tmout);
 		tmrjob.handler = on_read_timeout;
 		tmrjob.idxptr = &dev->rtmridx;
 
@@ -1590,8 +1590,8 @@ static HIO_INLINE int __enqueue_pending_write (hio_dev_t* dev, hio_iolen_t olen,
 
 		HIO_MEMSET(&tmrjob, 0, HIO_SIZEOF(tmrjob));
 		tmrjob.ctx = q;
-		hio_gettime (hio, &tmrjob.when);
-		HIO_ADD_NTIME (&tmrjob.when, &tmrjob.when, tmout);
+		hio_gettime(hio, &tmrjob.when);
+		HIO_ADD_NTIME(&tmrjob.when, &tmrjob.when, tmout);
 		tmrjob.handler = on_write_timeout;
 		tmrjob.idxptr = &q->tmridx;
 
@@ -1664,8 +1664,8 @@ static HIO_INLINE int __enqueue_pending_sendfile (hio_dev_t* dev, hio_iolen_t ol
 
 		HIO_MEMSET(&tmrjob, 0, HIO_SIZEOF(tmrjob));
 		tmrjob.ctx = q;
-		hio_gettime (hio, &tmrjob.when);
-		HIO_ADD_NTIME (&tmrjob.when, &tmrjob.when, tmout);
+		hio_gettime(hio, &tmrjob.when);
+		HIO_ADD_NTIME(&tmrjob.when, &tmrjob.when, tmout);
 		tmrjob.handler = on_write_timeout;
 		tmrjob.idxptr = &q->tmridx;
 

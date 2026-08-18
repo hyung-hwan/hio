@@ -663,7 +663,7 @@ static int peer_capture_request_header (hio_htre_t* req, const hio_bch_t* key, c
 		hio_oow_t val_offset;
 		hio_bch_t* ptr;
 
-		hio_becs_clear (dbuf);
+		hio_becs_clear(dbuf);
 		if (hio_becs_cpy(dbuf, "HTTP_") == (hio_oow_t)-1 ||
 		    hio_becs_cat(dbuf, key) == (hio_oow_t)-1 ||
 		    hio_becs_ccat(dbuf, '\0') == (hio_oow_t)-1) return -1;
