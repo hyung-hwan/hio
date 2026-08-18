@@ -547,8 +547,8 @@ typedef struct hio_rco_t hio_rco_t;
 typedef void (*hio_rco_fini_t) (hio_rco_t* obj);
 
 #define HIO_RCO_HEADER \
-	hio_t*           rco_hio; \
-	hio_oow_t        rco_refcnt; \
+	hio_t*         rco_hio; \
+	hio_oow_t      rco_refcnt; \
 	hio_rco_fini_t rco_fini
 
 struct hio_rco_t
@@ -1223,6 +1223,20 @@ HIO_EXPORT void* hio_reallocmem (
 HIO_EXPORT void hio_freemem (
 	hio_t*  hio,
 	void*   ptr
+);
+
+HIO_EXPORT void hio_rco_init (
+	hio_rco_t*      obj,
+	hio_t*          hio,
+	hio_rco_fini_t  fini
+);
+
+HIO_EXPORT void hio_rco_ref (
+	hio_rco_t*      obj
+);
+
+HIO_EXPORT void hio_rco_unref (
+	hio_rco_t*      obj
 );
 
 HIO_EXPORT void hio_addcfmb (

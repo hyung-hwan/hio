@@ -24,28 +24,28 @@
 
 #include "hio-prv.h"
 
-void hio_rcobj_init (hio_rcobj_t* obj, hio_t* hio, hio_rcobj_fini_t fini)
+void hio_rco_init (hio_rco_t* obj, hio_t* hio, hio_rco_fini_t fini)
 {
-	obj->rcobj_hio = hio;
-	obj->rcobj_refcnt = 0;
-	obj->rcobj_fini = fini;
+	obj->rco_hio = hio;
+	obj->rco_refcnt = 0;
+	obj->rco_fini = fini;
 }
 
-void hio_rcobj_ref (hio_rcobj_t* obj)
+void hio_rco_ref (hio_rco_t* obj)
 {
-	obj->rcobj_refcnt++;
+	obj->rco_refcnt++;
 }
 
-void hio_rcobj_unref (hio_rcobj_t* obj)
+void hio_rco_unref (hio_rco_t* obj)
 {
-	hio_t* hio = obj->rcobj_hio;
+	hio_t* hio = obj->rco_hio;
 
-	HIO_ASSERT(hio, obj->rcobj_refcnt > 0);
+	HIO_ASSERT(hio, obj->rco_refcnt > 0);
 
-	if (--obj->rcobj_refcnt == 0)
+	if (--obj->rco_refcnt == 0)
 	{
 		/* cache hio above - the block is gone by the time we free it */
-		if (obj->rcobj_fini) obj->rcobj_fini(obj);
+		if (obj->rco_fini) obj->rco_fini(obj);
 		hio_freemem (hio, obj);
 	}
 }

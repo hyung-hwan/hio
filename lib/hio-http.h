@@ -132,7 +132,7 @@ struct hio_svc_htts_task_t
 
 #define HIO_SVC_HTTS_TASK_RCUP(task) HIO_RCO_REF(task)
 
-#define HIO_SVC_HTTS_TASK_RCDOWN(task_var) HIO_RCO_UNREF(task)
+#define HIO_SVC_HTTS_TASK_RCDOWN(task_var) HIO_RCO_UNREF(task_var)
 
 #define HIO_SVC_HTTS_TASK_REF(task, var) do { \
 	(var) = (task); \

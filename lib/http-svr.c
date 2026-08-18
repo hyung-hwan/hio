@@ -142,7 +142,7 @@ static int init_client (hio_svc_htts_cli_t* cli, hio_dev_sck_t* sck)
 
 	hio_gettime (sck->hio, &cli->last_active);
 
-	HIO_DEBUG4 (sck->hio, "HTTS(%p) - client(c=%p,csck=%d[%d]) - initialized\n", cli->htts, cli, sck, (int)sck->hnd);
+	HIO_DEBUG4(sck->hio, "HTTS(%p) - client(c=%p,csck=%d[%d]) - initialized\n", cli->htts, cli, sck, (int)sck->hnd);
 
 	sck->on_read = client_on_read;
 	sck->on_write = client_on_write;
@@ -240,18 +240,18 @@ static void listener_on_connect (hio_dev_sck_t* sck)
 	if (sck->state & HIO_DEV_SCK_ACCEPTED)
 	{
 		/* accepted a new client */
-		HIO_DEBUG3 (sck->hio, "HTTS(%p) - accepted client(%p,%d) \n", cli->htts, sck, (int)sck->hnd);
+		HIO_DEBUG3(sck->hio, "HTTS(%p) - accepted client(%p,%d) \n", cli->htts, sck, (int)sck->hnd);
 
 		if (init_client(cli, sck) <= -1)
 		{
-			HIO_DEBUG3 (cli->htts->hio, "HTTS(%p) - halting client(%p,%d) for client intiaialization failure\n", cli->htts, sck, (int)sck->hnd);
+			HIO_DEBUG3(cli->htts->hio, "HTTS(%p) - halting client(%p,%d) for client intiaialization failure\n", cli->htts, sck, (int)sck->hnd);
 			hio_dev_sck_halt (sck);
 		}
 	}
 	else if (sck->state & HIO_DEV_SCK_CONNECTED)
 	{
 		/* this will never be triggered as the listing socket never call hio_dev_sck_connect() */
-		HIO_DEBUG3 (sck->hio, "HTTS(%p) - connected (%p,%d) \n", cli->htts, sck, (int)sck->hnd);
+		HIO_DEBUG3(sck->hio, "HTTS(%p) - connected (%p,%d) \n", cli->htts, sck, (int)sck->hnd);
 	}
 
 	/* HIO_DEV_SCK_CONNECTED must not be seen here as this is only for the listener socket */
@@ -267,21 +267,21 @@ static void listener_on_disconnect (hio_dev_sck_t* sck)
 	{
 		case HIO_DEV_SCK_CONNECTING:
 			/* only for connecting sockets */
-			HIO_DEBUG3 (hio, "HTTS(%p) - OUTGOING SESSION DISCONNECTED - FAILED TO CONNECT %p[%d] TO REMOTE SERVER\n", htts, sck, (int)sck->hnd);
+			HIO_DEBUG3(hio, "HTTS(%p) - OUTGOING SESSION DISCONNECTED - FAILED TO CONNECT %p[%d] TO REMOTE SERVER\n", htts, sck, (int)sck->hnd);
 			break;
 
 		case HIO_DEV_SCK_CONNECTING_SSL:
 			/* only for connecting sockets */
-			HIO_DEBUG3 (hio, "HTTS(%p) - OUTGOING SESSION DISCONNECTED - FAILED TO SSL-CONNECT %p[%d] TO REMOTE SERVER\n", htts, sck, (int)sck->hnd);
+			HIO_DEBUG3(hio, "HTTS(%p) - OUTGOING SESSION DISCONNECTED - FAILED TO SSL-CONNECT %p[%d] TO REMOTE SERVER\n", htts, sck, (int)sck->hnd);
 			break;
 
 		case HIO_DEV_SCK_CONNECTED:
 			/* only for connecting sockets */
-			HIO_DEBUG3 (hio, "HTTS(%p) - OUTGOING CLIENT CONNECTION GOT TORN DOWN %p[%d].......\n", htts, sck, (int)sck->hnd);
+			HIO_DEBUG3(hio, "HTTS(%p) - OUTGOING CLIENT CONNECTION GOT TORN DOWN %p[%d].......\n", htts, sck, (int)sck->hnd);
 			break;
 
 		case HIO_DEV_SCK_LISTENING:
-			HIO_DEBUG3 (hio, "HTTS(%p) - LISTNER SOCKET %p[%d] - SHUTTUING DOWN\n", htts, sck, (int)sck->hnd);
+			HIO_DEBUG3(hio, "HTTS(%p) - LISTNER SOCKET %p[%d] - SHUTTUING DOWN\n", htts, sck, (int)sck->hnd);
 			break;
 
 		case HIO_DEV_SCK_ACCEPTING_SSL: /* special case. */
@@ -290,17 +290,17 @@ static void listener_on_disconnect (hio_dev_sck_t* sck)
 			 * the cli extension are is not initialized yet */
 			HIO_ASSERT(hio, sck != xtn->sck);
 			/*HIO_ASSERT(hio, cli->sck == cli->htts->lsck);*/ /* the field is a copy of the extension are of the listener socket. so it should point to the listner socket */
-			HIO_DEBUG3 (hio, "HTTS(%p) - LISTENER UNABLE TO SSL-ACCEPT CLIENT %p[%d]\n", htts, sck, (int)sck->hnd);
+			HIO_DEBUG3(hio, "HTTS(%p) - LISTENER UNABLE TO SSL-ACCEPT CLIENT %p[%d]\n", htts, sck, (int)sck->hnd);
 			return;
 
 		case HIO_DEV_SCK_ACCEPTED:
 			/* only for sockets accepted by the listeners. will never come here because
 			 * the disconnect call for such sockets have been changed in listener_on_connect() */
-			HIO_DEBUG3 (hio, "HTTS(%p) - ACCEPTED CLIENT SOCKET %p[%d] GOT DISCONNECTED\n", htts, sck, (int)sck->hnd);
+			HIO_DEBUG3(hio, "HTTS(%p) - ACCEPTED CLIENT SOCKET %p[%d] GOT DISCONNECTED\n", htts, sck, (int)sck->hnd);
 			break;
 
 		default:
-			HIO_DEBUG3 (hio, "HTTS(%p) - SOCKET %p[%d] DISCONNECTED AFTER ALL\n", htts, sck, (int)sck->hnd);
+			HIO_DEBUG3(hio, "HTTS(%p) - SOCKET %p[%d] DISCONNECTED AFTER ALL\n", htts, sck, (int)sck->hnd);
 			break;
 	}
 
@@ -310,7 +310,7 @@ static void listener_on_disconnect (hio_dev_sck_t* sck)
 		HIO_ASSERT(hio, xtn->htrd == HIO_NULL);
 		HIO_ASSERT(hio, xtn->sbuf == HIO_NULL);
 
-		HIO_DEBUG3 (hio, "HTTS(%p) - listener socket disconnect %p[%d]\n", xtn->htts, sck, (int)sck->hnd);
+		HIO_DEBUG3(hio, "HTTS(%p) - listener socket disconnect %p[%d]\n", xtn->htts, sck, (int)sck->hnd);
 		xtn->htts->l.sck[xtn->l_idx] = HIO_NULL; /* let the htts service forget about this listening socket */
 	}
 	else
@@ -336,14 +336,14 @@ static int client_on_read (hio_dev_sck_t* sck, const void* buf, hio_iolen_t len,
 
 	if (len <= -1)
 	{
-		HIO_DEBUG3 (hio, "HTTS(%p) - unable to read client %p(%d)\n", htts, sck, (int)sck->hnd);
+		HIO_DEBUG3(hio, "HTTS(%p) - unable to read client %p(%d)\n", htts, sck, (int)sck->hnd);
 		if (task) task->task_keep_client_alive = 0;
 		goto oops;
 	}
 
 	if (len == 0)
 	{
-		HIO_DEBUG3 (hio, "HTTS(%p) - EOF on client %p(%d)\n", htts, sck, (int)sck->hnd);
+		HIO_DEBUG3(hio, "HTTS(%p) - EOF on client %p(%d)\n", htts, sck, (int)sck->hnd);
 		if (task) task->task_keep_client_alive = 0;
 		goto oops;
 	}
@@ -351,13 +351,13 @@ static int client_on_read (hio_dev_sck_t* sck, const void* buf, hio_iolen_t len,
 	hio_gettime (hio, &cli->last_active);
 	if ((x = hio_htrd_feed(cli->htrd, buf, len, &rem)) <= -1)
 	{
-		HIO_DEBUG3 (hio, "HTTS(%p) - feed error onto client htrd %p(%d)\n", htts, sck, (int)sck->hnd);
+		HIO_DEBUG3(hio, "HTTS(%p) - feed error onto client htrd %p(%d)\n", htts, sck, (int)sck->hnd);
 		goto oops;
 	}
 
 	if (rem > 0)
 	{
-		HIO_DEBUG3 (hio, "HTTS(%p) - excessive data after contents by client %p(%d)\n", htts, sck, (int)sck->hnd);
+		HIO_DEBUG3(hio, "HTTS(%p) - excessive data after contents by client %p(%d)\n", htts, sck, (int)sck->hnd);
 		if (cli->task)
 		{
 			/* TODO store this to client buffer. once the current resource is completed, arrange to call on_read() with it */
@@ -398,7 +398,7 @@ static int client_on_write (hio_dev_sck_t* sck, hio_iolen_t wrlen, void* wrctx, 
 	{
 		if (wrlen <= -1)
 		{
-			HIO_DEBUG3 (hio, "HTTS(%p) - unable to write to client %p(%d)\n", htts, sck, (int)sck->hnd);
+			HIO_DEBUG3(hio, "HTTS(%p) - unable to write to client %p(%d)\n", htts, sck, (int)sck->hnd);
 			hio_dev_sck_halt (sck);
 		}
 		else if (wrlen == 0)
@@ -431,11 +431,11 @@ static void client_on_disconnect (hio_dev_sck_t* sck)
 	HIO_ASSERT(hio, cli->sck == sck);
 	HIO_ASSERT(hio, cli->l_idx == INVALID_LIDX);
 
-	HIO_DEBUG4 (hio, "HTTS(%p) - task(t=%p,c=%p,csck=%p) - handling client socket disconnect\n", htts, task, cli, sck);
+	HIO_DEBUG4(hio, "HTTS(%p) - task(t=%p,c=%p,csck=%p) - handling client socket disconnect\n", htts, task, cli, sck);
 
 	fini_client (cli);
 
-	HIO_DEBUG4 (hio, "HTTS(%p) - task(t=%p,c=%p,csck=%p) - handled client socket disconnect\n", htts, task, cli, sck);
+	HIO_DEBUG4(hio, "HTTS(%p) - task(t=%p,c=%p,csck=%p) - handled client socket disconnect\n", htts, task, cli, sck);
 	/* Note: after this callback, the actual device pointed to by 'sck' will be freed in the main loop. */
 }
 
@@ -463,7 +463,7 @@ static void halt_idle_clients (hio_t* hio, const hio_ntime_t* now, hio_tmrjob_t*
 
 			if (HIO_CMP_NTIME(&t, &max_client_idle) >= 0)
 			{
-				HIO_DEBUG4 (hio, "HTTS(%p) - Halting idle client(%p,%p,%d)\n", htts, cli, cli->sck, (int)cli->sck->hnd);
+				HIO_DEBUG4(hio, "HTTS(%p) - Halting idle client(%p,%p,%d)\n", htts, cli, cli->sck, (int)cli->sck->hnd);
 				hio_dev_sck_halt (cli->sck);
 			}
 		}
@@ -473,7 +473,7 @@ static void halt_idle_clients (hio_t* hio, const hio_ntime_t* now, hio_tmrjob_t*
 	HIO_ADD_NTIME (&t, &t, now);
 	if (hio_schedtmrjobat(hio, &t, halt_idle_clients, &htts->idle_tmridx, htts) <= -1)
 	{
-		HIO_INFO1 (hio, "HTTS(%p) - unable to reschedule idle client detector. continuting\n", htts);
+		HIO_INFO1(hio, "HTTS(%p) - unable to reschedule idle client detector. continuting\n", htts);
 	}
 }
 
@@ -499,7 +499,7 @@ hio_svc_htts_t* hio_svc_htts_start (hio_t* hio, hio_oow_t xtnsize, hio_dev_sck_b
 	htts = (hio_svc_htts_t*)hio_callocmem(hio, HIO_SIZEOF(*htts) + xtnsize);
 	if (HIO_UNLIKELY(!htts)) goto oops;
 
-	HIO_DEBUG1 (hio, "HTTS - STARTING SERVICE %p\n", htts);
+	HIO_DEBUG1(hio, "HTTS - STARTING SERVICE %p\n", htts);
 
 	htts->hio = hio;
 	htts->svc_stop = (hio_svc_stop_t)hio_svc_htts_stop;
@@ -543,7 +543,7 @@ hio_svc_htts_t* hio_svc_htts_start (hio_t* hio, hio_oow_t xtnsize, hio_dev_sck_b
 
 			default:
 				/* ignore this */
-				HIO_DEBUG3 (hio, "HTTS(%p) - [%zu] unsupported bind address type %d\n", htts, i, (int)hio_skad_get_family(&binds[i].localaddr));
+				HIO_DEBUG3(hio, "HTTS(%p) - [%zu] unsupported bind address type %d\n", htts, i, (int)hio_skad_get_family(&binds[i].localaddr));
 				continue;
 		}
 
@@ -576,7 +576,7 @@ hio_svc_htts_t* hio_svc_htts_start (hio_t* hio, hio_oow_t xtnsize, hio_dev_sck_b
 				{
 					hio_bch_t tmpbuf[HIO_SKAD_IP_STRLEN + 1];
 					hio_skadtobcstr(hio, &binds[i].localaddr, tmpbuf, HIO_COUNTOF(tmpbuf), HIO_SKAD_TO_BCSTR_ADDR | HIO_SKAD_TO_BCSTR_PORT);
-					HIO_DEBUG3 (hio, "HTTS(%p) - [%zu] unable to bind to %hs\n", htts, i, tmpbuf);
+					HIO_DEBUG3(hio, "HTTS(%p) - [%zu] unable to bind to %hs\n", htts, i, tmpbuf);
 				}
 
 				hio_dev_sck_kill (sck);
@@ -592,7 +592,7 @@ hio_svc_htts_t* hio_svc_htts_start (hio_t* hio, hio_oow_t xtnsize, hio_dev_sck_b
 				{
 					hio_bch_t tmpbuf[HIO_SKAD_IP_STRLEN + 1];
 					hio_skadtobcstr(hio, &binds[i].localaddr, tmpbuf, HIO_COUNTOF(tmpbuf), HIO_SKAD_TO_BCSTR_ADDR | HIO_SKAD_TO_BCSTR_PORT);
-					HIO_DEBUG3 (hio, "HTTS(%p) - [%zu] unable to bind to %hs\n", htts, i, tmpbuf);
+					HIO_DEBUG3(hio, "HTTS(%p) - [%zu] unable to bind to %hs\n", htts, i, tmpbuf);
 				}
 
 				hio_dev_sck_kill (sck);
@@ -606,7 +606,7 @@ hio_svc_htts_t* hio_svc_htts_start (hio_t* hio, hio_oow_t xtnsize, hio_dev_sck_b
 			hio_bch_t tmpbuf[HIO_SKAD_IP_STRLEN + 1];
 			hio_dev_sck_getsockaddr(sck, &tmpad);
 			hio_skadtobcstr(hio, &tmpad, tmpbuf, HIO_COUNTOF(tmpbuf), HIO_SKAD_TO_BCSTR_ADDR | HIO_SKAD_TO_BCSTR_PORT);
-			HIO_DEBUG3 (hio, "HTTS(%p) - [%zu] listening on %hs\n", htts, i, tmpbuf);
+			HIO_DEBUG3(hio, "HTTS(%p) - [%zu] listening on %hs\n", htts, i, tmpbuf);
 		}
 
 		htts->l.sck[i] = sck;
@@ -623,7 +623,7 @@ hio_svc_htts_t* hio_svc_htts_start (hio_t* hio, hio_oow_t xtnsize, hio_dev_sck_b
 	HIO_SVC_HTTS_CLIL_INIT (&htts->cli);
 	HIO_SVC_HTTS_TASKL_INIT (&htts->task);
 
-	HIO_DEBUG1 (hio, "HTTS - STARTED SERVICE %p\n", htts);
+	HIO_DEBUG1(hio, "HTTS - STARTED SERVICE %p\n", htts);
 
 	{
 		hio_ntime_t t;
@@ -631,7 +631,7 @@ hio_svc_htts_t* hio_svc_htts_start (hio_t* hio, hio_oow_t xtnsize, hio_dev_sck_b
 		HIO_INIT_NTIME (&t, MAX_CLIENT_IDLE, 0);
 		if (hio_schedtmrjobafter(hio, &t, halt_idle_clients, &htts->idle_tmridx, htts) <= -1)
 		{
-			HIO_INFO1 (hio, "HTTS(%p) - unable to schedule idle client detector. continuting\n", htts);
+			HIO_INFO1(hio, "HTTS(%p) - unable to schedule idle client detector. continuting\n", htts);
 			/* don't care about failure */
 		}
 	}
@@ -674,7 +674,7 @@ void hio_svc_htts_stop (hio_svc_htts_t* htts)
 	hio_t* hio = htts->hio;
 	hio_oow_t i, ntasks = 0;
 
-	HIO_DEBUG1 (hio, "HTTS - STOPPING SERVICE %p\n", htts);
+	HIO_DEBUG1(hio, "HTTS - STOPPING SERVICE %p\n", htts);
 
 	if (htts->fcgic)
 	{
@@ -715,7 +715,7 @@ void hio_svc_htts_stop (hio_svc_htts_t* htts)
 	hio_freemem(hio, htts);
 
 	/* it's not a good sign if the number of remaining tasks is greater than 0 */
-	HIO_DEBUG2 (hio, "HTTS - STOPPED SERVICE %p - killed %zu remaining tasks\n", htts, ntasks);
+	HIO_DEBUG2(hio, "HTTS - STOPPED SERVICE %p - killed %zu remaining tasks\n", htts, ntasks);
 }
 
 void* hio_svc_htts_getxtn (hio_svc_htts_t* htts)
@@ -860,7 +860,7 @@ hio_svc_htts_task_t* hio_svc_htts_task_make (hio_svc_htts_t* htts, hio_oow_t tas
 	hio_svc_htts_task_t* task;
 	hio_oow_t qpath_len, qmth_len;
 
-	HIO_DEBUG1 (hio, "HTTS(%p) - allocating task\n", htts);
+	HIO_DEBUG1(hio, "HTTS(%p) - allocating task\n", htts);
 
 	qpath_len = hio_htre_getqpathlen(req);
 	qmth_len = hio_htre_getqmethodlen(req);
@@ -870,7 +870,7 @@ hio_svc_htts_task_t* hio_svc_htts_task_make (hio_svc_htts_t* htts, hio_oow_t tas
 	task = hio_callocmem(hio, task_size + qmth_len + 1 + qpath_len + 1);
 	if (HIO_UNLIKELY(!task))
 	{
-		HIO_DEBUG1 (hio, "HTTS(%p) - failed to allocate task\n", htts);
+		HIO_DEBUG1(hio, "HTTS(%p) - failed to allocate task\n", htts);
 		dec_ntasks (htts);
 		return HIO_NULL;
 	}
@@ -900,38 +900,33 @@ hio_svc_htts_task_t* hio_svc_htts_task_make (hio_svc_htts_t* htts, hio_oow_t tas
 	HIO_ASSERT(hio, csck->on_write == client_on_write);
 	HIO_ASSERT(hio, csck->on_disconnect == client_on_disconnect);
 
-	HIO_DEBUG2 (hio, "HTTS(%p) - allocated task %p\n", htts, task);
+	HIO_DEBUG2(hio, "HTTS(%p) - allocated task %p\n", htts, task);
 	return task;
 }
 
+/* runs from hio_rco_unref() once the last reference is dropped. the core
+ * frees the block right after this returns, so this only undoes what the
+ * http layer set up. */
 static void task_rco_fini (hio_rco_t* rco)
 {
 	hio_svc_htts_task_t* task = (hio_svc_htts_task_t*)rco;
 	hio_svc_htts_t* htts = task->htts;
+	hio_t* hio = htts->hio;
+
+	HIO_DEBUG2(hio, "HTTS(%p) - destroying task %p\n", htts, task);
 
 	if (task->task_on_kill) task->task_on_kill(task);
 	dec_ntasks(htts);
+
+	HIO_DEBUG2(hio, "HTTS(%p) - destroyed task %p\n", htts, task);
 }
 
 void hio_svc_htts_task_kill (hio_svc_htts_task_t* task)
 {
-#if 0
-	hio_svc_htts_t* htts = task->htts;
-	hio_t* hio = htts->hio;
-
-	HIO_DEBUG2 (hio, "HTTS(%p) - destroying task %p\n", htts, task);
-
-	if (task->task_on_kill) task->task_on_kill (task);
-	hio_freemem(hio, task);
-
-	dec_ntasks (htts);
-	HIO_DEBUG2 (hio, "HTTS(%p) - destroyed task %p\n", htts, task);
-#else
-	hio_svc_htts_t* htts = task->htts;
-	HIO_DEBUG2(hio, "HTTS(%p) - destroying task %p\n", htts, task);
+	/* dropping the last reference is what destroys a task. the logging and
+	 * the teardown both live in task_rco_fini(), which the core calls at
+	 * that point - this must not assume the drop destroys anything. */
 	HIO_RCO_UNREF(task);
-	HIO_DEBUG2(hio, "HTTS(%p) - destroyed task %p\n", htts, task);
-#endif
 }
 
 int hio_svc_htts_task_startreshdr (hio_svc_htts_task_t* task, int status_code, const hio_bch_t* status_desc, int chunked)
@@ -1024,7 +1019,7 @@ static int write_raw_to_client (hio_svc_htts_task_t* task, const void* data, hio
 	HIO_ASSERT(task->htts->hio, task->task_client != HIO_NULL);
 	HIO_ASSERT(task->htts->hio, task->task_csck != HIO_NULL);
 
-//HIO_DEBUG2 (task->htts->hio, "WR TO C[%.*hs]\n", dlen, data);
+//HIO_DEBUG2(task->htts->hio, "WR TO C[%.*hs]\n", dlen, data);
 
 	task->task_res_ever_sent = 1;
 	task->task_res_pending_writes++;
@@ -1059,7 +1054,7 @@ static int write_chunk_to_client (hio_svc_htts_task_t* task, const void* data, h
 	iov[2].iov_ptr = "\r\n";
 	iov[2].iov_len = 2;
 
-//HIO_DEBUG2 (task->htts->hio, "WR(CHNK) TO C[%.*hs]\n", dlen, data);
+//HIO_DEBUG2(task->htts->hio, "WR(CHNK) TO C[%.*hs]\n", dlen, data);
 
 	task->task_res_ever_sent = 1;
 	task->task_res_pending_writes++;
