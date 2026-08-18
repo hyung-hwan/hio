@@ -386,7 +386,7 @@ typedef hio_fltbas_t hio_flt_t;
 #define HIO_BCSIZE_MAX 6
 
 /* =========================================================================
- * BASIC MIO TYPES
+ * BASIC HIO TYPES
  * =========================================================================*/
 typedef char                    hio_bch_t;
 typedef int                     hio_bci_t;

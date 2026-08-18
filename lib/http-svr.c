@@ -1035,6 +1035,49 @@ void hio_svc_htts_task_unbindfromclient (hio_svc_htts_task_t* task, int rcdown)
 }
 
 /* ------------------------------------------------------------------------ */
+/* CLIENT-SIDE STEPS OF A TASK'S PROGRESS                                   */
+/*                                                                          */
+/* Every protocol module tracks its own progress bits and decides for       */
+/* itself when a stage is over, but what it then does to the client is the  */
+/* same in all of them. Those two actions live here.                        */
+/* ------------------------------------------------------------------------ */
+
+/* The task has read all it needs from the client. */
+void hio_svc_htts_task_stopreadingclient(hio_svc_htts_task_t* task)
+{
+	if (task->task_csck && hio_dev_sck_read(task->task_csck, 0) <= -1)
+	{
+		HIO_DEBUG2(task->htts->hio, "HTTS(%p) - halting client(%p) for failure to disable input watching\n", task->htts, task->task_csck);
+		hio_dev_sck_halt(task->task_csck);
+	}
+}
+
+/* The task is done with the client: hand the connection back for the next
+ * request on it, or shut it down. The task must not be touched after this
+ * - releasing the client can destroy it. */
+void hio_svc_htts_task_finishclient (hio_svc_htts_task_t* task)
+{
+	hio_t* hio = task->htts->hio;
+
+	if (!task->task_csck) return;
+
+	HIO_ASSERT(hio, task->task_client != HIO_NULL);
+
+	if (task->task_keep_client_alive)
+	{
+		HIO_DEBUG2(hio, "HTTS(%p) - keeping client(%p) alive\n", task->htts, task->task_csck);
+		HIO_ASSERT(hio, task->task_client->task == task);
+		hio_svc_htts_task_unbindfromclient (task, 1);
+	}
+	else
+	{
+		HIO_DEBUG2(hio, "HTTS(%p) - halting client(%p)\n", task->htts, task->task_csck);
+		hio_dev_sck_shutdown(task->task_csck, HIO_DEV_SCK_SHUTDOWN_WRITE);
+		hio_dev_sck_halt(task->task_csck);
+	}
+}
+
+/* ------------------------------------------------------------------------ */
 
 int hio_svc_htts_task_startreshdr (hio_svc_htts_task_t* task, int status_code, const hio_bch_t* status_desc, int chunked)
 {

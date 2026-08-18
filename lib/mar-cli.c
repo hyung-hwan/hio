@@ -113,11 +113,11 @@ hio_svc_marc_t* hio_svc_marc_start (hio_t* hio, const hio_svc_marc_connect_t* ci
 	}
 	marc->default_group = default_group;
 
-	HIO_SVCL_APPEND_SVC (&hio->actsvc, (hio_svc_t*)marc);
+	HIO_SVCL_APPEND_SVC(&hio->actsvc, (hio_svc_t*)marc);
 	return marc;
 
 oops:
-	if (marc->edev) mysql_close (marc->edev);
+	if (marc->edev) mysql_close(marc->edev);
 	if (marc) hio_freemem(hio, marc);
 	return HIO_NULL;
 }
@@ -138,9 +138,9 @@ void hio_svc_marc_stop (hio_svc_marc_t* marc)
 	}
 	hio_freemem(hio, marc->sess.ptr);
 
-	HIO_SVCL_UNLINK_SVC (marc);
+	HIO_SVCL_UNLINK_SVC(marc);
 
-	mysql_close (marc->edev);
+	mysql_close(marc->edev);
 
 	hio_freemem(hio, marc);
 }
@@ -207,9 +207,9 @@ static int send_pending_query_if_any (sess_t* sess)
 /*printf ("sending... %.*s\n", (int)sq->qlen, sq->qptr);*/
 		if (hio_dev_mar_querywithbchars(sess->dev, sq->qptr, sq->qlen) <= -1)
 		{
-			HIO_DEBUG2 (sess->svc->hio, "MARC(%p) - SEND FAIL %js\n", sess->dev, hio_geterrmsg(sess->svc->hio));
+			HIO_DEBUG2(sess->svc->hio, "MARC(%p) - SEND FAIL %js\n", sess->dev, hio_geterrmsg(sess->svc->hio));
 			sq->sent = 0;
-			hio_dev_mar_halt (sess->dev); /* this device can't carray on */
+			hio_dev_mar_halt(sess->dev); /* this device can't carray on */
 			return -1; /* halted the device for failure */
 		}
 
@@ -232,7 +232,7 @@ static void mar_on_disconnect (hio_dev_mar_t* dev)
 	if (xtn->sid == INVALID_SID) return; /* this session data is not set if there's failure in alloc_device() */
 
 	sess = &xtn->svc->sess.ptr[xtn->sid];
-	HIO_DEBUG6 (hio, "MARC(%p) - device disconnected - sid %lu session %p session-connected %d device %p device-broken %d\n", sess->svc, (unsigned long int)sess->sid, sess, (int)sess->connected, dev, (int)dev->broken);
+	HIO_DEBUG6(hio, "MARC(%p) - device disconnected - sid %lu session %p session-connected %d device %p device-broken %d\n", sess->svc, (unsigned long int)sess->sid, sess, (int)sess->connected, dev, (int)dev->broken);
 	HIO_ASSERT(hio, dev == sess->dev);
 
 	if (HIO_UNLIKELY(!sess->svc->stopping && hio->stopreq == HIO_STOPREQ_NONE))
@@ -291,10 +291,10 @@ static void mar_on_connect (hio_dev_mar_t* dev)
 
 	HIO_ASSERT(hio, xtn->sid != INVALID_SID);
 	sess = &xtn->svc->sess.ptr[xtn->sid];
-	HIO_DEBUG5 (hio, "MARC(%p) - device connected - sid %lu session %p device %p device-broken %d\n", sess->svc, (unsigned long int)sess->sid, sess, dev, dev->broken);
+	HIO_DEBUG5(hio, "MARC(%p) - device connected - sid %lu session %p device %p device-broken %d\n", sess->svc, (unsigned long int)sess->sid, sess, dev, dev->broken);
 
 	sess->connected = 1;
-	send_pending_query_if_any (sess);
+	send_pending_query_if_any(sess);
 }
 
 static void mar_on_query_started (hio_dev_mar_t* dev, int mar_ret, const hio_bch_t* mar_errmsg)
@@ -328,13 +328,13 @@ static void mar_on_query_started (hio_dev_mar_t* dev, int mar_ret, const hio_bch
 			if (hio_dev_mar_fetchrows(dev) <= -1)
 			{
 /*printf ("FETCH ROW FAILURE - %s\n", mysql_error(dev->hnd));*/
-				hio_dev_mar_halt (dev);
+				hio_dev_mar_hal (dev);
 			}
 		}
 		else
 		{
 			sq->on_result (sess->svc, sess->sid, HIO_SVC_MARC_RCODE_DONE, HIO_NULL, sq->qctx);
-			dequeue_session_query (sess->svc->hio, sess);
+			dequeue_session_query(sess->svc->hio, sess);
 			send_pending_query_if_any (sess);
 		}
 	}
@@ -391,7 +391,7 @@ static hio_dev_mar_t* alloc_device (hio_svc_marc_t* marc, hio_oow_t sid)
 	{
 		/* connection failed immediately */
 		xtn->sid = INVALID_SID;
-		hio_dev_mar_halt (mar);
+		hio_dev_mar_halt(mar);
 		return HIO_NULL;
 	}
 

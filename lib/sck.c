@@ -339,8 +339,8 @@ static void connect_timedout (hio_t* hio, const hio_ntime_t* now, hio_tmrjob_t* 
 		 * doesn't need to be deleted when it gets connected for this check
 		 * here. this libarary, however, deletes the job when it gets
 		 * connected. */
-		HIO_DEBUG1 (hio, "SCK(%p) - connect timed out. halting\n", rdev);
-		hio_dev_sck_halt (rdev);
+		HIO_DEBUG1(hio, "SCK(%p) - connect timed out. halting\n", rdev);
+		hio_dev_sck_halt(rdev);
 	}
 }
 
@@ -352,7 +352,7 @@ static void ssl_accept_timedout (hio_t* hio, const hio_ntime_t* now, hio_tmrjob_
 
 	if (rdev->state & HIO_DEV_SCK_ACCEPTING_SSL)
 	{
-		HIO_DEBUG1 (hio, "SCK(%p) - ssl-accept timed out. halting\n", rdev);
+		HIO_DEBUG1(hio, "SCK(%p) - ssl-accept timed out. halting\n", rdev);
 		hio_dev_sck_halt(rdev);
 	}
 }
@@ -365,7 +365,7 @@ static void ssl_connect_timedout (hio_t* hio, const hio_ntime_t* now, hio_tmrjob
 
 	if (rdev->state & HIO_DEV_SCK_CONNECTING_SSL)
 	{
-		HIO_DEBUG1 (hio, "SCK(%p) - ssl-connect timed out. halting\n", rdev);
+		HIO_DEBUG1(hio, "SCK(%p) - ssl-connect timed out. halting\n", rdev);
 		hio_dev_sck_halt(rdev);
 	}
 }
@@ -496,7 +496,7 @@ static int dev_sck_kill (hio_dev_t* dev, int force)
 	hio_dev_sck_t* rdev = (hio_dev_sck_t*)dev;
 	int hnd = rdev->hnd;
 
-	HIO_DEBUG2 (hio, "SCK(%p) - being killed [%d]\n", rdev, hnd);
+	HIO_DEBUG2(hio, "SCK(%p) - being killed [%d]\n", rdev, hnd);
 #if 0
 	if (IS_STREAM(rdev))
 	{
@@ -550,7 +550,7 @@ static int dev_sck_kill (hio_dev_t* dev, int force)
 		rdev->side_chan = HIO_SYSHND_INVALID;
 	}
 
-	HIO_DEBUG2 (hio, "SCK(%p) - killed [%d]\n", rdev, (int)hnd);
+	HIO_DEBUG2(hio, "SCK(%p) - killed [%d]\n", rdev, (int)hnd);
 	return 0;
 }
 
@@ -620,7 +620,7 @@ static int dev_sck_read_stateless (hio_dev_t* dev, void* buf, hio_iolen_t* len, 
 
 		hio_seterrwithsyserr(hio, 0, eno);
 
-		HIO_DEBUG2 (hio, "SCK(%p) - recvfrom failure - %hs", rdev, strerror(eno));
+		HIO_DEBUG2(hio, "SCK(%p) - recvfrom failure - %hs", rdev, strerror(eno));
 		return -1;
 	}
 
@@ -737,7 +737,7 @@ static int dev_sck_read_sctp_sp (hio_dev_t* dev, void* buf, hio_iolen_t* len, hi
 
 		hio_seterrwithsyserr(hio, 0, eno);
 
-		HIO_DEBUG2 (hio, "SCK(%p) - recvfrom failure - %hs", rdev, strerror(eno));
+		HIO_DEBUG2(hio, "SCK(%p) - recvfrom failure - %hs", rdev, strerror(eno));
 		return -1;
 	}
 
@@ -1769,8 +1769,8 @@ static int harvest_outgoing_connection (hio_dev_sck_t* rdev)
 				if (!HIO_IS_NEG_NTIME(&rdev->tmout) &&
 				    schedule_timer_job_at(rdev, &rdev->tmout, ssl_connect_timedout) <= -1)
 				{
-					HIO_DEBUG1 (hio, "SCK(%p) - ssl-connect timeout scheduling failed. halting\n", rdev);
-					hio_dev_sck_halt (rdev);
+					HIO_DEBUG1(hio, "SCK(%p) - ssl-connect timeout scheduling failed. halting\n", rdev);
+					hio_dev_sck_halt(rdev);
 				}
 
 				return 0;
@@ -1839,7 +1839,7 @@ static int make_accepted_client_connection (hio_dev_sck_t* rdev, hio_syshnd_t cl
 	if (HIO_UNLIKELY(!clidev))
 	{
 		/* [NOTE] 'clisck' is closed by callback methods called by hio_dev_make() upon failure */
-		HIO_DEBUG3 (hio, "SCK(%p) - unable to make a new accepted device for %d - %js\n", rdev, (int)clisck, hio_geterrmsg(hio));
+		HIO_DEBUG3(hio, "SCK(%p) - unable to make a new accepted device for %d - %js\n", rdev, (int)clisck, hio_geterrmsg(hio));
 		return -1;
 	}
 
@@ -1916,15 +1916,15 @@ static int make_accepted_client_connection (hio_dev_sck_t* rdev, hio_syshnd_t cl
 		    schedule_timer_job_after(clidev, &rdev->tmout, ssl_accept_timedout) <= -1)
 		{
 			/* timer job scheduling failed. halt the device */
-			HIO_DEBUG1 (hio, "SCK(%p) - ssl-accept timeout scheduling failed. halting\n", rdev);
-			hio_dev_sck_halt (clidev);
+			HIO_DEBUG1(hio, "SCK(%p) - ssl-accept timeout scheduling failed. halting\n", rdev);
+			hio_dev_sck_halt(clidev);
 		}
 	}
 	else
 	{
 		HIO_DEV_SCK_SET_PROGRESS(clidev, HIO_DEV_SCK_ACCEPTED);
-		/*if (clidev->on_connect(clidev) <= -1) hio_dev_sck_halt (clidev);*/
-		if (clidev->on_connect) clidev->on_connect (clidev);
+		/*if (clidev->on_connect(clidev) <= -1) hio_dev_sck_halt(clidev);*/
+		if (clidev->on_connect) clidev->on_connect(clidev);
 	}
 
 	return 0;

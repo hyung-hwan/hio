@@ -204,14 +204,14 @@ void hio_fini (hio_t* hio)
 	/* kill all registered devices */
 	while (!HIO_DEVL_IS_EMPTY(&hio->actdev))
 	{
-		hio_dev_kill (HIO_DEVL_FIRST_DEV(&hio->actdev));
+		hio_dev_kill(HIO_DEVL_FIRST_DEV(&hio->actdev));
 		nactdevs++;
 	}
 
 	/* kill all halted devices */
 	while (!HIO_DEVL_IS_EMPTY(&hio->hltdev))
 	{
-		hio_dev_kill (HIO_DEVL_FIRST_DEV(&hio->hltdev));
+		hio_dev_kill(HIO_DEVL_FIRST_DEV(&hio->hltdev));
 		nhltdevs++;
 	}
 
@@ -460,7 +460,7 @@ static HIO_INLINE void unlink_wq (hio_t* hio, hio_wq_t* q)
 {
 	if (q->tmridx != HIO_TMRIDX_INVALID)
 	{
-		hio_deltmrjob (hio, q->tmridx);
+		hio_deltmrjob(hio, q->tmridx);
 		HIO_ASSERT(hio, q->tmridx == HIO_TMRIDX_INVALID);
 	}
 	HIO_WQ_UNLINK (q);
@@ -502,8 +502,8 @@ static void fire_cwq_handlers (hio_t* hio)
 
 		if (dev_to_halt)
 		{
-			HIO_DEBUG2 (hio, "DEV(%p) - halting a device for on_write error upon write completion[1] - %js\n", dev_to_halt, hio_geterrmsg(hio));
-			hio_dev_halt (dev_to_halt);
+			HIO_DEBUG2(hio, "DEV(%p) - halting a device for on_write error upon write completion[1] - %js\n", dev_to_halt, hio_geterrmsg(hio));
+			hio_dev_halt(dev_to_halt);
 		}
 	}
 }
@@ -550,8 +550,8 @@ static void fire_cwq_handlers_for_dev (hio_t* hio, hio_dev_t* dev, int for_kill)
 
 			if (!for_kill && dev_to_halt)
 			{
-				HIO_DEBUG2 (hio, "DEV(%p) - halting a device for on_write error upon write completion[2] - %js\n", dev_to_halt, hio_geterrmsg(hio));
-			       	hio_dev_halt (dev_to_halt);
+				HIO_DEBUG2(hio, "DEV(%p) - halting a device for on_write error upon write completion[2] - %js\n", dev_to_halt, hio_geterrmsg(hio));
+				hio_dev_halt(dev_to_halt);
 			}
 		}
 		cwq = next;
@@ -581,8 +581,8 @@ static HIO_INLINE void handle_event (hio_t* hio, hio_dev_t* dev, int events, int
 		x = dev->dev_evcb->ready(dev, xevents);
 		if (x <= -1)
 		{
-			HIO_DEBUG2 (hio, "DEV(%p) - halting a device for ready callback error - %js\n", dev, hio_geterrmsg(hio));
-			hio_dev_halt (dev);
+			HIO_DEBUG2(hio, "DEV(%p) - halting a device for ready callback error - %js\n", dev, hio_geterrmsg(hio));
+			hio_dev_halt(dev);
 			return;
 		}
 		else if (x == 0) goto skip_evcb;
@@ -620,8 +620,8 @@ static HIO_INLINE void handle_event (hio_t* hio, hio_dev_t* dev, int events, int
 			}
 			if (x <= -1)
 			{
-				HIO_DEBUG2 (hio, "DEV(%p) - halting a device for write failure - %js\n", dev, hio_geterrmsg(hio));
-				hio_dev_halt (dev);
+				HIO_DEBUG2(hio, "DEV(%p) - halting a device for write failure - %js\n", dev, hio_geterrmsg(hio));
+				hio_dev_halt(dev);
 				dev = HIO_NULL;
 				break;
 			}
@@ -663,8 +663,8 @@ static HIO_INLINE void handle_event (hio_t* hio, hio_dev_t* dev, int events, int
 
 					if (y <= -1)
 					{
-						HIO_DEBUG2 (hio, "DEV(%p) - halting a device for on_write error - %js\n", dev, hio_geterrmsg(hio));
-						hio_dev_halt (dev);
+						HIO_DEBUG2(hio, "DEV(%p) - halting a device for on_write error - %js\n", dev, hio_geterrmsg(hio));
+						hio_dev_halt(dev);
 						dev = HIO_NULL;
 						break;
 					}
@@ -691,8 +691,8 @@ static HIO_INLINE void handle_event (hio_t* hio, hio_dev_t* dev, int events, int
 			/* no pending request to write */
 			if ((dev->dev_cap & HIO_DEV_CAP_IN_CLOSED) && (dev->dev_cap & HIO_DEV_CAP_OUT_CLOSED))
 			{
-				HIO_DEBUG1 (hio, "DEV(%p) - halting a device for closed input and output in output handler\n", dev);
-				hio_dev_halt (dev);
+				HIO_DEBUG1(hio, "DEV(%p) - halting a device for closed input and output in output handler\n", dev);
+				hio_dev_halt(dev);
 				dev = HIO_NULL;
 			}
 			else
@@ -717,8 +717,8 @@ static HIO_INLINE void handle_event (hio_t* hio, hio_dev_t* dev, int events, int
 			x = dev->dev_mth->read(dev, hio->bigbuf, &len, &srcaddr);
 			if (x <= -1)
 			{
-				HIO_DEBUG2 (hio, "DEV(%p) - halting a device for read failure - %js\n", dev, hio_geterrmsg(hio));
-				hio_dev_halt (dev);
+				HIO_DEBUG2(hio, "DEV(%p) - halting a device for read failure - %js\n", dev, hio_geterrmsg(hio));
+				hio_dev_halt(dev);
 				dev = HIO_NULL;
 				break;
 			}
@@ -738,7 +738,7 @@ static HIO_INLINE void handle_event (hio_t* hio, hio_dev_t* dev, int events, int
 
 				hio_updtmrjob (hio, dev->rtmridx, &tmrjob);
 
-				/*hio_deltmrjob (hio, dev->rtmridx);
+				/*hio_deltmrjob(hio, dev->rtmridx);
 				dev->rtmridx = HIO_TMRIDX_INVALID;*/
 			}
 
@@ -782,10 +782,10 @@ static HIO_INLINE void handle_event (hio_t* hio, hio_dev_t* dev, int events, int
 						/* 1. input ended and its reporting failed or
 						 * 2. input ended and no writing is possible */
 						if (dev->dev_cap & HIO_DEV_CAP_OUT_CLOSED)
-							HIO_DEBUG1 (hio, "DEV(%p) - halting a stream device on input EOF as output is also closed\n", dev);
+							HIO_DEBUG1(hio, "DEV(%p) - halting a stream device on input EOF as output is also closed\n", dev);
 						else
-							HIO_DEBUG2 (hio, "DEV(%p) - halting a stream device for on_read failure while output is closed - %js\n", dev, hio_geterrmsg(hio));
-						hio_dev_halt (dev);
+							HIO_DEBUG2(hio, "DEV(%p) - halting a stream device for on_read failure while output is closed - %js\n", dev, hio_geterrmsg(hio));
+						hio_dev_halt(dev);
 						dev = HIO_NULL;
 					}
 
@@ -802,8 +802,8 @@ static HIO_INLINE void handle_event (hio_t* hio, hio_dev_t* dev, int events, int
 					y = dev->dev_evcb->on_read(dev, hio->bigbuf, len, &srcaddr);
 					if (y <= -1)
 					{
-						HIO_DEBUG2 (hio, "DEV(%p) - halting a non-stream device for on_read failure while output is closed - %js\n", dev, hio_geterrmsg(hio));
-						hio_dev_halt (dev);
+						HIO_DEBUG2(hio, "DEV(%p) - halting a non-stream device for on_read failure while output is closed - %js\n", dev, hio_geterrmsg(hio));
+						hio_dev_halt(dev);
 						dev = HIO_NULL;
 						break;
 					}
@@ -853,8 +853,8 @@ static HIO_INLINE void handle_event (hio_t* hio, hio_dev_t* dev, int events, int
 
 		if ((dev->dev_cap & HIO_DEV_CAP_IN_CLOSED) && (dev->dev_cap & HIO_DEV_CAP_OUT_CLOSED))
 		{
-			HIO_DEBUG1 (hio, "DEV(%p) - halting a device for closed input and output\n", dev);
-			hio_dev_halt (dev);
+			HIO_DEBUG1(hio, "DEV(%p) - halting a device for closed input and output\n", dev);
+			hio_dev_halt(dev);
 			dev = HIO_NULL;
 		}
 	}
@@ -862,8 +862,8 @@ static HIO_INLINE void handle_event (hio_t* hio, hio_dev_t* dev, int events, int
 skip_evcb:
 	if (dev && (dev->dev_cap & HIO_DEV_CAP_RENEW_REQUIRED) && hio_dev_watch(dev, HIO_DEV_WATCH_RENEW, HIO_DEV_EVENT_IN) <= -1)
 	{
-		HIO_DEBUG1 (hio, "DEV(%p) - halting a device for wathcer renewal failure\n", dev);
-		hio_dev_halt (dev);
+		HIO_DEBUG1(hio, "DEV(%p) - halting a device for wathcer renewal failure\n", dev);
+		hio_dev_halt(dev);
 		dev = HIO_NULL;
 	}
 }
@@ -892,9 +892,9 @@ static void kill_all_halted_devices (hio_t* hio)
 	while (!HIO_DEVL_IS_EMPTY(&hio->hltdev))
 	{
 		hio_dev_t* dev = HIO_DEVL_FIRST_DEV(&hio->hltdev);
-		HIO_DEBUG1 (hio, "MIO - Killing HALTED device %p\n", dev);
-		hio_dev_kill (dev);
-		HIO_DEBUG1 (hio, "MIO - Killed HALTED device %p\n", dev);
+		HIO_DEBUG1(hio, "HIO - Killing HALTED device %p\n", dev);
+		hio_dev_kill(dev);
+		HIO_DEBUG1(hio, "HIO - Killed HALTED device %p\n", dev);
 	}
 }
 
@@ -935,7 +935,7 @@ static HIO_INLINE int __exec (hio_t* hio)
 
 		if (hio_sys_waitmux(hio, &tmout, handle_event) <= -1)
 		{
-			HIO_DEBUG0 (hio, "MIO - WARNING - Failed to wait on mutiplexer\n");
+			HIO_DEBUG0 (hio, "HIO - WARNING - Failed to wait on mutiplexer\n");
 			ret = -1;
 		}
 	}
@@ -1056,7 +1056,7 @@ hio_dev_t* hio_dev_make (hio_t* hio, hio_oow_t dev_size, hio_dev_mth_t* dev_mth,
 	/* and place the new device object at the back of the active device list */
 	HIO_DEVL_APPEND_DEV (&hio->actdev, dev);
 	dev->dev_cap |= HIO_DEV_CAP_ACTIVE;
-	HIO_DEBUG1 (hio, "MIO - Set ACTIVE on device %p\n", dev);
+	HIO_DEBUG1(hio, "HIO - Set ACTIVE on device %p\n", dev);
 
 	return dev;
 
@@ -1099,23 +1099,23 @@ static int kill_and_free_device (hio_dev_t* dev, int force)
 	HIO_ASSERT(hio, !(dev->dev_cap & HIO_DEV_CAP_ACTIVE));
 	HIO_ASSERT(hio, !(dev->dev_cap & HIO_DEV_CAP_HALTED));
 
-	HIO_DEBUG1 (hio, "MIO - Calling kill method on device %p\n", dev);
+	HIO_DEBUG1(hio, "HIO - Calling kill method on device %p\n", dev);
 	if (dev->dev_mth->kill(dev, force) <= -1)
 	{
-		HIO_DEBUG1 (hio, "MIO - Failure by kill method on device %p\n", dev);
+		HIO_DEBUG1(hio, "HIO - Failure by kill method on device %p\n", dev);
 
 		if (force >= 2) goto free_device;
 
 		if (!(dev->dev_cap & HIO_DEV_CAP_ZOMBIE))
 		{
-			HIO_DEBUG1 (hio, "MIO - Set ZOMBIE on device %p for kill method failure\n", dev);
+			HIO_DEBUG1(hio, "HIO - Set ZOMBIE on device %p for kill method failure\n", dev);
 			HIO_DEVL_APPEND_DEV (&hio->zmbdev, dev);
 			dev->dev_cap |= HIO_DEV_CAP_ZOMBIE;
 		}
 
 		return -1;
 	}
-	HIO_DEBUG1 (hio, "MIO - Success by kill method on device %p\n", dev);
+	HIO_DEBUG1(hio, "HIO - Success by kill method on device %p\n", dev);
 
 free_device:
 	if (dev->dev_cap & HIO_DEV_CAP_ZOMBIE)
@@ -1123,10 +1123,10 @@ free_device:
 		/* detach it from the zombie device list */
 		HIO_DEVL_UNLINK_DEV (dev);
 		dev->dev_cap &= ~HIO_DEV_CAP_ZOMBIE;
-		HIO_DEBUG1 (hio, "MIO - Unset ZOMBIE on device %p\n", dev);
+		HIO_DEBUG1(hio, "HIO - Unset ZOMBIE on device %p\n", dev);
 	}
 
-	HIO_DEBUG1 (hio, "MIO - Freeed device %p\n", dev);
+	HIO_DEBUG1(hio, "HIO - Freeed device %p\n", dev);
 	hio_freemem(hio, dev);
 	return 0;
 }
@@ -1192,13 +1192,13 @@ void hio_dev_kill (hio_dev_t* dev)
 		/* neither HALTED nor ACTIVE set on the device.
 		 * a call to this function is probably made again from a
 		 * disconnect callback executed in kill_and_free_device() below ... */
-		HIO_DEBUG1 (hio, "MIO - Duplicate kill on device %p\n", dev);
+		HIO_DEBUG1(hio, "HIO - Duplicate kill on device %p\n", dev);
 		return;
 	}
 
 	if (dev->rtmridx != HIO_TMRIDX_INVALID)
 	{
-		hio_deltmrjob (hio, dev->rtmridx);
+		hio_deltmrjob(hio, dev->rtmridx);
 		dev->rtmridx = HIO_TMRIDX_INVALID;
 	}
 
@@ -1220,14 +1220,14 @@ void hio_dev_kill (hio_dev_t* dev)
 		 * unlink it from the halted device list */
 		HIO_DEVL_UNLINK_DEV (dev);
 		dev->dev_cap &= ~HIO_DEV_CAP_HALTED;
-		HIO_DEBUG1 (hio, "MIO - Unset HALTED on device %p\n", dev);
+		HIO_DEBUG1(hio, "HIO - Unset HALTED on device %p\n", dev);
 	}
 	else
 	{
 		HIO_ASSERT(hio, dev->dev_cap & HIO_DEV_CAP_ACTIVE);
 		HIO_DEVL_UNLINK_DEV (dev);
 		dev->dev_cap &= ~HIO_DEV_CAP_ACTIVE;
-		HIO_DEBUG1 (hio, "MIO - Unset ACTIVE on device %p\n", dev);
+		HIO_DEBUG1(hio, "HIO - Unset ACTIVE on device %p\n", dev);
 	}
 
 	hio_dev_watch (dev, HIO_DEV_WATCH_STOP, 0);
@@ -1260,17 +1260,17 @@ void hio_dev_halt (hio_dev_t* dev)
 
 	if (dev->dev_cap & HIO_DEV_CAP_ACTIVE)
 	{
-		HIO_DEBUG1 (hio, "MIO - Halting device %p\n", dev);
+		HIO_DEBUG1(hio, "HIO - Halting device %p\n", dev);
 
 		/* delink the device object from the active device list */
 		HIO_DEVL_UNLINK_DEV (dev);
 		dev->dev_cap &= ~HIO_DEV_CAP_ACTIVE;
-		HIO_DEBUG1 (hio, "MIO - Unset ACTIVE on device %p\n", dev);
+		HIO_DEBUG1(hio, "HIO - Unset ACTIVE on device %p\n", dev);
 
 		/* place it at the back of the halted device list */
 		HIO_DEVL_APPEND_DEV (&hio->hltdev, dev);
 		dev->dev_cap |= HIO_DEV_CAP_HALTED;
-		HIO_DEBUG1 (hio, "MIO - Set HALTED on device %p\n", dev);
+		HIO_DEBUG1(hio, "HIO - Set HALTED on device %p\n", dev);
 	}
 }
 
@@ -1397,8 +1397,8 @@ static void on_read_timeout (hio_t* hio, const hio_ntime_t* now, hio_tmrjob_t* j
 
 	if (x <= -1)
 	{
-		HIO_DEBUG2 (hio, "DEV(%p) - halting a device for on_read error upon timeout - %js\n", dev, hio_geterrmsg(hio));
-		hio_dev_halt (dev);
+		HIO_DEBUG2(hio, "DEV(%p) - halting a device for on_read error upon timeout - %js\n", dev, hio_geterrmsg(hio));
+		hio_dev_halt(dev);
 	}
 }
 
@@ -1439,7 +1439,7 @@ update_timer:
 	if (dev->rtmridx != HIO_TMRIDX_INVALID)
 	{
 		/* read timeout already on the socket. remove it first */
-		hio_deltmrjob (hio, dev->rtmridx);
+		hio_deltmrjob(hio, dev->rtmridx);
 		dev->rtmridx = HIO_TMRIDX_INVALID;
 	}
 
@@ -1493,8 +1493,8 @@ static void on_write_timeout (hio_t* hio, const hio_ntime_t* now, hio_tmrjob_t* 
 
 	if (x <= -1)
 	{
-		HIO_DEBUG2 (hio, "DEV(%p) - halting a device for on_write error upon timeout - %js\n", dev, hio_geterrmsg(hio));
-		hio_dev_halt (dev);
+		HIO_DEBUG2(hio, "DEV(%p) - halting a device for on_write error upon timeout - %js\n", dev, hio_geterrmsg(hio));
+		hio_dev_halt(dev);
 	}
 }
 

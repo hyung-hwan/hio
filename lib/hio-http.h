@@ -573,6 +573,18 @@ HIO_EXPORT void hio_svc_htts_task_unbindfromclient (
 	int                       rcdown
 );
 
+/* Stop watching the client for input. For a task that has read all it
+ * needs from the request. */
+HIO_EXPORT void hio_svc_htts_task_stopreadingclient (
+	hio_svc_htts_task_t*      task
+);
+
+/* Release the client: keep the connection for the next request on it, or
+ * shut it down. The task may be destroyed by this call. */
+HIO_EXPORT void hio_svc_htts_task_finishclient (
+	hio_svc_htts_task_t*      task
+);
+
 HIO_EXPORT void hio_svc_htts_task_kill (
 	hio_svc_htts_task_t*         task
 );

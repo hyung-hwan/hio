@@ -611,7 +611,7 @@ struct hio_svc_t
 #define HIO_SVCL_NEXT_SVC(svc) ((svc)->svc_next)
 
 /* =========================================================================
- * MIO LOGGING
+ * HIO LOGGING
  * ========================================================================= */
 
 enum hio_log_mask_t
@@ -1459,7 +1459,7 @@ HIO_EXPORT hio_oow_t hio_fmttobcstr (
 #endif
 
 /* =========================================================================
- * MIO VM LOGGING
+ * HIO VM LOGGING
  * ========================================================================= */
 
 HIO_EXPORT hio_ooi_t hio_logbfmt (

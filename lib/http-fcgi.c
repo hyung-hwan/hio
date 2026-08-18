@@ -43,7 +43,7 @@ static void fcgi_halt_participating_devices (fcgi_t* fcgi)
 /* TODO: include fcgi session id in the output in place of peer??? */
 	HIO_DEBUG5 (fcgi->htts->hio, "HTTS(%p) - fcgi(t=%p,c=%p(%d),p=%p) Halting participating devices\n", fcgi->htts, fcgi, fcgi->task_csck, (fcgi->task_csck? fcgi->task_csck->hnd: -1), fcgi->peer);
 
-	if (fcgi->task_csck) hio_dev_sck_halt (fcgi->task_csck);
+	if (fcgi->task_csck) hio_dev_sck_halt(fcgi->task_csck);
 	unbind_task_from_peer (fcgi, 1);
 }
 
@@ -69,64 +69,28 @@ static int fcgi_write_stdin_to_peer (fcgi_t* fcgi, const void* data, hio_iolen_t
 	return 0;
 }
 
-static HIO_INLINE void fcgi_mark_over (fcgi_t* fcgi, int over_bits)
+static void fcgi_mark_over (fcgi_t* fcgi, int over_bits)
 {
-	hio_svc_htts_t* htts = fcgi->htts;
-	hio_t* hio = htts->hio;
 	unsigned int old_over;
 
 	old_over = fcgi->over;
 	fcgi->over |= over_bits;
 
-	HIO_DEBUG8 (hio, "HTTS(%p) - fcgi(t=%p,c=%p[%d],p=%p) - old_over=%x | new-bits=%x => over=%x\n", fcgi->htts, fcgi, fcgi->task_client, (fcgi->task_csck? fcgi->task_csck->hnd: -1), fcgi->peer, (int)old_over, (int)over_bits, (int)fcgi->over);
+	HIO_DEBUG4 (fcgi->htts->hio, "HTTS(%p) - fcgi(c=%p) updating mark - new-bits=%x => over=%x\n", fcgi->htts, fcgi->task_csck, (int)over_bits, (int)fcgi->over);
 
 	if (!(old_over & FCGI_OVER_READ_FROM_CLIENT) && (fcgi->over & FCGI_OVER_READ_FROM_CLIENT))
-	{
-		/* finished reading from the client. stop watching read */
-		if (fcgi->task_csck && hio_dev_sck_read(fcgi->task_csck, 0) <= -1)
-		{
-			HIO_DEBUG2 (fcgi->htts->hio, "HTTS(%p) - halting client(%p) for failure to disable input watching\n", fcgi->htts, fcgi->task_csck);
-			hio_dev_sck_halt (fcgi->task_csck);
-		}
-	}
-
-	if (!(old_over & FCGI_OVER_READ_FROM_PEER) && (fcgi->over & FCGI_OVER_READ_FROM_PEER))
-	{
-		if (fcgi->peer)
-		{
-			hio_svc_fcgic_untie (fcgi->peer); /* the untie callback will reset fcgi->peer to HIO_NULL */
-			HIO_SVC_HTTS_TASK_RCDOWN((hio_svc_htts_task_t*)fcgi); /* ref down from fcgi->peer->ctx. unable to use UNREF() */
-		}
-	}
+		hio_svc_htts_task_stopreadingclient((hio_svc_htts_task_t*)fcgi);
 
 	if (old_over != FCGI_OVER_ALL && fcgi->over == FCGI_OVER_ALL)
 	{
-		/* ready to stop */
-		HIO_SVC_HTTS_TASK_RCUP ((hio_svc_htts_task_t*)fcgi);
-
+		HIO_SVC_HTTS_TASK_RCUP((hio_svc_htts_task_t*)fcgi);
 		if (fcgi->peer)
 		{
 			hio_svc_fcgic_untie (fcgi->peer);
 			HIO_SVC_HTTS_TASK_RCDOWN((hio_svc_htts_task_t*)fcgi); /* ref down from fcgi->peer->ctx. unable to use UNREF() */
 		}
-
-		if (fcgi->task_csck)
-		{
-			if (fcgi->task_keep_client_alive)
-			{
-				HIO_DEBUG2 (hio, "HTTS(%p) - keeping client(%p) alive\n", fcgi->htts, fcgi->task_csck);
-				HIO_ASSERT(fcgi->htts->hio, fcgi->task_client->task == (hio_svc_htts_task_t*)fcgi);
-				hio_svc_htts_task_unbindfromclient((hio_svc_htts_task_t*)fcgi, 1);
-			}
-			else
-			{
-				HIO_DEBUG2 (hio, "HTTS(%p) - halting client(%p)\n", fcgi->htts, fcgi->task_csck);
-				hio_dev_sck_shutdown (fcgi->task_csck, HIO_DEV_SCK_SHUTDOWN_WRITE);
-				hio_dev_sck_halt (fcgi->task_csck);
-			}
-		}
-
-		HIO_SVC_HTTS_TASK_RCDOWN ((hio_svc_htts_task_t*)fcgi); /* it may destroy fcgi here */
+		hio_svc_htts_task_finishclient((hio_svc_htts_task_t*)fcgi);
+		HIO_SVC_HTTS_TASK_RCDOWN((hio_svc_htts_task_t*)fcgi);
 	}
 }
 
@@ -376,7 +340,7 @@ static void fcgi_client_on_disconnect (hio_dev_sck_t* sck)
 	{
 		HIO_ASSERT(hio, sck == fcgi->task_csck);
 
-		HIO_SVC_HTTS_TASK_RCUP ((hio_svc_htts_task_t*)fcgi);
+		HIO_SVC_HTTS_TASK_RCUP((hio_svc_htts_task_t*)fcgi);
 
 		/* detach the task from the client and the client socket */
 		hio_svc_htts_task_unbindfromclient((hio_svc_htts_task_t*)fcgi, 1);
@@ -385,7 +349,7 @@ static void fcgi_client_on_disconnect (hio_dev_sck_t* sck)
 		/*if (fcgi->client_org_on_disconnect) fcgi->client_org_on_disconnect (sck);*/
 		hio_svc_htts_client_default_on_disconnect (sck); /* restored to the orginal parent handelr in unbind_task_from_client() */
 
-		HIO_SVC_HTTS_TASK_RCDOWN ((hio_svc_htts_task_t*)fcgi);
+		HIO_SVC_HTTS_TASK_RCDOWN((hio_svc_htts_task_t*)fcgi);
 	}
 
 	HIO_DEBUG4 (hio, "HTTS(%p) - fcgi(t=%p,c=%p,csck=%p) - handled client socket disconnect\n", htts, fcgi, cli, sck);
@@ -611,8 +575,8 @@ static int bind_task_to_peer (fcgi_t* fcgi, const hio_skad_t* fcgis_addr)
 	pxtn->fcgi = fcgi;
 	fcgi->peer_htrd = htrd;
 
-	HIO_SVC_HTTS_TASK_RCUP (fcgi); /* for peer_htrd extension */
-	HIO_SVC_HTTS_TASK_RCUP (fcgi); /* for fcgi->peer->ctx in the tie() */
+	HIO_SVC_HTTS_TASK_RCUP(fcgi); /* for peer_htrd extension */
+	HIO_SVC_HTTS_TASK_RCUP(fcgi); /* for fcgi->peer->ctx in the tie() */
 
 	return 0;
 }
@@ -699,7 +663,7 @@ int hio_svc_htts_dofcgi (hio_svc_htts_t* htts, hio_dev_sck_t* csck, hio_htre_t* 
 
 	fcgi = (fcgi_t*)hio_svc_htts_task_make(htts, HIO_SIZEOF(*fcgi), fcgi_on_kill, req, csck);
 	if (HIO_UNLIKELY(!fcgi)) goto oops;
-	HIO_SVC_HTTS_TASK_RCUP ((hio_svc_htts_task_t*)fcgi);
+	HIO_SVC_HTTS_TASK_RCUP((hio_svc_htts_task_t*)fcgi);
 
 	if (HIO_UNLIKELY(!htts->fcgic))
 	{
@@ -744,7 +708,7 @@ int hio_svc_htts_dofcgi (hio_svc_htts_t* htts, hio_dev_sck_t* csck, hio_htre_t* 
 	if (hio_dev_sck_read(csck, !(fcgi->over & FCGI_OVER_READ_FROM_CLIENT)) <= -1) goto oops;
 
 	HIO_SVC_HTTS_TASKL_APPEND_TASK (&htts->task, (hio_svc_htts_task_t*)fcgi);
-	HIO_SVC_HTTS_TASK_RCDOWN ((hio_svc_htts_task_t*)fcgi);
+	HIO_SVC_HTTS_TASK_RCDOWN((hio_svc_htts_task_t*)fcgi);
 
 	/* set the on_kill callback only if this function can return success.
 	 * the on_kill callback won't be executed if this function returns failure. */
@@ -759,7 +723,7 @@ oops:
 		if (bound_to_peer) unbind_task_from_peer (fcgi, 1);
 		if (bound_to_client) hio_svc_htts_task_unbindfromclient((hio_svc_htts_task_t*)fcgi, 1);
 		fcgi_halt_participating_devices (fcgi);
-		HIO_SVC_HTTS_TASK_RCDOWN ((hio_svc_htts_task_t*)fcgi);
+		HIO_SVC_HTTS_TASK_RCDOWN((hio_svc_htts_task_t*)fcgi);
 	}
 	return -1;
 }

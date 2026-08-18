@@ -133,10 +133,10 @@ static void cgi_halt_participating_devices (cgi_t* cgi)
 {
 	HIO_DEBUG5 (cgi->htts->hio, "HTTS(%p) - cgi(t=%p,c=%p(%d),p=%p) Halting participating devices\n", cgi->htts, cgi, cgi->task_csck, (cgi->task_csck? cgi->task_csck->hnd: -1), cgi->peer);
 
-	if (cgi->task_csck) hio_dev_sck_halt (cgi->task_csck);
+	if (cgi->task_csck) hio_dev_sck_halt(cgi->task_csck);
 
 	/* check for peer as it may not have been started */
-	if (cgi->peer) hio_dev_pro_halt (cgi->peer);
+	if (cgi->peer) hio_dev_pro_halt(cgi->peer);
 }
 
 static int cgi_write_to_peer (cgi_t* cgi, const void* data, hio_iolen_t dlen)
@@ -159,62 +159,22 @@ static int cgi_write_to_peer (cgi_t* cgi, const void* data, hio_iolen_t dlen)
 	return 0;
 }
 
-static HIO_INLINE void cgi_mark_over (cgi_t* cgi, int over_bits)
+static void cgi_mark_over (cgi_t* cgi, int over_bits)
 {
-	hio_svc_htts_t* htts = cgi->htts;
-	hio_t* hio = htts->hio;
 	unsigned int old_over;
 
 	old_over = cgi->over;
 	cgi->over |= over_bits;
 
-	HIO_DEBUG8 (hio, "HTTS(%p) - cgi(t=%p,c=%p[%d],p=%p) - old_over=%x | new-bits=%x => over=%x\n", cgi->htts, cgi, cgi->task_client, (cgi->task_csck? cgi->task_csck->hnd: -1), cgi->peer, (int)old_over, (int)over_bits, (int)cgi->over);
+	HIO_DEBUG4 (cgi->htts->hio, "HTTS(%p) - cgi(c=%p) updating mark - new-bits=%x => over=%x\n", cgi->htts, cgi->task_csck, (int)over_bits, (int)cgi->over);
 
 	if (!(old_over & CGI_OVER_READ_FROM_CLIENT) && (cgi->over & CGI_OVER_READ_FROM_CLIENT))
-	{
-		if (cgi->task_csck && hio_dev_sck_read(cgi->task_csck, 0) <= -1)
-		{
-			HIO_DEBUG5 (hio, "HTTS(%p) - cgi(t=%p,c=%p[%d],p=%p) - halting client for failure to disable input watching\n", cgi->htts, cgi, cgi->task_client, (cgi->task_csck? cgi->task_csck->hnd: -1), cgi->peer);
-			hio_dev_sck_halt (cgi->task_csck);
-		}
-	}
-
-	if (!(old_over & CGI_OVER_READ_FROM_PEER) && (cgi->over & CGI_OVER_READ_FROM_PEER))
-	{
-		if (cgi->peer && hio_dev_pro_read(cgi->peer, HIO_DEV_PRO_OUT, 0) <= -1)
-		{
-			HIO_DEBUG5 (hio, "HTTS(%p) - cgi(t=%p,c=%p[%d],p=%p) - halting peer for failure to disable input watching\n", cgi->htts, cgi, cgi->task_client, (cgi->task_csck? cgi->task_csck->hnd: -1), cgi->peer);
-			hio_dev_pro_halt (cgi->peer);
-		}
-	}
+		hio_svc_htts_task_stopreadingclient((hio_svc_htts_task_t*)cgi);
 
 	if (old_over != CGI_OVER_ALL && cgi->over == CGI_OVER_ALL)
 	{
-		/* ready to stop */
-		if (cgi->peer)
-		{
-			HIO_DEBUG5 (hio, "HTTS(%p) - cgi(t=%p,c=%p[%d],p=%p) - halting unneeded peer\n", cgi->htts, cgi, cgi->task_client, (cgi->task_csck? cgi->task_csck->hnd: -1), cgi->peer);
-			hio_dev_pro_halt (cgi->peer);
-		}
-
-		if (cgi->task_csck)
-		{
-			HIO_ASSERT(hio, cgi->task_client != HIO_NULL);
-
-			if (cgi->task_keep_client_alive)
-			{
-				HIO_DEBUG5 (hio, "HTTS(%p) - cgi(t=%p,c=%p[%d],p=%p) - keeping client alive\n", cgi->htts, cgi, cgi->task_client, (cgi->task_csck? cgi->task_csck->hnd: -1), cgi->peer);
-				HIO_ASSERT(cgi->htts->hio, cgi->task_client->task == (hio_svc_htts_task_t*)cgi);
-				hio_svc_htts_task_unbindfromclient((hio_svc_htts_task_t*)cgi, 1);
-				/* cgi must not be accessed from here down as it could have been destroyed */
-			}
-			else
-			{
-				HIO_DEBUG5 (hio, "HTTS(%p) - cgi(t=%p,c=%p[%d],p=%p) - halting client\n", cgi->htts, cgi, cgi->task_client, (cgi->task_csck? cgi->task_csck->hnd: -1), cgi->peer);
-				hio_dev_sck_shutdown (cgi->task_csck, HIO_DEV_SCK_SHUTDOWN_WRITE);
-				hio_dev_sck_halt (cgi->task_csck);
-			}
-		}
+		if (cgi->peer) hio_dev_pro_halt(cgi->peer);
+		hio_svc_htts_task_finishclient((hio_svc_htts_task_t*)cgi);
 	}
 }
 
@@ -541,7 +501,7 @@ static void cgi_client_on_disconnect (hio_dev_sck_t* sck)
 
 	if (cgi)
 	{
-		HIO_SVC_HTTS_TASK_RCUP ((hio_svc_htts_task_t*)cgi); /* for temporary protection */
+		HIO_SVC_HTTS_TASK_RCUP((hio_svc_htts_task_t*)cgi); /* for temporary protection */
 
 		/* detach the task from the client and the client socket */
 		hio_svc_htts_task_unbindfromclient((hio_svc_htts_task_t*)cgi, 1);
@@ -555,7 +515,7 @@ static void cgi_client_on_disconnect (hio_dev_sck_t* sck)
 		if (cgi->peer) hio_dev_pro_close(cgi->peer, HIO_DEV_PRO_IN);
 		if (cgi->peer) hio_dev_pro_close(cgi->peer, HIO_DEV_PRO_OUT);
 
-		HIO_SVC_HTTS_TASK_RCDOWN ((hio_svc_htts_task_t*)cgi);
+		HIO_SVC_HTTS_TASK_RCDOWN((hio_svc_htts_task_t*)cgi);
 	}
 
 	HIO_DEBUG4 (hio, "HTTS(%p) - cgi(t=%p,c=%p,csck=%p) - client socket disconnect handled\n", htts, cgi, cli, sck);
@@ -856,11 +816,11 @@ static int bind_task_to_peer (cgi_t* cgi, hio_dev_sck_t* csck, hio_htre_t* req, 
 
 	peer_xtn = hio_dev_pro_getxtn(cgi->peer);
 	peer_xtn->cgi = cgi;
-	HIO_SVC_HTTS_TASK_RCUP (cgi);
+	HIO_SVC_HTTS_TASK_RCUP(cgi);
 
 	peer_xtn = hio_htrd_getxtn(cgi->peer_htrd);
 	peer_xtn->cgi = cgi;
-	HIO_SVC_HTTS_TASK_RCUP (cgi);
+	HIO_SVC_HTTS_TASK_RCUP(cgi);
 
 	return 0;
 }

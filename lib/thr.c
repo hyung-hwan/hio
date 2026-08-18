@@ -711,7 +711,7 @@ void hio_dev_thr_kill (hio_dev_thr_t* dev)
 
 void hio_dev_thr_halt (hio_dev_thr_t* dev)
 {
-	hio_dev_halt ((hio_dev_t*)dev);
+	hio_dev_halt((hio_dev_t*)dev);
 }
 
 int hio_dev_thr_read (hio_dev_thr_t* dev, int enabled)

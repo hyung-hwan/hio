@@ -109,56 +109,23 @@ static void file_halt_participating_devices (file_t* file)
 
 static void file_mark_over (file_t* file, int over_bits)
 {
-	hio_svc_htts_t* htts = file->htts;
-	hio_t* hio = htts->hio;
 	unsigned int old_over;
 
 	old_over = file->over;
 	file->over |= over_bits;
 
-	HIO_DEBUG6 (hio, "HTTS(%p) - file(c=%d,p=%d) updating mark - old_over=%x | new-bits=%x => over=%x\n", htts, (int)file->task_csck->hnd, file->peer, (int)old_over, (int)over_bits, (int)file->over);
+	HIO_DEBUG4 (file->htts->hio, "HTTS(%p) - file(c=%p) updating mark - new-bits=%x => over=%x\n", file->htts, file->task_csck, (int)over_bits, (int)file->over);
 
 	if (!(old_over & FILE_OVER_READ_FROM_CLIENT) && (file->over & FILE_OVER_READ_FROM_CLIENT))
-	{
-		if (file->task_csck && hio_dev_sck_read(file->task_csck, 0) <= -1)
-		{
-			HIO_DEBUG3 (hio, "HTTS(%p) - file(c=%d,p=%d) halting client for failure to disable input watching\n", htts, (int)file->task_csck->hnd, file->peer);
-			hio_dev_sck_halt(file->task_csck);
-		}
-	}
-
-#if 0
-	if (!(old_over & FILE_OVER_READ_FROM_PEER) && (file->over & FILE_OVER_READ_FROM_PEER))
-	{
-		/* there is no partial close... keep it open */
-	}
-#endif
+		hio_svc_htts_task_stopreadingclient((hio_svc_htts_task_t*)file);
 
 	if (old_over != FILE_OVER_ALL && file->over == FILE_OVER_ALL)
 	{
-		/* ready to stop */
-		HIO_DEBUG3 (hio, "HTTS(%p) - file(c=%d,p=%d) halting peer as it is unneeded\n", htts, (int)file->task_csck->hnd, file->peer);
 		unbind_task_from_peer (file, 1);
-
-		if (file->task_csck)
-		{
-			if (file->task_keep_client_alive)
-			{
-				if (file->csck_tcp_cork >= 0) set_tcp_cork (file->task_csck, file->csck_tcp_cork);
-
-				/* the file task must not be accessed from here down as it could have been destroyed */
-				HIO_DEBUG2 (hio, "HTTS(%p) - keeping client(%p) alive\n", htts, file->task_csck);
-				HIO_ASSERT(hio, file->task_client->task == (hio_svc_htts_task_t*)file);
-				hio_svc_htts_task_unbindfromclient((hio_svc_htts_task_t*)file, 1);
-			}
-			else
-			{
-				HIO_DEBUG2 (hio, "HTTS(%p) - halting client(%p)\n", htts, file->task_csck);
-				hio_dev_sck_shutdown(file->task_csck, HIO_DEV_SCK_SHUTDOWN_WRITE);
-				hio_dev_sck_halt(file->task_csck);
-				/* the file task will be detached from file->task_client->task by the upstream disconnect handler in http_svr.c */
-			}
-		}
+		/* the cork is only worth restoring on a connection that lives on */
+		if (file->task_keep_client_alive && file->task_csck && file->csck_tcp_cork >= 0)
+			set_tcp_cork (file->task_csck, file->csck_tcp_cork);
+		hio_svc_htts_task_finishclient((hio_svc_htts_task_t*)file);
 	}
 }
 

@@ -111,7 +111,7 @@ static int dev_shw_write (hio_dev_t* dev, const void* data, hio_iolen_t* len, co
 	if (HIO_UNLIKELY(*len <= 0))
 	{
 		/* this is an EOF indicator */
-		/*hio_dev_halt (dev);*/ /* halt this slave device to indicate EOF on the lower-level handle */
+		/*hio_dev_halt(dev);*/ /* halt this slave device to indicate EOF on the lower-level handle */
 		if (HIO_LIKELY(shw->hnd != HIO_SYSHND_INVALID)) /* halt() doesn't close the handle immediately. so close the underlying handle */
 		{
 			hio_dev_watch (dev, HIO_DEV_WATCH_STOP, 0);
@@ -151,7 +151,7 @@ static int dev_shw_writev (hio_dev_t* dev, const hio_iovec_t* iov, hio_iolen_t* 
 	if (HIO_UNLIKELY(*iovcnt <= 0))
 	{
 		/* this is an EOF indicator */
-		/*hio_dev_halt (dev);*/ /* halt this slave device to indicate EOF on the lower-level handle  */
+		/*hio_dev_halt(dev);*/ /* halt this slave device to indicate EOF on the lower-level handle  */
 		if (HIO_LIKELY(shw->hnd != HIO_SYSHND_INVALID)) /* halt() doesn't close the handle immediately. so close the underlying handle */
 		{
 			hio_dev_watch (dev, HIO_DEV_WATCH_STOP, 0);
@@ -258,12 +258,12 @@ hio_dev_shw_t* hio_dev_shw_make (hio_t* hio, hio_oow_t xtnsize, const hio_dev_sh
 
 void hio_dev_shw_kill (hio_dev_shw_t* dev)
 {
-	hio_dev_kill ((hio_dev_t*)dev);
+	hio_dev_kill((hio_dev_t*)dev);
 }
 
 void hio_dev_shw_halt (hio_dev_shw_t* dev)
 {
-	hio_dev_halt ((hio_dev_t*)dev);
+	hio_dev_halt((hio_dev_t*)dev);
 }
 
 int hio_dev_shw_read (hio_dev_shw_t* dev, int enabled)

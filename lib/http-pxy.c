@@ -85,10 +85,10 @@ static void pxy_halt_participating_devices (pxy_t* pxy)
 {
 	HIO_DEBUG5(pxy->htts->hio, "HTTS(%p) - pxy(t=%p,c=%p(%d),p=%p) Halting participating devices\n", pxy->htts, pxy, pxy->task_csck, (pxy->task_csck? pxy->task_csck->hnd: -1), pxy->peer);
 
-	if (pxy->task_csck) hio_dev_sck_halt (pxy->task_csck);
+	if (pxy->task_csck) hio_dev_sck_halt(pxy->task_csck);
 
 	/* check for peer as it may not have been started */
-	if (pxy->peer) hio_dev_sck_halt (pxy->peer);
+	if (pxy->peer) hio_dev_sck_halt(pxy->peer);
 }
 
 static int pxy_write_to_peer (pxy_t* pxy, const void* data, hio_iolen_t dlen)
@@ -124,62 +124,22 @@ static int pxy_write_to_peer (pxy_t* pxy, const void* data, hio_iolen_t dlen)
 	return 0;
 }
 
-static HIO_INLINE void pxy_mark_over(pxy_t* pxy, int over_bits)
+static void pxy_mark_over (pxy_t* pxy, int over_bits)
 {
-	hio_svc_htts_t* htts = pxy->htts;
-	hio_t* hio = htts->hio;
 	unsigned int old_over;
 
 	old_over = pxy->over;
 	pxy->over |= over_bits;
 
-    HIO_DEBUG8 (hio, "HTTS(%p) - pxy(t=%p,c=%p[%d],p=%p) - old_over=%x | new-bits=%x => over=%x\n", pxy->htts, pxy, pxy->task_client, (pxy->task_csck? pxy->task_csck->hnd: -1), pxy->peer, (int)old_over, (int)over_bits, (int)pxy->over);
+	HIO_DEBUG4 (pxy->htts->hio, "HTTS(%p) - pxy(c=%p) updating mark - new-bits=%x => over=%x\n", pxy->htts, pxy->task_csck, (int)over_bits, (int)pxy->over);
 
 	if (!(old_over & PXY_OVER_READ_FROM_CLIENT) && (pxy->over & PXY_OVER_READ_FROM_CLIENT))
-	{
-		if (pxy->task_csck && hio_dev_sck_read(pxy->task_csck, 0) <= -1)
-		{
-			HIO_DEBUG5(hio, "HTTS(%p) - pxy(t=%p,c=%p[%d],p=%p) - halting client for failure to disable input watching\n", pxy->htts, pxy, pxy->task_client, (pxy->task_csck? pxy->task_csck->hnd: -1), pxy->peer);
-			hio_dev_sck_halt (pxy->task_csck);
-		}
-	}
-
-	if (!(old_over & PXY_OVER_READ_FROM_PEER) && (pxy->over & PXY_OVER_READ_FROM_PEER))
-	{
-		if (pxy->peer && hio_dev_sck_read(pxy->peer, 0) <= -1)
-		{
-			HIO_DEBUG5(hio, "HTTS(%p) - pxy(t=%p,c=%p[%d],p=%p) - halting peer for failure to disable input watching\n", pxy->htts, pxy, pxy->task_client, (pxy->task_csck? pxy->task_csck->hnd: -1), pxy->peer);
-			hio_dev_sck_halt (pxy->peer);
-		}
-	}
+		hio_svc_htts_task_stopreadingclient((hio_svc_htts_task_t*)pxy);
 
 	if (old_over != PXY_OVER_ALL && pxy->over == PXY_OVER_ALL)
 	{
-		/* ready to stop */
-		if (pxy->peer)
-		{
-			HIO_DEBUG5(hio, "HTTS(%p) - pxy(t=%p,c=%p[%d],p=%p) - halting unneeded peer\n", pxy->htts, pxy, pxy->task_client, (pxy->task_csck? pxy->task_csck->hnd: -1), pxy->peer);
-			hio_dev_sck_halt (pxy->peer);
-		}
-
-		if (pxy->task_csck)
-		{
-			HIO_ASSERT(hio, pxy->task_client != HIO_NULL);
-
-			if (pxy->task_keep_client_alive)
-			{
-				HIO_DEBUG5(hio, "HTTS(%p) - pxy(t=%p,c=%p[%d],p=%p) - keeping client alive\n", pxy->htts, pxy, pxy->task_client, (pxy->task_csck? pxy->task_csck->hnd: -1), pxy->peer);
-				HIO_ASSERT(pxy->htts->hio, pxy->task_client->task == (hio_svc_htts_task_t*)pxy);
-				hio_svc_htts_task_unbindfromclient((hio_svc_htts_task_t*)pxy, 1);
-				/* pxy must not be accessed from here down as it could have been destroyed */
-			}
-			else
-			{
-				HIO_DEBUG5(hio, "HTTS(%p) - pxy(t=%p,c=%p[%d],p=%p) - halting client\n", pxy->htts, pxy, pxy->task_client, (pxy->task_csck? pxy->task_csck->hnd: -1), pxy->peer);
-				hio_dev_sck_shutdown (pxy->task_csck, HIO_DEV_SCK_SHUTDOWN_WRITE);
-				hio_dev_sck_halt (pxy->task_csck);
-			}
-		}
+		if (pxy->peer) hio_dev_sck_halt(pxy->peer);
+		hio_svc_htts_task_finishclient((hio_svc_htts_task_t*)pxy);
 	}
 }
 
@@ -523,7 +483,7 @@ static void pxy_client_on_disconnect (hio_dev_sck_t* sck)
 
 	if (pxy)
 	{
-		HIO_SVC_HTTS_TASK_RCUP ((hio_svc_htts_task_t*)pxy);
+		HIO_SVC_HTTS_TASK_RCUP((hio_svc_htts_task_t*)pxy);
 
 		/* detach the task from the client and the client socket */
 		hio_svc_htts_task_unbindfromclient((hio_svc_htts_task_t*)pxy, 1);
@@ -752,11 +712,11 @@ static int bind_task_to_peer (pxy_t* pxy, hio_dev_sck_t* csck, hio_htre_t* req, 
 
 	pxtn = hio_dev_sck_getxtn(pxy->peer);
 	pxtn->pxy = pxy;
-	HIO_SVC_HTTS_TASK_RCUP (pxy);
+	HIO_SVC_HTTS_TASK_RCUP(pxy);
 
 	pxtn = hio_htrd_getxtn(pxy->peer_htrd);
 	pxtn->pxy = pxy;
-	HIO_SVC_HTTS_TASK_RCUP (pxy);
+	HIO_SVC_HTTS_TASK_RCUP(pxy);
 
 	/* Serialize the request now, while 'req' is still valid. It is only
 	 * handed over once the connection completes. */
@@ -860,7 +820,7 @@ int hio_svc_htts_dopxy (hio_svc_htts_t* htts, hio_dev_sck_t* csck, hio_htre_t* r
 
 	pxy = (pxy_t*)hio_svc_htts_task_make(htts, HIO_SIZEOF(*pxy), pxy_on_kill, req, csck);
 	if (HIO_UNLIKELY(!pxy)) goto oops;
-	HIO_SVC_HTTS_TASK_RCUP ((hio_svc_htts_task_t*)pxy);
+	HIO_SVC_HTTS_TASK_RCUP((hio_svc_htts_task_t*)pxy);
 
 	pxy->options = options;
 

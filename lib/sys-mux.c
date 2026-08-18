@@ -627,7 +627,7 @@ int hio_sys_ctrlmux (hio_t* hio, hio_sys_mux_cmd_t cmd, hio_dev_t* dev, int dev_
 			x = kevent(mux->kq, chlist, 2, HIO_NULL, 0, HIO_NULL);
 			if (x >= 0) dev->dev_cap |= HIO_DEV_CAP_WATCH_REREG_REQUIRED; /* ugly hack for the listening sockets in NetBSD */
 
-			/* the CMD_INSERT comes with at MIO_DEV_CAP_IN_WATCHD set.
+			/* the CMD_INSERT comes with at HIO_DEV_CAP_IN_WATCHD set.
 			 * skip checking to set WATCH_SUSPENDED */
 
 			break;

@@ -298,7 +298,7 @@ static int on_tcp_read (hio_dev_sck_t* dev, const void* data, hio_iolen_t dlen, 
 	return 0;
 
 oops:
-	hio_dev_sck_halt (dev);
+	hio_dev_sck_halt(dev);
 	return 0;
 }
 
@@ -503,7 +503,7 @@ static int switch_reqmsg_transport_to_tcp (hio_svc_dnc_t* dnc, hio_dns_msg_t* re
 
 		if (hio_dev_sck_connect(dnc->tcp_sck, &cinfo) <= -1)
 		{
-			hio_dev_sck_kill (dnc->tcp_sck);
+			hio_dev_sck_kill(dnc->tcp_sck);
 			dnc->tcp_sck = HIO_NULL;
 			return -1; /* the connect request hasn't been honored. */
 		}
@@ -782,7 +782,7 @@ hio_svc_dnc_t* hio_svc_dnc_start (hio_t* hio, const hio_skad_t* serv_addr, const
 oops:
 	if (dnc)
 	{
-		if (dnc->udp_sck) hio_dev_sck_kill (dnc->udp_sck);
+		if (dnc->udp_sck) hio_dev_sck_kill(dnc->udp_sck);
 		hio_freemem(hio, dnc);
 	}
 	return HIO_NULL;
@@ -793,9 +793,9 @@ void hio_svc_dnc_stop (hio_svc_dnc_t* dnc)
 	hio_t* hio = dnc->hio;
 
 	HIO_DEBUG1 (hio, "DNC - STOPPING SERVICE %p\n", dnc);
-	if (dnc->udp_sck) hio_dev_sck_kill (dnc->udp_sck);
-	if (dnc->tcp_sck) hio_dev_sck_kill (dnc->tcp_sck);
-	while (dnc->pending_req) release_dns_msg (dnc, dnc->pending_req);
+	if (dnc->udp_sck) hio_dev_sck_kill(dnc->udp_sck);
+	if (dnc->tcp_sck) hio_dev_sck_kill(dnc->tcp_sck);
+	while (dnc->pending_req) release_dns_msg(dnc, dnc->pending_req);
 	HIO_SVCL_UNLINK_SVC (dnc);
 	hio_freemem(hio, dnc);
 }

@@ -47,42 +47,25 @@ typedef struct txt_t txt_t;
 
 static void txt_halt_participating_devices (txt_t* txt)
 {
-	HIO_DEBUG3 (txt->htts->hio, "HTTS(%p) - Halting participating devices in txt state %p(client=%p)\n", txt->htts, txt, txt->task_csck);
-	if (txt->task_csck) hio_dev_sck_halt (txt->task_csck);
+	HIO_DEBUG3(txt->htts->hio, "HTTS(%p) - Halting participating devices in txt state %p(client=%p)\n", txt->htts, txt, txt->task_csck);
+	if (txt->task_csck) hio_dev_sck_halt(txt->task_csck);
 }
 
-static HIO_INLINE void txt_mark_over (txt_t* txt, int over_bits)
+static void txt_mark_over (txt_t* txt, int over_bits)
 {
 	unsigned int old_over;
 
 	old_over = txt->over;
 	txt->over |= over_bits;
 
-	HIO_DEBUG4 (txt->htts->hio, "HTTS(%p) - client=%p new-bits=%x over=%x\n", txt->htts, txt->task_csck, (int)over_bits, (int)txt->over);
+	HIO_DEBUG4(txt->htts->hio, "HTTS(%p) - txt(c=%p) updating mark - new-bits=%x => over=%x\n", txt->htts, txt->task_csck, (int)over_bits, (int)txt->over);
 
 	if (!(old_over & TXT_OVER_READ_FROM_CLIENT) && (txt->over & TXT_OVER_READ_FROM_CLIENT))
-	{
-		if (hio_dev_sck_read(txt->task_csck, 0) <= -1)
-		{
-			HIO_DEBUG2 (txt->htts->hio, "HTTS(%p) - halting client(%p) for failure to disable input watching\n", txt->htts, txt->task_csck);
-			hio_dev_sck_halt (txt->task_csck);
-		}
-	}
+		hio_svc_htts_task_stopreadingclient((hio_svc_htts_task_t*)txt);
 
 	if (old_over != TXT_OVER_ALL && txt->over == TXT_OVER_ALL)
 	{
-		/* ready to stop */
-		if (txt->task_keep_client_alive)
-		{
-			HIO_ASSERT(txt->htts->hio, txt->task_client->task == (hio_svc_htts_task_t*)txt);
-			hio_svc_htts_task_unbindfromclient((hio_svc_htts_task_t*)txt, 1);
-		}
-		else
-		{
-			HIO_DEBUG2 (txt->htts->hio, "HTTS(%p) - halting client(%p) for no keep-alive\n", txt->htts, txt->task_csck);
-			hio_dev_sck_shutdown (txt->task_csck, HIO_DEV_SCK_SHUTDOWN_WRITE);
-			hio_dev_sck_halt (txt->task_csck);
-		}
+		hio_svc_htts_task_finishclient((hio_svc_htts_task_t*)txt);
 	}
 }
 
@@ -91,9 +74,9 @@ static void txt_on_kill (hio_svc_htts_task_t* task)
 	txt_t* txt = (txt_t*)task;
 	hio_t* hio = txt->htts->hio;
 
-	HIO_DEBUG2 (hio, "HTTS(%p) - killing txt client(%p)\n", txt->htts, txt->task_csck);
+	HIO_DEBUG2(hio, "HTTS(%p) - killing txt client(%p)\n", txt->htts, txt->task_csck);
 
-	if (txt->on_kill) txt->on_kill (task);
+	if (txt->on_kill) txt->on_kill(task);
 
 	if (txt->task_csck)
 	{
@@ -148,7 +131,7 @@ static void txt_client_on_disconnect (hio_dev_sck_t* sck)
 
 	if (txt)
 	{
-		HIO_SVC_HTTS_TASK_RCUP ((hio_svc_htts_task_t*)txt);
+		HIO_SVC_HTTS_TASK_RCUP((hio_svc_htts_task_t*)txt);
 
 		hio_svc_htts_task_unbindfromclient((hio_svc_htts_task_t*)txt, 1);
 
@@ -156,7 +139,7 @@ static void txt_client_on_disconnect (hio_dev_sck_t* sck)
 		/*if (txt->client_org_on_disconnect) txt->client_org_on_disconnect (sck);*/
 		hio_svc_htts_client_default_on_disconnect (sck); /* restored to the orginal parent handler in unbind_task_from_client() */
 
-		HIO_SVC_HTTS_TASK_RCDOWN ((hio_svc_htts_task_t*)txt);
+		HIO_SVC_HTTS_TASK_RCDOWN((hio_svc_htts_task_t*)txt);
 	}
 }
 
@@ -174,14 +157,14 @@ static int txt_client_on_read (hio_dev_sck_t* sck, const void* buf, hio_iolen_t 
 	if (len <= -1)
 	{
 		/* read error */
-		HIO_DEBUG2 (cli->htts->hio, "HTTPS(%p) - read error on client %p(%d)\n", sck, (int)sck->hnd);
+		HIO_DEBUG2(cli->htts->hio, "HTTPS(%p) - read error on client %p(%d)\n", sck, (int)sck->hnd);
 		goto oops;
 	}
 
 	if (len == 0)
 	{
 		/* EOF on the client side. arrange to close */
-		HIO_DEBUG3 (hio, "HTTPS(%p) - EOF from client %p(hnd=%d)\n", txt->htts, sck, (int)sck->hnd);
+		HIO_DEBUG3(hio, "HTTPS(%p) - EOF from client %p(hnd=%d)\n", txt->htts, sck, (int)sck->hnd);
 
 		if (!(txt->over & TXT_OVER_READ_FROM_CLIENT)) /* if this is true, EOF is received without txt_client_htrd_poke() */
 		{
@@ -278,7 +261,7 @@ int hio_svc_htts_dotxt (hio_svc_htts_t* htts, hio_dev_sck_t* csck, hio_htre_t* r
 
 	txt = (txt_t*)hio_svc_htts_task_make(htts, HIO_SIZEOF(*txt), txt_on_kill, req, csck);
 	if (HIO_UNLIKELY(!txt)) goto oops;
-	HIO_SVC_HTTS_TASK_RCUP ((hio_svc_htts_task_t*)txt);
+	HIO_SVC_HTTS_TASK_RCUP((hio_svc_htts_task_t*)txt);
 
 	txt->options = options;
 
@@ -294,7 +277,7 @@ int hio_svc_htts_dotxt (hio_svc_htts_t* htts, hio_dev_sck_t* csck, hio_htre_t* r
 	if (hio_svc_htts_task_sendfinalres((hio_svc_htts_task_t*)txt, res_status_code, content_type, content_text, 0) <= -1) goto oops;
 
 	HIO_SVC_HTTS_TASKL_APPEND_TASK (&htts->task, (hio_svc_htts_task_t*)txt);
-	HIO_SVC_HTTS_TASK_RCDOWN ((hio_svc_htts_task_t*)txt);
+	HIO_SVC_HTTS_TASK_RCDOWN((hio_svc_htts_task_t*)txt);
 
 	/* set the on_kill callback only if this function can return success.
 	 * the on_kill callback won't be executed if this function returns failure. */
@@ -302,13 +285,13 @@ int hio_svc_htts_dotxt (hio_svc_htts_t* htts, hio_dev_sck_t* csck, hio_htre_t* r
 	return 0;
 
 oops:
-	HIO_DEBUG2 (hio, "HTTS(%p) - FAILURE in dotxt - socket(%p)\n", htts, csck);
+	HIO_DEBUG2(hio, "HTTS(%p) - FAILURE in dotxt - socket(%p)\n", htts, csck);
 	if (txt)
 	{
 		hio_svc_htts_task_sendfinalres((hio_svc_htts_task_t*)txt, status_code, HIO_NULL, HIO_NULL, 1);
 		if (bound_to_client) hio_svc_htts_task_unbindfromclient((hio_svc_htts_task_t*)txt, 1);
 		txt_halt_participating_devices (txt);
-		HIO_SVC_HTTS_TASK_RCDOWN ((hio_svc_htts_task_t*)txt);
+		HIO_SVC_HTTS_TASK_RCDOWN((hio_svc_htts_task_t*)txt);
 	}
 	return -1;
 }

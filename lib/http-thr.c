@@ -76,11 +76,11 @@ static void unbind_task_from_peer (thr_t* thr, int rcdown);
 
 static void thr_halt_participating_devices (thr_t* thr)
 {
-	HIO_DEBUG4 (thr->htts->hio, "HTTS(%p) - Halting participating devices in thr task %p(csck=%p,peer=%p)\n", thr->htts, thr, thr->task_csck, thr->peer);
+	HIO_DEBUG4(thr->htts->hio, "HTTS(%p) - Halting participating devices in thr task %p(csck=%p,peer=%p)\n", thr->htts, thr, thr->task_csck, thr->peer);
 
-	if (thr->task_csck) hio_dev_sck_halt (thr->task_csck);
+	if (thr->task_csck) hio_dev_sck_halt(thr->task_csck);
 	/* check for peer as it may not have been started */
-	if (thr->peer) hio_dev_thr_halt (thr->peer);
+	if (thr->peer) hio_dev_thr_halt(thr->peer);
 }
 
 static int thr_write_to_peer (thr_t* thr, const void* data, hio_iolen_t dlen)
@@ -103,62 +103,22 @@ static int thr_write_to_peer (thr_t* thr, const void* data, hio_iolen_t dlen)
 	return 0;
 }
 
-static HIO_INLINE void thr_mark_over (thr_t* thr, int over_bits)
+static void thr_mark_over (thr_t* thr, int over_bits)
 {
-	hio_svc_htts_t* htts = thr->htts;
-	hio_t* hio = htts->hio;
 	unsigned int old_over;
 
 	old_over = thr->over;
 	thr->over |= over_bits;
 
-	HIO_DEBUG8 (hio, "HTTS(%p) - thr(t=%p,c=%p[%d],p=%p) - old_over=%x | new-bits=%x => over=%x\n", thr->htts, thr, thr->task_client, (thr->task_csck? thr->task_csck->hnd: -1), thr->peer, (int)old_over, (int)over_bits, (int)thr->over);
+	HIO_DEBUG4(thr->htts->hio, "HTTS(%p) - thr(c=%p) updating mark - new-bits=%x => over=%x\n", thr->htts, thr->task_csck, (int)over_bits, (int)thr->over);
 
 	if (!(old_over & THR_OVER_READ_FROM_CLIENT) && (thr->over & THR_OVER_READ_FROM_CLIENT))
-	{
-		if (thr->task_csck && hio_dev_sck_read(thr->task_csck, 0) <= -1)
-		{
-			HIO_DEBUG5 (hio, "HTTS(%p) - thr(t=%p,c=%p[%d],p=%p) - halting client for failure to disable input watching\n", thr->htts, thr, thr->task_client, (thr->task_csck? thr->task_csck->hnd: -1), thr->peer);
-			hio_dev_sck_halt (thr->task_csck);
-		}
-	}
-
-	if (!(old_over & THR_OVER_READ_FROM_PEER) && (thr->over & THR_OVER_READ_FROM_PEER))
-	{
-		if (thr->peer && hio_dev_thr_read(thr->peer, 0) <= -1)
-		{
-			HIO_DEBUG5 (hio, "HTTS(%p) - thr(t=%p,c=%p[%d],p=%p) - halting peer for failure to disable input watching\n", thr->htts, thr, thr->task_client, (thr->task_csck? thr->task_csck->hnd: -1), thr->peer);
-			hio_dev_thr_halt (thr->peer);
-		}
-	}
+		hio_svc_htts_task_stopreadingclient((hio_svc_htts_task_t*)thr);
 
 	if (old_over != THR_OVER_ALL && thr->over == THR_OVER_ALL)
 	{
-		/* ready to stop */
-		if (thr->peer)
-		{
-			HIO_DEBUG5 (hio, "HTTS(%p) - thr(t=%p,c=%p[%d],p=%p) - halting peer as it is unneeded\n", thr->htts, thr, thr->task_client, (thr->task_csck? thr->task_csck->hnd: -1), thr->peer);
-			hio_dev_thr_halt (thr->peer);
-		}
-
-		if (thr->task_csck)
-		{
-			HIO_ASSERT(hio, thr->task_client != HIO_NULL);
-
-			if (thr->task_keep_client_alive)
-			{
-				/* how to arrange to delete this thr object and put the socket back to the normal waiting state??? */
-				HIO_ASSERT(thr->htts->hio, thr->task_client->task == (hio_svc_htts_task_t*)thr);
-				hio_svc_htts_task_unbindfromclient((hio_svc_htts_task_t*)thr, 1);
-				/* IMPORTANT: thr must not be accessed from here down as it could have been destroyed */
-			}
-			else
-			{
-				HIO_DEBUG5 (hio, "HTTS(%p) - thr(t=%p,c=%p[%d],p=%p) - halting client for no keep-alive\n", thr->htts, thr, thr->task_client, (thr->task_csck? thr->task_csck->hnd: -1), thr->peer);
-				hio_dev_sck_shutdown (thr->task_csck, HIO_DEV_SCK_SHUTDOWN_WRITE);
-				hio_dev_sck_halt (thr->task_csck);
-			}
-		}
+		if (thr->peer) hio_dev_thr_halt(thr->peer);
+		hio_svc_htts_task_finishclient((hio_svc_htts_task_t*)thr);
 	}
 }
 
@@ -167,9 +127,9 @@ static void thr_on_kill (hio_svc_htts_task_t* task)
 	thr_t* thr = (thr_t*)task;
 	hio_t* hio = thr->htts->hio;
 
-	HIO_DEBUG5 (hio, "HTTS(%p) - thr(t=%p,c=%p[%d],p=%p) - killing the task\n", thr->htts, thr, thr->task_client, (thr->task_csck? thr->task_csck->hnd: -1), thr->peer);
+	HIO_DEBUG5(hio, "HTTS(%p) - thr(t=%p,c=%p[%d],p=%p) - killing the task\n", thr->htts, thr, thr->task_client, (thr->task_csck? thr->task_csck->hnd: -1), thr->peer);
 
-	if (thr->on_kill) thr->on_kill (task);
+	if (thr->on_kill) thr->on_kill(task);
 
 	/* [NOTE]
 	 * 1. if hio_svc_htts_task_kill() is called, thr->peer, thr->peer_htrd, thr->task_csck,
@@ -178,7 +138,7 @@ static void thr_on_kill (hio_svc_htts_task_t* task)
 	 *    it is the task destruction callback. (passing 0 to unbind_task_from_peer/client)
 	 */
 
-	unbind_task_from_peer (thr, 0);
+	unbind_task_from_peer(thr, 0);
 
 	if (thr->task_csck)
 	{
@@ -186,8 +146,8 @@ static void thr_on_kill (hio_svc_htts_task_t* task)
 		hio_svc_htts_task_unbindfromclient((hio_svc_htts_task_t*)thr, 0);
 	}
 
-	if (thr->task_next) HIO_SVC_HTTS_TASKL_UNLINK_TASK (thr); /* detach from the htts service only if it's attached */
-	HIO_DEBUG5 (hio, "HTTS(%p) - thr(t=%p,c=%p[%d],p=%p) - killed the task\n", thr->htts, thr, thr->task_client, (thr->task_csck? thr->task_csck->hnd: -1), thr->peer);
+	if (thr->task_next) HIO_SVC_HTTS_TASKL_UNLINK_TASK(thr); /* detach from the htts service only if it's attached */
+	HIO_DEBUG5(hio, "HTTS(%p) - thr(t=%p,c=%p[%d],p=%p) - killed the task\n", thr->htts, thr, thr->task_client, (thr->task_csck? thr->task_csck->hnd: -1), thr->peer);
 }
 
 static void thr_peer_on_close (hio_dev_thr_t* peer, hio_dev_thr_sid_t sid)
@@ -201,20 +161,20 @@ static void thr_peer_on_close (hio_dev_thr_t* peer, hio_dev_thr_sid_t sid)
 	switch (sid)
 	{
 		case HIO_DEV_THR_MASTER:
-			HIO_DEBUG2 (hio, "HTTS(%p) - peer %p closing master\n", thr->htts, peer);
+			HIO_DEBUG2(hio, "HTTS(%p) - peer %p closing master\n", thr->htts, peer);
 			/* reset thr->peer before calling unbind_task_from_peer() because this is the peer close callback */
 			thr->peer = HIO_NULL;
-			unbind_task_from_peer (thr, 1);
+			unbind_task_from_peer(thr, 1);
 			break;
 
 		case HIO_DEV_THR_OUT:
 			HIO_ASSERT(hio, thr->peer == peer);
-			HIO_DEBUG3 (hio, "HTTS(%p) - peer %p closing slave[%d]\n", thr->htts, peer, sid);
+			HIO_DEBUG3(hio, "HTTS(%p) - peer %p closing slave[%d]\n", thr->htts, peer, sid);
 
 			if (!(thr->over & THR_OVER_READ_FROM_PEER))
 			{
 				if (hio_svc_htts_task_endbody((hio_svc_htts_task_t*)thr) <= -1)
-					thr_halt_participating_devices (thr);
+					thr_halt_participating_devices(thr);
 				else
 					thr_mark_over(thr, THR_OVER_READ_FROM_PEER);
 			}
@@ -225,7 +185,7 @@ static void thr_peer_on_close (hio_dev_thr_t* peer, hio_dev_thr_sid_t sid)
 			break;
 
 		default:
-			HIO_DEBUG3 (hio, "HTTS(%p) - peer %p closing slave[%d]\n", thr->htts, peer, sid);
+			HIO_DEBUG3(hio, "HTTS(%p) - peer %p closing slave[%d]\n", thr->htts, peer, sid);
 			/* do nothing */
 			break;
 	}
@@ -241,13 +201,13 @@ static int thr_peer_on_read (hio_dev_thr_t* peer, const void* data, hio_iolen_t 
 
 	if (dlen <= -1)
 	{
-		HIO_DEBUG2 (hio, "HTTPS(%p) - read error from peer %p\n", thr->htts, peer);
+		HIO_DEBUG2(hio, "HTTPS(%p) - read error from peer %p\n", thr->htts, peer);
 		goto oops;
 	}
 
 	if (dlen == 0)
 	{
-		HIO_DEBUG2 (hio, "HTTPS(%p) - EOF from peer %p\n", thr->htts, peer);
+		HIO_DEBUG2(hio, "HTTPS(%p) - EOF from peer %p\n", thr->htts, peer);
 
 		if (!(thr->over & THR_OVER_READ_FROM_PEER))
 		{
@@ -268,7 +228,7 @@ static int thr_peer_on_read (hio_dev_thr_t* peer, const void* data, hio_iolen_t 
 
 		if (hio_htrd_feed(thr->peer_htrd, data, dlen, &rem) <= -1)
 		{
-			HIO_DEBUG2 (hio, "HTTPS(%p) - unable to feed peer htrd - peer %p\n", thr->htts, peer);
+			HIO_DEBUG2(hio, "HTTPS(%p) - unable to feed peer htrd - peer %p\n", thr->htts, peer);
 
 			if (!thr->task_res_started && !(thr->over & THR_OVER_WRITE_TO_CLIENT))
 			{
@@ -416,7 +376,7 @@ static int thr_peer_on_write (hio_dev_thr_t* peer, hio_iolen_t wrlen, void* wrct
 
 	if (wrlen <= -1)
 	{
-		HIO_DEBUG2 (hio, "HTTS(%p) - unable to write to peer %p\n", thr->htts, peer);
+		HIO_DEBUG2(hio, "HTTS(%p) - unable to write to peer %p\n", thr->htts, peer);
 		goto oops;
 	}
 	else if (wrlen == 0)
@@ -426,7 +386,7 @@ static int thr_peer_on_write (hio_dev_thr_t* peer, hio_iolen_t wrlen, void* wrct
 
 		thr->num_pending_writes_to_peer--;
 		HIO_ASSERT(hio, thr->num_pending_writes_to_peer == 0);
-		HIO_DEBUG2 (hio, "HTTS(%p) - indicated EOF to peer %p\n", thr->htts, peer);
+		HIO_DEBUG2(hio, "HTTS(%p) - indicated EOF to peer %p\n", thr->htts, peer);
 		/* indicated EOF to the peer side. i need no more data from the client side.
 		 * i don't need to enable input watching in the client side either */
 		thr_mark_over(thr, THR_OVER_WRITE_TO_PEER);
@@ -463,11 +423,11 @@ static void thr_client_on_disconnect (hio_dev_sck_t* sck)
 	hio_t* hio = sck->hio;
 
 	HIO_ASSERT(hio, sck = thr->task_csck);
-	HIO_DEBUG4 (hio, "HTTS(%p) - thr(t=%p,c=%p,csck=%p) - client socket disconnect notified\n", htts, thr, cli, sck);
+	HIO_DEBUG4(hio, "HTTS(%p) - thr(t=%p,c=%p,csck=%p) - client socket disconnect notified\n", htts, thr, cli, sck);
 
 	if (thr)
 	{
-		HIO_SVC_HTTS_TASK_RCUP ((hio_svc_htts_task_t*)thr);
+		HIO_SVC_HTTS_TASK_RCUP((hio_svc_htts_task_t*)thr);
 
 		hio_svc_htts_task_unbindfromclient((hio_svc_htts_task_t*)thr, 1);
 
@@ -475,10 +435,10 @@ static void thr_client_on_disconnect (hio_dev_sck_t* sck)
 		/*if (thr->client_org_on_disconnect) thr->client_org_on_disconnect (sck);*/
 		hio_svc_htts_client_default_on_disconnect (sck); /* restored to the orginal parent handler in unbind_task_from_client() */
 
-		HIO_SVC_HTTS_TASK_RCDOWN ((hio_svc_htts_task_t*)thr);
+		HIO_SVC_HTTS_TASK_RCDOWN((hio_svc_htts_task_t*)thr);
 	}
 
-	HIO_DEBUG4 (hio, "HTTS(%p) - thr(t=%p,c=%p,csck=%p) - client socket disconnect handled\n", htts, thr, cli, sck);
+	HIO_DEBUG4(hio, "HTTS(%p) - thr(t=%p,c=%p,csck=%p) - client socket disconnect handled\n", htts, thr, cli, sck);
 	/* Note: after this callback, the actual device pointed to by 'sck' will be freed in the main loop. */
 }
 
@@ -496,14 +456,14 @@ static int thr_client_on_read (hio_dev_sck_t* sck, const void* buf, hio_iolen_t 
 	if (len <= -1)
 	{
 		/* read error */
-		HIO_DEBUG2 (cli->htts->hio, "HTTPS(%p) - read error on client %p(%d)\n", sck, (int)sck->hnd);
+		HIO_DEBUG2(cli->htts->hio, "HTTPS(%p) - read error on client %p(%d)\n", sck, (int)sck->hnd);
 		goto oops;
 	}
 
 	if (len == 0)
 	{
 		/* EOF on the client side. arrange to close */
-		HIO_DEBUG3 (hio, "HTTPS(%p) - EOF from client %p(hnd=%d)\n", thr->htts, sck, (int)sck->hnd);
+		HIO_DEBUG3(hio, "HTTPS(%p) - EOF from client %p(hnd=%d)\n", thr->htts, sck, (int)sck->hnd);
 
 		if (!(thr->over & THR_OVER_READ_FROM_CLIENT)) /* if this is true, EOF is received without thr_client_htrd_poke() */
 		{
@@ -682,7 +642,7 @@ static int bind_task_to_peer (thr_t* thr, hio_dev_sck_t* csck, hio_htre_t* req, 
 	{
 		/* no need to detach the attached task here because that is handled
 		 * in the kill/disconnect callbacks of relevant devices */
-		HIO_DEBUG3 (hio, "HTTS(%p) - failed to create thread for %p(%d)\n", htts, csck, (int)csck->hnd);
+		HIO_DEBUG3(hio, "HTTS(%p) - failed to create thread for %p(%d)\n", htts, csck, (int)csck->hnd);
 		goto oops;
 	}
 
@@ -697,8 +657,8 @@ static int bind_task_to_peer (thr_t* thr, hio_dev_sck_t* csck, hio_htre_t* req, 
 	pxtn = hio_htrd_getxtn(thr->peer_htrd);
 	pxtn->task = thr;
 
-	HIO_SVC_HTTS_TASK_RCUP (thr); /* for thr */
-	HIO_SVC_HTTS_TASK_RCUP (thr); /* for peer_htrd */
+	HIO_SVC_HTTS_TASK_RCUP(thr); /* for thr */
+	HIO_SVC_HTTS_TASK_RCUP(thr); /* for peer_htrd */
 	return 0;
 
 oops:
@@ -792,7 +752,7 @@ int hio_svc_htts_dothr (hio_svc_htts_t* htts, hio_dev_sck_t* csck, hio_htre_t* r
 
 	thr = (thr_t*)hio_svc_htts_task_make(htts, HIO_SIZEOF(*thr), thr_on_kill, req, csck);
 	if (HIO_UNLIKELY(!thr)) goto oops;
-	HIO_SVC_HTTS_TASK_RCUP ((hio_svc_htts_task_t*)thr);
+	HIO_SVC_HTTS_TASK_RCUP((hio_svc_htts_task_t*)thr);
 
 	thr->options = options;
 
@@ -809,7 +769,7 @@ int hio_svc_htts_dothr (hio_svc_htts_t* htts, hio_dev_sck_t* csck, hio_htre_t* r
 	if (hio_dev_sck_read(csck, !(thr->over & THR_OVER_READ_FROM_CLIENT)) <= -1) goto oops;
 
 	HIO_SVC_HTTS_TASKL_APPEND_TASK (&htts->task, (hio_svc_htts_task_t*)thr);
-	HIO_SVC_HTTS_TASK_RCDOWN ((hio_svc_htts_task_t*)thr);
+	HIO_SVC_HTTS_TASK_RCDOWN((hio_svc_htts_task_t*)thr);
 
 	/* set the on_kill callback only if this function can return success.
 	 * the on_kill callback won't be executed if this function returns failure. */
@@ -817,14 +777,14 @@ int hio_svc_htts_dothr (hio_svc_htts_t* htts, hio_dev_sck_t* csck, hio_htre_t* r
 	return 0;
 
 oops:
-	HIO_DEBUG2 (hio, "HTTS(%p) - FAILURE in dothr - socket(%p)\n", htts, csck);
+	HIO_DEBUG2(hio, "HTTS(%p) - FAILURE in dothr - socket(%p)\n", htts, csck);
 	if (thr)
 	{
 		hio_svc_htts_task_sendfinalres((hio_svc_htts_task_t*)thr, status_code, HIO_NULL, HIO_NULL, 1);
 		if (bound_to_peer) unbind_task_from_peer (thr, 1);
 		if (bound_to_client) hio_svc_htts_task_unbindfromclient((hio_svc_htts_task_t*)thr, 1);
 		thr_halt_participating_devices (thr);
-		HIO_SVC_HTTS_TASK_RCDOWN ((hio_svc_htts_task_t*)thr);
+		HIO_SVC_HTTS_TASK_RCDOWN((hio_svc_htts_task_t*)thr);
 	}
 	return -1;
 }
