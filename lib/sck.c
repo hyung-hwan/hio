@@ -330,7 +330,7 @@ static void connect_timedout (hio_t* hio, const hio_ntime_t* now, hio_tmrjob_t* 
 {
 	hio_dev_sck_t* rdev = (hio_dev_sck_t*)job->ctx;
 
-	HIO_ASSERT (hio, IS_STREAM(rdev));
+	HIO_ASSERT(hio, IS_STREAM(rdev));
 
 	if (rdev->state & HIO_DEV_SCK_CONNECTING)
 	{
@@ -348,7 +348,7 @@ static void ssl_accept_timedout (hio_t* hio, const hio_ntime_t* now, hio_tmrjob_
 {
 	hio_dev_sck_t* rdev = (hio_dev_sck_t*)job->ctx;
 
-	HIO_ASSERT (hio, IS_STREAM(rdev));
+	HIO_ASSERT(hio, IS_STREAM(rdev));
 
 	if (rdev->state & HIO_DEV_SCK_ACCEPTING_SSL)
 	{
@@ -361,7 +361,7 @@ static void ssl_connect_timedout (hio_t* hio, const hio_ntime_t* now, hio_tmrjob
 {
 	hio_dev_sck_t* rdev = (hio_dev_sck_t*)job->ctx;
 
-	HIO_ASSERT (hio, IS_STREAM(rdev));
+	HIO_ASSERT(hio, IS_STREAM(rdev));
 
 	if (rdev->state & HIO_DEV_SCK_CONNECTING_SSL)
 	{
@@ -398,7 +398,7 @@ static int dev_sck_make (hio_dev_t* dev, void* ctx)
 	hio_syshnd_t hnd = HIO_SYSHND_INVALID;
 	hio_syshnd_t side_chan = HIO_SYSHND_INVALID;
 
-	HIO_ASSERT (hio, arg->type >= 0 && arg->type < HIO_COUNTOF(sck_type_map));
+	HIO_ASSERT(hio, arg->type >= 0 && arg->type < HIO_COUNTOF(sck_type_map));
 
 	/* initialize some fields first where 0 is not somthing initial or invalid. */
 	rdev->hnd = HIO_SYSHND_INVALID;
@@ -427,7 +427,7 @@ static int dev_sck_make (hio_dev_t* dev, void* ctx)
 		{
 			struct sctp_event_subscribe sctp_ev_s;
 
-			HIO_MEMSET (&sctp_ev_s, 0, HIO_SIZEOF(sctp_ev_s));
+			HIO_MEMSET(&sctp_ev_s, 0, HIO_SIZEOF(sctp_ev_s));
 			sctp_ev_s.sctp_data_io_event = 1;
 			setsockopt (hnd, IPPROTO_SCTP, SCTP_EVENTS, &sctp_ev_s, HIO_SIZEOF(sctp_ev_s));
 		}
@@ -511,7 +511,7 @@ static int dev_sck_kill (hio_dev_t* dev, int force)
 	else
 	{
 		/* non-stream, but lisenable or connectable can have the progress bits on */
-		/*HIO_ASSERT (hio, (rdev->state & HIO_DEV_SCK_ALL_PROGRESS_BITS) == 0);*/
+		/*HIO_ASSERT(hio, (rdev->state & HIO_DEV_SCK_ALL_PROGRESS_BITS) == 0);*/
 
 		if (rdev->on_disconnect) rdev->on_disconnect (rdev);
 	}
@@ -521,7 +521,7 @@ static int dev_sck_kill (hio_dev_t* dev, int force)
 	if (rdev->tmrjob_index != HIO_TMRIDX_INVALID)
 	{
 		hio_deltmrjob (hio, rdev->tmrjob_index);
-		HIO_ASSERT (hio, rdev->tmrjob_index == HIO_TMRIDX_INVALID);
+		HIO_ASSERT(hio, rdev->tmrjob_index == HIO_TMRIDX_INVALID);
 	}
 
 #if defined(USE_SSL)
@@ -654,7 +654,7 @@ static int recvmsg_sctp(
 	iov.iov_base = ptr;
 	iov.iov_len = len;
 
-	HIO_MEMSET (&msg, 0, HIO_SIZEOF(msg));
+	HIO_MEMSET(&msg, 0, HIO_SIZEOF(msg));
 	msg.msg_name = srcaddr;
 	msg.msg_namelen = *srcaddrlen;
 	msg.msg_iov = &iov;
@@ -705,7 +705,7 @@ static int sendmsg_sctp(
 
 	msg.msg_controllen = cmsg->cmsg_len;
 	sinfo = (struct sctp_sndrcvinfo *)CMSG_DATA(cmsg);
-	HIO_MEMSET (sinfo, 0, HIO_SIZEOF(*sinfo));
+	HIO_MEMSET(sinfo, 0, HIO_SIZEOF(*sinfo));
 	sinfo->sinfo_ppid = ppid;
 	sinfo->sinfo_flags = flags;
 	sinfo->sinfo_stream = stream_no;
@@ -904,7 +904,7 @@ static int dev_sck_writev_stream (hio_dev_t* dev, const hio_iovec_t* iov, hio_io
 	#endif
 
 	#if defined(HAVE_SENDMSG)
-		HIO_MEMSET (&msg, 0, HIO_SIZEOF(msg));
+		HIO_MEMSET(&msg, 0, HIO_SIZEOF(msg));
 		msg.msg_iov = (struct iovec*)iov;
 		msg.msg_iovlen = *iovcnt;
 		x = sendmsg(rdev->hnd, &msg, flags);
@@ -955,7 +955,7 @@ static int dev_sck_writev_stateless (hio_dev_t* dev, const hio_iovec_t* iov, hio
 	ssize_t x;
 	int flags = 0;
 
-	HIO_MEMSET (&msg, 0, HIO_SIZEOF(msg));
+	HIO_MEMSET(&msg, 0, HIO_SIZEOF(msg));
 	if (HIO_LIKELY(dstaddr))
 	{
 		msg.msg_name = dstaddr->ptr;
@@ -1149,7 +1149,7 @@ static int do_ssl (hio_dev_sck_t* dev, int (*ssl_func)(SSL*))
 	hio_t* hio = dev->hio;
 	int ret, watcher_cmd, watcher_events;
 
-	HIO_ASSERT (hio, dev->ssl_ctx);
+	HIO_ASSERT(hio, dev->ssl_ctx);
 
 	if (!dev->ssl)
 	{
@@ -1493,7 +1493,7 @@ fcntl (rdev->hnd, F_SETFL, flags | O_NONBLOCK);
 							else
 							{
 								/* update rdev->tmout to the deadline of the connect timeout job */
-								HIO_ASSERT (hio, rdev->tmrjob_index != HIO_TMRIDX_INVALID);
+								HIO_ASSERT(hio, rdev->tmrjob_index != HIO_TMRIDX_INVALID);
 								hio_gettmrjobdeadline (hio, rdev->tmrjob_index, &rdev->tmout);
 							}
 						}
@@ -1717,7 +1717,7 @@ static int harvest_outgoing_connection (hio_dev_sck_t* rdev)
 	int errcode;
 	hio_scklen_t len;
 
-	HIO_ASSERT (hio, !(rdev->state & HIO_DEV_SCK_CONNECTED));
+	HIO_ASSERT(hio, !(rdev->state & HIO_DEV_SCK_CONNECTED));
 
 	len = HIO_SIZEOF(errcode);
 	if (getsockopt(rdev->hnd, SOL_SOCKET, SO_ERROR, (char*)&errcode, &len) <= -1)
@@ -1735,7 +1735,7 @@ static int harvest_outgoing_connection (hio_dev_sck_t* rdev)
 		if (rdev->tmrjob_index != HIO_TMRIDX_INVALID)
 		{
 			hio_deltmrjob (hio, rdev->tmrjob_index);
-			HIO_ASSERT (hio, rdev->tmrjob_index == HIO_TMRIDX_INVALID);
+			HIO_ASSERT(hio, rdev->tmrjob_index == HIO_TMRIDX_INVALID);
 		}
 
 		addrlen = HIO_SIZEOF(localaddr);
@@ -1752,7 +1752,7 @@ static int harvest_outgoing_connection (hio_dev_sck_t* rdev)
 		if (rdev->ssl_ctx)
 		{
 			int x;
-			HIO_ASSERT (hio, !rdev->ssl); /* must not be SSL-connected yet */
+			HIO_ASSERT(hio, !rdev->ssl); /* must not be SSL-connected yet */
 
 			x = connect_ssl(rdev);
 			if (x <= -1) return -1;
@@ -1761,7 +1761,7 @@ static int harvest_outgoing_connection (hio_dev_sck_t* rdev)
 				/* underlying socket connected but not SSL-connected */
 				HIO_DEV_SCK_SET_PROGRESS (rdev, HIO_DEV_SCK_CONNECTING_SSL);
 
-				HIO_ASSERT (hio, rdev->tmrjob_index == HIO_TMRIDX_INVALID);
+				HIO_ASSERT(hio, rdev->tmrjob_index == HIO_TMRIDX_INVALID);
 
 				/* rdev->tmout has been set to the deadline of the connect task
 				 * when the CONNECT IOCTL command has been executed. use the
@@ -1844,7 +1844,7 @@ static int make_accepted_client_connection (hio_dev_sck_t* rdev, hio_syshnd_t cl
 	}
 
 	clidev->type = clisck_type;
-	HIO_ASSERT (hio, clidev->hnd == clisck);
+	HIO_ASSERT(hio, clidev->hnd == clisck);
 
 	clidev->dev_cap |= HIO_DEV_CAP_IN | HIO_DEV_CAP_OUT | sck_type_map[clisck_type].extra_dev_cap;
 	clidev->remoteaddr = *remoteaddr;
@@ -1898,15 +1898,15 @@ static int make_accepted_client_connection (hio_dev_sck_t* rdev, hio_syshnd_t cl
 	clidev->on_read = rdev->on_read;
 
 	/* inherit the contents of the extension area */
-	HIO_ASSERT (hio, rdev->dev_size == clidev->dev_size);
-	HIO_MEMCPY (hio_dev_sck_getxtn(clidev), hio_dev_sck_getxtn(rdev), rdev->dev_size - HIO_SIZEOF(hio_dev_sck_t));
+	HIO_ASSERT(hio, rdev->dev_size == clidev->dev_size);
+	HIO_MEMCPY(hio_dev_sck_getxtn(clidev), hio_dev_sck_getxtn(rdev), rdev->dev_size - HIO_SIZEOF(hio_dev_sck_t));
 
-	HIO_ASSERT (hio, clidev->tmrjob_index == HIO_TMRIDX_INVALID);
+	HIO_ASSERT(hio, clidev->tmrjob_index == HIO_TMRIDX_INVALID);
 
 	if (rdev->ssl_ctx)
 	{
 		HIO_DEV_SCK_SET_PROGRESS (clidev, HIO_DEV_SCK_ACCEPTING_SSL);
-		HIO_ASSERT (hio, clidev->state & HIO_DEV_SCK_ACCEPTING_SSL);
+		HIO_ASSERT(hio, clidev->state & HIO_DEV_SCK_ACCEPTING_SSL);
 		/* actual SSL acceptance must be completed in the client device */
 
 		/* let the client device know the SSL context to use */
@@ -2534,7 +2534,7 @@ static int update_mcast_group (hio_dev_sck_t* dev, int join, const hio_skad_t* m
 		#else
 			struct ip_mreq mreq;
 		#endif
-			HIO_MEMSET (&mreq, 0, HIO_SIZEOF(mreq));
+			HIO_MEMSET(&mreq, 0, HIO_SIZEOF(mreq));
 			hio_skad_get_ipad_bytes (mcast_skad, &mreq.imr_multiaddr, HIO_SIZEOF(mreq.imr_multiaddr));
 			/*mreq.imr_address = TODO: fill it will the ifindex's ip address */
 		#if defined(HAVE_STRUCT_IP_MREQN)
@@ -2547,7 +2547,7 @@ static int update_mcast_group (hio_dev_sck_t* dev, int join, const hio_skad_t* m
 		case HIO_AF_INET6:
 		{
 			struct ipv6_mreq mreq;
-			HIO_MEMSET (&mreq, 0, HIO_SIZEOF(mreq));
+			HIO_MEMSET(&mreq, 0, HIO_SIZEOF(mreq));
 			hio_skad_get_ipad_bytes (mcast_skad, &mreq.ipv6mr_multiaddr, HIO_SIZEOF(mreq.ipv6mr_multiaddr));
 			mreq.ipv6mr_interface = ifindex;
 			if (hio_dev_sck_setsockopt(dev, IPPROTO_IPV6, (join? IPV6_JOIN_GROUP: IPV6_LEAVE_GROUP), &mreq, HIO_SIZEOF(mreq)) <= -1) return -1;
@@ -2629,6 +2629,49 @@ int hio_dev_sck_writetosidechan (hio_dev_sck_t* dev, const void* dptr, hio_oow_t
 		return -1;
 	}
 	return 0;
+}
+
+/* ========================================================================= */
+
+void hio_dev_sck_pushevcb (hio_dev_sck_t* dev, hio_dev_sck_evcb_link_t* link, const hio_dev_sck_evcb_t* evcb, void* ctx)
+{
+	link->saved.on_read = dev->on_read;
+	link->saved.on_write = dev->on_write;
+	link->saved.on_disconnect = dev->on_disconnect;
+	link->ctx = ctx;
+	link->prev = dev->evcb_top;
+	dev->evcb_top = link;
+
+	/* a null member means "leave the layer below in place" */
+	if (evcb->on_read) dev->on_read = evcb->on_read;
+	if (evcb->on_write) dev->on_write = evcb->on_write;
+	if (evcb->on_disconnect) dev->on_disconnect = evcb->on_disconnect;
+}
+
+hio_dev_sck_evcb_link_t* hio_dev_sck_popevcb (hio_dev_sck_t* dev)
+{
+	hio_dev_sck_evcb_link_t* link;
+
+	link = dev->evcb_top;
+	if (!link) return HIO_NULL; /* nothing in the stack */
+
+	dev->on_read = link->saved.on_read;
+	dev->on_write = link->saved.on_write;
+	dev->on_disconnect = link->saved.on_disconnect;
+
+	dev->evcb_top = link->prev;
+	link->prev = HIO_NULL;
+	return link;
+}
+
+void* hio_dev_sck_getevcbctx (hio_dev_sck_t* dev)
+{
+	return dev->evcb_top? dev->evcb_top->ctx: HIO_NULL;
+}
+
+hio_dev_sck_evcb_t* hio_dev_sck_getparentevcb (hio_dev_sck_t* dev)
+{
+	return dev->evcb_top? &dev->evcb_top->saved: HIO_NULL;
 }
 
 /* ========================================================================= */

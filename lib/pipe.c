@@ -188,7 +188,7 @@ static int dev_pipe_kill_slave (hio_dev_t* dev, int force)
 		/* indicate EOF */
 		if (master->on_close) master->on_close (master, rdev->id);
 
-		HIO_ASSERT (hio, master->slave_count > 0);
+		HIO_ASSERT(hio, master->slave_count > 0);
 		master->slave_count--;
 
 		if (master->slave[rdev->id])

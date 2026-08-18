@@ -40,7 +40,7 @@ int hio_dhcp4_init_pktbuf (hio_dhcp4_pktbuf_t* pkt, void* buf, hio_oow_t capa)
 	pkt->hdr = (hio_dhcp4_pkt_hdr_t*)buf;
 	pkt->len = HIO_SIZEOF(*pkt->hdr);
 	pkt->capa = capa;
-	HIO_MEMSET (pkt->hdr, 0, HIO_SIZEOF(*pkt->hdr));
+	HIO_MEMSET(pkt->hdr, 0, HIO_SIZEOF(*pkt->hdr));
 	return 0;
 }
 
@@ -92,7 +92,7 @@ int hio_dhcp4_add_option (hio_dhcp4_pktbuf_t* pkt, int code, void* optr, hio_uin
 		opthdr = (hio_dhcp4_opt_hdr_t*)((hio_uint8_t*)pkt->hdr + pkt->len);
 
 		opthdr->len = olen;
-		if (olen > 0) HIO_MEMCPY (opthdr + 1, optr, olen);
+		if (olen > 0) HIO_MEMCPY(opthdr + 1, optr, olen);
 	}
 
 	opthdr->code = code;
@@ -116,13 +116,13 @@ int hio_dhcp4_delete_option (hio_dhcp4_pktbuf_t* pkt, int code)
 	    (ohdr >= pkt->hdr->sname && ohdr < (ovend = (hio_uint8_t*)pkt->hdr->sname + HIO_SIZEOF(pkt->hdr->sname))))
 	{
 		/* the option resides in the overload area */
-		HIO_MEMMOVE (ohdr, (hio_uint8_t*)ohdr + olen, ovend - ((hio_uint8_t*)ohdr + olen));
-		HIO_MEMSET (ovend - olen, 0, olen);
+		HIO_MEMMOVE(ohdr, (hio_uint8_t*)ohdr + olen, ovend - ((hio_uint8_t*)ohdr + olen));
+		HIO_MEMSET(ovend - olen, 0, olen);
 		/* packet length remains unchanged */
 	}
 	else
 	{
-		HIO_MEMMOVE (ohdr, (hio_uint8_t*)ohdr + olen, ((hio_uint8_t*)pkt->hdr + pkt->len) - ((hio_uint8_t*)ohdr + olen));
+		HIO_MEMMOVE(ohdr, (hio_uint8_t*)ohdr + olen, ((hio_uint8_t*)pkt->hdr + pkt->len) - ((hio_uint8_t*)ohdr + olen));
 		pkt->len -= olen;
 	}
 	return 0;

@@ -58,6 +58,7 @@ typedef struct hio_t hio_t;
 typedef struct hio_dev_t hio_dev_t;
 typedef struct hio_dev_mth_t hio_dev_mth_t;
 typedef struct hio_dev_evcb_t hio_dev_evcb_t;
+typedef struct hio_dev_evcb_link_t hio_dev_evcb_link_t;
 typedef struct hio_svc_t hio_svc_t;
 
 typedef struct hio_q_t hio_q_t;
@@ -263,6 +264,13 @@ struct hio_dev_evcb_t
 	int           (*on_write)     (hio_dev_t* dev, hio_iolen_t wrlen, void* wrctx, const hio_devaddr_t* dstaddr);
 };
 
+struct hio_dev_evcb_link_t
+{
+	hio_dev_evcb_t*      evcb;
+	void*                ctx;
+	hio_dev_evcb_link_t* prev;
+};
+
 /**
  * The #hio_q_t type is a basic structure that holds two pointers to the previous
  * item and the next to form a circular doubly linked list to used as a queue.
@@ -377,7 +385,9 @@ struct hio_wq_t
 	hio_oow_t       dev_size; \
 	hio_bitmask_t   dev_cap; \
 	hio_dev_mth_t*  dev_mth; \
-	hio_dev_evcb_t* dev_evcb; \
+	hio_dev_evcb_t* dev_evcb; /* cached for faster access. must be equal to dev_evcb_top->evcb */ \
+	hio_dev_evcb_link_t* dev_evcb_top; /* top evcb pointer */ \
+	hio_dev_evcb_link_t dev_evcb_base; /* base space to hold the actual evcb data */ \
 	hio_ntime_t     rtmout; \
 	hio_tmridx_t    rtmridx; \
 	hio_wq_t        wq; \
@@ -1062,6 +1072,22 @@ HIO_EXPORT int hio_dev_timedsendfile (
 	const hio_ntime_t*    tmout,
 	void*                 wrctx
 );
+
+HIO_EXPORT void hio_dev_pushevcb (
+	hio_dev_t*            dev,
+	hio_dev_evcb_link_t*  link,
+	hio_dev_evcb_t*       evcb,
+	void*                 ctx
+);
+
+HIO_EXPORT hio_dev_evcb_link_t* hio_dev_popevcb (
+	hio_dev_t*            dev
+);
+
+HIO_EXPORT void * hio_dev_getevcbctx (
+	hio_dev_t*            dev
+);
+
 /* =========================================================================
  * SERVICE
  * ========================================================================= */

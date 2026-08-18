@@ -56,7 +56,7 @@ oops:
 	if (log_inited) hio_sys_finilog (hio);
 	if (hio->sysdep)
 	{
-		hio_freemem (hio, hio->sysdep);
+		hio_freemem(hio, hio->sysdep);
 		hio->sysdep = HIO_NULL;
 	}
 	return -1;
@@ -68,7 +68,7 @@ void hio_sys_fini (hio_t* hio)
 	if (hio->_features & HIO_FEATURE_MUX) hio_sys_finimux (hio);
 	if (hio->_features & HIO_FEATURE_LOG) hio_sys_finilog (hio);
 
-	hio_freemem (hio, hio->sysdep);
+	hio_freemem(hio, hio->sysdep);
 	hio->sysdep = HIO_NULL;
 }
 

@@ -121,7 +121,7 @@ static void sck_on_connect (hio_dev_sck_t* sck)
 /* printf ("FCGIC SOCKET CONNECTED >>>>>>>>>>>>>>>>>>>>>>>>>>\n"); */
 
 	/* reinitialize the input parsing information */
-	HIO_MEMSET (&conn->r, 0, HIO_SIZEOF(conn->r));
+	HIO_MEMSET(&conn->r, 0, HIO_SIZEOF(conn->r));
 	conn->r.state = R_AWAITING_HEADER;
 
 	if (!HIO_IS_NEG_NTIME(&conn->fcgic->tmout.r))
@@ -146,7 +146,7 @@ static int sck_on_write (hio_dev_sck_t* sck, hio_iolen_t wrlen, void* wrctx, con
 
 	if (wrlen > 0)
 	{
-		HIO_ASSERT (sess->conn->hio, wrlen >= HIO_SIZEOF(hio_fcgi_record_header_t));
+		HIO_ASSERT(sess->conn->hio, wrlen >= HIO_SIZEOF(hio_fcgi_record_header_t));
 		wrlen -= HIO_SIZEOF(hio_fcgi_record_header_t);
 	}
 
@@ -183,11 +183,11 @@ static int sck_on_read (hio_dev_sck_t* sck, const void* data, hio_iolen_t dlen, 
 			{
 				hio_fcgi_record_header_t* h;
 
-				HIO_ASSERT (hio, conn->r.len < HIO_SIZEOF(*h));
+				HIO_ASSERT(hio, conn->r.len < HIO_SIZEOF(*h));
 
 				reqlen = HIO_SIZEOF(*h) - conn->r.len;
 				cplen = (dlen > reqlen)? reqlen: dlen;
-				HIO_MEMCPY (&conn->r.buf[conn->r.len], data, cplen);
+				HIO_MEMCPY(&conn->r.buf[conn->r.len], data, cplen);
 				conn->r.len += cplen;
 
 				data += cplen;
@@ -196,7 +196,7 @@ static int sck_on_read (hio_dev_sck_t* sck, const void* data, hio_iolen_t dlen, 
 				if (conn->r.len < HIO_SIZEOF(*h))
 				{
 					/* not enough data to complete a header*/
-					HIO_ASSERT (hio, dlen == 0);
+					HIO_ASSERT(hio, dlen == 0);
 					break;
 				}
 
@@ -212,7 +212,7 @@ static int sck_on_read (hio_dev_sck_t* sck, const void* data, hio_iolen_t dlen, 
 				conn->r.len = 0; /* reset to 0 to use the buffer to hold body */
 
 				/* the expected body length must not be too long */
-				HIO_ASSERT (hio, conn->r.body_len <= HIO_SIZEOF(conn->r.buf));
+				HIO_ASSERT(hio, conn->r.body_len <= HIO_SIZEOF(conn->r.buf));
 
 				if (conn->r.type == HIO_FCGI_END_REQUEST && conn->r.content_len < HIO_SIZEOF(hio_fcgi_end_request_body_t))
 				{
@@ -230,7 +230,7 @@ static int sck_on_read (hio_dev_sck_t* sck, const void* data, hio_iolen_t dlen, 
 
 				reqlen = conn->r.body_len - conn->r.len;
 				cplen = (dlen > reqlen)? reqlen: dlen;
-				HIO_MEMCPY (&conn->r.buf[conn->r.len], data, cplen);
+				HIO_MEMCPY(&conn->r.buf[conn->r.len], data, cplen);
 				conn->r.len += cplen;
 
 				data += cplen;
@@ -238,7 +238,7 @@ static int sck_on_read (hio_dev_sck_t* sck, const void* data, hio_iolen_t dlen, 
 
 				if (conn->r.len < conn->r.body_len)
 				{
-					HIO_ASSERT (hio, dlen == 0);
+					HIO_ASSERT(hio, dlen == 0);
 					break;
 				}
 
@@ -272,7 +272,7 @@ static int sck_on_read (hio_dev_sck_t* sck, const void* data, hio_iolen_t dlen, 
 					goto back_to_header;
 				}
 
-				HIO_ASSERT (hio, conn->r.content_len <= conn->r.len);
+				HIO_ASSERT(hio, conn->r.content_len <= conn->r.len);
 				sess->on_read (sess, conn->r.buf, conn->r.content_len, sess->ctx); /* TODO: tell between stdout and stderr */
 
 			back_to_header:
@@ -297,7 +297,7 @@ static int make_connection_socket (hio_svc_fcgic_t* fcgic, hio_svc_fcgic_conn_t*
 	hio_dev_sck_connect_t ci;
 	fcgic_sck_xtn_t* sck_xtn;
 
-	HIO_MEMSET (&mi, 0, HIO_SIZEOF(mi));
+	HIO_MEMSET(&mi, 0, HIO_SIZEOF(mi));
 	if (hio_get_stream_sck_type_from_skad(&conn->addr, &mi.type) <= -1)
 	{
 		hio_seterrnum (hio, HIO_EINVAL);
@@ -315,7 +315,7 @@ static int make_connection_socket (hio_svc_fcgic_t* fcgic, hio_svc_fcgic_conn_t*
 	sck_xtn = hio_dev_sck_getxtn(sck);
 	sck_xtn->conn = conn;
 
-	HIO_MEMSET (&ci, 0, HIO_SIZEOF(ci));
+	HIO_MEMSET(&ci, 0, HIO_SIZEOF(ci));
 	ci.remoteaddr = conn->addr;
 	ci.connect_tmout = fcgic->tmout.c;
 
@@ -327,7 +327,7 @@ static int make_connection_socket (hio_svc_fcgic_t* fcgic, hio_svc_fcgic_conn_t*
 		return -1;
 	}
 
-	HIO_ASSERT (hio, conn->dev == HIO_NULL);
+	HIO_ASSERT(hio, conn->dev == HIO_NULL);
 	conn->dev = sck;
 	return 0;
 }
@@ -362,7 +362,7 @@ static hio_svc_fcgic_conn_t* get_connection (hio_svc_fcgic_t* fcgic, const hio_s
 
 	if (make_connection_socket(fcgic, conn) <= -1)
 	{
-		hio_freemem (hio, conn);
+		hio_freemem(hio, conn);
 		return HIO_NULL;
 	}
 
@@ -381,12 +381,12 @@ static int destroy_connection_memory (hio_t* hio, hio_cfmb_t* cfmb)
 
 		/* destroy the session blocks allocated in new_session(). */
 		for (i = 0; i < conn->sess.capa; i += CONN_SESS_INC)
-			hio_freemem (hio, conn->sess.ptr[i]);
+			hio_freemem(hio, conn->sess.ptr[i]);
 
 		/* destroy the session pointer bucket */
-		hio_freemem (hio, conn->sess.ptr);
+		hio_freemem(hio, conn->sess.ptr);
 	}
-	hio_freemem (hio, conn);
+	hio_freemem(hio, conn);
 	return 0;
 }
 
@@ -437,7 +437,7 @@ static hio_svc_fcgic_sess_t* new_session (hio_svc_fcgic_t* fcgic, const hio_skad
 		newptr = (hio_svc_fcgic_sess_t**)hio_reallocmem(hio, conn->sess.ptr, HIO_SIZEOF(*newptr) * newcapa);
 		if (HIO_UNLIKELY(!newptr))
 		{
-			hio_freemem (hio, newblk);
+			hio_freemem(hio, newblk);
 			return HIO_NULL;
 		}
 
@@ -465,8 +465,8 @@ static hio_svc_fcgic_sess_t* new_session (hio_svc_fcgic_t* fcgic, const hio_skad
 	sess->on_untie = on_untie;
 	sess->active = 1;
 	sess->ctx = ctx;
-	HIO_ASSERT (hio, sess->conn == conn);
-	HIO_ASSERT (hio, sess->conn->fcgic == fcgic);
+	HIO_ASSERT(hio, sess->conn == conn);
+	HIO_ASSERT(hio, sess->conn->fcgic == fcgic);
 
 	return sess;
 }
@@ -499,7 +499,7 @@ hio_svc_fcgic_t* hio_svc_fcgic_start (hio_t* hio, const hio_svc_fcgic_tmout_t* t
 	return fcgic;
 
 oops:
-	if (fcgic) hio_freemem (hio, fcgic);
+	if (fcgic) hio_freemem(hio, fcgic);
 	return HIO_NULL;
 }
 
@@ -513,7 +513,7 @@ void hio_svc_fcgic_stop (hio_svc_fcgic_t* fcgic)
 	free_connections (fcgic);
 
 	HIO_SVCL_UNLINK_SVC (fcgic);
-	hio_freemem (hio, fcgic);
+	hio_freemem(hio, fcgic);
 
 	HIO_DEBUG1 (hio, "FCGIC - STOPPED SERVICE %p\n", fcgic);
 }
@@ -545,7 +545,7 @@ int hio_svc_fcgic_beginrequest (hio_svc_fcgic_sess_t* sess)
 		return -1;
 	}
 
-	HIO_MEMSET (&h, 0, HIO_SIZEOF(h));
+	HIO_MEMSET(&h, 0, HIO_SIZEOF(h));
 	h.version = HIO_FCGI_VERSION;
 	h.type = HIO_FCGI_BEGIN_REQUEST;
 	/* management records use 0 for requestId.
@@ -554,7 +554,7 @@ int hio_svc_fcgic_beginrequest (hio_svc_fcgic_sess_t* sess)
 	h.content_len = hio_hton16(HIO_SIZEOF(b));
 	h.padding_len = 0;
 
-	HIO_MEMSET (&b, 0, HIO_SIZEOF(b));
+	HIO_MEMSET(&b, 0, HIO_SIZEOF(b));
 	b.role = HIO_CONST_HTON16(HIO_FCGI_ROLE_RESPONDER);
 	b.flags = HIO_FCGI_KEEP_CONN;
 
@@ -563,7 +563,7 @@ int hio_svc_fcgic_beginrequest (hio_svc_fcgic_sess_t* sess)
 	iov[1].iov_ptr = &b;
 	iov[1].iov_len = HIO_SIZEOF(b);
 
-	HIO_ASSERT (sess->conn->hio, ((hio_oow_t)sess & 3) == 0);
+	HIO_ASSERT(sess->conn->hio, ((hio_oow_t)sess & 3) == 0);
 	wrctx = (void*)((hio_oow_t)sess | 0);  /* see the sck_on_write()  */
 	return hio_dev_sck_writev(sess->conn->dev, iov, 2, wrctx, HIO_NULL);
 }
@@ -626,7 +626,7 @@ int hio_svc_fcgic_writeparam (hio_svc_fcgic_sess_t* sess, const void* key, hio_i
 		}
 	}
 
-	HIO_MEMSET (&h, 0, HIO_SIZEOF(h));
+	HIO_MEMSET(&h, 0, HIO_SIZEOF(h));
 	h.version = HIO_FCGI_VERSION;
 	h.type = HIO_FCGI_PARAMS;
 	h.id = hio_hton16(sess->sid + 1);
@@ -645,7 +645,7 @@ int hio_svc_fcgic_writeparam (hio_svc_fcgic_sess_t* sess, const void* key, hio_i
 		iov[3].iov_len = vsz;
 	}
 
-	HIO_ASSERT (sess->conn->hio, ((hio_oow_t)sess & 3) == 0);
+	HIO_ASSERT(sess->conn->hio, ((hio_oow_t)sess & 3) == 0);
 	wrctx = (void*)((hio_oow_t)sess | 1);  /* see the sck_on_write()  */
 	return hio_dev_sck_writev(sess->conn->dev, iov, (ksz > 0? 4: 1), wrctx, HIO_NULL);
 }
@@ -664,7 +664,7 @@ int hio_svc_fcgic_writestdin (hio_svc_fcgic_sess_t* sess, const void* data, hio_
 		return -1;
 	}
 
-	HIO_MEMSET (&h, 0, HIO_SIZEOF(h));
+	HIO_MEMSET(&h, 0, HIO_SIZEOF(h));
 	h.version = HIO_FCGI_VERSION;
 	h.type = HIO_FCGI_STDIN;
 	h.id = hio_hton16(sess->sid + 1);
@@ -678,7 +678,7 @@ int hio_svc_fcgic_writestdin (hio_svc_fcgic_sess_t* sess, const void* data, hio_
 		iov[1].iov_len = size;
 	}
 
-	HIO_ASSERT (sess->conn->hio, ((hio_oow_t)sess & 3) == 0);
+	HIO_ASSERT(sess->conn->hio, ((hio_oow_t)sess & 3) == 0);
 	wrctx = (void*)((hio_oow_t)sess | 2);  /* see the sck_on_write()  */
 	return hio_dev_sck_writev(sess->conn->dev, iov, (size > 0? 2: 1), wrctx, HIO_NULL);
 }

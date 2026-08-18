@@ -85,7 +85,7 @@ hio_t* hio_open (hio_mmgr_t* mmgr, hio_oow_t xtnsize, hio_cmgr_t* cmgr, hio_bitm
 			HIO_MMGR_FREE (mmgr, hio);
 			hio = HIO_NULL;
 		}
-		else HIO_MEMSET (hio + 1, 0, xtnsize);
+		else HIO_MEMSET(hio + 1, 0, xtnsize);
 	}
 	else if (errinfo)
 	{
@@ -106,7 +106,7 @@ int hio_init (hio_t* hio, hio_mmgr_t* mmgr, hio_cmgr_t* cmgr, hio_bitmask_t feat
 {
 	int sys_inited = 0;
 
-	HIO_MEMSET (hio, 0, HIO_SIZEOF(*hio));
+	HIO_MEMSET(hio, 0, HIO_SIZEOF(*hio));
 	hio->_instsize = HIO_SIZEOF(*hio);
 	hio->_mmgr = mmgr;
 	hio->_cmgr = cmgr;
@@ -145,11 +145,11 @@ int hio_init (hio_t* hio, hio_mmgr_t* mmgr, hio_cmgr_t* cmgr, hio_bitmask_t feat
 	return 0;
 
 oops:
-	if (hio->tmr.jobs) hio_freemem (hio, hio->tmr.jobs);
+	if (hio->tmr.jobs) hio_freemem(hio, hio->tmr.jobs);
 
 	if (sys_inited) hio_sys_fini (hio);
 
-	if (hio->log.ptr) hio_freemem (hio, hio->log.ptr);
+	if (hio->log.ptr) hio_freemem(hio, hio->log.ptr);
 	hio->log.capa = 0;
 	return -1;
 }
@@ -170,7 +170,7 @@ void hio_fini (hio_t* hio)
 		while ((cwq = hio->cwqfl[i]))
 		{
 			hio->cwqfl[i] = cwq->q_next;
-			hio_freemem (hio, cwq);
+			hio_freemem(hio, cwq);
 		}
 	}
 
@@ -180,7 +180,7 @@ void hio_fini (hio_t* hio)
 		hio_cwq_t* cwq;
 		cwq = HIO_CWQ_HEAD(&hio->cwq);
 		HIO_CWQ_UNLINK (cwq);
-		hio_freemem (hio, cwq);
+		hio_freemem(hio, cwq);
 	}
 
 	/* kill services before killing devices */
@@ -247,7 +247,7 @@ void hio_fini (hio_t* hio)
 		 * because the device is freed regardless of the failure when 2
 		 * is given to kill_and_free_device(). */
 		dev = HIO_DEVL_FIRST_DEV(&diehard);
-		HIO_ASSERT (hio, !(dev->dev_cap & (HIO_DEV_CAP_ACTIVE | HIO_DEV_CAP_HALTED | HIO_DEV_CAP_ZOMBIE)));
+		HIO_ASSERT(hio, !(dev->dev_cap & (HIO_DEV_CAP_ACTIVE | HIO_DEV_CAP_HALTED | HIO_DEV_CAP_ZOMBIE)));
 		HIO_DEVL_UNLINK_DEV (dev);
 		kill_and_free_device (dev, 2);
 		ndieharddevs++;
@@ -255,7 +255,7 @@ void hio_fini (hio_t* hio)
 
 	/* purge scheduled timer jobs and kill the timer */
 	hio_cleartmrjobs (hio);
-	hio_freemem (hio, hio->tmr.jobs);
+	hio_freemem(hio, hio->tmr.jobs);
 
 	/* clear unneeded cfmbs insistently - a misbehaving checker will make this cleaning step loop forever*/
 	while (!HIO_CFMBL_IS_EMPTY(&hio->cfmb)) clear_unneeded_cfmbs (hio);
@@ -264,19 +264,19 @@ void hio_fini (hio_t* hio)
 
 	if (hio->log.ptr)
 	{
-		hio_freemem (hio, hio->log.ptr);
+		hio_freemem(hio, hio->log.ptr);
 		hio->log.ptr = HIO_NULL;
 	}
 
 	if (hio->option.log_target_u)
 	{
-		hio_freemem (hio, hio->option.log_target_u);
+		hio_freemem(hio, hio->option.log_target_u);
 		hio->option.log_target_u = HIO_NULL;
 	}
 
 	if (hio->option.log_target_b)
 	{
-		hio_freemem (hio, hio->option.log_target_b);
+		hio_freemem(hio, hio->option.log_target_b);
 		hio->option.log_target_b = HIO_NULL;
 	}
 }
@@ -308,7 +308,7 @@ int hio_setoption (hio_t* hio, hio_option_t id, const void* value)
 			v2 = hio_dupbtoucstr(hio, value, HIO_NULL, 1);
 			if (HIO_UNLIKELY(!v2))
 			{
-				hio_freemem (hio, v1);
+				hio_freemem(hio, v1);
 				return -1;
 			}
 
@@ -330,7 +330,7 @@ int hio_setoption (hio_t* hio, hio_option_t id, const void* value)
 			v2 = hio_duputobcstr(hio, value, HIO_NULL);
 			if (HIO_UNLIKELY(!v2))
 			{
-				hio_freemem (hio, v1);
+				hio_freemem(hio, v1);
 				return -1;
 			}
 
@@ -353,7 +353,7 @@ int hio_setoption (hio_t* hio, hio_option_t id, const void* value)
 			v2 = hio_dupbtouchars(hio, v->ptr, v->len, HIO_NULL, 0);
 			if (HIO_UNLIKELY(!v2))
 			{
-				hio_freemem (hio, v1);
+				hio_freemem(hio, v1);
 				return -1;
 			}
 
@@ -376,7 +376,7 @@ int hio_setoption (hio_t* hio, hio_option_t id, const void* value)
 			v2 = hio_duputobchars(hio, v->ptr, v->len, HIO_NULL);
 			if (HIO_UNLIKELY(!v2))
 			{
-				hio_freemem (hio, v1);
+				hio_freemem(hio, v1);
 				return -1;
 			}
 
@@ -398,7 +398,7 @@ int hio_setoption (hio_t* hio, hio_option_t id, const void* value)
 	return 0;
 
 einval:
-	hio_seterrnum (hio, HIO_EINVAL);
+	hio_seterrnum(hio, HIO_EINVAL);
 	return -1;
 }
 
@@ -441,7 +441,7 @@ int hio_getoption (hio_t* hio, hio_option_t id, void* value)
 			return 0;
 	};
 
-	hio_seterrnum (hio, HIO_EINVAL);
+	hio_seterrnum(hio, HIO_EINVAL);
 	return -1;
 }
 
@@ -461,7 +461,7 @@ static HIO_INLINE void unlink_wq (hio_t* hio, hio_wq_t* q)
 	if (q->tmridx != HIO_TMRIDX_INVALID)
 	{
 		hio_deltmrjob (hio, q->tmridx);
-		HIO_ASSERT (hio, q->tmridx == HIO_TMRIDX_INVALID);
+		HIO_ASSERT(hio, q->tmridx == HIO_TMRIDX_INVALID);
 	}
 	HIO_WQ_UNLINK (q);
 }
@@ -497,7 +497,7 @@ static void fire_cwq_handlers (hio_t* hio)
 		else
 		{
 			/* TODO: more reuse of objects of different size? */
-			hio_freemem (hio, cwq);
+			hio_freemem(hio, cwq);
 		}
 
 		if (dev_to_halt)
@@ -512,7 +512,7 @@ static void fire_cwq_handlers_for_dev (hio_t* hio, hio_dev_t* dev, int for_kill)
 {
 	hio_cwq_t* cwq, * next;
 
-	HIO_ASSERT (hio, dev->cw_count > 0);  /* Ensure to check dev->cw_count before calling this function */
+	HIO_ASSERT(hio, dev->cw_count > 0);  /* Ensure to check dev->cw_count before calling this function */
 
 	cwq = HIO_CWQ_HEAD(&hio->cwq);
 	while (cwq != &hio->cwq)
@@ -545,7 +545,7 @@ static void fire_cwq_handlers_for_dev (hio_t* hio, hio_dev_t* dev, int for_kill)
 			else
 			{
 				/* TODO: more reuse of objects of different size? */
-				hio_freemem (hio, cwq);
+				hio_freemem(hio, cwq);
 			}
 
 			if (!for_kill && dev_to_halt)
@@ -561,11 +561,11 @@ static void fire_cwq_handlers_for_dev (hio_t* hio, hio_dev_t* dev, int for_kill)
 
 static HIO_INLINE void handle_event (hio_t* hio, hio_dev_t* dev, int events, int rdhup)
 {
-	HIO_ASSERT (hio, hio == dev->hio);
+	HIO_ASSERT(hio, hio == dev->hio);
 
 	dev->dev_cap &= ~HIO_DEV_CAP_RENEW_REQUIRED;
 
-	HIO_ASSERT (hio, hio == dev->hio);
+	HIO_ASSERT(hio, hio == dev->hio);
 
 	if (dev->dev_evcb->ready)
 	{
@@ -659,7 +659,7 @@ static HIO_INLINE void handle_event (hio_t* hio, hio_dev_t* dev, int events, int
 
 					unlink_wq (hio, q);
 					y = dev->dev_evcb->on_write(dev, q->olen, q->ctx, &q->dstaddr);
-					hio_freemem (hio, q);
+					hio_freemem(hio, q);
 
 					if (y <= -1)
 					{
@@ -677,7 +677,7 @@ static HIO_INLINE void handle_event (hio_t* hio, hio_dev_t* dev, int events, int
 						{
 							q = HIO_WQ_HEAD(&dev->wq);
 							unlink_wq (hio, q);
-							hio_freemem (hio, q);
+							hio_freemem(hio, q);
 						}
 						break;
 					}
@@ -729,7 +729,7 @@ static HIO_INLINE void handle_event (hio_t* hio, hio_dev_t* dev, int events, int
 				 * read operation will be reported below. */
 				hio_tmrjob_t tmrjob;
 
-				HIO_MEMSET (&tmrjob, 0, HIO_SIZEOF(tmrjob));
+				HIO_MEMSET(&tmrjob, 0, HIO_SIZEOF(tmrjob));
 				tmrjob.ctx = dev;
 				hio_gettime (hio, &tmrjob.when);
 				HIO_ADD_NTIME (&tmrjob.when, &tmrjob.when, &dev->rtmout);
@@ -879,7 +879,7 @@ static void clear_unneeded_cfmbs (hio_t* hio)
 		if (!cur->cfmb_checker || cur->cfmb_checker(hio, cur))
 		{
 			HIO_CFMBL_UNLINK_CFMB (cur);
-			/*hio_freemem (hio, cur);*/
+			/*hio_freemem(hio, cur);*/
 			cur->cfmb_freeer (hio, cur);
 		}
 		cur = next;
@@ -947,14 +947,14 @@ static HIO_INLINE int __exec (hio_t* hio)
 int hio_exec (hio_t* hio)
 {
 	/* never call this if you disabled this feature */
-	HIO_ASSERT (hio, (hio->_features & HIO_FEATURE_MUX));
+	HIO_ASSERT(hio, (hio->_features & HIO_FEATURE_MUX));
 	return __exec(hio);
 }
 
 void hio_stop (hio_t* hio, hio_stopreq_t stopreq)
 {
 	/* never call this if you disabled this feature */
-	HIO_ASSERT (hio, (hio->_features & HIO_FEATURE_MUX));
+	HIO_ASSERT(hio, (hio->_features & HIO_FEATURE_MUX));
 	hio->stopreq = stopreq;
 	hio_sys_intrmux (hio);
 }
@@ -964,7 +964,7 @@ int hio_loop (hio_t* hio)
 	int ret = 0;
 
 	/* never call this if you disabled this feature */
-	HIO_ASSERT (hio, (hio->_features & HIO_FEATURE_MUX));
+	HIO_ASSERT(hio, (hio->_features & HIO_FEATURE_MUX));
 
 	if (HIO_UNLIKELY(HIO_DEVL_IS_EMPTY(&hio->actdev) && hio->tmr.size <= 0)) return 0;
 
@@ -990,7 +990,7 @@ int hio_loop (hio_t* hio)
 
 				/* this previous error message may be off the error context.
 				 * try the best to capture the message */
-				hio_seterrbfmt (hio, HIO_ESYSERR, "watcher error detected - %js", prev_errmsg);
+				hio_seterrbfmt(hio, HIO_ESYSERR, "watcher error detected - %js", prev_errmsg);
 
 				ret = -2;
 				break;
@@ -1010,7 +1010,7 @@ hio_dev_t* hio_dev_make (hio_t* hio, hio_oow_t dev_size, hio_dev_mth_t* dev_mth,
 
 	if (dev_size < HIO_SIZEOF(hio_dev_t))
 	{
-		hio_seterrnum (hio, HIO_EINVAL);
+		hio_seterrnum(hio, HIO_EINVAL);
 		if (dev_mth->fail_before_make) dev_mth->fail_before_make (make_ctx);
 		goto oops;
 	}
@@ -1028,7 +1028,13 @@ hio_dev_t* hio_dev_make (hio_t* hio, hio_oow_t dev_size, hio_dev_mth_t* dev_mth,
 	 * hio_dev_watch() is affected by the capability change. */
 	dev->dev_cap = HIO_DEV_CAP_IN | HIO_DEV_CAP_OUT;
 	dev->dev_mth = dev_mth;
+
+	dev->dev_evcb_base.evcb = dev_evcb;
+	dev->dev_evcb_base.ctx = HIO_NULL;
+	dev->dev_evcb_base.prev = HIO_NULL;
 	dev->dev_evcb = dev_evcb;
+	dev->dev_evcb_top = &dev->dev_evcb_base;
+
 	HIO_INIT_NTIME (&dev->rtmout, 0, 0);
 	dev->rtmridx = HIO_TMRIDX_INVALID;
 	HIO_WQ_INIT (&dev->wq);
@@ -1038,10 +1044,10 @@ hio_dev_t* hio_dev_make (hio_t* hio, hio_oow_t dev_size, hio_dev_mth_t* dev_mth,
 	if (dev->dev_mth->make(dev, make_ctx) <= -1) goto oops;
 
 	/* the make callback must not change these fields */
-	HIO_ASSERT (hio, dev->dev_mth == dev_mth);
-	HIO_ASSERT (hio, dev->dev_evcb == dev_evcb);
-	HIO_ASSERT (hio, dev->dev_prev == HIO_NULL);
-	HIO_ASSERT (hio, dev->dev_next == HIO_NULL);
+	HIO_ASSERT(hio, dev->dev_mth == dev_mth);
+	HIO_ASSERT(hio, dev->dev_evcb == dev_evcb);
+	HIO_ASSERT(hio, dev->dev_prev == HIO_NULL);
+	HIO_ASSERT(hio, dev->dev_next == HIO_NULL);
 
 	/* set some internal capability bits according to the capabilities
 	 * removed by the device making callback for convenience sake. */
@@ -1086,7 +1092,7 @@ oops_after_make:
 	return HIO_NULL;
 
 oops:
-	if (dev) hio_freemem (hio, dev);
+	if (dev) hio_freemem(hio, dev);
 	return HIO_NULL;
 }
 
@@ -1094,8 +1100,8 @@ static int kill_and_free_device (hio_dev_t* dev, int force)
 {
 	hio_t* hio = dev->hio;
 
-	HIO_ASSERT (hio, !(dev->dev_cap & HIO_DEV_CAP_ACTIVE));
-	HIO_ASSERT (hio, !(dev->dev_cap & HIO_DEV_CAP_HALTED));
+	HIO_ASSERT(hio, !(dev->dev_cap & HIO_DEV_CAP_ACTIVE));
+	HIO_ASSERT(hio, !(dev->dev_cap & HIO_DEV_CAP_HALTED));
 
 	HIO_DEBUG1 (hio, "MIO - Calling kill method on device %p\n", dev);
 	if (dev->dev_mth->kill(dev, force) <= -1)
@@ -1125,7 +1131,7 @@ free_device:
 	}
 
 	HIO_DEBUG1 (hio, "MIO - Freeed device %p\n", dev);
-	hio_freemem (hio, dev);
+	hio_freemem(hio, dev);
 	return 0;
 }
 
@@ -1133,7 +1139,7 @@ static void kill_zombie_job_handler (hio_t* hio, const hio_ntime_t* now, hio_tmr
 {
 	hio_dev_t* dev = (hio_dev_t*)job->ctx;
 
-	HIO_ASSERT (hio, dev->dev_cap & HIO_DEV_CAP_ZOMBIE);
+	HIO_ASSERT(hio, dev->dev_cap & HIO_DEV_CAP_ZOMBIE);
 
 	if (kill_and_free_device(dev, 0) <= -1)
 	{
@@ -1163,7 +1169,7 @@ static int schedule_kill_zombie_job (hio_dev_t* dev)
 
 	HIO_INIT_NTIME (&tmout, 3, 0); /* TODO: take it from configuration */
 
-	HIO_MEMSET (&kill_zombie_job, 0, HIO_SIZEOF(kill_zombie_job));
+	HIO_MEMSET(&kill_zombie_job, 0, HIO_SIZEOF(kill_zombie_job));
 	kill_zombie_job.ctx = dev;
 	hio_gettime (hio, &kill_zombie_job.when);
 	HIO_ADD_NTIME (&kill_zombie_job.when, &kill_zombie_job.when, &tmout);
@@ -1179,9 +1185,9 @@ void hio_dev_kill (hio_dev_t* dev)
 
 	if (dev->dev_cap & HIO_DEV_CAP_ZOMBIE)
 	{
-		HIO_ASSERT (hio, HIO_WQ_IS_EMPTY(&dev->wq));
-		HIO_ASSERT (hio, dev->cw_count == 0);
-		HIO_ASSERT (hio, dev->rtmridx == HIO_TMRIDX_INVALID);
+		HIO_ASSERT(hio, HIO_WQ_IS_EMPTY(&dev->wq));
+		HIO_ASSERT(hio, dev->cw_count == 0);
+		HIO_ASSERT(hio, dev->rtmridx == HIO_TMRIDX_INVALID);
 		goto kill_device;
 	}
 
@@ -1209,7 +1215,7 @@ void hio_dev_kill (hio_dev_t* dev)
 		hio_wq_t* q;
 		q = HIO_WQ_HEAD(&dev->wq);
 		unlink_wq (hio, q);
-		hio_freemem (hio, q);
+		hio_freemem(hio, q);
 	}
 
 	if (dev->dev_cap & HIO_DEV_CAP_HALTED)
@@ -1222,7 +1228,7 @@ void hio_dev_kill (hio_dev_t* dev)
 	}
 	else
 	{
-		HIO_ASSERT (hio, dev->dev_cap & HIO_DEV_CAP_ACTIVE);
+		HIO_ASSERT(hio, dev->dev_cap & HIO_DEV_CAP_ACTIVE);
 		HIO_DEVL_UNLINK_DEV (dev);
 		dev->dev_cap &= ~HIO_DEV_CAP_ACTIVE;
 		HIO_DEBUG1 (hio, "MIO - Unset ACTIVE on device %p\n", dev);
@@ -1233,7 +1239,7 @@ void hio_dev_kill (hio_dev_t* dev)
 kill_device:
 	if (kill_and_free_device(dev, 0) <= -1)
 	{
-		HIO_ASSERT (hio, dev->dev_cap & HIO_DEV_CAP_ZOMBIE);
+		HIO_ASSERT(hio, dev->dev_cap & HIO_DEV_CAP_ZOMBIE);
 		if (schedule_kill_zombie_job (dev) <= -1)
 		{
 			/* i have no choice but to free up the devide by force */
@@ -1278,7 +1284,7 @@ int hio_dev_ioctl (hio_dev_t* dev, int cmd, void* arg)
 
 	if (HIO_UNLIKELY(!dev->dev_mth->ioctl))
 	{
-		hio_seterrnum (hio, HIO_ENOIMPL);  /* TODO: different error code ? */
+		hio_seterrnum(hio, HIO_ENOIMPL);  /* TODO: different error code ? */
 		return -1;
 	}
 
@@ -1388,10 +1394,10 @@ static void on_read_timeout (hio_t* hio, const hio_ntime_t* now, hio_tmrjob_t* j
 
 	dev = (hio_dev_t*)job->ctx;
 
-	hio_seterrnum (hio, HIO_ETMOUT);
+	hio_seterrnum(hio, HIO_ETMOUT);
 	x = dev->dev_evcb->on_read(dev, HIO_NULL, -1, HIO_NULL);
 
-	HIO_ASSERT (hio, dev->rtmridx == HIO_TMRIDX_INVALID);
+	HIO_ASSERT(hio, dev->rtmridx == HIO_TMRIDX_INVALID);
 
 	if (x <= -1)
 	{
@@ -1410,7 +1416,7 @@ static int __dev_read (hio_dev_t* dev, int enabled, const hio_ntime_t* tmout, vo
 	 * is not implemented in this function.
 	if (dev->dev_cap & HIO_DEV_CAP_IN_CLOSED)
 	{
-		hio_seterrbfmt (hio, HIO_ENOCAPA, "unable to read closed device");
+		hio_seterrbfmt(hio, HIO_ENOCAPA, "unable to read closed device");
 		return -1;
 	}
 	*/
@@ -1445,7 +1451,7 @@ update_timer:
 	{
 		hio_tmrjob_t tmrjob;
 
-		HIO_MEMSET (&tmrjob, 0, HIO_SIZEOF(tmrjob));
+		HIO_MEMSET(&tmrjob, 0, HIO_SIZEOF(tmrjob));
 		tmrjob.ctx = dev;
 		hio_gettime (hio, &tmrjob.when);
 		HIO_ADD_NTIME (&tmrjob.when, &tmrjob.when, tmout);
@@ -1482,12 +1488,12 @@ static void on_write_timeout (hio_t* hio, const hio_ntime_t* now, hio_tmrjob_t* 
 	q = (hio_wq_t*)job->ctx;
 	dev = q->dev;
 
-	hio_seterrnum (hio, HIO_ETMOUT);
+	hio_seterrnum(hio, HIO_ETMOUT);
 	x = dev->dev_evcb->on_write(dev, -1, q->ctx, &q->dstaddr);
 
-	HIO_ASSERT (hio, q->tmridx == HIO_TMRIDX_INVALID);
+	HIO_ASSERT(hio, q->tmridx == HIO_TMRIDX_INVALID);
 	HIO_WQ_UNLINK(q);
-	hio_freemem (hio, q);
+	hio_freemem(hio, q);
 
 	if (x <= -1)
 	{
@@ -1518,14 +1524,14 @@ static HIO_INLINE int __enqueue_completed_write (hio_dev_t* dev, hio_iolen_t len
 		if (HIO_UNLIKELY(!cwq)) return -1;
 	}
 
-	HIO_MEMSET (cwq, 0, HIO_SIZEOF(*cwq));
+	HIO_MEMSET(cwq, 0, HIO_SIZEOF(*cwq));
 	cwq->dev = dev;
 	cwq->ctx = wrctx;
 	if (dstaddr)
 	{
 		cwq->dstaddr.ptr = (hio_uint8_t*)(cwq + 1);
 		cwq->dstaddr.len = dstaddr->len;
-		HIO_MEMCPY (cwq->dstaddr.ptr, dstaddr->ptr, dstaddr->len);
+		HIO_MEMCPY(cwq->dstaddr.ptr, dstaddr->ptr, dstaddr->len);
 	}
 	else
 	{
@@ -1548,7 +1554,7 @@ static HIO_INLINE int __enqueue_pending_write (hio_dev_t* dev, hio_iolen_t olen,
 	if (dev->dev_cap & HIO_DEV_CAP_OUT_UNQUEUEABLE)
 	{
 		/* writing queuing is not requested. so return failure */
-		hio_seterrbfmt (hio, HIO_ENOCAPA, "device incapable of queuing");
+		hio_seterrbfmt(hio, HIO_ENOCAPA, "device incapable of queuing");
 		return -1;
 	}
 
@@ -1565,7 +1571,7 @@ static HIO_INLINE int __enqueue_pending_write (hio_dev_t* dev, hio_iolen_t olen,
 	{
 		q->dstaddr.ptr = (hio_uint8_t*)(q + 1);
 		q->dstaddr.len = dstaddr->len;
-		HIO_MEMCPY (q->dstaddr.ptr, dstaddr->ptr, dstaddr->len);
+		HIO_MEMCPY(q->dstaddr.ptr, dstaddr->ptr, dstaddr->len);
 	}
 	else
 	{
@@ -1578,7 +1584,7 @@ static HIO_INLINE int __enqueue_pending_write (hio_dev_t* dev, hio_iolen_t olen,
 	q->olen = olen; /* original length to use when invoking on_write() */
 	for (i = iov_index, j = 0; i < iov_cnt; i++)
 	{
-		HIO_MEMCPY (&q->ptr[j], iov[i].iov_ptr, iov[i].iov_len);
+		HIO_MEMCPY(&q->ptr[j], iov[i].iov_ptr, iov[i].iov_len);
 		j += iov[i].iov_len;
 	}
 
@@ -1586,7 +1592,7 @@ static HIO_INLINE int __enqueue_pending_write (hio_dev_t* dev, hio_iolen_t olen,
 	{
 		hio_tmrjob_t tmrjob;
 
-		HIO_MEMSET (&tmrjob, 0, HIO_SIZEOF(tmrjob));
+		HIO_MEMSET(&tmrjob, 0, HIO_SIZEOF(tmrjob));
 		tmrjob.ctx = q;
 		hio_gettime (hio, &tmrjob.when);
 		HIO_ADD_NTIME (&tmrjob.when, &tmrjob.when, tmout);
@@ -1596,7 +1602,7 @@ static HIO_INLINE int __enqueue_pending_write (hio_dev_t* dev, hio_iolen_t olen,
 		q->tmridx = hio_instmrjob(hio, &tmrjob);
 		if (q->tmridx == HIO_TMRIDX_INVALID)
 		{
-			hio_freemem (hio, q);
+			hio_freemem(hio, q);
 			return -1;
 		}
 	}
@@ -1608,7 +1614,7 @@ static HIO_INLINE int __enqueue_pending_write (hio_dev_t* dev, hio_iolen_t olen,
 		if (hio_dev_watch(dev, HIO_DEV_WATCH_RENEW, HIO_DEV_EVENT_IN) <= -1)
 		{
 			unlink_wq (hio, q);
-			hio_freemem (hio, q);
+			hio_freemem(hio, q);
 			return -1;
 		}
 	}
@@ -1624,7 +1630,7 @@ static HIO_INLINE int __enqueue_pending_sendfile (hio_dev_t* dev, hio_iolen_t ol
 	if (dev->dev_cap & HIO_DEV_CAP_OUT_UNQUEUEABLE)
 	{
 		/* writing queuing is not requested. so return failure */
-		hio_seterrbfmt (hio, HIO_ENOCAPA, "device incapable of queuing");
+		hio_seterrbfmt(hio, HIO_ENOCAPA, "device incapable of queuing");
 		return -1;
 	}
 
@@ -1641,7 +1647,7 @@ static HIO_INLINE int __enqueue_pending_sendfile (hio_dev_t* dev, hio_iolen_t ol
 	{
 		q->dstaddr.ptr = (hio_uint8_t*)(q + 1);
 		q->dstaddr.len = dstaddr->len;
-		HIO_MEMCPY (q->dstaddr.ptr, dstaddr->ptr, dstaddr->len);
+		HIO_MEMCPY(q->dstaddr.ptr, dstaddr->ptr, dstaddr->len);
 	}
 	else
 	{
@@ -1660,7 +1666,7 @@ static HIO_INLINE int __enqueue_pending_sendfile (hio_dev_t* dev, hio_iolen_t ol
 	{
 		hio_tmrjob_t tmrjob;
 
-		HIO_MEMSET (&tmrjob, 0, HIO_SIZEOF(tmrjob));
+		HIO_MEMSET(&tmrjob, 0, HIO_SIZEOF(tmrjob));
 		tmrjob.ctx = q;
 		hio_gettime (hio, &tmrjob.when);
 		HIO_ADD_NTIME (&tmrjob.when, &tmrjob.when, tmout);
@@ -1670,7 +1676,7 @@ static HIO_INLINE int __enqueue_pending_sendfile (hio_dev_t* dev, hio_iolen_t ol
 		q->tmridx = hio_instmrjob(hio, &tmrjob);
 		if (q->tmridx == HIO_TMRIDX_INVALID)
 		{
-			hio_freemem (hio, q);
+			hio_freemem(hio, q);
 			return -1;
 		}
 	}
@@ -1681,8 +1687,8 @@ static HIO_INLINE int __enqueue_pending_sendfile (hio_dev_t* dev, hio_iolen_t ol
 		/* if output is not being watched, arrange to do so */
 		if (hio_dev_watch(dev, HIO_DEV_WATCH_RENEW, HIO_DEV_EVENT_IN) <= -1)
 		{
-			unlink_wq (hio, q);
-			hio_freemem (hio, q);
+			unlink_wq(hio, q);
+			hio_freemem(hio, q);
 			return -1;
 		}
 	}
@@ -1701,7 +1707,7 @@ static HIO_INLINE int __dev_write (hio_dev_t* dev, const void* data, hio_iolen_t
 
 	if (dev->dev_cap & HIO_DEV_CAP_OUT_CLOSED)
 	{
-		hio_seterrbfmt (hio, HIO_ENOCAPA, "unable to write to closed device");
+		hio_seterrbfmt(hio, HIO_ENOCAPA, "unable to write to closed device");
 		return -1;
 	}
 
@@ -1795,7 +1801,7 @@ static HIO_INLINE int __dev_writev (hio_dev_t* dev, hio_iovec_t* iov, hio_iolen_
 
 	if (dev->dev_cap & HIO_DEV_CAP_OUT_CLOSED)
 	{
-		hio_seterrbfmt (hio, HIO_ENOCAPA, "unable to write to closed device");
+		hio_seterrbfmt(hio, HIO_ENOCAPA, "unable to write to closed device");
 		return -1;
 	}
 
@@ -1900,13 +1906,13 @@ static int __dev_sendfile (hio_dev_t* dev, hio_syshnd_t in_fd, hio_foff_t foff, 
 
 	if (HIO_UNLIKELY(dev->dev_cap & HIO_DEV_CAP_OUT_CLOSED))
 	{
-		hio_seterrbfmt (hio, HIO_ENOCAPA, "unable to sendfile to closed device");
+		hio_seterrbfmt(hio, HIO_ENOCAPA, "unable to sendfile to closed device");
 		return -1;
 	}
 
 	if (HIO_UNLIKELY(!dev->dev_mth->sendfile))
 	{
-		hio_seterrbfmt (hio, HIO_ENOCAPA, "unable to senfile over unsupported device");
+		hio_seterrbfmt(hio, HIO_ENOCAPA, "unable to senfile over unsupported device");
 		return -1;
 	}
 
@@ -1966,7 +1972,7 @@ static int __dev_sendfile (hio_dev_t* dev, hio_syshnd_t in_fd, hio_foff_t foff, 
 	}
 	else
 	{
-		hio_seterrbfmt (hio, HIO_ENOCAPA, "unable to sendfile over a non-stream device");
+		hio_seterrbfmt(hio, HIO_ENOCAPA, "unable to sendfile over a non-stream device");
 		return -1;
 	}
 
@@ -2011,15 +2017,45 @@ int hio_dev_timedsendfile (hio_dev_t* dev, hio_syshnd_t in_fd, hio_foff_t foff, 
 
 /* -------------------------------------------------------------------------- */
 
+void hio_dev_pushevcb (hio_dev_t* dev, hio_dev_evcb_link_t* link, hio_dev_evcb_t *evcb, void* ctx)
+{
+	link->evcb = evcb;
+	link->ctx = ctx;
+	link->prev = dev->dev_evcb_top;
+
+	dev->dev_evcb_top = link;
+	dev->dev_evcb = evcb; /* cached */
+}
+
+hio_dev_evcb_link_t* hio_dev_popevcb (hio_dev_t* dev)
+{
+	hio_dev_evcb_link_t* link;
+
+	link = dev->dev_evcb_top;
+	if (!link->prev) return HIO_NULL; /* the base cannot be popped off */
+
+	dev->dev_evcb_top = link->prev;
+	dev->dev_evcb = link->prev->evcb;
+
+	link->prev = HIO_NULL; /* clear the stale pointer */
+	return link;
+}
+
+void * hio_dev_getevcbctx (hio_dev_t* dev)
+{
+	return dev->dev_evcb_top->ctx;
+}
+/* -------------------------------------------------------------------------- */
+
 void hio_gettime (hio_t* hio, hio_ntime_t* now)
 {
-	hio_sys_gettime (hio, now);
+	hio_sys_gettime(hio, now);
 	/* in hio_init(), hio->init_time has been set to the initialization time.
 	 * the time returned here gets offset by hio->init_time and
 	 * thus becomes relative to it. this way, it is kept small such that it
 	 * can be represented in a small integer with leaving almost zero chance
 	 * of overflow. */
-	HIO_SUB_NTIME (now, now, &hio->init_time);  /* now = now - init_time */
+	HIO_SUB_NTIME(now, now, &hio->init_time);  /* now = now - init_time */
 }
 
 /* -------------------------------------------------------------------------- */
@@ -2027,7 +2063,7 @@ void* hio_allocmem (hio_t* hio, hio_oow_t size)
 {
 	void* ptr;
 	ptr = HIO_MMGR_ALLOC(hio->_mmgr, size);
-	if (!ptr) hio_seterrnum (hio, HIO_ESYSMEM);
+	if (!ptr) hio_seterrnum(hio, HIO_ESYSMEM);
 	return ptr;
 }
 
@@ -2035,15 +2071,15 @@ void* hio_callocmem (hio_t* hio, hio_oow_t size)
 {
 	void* ptr;
 	ptr = HIO_MMGR_ALLOC(hio->_mmgr, size);
-	if (!ptr) hio_seterrnum (hio, HIO_ESYSMEM);
-	else HIO_MEMSET (ptr, 0, size);
+	if (!ptr) hio_seterrnum(hio, HIO_ESYSMEM);
+	else HIO_MEMSET(ptr, 0, size);
 	return ptr;
 }
 
 void* hio_reallocmem (hio_t* hio, void* ptr, hio_oow_t size)
 {
 	ptr = HIO_MMGR_REALLOC(hio->_mmgr, ptr, size);
-	if (!ptr) hio_seterrnum (hio, HIO_ESYSMEM);
+	if (!ptr) hio_seterrnum(hio, HIO_ESYSMEM);
 	return ptr;
 }
 
@@ -2121,12 +2157,12 @@ hio_oow_t hio_vfmttoucstr (hio_t* hio, hio_uch_t* buf, hio_oow_t bufsz, const hi
 
 	if (bufsz <= 0) return 0;
 
-	HIO_MEMSET (&fo, 0, HIO_SIZEOF(fo));
+	HIO_MEMSET(&fo, 0, HIO_SIZEOF(fo));
 	fo.putbchars = fmt_put_bchars_to_uch_buf;
 	fo.putuchars = fmt_put_uchars_to_uch_buf;
 	fo.ctx = &fb;
 
-	HIO_MEMSET (&fb, 0, HIO_SIZEOF(fb));
+	HIO_MEMSET(&fb, 0, HIO_SIZEOF(fb));
 	fb.hio = hio;
 	fb.ptr = buf;
 	fb.capa = bufsz - 1;
@@ -2211,12 +2247,12 @@ hio_oow_t hio_vfmttobcstr (hio_t* hio, hio_bch_t* buf, hio_oow_t bufsz, const hi
 
 	if (bufsz <= 0) return 0;
 
-	HIO_MEMSET (&fo, 0, HIO_SIZEOF(fo));
+	HIO_MEMSET(&fo, 0, HIO_SIZEOF(fo));
 	fo.putbchars = fmt_put_bchars_to_bch_buf;
 	fo.putuchars = fmt_put_uchars_to_bch_buf;
 	fo.ctx = &fb;
 
-	HIO_MEMSET (&fb, 0, HIO_SIZEOF(fb));
+	HIO_MEMSET(&fb, 0, HIO_SIZEOF(fb));
 	fb.hio = hio;
 	fb.ptr = buf;
 	fb.capa = bufsz - 1;

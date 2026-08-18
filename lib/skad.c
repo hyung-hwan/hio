@@ -191,7 +191,7 @@ static int uchars_to_ipv6 (const hio_uch_t* src, hio_oow_t len, struct in6_addr*
 
 	src_end = src + len;
 
-	HIO_MEMSET (inaddr, 0, HIO_SIZEOF(*inaddr));
+	HIO_MEMSET(inaddr, 0, HIO_SIZEOF(*inaddr));
 	tp = &inaddr->s6_addr[0];
 	endp = &inaddr->s6_addr[HIO_COUNTOF(inaddr->s6_addr)];
 	colonp = HIO_NULL;
@@ -295,7 +295,7 @@ static int bchars_to_ipv6 (const hio_bch_t* src, hio_oow_t len, struct in6_addr*
 
 	src_end = src + len;
 
-	HIO_MEMSET (inaddr, 0, HIO_SIZEOF(*inaddr));
+	HIO_MEMSET(inaddr, 0, HIO_SIZEOF(*inaddr));
 	tp = &inaddr->s6_addr[0];
 	endp = &inaddr->s6_addr[HIO_COUNTOF(inaddr->s6_addr)];
 	colonp = HIO_NULL;
@@ -408,7 +408,7 @@ int hio_ucharstoskad (hio_t* hio, const hio_uch_t* str, hio_oow_t len, hio_skad_
 	}
 
 	/* use HIO_SIZEOF(*_skad) instead of HIO_SIZEOF(*skad) in case they are different */
-	HIO_MEMSET (skad, 0, HIO_SIZEOF(*_skad));
+	HIO_MEMSET(skad, 0, HIO_SIZEOF(*_skad));
 
 	if (p[0] == '<' && p[1] == 'q' && p[2] == 'x' && p[3] == '>' && p[4] == '\0')
 	{
@@ -635,7 +635,7 @@ int hio_bcharstoskad (hio_t* hio, const hio_bch_t* str, hio_oow_t len, hio_skad_
 	}
 
 	/* use HIO_SIZEOF(*_skad) instead of HIO_SIZEOF(*skad) in case they are different */
-	HIO_MEMSET (skad, 0, HIO_SIZEOF(*_skad));
+	HIO_MEMSET(skad, 0, HIO_SIZEOF(*_skad));
 
 	if (p[0] == '<' && p[1] == 'q' && p[2] == 'x' && p[3] == '>' && p[4] == '\0')
 	{
@@ -925,7 +925,7 @@ static hio_oow_t ip6ad_to_ucstr (const struct in6_addr* ipad, hio_uch_t* buf, hi
 	 *	Copy the input (bytewise) array into a wordwise array.
 	 *	Find the longest run of 0x00's in src[] for :: shorthanding.
 	 */
-	HIO_MEMSET (words, 0, HIO_SIZEOF(words));
+	HIO_MEMSET(words, 0, HIO_SIZEOF(words));
 	for (i = 0; i < HIO_SIZEOF(ipad->s6_addr); i++)
 		words[i / 2] |= (ipad->s6_addr[i] << ((1 - (i % 2)) << 3));
 	best.base = -1;
@@ -983,7 +983,7 @@ static hio_oow_t ip6ad_to_ucstr (const struct in6_addr* ipad, hio_uch_t* buf, hi
 		if (i == 6 && best.base == 0 && (best.len == 6 || (best.len == 5 && words[5] == 0xffff)))
 		{
 			struct in_addr ip4ad;
-			HIO_MEMCPY (&ip4ad.s_addr, ipad->s6_addr + 12, HIO_SIZEOF(ip4ad.s_addr));
+			HIO_MEMCPY(&ip4ad.s_addr, ipad->s6_addr + 12, HIO_SIZEOF(ip4ad.s_addr));
 			tp += ip4ad_to_ucstr(&ip4ad, tp, HIO_COUNTOF(tmp) - (tp - tmp));
 			break;
 		}
@@ -1186,7 +1186,7 @@ static hio_oow_t ip6ad_to_bcstr (const struct in6_addr* ipad, hio_bch_t* buf, hi
 	 *	Copy the input (bytewise) array into a wordwise array.
 	 *	Find the longest run of 0x00's in src[] for :: shorthanding.
 	 */
-	HIO_MEMSET (words, 0, HIO_SIZEOF(words));
+	HIO_MEMSET(words, 0, HIO_SIZEOF(words));
 	for (i = 0; i < HIO_SIZEOF(ipad->s6_addr); i++)
 		words[i / 2] |= (ipad->s6_addr[i] << ((1 - (i % 2)) << 3));
 	best.base = -1;
@@ -1244,7 +1244,7 @@ static hio_oow_t ip6ad_to_bcstr (const struct in6_addr* ipad, hio_bch_t* buf, hi
 		if (i == 6 && best.base == 0 && (best.len == 6 || (best.len == 5 && words[5] == 0xffff)))
 		{
 			struct in_addr ip4ad;
-			HIO_MEMCPY (&ip4ad.s_addr, ipad->s6_addr + 12, HIO_SIZEOF(ip4ad.s_addr));
+			HIO_MEMCPY(&ip4ad.s_addr, ipad->s6_addr + 12, HIO_SIZEOF(ip4ad.s_addr));
 			tp += ip4ad_to_bcstr(&ip4ad, tp, HIO_COUNTOF(tmp) - (tp - tmp));
 			break;
 		}
@@ -1391,7 +1391,7 @@ done:
 int hio_skad_get_family (const hio_skad_t* _skad)
 {
 	const hio_skad_alt_t* skad = (const hio_skad_alt_t*)_skad;
-	/*HIO_STATIC_ASSERT (HIO_SIZEOF(*_skad) >= HIO_SIZEOF(*skad));*/
+	/*HIO_STATIC_ASSERT(HIO_SIZEOF(*_skad) >= HIO_SIZEOF(*skad));*/
 	return skad->sa.sa_family;
 }
 
@@ -1401,7 +1401,7 @@ int hio_skad_get_size (const hio_skad_t* _skad)
 	 * the fields are not part of the core socket address */
 
 	const hio_skad_alt_t* skad = (const hio_skad_alt_t*)_skad;
-	/*HIO_STATIC_ASSERT (HIO_SIZEOF(*_skad) >= HIO_SIZEOF(*skad));*/
+	/*HIO_STATIC_ASSERT(HIO_SIZEOF(*_skad) >= HIO_SIZEOF(*skad));*/
 
 	switch (skad->sa.sa_family)
 	{
@@ -1516,13 +1516,13 @@ hio_oow_t hio_skad_get_ipad_bytes (const hio_skad_t* _skad, void* buf, hio_oow_t
 	#if defined(AF_INET) && (HIO_SIZEOF_STRUCT_SOCKADDR_IN > 0)
 		case AF_INET:
 			outlen = len < HIO_SIZEOF(skad->in4.a.sin_addr)? len: HIO_SIZEOF(skad->in4.a.sin_addr);
-			HIO_MEMCPY (buf, &skad->in4.a.sin_addr, outlen);
+			HIO_MEMCPY(buf, &skad->in4.a.sin_addr, outlen);
 			break;
 	#endif
 	#if defined(AF_INET6) && (HIO_SIZEOF_STRUCT_SOCKADDR_IN6 > 0)
 		case AF_INET6:
 			outlen = len < HIO_SIZEOF(skad->in6.a.sin6_addr)? len: HIO_SIZEOF(skad->in6.a.sin6_addr);
-			HIO_MEMCPY (buf, &skad->in6.a.sin6_addr, outlen);
+			HIO_MEMCPY(buf, &skad->in6.a.sin6_addr, outlen);
 			break;
 	#endif
 	}
@@ -1534,10 +1534,10 @@ void hio_skad_init_for_ip4 (hio_skad_t* skad, hio_uint16_t port, hio_ip4ad_t* ip
 {
 #if (HIO_SIZEOF_STRUCT_SOCKADDR_IN > 0)
 	struct sockaddr_in* sin = (struct sockaddr_in*)skad;
-	HIO_MEMSET (sin, 0, HIO_SIZEOF(*sin));
+	HIO_MEMSET(sin, 0, HIO_SIZEOF(*sin));
 	sin->sin_family = AF_INET;
 	sin->sin_port = hio_hton16(port);
-	if (ip4ad) HIO_MEMCPY (&sin->sin_addr, ip4ad->v, HIO_IP4AD_LEN);
+	if (ip4ad) HIO_MEMCPY(&sin->sin_addr, ip4ad->v, HIO_IP4AD_LEN);
 #endif
 }
 
@@ -1545,11 +1545,11 @@ void hio_skad_init_for_ip6 (hio_skad_t* skad, hio_uint16_t port, hio_ip6ad_t* ip
 {
 #if (HIO_SIZEOF_STRUCT_SOCKADDR_IN6 > 0)
 	struct sockaddr_in6* sin = (struct sockaddr_in6*)skad;
-	HIO_MEMSET (sin, 0, HIO_SIZEOF(*sin));
+	HIO_MEMSET(sin, 0, HIO_SIZEOF(*sin));
 	sin->sin6_family = AF_INET6;
 	sin->sin6_port = hio_hton16(port);
 	sin->sin6_scope_id = scope_id;
-	if (ip6ad) HIO_MEMCPY (&sin->sin6_addr, ip6ad->v, HIO_IP6AD_LEN);
+	if (ip6ad) HIO_MEMCPY(&sin->sin6_addr, ip6ad->v, HIO_IP6AD_LEN);
 #endif
 }
 
@@ -1561,10 +1561,10 @@ void hio_skad_init_for_ip_with_bytes (hio_skad_t* skad, hio_uint16_t port, const
 		case HIO_IP4AD_LEN:
 		{
 			struct sockaddr_in* sin = (struct sockaddr_in*)skad;
-			HIO_MEMSET (sin, 0, HIO_SIZEOF(*sin));
+			HIO_MEMSET(sin, 0, HIO_SIZEOF(*sin));
 			sin->sin_family = AF_INET;
 			sin->sin_port = hio_hton16(port);
-			HIO_MEMCPY (&sin->sin_addr, bytes, len);
+			HIO_MEMCPY(&sin->sin_addr, bytes, len);
 			break;
 		}
 	#endif
@@ -1572,10 +1572,10 @@ void hio_skad_init_for_ip_with_bytes (hio_skad_t* skad, hio_uint16_t port, const
 		case HIO_IP6AD_LEN:
 		{
 			struct sockaddr_in6* sin = (struct sockaddr_in6*)skad;
-			HIO_MEMSET (sin, 0, HIO_SIZEOF(*sin));
+			HIO_MEMSET(sin, 0, HIO_SIZEOF(*sin));
 			sin->sin6_family = AF_INET6;
 			sin->sin6_port = hio_hton16(port);
-			HIO_MEMCPY (&sin->sin6_addr, bytes, len);
+			HIO_MEMCPY(&sin->sin6_addr, bytes, len);
 			break;
 		}
 	#endif
@@ -1589,24 +1589,24 @@ void hio_skad_init_for_eth (hio_skad_t* skad, int ifindex, hio_ethad_t* ethad)
 {
 #if defined(AF_PACKET) && (HIO_SIZEOF_STRUCT_SOCKADDR_LL > 0)
 	struct sockaddr_ll* sll = (struct sockaddr_ll*)skad;
-	HIO_MEMSET (sll, 0, HIO_SIZEOF(*sll));
+	HIO_MEMSET(sll, 0, HIO_SIZEOF(*sll));
 	sll->sll_family = AF_PACKET;
 	sll->sll_ifindex = ifindex;
 	if (ethad)
 	{
 		sll->sll_halen = HIO_ETHAD_LEN;
-		HIO_MEMCPY (sll->sll_addr, ethad, HIO_ETHAD_LEN);
+		HIO_MEMCPY(sll->sll_addr, ethad, HIO_ETHAD_LEN);
 	}
 
 #elif defined(AF_LINK) && (HIO_SIZEOF_STRUCT_SOCKADDR_DL > 0)
 	struct sockaddr_dl* sll = (struct sockaddr_dl*)skad;
-	HIO_MEMSET (sll, 0, HIO_SIZEOF(*sll));
+	HIO_MEMSET(sll, 0, HIO_SIZEOF(*sll));
 	sll->sdl_family = AF_LINK;
 	sll->sdl_index = ifindex;
 	if (ethad)
 	{
 		sll->sdl_alen = HIO_ETHAD_LEN;
-		HIO_MEMCPY (sll->sdl_data, ethad, HIO_ETHAD_LEN);
+		HIO_MEMCPY(sll->sdl_data, ethad, HIO_ETHAD_LEN);
 	}
 #else
 #	error UNSUPPORTED DATALINK SOCKET ADDRESS
@@ -1616,16 +1616,16 @@ void hio_skad_init_for_eth (hio_skad_t* skad, int ifindex, hio_ethad_t* ethad)
 void hio_skad_init_for_qx (hio_skad_t* _skad)
 {
 	hio_skad_alt_t* skad = (hio_skad_alt_t*)_skad;
-	HIO_MEMSET (skad, 0, HIO_SIZEOF(*_skad));
+	HIO_MEMSET(skad, 0, HIO_SIZEOF(*_skad));
 	skad->sa.sa_family = HIO_AF_QX;
 }
 
 void hio_clear_skad (hio_skad_t* _skad)
 {
 	hio_skad_alt_t* skad = (hio_skad_alt_t*)_skad;
-	/*HIO_STATIC_ASSERT (HIO_SIZEOF(*_skad) >= HIO_SIZEOF(*skad));*/
+	/*HIO_STATIC_ASSERT(HIO_SIZEOF(*_skad) >= HIO_SIZEOF(*skad));*/
 	/* use HIO_SIZEOF(*_skad) instead of HIO_SIZEOF(*skad) in case they are different */
-	HIO_MEMSET (skad, 0, HIO_SIZEOF(*_skad));
+	HIO_MEMSET(skad, 0, HIO_SIZEOF(*_skad));
 	skad->sa.sa_family = HIO_AF_UNSPEC;
 }
 
@@ -1678,14 +1678,14 @@ hio_oow_t hio_ipad_bytes_to_ucstr (const hio_uint8_t* iptr, hio_oow_t ilen, hio_
 		case HIO_IP4AD_LEN:
 		{
 			struct in_addr ip4ad;
-			HIO_MEMCPY (&ip4ad.s_addr, iptr, ilen);
+			HIO_MEMCPY(&ip4ad.s_addr, iptr, ilen);
 			return ip4ad_to_ucstr(&ip4ad, buf, blen);
 		}
 
 		case HIO_IP6AD_LEN:
 		{
 			struct in6_addr ip6ad;
-			HIO_MEMCPY (&ip6ad.s6_addr, iptr, ilen);
+			HIO_MEMCPY(&ip6ad.s6_addr, iptr, ilen);
 			return ip6ad_to_ucstr(&ip6ad, buf, blen);
 		}
 
@@ -1702,14 +1702,14 @@ hio_oow_t hio_ipad_bytes_to_bcstr (const hio_uint8_t* iptr, hio_oow_t ilen, hio_
 		case HIO_IP4AD_LEN:
 		{
 			struct in_addr ip4ad;
-			HIO_MEMCPY (&ip4ad.s_addr, iptr, ilen);
+			HIO_MEMCPY(&ip4ad.s_addr, iptr, ilen);
 			return ip4ad_to_bcstr(&ip4ad, buf, blen);
 		}
 
 		case HIO_IP6AD_LEN:
 		{
 			struct in6_addr ip6ad;
-			HIO_MEMCPY (&ip6ad.s6_addr, iptr, ilen);
+			HIO_MEMCPY(&ip6ad.s6_addr, iptr, ilen);
 			return ip6ad_to_bcstr(&ip6ad, buf, blen);
 		}
 
@@ -1725,7 +1725,7 @@ int hio_uchars_to_ipad_bytes (const hio_uch_t* str, hio_oow_t slen, hio_uint8_t*
 	{
 		struct in6_addr i6;
 		if (uchars_to_ipv6(str, slen, &i6) <= -1) goto ipv4;
-		HIO_MEMCPY (buf, i6.s6_addr, 16);
+		HIO_MEMCPY(buf, i6.s6_addr, 16);
 		return HIO_IP6AD_LEN;
 	}
 	else if (blen >= HIO_IP4AD_LEN)
@@ -1733,7 +1733,7 @@ int hio_uchars_to_ipad_bytes (const hio_uch_t* str, hio_oow_t slen, hio_uint8_t*
 		struct in_addr i4;
 	ipv4:
 		if (uchars_to_ipv4(str, slen, &i4) <= -1) return -1;
-		HIO_MEMCPY (buf, &i4.s_addr, 4);
+		HIO_MEMCPY(buf, &i4.s_addr, 4);
 		return HIO_IP4AD_LEN;
 	}
 
@@ -1746,7 +1746,7 @@ int hio_bchars_to_ipad_bytes (const hio_bch_t* str, hio_oow_t slen, hio_uint8_t*
 	{
 		struct in6_addr i6;
 		if (bchars_to_ipv6(str, slen, &i6) <= -1) goto ipv4;
-		HIO_MEMCPY (buf, i6.s6_addr, 16);
+		HIO_MEMCPY(buf, i6.s6_addr, 16);
 		return HIO_IP6AD_LEN;
 	}
 	else if (blen >= HIO_IP4AD_LEN)
@@ -1754,7 +1754,7 @@ int hio_bchars_to_ipad_bytes (const hio_bch_t* str, hio_oow_t slen, hio_uint8_t*
 		struct in_addr i4;
 	ipv4:
 		if (bchars_to_ipv4(str, slen, &i4) <= -1) return -1;
-		HIO_MEMCPY (buf, &i4.s_addr, 4);
+		HIO_MEMCPY(buf, &i4.s_addr, 4);
 		return HIO_IP4AD_LEN;
 	}
 

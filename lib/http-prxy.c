@@ -148,12 +148,12 @@ static HIO_INLINE void prxy_mark_over (prxy_t* prxy, int over_bits)
 
 		if (prxy->task_csck)
 		{
-			HIO_ASSERT (hio, prxy->task_client != HIO_NULL);
+			HIO_ASSERT(hio, prxy->task_client != HIO_NULL);
 
 			if (prxy->task_keep_client_alive)
 			{
 				HIO_DEBUG5 (hio, "HTTS(%p) - prxy(t=%p,c=%p[%d],p=%p) - keeping client alive\n", prxy->htts, prxy, prxy->task_client, (prxy->task_csck? prxy->task_csck->hnd: -1), prxy->peer);
-				HIO_ASSERT (prxy->htts->hio, prxy->task_client->task == (hio_svc_htts_task_t*)prxy);
+				HIO_ASSERT(prxy->htts->hio, prxy->task_client->task == (hio_svc_htts_task_t*)prxy);
 				unbind_task_from_client (prxy, 1);
 				/* prxy must not be accessed from here down as it could have been destroyed */
 			}
@@ -187,7 +187,7 @@ static void prxy_on_kill (hio_svc_htts_task_t* task)
 
 	if (prxy->task_csck)
 	{
-		HIO_ASSERT (hio, prxy->task_client != HIO_NULL);
+		HIO_ASSERT(hio, prxy->task_client != HIO_NULL);
 		unbind_task_from_client (prxy, 0);
 	}
 
@@ -231,7 +231,7 @@ static int prxy_peer_on_read (hio_dev_sck_t* sck, const void* data, hio_iolen_t 
 	prxy_peer_xtn_t* peer = hio_dev_sck_getxtn(sck);
 	prxy_t* prxy = peer->prxy;
 
-	HIO_ASSERT (hio, prxy != HIO_NULL);
+	HIO_ASSERT(hio, prxy != HIO_NULL);
 
 	if (dlen <= -1)
 	{
@@ -258,7 +258,7 @@ static int prxy_peer_on_read (hio_dev_sck_t* sck, const void* data, hio_iolen_t 
 	{
 		hio_oow_t rem;
 
-		HIO_ASSERT (hio, !(prxy->over & PRXY_OVER_READ_FROM_PEER));
+		HIO_ASSERT(hio, !(prxy->over & PRXY_OVER_READ_FROM_PEER));
 
 		if (hio_htrd_feed(prxy->peer_htrd, data, dlen, &rem) <= -1)
 		{
@@ -293,7 +293,7 @@ static int prxy_peer_on_write (hio_dev_sck_t* sck, hio_iolen_t wrlen, void* wrct
 
 	if (!prxy) return 0; /* there is nothing i can do. the prxy is being cleared or has been cleared already. */
 
-	HIO_ASSERT (hio, prxy->peer == sck);
+	HIO_ASSERT(hio, prxy->peer == sck);
 
 	if (wrlen <= -1)
 	{
@@ -306,7 +306,7 @@ static int prxy_peer_on_write (hio_dev_sck_t* sck, hio_iolen_t wrlen, void* wrct
 		/* do nothing here as i didn't increment peer_pending_writes when making the write request */
 
 		prxy->peer_pending_writes--;
-		HIO_ASSERT (hio, prxy->peer_pending_writes == 0);
+		HIO_ASSERT(hio, prxy->peer_pending_writes == 0);
 		HIO_DEBUG3 (hio, "HTTS(%p) - indicated EOF to peer %p(hnd=%d)\n", prxy->htts, sck, (int)sck->hnd);
 		/* indicated EOF to the peer side. i need no more data from the client side.
 		 * i don't need to enable input watching in the client side either */
@@ -314,7 +314,7 @@ static int prxy_peer_on_write (hio_dev_sck_t* sck, hio_iolen_t wrlen, void* wrct
 	}
 	else
 	{
-		HIO_ASSERT (hio, prxy->peer_pending_writes > 0);
+		HIO_ASSERT(hio, prxy->peer_pending_writes > 0);
 
 		prxy->peer_pending_writes--;
 		if (prxy->peer_pending_writes == PRXY_PENDING_IO_THRESHOLD)
@@ -384,7 +384,7 @@ static int peer_htrd_push_content (hio_htrd_t* htrd, hio_htre_t* req, const hio_
 	prxy_t* prxy = peer->prxy;
 	int n;
 
-	HIO_ASSERT (prxy->htts->hio, htrd == prxy->peer_htrd);
+	HIO_ASSERT(prxy->htts->hio, htrd == prxy->peer_htrd);
 
 	n = hio_svc_htts_task_addresbody((hio_svc_htts_task_t*)prxy, data, dlen);
 	if (prxy->task_res_pending_writes > PRXY_PENDING_IO_THRESHOLD)
@@ -424,7 +424,7 @@ static int prxy_client_htrd_push_content (hio_htrd_t* htrd, hio_htre_t* req, con
 	hio_svc_htts_cli_t* cli = hio_dev_sck_getxtn(sck);
 	prxy_t* prxy = (prxy_t*)cli->task;
 
-	HIO_ASSERT (sck->hio, cli->sck == sck);
+	HIO_ASSERT(sck->hio, cli->sck == sck);
 	return prxy_write_to_peer(prxy, data, dlen);
 }
 
@@ -442,7 +442,7 @@ static void prxy_client_on_disconnect (hio_dev_sck_t* sck)
 	prxy_t* prxy = (prxy_t*)cli->task;
 	hio_t* hio = sck->hio;
 
-	HIO_ASSERT (hio, sck == prxy->task_csck);
+	HIO_ASSERT(hio, sck == prxy->task_csck);
 	HIO_DEBUG4 (hio, "HTTS(%p) - prxy(t=%p,c=%p,csck=%p) - client socket disconnect notified\n", htts, prxy, cli, sck);
 
 	if (prxy)
@@ -470,7 +470,7 @@ static int prxy_client_on_read (hio_dev_sck_t* sck, const void* buf, hio_iolen_t
 	prxy_t* prxy = (prxy_t*)cli->task;
 	int n;
 
-	HIO_ASSERT (hio, sck == cli->sck);
+	HIO_ASSERT(hio, sck == cli->sck);
 
 	n = prxy->client_org_on_read? prxy->client_org_on_read(sck, buf, len, srcaddr): 0;
 
@@ -633,13 +633,13 @@ static int prxy_peer_on_fork (hio_dev_sck_t* pro, void* fork_ctx)
 	if (path)
 	{
 		setenv ("PATH", path, 1);
-		hio_freemem (hio, path);
+		hio_freemem(hio, path);
 	}
 
 	if (lang)
 	{
 		setenv ("LANG", lang, 1);
-		hio_freemem (hio, lang);
+		hio_freemem(hio, lang);
 	}
 
 	setenv ("GATEWAY_INTERFACE", "PRXY/1.1", 1);
@@ -700,8 +700,8 @@ static void bind_task_to_client (prxy_t* prxy, hio_dev_sck_t* csck)
 {
 	hio_svc_htts_cli_t* cli = hio_dev_sck_getxtn(csck);
 
-	HIO_ASSERT (prxy->htts->hio, cli->sck == csck);
-	HIO_ASSERT (prxy->htts->hio, cli->task == HIO_NULL);
+	HIO_ASSERT(prxy->htts->hio, cli->sck == csck);
+	HIO_ASSERT(prxy->htts->hio, cli->task == HIO_NULL);
 
 	/* prxy->task_client and prxy->task_csck are set in hio_svc_htts_task_make() */
 
@@ -726,10 +726,10 @@ static void unbind_task_from_client (prxy_t* prxy, int rcdown)
 
 	if (cli->task) /* only if it's bound */
 	{
-		HIO_ASSERT (prxy->htts->hio, prxy->task_client != HIO_NULL);
-		HIO_ASSERT (prxy->htts->hio, prxy->task_csck != HIO_NULL);
-		HIO_ASSERT (prxy->htts->hio, prxy->task_client->task == (hio_svc_htts_task_t*)prxy);
-		HIO_ASSERT (prxy->htts->hio, prxy->task_client->htrd != HIO_NULL);
+		HIO_ASSERT(prxy->htts->hio, prxy->task_client != HIO_NULL);
+		HIO_ASSERT(prxy->htts->hio, prxy->task_csck != HIO_NULL);
+		HIO_ASSERT(prxy->htts->hio, prxy->task_client->task == (hio_svc_htts_task_t*)prxy);
+		HIO_ASSERT(prxy->htts->hio, prxy->task_client->htrd != HIO_NULL);
 
 		if (prxy->client_htrd_recbs_changed)
 		{
@@ -815,7 +815,7 @@ static int bind_task_to_peer (prxy_t* prxy, hio_dev_sck_t* csck, hio_htre_t* req
 		}
 	}
 
-	HIO_MEMSET (&m, 0, HIO_SIZEOF(m));
+	HIO_MEMSET(&m, 0, HIO_SIZEOF(m));
 	if (hio_get_stream_sck_type_from_skad(skad, &m.type) <= -1)
 	{
 		hio_seterrnum (hio, HIO_EINVAL);
@@ -927,8 +927,8 @@ int hio_svc_htts_doprxy (hio_svc_htts_t* htts, hio_dev_sck_t* csck, hio_htre_t* 
 	int bound_to_client = 0, bound_to_peer = 0;
 
 	/* ensure that you call this function before any contents is received */
-	HIO_ASSERT (hio, hio_htre_getcontentlen(req) == 0);
-	HIO_ASSERT (hio, cli->sck == csck);
+	HIO_ASSERT(hio, hio_htre_getcontentlen(req) == 0);
+	HIO_ASSERT(hio, cli->sck == csck);
 
 	if (cli->task)
 	{

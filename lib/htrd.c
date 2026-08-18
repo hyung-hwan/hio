@@ -98,7 +98,7 @@ static HIO_INLINE int push_to_buffer (hio_htrd_t* htrd, hio_becs_t* octb, const 
 
 static HIO_INLINE int push_content (hio_htrd_t* htrd, const hio_bch_t* ptr, hio_oow_t len)
 {
-	HIO_ASSERT (htrd->hio, len > 0);
+	HIO_ASSERT(htrd->hio, len > 0);
 
 	if (htrd->recbs.push_content) return htrd->recbs.push_content(htrd, &htrd->re, ptr, len);
 
@@ -123,7 +123,7 @@ static HIO_INLINE void clear_feed (hio_htrd_t* htrd)
 	hio_becs_clear (&htrd->fed.b.tra);
 	hio_becs_clear (&htrd->fed.b.raw);
 
-	HIO_MEMSET (&htrd->fed.s, 0, HIO_SIZEOF(htrd->fed.s));
+	HIO_MEMSET(&htrd->fed.s, 0, HIO_SIZEOF(htrd->fed.s));
 }
 
 hio_htrd_t* hio_htrd_open (hio_t* hio, hio_oow_t xtnsize)
@@ -135,10 +135,10 @@ hio_htrd_t* hio_htrd_open (hio_t* hio, hio_oow_t xtnsize)
 	{
 		if (HIO_UNLIKELY(hio_htrd_init(htrd, hio) <= -1))
 		{
-			hio_freemem (hio, htrd);
+			hio_freemem(hio, htrd);
 			return HIO_NULL;
 		}
-		else HIO_MEMSET (htrd + 1, 0, xtnsize);
+		else HIO_MEMSET(htrd + 1, 0, xtnsize);
 	}
 	return htrd;
 }
@@ -151,7 +151,7 @@ void hio_htrd_close (hio_htrd_t* htrd)
 
 int hio_htrd_init (hio_htrd_t* htrd, hio_t* hio)
 {
-	HIO_MEMSET (htrd, 0, HIO_SIZEOF(*htrd));
+	HIO_MEMSET(htrd, 0, HIO_SIZEOF(*htrd));
 	htrd->hio = hio;
 	htrd->option = HIO_HTRD_REQUEST | HIO_HTRD_RESPONSE;
 
@@ -665,7 +665,7 @@ static hio_htb_pair_t* hdr_cbserter (hio_htb_t* htb, hio_htb_pair_t* pair, void*
 			return HIO_NULL;
 		}
 
-		HIO_MEMSET (val, 0, HIO_SIZEOF(*val));
+		HIO_MEMSET(val, 0, HIO_SIZEOF(*val));
 		val->ptr = tx->vptr;
 		val->len = tx->vlen;
 		val->next = HIO_NULL;
@@ -729,14 +729,14 @@ static hio_htb_pair_t* hdr_cbserter (hio_htb_t* htb, hio_htb_pair_t* pair, void*
 			return HIO_NULL;
 		}
 
-		HIO_MEMSET (val, 0, HIO_SIZEOF(*val));
+		HIO_MEMSET(val, 0, HIO_SIZEOF(*val));
 		val->ptr = tx->vptr;
 		val->len = tx->vlen;
 		val->next = HIO_NULL;
 
 /* TODO: doubly linked list for speed-up??? */
 		tmp = HIO_HTB_VPTR(pair);
-		HIO_ASSERT (tx->htrd->hio, tmp != HIO_NULL);
+		HIO_ASSERT(tx->htrd->hio, tmp != HIO_NULL);
 
 		/* find the tail */
 		while (tmp->next) tmp = tmp->next;
@@ -762,7 +762,7 @@ hio_bch_t* parse_header_field (hio_htrd_t* htrd, hio_bch_t* line, hio_htb_t* tab
 	while (is_space_octet(*p)) p++;
 #endif
 
-	HIO_ASSERT (htrd->hio, !is_whspace_octet(*p));
+	HIO_ASSERT(htrd->hio, !is_whspace_octet(*p));
 
 	/* check the field name */
 	name.ptr = last = p;
@@ -876,7 +876,7 @@ static HIO_INLINE int parse_initial_line_and_headers (hio_htrd_t* htrd, const hi
 #endif
 		while (is_space_octet(*p)) p++;
 
-	HIO_ASSERT (htrd->hio, *p != '\0');
+	HIO_ASSERT(htrd->hio, *p != '\0');
 
 	/* parse the initial line */
 	if (!(htrd->option & HIO_HTRD_SKIP_INITIAL_LINE))
@@ -914,7 +914,7 @@ static const hio_bch_t* getchunklen (hio_htrd_t* htrd, const hio_bch_t* ptr, hio
 	const hio_bch_t* end = ptr + len;
 
 	/* this function must be called in the GET_CHUNK_LEN context */
-	HIO_ASSERT (htrd->hio, htrd->fed.s.chunk.phase == GET_CHUNK_LEN);
+	HIO_ASSERT(htrd->hio, htrd->fed.s.chunk.phase == GET_CHUNK_LEN);
 
 	if (htrd->fed.s.chunk.count <= 0)
 	{
@@ -997,7 +997,7 @@ static const hio_bch_t* get_trailing_headers (hio_htrd_t* htrd, const hio_bch_t*
 				{
 					hio_bch_t* p;
 
-					HIO_ASSERT (htrd->hio, htrd->fed.s.crlf <= 3);
+					HIO_ASSERT(htrd->hio, htrd->fed.s.crlf <= 3);
 					htrd->fed.s.crlf = 0;
 
 					if (push_to_buffer(htrd, &htrd->fed.b.tra, req, ptr - req) <= -1 ||
@@ -1052,7 +1052,7 @@ int hio_htrd_feed (hio_htrd_t* htrd, const hio_bch_t* req, hio_oow_t len, hio_oo
 #endif
 	hio_oow_t avail;
 
-	HIO_ASSERT (htrd->hio, len > 0);
+	HIO_ASSERT(htrd->hio, len > 0);
 
 	if (htrd->flags & FEEDING_SUSPENDED)
 	{
@@ -1141,7 +1141,7 @@ int hio_htrd_feed (hio_htrd_t* htrd, const hio_bch_t* req, hio_oow_t len, hio_oo
 					 */
 
 					/* we got a complete request header. */
-					HIO_ASSERT (htrd->hio, htrd->fed.s.crlf <= 3);
+					HIO_ASSERT(htrd->hio, htrd->fed.s.crlf <= 3);
 
 					/* reset the crlf state */
 					htrd->fed.s.crlf = 0;
@@ -1171,7 +1171,7 @@ int hio_htrd_feed (hio_htrd_t* htrd, const hio_bch_t* req, hio_oow_t len, hio_oo
 					if (htrd->re.flags & HIO_HTRE_ATTR_CHUNKED)
 					{
 						/* transfer-encoding: chunked */
-						/*HIO_ASSERT (htrd->hio, !(htrd->re.flags & HIO_HTRE_ATTR_LENGTH)); <- this assertion is wrong. non-conforming client may include content-length while transfer-encoding is chunked*/
+						/*HIO_ASSERT(htrd->hio, !(htrd->re.flags & HIO_HTRE_ATTR_LENGTH)); <- this assertion is wrong. non-conforming client may include content-length while transfer-encoding is chunked*/
 
 					dechunk_start:
 						htrd->fed.s.chunk.phase = GET_CHUNK_LEN;
@@ -1328,7 +1328,7 @@ XXXXXXXX
 
 					if (htrd->fed.s.chunk.phase == GET_CHUNK_DATA)
 					{
-						HIO_ASSERT (htrd->hio, htrd->fed.s.need == 0);
+						HIO_ASSERT(htrd->hio, htrd->fed.s.need == 0);
 						htrd->fed.s.chunk.phase = GET_CHUNK_CRLF;
 
 					dechunk_crlf:

@@ -57,7 +57,7 @@ static int sched_connect_timeout (hio_dev_t* dev)
 
 	if (rdev->tmout.c.sec >= 0)
 	{
-		HIO_MEMSET (&tmrjob, 0, HIO_SIZEOF(tmrjob));
+		HIO_MEMSET(&tmrjob, 0, HIO_SIZEOF(tmrjob));
 		tmrjob.ctx = rdev;
 		hio_gettime (hio, &tmrjob.when);
 		HIO_ADD_NTIME (&tmrjob.when, &tmrjob.when, &rdev->tmout.c);
@@ -82,7 +82,7 @@ static void desched_connect_timeout (hio_dev_t* dev)
 	if (rdev->ctmridx != HIO_TMRIDX_INVALID)
 	{
 		hio_deltmrjob (hio, rdev->ctmridx);
-		HIO_ASSERT (hio, rdev->ctmridx == HIO_TMRIDX_INVALID);
+		HIO_ASSERT(hio, rdev->ctmridx == HIO_TMRIDX_INVALID);
 	}
 }
 
@@ -282,7 +282,7 @@ static int dev_mar_ioctl (hio_dev_t* dev, int cmd, void* arg)
 				return -1;
 			}
 
-			HIO_ASSERT (hio, rdev->connected_deferred == 0);
+			HIO_ASSERT(hio, rdev->connected_deferred == 0);
 
 			status = mysql_real_connect_start(&tmp, rdev->hnd, ci->host, ci->username, ci->password, ci->dbname, ci->port, HIO_NULL, 0);
 			rdev->dev_cap &= ~HIO_DEV_CAP_VIRTUAL; /* a socket is created in mysql_real_connect_start() */
@@ -590,7 +590,7 @@ static int dev_evcb_mar_ready (hio_dev_t* dev, int events)
 
 				if (!row)
 				{
-					HIO_ASSERT (hio, rdev->res != HIO_NULL);
+					HIO_ASSERT(hio, rdev->res != HIO_NULL);
 					mysql_free_result (rdev->res); /* this doesn't block after the last row */
 					rdev->res = HIO_NULL;
 
@@ -615,7 +615,7 @@ static int dev_evcb_mar_ready (hio_dev_t* dev, int events)
 						/* the last row has been received - cleanup before invoking the callback */
 						watch_mysql (rdev, status);
 
-						HIO_ASSERT (hio, rdev->res != HIO_NULL);
+						HIO_ASSERT(hio, rdev->res != HIO_NULL);
 						mysql_free_result (rdev->res); /* this doesn't block after the last row */
 						rdev->res = HIO_NULL;
 					}

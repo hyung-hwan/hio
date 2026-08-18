@@ -67,7 +67,7 @@ hio_tar_t* hio_tar_open (hio_t* hio, hio_oow_t xtnsize)
 	{
 		if (hio_tar_init(tar, hio) <= -1)
 		{
-			hio_freemem (hio, tar);
+			hio_freemem(hio, tar);
 			tar = HIO_NULL;
 		}
 	}
@@ -77,8 +77,8 @@ hio_tar_t* hio_tar_open (hio_t* hio, hio_oow_t xtnsize)
 
 void hio_tar_close (hio_tar_t* tar)
 {
-	hio_tar_fini (tar);
-	hio_freemem (tar->hio, tar);
+	hio_tar_fini(tar);
+	hio_freemem(tar->hio, tar);
 }
 
 int hio_tar_init (hio_tar_t* tar, hio_t* hio)
@@ -86,17 +86,17 @@ int hio_tar_init (hio_tar_t* tar, hio_t* hio)
 	tar->hio = hio;
 	tar->x.state = HIO_TAR_STATE_START;
 	tar->x.blk.len = 0;
-	hio_becs_init (&tar->x.hi.filename, tar->hio, 0); /* won't fail with the capacity of 0 */
+	hio_becs_init(&tar->x.hi.filename, tar->hio, 0); /* won't fail with the capacity of 0 */
 	return 0;
 }
 
 void hio_tar_fini (hio_tar_t* tar)
 {
-	hio_becs_fini (&tar->x.hi.filename);
+	hio_becs_fini(&tar->x.hi.filename);
 	if (tar->x.hi.fp)
 	{
 		/* clean up */
-		fclose (tar->x.hi.fp);
+		fclose(tar->x.hi.fp);
 		tar->x.hi.fp = HIO_NULL;
 	}
 }
@@ -118,8 +118,8 @@ static int x_process_header (hio_tar_t* tar)
 {
 	hio_tar_hdr_t* hdr;
 
-	HIO_ASSERT (tar->hio, tar->x.state == HIO_TAR_STATE_START);
-	HIO_ASSERT (tar->hio, tar->x.blk.len == HIO_TAR_BLKSIZE);
+	HIO_ASSERT(tar->hio, tar->x.state == HIO_TAR_STATE_START);
+	HIO_ASSERT(tar->hio, tar->x.blk.len == HIO_TAR_BLKSIZE);
 	hdr = (hio_tar_hdr_t*)tar->x.blk.buf;
 
 	/* all-zero byte block ends the archive */
@@ -208,9 +208,9 @@ static int x_process_content (hio_tar_t* tar)
 {
 	hio_oow_t chunksize;
 
-	HIO_ASSERT (tar->hio, tar->x.blk.len == HIO_TAR_BLKSIZE);
-	HIO_ASSERT (tar->hio, tar->x.hi.filesize > 0);
-	HIO_ASSERT (tar->hio, tar->x.hi.fp != HIO_NULL);
+	HIO_ASSERT(tar->hio, tar->x.blk.len == HIO_TAR_BLKSIZE);
+	HIO_ASSERT(tar->hio, tar->x.hi.filesize > 0);
+	HIO_ASSERT(tar->hio, tar->x.hi.fp != HIO_NULL);
 
 	chunksize = tar->x.hi.filesize < tar->x.blk.len? tar->x.hi.filesize: tar->x.blk.len;
 
@@ -250,7 +250,7 @@ int hio_tar_xfeed (hio_tar_t* tar, const void* ptr, hio_oow_t len)
 		cplen = HIO_COUNTOF(tar->x.blk.buf) - tar->x.blk.len; /* required length to fill a block */
 		if (len < cplen) cplen = len; /* not enough to fill a block */
 
-		HIO_MEMCPY (&tar->x.blk.buf[tar->x.blk.len], ptr, cplen);
+		HIO_MEMCPY(&tar->x.blk.buf[tar->x.blk.len], ptr, cplen);
 		tar->x.blk.len += cplen;
 		len -= cplen;
 		ptr += cplen;

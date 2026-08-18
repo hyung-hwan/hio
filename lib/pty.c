@@ -61,9 +61,9 @@ typedef struct param_t param_t;
 static void free_param (hio_t* hio, param_t* param)
 {
 	if (param->argv && param->argv != param->fixed_argv)
-		hio_freemem (hio, param->argv);
-	if (param->mcmd) hio_freemem (hio, param->mcmd);
-	HIO_MEMSET (param, 0, HIO_SIZEOF(*param));
+		hio_freemem(hio, param->argv);
+	if (param->mcmd) hio_freemem(hio, param->mcmd);
+	HIO_MEMSET(param, 0, HIO_SIZEOF(*param));
 }
 
 static int make_param (hio_t* hio, const void* cmd, int flags, param_t* param)
@@ -71,7 +71,7 @@ static int make_param (hio_t* hio, const void* cmd, int flags, param_t* param)
 	int fcnt = 0;
 	hio_bch_t* mcmd = HIO_NULL;
 
-	HIO_MEMSET (param, 0, HIO_SIZEOF(*param));
+	HIO_MEMSET(param, 0, HIO_SIZEOF(*param));
 
 	/* TODO: make this configurable */
 	param->fixed_env[0] = "TERM=dumb";
@@ -138,7 +138,7 @@ static int make_param (hio_t* hio, const void* cmd, int flags, param_t* param)
 	return 0;
 
 oops:
-	if (mcmd && mcmd != cmd) hio_freemem (hio, mcmd);
+	if (mcmd && mcmd != cmd) hio_freemem(hio, mcmd);
 	return -1;
 }
 
@@ -234,7 +234,7 @@ static int dev_pty_make (hio_dev_t* dev, void* ctx)
 				tmp = hio_reallocmem(hio, (ptr == pts_name_buf? HIO_NULL: ptr), capa + 128);
 				if (HIO_UNLIKELY(!tmp))
 				{
-					if (ptr != pts_name_buf) hio_freemem (hio, ptr);
+					if (ptr != pts_name_buf) hio_freemem(hio, ptr);
 					goto oops;
 				}
 				ptr = tmp;
@@ -254,11 +254,11 @@ static int dev_pty_make (hio_dev_t* dev, void* ctx)
 		if (pfds[1] == -1)
 		{
 			hio_seterrwithsyserr (hio, 0, errno);
-			if (ptr != pts_name_buf) hio_freemem (hio, ptr);
+			if (ptr != pts_name_buf) hio_freemem(hio, ptr);
 			goto oops;
 		}
 
-		if (ptr != pts_name_buf) hio_freemem (hio, ptr);
+		if (ptr != pts_name_buf) hio_freemem(hio, ptr);
 	}
 
 #elif defined(HAVE_OPENPTY)

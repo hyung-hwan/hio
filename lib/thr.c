@@ -224,7 +224,7 @@ pipe_done:
 		if (n != 0)
 		{
 			rdev->thr_info = HIO_NULL;
-			hio_freemem (hio, ti);
+			hio_freemem(hio, ti);
 			goto oops;
 		}
 
@@ -311,7 +311,7 @@ static int dev_thr_kill_master (hio_dev_t* dev, int force)
 	{
 		pthread_detach (ti->thr_hnd); /* pthread_join() may be blocking. detach the thread instead */
 		free_thr_info_resources (hio, ti);
-		hio_freemem (hio, ti);
+		hio_freemem(hio, ti);
 	}
 	else
 	{
@@ -320,7 +320,7 @@ static int dev_thr_kill_master (hio_dev_t* dev, int force)
 		 * see after #else */
 		pthread_join (ti->thr_hnd, HIO_NULL);
 		free_thr_info_resources (hio, ti);
-		hio_freemem (hio, ti);
+		hio_freemem(hio, ti);
 	#else
 		/* schedule a resource destroyer */
 		hio_addcfmb (hio, (hio_cfmb_t*)ti, ready_to_free_thr_info, HIO_NULL);
@@ -346,7 +346,7 @@ static int dev_thr_kill_slave (hio_dev_t* dev, int force)
 		/* indicate EOF */
 		if (master->on_close) master->on_close (master, rdev->id);
 
-		HIO_ASSERT (hio, master->slave_count > 0);
+		HIO_ASSERT(hio, master->slave_count > 0);
 		master->slave_count--;
 
 		if (master->slave[rdev->id])
@@ -398,7 +398,7 @@ static int dev_thr_read_slave (hio_dev_t* dev, void* buf, hio_iolen_t* len, hio_
 		hio_seterrnum (thr->hio, HIO_EBADHND);
 		return -1;
 	}*/
-	HIO_ASSERT (thr->hio, thr->pfd != HIO_SYSHND_INVALID); /* use this assertion to check if my claim above is right */
+	HIO_ASSERT(thr->hio, thr->pfd != HIO_SYSHND_INVALID); /* use this assertion to check if my claim above is right */
 
 	x = read(thr->pfd, buf, *len);
 	if (x <= -1)
@@ -426,7 +426,7 @@ static int dev_thr_write_slave (hio_dev_t* dev, const void* data, hio_iolen_t* l
 		hio_seterrnum (thr->hio, HIO_EBADHND);
 		return -1;
 	}*/
-	HIO_ASSERT (thr->hio, thr->pfd != HIO_SYSHND_INVALID); /* use this assertion to check if my claim above is right */
+	HIO_ASSERT(thr->hio, thr->pfd != HIO_SYSHND_INVALID); /* use this assertion to check if my claim above is right */
 
 	if (HIO_UNLIKELY(*len <= 0))
 	{
@@ -468,7 +468,7 @@ static int dev_thr_writev_slave (hio_dev_t* dev, const hio_iovec_t* iov, hio_iol
 		hio_seterrnum (thr->hio, HIO_EBADHND);
 		return -1;
 	}*/
-	HIO_ASSERT (thr->hio, thr->pfd != HIO_SYSHND_INVALID); /* use this assertion to check if my claim above is right */
+	HIO_ASSERT(thr->hio, thr->pfd != HIO_SYSHND_INVALID); /* use this assertion to check if my claim above is right */
 
 	if (HIO_UNLIKELY(*iovcnt <= 0))
 	{
@@ -534,7 +534,7 @@ static int dev_thr_ioctl (hio_dev_t* dev, int cmd, void* arg)
 
 				/* if this is the last slave, the master is destroyed as well.
 				 * therefore, using rdev is unsafe in the assertion below is unsafe.
-				 *HIO_ASSERT (hio, rdev->slave[sid] == HIO_NULL); */
+				 *HIO_ASSERT(hio, rdev->slave[sid] == HIO_NULL); */
 			}
 
 			return 0;

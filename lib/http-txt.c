@@ -80,7 +80,7 @@ static HIO_INLINE void txt_mark_over (txt_t* txt, int over_bits)
 		/* ready to stop */
 		if (txt->task_keep_client_alive)
 		{
-			HIO_ASSERT (txt->htts->hio, txt->task_client->task == (hio_svc_htts_task_t*)txt);
+			HIO_ASSERT(txt->htts->hio, txt->task_client->task == (hio_svc_htts_task_t*)txt);
 			unbind_task_from_client (txt, 1);
 		}
 		else
@@ -103,7 +103,7 @@ static void txt_on_kill (hio_svc_htts_task_t* task)
 
 	if (txt->task_csck)
 	{
-		HIO_ASSERT (hio, txt->task_client != HIO_NULL);
+		HIO_ASSERT(hio, txt->task_client != HIO_NULL);
 		unbind_task_from_client (txt, 0);
 	}
 
@@ -161,7 +161,7 @@ static int txt_client_on_read (hio_dev_sck_t* sck, const void* buf, hio_iolen_t 
 	txt_t* txt = (txt_t*)cli->task;
 	int n;
 
-	HIO_ASSERT (hio, sck == cli->sck);
+	HIO_ASSERT(hio, sck == cli->sck);
 
 	n = txt->client_org_on_read? txt->client_org_on_read(sck, buf, len, srcaddr): 0;
 
@@ -223,8 +223,8 @@ static void bind_task_to_client (txt_t* txt, hio_dev_sck_t* csck)
 {
 	hio_svc_htts_cli_t* cli = hio_dev_sck_getxtn(csck);
 
-	HIO_ASSERT (txt->htts->hio, cli->sck == csck);
-	HIO_ASSERT (txt->htts->hio, cli->task == HIO_NULL);
+	HIO_ASSERT(txt->htts->hio, cli->sck == csck);
+	HIO_ASSERT(txt->htts->hio, cli->task == HIO_NULL);
 
 	/* txt->task_client and txt->task_csck are set in hio_svc_htts_task_make() */
 
@@ -250,10 +250,10 @@ static void unbind_task_from_client (txt_t* txt, int rcdown)
 	if (cli->task) /* only if it's bound */
 	{
 
-		HIO_ASSERT (txt->htts->hio, txt->task_client != HIO_NULL);
-		HIO_ASSERT (txt->htts->hio, txt->task_csck != HIO_NULL);
-		HIO_ASSERT (txt->htts->hio, txt->task_client->task == (hio_svc_htts_task_t*)txt);
-		HIO_ASSERT (txt->htts->hio, txt->task_client->htrd != HIO_NULL);
+		HIO_ASSERT(txt->htts->hio, txt->task_client != HIO_NULL);
+		HIO_ASSERT(txt->htts->hio, txt->task_csck != HIO_NULL);
+		HIO_ASSERT(txt->htts->hio, txt->task_client->task == (hio_svc_htts_task_t*)txt);
+		HIO_ASSERT(txt->htts->hio, txt->task_client->htrd != HIO_NULL);
 
 		if (txt->client_htrd_recbs_changed)
 		{
@@ -340,8 +340,8 @@ int hio_svc_htts_dotxt (hio_svc_htts_t* htts, hio_dev_sck_t* csck, hio_htre_t* r
 	int bound_to_client = 0;
 
 	/* ensure that you call this function before any contents is received */
-	HIO_ASSERT (hio, hio_htre_getcontentlen(req) == 0);
-	HIO_ASSERT (hio, cli->sck == csck);
+	HIO_ASSERT(hio, hio_htre_getcontentlen(req) == 0);
+	HIO_ASSERT(hio, cli->sck == csck);
 
 	if (cli->task)
 	{

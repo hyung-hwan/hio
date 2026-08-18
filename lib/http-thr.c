@@ -149,12 +149,12 @@ static HIO_INLINE void thr_mark_over (thr_t* thr, int over_bits)
 
 		if (thr->task_csck)
 		{
-			HIO_ASSERT (hio, thr->task_client != HIO_NULL);
+			HIO_ASSERT(hio, thr->task_client != HIO_NULL);
 
 			if (thr->task_keep_client_alive)
 			{
 				/* how to arrange to delete this thr object and put the socket back to the normal waiting state??? */
-				HIO_ASSERT (thr->htts->hio, thr->task_client->task == (hio_svc_htts_task_t*)thr);
+				HIO_ASSERT(thr->htts->hio, thr->task_client->task == (hio_svc_htts_task_t*)thr);
 				unbind_task_from_client (thr, 1);
 				/* IMPORTANT: thr must not be accessed from here down as it could have been destroyed */
 			}
@@ -188,7 +188,7 @@ static void thr_on_kill (hio_svc_htts_task_t* task)
 
 	if (thr->task_csck)
 	{
-		HIO_ASSERT (hio, thr->task_client != HIO_NULL);
+		HIO_ASSERT(hio, thr->task_client != HIO_NULL);
 		unbind_task_from_client (thr, 0);
 	}
 
@@ -214,7 +214,7 @@ static void thr_peer_on_close (hio_dev_thr_t* peer, hio_dev_thr_sid_t sid)
 			break;
 
 		case HIO_DEV_THR_OUT:
-			HIO_ASSERT (hio, thr->peer == peer);
+			HIO_ASSERT(hio, thr->peer == peer);
 			HIO_DEBUG3 (hio, "HTTS(%p) - peer %p closing slave[%d]\n", thr->htts, peer, sid);
 
 			if (!(thr->over & THR_OVER_READ_FROM_PEER))
@@ -243,7 +243,7 @@ static int thr_peer_on_read (hio_dev_thr_t* peer, const void* data, hio_iolen_t 
 	thr_peer_xtn_t* pxtn = (thr_peer_xtn_t*)hio_dev_thr_getxtn(peer);
 	thr_t* thr = pxtn->task;
 
-	HIO_ASSERT (hio, thr != HIO_NULL);
+	HIO_ASSERT(hio, thr != HIO_NULL);
 
 	if (dlen <= -1)
 	{
@@ -270,7 +270,7 @@ static int thr_peer_on_read (hio_dev_thr_t* peer, const void* data, hio_iolen_t 
 	{
 		hio_oow_t rem;
 
-		HIO_ASSERT (hio, !(thr->over & THR_OVER_READ_FROM_PEER));
+		HIO_ASSERT(hio, !(thr->over & THR_OVER_READ_FROM_PEER));
 
 		if (hio_htrd_feed(thr->peer_htrd, data, dlen, &rem) <= -1)
 		{
@@ -347,7 +347,7 @@ static int thr_peer_htrd_push_content (hio_htrd_t* htrd, hio_htre_t* req, const 
 	thr_t* thr = pxtn->task;
 	int n;
 
-	HIO_ASSERT (thr->htts->hio, htrd == thr->peer_htrd);
+	HIO_ASSERT(thr->htts->hio, htrd == thr->peer_htrd);
 
 	n = hio_svc_htts_task_addresbody((hio_svc_htts_task_t*)thr, data, dlen);
 	if (thr->task_res_pending_writes > THR_PENDING_IO_THRESHOLD)
@@ -387,7 +387,7 @@ static int thr_client_htrd_push_content (hio_htrd_t* htrd, hio_htre_t* req, cons
 	hio_svc_htts_cli_t* cli = hio_dev_sck_getxtn(sck);
 	thr_t* thr = (thr_t*)cli->task;
 
-	HIO_ASSERT (sck->hio, cli->sck == sck);
+	HIO_ASSERT(sck->hio, cli->sck == sck);
 	return thr_write_to_peer(thr, data, dlen);
 }
 
@@ -406,7 +406,7 @@ static int thr_peer_on_write (hio_dev_thr_t* peer, hio_iolen_t wrlen, void* wrct
 
 	if (!thr) return 0; /* there is nothing i can do. the thr is being cleared or has been cleared already. */
 
-	HIO_ASSERT (hio, thr->peer == peer);
+	HIO_ASSERT(hio, thr->peer == peer);
 
 	if (wrlen <= -1)
 	{
@@ -419,7 +419,7 @@ static int thr_peer_on_write (hio_dev_thr_t* peer, hio_iolen_t wrlen, void* wrct
 		/* do nothing here as i didn't incremented num_pending_writes_to_peer when making the write request */
 
 		thr->num_pending_writes_to_peer--;
-		HIO_ASSERT (hio, thr->num_pending_writes_to_peer == 0);
+		HIO_ASSERT(hio, thr->num_pending_writes_to_peer == 0);
 		HIO_DEBUG2 (hio, "HTTS(%p) - indicated EOF to peer %p\n", thr->htts, peer);
 		/* indicated EOF to the peer side. i need no more data from the client side.
 		 * i don't need to enable input watching in the client side either */
@@ -427,7 +427,7 @@ static int thr_peer_on_write (hio_dev_thr_t* peer, hio_iolen_t wrlen, void* wrct
 	}
 	else
 	{
-		HIO_ASSERT (hio, thr->num_pending_writes_to_peer > 0);
+		HIO_ASSERT(hio, thr->num_pending_writes_to_peer > 0);
 
 		thr->num_pending_writes_to_peer--;
 		if (thr->num_pending_writes_to_peer == THR_PENDING_IO_THRESHOLD)
@@ -456,7 +456,7 @@ static void thr_client_on_disconnect (hio_dev_sck_t* sck)
 	hio_svc_htts_t* htts = thr->htts;
 	hio_t* hio = sck->hio;
 
-	HIO_ASSERT (hio, sck = thr->task_csck);
+	HIO_ASSERT(hio, sck = thr->task_csck);
 	HIO_DEBUG4 (hio, "HTTS(%p) - thr(t=%p,c=%p,csck=%p) - client socket disconnect notified\n", htts, thr, cli, sck);
 
 	if (thr)
@@ -483,7 +483,7 @@ static int thr_client_on_read (hio_dev_sck_t* sck, const void* buf, hio_iolen_t 
 	thr_t* thr = (thr_t*)cli->task;
 	int n;
 
-	HIO_ASSERT (hio, sck == cli->sck);
+	HIO_ASSERT(hio, sck == cli->sck);
 
 	n = thr->client_org_on_read? thr->client_org_on_read(sck, buf, len, srcaddr): 0;
 
@@ -579,9 +579,9 @@ static void free_thr_start_info (void* ctx)
 	 */
 	thr_func_start_t* tfs = (thr_func_start_t*)ctx;
 	hio_t* hio = tfs->hio;
-	if (tfs->tfi.req_path) hio_freemem (hio, tfs->tfi.req_path);
-	if (tfs->tfi.req_param) hio_freemem (hio, tfs->tfi.req_param);
-	hio_freemem (hio, tfs);
+	if (tfs->tfi.req_path) hio_freemem(hio, tfs->tfi.req_path);
+	if (tfs->tfi.req_param) hio_freemem(hio, tfs->tfi.req_param);
+	hio_freemem(hio, tfs);
 }
 
 static void thr_func (hio_t* hio, hio_dev_thr_iopair_t* iop, void* ctx)
@@ -625,8 +625,8 @@ static void bind_task_to_client (thr_t* thr, hio_dev_sck_t* csck)
 {
 	hio_svc_htts_cli_t* cli = hio_dev_sck_getxtn(csck);
 
-	HIO_ASSERT (thr->htts->hio, cli->sck == csck);
-	HIO_ASSERT (thr->htts->hio, cli->task == HIO_NULL);
+	HIO_ASSERT(thr->htts->hio, cli->sck == csck);
+	HIO_ASSERT(thr->htts->hio, cli->task == HIO_NULL);
 
 	thr->client_org_on_read = csck->on_read;
 	thr->client_org_on_write = csck->on_write;
@@ -647,10 +647,10 @@ static void unbind_task_from_client (thr_t* thr, int rcdown)
 
 	if (cli->task) /* only if it's bound */
 	{
-		HIO_ASSERT (thr->htts->hio, thr->task_client != HIO_NULL);
-		HIO_ASSERT (thr->htts->hio, thr->task_csck != HIO_NULL);
-		HIO_ASSERT (thr->htts->hio, thr->task_client->task == (hio_svc_htts_task_t*)thr);
-		HIO_ASSERT (thr->htts->hio, thr->task_client->htrd != HIO_NULL);
+		HIO_ASSERT(thr->htts->hio, thr->task_client != HIO_NULL);
+		HIO_ASSERT(thr->htts->hio, thr->task_csck != HIO_NULL);
+		HIO_ASSERT(thr->htts->hio, thr->task_client->task == (hio_svc_htts_task_t*)thr);
+		HIO_ASSERT(thr->htts->hio, thr->task_client->htrd != HIO_NULL);
 
 		if (thr->client_htrd_recbs_changed)
 		{
@@ -732,7 +732,7 @@ static int bind_task_to_peer (thr_t* thr, hio_dev_sck_t* csck, hio_htre_t* req, 
 	tfs->tfi.server_addr = csck->localaddr;
 	tfs->tfi.client_addr = csck->remoteaddr;
 
-	HIO_MEMSET (&mi, 0, HIO_SIZEOF(mi));
+	HIO_MEMSET(&mi, 0, HIO_SIZEOF(mi));
 	mi.thr_func = thr_func;
 	mi.thr_ctx = tfs;
 	mi.on_read = thr_peer_on_read;
@@ -848,8 +848,8 @@ int hio_svc_htts_dothr (hio_svc_htts_t* htts, hio_dev_sck_t* csck, hio_htre_t* r
 	int bound_to_client = 0, bound_to_peer = 0;
 
 	/* ensure that you call this function before any contents is received */
-	HIO_ASSERT (hio, hio_htre_getcontentlen(req) == 0);
-	HIO_ASSERT (hio, cli->sck == csck);
+	HIO_ASSERT(hio, hio_htre_getcontentlen(req) == 0);
+	HIO_ASSERT(hio, cli->sck == csck);
 
 	if (cli->task)
 	{

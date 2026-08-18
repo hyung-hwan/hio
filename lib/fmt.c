@@ -1033,7 +1033,7 @@ static int fmt_outv (hio_fmtout_t* fmtout, va_list ap)
 			newcapa = precision + width + 32;
 			if (fb.out.capa < newcapa)
 			{
-				/*HIO_ASSERT (hio, fb.out.ptr == fb.out.sbuf);*/
+				/*HIO_ASSERT(hio, fb.out.ptr == fb.out.sbuf);*/
 				fb.out.ptr = HIO_MMGR_ALLOC(fmtout->mmgr, HIO_SIZEOF(hio_bch_t) * (newcapa + 1));
 				if (!fb.out.ptr) goto oops;
 				fb.out.capa = newcapa;
@@ -1460,7 +1460,7 @@ redo:
 		}
 	}
 
-	HIO_MEMCPY (&hio->log.ptr[hio->log.len], ptr, len * HIO_SIZEOF(*ptr));
+	HIO_MEMCPY(&hio->log.ptr[hio->log.len], ptr, len * HIO_SIZEOF(*ptr));
 	hio->log.len += len;
 	hio->log.last_mask = fmtout->mask;
 
@@ -1548,7 +1548,7 @@ hio_ooi_t hio_logbfmtv (hio_t* hio, hio_bitmask_t mask, const hio_bch_t* fmt, va
 		mask |= HIO_LOG_UNTYPED;
 	}
 
-	HIO_MEMSET (&fo, 0, HIO_SIZEOF(fo));
+	HIO_MEMSET(&fo, 0, HIO_SIZEOF(fo));
 	fo.fmt_type = HIO_FMTOUT_FMT_TYPE_BCH;
 	fo.fmt_str = fmt;
 	fo.ctx = hio;
@@ -1619,7 +1619,7 @@ hio_ooi_t hio_logufmtv (hio_t* hio, hio_bitmask_t mask, const hio_uch_t* fmt, va
 		mask |= HIO_LOG_UNTYPED;
 	}
 
-	HIO_MEMSET (&fo, 0, HIO_SIZEOF(fo));
+	HIO_MEMSET(&fo, 0, HIO_SIZEOF(fo));
 	fo.fmt_type = HIO_FMTOUT_FMT_TYPE_UCH;
 	fo.fmt_str = fmt;
 	fo.ctx = hio;

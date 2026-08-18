@@ -299,7 +299,7 @@ int hio_parse_http_time_bcstr (const hio_bch_t* str, hio_ntime_t* nt)
 
 	/* TODO: support more formats */
 
-	HIO_MEMSET (&bt, 0, HIO_SIZEOF(bt));
+	HIO_MEMSET(&bt, 0, HIO_SIZEOF(bt));
 
 	/* weekday */
 	while (hio_is_bch_space(*str)) str++;

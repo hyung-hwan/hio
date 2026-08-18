@@ -138,7 +138,7 @@ void hio_md5_update (hio_md5_t* md5, const void* data, hio_uint32_t len)
 	/* transform as many times as possible */
 	if (len >= part_len)
 	{
-		HIO_MEMCPY (&md5->buffer[index], input, part_len);
+		HIO_MEMCPY(&md5->buffer[index], input, part_len);
 		__transform (md5->state, md5->buffer);
 
 		for (i = part_len; i + 63 < len; i += 64)
@@ -148,7 +148,7 @@ void hio_md5_update (hio_md5_t* md5, const void* data, hio_uint32_t len)
 	else i = 0;
 
 	/* buffer remaining input */
-	HIO_MEMCPY (&md5->buffer[index], &input[i], len - i);
+	HIO_MEMCPY(&md5->buffer[index], &input[i], len - i);
 }
 
 void hio_md5_updatex (hio_md5_t* md5, const void* data, hio_oow_t len)
@@ -189,7 +189,7 @@ hio_oow_t hio_md5_digest (hio_md5_t* md5, void* digest, hio_oow_t size)
 	hio_md5_initialize (md5);
 
 	if (size > HIO_COUNTOF(digbuf)) size = HIO_COUNTOF(digbuf);
-	HIO_MEMCPY (digest, digbuf, size);
+	HIO_MEMCPY(digest, digbuf, size);
 	return size;
 }
 

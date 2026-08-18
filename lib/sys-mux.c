@@ -176,19 +176,19 @@ void hio_sys_finimux (hio_t* hio)
 #if defined(USE_POLL)
 	if (mux->map.ptr)
 	{
-		hio_freemem (hio, mux->map.ptr);
+		hio_freemem(hio, mux->map.ptr);
 		mux->map.ptr = HIO_NULL;
 		mux->map.capa = 0;
 	}
 
 	if (mux->pd.pfd)
 	{
-		hio_freemem (hio, mux->pd.pfd);
+		hio_freemem(hio, mux->pd.pfd);
 		mux->pd.pfd = HIO_NULL;
 	}
 	if (mux->pd.dptr)
 	{
-		hio_freemem (hio, mux->pd.dptr);
+		hio_freemem(hio, mux->pd.dptr);
 		mux->pd.dptr = HIO_NULL;
 	}
 	mux->pd.capa = 0;
@@ -202,9 +202,9 @@ void hio_sys_finimux (hio_t* hio)
 		int i;
 		for (i = 0; i < mux->me.ubound; i++)
 		{
-			if (mux->me.ptr[i]) hio_freemem (hio, mux->me.ptr[i]);
+			if (mux->me.ptr[i]) hio_freemem(hio, mux->me.ptr[i]);
 		}
-		hio_freemem (hio, mux->me.ptr);
+		hio_freemem(hio, mux->me.ptr);
 		mux->me.ubound = 0;
 		mux->me.ptr = HIO_NULL;
 		mux->maxhnd = -1;
@@ -298,7 +298,7 @@ static int secure_poll_data_slot_for_insert (hio_t* hio)
 		tmp2 = hio_reallocmem(hio, mux->pd.dptr, new_capa * HIO_SIZEOF(*tmp2));
 		if (HIO_UNLIKELY(!tmp2))
 		{
-			hio_freemem (hio, tmp1);
+			hio_freemem(hio, tmp1);
 			return -1;
 		}
 
@@ -380,7 +380,7 @@ int hio_sys_ctrlmux (hio_t* hio, hio_sys_mux_cmd_t cmd, hio_dev_t* dev, int dev_
 				goto do_delete;
 			}
 
-			HIO_ASSERT (hio, mux->pd.dptr[idx] == dev);
+			HIO_ASSERT(hio, mux->pd.dptr[idx] == dev);
 			mux->pd.pfd[idx].events = events;
 
 			return 0;
@@ -398,7 +398,7 @@ int hio_sys_ctrlmux (hio_t* hio, hio_sys_mux_cmd_t cmd, hio_dev_t* dev, int dev_
 				return 0;
 			}
 
-			HIO_ASSERT (hio, mux->pd.dptr[idx] == dev);
+			HIO_ASSERT(hio, mux->pd.dptr[idx] == dev);
 			mux->map.ptr[hnd] = MUX_INDEX_INVALID;
 
 		do_delete:
@@ -462,7 +462,7 @@ int hio_sys_ctrlmux (hio_t* hio, hio_sys_mux_cmd_t cmd, hio_dev_t* dev, int dev_
 				tmp = hio_reallocmem(hio, mux->me.ptr, HIO_SIZEOF(*mux->me.ptr) * ubound);
 				if (!tmp) return -1;
 
-				HIO_MEMSET (&tmp[mux->me.ubound], 0, HIO_SIZEOF(*mux->me.ptr) * (ubound - mux->me.ubound));
+				HIO_MEMSET(&tmp[mux->me.ubound], 0, HIO_SIZEOF(*mux->me.ptr) * (ubound - mux->me.ubound));
 				mux->me.ptr = tmp;
 				mux->me.ubound = ubound;
 			}
@@ -474,7 +474,7 @@ int hio_sys_ctrlmux (hio_t* hio, hio_sys_mux_cmd_t cmd, hio_dev_t* dev, int dev_
 				if (!mevt) return -1;
 				mux->me.ptr[hnd] = mevt;
 			}
-			HIO_MEMSET (mevt, 0, HIO_SIZEOF(*mevt));
+			HIO_MEMSET(mevt, 0, HIO_SIZEOF(*mevt));
 
 			if (dev_cap & HIO_DEV_CAP_IN_WATCHED)
 			{
@@ -570,14 +570,14 @@ int hio_sys_ctrlmux (hio_t* hio, hio_sys_mux_cmd_t cmd, hio_dev_t* dev, int dev_
 					if (xevt && xevt->dev)
 					{
 						hio_syshnd_t xhnd = xevt->dev->dev_mth->getsyshnd(xevt->dev);
-						HIO_ASSERT (hio, i == xhnd);
+						HIO_ASSERT(hio, i == xhnd);
 						mux->maxhnd = xhnd;
 						goto done;
 					}
 				}
 
 				mux->maxhnd = -1;
-				HIO_ASSERT (hio, mux->size == 1);
+				HIO_ASSERT(hio, mux->size == 1);
 			}
 
 	done:
@@ -599,7 +599,7 @@ int hio_sys_ctrlmux (hio_t* hio, hio_sys_mux_cmd_t cmd, hio_dev_t* dev, int dev_
 	struct kevent chlist[2];
 	int x;
 
-	HIO_ASSERT (hio, hio == dev->hio);
+	HIO_ASSERT(hio, hio == dev->hio);
 
 	/* no operation over a broken(closed) handle to prevent multiplexer from failing.
 	 * close of the handle leads to auto-deletion from the kqueue multiplexer.
@@ -680,7 +680,7 @@ int hio_sys_ctrlmux (hio_t* hio, hio_sys_mux_cmd_t cmd, hio_dev_t* dev, int dev_
 	hio_uint32_t events;
 	int x;
 
-	HIO_ASSERT (hio, hio == dev->hio);
+	HIO_ASSERT(hio, hio == dev->hio);
 
 	/* no operation over a broken(closed) handle to prevent multiplexer from failing.
 	 * close() of the handle leads to auto-deletion from the epoll multiplexer.
@@ -801,7 +801,7 @@ int hio_sys_waitmux (hio_t* hio, const hio_ntime_t* tmout, hio_sys_mux_evtcb_t e
 
 			dev = mux->pd.dptr[i];
 
-			/*HIO_ASSERT (hio, !(mux->pd.pfd[i].revents & POLLNVAL));*/
+			/*HIO_ASSERT(hio, !(mux->pd.pfd[i].revents & POLLNVAL));*/
 			if (mux->pd.pfd[i].revents & POLLIN) events |= HIO_DEV_EVENT_IN;
 			if (mux->pd.pfd[i].revents & POLLOUT) events |= HIO_DEV_EVENT_OUT;
 			if (mux->pd.pfd[i].revents & POLLPRI) events |= HIO_DEV_EVENT_PRI;
@@ -882,7 +882,7 @@ int hio_sys_waitmux (hio_t* hio, const hio_ntime_t* tmout, hio_sys_mux_evtcb_t e
 
 		if (HIO_LIKELY(dev))
 		{
-			HIO_ASSERT (hio, mux->revs[i].ident == dev->dev_mth->getsyshnd(dev));
+			HIO_ASSERT(hio, mux->revs[i].ident == dev->dev_mth->getsyshnd(dev));
 
 			if (mux->revs[i].flags & EV_ERROR) events |= HIO_DEV_EVENT_ERR;
 			if (mux->revs[i].flags & EV_EOF) events |= HIO_DEV_EVENT_HUP;
@@ -897,7 +897,7 @@ int hio_sys_waitmux (hio_t* hio, const hio_ntime_t* tmout, hio_sys_mux_evtcb_t e
 			/* internal pipe for signaling */
 			hio_uint8_t tmp[16];
 
-			HIO_ASSERT (hio, mux->revs[i].ident == mux->ctrlp[0]);
+			HIO_ASSERT(hio, mux->revs[i].ident == mux->ctrlp[0]);
 			while (read(mux->ctrlp[0], tmp, HIO_SIZEOF(tmp)) > 0) ;
 		}
 	}

@@ -574,6 +574,83 @@ done:
 	if (b && b->magic == TDEV_LIVE) hio_dev_kill ((hio_dev_t*)b);
 }
 
+/* ------------------------------------------------------------------ */
+/* evcb stack                                                         */
+/* ------------------------------------------------------------------ */
+
+static int g_layer_read[2];
+
+static int layer_x_on_read (hio_dev_t* dev, const void* p, hio_iolen_t l, const hio_devaddr_t* s)
+{
+	g_layer_read[0]++;
+	return 0;
+}
+
+static int layer_y_on_read (hio_dev_t* dev, const void* p, hio_iolen_t l, const hio_devaddr_t* s)
+{
+	g_layer_read[1]++;
+	return 0;
+}
+
+static int layer_on_write (hio_dev_t* dev, hio_iolen_t l, void* c, const hio_devaddr_t* a)
+{
+	return 0;
+}
+
+/* declared the way every device type in the library declares its own: one
+ * file-scope table per role, shared by every device playing that role.
+ * that sharing is the whole point of the pattern, and it is what any
+ * stack-link stored inside the table has to survive. */
+static hio_dev_evcb_t g_layer_x = { HIO_NULL, layer_x_on_read, layer_on_write };
+static hio_dev_evcb_t g_layer_y = { HIO_NULL, layer_y_on_read, layer_on_write };
+
+/* the stack links are per-device storage owned by the pusher */
+static hio_dev_evcb_link_t g_link_a, g_link_b0, g_link_b1;
+
+static void test_evcb_stack (void)
+{
+	tdev_t* a = HIO_NULL, * b = HIO_NULL;
+	int pa = -1, pb = -1;
+
+	obs_reset ();
+	g_layer_read[0] = g_layer_read[1] = 0;
+
+	a = make_tdev(11, &pa);
+	b = make_tdev(12, &pb);
+	if (!a || !b) { skip ("device creation failed", 7); goto done; }
+
+	OK (a->dev_evcb == &tdev_evcb && b->dev_evcb == &tdev_evcb,
+	    "both devices start on the base handler table");
+
+	hio_dev_pushevcb ((hio_dev_t*)a, &g_link_a, &g_layer_x, a);
+	OK (a->dev_evcb == &g_layer_x, "push swaps the device onto the pushed table");
+	OK (hio_dev_getevcbctx((hio_dev_t*)a) == a, "the pushed layer's context is readable");
+
+	/* b stacks two deep and reuses the very table a is already sitting on -
+	 * the ordinary case when one handler set serves many connections */
+	hio_dev_pushevcb ((hio_dev_t*)b, &g_link_b0, &g_layer_y, b);
+	hio_dev_pushevcb ((hio_dev_t*)b, &g_link_b1, &g_layer_x, b);
+	OK (b->dev_evcb == &g_layer_x, "a second device can stack two layers deep");
+	OK (hio_dev_getevcbctx((hio_dev_t*)a) == a && hio_dev_getevcbctx((hio_dev_t*)b) == b,
+	    "each device keeps its own context for the same shared table");
+
+	hio_dev_popevcb ((hio_dev_t*)a);
+	OK (a->dev_evcb == (hio_dev_evcb_t*)&tdev_evcb,
+	    "popping restores a device's own previous table, not another device's");
+
+	/* and behaviourally: input on 'a' must reach the base handler again */
+	if (write(pa, "z", 1) == 1) pump ();
+	OK (g_on_read_calls == 1 && g_layer_read[0] == 0 && g_layer_read[1] == 0,
+	    "after popping, events are delivered to the base handler");
+
+done:
+	if (b) { while (hio_dev_popevcb((hio_dev_t*)b)) ; }
+	if (pa >= 0) close (pa);
+	if (pb >= 0) close (pb);
+	if (a && a->magic == TDEV_LIVE) hio_dev_kill ((hio_dev_t*)a);
+	if (b && b->magic == TDEV_LIVE) hio_dev_kill ((hio_dev_t*)b);
+}
+
 static void test_fini_kills_survivors (void)
 {
 	/* devices still active or halted at hio_close() time must be destroyed */
@@ -630,6 +707,7 @@ int main (void)
 	test_zombie_escalation ();
 	test_read_and_eof ();
 	test_kill_peer_from_callback ();
+	test_evcb_stack ();
 	test_fini_kills_survivors ();
 
 	hio_close (g_hio);

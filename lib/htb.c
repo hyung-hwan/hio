@@ -74,7 +74,7 @@ HIO_INLINE pair_t* hio_htb_allocpair (hio_htb_t* htb, void* kptr, hio_oow_t klen
 		KPTR(n) = n + 1;
 		/* if kptr is HIO_NULL, the inline copier does not fill
 		 * the actual key area */
-		if (kptr) HIO_MEMCPY (KPTR(n), kptr, KTOB(htb,klen));
+		if (kptr) HIO_MEMCPY(KPTR(n), kptr, KTOB(htb,klen));
 	}
 	else
 	{
@@ -98,7 +98,7 @@ HIO_INLINE pair_t* hio_htb_allocpair (hio_htb_t* htb, void* kptr, hio_oow_t klen
 			VPTR(n) = (hio_uint8_t*)VPTR(n) + HIO_ALIGN_POW2(KTOB(htb,klen), HIO_SIZEOF_VOID_P);
 		/* if vptr is HIO_NULL, the inline copier does not fill
 		 * the actual value area */
-		if (vptr) HIO_MEMCPY (VPTR(n), vptr, VTOB(htb,vlen));
+		if (vptr) HIO_MEMCPY(VPTR(n), vptr, VTOB(htb,vlen));
 	}
 	else
 	{
@@ -152,7 +152,7 @@ static HIO_INLINE pair_t* change_pair_val (hio_htb_t* htb, pair_t* pair, void* v
 		{
 			if (ovlen == vlen)
 			{
-				if (vptr) HIO_MEMCPY (VPTR(pair), vptr, VTOB(htb,vlen));
+				if (vptr) HIO_MEMCPY(VPTR(pair), vptr, VTOB(htb,vlen));
 			}
 			else
 			{
@@ -262,11 +262,11 @@ hio_htb_t* hio_htb_open (hio_t* hio, hio_oow_t xtnsize, hio_oow_t capa, int fact
 
 	if (hio_htb_init(htb, hio, capa, factor, kscale, vscale) <= -1)
 	{
-		hio_freemem (hio, htb);
+		hio_freemem(hio, htb);
 		return HIO_NULL;
 	}
 
-	HIO_MEMSET (htb + 1, 0, xtnsize);
+	HIO_MEMSET(htb + 1, 0, xtnsize);
 	return htb;
 }
 
@@ -280,28 +280,28 @@ int hio_htb_init (hio_htb_t* htb, hio_t* hio, hio_oow_t capa, int factor, int ks
 {
 	/* The initial capacity should be greater than 0.
 	 * Otherwise, it is adjusted to 1 in the release mode */
-	HIO_ASSERT (hio, capa > 0);
+	HIO_ASSERT(hio, capa > 0);
 
 	/* The load factor should be between 0 and 100 inclusive.
 	 * In the release mode, a value out of the range is adjusted to 100 */
-	HIO_ASSERT (hio, factor >= 0 && factor <= 100);
+	HIO_ASSERT(hio, factor >= 0 && factor <= 100);
 
-	HIO_ASSERT (hio, kscale >= 0 && kscale <= HIO_TYPE_MAX(hio_uint8_t));
-	HIO_ASSERT (hio, vscale >= 0 && vscale <= HIO_TYPE_MAX(hio_uint8_t));
+	HIO_ASSERT(hio, kscale >= 0 && kscale <= HIO_TYPE_MAX(hio_uint8_t));
+	HIO_ASSERT(hio, vscale >= 0 && vscale <= HIO_TYPE_MAX(hio_uint8_t));
 
 	/* some initial adjustment */
 	if (capa <= 0) capa = 1;
 	if (factor > 100) factor = 100;
 
 	/* do not zero out the extension */
-	HIO_MEMSET (htb, 0, HIO_SIZEOF(*htb));
+	HIO_MEMSET(htb, 0, HIO_SIZEOF(*htb));
 	htb->hio = hio;
 
 	htb->bucket = hio_allocmem(hio, capa * HIO_SIZEOF(pair_t*));
 	if (HIO_UNLIKELY(!htb->bucket)) return -1;
 
 	/*for (i = 0; i < capa; i++) htb->bucket[i] = HIO_NULL;*/
-	HIO_MEMSET (htb->bucket, 0, capa * HIO_SIZEOF(pair_t*));
+	HIO_MEMSET(htb->bucket, 0, capa * HIO_SIZEOF(pair_t*));
 
 	htb->factor = factor;
 	htb->scale[HIO_HTB_KEY] = (kscale < 1)? 1: kscale;
@@ -329,7 +329,7 @@ const style_t* hio_htb_getstyle (const hio_htb_t* htb)
 
 void hio_htb_setstyle (hio_htb_t* htb, const style_t* style)
 {
-	HIO_ASSERT (htb->hio, style != HIO_NULL);
+	HIO_ASSERT(htb->hio, style != HIO_NULL);
 	htb->style = style;
 }
 
@@ -397,7 +397,7 @@ static HIO_INLINE int reorganize (hio_htb_t* htb)
 	}
 
 	/*for (i = 0; i < new_capa; i++) new_buck[i] = HIO_NULL;*/
-	HIO_MEMSET (new_buck, 0, new_capa * HIO_SIZEOF(pair_t*));
+	HIO_MEMSET(new_buck, 0, new_capa * HIO_SIZEOF(pair_t*));
 
 	for (i = 0; i < htb->capa; i++)
 	{
@@ -498,7 +498,7 @@ static HIO_INLINE pair_t* insert (hio_htb_t* htb, void* kptr, hio_oow_t klen, vo
 		}
 	}
 
-	HIO_ASSERT (htb->hio, pair == HIO_NULL);
+	HIO_ASSERT(htb->hio, pair == HIO_NULL);
 
 	pair = hio_htb_allocpair (htb, kptr, klen, vptr, vlen);
 	if (HIO_UNLIKELY(!pair)) return HIO_NULL; /* error */
@@ -579,7 +579,7 @@ pair_t* hio_htb_cbsert (hio_htb_t* htb, void* kptr, hio_oow_t klen, cbserter_t c
 		}
 	}
 
-	HIO_ASSERT (htb->hio, pair == HIO_NULL);
+	HIO_ASSERT(htb->hio, pair == HIO_NULL);
 
 	pair = cbserter(htb, HIO_NULL, kptr, klen, ctx);
 	if (HIO_UNLIKELY(!pair)) return HIO_NULL; /* error */

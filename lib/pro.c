@@ -59,9 +59,9 @@ typedef struct param_t param_t;
 static void free_param (hio_t* hio, param_t* param)
 {
 	if (param->argv && param->argv != param->fixed_argv)
-		hio_freemem (hio, param->argv);
-	if (param->mcmd) hio_freemem (hio, param->mcmd);
-	HIO_MEMSET (param, 0, HIO_SIZEOF(*param));
+		hio_freemem(hio, param->argv);
+	if (param->mcmd) hio_freemem(hio, param->mcmd);
+	HIO_MEMSET(param, 0, HIO_SIZEOF(*param));
 }
 
 static int make_param (hio_t* hio, const void* cmd, int flags, param_t* param)
@@ -69,7 +69,7 @@ static int make_param (hio_t* hio, const void* cmd, int flags, param_t* param)
 	int fcnt = 0;
 	hio_bch_t* mcmd = HIO_NULL;
 
-	HIO_MEMSET (param, 0, HIO_SIZEOF(*param));
+	HIO_MEMSET(param, 0, HIO_SIZEOF(*param));
 
 	if (flags & HIO_DEV_PRO_SHELL)
 	{
@@ -132,7 +132,7 @@ static int make_param (hio_t* hio, const void* cmd, int flags, param_t* param)
 	return 0;
 
 oops:
-	if (mcmd && mcmd != cmd) hio_freemem (hio, mcmd);
+	if (mcmd && mcmd != cmd) hio_freemem(hio, mcmd);
 	return -1;
 }
 
@@ -415,7 +415,7 @@ oops:
 
 	if (rdev->mcmd)
 	{
-		hio_freemem (hio, rdev->mcmd);
+		hio_freemem(hio, rdev->mcmd);
 		free_param (hio, &param);
 	}
 
@@ -532,7 +532,7 @@ static int dev_pro_kill_slave (hio_dev_t* dev, int force)
 		/* indicate EOF */
 		if (master->on_close) master->on_close (master, rdev->id);
 
-		HIO_ASSERT (hio, master->slave_count > 0);
+		HIO_ASSERT(hio, master->slave_count > 0);
 		master->slave_count--;
 
 		if (master->slave[rdev->id])
@@ -582,7 +582,7 @@ static int dev_pro_read_slave (hio_dev_t* dev, void* buf, hio_iolen_t* len, hio_
 		hio_seterrnum (pro->hio, HIO_EBADHND);
 		return -1;
 	}*/
-	HIO_ASSERT (pro->hio, pro->pfd != HIO_SYSHND_INVALID); /* use this assertion to check if my claim above is right */
+	HIO_ASSERT(pro->hio, pro->pfd != HIO_SYSHND_INVALID); /* use this assertion to check if my claim above is right */
 
 	x = read(pro->pfd, buf, *len);
 	if (x <= -1)
@@ -610,7 +610,7 @@ static int dev_pro_write_slave (hio_dev_t* dev, const void* data, hio_iolen_t* l
 		hio_seterrnum (pro->hio, HIO_EBADHND);
 		return -1;
 	}*/
-	HIO_ASSERT (pro->hio, pro->pfd != HIO_SYSHND_INVALID); /* use this assertion to check if my claim above is right */
+	HIO_ASSERT(pro->hio, pro->pfd != HIO_SYSHND_INVALID); /* use this assertion to check if my claim above is right */
 
 	if (HIO_UNLIKELY(*len <= 0))
 	{
@@ -652,7 +652,7 @@ static int dev_pro_writev_slave (hio_dev_t* dev, const hio_iovec_t* iov, hio_iol
 		hio_seterrnum (pro->hio, HIO_EBADHND);
 		return -1;
 	}*/
-	HIO_ASSERT (pro->hio, pro->pfd != HIO_SYSHND_INVALID); /* use this assertion to check if my claim above is right */
+	HIO_ASSERT(pro->hio, pro->pfd != HIO_SYSHND_INVALID); /* use this assertion to check if my claim above is right */
 
 	if (HIO_UNLIKELY(*iovcnt <= 0))
 	{
@@ -718,7 +718,7 @@ static int dev_pro_ioctl (hio_dev_t* dev, int cmd, void* arg)
 
 				/* if this is the last slave, the master is destroyed as well.
 				 * therefore, using rdev is unsafe in the assertion below is unsafe.
-				 *HIO_ASSERT (hio, rdev->slave[sid] == HIO_NULL); */
+				 *HIO_ASSERT(hio, rdev->slave[sid] == HIO_NULL); */
 			}
 
 			return 0;
@@ -918,7 +918,7 @@ int hio_dev_pro_read (hio_dev_pro_t* dev, hio_dev_pro_sid_t sid, int enabled)
 {
 	hio_t* hio = dev->hio;
 
-	HIO_ASSERT (hio, sid == HIO_DEV_PRO_OUT || sid == HIO_DEV_PRO_ERR);
+	HIO_ASSERT(hio, sid == HIO_DEV_PRO_OUT || sid == HIO_DEV_PRO_ERR);
 
 	if (dev->slave[sid])
 	{
@@ -935,7 +935,7 @@ int hio_dev_pro_timedread (hio_dev_pro_t* dev, hio_dev_pro_sid_t sid, int enable
 {
 	hio_t* hio = dev->hio;
 
-	HIO_ASSERT (hio, sid == HIO_DEV_PRO_OUT || sid == HIO_DEV_PRO_ERR);
+	HIO_ASSERT(hio, sid == HIO_DEV_PRO_OUT || sid == HIO_DEV_PRO_ERR);
 
 	if (dev->slave[sid])
 	{

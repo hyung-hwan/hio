@@ -32,7 +32,7 @@
 static hio_oow_t to_dn (const hio_bch_t* str, hio_uint8_t* buf)
 {
 	hio_uint8_t* bp = buf;
-	/*HIO_ASSERT (HIO_SIZEOF(hio_uint8_t) == HIO_SIZEOF(hio_bch_t));*/
+	/*HIO_ASSERT(HIO_SIZEOF(hio_uint8_t) == HIO_SIZEOF(hio_bch_t));*/
 
 	if (str && !DN_AT_END(str))
 	{
@@ -69,7 +69,7 @@ static hio_oow_t to_dn_capa (const hio_bch_t* str)
 {
 	hio_oow_t capa = 0;
 
-	/*HIO_ASSERT (HIO_SIZEOF(hio_uint8_t) == HIO_SIZEOF(hio_bch_t));*/
+	/*HIO_ASSERT(HIO_SIZEOF(hio_uint8_t) == HIO_SIZEOF(hio_bch_t));*/
 
 	if (str && !DN_AT_END(str))
 	{
@@ -149,7 +149,7 @@ static int parse_domain_name (hio_t* hio, hio_dns_pkt_info_t* pi)
 		normal:
 			if (pi->_rrdptr)
 			{
-				HIO_MEMCPY (pi->_rrdptr, pi->_ptr, seglen);
+				HIO_MEMCPY(pi->_rrdptr, pi->_ptr, seglen);
 				pi->_rrdptr += seglen + 1; /* +1 for '.' */
 				pi->_rrdptr[-1] = '.';
 			}
@@ -298,7 +298,7 @@ static int parse_answer_rr (hio_t* hio, hio_dns_rr_part_t rr_part, hio_oow_t pos
 					if (eopt_len == HIO_DNS_COOKIE_CLIENT_LEN)
 					{
 						/* client cookie only */
-						HIO_MEMCPY (pi->edns.cookie.data.client, eopt + 1, eopt_len);
+						HIO_MEMCPY(pi->edns.cookie.data.client, eopt + 1, eopt_len);
 						pi->edns.cookie.client_len = eopt_len;
 						pi->edns.cookie.server_len = 0;
 					}
@@ -306,7 +306,7 @@ static int parse_answer_rr (hio_t* hio, hio_dns_rr_part_t rr_part, hio_oow_t pos
 					         eopt_len <= (HIO_DNS_COOKIE_CLIENT_LEN + HIO_DNS_COOKIE_SERVER_MAX_LEN))
 					{
 						/* both client and server cookie */
-						HIO_MEMCPY (&pi->edns.cookie.data, eopt + 1, eopt_len);
+						HIO_MEMCPY(&pi->edns.cookie.data, eopt + 1, eopt_len);
 						pi->edns.cookie.client_len = HIO_DNS_COOKIE_CLIENT_LEN;
 						pi->edns.cookie.server_len = eopt_len - HIO_DNS_COOKIE_CLIENT_LEN;
 					}
@@ -345,7 +345,7 @@ static int parse_answer_rr (hio_t* hio, hio_dns_rr_part_t rr_part, hio_oow_t pos
 			hio_uint8_t* xptr = pi->_ptr;
 		#endif
 			if (parse_domain_name(hio, pi) <= -1) goto oops;
-			HIO_ASSERT (hio, pi->_ptr == xptr + dlen);
+			HIO_ASSERT(hio, pi->_ptr == xptr + dlen);
 			break;
 		}
 
@@ -364,7 +364,7 @@ static int parse_answer_rr (hio_t* hio, hio_dns_rr_part_t rr_part, hio_oow_t pos
 				mx = (hio_dns_brrd_mx_t*)pi->_rrdptr;
 				pi->_rrdptr += HIO_SIZEOF(*mx);
 
-				HIO_MEMCPY (&mx->preference, pi->_ptr, 2); pi->_ptr += 2;
+				HIO_MEMCPY(&mx->preference, pi->_ptr, 2); pi->_ptr += 2;
 
 				mx->preference = hio_ntoh16(mx->preference);
 				mx->exchange = (hio_bch_t*)pi->_rrdptr;
@@ -376,7 +376,7 @@ static int parse_answer_rr (hio_t* hio, hio_dns_rr_part_t rr_part, hio_oow_t pos
 				if (parse_domain_name(hio, pi) <= -1) goto oops;
 			}
 
-			HIO_ASSERT (hio, pi->_ptr == xptr + dlen);
+			HIO_ASSERT(hio, pi->_ptr == xptr + dlen);
 			break;
 		}
 
@@ -400,7 +400,7 @@ static int parse_answer_rr (hio_t* hio, hio_dns_rr_part_t rr_part, hio_oow_t pos
 				if (parse_domain_name(hio, pi) <= -1) goto oops;
 
 				if (HIO_UNLIKELY(pi->_end - pi->_ptr < 20)) goto oops;
-				HIO_MEMCPY (&soa->serial, pi->_ptr, 20);
+				HIO_MEMCPY(&soa->serial, pi->_ptr, 20);
 				soa->serial = hio_ntoh32(soa->serial);
 				soa->refresh = hio_ntoh32(soa->refresh);
 				soa->retry = hio_ntoh32(soa->retry);
@@ -415,7 +415,7 @@ static int parse_answer_rr (hio_t* hio, hio_dns_rr_part_t rr_part, hio_oow_t pos
 			}
 			pi->_ptr += 20;
 
-			HIO_ASSERT (hio, pi->_ptr == xptr + dlen);
+			HIO_ASSERT(hio, pi->_ptr == xptr + dlen);
 			break;
 		}
 
@@ -425,7 +425,7 @@ static int parse_answer_rr (hio_t* hio, hio_dns_rr_part_t rr_part, hio_oow_t pos
 			pi->_rrdlen += dlen;
 			if (pi->_rrdptr)
 			{
-				HIO_MEMCPY (pi->_rrdptr, rrtr + 1, dlen); /* copy actual data */
+				HIO_MEMCPY(pi->_rrdptr, rrtr + 1, dlen); /* copy actual data */
 				pi->_rrdptr += dlen;
 			}
 	}
@@ -466,9 +466,9 @@ hio_dns_pkt_info_t* hio_dns_make_pkt_info (hio_t* hio, const hio_dns_pkt_t* pkt,
 	hio_uint16_t i;
 	hio_dns_pkt_info_t pib, * pii;
 
-	HIO_ASSERT (hio, len >= HIO_SIZEOF(*pkt));
+	HIO_ASSERT(hio, len >= HIO_SIZEOF(*pkt));
 
-	HIO_MEMSET (&pib, 0, HIO_SIZEOF(pib));
+	HIO_MEMSET(&pib, 0, HIO_SIZEOF(pib));
 
 	/* pib is used as the initial workspace and also indicates that it's the first run.
 	 * at the second run, pii is set to a dynamically allocated memory block large enough
@@ -538,14 +538,14 @@ redo:
 	return pii;
 
 oops:
-	if (pii && pii != &pib) hio_freemem (hio, pii);
+	if (pii && pii != &pib) hio_freemem(hio, pii);
 	return HIO_NULL;
 }
 
 void hio_dns_free_pkt_info (hio_t* hio, hio_dns_pkt_info_t* pi)
 {
 /* TODO: better management */
-	hio_freemem (hio, pi);
+	hio_freemem(hio, pi);
 }
 
 
@@ -677,7 +677,7 @@ static int encode_rrdata_in_dns_msg (hio_t* hio, const hio_dns_brr_t* rr, hio_ui
 		default:
 		verbatim:
 			/* TODO: custom transformator? */
-			if (dptr) HIO_MEMCPY (dptr, rr->dptr, rr->dlen);
+			if (dptr) HIO_MEMCPY(dptr, rr->dptr, rr->dlen);
 			xlen = rr->dlen;
 			break;
 	}
@@ -776,7 +776,7 @@ hio_dns_msg_t* hio_dns_make_msg (hio_t* hio, hio_dns_bhdr_t* bhdr, hio_dns_bqr_t
 	{
 		/* dnlen includes the ending <zero> */
 		dnlen = to_dn(qr[i].qname, dn);
-		HIO_ASSERT (hio, dnlen > 0);
+		HIO_ASSERT(hio, dnlen > 0);
 
 		qrtr = (hio_dns_qrtr_t*)(dn + dnlen);
 		qrtr->qtype = hio_hton16(qr[i].qtype);
@@ -795,7 +795,7 @@ hio_dns_msg_t* hio_dns_make_msg (hio_t* hio, hio_dns_bhdr_t* bhdr, hio_dns_bqr_t
 				hio_uint16_t rrdata_len;
 
 				dnlen = to_dn(rr[i].rrname, dn);
-				HIO_ASSERT (hio, dnlen > 0);
+				HIO_ASSERT(hio, dnlen > 0);
 
 				rrtr = (hio_dns_rrtr_t*)(dn + dnlen);
 				rrtr->rrtype = hio_hton16(rr[i].rrtype);
@@ -836,7 +836,7 @@ hio_dns_msg_t* hio_dns_make_msg (hio_t* hio, hio_dns_bhdr_t* bhdr, hio_dns_bqr_t
 		{
 			eopt->code = hio_hton16(beopt->code);
 			eopt->dlen = hio_hton16(beopt->dlen);
-			HIO_MEMCPY (++eopt, beopt->dptr, beopt->dlen);
+			HIO_MEMCPY(++eopt, beopt->dptr, beopt->dlen);
 			eopt = (hio_dns_eopt_t*)((hio_uint8_t*)eopt + beopt->dlen);
 			beopt++;
 		}
@@ -861,8 +861,8 @@ hio_dns_msg_t* hio_dns_make_msg (hio_t* hio, hio_dns_bhdr_t* bhdr, hio_dns_bqr_t
 	pkt->rcode = bhdr->rcode & 0x0F;
 
 	msg->pktlen = dn - (hio_uint8_t*)pkt;
-	HIO_ASSERT (hio, msg->pktlen == pktlen);
-	HIO_ASSERT (hio, msg->pktalilen == HIO_ALIGN_POW2(pktlen, HIO_SIZEOF_VOID_P));
+	HIO_ASSERT(hio, msg->pktlen == pktlen);
+	HIO_ASSERT(hio, msg->pktalilen == HIO_ALIGN_POW2(pktlen, HIO_SIZEOF_VOID_P));
 
 	return msg;
 }
@@ -870,7 +870,7 @@ hio_dns_msg_t* hio_dns_make_msg (hio_t* hio, hio_dns_bhdr_t* bhdr, hio_dns_bqr_t
 void hio_dns_free_msg (hio_t* hio, hio_dns_msg_t* msg)
 {
 /* TODO: better management */
-	hio_freemem (hio, msg);
+	hio_freemem(hio, msg);
 }
 
 hio_uint8_t* hio_dns_find_client_cookie_in_msg (hio_dns_msg_t* reqmsg, hio_uint8_t (*cookie)[HIO_DNS_COOKIE_CLIENT_LEN])
@@ -893,7 +893,7 @@ hio_uint8_t* hio_dns_find_client_cookie_in_msg (hio_dns_msg_t* reqmsg, hio_uint8
 		dlen = hio_ntoh16(eopt->dlen);
 		if (eopt->code == HIO_CONST_HTON16(HIO_DNS_EOPT_COOKIE))
 		{
-			if (cookie) HIO_MEMCPY (cookie, eopt + 1, HIO_DNS_COOKIE_CLIENT_LEN);
+			if (cookie) HIO_MEMCPY(cookie, eopt + 1, HIO_DNS_COOKIE_CLIENT_LEN);
 			return (hio_uint8_t*)(eopt + 1);
 		}
 

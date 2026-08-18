@@ -74,8 +74,8 @@ static HIO_INLINE __utf8_t* get_utf8_slot (hio_uch_t uc)
 {
 	__utf8_t* cur, * end;
 
-	/*HIO_ASSERT (hio, HIO_SIZEOF(hio_bch_t) == 1);
-	HIO_ASSERT (hio, HIO_SIZEOF(hio_uch_t) >= 2);*/
+	/*HIO_ASSERT(hio, HIO_SIZEOF(hio_bch_t) == 1);
+	HIO_ASSERT(hio, HIO_SIZEOF(hio_uch_t) >= 2);*/
 
 	end = utf8_table + HIO_COUNTOF(utf8_table);
 	cur = utf8_table;
@@ -120,10 +120,10 @@ hio_oow_t hio_utf8_to_uc (const hio_bch_t* utf8, hio_oow_t size, hio_uch_t* uc)
 {
 	__utf8_t* cur, * end;
 
-	/*HIO_ASSERT (hio, utf8 != HIO_NULL);
-	HIO_ASSERT (hio, size > 0);
-	HIO_ASSERT (hio, HIO_SIZEOF(hio_bch_t) == 1);
-	HIO_ASSERT (hio, HIO_SIZEOF(hio_uch_t) >= 2);*/
+	/*HIO_ASSERT(hio, utf8 != HIO_NULL);
+	HIO_ASSERT(hio, size > 0);
+	HIO_ASSERT(hio, HIO_SIZEOF(hio_bch_t) == 1);
+	HIO_ASSERT(hio, HIO_SIZEOF(hio_uch_t) >= 2);*/
 
 	end = utf8_table + HIO_COUNTOF(utf8_table);
 	cur = utf8_table;

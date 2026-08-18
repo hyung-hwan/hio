@@ -112,7 +112,7 @@ void hio_deltmrjob (hio_t* hio, hio_tmridx_t index)
 {
 	hio_tmrjob_t item;
 
-	HIO_ASSERT (hio, index < hio->tmr.size);
+	HIO_ASSERT(hio, index < hio->tmr.size);
 
 	item = hio->tmr.jobs[index];
 	if (hio->tmr.jobs[index].idxptr) *hio->tmr.jobs[index].idxptr = HIO_TMRIDX_INVALID;
@@ -135,7 +135,7 @@ hio_tmridx_t hio_instmrjob (hio_t* hio, const hio_tmrjob_t* job)
 		hio_tmrjob_t* tmp;
 		hio_oow_t new_capa;
 
-		HIO_ASSERT (hio, hio->tmr.capa >= 1);
+		HIO_ASSERT(hio, hio->tmr.capa >= 1);
 		new_capa = hio->tmr.capa * 2;
 		tmp = (hio_tmrjob_t*)hio_reallocmem(hio, hio->tmr.jobs, new_capa * HIO_SIZEOF(*tmp));
 		if (!tmp) return HIO_TMRIDX_INVALID;
@@ -226,7 +226,7 @@ int hio_schedtmrjobat (hio_t* hio, const hio_ntime_t* fire_at, hio_tmrjob_handle
 {
 	hio_tmrjob_t tmrjob;
 
-	HIO_MEMSET (&tmrjob, 0, HIO_SIZEOF(tmrjob));
+	HIO_MEMSET(&tmrjob, 0, HIO_SIZEOF(tmrjob));
 	tmrjob.ctx = ctx;
 	if (fire_at) tmrjob.when = *fire_at;
 
@@ -240,7 +240,7 @@ int hio_schedtmrjobafter (hio_t* hio, const hio_ntime_t* fire_after, hio_tmrjob_
 {
 	hio_ntime_t fire_at;
 
-	HIO_ASSERT (hio, !HIO_IS_NEG_NTIME(fire_after));
+	HIO_ASSERT(hio, !HIO_IS_NEG_NTIME(fire_after));
 
 	hio_gettime (hio, &fire_at);
 	HIO_ADD_NTIME (&fire_at, &fire_at, fire_after);

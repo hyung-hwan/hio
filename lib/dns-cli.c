@@ -162,7 +162,7 @@ HIO_DEBUG1 (hio, "DNC - releasing dns message - msgid:%d\n", (int)hio_ntoh16(hio
 	if (msgxtn->rtmridx != HIO_TMRIDX_INVALID)
 	{
 		hio_deltmrjob (hio, msgxtn->rtmridx);
-		HIO_ASSERT (hio, msgxtn->rtmridx == HIO_TMRIDX_INVALID);
+		HIO_ASSERT(hio, msgxtn->rtmridx == HIO_TMRIDX_INVALID);
 	}
 
 /* TODO: add it to the free msg list instead of just freeing it. */
@@ -226,7 +226,7 @@ static HIO_INLINE int copy_data_to_sck_rbuf (hio_dev_sck_t* dev, const void* dat
 		sckxtn->rbuf.ptr = tmp;
 	}
 
-	HIO_MEMCPY (&sckxtn->rbuf.ptr[sckxtn->rbuf.len], data, dlen);
+	HIO_MEMCPY(&sckxtn->rbuf.ptr[sckxtn->rbuf.len], data, dlen);
 	sckxtn->rbuf.len += dlen;
 	return 0;
 }
@@ -309,8 +309,8 @@ static void on_tcp_reply_timeout (hio_t* hio, const hio_ntime_t* now, hio_tmrjob
 	hio_dev_sck_t* dev = reqmsgxtn->dev;
 	hio_svc_dnc_t* dnc = ((dnc_sck_xtn_t*)hio_dev_sck_getxtn(dev))->dnc;
 
-	HIO_ASSERT (hio, reqmsgxtn->rtmridx == HIO_TMRIDX_INVALID);
-	HIO_ASSERT (hio, dev == dnc->tcp_sck);
+	HIO_ASSERT(hio, reqmsgxtn->rtmridx == HIO_TMRIDX_INVALID);
+	HIO_ASSERT(hio, dev == dnc->tcp_sck);
 
 HIO_DEBUG1 (hio, "DNC - unable to receive dns response in time over TCP - msgid:%d\n", (int)hio_ntoh16(hio_dns_msg_to_pkt(reqmsg)->id));
 
@@ -339,7 +339,7 @@ static int on_tcp_write (hio_dev_sck_t* dev, hio_iolen_t wrlen, void* wrctx, con
 
 		HIO_DEBUG1 (hio, "DNC - sent dns question over tcp - msgid:%d\n", (int)hio_ntoh16(hio_dns_msg_to_pkt(msg)->id));
 
-		HIO_MEMSET (&tmrjob, 0, HIO_SIZEOF(tmrjob));
+		HIO_MEMSET(&tmrjob, 0, HIO_SIZEOF(tmrjob));
 		tmrjob.ctx = msg;
 		hio_gettime (hio, &tmrjob.when);
 		HIO_ADD_NTIME (&tmrjob.when, &tmrjob.when, &msgxtn->rtmout);
@@ -354,7 +354,7 @@ static int on_tcp_write (hio_dev_sck_t* dev, hio_iolen_t wrlen, void* wrctx, con
 			goto finalize;
 		}
 
-		HIO_ASSERT (hio, msgxtn->pending != 0);
+		HIO_ASSERT(hio, msgxtn->pending != 0);
 	}
 	else
 	{
@@ -383,7 +383,7 @@ static int write_dns_msg_over_tcp (hio_dev_sck_t* dev, hio_dns_msg_t* msg)
 
 	pktlen = hio_hton16(msg->pktlen);
 
-	HIO_ASSERT (hio, msgxtn->rtries == 0);
+	HIO_ASSERT(hio, msgxtn->rtries == 0);
 	msgxtn->rtries = 1;
 
 	/* TODO: Is it better to create 2 byte space when sending UDP and use it here instead of iov? */
@@ -400,7 +400,7 @@ static void on_tcp_connect (hio_dev_sck_t* dev)
 	hio_svc_dnc_t* dnc = ((dnc_sck_xtn_t*)hio_dev_sck_getxtn(dev))->dnc;
 	hio_dns_msg_t* reqmsg;
 
-	HIO_ASSERT (hio, dev == dnc->tcp_sck);
+	HIO_ASSERT(hio, dev == dnc->tcp_sck);
 
 	reqmsg = dnc->pending_req;
 	while (reqmsg)
@@ -471,7 +471,7 @@ static int switch_reqmsg_transport_to_tcp (hio_svc_dnc_t* dnc, hio_dns_msg_t* re
  * even if tcp_sck is not null, the connection could have been torn down... */
 	if (!dnc->tcp_sck)
 	{
-		HIO_MEMSET (&mkinfo, 0, HIO_SIZEOF(mkinfo));
+		HIO_MEMSET(&mkinfo, 0, HIO_SIZEOF(mkinfo));
 		switch (hio_skad_get_family(&reqmsgxtn->servaddr))
 		{
 			case HIO_AF_INET:
@@ -497,7 +497,7 @@ static int switch_reqmsg_transport_to_tcp (hio_svc_dnc_t* dnc, hio_dns_msg_t* re
 		sckxtn = (dnc_sck_xtn_t*)hio_dev_sck_getxtn(dnc->tcp_sck);
 		sckxtn->dnc = dnc;
 
-		HIO_MEMSET (&cinfo, 0, HIO_SIZEOF(cinfo));
+		HIO_MEMSET(&cinfo, 0, HIO_SIZEOF(cinfo));
 		cinfo.remoteaddr = reqmsgxtn->servaddr;
 		cinfo.connect_tmout = reqmsgxtn->rtmout; /* TOOD: create a separate connect timeout or treate rtmout as a whole transaction time and calculate the remaining time from the transaction start, and use it */
 
@@ -510,7 +510,7 @@ static int switch_reqmsg_transport_to_tcp (hio_svc_dnc_t* dnc, hio_dns_msg_t* re
 	}
 
 	/* switch the belonging device to the tcp socket since the connect request has been acknowledged. */
-	HIO_ASSERT (hio, reqmsgxtn->rtmridx == HIO_TMRIDX_INVALID); /* ensure no timer job scheduled at this moment */
+	HIO_ASSERT(hio, reqmsgxtn->rtmridx == HIO_TMRIDX_INVALID); /* ensure no timer job scheduled at this moment */
 	reqmsgxtn->dev = dnc->tcp_sck;
 	reqmsgxtn->rtries = 0;
 	if (!reqmsgxtn->pending && hio_dns_msg_to_pkt(reqmsg)->qr == 0) chain_pending_dns_reqmsg (dnc, reqmsg);
@@ -575,7 +575,7 @@ static int on_udp_read (hio_dev_sck_t* dev, const void* data, hio_iolen_t dlen, 
 			{
 				/* unschedule a timer job if any */
 				hio_deltmrjob (hio, reqmsgxtn->rtmridx);
-				HIO_ASSERT (hio, reqmsgxtn->rtmridx == HIO_TMRIDX_INVALID);
+				HIO_ASSERT(hio, reqmsgxtn->rtmridx == HIO_TMRIDX_INVALID);
 			}
 
 ////////////////////////
@@ -611,8 +611,8 @@ static void on_udp_reply_timeout (hio_t* hio, const hio_ntime_t* now, hio_tmrjob
 	hio_svc_dnc_t* dnc = ((dnc_sck_xtn_t*)hio_dev_sck_getxtn(dev))->dnc;
 	hio_errnum_t status = HIO_ETMOUT;
 
-	HIO_ASSERT (hio, msgxtn->rtmridx == HIO_TMRIDX_INVALID);
-	HIO_ASSERT (hio, dev == dnc->udp_sck);
+	HIO_ASSERT(hio, msgxtn->rtmridx == HIO_TMRIDX_INVALID);
+	HIO_ASSERT(hio, dev == dnc->udp_sck);
 
 HIO_DEBUG1 (hio, "DNC - unable to receive dns response in time over udp - msgid:%d\n", (int)hio_ntoh16(hio_dns_msg_to_pkt(reqmsg)->id));
 	if (msgxtn->rtries < msgxtn->rmaxtries)
@@ -639,7 +639,7 @@ static int on_udp_write (hio_dev_sck_t* dev, hio_iolen_t wrlen, void* wrctx, con
 	hio_svc_dnc_t* dnc = ((dnc_sck_xtn_t*)hio_dev_sck_getxtn(dev))->dnc;
 	hio_errnum_t status;
 
-	HIO_ASSERT (hio, dev == (hio_dev_sck_t*)msgxtn->dev);
+	HIO_ASSERT(hio, dev == (hio_dev_sck_t*)msgxtn->dev);
 
 	if (wrlen <= -1)
 	{
@@ -653,7 +653,7 @@ static int on_udp_write (hio_dev_sck_t* dev, hio_iolen_t wrlen, void* wrctx, con
 		hio_tmrjob_t tmrjob;
 
 		HIO_DEBUG1 (hio, "DNC - sent dns question over udp - msgid:%d\n", (int)hio_ntoh16(hio_dns_msg_to_pkt(msg)->id));
-		HIO_MEMSET (&tmrjob, 0, HIO_SIZEOF(tmrjob));
+		HIO_MEMSET(&tmrjob, 0, HIO_SIZEOF(tmrjob));
 		tmrjob.ctx = msg;
 		hio_gettime (hio, &tmrjob.when);
 		HIO_ADD_NTIME (&tmrjob.when, &tmrjob.when, &msgxtn->rtmout);
@@ -736,7 +736,7 @@ hio_svc_dnc_t* hio_svc_dnc_start (hio_t* hio, const hio_skad_t* serv_addr, const
 	dnc->reply_tmout = *reply_tmout;
 	dnc->max_tries = max_tries;
 
-	HIO_MEMSET (&mkinfo, 0, HIO_SIZEOF(mkinfo));
+	HIO_MEMSET(&mkinfo, 0, HIO_SIZEOF(mkinfo));
 	switch (hio_skad_get_family(serv_addr))
 	{
 		case HIO_AF_INET:
@@ -764,7 +764,7 @@ hio_svc_dnc_t* hio_svc_dnc_start (hio_t* hio, const hio_skad_t* serv_addr, const
 	if (bind_addr) /* TODO: get hio_dev_sck_bind_t? instead of bind_addr? */
 	{
 		hio_dev_sck_bind_t bi;
-		HIO_MEMSET (&bi, 0, HIO_SIZEOF(bi));
+		HIO_MEMSET(&bi, 0, HIO_SIZEOF(bi));
 		bi.localaddr = *bind_addr;
 		if (hio_dev_sck_bind(dnc->udp_sck, &bi) <= -1) goto oops;
 	}
@@ -772,8 +772,8 @@ hio_svc_dnc_t* hio_svc_dnc_start (hio_t* hio, const hio_skad_t* serv_addr, const
 
 	/* initialize the dns cookie key */
 	hio_gettime (hio, &now);
-	HIO_MEMCPY (&dnc->cookie.key[0], &now.sec, (HIO_SIZEOF(now.sec) < 8? HIO_SIZEOF(now.sec): 8));
-	HIO_MEMCPY (&dnc->cookie.key[8], &now.nsec, (HIO_SIZEOF(now.nsec) < 8? HIO_SIZEOF(now.nsec): 8));
+	HIO_MEMCPY(&dnc->cookie.key[0], &now.sec, (HIO_SIZEOF(now.sec) < 8? HIO_SIZEOF(now.sec): 8));
+	HIO_MEMCPY(&dnc->cookie.key[8], &now.nsec, (HIO_SIZEOF(now.nsec) < 8? HIO_SIZEOF(now.nsec): 8));
 
 	HIO_SVCL_APPEND_SVC (&hio->actsvc, (hio_svc_t*)dnc);
 	HIO_DEBUG1 (hio, "DNC - STARTED SERVICE %p\n", dnc);
@@ -783,7 +783,7 @@ oops:
 	if (dnc)
 	{
 		if (dnc->udp_sck) hio_dev_sck_kill (dnc->udp_sck);
-		hio_freemem (hio, dnc);
+		hio_freemem(hio, dnc);
 	}
 	return HIO_NULL;
 }
@@ -797,7 +797,7 @@ void hio_svc_dnc_stop (hio_svc_dnc_t* dnc)
 	if (dnc->tcp_sck) hio_dev_sck_kill (dnc->tcp_sck);
 	while (dnc->pending_req) release_dns_msg (dnc, dnc->pending_req);
 	HIO_SVCL_UNLINK_SVC (dnc);
-	hio_freemem (hio, dnc);
+	hio_freemem(hio, dnc);
 }
 
 
@@ -872,7 +872,7 @@ static void on_dnc_resolve (hio_svc_dnc_t* dnc, hio_dns_msg_t* reqmsg, hio_errnu
 	{
 		hio_uint32_t i;
 
-		HIO_ASSERT (hio, status == HIO_ENOERR);
+		HIO_ASSERT(hio, status == HIO_ENOERR);
 
 		pi = hio_dns_make_pkt_info(hio, data, dlen);
 		if (!pi)
@@ -886,7 +886,7 @@ static void on_dnc_resolve (hio_svc_dnc_t* dnc, hio_dns_msg_t* reqmsg, hio_errnu
 			if (pi->edns.cookie.server_len > 0)
 			{
 				/* remember the received server cookie to use it with other new requests */
-				HIO_MEMCPY (dnc->cookie.data.server, pi->edns.cookie.data.server, pi->edns.cookie.server_len);
+				HIO_MEMCPY(dnc->cookie.data.server, pi->edns.cookie.data.server, pi->edns.cookie.server_len);
 				dnc->cookie.server_len = pi->edns.cookie.server_len;
 			}
 		}
@@ -1042,12 +1042,12 @@ hio_dns_msg_t* hio_svc_dnc_resolve (hio_svc_dnc_t* dnc, const hio_bch_t* qname, 
 			edns_rrtr = (hio_dns_rrtr_t*)((hio_uint8_t*)hio_dns_msg_to_pkt(reqmsg) + reqmsg->ednsrrtroff);
 			reqmsg->pktlen -= HIO_DNS_COOKIE_SERVER_MAX_LEN;
 
-			HIO_ASSERT (dnc->hio, edns_rrtr->rrtype == HIO_CONST_HTON16(HIO_DNS_RRT_OPT));
-			HIO_ASSERT (dnc->hio, edns_rrtr->dlen == HIO_CONST_HTON16(HIO_SIZEOF(hio_dns_eopt_t) + HIO_DNS_COOKIE_MAX_LEN));
+			HIO_ASSERT(dnc->hio, edns_rrtr->rrtype == HIO_CONST_HTON16(HIO_DNS_RRT_OPT));
+			HIO_ASSERT(dnc->hio, edns_rrtr->dlen == HIO_CONST_HTON16(HIO_SIZEOF(hio_dns_eopt_t) + HIO_DNS_COOKIE_MAX_LEN));
 			edns_rrtr->dlen = HIO_CONST_HTON16(HIO_SIZEOF(hio_dns_eopt_t) + HIO_DNS_COOKIE_CLIENT_LEN);
 
 			eopt = (hio_dns_eopt_t*)(edns_rrtr + 1);
-			HIO_ASSERT (dnc->hio, eopt->dlen == HIO_CONST_HTON16(HIO_DNS_COOKIE_MAX_LEN));
+			HIO_ASSERT(dnc->hio, eopt->dlen == HIO_CONST_HTON16(HIO_DNS_COOKIE_MAX_LEN));
 			eopt->dlen = HIO_CONST_HTON16(HIO_DNS_COOKIE_CLIENT_LEN);
 		}
 #endif
@@ -1057,7 +1057,7 @@ hio_dns_msg_t* hio_svc_dnc_resolve (hio_svc_dnc_t* dnc, const hio_bch_t* qname, 
 		resolxtn->qtype = qtype;
 		resolxtn->flags = resolve_flags;
 		/* store in the extension area the client cookie set in the packet */
-		HIO_MEMCPY (resolxtn->client_cookie, dnc->cookie.data.client, HIO_DNS_COOKIE_CLIENT_LEN);
+		HIO_MEMCPY(resolxtn->client_cookie, dnc->cookie.data.client, HIO_DNS_COOKIE_CLIENT_LEN);
 
 		send_flags = (resolve_flags & HIO_SVC_DNC_SEND_FLAG_ALL);
 		if (HIO_UNLIKELY(qtype == HIO_DNS_RRT_Q_AFXR)) send_flags |= HIO_SVC_DNC_SEND_FLAG_PREFER_TCP;
@@ -1082,7 +1082,7 @@ int hio_svc_dnc_checkclientcookie (hio_svc_dnc_t* dnc, hio_dns_msg_t* reqmsg, hi
 		/* there is a client cookie in the request. */
 		if (respi->edns.cookie.client_len > 0)
 		{
-			HIO_ASSERT (dnc->hio, respi->edns.cookie.client_len == HIO_DNS_COOKIE_CLIENT_LEN);
+			HIO_ASSERT(dnc->hio, respi->edns.cookie.client_len == HIO_DNS_COOKIE_CLIENT_LEN);
 			return HIO_MEMCMP(x, respi->edns.cookie.data.client, HIO_DNS_COOKIE_CLIENT_LEN) == 0; /* 1 if ok, 0 if not */
 		}
 		else

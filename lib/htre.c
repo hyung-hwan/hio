@@ -58,7 +58,7 @@ int hio_htre_init (hio_htre_t* re, hio_t* hio)
 		HIO_HTB_HASHER_DEFAULT
 	};
 
-	HIO_MEMSET (re, 0, HIO_SIZEOF(*re));
+	HIO_MEMSET(re, 0, HIO_SIZEOF(*re));
 	re->hio = hio;
 
 	if (hio_htb_init(&re->hdrtab, hio, 60, 70, 1, 1) <= -1) return -1;
@@ -112,8 +112,8 @@ void hio_htre_clear (hio_htre_t* re)
 	re->orgqpath.ptr = HIO_NULL;
 	re->orgqpath.len = 0;
 
-	HIO_MEMSET (&re->version, 0, HIO_SIZEOF(re->version));
-	HIO_MEMSET (&re->attr, 0, HIO_SIZEOF(re->attr));
+	HIO_MEMSET(&re->version, 0, HIO_SIZEOF(re->version));
+	HIO_MEMSET(&re->attr, 0, HIO_SIZEOF(re->attr));
 
 	hio_htb_clear (&re->hdrtab);
 	hio_htb_clear (&re->trailers);
@@ -270,8 +270,8 @@ int hio_htre_perdecqpath (hio_htre_t* re)
 
 	if (re->type != HIO_HTRE_Q || (re->flags & HIO_HTRE_QPATH_PERDEC)) return -1;
 
-	HIO_ASSERT (re->hio, re->orgqpath.len <= 0);
-	HIO_ASSERT (re->hio, re->orgqpath.ptr == HIO_NULL);
+	HIO_ASSERT(re->hio, re->orgqpath.len <= 0);
+	HIO_ASSERT(re->hio, re->orgqpath.ptr == HIO_NULL);
 
 	if (hio_is_perenced_http_bcstr(re->u.q.path.ptr))
 	{
@@ -311,8 +311,8 @@ int hio_htre_perdecqpath (hio_htre_t* re)
 	{
 		/* this assertion is to ensure that hio_is_perenced_http_bstr()
 		 * returned true when dec_count is greater than 0 */
-		HIO_ASSERT (re->hio, re->orgqpath.buf != HIO_NULL);
-		HIO_ASSERT (re->hio, re->orgqpath.ptr != HIO_NULL);
+		HIO_ASSERT(re->hio, re->orgqpath.buf != HIO_NULL);
+		HIO_ASSERT(re->hio, re->orgqpath.ptr != HIO_NULL);
 		re->flags |= HIO_HTRE_QPATH_PERDEC;
 	}
 

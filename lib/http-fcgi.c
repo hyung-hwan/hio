@@ -121,7 +121,7 @@ static HIO_INLINE void fcgi_mark_over (fcgi_t* fcgi, int over_bits)
 			if (fcgi->task_keep_client_alive)
 			{
 				HIO_DEBUG2 (hio, "HTTS(%p) - keeping client(%p) alive\n", fcgi->htts, fcgi->task_csck);
-				HIO_ASSERT (fcgi->htts->hio, fcgi->task_client->task == (hio_svc_htts_task_t*)fcgi);
+				HIO_ASSERT(fcgi->htts->hio, fcgi->task_client->task == (hio_svc_htts_task_t*)fcgi);
 				unbind_task_from_client (fcgi, 1);
 			}
 			else
@@ -155,7 +155,7 @@ static void fcgi_on_kill (hio_svc_htts_task_t* task)
 
 	if (fcgi->task_csck)
 	{
-		HIO_ASSERT (hio, fcgi->task_client != HIO_NULL);
+		HIO_ASSERT(hio, fcgi->task_client != HIO_NULL);
 		unbind_task_from_client (fcgi, 0);
 	}
 
@@ -214,7 +214,7 @@ static int fcgi_peer_on_read (hio_svc_fcgic_sess_t* peer, const void* data, hio_
 	{
 		hio_oow_t rem;
 
-		HIO_ASSERT (hio, !(fcgi->over & FCGI_OVER_READ_FROM_PEER));
+		HIO_ASSERT(hio, !(fcgi->over & FCGI_OVER_READ_FROM_PEER));
 
 		if (hio_htrd_feed(fcgi->peer_htrd, data, dlen, &rem) <= -1)
 		{
@@ -308,7 +308,7 @@ static int peer_htrd_push_content (hio_htrd_t* htrd, hio_htre_t* req, const hio_
 {
 	fcgi_peer_xtn_t* peer = hio_htrd_getxtn(htrd);
 	fcgi_t* fcgi = peer->fcgi;
-	HIO_ASSERT (fcgi->htts->hio, htrd == fcgi->peer_htrd);
+	HIO_ASSERT(fcgi->htts->hio, htrd == fcgi->peer_htrd);
 	return hio_svc_htts_task_addresbody((hio_svc_htts_task_t*)fcgi, data, dlen);
 }
 
@@ -342,7 +342,7 @@ static int fcgi_client_htrd_push_content (hio_htrd_t* htrd, hio_htre_t* req, con
 	hio_svc_htts_cli_t* cli = hio_dev_sck_getxtn(sck);
 	fcgi_t* fcgi = (fcgi_t*)cli->task;
 
-	HIO_ASSERT (sck->hio, cli->sck == sck);
+	HIO_ASSERT(sck->hio, cli->sck == sck);
 
 	/* write the contents to fcgi server as stdin*/
 	return fcgi_write_stdin_to_peer(fcgi, data, dlen);
@@ -368,7 +368,7 @@ static void fcgi_client_on_disconnect (hio_dev_sck_t* sck)
 	 * the previously associated one is already gone */
 	if (fcgi)
 	{
-		HIO_ASSERT (hio, sck == fcgi->task_csck);
+		HIO_ASSERT(hio, sck == fcgi->task_csck);
 
 		HIO_SVC_HTTS_TASK_RCUP ((hio_svc_htts_task_t*)fcgi);
 
@@ -393,7 +393,7 @@ static int fcgi_client_on_read (hio_dev_sck_t* sck, const void* buf, hio_iolen_t
 	fcgi_t* fcgi = (fcgi_t*)cli->task;
 	int n;
 
-	HIO_ASSERT (hio, sck == cli->sck);
+	HIO_ASSERT(hio, sck == cli->sck);
 
 	n = fcgi->client_org_on_read? fcgi->client_org_on_read(sck, buf, len, srcaddr): 0;
 
@@ -520,7 +520,7 @@ static int write_params (fcgi_t* fcgi, hio_dev_sck_t* csck, hio_htre_t* req, con
 	hio_bch_t* actual_script = HIO_NULL;
 	hio_becs_t dbuf;
 
-	HIO_ASSERT (hio, fcgi->task_csck == csck);
+	HIO_ASSERT(hio, fcgi->task_csck == csck);
 
 	actual_script = hio_svc_htts_dupmergepaths(fcgi->htts, docroot, script);
 	if (!actual_script) goto oops;
@@ -569,11 +569,11 @@ static int write_params (fcgi_t* fcgi, hio_dev_sck_t* csck, hio_htre_t* req, con
 	hio_htre_walkheaders (req, peer_capture_request_header, fcgi);
 	/* [NOTE] trailers are not available when this cgi resource is started. let's not call hio_htre_walktrailers() */
 
-	hio_freemem (hio, actual_script);
+	hio_freemem(hio, actual_script);
 	return 0;
 
 oops:
-	if (actual_script) hio_freemem (hio, actual_script);
+	if (actual_script) hio_freemem(hio, actual_script);
 	return -1;
 }
 
@@ -583,8 +583,8 @@ static void bind_task_to_client (fcgi_t* fcgi, hio_dev_sck_t* csck)
 {
 	hio_svc_htts_cli_t* cli = hio_dev_sck_getxtn(csck);
 
-	HIO_ASSERT (fcgi->htts->hio, cli->sck == csck);
-	HIO_ASSERT (fcgi->htts->hio, cli->task == HIO_NULL);
+	HIO_ASSERT(fcgi->htts->hio, cli->sck == csck);
+	HIO_ASSERT(fcgi->htts->hio, cli->task == HIO_NULL);
 
 	/* fcgi->task_client and fcgi->task_csck are set in hio_svc_htts_task_make() */
 
@@ -609,10 +609,10 @@ static void unbind_task_from_client (fcgi_t* fcgi, int rcdown)
 
 	if (cli->task) /* only if it's bound */
 	{
-		HIO_ASSERT (fcgi->htts->hio, fcgi->task_client != HIO_NULL);
-		HIO_ASSERT (fcgi->htts->hio, fcgi->task_csck != HIO_NULL);
-		HIO_ASSERT (fcgi->htts->hio, fcgi->task_client->task == (hio_svc_htts_task_t*)fcgi);
-		HIO_ASSERT (fcgi->htts->hio, fcgi->task_client->htrd != HIO_NULL);
+		HIO_ASSERT(fcgi->htts->hio, fcgi->task_client != HIO_NULL);
+		HIO_ASSERT(fcgi->htts->hio, fcgi->task_csck != HIO_NULL);
+		HIO_ASSERT(fcgi->htts->hio, fcgi->task_client->task == (hio_svc_htts_task_t*)fcgi);
+		HIO_ASSERT(fcgi->htts->hio, fcgi->task_client->htrd != HIO_NULL);
 
 		if (fcgi->client_htrd_recbs_changed)
 		{
@@ -761,7 +761,7 @@ int hio_svc_htts_dofcgi (hio_svc_htts_t* htts, hio_dev_sck_t* csck, hio_htre_t* 
 	int bound_to_client = 0, bound_to_peer = 0;
 
 	/* ensure that you call this function before any contents is received */
-	HIO_ASSERT (hio, hio_htre_getcontentlen(req) == 0);
+	HIO_ASSERT(hio, hio_htre_getcontentlen(req) == 0);
 
 	if (cli->task)
 	{

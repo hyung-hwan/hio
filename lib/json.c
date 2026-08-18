@@ -145,7 +145,7 @@ static void pop_read_state (hio_json_t* json)
 	hio_json_state_node_t* ss;
 
 	ss = json->state_stack;
-	HIO_ASSERT (json->hio, ss != HIO_NULL && ss != &json->state_top);
+	HIO_ASSERT(json->hio, ss != HIO_NULL && ss != &json->state_top);
 	json->state_stack = ss->next;
 
 	if (json->state_stack->state == HIO_JSON_STATE_IN_ARRAY)
@@ -220,7 +220,7 @@ static int invoke_data_inst (hio_json_t* json, hio_json_inst_t inst)
 			nss->u.ia.got_value = 0;
 			nss->level++;
 
-			HIO_ASSERT (json->hio, nss->level == ss->level + 1);
+			HIO_ASSERT(json->hio, nss->level == ss->level + 1);
 			return json->instcb(json, inst, (is_obj_val? 0: ss->level), ss->index, ss->state, HIO_NULL, json->rctx);
 			/* no increment on ss->index here. incremented on END */
 		}
@@ -239,7 +239,7 @@ static int invoke_data_inst (hio_json_t* json, hio_json_inst_t inst)
 			nss->u.io.state = 0;
 			nss->level++;
 
-			HIO_ASSERT (json->hio, nss->level == ss->level + 1);
+			HIO_ASSERT(json->hio, nss->level == ss->level + 1);
 			return json->instcb(json, inst, (is_obj_val? 0: ss->level), ss->index, ss->state, HIO_NULL, json->rctx);
 			/* no increment on ss->index here. incremented on END */
 		}
@@ -422,7 +422,7 @@ static int handle_numeric_value_char (hio_json_t* json, hio_ooci_t c)
 
 	pop_read_state (json);
 
-	HIO_ASSERT (json->hio, json->tok.len > 0);
+	HIO_ASSERT(json->hio, json->tok.len > 0);
 	if (!hio_is_ooch_digit(json->tok.ptr[json->tok.len - 1]))
 	{
 		hio_seterrbfmt (json->hio, HIO_EINVAL, "invalid numeric value - %.*js", json->tok.len, json->tok.ptr);
@@ -847,12 +847,12 @@ hio_json_t* hio_json_open (hio_t* hio, hio_oow_t xtnsize)
 	{
 		if (hio_json_init(json, hio) <= -1)
 		{
-			hio_freemem (hio, json);
+			hio_freemem(hio, json);
 			return HIO_NULL;
 		}
 		else
 		{
-			HIO_MEMSET (json + 1,  0, xtnsize);
+			HIO_MEMSET(json + 1,  0, xtnsize);
 		}
 	}
 
@@ -872,7 +872,7 @@ static int do_nothing_on_inst  (hio_json_t* json, hio_json_inst_t inst, hio_oow_
 
 int hio_json_init (hio_json_t* json, hio_t* hio)
 {
-	HIO_MEMSET (json, 0, HIO_SIZEOF(*json));
+	HIO_MEMSET(json, 0, HIO_SIZEOF(*json));
 
 	json->hio = hio;
 	json->instcb = do_nothing_on_inst;
@@ -921,7 +921,7 @@ hio_json_state_t hio_json_getstate (hio_json_t* json)
 void hio_json_resetstates (hio_json_t* json)
 {
 	pop_all_read_states (json);
-	HIO_ASSERT (json->hio, json->state_stack == &json->state_top);
+	HIO_ASSERT(json->hio, json->state_stack == &json->state_top);
 	json->state_stack->state = HIO_JSON_STATE_START;
 }
 
@@ -980,7 +980,7 @@ static void pop_write_state (hio_jsonwr_t* jsonwr)
 	hio_jsonwr_state_node_t* ss;
 
 	ss = jsonwr->state_stack;
-	HIO_ASSERT (jsonwr->hio, ss != HIO_NULL && ss != &jsonwr->state_top);
+	HIO_ASSERT(jsonwr->hio, ss != HIO_NULL && ss != &jsonwr->state_top);
 	jsonwr->state_stack = ss->next;
 
 /* TODO: don't free this. move it to the free list? */
@@ -1001,12 +1001,12 @@ hio_jsonwr_t* hio_jsonwr_open (hio_t* hio, hio_oow_t xtnsize, int flags)
 	{
 		if (hio_jsonwr_init(jsonwr, hio, flags) <= -1)
 		{
-			hio_freemem (hio, jsonwr);
+			hio_freemem(hio, jsonwr);
 			return HIO_NULL;
 		}
 		else
 		{
-			HIO_MEMSET (jsonwr + 1,  0, xtnsize);
+			HIO_MEMSET(jsonwr + 1,  0, xtnsize);
 		}
 	}
 
@@ -1026,7 +1026,7 @@ static int write_nothing (hio_jsonwr_t* jsonwr, const hio_bch_t* dptr, hio_oow_t
 
 int hio_jsonwr_init (hio_jsonwr_t* jsonwr, hio_t* hio, int flags)
 {
-	HIO_MEMSET (jsonwr, 0, HIO_SIZEOF(*jsonwr));
+	HIO_MEMSET(jsonwr, 0, HIO_SIZEOF(*jsonwr));
 
 	jsonwr->hio = hio;
 	jsonwr->writecb = write_nothing;
@@ -1118,13 +1118,13 @@ static int write_bytes_noesc (hio_jsonwr_t* jsonwr, const hio_bch_t* dptr, hio_o
 
 		if (dlen <= rem)
 		{
-			HIO_MEMCPY (&jsonwr->wbuf[jsonwr->wbuf_len], dptr, dlen);
+			HIO_MEMCPY(&jsonwr->wbuf[jsonwr->wbuf_len], dptr, dlen);
 			jsonwr->wbuf_len += dlen;
 			if (dlen == rem && flush_wbuf(jsonwr) <= -1) return -1;
 			break;
 		}
 
-		HIO_MEMCPY (&jsonwr->wbuf[jsonwr->wbuf_len], dptr, rem);
+		HIO_MEMCPY(&jsonwr->wbuf[jsonwr->wbuf_len], dptr, rem);
 		jsonwr->wbuf_len += rem;
 		dptr += rem;
 		dlen -= rem;

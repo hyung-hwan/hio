@@ -406,7 +406,7 @@ HIO_INLINE int hio_conv_uchars_to_bchars_with_cmgr (
 			}
 
 			/* it assumes that bcsbuf is large enough to hold a character */
-			/*HIO_ASSERT (hio, n <= HIO_COUNTOF(bcsbuf));*/
+			/*HIO_ASSERT(hio, n <= HIO_COUNTOF(bcsbuf));*/
 
 			p++; mlen += n;
 		}
@@ -487,7 +487,7 @@ HIO_INLINE int hio_conv_ucstr_to_bcstr_with_cmgr (
 			}
 
 			/* it assumes that bcs is large enough to hold a character */
-			/*HIO_ASSERT (hio, n <= HIO_COUNTOF(bcs));*/
+			/*HIO_ASSERT(hio, n <= HIO_COUNTOF(bcs));*/
 
 			p++; mlen += n;
 		}
@@ -823,8 +823,8 @@ void hio_add_ntime (hio_ntime_t* z, const hio_ntime_t* x, const hio_ntime_t* y)
 	hio_ntime_sec_t xs, ys;
 	hio_ntime_nsec_t ns;
 
-	/*HIO_ASSERT (x->nsec >= 0 && x->nsec < HIO_NSECS_PER_SEC);
-	HIO_ASSERT (y->nsec >= 0 && y->nsec < HIO_NSECS_PER_SEC);*/
+	/*HIO_ASSERT(x->nsec >= 0 && x->nsec < HIO_NSECS_PER_SEC);
+	HIO_ASSERT(y->nsec >= 0 && y->nsec < HIO_NSECS_PER_SEC);*/
 
 	ns = x->nsec + y->nsec;
 	if (ns >= HIO_NSECS_PER_SEC)
@@ -877,8 +877,8 @@ void hio_sub_ntime (hio_ntime_t* z, const hio_ntime_t* x, const hio_ntime_t* y)
 	hio_ntime_sec_t xs, ys;
 	hio_ntime_nsec_t ns;
 
-	/*HIO_ASSERT (x->nsec >= 0 && x->nsec < HIO_NSECS_PER_SEC);
-	HIO_ASSERT (y->nsec >= 0 && y->nsec < HIO_NSECS_PER_SEC);*/
+	/*HIO_ASSERT(x->nsec >= 0 && x->nsec < HIO_NSECS_PER_SEC);
+	HIO_ASSERT(y->nsec >= 0 && y->nsec < HIO_NSECS_PER_SEC);*/
 
 	ns = x->nsec - y->nsec;
 	if (ns < 0)

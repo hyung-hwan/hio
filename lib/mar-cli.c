@@ -118,7 +118,7 @@ hio_svc_marc_t* hio_svc_marc_start (hio_t* hio, const hio_svc_marc_connect_t* ci
 
 oops:
 	if (marc->edev) mysql_close (marc->edev);
-	if (marc) hio_freemem (hio, marc);
+	if (marc) hio_freemem(hio, marc);
 	return HIO_NULL;
 }
 
@@ -136,13 +136,13 @@ void hio_svc_marc_stop (hio_svc_marc_t* marc)
 			hio_dev_mar_kill (marc->sess.ptr[i].dev);
 		}
 	}
-	hio_freemem (hio, marc->sess.ptr);
+	hio_freemem(hio, marc->sess.ptr);
 
 	HIO_SVCL_UNLINK_SVC (marc);
 
 	mysql_close (marc->edev);
 
-	hio_freemem (hio, marc);
+	hio_freemem(hio, marc);
 }
 
 /* ------------------------------------------------------------------- */
@@ -154,7 +154,7 @@ static sess_qry_t* make_session_query (hio_t* hio, hio_svc_marc_qtype_t qtype, c
 	sq = hio_allocmem(hio, HIO_SIZEOF(*sq) + (HIO_SIZEOF(*qptr) * qlen));
 	if (HIO_UNLIKELY(!sq)) return HIO_NULL;
 
-	HIO_MEMCPY (sq + 1, qptr, (HIO_SIZEOF(*qptr) * qlen));
+	HIO_MEMCPY(sq + 1, qptr, (HIO_SIZEOF(*qptr) * qlen));
 
 	sq->sent = 0;
 	sq->need_fetch = (qtype == HIO_SVC_MARC_QTYPE_SELECT);
@@ -169,7 +169,7 @@ static sess_qry_t* make_session_query (hio_t* hio, hio_svc_marc_qtype_t qtype, c
 
 static HIO_INLINE void free_session_query (hio_t* hio, sess_qry_t* sq)
 {
-	hio_freemem (hio, sq);
+	hio_freemem(hio, sq);
 }
 
 static HIO_INLINE void enqueue_session_query (sess_t* sess, sess_qry_t* sq)
@@ -184,7 +184,7 @@ static HIO_INLINE void dequeue_session_query (hio_t* hio, sess_t* sess)
 	sess_qry_t* sq;
 
 	sq = sess->q_head;
-	HIO_ASSERT (hio, sq->sq_next != HIO_NULL); /* must not be empty */
+	HIO_ASSERT(hio, sq->sq_next != HIO_NULL); /* must not be empty */
 	sess->q_head = sq->sq_next;
 	free_session_query (hio, sq);
 }
@@ -233,7 +233,7 @@ static void mar_on_disconnect (hio_dev_mar_t* dev)
 
 	sess = &xtn->svc->sess.ptr[xtn->sid];
 	HIO_DEBUG6 (hio, "MARC(%p) - device disconnected - sid %lu session %p session-connected %d device %p device-broken %d\n", sess->svc, (unsigned long int)sess->sid, sess, (int)sess->connected, dev, (int)dev->broken);
-	HIO_ASSERT (hio, dev == sess->dev);
+	HIO_ASSERT(hio, dev == sess->dev);
 
 	if (HIO_UNLIKELY(!sess->svc->stopping && hio->stopreq == HIO_STOPREQ_NONE))
 	{
@@ -275,8 +275,8 @@ static void mar_on_disconnect (hio_dev_mar_t* dev)
 	}
 
 	/* it should point to a placeholder node(either the initial one or the transited one after dequeing */
-	HIO_ASSERT (hio, sess->q_head == sess->q_tail);
-	HIO_ASSERT (hio, sess->q_head->sq_next == HIO_NULL);
+	HIO_ASSERT(hio, sess->q_head == sess->q_tail);
+	HIO_ASSERT(hio, sess->q_head->sq_next == HIO_NULL);
 	free_session_query (hio, sess->q_head);
 	sess->q_head = sess->q_tail = HIO_NULL;
 
@@ -289,7 +289,7 @@ static void mar_on_connect (hio_dev_mar_t* dev)
 	dev_xtn_t* xtn = (dev_xtn_t*)hio_dev_mar_getxtn(dev);
 	sess_t* sess;
 
-	HIO_ASSERT (hio, xtn->sid != INVALID_SID);
+	HIO_ASSERT(hio, xtn->sid != INVALID_SID);
 	sess = &xtn->svc->sess.ptr[xtn->sid];
 	HIO_DEBUG5 (hio, "MARC(%p) - device connected - sid %lu session %p device %p device-broken %d\n", sess->svc, (unsigned long int)sess->sid, sess, dev, dev->broken);
 
@@ -304,7 +304,7 @@ static void mar_on_query_started (hio_dev_mar_t* dev, int mar_ret, const hio_bch
 	sess_t* sess;
 	sess_qry_t* sq;
 
-	HIO_ASSERT (hio, xtn->sid != INVALID_SID);
+	HIO_ASSERT(hio, xtn->sid != INVALID_SID);
 	sess = &xtn->svc->sess.ptr[xtn->sid];
 	sq = get_first_session_query(sess);
 
@@ -347,7 +347,7 @@ static void mar_on_row_fetched (hio_dev_mar_t* dev, void* data)
 	sess_t* sess;
 	sess_qry_t* sq;
 
-	HIO_ASSERT (hio, xtn->sid != INVALID_SID);
+	HIO_ASSERT(hio, xtn->sid != INVALID_SID);
 	sess = &xtn->svc->sess.ptr[xtn->sid];
 	sq = get_first_session_query(sess);
 
@@ -367,7 +367,7 @@ static hio_dev_mar_t* alloc_device (hio_svc_marc_t* marc, hio_oow_t sid)
 	hio_dev_mar_make_t mi;
 	dev_xtn_t* xtn;
 
-	HIO_MEMSET (&mi, 0, HIO_SIZEOF(mi));
+	HIO_MEMSET(&mi, 0, HIO_SIZEOF(mi));
 	if (marc->tmout_set)
 	{
 		mi.flags = HIO_DEV_MAR_USE_TMOUT;
@@ -482,7 +482,7 @@ got_sid:
 		tmp = (sess_t*)hio_reallocmem(hio, marc->sess.ptr, HIO_SIZEOF(sess_t) * newcapa);
 		if (HIO_UNLIKELY(!tmp)) return HIO_NULL;
 
-		HIO_MEMSET (&tmp[marc->sess.capa], 0, HIO_SIZEOF(sess_t) * (newcapa - marc->sess.capa));
+		HIO_MEMSET(&tmp[marc->sess.capa], 0, HIO_SIZEOF(sess_t) * (newcapa - marc->sess.capa));
 		for (i = marc->sess.capa; i < newcapa; i++)
 		{
 			tmp[i].svc = marc;
@@ -494,8 +494,8 @@ got_sid:
 	}
 
 	sess = &marc->sess.ptr[sid];
-	HIO_ASSERT (hio, sess->svc == marc);
-	HIO_ASSERT (hio, sess->sid == sid);
+	HIO_ASSERT(hio, sess->svc == marc);
+	HIO_ASSERT(hio, sess->sid == sid);
 
 	if (!sess->dev)
 	{
@@ -562,7 +562,7 @@ int hio_svc_marc_querywithbchars (hio_svc_marc_t* marc, hio_oow_t flagged_sid, h
 
 		enqueue_session_query (sess, sq);
 
-		HIO_ASSERT (hio, sq->sent == 0);
+		HIO_ASSERT(hio, sq->sent == 0);
 
 		sq->sent = 1;
 		if (hio_dev_mar_querywithbchars(sess->dev, sq->qptr, sq->qlen) <= -1)

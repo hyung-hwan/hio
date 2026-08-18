@@ -102,14 +102,14 @@ static int get_sco_ifconf (hio_t* hio, struct ifconf* ifc)
 	return 0;
 
 oops:
-	if (ifc->ifc_buf) hio_freemem (hio, ifc->ifc_buf);
+	if (ifc->ifc_buf) hio_freemem(hio, ifc->ifc_buf);
 	if (h >= 0) close (h);
 	return -1;
 }
 
 static HIO_INLINE void free_sco_ifconf (hio_t* hio, struct ifconf* ifc)
 {
-	hio_freemem (hio, ifc->ifc_buf);
+	hio_freemem(hio, ifc->ifc_buf);
 }
 #endif
 
@@ -141,7 +141,7 @@ int hio_bcstrtoifindex (hio_t* hio, const hio_bch_t* ptr, unsigned int* index)
 		return -1;
 	}
 
-	HIO_MEMSET (&ifr, 0, HIO_SIZEOF(ifr));
+	HIO_MEMSET(&ifr, 0, HIO_SIZEOF(ifr));
 	len = hio_copy_bcstr(ifr.ifr_name, HIO_COUNTOF(ifr.ifr_name), ptr);
 	if (ptr[len] != '\0') return -1; /* name too long */
 
@@ -228,7 +228,7 @@ int hio_bcharstoifindex (hio_t* hio, const hio_bch_t* ptr, hio_oow_t len, unsign
 		return -1;
 	}
 
-	HIO_MEMSET (&ifr, 0, HIO_SIZEOF(ifr));
+	HIO_MEMSET(&ifr, 0, HIO_SIZEOF(ifr));
 	if (hio_copy_bchars_to_bcstr(ifr.ifr_name, HIO_COUNTOF(ifr.ifr_name), ptr, len) < len) return -1; /* name too long */
 
 	x = ioctl(h, SIOCGIFINDEX, &ifr);
@@ -499,7 +499,7 @@ int hio_ifindextobcstr (hio_t* hio, unsigned int index, hio_bch_t* buf, hio_oow_
 		return -1;
 	}
 
-	HIO_MEMSET (&ifr, 0, HIO_SIZEOF(ifr));
+	HIO_MEMSET(&ifr, 0, HIO_SIZEOF(ifr));
 	#if defined(HAVE_STRUCT_IFREQ_IFR_IFINDEX)
 	ifr.ifr_ifindex = index;
 	#else
@@ -580,7 +580,7 @@ int hio_ifindextoucstr (hio_t* hio, unsigned int index, hio_uch_t* buf, hio_oow_
 		return -1;
 	}
 
-	HIO_MEMSET (&ifr, 0, HIO_SIZEOF(ifr));
+	HIO_MEMSET(&ifr, 0, HIO_SIZEOF(ifr));
 	#if defined(HAVE_STRUCT_IFREQ_IFR_IFINDEX)
 	ifr.ifr_ifindex = index;
 	#else

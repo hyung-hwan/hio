@@ -137,7 +137,7 @@ static int write_log (hio_t* hio, int fd, hio_bitmask_t mask, const hio_bch_t* p
 			rcapa = HIO_COUNTOF(log->out.buf) - log->out.len;
 			cplen = (len >= rcapa)? rcapa: len;
 
-			HIO_MEMCPY (&log->out.buf[log->out.len], ptr, cplen);
+			HIO_MEMCPY(&log->out.buf[log->out.len], ptr, cplen);
 			log->out.len += cplen;
 			ptr += cplen;
 			len -= cplen;
@@ -163,7 +163,7 @@ static int write_log (hio_t* hio, int fd, hio_bitmask_t mask, const hio_bch_t* p
 			}
 			else
 			{
-				HIO_MEMCPY (log->out.buf, ptr, len);
+				HIO_MEMCPY(log->out.buf, ptr, len);
 				log->out.len += len;
 				ptr += len;
 				len -= len;
@@ -291,7 +291,7 @@ void hio_sys_writelog (hio_t* hio, hio_bitmask_t mask, const hio_ooch_t* msg, hi
 			 *    buffer not sufficient. not all got converted yet.
 			 *    write what have been converted this round. */
 
-			HIO_ASSERT (hio, ucslen > 0); /* if this fails, the buffer size must be increased */
+			HIO_ASSERT(hio, ucslen > 0); /* if this fails, the buffer size must be increased */
 
 			/* attempt to write all converted characters */
 			if (write_log(hio, logfd, mask, buf, bcslen) <= -1) break;

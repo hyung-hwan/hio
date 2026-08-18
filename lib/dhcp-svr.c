@@ -67,7 +67,7 @@ static hio_dev_sck_t* open_socket (hio_t* hio, hio_svc_dhcs_cfg_t* cfg)
 		goto oops;
 	}
 
-	HIO_MEMSET (&m, 0, HIO_SIZEOF(m));
+	HIO_MEMSET(&m, 0, HIO_SIZEOF(m));
 	m.type = (f == HIO_AF_INET? HIO_DEV_SCK_UDP4: HIO_DEV_SCK_UDP6);
 	//m.options = HIO_DEV_SCK_MAKE_LENIENT;
 	//m.on_write =
@@ -90,7 +90,7 @@ static hio_dev_sck_t* open_socket (hio_t* hio, hio_svc_dhcs_cfg_t* cfg)
 {
 /* TODO: accept hio_dev_sck_bind_t instead of hio_skad_t? */
 	hio_dev_sck_bind_t b;
-	HIO_MEMSET (&b, 0, HIO_SIZEOF(b));
+	HIO_MEMSET(&b, 0, HIO_SIZEOF(b));
 	b.localaddr = cfg->bind_addr;
 	if (hio_dev_sck_bind(sck, &b) <= -1) goto oops;
 }
@@ -129,7 +129,7 @@ hio_svc_dhcs_t* hio_svc_dhcs_start (hio_t* hio, const hio_skad_t* local_binds, h
 	{
 		hio_svc_dhcs_cfg_t cfg;
 
-		HIO_MEMSET (&cfg, 0, HIO_SIZEOF(cfg));
+		HIO_MEMSET(&cfg, 0, HIO_SIZEOF(cfg));
 		cfg.bind_addr = local_binds[i];
 
 		sck = open_socket(hio, &cfg);
@@ -149,7 +149,7 @@ oops:
 		{
 			if (dhcs->sck[i]) hio_dev_sck_kill(dhcs->sck[i])
 		}*/
-		hio_freemem (hio, dhcs);
+		hio_freemem(hio, dhcs);
 	}
 	return HIO_NULL;
 }
@@ -162,7 +162,7 @@ void hio_svc_dhcs_stop (hio_svc_dhcs_t* dhcs)
 	dhcs->stopping = 1;
 
 	HIO_SVCL_UNLINK_SVC (dhcs);
-	hio_freemem (hio, dhcs);
+	hio_freemem(hio, dhcs);
 
 	HIO_DEBUG1 (hio, "FCGIC - STOPPED SERVICE %p\n", dhcs);
 }

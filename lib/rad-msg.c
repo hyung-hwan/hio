@@ -39,7 +39,7 @@
 
 void hio_rad_initialize (hio_rad_hdr_t* hdr, hio_rad_code_t code, hio_uint8_t id)
 {
-	HIO_MEMSET (hdr, 0, HIO_SIZEOF(*hdr));
+	HIO_MEMSET(hdr, 0, HIO_SIZEOF(*hdr));
 	hdr->code = code;
 	hdr->id = id;
 	hdr->length = hio_hton16(HIO_SIZEOF(*hdr));
@@ -379,7 +379,7 @@ static int delete_attribute (hio_rad_hdr_t* auth, hio_rad_attr_hdr_t* attr)
 	if (tmp_len > auth_len) return -1; /* can this happen? */
 
 	/* HIO_MEMCPY() on some platforms doesn't handle overlappig memory regions */
-	HIO_MEMMOVE (attr, (hio_uint8_t*)attr + attr->length, auth_len - tmp_len);
+	HIO_MEMMOVE(attr, (hio_uint8_t*)attr + attr->length, auth_len - tmp_len);
 
 	auth_len -= attr->length;
 	auth->length = hio_hton16(auth_len);
@@ -444,7 +444,7 @@ hio_rad_attr_hdr_t* hio_rad_insert_attribute (
 	attr = (hio_rad_attr_hdr_t*)((hio_uint8_t*)auth + auth_len);
 	attr->type = attrtype;
 	attr->length = new_auth_len - auth_len;
-	HIO_MEMCPY (attr + 1, ptr, len);
+	HIO_MEMCPY(attr + 1, ptr, len);
 	auth->length = hio_hton16(new_auth_len);
 
 	return attr;
@@ -485,12 +485,12 @@ hio_rad_xattr_hdr_t* hio_rad_insert_extended_attribute (
 		lxattr = (hio_rad_lxattr_hdr_t*)xattr;
 		lxattr->xtype = attrtype;
 		lxattr->xflags = lxflags;
-		HIO_MEMCPY (lxattr + 1, ptr, len);
+		HIO_MEMCPY(lxattr + 1, ptr, len);
 	}
 	else
 	{
 		xattr->xtype = attrtype;
-		HIO_MEMCPY (xattr + 1, ptr, len);
+		HIO_MEMCPY(xattr + 1, ptr, len);
 	}
 	auth->length = hio_hton16(new_auth_len);
 
@@ -518,7 +518,7 @@ hio_rad_vsattr_hdr_t* hio_rad_insert_vendor_specific_attribute (
 
 	vsattr->vs.type = attrtype;
 	vsattr->vs.length = HIO_SIZEOF(vsattr->vs) + len;
-	HIO_MEMCPY (vsattr + 1, ptr, len);
+	HIO_MEMCPY(vsattr + 1, ptr, len);
 
 	auth->length = hio_hton16(new_auth_len);
 	return vsattr;
@@ -565,13 +565,13 @@ hio_rad_xvsattr_hdr_t* hio_rad_insert_extended_vendor_specific_attribute (
 		lxvsattr->lxvs.type = attrtype;
 		lxvsattr->lxvs.flags = lxflags;
 		lxvsattr->lxvs.length = len + HIO_SIZEOF(lxvsattr->lxvs);
-		HIO_MEMCPY (lxvsattr + 1, ptr, len);
+		HIO_MEMCPY(lxvsattr + 1, ptr, len);
 	}
 	else
 	{
 		xvsattr->xvs.type = attrtype;
 		xvsattr->xvs.length = len + HIO_SIZEOF(xvsattr->xvs);
-		HIO_MEMCPY (xvsattr + 1, ptr, len);
+		HIO_MEMCPY(xvsattr + 1, ptr, len);
 	}
 
 	auth->length = hio_hton16(new_auth_len);
@@ -653,7 +653,7 @@ hio_rad_attr_hdr_t* hio_rad_insert_ipv6prefix_attribute (
 
 	if (prefix_bits > 128) prefix_bits = 128;
 
-	HIO_MEMSET (&ipv6prefix, 0, HIO_SIZEOF(ipv6prefix));
+	HIO_MEMSET(&ipv6prefix, 0, HIO_SIZEOF(ipv6prefix));
 	ipv6prefix.bits = prefix_bits;
 
 	for (i = 0, j = 0; i < prefix_bits; i += 8, j++)
@@ -924,7 +924,7 @@ int hio_rad_set_user_password (hio_rad_hdr_t* auth, int max, const hio_bch_t* pa
 
 	int i, pwlen, padlen;
 
-	/*HIO_ASSERT (HIO_SIZEOF(tmp) >= HIO_MD5_DIGEST_LEN);*/
+	/*HIO_ASSERT(HIO_SIZEOF(tmp) >= HIO_MD5_DIGEST_LEN);*/
 
 	pwlen = hio_count_bcstr(password);
 
@@ -942,8 +942,8 @@ int hio_rad_set_user_password (hio_rad_hdr_t* auth, int max, const hio_bch_t* pa
 		if (pwlen > padlen) pwlen = padlen;
 	}
 
-	HIO_MEMSET (hashed, 0, padlen);
-	HIO_MEMCPY (hashed, password, pwlen);
+	HIO_MEMSET(hashed, 0, padlen);
+	HIO_MEMCPY(hashed, password, pwlen);
 
 	/*
 	 * c1 = p1 XOR MD5(secret + authenticator)
@@ -990,7 +990,7 @@ void hio_rad_fill_authenticator (hio_rad_hdr_t* auth)
 
 void hio_rad_copy_authenticator (hio_rad_hdr_t* dst, const hio_rad_hdr_t* src)
 {
-	HIO_MEMCPY (dst->authenticator, src->authenticator, HIO_SIZEOF(dst->authenticator));
+	HIO_MEMCPY(dst->authenticator, src->authenticator, HIO_SIZEOF(dst->authenticator));
 }
 
 int hio_rad_set_authenticator (hio_rad_hdr_t* req, const hio_bch_t* secret)
@@ -1015,8 +1015,8 @@ int hio_rad_verify_request (hio_rad_hdr_t* req, const hio_bch_t* secret)
 	hio_uint8_t orgauth[HIO_RAD_AUTHENTICATOR_LEN];
 	int ret;
 
-	HIO_MEMCPY (orgauth, req->authenticator, HIO_SIZEOF(req->authenticator));
-	HIO_MEMSET (req->authenticator, 0, HIO_SIZEOF(req->authenticator));
+	HIO_MEMCPY(orgauth, req->authenticator, HIO_SIZEOF(req->authenticator));
+	HIO_MEMSET(req->authenticator, 0, HIO_SIZEOF(req->authenticator));
 
 	hio_md5_initialize (&md5);
 	hio_md5_update (&md5, req, hio_ntoh16(req->length));
@@ -1024,7 +1024,7 @@ int hio_rad_verify_request (hio_rad_hdr_t* req, const hio_bch_t* secret)
 	hio_md5_digest (&md5, req->authenticator, HIO_SIZEOF(req->authenticator));
 
 	ret = (HIO_MEMCMP (req->authenticator, orgauth, HIO_SIZEOF(req->authenticator)) == 0)? 1: 0;
-	HIO_MEMCPY (req->authenticator, orgauth, HIO_SIZEOF(req->authenticator));
+	HIO_MEMCPY(req->authenticator, orgauth, HIO_SIZEOF(req->authenticator));
 
 	return ret;
 }
@@ -1036,8 +1036,8 @@ int hio_rad_verify_response (hio_rad_hdr_t* res, const hio_rad_hdr_t* req, const
 	hio_uint8_t calculated[HIO_RAD_AUTHENTICATOR_LEN];
 	hio_uint8_t reply[HIO_RAD_AUTHENTICATOR_LEN];
 
-	/*HIO_ASSERT (HIO_SIZEOF(req->authenticator) == HIO_RAD_AUTHENTICATOR_LEN);
-	HIO_ASSERT (HIO_SIZEOF(res->authenticator) == HIO_RAD_AUTHENTICATOR_LEN);*/
+	/*HIO_ASSERT(HIO_SIZEOF(req->authenticator) == HIO_RAD_AUTHENTICATOR_LEN);
+	HIO_ASSERT(HIO_SIZEOF(res->authenticator) == HIO_RAD_AUTHENTICATOR_LEN);*/
 
 	/*
 	 * We could dispense with the HIO_MEMCPY, and do MD5's of the packet
