@@ -216,12 +216,12 @@ static void thr_peer_on_close (hio_dev_thr_t* peer, hio_dev_thr_sid_t sid)
 				if (hio_svc_htts_task_endbody((hio_svc_htts_task_t*)thr) <= -1)
 					thr_halt_participating_devices (thr);
 				else
-					thr_mark_over (thr, THR_OVER_READ_FROM_PEER);
+					thr_mark_over(thr, THR_OVER_READ_FROM_PEER);
 			}
 			break;
 
 		case HIO_DEV_THR_IN:
-			thr_mark_over (thr, THR_OVER_WRITE_TO_PEER);
+			thr_mark_over(thr, THR_OVER_WRITE_TO_PEER);
 			break;
 
 		default:
@@ -256,7 +256,7 @@ static int thr_peer_on_read (hio_dev_thr_t* peer, const void* data, hio_iolen_t 
 			 * it still has to read more but EOF is read.
 			 * otherwise client_peer_htrd_poke() should have been called */
 			n = hio_svc_htts_task_endbody((hio_svc_htts_task_t*)thr);
-			thr_mark_over (thr, THR_OVER_READ_FROM_PEER);
+			thr_mark_over(thr, THR_OVER_READ_FROM_PEER);
 			if (n <= -1) goto oops;
 		}
 	}
@@ -331,7 +331,7 @@ static int thr_peer_htrd_poke (hio_htrd_t* htrd, hio_htre_t* req)
 	int n;
 
 	n = hio_svc_htts_task_endbody((hio_svc_htts_task_t*)thr);
-	thr_mark_over (thr, THR_OVER_READ_FROM_PEER);
+	thr_mark_over(thr, THR_OVER_READ_FROM_PEER);
 	return n;
 }
 
@@ -370,7 +370,7 @@ static int thr_client_htrd_poke (hio_htrd_t* htrd, hio_htre_t* req)
 	/* indicate EOF to the client peer */
 	if (thr_write_to_peer(thr, HIO_NULL, 0) <= -1) return -1;
 
-	thr_mark_over (thr, THR_OVER_READ_FROM_CLIENT);
+	thr_mark_over(thr, THR_OVER_READ_FROM_CLIENT);
 	return 0;
 }
 
@@ -429,7 +429,7 @@ static int thr_peer_on_write (hio_dev_thr_t* peer, hio_iolen_t wrlen, void* wrct
 		HIO_DEBUG2 (hio, "HTTS(%p) - indicated EOF to peer %p\n", thr->htts, peer);
 		/* indicated EOF to the peer side. i need no more data from the client side.
 		 * i don't need to enable input watching in the client side either */
-		thr_mark_over (thr, THR_OVER_WRITE_TO_PEER);
+		thr_mark_over(thr, THR_OVER_WRITE_TO_PEER);
 	}
 	else
 	{
@@ -444,7 +444,7 @@ static int thr_peer_on_write (hio_dev_thr_t* peer, hio_iolen_t wrlen, void* wrct
 
 		if ((thr->over & THR_OVER_READ_FROM_CLIENT) && thr->num_pending_writes_to_peer <= 0)
 		{
-			thr_mark_over (thr, THR_OVER_WRITE_TO_PEER);
+			thr_mark_over(thr, THR_OVER_WRITE_TO_PEER);
 		}
 	}
 
@@ -509,7 +509,7 @@ static int thr_client_on_read (hio_dev_sck_t* sck, const void* buf, hio_iolen_t 
 		{
 			int n;
 			n = thr_write_to_peer(thr, HIO_NULL, 0);
-			thr_mark_over (thr, THR_OVER_READ_FROM_CLIENT);
+			thr_mark_over(thr, THR_OVER_READ_FROM_CLIENT);
 			if (n <= -1) goto oops;
 		}
 	}
@@ -536,7 +536,7 @@ static int thr_client_on_write (hio_dev_sck_t* sck, hio_iolen_t wrlen, void* wrc
 		/* since EOF has been indicated to the client, it must not write to the client any further.
 		 * this also means that i don't need any data from the peer side either.
 		 * i don't need to enable input watching on the peer side */
-		thr_mark_over (thr, THR_OVER_WRITE_TO_CLIENT);
+		thr_mark_over(thr, THR_OVER_WRITE_TO_CLIENT);
 	}
 	else if (wrlen > 0)
 	{
@@ -549,7 +549,7 @@ static int thr_client_on_write (hio_dev_sck_t* sck, hio_iolen_t wrlen, void* wrc
 
 		if ((thr->over & THR_OVER_READ_FROM_PEER) && thr->task_res_pending_writes <= 0)
 		{
-			thr_mark_over (thr, THR_OVER_WRITE_TO_CLIENT);
+			thr_mark_over(thr, THR_OVER_WRITE_TO_CLIENT);
 		}
 	}
 
@@ -764,7 +764,7 @@ static int setup_for_content_length(thr_t* thr, hio_htre_t* req)
 		/* no content to be uploaded from the client */
 		/* indicate EOF to the peer and disable input wathching from the client */
 		if (thr_write_to_peer(thr, HIO_NULL, 0) <= -1) return -1;
-		thr_mark_over (thr, THR_OVER_READ_FROM_CLIENT | THR_OVER_WRITE_TO_PEER);
+		thr_mark_over(thr, THR_OVER_READ_FROM_CLIENT | THR_OVER_WRITE_TO_PEER);
 	}
 
 	return 0;

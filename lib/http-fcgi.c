@@ -200,7 +200,7 @@ static int fcgi_peer_on_read (hio_svc_fcgic_sess_t* peer, const void* data, hio_
 			 * it still has to read more but EOF is read.
 			 * otherwise peer_htrd_poke() should have been called */
 			n = hio_svc_htts_task_endbody((hio_svc_htts_task_t*)fcgi);
-			fcgi_mark_over (fcgi, FCGI_OVER_READ_FROM_PEER);
+			fcgi_mark_over(fcgi, FCGI_OVER_READ_FROM_PEER);
 			if (n <= -1) goto oops;
 		}
 	}
@@ -246,7 +246,7 @@ static int fcgi_peer_on_write (hio_svc_fcgic_sess_t* peer, hio_fcgi_req_type_t r
 	if (rqtype == HIO_FCGI_STDIN && wrlen == 0)
 	{
 		/* completely wrote end of stdin to the cgi server */
-		fcgi_mark_over (fcgi, FCGI_OVER_WRITE_TO_PEER);
+		fcgi_mark_over(fcgi, FCGI_OVER_WRITE_TO_PEER);
 	}
 	return 0;
 
@@ -294,7 +294,7 @@ static int peer_htrd_poke (hio_htrd_t* htrd, hio_htre_t* req)
 	int n;
 
 	n = hio_svc_htts_task_endbody((hio_svc_htts_task_t*)fcgi);
-	fcgi_mark_over (fcgi, FCGI_OVER_READ_FROM_PEER);
+	fcgi_mark_over(fcgi, FCGI_OVER_READ_FROM_PEER);
 	return n;
 }
 
@@ -325,7 +325,7 @@ static int fcgi_client_htrd_poke (hio_htrd_t* htrd, hio_htre_t* req)
 	/* indicate end of STDIN */
 	if (fcgi_write_stdin_to_peer(fcgi, HIO_NULL, 0) <= -1) return -1;
 
-	fcgi_mark_over (fcgi, FCGI_OVER_READ_FROM_CLIENT);
+	fcgi_mark_over(fcgi, FCGI_OVER_READ_FROM_CLIENT);
 	return 0;
 }
 
@@ -420,7 +420,7 @@ static int fcgi_client_on_read (hio_dev_sck_t* sck, const void* buf, hio_iolen_t
 			/* indicate eof to the write side */
 			int x;
 			x = fcgi_write_stdin_to_peer(fcgi, HIO_NULL, 0);
-			fcgi_mark_over (fcgi, FCGI_OVER_READ_FROM_CLIENT);
+			fcgi_mark_over(fcgi, FCGI_OVER_READ_FROM_CLIENT);
 			if (x <= -1) goto oops;
 		}
 	}
@@ -444,7 +444,7 @@ static int fcgi_client_on_write (hio_dev_sck_t* sck, hio_iolen_t wrlen, void* wr
 
 	if (wrlen == 0)
 	{
-		fcgi_mark_over (fcgi, FCGI_OVER_WRITE_TO_CLIENT);
+		fcgi_mark_over(fcgi, FCGI_OVER_WRITE_TO_CLIENT);
 	}
 	else if (wrlen > 0)
 	{
@@ -458,7 +458,7 @@ static int fcgi_client_on_write (hio_dev_sck_t* sck, hio_iolen_t wrlen, void* wr
 
 		if ((fcgi->over & FCGI_OVER_READ_FROM_PEER) && fcgi->task_res_pending_writes <= 0)
 		{
-			fcgi_mark_over (fcgi, FCGI_OVER_WRITE_TO_CLIENT);
+			fcgi_mark_over(fcgi, FCGI_OVER_WRITE_TO_CLIENT);
 		}
 	}
 

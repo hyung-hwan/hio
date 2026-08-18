@@ -22,7 +22,7 @@ TESTPROGS = t-001 t-002 t-003 t-004 t-005 t-006 t-007 t-008
 
 ## helpers the test scripts drive. built with the tests, but not tests
 ## themselves - they are servers and would never exit.
-HELPERPROGS = fcgis httssvr
+HELPERPROGS = fcgis httpecho httssvr
 
 check_PROGRAMS = $(TESTPROGS) $(HELPERPROGS)
 
@@ -82,6 +82,13 @@ fcgis_CPPFLAGS = $(CPPFLAGS_COMMON)
 fcgis_CFLAGS = $(CFLAGS_COMMON)
 fcgis_LDFLAGS = $(LDFLAGS_COMMON)
 fcgis_LDADD = $(LIBADD_COMMON)
+
+## a minimal http upstream for the proxy route, driven by s-002.sh
+httpecho_SOURCES = httpecho.c
+httpecho_CPPFLAGS = $(CPPFLAGS_COMMON)
+httpecho_CFLAGS = $(CFLAGS_COMMON)
+httpecho_LDFLAGS = $(LDFLAGS_COMMON)
+httpecho_LDADD = $(LIBADD_COMMON)
 
 ## an http server exercising the htts task types, driven by s-002.sh
 httssvr_SOURCES = httssvr.c

@@ -497,7 +497,7 @@ HIO_EXPORT int hio_svc_htts_dofcgi (
 	hio_svc_htts_task_on_kill_t on_kill
 );
 
-HIO_EXPORT int hio_svc_htts_doprxy (
+HIO_EXPORT int hio_svc_htts_dopxy (
 	hio_svc_htts_t*             htts,
 	hio_dev_sck_t*              csck,
 	hio_htre_t*                 req,

@@ -5,10 +5,9 @@
 # exercisable here; fcgi talks to fcgis, the minimal responder in
 # this directory.
 #
-# prxy is still uncovered: http-prxy.c never connects its peer socket
-# (no hio_dev_sck_connect anywhere in the file) so the task cannot
-# currently reach an upstream. httssvr has a /prxy/ route ready for when
-# that is finished.
+# pxy forwards to an upstream, so the harness runs httpecho on the port
+# the /pxy/ route targets. httpecho reflects the request line it saw,
+# which is how the test tells that the method and path survived the hop.
 
 [ -z "$srcdir" ] && srcdir=$(dirname "$0")
 . "${srcdir}/tap.inc"
@@ -31,6 +30,18 @@ start_server()
 	done
 	[ -f "${fcgiready}" ] || fcgipid=""
 
+	# the upstream the /pxy/ route forwards to
+	upready="/tmp/s-002-up.$$.ready"
+	rm -f "${upready}"
+	./httpecho 127.0.0.1:9001 "${upready}" >/dev/null 2>&1 &
+	uppid=$!
+	i=0
+	while [ $i -lt 50 ] && [ ! -f "${upready}" ]; do
+		i=$((i + 1))
+		sleep 0.1
+	done
+	[ -f "${upready}" ] || uppid=""
+
 	./httssvr >/dev/null 2>&1 &
 	srvpid=$!
 	# wait for the listener rather than sleeping a fixed amount
@@ -52,6 +63,35 @@ stop_server()
 		wait ${fcgipid} 2>/dev/null
 	fi
 	rm -f "${fcgiready}"
+	if [ -n "${uppid}" ]; then
+		kill -TERM ${uppid} 2>/dev/null
+		wait ${uppid} 2>/dev/null
+	fi
+	rm -f "${upready}"
+}
+
+test_pxy()
+{
+	local msg="httssvr pxy task"
+
+	if [ -z "${uppid}" ]; then
+		tap_fail "$msg - httpecho did not come up"
+		tap_fail "$msg - httpecho did not come up"
+		tap_fail "$msg - httpecho did not come up"
+		return
+	fi
+
+	local hc=$(curl -s -m 10 -w '%{http_code}' -o /dev/null "http://${SRVADDR}/pxy/thing")
+	tap_ensure "$hc" "200" "$msg - got $hc"
+
+	# httpecho reflects the request line, so this shows the method and
+	# path reached the upstream unmangled
+	local line=$(curl -s -m 10 "http://${SRVADDR}/pxy/thing" | sed -n 2p | tr -d '\r')
+	tap_ensure "$line" "GET /pxy/thing HTTP/1.1" "$msg - the request reached the upstream intact"
+
+	# and the upstream's status must come back rather than being invented
+	local hc404=$(curl -s -m 10 -w '%{http_code}' -o /dev/null "http://${SRVADDR}/pxy/missing")
+	tap_ensure "$hc404" "404" "$msg - the upstream status is propagated"
 }
 
 test_fcgi()
@@ -137,6 +177,7 @@ if start_server; then
 	test_txt
 	test_thr
 	test_fcgi
+	test_pxy
 	test_mixed_load
 	stop_server
 else

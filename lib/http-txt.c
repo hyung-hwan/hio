@@ -112,7 +112,7 @@ static int txt_client_htrd_poke (hio_htrd_t* htrd, hio_htre_t* req)
 	hio_svc_htts_cli_t* cli = hio_dev_sck_getxtn(sck);
 	txt_t* txt = (txt_t*)cli->task;
 
-	txt_mark_over (txt, TXT_OVER_READ_FROM_CLIENT);
+	txt_mark_over(txt, TXT_OVER_READ_FROM_CLIENT);
 	return 0;
 }
 
@@ -185,7 +185,7 @@ static int txt_client_on_read (hio_dev_sck_t* sck, const void* buf, hio_iolen_t 
 
 		if (!(txt->over & TXT_OVER_READ_FROM_CLIENT)) /* if this is true, EOF is received without txt_client_htrd_poke() */
 		{
-			txt_mark_over (txt, TXT_OVER_READ_FROM_CLIENT);
+			txt_mark_over(txt, TXT_OVER_READ_FROM_CLIENT);
 		}
 	}
 
@@ -211,12 +211,12 @@ static int txt_client_on_write (hio_dev_sck_t* sck, hio_iolen_t wrlen, void* wrc
 		/* since EOF has been indicated to the client, it must not write to the client any further.
 		 * this also means that i don't need any data from the peer side either.
 		 * i don't need to enable input watching on the peer side */
-		txt_mark_over (txt, TXT_OVER_WRITE_TO_CLIENT);
+		txt_mark_over(txt, TXT_OVER_WRITE_TO_CLIENT);
 	}
 	else if (wrlen > 0)
 	{
 		if (txt->task_res_pending_writes <= 0)
-			txt_mark_over (txt, TXT_OVER_WRITE_TO_CLIENT);
+			txt_mark_over(txt, TXT_OVER_WRITE_TO_CLIENT);
 	}
 
 	if (n <= -1 || wrlen <= -1) txt_halt_participating_devices (txt);
@@ -250,7 +250,7 @@ static int setup_for_content_length(txt_t* txt, hio_htre_t* req)
 	else
 	{
 		/* no content to be uploaded from the client */
-		txt_mark_over (txt, TXT_OVER_READ_FROM_CLIENT);
+		txt_mark_over(txt, TXT_OVER_READ_FROM_CLIENT);
 	}
 
 	return 0;

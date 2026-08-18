@@ -215,13 +215,13 @@ if (hio_htre_getcontentlen(req) > 0)
 				x = hio_svc_htts_dotxt(htts, csck, req, HIO_HTTP_STATUS_OK, "text/plain", qpath, 0, HIO_NULL);
 			else if (hio_comp_bcstr_limited(qpath, "/cgi/", 5, 1) == 0)
 				x = hio_svc_htts_docgi(htts, csck, req, "", qpath + 4, 0, HIO_NULL);
-			else if (hio_comp_bcstr_limited(qpath, "/prxy/", 6, 1) == 0)
+			else if (hio_comp_bcstr_limited(qpath, "/pxy/", 5, 1) == 0)
 			{
 				/* forward to an upstream http server. the test harness runs
 				 * one on this port. */
-				hio_skad_t prxy_addr;
-				hio_bcstrtoskad(hio, "127.0.0.1:9001", &prxy_addr);
-				x = hio_svc_htts_doprxy(htts, csck, req, &prxy_addr, 0, HIO_NULL);
+				hio_skad_t pxy_addr;
+				hio_bcstrtoskad(hio, "127.0.0.1:9001", &pxy_addr);
+				x = hio_svc_htts_dopxy(htts, csck, req, &pxy_addr, 0, HIO_NULL);
 			}
 			else if (hio_comp_bcstr_limited(qpath, "/fcgi/", 5, 1) == 0)
 			{

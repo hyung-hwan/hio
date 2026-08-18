@@ -283,13 +283,13 @@ static void cgi_peer_on_close (hio_dev_pro_t* pro, hio_dev_pro_sid_t sid)
 				if (hio_svc_htts_task_endbody((hio_svc_htts_task_t*)cgi) <= -1)
 					cgi_halt_participating_devices (cgi);
 				else
-					cgi_mark_over (cgi, CGI_OVER_READ_FROM_PEER);
+					cgi_mark_over(cgi, CGI_OVER_READ_FROM_PEER);
 			}
 			break;
 
 		case HIO_DEV_PRO_IN:
 			HIO_DEBUG4 (hio, "HTTS(%p) - peer %p(pid=%d) closing slave[%d]\n", cgi->htts, pro, (int)pro->child_pid, sid);
-			cgi_mark_over (cgi, CGI_OVER_WRITE_TO_PEER);
+			cgi_mark_over(cgi, CGI_OVER_WRITE_TO_PEER);
 			break;
 
 		case HIO_DEV_PRO_ERR:
@@ -326,7 +326,7 @@ static int cgi_peer_on_read (hio_dev_pro_t* pro, hio_dev_pro_sid_t sid, const vo
 			 * it still has to read more but EOF is read.
 			 * otherwise peer_htrd_poke() should have been called */
 			n = hio_svc_htts_task_endbody((hio_svc_htts_task_t*)cgi);
-			cgi_mark_over (cgi, CGI_OVER_READ_FROM_PEER);
+			cgi_mark_over(cgi, CGI_OVER_READ_FROM_PEER);
 			if (n <= -1) goto oops;
 		}
 	}
@@ -386,7 +386,7 @@ static int cgi_peer_on_write (hio_dev_pro_t* pro, hio_iolen_t wrlen, void* wrctx
 		HIO_DEBUG3 (hio, "HTTS(%p) - indicated EOF to peer %p(pid=%u)\n", cgi->htts, pro, (int)pro->child_pid);
 		/* indicated EOF to the peer side. i need no more data from the client side.
 		 * i don't need to enable input watching in the client side either */
-		cgi_mark_over (cgi, CGI_OVER_WRITE_TO_PEER);
+		cgi_mark_over(cgi, CGI_OVER_WRITE_TO_PEER);
 	}
 	else
 	{
@@ -401,7 +401,7 @@ static int cgi_peer_on_write (hio_dev_pro_t* pro, hio_iolen_t wrlen, void* wrctx
 
 		if ((cgi->over & CGI_OVER_READ_FROM_CLIENT) && cgi->peer_pending_writes <= 0)
 		{
-			cgi_mark_over (cgi, CGI_OVER_WRITE_TO_PEER);
+			cgi_mark_over(cgi, CGI_OVER_WRITE_TO_PEER);
 		}
 	}
 
@@ -450,7 +450,7 @@ static int peer_htrd_poke (hio_htrd_t* htrd, hio_htre_t* req)
 	int n;
 
 	n = hio_svc_htts_task_endbody((hio_svc_htts_task_t*)cgi);
-	cgi_mark_over (cgi, CGI_OVER_READ_FROM_PEER);
+	cgi_mark_over(cgi, CGI_OVER_READ_FROM_PEER);
 	return n;
 }
 
@@ -495,7 +495,7 @@ static int cgi_client_htrd_poke (hio_htrd_t* htrd, hio_htre_t* req)
 	/* indicate EOF to the client peer */
 	if (cgi_write_to_peer(cgi, HIO_NULL, 0) <= -1) return -1;
 
-	cgi_mark_over (cgi, CGI_OVER_READ_FROM_CLIENT);
+	cgi_mark_over(cgi, CGI_OVER_READ_FROM_CLIENT);
 	return 0;
 }
 
@@ -589,7 +589,7 @@ static int cgi_client_on_read (hio_dev_sck_t* sck, const void* buf, hio_iolen_t 
 		{
 			int x;
 			x = cgi_write_to_peer(cgi, HIO_NULL, 0);
-			cgi_mark_over (cgi, CGI_OVER_READ_FROM_CLIENT);
+			cgi_mark_over(cgi, CGI_OVER_READ_FROM_CLIENT);
 			if (x <= -1) goto oops;
 		}
 	}
@@ -618,7 +618,7 @@ static int cgi_client_on_write (hio_dev_sck_t* sck, hio_iolen_t wrlen, void* wrc
 		/* since EOF has been indicated to the client, it must not write to the client any further.
 		 * this also means that i don't need any data from the peer side either.
 		 * i don't need to enable input watching on the peer side */
-		cgi_mark_over (cgi, CGI_OVER_WRITE_TO_CLIENT);
+		cgi_mark_over(cgi, CGI_OVER_WRITE_TO_CLIENT);
 	}
 	else if (wrlen > 0)
 	{
@@ -631,7 +631,7 @@ static int cgi_client_on_write (hio_dev_sck_t* sck, hio_iolen_t wrlen, void* wrc
 
 		if ((cgi->over & CGI_OVER_READ_FROM_PEER) && cgi->task_res_pending_writes <= 0)
 		{
-			cgi_mark_over (cgi, CGI_OVER_WRITE_TO_CLIENT);
+			cgi_mark_over(cgi, CGI_OVER_WRITE_TO_CLIENT);
 		}
 	}
 
@@ -922,7 +922,7 @@ static int setup_for_content_length(cgi_t* cgi, hio_htre_t* req)
 		/* no content to be uploaded from the client */
 		/* indicate EOF to the peer and disable input wathching from the client */
 		if (cgi_write_to_peer(cgi, HIO_NULL, 0) <= -1) return -1;
-		cgi_mark_over (cgi, CGI_OVER_READ_FROM_CLIENT | CGI_OVER_WRITE_TO_PEER);
+		cgi_mark_over(cgi, CGI_OVER_READ_FROM_CLIENT | CGI_OVER_WRITE_TO_PEER);
 	}
 
 	return 0;

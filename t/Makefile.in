@@ -109,7 +109,7 @@ CONFIG_CLEAN_VPATH_FILES =
 am__EXEEXT_1 = t-001$(EXEEXT) t-002$(EXEEXT) t-003$(EXEEXT) \
 	t-004$(EXEEXT) t-005$(EXEEXT) t-006$(EXEEXT) t-007$(EXEEXT) \
 	t-008$(EXEEXT)
-am__EXEEXT_2 = fcgis$(EXEEXT) httssvr$(EXEEXT)
+am__EXEEXT_2 = fcgis$(EXEEXT) httpecho$(EXEEXT) httssvr$(EXEEXT)
 am_fcgis_OBJECTS = fcgis-fcgis.$(OBJEXT)
 fcgis_OBJECTS = $(am_fcgis_OBJECTS)
 am__DEPENDENCIES_1 =
@@ -122,6 +122,12 @@ am__v_lt_1 =
 fcgis_LINK = $(LIBTOOL) $(AM_V_lt) --tag=CC $(AM_LIBTOOLFLAGS) \
 	$(LIBTOOLFLAGS) --mode=link $(CCLD) $(fcgis_CFLAGS) $(CFLAGS) \
 	$(fcgis_LDFLAGS) $(LDFLAGS) -o $@
+am_httpecho_OBJECTS = httpecho-httpecho.$(OBJEXT)
+httpecho_OBJECTS = $(am_httpecho_OBJECTS)
+httpecho_DEPENDENCIES = $(am__DEPENDENCIES_2)
+httpecho_LINK = $(LIBTOOL) $(AM_V_lt) --tag=CC $(AM_LIBTOOLFLAGS) \
+	$(LIBTOOLFLAGS) --mode=link $(CCLD) $(httpecho_CFLAGS) \
+	$(CFLAGS) $(httpecho_LDFLAGS) $(LDFLAGS) -o $@
 am_httssvr_OBJECTS = httssvr-httssvr.$(OBJEXT)
 httssvr_OBJECTS = $(am_httssvr_OBJECTS)
 httssvr_DEPENDENCIES = $(am__DEPENDENCIES_2)
@@ -192,6 +198,7 @@ DEFAULT_INCLUDES =
 depcomp = $(SHELL) $(top_srcdir)/ac/depcomp
 am__maybe_remake_depfiles = depfiles
 am__depfiles_remade = ./$(DEPDIR)/fcgis-fcgis.Po \
+	./$(DEPDIR)/httpecho-httpecho.Po \
 	./$(DEPDIR)/httssvr-httssvr.Po ./$(DEPDIR)/t_001-t-001.Po \
 	./$(DEPDIR)/t_002-t-002.Po ./$(DEPDIR)/t_003-t-003.Po \
 	./$(DEPDIR)/t_004-t-004.Po ./$(DEPDIR)/t_005-t-005.Po \
@@ -216,14 +223,14 @@ AM_V_CCLD = $(am__v_CCLD_@AM_V@)
 am__v_CCLD_ = $(am__v_CCLD_@AM_DEFAULT_V@)
 am__v_CCLD_0 = @echo "  CCLD    " $@;
 am__v_CCLD_1 = 
-SOURCES = $(fcgis_SOURCES) $(httssvr_SOURCES) $(t_001_SOURCES) \
-	$(t_002_SOURCES) $(t_003_SOURCES) $(t_004_SOURCES) \
-	$(t_005_SOURCES) $(t_006_SOURCES) $(t_007_SOURCES) \
-	$(t_008_SOURCES)
-DIST_SOURCES = $(fcgis_SOURCES) $(httssvr_SOURCES) $(t_001_SOURCES) \
-	$(t_002_SOURCES) $(t_003_SOURCES) $(t_004_SOURCES) \
-	$(t_005_SOURCES) $(t_006_SOURCES) $(t_007_SOURCES) \
-	$(t_008_SOURCES)
+SOURCES = $(fcgis_SOURCES) $(httpecho_SOURCES) $(httssvr_SOURCES) \
+	$(t_001_SOURCES) $(t_002_SOURCES) $(t_003_SOURCES) \
+	$(t_004_SOURCES) $(t_005_SOURCES) $(t_006_SOURCES) \
+	$(t_007_SOURCES) $(t_008_SOURCES)
+DIST_SOURCES = $(fcgis_SOURCES) $(httpecho_SOURCES) $(httssvr_SOURCES) \
+	$(t_001_SOURCES) $(t_002_SOURCES) $(t_003_SOURCES) \
+	$(t_004_SOURCES) $(t_005_SOURCES) $(t_006_SOURCES) \
+	$(t_007_SOURCES) $(t_008_SOURCES)
 am__can_run_installinfo = \
   case $$AM_UPDATE_INFO_DIR in \
     n|no|NO) false;; \
@@ -614,7 +621,7 @@ LIBADD_COMMON = ../lib/libhio.la $(LIBM)
 check_SCRIPTS = s-001.sh s-002.sh
 EXTRA_DIST = $(check_SCRIPTS) tap.inc t-cgi.sh
 TESTPROGS = t-001 t-002 t-003 t-004 t-005 t-006 t-007 t-008
-HELPERPROGS = fcgis httssvr
+HELPERPROGS = fcgis httpecho httssvr
 t_001_SOURCES = t-001.c tap.h
 t_001_CPPFLAGS = $(CPPFLAGS_COMMON)
 t_001_CFLAGS = $(CFLAGS_COMMON)
@@ -660,6 +667,11 @@ fcgis_CPPFLAGS = $(CPPFLAGS_COMMON)
 fcgis_CFLAGS = $(CFLAGS_COMMON)
 fcgis_LDFLAGS = $(LDFLAGS_COMMON)
 fcgis_LDADD = $(LIBADD_COMMON)
+httpecho_SOURCES = httpecho.c
+httpecho_CPPFLAGS = $(CPPFLAGS_COMMON)
+httpecho_CFLAGS = $(CFLAGS_COMMON)
+httpecho_LDFLAGS = $(LDFLAGS_COMMON)
+httpecho_LDADD = $(LIBADD_COMMON)
 httssvr_SOURCES = httssvr.c
 httssvr_CPPFLAGS = $(CPPFLAGS_COMMON)
 httssvr_CFLAGS = $(CFLAGS_COMMON)
@@ -711,6 +723,10 @@ fcgis$(EXEEXT): $(fcgis_OBJECTS) $(fcgis_DEPENDENCIES) $(EXTRA_fcgis_DEPENDENCIE
 	@rm -f fcgis$(EXEEXT)
 	$(AM_V_CCLD)$(fcgis_LINK) $(fcgis_OBJECTS) $(fcgis_LDADD) $(LIBS)
 
+httpecho$(EXEEXT): $(httpecho_OBJECTS) $(httpecho_DEPENDENCIES) $(EXTRA_httpecho_DEPENDENCIES) 
+	@rm -f httpecho$(EXEEXT)
+	$(AM_V_CCLD)$(httpecho_LINK) $(httpecho_OBJECTS) $(httpecho_LDADD) $(LIBS)
+
 httssvr$(EXEEXT): $(httssvr_OBJECTS) $(httssvr_DEPENDENCIES) $(EXTRA_httssvr_DEPENDENCIES) 
 	@rm -f httssvr$(EXEEXT)
 	$(AM_V_CCLD)$(httssvr_LINK) $(httssvr_OBJECTS) $(httssvr_LDADD) $(LIBS)
@@ -754,6 +770,7 @@ distclean-compile:
 	-rm -f *.tab.c
 
 @AMDEP_TRUE@@am__include@ @am__quote@./$(DEPDIR)/fcgis-fcgis.Po@am__quote@ # am--include-marker
+@AMDEP_TRUE@@am__include@ @am__quote@./$(DEPDIR)/httpecho-httpecho.Po@am__quote@ # am--include-marker
 @AMDEP_TRUE@@am__include@ @am__quote@./$(DEPDIR)/httssvr-httssvr.Po@am__quote@ # am--include-marker
 @AMDEP_TRUE@@am__include@ @am__quote@./$(DEPDIR)/t_001-t-001.Po@am__quote@ # am--include-marker
 @AMDEP_TRUE@@am__include@ @am__quote@./$(DEPDIR)/t_002-t-002.Po@am__quote@ # am--include-marker
@@ -807,6 +824,20 @@ fcgis-fcgis.obj: fcgis.c
 @AMDEP_TRUE@@am__fastdepCC_FALSE@	$(AM_V_CC)source='fcgis.c' object='fcgis-fcgis.obj' libtool=no @AMDEPBACKSLASH@
 @AMDEP_TRUE@@am__fastdepCC_FALSE@	DEPDIR=$(DEPDIR) $(CCDEPMODE) $(depcomp) @AMDEPBACKSLASH@
 @am__fastdepCC_FALSE@	$(AM_V_CC@am__nodep@)$(CC) $(DEFS) $(DEFAULT_INCLUDES) $(INCLUDES) $(fcgis_CPPFLAGS) $(CPPFLAGS) $(fcgis_CFLAGS) $(CFLAGS) -c -o fcgis-fcgis.obj `if test -f 'fcgis.c'; then $(CYGPATH_W) 'fcgis.c'; else $(CYGPATH_W) '$(srcdir)/fcgis.c'; fi`
+
+httpecho-httpecho.o: httpecho.c
+@am__fastdepCC_TRUE@	$(AM_V_CC)$(CC) $(DEFS) $(DEFAULT_INCLUDES) $(INCLUDES) $(httpecho_CPPFLAGS) $(CPPFLAGS) $(httpecho_CFLAGS) $(CFLAGS) -MT httpecho-httpecho.o -MD -MP -MF $(DEPDIR)/httpecho-httpecho.Tpo -c -o httpecho-httpecho.o `test -f 'httpecho.c' || echo '$(srcdir)/'`httpecho.c
+@am__fastdepCC_TRUE@	$(AM_V_at)$(am__mv) $(DEPDIR)/httpecho-httpecho.Tpo $(DEPDIR)/httpecho-httpecho.Po
+@AMDEP_TRUE@@am__fastdepCC_FALSE@	$(AM_V_CC)source='httpecho.c' object='httpecho-httpecho.o' libtool=no @AMDEPBACKSLASH@
+@AMDEP_TRUE@@am__fastdepCC_FALSE@	DEPDIR=$(DEPDIR) $(CCDEPMODE) $(depcomp) @AMDEPBACKSLASH@
+@am__fastdepCC_FALSE@	$(AM_V_CC@am__nodep@)$(CC) $(DEFS) $(DEFAULT_INCLUDES) $(INCLUDES) $(httpecho_CPPFLAGS) $(CPPFLAGS) $(httpecho_CFLAGS) $(CFLAGS) -c -o httpecho-httpecho.o `test -f 'httpecho.c' || echo '$(srcdir)/'`httpecho.c
+
+httpecho-httpecho.obj: httpecho.c
+@am__fastdepCC_TRUE@	$(AM_V_CC)$(CC) $(DEFS) $(DEFAULT_INCLUDES) $(INCLUDES) $(httpecho_CPPFLAGS) $(CPPFLAGS) $(httpecho_CFLAGS) $(CFLAGS) -MT httpecho-httpecho.obj -MD -MP -MF $(DEPDIR)/httpecho-httpecho.Tpo -c -o httpecho-httpecho.obj `if test -f 'httpecho.c'; then $(CYGPATH_W) 'httpecho.c'; else $(CYGPATH_W) '$(srcdir)/httpecho.c'; fi`
+@am__fastdepCC_TRUE@	$(AM_V_at)$(am__mv) $(DEPDIR)/httpecho-httpecho.Tpo $(DEPDIR)/httpecho-httpecho.Po
+@AMDEP_TRUE@@am__fastdepCC_FALSE@	$(AM_V_CC)source='httpecho.c' object='httpecho-httpecho.obj' libtool=no @AMDEPBACKSLASH@
+@AMDEP_TRUE@@am__fastdepCC_FALSE@	DEPDIR=$(DEPDIR) $(CCDEPMODE) $(depcomp) @AMDEPBACKSLASH@
+@am__fastdepCC_FALSE@	$(AM_V_CC@am__nodep@)$(CC) $(DEFS) $(DEFAULT_INCLUDES) $(INCLUDES) $(httpecho_CPPFLAGS) $(CPPFLAGS) $(httpecho_CFLAGS) $(CFLAGS) -c -o httpecho-httpecho.obj `if test -f 'httpecho.c'; then $(CYGPATH_W) 'httpecho.c'; else $(CYGPATH_W) '$(srcdir)/httpecho.c'; fi`
 
 httssvr-httssvr.o: httssvr.c
 @am__fastdepCC_TRUE@	$(AM_V_CC)$(CC) $(DEFS) $(DEFAULT_INCLUDES) $(INCLUDES) $(httssvr_CPPFLAGS) $(CPPFLAGS) $(httssvr_CFLAGS) $(CFLAGS) -MT httssvr-httssvr.o -MD -MP -MF $(DEPDIR)/httssvr-httssvr.Tpo -c -o httssvr-httssvr.o `test -f 'httssvr.c' || echo '$(srcdir)/'`httssvr.c
@@ -1308,6 +1339,7 @@ clean-am: clean-checkPROGRAMS clean-generic clean-libtool \
 
 distclean: distclean-am
 	-rm -f ./$(DEPDIR)/fcgis-fcgis.Po
+	-rm -f ./$(DEPDIR)/httpecho-httpecho.Po
 	-rm -f ./$(DEPDIR)/httssvr-httssvr.Po
 	-rm -f ./$(DEPDIR)/t_001-t-001.Po
 	-rm -f ./$(DEPDIR)/t_002-t-002.Po
@@ -1363,6 +1395,7 @@ installcheck-am:
 
 maintainer-clean: maintainer-clean-am
 	-rm -f ./$(DEPDIR)/fcgis-fcgis.Po
+	-rm -f ./$(DEPDIR)/httpecho-httpecho.Po
 	-rm -f ./$(DEPDIR)/httssvr-httssvr.Po
 	-rm -f ./$(DEPDIR)/t_001-t-001.Po
 	-rm -f ./$(DEPDIR)/t_002-t-002.Po

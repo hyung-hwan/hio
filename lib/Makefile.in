@@ -151,7 +151,7 @@ libhio_la_DEPENDENCIES = $(am__DEPENDENCIES_2) $(am__DEPENDENCIES_1) \
 am__libhio_la_SOURCES_DIST = chr.c dhcp-svr.c dhcp-msg.c dns.c \
 	dns-cli.c ecs.c ecs-imp.h err.c fcgi-cli.c fmt.c fmt-imp.h \
 	htb.c htrd.c htre.c http.c http-cgi.c http-fcgi.c http-file.c \
-	http-prv.h http-prxy.c http-svr.c http-thr.c http-txt.c json.c \
+	http-prv.h http-pxy.c http-svr.c http-thr.c http-txt.c json.c \
 	hio-prv.h hio.c md5.c nwif.c opt.c opt-imp.h path.c pipe.c \
 	pro.c pty.c rad-msg.c rco.c sck.c shw.c skad.c sys.c sys-ass.c \
 	sys-err.c sys-log.c sys-mux.c sys-prv.h sys-tim.c thr.c \
@@ -165,7 +165,7 @@ am_libhio_la_OBJECTS = libhio_la-chr.lo libhio_la-dhcp-svr.lo \
 	libhio_la-fmt.lo libhio_la-htb.lo libhio_la-htrd.lo \
 	libhio_la-htre.lo libhio_la-http.lo libhio_la-http-cgi.lo \
 	libhio_la-http-fcgi.lo libhio_la-http-file.lo \
-	libhio_la-http-prxy.lo libhio_la-http-svr.lo \
+	libhio_la-http-pxy.lo libhio_la-http-svr.lo \
 	libhio_la-http-thr.lo libhio_la-http-txt.lo libhio_la-json.lo \
 	libhio_la-hio.lo libhio_la-md5.lo libhio_la-nwif.lo \
 	libhio_la-opt.lo libhio_la-path.lo libhio_la-pipe.lo \
@@ -213,7 +213,7 @@ am__depfiles_remade = ./$(DEPDIR)/libhio_la-chr.Plo \
 	./$(DEPDIR)/libhio_la-http-cgi.Plo \
 	./$(DEPDIR)/libhio_la-http-fcgi.Plo \
 	./$(DEPDIR)/libhio_la-http-file.Plo \
-	./$(DEPDIR)/libhio_la-http-prxy.Plo \
+	./$(DEPDIR)/libhio_la-http-pxy.Plo \
 	./$(DEPDIR)/libhio_la-http-svr.Plo \
 	./$(DEPDIR)/libhio_la-http-thr.Plo \
 	./$(DEPDIR)/libhio_la-http-txt.Plo \
@@ -482,7 +482,7 @@ lib_LTLIBRARIES = libhio.la
 libhio_la_SOURCES = chr.c dhcp-svr.c dhcp-msg.c dns.c dns-cli.c ecs.c \
 	ecs-imp.h err.c fcgi-cli.c fmt.c fmt-imp.h htb.c htrd.c htre.c \
 	http.c http-cgi.c http-fcgi.c http-file.c http-prv.h \
-	http-prxy.c http-svr.c http-thr.c http-txt.c json.c hio-prv.h \
+	http-pxy.c http-svr.c http-thr.c http-txt.c json.c hio-prv.h \
 	hio.c md5.c nwif.c opt.c opt-imp.h path.c pipe.c pro.c pty.c \
 	rad-msg.c rco.c sck.c shw.c skad.c sys.c sys-ass.c sys-err.c \
 	sys-log.c sys-mux.c sys-prv.h sys-tim.c thr.c uch-case.h \
@@ -601,7 +601,7 @@ distclean-compile:
 @AMDEP_TRUE@@am__include@ @am__quote@./$(DEPDIR)/libhio_la-http-cgi.Plo@am__quote@ # am--include-marker
 @AMDEP_TRUE@@am__include@ @am__quote@./$(DEPDIR)/libhio_la-http-fcgi.Plo@am__quote@ # am--include-marker
 @AMDEP_TRUE@@am__include@ @am__quote@./$(DEPDIR)/libhio_la-http-file.Plo@am__quote@ # am--include-marker
-@AMDEP_TRUE@@am__include@ @am__quote@./$(DEPDIR)/libhio_la-http-prxy.Plo@am__quote@ # am--include-marker
+@AMDEP_TRUE@@am__include@ @am__quote@./$(DEPDIR)/libhio_la-http-pxy.Plo@am__quote@ # am--include-marker
 @AMDEP_TRUE@@am__include@ @am__quote@./$(DEPDIR)/libhio_la-http-svr.Plo@am__quote@ # am--include-marker
 @AMDEP_TRUE@@am__include@ @am__quote@./$(DEPDIR)/libhio_la-http-thr.Plo@am__quote@ # am--include-marker
 @AMDEP_TRUE@@am__include@ @am__quote@./$(DEPDIR)/libhio_la-http-txt.Plo@am__quote@ # am--include-marker
@@ -778,12 +778,12 @@ libhio_la-http-file.lo: http-file.c
 @AMDEP_TRUE@@am__fastdepCC_FALSE@	DEPDIR=$(DEPDIR) $(CCDEPMODE) $(depcomp) @AMDEPBACKSLASH@
 @am__fastdepCC_FALSE@	$(AM_V_CC@am__nodep@)$(LIBTOOL) $(AM_V_lt) --tag=CC $(AM_LIBTOOLFLAGS) $(LIBTOOLFLAGS) --mode=compile $(CC) $(DEFS) $(DEFAULT_INCLUDES) $(INCLUDES) $(libhio_la_CPPFLAGS) $(CPPFLAGS) $(libhio_la_CFLAGS) $(CFLAGS) -c -o libhio_la-http-file.lo `test -f 'http-file.c' || echo '$(srcdir)/'`http-file.c
 
-libhio_la-http-prxy.lo: http-prxy.c
-@am__fastdepCC_TRUE@	$(AM_V_CC)$(LIBTOOL) $(AM_V_lt) --tag=CC $(AM_LIBTOOLFLAGS) $(LIBTOOLFLAGS) --mode=compile $(CC) $(DEFS) $(DEFAULT_INCLUDES) $(INCLUDES) $(libhio_la_CPPFLAGS) $(CPPFLAGS) $(libhio_la_CFLAGS) $(CFLAGS) -MT libhio_la-http-prxy.lo -MD -MP -MF $(DEPDIR)/libhio_la-http-prxy.Tpo -c -o libhio_la-http-prxy.lo `test -f 'http-prxy.c' || echo '$(srcdir)/'`http-prxy.c
-@am__fastdepCC_TRUE@	$(AM_V_at)$(am__mv) $(DEPDIR)/libhio_la-http-prxy.Tpo $(DEPDIR)/libhio_la-http-prxy.Plo
-@AMDEP_TRUE@@am__fastdepCC_FALSE@	$(AM_V_CC)source='http-prxy.c' object='libhio_la-http-prxy.lo' libtool=yes @AMDEPBACKSLASH@
+libhio_la-http-pxy.lo: http-pxy.c
+@am__fastdepCC_TRUE@	$(AM_V_CC)$(LIBTOOL) $(AM_V_lt) --tag=CC $(AM_LIBTOOLFLAGS) $(LIBTOOLFLAGS) --mode=compile $(CC) $(DEFS) $(DEFAULT_INCLUDES) $(INCLUDES) $(libhio_la_CPPFLAGS) $(CPPFLAGS) $(libhio_la_CFLAGS) $(CFLAGS) -MT libhio_la-http-pxy.lo -MD -MP -MF $(DEPDIR)/libhio_la-http-pxy.Tpo -c -o libhio_la-http-pxy.lo `test -f 'http-pxy.c' || echo '$(srcdir)/'`http-pxy.c
+@am__fastdepCC_TRUE@	$(AM_V_at)$(am__mv) $(DEPDIR)/libhio_la-http-pxy.Tpo $(DEPDIR)/libhio_la-http-pxy.Plo
+@AMDEP_TRUE@@am__fastdepCC_FALSE@	$(AM_V_CC)source='http-pxy.c' object='libhio_la-http-pxy.lo' libtool=yes @AMDEPBACKSLASH@
 @AMDEP_TRUE@@am__fastdepCC_FALSE@	DEPDIR=$(DEPDIR) $(CCDEPMODE) $(depcomp) @AMDEPBACKSLASH@
-@am__fastdepCC_FALSE@	$(AM_V_CC@am__nodep@)$(LIBTOOL) $(AM_V_lt) --tag=CC $(AM_LIBTOOLFLAGS) $(LIBTOOLFLAGS) --mode=compile $(CC) $(DEFS) $(DEFAULT_INCLUDES) $(INCLUDES) $(libhio_la_CPPFLAGS) $(CPPFLAGS) $(libhio_la_CFLAGS) $(CFLAGS) -c -o libhio_la-http-prxy.lo `test -f 'http-prxy.c' || echo '$(srcdir)/'`http-prxy.c
+@am__fastdepCC_FALSE@	$(AM_V_CC@am__nodep@)$(LIBTOOL) $(AM_V_lt) --tag=CC $(AM_LIBTOOLFLAGS) $(LIBTOOLFLAGS) --mode=compile $(CC) $(DEFS) $(DEFAULT_INCLUDES) $(INCLUDES) $(libhio_la_CPPFLAGS) $(CPPFLAGS) $(libhio_la_CFLAGS) $(CFLAGS) -c -o libhio_la-http-pxy.lo `test -f 'http-pxy.c' || echo '$(srcdir)/'`http-pxy.c
 
 libhio_la-http-svr.lo: http-svr.c
 @am__fastdepCC_TRUE@	$(AM_V_CC)$(LIBTOOL) $(AM_V_lt) --tag=CC $(AM_LIBTOOLFLAGS) $(LIBTOOLFLAGS) --mode=compile $(CC) $(DEFS) $(DEFAULT_INCLUDES) $(INCLUDES) $(libhio_la_CPPFLAGS) $(CPPFLAGS) $(libhio_la_CFLAGS) $(CFLAGS) -MT libhio_la-http-svr.lo -MD -MP -MF $(DEPDIR)/libhio_la-http-svr.Tpo -c -o libhio_la-http-svr.lo `test -f 'http-svr.c' || echo '$(srcdir)/'`http-svr.c
@@ -1191,7 +1191,7 @@ distclean: distclean-am
 	-rm -f ./$(DEPDIR)/libhio_la-http-cgi.Plo
 	-rm -f ./$(DEPDIR)/libhio_la-http-fcgi.Plo
 	-rm -f ./$(DEPDIR)/libhio_la-http-file.Plo
-	-rm -f ./$(DEPDIR)/libhio_la-http-prxy.Plo
+	-rm -f ./$(DEPDIR)/libhio_la-http-pxy.Plo
 	-rm -f ./$(DEPDIR)/libhio_la-http-svr.Plo
 	-rm -f ./$(DEPDIR)/libhio_la-http-thr.Plo
 	-rm -f ./$(DEPDIR)/libhio_la-http-txt.Plo
@@ -1287,7 +1287,7 @@ maintainer-clean: maintainer-clean-am
 	-rm -f ./$(DEPDIR)/libhio_la-http-cgi.Plo
 	-rm -f ./$(DEPDIR)/libhio_la-http-fcgi.Plo
 	-rm -f ./$(DEPDIR)/libhio_la-http-file.Plo
-	-rm -f ./$(DEPDIR)/libhio_la-http-prxy.Plo
+	-rm -f ./$(DEPDIR)/libhio_la-http-pxy.Plo
 	-rm -f ./$(DEPDIR)/libhio_la-http-svr.Plo
 	-rm -f ./$(DEPDIR)/libhio_la-http-thr.Plo
 	-rm -f ./$(DEPDIR)/libhio_la-http-txt.Plo
