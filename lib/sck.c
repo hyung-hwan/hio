@@ -61,6 +61,36 @@
 #	include <sys/sendfile.h>
 #endif
 
+/* sendfile() is not one function. the three live flavours disagree on the
+ * operand order, on how the offset is passed, and on where the transferred
+ * byte count comes back:
+ *
+ *   linux, solaris      ssize_t sendfile(int out, int in, off_t* off, size_t n);
+ *                       socket first, offset by pointer and updated in place,
+ *                       count is the return value.
+ *
+ *   freebsd, dragonfly  int sendfile(int in, int out, off_t off, size_t n,
+ *                                    struct sf_hdtr* hdtr, off_t* sbytes, int flags);
+ *                       file first, offset by value, count through sbytes,
+ *                       return value is only 0 or -1.
+ *
+ *   darwin              int sendfile(int in, int out, off_t off, off_t* len,
+ *                                    struct sf_hdtr* hdtr, int flags);
+ *                       file first, len is in-out.
+ *
+ * the choice is made from the platform rather than from configure because
+ * AC_CHECK_FUNCS only answers whether the symbol exists, not which of these
+ * it is. this mirrors what libuv and nginx do for the same call. */
+#if defined(HAVE_SENDFILE)
+#	if defined(__FreeBSD__) || defined(__DragonFly__)
+#		define USE_SENDFILE_BSD
+#	elif defined(__APPLE__) && defined(__MACH__)
+#		define USE_SENDFILE_DARWIN
+#	else
+#		define USE_SENDFILE_LINUX
+#	endif
+#endif
+
 #if defined(HAVE_SYS_IOCTL_H)
 #	include <sys/ioctl.h>
 #endif
@@ -1179,7 +1209,9 @@ static int dev_sck_sendfile_stream (hio_dev_t* dev, hio_syshnd_t in_fd, hio_foff
 	else
 	{
 #endif
+#if defined(USE_SENDFILE_LINUX)
 		ssize_t x;
+#endif
 
 		if (*len <= 0)
 		{
@@ -1197,8 +1229,10 @@ static int dev_sck_sendfile_stream (hio_dev_t* dev, hio_syshnd_t in_fd, hio_foff
 			return 1;
 		}
 
-#if defined(HAVE_SENDFILE)
-/* TODO: cater for other systems */
+#if defined(USE_SENDFILE_LINUX)
+		/* the offset is passed by pointer and updated in place, but the caller
+		 * keeps its own cursor in the write queue entry, so the update is of no
+		 * use here and foff is a local copy on purpose. */
 		x = sendfile(rdev->hnd, in_fd, &foff, *len);
 		if (x <= -1)
 		{
@@ -1209,6 +1243,57 @@ static int dev_sck_sendfile_stream (hio_dev_t* dev, hio_syshnd_t in_fd, hio_foff
 		}
 		*len = x;
 		if (x == 0) return 0; /* treat it like EWOULDBLOCK? */
+
+#elif defined(USE_SENDFILE_BSD)
+		{
+			off_t sbytes = 0;
+			int rc;
+
+			/* note the reversed operands - the file is the first argument here
+			 * and the socket the second. */
+			rc = sendfile(in_fd, rdev->hnd, (off_t)foff, (size_t)*len, HIO_NULL, &sbytes, 0);
+			if (rc <= -1)
+			{
+				if (errno == EINPROGRESS || errno == EWOULDBLOCK || errno == EAGAIN || errno == EINTR)
+				{
+					/* a partial transfer is reported as a failure with sbytes
+					 * set. saying 'nothing written' here would make the caller
+					 * resend bytes that already went out. */
+					if (sbytes > 0) goto bsd_sent;
+					return 0;
+				}
+				hio_seterrwithsyserr(hio, 0, errno);
+				return -1;
+			}
+
+		bsd_sent:
+			*len = (hio_iolen_t)sbytes;
+			if (sbytes <= 0) return 0; /* treat it like EWOULDBLOCK */
+		}
+
+#elif defined(USE_SENDFILE_DARWIN)
+		{
+			off_t nsent = (off_t)*len;
+			int rc;
+
+			/* nsent is in-out and is set even when the call reports failure. */
+			rc = sendfile(in_fd, rdev->hnd, (off_t)foff, &nsent, HIO_NULL, 0);
+			if (rc <= -1)
+			{
+				if (errno == EINPROGRESS || errno == EWOULDBLOCK || errno == EAGAIN || errno == EINTR)
+				{
+					if (nsent > 0) goto darwin_sent;
+					return 0;
+				}
+				hio_seterrwithsyserr(hio, 0, errno);
+				return -1;
+			}
+
+		darwin_sent:
+			*len = (hio_iolen_t)nsent;
+			if (nsent <= 0) return 0; /* treat it like EWOULDBLOCK */
+		}
+
 #else
 		hio_seterrnum(hio, HIO_ENOIMPL);
 		return -1;
