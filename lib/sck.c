@@ -2225,16 +2225,24 @@ static int dev_evcb_sck_ready_stream (hio_dev_t* dev, int events)
 				hio_seterrnum(hio, HIO_EDEVHUP);
 				return -1;
 			}
-			else if (events & (HIO_DEV_EVENT_PRI | HIO_DEV_EVENT_IN))
-			{
-				/* invalid event masks. generic device error */
-				hio_seterrbfmt(hio, HIO_EDEVERR, "device error - invalid event mask");
-				return -1;
-			}
 			else if (events & HIO_DEV_EVENT_OUT)
 			{
-				/* when connected, the socket becomes writable */
+				/* when connected, the socket becomes writable.
+				 *
+				 * [NOTE] this must be tested before the input bits below. the
+				 * peer may accept, receive whatever was queued while this end
+				 * was still connecting, and answer, all before this loop gets
+				 * back to the multiplexer - in which case one wakeup carries
+				 * both readiness bits. reading the input bits first would
+				 * declare a perfectly good connection an error. the ssl
+				 * variants below already accept IN and OUT together. */
 				return harvest_outgoing_connection(rdev);
+			}
+			else if (events & (HIO_DEV_EVENT_PRI | HIO_DEV_EVENT_IN))
+			{
+				/* readable while still connecting and not writable. */
+				hio_seterrbfmt(hio, HIO_EDEVERR, "device error - invalid event mask");
+				return -1;
 			}
 			else
 			{
