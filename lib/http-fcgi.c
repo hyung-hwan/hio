@@ -6,8 +6,16 @@
 
 #define FCGI_ALLOW_UNLIMITED_REQ_CONTENT_LENGTH
 
-#define FCGI_PENDING_IO_THRESHOLD_TO_CLIENT 50
-#define FCGI_PENDING_IO_THRESHOLD_TO_PEER 50
+/* backpressure is applied on queued bytes, not on a count of outstanding
+ * write requests - see the note in http-cgi.c. unlike cgi and thr, this module
+ * kept no usable count: peer_pending_writes was incremented on every write and
+ * decremented only when one failed, so it only ever grew, and nothing read it
+ * but the threshold that was disabled. it is gone rather than repaired.
+ *
+ * the toward-the-peer figure is a property of the shared responder connection
+ * rather than of this request, so it is set higher than the per-client one. */
+#define FCGI_PENDING_BYTES_TO_CLIENT (256 * 1024)
+#define FCGI_PENDING_BYTES_TO_PEER (1024 * 1024)
 
 #define FCGI_OVER_READ_FROM_CLIENT (1 << 0)
 #define FCGI_OVER_READ_FROM_PEER   (1 << 1)
@@ -21,11 +29,12 @@ struct fcgi_t
 
 	hio_svc_htts_task_on_kill_t on_kill; /* user-provided on_kill callback */
 
-	hio_oow_t peer_pending_writes;
 	hio_svc_fcgic_sess_t* peer;
 	hio_htrd_t* peer_htrd;
 
 	unsigned int over: 4; /* must be large enough to accomodate FCGI_OVER_ALL */
+	unsigned int client_read_suspended: 1; /* reading from the client is off - the responder connection's queue is deep */
+	unsigned int peer_read_suspended: 1;   /* reading from the responder is off - this client's queue is deep */
 
 };
 typedef struct fcgi_t fcgi_t;
@@ -48,20 +57,14 @@ static int fcgi_write_stdin_to_peer (fcgi_t* fcgi, const void* data, hio_iolen_t
 {
 	if (fcgi->peer)
 	{
-		fcgi->peer_pending_writes++;
-		if (hio_svc_fcgic_writestdin(fcgi->peer, data, dlen) <= -1) /* TODO: write STDIN, PARAM? */
-		{
-			fcgi->peer_pending_writes--;
-			return -1;
-		}
-#if 0
-	/* TODO: check if it's already finished or something.. */
-		if (fcgi->peer_pending_writes > FCGI_PENDING_IO_THRESHOLD_TO_PEER)
+		if (hio_svc_fcgic_writestdin(fcgi->peer, data, dlen) <= -1) return -1; /* TODO: write STDIN, PARAM? */
+		if (!fcgi->client_read_suspended &&
+		    hio_svc_fcgic_getwqsize(fcgi->peer) > FCGI_PENDING_BYTES_TO_PEER)
 		{
 			/* disable input watching */
-			if (hio_dev_sck_read(fcgi->task_csck, 0) <= -1) return -1;
+			if (fcgi->task_csck && hio_dev_sck_read(fcgi->task_csck, 0) <= -1) return -1;
+			fcgi->client_read_suspended = 1;
 		}
-#endif
 	}
 	return 0;
 }
@@ -209,6 +212,14 @@ static int fcgi_peer_on_write (hio_svc_fcgic_sess_t* peer, hio_fcgi_req_type_t r
 		/* completely wrote end of stdin to the cgi server */
 		fcgi_mark_over(fcgi, FCGI_OVER_WRITE_TO_PEER);
 	}
+	else if (fcgi->client_read_suspended && fcgi->peer &&
+	         hio_svc_fcgic_getwqsize(fcgi->peer) <= FCGI_PENDING_BYTES_TO_PEER)
+	{
+		fcgi->client_read_suspended = 0;
+		if (!(fcgi->over & FCGI_OVER_READ_FROM_CLIENT) && fcgi->task_csck &&
+		    hio_dev_sck_read(fcgi->task_csck, 1) <= -1) goto oops;
+	}
+
 	return 0;
 
 oops:
@@ -263,8 +274,23 @@ static int peer_htrd_push_content (hio_htrd_t* htrd, hio_htre_t* req, const hio_
 {
 	fcgi_peer_xtn_t* peer = hio_htrd_getxtn(htrd);
 	fcgi_t* fcgi = peer->fcgi;
+	int n;
+
 	HIO_ASSERT(fcgi->htts->hio, htrd == fcgi->peer_htrd);
-	return hio_svc_htts_task_addresbody((hio_svc_htts_task_t*)fcgi, data, dlen);
+
+	n = hio_svc_htts_task_addresbody((hio_svc_htts_task_t*)fcgi, data, dlen);
+
+	if (!fcgi->peer_read_suspended && fcgi->peer && fcgi->task_csck &&
+	    hio_dev_getwqsize((hio_dev_t*)fcgi->task_csck) > FCGI_PENDING_BYTES_TO_CLIENT)
+	{
+		/* stop the responder until this client catches up. note that the
+		 * responder connection is shared with any other session on the same
+		 * address, so this holds those up too - see hio_svc_fcgic_read(). */
+		if (hio_svc_fcgic_read(fcgi->peer, 0) <= -1) n = -1;
+		else fcgi->peer_read_suspended = 1;
+	}
+
+	return n;
 }
 
 static hio_htrd_recbs_t peer_htrd_recbs =
@@ -409,13 +435,15 @@ static int fcgi_client_on_write (hio_dev_sck_t* sck, hio_iolen_t wrlen, void* wr
 	}
 	else if (wrlen > 0)
 	{
-	#if 0
-		if (fcgi->peer && fcgi->task_res_pending_writes == FCGI_PENDING_IO_THRESHOLD_TO_CLIENT)
+		if (fcgi->peer && fcgi->peer_read_suspended &&
+		    hio_dev_getwqsize((hio_dev_t*)sck) <= FCGI_PENDING_BYTES_TO_CLIENT)
 		{
 			/* enable reading from fcgi */
-			if (!(fcgi->over & FCGI_OVER_READ_FROM_PEER) && hio_svc_fcgic_read(fcgi->peer, 1) <= -1) goto oops;
+			fcgi->peer_read_suspended = 0;
+			/* this function has no oops label - failure is reported through n,
+			 * which the tail below turns into a halt. */
+			if (!(fcgi->over & FCGI_OVER_READ_FROM_PEER) && hio_svc_fcgic_read(fcgi->peer, 1) <= -1) n = -1;
 		}
-	#endif
 
 		if ((fcgi->over & FCGI_OVER_READ_FROM_PEER) && fcgi->task_res_pending_writes <= 0)
 		{

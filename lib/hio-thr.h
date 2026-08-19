@@ -165,6 +165,16 @@ HIO_EXPORT int hio_dev_thr_timedwrite (
 	void*              wrctx
 );
 
+/**
+ * The hio_dev_thr_getwqsize() function returns the number of bytes queued for
+ * writing to the child but not yet handed to the operating system. Writes go
+ * to the input slave device rather than to this one, so asking this device
+ * for hio_dev_getwqsize() directly would always answer 0.
+ */
+HIO_EXPORT hio_oow_t hio_dev_thr_getwqsize (
+	hio_dev_thr_t*    dev
+);
+
 HIO_EXPORT int hio_dev_thr_close (
 	hio_dev_thr_t*     thr,
 	hio_dev_thr_sid_t  sid

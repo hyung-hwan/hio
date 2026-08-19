@@ -60,6 +60,10 @@ struct hio_svc_fcgic_conn_t
 		hio_svc_fcgic_sess_t* free;
 	} sess;
 
+	/* how many sessions are currently asking for the shared read to stop.
+	 * the socket is read again only when this falls back to zero. */
+	hio_oow_t nread_suspended;
+
 	struct
 	{
 		enum
@@ -473,6 +477,10 @@ static hio_svc_fcgic_sess_t* new_session (hio_svc_fcgic_t* fcgic, const hio_skad
 
 static void release_session (hio_svc_fcgic_sess_t* sess)
 {
+	/* a session going away must not leave its suspension behind, or the
+	 * connection stays unread for the lifetime of the service. */
+	if (sess->read_suspended) hio_svc_fcgic_read (sess, 1);
+
 	if (sess->on_untie) sess->on_untie(sess, sess->ctx);
 	sess->active = 0;
 	sess->next = sess->conn->sess.free;
@@ -648,6 +656,35 @@ int hio_svc_fcgic_writeparam (hio_svc_fcgic_sess_t* sess, const void* key, hio_i
 	HIO_ASSERT(sess->conn->hio, ((hio_oow_t)sess & 3) == 0);
 	wrctx = (void*)((hio_oow_t)sess | 1);  /* see the sck_on_write()  */
 	return hio_dev_sck_writev(sess->conn->dev, iov, (ksz > 0? 4: 1), wrctx, HIO_NULL);
+}
+
+hio_oow_t hio_svc_fcgic_getwqsize (hio_svc_fcgic_sess_t* sess)
+{
+	return (sess->conn && sess->conn->dev)? hio_dev_getwqsize((hio_dev_t*)sess->conn->dev): 0;
+}
+
+int hio_svc_fcgic_read (hio_svc_fcgic_sess_t* sess, int enabled)
+{
+	hio_svc_fcgic_conn_t* conn = sess->conn;
+
+	if (enabled)
+	{
+		if (!sess->read_suspended) return 0; /* nothing to release */
+		sess->read_suspended = 0;
+		HIO_ASSERT(conn->hio, conn->nread_suspended > 0);
+		conn->nread_suspended--;
+		if (conn->nread_suspended > 0) return 0; /* someone else still wants it stopped */
+	}
+	else
+	{
+		if (sess->read_suspended) return 0; /* already asked */
+		sess->read_suspended = 1;
+		conn->nread_suspended++;
+		if (conn->nread_suspended > 1) return 0; /* already stopped for someone else */
+	}
+
+	if (!conn->dev) return 0; /* not connected. the state is remembered for when it is */
+	return hio_dev_sck_read(conn->dev, enabled);
 }
 
 int hio_svc_fcgic_writestdin (hio_svc_fcgic_sess_t* sess, const void* data, hio_iolen_t size)

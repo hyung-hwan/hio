@@ -48,7 +48,8 @@ struct hio_svc_htts_cli_t
 	hio_becs_t* sbuf; /* temporary buffer for status line formatting */
 
 	hio_svc_htts_task_t* task;
-	hio_ntime_t last_active;
+	hio_ntime_t last_active; /* refreshed on every read - an idle measure */
+	hio_ntime_t req_started; /* start of the current request - a deadline, not refreshed by input */
 };
 
 struct hio_svc_htts_cli_htrd_xtn_t
@@ -84,6 +85,8 @@ struct hio_svc_htts_t
 	{
 		hio_oow_t task_max;
 		hio_oow_t task_cgi_max;
+		hio_ntime_t cli_idle_tmout;
+		hio_ntime_t cli_hdr_tmout;
 	} option;
 
 	struct

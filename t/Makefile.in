@@ -109,7 +109,8 @@ CONFIG_CLEAN_VPATH_FILES =
 am__EXEEXT_1 = t-001$(EXEEXT) t-002$(EXEEXT) t-003$(EXEEXT) \
 	t-004$(EXEEXT) t-005$(EXEEXT) t-006$(EXEEXT) t-007$(EXEEXT) \
 	t-008$(EXEEXT) t-009$(EXEEXT) t-010$(EXEEXT)
-am__EXEEXT_2 = fcgis$(EXEEXT) httpecho$(EXEEXT) httssvr$(EXEEXT)
+am__EXEEXT_2 = fcgis$(EXEEXT) httpecho$(EXEEXT) httssvr$(EXEEXT) \
+	slowclient$(EXEEXT)
 am_fcgis_OBJECTS = fcgis-fcgis.$(OBJEXT)
 fcgis_OBJECTS = $(am_fcgis_OBJECTS)
 am__DEPENDENCIES_1 =
@@ -134,6 +135,12 @@ httssvr_DEPENDENCIES = $(am__DEPENDENCIES_2)
 httssvr_LINK = $(LIBTOOL) $(AM_V_lt) --tag=CC $(AM_LIBTOOLFLAGS) \
 	$(LIBTOOLFLAGS) --mode=link $(CCLD) $(httssvr_CFLAGS) \
 	$(CFLAGS) $(httssvr_LDFLAGS) $(LDFLAGS) -o $@
+am_slowclient_OBJECTS = slowclient-slowclient.$(OBJEXT)
+slowclient_OBJECTS = $(am_slowclient_OBJECTS)
+slowclient_DEPENDENCIES = $(am__DEPENDENCIES_2)
+slowclient_LINK = $(LIBTOOL) $(AM_V_lt) --tag=CC $(AM_LIBTOOLFLAGS) \
+	$(LIBTOOLFLAGS) --mode=link $(CCLD) $(slowclient_CFLAGS) \
+	$(CFLAGS) $(slowclient_LDFLAGS) $(LDFLAGS) -o $@
 am_t_001_OBJECTS = t_001-t-001.$(OBJEXT)
 t_001_OBJECTS = $(am_t_001_OBJECTS)
 t_001_DEPENDENCIES = $(am__DEPENDENCIES_2)
@@ -211,12 +218,13 @@ depcomp = $(SHELL) $(top_srcdir)/ac/depcomp
 am__maybe_remake_depfiles = depfiles
 am__depfiles_remade = ./$(DEPDIR)/fcgis-fcgis.Po \
 	./$(DEPDIR)/httpecho-httpecho.Po \
-	./$(DEPDIR)/httssvr-httssvr.Po ./$(DEPDIR)/t_001-t-001.Po \
-	./$(DEPDIR)/t_002-t-002.Po ./$(DEPDIR)/t_003-t-003.Po \
-	./$(DEPDIR)/t_004-t-004.Po ./$(DEPDIR)/t_005-t-005.Po \
-	./$(DEPDIR)/t_006-t-006.Po ./$(DEPDIR)/t_007-t-007.Po \
-	./$(DEPDIR)/t_008-t-008.Po ./$(DEPDIR)/t_009-t-009.Po \
-	./$(DEPDIR)/t_010-t-010.Po
+	./$(DEPDIR)/httssvr-httssvr.Po \
+	./$(DEPDIR)/slowclient-slowclient.Po \
+	./$(DEPDIR)/t_001-t-001.Po ./$(DEPDIR)/t_002-t-002.Po \
+	./$(DEPDIR)/t_003-t-003.Po ./$(DEPDIR)/t_004-t-004.Po \
+	./$(DEPDIR)/t_005-t-005.Po ./$(DEPDIR)/t_006-t-006.Po \
+	./$(DEPDIR)/t_007-t-007.Po ./$(DEPDIR)/t_008-t-008.Po \
+	./$(DEPDIR)/t_009-t-009.Po ./$(DEPDIR)/t_010-t-010.Po
 am__mv = mv -f
 COMPILE = $(CC) $(DEFS) $(DEFAULT_INCLUDES) $(INCLUDES) $(AM_CPPFLAGS) \
 	$(CPPFLAGS) $(AM_CFLAGS) $(CFLAGS)
@@ -237,15 +245,15 @@ am__v_CCLD_ = $(am__v_CCLD_@AM_DEFAULT_V@)
 am__v_CCLD_0 = @echo "  CCLD    " $@;
 am__v_CCLD_1 = 
 SOURCES = $(fcgis_SOURCES) $(httpecho_SOURCES) $(httssvr_SOURCES) \
-	$(t_001_SOURCES) $(t_002_SOURCES) $(t_003_SOURCES) \
-	$(t_004_SOURCES) $(t_005_SOURCES) $(t_006_SOURCES) \
-	$(t_007_SOURCES) $(t_008_SOURCES) $(t_009_SOURCES) \
-	$(t_010_SOURCES)
+	$(slowclient_SOURCES) $(t_001_SOURCES) $(t_002_SOURCES) \
+	$(t_003_SOURCES) $(t_004_SOURCES) $(t_005_SOURCES) \
+	$(t_006_SOURCES) $(t_007_SOURCES) $(t_008_SOURCES) \
+	$(t_009_SOURCES) $(t_010_SOURCES)
 DIST_SOURCES = $(fcgis_SOURCES) $(httpecho_SOURCES) $(httssvr_SOURCES) \
-	$(t_001_SOURCES) $(t_002_SOURCES) $(t_003_SOURCES) \
-	$(t_004_SOURCES) $(t_005_SOURCES) $(t_006_SOURCES) \
-	$(t_007_SOURCES) $(t_008_SOURCES) $(t_009_SOURCES) \
-	$(t_010_SOURCES)
+	$(slowclient_SOURCES) $(t_001_SOURCES) $(t_002_SOURCES) \
+	$(t_003_SOURCES) $(t_004_SOURCES) $(t_005_SOURCES) \
+	$(t_006_SOURCES) $(t_007_SOURCES) $(t_008_SOURCES) \
+	$(t_009_SOURCES) $(t_010_SOURCES)
 am__can_run_installinfo = \
   case $$AM_UPDATE_INFO_DIR in \
     n|no|NO) false;; \
@@ -636,7 +644,7 @@ LIBADD_COMMON = ../lib/libhio.la $(LIBM)
 check_SCRIPTS = s-001.sh s-002.sh
 EXTRA_DIST = $(check_SCRIPTS) tap.inc t-cgi.sh
 TESTPROGS = t-001 t-002 t-003 t-004 t-005 t-006 t-007 t-008 t-009 t-010
-HELPERPROGS = fcgis httpecho httssvr
+HELPERPROGS = fcgis httpecho httssvr slowclient
 t_001_SOURCES = t-001.c tap.h
 t_001_CPPFLAGS = $(CPPFLAGS_COMMON)
 t_001_CFLAGS = $(CFLAGS_COMMON)
@@ -703,6 +711,11 @@ httssvr_CFLAGS = $(CFLAGS_COMMON)
 httssvr_LDFLAGS = $(LDFLAGS_COMMON)
 httssvr_LDADD = $(LIBADD_COMMON)
 CLEANFILES = t009-cert.pem t009-key.pem
+slowclient_SOURCES = slowclient.c
+slowclient_CPPFLAGS = $(CPPFLAGS_COMMON)
+slowclient_CFLAGS = $(CFLAGS_COMMON)
+slowclient_LDFLAGS = $(LDFLAGS_COMMON)
+slowclient_LDADD = $(LIBADD_COMMON)
 LOG_DRIVER = env AM_TAP_AWK='$(AWK)' $(SHELL) $(top_srcdir)/ac/tap-driver.sh
 TEST_EXTENSIONS = .sh
 SH_LOG_DRIVER = $(LOG_DRIVER)
@@ -757,6 +770,10 @@ httssvr$(EXEEXT): $(httssvr_OBJECTS) $(httssvr_DEPENDENCIES) $(EXTRA_httssvr_DEP
 	@rm -f httssvr$(EXEEXT)
 	$(AM_V_CCLD)$(httssvr_LINK) $(httssvr_OBJECTS) $(httssvr_LDADD) $(LIBS)
 
+slowclient$(EXEEXT): $(slowclient_OBJECTS) $(slowclient_DEPENDENCIES) $(EXTRA_slowclient_DEPENDENCIES) 
+	@rm -f slowclient$(EXEEXT)
+	$(AM_V_CCLD)$(slowclient_LINK) $(slowclient_OBJECTS) $(slowclient_LDADD) $(LIBS)
+
 t-001$(EXEEXT): $(t_001_OBJECTS) $(t_001_DEPENDENCIES) $(EXTRA_t_001_DEPENDENCIES) 
 	@rm -f t-001$(EXEEXT)
 	$(AM_V_CCLD)$(t_001_LINK) $(t_001_OBJECTS) $(t_001_LDADD) $(LIBS)
@@ -806,6 +823,7 @@ distclean-compile:
 @AMDEP_TRUE@@am__include@ @am__quote@./$(DEPDIR)/fcgis-fcgis.Po@am__quote@ # am--include-marker
 @AMDEP_TRUE@@am__include@ @am__quote@./$(DEPDIR)/httpecho-httpecho.Po@am__quote@ # am--include-marker
 @AMDEP_TRUE@@am__include@ @am__quote@./$(DEPDIR)/httssvr-httssvr.Po@am__quote@ # am--include-marker
+@AMDEP_TRUE@@am__include@ @am__quote@./$(DEPDIR)/slowclient-slowclient.Po@am__quote@ # am--include-marker
 @AMDEP_TRUE@@am__include@ @am__quote@./$(DEPDIR)/t_001-t-001.Po@am__quote@ # am--include-marker
 @AMDEP_TRUE@@am__include@ @am__quote@./$(DEPDIR)/t_002-t-002.Po@am__quote@ # am--include-marker
 @AMDEP_TRUE@@am__include@ @am__quote@./$(DEPDIR)/t_003-t-003.Po@am__quote@ # am--include-marker
@@ -888,6 +906,20 @@ httssvr-httssvr.obj: httssvr.c
 @AMDEP_TRUE@@am__fastdepCC_FALSE@	$(AM_V_CC)source='httssvr.c' object='httssvr-httssvr.obj' libtool=no @AMDEPBACKSLASH@
 @AMDEP_TRUE@@am__fastdepCC_FALSE@	DEPDIR=$(DEPDIR) $(CCDEPMODE) $(depcomp) @AMDEPBACKSLASH@
 @am__fastdepCC_FALSE@	$(AM_V_CC@am__nodep@)$(CC) $(DEFS) $(DEFAULT_INCLUDES) $(INCLUDES) $(httssvr_CPPFLAGS) $(CPPFLAGS) $(httssvr_CFLAGS) $(CFLAGS) -c -o httssvr-httssvr.obj `if test -f 'httssvr.c'; then $(CYGPATH_W) 'httssvr.c'; else $(CYGPATH_W) '$(srcdir)/httssvr.c'; fi`
+
+slowclient-slowclient.o: slowclient.c
+@am__fastdepCC_TRUE@	$(AM_V_CC)$(CC) $(DEFS) $(DEFAULT_INCLUDES) $(INCLUDES) $(slowclient_CPPFLAGS) $(CPPFLAGS) $(slowclient_CFLAGS) $(CFLAGS) -MT slowclient-slowclient.o -MD -MP -MF $(DEPDIR)/slowclient-slowclient.Tpo -c -o slowclient-slowclient.o `test -f 'slowclient.c' || echo '$(srcdir)/'`slowclient.c
+@am__fastdepCC_TRUE@	$(AM_V_at)$(am__mv) $(DEPDIR)/slowclient-slowclient.Tpo $(DEPDIR)/slowclient-slowclient.Po
+@AMDEP_TRUE@@am__fastdepCC_FALSE@	$(AM_V_CC)source='slowclient.c' object='slowclient-slowclient.o' libtool=no @AMDEPBACKSLASH@
+@AMDEP_TRUE@@am__fastdepCC_FALSE@	DEPDIR=$(DEPDIR) $(CCDEPMODE) $(depcomp) @AMDEPBACKSLASH@
+@am__fastdepCC_FALSE@	$(AM_V_CC@am__nodep@)$(CC) $(DEFS) $(DEFAULT_INCLUDES) $(INCLUDES) $(slowclient_CPPFLAGS) $(CPPFLAGS) $(slowclient_CFLAGS) $(CFLAGS) -c -o slowclient-slowclient.o `test -f 'slowclient.c' || echo '$(srcdir)/'`slowclient.c
+
+slowclient-slowclient.obj: slowclient.c
+@am__fastdepCC_TRUE@	$(AM_V_CC)$(CC) $(DEFS) $(DEFAULT_INCLUDES) $(INCLUDES) $(slowclient_CPPFLAGS) $(CPPFLAGS) $(slowclient_CFLAGS) $(CFLAGS) -MT slowclient-slowclient.obj -MD -MP -MF $(DEPDIR)/slowclient-slowclient.Tpo -c -o slowclient-slowclient.obj `if test -f 'slowclient.c'; then $(CYGPATH_W) 'slowclient.c'; else $(CYGPATH_W) '$(srcdir)/slowclient.c'; fi`
+@am__fastdepCC_TRUE@	$(AM_V_at)$(am__mv) $(DEPDIR)/slowclient-slowclient.Tpo $(DEPDIR)/slowclient-slowclient.Po
+@AMDEP_TRUE@@am__fastdepCC_FALSE@	$(AM_V_CC)source='slowclient.c' object='slowclient-slowclient.obj' libtool=no @AMDEPBACKSLASH@
+@AMDEP_TRUE@@am__fastdepCC_FALSE@	DEPDIR=$(DEPDIR) $(CCDEPMODE) $(depcomp) @AMDEPBACKSLASH@
+@am__fastdepCC_FALSE@	$(AM_V_CC@am__nodep@)$(CC) $(DEFS) $(DEFAULT_INCLUDES) $(INCLUDES) $(slowclient_CPPFLAGS) $(CPPFLAGS) $(slowclient_CFLAGS) $(CFLAGS) -c -o slowclient-slowclient.obj `if test -f 'slowclient.c'; then $(CYGPATH_W) 'slowclient.c'; else $(CYGPATH_W) '$(srcdir)/slowclient.c'; fi`
 
 t_001-t-001.o: t-001.c
 @am__fastdepCC_TRUE@	$(AM_V_CC)$(CC) $(DEFS) $(DEFAULT_INCLUDES) $(INCLUDES) $(t_001_CPPFLAGS) $(CPPFLAGS) $(t_001_CFLAGS) $(CFLAGS) -MT t_001-t-001.o -MD -MP -MF $(DEPDIR)/t_001-t-001.Tpo -c -o t_001-t-001.o `test -f 't-001.c' || echo '$(srcdir)/'`t-001.c
@@ -1420,6 +1452,7 @@ distclean: distclean-am
 	-rm -f ./$(DEPDIR)/fcgis-fcgis.Po
 	-rm -f ./$(DEPDIR)/httpecho-httpecho.Po
 	-rm -f ./$(DEPDIR)/httssvr-httssvr.Po
+	-rm -f ./$(DEPDIR)/slowclient-slowclient.Po
 	-rm -f ./$(DEPDIR)/t_001-t-001.Po
 	-rm -f ./$(DEPDIR)/t_002-t-002.Po
 	-rm -f ./$(DEPDIR)/t_003-t-003.Po
@@ -1478,6 +1511,7 @@ maintainer-clean: maintainer-clean-am
 	-rm -f ./$(DEPDIR)/fcgis-fcgis.Po
 	-rm -f ./$(DEPDIR)/httpecho-httpecho.Po
 	-rm -f ./$(DEPDIR)/httssvr-httssvr.Po
+	-rm -f ./$(DEPDIR)/slowclient-slowclient.Po
 	-rm -f ./$(DEPDIR)/t_001-t-001.Po
 	-rm -f ./$(DEPDIR)/t_002-t-002.Po
 	-rm -f ./$(DEPDIR)/t_003-t-003.Po

@@ -45,6 +45,7 @@ struct conn_xtn_t
 	unsigned int begun: 1;
 	unsigned int params_done: 1;
 	unsigned int stdin_done: 1;
+	unsigned int want_big: 1;
 };
 
 static void reset_request (conn_xtn_t* cx)
@@ -53,6 +54,7 @@ static void reset_request (conn_xtn_t* cx)
 	cx->begun = 0;
 	cx->params_done = 0;
 	cx->stdin_done = 0;
+	cx->want_big = 0;
 }
 
 static hio_t* g_hio = HIO_NULL;
@@ -108,12 +110,47 @@ static int write_record (hio_dev_sck_t* sck, int type, hio_uint16_t id, const vo
 	return 0;
 }
 
-static int respond (hio_dev_sck_t* sck, hio_uint16_t id)
+/* big enough to clear the kernel socket buffer on loopback, so that bytes
+ * actually pile up in the server's write queue and its backpressure path is
+ * reached. see the note in s-002.sh. */
+#define BIGBODY_LEN (8 * 1024 * 1024)
+
+static int respond_big (hio_dev_sck_t* sck, hio_uint16_t id)
+{
+	char head[128];
+	char chunk[32768];
+	hio_oow_t sent = 0, i;
+	int n;
+
+	n = snprintf(head, HIO_COUNTOF(head), "Content-Type: application/octet-stream\r\nContent-Length: %d\r\n\r\n", (int)BIGBODY_LEN);
+	if (write_record(sck, HIO_FCGI_STDOUT, id, head, n) <= -1) return -1;
+
+	for (i = 0; i < HIO_COUNTOF(chunk); i++) chunk[i] = (char)('a' + (i % 26));
+
+	while (sent < BIGBODY_LEN)
+	{
+		/* a STDOUT record carries at most 65535 octets, so one body needs
+		 * many of them. */
+		hio_oow_t want = BIGBODY_LEN - sent;
+		if (want > HIO_COUNTOF(chunk)) want = HIO_COUNTOF(chunk);
+		/* keep the pattern keyed to the absolute offset */
+		for (i = 0; i < want; i++) chunk[i] = (char)('a' + ((sent + i) % 26));
+		if (write_record(sck, HIO_FCGI_STDOUT, id, chunk, want) <= -1) return -1;
+		sent += want;
+	}
+	return 0;
+}
+
+static int respond (hio_dev_sck_t* sck, hio_uint16_t id, int want_big)
 {
 	static const char out[] = "Content-Type: text/plain\r\n\r\n" RESPONSE_BODY;
 	hio_fcgi_end_request_body_t end;
 
-	if (write_record(sck, HIO_FCGI_STDOUT, id, out, HIO_SIZEOF(out) - 1) <= -1) return -1;
+	if (want_big)
+	{
+		if (respond_big(sck, id) <= -1) return -1;
+	}
+	else if (write_record(sck, HIO_FCGI_STDOUT, id, out, HIO_SIZEOF(out) - 1) <= -1) return -1;
 	if (write_record(sck, HIO_FCGI_STDOUT, id, HIO_NULL, 0) <= -1) return -1; /* end of stream */
 
 	memset (&end, 0, HIO_SIZEOF(end));
@@ -153,6 +190,10 @@ static int consume_records (hio_dev_sck_t* sck, conn_xtn_t* cx)
 
 			case HIO_FCGI_PARAMS:
 				if (clen == 0) cx->params_done = 1;
+				/* a proper responder would decode the name-value pairs. this
+				 * one only needs to spot a marker the harness puts in the
+				 * query string, so it scans the raw payload instead. */
+				else if (hio_find_bchars_in_bchars((const hio_bch_t*)&cx->buf[HIO_SIZEOF(hdr)], clen, "bigbody", 7, 0)) cx->want_big = 1;
 				break;
 
 			case HIO_FCGI_STDIN:
@@ -162,7 +203,7 @@ static int consume_records (hio_dev_sck_t* sck, conn_xtn_t* cx)
 
 		if (cx->begun && cx->params_done && cx->stdin_done)
 		{
-			if (respond(sck, cx->id) <= -1) return -1;
+			if (respond(sck, cx->id, cx->want_big) <= -1) return -1;
 			reset_request (cx); /* the connection may carry more requests */
 		}
 

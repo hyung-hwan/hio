@@ -77,10 +77,37 @@ typedef enum hio_perenc_http_option_t hio_perenc_bcstr_option_t;
 
 /* -------------------------------------------------------------- */
 
+/** default for #HIO_SVC_HTTS_CLIENT_IDLE_TMOUT, in seconds. unchanged from
+ *  the constant it replaces. */
+#define HIO_SVC_HTTS_DFL_CLIENT_IDLE_TMOUT (10)
+
+/** default for #HIO_SVC_HTTS_CLIENT_HDR_TMOUT, in seconds. the same figure
+ *  nginx uses for client_header_timeout. */
+#define HIO_SVC_HTTS_DFL_CLIENT_HDR_TMOUT (60)
+
 enum hio_svc_htts_option_t
 {
         HIO_SVC_HTTS_TASK_MAX,
-        HIO_SVC_HTTS_TASK_CGI_MAX
+        HIO_SVC_HTTS_TASK_CGI_MAX,
+
+        /** hio_ntime_t. how long a client may go without sending anything at
+         *  all before it is halted. only applies while no task is bound, so a
+         *  long-running task is never cut off for a client that has nothing
+         *  left to say. a negative value turns it off. */
+        HIO_SVC_HTTS_CLIENT_IDLE_TMOUT,
+
+        /** hio_ntime_t. how long a client may take to deliver a complete
+         *  header block, measured from the start of the request rather than
+         *  from the last octet received.
+         *
+         *  that distinction is the entire point. the idle timeout above is
+         *  refreshed by every read, so a peer that sends one octet every few
+         *  seconds resets it forever and is never reaped - which is what
+         *  slowloris does. a deadline that runs from the start of the request
+         *  cannot be pushed back by dribbling.
+         *
+         *  a negative value turns it off. */
+        HIO_SVC_HTTS_CLIENT_HDR_TMOUT
 };
 
 typedef enum hio_svc_htts_option_t hio_svc_htts_option_t;

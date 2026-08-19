@@ -148,6 +148,8 @@ struct hio_svc_fcgic_sess_t
 	hio_svc_fcgic_on_untie_t on_untie;
 	void* ctx;
 
+	int read_suspended; /* this session has asked for the shared read to stop */
+
 	hio_svc_fcgic_sess_t* next;
 };
 
@@ -197,6 +199,41 @@ HIO_EXPORT int hio_svc_fcgic_writeparam (
    hio_iolen_t           ksz,
    const void*           val,
    hio_iolen_t           vsz
+);
+
+/**
+ * The hio_svc_fcgic_getwqsize() function returns the number of octets queued
+ * toward the responder and not yet handed to the operating system.
+ *
+ * The figure belongs to the connection, not to the session. Sessions to one
+ * responder address are multiplexed over a single socket, so this is the sum
+ * over every session sharing it. That is the right number for bounding memory
+ * - it is the queue that actually exists - and the right number for deciding
+ * to stop feeding it, since every session contributing to it should back off.
+ */
+HIO_EXPORT hio_oow_t hio_svc_fcgic_getwqsize (
+	hio_svc_fcgic_sess_t* sess
+);
+
+/**
+ * The hio_svc_fcgic_read() function suspends or resumes delivery from the
+ * responder.
+ *
+ * Read this before using it. The socket is shared by every session on the
+ * same responder address, so suspending it holds up all of them, not just
+ * this one - head-of-line blocking across unrelated requests. Requests are
+ * reference counted here: the socket stops being read once any session asks,
+ * and resumes only when the last one releases.
+ *
+ * That trade is deliberate. Without it a fast responder streaming to a slow
+ * client grows the client's write queue without bound, and unbounded memory
+ * is a worse failure than a stalled neighbour. Removing the trade altogether
+ * means buffering per session inside the service so the shared socket can
+ * always be drained, which is a larger change than this.
+ */
+HIO_EXPORT int hio_svc_fcgic_read (
+	hio_svc_fcgic_sess_t* sess,
+	int                   enabled
 );
 
 HIO_EXPORT int hio_svc_fcgic_writestdin (

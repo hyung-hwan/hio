@@ -141,6 +141,7 @@ static int init_client (hio_svc_htts_cli_t* cli, hio_dev_sck_t* sck)
 	hio_htrd_setrecbs(cli->htrd, &client_htrd_recbs);
 
 	hio_gettime(sck->hio, &cli->last_active);
+	cli->req_started = cli->last_active;
 
 	HIO_DEBUG4(sck->hio, "HTTS(%p) - client(c=%p,csck=%d[%d]) - initialized\n", cli->htts, cli, sck, (int)sck->hnd);
 
@@ -498,7 +499,31 @@ void hio_svc_htts_client_default_on_disconnect (hio_dev_sck_t* sck)
 
 /* ------------------------------------------------------------------------ */
 
-#define MAX_CLIENT_IDLE 10 /*TODO: make this configurable... */
+/* how often the sweep below runs. it has to be shorter than the deadlines it
+ * enforces or they overshoot by up to a full period. */
+static void calc_sweep_interval (hio_svc_htts_t* htts, hio_ntime_t* iv)
+{
+	const hio_ntime_t* shortest = HIO_NULL;
+
+	if (!HIO_IS_NEG_NTIME(&htts->option.cli_idle_tmout)) shortest = &htts->option.cli_idle_tmout;
+	if (!HIO_IS_NEG_NTIME(&htts->option.cli_hdr_tmout) &&
+	    (!shortest || HIO_CMP_NTIME(&htts->option.cli_hdr_tmout, shortest) < 0)) shortest = &htts->option.cli_hdr_tmout;
+
+	if (!shortest)
+	{
+		/* everything is off. still sweep occasionally in case a timeout is
+		 * turned back on while the service is running. */
+		HIO_INIT_NTIME(iv, HIO_SVC_HTTS_DFL_CLIENT_IDLE_TMOUT, 0);
+		return;
+	}
+
+	/* half the shortest deadline, floored at a second so a very short timeout
+	 * cannot turn the sweep into a busy loop. */
+	iv->sec = shortest->sec / 2;
+	iv->nsec = (shortest->nsec / 2) + ((shortest->sec & 1)? (HIO_NSECS_PER_SEC / 2): 0);
+	if (iv->nsec >= HIO_NSECS_PER_SEC) { iv->sec++; iv->nsec -= HIO_NSECS_PER_SEC; }
+	if (iv->sec < 1) { iv->sec = 1; iv->nsec = 0; }
+}
 
 static void halt_idle_clients (hio_t* hio, const hio_ntime_t* now, hio_tmrjob_t* job)
 {
@@ -506,27 +531,46 @@ static void halt_idle_clients (hio_t* hio, const hio_ntime_t* now, hio_tmrjob_t*
  *       enhance htrd to specify timeout on feed() and utilize it...
  *       and remove this timer job */
 	hio_svc_htts_t* htts = (hio_svc_htts_t*)job->ctx;
-	hio_svc_htts_cli_t* cli;
+	hio_svc_htts_cli_t* cli, * cli_next;
 	hio_ntime_t t;
 
-	static hio_ntime_t max_client_idle = { MAX_CLIENT_IDLE, 0 };
-
-	for (cli = HIO_SVC_HTTS_CLIL_FIRST_CLI(&htts->cli); !HIO_SVC_HTTS_CLIL_IS_NIL_CLI(&htts->cli, cli); cli = cli->cli_next)
+	for (cli = HIO_SVC_HTTS_CLIL_FIRST_CLI(&htts->cli); !HIO_SVC_HTTS_CLIL_IS_NIL_CLI(&htts->cli, cli); cli = cli_next)
 	{
-		if (!cli->task)
-		{
-			hio_ntime_t t;
-			HIO_SUB_NTIME(&t, now, &cli->last_active);
+		/* halting a client can unlink it, so take the next pointer first */
+		cli_next = cli->cli_next;
 
-			if (HIO_CMP_NTIME(&t, &max_client_idle) >= 0)
+		if (cli->task) continue; /* a task speaks for the client's liveness */
+
+		/* no input at all for a while. refreshed by every read, so this alone
+		 * catches only a client that has genuinely gone quiet. */
+		if (!HIO_IS_NEG_NTIME(&htts->option.cli_idle_tmout))
+		{
+			HIO_SUB_NTIME(&t, now, &cli->last_active);
+			if (HIO_CMP_NTIME(&t, &htts->option.cli_idle_tmout) >= 0)
 			{
 				HIO_DEBUG4(hio, "HTTS(%p) - Halting idle client(%p,%p,%d)\n", htts, cli, cli->sck, (int)cli->sck->hnd);
 				hio_dev_sck_halt(cli->sck);
+				continue;
+			}
+		}
+
+		/* taking too long over one header block. measured from the start of
+		 * the request, so unlike the check above it cannot be pushed back by
+		 * dribbling an octet at a time - which is exactly what a slowloris
+		 * does to defeat an inactivity timer. */
+		if (!HIO_IS_NEG_NTIME(&htts->option.cli_hdr_tmout))
+		{
+			HIO_SUB_NTIME(&t, now, &cli->req_started);
+			if (HIO_CMP_NTIME(&t, &htts->option.cli_hdr_tmout) >= 0)
+			{
+				HIO_DEBUG4(hio, "HTTS(%p) - Halting client(%p,%p,%d) slow to complete a request header\n", htts, cli, cli->sck, (int)cli->sck->hnd);
+				hio_dev_sck_halt(cli->sck);
+				continue;
 			}
 		}
 	}
 
-	HIO_INIT_NTIME(&t, MAX_CLIENT_IDLE, 0);
+	calc_sweep_interval(htts, &t);
 	HIO_ADD_NTIME(&t, &t, now);
 	if (hio_schedtmrjobat(hio, &t, halt_idle_clients, &htts->idle_tmridx, htts) <= -1)
 	{
@@ -562,6 +606,8 @@ hio_svc_htts_t* hio_svc_htts_start (hio_t* hio, hio_oow_t xtnsize, hio_dev_sck_b
 	htts->svc_stop = (hio_svc_stop_t)hio_svc_htts_stop;
 	htts->proc_req = proc_req;
 	htts->idle_tmridx = HIO_TMRIDX_INVALID;
+	HIO_INIT_NTIME(&htts->option.cli_idle_tmout, HIO_SVC_HTTS_DFL_CLIENT_IDLE_TMOUT, 0);
+	HIO_INIT_NTIME(&htts->option.cli_hdr_tmout, HIO_SVC_HTTS_DFL_CLIENT_HDR_TMOUT, 0);
 
 	htts->option.task_max = HIO_TYPE_MAX(hio_oow_t);
 	htts->option.task_cgi_max = HIO_TYPE_MAX(hio_oow_t);
@@ -685,7 +731,7 @@ hio_svc_htts_t* hio_svc_htts_start (hio_t* hio, hio_oow_t xtnsize, hio_dev_sck_b
 	{
 		hio_ntime_t t;
 
-		HIO_INIT_NTIME(&t, MAX_CLIENT_IDLE, 0);
+		calc_sweep_interval(htts, &t);
 		if (hio_schedtmrjobafter(hio, &t, halt_idle_clients, &htts->idle_tmridx, htts) <= -1)
 		{
 			HIO_INFO1(hio, "HTTS(%p) - unable to schedule idle client detector. continuting\n", htts);
@@ -764,7 +810,7 @@ void hio_svc_htts_stop (hio_svc_htts_t* htts)
 	HIO_SVCL_UNLINK_SVC(htts);
 	if (htts->server_name && htts->server_name != htts->server_name_buf) hio_freemem(hio, htts->server_name);
 
-	if (htts->idle_tmridx != HIO_TMRIDX_INVALID) hio_deltmrjob (hio, htts->idle_tmridx);
+	if (htts->idle_tmridx != HIO_TMRIDX_INVALID) hio_deltmrjob(hio, htts->idle_tmridx);
 
 	if (htts->l.sck) hio_freemem(hio, htts->l.sck);
 
@@ -792,6 +838,14 @@ int hio_svc_htts_getoption (hio_svc_htts_t* htts, hio_svc_htts_option_t id, void
 			*(hio_oow_t*)value = htts->option.task_cgi_max;
 			break;
 
+		case HIO_SVC_HTTS_CLIENT_IDLE_TMOUT:
+			*(hio_ntime_t*)value = htts->option.cli_idle_tmout;
+			break;
+
+		case HIO_SVC_HTTS_CLIENT_HDR_TMOUT:
+			*(hio_ntime_t*)value = htts->option.cli_hdr_tmout;
+			break;
+
 		default:
 			goto einval;
 	}
@@ -812,6 +866,12 @@ int hio_svc_htts_setoption (hio_svc_htts_t* htts, hio_svc_htts_option_t id, cons
 			break;
 		case HIO_SVC_HTTS_TASK_CGI_MAX:
 			htts->option.task_cgi_max = *(const hio_oow_t*)value;
+			break;
+		case HIO_SVC_HTTS_CLIENT_IDLE_TMOUT:
+			htts->option.cli_idle_tmout = *(const hio_ntime_t*)value;
+			break;
+		case HIO_SVC_HTTS_CLIENT_HDR_TMOUT:
+			htts->option.cli_hdr_tmout = *(const hio_ntime_t*)value;
 			break;
 
 		default:
@@ -1036,6 +1096,10 @@ void hio_svc_htts_task_unbindfromclient (hio_svc_htts_task_t* task, int rcdown)
 		/* there is some ordering issue in using HIO_SVC_HTTS_TASK_UNREF()
 		 * because it can destroy the task itself. so reset
 		 * task->task_client->task to null and call RCDOWN() later */
+		/* the next request on this connection starts its header deadline
+		 * from here rather than inheriting what the last one used up. */
+		hio_gettime(hio, &task->task_client->req_started);
+
 		task->task_client->task = HIO_NULL;
 
 		/* these two lines are also done in client_on_disconnect() because the

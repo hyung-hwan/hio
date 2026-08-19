@@ -31,7 +31,11 @@
 
 #define THR_ALLOW_UNLIMITED_REQ_CONTENT_LENGTH
 
-#define THR_PENDING_IO_THRESHOLD 5
+/* backpressure is applied on queued bytes rather than on a count of
+ * outstanding write requests - see the note in http-cgi.c.
+ * num_pending_writes_to_peer is still maintained, but only to tell when every
+ * write has completed. */
+#define THR_PENDING_BYTES_THRESHOLD (256 * 1024)
 
 #define THR_OVER_READ_FROM_CLIENT (1 << 0)
 #define THR_OVER_READ_FROM_PEER   (1 << 1)
@@ -61,6 +65,8 @@ struct thr_t
 	hio_htrd_t* peer_htrd;
 
 	unsigned int over: 4; /* must be large enough to accomodate THR_OVER_ALL */
+	unsigned int client_read_suspended: 1; /* reading from the client is off - the peer's queue is deep */
+	unsigned int peer_read_suspended: 1;   /* reading from the peer is off - the client's queue is deep */
 
 };
 
@@ -92,9 +98,11 @@ static int thr_write_to_peer (thr_t* thr, const void* data, hio_iolen_t dlen)
 		}
 
 /* TODO: check if it's already finished or something.. */
-		if (thr->num_pending_writes_to_peer > THR_PENDING_IO_THRESHOLD)
+		if (!thr->client_read_suspended &&
+		    hio_dev_thr_getwqsize(thr->peer) > THR_PENDING_BYTES_THRESHOLD)
 		{
 			if (thr->task_csck && hio_dev_sck_read(thr->task_csck, 0) <= -1) return -1;
+			thr->client_read_suspended = 1;
 		}
 	}
 	return 0;
@@ -301,9 +309,11 @@ static int thr_peer_htrd_push_content (hio_htrd_t* htrd, hio_htre_t* req, const 
 	HIO_ASSERT(thr->htts->hio, htrd == thr->peer_htrd);
 
 	n = hio_svc_htts_task_addresbody((hio_svc_htts_task_t*)thr, data, dlen);
-	if (thr->task_res_pending_writes > THR_PENDING_IO_THRESHOLD)
+	if (!thr->peer_read_suspended && thr->task_csck &&
+	    hio_dev_getwqsize((hio_dev_t*)thr->task_csck) > THR_PENDING_BYTES_THRESHOLD)
 	{
 		if (hio_dev_thr_read(thr->peer, 0) <= -1) n = -1;
+		else thr->peer_read_suspended = 1;
 	}
 
 	return n;
@@ -393,8 +403,10 @@ static int thr_peer_on_write (hio_dev_thr_t* peer, hio_iolen_t wrlen, void* wrct
 		HIO_ASSERT(hio, thr->num_pending_writes_to_peer > 0);
 
 		thr->num_pending_writes_to_peer--;
-		if (thr->num_pending_writes_to_peer == THR_PENDING_IO_THRESHOLD)
+		if (thr->client_read_suspended && thr->peer &&
+		    hio_dev_thr_getwqsize(thr->peer) <= THR_PENDING_BYTES_THRESHOLD)
 		{
+			thr->client_read_suspended = 0;
 			if (!(thr->over & THR_OVER_READ_FROM_CLIENT) &&
 			    hio_dev_sck_read(thr->task_csck, 1) <= -1) goto oops;
 		}
@@ -497,9 +509,11 @@ static int thr_client_on_write (hio_dev_sck_t* sck, hio_iolen_t wrlen, void* wrc
 	}
 	else if (wrlen > 0)
 	{
-		if (thr->peer && thr->task_res_pending_writes == THR_PENDING_IO_THRESHOLD)
+		if (thr->peer && thr->peer_read_suspended &&
+		    hio_dev_getwqsize((hio_dev_t*)sck) <= THR_PENDING_BYTES_THRESHOLD)
 		{
 			/* enable input watching */
+			thr->peer_read_suspended = 0;
 			if (!(thr->over & THR_OVER_READ_FROM_PEER) &&
 			    hio_dev_thr_read(thr->peer, 1) <= -1) n = -1;
 		}

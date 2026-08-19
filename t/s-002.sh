@@ -42,7 +42,10 @@ start_server()
 	done
 	[ -f "${upready}" ] || uppid=""
 
-	./httssvr >/dev/null 2>&1 &
+	# the header deadline defaults to 60s and the idle timeout to 10s. shorten
+	# the first and lengthen the second so test_slowloris finishes quickly and
+	# so it is unambiguous which of the two closed the connection.
+	HTTS_HDR_TMOUT=3 HTTS_IDLE_TMOUT=30 ./httssvr >/dev/null 2>&1 &
 	srvpid=$!
 	# wait for the listener rather than sleeping a fixed amount
 	i=0
@@ -131,6 +134,14 @@ test_fcgi()
 	# request traversed the fcgi task and the FastCGI protocol both ways
 	local body=$(curl -s -m 10 "http://${SRVADDR}/fcgi/x.php" | tr -d '\r\n')
 	tap_ensure "$body" "fcgi-ok" "$msg - body came from the fcgi responder"
+
+	# an 8MB responder body against a deliberately slow reader. same sizing
+	# as the pxy and thr cases: the body has to clear the kernel socket
+	# buffer before anything queues in user space, and the rate limit is what
+	# makes the client the bottleneck. this is the only case that reaches the
+	# fcgi task's backpressure path.
+	local big=$(curl -s -m 60 --limit-rate 4M "http://${SRVADDR}/fcgi/x.php?bigbody" | wc -c | tr -d ' ')
+	tap_ensure "$big" "8388608" "$msg - an 8MB responder body relays complete under backpressure"
 }
 
 test_txt()
@@ -170,6 +181,14 @@ test_thr()
 	local hc2=$(curl -s -m 5 -w '%{http_code}' -o /dev/null "http://${SRVADDR}/thr2/no/such/file")
 	tap_ensure "$hc2" "404" "$msg - thr2 reports 404 for a missing file"
 	rm -f "${tmpf}"
+
+	# an 8MB file against a deliberately slow reader, for the same reason as
+	# the pxy case below: only this reaches the thr task's backpressure path.
+	local bigf="/tmp/s-002-big.$$.bin"
+	dd if=/dev/zero of="${bigf}" bs=1048576 count=8 2>/dev/null
+	local big=$(curl -s -m 60 --limit-rate 4M "http://${SRVADDR}/thr2${bigf}" | wc -c | tr -d ' ')
+	tap_ensure "$big" "8388608" "$msg - an 8MB file relays complete under backpressure"
+	rm -f "${bigf}"
 }
 
 test_hdrlimits()
@@ -199,6 +218,37 @@ test_hdrlimits()
 	tap_ensure "$hc3" "200" "$msg - an ordinary request is unaffected"
 }
 
+test_slowloris()
+{
+	local msg="httssvr slow client"
+
+	# the harness starts httssvr with HTTS_HDR_TMOUT=3 and a long idle
+	# timeout, so only the header deadline can be what closes these.
+
+	# a client that dribbles one octet at a time and never finishes its
+	# header block. every octet refreshes the inactivity timer, so an idle
+	# timeout alone never reaps it - that is what slowloris exploits. the
+	# deadline runs from the start of the request and cannot be pushed back.
+	local t=$(./slowclient "${SRVADDR}" dribble 20)
+	if [ "$t" = "timeout" ]; then
+		tap_fail "$msg - a dribbling client is closed by the header deadline (still open after 20s)"
+	else
+		tap_ok "$msg - a dribbling client is closed by the header deadline after ${t}s"
+	fi
+
+	# and one that connects and says nothing at all
+	local t2=$(./slowclient "${SRVADDR}" silent 20)
+	if [ "$t2" = "timeout" ]; then
+		tap_fail "$msg - a silent client is closed (still open after 20s)"
+	else
+		tap_ok "$msg - a silent client is closed after ${t2}s"
+	fi
+
+	# and the deadline must not touch a client that behaves
+	local hc=$(curl -s -m 10 -o /dev/null -w '%{http_code}' "http://${SRVADDR}/txt/ping")
+	tap_ensure "$hc" "200" "$msg - an ordinary request is unaffected by the deadline"
+}
+
 test_mixed_load()
 {
 	local msg="httssvr mixed task load"
@@ -226,6 +276,7 @@ if start_server; then
 	test_fcgi
 	test_pxy
 	test_hdrlimits
+	test_slowloris
 	test_mixed_load
 	stop_server
 else

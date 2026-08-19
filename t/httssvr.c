@@ -272,6 +272,26 @@ void* thr_func (void* arg)
 #endif
 
 	htts = hio_svc_htts_start(hio, 0, htts_bind_info, HIO_COUNTOF(htts_bind_info), process_http_request);
+	if (htts)
+	{
+		/* the client deadlines default to 60s and 10s, which would make the
+		 * slowloris test wait a minute. the harness shortens them through the
+		 * environment so the test finishes quickly; left unset, the defaults
+		 * apply and are what everything else in the suite runs against. */
+		const char* e;
+		hio_ntime_t t;
+
+		if ((e = getenv("HTTS_HDR_TMOUT")))
+		{
+			HIO_INIT_NTIME (&t, atoi(e), 0);
+			hio_svc_htts_setoption (htts, HIO_SVC_HTTS_CLIENT_HDR_TMOUT, &t);
+		}
+		if ((e = getenv("HTTS_IDLE_TMOUT")))
+		{
+			HIO_INIT_NTIME (&t, atoi(e), 0);
+			hio_svc_htts_setoption (htts, HIO_SVC_HTTS_CLIENT_IDLE_TMOUT, &t);
+		}
+	}
 	if (!htts) 
 	{
 		printf ("Unable to start htts\n");

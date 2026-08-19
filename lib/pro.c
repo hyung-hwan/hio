@@ -978,6 +978,11 @@ int hio_dev_pro_timedwrite (hio_dev_pro_t* dev, const void* data, hio_iolen_t dl
 	}
 }
 
+hio_oow_t hio_dev_pro_getwqsize (hio_dev_pro_t* dev)
+{
+	return dev->slave[HIO_DEV_PRO_IN]? hio_dev_getwqsize((hio_dev_t*)dev->slave[HIO_DEV_PRO_IN]): 0;
+}
+
 int hio_dev_pro_close (hio_dev_pro_t* dev, hio_dev_pro_sid_t sid)
 {
 	return hio_dev_ioctl((hio_dev_t*)dev, HIO_DEV_PRO_CLOSE, &sid);

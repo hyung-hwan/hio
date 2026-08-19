@@ -22,7 +22,7 @@ TESTPROGS = t-001 t-002 t-003 t-004 t-005 t-006 t-007 t-008 t-009 t-010
 
 ## helpers the test scripts drive. built with the tests, but not tests
 ## themselves - they are servers and would never exit.
-HELPERPROGS = fcgis httpecho httssvr
+HELPERPROGS = fcgis httpecho httssvr slowclient
 
 check_PROGRAMS = $(TESTPROGS) $(HELPERPROGS)
 
@@ -115,6 +115,14 @@ httssvr_LDADD = $(LIBADD_COMMON)
 ## t-009 writes a throwaway certificate into the build directory and removes
 ## it on the way out. this catches the case where it dies before that.
 CLEANFILES = t009-cert.pem t009-key.pem
+
+## a deliberately slow http client used by the header-deadline test. plain
+## posix sockets - it must not behave like an hio client.
+slowclient_SOURCES = slowclient.c
+slowclient_CPPFLAGS = $(CPPFLAGS_COMMON)
+slowclient_CFLAGS = $(CFLAGS_COMMON)
+slowclient_LDFLAGS = $(LDFLAGS_COMMON)
+slowclient_LDADD = $(LIBADD_COMMON)
 
 LOG_DRIVER = env AM_TAP_AWK='$(AWK)' $(SHELL) $(top_srcdir)/ac/tap-driver.sh
 TESTS = $(TESTPROGS) $(check_SCRIPTS)

@@ -79,6 +79,14 @@ test_cgi()
 	local hc=$(curl -s -w '%{http_code}\n' -o "${tmpdir}/t.out" "http://${srvaddr}/t.cgi?abc=def")
 	tap_ensure "$hc" "200" "$msg - got $hc"
 
+	# an 8MB body against a deliberately slow reader. the size has to clear
+	# the kernel socket buffer - loopback wmem tops out around 4MB - before
+	# anything queues in user space, and the rate limit is what makes the
+	# client the bottleneck. without both, the cgi task's backpressure path
+	# is never entered.
+	local big=$(curl -s -m 60 --limit-rate 4M "http://${srvaddr}/t.cgi?big" | wc -c | tr -d ' ')
+	tap_ensure "$big" "8388608" "$msg - an 8MB cgi body relays complete under backpressure"
+
 ls -ld ${tmpdir}
 ls -l ${tmpdir}
 echo "--------------------"
