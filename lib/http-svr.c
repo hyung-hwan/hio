@@ -365,6 +365,27 @@ int hio_svc_htts_client_default_on_read (hio_dev_sck_t* sck, const void* buf, hi
 	if ((x = hio_htrd_feed(cli->htrd, buf, len, &rem)) <= -1)
 	{
 		HIO_DEBUG3(hio, "HTTS(%p) - feed error onto client htrd %p(%d)\n", htts, sck, (int)sck->hnd);
+
+		if (hio_htrd_geterrnum(cli->htrd) == HIO_HTRD_ETOOBIG)
+		{
+			/* the header block blew a limit. there is no task and no parsed
+			 * request to answer through the usual machinery, but dropping the
+			 * connection silently leaves the peer guessing between a limit, a
+			 * crash and a network fault. a canned response costs one write and
+			 * says which it was.
+			 *
+			 * best-effort: the failure is already fatal for this connection, so
+			 * a write error here changes nothing and is deliberately ignored. */
+			static const hio_bch_t toobig[] =
+				"HTTP/1.1 431 Request Header Fields Too Large\r\n"
+				"Content-Type: text/plain\r\n"
+				"Content-Length: 38\r\n"
+				"Connection: close\r\n"
+				"\r\n"
+				"request header fields are too large.\r\n";
+			hio_dev_sck_write(sck, toobig, HIO_SIZEOF(toobig) - 1, HIO_NULL, HIO_NULL);
+		}
+
 		goto oops;
 	}
 

@@ -155,6 +155,8 @@ int hio_htrd_init (hio_htrd_t* htrd, hio_t* hio)
 	HIO_MEMSET(htrd, 0, HIO_SIZEOF(*htrd));
 	htrd->hio = hio;
 	htrd->option = HIO_HTRD_REQUEST | HIO_HTRD_RESPONSE;
+	htrd->lim.hdrsize = HIO_HTRD_DFL_HDRSIZE;
+	htrd->lim.hdrcount = HIO_HTRD_DFL_HDRCOUNT;
 
 #if 0
 	hio_becs_init (&htrd->tmp.qparam, htrd->hio, 0);
@@ -444,6 +446,16 @@ hio_bitmask_t hio_htrd_getoption (hio_htrd_t* htrd)
 void hio_htrd_setoption (hio_htrd_t* htrd, hio_bitmask_t mask)
 {
 	htrd->option = mask;
+}
+
+void hio_htrd_getlimit (hio_htrd_t* htrd, hio_htrd_lim_t* lim)
+{
+	*lim = htrd->lim;
+}
+
+void hio_htrd_setlimit (hio_htrd_t* htrd, const hio_htrd_lim_t* lim)
+{
+	htrd->lim = *lim;
 }
 
 const hio_htrd_recbs_t* hio_htrd_getrecbs (hio_htrd_t* htrd)
@@ -1132,6 +1144,16 @@ int hio_htrd_feed (hio_htrd_t* htrd, const hio_bch_t* req, hio_oow_t len, hio_oo
 					 * mark the first LF is seen here.
 					 */
 					htrd->fed.s.crlf = 2;
+
+					/* one more line of the block is complete. the octet cap
+					 * alone still allows thousands of tiny headers, which makes
+					 * the header table expensive to build and to search. */
+					htrd->fed.s.hlcount++;
+					if (htrd->lim.hdrcount > 0 && htrd->fed.s.hlcount > htrd->lim.hdrcount)
+					{
+						htrd->errnum = HIO_HTRD_ETOOBIG;
+						return -1;
+					}
 				}
 				else
 				{
@@ -1148,6 +1170,7 @@ int hio_htrd_feed (hio_htrd_t* htrd, const hio_bch_t* req, hio_oow_t len, hio_oo
 					htrd->fed.s.crlf = 0;
 					/* reset the raw request length */
 					htrd->fed.s.plen = 0;
+					htrd->fed.s.hlcount = 0;
 
 					if (parse_initial_line_and_headers(htrd, req, ptr - req) <= -1)
 					{
@@ -1466,6 +1489,15 @@ hio_printf (HIO_T("CONTENT_LENGTH %d, RAW HEADER LENGTH %d\n"),
 				/* increment length of a request in raw
 				 * excluding crlf */
 				htrd->fed.s.plen++;
+				if (htrd->lim.hdrsize > 0 && htrd->fed.s.plen > htrd->lim.hdrsize)
+				{
+					/* too large to be worth finishing. rejecting here rather
+					 * than at the end of the block is the whole point - with a
+					 * peer that never sends the terminating blank line, the end
+					 * of the block never arrives. */
+					htrd->errnum = HIO_HTRD_ETOOBIG;
+					return -1;
+				}
 				/* mark that neither CR nor LF was seen */
 				htrd->fed.s.crlf = 0;
 		}

@@ -43,7 +43,8 @@ enum hio_htrd_errnum_t
 	HIO_HTRD_ENOMEM,
 	HIO_HTRD_EBADRE,
 	HIO_HTRD_EBADHDR,
-	HIO_HTRD_ESUSPENDED
+	HIO_HTRD_ESUSPENDED,
+	HIO_HTRD_ETOOBIG /**< the header block exceeded a configured limit */
 };
 
 typedef enum hio_htrd_errnum_t hio_htrd_errnum_t;
@@ -52,6 +53,15 @@ typedef enum hio_htrd_errnum_t hio_htrd_errnum_t;
  * The hio_htrd_option_t type defines various options to
  * change the behavior of the hio_htrd_t reader.
  */
+/** default cap on the octets of one header block. generous next to the
+ *  8KB-per-buffer figure nginx and apache default to, and far below anything
+ *  that threatens a process. */
+#define HIO_HTRD_DFL_HDRSIZE (64 * 1024)
+
+/** default cap on the lines of one header block. apache's LimitRequestFields
+ *  defaults to 100 for the same reason. */
+#define HIO_HTRD_DFL_HDRCOUNT (128)
+
 enum hio_htrd_option_t
 {
 	HIO_HTRD_SKIP_EMPTY_LINES  = ((hio_bitmask_t)1 << 0), /**< skip leading empty lines before the initial line */
@@ -64,6 +74,33 @@ enum hio_htrd_option_t
 };
 
 typedef enum hio_htrd_option_t hio_htrd_option_t;
+
+typedef struct hio_htrd_lim_t hio_htrd_lim_t;
+
+/**
+ * The hio_htrd_lim_t type holds the caps applied while a header block is
+ * being read. A field of 0 means that particular cap is off.
+ *
+ * They exist because the reader accumulates a header block into a growable
+ * buffer and cannot know it will ever end. Without a cap, a peer that opens
+ * a connection and dribbles header bytes forever, never sending the blank
+ * line that terminates the block, grows that buffer until the allocator
+ * gives up - one socket, unbounded memory.
+ */
+struct hio_htrd_lim_t
+{
+	/** maximum number of octets in one header block, excluding the CR and LF
+	 *  octets that delimit its lines. counted across every feed that
+	 *  contributes to the same block, which is the only counting that helps -
+	 *  a per-feed cap is already imposed by the caller's buffer size. */
+	hio_oow_t hdrsize;
+
+	/** maximum number of lines in one header block, the initial line
+	 *  included. this is the cap on many small headers, which the octet cap
+	 *  alone permits in numbers large enough to make the header table
+	 *  expensive to build and to search. */
+	hio_oow_t hdrcount;
+};
 
 typedef struct hio_htrd_recbs_t hio_htrd_recbs_t;
 
@@ -82,6 +119,7 @@ struct hio_htrd_t
 	int flags;
 
 	hio_htrd_recbs_t recbs;
+	hio_htrd_lim_t lim;
 
 	struct
 	{
@@ -91,6 +129,7 @@ struct hio_htrd_t
 
 			int crlf; /* crlf status */
 			hio_oow_t plen; /* raw request length excluding crlf */
+			hio_oow_t hlcount; /* number of lines seen in the current header block */
 			hio_oow_t need; /* number of octets needed for contents */
 
 			struct
@@ -162,6 +201,29 @@ HIO_EXPORT hio_bitmask_t hio_htrd_getoption (
 HIO_EXPORT void hio_htrd_setoption (
 	hio_htrd_t*   htrd,
 	hio_bitmask_t mask
+);
+
+/**
+ * The hio_htrd_getlimit() function reads the caps currently in force.
+ */
+HIO_EXPORT void hio_htrd_getlimit (
+	hio_htrd_t*       htrd,
+	hio_htrd_lim_t*   lim
+);
+
+/**
+ * The hio_htrd_setlimit() function replaces the caps. It takes effect from
+ * the next octet fed; a block already over a newly lowered cap is not
+ * retroactively rejected.
+ *
+ * hio_htrd_init() installs #HIO_HTRD_DFL_HDRSIZE and #HIO_HTRD_DFL_HDRCOUNT
+ * rather than leaving the reader uncapped, on the grounds that a limit which
+ * has to be switched on is not a limit for anyone who does not know to look
+ * for it. Pass 0 in a field to lift that cap deliberately.
+ */
+HIO_EXPORT void hio_htrd_setlimit (
+	hio_htrd_t*            htrd,
+	const hio_htrd_lim_t*  lim
 );
 
 HIO_EXPORT const hio_htrd_recbs_t* hio_htrd_getrecbs (

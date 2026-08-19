@@ -172,6 +172,33 @@ test_thr()
 	rm -f "${tmpf}"
 }
 
+test_hdrlimits()
+{
+	local msg="httssvr header limits"
+
+	# one header long enough to blow the octet cap. the point of answering
+	# rather than dropping the connection is that the peer can tell a limit
+	# from a crash - so the assertion is on the status, not merely on the
+	# request failing.
+	local pad=$(awk 'BEGIN{ s=""; while (length(s) < 100000) s = s "AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA"; print substr(s, 1, 100000) }')
+	local hc=$(curl -s -m 10 -o /dev/null -w '%{http_code}' -H "X-Pad: ${pad}" "http://${SRVADDR}/txt/ping")
+	tap_ensure "$hc" "431" "$msg - an oversized header block is answered with 431, not dropped"
+
+	# and many small ones, which stay well under the octet cap
+	local hdrs=""
+	local i=0
+	while [ $i -lt 300 ]; do
+		hdrs="${hdrs} -H X-${i}:v"
+		i=$((i + 1))
+	done
+	local hc2=$(curl -s -m 10 -o /dev/null -w '%{http_code}' ${hdrs} "http://${SRVADDR}/txt/ping")
+	tap_ensure "$hc2" "431" "$msg - too many header lines is answered with 431"
+
+	# the caps must be invisible to an ordinary request
+	local hc3=$(curl -s -m 10 -o /dev/null -w '%{http_code}' -H 'X-Small: v' "http://${SRVADDR}/txt/ping")
+	tap_ensure "$hc3" "200" "$msg - an ordinary request is unaffected"
+}
+
 test_mixed_load()
 {
 	local msg="httssvr mixed task load"
@@ -198,6 +225,7 @@ if start_server; then
 	test_thr
 	test_fcgi
 	test_pxy
+	test_hdrlimits
 	test_mixed_load
 	stop_server
 else
