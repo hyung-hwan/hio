@@ -703,6 +703,11 @@ static void quiet_logging (hio_t* hio)
 	hio_setoption (hio, HIO_LOG_MASK, &mask);
 }
 
+/* the write-queue byte accounting and the soft cap. kept in its own file
+ * purely to stop this one from growing past the point of being readable -
+ * it uses the same stub device and observers as everything above. */
+#include "t-008-wq.inc"
+
 int main (void)
 {
 	hio_errinf_t errinf;
@@ -733,6 +738,10 @@ int main (void)
 	test_zero_length_closes_output ();
 	test_queued_zero_length_closes_output ();
 	test_pending_writes_dropped_on_kill ();
+	test_wq_size_accounting ();
+	test_wq_size_released_on_kill ();
+	test_wq_limit ();
+	test_wq_limit_zero_is_unlimited ();
 
 	hio_close (g_hio);
 	return exit_status();

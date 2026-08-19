@@ -28,6 +28,10 @@ struct conn_xtn_t
 	int       answered;
 };
 
+/* large enough to push a proxy's queued bytes past its backpressure
+ * threshold on loopback, where the client drains fast. */
+#define BIGBODY_LEN (8 * 1024 * 1024)
+
 static hio_t* g_hio = HIO_NULL;
 
 static void on_sigint (int sig)
@@ -56,6 +60,29 @@ static int answer (hio_dev_sck_t* sck, conn_xtn_t* cx)
 	{
 		status = 404;
 		reason = "Not Found";
+	}
+
+	/* a body big enough to back up a proxy's write queue. the pattern is
+	 * position-dependent so a truncated or shuffled relay is visible in the
+	 * checksum rather than only in the length. */
+	if (hio_find_bchars_in_bchars(reqline, i, "/big", 4, 0))
+	{
+		hio_oow_t sent = 0;
+		snprintf (head, HIO_COUNTOF(head),
+		          "HTTP/1.1 200 OK\r\nContent-Type: application/octet-stream\r\nContent-Length: %d\r\nConnection: close\r\n\r\n",
+		          (int)BIGBODY_LEN);
+		if (hio_dev_sck_write(sck, head, hio_count_bcstr(head), HIO_NULL, HIO_NULL) <= -1) return -1;
+
+		while (sent < BIGBODY_LEN)
+		{
+			hio_bch_t chunk[4096];
+			hio_oow_t k, want = BIGBODY_LEN - sent;
+			if (want > HIO_COUNTOF(chunk)) want = HIO_COUNTOF(chunk);
+			for (k = 0; k < want; k++) chunk[k] = (hio_bch_t)('a' + ((sent + k) % 26));
+			if (hio_dev_sck_write(sck, chunk, want, HIO_NULL, HIO_NULL) <= -1) return -1;
+			sent += want;
+		}
+		return 0;
 	}
 
 	n = snprintf(body, HIO_COUNTOF(body), "httpecho\r\n%s\r\n", reqline);

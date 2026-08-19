@@ -40,7 +40,12 @@
 #define PXY_ALLOW_UNLIMITED_REQ_CONTENT_LENGTH
 
 #define PXY_PEER_CONNECT_TMOUT (5)
-#define PXY_PENDING_IO_THRESHOLD (5)
+/* backpressure is applied on queued bytes, not on the number of outstanding
+ * write requests. counting requests treats a 1MB body chunk and a 1-byte one
+ * as the same amount of pressure, which is exactly wrong for a proxy sitting
+ * between a fast upstream and a slow client. peer_pending_writes is still
+ * kept, but only to know when every write has completed. */
+#define PXY_PENDING_BYTES_THRESHOLD (256 * 1024)
 
 #define PXY_OVER_READ_FROM_CLIENT (1 << 0)
 #define PXY_OVER_READ_FROM_PEER   (1 << 1)
@@ -66,6 +71,8 @@ struct pxy_t
 	hio_becs_t* peer_buf;
 
 	unsigned int over: 4; /* must be large enough to accomodate PXY_OVER_ALL */
+	unsigned int client_read_suspended: 1; /* reading from the client is off because the peer's queue is deep */
+	unsigned int peer_read_suspended: 1;   /* reading from the peer is off because the client's queue is deep */
 	unsigned int peer_connected: 1;
 	unsigned int peer_wr_ended: 1; /* the client side finished before we connected */
 
@@ -110,10 +117,12 @@ static int pxy_write_to_peer (pxy_t* pxy, const void* data, hio_iolen_t dlen)
 			return -1;
 		}
 
-		if (pxy->peer_pending_writes > PXY_PENDING_IO_THRESHOLD)
+		if (!pxy->client_read_suspended &&
+		    hio_dev_getwqsize((hio_dev_t*)pxy->peer) > PXY_PENDING_BYTES_THRESHOLD)
 		{
 			/* suspend input watching */
 			if (pxy->task_csck && hio_dev_sck_read(pxy->task_csck, 0) <= -1) return -1;
+			pxy->client_read_suspended = 1;
 		}
 	}
 	return 0;
@@ -329,8 +338,10 @@ static int pxy_peer_on_write (hio_dev_sck_t* sck, hio_iolen_t wrlen, void* wrctx
 		HIO_ASSERT(hio, pxy->peer_pending_writes > 0);
 
 		pxy->peer_pending_writes--;
-		if (pxy->peer_pending_writes == PXY_PENDING_IO_THRESHOLD)
+		if (pxy->client_read_suspended &&
+		    hio_dev_getwqsize((hio_dev_t*)sck) <= PXY_PENDING_BYTES_THRESHOLD)
 		{
+			pxy->client_read_suspended = 0;
 			if (!(pxy->over & PXY_OVER_READ_FROM_CLIENT) &&
 			    hio_dev_sck_read(pxy->task_csck, 1) <= -1) goto oops;
 		}
@@ -406,9 +417,11 @@ static int peer_htrd_push_content (hio_htrd_t* htrd, hio_htre_t* req, const hio_
 	HIO_ASSERT(pxy->htts->hio, htrd == pxy->peer_htrd);
 
 	n = hio_svc_htts_task_addresbody((hio_svc_htts_task_t*)pxy, data, dlen);
-	if (pxy->task_res_pending_writes > PXY_PENDING_IO_THRESHOLD)
+	if (!pxy->peer_read_suspended && pxy->task_csck &&
+	    hio_dev_getwqsize((hio_dev_t*)pxy->task_csck) > PXY_PENDING_BYTES_THRESHOLD)
 	{
 		if (hio_dev_sck_read(pxy->peer, 0) <= -1) n = -1;
+		else pxy->peer_read_suspended = 1;
 	}
 
 	return n;
@@ -554,9 +567,11 @@ static int pxy_client_on_write (hio_dev_sck_t* sck, hio_iolen_t wrlen, void* wrc
 	}
 	else if (wrlen > 0)
 	{
-		if (pxy->peer && pxy->task_res_pending_writes == PXY_PENDING_IO_THRESHOLD)
+		if (pxy->peer && pxy->peer_read_suspended &&
+		    hio_dev_getwqsize((hio_dev_t*)sck) <= PXY_PENDING_BYTES_THRESHOLD)
 		{
 			/* enable input watching */
+			pxy->peer_read_suspended = 0;
 			if (!(pxy->over & PXY_OVER_READ_FROM_PEER) &&
 			    hio_dev_sck_read(pxy->peer, 1) <= -1) n = -1;
 		}

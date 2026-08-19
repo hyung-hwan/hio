@@ -390,6 +390,8 @@ struct hio_wq_t
 	hio_tmridx_t    rtmridx; \
 	int             dev_extra_events; /* events the transport needs watched regardless of the device's own i/o state. see hio_dev_watch() */ \
 	hio_wq_t        wq; \
+	hio_oow_t       wq_len; /* number of bytes sitting in the write queue, not yet handed to the transport */ \
+	hio_oow_t       wq_lim; /* soft cap on wq_len. 0 means no cap. see hio_dev_setwqlimit() */ \
 	hio_oow_t       cw_count; \
 	hio_dev_t*      dev_prev; \
 	hio_dev_t*      dev_next
@@ -1130,6 +1132,43 @@ HIO_EXPORT int hio_dev_timedwrite (
  * The hio_dev_timedwritev() function is hio_dev_writev() with the deadline
  * described for hio_dev_timedwrite().
  */
+/**
+ * The hio_dev_getwqsize() function returns the number of bytes accepted by
+ * hio_dev_write() and friends that the transport has not taken yet. It counts
+ * bytes, not requests, so a caller applying backpressure can reason about
+ * memory rather than about how many times it happened to call write.
+ */
+HIO_EXPORT hio_oow_t hio_dev_getwqsize (
+	hio_dev_t*            dev
+);
+
+/**
+ * The hio_dev_setwqlimit() function sets a soft cap on the queued byte count
+ * of a single device. Once hio_dev_getwqsize() reaches the cap, every further
+ * write request on that device is refused outright with #HIO_EBUFFULL until the
+ * queue drains below it.
+ *
+ * The cap is checked before anything is written, never in the middle of a
+ * request, so a stream never ends up with a partial message on the wire and the
+ * rest rejected. That is also why it is soft: one oversized request is accepted
+ * whole and may push the queue past the cap.
+ *
+ * A limit of 0, the default, means no cap - matching the behaviour of every
+ * release before this function existed.
+ */
+HIO_EXPORT void hio_dev_setwqlimit (
+	hio_dev_t*            dev,
+	hio_oow_t             limit
+);
+
+/**
+ * The hio_dev_getwqlimit() function returns the cap set by
+ * hio_dev_setwqlimit(), or 0 if the device is uncapped.
+ */
+HIO_EXPORT hio_oow_t hio_dev_getwqlimit (
+	hio_dev_t*            dev
+);
+
 HIO_EXPORT int hio_dev_timedwritev (
 	hio_dev_t*            dev,
 	hio_iovec_t*          iov,

@@ -92,6 +92,26 @@ test_pxy()
 	# and the upstream's status must come back rather than being invented
 	local hc404=$(curl -s -m 10 -w '%{http_code}' -o /dev/null "http://${SRVADDR}/pxy/missing")
 	tap_ensure "$hc404" "404" "$msg - the upstream status is propagated"
+
+	# an 8MB body from a loopback upstream against a deliberately slow reader.
+	# both numbers matter. the rate limit makes the client the bottleneck,
+	# and the size has to clear the kernel socket buffer - loopback wmem
+	# tops out at 4MB here - before anything queues in user space at all.
+	# at 2MB unlimited the kernel absorbed the whole response and the
+	# suspend/resume path was never entered. with these, a suspension that
+	# never lifts shows up as a short body or a timeout.
+	local big=$(curl -s -m 60 --limit-rate 4M "http://${SRVADDR}/pxy/big" | wc -c | tr -d ' ')
+	tap_ensure "$big" "8388608" "$msg - an 8MB upstream body relays complete under backpressure"
+
+	# and the bytes themselves, not just the count. the upstream emits a
+	# repeating a-z pattern keyed to the offset.
+	local sum=$(curl -s -m 60 "http://${SRVADDR}/pxy/big" | cksum | cut -d' ' -f1)
+	local want=$(perl -e 'print map { chr(97 + ($_ % 26)) } 0 .. (8*1024*1024 - 1)' 2>/dev/null | cksum | cut -d' ' -f1)
+	if [ -n "$want" ]; then
+		tap_ensure "$sum" "$want" "$msg - the relayed bytes are identical to the upstream's"
+	else
+		tap_skip "$msg - perl unavailable for the reference checksum"
+	fi
 }
 
 test_fcgi()

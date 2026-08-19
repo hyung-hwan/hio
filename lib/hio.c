@@ -468,6 +468,11 @@ static HIO_INLINE void unlink_wq (hio_t* hio, hio_wq_t* q)
 		hio_deltmrjob(hio, q->tmridx);
 		HIO_ASSERT(hio, q->tmridx == HIO_TMRIDX_INVALID);
 	}
+	/* whatever is still unwritten in this request stops being queued. for a
+	 * request that ran to completion q->len is already 0 and this is a no-op;
+	 * for one dropped on a timeout or a device kill it is the remainder. */
+	HIO_ASSERT(hio, q->dev->wq_len >= (hio_oow_t)q->len);
+	q->dev->wq_len -= q->len;
 	HIO_WQ_UNLINK (q);
 }
 
@@ -688,6 +693,7 @@ static HIO_INLINE void handle_event (hio_t* hio, hio_dev_t* dev, int events, int
 					q->off += ulen; /* advance the offset to the remaining data */
 				}
 				q->len -= ulen; /* data remining in the buffer */
+				dev->wq_len -= ulen; /* and stops counting against the queue */
 
 				if (q->len <= 0)
 				{
@@ -703,7 +709,7 @@ static HIO_INLINE void handle_event (hio_t* hio, hio_dev_t* dev, int events, int
 						out_closed = 1;
 					}
 
-					unlink_wq (hio, q);
+					unlink_wq(hio, q);
 					y = dev->dev_evcb->on_write(dev, q->olen, q->ctx, &q->dstaddr);
 					hio_freemem(hio, q);
 
@@ -722,7 +728,7 @@ static HIO_INLINE void handle_event (hio_t* hio, hio_dev_t* dev, int events, int
 						while (!HIO_WQ_IS_EMPTY(&dev->wq))
 						{
 							q = HIO_WQ_HEAD(&dev->wq);
-							unlink_wq (hio, q);
+							unlink_wq(hio, q);
 							hio_freemem(hio, q);
 						}
 						break;
@@ -1322,7 +1328,7 @@ void hio_dev_kill (hio_dev_t* dev)
 	{
 		hio_wq_t* q;
 		q = HIO_WQ_HEAD(&dev->wq);
-		unlink_wq (hio, q);
+		unlink_wq(hio, q);
 		hio_freemem(hio, q);
 	}
 
@@ -1622,7 +1628,7 @@ static void on_write_timeout (hio_t* hio, const hio_ntime_t* now, hio_tmrjob_t* 
 	x = dev->dev_evcb->on_write(dev, -1, q->ctx, &q->dstaddr);
 
 	HIO_ASSERT(hio, q->tmridx == HIO_TMRIDX_INVALID);
-	HIO_WQ_UNLINK(q);
+	unlink_wq(hio, q); /* not a bare HIO_WQ_UNLINK - wq_len has to follow */
 	hio_freemem(hio, q);
 
 	if (x <= -1)
@@ -1738,12 +1744,13 @@ static HIO_INLINE int __enqueue_pending_write (hio_dev_t* dev, hio_iolen_t olen,
 	}
 
 	HIO_WQ_ENQ (&dev->wq, q);
+	dev->wq_len += urem;
 	if (!(dev->dev_cap & HIO_DEV_CAP_OUT_WATCHED))
 	{
 		/* if output is not being watched, arrange to do so */
 		if (hio_dev_watch(dev, HIO_DEV_WATCH_RENEW, HIO_DEV_EVENT_IN) <= -1)
 		{
-			unlink_wq (hio, q);
+			unlink_wq(hio, q);
 			hio_freemem(hio, q);
 			return -1;
 		}
@@ -1812,6 +1819,7 @@ static HIO_INLINE int __enqueue_pending_sendfile (hio_dev_t* dev, hio_iolen_t ol
 	}
 
 	HIO_WQ_ENQ (&dev->wq, q);
+	dev->wq_len += urem;
 	if (!(dev->dev_cap & HIO_DEV_CAP_OUT_WATCHED))
 	{
 		/* if output is not being watched, arrange to do so */
@@ -1838,6 +1846,14 @@ static HIO_INLINE int __dev_write (hio_dev_t* dev, const void* data, hio_iolen_t
 	if (dev->dev_cap & HIO_DEV_CAP_OUT_CLOSED)
 	{
 		hio_seterrbfmt(hio, HIO_ENOCAPA, "unable to write to closed device");
+		return -1;
+	}
+
+	if (dev->wq_lim > 0 && dev->wq_len >= dev->wq_lim)
+	{
+		/* refuse the whole request rather than write part of it and queue the
+		 * rest, which would leave a stream with a half-delivered message. */
+		hio_seterrbfmt(hio, HIO_EBUFFULL, "write queue full - %zu bytes queued against a limit of %zu", (hio_oow_t)dev->wq_len, (hio_oow_t)dev->wq_lim);
 		return -1;
 	}
 
@@ -1932,6 +1948,14 @@ static HIO_INLINE int __dev_writev (hio_dev_t* dev, hio_iovec_t* iov, hio_iolen_
 	if (dev->dev_cap & HIO_DEV_CAP_OUT_CLOSED)
 	{
 		hio_seterrbfmt(hio, HIO_ENOCAPA, "unable to write to closed device");
+		return -1;
+	}
+
+	if (dev->wq_lim > 0 && dev->wq_len >= dev->wq_lim)
+	{
+		/* refuse the whole request rather than write part of it and queue the
+		 * rest, which would leave a stream with a half-delivered message. */
+		hio_seterrbfmt(hio, HIO_EBUFFULL, "write queue full - %zu bytes queued against a limit of %zu", (hio_oow_t)dev->wq_len, (hio_oow_t)dev->wq_lim);
 		return -1;
 	}
 
@@ -2040,6 +2064,14 @@ static int __dev_sendfile (hio_dev_t* dev, hio_syshnd_t in_fd, hio_foff_t foff, 
 		return -1;
 	}
 
+	if (dev->wq_lim > 0 && dev->wq_len >= dev->wq_lim)
+	{
+		/* refuse the whole request rather than write part of it and queue the
+		 * rest, which would leave a stream with a half-delivered message. */
+		hio_seterrbfmt(hio, HIO_EBUFFULL, "write queue full - %zu bytes queued against a limit of %zu", (hio_oow_t)dev->wq_len, (hio_oow_t)dev->wq_lim);
+		return -1;
+	}
+
 	if (HIO_UNLIKELY(!dev->dev_mth->sendfile))
 	{
 		hio_seterrbfmt(hio, HIO_ENOCAPA, "unable to senfile over unsupported device");
@@ -2118,6 +2150,21 @@ enqueue_completed_write:
 int hio_dev_write (hio_dev_t* dev, const void* data, hio_iolen_t len, void* wrctx, const hio_devaddr_t* dstaddr)
 {
 	return __dev_write(dev, data, len, HIO_NULL, wrctx, dstaddr);
+}
+
+hio_oow_t hio_dev_getwqsize (hio_dev_t* dev)
+{
+	return dev->wq_len;
+}
+
+void hio_dev_setwqlimit (hio_dev_t* dev, hio_oow_t limit)
+{
+	dev->wq_lim = limit;
+}
+
+hio_oow_t hio_dev_getwqlimit (hio_dev_t* dev)
+{
+	return dev->wq_lim;
 }
 
 int hio_dev_writev (hio_dev_t* dev, hio_iovec_t* iov, hio_iolen_t iovcnt, void* wrctx, const hio_devaddr_t* dstaddr)
