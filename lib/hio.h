@@ -814,6 +814,8 @@ struct hio_t
 	hio_dev_t actdev; /* list head of active devices */
 	hio_dev_t hltdev; /* list head of halted devices */
 	hio_dev_t zmbdev; /* list head of zombie devices */
+	hio_dev_t deaddev; /* list head of devices killed during multiplexer dispatch, awaiting the actual free */
+	int mux_depth; /* how deep we are inside multiplexer event dispatch. non-zero defers device memory release */
 	hio_oow_t nrdpendings; /* number of active devices carraying HIO_DEV_CAP_IN_PENDING */
 
 	hio_ntime_t init_time;

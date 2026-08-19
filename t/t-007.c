@@ -532,14 +532,15 @@ done:
 static void test_kill_peer_from_callback (void)
 {
 	/* two devices are made readable together so the multiplexer reports
-	 * both in one batch. whichever is dispatched first kills the other,
-	 * which means the second entry in the batch always refers to a device
-	 * that has already been freed - regardless of the order the kernel
-	 * chose. nothing in the dispatch loop revalidates that pointer.
+	 * both in one batch. whichever is dispatched first kills the other, so
+	 * the second entry in the batch always refers to a device that is gone -
+	 * regardless of the order the kernel chose.
 	 *
-	 * this only bites on a multiplexer that dispatches from a snapshot;
-	 * see MUX_DISPATCHES_FROM_SNAPSHOT above. the test runs either way so
-	 * that the safe backends stay covered against a regression. */
+	 * this only bites on a multiplexer that dispatches from a snapshot; see
+	 * MUX_DISPATCHES_FROM_SNAPSHOT above. the core covers it by holding the
+	 * memory of a device killed mid-dispatch until the batch finishes, and
+	 * by skipping any event for a device that is no longer active. the test
+	 * runs on every backend so both halves stay covered. */
 	tdev_t* a, * b;
 	int peer_a = -1, peer_b = -1;
 
@@ -561,10 +562,6 @@ static void test_kill_peer_from_callback (void)
 	pump ();
 
 	OK (g_on_read_calls == 1, "the surviving device read once and killed its peer");
-
-#if MUX_DISPATCHES_FROM_SNAPSHOT
-	todo ("known issue C1: the mux dispatch loop does not revalidate device pointers within a batch", 1);
-#endif
 	OK (g_use_after_free == 0, "no event is dispatched to a device killed earlier in the same batch");
 
 done:

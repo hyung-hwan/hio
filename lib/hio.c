@@ -31,6 +31,7 @@
 static void clear_unneeded_cfmbs (hio_t* hio);
 static int schedule_kill_zombie_job (hio_dev_t* dev);
 static int kill_and_free_device (hio_dev_t* dev, int force);
+static void free_dead_devices (hio_t* hio);
 
 static void on_read_timeout (hio_t* hio, const hio_ntime_t* now, hio_tmrjob_t* job);
 static void on_write_timeout (hio_t* hio, const hio_ntime_t* now, hio_tmrjob_t* job);
@@ -56,7 +57,7 @@ static void* mmgr_realloc (hio_mmgr_t* mmgr, void* ptr, hio_oow_t size)
 
 static void mmgr_free (hio_mmgr_t* mmgr, void* ptr)
 {
-	return free (ptr);
+	return free(ptr);
 }
 
 static hio_mmgr_t default_mmgr =
@@ -134,12 +135,13 @@ int hio_init (hio_t* hio, hio_mmgr_t* mmgr, hio_cmgr_t* cmgr, hio_bitmask_t feat
 
 	hio->tmr.capa = tmrcapa;
 
-	HIO_CFMBL_INIT (&hio->cfmb);
-	HIO_DEVL_INIT (&hio->actdev);
-	HIO_DEVL_INIT (&hio->hltdev);
-	HIO_DEVL_INIT (&hio->zmbdev);
-	HIO_CWQ_INIT (&hio->cwq);
-	HIO_SVCL_INIT (&hio->actsvc);
+	HIO_CFMBL_INIT(&hio->cfmb);
+	HIO_DEVL_INIT(&hio->actdev);
+	HIO_DEVL_INIT(&hio->hltdev);
+	HIO_DEVL_INIT(&hio->zmbdev);
+	HIO_DEVL_INIT(&hio->deaddev);
+	HIO_CWQ_INIT(&hio->cwq);
+	HIO_SVCL_INIT(&hio->actsvc);
 
 	hio_sys_gettime(hio, &hio->init_time);
 	return 0;
@@ -215,8 +217,11 @@ void hio_fini (hio_t* hio)
 		nhltdevs++;
 	}
 
+	/* nothing should be deferred outside of dispatch, but make sure */
+	free_dead_devices (hio);
+
 	/* clean up all zombie devices */
-	HIO_DEVL_INIT (&diehard);
+	HIO_DEVL_INIT(&diehard);
 	for (dev = HIO_DEVL_FIRST_DEV(&hio->zmbdev); !HIO_DEVL_IS_NIL_DEV(&hio->zmbdev, dev); )
 	{
 		kill_and_free_device (dev, 1);
@@ -593,6 +598,16 @@ static HIO_INLINE void update_read_pending (hio_dev_t* dev)
 static HIO_INLINE void handle_event (hio_t* hio, hio_dev_t* dev, int events, int rdhup)
 {
 	HIO_ASSERT(hio, hio == dev->hio);
+
+	if (!(dev->dev_cap & HIO_DEV_CAP_ACTIVE))
+	{
+		/* an earlier event in this same batch halted or killed this device.
+		 * the batch was captured before any of it ran, so its entry is stale.
+		 * a killed device is still allocated at this point - see the deferral
+		 * in kill_and_free_device() - so testing the bit here is safe. */
+		HIO_DEBUG1(hio, "DEV(%p) - skipping a stale event for an inactive device\n", dev);
+		return;
+	}
 
 	dev->dev_cap &= ~HIO_DEV_CAP_RENEW_REQUIRED;
 
@@ -991,6 +1006,10 @@ static HIO_INLINE int __exec (hio_t* hio)
 			tmout.nsec = 0;
 		}
 
+		/* everything from here to the matching decrement dispatches events
+		 * out of a snapshot, so device memory must not be recycled yet. */
+		hio->mux_depth++;
+
 		if (hio_sys_waitmux(hio, &tmout, handle_event) <= -1)
 		{
 			HIO_DEBUG0 (hio, "HIO - WARNING - Failed to wait on mutiplexer\n");
@@ -998,6 +1017,9 @@ static HIO_INLINE int __exec (hio_t* hio)
 		}
 
 		if (hio->nrdpendings > 0) dispatch_pending_reads(hio);
+
+		hio->mux_depth--;
+		if (!HIO_DEVL_IS_EMPTY(&hio->deaddev)) free_dead_devices(hio);
 	}
 
 	kill_all_halted_devices (hio);
@@ -1093,7 +1115,7 @@ hio_dev_t* hio_dev_make (hio_t* hio, hio_oow_t dev_size, hio_dev_mth_t* dev_mth,
 
 	HIO_INIT_NTIME(&dev->rtmout, 0, 0);
 	dev->rtmridx = HIO_TMRIDX_INVALID;
-	HIO_WQ_INIT (&dev->wq);
+	HIO_WQ_INIT(&dev->wq);
 	dev->cw_count = 0;
 
 	/* call the callback function first */
@@ -1186,9 +1208,35 @@ free_device:
 		HIO_DEBUG1(hio, "HIO - Unset ZOMBIE on device %p\n", dev);
 	}
 
+	if (hio->mux_depth > 0)
+	{
+		/* the multiplexer hands out a batch of events captured before any of
+		 * them were dispatched, and each entry carries a raw device pointer.
+		 * releasing this object now would leave a dangling pointer in the
+		 * remainder of that batch for a callback to trip over. the device is
+		 * already dead - unlinked, kill method run, callbacks fired - so just
+		 * hold on to the memory until the batch is over. handle_event() skips
+		 * it in the meantime because HIO_DEV_CAP_ACTIVE is no longer set. */
+		HIO_DEBUG1(hio, "HIO - Deferring the release of device %p until the current dispatch ends\n", dev);
+		HIO_DEVL_APPEND_DEV(&hio->deaddev, dev);
+		return 0;
+	}
+
 	HIO_DEBUG1(hio, "HIO - Freeed device %p\n", dev);
 	hio_freemem(hio, dev);
 	return 0;
+}
+
+/* release what kill_and_free_device() held back during dispatch */
+static void free_dead_devices (hio_t* hio)
+{
+	while (!HIO_DEVL_IS_EMPTY(&hio->deaddev))
+	{
+		hio_dev_t* dev = HIO_DEVL_FIRST_DEV(&hio->deaddev);
+		HIO_DEVL_UNLINK_DEV(dev);
+		HIO_DEBUG1(hio, "HIO - Freeed deferred device %p\n", dev);
+		hio_freemem(hio, dev);
+	}
 }
 
 static void kill_zombie_job_handler (hio_t* hio, const hio_ntime_t* now, hio_tmrjob_t* job)
