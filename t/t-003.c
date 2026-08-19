@@ -258,7 +258,7 @@ int main ()
 			sin.sin_family = AF_INET;
 			sin.sin_addr.s_addr = inet_addr("192.168.1.1");
 			sin.sin_port = HIO_CONST_HTON16(1812);
-			sendto (s, hdr, hio_ntoh16(hdr->length), 0,  &sin, sizeof(sin));
+			sendto (s, hdr, hio_ntoh16(hdr->length), 0,  (struct sockaddr*)&sin, sizeof(sin));
 		}
 #endif
 	}
