@@ -1863,7 +1863,7 @@ static HIO_INLINE int __dev_write (hio_dev_t* dev, const void* data, hio_iolen_t
 		goto enqueue_completed_write;
 	}
 
-	return 1; /* written immediately and called on_write callback. but this line will never be reached */
+	/* code never reaches this part. goto to the section below is made */
 
 enqueue_data:
 	iov.iov_ptr = (void*)uptr;
@@ -1970,7 +1970,7 @@ static HIO_INLINE int __dev_writev (hio_dev_t* dev, hio_iovec_t* iov, hio_iolen_
 		goto enqueue_completed_write;
 	}
 
-	return 1; /* written immediately and called on_write callback. but this line will never be reached */
+	/* code never reaches this part. goto to the section below is made */
 
 enqueue_data:
 	return __enqueue_pending_write(dev, len, urem, iov, iovcnt, index, tmout, wrctx, dstaddr);
@@ -2058,7 +2058,7 @@ static int __dev_sendfile (hio_dev_t* dev, hio_syshnd_t in_fd, hio_foff_t foff, 
 		return -1;
 	}
 
-	return 1; /* written immediately and called on_write callback. but this line will never be reached */
+	/* code never reaches this part. goto to the section below is made */
 
 enqueue_data:
 	return __enqueue_pending_sendfile(dev, len, urem, uoff, in_fd, tmout, wrctx, HIO_NULL);

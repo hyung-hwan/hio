@@ -1042,15 +1042,34 @@ HIO_EXPORT int hio_dev_timedread (
 	const hio_ntime_t* tmout
 );
 
-
 /**
  * The hio_dev_write() function posts a writing request.
- * It attempts to write data immediately if there is no pending requests.
- * If writing fails, it returns -1. If writing succeeds, it calls the
- * on_write callback. If the callback fails, it returns -1. If the callback
- * succeeds, it returns 1. If no immediate writing is possible, the request
- * is enqueued to a pending request list. If enqueing gets successful,
- * it returns 0. otherwise it returns -1.
+ *
+ * If the write queue is empty, it attempts to write immediately and whatever
+ * the transport accepts on the spot goes out there and then. Any remainder,
+ * or the whole request if the queue was not empty, is enqueued and pushed
+ * out as the device becomes writable again.
+ *
+ * The on_write() callback is never invoked from within this function, not
+ * even when the entire request is written immediately. It is placed on the
+ * completed write queue and fired later from the event loop. This is
+ * deliberate - calling it inline would let a callback that issues another
+ * write re-enter this function. Callers must not assume on_write() has run
+ * by the time this function returns.
+ *
+ * It returns 0 on success and -1 on failure. Success covers both the
+ * immediate and the enqueued case; the two are not distinguishable through
+ * the return value. Failure means the request was not accepted at all -
+ * the writing end is already closed (#HIO_ENOCAPA), the transport reported
+ * an error, or a queue entry could not be allocated.
+ *
+ * A failure occurring after the request has been accepted - the transport
+ * erroring out while draining the queue, or on_write() returning -1 - is
+ * not reported here. It halts the device instead.
+ *
+ * For a stream device, a request of zero length closes the writing end and
+ * sets #HIO_DEV_CAP_OUT_CLOSED, so every subsequent write on that device
+ * fails.
  */
 HIO_EXPORT int hio_dev_write (
 	hio_dev_t*            dev,
@@ -1060,6 +1079,11 @@ HIO_EXPORT int hio_dev_write (
 	const hio_devaddr_t*  dstaddr
 );
 
+/**
+ * The hio_dev_writev() function posts a writing request for a vector of
+ * buffers. It follows the hio_dev_write() contract in full - 0 or -1, and
+ * a deferred on_write() reporting the total length of the whole vector.
+ */
 HIO_EXPORT int hio_dev_writev (
 	hio_dev_t*            dev,
 	hio_iovec_t*          iov,
@@ -1068,6 +1092,12 @@ HIO_EXPORT int hio_dev_writev (
 	const hio_devaddr_t*  dstaddr
 );
 
+/**
+ * The hio_dev_sendfile() function posts a writing request sourced from an
+ * open file descriptor. It follows the hio_dev_write() contract, and fails
+ * with #HIO_ENOCAPA on a device whose transport has no sendfile method or
+ * which is not a stream.
+ */
 HIO_EXPORT int hio_dev_sendfile (
 	hio_dev_t*            dev,
 	hio_syshnd_t          in_fd,
@@ -1076,6 +1106,14 @@ HIO_EXPORT int hio_dev_sendfile (
 	void*                 wrctx
 );
 
+/**
+ * The hio_dev_timedwrite() function is hio_dev_write() with a deadline on
+ * the enqueued portion of the request. If the request has not drained by
+ * the time tmout elapses, it is dropped from the write queue and on_write()
+ * is fired with a length of -1 and the hio error number set to #HIO_ETMOUT.
+ * The deadline bounds the wait only - the return value still reports
+ * nothing beyond whether the request was accepted.
+ */
 HIO_EXPORT int hio_dev_timedwrite (
 	hio_dev_t*            dev,
 	const void*           data,
@@ -1086,6 +1124,10 @@ HIO_EXPORT int hio_dev_timedwrite (
 );
 
 
+/**
+ * The hio_dev_timedwritev() function is hio_dev_writev() with the deadline
+ * described for hio_dev_timedwrite().
+ */
 HIO_EXPORT int hio_dev_timedwritev (
 	hio_dev_t*            dev,
 	hio_iovec_t*          iov,

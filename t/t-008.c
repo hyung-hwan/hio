@@ -280,8 +280,7 @@ static void test_immediate_write (void)
 	OK (rc >= 0, "hio_dev_write() reports success for an immediate write");
 	OK (g_cw_n == 0, "on_write is not invoked from inside hio_dev_write()");
 
-	todo ("hio.h documents a return of 1 for an immediate write; __dev_write() returns 0 via the completion queue", 1);
-	OK (rc == 1, "hio_dev_write() returns 1 for an immediate write as documented");
+	OK (rc == 0, "hio_dev_write() returns 0 for an immediate write, same as for an enqueued one");
 
 	pump ();
 	OK (g_cw_n == 1, "the deferred completion fires on the next loop iteration");
