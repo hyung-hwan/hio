@@ -380,6 +380,7 @@ struct hio_wq_t
 	hio_dev_evcb_t* dev_evcb; \
 	hio_ntime_t     rtmout; \
 	hio_tmridx_t    rtmridx; \
+	int             dev_extra_events; /* events the transport needs watched regardless of the device's own i/o state. see hio_dev_watch() */ \
 	hio_wq_t        wq; \
 	hio_oow_t       cw_count; \
 	hio_dev_t*      dev_prev; \

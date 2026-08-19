@@ -608,10 +608,6 @@ static int open_peer_with_mode (file_t* file, const hio_bch_t* actual_file, int 
 
 /* ----------------------------------------------------------------------- */
 
-
-
-/* ----------------------------------------------------------------------- */
-
 static int bind_task_to_peer (file_t* file, hio_htre_t* req, const hio_bch_t* file_path, const hio_bch_t* mime_type)
 {
 	int status_code;

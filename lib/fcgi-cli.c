@@ -165,13 +165,13 @@ static int sck_on_read (hio_dev_sck_t* sck, const void* data, hio_iolen_t dlen, 
 	{
 		/* error or timeout */
 /* fire all related fcgi sessions?? -> handled on disconnect */
-		hio_dev_sck_halt (sck);
+		hio_dev_sck_halt(sck);
 	}
 	else if (dlen == 0)
 	{
 		/* EOF */
 /* fire all related fcgi sessions?? -> handled on disconnect?? */
-		hio_dev_sck_halt (sck);
+		hio_dev_sck_halt(sck);
 	}
 	else
 	{
@@ -218,7 +218,7 @@ static int sck_on_read (hio_dev_sck_t* sck, const void* data, hio_iolen_t dlen, 
 				{
 					/* invalid content_len encountered */
 					/* TODO: logging*/
-					hio_dev_sck_halt (sck);
+					hio_dev_sck_halt(sck);
 					goto done;
 				}
 
@@ -323,7 +323,7 @@ static int make_connection_socket (hio_svc_fcgic_t* fcgic, hio_svc_fcgic_conn_t*
 	{
 		/* immediate failure */
 		sck_xtn->conn = HIO_NULL; /* disassociate the socket from the fcgi connection object */
-		hio_dev_sck_halt (sck);
+		hio_dev_sck_halt(sck);
 		return -1;
 	}
 
@@ -404,11 +404,11 @@ static void free_connections (hio_svc_fcgic_t* fcgic)
 			struct fcgic_sck_xtn_t* sck_xtn;
 			sck_xtn = hio_dev_sck_getxtn(conn->dev);
 			sck_xtn->conn = HIO_NULL;
-			hio_dev_sck_halt (conn->dev);
+			hio_dev_sck_halt(conn->dev);
 		}
 
 		/* delay destruction of conn->session.ptr and conn */
-		hio_addcfmb (hio, (hio_cfmb_t*)conn, HIO_NULL, destroy_connection_memory);
+		hio_addcfmb(hio, (hio_cfmb_t*)conn, HIO_NULL, destroy_connection_memory);
 		conn = next;
 	}
 }
@@ -473,7 +473,7 @@ static hio_svc_fcgic_sess_t* new_session (hio_svc_fcgic_t* fcgic, const hio_skad
 
 static void release_session (hio_svc_fcgic_sess_t* sess)
 {
-	if (sess->on_untie) sess->on_untie (sess, sess->ctx);
+	if (sess->on_untie) sess->on_untie(sess, sess->ctx);
 	sess->active = 0;
 	sess->next = sess->conn->sess.free;
 	sess->conn->sess.free = sess;
@@ -494,8 +494,8 @@ hio_svc_fcgic_t* hio_svc_fcgic_start (hio_t* hio, const hio_svc_fcgic_tmout_t* t
 
 	if (tmout) fcgic->tmout = *tmout;
 
-	HIO_SVCL_APPEND_SVC (&hio->actsvc, (hio_svc_t*)fcgic);
-	HIO_DEBUG1 (hio, "FCGIC - STARTED SERVICE %p\n", fcgic);
+	HIO_SVCL_APPEND_SVC(&hio->actsvc, (hio_svc_t*)fcgic);
+	HIO_DEBUG1(hio, "FCGIC - STARTED SERVICE %p\n", fcgic);
 	return fcgic;
 
 oops:
@@ -507,15 +507,15 @@ void hio_svc_fcgic_stop (hio_svc_fcgic_t* fcgic)
 {
 	hio_t* hio = fcgic->hio;
 
-	HIO_DEBUG1 (hio, "FCGIC - STOPPING SERVICE %p\n", fcgic);
+	HIO_DEBUG1(hio, "FCGIC - STOPPING SERVICE %p\n", fcgic);
 	fcgic->stopping = 1;
 
 	free_connections (fcgic);
 
-	HIO_SVCL_UNLINK_SVC (fcgic);
+	HIO_SVCL_UNLINK_SVC(fcgic);
 	hio_freemem(hio, fcgic);
 
-	HIO_DEBUG1 (hio, "FCGIC - STOPPED SERVICE %p\n", fcgic);
+	HIO_DEBUG1(hio, "FCGIC - STOPPED SERVICE %p\n", fcgic);
 }
 
 hio_svc_fcgic_sess_t* hio_svc_fcgic_tie (hio_svc_fcgic_t* fcgic, const hio_skad_t* addr, hio_svc_fcgic_on_read_t on_read, hio_svc_fcgic_on_write_t on_write, hio_svc_fcgic_on_untie_t on_untie, void* ctx)

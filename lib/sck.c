@@ -133,7 +133,7 @@ done:
 
 oops:
 	hio_seterrwithsyserr(hio, 0, errno);
-	if (sck != HIO_SYSHND_INVALID) close (sck);
+	if (sck != HIO_SYSHND_INVALID) close(sck);
 	return HIO_SYSHND_INVALID;
 }
 
@@ -171,8 +171,8 @@ open_socket:
 	    hio_makesyshndcloexec(hio, fd[1]) <= -1)
 	{
 		hio_seterrwithsyserr(hio, 0, errno);
-		close (fd[0]);
-		close (fd[1]);
+		close(fd[0]);
+		close(fd[1]);
 		return HIO_SYSHND_INVALID;
 	}
 
@@ -200,7 +200,7 @@ static hio_syshnd_t open_async_bpf (hio_t* hio)
 	return fd;
 oops:
 	hio_seterrwithsyserr(hio, 0, errno);
-	if (fd != HIO_SYSHND_INVALID) close (fd);
+	if (fd != HIO_SYSHND_INVALID) close(fd);
 	return HIO_SYSHND_INVALID;
 }
 
@@ -382,7 +382,7 @@ static HIO_INLINE int schedule_timer_job_after (hio_dev_sck_t* dev, const hio_nt
 
 /* ======================================================================== */
 #if defined(USE_SSL)
-static void set_ssl_error (hio_t* hio, int sslerr)
+static void set_ssl_error(hio_t* hio, int sslerr)
 {
 	hio_bch_t emsg[128];
 	ERR_error_string_n (sslerr, emsg, HIO_COUNTOF(emsg));
@@ -449,8 +449,8 @@ static int dev_sck_make (hio_dev_t* dev, void* ctx)
 	return 0;
 
 oops:
-	if (hnd != HIO_SYSHND_INVALID) close (hnd);
-	if (side_chan != HIO_SYSHND_INVALID) close (side_chan);
+	if (hnd != HIO_SYSHND_INVALID) close(hnd);
+	if (side_chan != HIO_SYSHND_INVALID) close(side_chan);
 	return -1;
 }
 
@@ -478,7 +478,7 @@ static int dev_sck_make_client (hio_dev_t* dev, void* ctx)
 oops:
 	if (rdev->hnd != HIO_SYSHND_INVALID)
 	{
-		close (rdev->hnd);
+		close(rdev->hnd);
 		rdev->hnd = HIO_SYSHND_INVALID;
 	}
 	return -1;
@@ -487,7 +487,7 @@ oops:
 static void dev_sck_fail_before_make_client (void* ctx)
 {
 	hio_syshnd_t* clisckhnd = (hio_syshnd_t*)ctx;
-	close (*clisckhnd);
+	close(*clisckhnd);
 }
 
 static int dev_sck_kill (hio_dev_t* dev, int force)
@@ -513,40 +513,40 @@ static int dev_sck_kill (hio_dev_t* dev, int force)
 		/* non-stream, but lisenable or connectable can have the progress bits on */
 		/*HIO_ASSERT(hio, (rdev->state & HIO_DEV_SCK_ALL_PROGRESS_BITS) == 0);*/
 
-		if (rdev->on_disconnect) rdev->on_disconnect (rdev);
+		if (rdev->on_disconnect) rdev->on_disconnect(rdev);
 	}
 #else
-	if (rdev->on_disconnect) rdev->on_disconnect (rdev);
+	if (rdev->on_disconnect) rdev->on_disconnect(rdev);
 #endif
 	if (rdev->tmrjob_index != HIO_TMRIDX_INVALID)
 	{
-		hio_deltmrjob (hio, rdev->tmrjob_index);
+		hio_deltmrjob(hio, rdev->tmrjob_index);
 		HIO_ASSERT(hio, rdev->tmrjob_index == HIO_TMRIDX_INVALID);
 	}
 
 #if defined(USE_SSL)
 	if (rdev->ssl)
 	{
-		SSL_shutdown ((SSL*)rdev->ssl); /* is this needed? */
-		SSL_free ((SSL*)rdev->ssl);
+		SSL_shutdown((SSL*)rdev->ssl); /* is this needed? */
+		SSL_free((SSL*)rdev->ssl);
 		rdev->ssl = HIO_NULL;
 	}
 	if (!(rdev->state & (HIO_DEV_SCK_ACCEPTED | HIO_DEV_SCK_ACCEPTING_SSL)) && rdev->ssl_ctx)
 	{
-		SSL_CTX_free ((SSL_CTX*)rdev->ssl_ctx);
+		SSL_CTX_free((SSL_CTX*)rdev->ssl_ctx);
 		rdev->ssl_ctx = HIO_NULL;
 	}
 #endif
 
 	if (rdev->hnd != HIO_SYSHND_INVALID)
 	{
-		close (rdev->hnd);
+		close(rdev->hnd);
 		rdev->hnd = HIO_SYSHND_INVALID;
 	}
 
 	if (rdev->side_chan != HIO_SYSHND_INVALID)
 	{
-		close (rdev->side_chan);
+		close(rdev->side_chan);
 		rdev->side_chan = HIO_SYSHND_INVALID;
 	}
 
@@ -560,6 +560,24 @@ static hio_syshnd_t dev_sck_getsyshnd (hio_dev_t* dev)
 	return (hio_syshnd_t)rdev->hnd;
 }
 /* ------------------------------------------------------------------------------ */
+
+#if defined(USE_SSL)
+/* an SSL_read() may need to write and an SSL_write() may need to read - during
+ * a tls 1.2 renegotiation or a tls 1.3 key update, for instance. record the
+ * direction the tls layer is blocked on so that hio_dev_watch() keeps watching
+ * it until the stalled operation gets through. pass 0 to clear.
+ *
+ * HIO_DEV_WATCH_RENEW recomputes the natural event set - input unless the
+ * application disabled it, output only when the write queue is non-empty -
+ * and hio_dev_watch() then ORs dev_extra_events on top of that. so clearing
+ * this and renewing puts the device back exactly where it would have been. */
+static int ssl_want_events (hio_dev_sck_t* rdev, int events)
+{
+	if (rdev->dev_extra_events == events) return 0;
+	rdev->dev_extra_events = events;
+	return hio_dev_watch((hio_dev_t*)rdev, HIO_DEV_WATCH_RENEW, HIO_DEV_EVENT_IN);
+}
+#endif
 
 static int dev_sck_read_stream (hio_dev_t* dev, void* buf, hio_iolen_t* len, hio_devaddr_t* srcaddr)
 {
@@ -575,11 +593,22 @@ static int dev_sck_read_stream (hio_dev_t* dev, void* buf, hio_iolen_t* len, hio
 		if (x <= -1)
 		{
 			int err = SSL_get_error((SSL*)rdev->ssl, x);
-			if (err == SSL_ERROR_WANT_READ || err == SSL_ERROR_WANT_WRITE) return 0;
-			set_ssl_error (hio, err);
+			if (err == SSL_ERROR_WANT_READ)
+			{
+				/* no data yet. input is watched already. */
+				return (ssl_want_events(rdev, 0) <= -1)? -1: 0;
+			}
+			if (err == SSL_ERROR_WANT_WRITE)
+			{
+				/* the tls layer must push bytes out before it can decrypt any
+				 * more. watch output even with nothing queued for writing. */
+				return (ssl_want_events(rdev, HIO_DEV_EVENT_OUT) <= -1)? -1: 0;
+			}
+			set_ssl_error(hio, err);
 			return -1;
 		}
 
+		if (ssl_want_events(rdev, 0) <= -1) return -1;
 		*len = x;
 	}
 	else
@@ -773,7 +802,7 @@ static int dev_sck_write_stream (hio_dev_t* dev, const void* data, hio_iolen_t* 
 			 * the socket, probably leaving it in the half-closed state */
 			if ((x = SSL_shutdown((SSL*)rdev->ssl)) <= -1)
 			{
-				set_ssl_error (hio, SSL_get_error((SSL*)rdev->ssl, x));
+				set_ssl_error(hio, SSL_get_error((SSL*)rdev->ssl, x));
 				return -1;
 			}
 			return 1;
@@ -782,12 +811,24 @@ static int dev_sck_write_stream (hio_dev_t* dev, const void* data, hio_iolen_t* 
 		x = SSL_write((SSL*)rdev->ssl, data, *len);
 		if (x <= -1)
 		{
-			int err = SSL_get_error ((SSL*)rdev->ssl, x);
-			if (err == SSL_ERROR_WANT_READ || err == SSL_ERROR_WANT_WRITE) return 0;
-			set_ssl_error (hio, err);
+			int err = SSL_get_error((SSL*)rdev->ssl, x);
+			if (err == SSL_ERROR_WANT_READ)
+			{
+				/* the tls layer must consume incoming bytes before it can
+				 * encrypt any more. the application may have disabled reading
+				 * for backpressure, so this has to override that. */
+				return (ssl_want_events(rdev, HIO_DEV_EVENT_IN) <= -1)? -1: 0;
+			}
+			if (err == SSL_ERROR_WANT_WRITE)
+			{
+				/* output is watched already - the core queues and arms it. */
+				return (ssl_want_events(rdev, 0) <= -1)? -1: 0;
+			}
+			set_ssl_error(hio, err);
 			return -1;
 		}
 
+		if (ssl_want_events(rdev, 0) <= -1) return -1;
 		*len = x;
 	}
 	else
@@ -850,7 +891,7 @@ static int dev_sck_writev_stream (hio_dev_t* dev, const hio_iovec_t* iov, hio_io
 			 * the socket, probably leaving it in the half-closed state */
 			if ((x = SSL_shutdown((SSL*)rdev->ssl)) <= -1)
 			{
-				set_ssl_error (hio, SSL_get_error((SSL*)rdev->ssl, x));
+				set_ssl_error(hio, SSL_get_error((SSL*)rdev->ssl, x));
 				return -1;
 			}
 			return 1;
@@ -866,13 +907,22 @@ static int dev_sck_writev_stream (hio_dev_t* dev, const hio_iovec_t* iov, hio_io
 			if (x <= -1)
 			{
 				int err = SSL_get_error ((SSL*)rdev->ssl, x);
-				if (err == SSL_ERROR_WANT_READ || err == SSL_ERROR_WANT_WRITE) return 0;
-				set_ssl_error (hio, err);
+				if (err == SSL_ERROR_WANT_READ || err == SSL_ERROR_WANT_WRITE)
+				{
+					if (ssl_want_events(rdev, (err == SSL_ERROR_WANT_READ)? HIO_DEV_EVENT_IN: 0) <= -1) return -1;
+					/* earlier elements of the vector went out for real. reporting
+					 * 0 here would make the caller resend them and duplicate
+					 * bytes on the wire. report the partial count instead. */
+					if (nwritten > 0) { *iovcnt = nwritten; return 1; }
+					return 0;
+				}
+				set_ssl_error(hio, err);
 				return -1;
 			}
 			nwritten += x;
 		}
 
+		if (ssl_want_events(rdev, 0) <= -1) return -1;
 		*iovcnt = nwritten;
 	}
 	else
@@ -1078,7 +1128,7 @@ static int dev_sck_sendfile_stream (hio_dev_t* dev, hio_syshnd_t in_fd, hio_foff
 			 * the socket, probably leaving it in the half-closed state */
 			if ((x = SSL_shutdown((SSL*)rdev->ssl)) <= -1)
 			{
-				set_ssl_error (hio, SSL_get_error((SSL*)rdev->ssl, x));
+				set_ssl_error(hio, SSL_get_error((SSL*)rdev->ssl, x));
 				return -1;
 			}
 			return 1;
@@ -1088,11 +1138,23 @@ static int dev_sck_sendfile_stream (hio_dev_t* dev, hio_syshnd_t in_fd, hio_foff
 		if (x <= -1)
 		{
 			int err = SSL_get_error ((SSL*)rdev->ssl, x);
-			if (err == SSL_ERROR_WANT_READ || err == SSL_ERROR_WANT_WRITE) return 0;
-			set_ssl_error (hio, err);
+			if (err == SSL_ERROR_WANT_READ)
+			{
+				/* the tls layer must consume incoming bytes before it can
+				 * encrypt any more. the application may have disabled reading
+				 * for backpressure, so this has to override that. */
+				return (ssl_want_events(rdev, HIO_DEV_EVENT_IN) <= -1)? -1: 0;
+			}
+			if (err == SSL_ERROR_WANT_WRITE)
+			{
+				/* output is watched already - the core queues and arms it. */
+				return (ssl_want_events(rdev, 0) <= -1)? -1: 0;
+			}
+			set_ssl_error(hio, err);
 			return -1;
 		}
 
+		if (ssl_want_events(rdev, 0) <= -1) return -1;
 		*len = x;
 	}
 	else
@@ -1158,13 +1220,13 @@ static int do_ssl (hio_dev_sck_t* dev, int (*ssl_func)(SSL*))
 		ssl = SSL_new(dev->ssl_ctx);
 		if (!ssl)
 		{
-			set_ssl_error (hio, ERR_get_error());
+			set_ssl_error(hio, ERR_get_error());
 			return -1;
 		}
 
 		if (SSL_set_fd(ssl, dev->hnd) == 0)
 		{
-			set_ssl_error (hio, ERR_get_error());
+			set_ssl_error(hio, ERR_get_error());
 			return -1;
 		}
 
@@ -1194,7 +1256,7 @@ static int do_ssl (hio_dev_sck_t* dev, int (*ssl_func)(SSL*))
 		}
 		else
 		{
-			set_ssl_error (hio, err);
+			set_ssl_error(hio, err);
 			ret = -1;
 		}
 	}
@@ -1205,7 +1267,7 @@ static int do_ssl (hio_dev_sck_t* dev, int (*ssl_func)(SSL*))
 
 	if (hio_dev_watch((hio_dev_t*)dev, watcher_cmd, watcher_events) <= -1)
 	{
-		hio_stop (hio, HIO_STOPREQ_WATCHER_ERROR);
+		hio_stop(hio, HIO_STOPREQ_WATCHER_ERROR);
 		ret = -1;
 	}
 
@@ -1331,14 +1393,14 @@ static int dev_sck_ioctl (hio_dev_t* dev, int cmd, void* arg)
 			if (rdev->ssl_ctx)
 			{
 			#if defined(USE_SSL)
-				SSL_CTX_free (rdev->ssl_ctx);
+				SSL_CTX_free(rdev->ssl_ctx);
 			#endif
 				rdev->ssl_ctx = HIO_NULL;
 
 				if (rdev->ssl)
 				{
 				#if defined(USE_SSL)
-					SSL_free (rdev->ssl);
+					SSL_free(rdev->ssl);
 				#endif
 					rdev->ssl = HIO_NULL;
 				}
@@ -1356,7 +1418,7 @@ static int dev_sck_ioctl (hio_dev_t* dev, int cmd, void* arg)
 				ssl_ctx = SSL_CTX_new(SSLv23_server_method());
 				if (!ssl_ctx)
 				{
-					set_ssl_error (hio, ERR_get_error());
+					set_ssl_error(hio, ERR_get_error());
 					return -1;
 				}
 
@@ -1365,8 +1427,8 @@ static int dev_sck_ioctl (hio_dev_t* dev, int cmd, void* arg)
 				    SSL_CTX_check_private_key(ssl_ctx) == 0  /*||
 				    SSL_CTX_use_certificate_chain_file(ssl_ctx, bnd->chainfile) == 0*/)
 				{
-					set_ssl_error (hio, ERR_get_error());
-					SSL_CTX_free (ssl_ctx);
+					set_ssl_error(hio, ERR_get_error());
+					SSL_CTX_free(ssl_ctx);
 					return -1;
 				}
 
@@ -1387,7 +1449,7 @@ static int dev_sck_ioctl (hio_dev_t* dev, int cmd, void* arg)
 			{
 				hio_seterrwithsyserr(hio, 0, errno);
 			#if defined(USE_SSL)
-				if (ssl_ctx) SSL_CTX_free (ssl_ctx);
+				if (ssl_ctx) SSL_CTX_free(ssl_ctx);
 			#endif
 				return -1;
 			}
@@ -1437,11 +1499,11 @@ static int dev_sck_ioctl (hio_dev_t* dev, int cmd, void* arg)
 			{
 				if (rdev->ssl)
 				{
-					SSL_free (rdev->ssl);
+					SSL_free(rdev->ssl);
 					rdev->ssl = HIO_NULL;
 				}
 
-				SSL_CTX_free (rdev->ssl_ctx);
+				SSL_CTX_free(rdev->ssl_ctx);
 				rdev->ssl_ctx = HIO_NULL;
 			}
 
@@ -1450,14 +1512,14 @@ static int dev_sck_ioctl (hio_dev_t* dev, int cmd, void* arg)
 				ssl_ctx = SSL_CTX_new(SSLv23_client_method());
 				if (!ssl_ctx)
 				{
-					set_ssl_error (hio, ERR_get_error());
+					set_ssl_error(hio, ERR_get_error());
 					return -1;
 				}
 
-				SSL_CTX_set_read_ahead (ssl_ctx, 0);
-				SSL_CTX_set_mode (ssl_ctx, SSL_CTX_get_mode(ssl_ctx) |
-				                           /* SSL_MODE_ENABLE_PARTIAL_WRITE | */
-				                           SSL_MODE_ACCEPT_MOVING_WRITE_BUFFER);
+				SSL_CTX_set_read_ahead(ssl_ctx, 0);
+				SSL_CTX_set_mode(ssl_ctx, SSL_CTX_get_mode(ssl_ctx) |
+				                          /* SSL_MODE_ENABLE_PARTIAL_WRITE | */
+				                          SSL_MODE_ACCEPT_MOVING_WRITE_BUFFER);
 			}
 		#endif
 			/* the socket is already non-blocking */
@@ -1477,7 +1539,7 @@ fcntl (rdev->hnd, F_SETFL, flags | O_NONBLOCK);
 					if (hio_dev_watch((hio_dev_t*)rdev, HIO_DEV_WATCH_UPDATE, HIO_DEV_EVENT_IN | HIO_DEV_EVENT_OUT) <= -1)
 					{
 						/* watcher update failure. it's critical */
-						hio_stop (hio, HIO_STOPREQ_WATCHER_ERROR);
+						hio_stop(hio, HIO_STOPREQ_WATCHER_ERROR);
 						goto oops_connect_watcher_error;
 					}
 					else
@@ -1494,7 +1556,7 @@ fcntl (rdev->hnd, F_SETFL, flags | O_NONBLOCK);
 							{
 								/* update rdev->tmout to the deadline of the connect timeout job */
 								HIO_ASSERT(hio, rdev->tmrjob_index != HIO_TMRIDX_INVALID);
-								hio_gettmrjobdeadline (hio, rdev->tmrjob_index, &rdev->tmout);
+								hio_gettmrjobdeadline(hio, rdev->tmrjob_index, &rdev->tmout);
 							}
 						}
 
@@ -1513,12 +1575,12 @@ fcntl (rdev->hnd, F_SETFL, flags | O_NONBLOCK);
 				if (hio_dev_watch((hio_dev_t*)rdev, HIO_DEV_WATCH_UPDATE, HIO_DEV_EVENT_IN) <= -1)
 				{
 					/* watcher update failure. it's critical */
-					hio_stop (hio, HIO_STOPREQ_WATCHER_ERROR);
+					hio_stop(hio, HIO_STOPREQ_WATCHER_ERROR);
 				}
 
 			oops_connect_watcher_error:
 			#if defined(USE_SSL)
-				if (ssl_ctx) SSL_CTX_free (ssl_ctx);
+				if (ssl_ctx) SSL_CTX_free(ssl_ctx);
 			#endif
 				return -1;
 			}
@@ -1531,7 +1593,7 @@ fcntl (rdev->hnd, F_SETFL, flags | O_NONBLOCK);
 				if (hio_dev_watch((hio_dev_t*)rdev, HIO_DEV_WATCH_UPDATE, HIO_DEV_EVENT_IN | HIO_DEV_EVENT_OUT) <= -1)
 				{
 					/* watcher update failure. it's critical */
-					hio_stop (hio, HIO_STOPREQ_WATCHER_ERROR);
+					hio_stop(hio, HIO_STOPREQ_WATCHER_ERROR);
 					goto oops_connect;
 				}
 
@@ -1584,7 +1646,7 @@ fcntl (rdev->hnd, F_SETFL, flags | O_NONBLOCK);
 				if (hio_dev_watch((hio_dev_t*)rdev, HIO_DEV_WATCH_STOP, 0) <= -1 ||
 				    hio_dev_watch((hio_dev_t*)rdev, HIO_DEV_WATCH_START, 0) <= -1)
 				{
-					hio_stop (hio, HIO_STOPREQ_WATCHER_ERROR);
+					hio_stop(hio, HIO_STOPREQ_WATCHER_ERROR);
 					return -1;
 				}
 			}
@@ -1744,7 +1806,7 @@ static int harvest_outgoing_connection (hio_dev_sck_t* rdev)
 		if (hio_dev_watch((hio_dev_t*)rdev, HIO_DEV_WATCH_RENEW, HIO_DEV_EVENT_IN) <= -1)
 		{
 			/* watcher update failure. it's critical */
-			hio_stop (hio, HIO_STOPREQ_WATCHER_ERROR);
+			hio_stop(hio, HIO_STOPREQ_WATCHER_ERROR);
 			return -1;
 		}
 
@@ -1816,7 +1878,7 @@ static int make_accepted_client_connection (hio_dev_sck_t* rdev, hio_syshnd_t cl
 		/* this is a special optional callback. If you don't want a client socket device
 		 * to be created upon accept, you may implement the on_raw_accept() handler.
 		 * the socket handle is delegated to the callback. */
-		rdev->on_raw_accept (rdev, clisck, remoteaddr);
+		rdev->on_raw_accept(rdev, clisck, remoteaddr);
 		return 0;
 	}
 

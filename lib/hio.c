@@ -1351,10 +1351,28 @@ int hio_dev_watch (hio_dev_t* dev, hio_dev_watch_cmd_t cmd, int events)
 	}
 
 
+	/* the transport may need a direction watched that the device's own i/o
+	 * state doesn't call for. the classic case is tls: SSL_read() can return
+	 * SSL_ERROR_WANT_WRITE and SSL_write() can return SSL_ERROR_WANT_READ
+	 * while a renegotiation or a key update is in flight. the request is kept
+	 * on the device rather than passed in per call because a later RENEW -
+	 * which derives output watching from the write queue alone - would
+	 * otherwise drop it silently. HIO_DEV_WATCH_STOP jumps straight to
+	 * ctrl_mux and is not affected. */
+	events |= dev->dev_extra_events;
+
 	/* this function honors HIO_DEV_EVENT_IN and HIO_DEV_EVENT_OUT only
 	 * as valid input event bits. it intends to provide simple abstraction
-	 * by reducing the variety of event bits that the caller has to handle. */
-	if ((events & HIO_DEV_EVENT_IN) && !(dev->dev_cap & (HIO_DEV_CAP_IN_CLOSED | HIO_DEV_CAP_IN_DISABLED)))
+	 * by reducing the variety of event bits that the caller has to handle.
+	 *
+	 * HIO_DEV_CAP_IN_DISABLED is the application's backpressure switch while
+	 * dev_extra_events is the transport's protocol requirement. the latter
+	 * must win, or a tls write stalled on SSL_ERROR_WANT_READ could never
+	 * complete once the application has turned reading off. HIO_DEV_CAP_IN_CLOSED
+	 * is different - the input side is really gone - and still wins. */
+	/*if ((events & HIO_DEV_EVENT_IN) && !(dev->dev_cap & (HIO_DEV_CAP_IN_CLOSED | HIO_DEV_CAP_IN_DISABLED))) <- before dev_extra_events was added*/
+	if ((events & HIO_DEV_EVENT_IN) && !(dev->dev_cap & HIO_DEV_CAP_IN_CLOSED) &&
+	    (!(dev->dev_cap & HIO_DEV_CAP_IN_DISABLED) || (dev->dev_extra_events & HIO_DEV_EVENT_IN))) /* <- disabled but the underlying device wants to read it */
 	{
 		if (dev->dev_cap & HIO_DEV_CAP_IN)
 		{
