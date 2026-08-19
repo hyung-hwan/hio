@@ -196,7 +196,7 @@ HIO_DEBUG1 (hio, "DNC - got dns response over tcp - msgid:%d\n", id);
 
 		if (dev == (hio_dev_sck_t*)reqmsgxtn->dev && pkt->id == reqpkt->id)
 		{
-			if (HIO_LIKELY(reqmsgxtn->on_done)) reqmsgxtn->on_done (dnc, reqmsg, HIO_ENOERR, pkt, pktlen);
+			if (HIO_LIKELY(reqmsgxtn->on_done)) reqmsgxtn->on_done(dnc, reqmsg, HIO_ENOERR, pkt, pktlen);
 			release_dns_msg (dnc, reqmsg);
 			return 0;
 		}

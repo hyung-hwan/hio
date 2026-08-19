@@ -39,9 +39,8 @@
 
 #define PXY_ALLOW_UNLIMITED_REQ_CONTENT_LENGTH
 
-
 #define PXY_PEER_CONNECT_TMOUT (5)
-#define PXY_PENDING_IO_THRESHOLD 5
+#define PXY_PENDING_IO_THRESHOLD (5)
 
 #define PXY_OVER_READ_FROM_CLIENT (1 << 0)
 #define PXY_OVER_READ_FROM_PEER   (1 << 1)
@@ -700,8 +699,8 @@ static int bind_task_to_peer (pxy_t* pxy, hio_dev_sck_t* csck, hio_htre_t* req, 
 	htrd = hio_htrd_open(hio, HIO_SIZEOF(*pxtn));
 	if (HIO_UNLIKELY(!sck || !htrd)) goto oops;
 
-	hio_htrd_setoption (htrd, HIO_HTRD_RESPONSE);
-	hio_htrd_setrecbs (htrd, &peer_htrd_recbs);
+	hio_htrd_setoption(htrd, HIO_HTRD_RESPONSE);
+	hio_htrd_setrecbs(htrd, &peer_htrd_recbs);
 
 	pxy->peer = sck;
 	pxy->peer_htrd = htrd;
@@ -718,9 +717,9 @@ static int bind_task_to_peer (pxy_t* pxy, hio_dev_sck_t* csck, hio_htre_t* req, 
 	 * handed over once the connection completes. */
 	if (build_request_head(pxy, req) <= -1) goto oops;
 
-	HIO_MEMSET (&c, 0, HIO_SIZEOF(c));
+	HIO_MEMSET(&c, 0, HIO_SIZEOF(c));
 	c.remoteaddr = *skad;
-	HIO_INIT_NTIME (&c.connect_tmout, PXY_PEER_CONNECT_TMOUT, 0);
+	HIO_INIT_NTIME(&c.connect_tmout, PXY_PEER_CONNECT_TMOUT, 0);
 	if (hio_dev_sck_connect(pxy->peer, &c) <= -1) goto oops;
 
 	return 0;

@@ -18,7 +18,7 @@ check_SCRIPTS = s-001.sh s-002.sh
 EXTRA_DIST = $(check_SCRIPTS) tap.inc t-cgi.sh
 
 ## programs run as tests
-TESTPROGS = t-001 t-002 t-003 t-004 t-005 t-006 t-007 t-008
+TESTPROGS = t-001 t-002 t-003 t-004 t-005 t-006 t-007 t-008 t-009
 
 ## helpers the test scripts drive. built with the tests, but not tests
 ## themselves - they are servers and would never exit.
@@ -76,6 +76,14 @@ t_008_CFLAGS = $(CFLAGS_COMMON)
 t_008_LDFLAGS = $(LDFLAGS_COMMON)
 t_008_LDADD = $(LIBADD_COMMON)
 
+## t-009 drives a tls client and a tls server in one loop. it skips itself
+## if the openssl command is unavailable to generate a throwaway certificate.
+t_009_SOURCES = t-009.c tap.h
+t_009_CPPFLAGS = $(CPPFLAGS_COMMON)
+t_009_CFLAGS = $(CFLAGS_COMMON)
+t_009_LDFLAGS = $(LDFLAGS_COMMON)
+t_009_LDADD = $(LIBADD_COMMON)
+
 ## a minimal FastCGI responder, driven by s-002.sh
 fcgis_SOURCES = fcgis.c
 fcgis_CPPFLAGS = $(CPPFLAGS_COMMON)
@@ -96,6 +104,10 @@ httssvr_CPPFLAGS = $(CPPFLAGS_COMMON)
 httssvr_CFLAGS = $(CFLAGS_COMMON)
 httssvr_LDFLAGS = $(LDFLAGS_COMMON)
 httssvr_LDADD = $(LIBADD_COMMON)
+
+## t-009 writes a throwaway certificate into the build directory and removes
+## it on the way out. this catches the case where it dies before that.
+CLEANFILES = t009-cert.pem t009-key.pem
 
 LOG_DRIVER = env AM_TAP_AWK='$(AWK)' $(SHELL) $(top_srcdir)/ac/tap-driver.sh
 TESTS = $(TESTPROGS) $(check_SCRIPTS)
