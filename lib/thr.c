@@ -572,7 +572,9 @@ static hio_dev_mth_t dev_thr_methods =
 	HIO_NULL,
 	HIO_NULL,
 	HIO_NULL,
-	HIO_NULL /* sendfile */
+	HIO_NULL, /* sendfile */
+
+	HIO_NULL  /* readpending */
 };
 
 static hio_dev_mth_t dev_thr_methods_slave =
@@ -588,6 +590,8 @@ static hio_dev_mth_t dev_thr_methods_slave =
 	dev_thr_write_slave,
 	dev_thr_writev_slave,
 	HIO_NULL, /* sendfile */
+
+	HIO_NULL  /* readpending */
 };
 
 /* ========================================================================= */

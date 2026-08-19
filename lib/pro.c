@@ -755,6 +755,8 @@ static hio_dev_mth_t dev_pro_methods =
 	HIO_NULL, /* write */
 	HIO_NULL, /* writev */
 	HIO_NULL, /* sendfile */
+
+	HIO_NULL  /* readpending */
 };
 
 static hio_dev_mth_t dev_pro_methods_slave =
@@ -770,6 +772,8 @@ static hio_dev_mth_t dev_pro_methods_slave =
 	dev_pro_write_slave,
 	dev_pro_writev_slave,
 	HIO_NULL, /* sendfile */
+
+	HIO_NULL  /* readpending */
 };
 
 /* ========================================================================= */

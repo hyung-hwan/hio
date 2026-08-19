@@ -226,11 +226,11 @@ void hio_fini (hio_t* hio)
 			next_dev = dev->dev_next;
 
 			/* remove the device from the zombie device list */
-			HIO_DEVL_UNLINK_DEV (dev);
+			HIO_DEVL_UNLINK_DEV(dev);
 			dev->dev_cap &= ~HIO_DEV_CAP_ZOMBIE;
 
 			/* put it to a private list for aborting */
-			HIO_DEVL_APPEND_DEV (&diehard, dev);
+			HIO_DEVL_APPEND_DEV(&diehard, dev);
 
 			dev = next_dev;
 		}
@@ -248,7 +248,7 @@ void hio_fini (hio_t* hio)
 		 * is given to kill_and_free_device(). */
 		dev = HIO_DEVL_FIRST_DEV(&diehard);
 		HIO_ASSERT(hio, !(dev->dev_cap & (HIO_DEV_CAP_ACTIVE | HIO_DEV_CAP_HALTED | HIO_DEV_CAP_ZOMBIE)));
-		HIO_DEVL_UNLINK_DEV (dev);
+		HIO_DEVL_UNLINK_DEV(dev);
 		kill_and_free_device (dev, 2);
 		ndieharddevs++;
 	}
@@ -559,6 +559,37 @@ static void fire_cwq_handlers_for_dev (hio_t* hio, hio_dev_t* dev, int for_kill)
 
 }
 
+static HIO_INLINE void clear_read_pending (hio_dev_t* dev)
+{
+	if (dev->dev_cap & HIO_DEV_CAP_IN_PENDING)
+	{
+		dev->dev_cap &= ~HIO_DEV_CAP_IN_PENDING;
+		dev->hio->nrdpendings--;
+	}
+}
+
+static HIO_INLINE void update_read_pending (hio_dev_t* dev)
+{
+	int pending;
+
+	pending = !(dev->dev_cap & (HIO_DEV_CAP_IN_DISABLED | HIO_DEV_CAP_IN_CLOSED)) &&
+	          dev->dev_mth->readpending && dev->dev_mth->readpending(dev);
+
+	if (pending)
+	{
+		if (!(dev->dev_cap & HIO_DEV_CAP_IN_PENDING))
+		{
+			dev->dev_cap |= HIO_DEV_CAP_IN_PENDING;
+			dev->hio->nrdpendings++;
+		}
+	}
+	else if (dev->dev_cap & HIO_DEV_CAP_IN_PENDING)
+	{
+		dev->dev_cap &= ~HIO_DEV_CAP_IN_PENDING;
+		dev->hio->nrdpendings--;
+	}
+}
+
 static HIO_INLINE void handle_event (hio_t* hio, hio_dev_t* dev, int events, int rdhup)
 {
 	HIO_ASSERT(hio, hio == dev->hio);
@@ -815,6 +846,11 @@ static HIO_INLINE void handle_event (hio_t* hio, hio_dev_t* dev, int events, int
 				}
 			}
 		}
+
+		/* every exit from the loop above may leave data buffered inside the
+		 * transport. the multiplexer never reports readiness for such data,
+		 * so flag the device and let __exec() come back to it. */
+		if (dev) update_read_pending (dev);
 	}
 
 	if (dev)
@@ -865,6 +901,23 @@ skip_evcb:
 		HIO_DEBUG1(hio, "DEV(%p) - halting a device for wathcer renewal failure\n", dev);
 		hio_dev_halt(dev);
 		dev = HIO_NULL;
+	}
+}
+
+static void dispatch_pending_reads (hio_t* hio)
+{
+	hio_dev_t* dev, * next;
+
+	/* TODO: this dispatcher traverses all devices. we may need a separate list for this kind of device? */
+
+	dev = HIO_DEVL_FIRST_DEV(&hio->actdev);
+	while (!HIO_DEVL_IS_NIL_DEV(&hio->actdev, dev))
+	{
+		/* handle_event() may halt the device and unlink it, so take the
+		* next pointer before dispatching. */
+		next = dev->dev_next;
+		if (dev->dev_cap & HIO_DEV_CAP_IN_PENDING) handle_event(hio, dev, HIO_DEV_EVENT_IN, 0);
+		dev = next;
 	}
 }
 
@@ -924,7 +977,12 @@ static HIO_INLINE int __exec (hio_t* hio)
 
 		kill_all_halted_devices (hio);
 
-		if (hio_gettmrtmout(hio, HIO_NULL, &tmout) <= 0)
+		if (hio->nrdpendings > 0)
+		{
+			tmout.sec = 0;
+			tmout.nsec = 0;
+		}
+		else if (hio_gettmrtmout(hio, HIO_NULL, &tmout) <= 0)
 		{
 			/* defaults to 0 or 1 second if timeout can't be acquired.
 			 * if this timeout affects how fast the halted device will get killed.
@@ -938,6 +996,8 @@ static HIO_INLINE int __exec (hio_t* hio)
 			HIO_DEBUG0 (hio, "HIO - WARNING - Failed to wait on mutiplexer\n");
 			ret = -1;
 		}
+
+		if (hio->nrdpendings > 0) dispatch_pending_reads(hio);
 	}
 
 	kill_all_halted_devices (hio);
@@ -1054,7 +1114,7 @@ hio_dev_t* hio_dev_make (hio_t* hio, hio_oow_t dev_size, hio_dev_mth_t* dev_mth,
 	if (hio_dev_watch(dev, HIO_DEV_WATCH_START, 0) <= -1) goto oops_after_make;
 
 	/* and place the new device object at the back of the active device list */
-	HIO_DEVL_APPEND_DEV (&hio->actdev, dev);
+	HIO_DEVL_APPEND_DEV(&hio->actdev, dev);
 	dev->dev_cap |= HIO_DEV_CAP_ACTIVE;
 	HIO_DEBUG1(hio, "HIO - Set ACTIVE on device %p\n", dev);
 
@@ -1109,7 +1169,7 @@ static int kill_and_free_device (hio_dev_t* dev, int force)
 		if (!(dev->dev_cap & HIO_DEV_CAP_ZOMBIE))
 		{
 			HIO_DEBUG1(hio, "HIO - Set ZOMBIE on device %p for kill method failure\n", dev);
-			HIO_DEVL_APPEND_DEV (&hio->zmbdev, dev);
+			HIO_DEVL_APPEND_DEV(&hio->zmbdev, dev);
 			dev->dev_cap |= HIO_DEV_CAP_ZOMBIE;
 		}
 
@@ -1121,7 +1181,7 @@ free_device:
 	if (dev->dev_cap & HIO_DEV_CAP_ZOMBIE)
 	{
 		/* detach it from the zombie device list */
-		HIO_DEVL_UNLINK_DEV (dev);
+		HIO_DEVL_UNLINK_DEV(dev);
 		dev->dev_cap &= ~HIO_DEV_CAP_ZOMBIE;
 		HIO_DEBUG1(hio, "HIO - Unset ZOMBIE on device %p\n", dev);
 	}
@@ -1202,6 +1262,10 @@ void hio_dev_kill (hio_dev_t* dev)
 		dev->rtmridx = HIO_TMRIDX_INVALID;
 	}
 
+	/* the device is leaving the active or halted list for good. hio_dev_halt()
+	 * does this as well, but a device can be killed while still active. */
+	clear_read_pending (dev);
+
 	/* clear completed write event queues */
 	if (dev->cw_count > 0) fire_cwq_handlers_for_dev (hio, dev, 1);
 
@@ -1218,14 +1282,14 @@ void hio_dev_kill (hio_dev_t* dev)
 	{
 		/* this device is in the halted state.
 		 * unlink it from the halted device list */
-		HIO_DEVL_UNLINK_DEV (dev);
+		HIO_DEVL_UNLINK_DEV(dev);
 		dev->dev_cap &= ~HIO_DEV_CAP_HALTED;
 		HIO_DEBUG1(hio, "HIO - Unset HALTED on device %p\n", dev);
 	}
 	else
 	{
 		HIO_ASSERT(hio, dev->dev_cap & HIO_DEV_CAP_ACTIVE);
-		HIO_DEVL_UNLINK_DEV (dev);
+		HIO_DEVL_UNLINK_DEV(dev);
 		dev->dev_cap &= ~HIO_DEV_CAP_ACTIVE;
 		HIO_DEBUG1(hio, "HIO - Unset ACTIVE on device %p\n", dev);
 	}
@@ -1258,17 +1322,19 @@ void hio_dev_halt (hio_dev_t* dev)
 {
 	hio_t* hio = dev->hio;
 
+	clear_read_pending(dev);
+
 	if (dev->dev_cap & HIO_DEV_CAP_ACTIVE)
 	{
 		HIO_DEBUG1(hio, "HIO - Halting device %p\n", dev);
 
 		/* delink the device object from the active device list */
-		HIO_DEVL_UNLINK_DEV (dev);
+		HIO_DEVL_UNLINK_DEV(dev);
 		dev->dev_cap &= ~HIO_DEV_CAP_ACTIVE;
 		HIO_DEBUG1(hio, "HIO - Unset ACTIVE on device %p\n", dev);
 
 		/* place it at the back of the halted device list */
-		HIO_DEVL_APPEND_DEV (&hio->hltdev, dev);
+		HIO_DEVL_APPEND_DEV(&hio->hltdev, dev);
 		dev->dev_cap |= HIO_DEV_CAP_HALTED;
 		HIO_DEBUG1(hio, "HIO - Set HALTED on device %p\n", dev);
 	}
@@ -1438,11 +1504,13 @@ static int __dev_read (hio_dev_t* dev, int enabled, const hio_ntime_t* tmout, vo
 	if (enabled)
 	{
 		dev->dev_cap &= ~HIO_DEV_CAP_IN_DISABLED;
+		update_read_pending(dev);
 		if (!(dev->dev_cap & HIO_DEV_CAP_IN_WATCHED)) goto renew_watch_now;
 	}
 	else
 	{
 		dev->dev_cap |= HIO_DEV_CAP_IN_DISABLED;
+		update_read_pending(dev);
 		if ((dev->dev_cap & HIO_DEV_CAP_IN_WATCHED)) goto renew_watch_now;
 	}
 
@@ -2282,6 +2350,7 @@ hio_oow_t hio_dev_cap_to_bcstr (hio_bitmask_t cap, hio_bch_t* buf, hio_oow_t siz
 	if (cap & HIO_DEV_CAP_IN_WATCHED) len += hio_copy_bcstr(&buf[len], size - len, "in_watched|");
 	if (cap & HIO_DEV_CAP_OUT_WATCHED) len += hio_copy_bcstr(&buf[len], size - len, "out_watched|");
 	if (cap & HIO_DEV_CAP_PRI_WATCHED) len += hio_copy_bcstr(&buf[len], size - len, "pri_watched|");
+	if (cap & HIO_DEV_CAP_IN_PENDING) len += hio_copy_bcstr(&buf[len], size - len, "in_pending|");
 	if (cap & HIO_DEV_CAP_ACTIVE) len += hio_copy_bcstr(&buf[len], size - len, "active|");
 	if (cap & HIO_DEV_CAP_HALTED) len += hio_copy_bcstr(&buf[len], size - len, "halted|");
 	if (cap & HIO_DEV_CAP_ZOMBIE) len += hio_copy_bcstr(&buf[len], size - len, "zombie|");

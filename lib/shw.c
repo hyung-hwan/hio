@@ -196,6 +196,8 @@ static hio_dev_mth_t dev_shw_methods =
 	dev_shw_write,
 	dev_shw_writev,
 	HIO_NULL, /* sendfile */
+
+	HIO_NULL  /* readpending */
 };
 
 /* ========================================================================= */

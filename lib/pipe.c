@@ -381,6 +381,8 @@ static hio_dev_mth_t dev_pipe_methods =
 	HIO_NULL,
 	HIO_NULL,
 	HIO_NULL, /* sendfile */
+
+	HIO_NULL  /* readpending */
 };
 
 static hio_dev_mth_t dev_pipe_methods_slave =
@@ -396,6 +398,8 @@ static hio_dev_mth_t dev_pipe_methods_slave =
 	dev_pipe_write_slave,
 	dev_pipe_writev_slave,
 	HIO_NULL, /* sendfile */
+
+	HIO_NULL  /* readpending */
 };
 
 /* ========================================================================= */

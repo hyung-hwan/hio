@@ -242,6 +242,14 @@ struct hio_dev_mth_t
 	int           (*write)        (hio_dev_t* dev, const void* data, hio_iolen_t* len, const hio_devaddr_t* dstaddr);
 	int           (*writev)       (hio_dev_t* dev, const hio_iovec_t* iov, hio_iolen_t* iovcnt, const hio_devaddr_t* dstaddr);
 	int           (*sendfile)     (hio_dev_t* dev, hio_syshnd_t in_fd, hio_foff_t foff, hio_iolen_t* len);
+
+
+	/* optional. return non-zero if the transport is holding data that the
+	 * multiplexer cannot see - a decrypted tls record buffered inside the
+	 * ssl library, for instance. a level-triggered readiness notification
+	 * never fires for such data, so the core must re-enter the read loop
+	 * on its own instead of blocking in the multiplexer. */
+	int           (*readpending)  (hio_dev_t* dev);
 };
 
 struct hio_dev_evcb_t
@@ -427,7 +435,6 @@ enum hio_dev_cap_t
 	HIO_DEV_CAP_PRI             = ((hio_bitmask_t)1 << 3), /* meaningful only if #HIO_DEV_CAP_IN is set */
 	HIO_DEV_CAP_STREAM          = ((hio_bitmask_t)1 << 4), /* byte stream */
 
-
 	HIO_DEV_CAP_IN_DISABLED     = ((hio_bitmask_t)1 << 5),
 	HIO_DEV_CAP_OUT_UNQUEUEABLE = ((hio_bitmask_t)1 << 6),
 	HIO_DEV_CAP_ALL_MASK        = (HIO_DEV_CAP_VIRTUAL | HIO_DEV_CAP_IN | HIO_DEV_CAP_OUT | HIO_DEV_CAP_PRI | HIO_DEV_CAP_STREAM | HIO_DEV_CAP_IN_DISABLED | HIO_DEV_CAP_OUT_UNQUEUEABLE),
@@ -441,13 +448,14 @@ enum hio_dev_cap_t
 	HIO_DEV_CAP_IN_WATCHED      = ((hio_bitmask_t)1 << 12),
 	HIO_DEV_CAP_OUT_WATCHED     = ((hio_bitmask_t)1 << 13),
 	HIO_DEV_CAP_PRI_WATCHED     = ((hio_bitmask_t)1 << 14), /**< can be set only if HIO_DEV_CAP_IN_WATCHED is set */
-	HIO_DEV_CAP_ACTIVE          = ((hio_bitmask_t)1 << 15),
-	HIO_DEV_CAP_HALTED          = ((hio_bitmask_t)1 << 16),
-	HIO_DEV_CAP_ZOMBIE          = ((hio_bitmask_t)1 << 17),
-	HIO_DEV_CAP_RENEW_REQUIRED  = ((hio_bitmask_t)1 << 18),
-	HIO_DEV_CAP_WATCH_STARTED   = ((hio_bitmask_t)1 << 19),
-	HIO_DEV_CAP_WATCH_SUSPENDED = ((hio_bitmask_t)1 << 20),
-	HIO_DEV_CAP_WATCH_REREG_REQUIRED = ((hio_bitmask_t)1 << 21)
+	HIO_DEV_CAP_IN_PENDING      = ((hio_bitmask_t)1 << 15),
+	HIO_DEV_CAP_ACTIVE          = ((hio_bitmask_t)1 << 16),
+	HIO_DEV_CAP_HALTED          = ((hio_bitmask_t)1 << 17),
+	HIO_DEV_CAP_ZOMBIE          = ((hio_bitmask_t)1 << 18),
+	HIO_DEV_CAP_RENEW_REQUIRED  = ((hio_bitmask_t)1 << 19),
+	HIO_DEV_CAP_WATCH_STARTED   = ((hio_bitmask_t)1 << 20),
+	HIO_DEV_CAP_WATCH_SUSPENDED = ((hio_bitmask_t)1 << 21),
+	HIO_DEV_CAP_WATCH_REREG_REQUIRED = ((hio_bitmask_t)1 << 22),
 };
 typedef enum hio_dev_cap_t hio_dev_cap_t;
 
@@ -806,7 +814,7 @@ struct hio_t
 	hio_dev_t actdev; /* list head of active devices */
 	hio_dev_t hltdev; /* list head of halted devices */
 	hio_dev_t zmbdev; /* list head of zombie devices */
-
+	hio_oow_t nrdpendings; /* number of active devices carraying HIO_DEV_CAP_IN_PENDING */
 
 	hio_ntime_t init_time;
 	struct

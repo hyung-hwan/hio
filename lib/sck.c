@@ -96,6 +96,19 @@
 #	define USE_SSL
 #endif
 
+#if defined(USE_SSL)
+/* the largest plaintext record openssl hands back from a single SSL_read().
+ * SSL3_RT_MAX_PLAIN_LENGTH is 16384 and the slack covers the padding and
+ * compression allowance counted by SSL3_RT_MAX_ENCRYPTED_OVERHEAD. */
+#define HIO_SSL_MAX_READ_RECORD (16384 + 2048)
+
+/* see the note at SSL_set_read_ahead() in do_ssl(). the core reads through
+ * hio->bigbuf, and that buffer being at least one record wide is what keeps
+ * SSL_pending() at zero. this fires the day the TODO on bigbuf in hio.h gets
+ * acted on and the buffer shrinks below a record. */
+HIO_STATIC_ASSERT(HIO_COUNTOF(((hio_t*)0)->bigbuf) >= HIO_SSL_MAX_READ_RECORD);
+#endif
+
 /* ========================================================================= */
 
 static hio_syshnd_t open_async_socket (hio_t* hio, int domain, int type, int proto)
@@ -609,6 +622,13 @@ static int dev_sck_read_stream (hio_dev_t* dev, void* buf, hio_iolen_t* len, hio
 		}
 
 		if (ssl_want_events(rdev, 0) <= -1) return -1;
+
+		/* openssl buffers whole records internally and bytes left in that
+		 * buffer are invisible to epoll and kqueue - a level-triggered
+		 * readiness notification never fires for them, so they would sit
+		 * there until the peer happens to send more. read_ahead being off
+		 * plus a buffer wider than a record is what prevents it. */
+		HIO_ASSERT(hio, SSL_pending((SSL*)rdev->ssl) == 0);
 		*len = x;
 	}
 	else
@@ -1203,8 +1223,12 @@ static int dev_sck_sendfile_stream (hio_dev_t* dev, hio_syshnd_t in_fd, hio_foff
 }
 
 /* ------------------------------------------------------------------------------ */
-
 #if defined(USE_SSL)
+static int dev_sck_readpending (hio_dev_t* dev)
+{
+	hio_dev_sck_t* rdev = (hio_dev_sck_t*)dev;
+	return rdev->ssl? SSL_pending((SSL*)rdev->ssl): 0;
+}
 
 static int do_ssl (hio_dev_sck_t* dev, int (*ssl_func)(SSL*))
 {
@@ -1230,7 +1254,14 @@ static int do_ssl (hio_dev_sck_t* dev, int (*ssl_func)(SSL*))
 			return -1;
 		}
 
-		SSL_set_read_ahead (ssl, 0);
+		/* keep openssl reading one record at a time instead of slurping
+		 * whatever else the kernel has ready into its own buffer. together
+		 * with a read buffer at least HIO_SSL_MAX_READ_RECORD wide, this is
+		 * what guarantees a single SSL_read() drains the record and leaves
+		 * SSL_pending() at zero. surplus records stay in the kernel buffer
+		 * where the multiplexer can still see them. this is load-bearing,
+		 * not a tuning knob. */
+		SSL_set_read_ahead(ssl, 0);
 
 		dev->ssl = ssl;
 	}
@@ -1432,7 +1463,7 @@ static int dev_sck_ioctl (hio_dev_t* dev, int cmd, void* arg)
 					return -1;
 				}
 
-				SSL_CTX_set_read_ahead (ssl_ctx, 0);
+				SSL_CTX_set_read_ahead(ssl_ctx, 0);
 				SSL_CTX_set_mode (ssl_ctx, SSL_CTX_get_mode(ssl_ctx) |
 				                           /*SSL_MODE_ENABLE_PARTIAL_WRITE |*/
 				                           SSL_MODE_ACCEPT_MOVING_WRITE_BUFFER);
@@ -1674,6 +1705,8 @@ static hio_dev_mth_t dev_mth_sck_stateless =
 	dev_sck_write_stateless,
 	dev_sck_writev_stateless,
 	HIO_NULL,          /* sendfile */
+
+	HIO_NULL,          /* readpending */
 };
 
 
@@ -1690,6 +1723,12 @@ static hio_dev_mth_t dev_mth_sck_stream =
 	dev_sck_write_stream,
 	dev_sck_writev_stream,
 	dev_sck_sendfile_stream,
+
+#if defined(USE_SSL)
+	dev_sck_readpending
+#else
+	HIO_NULL
+#endif
 };
 
 #if defined(ENABLE_SCTP)
@@ -1706,6 +1745,8 @@ static hio_dev_mth_t dev_mth_sck_sctp_sp =
 	dev_sck_write_sctp_sp,
 	dev_sck_writev_sctp_sp,
 	HIO_NULL,          /* sendfile */
+
+	HIO_NULL,          /* readpending */
 };
 #endif
 
@@ -1721,7 +1762,9 @@ static hio_dev_mth_t dev_mth_clisck_stateless =
 	dev_sck_read_stateless,
 	dev_sck_write_stateless,
 	dev_sck_writev_stateless,
-	HIO_NULL,
+	HIO_NULL,          /* sendfile */
+
+	HIO_NULL,          /* readpending */
 };
 
 static hio_dev_mth_t dev_mth_clisck_stream =
@@ -1736,7 +1779,13 @@ static hio_dev_mth_t dev_mth_clisck_stream =
 	dev_sck_read_stream,
 	dev_sck_write_stream,
 	dev_sck_writev_stream,
-	dev_sck_sendfile_stream
+	dev_sck_sendfile_stream, /* sendfile */
+
+#if defined(USE_SSL)
+	dev_sck_readpending /* readpending */
+#else
+	HIO_NULL /* readpending */
+#endif
 };
 
 #if defined(ENABLE_SCTP)
@@ -1752,7 +1801,9 @@ static hio_dev_mth_t dev_mth_clisck_sctp_sp =
 	dev_sck_read_sctp_sp,
 	dev_sck_write_sctp_sp,
 	dev_sck_writev_sctp_sp,
-	HIO_NULL,
+	HIO_NULL,  /* sendfile */
+
+	HIO_NULL   /* readpending - no ssl on a seqpacket socket */
 };
 #endif
 
@@ -1769,6 +1820,8 @@ static hio_dev_mth_t dev_mth_sck_bpf =
 	dev_sck_write_bpf,
 	dev_sck_writev_bpf,
 	HIO_NULL,          /* sendfile */
+
+	HIO_NULL,          /* readpending */
 };
 
 /* ========================================================================= */

@@ -416,6 +416,8 @@ static hio_dev_mth_t dev_mar_methods =
 	HIO_NULL,
 	HIO_NULL,
 	HIO_NULL, /* sendfile */
+
+	HIO_NULL  /* readpending */
 };
 
 /* ========================================================================= */
