@@ -29,7 +29,6 @@
 struct hio_svc_dhcs_t
 {
 	HIO_SVC_HEADER;
-
 	int stopping;
 	hio_dev_sck_t* sck;
 };
@@ -79,9 +78,9 @@ static hio_dev_sck_t* open_socket (hio_t* hio, hio_svc_dhcs_cfg_t* cfg)
 
 /*
 	#if defined(IPV6_RECVPKTINFO)
-		hio_dev_sck_setsockopt (dhcs->sck, IPPROTO_IPV6, IPV6_RECVPKTINFO, &v);
+		hio_dev_sck_setsockopt(dhcs->sck, IPPROTO_IPV6, IPV6_RECVPKTINFO, &v);
 	#elif defined(IPV6_PKTINFO)
-		hio_dev_sck_setsockopt (dhcs->sck, IPPROTO_IPV6, IPV6_PKTINFO, &v);
+		hio_dev_sck_setsockopt(dhcs->sck, IPPROTO_IPV6, IPV6_PKTINFO, &v);
 	#else
 	//#	error no ipv6 pktinfo
 	#endif
@@ -104,7 +103,7 @@ static hio_dev_sck_t* open_socket (hio_t* hio, hio_svc_dhcs_cfg_t* cfg)
 	return sck;
 
 oops:
-	if (sck) hio_dev_sck_kill (sck);
+	if (sck) hio_dev_sck_kill(sck);
 	return HIO_NULL;
 }
 
@@ -137,13 +136,13 @@ hio_svc_dhcs_t* hio_svc_dhcs_start (hio_t* hio, const hio_skad_t* local_binds, h
 /* TODO: remember this in dhcs... */
 	}
 
-	HIO_SVCL_APPEND_SVC (&hio->actsvc, (hio_svc_t*)dhcs);
+	HIO_SVCL_APPEND_SVC(&hio->actsvc, (hio_svc_t*)dhcs);
 	return dhcs;
 
 oops:
 	if (dhcs)
 	{
-		if (sck) hio_dev_sck_kill (sck);
+		if (sck) hio_dev_sck_kill(sck);
 /*TODO:
 		for (i = 0; i < local_nbinds; i++)
 		{
@@ -158,11 +157,11 @@ void hio_svc_dhcs_stop (hio_svc_dhcs_t* dhcs)
 {
 	hio_t* hio = dhcs->hio;
 
-	HIO_DEBUG1 (hio, "FCGIC - STOPPING SERVICE %p\n", dhcs);
+	HIO_DEBUG1(hio, "FCGIC - STOPPING SERVICE %p\n", dhcs);
 	dhcs->stopping = 1;
 
-	HIO_SVCL_UNLINK_SVC (dhcs);
+	HIO_SVCL_UNLINK_SVC(dhcs);
 	hio_freemem(hio, dhcs);
 
-	HIO_DEBUG1 (hio, "FCGIC - STOPPED SERVICE %p\n", dhcs);
+	HIO_DEBUG1(hio, "FCGIC - STOPPED SERVICE %p\n", dhcs);
 }

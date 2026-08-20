@@ -134,6 +134,23 @@ enum hio_feature_t
 };
 typedef enum hio_feature_t hio_feature_t;
 
+/** default size of the shared read buffer, in octets. large enough to hold
+ *  any udp datagram, which is why it was this figure before it became
+ *  configurable. */
+#define HIO_DFL_READ_BUFFER_SIZE (65536)
+
+/** smallest read buffer that is safe for any stream device. one maximum-size
+ *  tls record must fit, or a single SSL_read() stops draining the record and
+ *  the surplus becomes unreachable - see the note in sck.c. */
+#define HIO_MIN_READ_BUFFER_SIZE (16384 + 2048)
+
+/** smallest read buffer that is safe for a device carrying datagrams of
+ *  arbitrary size. such a message is delivered once: a short buffer takes
+ *  what fits and the kernel discards the rest, with nothing reported. a
+ *  device declares its own requirement in dev_rdmin - this is what the
+ *  network datagram socket types use. */
+#define HIO_DGRAM_READ_BUFFER_SIZE (65535)
+
 enum hio_option_t
 {
 	HIO_TRAIT,
@@ -156,7 +173,25 @@ enum hio_option_t
 #endif
 
 	/* user-defined log writer */
-	HIO_LOG_WRITER
+	HIO_LOG_WRITER,
+
+	/** hio_oow_t. size of the shared read buffer, in octets.
+	 *
+	 * bigger means fewer read calls for the same traffic - a bulk transfer
+	 * saturates the buffer, so the count falls in proportion. smaller means
+	 * less memory per loop, which matters when a process runs one loop per
+	 * thread.
+	 *
+	 * it cannot be set below #HIO_MIN_READ_BUFFER_SIZE, nor below the largest
+	 * dev_rdmin among the devices already running, and a device whose
+	 * dev_rdmin exceeds it refuses to start. a datagram socket asks for
+	 * #HIO_DGRAM_READ_BUFFER_SIZE that way, because a truncated datagram is
+	 * lost silently rather than reported.
+	 *
+	 * setting it is refused with #HIO_EBUSY while the loop is dispatching
+	 * events, since on_read() is handed a pointer into the buffer and moving
+	 * it under a callback would leave that pointer dangling. */
+	HIO_READ_BUFFER_SIZE
 };
 typedef enum hio_option_t hio_option_t;
 
@@ -395,6 +430,7 @@ struct hio_wq_t
 	hio_dev_mth_t*  dev_mth; \
 	hio_dev_evcb_t* dev_evcb; \
 	hio_ntime_t     rtmout; \
+	hio_oow_t       dev_rdmin; /* smallest read buffer this device can work with. 0 means it does not care. set by the make() method */ \
 	hio_tmridx_t    rtmridx; \
 	int             dev_extra_events; /* events the transport needs watched regardless of the device's own i/o state. see hio_dev_watch() */ \
 	hio_wq_t        wq; \
@@ -820,7 +856,14 @@ struct hio_t
 		} xbuf; /* buffer to support sprintf */
 	} sprintf;
 
-	hio_uint8_t bigbuf[65536]; /* TODO: make this dynamic depending on devices added. device may indicate a buffer size required??? */
+	/* the one read buffer every device reads through. the pointer handed to
+	 * on_read() points into this, and is only valid for the duration of that
+	 * call - see HIO_READ_BUFFER_SIZE for how the size is chosen. */
+	struct
+	{
+		hio_uint8_t* ptr;
+		hio_oow_t capa;
+	} bigbuf;
 
 	hio_cfmb_t cfmb; /* list head of cfmbs */
 	hio_dev_t actdev; /* list head of active devices */

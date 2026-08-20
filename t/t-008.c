@@ -39,6 +39,11 @@ static int         g_cw_n = 0;
  * read, which is the only shape that reaches the completion firing inside the
  * read loop. g_seq records 'R' per on_read and 'W' per on_write. */
 static hio_iolen_t g_rd_chunk = 0;
+static hio_iolen_t g_rd_offered = 0;   /* the buffer size the core last offered a read */
+static int         g_rd_calls = 0;
+static int         g_setopt_from_on_read = 0;
+static int         g_setopt_rc = 0;
+static int         g_setopt_errnum = 0;
 static int         g_write_on_read = 0;
 static hio_bch_t   g_seq[64];
 static int         g_seq_n = 0;
@@ -56,6 +61,11 @@ static void obs_reset (void)
 	g_wr_calls = 0;
 	g_cw_n = 0;
 	g_rd_chunk = 0;
+	g_rd_offered = 0;
+	g_rd_calls = 0;
+	g_setopt_from_on_read = 0;
+	g_setopt_rc = 0;
+	g_setopt_errnum = 0;
 	g_write_on_read = 0;
 	g_seq_n = 0;
 	g_seq[0] = '\0';
@@ -93,6 +103,8 @@ static hio_syshnd_t tdev_getsyshnd (hio_dev_t* dev)
 static int tdev_read (hio_dev_t* dev, void* buf, hio_iolen_t* len, hio_devaddr_t* srcaddr)
 {
 	ssize_t n;
+	g_rd_offered = *len;   /* what the core is willing to take in one go */
+	g_rd_calls++;
 	if (g_rd_chunk > 0 && *len > g_rd_chunk) *len = g_rd_chunk; /* force several iterations */
 	n = recv(((tdev_t*)dev)->fd, buf, *len, 0);
 	if (n <= -1)
@@ -227,6 +239,16 @@ static hio_dev_mth_t tdev_mth =
 
 static int tdev_on_read (hio_dev_t* dev, const void* data, hio_iolen_t len, const hio_devaddr_t* srcaddr)
 {
+	if (g_setopt_from_on_read)
+	{
+		/* the data pointer we were just handed points into the buffer being
+		 * resized, so this must be refused rather than honoured */
+		hio_oow_t want = HIO_DFL_READ_BUFFER_SIZE * 2;
+		g_setopt_from_on_read = 0;
+		g_setopt_rc = hio_setoption(dev->hio, HIO_READ_BUFFER_SIZE, &want);
+		g_setopt_errnum = hio_geterrnum(dev->hio);
+	}
+
 	if (!g_write_on_read) return 0;
 
 	seq_put ('R');
@@ -772,6 +794,9 @@ int main (void)
 	test_wq_limit ();
 	test_wq_limit_zero_is_unlimited ();
 	test_completion_fires_within_read_loop ();
+	test_read_buffer_size_option ();
+	test_read_buffer_size_is_honoured ();
+	test_read_buffer_resize_refused_in_callback ();
 
 	hio_close (g_hio);
 	return exit_status();

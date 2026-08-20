@@ -136,6 +136,11 @@ int hio_init (hio_t* hio, hio_mmgr_t* mmgr, hio_cmgr_t* cmgr, hio_bitmask_t feat
 
 	hio->tmr.capa = tmrcapa;
 
+	/* the shared read buffer. resizable later through HIO_READ_BUFFER_SIZE. */
+	hio->bigbuf.ptr = hio_allocmem(hio, HIO_DFL_READ_BUFFER_SIZE);
+	if (HIO_UNLIKELY(!hio->bigbuf.ptr)) goto oops;
+	hio->bigbuf.capa = HIO_DFL_READ_BUFFER_SIZE;
+
 	HIO_CFMBL_INIT(&hio->cfmb);
 	HIO_DEVL_INIT(&hio->actdev);
 	HIO_DEVL_INIT(&hio->hltdev);
@@ -148,6 +153,13 @@ int hio_init (hio_t* hio, hio_mmgr_t* mmgr, hio_cmgr_t* cmgr, hio_bitmask_t feat
 	return 0;
 
 oops:
+	if (hio->bigbuf.ptr)
+	{
+		hio_freemem(hio, hio->bigbuf.ptr);
+		hio->bigbuf.ptr = HIO_NULL;
+		hio->bigbuf.capa = 0;
+	}
+
 	if (hio->tmr.jobs) hio_freemem(hio, hio->tmr.jobs);
 
 	if (sys_inited) hio_sys_fini(hio);
@@ -165,6 +177,13 @@ void hio_fini (hio_t* hio)
 	hio_oow_t nactdevs = 0, nhltdevs = 0, nzmbdevs = 0, ndieharddevs = 0; /* statistics */
 
 	hio->_fini_in_progress = 1;
+
+	if (hio->bigbuf.ptr)
+	{
+		hio_freemem(hio, hio->bigbuf.ptr);
+		hio->bigbuf.ptr = HIO_NULL;
+		hio->bigbuf.capa = 0;
+	}
 
 	/* clean up free cwq list */
 	for (i = 0; i < HIO_COUNTOF(hio->cwqfl); i++)
@@ -399,6 +418,49 @@ int hio_setoption (hio_t* hio, hio_option_t id, const void* value)
 			hio->option.log_writer = (hio_log_writer_t)value;
 			break;
 
+		case HIO_READ_BUFFER_SIZE:
+		{
+			hio_oow_t newcapa = *(const hio_oow_t*)value;
+			hio_uint8_t* p;
+
+			if (newcapa < HIO_MIN_READ_BUFFER_SIZE) goto einval;
+			if (newcapa == hio->bigbuf.capa) break; /* nothing to do */
+
+			if (newcapa < hio->bigbuf.capa)
+			{
+				/* shrinking. a device already running may need more than the
+				 * new size, and it has no way to object after the fact. */
+				hio_dev_t* d;
+				for (d = HIO_DEVL_FIRST_DEV(&hio->actdev); !HIO_DEVL_IS_NIL_DEV(&hio->actdev, d); d = d->dev_next)
+				{
+					if (d->dev_rdmin > newcapa)
+					{
+						hio_seterrbfmt(hio, HIO_EPERM, "a running device requires a read buffer of at least %zu octets", d->dev_rdmin);
+						return -1;
+					}
+				}
+			}
+
+			/* on_read() is handed a pointer into this buffer, so it must not
+			 * move while a callback might be holding one. mux_depth is
+			 * non-zero for exactly the window in which that is possible. */
+			if (hio->mux_depth > 0)
+			{
+				hio_seterrbfmt(hio, HIO_EBUSY, "unable to resize the read buffer while dispatching events");
+				return -1;
+			}
+
+			/* the contents are scratch, so there is nothing to carry over.
+			 * allocate first all the same - a failure must leave the existing
+			 * buffer in place rather than leave the loop without one. */
+			p = hio_allocmem(hio, newcapa);
+			if (HIO_UNLIKELY(!p)) return -1;
+			hio_freemem(hio, hio->bigbuf.ptr);
+			hio->bigbuf.ptr = p;
+			hio->bigbuf.capa = newcapa;
+			break;
+		}
+
 		default:
 			goto einval;
 	}
@@ -446,6 +508,10 @@ int hio_getoption (hio_t* hio, hio_option_t id, void* value)
 
 		case HIO_LOG_WRITER:
 			*(hio_log_writer_t*)value = hio->option.log_writer;
+			return 0;
+
+		case HIO_READ_BUFFER_SIZE:
+			*(hio_oow_t*)value = hio->bigbuf.capa;
 			return 0;
 	};
 
@@ -761,8 +827,8 @@ static HIO_INLINE void handle_event (hio_t* hio, hio_dev_t* dev, int events, int
 		 * if the on_read calllback returns 0. */
 		while (1)
 		{
-			len = HIO_COUNTOF(hio->bigbuf);
-			x = dev->dev_mth->read(dev, hio->bigbuf, &len, &srcaddr);
+			len = hio->bigbuf.capa;
+			x = dev->dev_mth->read(dev, hio->bigbuf.ptr, &len, &srcaddr);
 			if (x <= -1)
 			{
 				HIO_DEBUG2(hio, "DEV(%p) - halting a device for read failure - %js\n", dev, hio_geterrmsg(hio));
@@ -822,7 +888,7 @@ static HIO_INLINE void handle_event (hio_t* hio, hio_dev_t* dev, int events, int
 					dev->dev_cap |= HIO_DEV_CAP_RENEW_REQUIRED;
 
 					/* call the on_read callback to report EOF */
-					if (dev->dev_evcb->on_read(dev, hio->bigbuf, len, &srcaddr) <= -1 ||
+					if (dev->dev_evcb->on_read(dev, hio->bigbuf.ptr, len, &srcaddr) <= -1 ||
 					    (dev->dev_cap & HIO_DEV_CAP_OUT_CLOSED))
 					{
 						/* 1. input ended and its reporting failed or
@@ -841,11 +907,9 @@ static HIO_INLINE void handle_event (hio_t* hio, hio_dev_t* dev, int events, int
 				else
 				{
 					int y;
-		/* TODO: for a stream device, merge received data if bigbuf isn't full and fire the on_read callback
-		 *        when x == 0 or <= -1. you can  */
 
 					/* data available */
-					y = dev->dev_evcb->on_read(dev, hio->bigbuf, len, &srcaddr);
+					y = dev->dev_evcb->on_read(dev, hio->bigbuf.ptr, len, &srcaddr);
 					if (y <= -1)
 					{
 						HIO_DEBUG2(hio, "DEV(%p) - halting a non-stream device for on_read failure while output is closed - %js\n", dev, hio_geterrmsg(hio));
@@ -1126,6 +1190,21 @@ hio_dev_t* hio_dev_make (hio_t* hio, hio_oow_t dev_size, hio_dev_mth_t* dev_mth,
 	HIO_ASSERT(hio, dev->dev_evcb == dev_evcb);
 	HIO_ASSERT(hio, dev->dev_prev == HIO_NULL);
 	HIO_ASSERT(hio, dev->dev_next == HIO_NULL);
+
+	/* make() has settled dev_rdmin by now, so this is the first point at
+	 * which the device's appetite for buffer space is known.
+	 *
+	 * a device carrying whole messages gets one attempt at each: whatever
+	 * does not fit is discarded and nothing says so. refuse the device rather
+	 * than let it lose data quietly. a stream device leaves dev_rdmin at 0 -
+	 * a short read simply leaves the remainder for the next one. */
+	if (dev->dev_rdmin > hio->bigbuf.capa)
+	{
+		hio_seterrbfmt(hio, HIO_ENOCAPA,
+			"read buffer of %zu octets too small for this device - %zu required",
+			hio->bigbuf.capa, dev->dev_rdmin);
+		goto oops_after_make;
+	}
 
 	/* set some internal capability bits according to the capabilities
 	 * removed by the device making callback for convenience sake. */

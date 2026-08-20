@@ -180,3 +180,112 @@ static void test_completion_fires_within_read_loop (void)
 	hio_dev_kill ((hio_dev_t*)dev);
 	close (peerfd);
 }
+
+/* ------------------------------------------------------------------ */
+/* the shared read buffer's configurable size.
+ *
+ * every device reads through one buffer owned by the loop. its size decides
+ * how much a single read can take, so it is the ceiling on read size for a
+ * bulk transfer - and it is memory held per loop, which matters when a
+ * process runs one loop per thread. */
+
+static void test_read_buffer_size_option (void)
+{
+	hio_oow_t capa = 0, want;
+	int rc;
+
+	obs_reset ();
+
+	OK (hio_getoption(g_hio, HIO_READ_BUFFER_SIZE, &capa) == 0 && capa == HIO_DFL_READ_BUFFER_SIZE,
+	    "the read buffer starts at HIO_DFL_READ_BUFFER_SIZE");
+
+	want = HIO_MIN_READ_BUFFER_SIZE - 1;
+	rc = hio_setoption(g_hio, HIO_READ_BUFFER_SIZE, &want);
+	OK (rc <= -1 && hio_geterrnum(g_hio) == HIO_EINVAL,
+	    "a size below HIO_MIN_READ_BUFFER_SIZE is refused with HIO_EINVAL");
+
+	OK (hio_getoption(g_hio, HIO_READ_BUFFER_SIZE, &capa) == 0 && capa == HIO_DFL_READ_BUFFER_SIZE,
+	    "a refused set leaves the existing buffer alone");
+
+	want = HIO_DFL_READ_BUFFER_SIZE * 4;
+	OK (hio_setoption(g_hio, HIO_READ_BUFFER_SIZE, &want) == 0 &&
+	    hio_getoption(g_hio, HIO_READ_BUFFER_SIZE, &capa) == 0 && capa == want,
+	    "a larger size is accepted and reads back");
+
+	want = HIO_DFL_READ_BUFFER_SIZE;
+	OK (hio_setoption(g_hio, HIO_READ_BUFFER_SIZE, &want) == 0, "and it can be set back");
+}
+
+static void test_read_buffer_size_is_honoured (void)
+{
+	/* the size has to reach the read path, not merely be stored. the stub
+	 * device records the length the core offers it. */
+	tdev_t* dev;
+	int peerfd;
+	hio_oow_t want, restore = HIO_DFL_READ_BUFFER_SIZE;
+	hio_uint8_t buf[4096];
+
+	obs_reset ();
+	g_wr_calls_left = 100;
+
+	want = HIO_MIN_READ_BUFFER_SIZE;   /* the smallest the core allows */
+	if (hio_setoption(g_hio, HIO_READ_BUFFER_SIZE, &want) <= -1) { skip ("cannot set the buffer size", 2); return; }
+
+	dev = make_tdev(&peerfd);
+	if (!dev) { skip ("device creation failed", 2); hio_setoption(g_hio, HIO_READ_BUFFER_SIZE, &restore); return; }
+
+	HIO_MEMSET (buf, 'z', HIO_SIZEOF(buf));
+	if (write(peerfd, buf, HIO_SIZEOF(buf)) != (ssize_t)HIO_SIZEOF(buf))
+	{
+		skip ("peer write failed", 2);
+		hio_dev_kill ((hio_dev_t*)dev);
+		close (peerfd);
+		hio_setoption (g_hio, HIO_READ_BUFFER_SIZE, &restore);
+		return;
+	}
+
+	pump ();
+
+	OK (g_rd_calls > 0, "the device was read from");
+	OK (g_rd_offered == (hio_iolen_t)HIO_MIN_READ_BUFFER_SIZE,
+	    "the core offers the read method exactly the configured buffer size");
+
+	hio_dev_kill ((hio_dev_t*)dev);
+	close (peerfd);
+	hio_setoption (g_hio, HIO_READ_BUFFER_SIZE, &restore);
+}
+
+static void test_read_buffer_resize_refused_in_callback (void)
+{
+	/* on_read receives a pointer into the buffer. resizing it there would
+	 * leave that pointer dangling, so the attempt has to fail. */
+	tdev_t* dev;
+	int peerfd;
+	hio_uint8_t buf[64];
+
+	obs_reset ();
+	g_wr_calls_left = 100;
+	g_setopt_from_on_read = 1;
+
+	dev = make_tdev(&peerfd);
+	if (!dev) { skip ("device creation failed", 2); return; }
+
+	HIO_MEMSET (buf, 'q', HIO_SIZEOF(buf));
+	if (write(peerfd, buf, HIO_SIZEOF(buf)) != (ssize_t)HIO_SIZEOF(buf))
+	{
+		skip ("peer write failed", 2);
+		hio_dev_kill ((hio_dev_t*)dev);
+		close (peerfd);
+		return;
+	}
+
+	pump ();
+
+	OK (g_setopt_rc <= -1 && g_setopt_errnum == HIO_EBUSY,
+	    "resizing the read buffer from inside on_read fails with HIO_EBUSY");
+	OK (hio_getoption(g_hio, HIO_READ_BUFFER_SIZE, &(hio_oow_t){0}) == 0,
+	    "and the option is still readable afterwards");
+
+	hio_dev_kill ((hio_dev_t*)dev);
+	close (peerfd);
+}

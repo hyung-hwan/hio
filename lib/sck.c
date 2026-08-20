@@ -134,9 +134,12 @@
 
 /* see the note at SSL_set_read_ahead() in do_ssl(). the core reads through
  * hio->bigbuf, and that buffer being at least one record wide is what keeps
- * SSL_pending() at zero. this fires the day the TODO on bigbuf in hio.h gets
- * acted on and the buffer shrinks below a record. */
-HIO_STATIC_ASSERT(HIO_COUNTOF(((hio_t*)0)->bigbuf) >= HIO_SSL_MAX_READ_RECORD);
+ * SSL_pending() at zero.
+ *
+ * the buffer is sized at run time now, so what is checked here is that the
+ * floor the core refuses to go below is itself wide enough. the runtime
+ * enforcement comes from that floor - see HIO_READ_BUFFER_SIZE. */
+HIO_STATIC_ASSERT(HIO_MIN_READ_BUFFER_SIZE >= HIO_SSL_MAX_READ_RECORD);
 #endif
 
 /* ========================================================================= */
@@ -367,6 +370,24 @@ static struct sck_type_map_t sck_type_map[] =
 	{ __AF_BPF, 0, 0, 0, 0, 0 } /* not implemented yet */
 };
 
+/* how much read buffer one device of this type needs in a single read.
+ *
+ * a stream is content to be read in pieces and asks for nothing - a short read
+ * leaves the remainder for the next one. a datagram socket is not: whatever
+ * does not fit in one recvfrom() is discarded with nothing reported, so it asks
+ * for enough to hold the largest datagram it could ever see. the qx channel is
+ * message-oriented too, but its message is a fixed struct, so it asks for only
+ * that much.
+ *
+ * both the listening/connecting path and the accepted path go through here, so
+ * the two cannot drift apart. */
+static hio_oow_t sck_type_rdmin (hio_dev_sck_type_t type)
+{
+	if (sck_type_map[type].domain == HIO_AF_QX) return HIO_SIZEOF(hio_dev_sck_qxmsg_t);
+	if (!(sck_type_map[type].extra_dev_cap & HIO_DEV_CAP_STREAM)) return HIO_DGRAM_READ_BUFFER_SIZE;
+	return 0;
+}
+
 /* ======================================================================== */
 
 static void connect_timedout (hio_t* hio, const hio_ntime_t* now, hio_tmrjob_t* job)
@@ -465,14 +486,20 @@ static int dev_sck_make (hio_dev_t* dev, void* ctx)
 		if (hnd == HIO_SYSHND_INVALID) goto oops;
 
 	#if defined(ENABLE_SCTP)
-		if (sck_type_map[arg->type].type == SOCK_SEQPACKET &&
+		if (sck_type_map[arg->type].type == SOCK_STREAM &&
 		    sck_type_map[arg->type].proto == IPPROTO_SCTP)
 		{
+			struct sctp_initmsg initmsg;
+			HIO_MEMSET(&initmsg, 0, HIO_SIZEOF(initmsg));
+			setsockopt(hnd, IPPROTO_SCTP, SCTP_EVENTS, &initmsg, HIO_SIZEOF(initmsg));
+		}
+		else if (sck_type_map[arg->type].type == SOCK_SEQPACKET &&
+		         sck_type_map[arg->type].proto == IPPROTO_SCTP)
+		{
 			struct sctp_event_subscribe sctp_ev_s;
-
 			HIO_MEMSET(&sctp_ev_s, 0, HIO_SIZEOF(sctp_ev_s));
 			sctp_ev_s.sctp_data_io_event = 1;
-			setsockopt (hnd, IPPROTO_SCTP, SCTP_EVENTS, &sctp_ev_s, HIO_SIZEOF(sctp_ev_s));
+			setsockopt(hnd, IPPROTO_SCTP, SCTP_EVENTS, &sctp_ev_s, HIO_SIZEOF(sctp_ev_s));
 		}
 	#endif
 	}
@@ -480,6 +507,8 @@ static int dev_sck_make (hio_dev_t* dev, void* ctx)
 	rdev->hnd = hnd;
 	rdev->side_chan = side_chan;
 	rdev->dev_cap = HIO_DEV_CAP_IN | HIO_DEV_CAP_OUT | sck_type_map[arg->type].extra_dev_cap;
+
+	rdev->dev_rdmin = sck_type_rdmin(arg->type);
 	rdev->on_write = arg->on_write;
 	rdev->on_read = arg->on_read;
 	rdev->on_connect = arg->on_connect;
@@ -497,11 +526,19 @@ oops:
 	return -1;
 }
 
+/* what make_accepted_client_connection() hands to dev_sck_make_client() */
+typedef struct sck_make_client_ctx_t sck_make_client_ctx_t;
+struct sck_make_client_ctx_t
+{
+	hio_syshnd_t hnd;
+	hio_dev_sck_type_t type;
+};
+
 static int dev_sck_make_client (hio_dev_t* dev, void* ctx)
 {
 	hio_t* hio = dev->hio;
 	hio_dev_sck_t* rdev = (hio_dev_sck_t*)dev;
-	hio_syshnd_t* clisckhnd = (hio_syshnd_t*)ctx;
+	sck_make_client_ctx_t* mc = (sck_make_client_ctx_t*)ctx;
 
 	/* create a socket device that is made of a socket connection
 	 * on a listening socket.
@@ -509,9 +546,16 @@ static int dev_sck_make_client (hio_dev_t* dev, void* ctx)
 	 * most of the initialization is done by the listening socket device
 	 * after a client socket has been created. */
 
-	rdev->hnd = *clisckhnd;
+	rdev->hnd = mc->hnd;
 	rdev->tmrjob_index = HIO_TMRIDX_INVALID;
 	rdev->side_chan = HIO_SYSHND_INVALID;
+
+	/* the type is settled again by the caller, but dev_rdmin has to be known
+	 * before this method returns: hio_dev_make() checks it against the loop's
+	 * read buffer the moment make() is done, and there is no second chance to
+	 * refuse the device after that. */
+	rdev->type = mc->type;
+	rdev->dev_rdmin = sck_type_rdmin(mc->type);
 
 	if (hio_makesyshndasync(hio, rdev->hnd) <= -1 ||
 	    hio_makesyshndcloexec(hio, rdev->hnd) <= -1) goto oops;
@@ -2009,6 +2053,7 @@ static int harvest_outgoing_connection (hio_dev_sck_t* rdev)
 
 static int make_accepted_client_connection (hio_dev_sck_t* rdev, hio_syshnd_t clisck, hio_skad_t* remoteaddr, hio_dev_sck_type_t clisck_type)
 {
+	sck_make_client_ctx_t mc;
 	hio_t* hio = rdev->hio;
 	hio_dev_sck_t* clidev;
 	hio_scklen_t addrlen;
@@ -2038,7 +2083,9 @@ static int make_accepted_client_connection (hio_dev_sck_t* rdev, hio_syshnd_t cl
 #else
 	dev_mth = (sck_type_map[clisck_type].extra_dev_cap & HIO_DEV_CAP_STREAM)? &dev_mth_clisck_stream: &dev_mth_clisck_stateless;
 #endif
-	clidev = (hio_dev_sck_t*)hio_dev_make(hio, rdev->dev_size, dev_mth, rdev->dev_evcb, &clisck);
+	mc.hnd = clisck;
+	mc.type = clisck_type;
+	clidev = (hio_dev_sck_t*)hio_dev_make(hio, rdev->dev_size, dev_mth, rdev->dev_evcb, &mc);
 	if (HIO_UNLIKELY(!clidev))
 	{
 		/* [NOTE] 'clisck' is closed by callback methods called by hio_dev_make() upon failure */
