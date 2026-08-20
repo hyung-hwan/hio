@@ -251,6 +251,23 @@ typedef void (*hio_dev_sck_on_connect_t) (
 	hio_dev_sck_t* dev
 );
 
+/**
+ * Called for an SCTP notification - an association coming up or going down, a
+ * path changing state, a send failing. These arrive interleaved with data on
+ * the same socket and are flagged MSG_NOTIFICATION; they are not payload, so
+ * they are never handed to on_read().
+ *
+ * 'data' points at a union sctp_notification of 'dlen' octets. It belongs to
+ * the loop's read buffer and is only valid for the duration of this call.
+ *
+ * Leave it unset to have notifications discarded.
+ */
+typedef void (*hio_dev_sck_on_notification_t) (
+	hio_dev_sck_t*       dev,
+	const void*          data,
+	hio_iolen_t          dlen
+);
+
 typedef void (*hio_dev_sck_on_raw_accept_t) (
 	hio_dev_sck_t* dev,
 	hio_syshnd_t   syshnd,
@@ -321,6 +338,14 @@ struct hio_dev_sck_make_t
 	hio_dev_sck_on_connect_t on_connect;
 	hio_dev_sck_on_disconnect_t on_disconnect;
 	hio_dev_sck_on_raw_accept_t on_raw_accept; /* optional */
+	hio_dev_sck_on_notification_t on_notification; /* optional. sctp only */
+
+	/** number of outbound streams to ask for on an SCTP association.
+	 *  0 leaves it to the system default, which is what every release before
+	 *  this field did. only meaningful for the SCTP types. */
+	hio_uint16_t sctp_ostreams;
+	/** maximum number of inbound streams to accept. 0 for the default. */
+	hio_uint16_t sctp_instreams;
 };
 
 enum hio_dev_sck_bind_option_t
@@ -414,6 +439,7 @@ struct hio_dev_sck_t
 	hio_dev_sck_on_connect_t on_connect;
 	hio_dev_sck_on_disconnect_t on_disconnect;
 	hio_dev_sck_on_raw_accept_t on_raw_accept;
+	hio_dev_sck_on_notification_t on_notification;
 
 	/* timer job index for handling
 	 *  - connect() timeout for a connecting socket.

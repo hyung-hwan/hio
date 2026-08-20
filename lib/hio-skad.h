@@ -222,7 +222,22 @@ HIO_EXPORT void hio_skad_set_scope_id (
 	int               scope_id
 );
 
+/**
+ * The SCTP payload protocol identifier carried alongside the address. SCTP
+ * passes it through unchanged; it means whatever the two ends agree it means.
+ * Rides in the same extra area as the channel - see hio_skad_get_chan().
+ */
 /* for sctp */
+HIO_EXPORT hio_uint32_t hio_skad_get_ppid (
+	const hio_skad_t* skad
+);
+
+/* for sctp */
+HIO_EXPORT void hio_skad_set_ppid (
+	hio_skad_t*  skad,
+	hio_uint32_t ppid
+);
+
 HIO_EXPORT hio_uint16_t hio_skad_get_chan (
 	const hio_skad_t* skad
 );

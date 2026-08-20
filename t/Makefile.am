@@ -18,7 +18,7 @@ check_SCRIPTS = s-001.sh s-002.sh
 EXTRA_DIST = $(check_SCRIPTS) tap.inc t-cgi.sh
 
 ## programs run as tests
-TESTPROGS = t-001 t-002 t-003 t-004 t-005 t-006 t-007 t-008 t-009 t-010 t-011
+TESTPROGS = t-001 t-002 t-003 t-004 t-005 t-006 t-007 t-008 t-009 t-010 t-011 t-012
 
 ## helpers the test scripts drive. built with the tests, but not tests
 ## themselves - they are servers and would never exit.
@@ -98,6 +98,14 @@ t_011_CPPFLAGS = $(CPPFLAGS_COMMON)
 t_011_CFLAGS = $(CFLAGS_COMMON)
 t_011_LDFLAGS = $(LDFLAGS_COMMON)
 t_011_LDADD = $(LIBADD_COMMON)
+
+## t-012 drives an sctp association. it skips itself where the build has no
+## sctp support, which it discovers the same way a caller would.
+t_012_SOURCES = t-012.c tap.h
+t_012_CPPFLAGS = $(CPPFLAGS_COMMON)
+t_012_CFLAGS = $(CFLAGS_COMMON)
+t_012_LDFLAGS = $(LDFLAGS_COMMON)
+t_012_LDADD = $(LIBADD_COMMON)
 
 ## a minimal FastCGI responder, driven by s-002.sh
 fcgis_SOURCES = fcgis.c

@@ -116,7 +116,34 @@ AC_CHECK_HEADERS([time.h sys/time.h utime.h spawn.h execinfo.h ucontext.h])
 AC_CHECK_HEADERS([sys/resource.h sys/wait.h sys/syscall.h sys/ioctl.h])
 AC_CHECK_HEADERS([sys/sendfile.h sys/epoll.h sys/event.h sys/poll.h sys/select.h])
 AC_CHECK_HEADERS([sys/sysctl.h sys/socket.h sys/sockio.h sys/un.h])
-AC_CHECK_HEADERS([ifaddrs.h tiuser.h linux/netfilter_ipv4.h netinet/in.h netinet/sctp.h])
+AC_CHECK_HEADERS([ifaddrs.h tiuser.h linux/netfilter_ipv4.h netinet/in.h])
+
+dnl sctp support. it used to be switched on purely by whether netinet/sctp.h
+dnl happened to be installed, which meant two machines could build libraries
+dnl with different capabilities and nothing said so. make it a decision.
+AC_ARG_ENABLE([sctp],
+	[AS_HELP_STRING([--enable-sctp],[build with sctp support if the system provides it (default. yes)])],
+	enable_sctp_is=$enableval,
+	enable_sctp_is=yes
+)
+SCTP_ENABLED="no"
+if test "x$enable_sctp_is" = "xyes"
+then
+	AC_CHECK_HEADERS([netinet/sctp.h])
+	if test "x$ac_cv_header_netinet_sctp_h" = "xyes"
+	then
+		dnl the header alone is not enough - IPPROTO_SCTP has to be defined too
+		AC_CHECK_DECL([IPPROTO_SCTP], [
+			AC_DEFINE([HIO_ENABLE_SCTP], [1], [enable sctp support])
+			SCTP_ENABLED="yes"
+		], [], [[
+			#include <sys/types.h>
+			#include <sys/socket.h>
+			#include <netinet/in.h>
+		]])
+	fi
+fi
+AC_SUBST(SCTP_ENABLED)
 AC_CHECK_HEADERS([net/if.h net/if_dl.h netinet/if_ether.h netpacket/packet.h net/bpf.h], [], [], [
 	#include <sys/types.h>
 	#include <sys/socket.h>])
@@ -497,7 +524,8 @@ then
 		struct sockaddr_extra_t
 		{
 			unsigned short chan;
-		}
+			unsigned int ppid;
+		};
 		struct sockaddr_in_x {
 			struct sockaddr_in a;
 			struct sockaddr_extra_t u;
@@ -509,6 +537,7 @@ then
 		struct sockaddr_extra_t
 		{
 			unsigned short chan;
+			unsigned int ppid;
 		};
 		struct sockaddr_in6_x {
 			struct sockaddr_in6 a;
@@ -575,6 +604,7 @@ else
 		struct sockaddr_extra_t
 		{
 			unsigned short chan;
+			unsigned int ppid;
 		};
 		struct sockaddr_in_x {
 			struct sockaddr_in a;
@@ -588,6 +618,7 @@ else
 		struct sockaddr_extra_t
 		{
 			unsigned short chan;
+			unsigned int ppid;
 		};
 		struct sockaddr_in6_x {
 			struct sockaddr_in6 a;
@@ -911,5 +942,6 @@ echo "  Math library: ${LIBM}"
 echo "  Socket library: ${SOCKET_LIBS}"
 echo "  Sendfile library: ${SENDFILE_LIBS}"
 echo "  SSL library: ${SSL_LIBS}"
+echo "  SCTP support: ${SCTP_ENABLED}"
 echo "-------------------------------------------------------------------------"
 ]

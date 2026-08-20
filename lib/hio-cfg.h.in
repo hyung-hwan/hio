@@ -591,6 +591,9 @@
 /* build the mariadb device */
 #undef HIO_ENABLE_MARIADB
 
+/* enable sctp support */
+#undef HIO_ENABLE_SCTP
+
 /* Use the wide-character type as the default character type */
 #undef HIO_ENABLE_WIDE_CHAR
 
