@@ -537,6 +537,10 @@ static int dev_sck_kill (hio_dev_t* dev, int force)
 {
 	hio_t* hio = dev->hio;
 	hio_dev_sck_t* rdev = (hio_dev_sck_t*)dev;
+	/* remembered for the trace at the end, by which point rdev->hnd has been
+	 * closed and reset. HIO_UNUSED because that trace is the only reader and
+	 * it compiles away in a release build. */
+	hio_syshnd_t hnd HIO_UNUSED = rdev->hnd;
 
 	HIO_DEBUG2(hio, "SCK(%p) - being killed [%d]\n", rdev, rdev->hnd);
 #if 0

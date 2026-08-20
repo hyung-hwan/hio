@@ -32,6 +32,7 @@ static void clear_unneeded_cfmbs (hio_t* hio);
 static int schedule_kill_zombie_job (hio_dev_t* dev);
 static int kill_and_free_device (hio_dev_t* dev, int force);
 static void free_dead_devices (hio_t* hio);
+static void unlink_cwq (hio_t* hio, hio_cwq_t* cwq);
 
 static void on_read_timeout (hio_t* hio, const hio_ntime_t* now, hio_tmrjob_t* job);
 static void on_write_timeout (hio_t* hio, const hio_ntime_t* now, hio_tmrjob_t* job);
@@ -176,12 +177,14 @@ void hio_fini (hio_t* hio)
 		}
 	}
 
-	/* clean up unfired cwq entries - calling fire_cwq_handlers() might not be good here. */
+	/* clean up unfired cwq entries - calling fire_cwq_handlers() might not be good here.
+	 * unlink_cwq() rather than a bare HIO_CWQ_UNLINK: the devices are killed further
+	 * down and hio_dev_kill() consults cwq_head, which must not be left dangling. */
 	while (!HIO_CWQ_IS_EMPTY(&hio->cwq))
 	{
 		hio_cwq_t* cwq;
 		cwq = HIO_CWQ_HEAD(&hio->cwq);
-		HIO_CWQ_UNLINK (cwq);
+		unlink_cwq(hio, cwq);
 		hio_freemem(hio, cwq);
 	}
 
@@ -473,43 +476,69 @@ static HIO_INLINE void unlink_wq (hio_t* hio, hio_wq_t* q)
 	 * for one dropped on a timeout or a device kill it is the remainder. */
 	HIO_ASSERT(hio, q->dev->wq_len >= (hio_oow_t)q->len);
 	q->dev->wq_len -= q->len;
-	HIO_WQ_UNLINK (q);
+	HIO_WQ_UNLINK(q);
+}
+
+/* take an entry off both queues it belongs to and off its device's count.
+ * an entry is only ever removed from the head of its device's queue - both
+ * firing paths consume in order - so a singly-linked device queue suffices. */
+static void unlink_cwq (hio_t* hio, hio_cwq_t* cwq)
+{
+	hio_dev_t* dev = cwq->dev;
+
+	HIO_ASSERT(hio, dev->cwq_head == cwq);
+	dev->cwq_head = cwq->d_next;
+	if (!dev->cwq_head) dev->cwq_tail = HIO_NULL;
+
+	HIO_ASSERT(hio, dev->cw_count > 0);
+	dev->cw_count--;
+
+	HIO_CWQ_UNLINK(cwq);
+}
+
+/* hand the entry back to the size-bucketed free list, or release it */
+static HIO_INLINE void recycle_cwq (hio_t* hio, hio_cwq_t* cwq)
+{
+	hio_oow_t cwqfl_index = HIO_ALIGN_POW2(cwq->dstaddr.len, HIO_CWQFL_ALIGN) / HIO_CWQFL_SIZE;
+	if (cwqfl_index < HIO_COUNTOF(hio->cwqfl))
+	{
+		/* reuse the cwq object if dstaddr is 0 in size. chain it to the free list */
+		cwq->q_next = hio->cwqfl[cwqfl_index];
+		hio->cwqfl[cwqfl_index] = cwq;
+	}
+	else
+	{
+		/* TODO: more reuse of objects of different size? */
+		hio_freemem(hio, cwq);
+	}
+}
+
+/* fire one entry and dispose of it. returns the device to halt, or null. */
+static HIO_INLINE hio_dev_t* fire_one_cwq (hio_t* hio, hio_cwq_t* cwq)
+{
+	hio_dev_t* dev_to_halt;
+
+	if (cwq->dev->dev_evcb->on_write(cwq->dev, cwq->olen, cwq->ctx, &cwq->dstaddr) <= -1)
+	{
+		dev_to_halt = cwq->dev;
+	}
+	else
+	{
+		dev_to_halt = HIO_NULL;
+	}
+
+	unlink_cwq(hio, cwq);
+	recycle_cwq(hio, cwq);
+	return dev_to_halt;
 }
 
 static void fire_cwq_handlers (hio_t* hio)
 {
-	/* execute callbacks for completed write operations */
+	/* execute callbacks for completed write operations, in the order they
+	 * completed, across every device */
 	while (!HIO_CWQ_IS_EMPTY(&hio->cwq))
 	{
-		hio_cwq_t* cwq;
-		hio_oow_t cwqfl_index;
-		hio_dev_t* dev_to_halt;
-
-		cwq = HIO_CWQ_HEAD(&hio->cwq);
-		if (cwq->dev->dev_evcb->on_write(cwq->dev, cwq->olen, cwq->ctx, &cwq->dstaddr) <= -1)
-		{
-			dev_to_halt = cwq->dev;
-		}
-		else
-		{
-			dev_to_halt = HIO_NULL;
-		}
-		cwq->dev->cw_count--;
-		HIO_CWQ_UNLINK (cwq);
-
-		cwqfl_index = HIO_ALIGN_POW2(cwq->dstaddr.len, HIO_CWQFL_ALIGN) / HIO_CWQFL_SIZE;
-		if (cwqfl_index < HIO_COUNTOF(hio->cwqfl))
-		{
-			/* reuse the cwq object if dstaddr is 0 in size. chain it to the free list */
-			cwq->q_next = hio->cwqfl[cwqfl_index];
-			hio->cwqfl[cwqfl_index] = cwq;
-		}
-		else
-		{
-			/* TODO: more reuse of objects of different size? */
-			hio_freemem(hio, cwq);
-		}
-
+		hio_dev_t* dev_to_halt = fire_one_cwq(hio, HIO_CWQ_HEAD(&hio->cwq));
 		if (dev_to_halt)
 		{
 			HIO_DEBUG2(hio, "DEV(%p) - halting a device for on_write error upon write completion[1] - %js\n", dev_to_halt, hio_geterrmsg(hio));
@@ -520,53 +549,20 @@ static void fire_cwq_handlers (hio_t* hio)
 
 static void fire_cwq_handlers_for_dev (hio_t* hio, hio_dev_t* dev, int for_kill)
 {
-	hio_cwq_t* cwq, * next;
-
 	HIO_ASSERT(hio, dev->cw_count > 0);  /* Ensure to check dev->cw_count before calling this function */
 
-	cwq = HIO_CWQ_HEAD(&hio->cwq);
-	while (cwq != &hio->cwq)
+	/* this used to walk the loop-wide queue looking for entries belonging to
+	 * this device, which made it cost the length of everything queued rather
+	 * than the length of this device's own share. */
+	while (dev->cwq_head)
 	{
-		next = HIO_CWQ_NEXT(cwq);
-		if (cwq->dev == dev) /* TODO: THIS LOOP TOO INEFFICIENT??? MAINTAIN PER-DEVICE LIST OF CWQ? */
+		hio_dev_t* dev_to_halt = fire_one_cwq(hio, dev->cwq_head);
+		if (!for_kill && dev_to_halt)
 		{
-			hio_dev_t* dev_to_halt;
-			hio_oow_t cwqfl_index;
-
-			if (cwq->dev->dev_evcb->on_write(cwq->dev, cwq->olen, cwq->ctx, &cwq->dstaddr) <= -1)
-			{
-				dev_to_halt = cwq->dev;
-			}
-			else
-			{
-				dev_to_halt = HIO_NULL;
-			}
-
-			cwq->dev->cw_count--;
-			HIO_CWQ_UNLINK (cwq);
-
-			cwqfl_index = HIO_ALIGN_POW2(cwq->dstaddr.len, HIO_CWQFL_ALIGN) / HIO_CWQFL_SIZE;
-			if (cwqfl_index < HIO_COUNTOF(hio->cwqfl))
-			{
-				/* reuse the cwq object if dstaddr is 0 in size. chain it to the free list */
-				cwq->q_next = hio->cwqfl[cwqfl_index];
-				hio->cwqfl[cwqfl_index] = cwq;
-			}
-			else
-			{
-				/* TODO: more reuse of objects of different size? */
-				hio_freemem(hio, cwq);
-			}
-
-			if (!for_kill && dev_to_halt)
-			{
-				HIO_DEBUG2(hio, "DEV(%p) - halting a device for on_write error upon write completion[2] - %js\n", dev_to_halt, hio_geterrmsg(hio));
-				hio_dev_halt(dev_to_halt);
-			}
+			HIO_DEBUG2(hio, "DEV(%p) - halting a device for on_write error upon write completion[2] - %js\n", dev_to_halt, hio_geterrmsg(hio));
+			hio_dev_halt(dev_to_halt);
 		}
-		cwq = next;
 	}
-
 }
 
 static HIO_INLINE void clear_read_pending (hio_dev_t* dev)
@@ -807,18 +803,16 @@ static HIO_INLINE void handle_event (hio_t* hio, hio_dev_t* dev, int events, int
 				 * is started from within on_read() callback, and the input data is available
 				 * in the next iteration of this loop, the on_read() callback is triggered
 				 * before the on_write() callbacks scheduled before that on_read() callback. */
-			#if 0
+				/* only this device's completions, so the ordering the comment
+				 * above describes is the ordering that actually happens. firing
+				 * every device's here was a workaround for the old cost of
+				 * finding one device's entries. */
 				if (dev->cw_count > 0)
 				{
-					fire_cwq_handlers_for_dev (hio, dev);
-					/* it will still invoke the on_read() callbak below even if
+					fire_cwq_handlers_for_dev(hio, dev, 0);
+					/* it will still invoke the on_read() callback below even if
 					 * the device gets halted inside fire_cwq_handlers_for_dev() */
 				}
-			#else
-				/* currently fire_cwq_handlers_for_dev() scans the entire cwq list.
-				 * i might as well triggger handlers for all devices */
-				fire_cwq_handlers (hio);
-			#endif
 
 				if (len <= 0 && (dev->dev_cap & HIO_DEV_CAP_STREAM))
 				{
@@ -1321,7 +1315,7 @@ void hio_dev_kill (hio_dev_t* dev)
 	clear_read_pending (dev);
 
 	/* clear completed write event queues */
-	if (dev->cw_count > 0) fire_cwq_handlers_for_dev (hio, dev, 1);
+	if (dev->cw_count > 0) fire_cwq_handlers_for_dev(hio, dev, 1);
 
 	/* clear pending write requests - won't fire on_write for pending write requests */
 	while (!HIO_WQ_IS_EMPTY(&dev->wq))
@@ -1676,7 +1670,12 @@ static HIO_INLINE int __enqueue_completed_write (hio_dev_t* dev, hio_iolen_t len
 
 	cwq->olen = len;
 
-	HIO_CWQ_ENQ (&dev->hio->cwq, cwq);
+	cwq->d_next = HIO_NULL;
+	if (dev->cwq_tail) dev->cwq_tail->d_next = cwq;
+	else dev->cwq_head = cwq;
+	dev->cwq_tail = cwq;
+
+	HIO_CWQ_ENQ(&dev->hio->cwq, cwq);
 	dev->cw_count++; /* increment the number of complete write operations */
 	return 0;
 }
@@ -1743,7 +1742,7 @@ static HIO_INLINE int __enqueue_pending_write (hio_dev_t* dev, hio_iolen_t olen,
 		}
 	}
 
-	HIO_WQ_ENQ (&dev->wq, q);
+	HIO_WQ_ENQ(&dev->wq, q);
 	dev->wq_len += urem;
 	if (!(dev->dev_cap & HIO_DEV_CAP_OUT_WATCHED))
 	{
@@ -1818,7 +1817,7 @@ static HIO_INLINE int __enqueue_pending_sendfile (hio_dev_t* dev, hio_iolen_t ol
 		}
 	}
 
-	HIO_WQ_ENQ (&dev->wq, q);
+	HIO_WQ_ENQ(&dev->wq, q);
 	dev->wq_len += urem;
 	if (!(dev->dev_cap & HIO_DEV_CAP_OUT_WATCHED))
 	{

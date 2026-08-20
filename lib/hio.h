@@ -326,6 +326,14 @@ struct hio_cwq_t
 	hio_cwq_t*    q_next;
 	hio_cwq_t*    q_prev;
 
+	/* every entry sits on two queues at once. q_next/q_prev thread the
+	 * loop-wide queue, which is what fixes the order callbacks run in.
+	 * d_next threads the owning device's own queue, which is what makes
+	 * finding one device's entries cheap instead of a walk of everything.
+	 * both are filled in the same order, so the head of one is the head of
+	 * the other for any given device. */
+	hio_cwq_t*    d_next;
+
 	hio_iolen_t   olen;
 	void*         ctx;
 	hio_dev_t*    dev;
@@ -390,6 +398,8 @@ struct hio_wq_t
 	hio_tmridx_t    rtmridx; \
 	int             dev_extra_events; /* events the transport needs watched regardless of the device's own i/o state. see hio_dev_watch() */ \
 	hio_wq_t        wq; \
+	hio_cwq_t*      cwq_head; /* this device's completed-write queue, oldest first */ \
+	hio_cwq_t*      cwq_tail; \
 	hio_oow_t       wq_len; /* number of bytes sitting in the write queue, not yet handed to the transport */ \
 	hio_oow_t       wq_lim; /* soft cap on wq_len. 0 means no cap. see hio_dev_setwqlimit() */ \
 	hio_oow_t       cw_count; \
@@ -810,7 +820,7 @@ struct hio_t
 		} xbuf; /* buffer to support sprintf */
 	} sprintf;
 
-	hio_uint8_t bigbuf[65535]; /* TODO: make this dynamic depending on devices added. device may indicate a buffer size required??? */
+	hio_uint8_t bigbuf[65536]; /* TODO: make this dynamic depending on devices added. device may indicate a buffer size required??? */
 
 	hio_cfmb_t cfmb; /* list head of cfmbs */
 	hio_dev_t actdev; /* list head of active devices */

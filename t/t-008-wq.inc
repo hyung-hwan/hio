@@ -133,3 +133,50 @@ static void test_wq_limit_zero_is_unlimited (void)
 	hio_dev_kill ((hio_dev_t*)dev);
 	close (peerfd);
 }
+
+/* ------------------------------------------------------------------ */
+/* completion firing inside the greedy read loop.
+ *
+ * when on_read asks for another read, the loop fires the completions queued
+ * so far before calling on_read again - otherwise a write started from inside
+ * on_read would be reported after a later on_read, which is the reordering
+ * the comment in handle_event() warns about. the firing is per device, so an
+ * unrelated connection's callbacks are not dragged into this device's pass. */
+
+static void test_completion_fires_within_read_loop (void)
+{
+	tdev_t* dev;
+	int peerfd;
+	hio_uint8_t chunk[30];
+
+	obs_reset ();
+	g_wr_chunk = 0;
+	g_wr_calls_left = 100;   /* every write completes at once */
+	g_rd_chunk = 10;         /* so 30 octets take three read iterations */
+	g_write_on_read = 1;
+
+	dev = make_tdev(&peerfd);
+	if (!dev) { skip ("device creation failed", 3); return; }
+
+	HIO_MEMSET (chunk, 'x', HIO_SIZEOF(chunk));
+	if (write(peerfd, chunk, HIO_SIZEOF(chunk)) != (ssize_t)HIO_SIZEOF(chunk))
+	{
+		skip ("peer write failed", 3);
+		hio_dev_kill ((hio_dev_t*)dev);
+		close (peerfd);
+		return;
+	}
+
+	pump ();
+
+	/* iteration 1 reads and writes; iteration 2 fires that write's completion
+	 * before reading again. hence R, then W and R alternating. */
+	OK (g_seq_n >= 3, "the greedy read loop ran more than once");
+	OK (g_seq[0] == 'R', "no completion is fired before the first read");
+	OK (strncmp(g_seq, "RWRWR", 5) == 0,
+	    "each iteration's write completion is reported before the next on_read");
+
+	g_write_on_read = 0;
+	hio_dev_kill ((hio_dev_t*)dev);
+	close (peerfd);
+}

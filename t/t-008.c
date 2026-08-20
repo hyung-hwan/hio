@@ -34,12 +34,31 @@ static hio_iolen_t g_cw_len[MAX_CW];
 static void*       g_cw_ctx[MAX_CW];
 static int         g_cw_n = 0;
 
+/* the greedy-read interleaving cases below. g_rd_chunk caps how much one read
+ * delivers; g_write_on_read makes on_read issue a write and ask for another
+ * read, which is the only shape that reaches the completion firing inside the
+ * read loop. g_seq records 'R' per on_read and 'W' per on_write. */
+static hio_iolen_t g_rd_chunk = 0;
+static int         g_write_on_read = 0;
+static hio_bch_t   g_seq[64];
+static int         g_seq_n = 0;
+
+static void seq_put (hio_bch_t c)
+{
+	if (g_seq_n < (int)HIO_COUNTOF(g_seq) - 1) g_seq[g_seq_n++] = c;
+	g_seq[g_seq_n] = '\0';
+}
+
 static hio_uint8_t g_pattern[PATLEN];
 
 static void obs_reset (void)
 {
 	g_wr_calls = 0;
 	g_cw_n = 0;
+	g_rd_chunk = 0;
+	g_write_on_read = 0;
+	g_seq_n = 0;
+	g_seq[0] = '\0';
 }
 
 /* ------------------------------------------------------------------ */
@@ -73,7 +92,9 @@ static hio_syshnd_t tdev_getsyshnd (hio_dev_t* dev)
 
 static int tdev_read (hio_dev_t* dev, void* buf, hio_iolen_t* len, hio_devaddr_t* srcaddr)
 {
-	ssize_t n = recv(((tdev_t*)dev)->fd, buf, *len, 0);
+	ssize_t n;
+	if (g_rd_chunk > 0 && *len > g_rd_chunk) *len = g_rd_chunk; /* force several iterations */
+	n = recv(((tdev_t*)dev)->fd, buf, *len, 0);
 	if (n <= -1)
 	{
 		if (errno == EAGAIN || errno == EWOULDBLOCK || errno == EINTR) return 0;
@@ -206,11 +227,19 @@ static hio_dev_mth_t tdev_mth =
 
 static int tdev_on_read (hio_dev_t* dev, const void* data, hio_iolen_t len, const hio_devaddr_t* srcaddr)
 {
-	return 0;
+	if (!g_write_on_read) return 0;
+
+	seq_put ('R');
+	if (len <= 0) return 0;
+	/* completes straight away, so a completion is queued for the next
+	 * iteration of the read loop to fire */
+	if (hio_dev_write(dev, g_pattern, 1, HIO_NULL, HIO_NULL) <= -1) return -1;
+	return 1; /* be greedy - keep reading in this same pass */
 }
 
 static int tdev_on_write (hio_dev_t* dev, hio_iolen_t wrlen, void* wrctx, const hio_devaddr_t* dstaddr)
 {
+	if (g_write_on_read) seq_put ('W');
 	if (g_cw_n < MAX_CW)
 	{
 		g_cw_len[g_cw_n] = wrlen;
@@ -742,6 +771,7 @@ int main (void)
 	test_wq_size_released_on_kill ();
 	test_wq_limit ();
 	test_wq_limit_zero_is_unlimited ();
+	test_completion_fires_within_read_loop ();
 
 	hio_close (g_hio);
 	return exit_status();
