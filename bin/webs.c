@@ -20,6 +20,7 @@ struct arg_info_t
 	const char* docroot;
 	int file_list_dir;
 	int file_load_index_page;
+	int use_sctp;
 };
 typedef struct arg_info_t arg_info_t;
 
@@ -391,7 +392,7 @@ int webs_start (hio_t* hio, const arg_info_t* ai)
 {
 	const hio_bch_t* ptr, * end;
 	hio_bcs_t tok;
-	hio_dev_sck_bind_t bi[100];
+	hio_svc_htts_bind_t bi[100];
 	hio_oow_t bic;
 	hio_svc_htts_t* webs;
 	htts_ext_t* ext;
@@ -405,12 +406,14 @@ int webs_start (hio_t* hio, const arg_info_t* ai)
 		ptr = hio_tokenize_bchars(ptr, end - ptr, ", ", 2, &tok, 0);
 		if (tok.len > 0)
 		{
-			if (hio_bcharstoskad(hio, tok.ptr, tok.len, &bi[bic].localaddr) <= -1)
+			if (hio_bcharstoskad(hio, tok.ptr, tok.len, &bi[bic].bind.localaddr) <= -1)
 			{
 				/* TODO: logging */
 				continue;
 			}
-			bi[bic].options = HIO_DEV_SCK_BIND_REUSEADDR | HIO_DEV_SCK_BIND_REUSEPORT | HIO_DEV_SCK_BIND_IGNERR;
+			bi[bic].bind.options = HIO_DEV_SCK_BIND_REUSEADDR | HIO_DEV_SCK_BIND_REUSEPORT | HIO_DEV_SCK_BIND_IGNERR;
+
+			if (ai->use_sctp) bi[bic].proto = HIO_SVC_HTTS_BIND_PROTO_SCTP;
 			bic++;
 
 			if (bic >= HIO_COUNTOF(bi)) break; /* TODO: make 'bi' dynamic */
@@ -528,7 +531,7 @@ static int handle_logopt (hio_t* hio, const hio_bch_t* logstr)
 
 			if (i >= HIO_COUNTOF(xtab))
 			{
-				fprintf (stderr, "ERROR: unrecognized value  - [%.*s] - [%s]\n", (int)tlen, flt, logstr);
+				fprintf(stderr, "ERROR: unrecognized value  - [%.*s] - [%s]\n", (int)tlen, flt, logstr);
 				return -1;
 			}
 		}
@@ -572,15 +575,15 @@ static int handle_dbgopt (hio_t* hio, const hio_bch_t* str)
 		else if (hio_comp_bchars_bcstr(flt, len, "bigint") == 0)  dbgopt |= HIO_TRAIT_DEBUG_BIGINT;
 		else
 		{
-			fprintf (stderr, "ERROR: unknown debug option value - %.*s\n", (int)len, flt);
+			fprintf(stderr, "ERROR: unknown debug option value - %.*s\n", (int)len, flt);
 			return -1;
 		}
 	}
 	while (cm);
 
-	hio_getoption (hio, HIO_TRAIT, &trait);
+	hio_getoption(hio, HIO_TRAIT, &trait);
 	trait |= dbgopt;
-	hio_setoption (hio, HIO_TRAIT, &trait);
+	hio_setoption(hio, HIO_TRAIT, &trait);
 	return 0;
 }
 #endif
@@ -592,7 +595,8 @@ static int process_args (int argc, char* argv[], arg_info_t* ai)
 	{
 		{ "file-no-list-dir", '\0' },
 		{ "file-no-load-index-page", '\0'},
-		{ ":log",             'l' },
+		{ ":log",   'l' },
+		{ "sctp",   '\0'},
 		{ HIO_NULL, '\0'}
 	};
 	static hio_bopt_t opt =
@@ -607,13 +611,14 @@ static int process_args (int argc, char* argv[], arg_info_t* ai)
 	if (argc < 3)
 	{
 	print_usage:
-		fprintf (stderr, "Usage: %s [options] listen-address:port docroot-dir\n", argv[0]);
+		fprintf(stderr, "Usage: %s [options] listen-address:port docroot-dir\n", argv[0]);
 		return -1;
 	}
 
-	memset (ai, 0, HIO_SIZEOF(*ai));
+	memset(ai, 0, HIO_SIZEOF(*ai));
 	ai->file_list_dir = 1;
 	ai->file_load_index_page = 1;
+	ai->use_sctp = 0;
 
 	while ((c = hio_getbopt(argc, argv, &opt)) != HIO_BCI_EOF)
 	{
@@ -634,15 +639,18 @@ static int process_args (int argc, char* argv[], arg_info_t* ai)
 					ai->file_load_index_page = 0;
 					break;
 				}
+				else if (strcasecmp(opt.lngopt, "sctp") == 0)
+				{
+					ai->use_sctp = 1;
+					break;
+				}
 				goto print_usage;
-
-
 
 			case ':':
 				if (opt.lngopt)
-					fprintf (stderr, "bad argument for '%s'\n", opt.lngopt);
+					fprintf(stderr, "bad argument for '%s'\n", opt.lngopt);
 				else
-					fprintf (stderr, "bad argument for '%c'\n", opt.opt);
+					fprintf(stderr, "bad argument for '%c'\n", opt.opt);
 				return -1;
 
 			default:

@@ -248,7 +248,7 @@ void* thr_func (void* arg)
 {
 	hio_t* hio = HIO_NULL;
 	hio_svc_htts_t* htts = HIO_NULL;
-	hio_dev_sck_bind_t htts_bind_info[2];
+	hio_svc_htts_bind_t htts_bind_info[3];
 	int htts_no = -1;
 
 	hio = hio_open(HIO_NULL, 0, HIO_NULL, HIO_FEATURE_ALL, 512, HIO_NULL);
@@ -261,15 +261,25 @@ void* thr_func (void* arg)
 	hio_setoption (hio, HIO_LOG_TARGET_BCSTR, "/dev/stderr");
 
 	memset (&htts_bind_info, 0, HIO_SIZEOF(htts_bind_info));
-	hio_skad_init_for_qx (&htts_bind_info[0].localaddr); /* QX socket device */
+	hio_skad_init_for_qx (&htts_bind_info[0].bind.localaddr); /* QX socket device */
 
-	hio_bcstrtoskad (hio, "0.0.0.0:9988", &htts_bind_info[1].localaddr);
-	htts_bind_info[1].options = HIO_DEV_SCK_BIND_REUSEADDR | HIO_DEV_SCK_BIND_REUSEPORT | HIO_DEV_SCK_BIND_IGNERR;
+	hio_bcstrtoskad (hio, "0.0.0.0:9988", &htts_bind_info[1].bind.localaddr);
+	htts_bind_info[1].bind.options = HIO_DEV_SCK_BIND_REUSEADDR | HIO_DEV_SCK_BIND_REUSEPORT | HIO_DEV_SCK_BIND_IGNERR;
 #if 0
-	htts_bind_info[1].options |= HIO_DEV_SCK_BIND_SSL; 
-	htts_bind_info[1].ssl_certfile = "localhost.crt";
-	htts_bind_info[1].ssl_keyfile = "localhost.key";
+	htts_bind_info[1].bind.options |= HIO_DEV_SCK_BIND_SSL;
+	htts_bind_info[1].bind.ssl_certfile = "localhost.crt";
+	htts_bind_info[1].bind.ssl_keyfile = "localhost.key";
 #endif
+
+	/* the same service over sctp. only the transport differs - the address
+	 * family cannot express it, which is what hio_svc_htts_bind_t is for.
+	 * where the build has no sctp the service skips this bind and carries on
+	 * with the others, so this costs nothing when it is unavailable. */
+	hio_bcstrtoskad (hio, "0.0.0.0:9989", &htts_bind_info[2].bind.localaddr);
+	htts_bind_info[2].bind.options = HIO_DEV_SCK_BIND_REUSEADDR | HIO_DEV_SCK_BIND_REUSEPORT | HIO_DEV_SCK_BIND_IGNERR;
+	htts_bind_info[2].proto = HIO_SVC_HTTS_BIND_PROTO_SCTP;
+	htts_bind_info[2].sctp_ostreams = 8;
+	htts_bind_info[2].sctp_instreams = 8;
 
 	htts = hio_svc_htts_start(hio, 0, htts_bind_info, HIO_COUNTOF(htts_bind_info), process_http_request);
 	if (htts)

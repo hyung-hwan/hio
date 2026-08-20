@@ -3135,6 +3135,14 @@ int hio_dev_sck_shutdown (hio_dev_sck_t* dev, int how)
 
 int hio_dev_sck_sendfileok (hio_dev_sck_t* dev)
 {
+	/* the transport has to actually implement it. the sctp methods deliberately
+	 * do not - sendfile() would bypass sendmsg() and lose the per-message
+	 * ancillary data that is the reason for using sctp - and a transport added
+	 * later may not either. without this check the answer was derived purely
+	 * from the build and the ssl state, so it said yes for a device whose
+	 * method slot is null and hio_dev_sendfile() would fail with HIO_ENOCAPA. */
+	if (!dev->dev_mth->sendfile) return 0;
+
 #if defined(USE_SSL)
 	#if defined(HAVE_SENDFILE)
 	/* unable to use sendfile over ssl */

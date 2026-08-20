@@ -1217,7 +1217,7 @@ for (i = 0; i < 5; i++)
 	hio_svc_htts_t* htts;
 	hio_ntime_t send_tmout, reply_tmout;
 	hio_skad_t servaddr;
-	hio_dev_sck_bind_t htts_bind_info;
+	hio_svc_htts_bind_t htts_bind_info;
 
 	send_tmout.sec = 0;
 	send_tmout.nsec = 0;
@@ -1233,11 +1233,11 @@ for (i = 0; i < 5; i++)
 
 	memset (&htts_bind_info, 0, HIO_SIZEOF(htts_bind_info));
 	//hio_bcstrtoskad (hio, "[""]:9988", &htts_bind_info.localaddr);
-	hio_bcstrtoskad (hio, "0.0.0.0:9988", &htts_bind_info.localaddr);
-	htts_bind_info.options = HIO_DEV_SCK_BIND_REUSEADDR | HIO_DEV_SCK_BIND_REUSEPORT | HIO_DEV_SCK_BIND_IGNERR;
-	//htts_bind_info.options |= HIO_DEV_SCK_BIND_SSL; 
-	htts_bind_info.ssl_certfile = "localhost.crt";
-	htts_bind_info.ssl_keyfile = "localhost.key";
+	hio_bcstrtoskad (hio, "0.0.0.0:9988", &htts_bind_info.bind.localaddr);
+	htts_bind_info.bind.options = HIO_DEV_SCK_BIND_REUSEADDR | HIO_DEV_SCK_BIND_REUSEPORT | HIO_DEV_SCK_BIND_IGNERR;
+	//htts_bind_info.bind.options |= HIO_DEV_SCK_BIND_SSL;
+	htts_bind_info.bind.ssl_certfile = "localhost.crt";
+	htts_bind_info.bind.ssl_keyfile = "localhost.key";
 
 	dnc = hio_svc_dnc_start(hio, &servaddr, HIO_NULL, &send_tmout, &reply_tmout, 2); /* option - send to all, send one by one */
 	if (!dnc)

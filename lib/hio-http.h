@@ -410,10 +410,59 @@ HIO_EXPORT int hio_parse_http_status_header_value (
 /* HTTP SERVER SERVICE                                                       */
 /* ------------------------------------------------------------------------- */
 
+/**
+ * Which transport to run on a listening address.
+ *
+ * The concrete socket type is worked out from this together with the address
+ * family, because the family alone cannot distinguish tcp from sctp - which is
+ * why this exists. #HIO_SVC_HTTS_BIND_PROTO_DEFAULT is 0, so a zeroed
+ * descriptor behaves exactly as before this field existed.
+ *
+ * [NOTE] the concrete type is deliberately not named here. #HIO_DEV_SCK_QX is
+ * 0 in hio_dev_sck_type_t, so a hio_dev_sck_type_t field could not use 0 to
+ * mean "work it out" - and a caller should not have to know which of twenty
+ * device types corresponds to an address family anyway.
+ */
+enum hio_svc_htts_bind_proto_t
+{
+	/** tcp for AF_INET/AF_INET6, and the only sensible transport for the
+	 *  other families */
+	HIO_SVC_HTTS_BIND_PROTO_DEFAULT = 0,
+
+	/** sctp. valid for AF_INET and AF_INET6 only; a bind requesting it for
+	 *  any other family is skipped. */
+	HIO_SVC_HTTS_BIND_PROTO_SCTP
+};
+typedef enum hio_svc_htts_bind_proto_t hio_svc_htts_bind_proto_t;
+
+/**
+ * One listening address for hio_svc_htts_start().
+ *
+ * This wraps hio_dev_sck_bind_t rather than extending it, because some of what
+ * the service needs is settled when the socket is *made* and not when it is
+ * bound - the transport, and the sctp stream counts. A caller who drives
+ * hio_dev_sck_make() directly passes those through hio_dev_sck_make_t; a
+ * caller of this service never sees that struct, so they have to travel here.
+ */
+struct hio_svc_htts_bind_t
+{
+	hio_svc_htts_bind_proto_t proto;
+
+	/** the address and the bind-time options, including the ssl certificate */
+	hio_dev_sck_bind_t bind;
+
+	/** number of outbound sctp streams to request, 0 for the system default.
+	 *  ignored unless proto is #HIO_SVC_HTTS_BIND_PROTO_SCTP. */
+	hio_uint16_t sctp_ostreams;
+	/** maximum number of inbound sctp streams to accept, 0 for the default. */
+	hio_uint16_t sctp_instreams;
+};
+typedef struct hio_svc_htts_bind_t hio_svc_htts_bind_t;
+
 HIO_EXPORT hio_svc_htts_t* hio_svc_htts_start (
 	hio_t*                       hio,
 	hio_oow_t                    xtnsize,
-	hio_dev_sck_bind_t*          binds,
+	hio_svc_htts_bind_t*         binds,
 	hio_oow_t                    nbinds,
 	hio_svc_htts_proc_req_t      proc_req
 );

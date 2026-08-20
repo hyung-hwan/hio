@@ -22,7 +22,7 @@ TESTPROGS = t-001 t-002 t-003 t-004 t-005 t-006 t-007 t-008 t-009 t-010 t-011 t-
 
 ## helpers the test scripts drive. built with the tests, but not tests
 ## themselves - they are servers and would never exit.
-HELPERPROGS = fcgis httpecho httssvr slowclient
+HELPERPROGS = fcgis httpecho httssvr slowclient sctpget
 
 check_PROGRAMS = $(TESTPROGS) $(HELPERPROGS)
 
@@ -139,6 +139,14 @@ slowclient_CPPFLAGS = $(CPPFLAGS_COMMON)
 slowclient_CFLAGS = $(CFLAGS_COMMON)
 slowclient_LDFLAGS = $(LDFLAGS_COMMON)
 slowclient_LDADD = $(LIBADD_COMMON)
+
+## a minimal http client that speaks sctp. curl cannot, so the harness needs
+## this to reach the sctp listener at all.
+sctpget_SOURCES = sctpget.c
+sctpget_CPPFLAGS = $(CPPFLAGS_COMMON)
+sctpget_CFLAGS = $(CFLAGS_COMMON)
+sctpget_LDFLAGS = $(LDFLAGS_COMMON)
+sctpget_LDADD = $(LIBADD_COMMON)
 
 LOG_DRIVER = env AM_TAP_AWK='$(AWK)' $(SHELL) $(top_srcdir)/ac/tap-driver.sh
 TESTS = $(TESTPROGS) $(check_SCRIPTS)

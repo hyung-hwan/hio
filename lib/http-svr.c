@@ -580,7 +580,7 @@ static void halt_idle_clients (hio_t* hio, const hio_ntime_t* now, hio_tmrjob_t*
 
 /* ------------------------------------------------------------------------ */
 
-hio_svc_htts_t* hio_svc_htts_start (hio_t* hio, hio_oow_t xtnsize, hio_dev_sck_bind_t* binds, hio_oow_t nbinds, hio_svc_htts_proc_req_t proc_req)
+hio_svc_htts_t* hio_svc_htts_start (hio_t* hio, hio_oow_t xtnsize, hio_svc_htts_bind_t* binds, hio_oow_t nbinds, hio_svc_htts_proc_req_t proc_req)
 {
 	hio_svc_htts_t* htts = HIO_NULL;
 	union
@@ -624,30 +624,57 @@ hio_svc_htts_t* hio_svc_htts_start (hio_t* hio, hio_oow_t xtnsize, hio_dev_sck_b
 		hio_dev_sck_t* sck;
 
 		HIO_MEMSET(&info, 0, HIO_SIZEOF(info));
-		switch (hio_skad_get_family(&binds[i].localaddr))
+
+		/* the address family says which of tcp/unix/qx to use, but it cannot
+		 * tell tcp from sctp - both are AF_INET stream sockets - so the caller
+		 * states the transport and the two together give the device type. */
+		if (binds[i].proto == HIO_SVC_HTTS_BIND_PROTO_SCTP)
 		{
-			case HIO_AF_INET:
-				info.m.type = HIO_DEV_SCK_TCP4;
-				break;
+			switch (hio_skad_get_family(&binds[i].bind.localaddr))
+			{
+				case HIO_AF_INET:
+					info.m.type = HIO_DEV_SCK_SCTP4;
+					break;
 
-			case HIO_AF_INET6:
-				info.m.type = HIO_DEV_SCK_TCP6;
-				break;
+				case HIO_AF_INET6:
+					info.m.type = HIO_DEV_SCK_SCTP6;
+					break;
 
-		#if defined(HIO_AF_UNIX)
-			case HIO_AF_UNIX:
-				info.m.type = HIO_DEV_SCK_UNIX;
-				break;
-		#endif
+				default:
+					HIO_DEBUG3(hio, "HTTS(%p) - [%zu] sctp requested for an address family that has none - %d\n", htts, i, (int)hio_skad_get_family(&binds[i].bind.localaddr));
+					continue;
+			}
 
-			case HIO_AF_QX:
-				info.m.type = HIO_DEV_SCK_QX;
-				break;
+			info.m.sctp_ostreams = binds[i].sctp_ostreams;
+			info.m.sctp_instreams = binds[i].sctp_instreams;
+		}
+		else
+		{
+			switch (hio_skad_get_family(&binds[i].bind.localaddr))
+			{
+				case HIO_AF_INET:
+					info.m.type = HIO_DEV_SCK_TCP4;
+					break;
 
-			default:
-				/* ignore this */
-				HIO_DEBUG3(hio, "HTTS(%p) - [%zu] unsupported bind address type %d\n", htts, i, (int)hio_skad_get_family(&binds[i].localaddr));
-				continue;
+				case HIO_AF_INET6:
+					info.m.type = HIO_DEV_SCK_TCP6;
+					break;
+
+			#if defined(HIO_AF_UNIX)
+				case HIO_AF_UNIX:
+					info.m.type = HIO_DEV_SCK_UNIX;
+					break;
+			#endif
+
+				case HIO_AF_QX:
+					info.m.type = HIO_DEV_SCK_QX;
+					break;
+
+				default:
+					/* ignore this */
+					HIO_DEBUG3(hio, "HTTS(%p) - [%zu] unsupported bind address type %d\n", htts, i, (int)hio_skad_get_family(&binds[i].bind.localaddr));
+					continue;
+			}
 		}
 
 		/* the callback names(prefixed with listener_on_) are somewhat misleading because
@@ -673,12 +700,12 @@ hio_svc_htts_t* hio_svc_htts_start (hio_t* hio, hio_oow_t xtnsize, hio_dev_sck_b
 
 		if (sck->type != HIO_DEV_SCK_QX)
 		{
-			if (hio_dev_sck_bind(sck, &binds[i]) <= -1)
+			if (hio_dev_sck_bind(sck, &binds[i].bind) <= -1)
 			{
 				if (HIO_LOG_ENABLED(hio, HIO_LOG_DEBUG))
 				{
 					hio_bch_t tmpbuf[HIO_SKAD_IP_STRLEN + 1];
-					hio_skadtobcstr(hio, &binds[i].localaddr, tmpbuf, HIO_COUNTOF(tmpbuf), HIO_SKAD_TO_BCSTR_ADDR | HIO_SKAD_TO_BCSTR_PORT);
+					hio_skadtobcstr(hio, &binds[i].bind.localaddr, tmpbuf, HIO_COUNTOF(tmpbuf), HIO_SKAD_TO_BCSTR_ADDR | HIO_SKAD_TO_BCSTR_PORT);
 					HIO_DEBUG3(hio, "HTTS(%p) - [%zu] unable to bind to %hs\n", htts, i, tmpbuf);
 				}
 
@@ -694,7 +721,7 @@ hio_svc_htts_t* hio_svc_htts_start (hio_t* hio, hio_oow_t xtnsize, hio_dev_sck_b
 				if (HIO_LOG_ENABLED(hio, HIO_LOG_DEBUG))
 				{
 					hio_bch_t tmpbuf[HIO_SKAD_IP_STRLEN + 1];
-					hio_skadtobcstr(hio, &binds[i].localaddr, tmpbuf, HIO_COUNTOF(tmpbuf), HIO_SKAD_TO_BCSTR_ADDR | HIO_SKAD_TO_BCSTR_PORT);
+					hio_skadtobcstr(hio, &binds[i].bind.localaddr, tmpbuf, HIO_COUNTOF(tmpbuf), HIO_SKAD_TO_BCSTR_ADDR | HIO_SKAD_TO_BCSTR_PORT);
 					HIO_DEBUG3(hio, "HTTS(%p) - [%zu] unable to bind to %hs\n", htts, i, tmpbuf);
 				}
 

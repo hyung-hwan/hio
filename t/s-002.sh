@@ -249,6 +249,43 @@ test_slowloris()
 	tap_ensure "$hc" "200" "$msg - an ordinary request is unaffected by the deadline"
 }
 
+test_sctp()
+{
+	local msg="httssvr over sctp"
+
+	# httssvr binds the same service on 9989 over sctp. the address family
+	# cannot say which transport to use, so the bind descriptor states it -
+	# that is the whole point of the case.
+	#
+	# curl has no sctp support, hence the helper. it reports 'nosctp' when the
+	# system cannot make an sctp socket, which is a skip rather than a failure.
+	# 'nosctp' means the kernel has none; 'refused' means nothing is listening
+	# on the sctp port, which is what a --disable-sctp build looks like from
+	# here. either way there is nothing to test rather than something broken.
+	local code=$(./sctpget "127.0.0.1:9989" /txt/ping)
+	if [ "$code" = "nosctp" ] || [ "$code" = "refused" ]; then
+		tap_skip "$msg - no sctp listener (kernel or build lacks sctp)"
+		tap_skip "$msg - no sctp listener (kernel or build lacks sctp)"
+		return
+	fi
+
+	tap_ensure "$code" "200" "$msg - the same service answers over sctp"
+
+	# and the file task, which is the one that asks the transport whether
+	# sendfile is usable. the sctp method tables have no sendfile - it would
+	# bypass sendmsg() and lose the ancillary data - so this only works if
+	# that query answers from the transport rather than from the build flags.
+	# httssvr routes anything without a known prefix to the file task.
+	local tmpf="/tmp/s-002-sctp.$$.txt"
+	echo "sctp-file-payload" > "${tmpf}"
+	# the body, not the status: the 200 goes out before the body is produced,
+	# so a task that fails on the way still answers 200 and only the body
+	# shows it
+	local body=$(./sctpget "127.0.0.1:9989" "${tmpf}" body | tr -d '\r\n')
+	tap_ensure "$body" "sctp-file-payload" "$msg - the file task works over a transport with no sendfile"
+	rm -f "${tmpf}"
+}
+
 test_mixed_load()
 {
 	local msg="httssvr mixed task load"
@@ -277,6 +314,7 @@ if start_server; then
 	test_pxy
 	test_hdrlimits
 	test_slowloris
+	test_sctp
 	test_mixed_load
 	stop_server
 else
