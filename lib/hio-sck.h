@@ -455,6 +455,10 @@ struct hio_dev_sck_t
 	void* ssl;
 
 	hio_syshnd_t side_chan; /* side-channel for HIO_DEV_SCK_QX */
+
+	/* set while a message too large for the read buffer is being thrown away.
+	 * see the MSG_EOR handling in the sctp seqpacket read method. */
+	int sctp_discarding;
 };
 
 enum hio_dev_sck_shutdown_how_t

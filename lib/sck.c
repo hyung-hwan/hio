@@ -322,13 +322,13 @@ static struct sck_type_map_t sck_type_map[] =
 	/* HIO_DEV_SCK_SCTP6 */
 	{ AF_INET6,  SOCK_STREAM,     IPPROTO_SCTP,      1, 1, HIO_DEV_CAP_STREAM },
 
-	/* HIO_DEV_SCK_SCTP4_SP - not implemented */
-	/*{ AF_INET,   SOCK_SEQPACKET,  IPPROTO_SCTP,      1, 1, 0 },*/
-	{ -1,        0,               0,                 0, 0, 0 },
+	/* HIO_DEV_SCK_SCTP4_SP - one-to-many. listen() is called but hio never
+	 * accepts: associations are not devices in this model, they are told apart
+	 * by the source address on each message. */
+	{ AF_INET,   SOCK_SEQPACKET,  IPPROTO_SCTP,      1, 1, 0 },
 
-	/* HIO_DEV_SCK_SCTP6_SP - not implemented */
-	/*{ AF_INET6,  SOCK_SEQPACKET,  IPPROTO_SCTP,      1, 1, 0 },*/
-	{ -1,        0,               0,                 0, 0, 0 },
+	/* HIO_DEV_SCK_SCTP6_SP */
+	{ AF_INET6,  SOCK_SEQPACKET,  IPPROTO_SCTP,      1, 1, 0 },
 #else
 	{ -1,        0,               0,                 0, 0, 0 },
 	{ -1,        0,               0,                 0, 0, 0 },
@@ -842,12 +842,20 @@ static int recvmsg_sctp(
 
 static int sendmsg_sctp(
 	int s, const hio_iovec_t* iov, hio_oow_t iovcnt,struct sockaddr* dstaddr, hio_scklen_t dstaddrlen,
-	hio_uint32_t ppid, hio_uint32_t flags, hio_uint16_t stream_no, hio_uint32_t ttl, hio_uint32_t context)
+	hio_uint32_t ppid, hio_uint32_t flags, hio_uint16_t stream_no, hio_uint32_t ttl, hio_uint32_t context,
+	hio_int32_t assoc_id)
 {
 	struct sctp_sndrcvinfo* sinfo;
 	struct msghdr msg;
 	struct cmsghdr* cmsg;
 	hio_uint8_t cmsg_buf[CMSG_SPACE(HIO_SIZEOF(*sinfo))];
+
+	/* both are handed to the kernel, so neither may carry anything
+	 * uninitialised. recvmsg_sctp() above already zeroes its msghdr and this
+	 * one did not - struct msghdr has padding members on some ABIs. the
+	 * control buffer is fully written below, so zeroing it is belt and braces. */
+	HIO_MEMSET(&msg, 0, HIO_SIZEOF(msg));
+	HIO_MEMSET(cmsg_buf, 0, HIO_SIZEOF(cmsg_buf));
 
 	msg.msg_name = dstaddr;
 	msg.msg_namelen = dstaddrlen;
@@ -871,6 +879,10 @@ static int sendmsg_sctp(
 	sinfo->sinfo_stream = stream_no;
 	sinfo->sinfo_timetolive = ttl;
 	sinfo->sinfo_context = context;
+	/* on a one-to-many socket a non-zero association id names the association
+	 * directly, which survives a peer changing address; zero falls back to
+	 * addressing by msg_name. it is ignored on a one-to-one socket. */
+	sinfo->sinfo_assoc_id = (sctp_assoc_t)assoc_id;
 
 	return sendmsg(s, &msg, 0);
 }
@@ -896,6 +908,11 @@ static HIO_INLINE hio_uint16_t dstaddr_chan (const hio_devaddr_t* dstaddr)
 static HIO_INLINE hio_uint32_t dstaddr_ppid (const hio_devaddr_t* dstaddr)
 {
 	return (dstaddr && dstaddr->ptr)? hio_skad_get_ppid((const hio_skad_t*)dstaddr->ptr): 0;
+}
+
+static HIO_INLINE hio_int32_t dstaddr_assoc (const hio_devaddr_t* dstaddr)
+{
+	return (dstaddr && dstaddr->ptr)? hio_skad_get_assoc((const hio_skad_t*)dstaddr->ptr): 0;
 }
 
 static int dev_sck_read_sctp_sp (hio_dev_t* dev, void* buf, hio_iolen_t* len, hio_devaddr_t* srcaddr)
@@ -932,12 +949,39 @@ static int dev_sck_read_sctp_sp (hio_dev_t* dev, void* buf, hio_iolen_t* len, hi
 		return 0; /* nothing readable for the caller this time round */
 	}
 
-/*
-if (msg_flags & MSG_EOR) end of message??
-else push to buffer???
-*/
+	/* SOCK_SEQPACKET keeps message boundaries. MSG_EOR says this read reached
+	 * the end of one; without it, what we hold is the front of a message too
+	 * large for the read buffer, and the rest is still queued.
+	 *
+	 * such a fragment must not go to on_read(): it would arrive looking like a
+	 * whole message and the remainder would arrive as another, quietly turning
+	 * one message into two. reassembling here is not possible either - one
+	 * device carries every association, so partial messages from different
+	 * associations interleave and the buffer would have to be keyed by
+	 * association. that belongs with the peel-off model, where an association
+	 * is a device of its own and reassembly is per-device.
+	 *
+	 * so the message is dropped whole and the loss is reported. one oversized
+	 * message from one peer costs that message and nothing else - the socket
+	 * keeps serving everyone else. the remedy is a larger read buffer, which
+	 * HIO_READ_BUFFER_SIZE now makes possible. */
+	if (rdev->sctp_discarding || !(msg_flags & MSG_EOR))
+	{
+		if (!rdev->sctp_discarding)
+		{
+			rdev->sctp_discarding = 1;
+			HIO_INFO2 (hio, "SCK(%p) - discarding an sctp message too large for the read buffer of %zu octets\n", rdev, hio->bigbuf.capa);
+		}
+		/* keep swallowing fragments until the one that ends the message */
+		if (msg_flags & MSG_EOR) rdev->sctp_discarding = 0;
+		return 0;
+	}
+
 	hio_skad_set_chan(&rdev->remoteaddr, sri.sinfo_stream);
 	hio_skad_set_ppid(&rdev->remoteaddr, sri.sinfo_ppid);
+	/* the stable name for the association this arrived on. a reply addressed
+	 * by it reaches the same association even if the peer's address changed. */
+	hio_skad_set_assoc(&rdev->remoteaddr, (hio_int32_t)sri.sinfo_assoc_id);
 	srcaddr->ptr = &rdev->remoteaddr;
 	srcaddr->len = srcaddrlen;
 
@@ -1232,7 +1276,8 @@ static int dev_sck_write_sctp_sp (hio_dev_t* dev, const void* data, hio_iolen_t*
 		0, /* flags (e.g. SCTP_UNORDERED, SCTP_EOF, SCT_ABORT, ...) */
 		dstaddr_chan(dstaddr), /* stream number */
 		0, /* ttl */
-		0 /* context*/);
+		0, /* context*/
+		dstaddr_assoc(dstaddr));
 	if (x <= -1)
 	{
 		if (errno == EINPROGRESS || errno == EWOULDBLOCK || errno == EAGAIN) return 0;  /* no data can be written */
@@ -1262,7 +1307,7 @@ static int dev_sck_read_sctp_stream (hio_dev_t* dev, void* buf, hio_iolen_t* len
 	int msg_flags = 0;
 	struct sctp_sndrcvinfo sri;
 
-	HIO_MEMSET (&sri, 0, HIO_SIZEOF(sri));
+	HIO_MEMSET(&sri, 0, HIO_SIZEOF(sri));
 	srcaddrlen = HIO_SIZEOF(rdev->remoteaddr);
 
 	x = recvmsg_sctp(rdev->hnd, buf, *len, (struct sockaddr*)&rdev->remoteaddr, &srcaddrlen, &sri, &msg_flags);
@@ -1286,6 +1331,7 @@ static int dev_sck_read_sctp_stream (hio_dev_t* dev, void* buf, hio_iolen_t* len
 	 * EOF on a stream device */
 	hio_skad_set_chan (&rdev->remoteaddr, sri.sinfo_stream);
 	hio_skad_set_ppid (&rdev->remoteaddr, sri.sinfo_ppid);
+	hio_skad_set_assoc (&rdev->remoteaddr, (hio_int32_t)sri.sinfo_assoc_id);
 
 	*len = x;
 	return 1;
@@ -1313,7 +1359,7 @@ static int dev_sck_write_sctp_stream (hio_dev_t* dev, const void* data, hio_iole
 	iov.iov_len = *len;
 	x = sendmsg_sctp(rdev->hnd,
 		&iov, 1, dstaddr_sockaddr(dstaddr), dstaddr_len(dstaddr),
-		dstaddr_ppid(dstaddr), 0, dstaddr_chan(dstaddr), 0, 0);
+		dstaddr_ppid(dstaddr), 0, dstaddr_chan(dstaddr), 0, 0, dstaddr_assoc(dstaddr));
 	if (x <= -1)
 	{
 		if (errno == EINPROGRESS || errno == EWOULDBLOCK || errno == EAGAIN) return 0;
@@ -1344,7 +1390,7 @@ static int dev_sck_writev_sctp_stream (hio_dev_t* dev, const hio_iovec_t* iov, h
 
 	x = sendmsg_sctp(rdev->hnd,
 		iov, *iovcnt, dstaddr_sockaddr(dstaddr), dstaddr_len(dstaddr),
-		dstaddr_ppid(dstaddr), 0, dstaddr_chan(dstaddr), 0, 0);
+		dstaddr_ppid(dstaddr), 0, dstaddr_chan(dstaddr), 0, 0, dstaddr_assoc(dstaddr));
 	if (x <= -1)
 	{
 		if (errno == EINPROGRESS || errno == EWOULDBLOCK || errno == EAGAIN) return 0;
@@ -1369,7 +1415,8 @@ static int dev_sck_writev_sctp_sp (hio_dev_t* dev, const hio_iovec_t* iov, hio_i
 		0, /* flags (e.g. SCTP_UNORDERED, SCTP_EOF, SCT_ABORT, ...) */
 		dstaddr_chan(dstaddr), /* stream number */
 		0, /* ttl */
-		0 /* context*/);
+		0, /* context*/
+		dstaddr_assoc(dstaddr));
 	if (x <= -1)
 	{
 		if (errno == EINPROGRESS || errno == EWOULDBLOCK || errno == EAGAIN) return 0;  /* no data can be written */
@@ -2191,6 +2238,8 @@ static int harvest_outgoing_connection (hio_dev_sck_t* rdev)
 		hio_skad_t localaddr;
 		hio_scklen_t addrlen;
 
+		HIO_MEMSET(&localaddr, 0, HIO_SIZEOF(localaddr)); /* see hio_dev_sck_getsockaddr() */
+
 		/* connected */
 
 		if (rdev->tmrjob_index != HIO_TMRIDX_INVALID)
@@ -2970,6 +3019,10 @@ int hio_dev_sck_getsockopt (hio_dev_sck_t* dev, int level, int optname, void* op
 int hio_dev_sck_getsockaddr (hio_dev_sck_t* dev, hio_skad_t* skad)
 {
 	hio_scklen_t addrlen = HIO_SIZEOF(*skad);
+	/* the system fills the sockaddr and nothing else. the extra area past it -
+	 * chan, ppid, assoc - would keep whatever the caller's memory happened to
+	 * hold, and those are read back later and passed to the kernel. */
+	HIO_MEMSET(skad, 0, HIO_SIZEOF(*skad));
 	if (dev->type == HIO_DEV_SCK_QX)
 	{
 		hio_skad_init_for_qx(skad);
@@ -2985,6 +3038,7 @@ int hio_dev_sck_getsockaddr (hio_dev_sck_t* dev, hio_skad_t* skad)
 int hio_dev_sck_getpeeraddr (hio_dev_sck_t* dev, hio_skad_t* skad)
 {
 	hio_scklen_t addrlen = HIO_SIZEOF(*skad);
+	HIO_MEMSET(skad, 0, HIO_SIZEOF(*skad)); /* see hio_dev_sck_getsockaddr() */
 	if (dev->type == HIO_DEV_SCK_QX)
 	{
 		hio_skad_init_for_qx(skad);

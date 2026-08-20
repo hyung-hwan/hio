@@ -12,6 +12,10 @@
  * zero-length write still means "close the writing end" rather than "send an
  * empty message".
  *
+ * the second group covers the one-to-many (SOCK_SEQPACKET) types. those are
+ * not accept-based: one device carries every association, and a message is
+ * attributed by the source address and the association id it arrives with.
+ *
  * the whole file skips where the system has no sctp - the library reports that
  * as HIO_ENOIMPL from hio_dev_sck_make(), which is also worth asserting, since
  * it is how a caller is meant to find out.
@@ -274,6 +278,154 @@ static void test_notifications_are_not_data (void)
 }
 
 /* ------------------------------------------------------------------ */
+/* one-to-many */
+
+static hio_dev_sck_t* g_sp_srv = HIO_NULL;
+static hio_dev_sck_t* g_sp_cli = HIO_NULL;
+static int g_sp_got, g_sp_reads;
+static hio_int32_t g_sp_assoc;
+static hio_uint16_t g_sp_chan;
+static int g_sp_len;
+static hio_bch_t g_sp_buf[512];
+
+static int sp_srv_on_read (hio_dev_sck_t* sck, const void* data, hio_iolen_t dlen, const hio_skad_t* srcaddr)
+{
+	if (dlen <= 0) return 0;
+	g_sp_reads++;
+	if (dlen > (hio_iolen_t)HIO_SIZEOF(g_sp_buf) - 1) dlen = HIO_SIZEOF(g_sp_buf) - 1;
+	HIO_MEMCPY (g_sp_buf, data, dlen);
+	g_sp_buf[dlen] = '\0';
+	g_sp_len = (int)dlen;
+	g_sp_chan = hio_skad_get_chan(srcaddr);
+	g_sp_assoc = hio_skad_get_assoc(srcaddr);
+	g_sp_got = 1;
+	return 0;
+}
+
+static int sp_cli_on_read (hio_dev_sck_t* sck, const void* data, hio_iolen_t dlen, const hio_skad_t* srcaddr)
+{
+	return 0;
+}
+
+static void sp_on_connect (hio_dev_sck_t* sck) { }
+static void sp_on_disconnect (hio_dev_sck_t* sck)
+{
+	if (sck == g_sp_srv) g_sp_srv = HIO_NULL;
+	else if (sck == g_sp_cli) g_sp_cli = HIO_NULL;
+}
+
+static void sp_fill_make (hio_dev_sck_make_t* mi, int server)
+{
+	HIO_MEMSET (mi, 0, HIO_SIZEOF(*mi));
+	mi->type = HIO_DEV_SCK_SCTP4_SP;
+	mi->on_write = on_write;
+	mi->on_read = server? sp_srv_on_read: sp_cli_on_read;
+	mi->on_connect = sp_on_connect;
+	mi->on_disconnect = sp_on_disconnect;
+	mi->on_notification = on_notification;
+	mi->sctp_ostreams = OSTREAMS;
+	mi->sctp_instreams = OSTREAMS;
+}
+
+static void sp_teardown (void)
+{
+	if (g_sp_cli) hio_dev_sck_halt (g_sp_cli);
+	if (g_sp_srv) hio_dev_sck_halt (g_sp_srv);
+	hio_exec (g_hio);
+	hio_exec (g_hio);
+	g_sp_cli = g_sp_srv = HIO_NULL;
+}
+
+static void test_one_to_many (void)
+{
+	hio_dev_sck_make_t mi;
+	hio_dev_sck_bind_t bi;
+	hio_dev_sck_listen_t li;
+	hio_skad_t peer, dst;
+	hio_oow_t bigsz;
+	hio_uint8_t* big;
+
+	g_sp_got = g_sp_reads = g_sp_len = 0;
+	g_sp_assoc = 0; g_sp_chan = 0;
+	g_notifications = 0;
+
+	sp_fill_make (&mi, 1);
+	g_sp_srv = hio_dev_sck_make(g_hio, 0, &mi);
+	if (!g_sp_srv) { skip ("cannot make a one-to-many device", 6); return; }
+
+	/* a message-oriented device asks for a read buffer wide enough for the
+	 * largest datagram, since a short read would truncate */
+	OK (g_sp_srv->dev_rdmin == HIO_DGRAM_READ_BUFFER_SIZE,
+	    "a one-to-many socket requires a whole-message read buffer");
+
+	HIO_MEMSET (&bi, 0, HIO_SIZEOF(bi));
+	if (hio_bcstrtoskad(g_hio, "127.0.0.1:0", &bi.localaddr) <= -1) { skip ("bad address", 5); sp_teardown(); return; }
+	bi.options = HIO_DEV_SCK_BIND_REUSEADDR;
+	if (hio_dev_sck_bind(g_sp_srv, &bi) <= -1) { skip ("bind failed", 5); sp_teardown(); return; }
+
+	/* listen() is called, but nothing is ever accepted - associations are not
+	 * devices in this model */
+	HIO_MEMSET (&li, 0, HIO_SIZEOF(li));
+	li.backlogs = 4;
+	HIO_INIT_NTIME (&li.accept_tmout, -1, 0);
+	OK (hio_dev_sck_listen(g_sp_srv, &li) == 0, "and it listens without accepting");
+
+	if (hio_dev_sck_getsockaddr(g_sp_srv, &peer) <= -1) { skip ("cannot read the bound address", 4); sp_teardown(); return; }
+
+	sp_fill_make (&mi, 0);
+	g_sp_cli = hio_dev_sck_make(g_hio, 0, &mi);
+	if (!g_sp_cli) { skip ("cannot make a one-to-many client", 4); sp_teardown(); return; }
+
+	/* no connect: sending to an address forms the association implicitly */
+	dst = peer;
+	hio_skad_set_chan (&dst, TEST_STREAM);
+	if (hio_dev_sck_write(g_sp_cli, PAYLOAD, HIO_SIZEOF(PAYLOAD) - 1, HIO_NULL, &dst) <= -1)
+	{
+		FAIL ("a write forms the association implicitly");
+		FAIL ("the stream number arrives with the message");
+		FAIL ("the association id arrives with the message");
+		FAIL ("an oversized message is dropped whole rather than split");
+		sp_teardown ();
+		return;
+	}
+
+	run_until (&g_sp_got);
+	OK (g_sp_got && g_sp_len == (int)HIO_SIZEOF(PAYLOAD) - 1 &&
+	    HIO_MEMCMP(g_sp_buf, PAYLOAD, HIO_SIZEOF(PAYLOAD) - 1) == 0,
+	    "a write forms the association implicitly and the message arrives");
+	OK (g_sp_chan == TEST_STREAM, "the stream number arrives with the message");
+	OK (g_sp_assoc != 0, "the association id arrives with the message");
+
+	/* now a message larger than the read buffer. without the MSG_EOR check
+	 * the receiver would see it as two separate messages; with it, the whole
+	 * message is dropped and nothing bogus is delivered. */
+	bigsz = HIO_DGRAM_READ_BUFFER_SIZE * 2;
+	big = (hio_uint8_t*)hio_allocmem(g_hio, bigsz);
+	if (!big) skip ("out of memory", 1);
+	else
+	{
+		int reads_before = g_sp_reads;
+		HIO_MEMSET (big, 'Z', bigsz);
+		g_sp_got = 0;
+		if (hio_dev_sck_write(g_sp_cli, big, bigsz, HIO_NULL, &dst) <= -1)
+		{
+			/* the system may refuse a message this large outright, which is
+			 * also a correct outcome - nothing bogus reaches on_read */
+			OK (g_sp_reads == reads_before, "an oversized message is dropped whole rather than split");
+		}
+		else
+		{
+			run_until (&g_sp_got);
+			OK (g_sp_reads == reads_before,
+			    "an oversized message is dropped whole rather than split");
+		}
+		hio_freemem (g_hio, big);
+	}
+
+	sp_teardown ();
+}
+
+/* ------------------------------------------------------------------ */
 
 int main (void)
 {
@@ -314,6 +466,7 @@ int main (void)
 
 	test_association_and_ancillary ();
 	test_notifications_are_not_data ();
+	test_one_to_many ();
 
 	hio_close (g_hio);
 	return exit_status();

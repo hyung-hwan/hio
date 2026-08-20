@@ -228,6 +228,24 @@ HIO_EXPORT void hio_skad_set_scope_id (
  * Rides in the same extra area as the channel - see hio_skad_get_chan().
  */
 /* for sctp */
+/**
+ * The SCTP association identifier carried alongside the address. It is the
+ * stable name for an association - the addresses of one can change under
+ * multi-homing, this does not - so a reply is best addressed by it rather than
+ * by the address it happened to arrive from.
+ *
+ * On a one-to-many socket, setting it on the destination directs the message
+ * to that association; a value of 0 falls back to addressing by address.
+ */
+HIO_EXPORT hio_int32_t hio_skad_get_assoc (
+	const hio_skad_t* skad
+);
+
+HIO_EXPORT void hio_skad_set_assoc (
+	hio_skad_t* skad,
+	hio_int32_t assoc
+);
+
 HIO_EXPORT hio_uint32_t hio_skad_get_ppid (
 	const hio_skad_t* skad
 );

@@ -46,6 +46,7 @@ struct sockaddr_extra_t
 {
 	hio_uint16_t chan;
 	hio_uint32_t ppid;
+	hio_int32_t assoc;
 };
 typedef struct sockaddr_extra_t sockaddr_extra_t;
 
@@ -60,6 +61,10 @@ typedef struct sockaddr_extra_t sockaddr_extra_t;
  *          use hio_skad_get_chan() and hio_skad_set_chan() for safe access.
  *   ppid - the SCTP payload protocol identifier, opaque to SCTP itself and
  *          passed through unchanged. use hio_skad_get_ppid()/set_ppid().
+ *   assoc - the SCTP association identifier (sctp_assoc_t, an int32 on the
+ *          systems that have it). the stable name for an association: its
+ *          addresses can change under multi-homing, this does not. use
+ *          hio_skad_get_assoc()/set_assoc().
  */
 struct sockaddr_in_x
 {
@@ -1476,6 +1481,37 @@ void hio_skad_set_scope_id (hio_skad_t* _skad, int scope_id)
 #if defined(AF_INET6) && (HIO_SIZEOF_STRUCT_SOCKADDR_IN6 > 0)
 	if (skad->sa.sa_family == AF_INET6) skad->in6.a.sin6_scope_id = scope_id;
 #endif
+}
+
+hio_int32_t hio_skad_get_assoc (const hio_skad_t* _skad)
+{
+	const hio_skad_alt_t* skad = (const hio_skad_alt_t*)_skad;
+
+	switch (skad->sa.sa_family)
+	{
+	#if defined(AF_INET) && (HIO_SIZEOF_STRUCT_SOCKADDR_IN > 0)
+		case AF_INET: return skad->in4.x.assoc;
+	#endif
+	#if defined(AF_INET6) && (HIO_SIZEOF_STRUCT_SOCKADDR_IN6 > 0)
+		case AF_INET6: return skad->in6.x.assoc;
+	#endif
+	}
+	return 0;
+}
+
+void hio_skad_set_assoc (hio_skad_t* _skad, hio_int32_t assoc)
+{
+	hio_skad_alt_t* skad = (hio_skad_alt_t*)_skad;
+
+	switch (skad->sa.sa_family)
+	{
+	#if defined(AF_INET) && (HIO_SIZEOF_STRUCT_SOCKADDR_IN > 0)
+		case AF_INET: skad->in4.x.assoc = assoc; break;
+	#endif
+	#if defined(AF_INET6) && (HIO_SIZEOF_STRUCT_SOCKADDR_IN6 > 0)
+		case AF_INET6: skad->in6.x.assoc = assoc; break;
+	#endif
+	}
 }
 
 hio_uint32_t hio_skad_get_ppid (const hio_skad_t* _skad)

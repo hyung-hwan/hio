@@ -20964,6 +20964,7 @@ else case e in #(
 		{
 			unsigned short chan;
 			unsigned int ppid;
+			int assoc;
 		};
 		struct sockaddr_in_x {
 			struct sockaddr_in a;
@@ -21012,6 +21013,7 @@ else case e in #(
 		{
 			unsigned short chan;
 			unsigned int ppid;
+			int assoc;
 		};
 		struct sockaddr_in6_x {
 			struct sockaddr_in6 a;
@@ -21446,6 +21448,7 @@ else case e in #(
 		{
 			unsigned short chan;
 			unsigned int ppid;
+			int assoc;
 		};
 		struct sockaddr_in_x {
 			struct sockaddr_in a;
@@ -21495,6 +21498,7 @@ else case e in #(
 		{
 			unsigned short chan;
 			unsigned int ppid;
+			int assoc;
 		};
 		struct sockaddr_in6_x {
 			struct sockaddr_in6 a;

@@ -525,6 +525,7 @@ then
 		{
 			unsigned short chan;
 			unsigned int ppid;
+			int assoc;
 		};
 		struct sockaddr_in_x {
 			struct sockaddr_in a;
@@ -538,6 +539,7 @@ then
 		{
 			unsigned short chan;
 			unsigned int ppid;
+			int assoc;
 		};
 		struct sockaddr_in6_x {
 			struct sockaddr_in6 a;
@@ -605,6 +607,7 @@ else
 		{
 			unsigned short chan;
 			unsigned int ppid;
+			int assoc;
 		};
 		struct sockaddr_in_x {
 			struct sockaddr_in a;
@@ -619,6 +622,7 @@ else
 		{
 			unsigned short chan;
 			unsigned int ppid;
+			int assoc;
 		};
 		struct sockaddr_in6_x {
 			struct sockaddr_in6 a;
