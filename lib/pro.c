@@ -160,20 +160,20 @@ static pid_t standard_fork_and_exec (hio_dev_pro_t* dev, int pfds[], hio_dev_pro
 		if (mi->flags & HIO_DEV_PRO_WRITEIN)
 		{
 			/* slave should read */
-			close (pfds[1]);
+			close(pfds[1]);
 			pfds[1] = HIO_SYSHND_INVALID;
 
 			/* let the pipe be standard input */
 			if (dup2(pfds[0], 0) <= -1) goto slave_oops;
 
-			close (pfds[0]);
+			close(pfds[0]);
 			pfds[0] = HIO_SYSHND_INVALID;
 		}
 
 		if (mi->flags & HIO_DEV_PRO_READOUT)
 		{
 			/* slave should write */
-			close (pfds[2]);
+			close(pfds[2]);
 			pfds[2] = HIO_SYSHND_INVALID;
 
 			if (dup2(pfds[3], 1) == -1) goto slave_oops;
@@ -183,13 +183,13 @@ static pid_t standard_fork_and_exec (hio_dev_pro_t* dev, int pfds[], hio_dev_pro
 				if (dup2(pfds[3], 2) == -1) goto slave_oops;
 			}
 
-			close (pfds[3]);
+			close(pfds[3]);
 			pfds[3] = HIO_SYSHND_INVALID;
 		}
 
 		if (mi->flags & HIO_DEV_PRO_READERR)
 		{
-			close (pfds[4]);
+			close(pfds[4]);
 			pfds[4] = HIO_SYSHND_INVALID;
 
 			if (dup2(pfds[5], 2) == -1) goto slave_oops;
@@ -199,7 +199,7 @@ static pid_t standard_fork_and_exec (hio_dev_pro_t* dev, int pfds[], hio_dev_pro
 				if (dup2(pfds[5], 1) == -1) goto slave_oops;
 			}
 
-			close (pfds[5]);
+			close(pfds[5]);
 			pfds[5] = HIO_SYSHND_INVALID;
 		}
 
@@ -218,18 +218,18 @@ static pid_t standard_fork_and_exec (hio_dev_pro_t* dev, int pfds[], hio_dev_pro
 			if ((mi->flags & HIO_DEV_PRO_OUTTONUL) && dup2(devnull, 1) == -1) goto slave_oops;
 			if ((mi->flags & HIO_DEV_PRO_ERRTONUL) && dup2(devnull, 2) == -1) goto slave_oops;
 
-			close (devnull);
+			close(devnull);
 			devnull = HIO_SYSHND_INVALID;
 		}
 
-		if (mi->flags & HIO_DEV_PRO_DROPIN) close (0);
-		if (mi->flags & HIO_DEV_PRO_DROPOUT) close (1);
-		if (mi->flags & HIO_DEV_PRO_DROPERR) close (2);
+		if (mi->flags & HIO_DEV_PRO_DROPIN) close(0);
+		if (mi->flags & HIO_DEV_PRO_DROPOUT) close(1);
+		if (mi->flags & HIO_DEV_PRO_DROPERR) close(2);
 
 		execv (param->argv[0], param->argv);
 
 		/* if exec fails, free 'param' parameter which is an inherited pointer */
-		free_param (hio, param);
+		free_param(hio, param);
 
 	slave_oops:
 		if (devnull != HIO_SYSHND_INVALID) close(devnull);
@@ -291,7 +291,7 @@ static int dev_pro_make_master (hio_dev_t* dev, void* ctx)
 	if (make_param(hio, info->cmd, info->flags, &param) <= -1) goto oops;
 /* TODO: more advanced fork and exec .. */
 	pid = standard_fork_and_exec(rdev, pfds, info, &param);
-	free_param (hio, &param);
+	free_param(hio, &param);
 	if (pid <= -1) goto oops;
 
 	rdev->child_pid = pid;
@@ -305,7 +305,7 @@ static int dev_pro_make_master (hio_dev_t* dev, void* ctx)
 		 * X
 		 * WRITE => 1
 		 */
-		close (pfds[0]);
+		close(pfds[0]);
 		pfds[0] = HIO_SYSHND_INVALID;
 
 		if (hio_makesyshndasync(hio, pfds[1]) <= -1) goto oops;
@@ -319,7 +319,7 @@ static int dev_pro_make_master (hio_dev_t* dev, void* ctx)
 		 *    X
 		 * READ => 2
 		 */
-		close (pfds[3]);
+		close(pfds[3]);
 		pfds[3] = HIO_SYSHND_INVALID;
 
 		if (hio_makesyshndasync(hio, pfds[2]) <= -1) goto oops;
@@ -333,7 +333,7 @@ static int dev_pro_make_master (hio_dev_t* dev, void* ctx)
 		 *      X
 		 * READ => 4
 		 */
-		close (pfds[5]);
+		close(pfds[5]);
 		pfds[5] = HIO_SYSHND_INVALID;
 
 		if (hio_makesyshndasync(hio, pfds[4]) <= -1) goto oops;
@@ -401,22 +401,25 @@ static int dev_pro_make_master (hio_dev_t* dev, void* ctx)
 	rdev->on_write = info->on_write;
 	rdev->on_close = info->on_close;
 
-	HIO_DEBUG7 (hio, "PRO(%p) -  slave[%d] %p slave[%d] %p slave[%d] %p\n", dev,
+	HIO_DEBUG7(hio, "PRO(%p) -  slave[%d] %p slave[%d] %p slave[%d] %p\n", dev,
 		HIO_DEV_PRO_IN, rdev->slave[HIO_DEV_PRO_IN],
 		HIO_DEV_PRO_OUT, rdev->slave[HIO_DEV_PRO_OUT],
 		HIO_DEV_PRO_ERR, rdev->slave[HIO_DEV_PRO_ERR]);
 	return 0;
 
 oops:
-	for (i = minidx; i <= maxidx; i++)
+	if (minidx >= 0 && maxidx >= 0)
 	{
-		if (pfds[i] != HIO_SYSHND_INVALID) close (pfds[i]);
+		for (i = minidx; i <= maxidx; i++)
+		{
+			if (pfds[i] != HIO_SYSHND_INVALID) close(pfds[i]);
+		}
 	}
 
 	if (rdev->mcmd)
 	{
 		hio_freemem(hio, rdev->mcmd);
-		free_param (hio, &param);
+		free_param(hio, &param);
 	}
 
 	for (i = HIO_COUNTOF(rdev->slave); i > 0; )
@@ -424,7 +427,7 @@ oops:
 		i--;
 		if (rdev->slave[i])
 		{
-			hio_dev_kill ((hio_dev_t*)rdev->slave[i]);
+			hio_dev_kill((hio_dev_t*)rdev->slave[i]);
 			rdev->slave[i] = HIO_NULL;
 		}
 	}
@@ -454,7 +457,7 @@ static int dev_pro_kill_master (hio_dev_t* dev, int force)
 				 * self-initiated termination or master-driven termination */
 				rdev->slave[i] = HIO_NULL;
 
-				hio_dev_kill ((hio_dev_t*)sdev);
+				hio_dev_kill((hio_dev_t*)sdev);
 			}
 		}
 	}
@@ -475,7 +478,7 @@ static int dev_pro_kill_master (hio_dev_t* dev, int force)
 				{
 					if (!(rdev->flags & HIO_DEV_PRO_FORGET_DIEHARD_CHILD))
 					{
-						kill (rdev->child_pid, SIGKILL);
+						kill(rdev->child_pid, SIGKILL);
 						killed = 1;
 						goto await_child;
 					}
@@ -495,11 +498,11 @@ static int dev_pro_kill_master (hio_dev_t* dev, int force)
 			 */
 		}
 
-		HIO_DEBUG2 (hio, "PRO(%p) -  REAPED CHILD %d\n", dev, (int)rdev->child_pid);
+		HIO_DEBUG2(hio, "PRO(%p) -  REAPED CHILD %d\n", dev, (int)rdev->child_pid);
 		rdev->child_pid = -1;
 	}
 
-	if (rdev->on_close) rdev->on_close (rdev, HIO_DEV_PRO_MASTER);
+	if (rdev->on_close) rdev->on_close(rdev, HIO_DEV_PRO_MASTER);
 	return 0;
 }
 
@@ -530,7 +533,7 @@ static int dev_pro_kill_slave (hio_dev_t* dev, int force)
 		rdev->master = HIO_NULL;
 
 		/* indicate EOF */
-		if (master->on_close) master->on_close (master, rdev->id);
+		if (master->on_close) master->on_close(master, rdev->id);
 
 		HIO_ASSERT(hio, master->slave_count > 0);
 		master->slave_count--;
@@ -541,7 +544,7 @@ static int dev_pro_kill_slave (hio_dev_t* dev, int force)
 			if (master->slave_count <= 0)
 			{
 				/* if this is the last slave, kill the master also */
-				hio_dev_kill ((hio_dev_t*)master);
+				hio_dev_kill((hio_dev_t*)master);
 				/* the master pointer is not valid from this point onwards
 				 * as the actual master device object is freed in hio_dev_kill() */
 			}
@@ -557,7 +560,7 @@ static int dev_pro_kill_slave (hio_dev_t* dev, int force)
 
 	if (rdev->pfd != HIO_SYSHND_INVALID)
 	{
-		close (rdev->pfd);
+		close(rdev->pfd);
 		rdev->pfd = HIO_SYSHND_INVALID;
 	}
 
@@ -567,7 +570,7 @@ static int dev_pro_kill_slave (hio_dev_t* dev, int force)
 static void dev_pro_fail_before_make_slave (void* ctx)
 {
 	slave_info_t* si = (slave_info_t*)ctx;
-	close (si->pfd);
+	close(si->pfd);
 }
 
 static int dev_pro_read_slave (hio_dev_t* dev, void* buf, hio_iolen_t* len, hio_devaddr_t* srcaddr)
@@ -620,7 +623,7 @@ static int dev_pro_write_slave (hio_dev_t* dev, const void* data, hio_iolen_t* l
 		if (HIO_LIKELY(pro->pfd != HIO_SYSHND_INVALID))
 		{
 			hio_dev_watch (dev, HIO_DEV_WATCH_STOP, 0);
-			close (pro->pfd);
+			close(pro->pfd);
 			pro->pfd = HIO_SYSHND_INVALID;
 		}
 		return 1; /* indicate that the operation got successful. the core will execute on_write() with the write length of 0. */
@@ -662,7 +665,7 @@ static int dev_pro_writev_slave (hio_dev_t* dev, const hio_iovec_t* iov, hio_iol
 		if (HIO_LIKELY(pro->pfd != HIO_SYSHND_INVALID))
 		{
 			hio_dev_watch (dev, HIO_DEV_WATCH_STOP, 0);
-			close (pro->pfd);
+			close(pro->pfd);
 			pro->pfd = HIO_SYSHND_INVALID;
 		}
 		return 1; /* indicate that the operation got successful. the core will execute on_write() with 0. */
@@ -714,7 +717,7 @@ static int dev_pro_ioctl (hio_dev_t* dev, int cmd, void* arg)
 				/* unlike dev_pro_kill_master(), i don't nullify rdev->slave[sid].
 				 * so i treat the closing ioctl as if it's a kill request
 				 * initiated by the slave device itself. */
-				hio_dev_kill ((hio_dev_t*)rdev->slave[sid]);
+				hio_dev_kill((hio_dev_t*)rdev->slave[sid]);
 
 				/* if this is the last slave, the master is destroyed as well.
 				 * therefore, using rdev is unsafe in the assertion below is unsafe.

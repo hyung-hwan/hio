@@ -89,14 +89,14 @@ static int ready_to_free_thr_info (hio_t* hio, hio_cfmb_t* cfmb)
 	if (HIO_UNLIKELY(hio->_fini_in_progress))
 	{
 		pthread_join (ti->thr_hnd, HIO_NULL); /* BAD. blocking call in a non-blocking library. not useful to call pthread_tryjoin_np() here. */
-		free_thr_info_resources (hio, ti);
+		free_thr_info_resources(hio, ti);
 		return 1; /* free me */
 	}
 #endif
 
 	if (ti->thr_done)
 	{
-		free_thr_info_resources (hio, ti);
+		free_thr_info_resources(hio, ti);
 #if defined(HAVE_PTHREAD_TRYJOIN_NP)
 		if (pthread_tryjoin_np(ti->thr_hnd) != 0) /* not terminated yet - however, this isn't necessary. z*/
 #endif
@@ -126,7 +126,7 @@ static void* run_thr_func (void* ctx)
 
 	ti->thr_func (ti->hio, &ti->thr_iop, ti->thr_ctx);
 
-	free_thr_info_resources (ti->hio, ti);
+	free_thr_info_resources(ti->hio, ti);
 
 	pthread_cleanup_pop (1);
 	pthread_exit (HIO_NULL);
@@ -301,7 +301,7 @@ static int dev_thr_kill_master (hio_dev_t* dev, int force)
 				 * self-initiated termination or master-driven termination */
 				rdev->slave[i] = HIO_NULL;
 
-				hio_dev_kill ((hio_dev_t*)sdev);
+				hio_dev_kill((hio_dev_t*)sdev);
 			}
 		}
 	}
@@ -310,7 +310,7 @@ static int dev_thr_kill_master (hio_dev_t* dev, int force)
 	if (ti->thr_done)
 	{
 		pthread_detach (ti->thr_hnd); /* pthread_join() may be blocking. detach the thread instead */
-		free_thr_info_resources (hio, ti);
+		free_thr_info_resources(hio, ti);
 		hio_freemem(hio, ti);
 	}
 	else
@@ -319,15 +319,15 @@ static int dev_thr_kill_master (hio_dev_t* dev, int force)
 		/* since pthread_join can be blocking, i'd schedule a resource destroyer with hio_addcfmb().
 		 * see after #else */
 		pthread_join (ti->thr_hnd, HIO_NULL);
-		free_thr_info_resources (hio, ti);
+		free_thr_info_resources(hio, ti);
 		hio_freemem(hio, ti);
 	#else
 		/* schedule a resource destroyer */
-		hio_addcfmb (hio, (hio_cfmb_t*)ti, ready_to_free_thr_info, HIO_NULL);
+		hio_addcfmb(hio, (hio_cfmb_t*)ti, ready_to_free_thr_info, HIO_NULL);
 	#endif
 	}
 
-	if (rdev->on_close) rdev->on_close (rdev, HIO_DEV_THR_MASTER);
+	if (rdev->on_close) rdev->on_close(rdev, HIO_DEV_THR_MASTER);
 	return 0;
 }
 
@@ -344,7 +344,7 @@ static int dev_thr_kill_slave (hio_dev_t* dev, int force)
 		rdev->master = HIO_NULL;
 
 		/* indicate EOF */
-		if (master->on_close) master->on_close (master, rdev->id);
+		if (master->on_close) master->on_close(master, rdev->id);
 
 		HIO_ASSERT(hio, master->slave_count > 0);
 		master->slave_count--;
@@ -355,7 +355,7 @@ static int dev_thr_kill_slave (hio_dev_t* dev, int force)
 			if (master->slave_count <= 0)
 			{
 				/* if this is the last slave, kill the master also */
-				hio_dev_kill ((hio_dev_t*)master);
+				hio_dev_kill((hio_dev_t*)master);
 				/* the master pointer is not valid from this point onwards
 				 * as the actual master device object is freed in hio_dev_kill() */
 			}
@@ -530,7 +530,7 @@ static int dev_thr_ioctl (hio_dev_t* dev, int cmd, void* arg)
 				/* unlike dev_thr_kill_master(), i don't nullify rdev->slave[sid].
 				 * so i treat the closing ioctl as if it's a kill request
 				 * initiated by the slave device itself. */
-				hio_dev_kill ((hio_dev_t*)rdev->slave[sid]);
+				hio_dev_kill((hio_dev_t*)rdev->slave[sid]);
 
 				/* if this is the last slave, the master is destroyed as well.
 				 * therefore, using rdev is unsafe in the assertion below is unsafe.

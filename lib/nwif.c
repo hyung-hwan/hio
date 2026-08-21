@@ -97,13 +97,13 @@ static int get_sco_ifconf (hio_t* hio, struct ifconf* ifc)
 		hio_seterrwithsyserr(hio, 0, errno);
 		goto oops;
 	}
-	close (h); h = -1;
+	close(h); h = -1;
 
 	return 0;
 
 oops:
 	if (ifc->ifc_buf) hio_freemem(hio, ifc->ifc_buf);
-	if (h >= 0) close (h);
+	if (h >= 0) close(h);
 	return -1;
 }
 
@@ -188,13 +188,13 @@ int hio_bcstrtoifindex (hio_t* hio, const hio_bch_t* ptr, unsigned int* index)
 	{
 		if (hio_comp_bcstr(ptr, ifc.ifc_req[i].ifr_name, 0) == 0)
 		{
-			free_sco_ifconf (hio, &ifc);
+			free_sco_ifconf(hio, &ifc);
 			*index = i + 1;
 			return 0;
 		}
 	}
 
-	free_sco_ifconf (hio, &ifc);
+	free_sco_ifconf(hio, &ifc);
 	return -1;
 
 #else
@@ -232,7 +232,7 @@ int hio_bcharstoifindex (hio_t* hio, const hio_bch_t* ptr, hio_oow_t len, unsign
 	if (hio_copy_bchars_to_bcstr(ifr.ifr_name, HIO_COUNTOF(ifr.ifr_name), ptr, len) < len) return -1; /* name too long */
 
 	x = ioctl(h, SIOCGIFINDEX, &ifr);
-	close (h);
+	close(h);
 
 	if (x >= 0)
 	{
@@ -271,13 +271,13 @@ int hio_bcharstoifindex (hio_t* hio, const hio_bch_t* ptr, hio_oow_t len, unsign
 	{
 		if (hio_comp_bchars_bcstr(ptr, len, ifc.ifc_req[i].ifr_name) == 0)
 		{
-			free_sco_ifconf (hio, &ifc);
+			free_sco_ifconf(hio, &ifc);
 			*index = i + 1;
 			return 0;
 		}
 	}
 
-	free_sco_ifconf (hio, &ifc);
+	free_sco_ifconf(hio, &ifc);
 	return -1;
 
 #else
@@ -316,7 +316,7 @@ int hio_ucstrtoifindex (hio_t* hio, const hio_uch_t* ptr, unsigned int* index)
 	if (hio_convutobcstr(hio, ptr, &wl, ifr.ifr_name, &ml) <= -1) return -1;
 
 	x = ioctl(h, SIOCGIFINDEX, &ifr);
-	close (h);
+	close(h);
 
 	if (x >= 0)
 	{
@@ -363,13 +363,13 @@ int hio_ucstrtoifindex (hio_t* hio, const hio_uch_t* ptr, unsigned int* index)
 	{
 		if (hio_comp_bcstr(tmp, ifc.ifc_req[i].ifr_name, 0) == 0)
 		{
-			free_sco_ifconf (hio, &ifc);
+			free_sco_ifconf(hio, &ifc);
 			*index = i + 1;
 			return 0;
 		}
 	}
 
-	free_sco_ifconf (hio, &ifc);
+	free_sco_ifconf(hio, &ifc);
 	return -1;
 
 #else
@@ -409,7 +409,7 @@ int hio_ucharstoifindex (hio_t* hio, const hio_uch_t* ptr, hio_oow_t len, unsign
 	ifr.ifr_name[ml] = '\0';
 
 	x = ioctl(h, SIOCGIFINDEX, &ifr);
-	close (h);
+	close(h);
 
 	if (x >= 0)
 	{
@@ -457,13 +457,13 @@ int hio_ucharstoifindex (hio_t* hio, const hio_uch_t* ptr, hio_oow_t len, unsign
 	{
 		if (hio_comp_bcstr(tmp, ifc.ifc_req[i].ifr_name, 0) == 0)
 		{
-			free_sco_ifconf (hio, &ifc);
+			free_sco_ifconf(hio, &ifc);
 			*index = i + 1;
 			return 0;
 		}
 	}
 
-	free_sco_ifconf (hio, &ifc);
+	free_sco_ifconf(hio, &ifc);
 	return -1;
 #else
 	return -1;
@@ -519,7 +519,7 @@ int hio_ifindextobcstr (hio_t* hio, unsigned int index, hio_bch_t* buf, hio_oow_
 
 #elif defined(HAVE_IF_INDEXTONAME)
 	hio_bch_t tmp[IF_NAMESIZE + 1];
-	if (if_indextoname (index, tmp) == HIO_NULL)
+	if (if_indextoname(index, tmp) == HIO_NULL)
 	{
 		hio_seterrwithsyserr(hio, 0, errno);
 		return -1;
@@ -539,12 +539,12 @@ int hio_ifindextobcstr (hio_t* hio, unsigned int index, hio_bch_t* buf, hio_oow_
 	if (index > num)
 	{
 		hio_seterrnum(hio, HIO_ENOENT);
-		free_sco_ifconf (hio, &ifc);
+		free_sco_ifconf(hio, &ifc);
 		return -1;
 	}
 
 	ml = hio_copy_bcstr(buf, len, ifc.ifc_req[index - 1].ifr_name);
-	free_sco_ifconf (hio, &ifc);
+	free_sco_ifconf(hio, &ifc);
 	return ml;
 
 #else
@@ -588,7 +588,7 @@ int hio_ifindextoucstr (hio_t* hio, unsigned int index, hio_uch_t* buf, hio_oow_
 	#endif
 
 	x = ioctl(h, SIOCGIFNAME, &ifr);
-	close (h);
+	close(h);
 
 	if (x <= -1)
 	{
@@ -630,13 +630,13 @@ int hio_ifindextoucstr (hio_t* hio, unsigned int index, hio_uch_t* buf, hio_oow_
 	num = ifc.ifc_len / HIO_SIZEOF(struct ifreq);
 	if (index > num)
 	{
-		free_sco_ifconf (hio, &ifc);
+		free_sco_ifconf(hio, &ifc);
 		return -1;
 	}
 
 	wl = len;
 	x = hio_convbtoucstr(ifc.ifc_req[index - 1].ifr_name, &ml, buf, &wl, 0);
-	free_sco_ifconf (hio, &ifc);
+	free_sco_ifconf(hio, &ifc);
 
 	if (x == -2 && wl > 1) buf[wl - 1] = '\0';
 	else if (x != 0) return -1;

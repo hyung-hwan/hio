@@ -158,7 +158,7 @@ static pid_t standard_fork_and_exec (hio_dev_pty_t* dev, int pfds[], hio_dev_pty
 	{
 		/* slave process */
 		/* child */
-		close (pfds[0]);  /* close the pty master */
+		close(pfds[0]);  /* close the pty master */
 		pfds[0] = HIO_SYSHND_INVALID;
 
 /*TODO: close all open file descriptors */
@@ -170,13 +170,13 @@ static pid_t standard_fork_and_exec (hio_dev_pty_t* dev, int pfds[], hio_dev_pty
 
 		if (dup2(pfds[1], 0) == -1 || dup2(pfds[1], 1) == -1 || dup2(pfds[1], 2) == -1) goto slave_oops;
 
-		close (pfds[1]);
+		close(pfds[1]);
 		pfds[1] = HIO_SYSHND_INVALID;
 
 		execve (param->argv[0], param->argv, param->fixed_env);
 
 		/* if exec fails, free 'param' parameter which is an inherited pointer */
-		free_param (hio, param);
+		free_param(hio, param);
 
 	slave_oops:
 		if (pfds[1] != HIO_SYSHND_INVALID) close(pfds[1]);
@@ -276,10 +276,10 @@ static int dev_pty_make (hio_dev_t* dev, void* ctx)
 
 	if (make_param(hio, info->cmd, info->flags, &param) <= -1) goto oops;
 	pid = standard_fork_and_exec(rdev, pfds, info, &param);
-	free_param (hio, &param);
+	free_param(hio, &param);
 	if (pid <= -1) goto oops;
 
-	close (pfds[1]); /* close the pty slave */
+	close(pfds[1]); /* close the pty slave */
 	pfds[1] = HIO_SYSHND_INVALID;
 
 	if (hio_makesyshndasync(hio, pfds[0]) <= -1) goto oops;
@@ -294,8 +294,8 @@ static int dev_pty_make (hio_dev_t* dev, void* ctx)
 	return 0;
 
 oops:
-	if (pfds[0] != HIO_SYSHND_INVALID) close (pfds[0]);
-	if (pfds[1] != HIO_SYSHND_INVALID) close (pfds[1]);
+	if (pfds[0] != HIO_SYSHND_INVALID) close(pfds[0]);
+	if (pfds[1] != HIO_SYSHND_INVALID) close(pfds[1]);
 	return -1;
 }
 
@@ -344,11 +344,11 @@ static int dev_pty_kill (hio_dev_t* dev, int force)
 		rdev->child_pid = -1;
 	}
 
-	if (rdev->on_close) rdev->on_close (rdev);
+	if (rdev->on_close) rdev->on_close(rdev);
 
 	if (rdev->hnd != HIO_SYSHND_INVALID)
 	{
-		close (rdev->hnd);
+		close(rdev->hnd);
 		rdev->hnd = HIO_SYSHND_INVALID;
 	}
 	return 0;
@@ -396,7 +396,7 @@ static int dev_pty_write (hio_dev_t* dev, const void* data, hio_iolen_t* len, co
 		if (HIO_LIKELY(pty->hnd != HIO_SYSHND_INVALID)) /* halt() doesn't close the pty immediately. so close the underlying pty */
 		{
 			hio_dev_watch (dev, HIO_DEV_WATCH_STOP, 0);
-			close (pty->hnd);
+			close(pty->hnd);
 			pty->hnd = HIO_SYSHND_INVALID;
 		}
 		return 1; /* indicate that the operation got successful. the core will execute on_write() with 0. */
@@ -433,7 +433,7 @@ static int dev_pty_writev (hio_dev_t* dev, const hio_iovec_t* iov, hio_iolen_t* 
 		if (HIO_LIKELY(pty->hnd != HIO_SYSHND_INVALID)) /* halt() doesn't close the pty immediately. so close the underlying pty */
 		{
 			hio_dev_watch (dev, HIO_DEV_WATCH_STOP, 0);
-			close (pty->hnd);
+			close(pty->hnd);
 			pty->hnd = HIO_SYSHND_INVALID;
 		}
 		return 1; /* indicate that the operation got successful. the core will execute on_write() with 0. */
