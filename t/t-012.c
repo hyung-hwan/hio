@@ -425,6 +425,37 @@ static void test_one_to_many (void)
 	sp_teardown ();
 }
 
+/* tls needs one in-order byte stream, which an sctp association's streams are
+ * not, and this implementation drives tls through SSL_set_fd() - bypassing the
+ * sendmsg()/recvmsg() that carry the stream number. so the combination could
+ * only give up either the encryption or the streams. it must be refused rather
+ * than silently doing one of those. */
+static void test_tls_over_sctp_refused (void)
+{
+	hio_dev_sck_make_t mi;
+	hio_dev_sck_bind_t bi;
+	hio_dev_sck_t* d;
+
+	fill_make (&mi, 0);
+	d = hio_dev_sck_make(g_hio, 0, &mi);
+	if (!d) { skip ("cannot make an sctp device", 1); return; }
+
+	HIO_MEMSET (&bi, 0, HIO_SIZEOF(bi));
+	if (hio_bcstrtoskad(g_hio, "127.0.0.1:0", &bi.localaddr) <= -1) { skip ("bad address", 1); hio_dev_sck_kill(d); return; }
+	bi.options = HIO_DEV_SCK_BIND_REUSEADDR | HIO_DEV_SCK_BIND_SSL;
+	bi.ssl_certfile = "no-such-cert.pem";
+	bi.ssl_keyfile = "no-such-key.pem";
+
+	/* the certificate paths are deliberately bogus: the refusal has to come
+	 * before anything tries to load them, or the error would be about the
+	 * files rather than about the combination. */
+	OK (hio_dev_sck_bind(d, &bi) <= -1 && hio_geterrnum(g_hio) == HIO_ENOIMPL,
+	    "tls requested on an sctp socket is refused with HIO_ENOIMPL");
+
+	hio_dev_sck_kill (d);
+	hio_exec (g_hio);
+}
+
 /* ------------------------------------------------------------------ */
 
 int main (void)
@@ -467,6 +498,7 @@ int main (void)
 	test_association_and_ancillary ();
 	test_notifications_are_not_data ();
 	test_one_to_many ();
+	test_tls_over_sctp_refused ();
 
 	hio_close (g_hio);
 	return exit_status();

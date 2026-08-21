@@ -1796,6 +1796,34 @@ static int dev_sck_ioctl (hio_dev_t* dev, int cmd, void* arg)
 			if (bnd->options & HIO_DEV_SCK_BIND_SSL)
 			{
 			#if defined(USE_SSL)
+			#if defined(ENABLE_SCTP)
+				/* [NOTE] refused rather than quietly downgraded.
+				 *
+				 * tls needs one reliable, in-order byte stream: its record
+				 * sequence number is implicit, so records arriving out of
+				 * order fail to decrypt. an sctp association's streams are
+				 * ordered only with respect to themselves, so tls cannot span
+				 * them - that is a property of tls, not of any library. the
+				 * standard answer is dtls over sctp (RFC 6083), which uses
+				 * dtls because it carries explicit sequence numbers.
+				 *
+				 * on top of that, this implementation drives tls through
+				 * SSL_set_fd(), which reads and writes the descriptor directly
+				 * and so bypasses the sendmsg()/recvmsg() that carry the
+				 * stream number - the ancillary data would be unreachable even
+				 * on a single stream.
+				 *
+				 * so the combination would deliver either no encryption or no
+				 * streams. it used to silently deliver the former: the
+				 * handshake ran from the ready handler while the sctp read and
+				 * write methods, which know nothing of ssl, moved plaintext. */
+				if (sck_type_map[rdev->type].proto == IPPROTO_SCTP)
+				{
+					hio_seterrbfmt(hio, HIO_ENOIMPL, "tls over sctp is not supported - see RFC 6083 for why it needs dtls");
+					return -1;
+				}
+			#endif
+
 				if (!bnd->ssl_certfile || !bnd->ssl_keyfile)
 				{
 					hio_seterrbfmt(hio, HIO_EINVAL, "SSL certficate/key file not set");
