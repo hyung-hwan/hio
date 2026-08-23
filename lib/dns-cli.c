@@ -161,7 +161,7 @@ HIO_DEBUG1 (hio, "DNC - releasing dns message - msgid:%d\n", (int)hio_ntoh16(hio
 
 	if (msgxtn->rtmridx != HIO_TMRIDX_INVALID)
 	{
-		hio_deltmrjob (hio, msgxtn->rtmridx);
+		hio_deltmrjob(hio, msgxtn->rtmridx);
 		HIO_ASSERT(hio, msgxtn->rtmridx == HIO_TMRIDX_INVALID);
 	}
 
@@ -574,7 +574,7 @@ static int on_udp_read (hio_dev_sck_t* dev, const void* data, hio_iolen_t dlen, 
 			if (reqmsgxtn->rtmridx != HIO_TMRIDX_INVALID)
 			{
 				/* unschedule a timer job if any */
-				hio_deltmrjob (hio, reqmsgxtn->rtmridx);
+				hio_deltmrjob(hio, reqmsgxtn->rtmridx);
 				HIO_ASSERT(hio, reqmsgxtn->rtmridx == HIO_TMRIDX_INVALID);
 			}
 

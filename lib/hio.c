@@ -850,7 +850,7 @@ static HIO_INLINE void handle_event (hio_t* hio, hio_dev_t* dev, int events, int
 				tmrjob.handler = on_read_timeout;
 				tmrjob.idxptr = &dev->rtmridx;
 
-				hio_updtmrjob (hio, dev->rtmridx, &tmrjob);
+				hio_updtmrjob(hio, dev->rtmridx, &tmrjob);
 
 				/*hio_deltmrjob(hio, dev->rtmridx);
 				dev->rtmridx = HIO_TMRIDX_INVALID;*/
@@ -1427,7 +1427,7 @@ kill_device:
 	if (kill_and_free_device(dev, 0) <= -1)
 	{
 		HIO_ASSERT(hio, dev->dev_cap & HIO_DEV_CAP_ZOMBIE);
-		if (schedule_kill_zombie_job (dev) <= -1)
+		if (schedule_kill_zombie_job(dev) <= -1)
 		{
 			/* i have no choice but to free up the devide by force */
 			while (kill_and_free_device(dev, 1) <= -1)

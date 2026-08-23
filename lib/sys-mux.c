@@ -252,7 +252,7 @@ void hio_sys_intrmux (hio_t* hio)
 {
 	/* for now, thie only use of the control pipe is to interrupt the multiplexer */
 	hio_sys_mux_t* mux = &hio->sysdep->mux;
-	if (mux->ctrlp[1] != HIO_SYSHND_INVALID) write (mux->ctrlp[1], "Q", 1);
+	if (mux->ctrlp[1] != HIO_SYSHND_INVALID) write(mux->ctrlp[1], "Q", 1);
 }
 
 #if defined(USE_POLL)

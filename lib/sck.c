@@ -51,6 +51,24 @@
 #	include <netinet/sctp.h>
 #	if defined(IPPROTO_SCTP)
 #		define ENABLE_SCTP
+		/* these library calls are a separate question from the socket type. on
+		 * linux they live in libsctp, which a machine with sctp headers and an
+		 * sctp kernel may not have installed. the basic one-to-one and
+		 * one-to-many transports need none of them, so they stand either way.
+		 *
+		 * peel-off and multi-homing are probed apart because they are separate
+		 * features that share nothing but the library they come from: peel-off
+		 * needs sctp_peeloff() and multi-homing needs the address calls, and
+		 * neither calls into the other. bundling them would mean a system
+		 * missing one silently loses both - the same "they always come
+		 * together" assumption that let the old header-derived ENABLE_SCTP
+		 * stay wrong for so long. */
+#		if defined(HAVE_SCTP_PEELOFF)
+#			define ENABLE_SCTP_PEELOFF
+#		endif
+#		if defined(HAVE_SCTP_BINDX) && defined(HAVE_SCTP_GETPADDRS) && defined(HAVE_SCTP_GETLADDRS)
+#			define ENABLE_SCTP_MH
+#		endif
 #	endif
 #endif
 
@@ -322,13 +340,23 @@ static struct sck_type_map_t sck_type_map[] =
 	/* HIO_DEV_SCK_SCTP6 */
 	{ AF_INET6,  SOCK_STREAM,     IPPROTO_SCTP,      1, 1, HIO_DEV_CAP_STREAM },
 
-	/* HIO_DEV_SCK_SCTP4_SP - one-to-many. listen() is called but hio never
+	/* HIO_DEV_SCK_SCTP4_SEQPKT - one-to-many. listen() is called but hio never
 	 * accepts: associations are not devices in this model, they are told apart
-	 * by the source address on each message. */
-	{ AF_INET,   SOCK_SEQPACKET,  IPPROTO_SCTP,      1, 1, 0 },
+	 * by the source address on each message.
+	 *
+	 * marked unconnectable, as udp is. the socket api does allow connect() on a
+	 * one-to-many socket - it forms an association and makes it the default
+	 * destination - but nothing here can finish the job: a device with no
+	 * HIO_DEV_CAP_STREAM gets dev_evcb_sck_ready_stateless(), which looks only
+	 * at ERR and HUP and never at the progress bits, so on_connect() would
+	 * never fire. the device would sit in HIO_DEV_SCK_CONNECTING for good -
+	 * writes failing, a second connect() refused as already in progress, and
+	 * with a connect timeout set, silently halted a few seconds later.
+	 * refusing outright beats handing back a bricked device. */
+	{ AF_INET,   SOCK_SEQPACKET,  IPPROTO_SCTP,      0, 1, 0 },
 
-	/* HIO_DEV_SCK_SCTP6_SP */
-	{ AF_INET6,  SOCK_SEQPACKET,  IPPROTO_SCTP,      1, 1, 0 },
+	/* HIO_DEV_SCK_SCTP6_SEQPKT */
+	{ AF_INET6,  SOCK_SEQPACKET,  IPPROTO_SCTP,      0, 1, 0 },
 #else
 	{ -1,        0,               0,                 0, 0, 0 },
 	{ -1,        0,               0,                 0, 0, 0 },
@@ -605,10 +633,18 @@ oops:
 	return -1;
 }
 
+/* hio_dev_make() hands this back exactly what was passed to it, for the case
+ * where it fails before the make() method could take ownership of the handle.
+ *
+ * [NOTE] the ctx used to be a bare hio_syshnd_t and is now a struct whose first
+ * member is one. the old cast still read the right value - a pointer to a
+ * struct points to its first member - but only by accident of layout: put any
+ * field ahead of 'hnd' and this would close (int)type instead, which is a small
+ * integer, which is to say some other part of the program's descriptor. */
 static void dev_sck_fail_before_make_client (void* ctx)
 {
-	hio_syshnd_t* clisckhnd = (hio_syshnd_t*)ctx;
-	close(*clisckhnd);
+	sck_make_client_ctx_t* mc = (sck_make_client_ctx_t*)ctx;
+	close(mc->hnd);
 }
 
 static int dev_sck_kill (hio_dev_t* dev, int force)
@@ -884,7 +920,14 @@ static int sendmsg_sctp(
 	 * addressing by msg_name. it is ignored on a one-to-one socket. */
 	sinfo->sinfo_assoc_id = (sctp_assoc_t)assoc_id;
 
+	/* the plain stream and stateless send paths all ask for this; without it a
+	 * failing sctp write raises SIGPIPE and kills the process where the
+	 * equivalent tcp write merely returns EPIPE. */
+#if defined(MSG_NOSIGNAL)
+	return sendmsg(s, &msg, MSG_NOSIGNAL);
+#else
 	return sendmsg(s, &msg, 0);
+#endif
 }
 
 /* the core passes no destination for a connected socket - hio_dev_sck_write()
@@ -915,9 +958,8 @@ static HIO_INLINE hio_int32_t dstaddr_assoc (const hio_devaddr_t* dstaddr)
 	return (dstaddr && dstaddr->ptr)? hio_skad_get_assoc((const hio_skad_t*)dstaddr->ptr): 0;
 }
 
-static int dev_sck_read_sctp_sp (hio_dev_t* dev, void* buf, hio_iolen_t* len, hio_devaddr_t* srcaddr)
+static int dev_sck_read_sctp_seqpkt (hio_dev_t* dev, void* buf, hio_iolen_t* len, hio_devaddr_t* srcaddr)
 {
-/* NOTE: sctp support is far away from complete */
 	hio_t* hio = dev->hio;
 	hio_dev_sck_t* rdev = (hio_dev_sck_t*)dev;
 	hio_scklen_t srcaddrlen;
@@ -944,7 +986,12 @@ static int dev_sck_read_sctp_sp (hio_dev_t* dev, void* buf, hio_iolen_t* len, hi
 	if (msg_flags & MSG_NOTIFICATION)
 	{
 		/* an association or path event, not payload. handing this to
-		 * on_read() would splice an event record into the data stream. */
+		 * on_read() would splice an event record into the data stream.
+		 *
+		 * every one of these is passed on, association changes included. this
+		 * socket takes no view on which associations deserve a device of their
+		 * own - hio_dev_sck_peeloff() is a call the application makes, from
+		 * here or from on_read() later, for the associations it picks. */
 		if (rdev->on_notification) rdev->on_notification(rdev, buf, x);
 		return 0; /* nothing readable for the caller this time round */
 	}
@@ -970,7 +1017,7 @@ static int dev_sck_read_sctp_sp (hio_dev_t* dev, void* buf, hio_iolen_t* len, hi
 		if (!rdev->sctp_discarding)
 		{
 			rdev->sctp_discarding = 1;
-			HIO_INFO2 (hio, "SCK(%p) - discarding an sctp message too large for the read buffer of %zu octets\n", rdev, hio->bigbuf.capa);
+			HIO_INFO2(hio, "SCK(%p) - discarding an sctp message too large for the read buffer of %zu octets\n", rdev, hio->bigbuf.capa);
 		}
 		/* keep swallowing fragments until the one that ends the message */
 		if (msg_flags & MSG_EOR) rdev->sctp_discarding = 0;
@@ -1260,9 +1307,8 @@ static int dev_sck_writev_bpf (hio_dev_t* dev, const hio_iovec_t* iov, hio_iolen
 
 /* ------------------------------------------------------------------------------ */
 #if defined(ENABLE_SCTP)
-static int dev_sck_write_sctp_sp (hio_dev_t* dev, const void* data, hio_iolen_t* len, const hio_devaddr_t* dstaddr)
+static int dev_sck_write_sctp_seqpkt (hio_dev_t* dev, const void* data, hio_iolen_t* len, const hio_devaddr_t* dstaddr)
 {
-/* NOTE: sctp support is far away from complete */
 	hio_t* hio = dev->hio;
 	hio_dev_sck_t* rdev = (hio_dev_sck_t*)dev;
 	ssize_t x;
@@ -1292,7 +1338,7 @@ static int dev_sck_write_sctp_sp (hio_dev_t* dev, const void* data, hio_iolen_t*
 
 /* the one-to-one sctp types carry HIO_DEV_CAP_STREAM, so the core treats them
  * like a tcp socket: a zero-length write is the writing-end shutdown, and a
- * zero-length read is EOF. the seqpacket methods above answer neither of those
+ * zero-length read is EOF. the seqpkt methods above answer neither of those
  * conventions - a zero-length sendmsg() puts an empty message on the wire
  * rather than closing anything - so the stream variants need their own pair.
  *
@@ -1329,9 +1375,9 @@ static int dev_sck_read_sctp_stream (hio_dev_t* dev, void* buf, hio_iolen_t* len
 
 	/* x of 0 falls through as a zero length, which is what the core reads as
 	 * EOF on a stream device */
-	hio_skad_set_chan (&rdev->remoteaddr, sri.sinfo_stream);
-	hio_skad_set_ppid (&rdev->remoteaddr, sri.sinfo_ppid);
-	hio_skad_set_assoc (&rdev->remoteaddr, (hio_int32_t)sri.sinfo_assoc_id);
+	hio_skad_set_chan(&rdev->remoteaddr, sri.sinfo_stream);
+	hio_skad_set_ppid(&rdev->remoteaddr, sri.sinfo_ppid);
+	hio_skad_set_assoc(&rdev->remoteaddr, (hio_int32_t)sri.sinfo_assoc_id);
 
 	*len = x;
 	return 1;
@@ -1403,7 +1449,7 @@ static int dev_sck_writev_sctp_stream (hio_dev_t* dev, const hio_iovec_t* iov, h
 	return 1;
 }
 
-static int dev_sck_writev_sctp_sp (hio_dev_t* dev, const hio_iovec_t* iov, hio_iolen_t* iovcnt, const hio_devaddr_t* dstaddr)
+static int dev_sck_writev_sctp_seqpkt (hio_dev_t* dev, const hio_iovec_t* iov, hio_iolen_t* iovcnt, const hio_devaddr_t* dstaddr)
 {
 	hio_t* hio = dev->hio;
 	hio_dev_sck_t* rdev = (hio_dev_sck_t*)dev;
@@ -2118,7 +2164,7 @@ static hio_dev_mth_t dev_mth_clisck_sctp_stream =
 {
 	dev_sck_make_client,
 	dev_sck_kill,
-	HIO_NULL,
+	dev_sck_fail_before_make_client,
 	dev_sck_getsyshnd,
 	HIO_NULL,
 	dev_sck_ioctl,
@@ -2153,7 +2199,7 @@ static hio_dev_mth_t dev_mth_sck_stream =
 };
 
 #if defined(ENABLE_SCTP)
-static hio_dev_mth_t dev_mth_sck_sctp_sp =
+static hio_dev_mth_t dev_mth_sck_sctp_seqpkt =
 {
 	dev_sck_make,
 	dev_sck_kill,
@@ -2162,9 +2208,9 @@ static hio_dev_mth_t dev_mth_sck_sctp_sp =
 	HIO_NULL,
 	dev_sck_ioctl,     /* ioctl */
 
-	dev_sck_read_sctp_sp,
-	dev_sck_write_sctp_sp,
-	dev_sck_writev_sctp_sp,
+	dev_sck_read_sctp_seqpkt,
+	dev_sck_write_sctp_seqpkt,
+	dev_sck_writev_sctp_seqpkt,
 	HIO_NULL,          /* sendfile */
 
 	HIO_NULL,          /* readpending */
@@ -2210,7 +2256,7 @@ static hio_dev_mth_t dev_mth_clisck_stream =
 };
 
 #if defined(ENABLE_SCTP)
-static hio_dev_mth_t dev_mth_clisck_sctp_sp =
+static hio_dev_mth_t dev_mth_clisck_sctp_seqpkt =
 {
 	dev_sck_make_client,
 	dev_sck_kill,
@@ -2219,12 +2265,12 @@ static hio_dev_mth_t dev_mth_clisck_sctp_sp =
 	HIO_NULL,
 	dev_sck_ioctl,
 
-	dev_sck_read_sctp_sp,
-	dev_sck_write_sctp_sp,
-	dev_sck_writev_sctp_sp,
+	dev_sck_read_sctp_seqpkt,
+	dev_sck_write_sctp_seqpkt,
+	dev_sck_writev_sctp_seqpkt,
 	HIO_NULL,  /* sendfile */
 
-	HIO_NULL   /* readpending - no ssl on a seqpacket socket */
+	HIO_NULL   /* readpending - no ssl on a seqpkt socket */
 };
 #endif
 
@@ -2344,11 +2390,11 @@ static int harvest_outgoing_connection (hio_dev_sck_t* rdev)
 
 static int make_accepted_client_connection (hio_dev_sck_t* rdev, hio_syshnd_t clisck, hio_skad_t* remoteaddr, hio_dev_sck_type_t clisck_type)
 {
-	sck_make_client_ctx_t mc;
 	hio_t* hio = rdev->hio;
 	hio_dev_sck_t* clidev;
 	hio_scklen_t addrlen;
 	hio_dev_mth_t* dev_mth;
+	sck_make_client_ctx_t mc;
 
 	if (rdev->on_raw_accept)
 	{
@@ -2370,8 +2416,8 @@ static int make_accepted_client_connection (hio_dev_sck_t* rdev, hio_syshnd_t cl
 	 */
 #if defined(ENABLE_SCTP)
 	dev_mth = (sck_type_map[clisck_type].extra_dev_cap & HIO_DEV_CAP_STREAM)?
-	              ((sck_type_map[clisck_type].proto == IPPROTO_SCTP)? &dev_mth_clisck_sctp_stream: &dev_mth_clisck_stream):
-	          (sck_type_map[clisck_type].proto == IPPROTO_SCTP)? &dev_mth_clisck_sctp_sp: &dev_mth_clisck_stateless;
+		((sck_type_map[clisck_type].proto == IPPROTO_SCTP)? &dev_mth_clisck_sctp_stream: &dev_mth_clisck_stream):
+		((sck_type_map[clisck_type].proto == IPPROTO_SCTP)? &dev_mth_clisck_sctp_seqpkt: &dev_mth_clisck_stateless);
 #else
 	dev_mth = (sck_type_map[clisck_type].extra_dev_cap & HIO_DEV_CAP_STREAM)? &dev_mth_clisck_stream: &dev_mth_clisck_stateless;
 #endif
@@ -2380,7 +2426,7 @@ static int make_accepted_client_connection (hio_dev_sck_t* rdev, hio_syshnd_t cl
 	clidev = (hio_dev_sck_t*)hio_dev_make(hio, rdev->dev_size, dev_mth, rdev->dev_evcb, &mc);
 	if (HIO_UNLIKELY(!clidev))
 	{
-		/* [NOTE] 'clisck' is closed by callback methods called by hio_dev_make() upon failure */
+		/* [NOTE] 'clisck' is closed by callback(fail_before_make) methods called by hio_dev_make() upon failure */
 		HIO_DEBUG3(hio, "SCK(%p) - unable to make a new accepted device for %d - %js\n", rdev, (int)clisck, hio_geterrmsg(hio));
 		return -1;
 	}
@@ -2529,6 +2575,10 @@ static int accept_incoming_connection (hio_dev_sck_t* rdev)
 #if defined(SOCK_NONBLOCK) && defined(SOCK_CLOEXEC) && defined(HAVE_ACCEPT4)
 accept_done:
 #endif
+	/* no separate error handling to close clisck becuase it's supposed to be
+	 * handled by hio_dev_make() via the fail_before_make callback inside
+	 * make_accepted_client_connection(). if it fails even before hio_dev_make()
+	 * inside make_accepted_client_connection(), it should close the socket explicitly */
 	return make_accepted_client_connection(rdev, clisck, &remoteaddr, rdev->type);
 }
 
@@ -2634,7 +2684,6 @@ static int dev_evcb_sck_ready_stream (hio_dev_t* dev, int events)
 		#endif
 
 		case HIO_DEV_SCK_LISTENING:
-
 			if (events & HIO_DEV_EVENT_HUP)
 			{
 				/* device hang-up */
@@ -2798,7 +2847,7 @@ static hio_dev_evcb_t dev_sck_event_callbacks_stateless =
 	dev_evcb_sck_on_write_stateless
 };
 
-static hio_dev_evcb_t dev_sck_event_callbacks_sctp_sp =
+static hio_dev_evcb_t dev_sck_event_callbacks_sctp_seqpkt =
 {
 	dev_evcb_sck_ready_stateless,
 	dev_evcb_sck_on_read_stateless,
@@ -2972,7 +3021,7 @@ hio_dev_sck_t* hio_dev_sck_make (hio_t* hio, hio_oow_t xtnsize, const hio_dev_sc
 	{
 		rdev = (hio_dev_sck_t*)hio_dev_make(
 			hio, HIO_SIZEOF(hio_dev_sck_t) + xtnsize,
-			&dev_mth_sck_sctp_sp, &dev_sck_event_callbacks_sctp_sp, (void*)info);
+			&dev_mth_sck_sctp_seqpkt, &dev_sck_event_callbacks_sctp_seqpkt, (void*)info);
 	}
 #endif
 	else
@@ -3160,6 +3209,391 @@ int hio_dev_sck_shutdown (hio_dev_sck_t* dev, int how)
 
 	return 0;
 }
+
+/* ------------------------------------------------------------------------- */
+/* sctp peel-off                                                             */
+/* ------------------------------------------------------------------------- */
+
+#if defined(ENABLE_SCTP_PEELOFF)
+/* the one-to-one type a peeled-off association becomes. sctp_peeloff() hands
+ * back a SOCK_STREAM socket carrying one association, which is precisely what
+ * the one-to-one types already describe - so the peeled device gets the
+ * existing one-to-one methods, write queue and all. */
+static int sctp_one_to_one_type (hio_dev_sck_type_t sp_type, hio_dev_sck_type_t* one_to_one)
+{
+	switch (sp_type)
+	{
+		case HIO_DEV_SCK_SCTP4_SEQPKT:
+			*one_to_one = HIO_DEV_SCK_SCTP4;
+			return 0;
+
+		case HIO_DEV_SCK_SCTP6_SEQPKT:
+			*one_to_one = HIO_DEV_SCK_SCTP6;
+			return 0;
+
+		default:
+			return -1;
+	}
+}
+
+int hio_dev_sck_peeloff (hio_dev_sck_t* rdev, hio_int32_t assoc_id)
+{
+	hio_t* hio = rdev->hio;
+	hio_dev_sck_type_t clitype;
+	hio_syshnd_t clisck;
+	hio_skad_t remoteaddr;
+	hio_scklen_t addrlen;
+
+	if (sctp_one_to_one_type(rdev->type, &clitype) <= -1)
+	{
+		hio_seterrbfmt(hio, HIO_EINVAL, "not a one-to-many sctp socket");
+		return -1;
+	}
+
+	/* move the association onto a socket of its own. anything still queued for
+	 * it in the kernel moves with it, which is what makes a mid-stream peel
+	 * safe: messages already handed to on_read() are the caller's, the rest
+	 * arrive on the new device, and none are lost or seen twice. */
+	clisck = sctp_peeloff(rdev->hnd, (sctp_assoc_t)assoc_id);
+	if (clisck <= -1)
+	{
+		hio_seterrwithsyserr(hio, 0, errno);
+		return -1;
+	}
+
+	/* the extra area past the sockaddr is not written by getpeername(), so it
+	 * is cleared here rather than left holding the stream and ppid of whatever
+	 * message last used this device's remoteaddr. */
+	HIO_MEMSET(&remoteaddr, 0, HIO_SIZEOF(remoteaddr));
+	addrlen = HIO_SIZEOF(remoteaddr);
+	if (getpeername(clisck, (struct sockaddr*)&remoteaddr, &addrlen) <= -1)
+	{
+		/* fall back on the address the notification came from - the primary
+		 * path of the same association. the remaining addresses of a
+		 * multi-homed peer are reachable with hio_dev_sck_getpaddrs(). */
+		remoteaddr = rdev->remoteaddr;
+		hio_skad_set_chan(&remoteaddr, 0);
+		hio_skad_set_ppid(&remoteaddr, 0);
+		hio_skad_set_assoc(&remoteaddr, 0);
+	}
+
+	/* no separate error handling to close clisck becuase it's supposed to be
+	 * handled by hio_dev_make() via the fail_before_make callback inside
+	 * make_accepted_client_connection(). if it fails even before hio_dev_make()
+	 * inside make_accepted_client_connection(), it should close the socket explicitly */
+	return make_accepted_client_connection(rdev, clisck, &remoteaddr, clitype);
+}
+
+#else /* ENABLE_SCTP_PEELOFF */
+
+int hio_dev_sck_peeloff (hio_dev_sck_t* rdev, hio_int32_t assoc_id)
+{
+	hio_seterrbfmt(rdev->hio, HIO_ENOIMPL, "sctp peel-off not supported");
+	return -1;
+}
+
+#endif /* ENABLE_SCTP_PEELOFF */
+
+/* ------------------------------------------------------------------------- */
+
+#if defined(ENABLE_SCTP)
+
+int hio_dev_sck_parse_assoc_event (const void* data, hio_iolen_t dlen, hio_sctp_assoc_event_t* ev)
+{
+	struct sctp_assoc_change ac;
+
+	/* copied out rather than read in place: a caller may hand over a buffer
+	 * whose alignment is not this structure's to assume. */
+	if (dlen < (hio_iolen_t)HIO_SIZEOF(ac)) return -1; /* too short to be one */
+	HIO_MEMCPY(&ac, data, HIO_SIZEOF(ac));
+
+	if (ac.sac_type != SCTP_ASSOC_CHANGE) return -1; /* a different event, not an error */
+
+	switch (ac.sac_state)
+	{
+		case SCTP_COMM_UP:        ev->state = HIO_SCTP_ASSOC_COMM_UP;        break;
+		case SCTP_COMM_LOST:      ev->state = HIO_SCTP_ASSOC_COMM_LOST;      break;
+		case SCTP_RESTART:        ev->state = HIO_SCTP_ASSOC_RESTART;        break;
+		case SCTP_SHUTDOWN_COMP:  ev->state = HIO_SCTP_ASSOC_SHUTDOWN_COMP;  break;
+		case SCTP_CANT_STR_ASSOC: ev->state = HIO_SCTP_ASSOC_CANT_STR_ASSOC; break;
+		default:                  ev->state = HIO_SCTP_ASSOC_STATE_UNKNOWN;  break;
+	}
+
+	ev->error = ac.sac_error;
+	ev->assoc_id = (hio_int32_t)ac.sac_assoc_id;
+	/* the negotiated counts - the outcome of both ends' SCTP_INITMSG requests,
+	 * and not reachable any other way */
+	ev->ostreams = ac.sac_outbound_streams;
+	ev->instreams = ac.sac_inbound_streams;
+	return 0;
+}
+
+#else
+
+int hio_dev_sck_parse_assoc_event (const void* data, hio_iolen_t dlen, hio_sctp_assoc_event_t* ev)
+{
+	return -1;
+}
+
+#endif
+
+/* ------------------------------------------------------------------------- */
+/* sctp multi-homing                                                         */
+/* ------------------------------------------------------------------------- */
+
+#if defined(ENABLE_SCTP_MH)
+
+static HIO_INLINE int is_sctp_sck (hio_dev_sck_t* dev)
+{
+	return sck_type_map[dev->type].proto == IPPROTO_SCTP;
+}
+
+/* the sctp calls take addresses as a packed run of sockaddrs of mixed length,
+ * not an array of a fixed-size type. these two convert between that and
+ * hio_skad_t, which is fixed-size and carries an extra area the kernel neither
+ * writes nor reads. */
+
+static int pack_skads (hio_t* hio, const hio_skad_t* addrs, hio_oow_t naddrs, hio_uint8_t** buf)
+{
+	hio_uint8_t* b, * p;
+	hio_oow_t total = 0, i;
+
+	for (i = 0; i < naddrs; i++)
+	{
+		int len = hio_skad_get_size(&addrs[i]);
+		if (len <= 0)
+		{
+			hio_seterrbfmt(hio, HIO_EINVAL, "address #%zu is not of a supported family", i);
+			return -1;
+		}
+		total += len;
+	}
+
+	b = (hio_uint8_t*)hio_allocmem(hio, total);
+	if (HIO_UNLIKELY(!b)) return -1;
+
+	for (i = 0, p = b; i < naddrs; i++)
+	{
+		int len = hio_skad_get_size(&addrs[i]);
+		HIO_MEMCPY(p, &addrs[i], len);
+		p += len;
+	}
+
+	*buf = b;
+	return 0;
+}
+
+static int unpack_skads (hio_t* hio, const struct sockaddr* packed, int count, hio_skad_t* addrs, hio_oow_t* naddrs)
+{
+	hio_oow_t room = *naddrs, i;
+	const hio_uint8_t* p = (const hio_uint8_t*)packed;
+
+	/* every address is reported, so the caller learns how much room it needed
+	 * even when it did not have enough. what does not fit is not written. */
+	for (i = 0; i < (hio_oow_t)count; i++)
+	{
+		hio_oow_t len;
+
+		switch (((const struct sockaddr*)p)->sa_family)
+		{
+			case AF_INET:
+				len = HIO_SIZEOF(struct sockaddr_in);
+				break;
+
+		#if defined(AF_INET6)
+			case AF_INET6:
+				len = HIO_SIZEOF(struct sockaddr_in6);
+				break;
+		#endif
+
+			default:
+				/* the run cannot be walked past an address of unknown length */
+				hio_seterrbfmt(hio, HIO_EINVAL, "unsupported address family %d in the sctp address list", (int)((const struct sockaddr*)p)->sa_family);
+				*naddrs = i;
+				return -1;
+		}
+
+		if (i < room)
+		{
+			/* the extra area past the sockaddr belongs to hio, not the kernel */
+			HIO_MEMSET(&addrs[i], 0, HIO_SIZEOF(addrs[i]));
+			HIO_MEMCPY(&addrs[i], p, len);
+		}
+		p += len;
+	}
+
+	*naddrs = (hio_oow_t)count;
+	if ((hio_oow_t)count > room)
+	{
+		hio_seterrbfmt(hio, HIO_EBUFFULL, "%d addresses do not fit in %zu slot(s)", count, room);
+		return -1;
+	}
+
+	return 0;
+}
+
+int hio_dev_sck_bindx (hio_dev_sck_t* dev, const hio_skad_t* addrs, hio_oow_t naddrs, hio_dev_sck_bindx_flag_t flags)
+{
+	hio_t* hio = dev->hio;
+	hio_uint8_t* buf;
+	int x;
+
+	if (!is_sctp_sck(dev))
+	{
+		hio_seterrbfmt(hio, HIO_ENOIMPL, "not an sctp socket device");
+		return -1;
+	}
+
+	if (naddrs <= 0)
+	{
+		hio_seterrbfmt(hio, HIO_EINVAL, "no address given");
+		return -1;
+	}
+
+	if (pack_skads(hio, addrs, naddrs, &buf) <= -1) return -1;
+
+	x = sctp_bindx(dev->hnd, (struct sockaddr*)buf, (int)naddrs,
+		(flags == HIO_DEV_SCK_BINDX_REM)? SCTP_BINDX_REM_ADDR: SCTP_BINDX_ADD_ADDR);
+	if (x <= -1) hio_seterrwithsyserr(hio, 0, errno);
+
+	hio_freemem (hio, buf);
+	return (x <= -1)? -1: 0;
+}
+
+int hio_dev_sck_getladdrs (hio_dev_sck_t* dev, hio_skad_t* addrs, hio_oow_t* naddrs)
+{
+	hio_t* hio = dev->hio;
+	struct sockaddr* packed = HIO_NULL;
+	int count, x;
+
+	if (!is_sctp_sck(dev))
+	{
+		hio_seterrbfmt(hio, HIO_ENOIMPL, "not an sctp socket device");
+		return -1;
+	}
+
+	/* association 0 asks about the endpoint, which is what local multi-homing
+	 * is about - the addresses belong to the socket, not to one association. */
+	count = sctp_getladdrs(dev->hnd, 0, &packed);
+	if (count <= -1)
+	{
+		hio_seterrwithsyserr(hio, 0, errno);
+		return -1;
+	}
+
+	x = unpack_skads(hio, packed, count, addrs, naddrs);
+	sctp_freeladdrs(packed);
+	return x;
+}
+
+int hio_dev_sck_getpaddrs (hio_dev_sck_t* dev, hio_skad_t* addrs, hio_oow_t* naddrs)
+{
+	hio_t* hio = dev->hio;
+	struct sockaddr* packed = HIO_NULL;
+	int count, x;
+
+	if (!is_sctp_sck(dev))
+	{
+		hio_seterrbfmt(hio, HIO_ENOIMPL, "not an sctp socket device");
+		return -1;
+	}
+
+	/* peer addresses belong to an association, and only a one-to-one socket has
+	 * exactly one. that is what a peeled-off or connected device is; a
+	 * one-to-many socket holds many and cannot answer the question. */
+	if (sck_type_map[dev->type].type == SOCK_SEQPACKET)
+	{
+		hio_seterrbfmt(hio, HIO_EPERM, "peer addresses are per-association - peel the association off first");
+		return -1;
+	}
+
+	count = sctp_getpaddrs(dev->hnd, 0, &packed);
+	if (count <= -1)
+	{
+		hio_seterrwithsyserr(hio, 0, errno);
+		return -1;
+	}
+
+	x = unpack_skads(hio, packed, count, addrs, naddrs);
+	sctp_freepaddrs(packed);
+	return x;
+}
+
+/* SCTP_PRIMARY_ADDR takes the same two members under two names: struct
+ * sctp_prim on linux, struct sctp_setprim on the bsds. */
+#if defined(HAVE_STRUCT_SCTP_PRIM)
+#	define sctp_prim_t struct sctp_prim
+#elif defined(HAVE_STRUCT_SCTP_SETPRIM)
+#	define sctp_prim_t struct sctp_setprim
+#endif
+
+int hio_dev_sck_setprimaryaddr (hio_dev_sck_t* dev, const hio_skad_t* addr)
+{
+	hio_t* hio = dev->hio;
+#if defined(sctp_prim_t)
+	sctp_prim_t prim;
+	int len;
+
+	if (!is_sctp_sck(dev))
+	{
+		hio_seterrbfmt(hio, HIO_ENOIMPL, "not an sctp socket device");
+		return -1;
+	}
+
+	len = hio_skad_get_size(addr);
+	if (len <= 0 || (hio_oow_t)len > HIO_SIZEOF(prim.ssp_addr))
+	{
+		hio_seterrbfmt(hio, HIO_EINVAL, "address is not of a supported family");
+		return -1;
+	}
+
+	HIO_MEMSET(&prim, 0, HIO_SIZEOF(prim));
+	prim.ssp_assoc_id = 0; /* the only association, on a one-to-one socket */
+	HIO_MEMCPY(&prim.ssp_addr, addr, len);
+
+	if (setsockopt(dev->hnd, IPPROTO_SCTP, SCTP_PRIMARY_ADDR, &prim, HIO_SIZEOF(prim)) <= -1)
+	{
+		hio_seterrwithsyserr(hio, 0, errno);
+		return -1;
+	}
+
+	return 0;
+#else
+	hio_seterrbfmt(hio, HIO_ENOIMPL, "no structure for SCTP_PRIMARY_ADDR on this system");
+	return -1;
+#endif
+}
+
+#else /* ENABLE_SCTP_MH */
+
+/* the declarations are unconditional, so the symbols have to exist. they say
+ * so rather than being absent at link time. */
+
+int hio_dev_sck_bindx (hio_dev_sck_t* dev, const hio_skad_t* addrs, hio_oow_t naddrs, hio_dev_sck_bindx_flag_t flags)
+{
+	hio_seterrbfmt(dev->hio, HIO_ENOIMPL, "sctp multi-homing not supported");
+	return -1;
+}
+
+int hio_dev_sck_getladdrs (hio_dev_sck_t* dev, hio_skad_t* addrs, hio_oow_t* naddrs)
+{
+	hio_seterrbfmt(dev->hio, HIO_ENOIMPL, "sctp multi-homing not supported");
+	return -1;
+}
+
+int hio_dev_sck_getpaddrs (hio_dev_sck_t* dev, hio_skad_t* addrs, hio_oow_t* naddrs)
+{
+	hio_seterrbfmt(dev->hio, HIO_ENOIMPL, "sctp multi-homing not supported");
+	return -1;
+}
+
+int hio_dev_sck_setprimaryaddr (hio_dev_sck_t* dev, const hio_skad_t* addr)
+{
+	hio_seterrbfmt(dev->hio, HIO_ENOIMPL, "sctp multi-homing not supported");
+	return -1;
+}
+
+#endif /* ENABLE_SCTP_MH */
 
 int hio_dev_sck_sendfileok (hio_dev_sck_t* dev)
 {

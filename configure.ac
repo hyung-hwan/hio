@@ -142,8 +142,48 @@ then
 			#include <netinet/in.h>
 		]])
 	fi
+
+	if test "x$SCTP_ENABLED" = "xyes"
+	then
+		dnl these library calls are a separate matter from the socket type. on
+		dnl the bsds they are in libc; on linux they live in libsctp
+		dnl (lksctp-tools), which may well be absent on a machine whose kernel
+		dnl and headers have sctp. so they are probed on their own and the basic
+		dnl one-to-one and one-to-many support stands either way.
+		dnl
+		dnl peel-off and multi-homing are reported apart because they are
+		dnl separate features sharing nothing but the library they come from:
+		dnl peel-off needs sctp_peeloff() and multi-homing needs the address
+		dnl calls. a system missing one must not lose both.
+		AC_SEARCH_LIBS([sctp_bindx], [sctp])
+		AC_CHECK_FUNCS([sctp_bindx sctp_peeloff sctp_getpaddrs sctp_getladdrs sctp_freepaddrs sctp_freeladdrs])
+		if test "x$ac_cv_func_sctp_peeloff" = "xyes"
+		then
+			SCTP_PEELOFF_ENABLED="yes"
+		fi
+		if test "x$ac_cv_func_sctp_bindx" = "xyes" -a \
+		        "x$ac_cv_func_sctp_getpaddrs" = "xyes" -a \
+		        "x$ac_cv_func_sctp_getladdrs" = "xyes"
+		then
+			SCTP_MULTIHOMING_ENABLED="yes"
+		fi
+
+		dnl SCTP_PRIMARY_ADDR takes a structure the two families spell
+		dnl differently - struct sctp_prim on linux, struct sctp_setprim on
+		dnl the bsds - with identical members.
+		AC_CHECK_TYPES([struct sctp_prim, struct sctp_setprim], [], [], [[
+			#include <sys/types.h>
+			#include <sys/socket.h>
+			#include <netinet/in.h>
+			#include <netinet/sctp.h>
+		]])
+	fi
 fi
 AC_SUBST(SCTP_ENABLED)
+test -z "$SCTP_PEELOFF_ENABLED" && SCTP_PEELOFF_ENABLED="no"
+AC_SUBST(SCTP_PEELOFF_ENABLED)
+test -z "$SCTP_MULTIHOMING_ENABLED" && SCTP_MULTIHOMING_ENABLED="no"
+AC_SUBST(SCTP_MULTIHOMING_ENABLED)
 AC_CHECK_HEADERS([net/if.h net/if_dl.h netinet/if_ether.h netpacket/packet.h net/bpf.h], [], [], [
 	#include <sys/types.h>
 	#include <sys/socket.h>])
@@ -947,5 +987,7 @@ echo "  Socket library: ${SOCKET_LIBS}"
 echo "  Sendfile library: ${SENDFILE_LIBS}"
 echo "  SSL library: ${SSL_LIBS}"
 echo "  SCTP support: ${SCTP_ENABLED}"
+echo "  SCTP peel-off: ${SCTP_PEELOFF_ENABLED}"
+echo "  SCTP multi-homing: ${SCTP_MULTIHOMING_ENABLED}"
 echo "-------------------------------------------------------------------------"
 ]

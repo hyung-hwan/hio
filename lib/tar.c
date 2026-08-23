@@ -215,7 +215,7 @@ static int x_process_content (hio_tar_t* tar)
 	chunksize = tar->x.hi.filesize < tar->x.blk.len? tar->x.hi.filesize: tar->x.blk.len;
 
 /* TODO: error check */
-	fwrite (tar->x.blk.buf, 1, chunksize, tar->x.hi.fp);
+	fwrite(tar->x.blk.buf, 1, chunksize, tar->x.hi.fp);
 
 	tar->x.hi.filesize -= chunksize;
 	if (tar->x.hi.filesize <= 0)

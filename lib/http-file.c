@@ -710,7 +710,7 @@ static void unbind_task_from_peer (file_t* file, int rcdown)
 
 	if (file->peer_tmridx != HIO_TMRIDX_INVALID)
 	{
-		hio_deltmrjob (hio, file->peer_tmridx);
+		hio_deltmrjob(hio, file->peer_tmridx);
 		HIO_ASSERT(hio, file->peer_tmridx == HIO_TMRIDX_INVALID);
 	}
 

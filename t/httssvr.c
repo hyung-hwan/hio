@@ -654,8 +654,8 @@ int main (int argc, char* argv[])
 		else if (strcmp(argv[i], "-ss") == 0)
 		{
 			i++;
-			g_dev_type4 = HIO_DEV_SCK_SCTP4_SP;
-			g_dev_type6 = HIO_DEV_SCK_SCTP6_SP;
+			g_dev_type4 = HIO_DEV_SCK_SCTP4_SEQPKT;
+			g_dev_type6 = HIO_DEV_SCK_SCTP6_SEQPKT;
 		}
 		else if (strcmp(argv[i], "-t") == 0)
 		{

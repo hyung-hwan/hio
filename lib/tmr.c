@@ -33,7 +33,7 @@
 
 void hio_cleartmrjobs (hio_t* hio)
 {
-	while (hio->tmr.size > 0) hio_deltmrjob (hio, 0);
+	while (hio->tmr.size > 0) hio_deltmrjob(hio, 0);
 }
 
 static hio_tmridx_t sift_up (hio_t* hio, hio_tmridx_t index)
@@ -174,10 +174,10 @@ void hio_firetmrjobs (hio_t* hio, const hio_ntime_t* tm, hio_oow_t* firecnt)
 		if (HIO_CMP_NTIME(&hio->tmr.jobs[0].when, &now) > 0) break;
 
 		tmrjob = hio->tmr.jobs[0]; /* copy the scheduled job */
-		hio_deltmrjob (hio, 0); /* deschedule the job */
+		hio_deltmrjob(hio, 0); /* deschedule the job */
 
 		count++;
-		tmrjob.handler (hio, &now, &tmrjob); /* then fire the job */
+		tmrjob.handler(hio, &now, &tmrjob); /* then fire the job */
 	}
 
 	if (firecnt) *firecnt = count;

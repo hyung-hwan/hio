@@ -262,6 +262,38 @@ typedef void (*hio_dev_sck_on_connect_t) (
  *
  * Leave it unset to have notifications discarded.
  */
+/**
+ * A decoded SCTP_ASSOC_CHANGE notification, as filled in by
+ * hio_dev_sck_parse_assoc_event(). The negotiated stream counts are worth
+ * having on their own: they are the outcome of the SCTP_INITMSG request from
+ * both ends, and are not knowable any other way.
+ */
+typedef struct hio_sctp_assoc_event_t hio_sctp_assoc_event_t;
+struct hio_sctp_assoc_event_t
+{
+	int          state;      /**< #hio_sctp_assoc_state_t */
+	int          error;      /**< the notification's error field, 0 if none */
+	hio_int32_t  assoc_id;   /**< pass this to hio_dev_sck_peeloff() */
+	hio_uint16_t ostreams;   /**< outbound streams negotiated */
+	hio_uint16_t instreams;  /**< inbound streams negotiated */
+};
+
+/**
+ * The states an association can report. The names mirror the SCTP_COMM_UP
+ * family so a reader of RFC 6458 recognises them, without the header's types
+ * appearing in this interface.
+ */
+enum hio_sctp_assoc_state_t
+{
+	HIO_SCTP_ASSOC_COMM_UP = 0,     /**< a new association is usable */
+	HIO_SCTP_ASSOC_COMM_LOST,       /**< it failed */
+	HIO_SCTP_ASSOC_RESTART,         /**< the peer restarted it */
+	HIO_SCTP_ASSOC_SHUTDOWN_COMP,   /**< it closed in an orderly way */
+	HIO_SCTP_ASSOC_CANT_STR_ASSOC,  /**< setup never completed */
+	HIO_SCTP_ASSOC_STATE_UNKNOWN    /**< something this build does not name */
+};
+typedef enum hio_sctp_assoc_state_t hio_sctp_assoc_state_t;
+
 typedef void (*hio_dev_sck_on_notification_t) (
 	hio_dev_sck_t*       dev,
 	const void*          data,
@@ -297,8 +329,8 @@ enum hio_dev_sck_type_t
 	HIO_DEV_SCK_SCTP4, /*  one-to-one sctp stream */
 	HIO_DEV_SCK_SCTP6, /*  one-to-one sctp stream */
 
-	HIO_DEV_SCK_SCTP4_SP, /*  one-to-one sctp seqpacket */
-	HIO_DEV_SCK_SCTP6_SP, /*  one-to-one sctp seqpacket */
+	HIO_DEV_SCK_SCTP4_SEQPKT, /*  one-to-one sctp seqpacket */
+	HIO_DEV_SCK_SCTP6_SEQPKT, /*  one-to-one sctp seqpacket */
 
 	/* ICMP at the IPv4 layer */
 	HIO_DEV_SCK_ICMP4,
@@ -388,12 +420,13 @@ struct hio_dev_sck_connect_t
 	hio_ntime_t connect_tmout;
 };
 
-#if 0
-enum hio_dev_sck_listen_option_t
+/** flags for hio_dev_sck_bindx() */
+enum hio_dev_sck_bindx_flag_t
 {
+	HIO_DEV_SCK_BINDX_ADD = 0, /**< add the addresses to the endpoint */
+	HIO_DEV_SCK_BINDX_REM = 1  /**< take them away from it */
 };
-typedef enum hio_dev_sck_listen_option_t hio_dev_sck_listen_option_t;
-#endif
+typedef enum hio_dev_sck_bindx_flag_t hio_dev_sck_bindx_flag_t;
 
 typedef struct hio_dev_sck_listen_t hio_dev_sck_listen_t;
 struct hio_dev_sck_listen_t
@@ -645,6 +678,108 @@ HIO_EXPORT int hio_dev_sck_leavemcastgroup (
 HIO_EXPORT int hio_dev_sck_shutdown (
 	hio_dev_sck_t* dev,
 	int            how  /* bitwise-ORed of hio_dev_sck_shutdown_how_t enumerators */
+);
+
+/**
+ * The hio_dev_sck_peeloff() function takes one association off a one-to-many
+ * SCTP socket and gives it a socket, and a device, of its own. The new device
+ * arrives through on_connect() in the #HIO_DEV_SCK_ACCEPTED state carrying the
+ * one-to-one methods - a write queue of its own, a read-enable bit of its own,
+ * and addresses of its own, which is what per-association multi-homing needs.
+ * It is the same door an accepted tcp connection comes through.
+ *
+ * It may be called at any point in an association's life, and where it is
+ * called from is the whole point:
+ *
+ * - from on_notification(), on an SCTP_COMM_UP whose peer address you like -
+ *   use hio_dev_sck_parse_assoc_event() to get the association id;
+ * - from on_read(), when a message tells you this peer deserves a session -
+ *   the association id is already there, on the source address, via
+ *   hio_skad_get_assoc().
+ *
+ * Peeling mid-stream leaves a clean seam: messages already handed to on_read()
+ * are yours, whatever is still queued in the kernel moves to the new socket,
+ * and everything after arrives on the new device. Nothing is lost or
+ * duplicated. Call it synchronously from inside the callback though - defer it
+ * and this socket may read another message for that association first, which
+ * widens the seam by however long you waited.
+ *
+ * Only for the one-to-many SCTP types; anything else fails with #HIO_EINVAL.
+ * A build whose system lacks sctp_peeloff() fails with #HIO_ENOIMPL.
+ */
+HIO_EXPORT int hio_dev_sck_peeloff (
+	hio_dev_sck_t*    dev,
+	hio_int32_t       assoc_id
+);
+
+/**
+ * The hio_dev_sck_parse_assoc_event() function decodes what on_notification()
+ * hands over, when what it hands over is an association change. It exists so
+ * that deciding what to do about a new association does not require picking
+ * apart a kernel structure by hand.
+ *
+ * Returns 0 and fills 'ev' if the notification is an association change, or -1
+ * if it is not - some other kind of event, or a buffer too short to be one.
+ *
+ * -1 is an answer, not a failure: no error number is set, and none can be, as
+ * this is a pure decoder with no hio_t to set one on. A caller walking
+ * notifications simply ignores the ones it gets -1 for.
+ */
+HIO_EXPORT int hio_dev_sck_parse_assoc_event (
+	const void*                data,
+	hio_iolen_t                dlen,
+	hio_sctp_assoc_event_t*    ev
+);
+
+/**
+ * The hio_dev_sck_bindx() function adds or removes local addresses on an
+ * already bound SCTP endpoint - which is what local multi-homing is. The
+ * addresses belong to the endpoint rather than to any one association, so this
+ * is a socket operation and works the same whether associations are peeled off
+ * or kept on the one socket.
+ *
+ * hio_dev_sck_bind() must have been called first: sctp_bindx() adds to an
+ * existing binding, it does not replace it.
+ *
+ * Available only for the SCTP socket types; anything else fails with
+ * #HIO_ENOIMPL.
+ */
+HIO_EXPORT int hio_dev_sck_bindx (
+	hio_dev_sck_t*             dev,
+	const hio_skad_t*          addrs,
+	hio_oow_t                  naddrs,
+	hio_dev_sck_bindx_flag_t   flags
+);
+
+/**
+ * The hio_dev_sck_getladdrs() function reports the local addresses of the
+ * endpoint, and hio_dev_sck_getpaddrs() the peer addresses of the association -
+ * the two halves of what multi-homing established.
+ *
+ * On entry *naddrs is the room available in 'addrs'; on return it is how many
+ * were written. #HIO_EBUFFULL is reported if there were more, with *naddrs set
+ * to the number needed.
+ */
+HIO_EXPORT int hio_dev_sck_getladdrs (
+	hio_dev_sck_t*    dev,
+	hio_skad_t*       addrs,
+	hio_oow_t*        naddrs
+);
+
+HIO_EXPORT int hio_dev_sck_getpaddrs (
+	hio_dev_sck_t*    dev,
+	hio_skad_t*       addrs,
+	hio_oow_t*        naddrs
+);
+
+/**
+ * The hio_dev_sck_setprimaryaddr() function asks the peer to prefer one of its
+ * addresses as the primary path. It must be one of the addresses
+ * hio_dev_sck_getpaddrs() reports.
+ */
+HIO_EXPORT int hio_dev_sck_setprimaryaddr (
+	hio_dev_sck_t*      dev,
+	const hio_skad_t*   addr
 );
 
 HIO_EXPORT int hio_dev_sck_sendfileok (

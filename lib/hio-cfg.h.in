@@ -295,6 +295,24 @@
 /* Define to 1 if you have the 'recvmsg' function. */
 #undef HAVE_RECVMSG
 
+/* Define to 1 if you have the 'sctp_bindx' function. */
+#undef HAVE_SCTP_BINDX
+
+/* Define to 1 if you have the 'sctp_freeladdrs' function. */
+#undef HAVE_SCTP_FREELADDRS
+
+/* Define to 1 if you have the 'sctp_freepaddrs' function. */
+#undef HAVE_SCTP_FREEPADDRS
+
+/* Define to 1 if you have the 'sctp_getladdrs' function. */
+#undef HAVE_SCTP_GETLADDRS
+
+/* Define to 1 if you have the 'sctp_getpaddrs' function. */
+#undef HAVE_SCTP_GETPADDRS
+
+/* Define to 1 if you have the 'sctp_peeloff' function. */
+#undef HAVE_SCTP_PEELOFF
+
 /* Define to 1 if you have the 'select' function. */
 #undef HAVE_SELECT
 
@@ -381,6 +399,12 @@
 
 /* Define to 1 if the system has the type 'struct lifreq'. */
 #undef HAVE_STRUCT_LIFREQ
+
+/* Define to 1 if the system has the type 'struct sctp_prim'. */
+#undef HAVE_STRUCT_SCTP_PRIM
+
+/* Define to 1 if the system has the type 'struct sctp_setprim'. */
+#undef HAVE_STRUCT_SCTP_SETPRIM
 
 /* Define to 1 if 'sin6_scope_id' is a member of 'struct sockaddr_in6'. */
 #undef HAVE_STRUCT_SOCKADDR_IN6_SIN6_SCOPE_ID
