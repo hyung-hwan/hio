@@ -19,9 +19,20 @@ rpm: dist-gzip
 	cp @PACKAGE_NAME@-@PACKAGE_VERSION@.tar.gz "@abs_builddir@/pkgs/RPM/SOURCES"
 	rpmbuild --define "_topdir @abs_builddir@/pkgs/RPM" -ba @abs_builddir@/pkgs/hio.spec --target=@build_cpu@
 
+## assumes --enable-static --disable-shared, so bin/hio-webs is the program
+## itself and libhio is linked into it. what is still missing from a FROM scratch
+## image is the system libraries it links against and the dynamic loader, so each
+## goes in at the path it is loaded from - there is no /etc/ld.so.cache in the
+## image to redirect the search.
 docker: all
-	mkdir -p data
-	rm -rf data/*
-	tar -cvf hio-webs.tar bin/hio-webs data
+	rm -rf hio-webs-root hio-webs.tar
+	mkdir -p hio-webs-root/bin hio-webs-root/data
+	cp bin/hio-webs hio-webs-root/bin/hio-webs
+	ldd bin/hio-webs | $(AWK) '$$2 == "=>" { print $$3 } $$1 ~ /^\// { print $$1 }' | \
+		while read -r so; do \
+			mkdir -p "hio-webs-root$${so%/*}"; \
+			cp -L "$$so" "hio-webs-root$$so" || exit 1; \
+		done
+	tar -C hio-webs-root -cvf hio-webs.tar .
 	docker build -t hio:webs -f Dockerfile .
-	rm -f hio-webs.tar
+	rm -rf hio-webs-root hio-webs.tar
