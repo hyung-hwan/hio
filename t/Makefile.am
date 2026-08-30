@@ -18,7 +18,7 @@ check_SCRIPTS = s-001.sh s-002.sh
 EXTRA_DIST = $(check_SCRIPTS) tap.inc t-cgi.sh
 
 ## programs run as tests
-TESTPROGS = t-001 t-002 t-003 t-004 t-005 t-006 t-007 t-008 t-009 t-010 t-011 t-012
+TESTPROGS = t-001 t-002 t-003 t-004 t-005 t-006 t-007 t-008 t-009 t-010 t-011 t-012 t-013
 
 ## helpers the test scripts drive. built with the tests, but not tests
 ## themselves - they are servers and would never exit.
@@ -106,6 +106,15 @@ t_012_CPPFLAGS = $(CPPFLAGS_COMMON)
 t_012_CFLAGS = $(CFLAGS_COMMON)
 t_012_LDFLAGS = $(LDFLAGS_COMMON)
 t_012_LDADD = $(LIBADD_COMMON)
+
+## t-013 drives the link-layer device types. they need CAP_NET_RAW, so it
+## re-executes itself under 'unshare -r -n' where that is permitted - which also
+## keeps its traffic off the real network - and skips where it is not.
+t_013_SOURCES = t-013.c tap.h
+t_013_CPPFLAGS = $(CPPFLAGS_COMMON)
+t_013_CFLAGS = $(CFLAGS_COMMON)
+t_013_LDFLAGS = $(LDFLAGS_COMMON)
+t_013_LDADD = $(LIBADD_COMMON)
 
 ## a minimal FastCGI responder, driven by s-002.sh
 fcgis_SOURCES = fcgis.c

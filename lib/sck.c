@@ -27,6 +27,7 @@
 
 #include <sys/types.h>
 #include <sys/socket.h>
+#include <sys/uio.h> /* writev */
 #include <fcntl.h>
 #include <unistd.h>
 #include <errno.h>
@@ -118,8 +119,18 @@
 #	include <sys/ioctl.h>
 #endif
 
+#if defined(HAVE_LINUX_FILTER_H)
+#	include <linux/filter.h>
+#endif
+
 #if defined(HAVE_NET_BPF_H)
 #	include <net/bpf.h>
+	/* the bsds have no AF_PACKET. /dev/bpf is how they do the same job, so it
+	 * is the implementation behind the L2 device types there rather than a
+	 * device type of its own - see the note on HIO_DEV_SCK_PACKET. */
+#	if defined(BIOCSETIF) && defined(BIOCGBLEN)
+#		define USE_BPF
+#	endif
 #endif
 
 #if defined(__linux__)
@@ -250,28 +261,184 @@ done:
 	return fd[0]; /* read end of the pipe */
 }
 
-static hio_syshnd_t open_async_bpf (hio_t* hio)
+#if defined(USE_BPF)
+/* one read of a bpf device yields a run of frames, each behind a struct
+ * bpf_hdr, not the single message a recvfrom() gives. so the run is kept here
+ * and handed to on_read() one frame at a time - which is what the caller of a
+ * datagram-like device expects, and it keeps struct bpf_hdr out of its sight.
+ *
+ * 'capa' is BIOCGBLEN, the size a read of this device must use. it is not
+ * dev_rdmin: the loop's shared buffer only ever carries one frame. */
+typedef struct bpf_state_t bpf_state_t;
+struct bpf_state_t
+{
+	hio_uint8_t* buf;
+	hio_oow_t capa;
+	hio_oow_t len;
+	hio_oow_t pos;
+};
+
+/* open a bpf device and put it in the state the read method assumes: delivering
+ * as soon as a frame arrives rather than when the buffer fills, and reporting
+ * the read size it insists on.
+ *
+ * '/dev/bpf' is the cloning device on anything current. the numbered ones are
+ * the older interface, tried in turn because a system may have only those and
+ * because each can be held by one reader at a time. */
+static hio_syshnd_t open_async_bpf (hio_t* hio, unsigned int* bufsize)
 {
 	hio_syshnd_t fd = HIO_SYSHND_INVALID;
-#if 0
 	int tmp;
-	unsigned int bufsize;
-#endif
+	int i;
 
 	fd = open("/dev/bpf", O_RDWR);
-	if (fd == HIO_SYSHND_INVALID) goto oops;
+	if (fd == HIO_SYSHND_INVALID)
+	{
+		for (i = 0; i < 256; i++)
+		{
+			hio_bch_t path[32];
+			hio_fmttobcstr(hio, path, HIO_COUNTOF(path), "/dev/bpf%d", i);
+			fd = open(path, O_RDWR);
+			if (fd != HIO_SYSHND_INVALID) break;
+			if (errno != EBUSY) break; /* not "in use by someone else" - stop */
+		}
+		if (fd == HIO_SYSHND_INVALID) goto oops;
+	}
 
-#if 0
+	/* without this a read waits for the buffer to fill, which for a device
+	 * driven by a poll loop means waiting for traffic that may never come */
+	tmp = 1;
 	if (ioctl(fd, BIOCIMMEDIATE, &tmp) <= -1) goto oops;
-	if (ioctl(fd, BIOCGBLEN, &bufsize) <= -1) goto oops;
-#endif
+
+	/* a read on a bpf device must use exactly this size. it is the size of the
+	 * private buffer the read method keeps, not of the loop's shared one - one
+	 * read yields many frames and they are handed over one at a time. */
+	if (ioctl(fd, BIOCGBLEN, bufsize) <= -1) goto oops;
+
+	if (hio_makesyshndasync(hio, fd) <= -1 ||
+	    hio_makesyshndcloexec(hio, fd) <= -1) goto oops_no_syserr;
 
 	return fd;
+
 oops:
 	hio_seterrwithsyserr(hio, 0, errno);
+oops_no_syserr:
 	if (fd != HIO_SYSHND_INVALID) close(fd);
 	return HIO_SYSHND_INVALID;
 }
+
+static int dev_sck_read_bpf (hio_dev_t* dev, void* buf, hio_iolen_t* len, hio_devaddr_t* srcaddr)
+{
+	hio_t* hio = dev->hio;
+	hio_dev_sck_t* rdev = (hio_dev_sck_t*)dev;
+	bpf_state_t* st = (bpf_state_t*)rdev->bpf_state;
+	struct bpf_hdr* bh;
+	hio_oow_t caplen;
+
+	HIO_ASSERT(hio, st != HIO_NULL);
+
+	if (st->pos >= st->len)
+	{
+		/* the run is spent. a read must use exactly the BIOCGBLEN size. */
+		ssize_t x = read(rdev->hnd, st->buf, st->capa);
+		if (x <= -1)
+		{
+			int eno = errno;
+			if (eno == EINPROGRESS || eno == EWOULDBLOCK || eno == EAGAIN) return 0;
+			if (eno == EINTR) return 0;
+			hio_seterrwithsyserr(hio, 0, eno);
+			return -1;
+		}
+		if (x == 0) return 0;
+		st->len = (hio_oow_t)x;
+		st->pos = 0;
+	}
+
+	/* a truncated trailer would make the walk step into nothing */
+	if (st->len - st->pos < HIO_SIZEOF(*bh))
+	{
+		st->pos = st->len = 0;
+		return 0;
+	}
+
+	bh = (struct bpf_hdr*)(st->buf + st->pos);
+	caplen = bh->bh_caplen;
+	if (bh->bh_hdrlen + caplen > st->len - st->pos)
+	{
+		/* the frame claims to run past what was read - refuse the whole run
+		 * rather than hand over whatever follows in memory */
+		HIO_INFO1(hio, "SCK(%p) - discarding a malformed bpf read\n", rdev);
+		st->pos = st->len = 0;
+		return 0;
+	}
+
+	if (caplen > (hio_oow_t)*len) caplen = (hio_oow_t)*len; /* dev_rdmin makes this unlikely */
+	HIO_MEMCPY(buf, st->buf + st->pos + bh->bh_hdrlen, caplen);
+	st->pos += BPF_WORDALIGN(bh->bh_hdrlen + bh->bh_caplen);
+
+	/* bpf reports no source address, so the bound interface is the answer -
+	 * which is what an AF_PACKET read reports too */
+	srcaddr->ptr = &rdev->localaddr;
+	srcaddr->len = HIO_SIZEOF(rdev->localaddr);
+
+	*len = (hio_iolen_t)caplen;
+	return 1;
+}
+
+/* what is left of the last read. the core re-dispatches an IN event for as long
+ * as this says yes, so a run of frames is delivered without polling in between
+ * and none is dropped for arriving in company. */
+static int dev_sck_readpending_bpf (hio_dev_t* dev)
+{
+	hio_dev_sck_t* rdev = (hio_dev_sck_t*)dev;
+	bpf_state_t* st = (bpf_state_t*)rdev->bpf_state;
+	return st && st->pos < st->len;
+}
+
+static int dev_sck_write_bpf (hio_dev_t* dev, const void* data, hio_iolen_t* len, const hio_devaddr_t* dstaddr)
+{
+	hio_t* hio = dev->hio;
+	hio_dev_sck_t* rdev = (hio_dev_sck_t*)dev;
+	ssize_t x;
+
+	/* a write goes out of the interface the device is bound to. there is no
+	 * destination to name - the frame carries its own. */
+	x = write(rdev->hnd, data, *len);
+	if (x <= -1)
+	{
+		int eno = errno;
+		if (eno == EINPROGRESS || eno == EWOULDBLOCK || eno == EAGAIN) return 0;
+		if (eno == EINTR) return 0;
+		hio_seterrwithsyserr(hio, 0, eno);
+		return -1;
+	}
+
+	*len = (hio_iolen_t)x;
+	return 1;
+}
+
+static int dev_sck_writev_bpf (hio_dev_t* dev, const hio_iovec_t* iov, hio_iolen_t* iovcnt, const hio_devaddr_t* dstaddr)
+{
+	hio_t* hio = dev->hio;
+	hio_dev_sck_t* rdev = (hio_dev_sck_t*)dev;
+	ssize_t x;
+
+	x = writev(rdev->hnd, (const struct iovec*)iov, *iovcnt);
+	if (x <= -1)
+	{
+		int eno = errno;
+		if (eno == EINPROGRESS || eno == EWOULDBLOCK || eno == EAGAIN) return 0;
+		if (eno == EINTR) return 0;
+		hio_seterrwithsyserr(hio, 0, eno);
+		return -1;
+	}
+
+	/* the same convention the other writev methods use: the byte count goes
+	 * back through iovcnt */
+	*iovcnt = (hio_iolen_t)x;
+	return 1;
+}
+#endif
 
 /* ========================================================================= */
 
@@ -308,6 +475,9 @@ struct sck_type_map_t
 	hio_bitmask_t extra_dev_cap;
 };
 
+/* not a real address family. it marks the rows whose socket is opened by
+ * open_async_bpf() rather than socket(), the way HIO_AF_QX marks the one opened
+ * by open_async_qx(). */
 #define __AF_BPF 999998
 
 static struct sck_type_map_t sck_type_map[] =
@@ -378,12 +548,18 @@ static struct sck_type_map_t sck_type_map[] =
 	/* HIO_DEV_SCK_ARP_DGRAM - link-level header removed*/
 	{ AF_PACKET,  SOCK_DGRAM,     HIO_CONST_HTON16(HIO_ETHHDR_PROTO_ARP), 0, 0, 0 },
 
-#elif defined(AF_LINK) && (HIO_SIZEOF_STRUCT_SOCKADDR_DL > 0)
-	/* HIO_DEV_SCK_ARP */
-	{ AF_LINK,  SOCK_RAW,         HIO_CONST_HTON16(HIO_ETHHDR_PROTO_ARP), 0, 0, 0 },
+#elif defined(USE_BPF)
+	/* [NOTE] AF_LINK used to be named here, and it cannot work: socket(AF_LINK,
+	 * SOCK_RAW, 0) is EAFNOSUPPORT on freebsd even as root - AF_LINK is an
+	 * address family for interface addresses, not a socket domain. these types
+	 * were dead on the bsds until /dev/bpf was wired in behind them. */
+
+	/* HIO_DEV_SCK_ARP - bpf plus an ethertype filter, so the type keeps the
+	 * meaning the protocol argument gives it on linux */
+	{ __AF_BPF, 0,                HIO_CONST_HTON16(HIO_ETHHDR_PROTO_ARP), 0, 0, 0 },
 
 	/* HIO_DEV_SCK_ARP_DGRAM */
-	{ AF_LINK,  SOCK_DGRAM,       HIO_CONST_HTON16(HIO_ETHHDR_PROTO_ARP), 0, 0, 0 },
+	{ __AF_BPF, 0,                HIO_CONST_HTON16(HIO_ETHHDR_PROTO_ARP), 0, 0, 0 },
 #else
 	{ -1,       0,                0,                 0, 0, 0 },
 	{ -1,       0,                0,                 0, 0, 0 },
@@ -391,16 +567,14 @@ static struct sck_type_map_t sck_type_map[] =
 
 #if defined(AF_PACKET) && (HIO_SIZEOF_STRUCT_SOCKADDR_LL > 0)
 	/* HIO_DEV_SCK_PACKET */
-	{ AF_PACKET,  SOCK_RAW,       HIO_CONST_HTON16(ETH_P_ALL), 0, 0, 0 },
-#elif defined(AF_LINK) && (HIO_SIZEOF_STRUCT_SOCKADDR_DL > 0)
-	/* HIO_DEV_SCK_PACKET */
-	{ AF_LINK,    SOCK_RAW,       HIO_CONST_HTON16(0), 0, 0, 0 },
+	{ AF_PACKET,  SOCK_RAW,       HIO_CONST_HTON16(ETH_P_ALL), 0, 0, 0 }
+#elif defined(USE_BPF)
+	/* HIO_DEV_SCK_PACKET - every frame, so no filter */
+	{ __AF_BPF,   0,              0, 0, 0, 0 }
 #else
-	{ -1,       0,                0,                   0, 0, 0 },
+	{ -1,       0,                0,                   0, 0, 0 }
 #endif
 
-	/* HIO_DEV_SCK_BPF - arp */
-	{ __AF_BPF, 0, 0, 0, 0, 0 } /* not implemented yet */
 };
 
 /* how much read buffer one device of this type needs in a single read.
@@ -508,6 +682,24 @@ static int dev_sck_make (hio_dev_t* dev, void* ctx)
 		goto oops;
 	}
 
+#if defined(USE_BPF)
+	if (HIO_UNLIKELY(sck_type_map[arg->type].domain == __AF_BPF))
+	{
+		bpf_state_t* st;
+		unsigned int bufsize = 0;
+
+		hnd = open_async_bpf(hio, &bufsize);
+		if (hnd == HIO_SYSHND_INVALID) goto oops;
+
+		st = (bpf_state_t*)hio_callocmem(hio, HIO_SIZEOF(*st));
+		if (HIO_UNLIKELY(!st)) { close(hnd); goto oops; }
+		st->capa = bufsize;
+		st->buf = (hio_uint8_t*)hio_allocmem(hio, st->capa);
+		if (HIO_UNLIKELY(!st->buf)) { hio_freemem(hio, st); close(hnd); goto oops; }
+		rdev->bpf_state = st;
+	}
+	else
+#endif
 	if (HIO_UNLIKELY(sck_type_map[arg->type].domain == HIO_AF_QX))
 	{
 		hnd = open_async_qx(hio, &side_chan);
@@ -710,6 +902,16 @@ static int dev_sck_kill (hio_dev_t* dev, int force)
 		rdev->side_chan = HIO_SYSHND_INVALID;
 	}
 
+#if defined(USE_BPF)
+	if (rdev->bpf_state)
+	{
+		bpf_state_t* st = (bpf_state_t*)rdev->bpf_state;
+		if (st->buf) hio_freemem(hio, st->buf);
+		hio_freemem(hio, st);
+		rdev->bpf_state = HIO_NULL;
+	}
+#endif
+
 	HIO_DEBUG2(hio, "SCK(%p) - killed [%d]\n", rdev, (int)hnd);
 	return 0;
 }
@@ -827,13 +1029,6 @@ static int dev_sck_read_stateless (hio_dev_t* dev, void* buf, hio_iolen_t* len, 
 	return 1;
 }
 
-static int dev_sck_read_bpf (hio_dev_t* dev, void* buf, hio_iolen_t* len, hio_devaddr_t* srcaddr)
-{
-	hio_t* hio = dev->hio;
-	/*hio_dev_sck_t* rdev = (hio_dev_sck_t*)dev;*/
-	hio_seterrwithsyserr(hio, 0, HIO_ENOIMPL);
-	return -1;
-}
 
 
 #if defined(ENABLE_SCTP)
@@ -1289,21 +1484,7 @@ static int dev_sck_writev_stateless (hio_dev_t* dev, const hio_iovec_t* iov, hio
 }
 
 /* ------------------------------------------------------------------------------ */
-static int dev_sck_write_bpf (hio_dev_t* dev, const void* data, hio_iolen_t* len, const hio_devaddr_t* dstaddr)
-{
-	hio_t* hio = dev->hio;
-	/*hio_dev_sck_t* rdev = (hio_dev_sck_t*)dev;*/
-	hio_seterrwithsyserr(hio, 0, HIO_ENOIMPL);
-	return -1;
-}
 
-static int dev_sck_writev_bpf (hio_dev_t* dev, const hio_iovec_t* iov, hio_iolen_t* iovcnt, const hio_devaddr_t* dstaddr)
-{
-	hio_t* hio = dev->hio;
-	/*hio_dev_sck_t* rdev = (hio_dev_sck_t*)dev;*/
-	hio_seterrwithsyserr(hio, 0, HIO_ENOIMPL);
-	return -1;
-}
 
 /* ------------------------------------------------------------------------------ */
 #if defined(ENABLE_SCTP)
@@ -1905,6 +2086,51 @@ static int dev_sck_ioctl (hio_dev_t* dev, int cmd, void* arg)
 			#endif
 			}
 
+#if defined(USE_BPF)
+			if (rdev->bpf_state)
+			{
+				/* a bpf device attaches to an interface by name, and what the
+				 * caller gave is the ifindex hio_skad_init_for_eth() puts in an
+				 * L2 address - so it is converted here rather than making the
+				 * caller know which system it is on. */
+				struct ifreq ifr;
+				int ifindex = hio_skad_get_ifindex(&bnd->localaddr);
+
+				HIO_MEMSET(&ifr, 0, HIO_SIZEOF(ifr));
+				if (ifindex <= 0 || !if_indextoname(ifindex, ifr.ifr_name))
+				{
+					hio_seterrbfmt(hio, HIO_EINVAL, "no interface for the given address");
+					return -1;
+				}
+
+				if (ioctl(rdev->hnd, BIOCSETIF, &ifr) <= -1)
+				{
+					hio_seterrbfmtwithsyserr(hio, 0, errno, "unable to attach to %hs", ifr.ifr_name);
+					return -1;
+				}
+
+				/* on linux the protocol argument to socket() is what narrows an
+				 * ARP device to ARP frames. bpf has no such argument, so the
+				 * equivalent is a filter - which keeps the device type meaning
+				 * the same thing on both. */
+				if (sck_type_map[rdev->type].proto != 0)
+				{
+					hio_uint16_t ethtype = hio_ntoh16((hio_uint16_t)sck_type_map[rdev->type].proto);
+					hio_bpf_insn_t prog[4];
+					prog[0].code = 0x28; prog[0].jt = 0; prog[0].jf = 0; prog[0].k = 12;          /* ldh [12] */
+					prog[1].code = 0x15; prog[1].jt = 0; prog[1].jf = 1; prog[1].k = ethtype;     /* jeq #type */
+					prog[2].code = 0x06; prog[2].jt = 0; prog[2].jf = 0; prog[2].k = 0xFFFFFFFFu; /* ret #-1 */
+					prog[3].code = 0x06; prog[3].jt = 0; prog[3].jf = 0; prog[3].k = 0;           /* ret #0 */
+					if (hio_dev_sck_setfilter(rdev, prog, 4) <= -1) return -1;
+				}
+
+				/* the ordinary bind path sets no progress bit either - it
+				 * records the address and returns */
+				rdev->localaddr = bnd->localaddr;
+				return 0;
+			}
+#endif
+
 			x = bind(rdev->hnd, (struct sockaddr*)&bnd->localaddr, hio_skad_get_size(&bnd->localaddr));
 			if (x <= -1)
 			{
@@ -2122,6 +2348,29 @@ fcntl(rdev->hnd, F_SETFL, flags | O_NONBLOCK);
 	return 0;
 }
 
+#if defined(USE_BPF)
+/* the L2 types on a system with no AF_PACKET. a stateless device as far as the
+ * core is concerned - the event callbacks below are the stateless ones - but
+ * reading a run of frames out of one kernel buffer needs its own methods, and
+ * readpending is what makes the run come out one frame at a time. */
+static hio_dev_mth_t dev_mth_sck_bpf =
+{
+	dev_sck_make,
+	dev_sck_kill,
+	HIO_NULL,
+	dev_sck_getsyshnd,
+	HIO_NULL,
+	dev_sck_ioctl,
+
+	dev_sck_read_bpf,
+	dev_sck_write_bpf,
+	dev_sck_writev_bpf,
+	HIO_NULL,                  /* sendfile */
+
+	dev_sck_readpending_bpf
+};
+#endif
+
 static hio_dev_mth_t dev_mth_sck_stateless =
 {
 	dev_sck_make,
@@ -2274,22 +2523,6 @@ static hio_dev_mth_t dev_mth_clisck_sctp_seqpkt =
 };
 #endif
 
-static hio_dev_mth_t dev_mth_sck_bpf =
-{
-	dev_sck_make,
-	dev_sck_kill,
-	HIO_NULL,
-	dev_sck_getsyshnd,
-	HIO_NULL,
-	dev_sck_ioctl,     /* ioctl */
-
-	dev_sck_read_bpf,
-	dev_sck_write_bpf,
-	dev_sck_writev_bpf,
-	HIO_NULL,          /* sendfile */
-
-	HIO_NULL,          /* readpending */
-};
 
 /* ========================================================================= */
 
@@ -2950,36 +3183,9 @@ static hio_dev_evcb_t dev_sck_event_callbacks_qx =
 
 /* ========================================================================= */
 
-static int dev_evcb_sck_ready_bpf (hio_dev_t* dev, int events)
-{
-	hio_t* hio = dev->hio;
-	/*hio_dev_sck_t* rdev = (hio_dev_sck_t*)dev;*/
-	hio_seterrnum(hio, HIO_ENOIMPL);
-	return -1;
-}
 
-static int dev_evcb_sck_on_read_bpf (hio_dev_t* dev, const void* data, hio_iolen_t dlen, const hio_devaddr_t* srcaddr)
-{
-	hio_t* hio = dev->hio;
-	/*hio_dev_sck_t* rdev = (hio_dev_sck_t*)dev;*/
-	hio_seterrnum(hio, HIO_ENOIMPL);
-	return -1;
-}
 
-static int dev_evcb_sck_on_write_bpf (hio_dev_t* dev, hio_iolen_t wrlen, void* wrctx, const hio_devaddr_t* dstaddr)
-{
-	hio_t* hio = dev->hio;
-	/*hio_dev_sck_t* rdev = (hio_dev_sck_t*)dev;*/
-	hio_seterrnum(hio, HIO_ENOIMPL);
-	return -1;
-}
 
-static hio_dev_evcb_t dev_sck_event_callbacks_bpf =
-{
-	dev_evcb_sck_ready_bpf,
-	dev_evcb_sck_on_read_bpf,
-	dev_evcb_sck_on_write_bpf
-};
 
 /* ========================================================================= */
 
@@ -2999,12 +3205,6 @@ hio_dev_sck_t* hio_dev_sck_make (hio_t* hio, hio_oow_t xtnsize, const hio_dev_sc
 			hio, HIO_SIZEOF(hio_dev_sck_t) + xtnsize,
 			&dev_mth_sck_stateless, &dev_sck_event_callbacks_qx, (void*)info);
 	}
-	else if (info->type == HIO_DEV_SCK_BPF)
-	{
-		rdev = (hio_dev_sck_t*)hio_dev_make(
-			hio, HIO_SIZEOF(hio_dev_sck_t) + xtnsize,
-			&dev_mth_sck_bpf, &dev_sck_event_callbacks_bpf, (void*)info);
-	}
 	else if (sck_type_map[info->type].extra_dev_cap & HIO_DEV_CAP_STREAM) /* can't use the IS_STREAM() macro yet */
 	{
 		rdev = (hio_dev_sck_t*)hio_dev_make(
@@ -3022,6 +3222,14 @@ hio_dev_sck_t* hio_dev_sck_make (hio_t* hio, hio_oow_t xtnsize, const hio_dev_sc
 		rdev = (hio_dev_sck_t*)hio_dev_make(
 			hio, HIO_SIZEOF(hio_dev_sck_t) + xtnsize,
 			&dev_mth_sck_sctp_seqpkt, &dev_sck_event_callbacks_sctp_seqpkt, (void*)info);
+	}
+#endif
+#if defined(USE_BPF)
+	else if (sck_type_map[info->type].domain == __AF_BPF)
+	{
+		rdev = (hio_dev_sck_t*)hio_dev_make(
+			hio, HIO_SIZEOF(hio_dev_sck_t) + xtnsize,
+			&dev_mth_sck_bpf, &dev_sck_event_callbacks_stateless, (void*)info);
 	}
 #endif
 	else
@@ -3208,6 +3416,90 @@ int hio_dev_sck_shutdown (hio_dev_sck_t* dev, int how)
 	}
 
 	return 0;
+}
+
+/* ------------------------------------------------------------------------- */
+/* packet filtering                                                          */
+/* ------------------------------------------------------------------------- */
+
+/* SO_ATTACH_FILTER and BIOCSETF take the same instruction, under two names.
+ * asserted rather than assumed - a silent layout mismatch here would hand the
+ * kernel a filter program made of the wrong fields. */
+#if defined(SO_ATTACH_FILTER) && defined(HAVE_LINUX_FILTER_H)
+HIO_STATIC_ASSERT(HIO_SIZEOF(hio_bpf_insn_t) == HIO_SIZEOF(struct sock_filter));
+#elif defined(BIOCSETF) && defined(HAVE_NET_BPF_H)
+HIO_STATIC_ASSERT(HIO_SIZEOF(hio_bpf_insn_t) == HIO_SIZEOF(struct bpf_insn));
+#endif
+
+int hio_dev_sck_setfilter (hio_dev_sck_t* dev, const hio_bpf_insn_t* insns, hio_oow_t ninsns)
+{
+	hio_t* hio = dev->hio;
+
+	if (!insns || ninsns <= 0 || ninsns > 0xFFFF)
+	{
+		hio_seterrbfmt(hio, HIO_EINVAL, "invalid filter program of %zu instruction(s)", ninsns);
+		return -1;
+	}
+
+#if defined(SO_ATTACH_FILTER) && defined(HAVE_LINUX_FILTER_H)
+	{
+		struct sock_fprog prog;
+		prog.len = (unsigned short)ninsns;
+		/* the cast is the point of the assertion above */
+		prog.filter = (struct sock_filter*)insns;
+		if (setsockopt(dev->hnd, SOL_SOCKET, SO_ATTACH_FILTER, &prog, HIO_SIZEOF(prog)) <= -1)
+		{
+			hio_seterrwithsyserr(hio, 0, errno);
+			return -1;
+		}
+		return 0;
+	}
+#elif defined(BIOCSETF) && defined(HAVE_NET_BPF_H)
+	{
+		struct bpf_program prog;
+		prog.bf_len = (unsigned int)ninsns;
+		prog.bf_insns = (struct bpf_insn*)insns;
+		if (ioctl(dev->hnd, BIOCSETF, &prog) <= -1)
+		{
+			hio_seterrwithsyserr(hio, 0, errno);
+			return -1;
+		}
+		return 0;
+	}
+#else
+	hio_seterrbfmt(hio, HIO_ENOIMPL, "packet filtering not supported");
+	return -1;
+#endif
+}
+
+int hio_dev_sck_clearfilter (hio_dev_sck_t* dev)
+{
+	/* HIO_UNUSED because the bsd branch below reaches its answer through
+	 * hio_dev_sck_setfilter() and never touches hio itself */
+	hio_t* hio HIO_UNUSED = dev->hio;
+
+#if defined(SO_DETACH_FILTER)
+	{
+		int dummy = 0;
+		if (setsockopt(dev->hnd, SOL_SOCKET, SO_DETACH_FILTER, &dummy, HIO_SIZEOF(dummy)) <= -1)
+		{
+			hio_seterrwithsyserr(hio, 0, errno);
+			return -1;
+		}
+		return 0;
+	}
+#elif defined(BIOCSETF) && defined(HAVE_NET_BPF_H)
+	{
+		/* no detach ioctl on the bsds. a one-instruction program that returns
+		 * the largest possible snap length accepts everything, which is what
+		 * having no filter means. */
+		static const hio_bpf_insn_t accept_all[] = { { 0x06, 0, 0, 0xFFFFFFFFu } };
+		return hio_dev_sck_setfilter(dev, accept_all, 1);
+	}
+#else
+	hio_seterrbfmt(hio, HIO_ENOIMPL, "packet filtering not supported");
+	return -1;
+#endif
 }
 
 /* ------------------------------------------------------------------------- */

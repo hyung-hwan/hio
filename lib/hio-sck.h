@@ -342,11 +342,17 @@ enum hio_dev_sck_type_t
 	HIO_DEV_SCK_ARP,
 	HIO_DEV_SCK_ARP_DGRAM,
 
-	/* raw L2-level packet */
-	HIO_DEV_SCK_PACKET,
-
-	/* bpf socket */
-	HIO_DEV_SCK_BPF
+	/* raw L2-level packet.
+	 *
+	 * [NOTE] there used to be a HIO_DEV_SCK_BPF beside this, which was a
+	 * mistake: /dev/bpf is not a different kind of device, it is how a bsd
+	 * does what AF_PACKET does on linux. exposing both as types would have
+	 * made portable code choose between them with an #ifdef, which is the
+	 * opposite of what this enum is for. the platform difference belongs in
+	 * sck_type_map and dev_sck_make, where the AF_PACKET/AF_LINK split
+	 * already lives - and where hio_skad_init_for_eth() puts the matching
+	 * address difference. */
+	HIO_DEV_SCK_PACKET
 };
 typedef enum hio_dev_sck_type_t hio_dev_sck_type_t;
 
@@ -492,6 +498,11 @@ struct hio_dev_sck_t
 	/* set while a message too large for the read buffer is being thrown away.
 	 * see the MSG_EOR handling in the sctp seqpacket read method. */
 	int sctp_discarding;
+
+	/* opaque per-device state for the /dev/bpf implementation of the L2 device
+	 * types, used where the system has no AF_PACKET. null everywhere else.
+	 * opaque so that this header need not know what a bpf device is. */
+	void* bpf_state;
 };
 
 enum hio_dev_sck_shutdown_how_t
@@ -678,6 +689,49 @@ HIO_EXPORT int hio_dev_sck_leavemcastgroup (
 HIO_EXPORT int hio_dev_sck_shutdown (
 	hio_dev_sck_t* dev,
 	int            how  /* bitwise-ORed of hio_dev_sck_shutdown_how_t enumerators */
+);
+
+/**
+ * One classic-BPF instruction, for hio_dev_sck_setfilter().
+ *
+ * The layout is identical wherever this exists - struct sock_filter on Linux,
+ * struct bpf_insn on the BSDs - and the opcodes are architecture-independent,
+ * so a filter written once is portable. sck.c asserts the layout match at
+ * compile time rather than trusting this comment.
+ */
+typedef struct hio_bpf_insn_t hio_bpf_insn_t;
+struct hio_bpf_insn_t
+{
+	hio_uint16_t code;
+	hio_uint8_t  jt;
+	hio_uint8_t  jf;
+	hio_uint32_t k;
+};
+
+/**
+ * The hio_dev_sck_setfilter() function attaches a packet filter, so that the
+ * kernel drops what the caller is not interested in instead of waking the loop
+ * for every frame on the wire. Without one, a capture device sees everything -
+ * which on a busy interface is most of the cost of capturing at all.
+ *
+ * It is the same facility under two names: SO_ATTACH_FILTER on Linux, BIOCSETF
+ * on the BSDs. Replacing a filter is just calling this again.
+ *
+ * Fails with #HIO_ENOIMPL where the system offers neither.
+ */
+HIO_EXPORT int hio_dev_sck_setfilter (
+	hio_dev_sck_t*          dev,
+	const hio_bpf_insn_t*   insns,
+	hio_oow_t               ninsns
+);
+
+/**
+ * The hio_dev_sck_clearfilter() function removes what
+ * hio_dev_sck_setfilter() attached, so that everything reaches the device
+ * again.
+ */
+HIO_EXPORT int hio_dev_sck_clearfilter (
+	hio_dev_sck_t*          dev
 );
 
 /**

@@ -188,6 +188,9 @@ AC_CHECK_HEADERS([net/if.h net/if_dl.h netinet/if_ether.h netpacket/packet.h net
 	#include <sys/types.h>
 	#include <sys/socket.h>])
 AC_CHECK_HEADERS([sys/stropts.h sys/macstat.h linux/ethtool.h linux/sockios.h])
+dnl linux/filter.h carries struct sock_fprog, which SO_ATTACH_FILTER takes.
+dnl the bsds spell the same thing BIOCSETF over struct bpf_program in net/bpf.h.
+AC_CHECK_HEADERS([linux/filter.h])
 AC_CHECK_HEADERS([quadmath.h crt_externs.h sys/prctl.h paths.h pty.h])
 
 dnl check data types

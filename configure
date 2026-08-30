@@ -16525,6 +16525,13 @@ then :
 
 fi
 
+ac_fn_c_check_header_compile "$LINENO" "linux/filter.h" "ac_cv_header_linux_filter_h" "$ac_includes_default"
+if test "x$ac_cv_header_linux_filter_h" = xyes
+then :
+  printf "%s\n" "#define HAVE_LINUX_FILTER_H 1" >>confdefs.h
+
+fi
+
 ac_fn_c_check_header_compile "$LINENO" "quadmath.h" "ac_cv_header_quadmath_h" "$ac_includes_default"
 if test "x$ac_cv_header_quadmath_h" = xyes
 then :
