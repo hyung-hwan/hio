@@ -1,5 +1,9 @@
 /*
- * L2 (link-layer) socket tests.
+ * raw socket tests - the types that need CAP_NET_RAW.
+ *
+ * the link-layer ones below, and ICMP at the end, which came from bin/t01.c and
+ * lives here rather than with the other device tests because it needs the same
+ * privilege and the same private network these do.
  *
  * HIO_DEV_SCK_PACKET and the two ARP types capture and inject raw frames. The
  * device type is one thing; how it is opened is not. On Linux it is an
@@ -68,8 +72,8 @@ static void fill_make (hio_dev_sck_make_t* mi, hio_dev_sck_type_t type)
 	mi->on_write = on_write;
 }
 
-/* run the loop until 'want' frames have arrived, or two seconds pass */
-static void run_until_frames (int want)
+/* run the loop until the counter reaches 'want', or two seconds pass */
+static void run_until_count (int* counter, int want)
 {
 	hio_tmrjob_t j;
 
@@ -81,7 +85,7 @@ static void run_until_frames (int want)
 	j.idxptr = &g_tmr;
 	g_tmr = hio_instmrjob(g_hio, &j);
 
-	while (g_frames < want && !g_timeout)
+	while (*counter < want && !g_timeout)
 	{
 		if (hio_exec(g_hio) <= -1) break;
 	}
@@ -140,7 +144,7 @@ static void test_packet_device (void)
 
 	g_frames = 0;
 	emit_traffic ();
-	run_until_frames (1);
+	run_until_count (&g_frames, 1);
 	OK (g_frames > 0, "and captures frames from it");
 
 	hio_dev_sck_halt (d);
@@ -172,7 +176,7 @@ static void test_arp_devices (void)
 		 * means the same thing. */
 		g_frames = 0;
 		emit_traffic ();
-		run_until_frames (1);
+		run_until_count (&g_frames, 1);
 		OK (g_frames == 0, "and an arp device sees no non-arp traffic");
 
 		hio_dev_sck_halt (d);
@@ -215,7 +219,7 @@ static void test_filter (void)
 
 	g_frames = 0;
 	emit_traffic ();
-	run_until_frames (1);
+	run_until_count (&g_frames, 1);
 	filtered = (g_frames == 0);
 	OK (filtered, "and a drop-everything filter drops everything");
 
@@ -226,7 +230,7 @@ static void test_filter (void)
 	{
 		g_frames = 0;
 		emit_traffic ();
-		run_until_frames (1);
+		run_until_count (&g_frames, 1);
 		OK (g_frames > 0, "and clearing it lets traffic through again");
 	}
 
@@ -251,6 +255,77 @@ static void test_filter_refusals (void)
 	OK (hio_dev_sck_setfilter(d, HIO_NULL, 1) <= -1 && hio_geterrnum(g_hio) == HIO_EINVAL,
 	    "and so is a null one");
 
+	hio_dev_sck_halt (d);
+	hio_exec (g_hio);
+}
+
+/* ------------------------------------------------------------------ */
+/* icmp                                                                */
+
+/* a raw ICMP socket at the IP layer rather than the link layer. the echo it
+ * sends to the loopback address comes back to it, which is the whole contract:
+ * the device carries a datagram out and the reply in, and the header the caller
+ * built is the header that went on the wire. */
+
+static int g_icmp_replies;
+
+static int icmp_on_read (hio_dev_sck_t* sck, const void* data, hio_iolen_t dlen, const hio_skad_t* srcaddr)
+{
+	const hio_uint8_t* p = (const hio_uint8_t*)data;
+	const hio_icmphdr_t* ih;
+	hio_oow_t iphlen;
+
+	/* a raw ip socket hands over the ip header too, whose length is in the low
+	 * nibble of the first octet, counted in 32-bit words */
+	if (dlen < 20) return 0;
+	iphlen = (p[0] & 0x0F) * 4;
+	if ((hio_oow_t)dlen < iphlen + HIO_SIZEOF(*ih)) return 0;
+
+	ih = (const hio_icmphdr_t*)(p + iphlen);
+	if (ih->type == HIO_ICMP_ECHO_REPLY && hio_ntoh16(ih->u.echo.id) == 0x4242) g_icmp_replies++;
+	return 0;
+}
+
+static void test_icmp (void)
+{
+	hio_dev_sck_make_t mi;
+	hio_dev_sck_t* d;
+	hio_skad_t dst;
+	hio_uint8_t buf[64];
+	hio_icmphdr_t* ih;
+
+	g_icmp_replies = 0;
+
+	HIO_MEMSET (&mi, 0, HIO_SIZEOF(mi));
+	mi.type = HIO_DEV_SCK_ICMP4;
+	mi.on_read = icmp_on_read;
+	mi.on_write = on_write;
+	d = hio_dev_sck_make(g_hio, 0, &mi);
+	if (!d) { FAIL ("an icmp device can be made"); skip ("no icmp device", 1); return; }
+	PASS ("an icmp device can be made");
+
+	if (hio_bcstrtoskad(g_hio, "127.0.0.1", &dst) <= -1) { skip ("bad address", 1); goto done; }
+
+	HIO_MEMSET (buf, 0, HIO_SIZEOF(buf));
+	ih = (hio_icmphdr_t*)buf;
+	ih->type = HIO_ICMP_ECHO_REQUEST;
+	ih->u.echo.id = HIO_CONST_HTON16(0x4242);
+	ih->u.echo.seq = HIO_CONST_HTON16(1);
+	HIO_MEMSET (&buf[HIO_SIZEOF(*ih)], 'A', HIO_SIZEOF(buf) - HIO_SIZEOF(*ih));
+	/* the kernel does not fill this in for a raw socket - a wrong one is
+	 * dropped silently by the far end, so getting a reply proves it is right */
+	ih->checksum = hio_checksum_ip(ih, HIO_SIZEOF(buf));
+
+	if (hio_dev_sck_write(d, buf, HIO_SIZEOF(buf), HIO_NULL, &dst) <= -1)
+	{
+		FAIL ("and an echo request to it comes back as a reply");
+		goto done;
+	}
+
+	run_until_count (&g_icmp_replies, 1);
+	OK (g_icmp_replies > 0, "and an echo request to it comes back as a reply");
+
+done:
 	hio_dev_sck_halt (d);
 	hio_exec (g_hio);
 }
@@ -315,6 +390,7 @@ int main (int argc, char* argv[])
 	test_arp_devices ();
 	test_filter ();
 	test_filter_refusals ();
+	test_icmp ();
 
 	hio_close (g_hio);
 	return exit_status();

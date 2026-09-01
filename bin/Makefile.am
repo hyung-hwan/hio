@@ -51,42 +51,17 @@ hio_webs_LDADD = $(LIBADD_COMMON) $(LIBADD_ALL_STATIC)
 
 # -------------------------------------------------
 
-noinst_PROGRAMS = hio-t01
-hio_t01_SOURCES = t01.c
-hio_t01_CPPFLAGS = $(CPPFLAGS_COMMON)
-hio_t01_CFLAGS = $(CFLAGS_COMMON)
-hio_t01_LDFLAGS = $(LDFLAGS_COMMON)
-hio_t01_LDADD = $(LIBADD_COMMON) 
-
-noinst_PROGRAMS += hio-t02
-hio_t02_SOURCES = t02.c
-hio_t02_CPPFLAGS = $(CPPFLAGS_COMMON)
-hio_t02_CFLAGS = $(CFLAGS_COMMON)
-hio_t02_LDFLAGS = $(LDFLAGS_COMMON)
-hio_t02_LDADD = $(LIBADD_COMMON)
-
-noinst_PROGRAMS += hio-t03
-hio_t03_SOURCES = t03.c
-hio_t03_CPPFLAGS = $(CPPFLAGS_COMMON)
-hio_t03_CFLAGS = $(CFLAGS_COMMON)
-hio_t03_LDFLAGS = $(LDFLAGS_COMMON)
-hio_t03_LDADD = $(LIBADD_COMMON)
-
-noinst_PROGRAMS += hio-t04
-hio_t04_SOURCES = t04.c
-hio_t04_CPPFLAGS = $(CPPFLAGS_COMMON)
-hio_t04_CFLAGS = $(CFLAGS_COMMON)
-hio_t04_LDFLAGS = $(LDFLAGS_COMMON)
-hio_t04_LDADD = $(LIBADD_COMMON)
-if ENABLE_MARIADB
-hio_t04_CFLAGS += $(MARIADB_CFLAGS)  
-hio_t04_LDFLAGS += $(MARIADB_LDFLAGS)  
-hio_t04_LDADD += $(MARIADB_LIBS)  
-endif
-
-noinst_PROGRAMS += hio-t05
-hio_t05_SOURCES = t05.c
-hio_t05_CPPFLAGS = $(CPPFLAGS_COMMON)
-hio_t05_CFLAGS = $(CFLAGS_COMMON)
-hio_t05_LDFLAGS = $(LDFLAGS_COMMON)
-hio_t05_LDADD = $(LIBADD_COMMON)
+## [NOTE] hio-t01 through hio-t05 were retired. they exercised the library by
+## printing what happened and leaving a human to judge it, and none of them was
+## built by the default target or run by anything. what each uniquely covered
+## now has a test that judges for itself:
+##
+##   t01  pipe, thread, process devices, dns client  -> t/t-014.c
+##        icmp                                       -> t/t-013.c
+##   t02  hio_dev_timedwrite                         -> t/t-008.c
+##   t03  the json reader                            -> t/t-015.c
+##   t04  the mariadb device                         -> t/t-016.c
+##   t05  the pty device                             -> t/t-014.c
+##
+## everything else they touched - sockets, tls, the http tasks - was already
+## covered elsewhere by the time they were removed.

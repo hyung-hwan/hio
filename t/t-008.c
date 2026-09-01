@@ -10,6 +10,7 @@
  * right *number* of bytes can still deliver the wrong ones.
  */
 
+#include <stdio.h>
 #include <hio-prv.h>
 #include <sys/socket.h>
 #include <sys/uio.h>
@@ -415,6 +416,84 @@ static void test_short_writes_then_queue (void)
 	close (peerfd);
 }
 
+/* a write with a deadline on it. the only thing that distinguishes it from an
+ * ordinary write is what happens when the queue does not drain in time, so both
+ * outcomes are checked - a deadline that is met changes nothing, and one that is
+ * missed reports the request as failed rather than leaving it queued forever.
+ *
+ * this is the one thing bin/t02.c exercised that nothing else did. it used the
+ * socket spelling, hio_dev_sck_timedwrite(); the behaviour is the core's, so it
+ * is tested here on the write path with the rest of it. */
+static void test_timedwrite_met (void)
+{
+	tdev_t* dev;
+	int peerfd;
+	hio_ntime_t tmout;
+	int rc;
+
+	obs_reset ();
+	g_wr_chunk = 0;
+	g_wr_calls_left = 100;    /* accepts everything, so the deadline is met */
+
+	dev = make_tdev(&peerfd);
+	if (!dev) { skip ("device creation failed", 2); return; }
+
+	HIO_INIT_NTIME (&tmout, 5, 0);
+	rc = hio_dev_timedwrite((hio_dev_t*)dev, g_pattern, PATLEN, &tmout, (void*)0x81, HIO_NULL);
+	OK (rc == 0, "a timed write returns 0 like any other");
+
+	pump ();
+	OK (g_cw_n == 1 && g_cw_len[0] == PATLEN && g_cw_ctx[0] == (void*)0x81,
+	    "and completes normally when its deadline is met");
+
+	hio_dev_kill ((hio_dev_t*)dev);
+	close (peerfd);
+}
+
+static void test_timedwrite_missed (void)
+{
+	tdev_t* dev;
+	int peerfd;
+	hio_ntime_t tmout;
+
+	obs_reset ();
+	g_wr_chunk = 0;
+	g_wr_calls_left = 0;      /* refuse everything, so the queue cannot drain */
+
+	dev = make_tdev(&peerfd);
+	if (!dev) { skip ("device creation failed", 3); return; }
+
+	HIO_INIT_NTIME (&tmout, 0, 50000000); /* 50ms */
+	OK (hio_dev_timedwrite((hio_dev_t*)dev, g_pattern, PATLEN, &tmout, (void*)0x82, HIO_NULL) == 0,
+	    "a timed write that cannot go out at once is queued");
+	OK (g_cw_n == 0, "and nothing is reported while its deadline has not passed");
+
+	/* the transport stays shut, so only the deadline can end this - and the
+	 * deadline is wall-clock, which pump() does not advance: this device's
+	 * descriptor is always writable, so the multiplexer returns at once and a
+	 * pump costs no measurable time. waiting on the clock is the point here. */
+	{
+		hio_ntime_t start, now;
+		hio_gettime (g_hio, &start);
+		for (;;)
+		{
+			hio_exec (g_hio);
+			if (g_cw_n > 0) break;
+			hio_gettime (g_hio, &now);
+			HIO_SUB_NTIME (&now, &now, &start);
+			if (now.sec >= 2) break; /* far past the 50ms deadline */
+		}
+	}
+
+	/* a negative length is how the write path reports a request that failed,
+	 * which is what distinguishes a timeout from a delivery */
+	OK (g_cw_n == 1 && g_cw_len[0] <= -1,
+	    "and a missed deadline reports the request as failed rather than leaving it queued");
+
+	hio_dev_kill ((hio_dev_t*)dev);
+	close (peerfd);
+}
+
 static void test_eagain_queues (void)
 {
 	tdev_t* dev;
@@ -781,6 +860,8 @@ int main (void)
 	test_short_write_no_queue ();
 	test_short_writes_then_queue ();
 	test_eagain_queues ();
+	test_timedwrite_met ();
+	test_timedwrite_missed ();
 	test_queue_drains_in_slices ();
 	test_writev ();
 	test_completion_ordering ();

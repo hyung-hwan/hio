@@ -104,7 +104,8 @@ hio_svc_marc_t* hio_svc_marc_start (hio_t* hio, const hio_svc_marc_connect_t* ci
 	if (HIO_UNLIKELY(!marc->edev)) goto oops;
 
 	marc->hio = hio;
-	marc->svc_stop = hio_svc_marc_stop;
+	/* cast as every other service does - svc_stop takes hio_svc_t* */
+	marc->svc_stop = (hio_svc_stop_t)hio_svc_marc_stop;
 	marc->ci = *ci;
 	if (tmout)
 	{
@@ -328,7 +329,7 @@ static void mar_on_query_started (hio_dev_mar_t* dev, int mar_ret, const hio_bch
 			if (hio_dev_mar_fetchrows(dev) <= -1)
 			{
 /*printf ("FETCH ROW FAILURE - %s\n", mysql_error(dev->hnd));*/
-				hio_dev_mar_hal (dev);
+				hio_dev_mar_halt(dev);
 			}
 		}
 		else

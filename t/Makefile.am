@@ -18,7 +18,7 @@ check_SCRIPTS = s-001.sh s-002.sh
 EXTRA_DIST = $(check_SCRIPTS) tap.inc t-cgi.sh
 
 ## programs run as tests
-TESTPROGS = t-001 t-002 t-003 t-004 t-005 t-006 t-007 t-008 t-009 t-010 t-011 t-012 t-013
+TESTPROGS = t-001 t-002 t-003 t-004 t-005 t-006 t-007 t-008 t-009 t-010 t-011 t-012 t-013 t-014 t-015 t-016
 
 ## helpers the test scripts drive. built with the tests, but not tests
 ## themselves - they are servers and would never exit.
@@ -115,6 +115,39 @@ t_013_CPPFLAGS = $(CPPFLAGS_COMMON)
 t_013_CFLAGS = $(CFLAGS_COMMON)
 t_013_LDFLAGS = $(LDFLAGS_COMMON)
 t_013_LDADD = $(LIBADD_COMMON)
+
+## t-014 covers the device types that had no test of their own - pipe, thread
+## and process - and the dns client's failure path. it is what was worth keeping
+## from bin/t01.c, which covered them by printing and leaving a human to judge.
+t_014_SOURCES = t-014.c tap.h
+t_014_CPPFLAGS = $(CPPFLAGS_COMMON)
+t_014_CFLAGS = $(CFLAGS_COMMON)
+t_014_LDFLAGS = $(LDFLAGS_COMMON)
+t_014_LDADD = $(LIBADD_COMMON)
+
+## t-015 covers the json reader. it is pure - no sockets, no privilege, no
+## timing - so it is checked exactly, against the instruction stream the grammar
+## says each document should produce. from bin/t03.c.
+t_015_SOURCES = t-015.c tap.h
+t_015_CPPFLAGS = $(CPPFLAGS_COMMON)
+t_015_CFLAGS = $(CFLAGS_COMMON)
+t_015_LDFLAGS = $(LDFLAGS_COMMON)
+t_015_LDADD = $(LIBADD_COMMON)
+
+## t-016 covers the mariadb device. a server cannot be assumed, so it tests what
+## needs none - the failed connect and the escaping - and reaches for a real one
+## only when the environment names it. skips entirely without --enable-mariadb.
+## from bin/t04.c, which took connection details on the command line.
+t_016_SOURCES = t-016.c tap.h
+t_016_CPPFLAGS = $(CPPFLAGS_COMMON)
+t_016_CFLAGS = $(CFLAGS_COMMON)
+t_016_LDFLAGS = $(LDFLAGS_COMMON)
+t_016_LDADD = $(LIBADD_COMMON)
+if ENABLE_MARIADB
+t_016_CFLAGS += $(MARIADB_CFLAGS)
+t_016_LDFLAGS += $(MARIADB_LDFLAGS)
+t_016_LDADD += $(MARIADB_LIBS)
+endif
 
 ## a minimal FastCGI responder, driven by s-002.sh
 fcgis_SOURCES = fcgis.c

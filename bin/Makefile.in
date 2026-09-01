@@ -93,11 +93,6 @@ host_triplet = @host@
 bin_PROGRAMS = hio-execd$(EXEEXT) $(am__EXEEXT_1) hio-untar$(EXEEXT) \
 	hio-webs$(EXEEXT)
 @HAVE_X11_LIB_TRUE@am__append_1 = hio-te
-noinst_PROGRAMS = hio-t01$(EXEEXT) hio-t02$(EXEEXT) hio-t03$(EXEEXT) \
-	hio-t04$(EXEEXT) hio-t05$(EXEEXT)
-@ENABLE_MARIADB_TRUE@am__append_2 = $(MARIADB_CFLAGS)  
-@ENABLE_MARIADB_TRUE@am__append_3 = $(MARIADB_LDFLAGS)  
-@ENABLE_MARIADB_TRUE@am__append_4 = $(MARIADB_LIBS)  
 subdir = bin
 ACLOCAL_M4 = $(top_srcdir)/aclocal.m4
 am__aclocal_m4_deps = $(top_srcdir)/m4/ax_check_sign.m4 \
@@ -115,7 +110,7 @@ CONFIG_CLEAN_FILES =
 CONFIG_CLEAN_VPATH_FILES =
 @HAVE_X11_LIB_TRUE@am__EXEEXT_1 = hio-te$(EXEEXT)
 am__installdirs = "$(DESTDIR)$(bindir)"
-PROGRAMS = $(bin_PROGRAMS) $(noinst_PROGRAMS)
+PROGRAMS = $(bin_PROGRAMS)
 am_hio_execd_OBJECTS = hio_execd-execd.$(OBJEXT)
 hio_execd_OBJECTS = $(am_hio_execd_OBJECTS)
 hio_execd_DEPENDENCIES = $(LIBADD_COMMON)
@@ -126,38 +121,6 @@ am__v_lt_1 =
 hio_execd_LINK = $(LIBTOOL) $(AM_V_lt) --tag=CC $(AM_LIBTOOLFLAGS) \
 	$(LIBTOOLFLAGS) --mode=link $(CCLD) $(hio_execd_CFLAGS) \
 	$(CFLAGS) $(hio_execd_LDFLAGS) $(LDFLAGS) -o $@
-am_hio_t01_OBJECTS = hio_t01-t01.$(OBJEXT)
-hio_t01_OBJECTS = $(am_hio_t01_OBJECTS)
-hio_t01_DEPENDENCIES = $(LIBADD_COMMON)
-hio_t01_LINK = $(LIBTOOL) $(AM_V_lt) --tag=CC $(AM_LIBTOOLFLAGS) \
-	$(LIBTOOLFLAGS) --mode=link $(CCLD) $(hio_t01_CFLAGS) \
-	$(CFLAGS) $(hio_t01_LDFLAGS) $(LDFLAGS) -o $@
-am_hio_t02_OBJECTS = hio_t02-t02.$(OBJEXT)
-hio_t02_OBJECTS = $(am_hio_t02_OBJECTS)
-hio_t02_DEPENDENCIES = $(LIBADD_COMMON)
-hio_t02_LINK = $(LIBTOOL) $(AM_V_lt) --tag=CC $(AM_LIBTOOLFLAGS) \
-	$(LIBTOOLFLAGS) --mode=link $(CCLD) $(hio_t02_CFLAGS) \
-	$(CFLAGS) $(hio_t02_LDFLAGS) $(LDFLAGS) -o $@
-am_hio_t03_OBJECTS = hio_t03-t03.$(OBJEXT)
-hio_t03_OBJECTS = $(am_hio_t03_OBJECTS)
-hio_t03_DEPENDENCIES = $(LIBADD_COMMON)
-hio_t03_LINK = $(LIBTOOL) $(AM_V_lt) --tag=CC $(AM_LIBTOOLFLAGS) \
-	$(LIBTOOLFLAGS) --mode=link $(CCLD) $(hio_t03_CFLAGS) \
-	$(CFLAGS) $(hio_t03_LDFLAGS) $(LDFLAGS) -o $@
-am_hio_t04_OBJECTS = hio_t04-t04.$(OBJEXT)
-hio_t04_OBJECTS = $(am_hio_t04_OBJECTS)
-am__DEPENDENCIES_1 =
-@ENABLE_MARIADB_TRUE@am__DEPENDENCIES_2 = $(am__DEPENDENCIES_1)
-hio_t04_DEPENDENCIES = $(LIBADD_COMMON) $(am__DEPENDENCIES_2)
-hio_t04_LINK = $(LIBTOOL) $(AM_V_lt) --tag=CC $(AM_LIBTOOLFLAGS) \
-	$(LIBTOOLFLAGS) --mode=link $(CCLD) $(hio_t04_CFLAGS) \
-	$(CFLAGS) $(hio_t04_LDFLAGS) $(LDFLAGS) -o $@
-am_hio_t05_OBJECTS = hio_t05-t05.$(OBJEXT)
-hio_t05_OBJECTS = $(am_hio_t05_OBJECTS)
-hio_t05_DEPENDENCIES = $(LIBADD_COMMON)
-hio_t05_LINK = $(LIBTOOL) $(AM_V_lt) --tag=CC $(AM_LIBTOOLFLAGS) \
-	$(LIBTOOLFLAGS) --mode=link $(CCLD) $(hio_t05_CFLAGS) \
-	$(CFLAGS) $(hio_t05_LDFLAGS) $(LDFLAGS) -o $@
 am__hio_te_SOURCES_DIST = te.c
 @HAVE_X11_LIB_TRUE@am_hio_te_OBJECTS = hio_te-te.$(OBJEXT)
 hio_te_OBJECTS = $(am_hio_te_OBJECTS)
@@ -173,6 +136,7 @@ hio_untar_LINK = $(LIBTOOL) $(AM_V_lt) --tag=CC $(AM_LIBTOOLFLAGS) \
 	$(CFLAGS) $(hio_untar_LDFLAGS) $(LDFLAGS) -o $@
 am_hio_webs_OBJECTS = hio_webs-webs.$(OBJEXT)
 hio_webs_OBJECTS = $(am_hio_webs_OBJECTS)
+am__DEPENDENCIES_1 =
 hio_webs_DEPENDENCIES = $(LIBADD_COMMON) $(am__DEPENDENCIES_1)
 hio_webs_LINK = $(LIBTOOL) $(AM_V_lt) --tag=CC $(AM_LIBTOOLFLAGS) \
 	$(LIBTOOLFLAGS) --mode=link $(CCLD) $(hio_webs_CFLAGS) \
@@ -193,10 +157,8 @@ DEFAULT_INCLUDES =
 depcomp = $(SHELL) $(top_srcdir)/ac/depcomp
 am__maybe_remake_depfiles = depfiles
 am__depfiles_remade = ./$(DEPDIR)/hio_execd-execd.Po \
-	./$(DEPDIR)/hio_t01-t01.Po ./$(DEPDIR)/hio_t02-t02.Po \
-	./$(DEPDIR)/hio_t03-t03.Po ./$(DEPDIR)/hio_t04-t04.Po \
-	./$(DEPDIR)/hio_t05-t05.Po ./$(DEPDIR)/hio_te-te.Po \
-	./$(DEPDIR)/hio_untar-untar.Po ./$(DEPDIR)/hio_webs-webs.Po
+	./$(DEPDIR)/hio_te-te.Po ./$(DEPDIR)/hio_untar-untar.Po \
+	./$(DEPDIR)/hio_webs-webs.Po
 am__mv = mv -f
 COMPILE = $(CC) $(DEFS) $(DEFAULT_INCLUDES) $(INCLUDES) $(AM_CPPFLAGS) \
 	$(CPPFLAGS) $(AM_CFLAGS) $(CFLAGS)
@@ -216,12 +178,9 @@ AM_V_CCLD = $(am__v_CCLD_@AM_V@)
 am__v_CCLD_ = $(am__v_CCLD_@AM_DEFAULT_V@)
 am__v_CCLD_0 = @echo "  CCLD    " $@;
 am__v_CCLD_1 = 
-SOURCES = $(hio_execd_SOURCES) $(hio_t01_SOURCES) $(hio_t02_SOURCES) \
-	$(hio_t03_SOURCES) $(hio_t04_SOURCES) $(hio_t05_SOURCES) \
-	$(hio_te_SOURCES) $(hio_untar_SOURCES) $(hio_webs_SOURCES)
-DIST_SOURCES = $(hio_execd_SOURCES) $(hio_t01_SOURCES) \
-	$(hio_t02_SOURCES) $(hio_t03_SOURCES) $(hio_t04_SOURCES) \
-	$(hio_t05_SOURCES) $(am__hio_te_SOURCES_DIST) \
+SOURCES = $(hio_execd_SOURCES) $(hio_te_SOURCES) $(hio_untar_SOURCES) \
+	$(hio_webs_SOURCES)
+DIST_SOURCES = $(hio_execd_SOURCES) $(am__hio_te_SOURCES_DIST) \
 	$(hio_untar_SOURCES) $(hio_webs_SOURCES)
 am__can_run_installinfo = \
   case $$AM_UPDATE_INFO_DIR in \
@@ -429,31 +388,6 @@ hio_webs_CPPFLAGS = $(CPPFLAGS_COMMON)
 hio_webs_CFLAGS = $(CFLAGS_COMMON)
 hio_webs_LDFLAGS = $(LDFLAGS_COMMON) $(LDFLAGS_ALL_STATIC)
 hio_webs_LDADD = $(LIBADD_COMMON) $(LIBADD_ALL_STATIC)
-hio_t01_SOURCES = t01.c
-hio_t01_CPPFLAGS = $(CPPFLAGS_COMMON)
-hio_t01_CFLAGS = $(CFLAGS_COMMON)
-hio_t01_LDFLAGS = $(LDFLAGS_COMMON)
-hio_t01_LDADD = $(LIBADD_COMMON) 
-hio_t02_SOURCES = t02.c
-hio_t02_CPPFLAGS = $(CPPFLAGS_COMMON)
-hio_t02_CFLAGS = $(CFLAGS_COMMON)
-hio_t02_LDFLAGS = $(LDFLAGS_COMMON)
-hio_t02_LDADD = $(LIBADD_COMMON)
-hio_t03_SOURCES = t03.c
-hio_t03_CPPFLAGS = $(CPPFLAGS_COMMON)
-hio_t03_CFLAGS = $(CFLAGS_COMMON)
-hio_t03_LDFLAGS = $(LDFLAGS_COMMON)
-hio_t03_LDADD = $(LIBADD_COMMON)
-hio_t04_SOURCES = t04.c
-hio_t04_CPPFLAGS = $(CPPFLAGS_COMMON)
-hio_t04_CFLAGS = $(CFLAGS_COMMON) $(am__append_2)
-hio_t04_LDFLAGS = $(LDFLAGS_COMMON) $(am__append_3)
-hio_t04_LDADD = $(LIBADD_COMMON) $(am__append_4)
-hio_t05_SOURCES = t05.c
-hio_t05_CPPFLAGS = $(CPPFLAGS_COMMON)
-hio_t05_CFLAGS = $(CFLAGS_COMMON)
-hio_t05_LDFLAGS = $(LDFLAGS_COMMON)
-hio_t05_LDADD = $(LIBADD_COMMON)
 all: all-am
 
 .SUFFIXES:
@@ -532,33 +466,9 @@ clean-binPROGRAMS:
 	$(am__rm_f) $(bin_PROGRAMS)
 	test -z "$(EXEEXT)" || $(am__rm_f) $(bin_PROGRAMS:$(EXEEXT)=)
 
-clean-noinstPROGRAMS:
-	$(am__rm_f) $(noinst_PROGRAMS)
-	test -z "$(EXEEXT)" || $(am__rm_f) $(noinst_PROGRAMS:$(EXEEXT)=)
-
 hio-execd$(EXEEXT): $(hio_execd_OBJECTS) $(hio_execd_DEPENDENCIES) $(EXTRA_hio_execd_DEPENDENCIES) 
 	@rm -f hio-execd$(EXEEXT)
 	$(AM_V_CCLD)$(hio_execd_LINK) $(hio_execd_OBJECTS) $(hio_execd_LDADD) $(LIBS)
-
-hio-t01$(EXEEXT): $(hio_t01_OBJECTS) $(hio_t01_DEPENDENCIES) $(EXTRA_hio_t01_DEPENDENCIES) 
-	@rm -f hio-t01$(EXEEXT)
-	$(AM_V_CCLD)$(hio_t01_LINK) $(hio_t01_OBJECTS) $(hio_t01_LDADD) $(LIBS)
-
-hio-t02$(EXEEXT): $(hio_t02_OBJECTS) $(hio_t02_DEPENDENCIES) $(EXTRA_hio_t02_DEPENDENCIES) 
-	@rm -f hio-t02$(EXEEXT)
-	$(AM_V_CCLD)$(hio_t02_LINK) $(hio_t02_OBJECTS) $(hio_t02_LDADD) $(LIBS)
-
-hio-t03$(EXEEXT): $(hio_t03_OBJECTS) $(hio_t03_DEPENDENCIES) $(EXTRA_hio_t03_DEPENDENCIES) 
-	@rm -f hio-t03$(EXEEXT)
-	$(AM_V_CCLD)$(hio_t03_LINK) $(hio_t03_OBJECTS) $(hio_t03_LDADD) $(LIBS)
-
-hio-t04$(EXEEXT): $(hio_t04_OBJECTS) $(hio_t04_DEPENDENCIES) $(EXTRA_hio_t04_DEPENDENCIES) 
-	@rm -f hio-t04$(EXEEXT)
-	$(AM_V_CCLD)$(hio_t04_LINK) $(hio_t04_OBJECTS) $(hio_t04_LDADD) $(LIBS)
-
-hio-t05$(EXEEXT): $(hio_t05_OBJECTS) $(hio_t05_DEPENDENCIES) $(EXTRA_hio_t05_DEPENDENCIES) 
-	@rm -f hio-t05$(EXEEXT)
-	$(AM_V_CCLD)$(hio_t05_LINK) $(hio_t05_OBJECTS) $(hio_t05_LDADD) $(LIBS)
 
 hio-te$(EXEEXT): $(hio_te_OBJECTS) $(hio_te_DEPENDENCIES) $(EXTRA_hio_te_DEPENDENCIES) 
 	@rm -f hio-te$(EXEEXT)
@@ -579,11 +489,6 @@ distclean-compile:
 	-rm -f *.tab.c
 
 @AMDEP_TRUE@@am__include@ @am__quote@./$(DEPDIR)/hio_execd-execd.Po@am__quote@ # am--include-marker
-@AMDEP_TRUE@@am__include@ @am__quote@./$(DEPDIR)/hio_t01-t01.Po@am__quote@ # am--include-marker
-@AMDEP_TRUE@@am__include@ @am__quote@./$(DEPDIR)/hio_t02-t02.Po@am__quote@ # am--include-marker
-@AMDEP_TRUE@@am__include@ @am__quote@./$(DEPDIR)/hio_t03-t03.Po@am__quote@ # am--include-marker
-@AMDEP_TRUE@@am__include@ @am__quote@./$(DEPDIR)/hio_t04-t04.Po@am__quote@ # am--include-marker
-@AMDEP_TRUE@@am__include@ @am__quote@./$(DEPDIR)/hio_t05-t05.Po@am__quote@ # am--include-marker
 @AMDEP_TRUE@@am__include@ @am__quote@./$(DEPDIR)/hio_te-te.Po@am__quote@ # am--include-marker
 @AMDEP_TRUE@@am__include@ @am__quote@./$(DEPDIR)/hio_untar-untar.Po@am__quote@ # am--include-marker
 @AMDEP_TRUE@@am__include@ @am__quote@./$(DEPDIR)/hio_webs-webs.Po@am__quote@ # am--include-marker
@@ -631,76 +536,6 @@ hio_execd-execd.obj: execd.c
 @AMDEP_TRUE@@am__fastdepCC_FALSE@	$(AM_V_CC)source='execd.c' object='hio_execd-execd.obj' libtool=no @AMDEPBACKSLASH@
 @AMDEP_TRUE@@am__fastdepCC_FALSE@	DEPDIR=$(DEPDIR) $(CCDEPMODE) $(depcomp) @AMDEPBACKSLASH@
 @am__fastdepCC_FALSE@	$(AM_V_CC@am__nodep@)$(CC) $(DEFS) $(DEFAULT_INCLUDES) $(INCLUDES) $(hio_execd_CPPFLAGS) $(CPPFLAGS) $(hio_execd_CFLAGS) $(CFLAGS) -c -o hio_execd-execd.obj `if test -f 'execd.c'; then $(CYGPATH_W) 'execd.c'; else $(CYGPATH_W) '$(srcdir)/execd.c'; fi`
-
-hio_t01-t01.o: t01.c
-@am__fastdepCC_TRUE@	$(AM_V_CC)$(CC) $(DEFS) $(DEFAULT_INCLUDES) $(INCLUDES) $(hio_t01_CPPFLAGS) $(CPPFLAGS) $(hio_t01_CFLAGS) $(CFLAGS) -MT hio_t01-t01.o -MD -MP -MF $(DEPDIR)/hio_t01-t01.Tpo -c -o hio_t01-t01.o `test -f 't01.c' || echo '$(srcdir)/'`t01.c
-@am__fastdepCC_TRUE@	$(AM_V_at)$(am__mv) $(DEPDIR)/hio_t01-t01.Tpo $(DEPDIR)/hio_t01-t01.Po
-@AMDEP_TRUE@@am__fastdepCC_FALSE@	$(AM_V_CC)source='t01.c' object='hio_t01-t01.o' libtool=no @AMDEPBACKSLASH@
-@AMDEP_TRUE@@am__fastdepCC_FALSE@	DEPDIR=$(DEPDIR) $(CCDEPMODE) $(depcomp) @AMDEPBACKSLASH@
-@am__fastdepCC_FALSE@	$(AM_V_CC@am__nodep@)$(CC) $(DEFS) $(DEFAULT_INCLUDES) $(INCLUDES) $(hio_t01_CPPFLAGS) $(CPPFLAGS) $(hio_t01_CFLAGS) $(CFLAGS) -c -o hio_t01-t01.o `test -f 't01.c' || echo '$(srcdir)/'`t01.c
-
-hio_t01-t01.obj: t01.c
-@am__fastdepCC_TRUE@	$(AM_V_CC)$(CC) $(DEFS) $(DEFAULT_INCLUDES) $(INCLUDES) $(hio_t01_CPPFLAGS) $(CPPFLAGS) $(hio_t01_CFLAGS) $(CFLAGS) -MT hio_t01-t01.obj -MD -MP -MF $(DEPDIR)/hio_t01-t01.Tpo -c -o hio_t01-t01.obj `if test -f 't01.c'; then $(CYGPATH_W) 't01.c'; else $(CYGPATH_W) '$(srcdir)/t01.c'; fi`
-@am__fastdepCC_TRUE@	$(AM_V_at)$(am__mv) $(DEPDIR)/hio_t01-t01.Tpo $(DEPDIR)/hio_t01-t01.Po
-@AMDEP_TRUE@@am__fastdepCC_FALSE@	$(AM_V_CC)source='t01.c' object='hio_t01-t01.obj' libtool=no @AMDEPBACKSLASH@
-@AMDEP_TRUE@@am__fastdepCC_FALSE@	DEPDIR=$(DEPDIR) $(CCDEPMODE) $(depcomp) @AMDEPBACKSLASH@
-@am__fastdepCC_FALSE@	$(AM_V_CC@am__nodep@)$(CC) $(DEFS) $(DEFAULT_INCLUDES) $(INCLUDES) $(hio_t01_CPPFLAGS) $(CPPFLAGS) $(hio_t01_CFLAGS) $(CFLAGS) -c -o hio_t01-t01.obj `if test -f 't01.c'; then $(CYGPATH_W) 't01.c'; else $(CYGPATH_W) '$(srcdir)/t01.c'; fi`
-
-hio_t02-t02.o: t02.c
-@am__fastdepCC_TRUE@	$(AM_V_CC)$(CC) $(DEFS) $(DEFAULT_INCLUDES) $(INCLUDES) $(hio_t02_CPPFLAGS) $(CPPFLAGS) $(hio_t02_CFLAGS) $(CFLAGS) -MT hio_t02-t02.o -MD -MP -MF $(DEPDIR)/hio_t02-t02.Tpo -c -o hio_t02-t02.o `test -f 't02.c' || echo '$(srcdir)/'`t02.c
-@am__fastdepCC_TRUE@	$(AM_V_at)$(am__mv) $(DEPDIR)/hio_t02-t02.Tpo $(DEPDIR)/hio_t02-t02.Po
-@AMDEP_TRUE@@am__fastdepCC_FALSE@	$(AM_V_CC)source='t02.c' object='hio_t02-t02.o' libtool=no @AMDEPBACKSLASH@
-@AMDEP_TRUE@@am__fastdepCC_FALSE@	DEPDIR=$(DEPDIR) $(CCDEPMODE) $(depcomp) @AMDEPBACKSLASH@
-@am__fastdepCC_FALSE@	$(AM_V_CC@am__nodep@)$(CC) $(DEFS) $(DEFAULT_INCLUDES) $(INCLUDES) $(hio_t02_CPPFLAGS) $(CPPFLAGS) $(hio_t02_CFLAGS) $(CFLAGS) -c -o hio_t02-t02.o `test -f 't02.c' || echo '$(srcdir)/'`t02.c
-
-hio_t02-t02.obj: t02.c
-@am__fastdepCC_TRUE@	$(AM_V_CC)$(CC) $(DEFS) $(DEFAULT_INCLUDES) $(INCLUDES) $(hio_t02_CPPFLAGS) $(CPPFLAGS) $(hio_t02_CFLAGS) $(CFLAGS) -MT hio_t02-t02.obj -MD -MP -MF $(DEPDIR)/hio_t02-t02.Tpo -c -o hio_t02-t02.obj `if test -f 't02.c'; then $(CYGPATH_W) 't02.c'; else $(CYGPATH_W) '$(srcdir)/t02.c'; fi`
-@am__fastdepCC_TRUE@	$(AM_V_at)$(am__mv) $(DEPDIR)/hio_t02-t02.Tpo $(DEPDIR)/hio_t02-t02.Po
-@AMDEP_TRUE@@am__fastdepCC_FALSE@	$(AM_V_CC)source='t02.c' object='hio_t02-t02.obj' libtool=no @AMDEPBACKSLASH@
-@AMDEP_TRUE@@am__fastdepCC_FALSE@	DEPDIR=$(DEPDIR) $(CCDEPMODE) $(depcomp) @AMDEPBACKSLASH@
-@am__fastdepCC_FALSE@	$(AM_V_CC@am__nodep@)$(CC) $(DEFS) $(DEFAULT_INCLUDES) $(INCLUDES) $(hio_t02_CPPFLAGS) $(CPPFLAGS) $(hio_t02_CFLAGS) $(CFLAGS) -c -o hio_t02-t02.obj `if test -f 't02.c'; then $(CYGPATH_W) 't02.c'; else $(CYGPATH_W) '$(srcdir)/t02.c'; fi`
-
-hio_t03-t03.o: t03.c
-@am__fastdepCC_TRUE@	$(AM_V_CC)$(CC) $(DEFS) $(DEFAULT_INCLUDES) $(INCLUDES) $(hio_t03_CPPFLAGS) $(CPPFLAGS) $(hio_t03_CFLAGS) $(CFLAGS) -MT hio_t03-t03.o -MD -MP -MF $(DEPDIR)/hio_t03-t03.Tpo -c -o hio_t03-t03.o `test -f 't03.c' || echo '$(srcdir)/'`t03.c
-@am__fastdepCC_TRUE@	$(AM_V_at)$(am__mv) $(DEPDIR)/hio_t03-t03.Tpo $(DEPDIR)/hio_t03-t03.Po
-@AMDEP_TRUE@@am__fastdepCC_FALSE@	$(AM_V_CC)source='t03.c' object='hio_t03-t03.o' libtool=no @AMDEPBACKSLASH@
-@AMDEP_TRUE@@am__fastdepCC_FALSE@	DEPDIR=$(DEPDIR) $(CCDEPMODE) $(depcomp) @AMDEPBACKSLASH@
-@am__fastdepCC_FALSE@	$(AM_V_CC@am__nodep@)$(CC) $(DEFS) $(DEFAULT_INCLUDES) $(INCLUDES) $(hio_t03_CPPFLAGS) $(CPPFLAGS) $(hio_t03_CFLAGS) $(CFLAGS) -c -o hio_t03-t03.o `test -f 't03.c' || echo '$(srcdir)/'`t03.c
-
-hio_t03-t03.obj: t03.c
-@am__fastdepCC_TRUE@	$(AM_V_CC)$(CC) $(DEFS) $(DEFAULT_INCLUDES) $(INCLUDES) $(hio_t03_CPPFLAGS) $(CPPFLAGS) $(hio_t03_CFLAGS) $(CFLAGS) -MT hio_t03-t03.obj -MD -MP -MF $(DEPDIR)/hio_t03-t03.Tpo -c -o hio_t03-t03.obj `if test -f 't03.c'; then $(CYGPATH_W) 't03.c'; else $(CYGPATH_W) '$(srcdir)/t03.c'; fi`
-@am__fastdepCC_TRUE@	$(AM_V_at)$(am__mv) $(DEPDIR)/hio_t03-t03.Tpo $(DEPDIR)/hio_t03-t03.Po
-@AMDEP_TRUE@@am__fastdepCC_FALSE@	$(AM_V_CC)source='t03.c' object='hio_t03-t03.obj' libtool=no @AMDEPBACKSLASH@
-@AMDEP_TRUE@@am__fastdepCC_FALSE@	DEPDIR=$(DEPDIR) $(CCDEPMODE) $(depcomp) @AMDEPBACKSLASH@
-@am__fastdepCC_FALSE@	$(AM_V_CC@am__nodep@)$(CC) $(DEFS) $(DEFAULT_INCLUDES) $(INCLUDES) $(hio_t03_CPPFLAGS) $(CPPFLAGS) $(hio_t03_CFLAGS) $(CFLAGS) -c -o hio_t03-t03.obj `if test -f 't03.c'; then $(CYGPATH_W) 't03.c'; else $(CYGPATH_W) '$(srcdir)/t03.c'; fi`
-
-hio_t04-t04.o: t04.c
-@am__fastdepCC_TRUE@	$(AM_V_CC)$(CC) $(DEFS) $(DEFAULT_INCLUDES) $(INCLUDES) $(hio_t04_CPPFLAGS) $(CPPFLAGS) $(hio_t04_CFLAGS) $(CFLAGS) -MT hio_t04-t04.o -MD -MP -MF $(DEPDIR)/hio_t04-t04.Tpo -c -o hio_t04-t04.o `test -f 't04.c' || echo '$(srcdir)/'`t04.c
-@am__fastdepCC_TRUE@	$(AM_V_at)$(am__mv) $(DEPDIR)/hio_t04-t04.Tpo $(DEPDIR)/hio_t04-t04.Po
-@AMDEP_TRUE@@am__fastdepCC_FALSE@	$(AM_V_CC)source='t04.c' object='hio_t04-t04.o' libtool=no @AMDEPBACKSLASH@
-@AMDEP_TRUE@@am__fastdepCC_FALSE@	DEPDIR=$(DEPDIR) $(CCDEPMODE) $(depcomp) @AMDEPBACKSLASH@
-@am__fastdepCC_FALSE@	$(AM_V_CC@am__nodep@)$(CC) $(DEFS) $(DEFAULT_INCLUDES) $(INCLUDES) $(hio_t04_CPPFLAGS) $(CPPFLAGS) $(hio_t04_CFLAGS) $(CFLAGS) -c -o hio_t04-t04.o `test -f 't04.c' || echo '$(srcdir)/'`t04.c
-
-hio_t04-t04.obj: t04.c
-@am__fastdepCC_TRUE@	$(AM_V_CC)$(CC) $(DEFS) $(DEFAULT_INCLUDES) $(INCLUDES) $(hio_t04_CPPFLAGS) $(CPPFLAGS) $(hio_t04_CFLAGS) $(CFLAGS) -MT hio_t04-t04.obj -MD -MP -MF $(DEPDIR)/hio_t04-t04.Tpo -c -o hio_t04-t04.obj `if test -f 't04.c'; then $(CYGPATH_W) 't04.c'; else $(CYGPATH_W) '$(srcdir)/t04.c'; fi`
-@am__fastdepCC_TRUE@	$(AM_V_at)$(am__mv) $(DEPDIR)/hio_t04-t04.Tpo $(DEPDIR)/hio_t04-t04.Po
-@AMDEP_TRUE@@am__fastdepCC_FALSE@	$(AM_V_CC)source='t04.c' object='hio_t04-t04.obj' libtool=no @AMDEPBACKSLASH@
-@AMDEP_TRUE@@am__fastdepCC_FALSE@	DEPDIR=$(DEPDIR) $(CCDEPMODE) $(depcomp) @AMDEPBACKSLASH@
-@am__fastdepCC_FALSE@	$(AM_V_CC@am__nodep@)$(CC) $(DEFS) $(DEFAULT_INCLUDES) $(INCLUDES) $(hio_t04_CPPFLAGS) $(CPPFLAGS) $(hio_t04_CFLAGS) $(CFLAGS) -c -o hio_t04-t04.obj `if test -f 't04.c'; then $(CYGPATH_W) 't04.c'; else $(CYGPATH_W) '$(srcdir)/t04.c'; fi`
-
-hio_t05-t05.o: t05.c
-@am__fastdepCC_TRUE@	$(AM_V_CC)$(CC) $(DEFS) $(DEFAULT_INCLUDES) $(INCLUDES) $(hio_t05_CPPFLAGS) $(CPPFLAGS) $(hio_t05_CFLAGS) $(CFLAGS) -MT hio_t05-t05.o -MD -MP -MF $(DEPDIR)/hio_t05-t05.Tpo -c -o hio_t05-t05.o `test -f 't05.c' || echo '$(srcdir)/'`t05.c
-@am__fastdepCC_TRUE@	$(AM_V_at)$(am__mv) $(DEPDIR)/hio_t05-t05.Tpo $(DEPDIR)/hio_t05-t05.Po
-@AMDEP_TRUE@@am__fastdepCC_FALSE@	$(AM_V_CC)source='t05.c' object='hio_t05-t05.o' libtool=no @AMDEPBACKSLASH@
-@AMDEP_TRUE@@am__fastdepCC_FALSE@	DEPDIR=$(DEPDIR) $(CCDEPMODE) $(depcomp) @AMDEPBACKSLASH@
-@am__fastdepCC_FALSE@	$(AM_V_CC@am__nodep@)$(CC) $(DEFS) $(DEFAULT_INCLUDES) $(INCLUDES) $(hio_t05_CPPFLAGS) $(CPPFLAGS) $(hio_t05_CFLAGS) $(CFLAGS) -c -o hio_t05-t05.o `test -f 't05.c' || echo '$(srcdir)/'`t05.c
-
-hio_t05-t05.obj: t05.c
-@am__fastdepCC_TRUE@	$(AM_V_CC)$(CC) $(DEFS) $(DEFAULT_INCLUDES) $(INCLUDES) $(hio_t05_CPPFLAGS) $(CPPFLAGS) $(hio_t05_CFLAGS) $(CFLAGS) -MT hio_t05-t05.obj -MD -MP -MF $(DEPDIR)/hio_t05-t05.Tpo -c -o hio_t05-t05.obj `if test -f 't05.c'; then $(CYGPATH_W) 't05.c'; else $(CYGPATH_W) '$(srcdir)/t05.c'; fi`
-@am__fastdepCC_TRUE@	$(AM_V_at)$(am__mv) $(DEPDIR)/hio_t05-t05.Tpo $(DEPDIR)/hio_t05-t05.Po
-@AMDEP_TRUE@@am__fastdepCC_FALSE@	$(AM_V_CC)source='t05.c' object='hio_t05-t05.obj' libtool=no @AMDEPBACKSLASH@
-@AMDEP_TRUE@@am__fastdepCC_FALSE@	DEPDIR=$(DEPDIR) $(CCDEPMODE) $(depcomp) @AMDEPBACKSLASH@
-@am__fastdepCC_FALSE@	$(AM_V_CC@am__nodep@)$(CC) $(DEFS) $(DEFAULT_INCLUDES) $(INCLUDES) $(hio_t05_CPPFLAGS) $(CPPFLAGS) $(hio_t05_CFLAGS) $(CFLAGS) -c -o hio_t05-t05.obj `if test -f 't05.c'; then $(CYGPATH_W) 't05.c'; else $(CYGPATH_W) '$(srcdir)/t05.c'; fi`
 
 hio_te-te.o: te.c
 @am__fastdepCC_TRUE@	$(AM_V_CC)$(CC) $(DEFS) $(DEFAULT_INCLUDES) $(INCLUDES) $(hio_te_CPPFLAGS) $(CPPFLAGS) $(hio_te_CFLAGS) $(CFLAGS) -MT hio_te-te.o -MD -MP -MF $(DEPDIR)/hio_te-te.Tpo -c -o hio_te-te.o `test -f 'te.c' || echo '$(srcdir)/'`te.c
@@ -874,16 +709,10 @@ maintainer-clean-generic:
 	@echo "it deletes files that may require special tools to rebuild."
 clean: clean-am
 
-clean-am: clean-binPROGRAMS clean-generic clean-libtool \
-	clean-noinstPROGRAMS mostlyclean-am
+clean-am: clean-binPROGRAMS clean-generic clean-libtool mostlyclean-am
 
 distclean: distclean-am
 	-rm -f ./$(DEPDIR)/hio_execd-execd.Po
-	-rm -f ./$(DEPDIR)/hio_t01-t01.Po
-	-rm -f ./$(DEPDIR)/hio_t02-t02.Po
-	-rm -f ./$(DEPDIR)/hio_t03-t03.Po
-	-rm -f ./$(DEPDIR)/hio_t04-t04.Po
-	-rm -f ./$(DEPDIR)/hio_t05-t05.Po
 	-rm -f ./$(DEPDIR)/hio_te-te.Po
 	-rm -f ./$(DEPDIR)/hio_untar-untar.Po
 	-rm -f ./$(DEPDIR)/hio_webs-webs.Po
@@ -933,11 +762,6 @@ installcheck-am:
 
 maintainer-clean: maintainer-clean-am
 	-rm -f ./$(DEPDIR)/hio_execd-execd.Po
-	-rm -f ./$(DEPDIR)/hio_t01-t01.Po
-	-rm -f ./$(DEPDIR)/hio_t02-t02.Po
-	-rm -f ./$(DEPDIR)/hio_t03-t03.Po
-	-rm -f ./$(DEPDIR)/hio_t04-t04.Po
-	-rm -f ./$(DEPDIR)/hio_t05-t05.Po
 	-rm -f ./$(DEPDIR)/hio_te-te.Po
 	-rm -f ./$(DEPDIR)/hio_untar-untar.Po
 	-rm -f ./$(DEPDIR)/hio_webs-webs.Po
@@ -962,16 +786,15 @@ uninstall-am: uninstall-binPROGRAMS
 .MAKE: install-am install-strip
 
 .PHONY: CTAGS GTAGS TAGS all all-am am--depfiles check check-am clean \
-	clean-binPROGRAMS clean-generic clean-libtool \
-	clean-noinstPROGRAMS cscopelist-am ctags ctags-am distclean \
-	distclean-compile distclean-generic distclean-libtool \
-	distclean-tags distdir dvi dvi-am html html-am info info-am \
-	install install-am install-binPROGRAMS install-data \
-	install-data-am install-dvi install-dvi-am install-exec \
-	install-exec-am install-html install-html-am install-info \
-	install-info-am install-man install-pdf install-pdf-am \
-	install-ps install-ps-am install-strip installcheck \
-	installcheck-am installdirs maintainer-clean \
+	clean-binPROGRAMS clean-generic clean-libtool cscopelist-am \
+	ctags ctags-am distclean distclean-compile distclean-generic \
+	distclean-libtool distclean-tags distdir dvi dvi-am html \
+	html-am info info-am install install-am install-binPROGRAMS \
+	install-data install-data-am install-dvi install-dvi-am \
+	install-exec install-exec-am install-html install-html-am \
+	install-info install-info-am install-man install-pdf \
+	install-pdf-am install-ps install-ps-am install-strip \
+	installcheck installcheck-am installdirs maintainer-clean \
 	maintainer-clean-generic mostlyclean mostlyclean-compile \
 	mostlyclean-generic mostlyclean-libtool pdf pdf-am ps ps-am \
 	tags tags-am uninstall uninstall-am uninstall-binPROGRAMS
@@ -981,6 +804,8 @@ uninstall-am: uninstall-binPROGRAMS
 
 @ENABLE_ALL_STATIC_TRUE@LDFLAGS_ALL_STATIC ?= -all-static
 @ENABLE_ALL_STATIC_TRUE@LIBADD_ALL_STATIC ?= $(ALL_STATIC_LIBS)
+
+# -------------------------------------------------
 
 # Tell versions [3.59,3.63) of GNU make to not export all variables.
 # Otherwise a system limit (for SysV at least) may be exceeded.

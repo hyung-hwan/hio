@@ -230,7 +230,7 @@ static int file_open_dir_list (hio_svc_htts_t* htts, const hio_bch_t* qpath, con
 	buf.len = 0;
 	init_buff (&buf);
 
-	if (write_buff_to_fd(fd, &buf, "<html><body>", 12) <= -1) goto oops;
+	if (write_buff_to_fd(fd, &buf, "<html><meta charset=\"utf-8\"><body>", 34) <= -1) goto oops;
 	if (!(qpath[0] == '\0' || (qpath[0] == '/' && qpath[1] == '\0')) &&
 	    write_buff_to_fd(fd, &buf,"<li><a href=\"..\">..</a>", 23) <= -1) goto oops;
 
