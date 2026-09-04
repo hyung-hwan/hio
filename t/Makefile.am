@@ -18,7 +18,7 @@ check_SCRIPTS = s-001.sh s-002.sh
 EXTRA_DIST = $(check_SCRIPTS) tap.inc t-cgi.sh
 
 ## programs run as tests
-TESTPROGS = t-001 t-002 t-003 t-004 t-005 t-006 t-007 t-008 t-009 t-010 t-011 t-012 t-013 t-014 t-015 t-016
+TESTPROGS = t-001 t-002 t-003 t-004 t-005 t-006 t-007 t-008 t-009 t-010 t-011 t-012 t-013 t-014 t-015 t-016 t-017 t-018 t-019
 
 ## helpers the test scripts drive. built with the tests, but not tests
 ## themselves - they are servers and would never exit.
@@ -148,6 +148,33 @@ t_016_CFLAGS += $(MARIADB_CFLAGS)
 t_016_LDFLAGS += $(MARIADB_LDFLAGS)
 t_016_LDADD += $(MARIADB_LIBS)
 endif
+
+## t-017 covers the dhcpv4 message layer, which the server and the client both
+## stand on. it is pure - a buffer in, a buffer out - so its failure modes are
+## all reachable from a unit test.
+t_017_SOURCES = t-017.c tap.h
+t_017_CPPFLAGS = $(CPPFLAGS_COMMON)
+t_017_CFLAGS = $(CFLAGS_COMMON)
+t_017_LDFLAGS = $(LDFLAGS_COMMON)
+t_017_LDADD = $(LIBADD_COMMON)
+
+## t-018 drives the dhcp server's state machine directly through
+## hio_svc_dhcs_process(), which does no i/o - so the protocol is exercised by
+## handing it packets rather than by standing up a network.
+t_018_SOURCES = t-018.c tap.h
+t_018_CPPFLAGS = $(CPPFLAGS_COMMON)
+t_018_CFLAGS = $(CFLAGS_COMMON)
+t_018_LDFLAGS = $(LDFLAGS_COMMON)
+t_018_LDADD = $(LIBADD_COMMON)
+
+## t-019 covers the dhcpv6 message layer. dhcpv6 relaying is containment
+## rather than a header field - the relayed message is the value of an option
+## in the relaying one - so the nesting is what most of these cases are about.
+t_019_SOURCES = t-019.c tap.h
+t_019_CPPFLAGS = $(CPPFLAGS_COMMON)
+t_019_CFLAGS = $(CFLAGS_COMMON)
+t_019_LDFLAGS = $(LDFLAGS_COMMON)
+t_019_LDADD = $(LIBADD_COMMON)
 
 ## a minimal FastCGI responder, driven by s-002.sh
 fcgis_SOURCES = fcgis.c

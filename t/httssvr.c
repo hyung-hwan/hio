@@ -1,6 +1,5 @@
 #include <hio-sck.h>
 #include <hio-http.h>
-#include <hio-dhcp.h>
 #include <hio-utl.h>
 #include <stdio.h>
 #include <string.h>
@@ -719,11 +718,10 @@ int main (int argc, char* argv[])
 	unlink ("t06.sck");
 	add_listener(hio, "@t06.sck");
 
-{
-hio_skad_t skad;
-hio_bcstrtoskad(hio, "[::]:3547", &skad);
-hio_svc_dhcs_start (hio, &skad, 1);
-}
+	/* [NOTE] a dhcp server used to be started here on [::]:3547 with its
+	 * result ignored. it had nothing to do with what this helper tests, and it
+	 * never worked - the service was a stub with no read callback. removed
+	 * when the dhcp server was implemented; see t/t-018.c for its tests. */
 
 	hio_loop (hio);
 
