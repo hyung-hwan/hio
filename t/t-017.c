@@ -48,7 +48,7 @@ static void make_request (hio_dhcp4_pktbuf_t* pkt, hio_uint8_t mtype)
 	pkt->hdr->xid = hio_hton32(0x11223344);
 	pkt->hdr->flags = hio_hton16(0x8000); /* broadcast */
 	pkt->hdr->giaddr = hio_hton32(0x0a000001);
-	hio_dhcp4_add_option_u8 (pkt, HIO_DHCP4_OPT_MESSAGE_TYPE, mtype);
+	hio_dhcp4_add_option_uint8 (pkt, HIO_DHCP4_OPT_MESSAGE_TYPE, mtype);
 }
 
 static void as_pktinf (hio_dhcp4_pktinf_t* inf, const hio_dhcp4_pktbuf_t* pkt)
@@ -69,7 +69,7 @@ static void test_cookie_and_layout (void)
 	OK (pkt.len == HIO_SIZEOF(hio_dhcp4_pkt_hdr_t),
 	    "and its length is the header alone until an option is added");
 
-	OK (hio_dhcp4_add_option_u8(&pkt, HIO_DHCP4_OPT_MESSAGE_TYPE, HIO_DHCP4_MSG_DISCOVER) == 0,
+	OK (hio_dhcp4_add_option_uint8(&pkt, HIO_DHCP4_OPT_MESSAGE_TYPE, HIO_DHCP4_MSG_DISCOVER) == 0,
 	    "an option can be added");
 
 	/* the cookie has to be there, and in network order, or nothing downstream
@@ -93,8 +93,8 @@ static void test_byte_order (void)
 	hio_uint32_t v32;
 
 	hio_dhcp4_init_pktbuf (&pkt, g_buf, BUFCAPA);
-	OK (hio_dhcp4_add_option_u16(&pkt, HIO_DHCP4_OPT_MAX_SIZE, 0x0102) == 0 &&
-	    hio_dhcp4_add_option_u32(&pkt, HIO_DHCP4_OPT_LEASE_TIME, 0x01020304) == 0,
+	OK (hio_dhcp4_add_option_uint16(&pkt, HIO_DHCP4_OPT_MAX_SIZE, 0x0102) == 0 &&
+	    hio_dhcp4_add_option_uint32(&pkt, HIO_DHCP4_OPT_LEASE_TIME, 0x01020304) == 0,
 	    "16- and 32-bit options can be added");
 	as_pktinf (&inf, &pkt);
 
@@ -107,9 +107,9 @@ static void test_byte_order (void)
 	    l == 4 && p[0] == 0x01 && p[1] == 0x02 && p[2] == 0x03 && p[3] == 0x04,
 	    "and so is a 32-bit one");
 
-	OK (hio_dhcp4_get_option_u16(&inf, HIO_DHCP4_OPT_MAX_SIZE, &v16) == 0 && v16 == 0x0102,
+	OK (hio_dhcp4_get_option_uint16(&inf, HIO_DHCP4_OPT_MAX_SIZE, &v16) == 0 && v16 == 0x0102,
 	    "and reading it back gives the host-order value again");
-	OK (hio_dhcp4_get_option_u32(&inf, HIO_DHCP4_OPT_LEASE_TIME, &v32) == 0 && v32 == 0x01020304,
+	OK (hio_dhcp4_get_option_uint32(&inf, HIO_DHCP4_OPT_LEASE_TIME, &v32) == 0 && v32 == 0x01020304,
 	    "for both widths");
 }
 
@@ -125,12 +125,12 @@ static void test_unaligned_payload (void)
 	 * that reading through a cast gets wrong, silently on x86 and fatally
 	 * elsewhere. */
 	hio_dhcp4_init_pktbuf (&pkt, g_buf, BUFCAPA);
-	hio_dhcp4_add_option_u8 (&pkt, HIO_DHCP4_OPT_MESSAGE_TYPE, HIO_DHCP4_MSG_ACK);
-	hio_dhcp4_add_option_u8 (&pkt, HIO_DHCP4_OPT_IP_TTL, 64);
-	hio_dhcp4_add_option_u32 (&pkt, HIO_DHCP4_OPT_LEASE_TIME, 0xDEADBEEF);
+	hio_dhcp4_add_option_uint8 (&pkt, HIO_DHCP4_OPT_MESSAGE_TYPE, HIO_DHCP4_MSG_ACK);
+	hio_dhcp4_add_option_uint8 (&pkt, HIO_DHCP4_OPT_IP_TTL, 64);
+	hio_dhcp4_add_option_uint32 (&pkt, HIO_DHCP4_OPT_LEASE_TIME, 0xDEADBEEF);
 	as_pktinf (&inf, &pkt);
 
-	OK (hio_dhcp4_get_option_u32(&inf, HIO_DHCP4_OPT_LEASE_TIME, &v32) == 0 && v32 == 0xDEADBEEF,
+	OK (hio_dhcp4_get_option_uint32(&inf, HIO_DHCP4_OPT_LEASE_TIME, &v32) == 0 && v32 == 0xDEADBEEF,
 	    "a 32-bit option is read correctly from an unaligned offset");
 }
 
@@ -149,13 +149,13 @@ static void test_wrong_width_is_refused (void)
 	hio_dhcp4_add_option (&pkt, HIO_DHCP4_OPT_LEASE_TIME, two, 2);
 	as_pktinf (&inf, &pkt);
 
-	OK (hio_dhcp4_get_option_u32(&inf, HIO_DHCP4_OPT_LEASE_TIME, &v32) <= -1,
+	OK (hio_dhcp4_get_option_uint32(&inf, HIO_DHCP4_OPT_LEASE_TIME, &v32) <= -1,
 	    "an option whose length disagrees with its definition is refused");
-	OK (hio_dhcp4_get_option_u16(&inf, HIO_DHCP4_OPT_LEASE_TIME, &v16) == 0 && v16 == 0x1234,
+	OK (hio_dhcp4_get_option_uint16(&inf, HIO_DHCP4_OPT_LEASE_TIME, &v16) == 0 && v16 == 0x1234,
 	    "and is readable at the width it actually has");
 
 	/* an option that is not there is not an error to be papered over either */
-	OK (hio_dhcp4_get_option_u32(&inf, HIO_DHCP4_OPT_T1, &v32) <= -1,
+	OK (hio_dhcp4_get_option_uint32(&inf, HIO_DHCP4_OPT_T1, &v32) <= -1,
 	    "and an absent option reports absence rather than a value");
 }
 
@@ -166,7 +166,7 @@ static void test_msg_type (void)
 	hio_uint8_t mtype;
 
 	hio_dhcp4_init_pktbuf (&pkt, g_buf, BUFCAPA);
-	hio_dhcp4_add_option_u8 (&pkt, HIO_DHCP4_OPT_MESSAGE_TYPE, HIO_DHCP4_MSG_REQUEST);
+	hio_dhcp4_add_option_uint8 (&pkt, HIO_DHCP4_OPT_MESSAGE_TYPE, HIO_DHCP4_MSG_REQUEST);
 	as_pktinf (&inf, &pkt);
 	OK (hio_dhcp4_get_msg_type(&inf, &mtype) == 0 && mtype == HIO_DHCP4_MSG_REQUEST,
 	    "the message type is read from option 53");
@@ -174,18 +174,18 @@ static void test_msg_type (void)
 	/* no option 53 is what distinguishes bootp from dhcp, so it must not be
 	 * mistaken for a message type of zero */
 	hio_dhcp4_init_pktbuf (&pkt, g_buf, BUFCAPA);
-	hio_dhcp4_add_option_u8 (&pkt, HIO_DHCP4_OPT_IP_TTL, 64);
+	hio_dhcp4_add_option_uint8 (&pkt, HIO_DHCP4_OPT_IP_TTL, 64);
 	as_pktinf (&inf, &pkt);
 	OK (hio_dhcp4_get_msg_type(&inf, &mtype) <= -1,
 	    "a packet without one is refused rather than read as type zero");
 
 	hio_dhcp4_init_pktbuf (&pkt, g_buf, BUFCAPA);
-	hio_dhcp4_add_option_u8 (&pkt, HIO_DHCP4_OPT_MESSAGE_TYPE, 0);
+	hio_dhcp4_add_option_uint8 (&pkt, HIO_DHCP4_OPT_MESSAGE_TYPE, 0);
 	as_pktinf (&inf, &pkt);
 	OK (hio_dhcp4_get_msg_type(&inf, &mtype) <= -1, "and nor is a type of zero accepted");
 
 	hio_dhcp4_init_pktbuf (&pkt, g_buf, BUFCAPA);
-	hio_dhcp4_add_option_u8 (&pkt, HIO_DHCP4_OPT_MESSAGE_TYPE, 99);
+	hio_dhcp4_add_option_uint8 (&pkt, HIO_DHCP4_OPT_MESSAGE_TYPE, 99);
 	as_pktinf (&inf, &pkt);
 	OK (hio_dhcp4_get_msg_type(&inf, &mtype) <= -1, "nor one this implementation does not know");
 }
@@ -286,9 +286,9 @@ static void test_option_editing (void)
 	hio_uint8_t v8;
 
 	hio_dhcp4_init_pktbuf (&pkt, g_buf, BUFCAPA);
-	hio_dhcp4_add_option_u8 (&pkt, HIO_DHCP4_OPT_MESSAGE_TYPE, HIO_DHCP4_MSG_OFFER);
-	hio_dhcp4_add_option_u32 (&pkt, HIO_DHCP4_OPT_LEASE_TIME, 3600);
-	hio_dhcp4_add_option_u8 (&pkt, HIO_DHCP4_OPT_IP_TTL, 64);
+	hio_dhcp4_add_option_uint8 (&pkt, HIO_DHCP4_OPT_MESSAGE_TYPE, HIO_DHCP4_MSG_OFFER);
+	hio_dhcp4_add_option_uint32 (&pkt, HIO_DHCP4_OPT_LEASE_TIME, 3600);
+	hio_dhcp4_add_option_uint8 (&pkt, HIO_DHCP4_OPT_IP_TTL, 64);
 	as_pktinf (&inf, &pkt);
 
 	g_walked = 0;
@@ -303,7 +303,7 @@ static void test_option_editing (void)
 	as_pktinf (&inf, &pkt);
 	OK (hio_dhcp4_find_option(&inf, HIO_DHCP4_OPT_LEASE_TIME) == HIO_NULL,
 	    "and is then no longer found");
-	OK (hio_dhcp4_get_option_u8(&inf, HIO_DHCP4_OPT_IP_TTL, &v8) == 0 && v8 == 64,
+	OK (hio_dhcp4_get_option_uint8(&inf, HIO_DHCP4_OPT_IP_TTL, &v8) == 0 && v8 == 64,
 	    "while the options around it survive intact");
 }
 
@@ -320,8 +320,8 @@ static void test_one_octet_options (void)
 	 * own reply builder emits, so a walk that rejects it rejects almost
 	 * everything. */
 	hio_dhcp4_init_pktbuf (&pkt, g_buf, BUFCAPA);
-	hio_dhcp4_add_option_u8 (&pkt, HIO_DHCP4_OPT_MESSAGE_TYPE, HIO_DHCP4_MSG_ACK);
-	hio_dhcp4_add_option_u32 (&pkt, HIO_DHCP4_OPT_LEASE_TIME, 3600);
+	hio_dhcp4_add_option_uint8 (&pkt, HIO_DHCP4_OPT_MESSAGE_TYPE, HIO_DHCP4_MSG_ACK);
+	hio_dhcp4_add_option_uint32 (&pkt, HIO_DHCP4_OPT_LEASE_TIME, 3600);
 	hio_dhcp4_add_option (&pkt, HIO_DHCP4_OPT_END, HIO_NULL, 0);
 	as_pktinf (&inf, &pkt);
 
@@ -333,10 +333,10 @@ static void test_one_octet_options (void)
 	 * by two lands the cursor inside the following option and everything read
 	 * after it is misaligned. */
 	hio_dhcp4_init_pktbuf (&pkt, g_buf, BUFCAPA);
-	hio_dhcp4_add_option_u8 (&pkt, HIO_DHCP4_OPT_MESSAGE_TYPE, HIO_DHCP4_MSG_ACK);
+	hio_dhcp4_add_option_uint8 (&pkt, HIO_DHCP4_OPT_MESSAGE_TYPE, HIO_DHCP4_MSG_ACK);
 	hio_dhcp4_add_option (&pkt, HIO_DHCP4_OPT_PADDING, HIO_NULL, 0);
-	hio_dhcp4_add_option_u8 (&pkt, HIO_DHCP4_OPT_IP_TTL, 64);
-	hio_dhcp4_add_option_u32 (&pkt, HIO_DHCP4_OPT_LEASE_TIME, 3600);
+	hio_dhcp4_add_option_uint8 (&pkt, HIO_DHCP4_OPT_IP_TTL, 64);
+	hio_dhcp4_add_option_uint32 (&pkt, HIO_DHCP4_OPT_LEASE_TIME, 3600);
 	hio_dhcp4_add_option (&pkt, HIO_DHCP4_OPT_END, HIO_NULL, 0);
 	as_pktinf (&inf, &pkt);
 
@@ -351,7 +351,7 @@ static void test_one_octet_options (void)
 	 * are two traversals of one format, and they disagreed before */
 	{
 		hio_uint32_t lt = 0;
-		OK (hio_dhcp4_get_option_u32(&inf, HIO_DHCP4_OPT_LEASE_TIME, &lt) == 0 && lt == 3600,
+		OK (hio_dhcp4_get_option_uint32(&inf, HIO_DHCP4_OPT_LEASE_TIME, &lt) == 0 && lt == 3600,
 		    "and find_option reads the option after the padding too");
 	}
 }
@@ -367,8 +367,8 @@ static void test_overlong_option_still_refused (void)
 	 * a length that genuinely runs past the end must still be refused, or the
 	 * loosening would have opened a read past the buffer. */
 	hio_dhcp4_init_pktbuf (&pkt, g_buf, BUFCAPA);
-	hio_dhcp4_add_option_u8 (&pkt, HIO_DHCP4_OPT_MESSAGE_TYPE, HIO_DHCP4_MSG_ACK);
-	hio_dhcp4_add_option_u32 (&pkt, HIO_DHCP4_OPT_LEASE_TIME, 3600);
+	hio_dhcp4_add_option_uint8 (&pkt, HIO_DHCP4_OPT_MESSAGE_TYPE, HIO_DHCP4_MSG_ACK);
+	hio_dhcp4_add_option_uint32 (&pkt, HIO_DHCP4_OPT_LEASE_TIME, 3600);
 	as_pktinf (&inf, &pkt);
 
 	/* overstate the last option's length by one */
@@ -420,7 +420,7 @@ static void test_relay_suboptions (void)
 	static const hio_uint8_t remote[3] = { 'r', 'i', 'd' };
 
 	hio_dhcp4_init_pktbuf (&pkt, g_buf, BUFCAPA);
-	hio_dhcp4_add_option_u8 (&pkt, HIO_DHCP4_OPT_MESSAGE_TYPE, HIO_DHCP4_MSG_DISCOVER);
+	hio_dhcp4_add_option_uint8 (&pkt, HIO_DHCP4_OPT_MESSAGE_TYPE, HIO_DHCP4_MSG_DISCOVER);
 
 	OK (hio_dhcp4_add_relay_suboption(&pkt, HIO_DHCP4_OPT_RELAY_CIRCUIT_ID, circuit, 4) == 0,
 	    "a relay suboption can be added to a packet with no relay option");
@@ -501,7 +501,7 @@ static void test_relay_suboption_limits (void)
 		hio_uint8_t tiny[HIO_SIZEOF(hio_dhcp4_pkt_hdr_t) + 16];
 		hio_dhcp4_pktbuf_t tp;
 		hio_dhcp4_init_pktbuf (&tp, tiny, HIO_SIZEOF(tiny));
-		hio_dhcp4_add_option_u8 (&tp, HIO_DHCP4_OPT_MESSAGE_TYPE, HIO_DHCP4_MSG_DISCOVER);
+		hio_dhcp4_add_option_uint8 (&tp, HIO_DHCP4_OPT_MESSAGE_TYPE, HIO_DHCP4_MSG_DISCOVER);
 		OK (hio_dhcp4_add_relay_suboption(&tp, HIO_DHCP4_OPT_RELAY_CIRCUIT_ID, big, 100) <= -1,
 		    "and one that would not fit the packet buffer is refused");
 		OK (tp.len <= HIO_SIZEOF(tiny), "leaving the length within the buffer");
@@ -545,7 +545,7 @@ static void test_option_value_accessor (void)
 	static const hio_bch_t name[] = "host.example";
 
 	hio_dhcp4_init_pktbuf (&pkt, g_buf, BUFCAPA);
-	hio_dhcp4_add_option_u8 (&pkt, HIO_DHCP4_OPT_MESSAGE_TYPE, HIO_DHCP4_MSG_DISCOVER);
+	hio_dhcp4_add_option_uint8 (&pkt, HIO_DHCP4_OPT_MESSAGE_TYPE, HIO_DHCP4_MSG_DISCOVER);
 	hio_dhcp4_add_option (&pkt, HIO_DHCP4_OPT_HOST_NAME, (void*)name, HIO_SIZEOF(name) - 1);
 	as_pktinf (&inf, &pkt);
 

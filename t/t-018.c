@@ -103,9 +103,9 @@ static void build (hio_dhcp4_pktbuf_t* pkt, hio_uint8_t mtype, hio_uint8_t clien
 	HIO_MEMCPY (pkt->hdr->chaddr, mac, 6);
 	pkt->hdr->xid = hio_hton32(0xABCD0000u | client);
 	pkt->hdr->ciaddr = hio_hton32(ciaddr);
-	hio_dhcp4_add_option_u8 (pkt, HIO_DHCP4_OPT_MESSAGE_TYPE, mtype);
-	if (requested) hio_dhcp4_add_option_u32 (pkt, HIO_DHCP4_OPT_REQUESTED_IPADDR, requested);
-	if (server_id) hio_dhcp4_add_option_u32 (pkt, HIO_DHCP4_OPT_SERVER_ID, server_id);
+	hio_dhcp4_add_option_uint8 (pkt, HIO_DHCP4_OPT_MESSAGE_TYPE, mtype);
+	if (requested) hio_dhcp4_add_option_uint32 (pkt, HIO_DHCP4_OPT_REQUESTED_IPADDR, requested);
+	if (server_id) hio_dhcp4_add_option_uint32 (pkt, HIO_DHCP4_OPT_SERVER_ID, server_id);
 	hio_dhcp4_add_option (pkt, HIO_DHCP4_OPT_END, HIO_NULL, 0);
 }
 
@@ -140,10 +140,10 @@ static void build_x (hio_dhcp4_pktbuf_t* pkt, hio_uint8_t mtype, hio_uint8_t cli
 	pkt->hdr->ciaddr = hio_hton32(ciaddr);
 	pkt->hdr->giaddr = hio_hton32(x->giaddr);
 	pkt->hdr->flags = hio_hton16(x->flags);
-	hio_dhcp4_add_option_u8 (pkt, HIO_DHCP4_OPT_MESSAGE_TYPE, mtype);
-	if (requested) hio_dhcp4_add_option_u32 (pkt, HIO_DHCP4_OPT_REQUESTED_IPADDR, requested);
-	if (server_id) hio_dhcp4_add_option_u32 (pkt, HIO_DHCP4_OPT_SERVER_ID, server_id);
-	if (x->lease_req) hio_dhcp4_add_option_u32 (pkt, HIO_DHCP4_OPT_LEASE_TIME, x->lease_req);
+	hio_dhcp4_add_option_uint8 (pkt, HIO_DHCP4_OPT_MESSAGE_TYPE, mtype);
+	if (requested) hio_dhcp4_add_option_uint32 (pkt, HIO_DHCP4_OPT_REQUESTED_IPADDR, requested);
+	if (server_id) hio_dhcp4_add_option_uint32 (pkt, HIO_DHCP4_OPT_SERVER_ID, server_id);
+	if (x->lease_req) hio_dhcp4_add_option_uint32 (pkt, HIO_DHCP4_OPT_LEASE_TIME, x->lease_req);
 	if (x->prl && x->prl_len > 0) hio_dhcp4_add_option (pkt, HIO_DHCP4_OPT_PARAM_REQ, (void*)x->prl, x->prl_len);
 	hio_dhcp4_add_option (pkt, HIO_DHCP4_OPT_END, HIO_NULL, 0);
 }
@@ -399,13 +399,13 @@ static void test_inform_returns_options_without_a_lease (void)
 	repinf.hdr = rep.hdr; repinf.len = rep.len;
 	OK (hio_dhcp4_get_msg_type(&repinf, &mt) == 0 && mt == HIO_DHCP4_MSG_ACK,
 	    "with an ACK");
-	OK (hio_dhcp4_get_option_u32(&repinf, HIO_DHCP4_OPT_SUBNET, &nm) == 0 && nm == NETMASK,
+	OK (hio_dhcp4_get_option_uint32(&repinf, HIO_DHCP4_OPT_SUBNET, &nm) == 0 && nm == NETMASK,
 	    "carrying the configured options");
 
 	/* an INFORM is a client that already has an address by other means, so
 	 * there is nothing to lease and yiaddr stays empty */
 	OK (rep.hdr->yiaddr == 0, "but no address");
-	OK (hio_dhcp4_get_option_u32(&repinf, HIO_DHCP4_OPT_LEASE_TIME, &nm) <= -1,
+	OK (hio_dhcp4_get_option_uint32(&repinf, HIO_DHCP4_OPT_LEASE_TIME, &nm) <= -1,
 	    "and no lease time");
 	OK (hio_svc_dhcs_getleasecount(g_dhcs) == before, "and no lease is recorded");
 }
@@ -427,18 +427,18 @@ static void test_offer_and_ack_agree (void)
 	if (hio_svc_dhcs_process(g_dhcs, &reqinf, &rep, &dst) != 1) { skip ("no offer", 1); return; }
 	repinf.hdr = rep.hdr; repinf.len = rep.len;
 	offered = hio_ntoh32(rep.hdr->yiaddr);
-	hio_dhcp4_get_option_u32 (&repinf, HIO_DHCP4_OPT_SUBNET, &off_nm);
-	hio_dhcp4_get_option_u32 (&repinf, HIO_DHCP4_OPT_ROUTER, &off_rt);
-	hio_dhcp4_get_option_u32 (&repinf, HIO_DHCP4_OPT_LEASE_TIME, &off_lt);
+	hio_dhcp4_get_option_uint32 (&repinf, HIO_DHCP4_OPT_SUBNET, &off_nm);
+	hio_dhcp4_get_option_uint32 (&repinf, HIO_DHCP4_OPT_ROUTER, &off_rt);
+	hio_dhcp4_get_option_uint32 (&repinf, HIO_DHCP4_OPT_LEASE_TIME, &off_lt);
 
 	build (&req, HIO_DHCP4_MSG_REQUEST, 14, offered, SERVER_ID, 0);
 	reqinf.hdr = req.hdr; reqinf.len = req.len;
 	rep.hdr = (hio_dhcp4_pkt_hdr_t*)g_repbuf; rep.len = 0; rep.capa = HIO_SIZEOF(g_repbuf);
 	if (hio_svc_dhcs_process(g_dhcs, &reqinf, &rep, &dst) != 1) { skip ("no ack", 1); return; }
 	repinf.hdr = rep.hdr; repinf.len = rep.len;
-	hio_dhcp4_get_option_u32 (&repinf, HIO_DHCP4_OPT_SUBNET, &ack_nm);
-	hio_dhcp4_get_option_u32 (&repinf, HIO_DHCP4_OPT_ROUTER, &ack_rt);
-	hio_dhcp4_get_option_u32 (&repinf, HIO_DHCP4_OPT_LEASE_TIME, &ack_lt);
+	hio_dhcp4_get_option_uint32 (&repinf, HIO_DHCP4_OPT_SUBNET, &ack_nm);
+	hio_dhcp4_get_option_uint32 (&repinf, HIO_DHCP4_OPT_ROUTER, &ack_rt);
+	hio_dhcp4_get_option_uint32 (&repinf, HIO_DHCP4_OPT_LEASE_TIME, &ack_lt);
 
 	OK (off_nm == ack_nm && off_rt == ack_rt && off_lt == ack_lt &&
 	    off_nm == NETMASK && off_rt == ROUTER && off_lt == LEASE_SECS,
@@ -498,7 +498,7 @@ static void test_malformed_and_foreign_packets (void)
 	req.hdr->op = HIO_DHCP4_OP_BOOTREQUEST;
 	req.hdr->htype = HIO_DHCP4_HTYPE_ETHERNET;
 	req.hdr->hlen = 6;
-	hio_dhcp4_add_option_u8 (&req, HIO_DHCP4_OPT_IP_TTL, 64);
+	hio_dhcp4_add_option_uint8 (&req, HIO_DHCP4_OPT_IP_TTL, 64);
 	reqinf.hdr = req.hdr; reqinf.len = req.len;
 	rep.len = 0;
 	OK (hio_svc_dhcs_process(g_dhcs, &reqinf, &rep, &dst) == 0,
@@ -779,7 +779,7 @@ static void test_parameter_request_list (void)
 	OK (run_x(HIO_DHCP4_MSG_DISCOVER, 1, 0, 0, 0, &x, &rep, HIO_NULL) == 1, "a discover naming options this server has no value for");
 	walk_reply (&rep);
 	OK (count_option(0xF0) == 0 && count_option(0xF1) == 0, "which are simply absent");
-	OK (hio_dhcp4_get_option_u32(&rep, HIO_DHCP4_OPT_SERVER_ID, &v) == 0 && v == SERVER_ID,
+	OK (hio_dhcp4_get_option_uint32(&rep, HIO_DHCP4_OPT_SERVER_ID, &v) == 0 && v == SERVER_ID,
 	    "while the reply is still usable");
 }
 
@@ -797,20 +797,20 @@ static void test_requested_lease_time (void)
 	/* nothing asked: the configured lease */
 	HIO_MEMSET (&x, 0, HIO_SIZEOF(x));
 	OK (run_x(HIO_DHCP4_MSG_DISCOVER, 1, 0, 0, 0, &x, &rep, HIO_NULL) == 1, "a discover asking for no particular lease");
-	OK (hio_dhcp4_get_option_u32(&rep, HIO_DHCP4_OPT_LEASE_TIME, &secs) == 0 && secs == LEASE_SECS,
+	OK (hio_dhcp4_get_option_uint32(&rep, HIO_DHCP4_OPT_LEASE_TIME, &secs) == 0 && secs == LEASE_SECS,
 	    "is offered the configured lease");
 
 	/* shorter: honoured, and T1/T2 follow it rather than the configured one */
 	x.lease_req = 60;
 	OK (run_x(HIO_DHCP4_MSG_DISCOVER, 1, 0, 0, 0, &x, &rep, HIO_NULL) == 1, "a discover asking for a minute");
-	OK (hio_dhcp4_get_option_u32(&rep, HIO_DHCP4_OPT_LEASE_TIME, &secs) == 0 && secs == 60, "gets a minute");
-	OK (hio_dhcp4_get_option_u32(&rep, HIO_DHCP4_OPT_T1, &t1) == 0 && t1 == 30, "with T1 at half of it");
-	OK (hio_dhcp4_get_option_u32(&rep, HIO_DHCP4_OPT_T2, &t2) == 0 && t2 == (60 / 8) * 7, "and T2 at seven eighths");
+	OK (hio_dhcp4_get_option_uint32(&rep, HIO_DHCP4_OPT_LEASE_TIME, &secs) == 0 && secs == 60, "gets a minute");
+	OK (hio_dhcp4_get_option_uint32(&rep, HIO_DHCP4_OPT_T1, &t1) == 0 && t1 == 30, "with T1 at half of it");
+	OK (hio_dhcp4_get_option_uint32(&rep, HIO_DHCP4_OPT_T2, &t2) == 0 && t2 == (60 / 8) * 7, "and T2 at seven eighths");
 
 	/* longer than allowed: capped at the configuration */
 	x.lease_req = 999999;
 	OK (run_x(HIO_DHCP4_MSG_DISCOVER, 1, 0, 0, 0, &x, &rep, HIO_NULL) == 1, "a discover asking for far too long");
-	OK (hio_dhcp4_get_option_u32(&rep, HIO_DHCP4_OPT_LEASE_TIME, &secs) == 0 && secs == LEASE_SECS,
+	OK (hio_dhcp4_get_option_uint32(&rep, HIO_DHCP4_OPT_LEASE_TIME, &secs) == 0 && secs == LEASE_SECS,
 	    "is held to the configured lease");
 
 	/* and what is recorded matches what was advertised, which is the point of
@@ -822,7 +822,7 @@ static void test_requested_lease_time (void)
 	OK (mine != 0, "and is offered an address");
 
 	OK (run_x(HIO_DHCP4_MSG_REQUEST, 2, mine, 0, 0, &x, &rep, HIO_NULL) == 1, "then requests it, asking for a minute");
-	OK (hio_dhcp4_get_option_u32(&rep, HIO_DHCP4_OPT_LEASE_TIME, &secs) == 0 && secs == 60, "and is acked for a minute");
+	OK (hio_dhcp4_get_option_uint32(&rep, HIO_DHCP4_OPT_LEASE_TIME, &secs) == 0 && secs == 60, "and is acked for a minute");
 
 	/* found by address, not by index: the discovers above left offered leases
 	 * of their own, and index 0 is one of those */
