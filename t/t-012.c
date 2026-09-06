@@ -1531,15 +1531,31 @@ int main (void)
 	}
 	quiet_logging (g_hio);
 
-	/* a library built without sctp reports HIO_ENOIMPL here, which is how a
-	 * caller is meant to discover it. skip_all has to come before no_plan. */
+	/* two ways there is nothing here to test, and they are told apart by the
+	 * error number:
+	 *
+	 *   HIO_ENOIMPL - this build of hio has no sctp support, so no binary
+	 *                 anywhere would do better.
+	 *   HIO_ENOSUP  - the build has it and the system does not. freebsd keeps
+	 *                 sctp in a loadable module and leaves it out of GENERIC,
+	 *                 so this is what a box without 'kldload sctp' reports.
+	 *
+	 * neither is a failure of the code under test, and both skip. anything
+	 * else is a real problem and bails. skip_all has to come before no_plan. */
 	fill_make (&mi, 0);
 	probe = hio_dev_sck_make(g_hio, 0, &mi);
 	if (!probe)
 	{
-		if (hio_geterrnum(g_hio) == HIO_ENOIMPL)
+		hio_errnum_t e = hio_geterrnum(g_hio);
+		if (e == HIO_ENOIMPL)
 		{
 			skip_all ("this build of hio has no sctp support");
+			hio_close (g_hio);
+			return exit_status();
+		}
+		if (e == HIO_ENOSUP)
+		{
+			skip_all ("this system provides no sctp");
 			hio_close (g_hio);
 			return exit_status();
 		}

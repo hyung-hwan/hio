@@ -91,10 +91,48 @@ static hio_errnum_t errno_to_errnum (int errcode)
 			return HIO_ECONRF;
 	#endif
 
-	#if defined(ECONNRESETD)
+	#if defined(ECONNRESET)
 		case ECONNRESET:
 			return HIO_ECONRS;
 	#endif
+
+		/* the system declines rather than fails: the protocol, protocol
+		 * family, address family, socket type, socket option or call is one it
+		 * does not provide.
+		 *
+		 * distinct from HIO_ENOIMPL, which says this build of hio lacks the
+		 * feature. these say the build has it and the running system does not,
+		 * so the same binary may work on another host - or on this one once a
+		 * module is loaded, which is how sctp arrives on freebsd. */
+	#if defined(EPROTONOSUPPORT)
+		case EPROTONOSUPPORT:
+	#endif
+	#if defined(EPFNOSUPPORT)
+		case EPFNOSUPPORT:
+	#endif
+	#if defined(EAFNOSUPPORT)
+		case EAFNOSUPPORT:
+	#endif
+	#if defined(ESOCKTNOSUPPORT)
+		case ESOCKTNOSUPPORT:
+	#endif
+	#if defined(ENOPROTOOPT)
+		case ENOPROTOOPT:
+	#endif
+	#if defined(ENOSYS)
+		case ENOSYS:
+	#endif
+		/* EOPNOTSUPP and ENOTSUP hold the same value on linux and the bsds, so
+		 * listing both unconditionally would be a duplicate case label */
+	#if defined(EOPNOTSUPP) && defined(ENOTSUP) && (EOPNOTSUPP != ENOTSUP)
+		case EOPNOTSUPP:
+		case ENOTSUP:
+	#elif defined(EOPNOTSUPP)
+		case EOPNOTSUPP:
+	#elif defined(ENOTSUP)
+		case ENOTSUP:
+	#endif
+			return HIO_ENOSUP;
 
 		default: return HIO_ESYSERR;
 	}
@@ -137,6 +175,35 @@ static hio_errnum_t winerr_to_errnum (DWORD errcode)
 		case ERROR_BROKEN_PIPE:
 			return HIO_EPIPE;
 
+		/* see the note beside HIO_ENOSUP in errno_to_errnum(). the winsock
+		 * codes are listed alongside the win32 ones because socket failures
+		 * reach here with whatever WSAGetLastError() reported. */
+	#if defined(ERROR_NOT_SUPPORTED)
+		case ERROR_NOT_SUPPORTED:
+	#endif
+	#if defined(ERROR_CALL_NOT_IMPLEMENTED)
+		case ERROR_CALL_NOT_IMPLEMENTED:
+	#endif
+	#if defined(WSAEPROTONOSUPPORT)
+		case WSAEPROTONOSUPPORT:
+	#endif
+	#if defined(WSAEPFNOSUPPORT)
+		case WSAEPFNOSUPPORT:
+	#endif
+	#if defined(WSAEAFNOSUPPORT)
+		case WSAEAFNOSUPPORT:
+	#endif
+	#if defined(WSAESOCKTNOSUPPORT)
+		case WSAESOCKTNOSUPPORT:
+	#endif
+	#if defined(WSAENOPROTOOPT)
+		case WSAENOPROTOOPT:
+	#endif
+	#if defined(WSAEOPNOTSUPP)
+		case WSAEOPNOTSUPP:
+	#endif
+			return HIO_ENOSUP;
+
 		default:
 			return HIO_ESYSERR;
 	}
@@ -169,6 +236,15 @@ static hio_errnum_t os2err_to_errnum (APIRET errcode)
 
 		case ERROR_ALREADY_EXISTS:
 			return HIO_EEXIST;
+
+		/* see the note beside HIO_ENOSUP in errno_to_errnum() */
+	#if defined(ERROR_NOT_SUPPORTED)
+		case ERROR_NOT_SUPPORTED:
+	#endif
+	#if defined(ERROR_INVALID_FUNCTION)
+		case ERROR_INVALID_FUNCTION:
+	#endif
+			return HIO_ENOSUP;
 
 		/*TODO: add more mappings */
 		default:

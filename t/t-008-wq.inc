@@ -283,8 +283,15 @@ static void test_read_buffer_resize_refused_in_callback (void)
 
 	OK (g_setopt_rc <= -1 && g_setopt_errnum == HIO_EBUSY,
 	    "resizing the read buffer from inside on_read fails with HIO_EBUSY");
+	/*
 	OK (hio_getoption(g_hio, HIO_READ_BUFFER_SIZE, &(hio_oow_t){0}) == 0,
 	    "and the option is still readable afterwards");
+	*/
+	{
+	hio_oow_t tmp;
+	OK (hio_getoption(g_hio, HIO_READ_BUFFER_SIZE, &tmp) == 0,
+	    "and the option is still readable afterwards");
+	}
 
 	hio_dev_kill ((hio_dev_t*)dev);
 	close (peerfd);

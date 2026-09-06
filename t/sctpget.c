@@ -13,11 +13,13 @@
  * body is produced, so a task that fails halfway still answers 200 and only the
  * body shows it.
  *
- * it prints "nosctp" if the system cannot make an sctp socket at all, and
- * "refused" if nothing is listening - which is what a library built without
- * --enable-sctp looks like from out here, since the kernel may well have sctp
- * while hio was told not to use it. the caller treats both as a skip. anything
- * else prints "error", which is a failure.
+ * it prints "nosctp" if the system cannot make an sctp socket at all - whether
+ * because the headers do not define IPPROTO_SCTP, so there is nothing to ask
+ * for, or because the kernel refuses the socket - and "refused" if nothing is
+ * listening, which is what a library built without --enable-sctp looks like
+ * from out here, since the kernel may well have sctp while hio was told not to
+ * use it. the caller treats both as a skip. anything else prints "error",
+ * which is a failure.
  *
  * plain POSIX sockets on purpose - nothing here should depend on the library
  * under test.
@@ -32,6 +34,22 @@
 #include <sys/time.h>
 #include <netinet/in.h>
 #include <arpa/inet.h>
+
+#if !defined(IPPROTO_SCTP)
+
+/* the system headers name no sctp protocol number, so an association cannot be
+ * opened from here whatever the kernel can do. saying so in the same words the
+ * runtime path uses keeps this a build that runs and reports, rather than one
+ * that fails to compile - and the caller already treats "nosctp" as a skip. */
+int main (int argc, char* argv[])
+{
+	(void)argc;
+	(void)argv;
+	printf ("nosctp\n");
+	return 3;
+}
+
+#else
 
 int main (int argc, char* argv[])
 {
@@ -126,3 +144,5 @@ int main (int argc, char* argv[])
 	printf ("%.3s\n", &buf[9]);
 	return 0;
 }
+
+#endif
