@@ -2851,7 +2851,11 @@ static int dev_evcb_sck_ready_stream (hio_dev_t* dev, int events)
 				hio_seterrnum(hio, HIO_EDEVHUP);
 				return -1;
 			}
+		#if 1
+			else if (events & (HIO_DEV_EVENT_OUT | HIO_DEV_EVENT_IN))
+		#else
 			else if (events & HIO_DEV_EVENT_OUT)
+		#endif
 			{
 				/* when connected, the socket becomes writable.
 				 *
@@ -2864,7 +2868,11 @@ static int dev_evcb_sck_ready_stream (hio_dev_t* dev, int events)
 				 * variants below already accept IN and OUT together. */
 				return harvest_outgoing_connection(rdev);
 			}
+		#if 1
+			else if (events & HIO_DEV_EVENT_PRI)
+		#else
 			else if (events & (HIO_DEV_EVENT_PRI | HIO_DEV_EVENT_IN))
+		#endif
 			{
 				/* readable while still connecting and not writable. */
 				hio_seterrbfmt(hio, HIO_EDEVERR, "device error - invalid event mask");

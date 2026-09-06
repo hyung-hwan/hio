@@ -212,7 +212,7 @@ static void fill_make (hio_dev_sck_make_t* mi, int server)
 /* run the loop until the flag is set, or five seconds pass. the timeout is
  * cleared on entry: a phase that legitimately waits must not be starved by an
  * earlier phase having already used the budget up. */
-static void run_until (int* flag)
+static void run_until (int* flag, int* flag2)
 {
 	hio_tmrjob_t j;
 
@@ -229,7 +229,19 @@ static void run_until (int* flag)
 		if (hio_exec(g_hio) <= -1) break;
 	}
 
-	if (g_deadline != HIO_TMRIDX_INVALID) { hio_deltmrjob (g_hio, g_deadline); g_deadline = HIO_TMRIDX_INVALID; }
+	if (flag2)
+	{
+		while (!*flag2 && !g_timeout)
+		{
+			if (hio_exec(g_hio) <= -1) break;
+		}
+	}
+
+	if (g_deadline != HIO_TMRIDX_INVALID)
+	{
+		hio_deltmrjob (g_hio, g_deadline);
+		g_deadline = HIO_TMRIDX_INVALID;
+	}
 }
 
 /* the same, for a count that has to reach a target rather than a flag that has
@@ -303,7 +315,7 @@ static void test_association_and_ancillary (void)
 	HIO_INIT_NTIME (&ci.connect_tmout, 5, 0);
 	if (hio_dev_sck_connect(g_cli, &ci) <= -1) { skip ("connect failed to start", 6); teardown(); return; }
 
-	run_until (&g_accepted);
+	run_until (&g_accepted, &g_connected);
 	OK (g_connected, "the client reaches the CONNECTED state");
 	OK (g_accepted, "the server is handed an ACCEPTED association");
 
@@ -331,7 +343,7 @@ static void test_association_and_ancillary (void)
 		}
 	}
 
-	run_until (&g_got_data);
+	run_until (&g_got_data, HIO_NULL);
 	OK (g_got_data && g_rlen == (int)HIO_SIZEOF(PAYLOAD) - 1 &&
 	    HIO_MEMCMP(g_rbuf, PAYLOAD, HIO_SIZEOF(PAYLOAD) - 1) == 0,
 	    "the association carries data intact");
@@ -344,7 +356,7 @@ static void test_association_and_ancillary (void)
 	if (hio_dev_sck_write(g_cli, HIO_NULL, 0, HIO_NULL, HIO_NULL) <= -1) FAIL ("the zero-length write is accepted");
 	else
 	{
-		run_until (&g_eof);
+		run_until (&g_eof, HIO_NULL);
 		OK (g_eof, "a zero-length write closes the writing end rather than sending an empty message");
 	}
 
@@ -473,7 +485,7 @@ static void test_one_to_many (void)
 		return;
 	}
 
-	run_until (&g_sp_got);
+	run_until (&g_sp_got, HIO_NULL);
 	OK (g_sp_got && g_sp_len == (int)HIO_SIZEOF(PAYLOAD) - 1 &&
 	    HIO_MEMCMP(g_sp_buf, PAYLOAD, HIO_SIZEOF(PAYLOAD) - 1) == 0,
 	    "a write forms the association implicitly and the message arrives");
@@ -499,7 +511,7 @@ static void test_one_to_many (void)
 		}
 		else
 		{
-			run_until (&g_sp_got);
+			run_until (&g_sp_got, HIO_NULL);
 			OK (g_sp_reads == reads_before,
 			    "an oversized message is dropped whole rather than split");
 		}
@@ -568,7 +580,7 @@ static void test_seqpkt_unconnectable (void)
 	}
 	else
 	{
-		run_until (&g_sp_got);
+		run_until (&g_sp_got, HIO_NULL);
 		OK (g_sp_got && g_sp_len == (int)HIO_SIZEOF(PAYLOAD) - 1 &&
 		    HIO_MEMCMP(g_sp_buf, PAYLOAD, HIO_SIZEOF(PAYLOAD) - 1) == 0,
 		    "the device still carries a message after the refused connect");
@@ -823,7 +835,7 @@ static void test_multihoming (void)
 	HIO_INIT_NTIME (&ci.connect_tmout, 5, 0);
 	if (hio_dev_sck_connect(g_cli, &ci) <= -1) { skip ("connect failed to start", 8); teardown(); return; }
 
-	run_until (&g_accepted);
+	run_until (&g_accepted, HIO_NULL);
 	if (!g_accepted) { skip ("no association", 8); teardown(); return; }
 
 	/* the payoff: the client learns both of the server's addresses from the
@@ -880,7 +892,7 @@ static void test_multihoming (void)
 	}
 	else
 	{
-		run_until (&g_got_data);
+		run_until (&g_got_data, HIO_NULL);
 		OK (g_got_data && g_rlen == (int)HIO_SIZEOF(PAYLOAD) - 1 &&
 		    HIO_MEMCMP(g_rbuf, PAYLOAD, HIO_SIZEOF(PAYLOAD) - 1) == 0,
 		    "the association still carries data after the primary path changed");

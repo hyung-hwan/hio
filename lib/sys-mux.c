@@ -808,7 +808,7 @@ int hio_sys_waitmux (hio_t* hio, const hio_ntime_t* tmout, hio_sys_mux_evtcb_t e
 			if (mux->pd.pfd[i].revents & POLLERR) events |= HIO_DEV_EVENT_ERR;
 			if (mux->pd.pfd[i].revents & POLLHUP) events |= HIO_DEV_EVENT_HUP;
 
-			event_handler (hio, dev, events, 0);
+			event_handler(hio, dev, events, 0);
 		}
 	}
 
@@ -850,7 +850,7 @@ int hio_sys_waitmux (hio_t* hio, const hio_ntime_t* tmout, hio_sys_mux_evtcb_t e
 			if ((evt->mask & HIO_DEV_EVENT_IN) && FD_ISSET(hnd, &mux->tmprset)) events |= HIO_DEV_EVENT_IN;
 			if ((evt->mask & HIO_DEV_EVENT_OUT) && FD_ISSET(hnd, &mux->tmpwset)) events |= HIO_DEV_EVENT_OUT;
 
-			event_handler (hio, evt->dev, events, 0);
+			event_handler(hio, evt->dev, events, 0);
 		}
 	}
 
@@ -882,15 +882,34 @@ int hio_sys_waitmux (hio_t* hio, const hio_ntime_t* tmout, hio_sys_mux_evtcb_t e
 
 		if (HIO_LIKELY(dev))
 		{
-			HIO_ASSERT(hio, mux->revs[i].ident == dev->dev_mth->getsyshnd(dev));
+		#if 1
+			/*HIO_ASSERT(hio, mux->revs[i].ident == dev->dev_mth->getsyshnd(dev));*/
+			if (mux->revs[i].ident != dev->dev_mth->getsyshnd(dev)) continue; /* already closed or something mid-loop? */
 
 			if (mux->revs[i].flags & EV_ERROR) events |= HIO_DEV_EVENT_ERR;
 			if (mux->revs[i].flags & EV_EOF) events |= HIO_DEV_EVENT_HUP;
-
 			if (mux->revs[i].filter == EVFILT_READ) events |= HIO_DEV_EVENT_IN;
 			else if (mux->revs[i].filter == EVFILT_WRITE) events |= HIO_DEV_EVENT_OUT;
+		#else
+			/* coaleascing has heavy performance penalty. i won't do it */
+			int j;
 
-			if (HIO_LIKELY(events)) event_handler (hio, dev, events, 0);
+			for (j = 0; j < i && mux->revs[j].udata != dev; j++) /* no nothing */;
+			if (j < i) continue; /* already fired */
+
+			HIO_ASSERT(hio, mux->revs[i].ident == dev->dev_mth->getsyshnd(dev));
+
+			for (j = i; j < nentries; j++) /* fold all */
+			{
+				if (mux->revs[j].udata != dev) continue;
+				if (mux->revs[j].flags & EV_ERROR) events |= HIO_DEV_EVENT_ERR;
+				if (mux->revs[j].flags & EV_EOF) events |= HIO_DEV_EVENT_HUP;
+				if (mux->revs[j].filter == EVFILT_READ) events |= HIO_DEV_EVENT_IN;
+				else if (mux->revs[j].filter == EVFILT_WRITE) events |= HIO_DEV_EVENT_OUT;
+			}
+		#endif
+
+			if (HIO_LIKELY(events)) event_handler(hio, dev, events, 0);
 		}
 		else if (mux->ctrlp[0] != HIO_SYSHND_INVALID)
 		{
@@ -935,7 +954,7 @@ int hio_sys_waitmux (hio_t* hio, const hio_ntime_t* tmout, hio_sys_mux_evtcb_t e
 			else if (mux->revs[i].events & EPOLLRDHUP) rdhup = 1;
 		#endif
 
-			event_handler (hio, dev, events, rdhup);
+			event_handler(hio, dev, events, rdhup);
 		}
 		else if (mux->ctrlp[0] != HIO_SYSHND_INVALID)
 		{

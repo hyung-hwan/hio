@@ -767,6 +767,26 @@ struct hio_cmgr_t
 #	undef HIO_HAVE_INLINE
 #endif
 
+#if defined(__has_attribute)
+#	if __has_attribute(always_inline)
+#		define HIO_INLINE_ALWAYS __inline__ __attribute__((always_inline))
+#		define HIO_HAVE_INLINE_ALWAYS
+#	endif
+#endif
+
+#if !defined(HIO_HAVE_INLINE_ALWAYS)
+#	if defined(__GNUC__) && (__GNUC__ > 3 || (__GNUC__ == 3 && __GNUC_MINOR__ > 0))
+#		define HIO_INLINE_ALWAYS __inline__ __attribute__((__always_inline__))
+#		define HIO_HAVE_INLINE_ALWAYS
+#	elif defined(_MSC_VER) || defined(__CC_ARM) || defined(__ARMCC__)
+#		define HIO_INLINE_ALWAYS __forceinline
+#		define HIO_HAVE_INLINE_ALWAYS
+#	else
+		/* fallback to normal inline */
+#		define HIO_INLINE_ALWAYS HIO_INLINE
+#	endif
+#endif
+
 #if defined(__GNUC__) && (__GNUC__ > 2 || (__GNUC__ == 2 && __GNUC_MINOR__ > 4))
 #	define HIO_UNUSED __attribute__((__unused__))
 #else
