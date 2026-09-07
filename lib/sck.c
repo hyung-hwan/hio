@@ -190,7 +190,7 @@ open_socket:
 	sck = socket(domain, type, proto);
 	if (sck == HIO_SYSHND_INVALID)
 	{
-	#if defined(SOCK_NONBLOCK) && defined(SOCK_CLOEXEC)
+	#if defined(SOCK_NONBLOCK) && defined(SOCK_CLOEXEC) && !(defined(__BEOS__) || defined(__HAIKU__))
 		if (errno == EINVAL && (type & (SOCK_NONBLOCK | SOCK_CLOEXEC)))
 		{
 			type &= ~(SOCK_NONBLOCK | SOCK_CLOEXEC);
@@ -201,7 +201,7 @@ open_socket:
 	}
 	else
 	{
-	#if defined(SOCK_NONBLOCK) && defined(SOCK_CLOEXEC)
+	#if defined(SOCK_NONBLOCK) && defined(SOCK_CLOEXEC) && !(defined(__BEOS__) || defined(__HAIKU__))
 		if (type & (SOCK_NONBLOCK | SOCK_CLOEXEC)) goto done;
 	#endif
 	}
@@ -230,7 +230,7 @@ open_socket:
 #endif
 	if (socketpair(AF_UNIX, type, 0, fd) <= -1)
 	{
-	#if defined(SOCK_NONBLOCK) && defined(SOCK_CLOEXEC)
+	#if defined(SOCK_NONBLOCK) && defined(SOCK_CLOEXEC) && !(defined(__BEOS__) || defined(__HAIKU__))
 		if (errno == EINVAL && (type & (SOCK_NONBLOCK | SOCK_CLOEXEC)))
 		{
 			type &= ~(SOCK_NONBLOCK | SOCK_CLOEXEC);
@@ -242,7 +242,7 @@ open_socket:
 	}
 	else
 	{
-	#if defined(SOCK_NONBLOCK) && defined(SOCK_CLOEXEC)
+	#if defined(SOCK_NONBLOCK) && defined(SOCK_CLOEXEC) && !(defined(__BEOS__) || defined(__HAIKU__))
 		if (type & (SOCK_NONBLOCK | SOCK_CLOEXEC)) goto done;
 	#endif
 	}
@@ -1380,7 +1380,9 @@ static int dev_sck_writev_stream (hio_dev_t* dev, const hio_iovec_t* iov, hio_io
 #endif
 		ssize_t x;
 		int flags = 0;
+	#if defined(HAVE_SENDMSG)
 		struct msghdr msg;
+	#endif
 
 		if (*iovcnt <= 0)
 		{
