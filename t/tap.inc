@@ -27,6 +27,14 @@ tap_skip()
 	printf "ok %d - # skip%s\n" $tap_total "$msg"
 }
 
+# is a command the harness needs actually installed? a test that drives the
+# server through an external tool has nothing to say on a system without it,
+# and that is a skip rather than a failure.
+tap_have_cmd()
+{
+	command -v "$1" >/dev/null 2>&1
+}
+
 tap_ensure()
 {
 	local a="$1"

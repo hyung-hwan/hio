@@ -48,13 +48,23 @@ start_server()
 	HTTS_HDR_TMOUT=3 HTTS_IDLE_TMOUT=30 ./httssvr >/dev/null 2>&1 &
 	srvpid=$!
 	# wait for the listener rather than sleeping a fixed amount
-	i=0
-	while [ $i -lt 50 ]; do
-		curl -s -m 1 -o /dev/null "http://${SRVADDR}/txt/ping" 2>/dev/null && return 0
-		i=$((i + 1))
-		sleep 0.1
-	done
-	return 1
+	if tap_have_cmd curl; then
+		i=0
+		while [ $i -lt 50 ]; do
+			curl -s -m 1 -o /dev/null "http://${SRVADDR}/txt/ping" 2>/dev/null && return 0
+			i=$((i + 1))
+			sleep 0.1
+		done
+		return 1
+	fi
+
+	# with no curl there is nothing here to poll the listener with, so the
+	# wait is a fixed one. test_sctp drives the server through ./sctpget
+	# rather than curl and is still worth running; every other case skips
+	# itself. a server that did not come up leaves sctpget reporting
+	# 'refused', which that case already treats as a skip.
+	sleep 2
+	return 0
 }
 
 stop_server()
@@ -76,6 +86,8 @@ stop_server()
 test_pxy()
 {
 	local msg="httssvr pxy task"
+
+	tap_have_cmd curl || { tap_skip "$msg - curl is not installed"; return; }
 
 	if [ -z "${uppid}" ]; then
 		tap_fail "$msg - httpecho did not come up"
@@ -121,6 +133,8 @@ test_fcgi()
 {
 	local msg="httssvr fcgi task"
 
+	tap_have_cmd curl || { tap_skip "$msg - curl is not installed"; return; }
+
 	if [ -z "${fcgipid}" ]; then
 		tap_fail "$msg - fcgis did not come up"
 		tap_fail "$msg - fcgis did not come up"
@@ -148,6 +162,8 @@ test_txt()
 {
 	local msg="httssvr txt task"
 
+	tap_have_cmd curl || { tap_skip "$msg - curl is not installed"; return; }
+
 	local hc=$(curl -s -m 5 -w '%{http_code}' -o /dev/null "http://${SRVADDR}/txt/hello")
 	tap_ensure "$hc" "200" "$msg - got $hc"
 
@@ -166,6 +182,8 @@ test_txt()
 test_thr()
 {
 	local msg="httssvr thr task"
+
+	tap_have_cmd curl || { tap_skip "$msg - curl is not installed"; return; }
 
 	local hc=$(curl -s -m 5 -w '%{http_code}' -o /dev/null "http://${SRVADDR}/thr/x")
 	tap_ensure "$hc" "200" "$msg - got $hc"
@@ -195,6 +213,8 @@ test_hdrlimits()
 {
 	local msg="httssvr header limits"
 
+	tap_have_cmd curl || { tap_skip "$msg - curl is not installed"; return; }
+
 	# one header long enough to blow the octet cap. the point of answering
 	# rather than dropping the connection is that the peer can tell a limit
 	# from a crash - so the assertion is on the status, not merely on the
@@ -221,6 +241,8 @@ test_hdrlimits()
 test_slowloris()
 {
 	local msg="httssvr slow client"
+
+	tap_have_cmd curl || { tap_skip "$msg - curl is not installed"; return; }
 
 	# the harness starts httssvr with HTTS_HDR_TMOUT=3 and a long idle
 	# timeout, so only the header deadline can be what closes these.
@@ -289,6 +311,8 @@ test_sctp()
 test_mixed_load()
 {
 	local msg="httssvr mixed task load"
+
+	tap_have_cmd curl || { tap_skip "$msg - curl is not installed"; return; }
 	local ok=0 i=0
 
 	# alternate task types on the same server to shake out cross-task

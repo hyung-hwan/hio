@@ -6,6 +6,8 @@
 test_default_index()
 {
 	local msg="hio-webs default index.html under a directory"
+
+	tap_have_cmd curl || { tap_skip "$msg - curl is not installed"; return; }
 	local srvaddr=127.0.0.1:54321
 	local tmpdir="/tmp/s-001.$$"
 
@@ -41,6 +43,8 @@ EOF
 test_file_list_dir()
 {
 	local msg="hio-webs file-list-dir"
+
+	tap_have_cmd curl || { tap_skip "$msg - curl is not installed"; return; }
 	local srvaddr=127.0.0.1:54321
 	local tmpdir="/tmp/s-001.$$"
 
@@ -64,6 +68,8 @@ test_file_list_dir()
 test_cgi()
 {
 	local msg="hio-webs cgi"
+
+	tap_have_cmd curl || { tap_skip "$msg - curl is not installed"; return; }
 	local srvaddr=127.0.0.1:54321
 	local tmpdir="/tmp/s-001.$$"
 
