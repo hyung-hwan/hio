@@ -182,7 +182,8 @@ static hio_syshnd_t open_async_socket (hio_t* hio, int domain, int type, int pro
 {
 	hio_syshnd_t sck = HIO_SYSHND_INVALID;
 
-#if defined(SOCK_NONBLOCK) && defined(SOCK_CLOEXEC)
+#if defined(SOCK_NONBLOCK) && defined(SOCK_CLOEXEC) && !(defined(__BEOS__) || defined(__HAIKU__))
+	/* haikuos accepts SOCK_NONBLOCK but the returned socket is still blocking. make haikuos an exception */
 	type |= SOCK_NONBLOCK | SOCK_CLOEXEC;
 open_socket:
 #endif
@@ -222,7 +223,8 @@ static hio_syshnd_t open_async_qx (hio_t* hio, hio_syshnd_t* side_chan)
 	int fd[2];
 	int type = SOCK_DGRAM;
 
-#if defined(SOCK_NONBLOCK) && defined(SOCK_CLOEXEC)
+#if defined(SOCK_NONBLOCK) && defined(SOCK_CLOEXEC) && !(defined(__BEOS__) || defined(__HAIKU__))
+	/* haikuos defines SOCK_NONBLOCK and socket accepts it but the socket is still blocking. make haikuos an exception */
 	type |= SOCK_NONBLOCK | SOCK_CLOEXEC;
 open_socket:
 #endif
@@ -2851,30 +2853,27 @@ static int dev_evcb_sck_ready_stream (hio_dev_t* dev, int events)
 				hio_seterrnum(hio, HIO_EDEVHUP);
 				return -1;
 			}
-		#if 1
 			else if (events & (HIO_DEV_EVENT_OUT | HIO_DEV_EVENT_IN))
-		#else
-			else if (events & HIO_DEV_EVENT_OUT)
-		#endif
 			{
-				/* when connected, the socket becomes writable.
+				/* either bit means the kernel has something to say about a
+				 * connection that has not finished. the socket turns writable
+				 * when it completes, and readable when the peer has already
+				 * sent something - or, on sctp, when the association
+				 * notification arrives. which of the two arrived does not
+				 * matter here: SO_ERROR is what actually answers, and
+				 * harvest_outgoing_connection() leaves the device in
+				 * CONNECTING while that answer is still EINPROGRESS.
 				 *
-				 * [NOTE] this must be tested before the input bits below. the
-				 * peer may accept, receive whatever was queued while this end
-				 * was still connecting, and answer, all before this loop gets
-				 * back to the multiplexer - in which case one wakeup carries
-				 * both readiness bits. reading the input bits first would
-				 * declare a perfectly good connection an error. the ssl
-				 * variants below already accept IN and OUT together. */
+				 * the two bits do not necessarily arrive together. kqueue
+				 * reports one event per filter, so a socket that is readable
+				 * and writable at once produces two separate wakeups, while
+				 * epoll and poll deliver a single mask carrying both, neither
+				 * bit may be read as an error on its own. */
 				return harvest_outgoing_connection(rdev);
 			}
-		#if 1
 			else if (events & HIO_DEV_EVENT_PRI)
-		#else
-			else if (events & (HIO_DEV_EVENT_PRI | HIO_DEV_EVENT_IN))
-		#endif
 			{
-				/* readable while still connecting and not writable. */
+				/* urgent data on a socket that has not finished connecting. it's not expected */
 				hio_seterrbfmt(hio, HIO_EDEVERR, "device error - invalid event mask");
 				return -1;
 			}

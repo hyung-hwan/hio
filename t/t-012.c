@@ -211,7 +211,13 @@ static void fill_make (hio_dev_sck_make_t* mi, int server)
 
 /* run the loop until the flag is set, or five seconds pass. the timeout is
  * cleared on entry: a phase that legitimately waits must not be starved by an
- * earlier phase having already used the budget up. */
+ * earlier phase having already used the budget up.
+ *
+ * with a second flag, it waits for the first and then for the second, both
+ * against the same deadline - which is what a case needs when two ends of one
+ * exchange complete in an order the platform decides. a timeout on the first
+ * skips the second, since the budget is already spent.
+ */
 static void run_until (int* flag, int* flag2)
 {
 	hio_tmrjob_t j;
