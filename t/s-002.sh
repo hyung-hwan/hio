@@ -121,7 +121,8 @@ test_pxy()
 	# and the bytes themselves, not just the count. the upstream emits a
 	# repeating a-z pattern keyed to the offset.
 	local sum=$(curl -s -m 60 "http://${SRVADDR}/pxy/big" | cksum | cut -d' ' -f1)
-	local want=$(perl -e 'print map { chr(97 + ($_ % 26)) } 0 .. (8*1024*1024 - 1)' 2>/dev/null | cksum | cut -d' ' -f1)
+	##local want=$(perl -e 'print map { chr(97 + ($_ % 26)) } 0 .. (8*1024*1024 - 1)' 2>/dev/null | cksum | cut -d' ' -f1)
+	local want=$(yes abcdefghijklmnopqrstuvwxyz | tr -d '\n' | head -c 8388608 | cksum | cut -d' ' -f1)
 	if [ -n "$want" ]; then
 		tap_ensure "$sum" "$want" "$msg - the relayed bytes are identical to the upstream's"
 	else
