@@ -442,6 +442,21 @@ struct hio_dev_sck_listen_t
 	hio_ntime_t accept_tmout;
 };
 
+enum hio_dev_sck_qxmsg_cmd_t
+{
+	HIO_DEV_SCK_QXMSG_NEWCONN = 0
+};
+typedef enum hio_dev_sck_qxmsg_cmd_t hio_dev_sck_qxmsg_cmd_t;
+
+struct hio_dev_sck_qxmsg_t
+{
+	hio_dev_sck_qxmsg_cmd_t cmd;
+	hio_dev_sck_type_t scktype;
+	hio_syshnd_t syshnd;
+	hio_skad_t remoteaddr;
+};
+typedef struct hio_dev_sck_qxmsg_t hio_dev_sck_qxmsg_t;
+
 struct hio_dev_sck_t
 {
 	HIO_DEV_HEADER;
@@ -469,7 +484,6 @@ struct hio_dev_sck_t
 	/* original destination address */
 	hio_skad_t orgdstaddr;
 
-
 	hio_dev_sck_on_write_t on_write;
 	hio_dev_sck_on_read_t on_read;
 
@@ -493,16 +507,30 @@ struct hio_dev_sck_t
 	void* ssl_ctx;
 	void* ssl;
 
-	hio_syshnd_t side_chan; /* side-channel for HIO_DEV_SCK_QX */
+	union
+	{
+		struct
+		{
+			hio_syshnd_t side_chan; /* side-channel for HIO_DEV_SCK_QX */
+			hio_dev_sck_qxmsg_t qxacc;
+			hio_oow_t qxacc_len;
+		} qx;
 
-	/* set while a message too large for the read buffer is being thrown away.
-	 * see the MSG_EOR handling in the sctp seqpacket read method. */
-	int sctp_discarding;
+		struct
+		{
+			/* set while a message too large for the read buffer is being thrown away.
+			 * see the MSG_EOR handling in the sctp seqpacket read method. */
+			int discarding;
+		} sctp;
 
-	/* opaque per-device state for the /dev/bpf implementation of the L2 device
-	 * types, used where the system has no AF_PACKET. null everywhere else.
-	 * opaque so that this header need not know what a bpf device is. */
-	void* bpf_state;
+		struct
+		{
+			/* opaque per-device state for the /dev/bpf implementation of the L2 device
+			 * types, used where the system has no AF_PACKET. null everywhere else.
+			 * opaque so that this header need not know what a bpf device is. */
+			void* state;
+		} bpf;
+	} u;
 };
 
 enum hio_dev_sck_shutdown_how_t
@@ -511,21 +539,6 @@ enum hio_dev_sck_shutdown_how_t
 	HIO_DEV_SCK_SHUTDOWN_WRITE = (1 << 1)
 };
 typedef enum hio_dev_sck_shutdown_how_t hio_dev_sck_shutdown_how_t;
-
-enum hio_dev_sck_qxmsg_cmd_t
-{
-	HIO_DEV_SCK_QXMSG_NEWCONN = 0
-};
-typedef enum hio_dev_sck_qxmsg_cmd_t hio_dev_sck_qxmsg_cmd_t;
-
-struct hio_dev_sck_qxmsg_t
-{
-	hio_dev_sck_qxmsg_cmd_t cmd;
-	hio_dev_sck_type_t scktype;
-	hio_syshnd_t syshnd;
-	hio_skad_t remoteaddr;
-};
-typedef struct hio_dev_sck_qxmsg_t hio_dev_sck_qxmsg_t;
 
 
 #if defined(__cplusplus)

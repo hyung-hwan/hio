@@ -279,7 +279,7 @@ static int handover_via_qx (hio_dev_sck_t* qx, hio_dev_sck_type_t type)
 
 	/* the qx device reads from its own handle; the side channel is the end a
 	 * producer writes to */
-	if (write(qx->side_chan, &msg, HIO_SIZEOF(msg)) != (ssize_t)HIO_SIZEOF(msg)) { close(fd); return -1; }
+	if (write(qx->u.qx.side_chan, &msg, HIO_SIZEOF(msg)) != (ssize_t)HIO_SIZEOF(msg)) { close(fd); return -1; }
 	return 0;
 }
 

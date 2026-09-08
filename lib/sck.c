@@ -223,6 +223,13 @@ static hio_syshnd_t open_async_qx (hio_t* hio, hio_syshnd_t* side_chan)
 	int fd[2];
 	int type = SOCK_DGRAM;
 
+#if defined(__BEOS__) || defined(__HAIKU__)
+	/* on haiku os r6beta, SOCK_DGRAM isn't reliable. more than one write() on it causes SIGPIPE */
+	type = SOCK_STREAM;
+#else
+	type = SOCK_DGRAM;
+#endif
+
 #if defined(SOCK_NONBLOCK) && defined(SOCK_CLOEXEC) && !(defined(__BEOS__) || defined(__HAIKU__))
 	/* haikuos defines SOCK_NONBLOCK and socket accepts it but the socket is still blocking. make haikuos an exception */
 	type |= SOCK_NONBLOCK | SOCK_CLOEXEC;
@@ -670,13 +677,16 @@ static int dev_sck_make (hio_dev_t* dev, void* ctx)
 	hio_dev_sck_make_t* arg = (hio_dev_sck_make_t*)ctx;
 	hio_syshnd_t hnd = HIO_SYSHND_INVALID;
 	hio_syshnd_t side_chan = HIO_SYSHND_INVALID;
+	int is_qx;
 
 	HIO_ASSERT(hio, arg->type >= 0 && arg->type < HIO_COUNTOF(sck_type_map));
 
 	/* initialize some fields first where 0 is not somthing initial or invalid. */
 	rdev->hnd = HIO_SYSHND_INVALID;
-	rdev->side_chan = HIO_SYSHND_INVALID;
 	rdev->tmrjob_index = HIO_TMRIDX_INVALID;
+
+	is_qx = (sck_type_map[arg->type].domain == HIO_AF_QX);
+	if (HIO_UNLIKELY(is_qx)) rdev->u.qx.side_chan = HIO_SYSHND_INVALID;
 
 	if (sck_type_map[arg->type].domain <= -1)
 	{
@@ -694,15 +704,25 @@ static int dev_sck_make (hio_dev_t* dev, void* ctx)
 		if (hnd == HIO_SYSHND_INVALID) goto oops;
 
 		st = (bpf_state_t*)hio_callocmem(hio, HIO_SIZEOF(*st));
-		if (HIO_UNLIKELY(!st)) { close(hnd); goto oops; }
+		if (HIO_UNLIKELY(!st))
+		{
+			close(hnd);
+			goto oops;
+		}
+
 		st->capa = bufsize;
 		st->buf = (hio_uint8_t*)hio_allocmem(hio, st->capa);
-		if (HIO_UNLIKELY(!st->buf)) { hio_freemem(hio, st); close(hnd); goto oops; }
-		rdev->bpf_state = st;
+		if (HIO_UNLIKELY(!st->buf))
+		{
+			hio_freemem(hio, st);
+			close(hnd);
+			goto oops;
+		}
+		rdev->u.bpf.state = st;
 	}
 	else
 #endif
-	if (HIO_UNLIKELY(sck_type_map[arg->type].domain == HIO_AF_QX))
+	if (HIO_UNLIKELY(is_qx))
 	{
 		hnd = open_async_qx(hio, &side_chan);
 		if (hnd == HIO_SYSHND_INVALID) goto oops;
@@ -760,8 +780,8 @@ static int dev_sck_make (hio_dev_t* dev, void* ctx)
 	}
 
 	rdev->hnd = hnd;
-	rdev->side_chan = side_chan;
 	rdev->dev_cap = HIO_DEV_CAP_IN | HIO_DEV_CAP_OUT | sck_type_map[arg->type].extra_dev_cap;
+	if (HIO_UNLIKELY(is_qx)) rdev->u.qx.side_chan = side_chan;
 
 	rdev->dev_rdmin = sck_type_rdmin(arg->type);
 	rdev->on_write = arg->on_write;
@@ -795,6 +815,7 @@ static int dev_sck_make_client (hio_dev_t* dev, void* ctx)
 	hio_t* hio = dev->hio;
 	hio_dev_sck_t* rdev = (hio_dev_sck_t*)dev;
 	sck_make_client_ctx_t* mc = (sck_make_client_ctx_t*)ctx;
+	int is_qx;
 
 	/* create a socket device that is made of a socket connection
 	 * on a listening socket.
@@ -804,7 +825,9 @@ static int dev_sck_make_client (hio_dev_t* dev, void* ctx)
 
 	rdev->hnd = mc->hnd;
 	rdev->tmrjob_index = HIO_TMRIDX_INVALID;
-	rdev->side_chan = HIO_SYSHND_INVALID;
+
+	is_qx = (mc->type == HIO_DEV_SCK_QX);
+	if (is_qx) rdev->u.qx.side_chan = HIO_SYSHND_INVALID;
 
 	/* the type is settled again by the caller, but dev_rdmin has to be known
 	 * before this method returns: hio_dev_make() checks it against the loop's
@@ -898,19 +921,19 @@ static int dev_sck_kill (hio_dev_t* dev, int force)
 		rdev->hnd = HIO_SYSHND_INVALID;
 	}
 
-	if (rdev->side_chan != HIO_SYSHND_INVALID)
+	if (rdev->type == HIO_DEV_SCK_QX && rdev->u.qx.side_chan != HIO_SYSHND_INVALID)
 	{
-		close(rdev->side_chan);
-		rdev->side_chan = HIO_SYSHND_INVALID;
+		close(rdev->u.qx.side_chan);
+		rdev->u.qx.side_chan = HIO_SYSHND_INVALID;
 	}
 
 #if defined(USE_BPF)
-	if (rdev->bpf_state)
+	if (rdev->type == HIO_DEV_SCK_PACKET && rdev->u.bpf.state)
 	{
 		bpf_state_t* st = (bpf_state_t*)rdev->bpf_state;
 		if (st->buf) hio_freemem(hio, st->buf);
 		hio_freemem(hio, st);
-		rdev->bpf_state = HIO_NULL;
+		rdev->u.bpf.state = HIO_NULL;
 	}
 #endif
 
@@ -1209,15 +1232,15 @@ static int dev_sck_read_sctp_seqpkt (hio_dev_t* dev, void* buf, hio_iolen_t* len
 	 * message from one peer costs that message and nothing else - the socket
 	 * keeps serving everyone else. the remedy is a larger read buffer, which
 	 * HIO_READ_BUFFER_SIZE now makes possible. */
-	if (rdev->sctp_discarding || !(msg_flags & MSG_EOR))
+	if (rdev->u.sctp.discarding || !(msg_flags & MSG_EOR))
 	{
-		if (!rdev->sctp_discarding)
+		if (!rdev->u.sctp.discarding)
 		{
-			rdev->sctp_discarding = 1;
+			rdev->u.sctp.discarding = 1;
 			HIO_INFO2(hio, "SCK(%p) - discarding an sctp message too large for the read buffer of %zu octets\n", rdev, hio->bigbuf.capa);
 		}
 		/* keep swallowing fragments until the one that ends the message */
-		if (msg_flags & MSG_EOR) rdev->sctp_discarding = 0;
+		if (msg_flags & MSG_EOR) rdev->u.sctp.discarding = 0;
 		return 0;
 	}
 
@@ -2090,7 +2113,7 @@ static int dev_sck_ioctl (hio_dev_t* dev, int cmd, void* arg)
 			#endif
 			}
 
-#if defined(USE_BPF)
+		#if defined(USE_BPF)
 			if (rdev->bpf_state)
 			{
 				/* a bpf device attaches to an interface by name, and what the
@@ -2133,7 +2156,7 @@ static int dev_sck_ioctl (hio_dev_t* dev, int cmd, void* arg)
 				rdev->localaddr = bnd->localaddr;
 				return 0;
 			}
-#endif
+		#endif
 
 			x = bind(rdev->hnd, (struct sockaddr*)&bnd->localaddr, hio_skad_get_size(&bnd->localaddr));
 			if (x <= -1)
@@ -2761,11 +2784,12 @@ static int accept_incoming_connection (hio_dev_sck_t* rdev)
 	hio_syshnd_t clisck;
 	hio_skad_t remoteaddr;
 	hio_scklen_t addrlen;
-	int flags;
 
 	/* this is a server(lisening) socket */
 
 #if defined(SOCK_NONBLOCK) && defined(SOCK_CLOEXEC) && defined(HAVE_PACCEPT)
+	int flags;
+
 	flags = SOCK_NONBLOCK | SOCK_CLOEXEC;
 
 	addrlen = HIO_SIZEOF(remoteaddr);
@@ -2780,6 +2804,8 @@ static int accept_incoming_connection (hio_dev_sck_t* rdev)
 		 goto accept_done;
 	}
 #elif defined(SOCK_NONBLOCK) && defined(SOCK_CLOEXEC) && defined(HAVE_ACCEPT4)
+	int flags;
+
 	flags = SOCK_NONBLOCK | SOCK_CLOEXEC;
 
 	addrlen = HIO_SIZEOF(remoteaddr);
@@ -3139,6 +3165,42 @@ static int dev_evcb_sck_on_read_qx (hio_dev_t* dev, const void* data, hio_iolen_
 
 	if (rdev->type == HIO_DEV_SCK_QX)
 	{
+	#if defined(__BEOS__) || defined(__HAIKU__)
+		const hio_uint8_t* p = (const hio_uint8_t*)data;
+		hio_oow_t rem = (hio_oow_t)dlen;
+
+		while (rem > 0)
+		{
+			hio_oow_t want = HIO_SIZEOF(rdev->u.qx.qxacc) - rdev->u.qx.qxacc_len;
+			hio_oow_t take = (rem < want)? rem: want;
+
+			HIO_MEMCPY((hio_uint8_t*)&rdev->u.qx.qxacc + rdev->u.qx.qxacc_len, p, take);
+			rdev->u.qx.qxacc_len += take;
+			p += take;
+			rem -= take;
+
+
+			if (rdev->u.qx.qxacc_len < HIO_SIZEOF(rdev->u.qx.qxacc)) break; /* wait for more */
+			rdev->u.qx.qxacc_len = 0;
+
+			if (rdev->u.qx.qxacc.cmd == HIO_DEV_SCK_QXMSG_NEWCONN)
+			{
+				if (make_accepted_client_connection(rdev, rdev->u.qx.qxacc.syshnd, &rdev->u.qx.qxacc.remoteaddr, rdev->u.qx.qxacc.scktype) <= -1)
+				{
+/*printf ("unable to accept new client connection %d\n", qxmsg->syshnd);*/
+					return (rdev->state & HIO_DEV_SCK_LENIENT)? 0: -1;
+				}
+			}
+			else
+			{
+				/* the stream is framed by size alone, so a bad command means
+				 * the two ends disagree about the message layout and nothing
+				 * after this point can be trusted to be a message boundary. */
+				hio_seterrbfmt(hio, HIO_EINVAL, "wrong qx command code");
+				return 0;
+			}
+		}
+	#else
 		hio_dev_sck_qxmsg_t* qxmsg;
 
 		if (dlen != HIO_SIZEOF(*qxmsg))
@@ -3161,10 +3223,10 @@ static int dev_evcb_sck_on_read_qx (hio_dev_t* dev, const void* data, hio_iolen_
 			hio_seterrbfmt(hio, HIO_EINVAL, "wrong qx command code");
 			return 0;
 		}
+	#endif
 
 		return 0;
 	}
-
 
 	/* this is not for a qx socket */
 	return rdev->on_read(rdev, data, dlen, HIO_NULL);
@@ -3189,12 +3251,6 @@ static hio_dev_evcb_t dev_sck_event_callbacks_qx =
 	dev_evcb_sck_on_read_qx,
 	dev_evcb_sck_on_write_qx
 };
-
-/* ========================================================================= */
-
-
-
-
 
 /* ========================================================================= */
 
@@ -3925,7 +3981,7 @@ int hio_dev_sck_sendfileok (hio_dev_sck_t* dev)
 
 int hio_dev_sck_writetosidechan (hio_dev_sck_t* dev, const void* dptr, hio_oow_t dlen)
 {
-	if (write(dev->side_chan, dptr, dlen) <= -1)
+	if (dev->type == HIO_DEV_SCK_QX && write(dev->u.qx.side_chan, dptr, dlen) <= -1)
 	{
 		/* this doesn't set the error information on the main socket. if you may check errno, though */
 		/* TODO: make hio_seterrbfmt() thread safe and set the error information properly. still the caller may be in the thread-unsafe context */
@@ -3933,8 +3989,6 @@ int hio_dev_sck_writetosidechan (hio_dev_sck_t* dev, const void* dptr, hio_oow_t
 	}
 	return 0;
 }
-
-/* ========================================================================= */
 
 /* ========================================================================= */
 

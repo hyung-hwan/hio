@@ -1157,14 +1157,14 @@ hio_dev_t* hio_dev_make (hio_t* hio, hio_oow_t dev_size, hio_dev_mth_t* dev_mth,
 	if (dev_size < HIO_SIZEOF(hio_dev_t))
 	{
 		hio_seterrnum(hio, HIO_EINVAL);
-		if (dev_mth->fail_before_make) dev_mth->fail_before_make (make_ctx);
+		if (dev_mth->fail_before_make) dev_mth->fail_before_make(make_ctx);
 		goto oops;
 	}
 
 	dev = (hio_dev_t*)hio_callocmem(hio, dev_size);
 	if (HIO_UNLIKELY(!dev))
 	{
-		if (dev_mth->fail_before_make) dev_mth->fail_before_make (make_ctx);
+		if (dev_mth->fail_before_make) dev_mth->fail_before_make(make_ctx);
 		goto oops;
 	}
 
