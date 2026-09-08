@@ -340,7 +340,7 @@ static int dev_sck_read_bpf (hio_dev_t* dev, void* buf, hio_iolen_t* len, hio_de
 {
 	hio_t* hio = dev->hio;
 	hio_dev_sck_t* rdev = (hio_dev_sck_t*)dev;
-	bpf_state_t* st = (bpf_state_t*)rdev->bpf_state;
+	bpf_state_t* st = (bpf_state_t*)rdev->u.bpf.state;
 	struct bpf_hdr* bh;
 	hio_oow_t caplen;
 
@@ -400,7 +400,7 @@ static int dev_sck_read_bpf (hio_dev_t* dev, void* buf, hio_iolen_t* len, hio_de
 static int dev_sck_readpending_bpf (hio_dev_t* dev)
 {
 	hio_dev_sck_t* rdev = (hio_dev_sck_t*)dev;
-	bpf_state_t* st = (bpf_state_t*)rdev->bpf_state;
+	bpf_state_t* st = (bpf_state_t*)rdev->u.bpf.state;
 	return st && st->pos < st->len;
 }
 
@@ -930,7 +930,7 @@ static int dev_sck_kill (hio_dev_t* dev, int force)
 #if defined(USE_BPF)
 	if (rdev->type == HIO_DEV_SCK_PACKET && rdev->u.bpf.state)
 	{
-		bpf_state_t* st = (bpf_state_t*)rdev->bpf_state;
+		bpf_state_t* st = (bpf_state_t*)rdev->u.bpf.state;
 		if (st->buf) hio_freemem(hio, st->buf);
 		hio_freemem(hio, st);
 		rdev->u.bpf.state = HIO_NULL;
@@ -2114,7 +2114,7 @@ static int dev_sck_ioctl (hio_dev_t* dev, int cmd, void* arg)
 			}
 
 		#if defined(USE_BPF)
-			if (rdev->bpf_state)
+			if (rdev->u.bpf.state)
 			{
 				/* a bpf device attaches to an interface by name, and what the
 				 * caller gave is the ifindex hio_skad_init_for_eth() puts in an
