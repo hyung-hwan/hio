@@ -457,6 +457,18 @@ struct hio_dev_sck_qxmsg_t
 };
 typedef struct hio_dev_sck_qxmsg_t hio_dev_sck_qxmsg_t;
 
+/* the qx side channel is a socketpair. on most systems it is a datagram pair,
+ * where one write is one message and the reader is handed whole messages. where
+ * a datagram pair cannot carry messages reliably it is a stream pair instead,
+ * and the reader has to recover the message boundaries itself.
+ *
+ * the socket type, the writing side and the reader must agree on which of the
+ * two it is, so all three ask this one macro rather than testing for the system
+ * separately. */
+#if defined(__BEOS__) || defined(__HAIKU__)
+#	define HIO_DEV_SCK_QX_STREAM
+#endif
+
 struct hio_dev_sck_t
 {
 	HIO_DEV_HEADER;
@@ -512,8 +524,16 @@ struct hio_dev_sck_t
 		struct
 		{
 			hio_syshnd_t side_chan; /* side-channel for HIO_DEV_SCK_QX */
+		#if defined(HIO_DEV_SCK_QX_STREAM)
+			/* the message being reassembled, and how much of it has arrived.
+			 * a stream side channel splits and merges writes freely, so a read
+			 * can end in the middle of a message and the remainder has to be
+			 * held until the rest comes. only the stream variant needs it, and
+			 * the hio_skad_t inside the message makes it large, so it is not
+			 * carried on the systems that never look at it. */
 			hio_dev_sck_qxmsg_t qxacc;
 			hio_oow_t qxacc_len;
+		#endif
 		} qx;
 
 		struct

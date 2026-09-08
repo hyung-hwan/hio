@@ -209,7 +209,11 @@ open_socket:
 	if (hio_makesyshndasync(hio, sck) <= -1 ||
 	    hio_makesyshndcloexec(hio, sck) <= -1) goto oops;
 
+/* the label is only jumped to from the branch that asks socket() for the flags
+ * directly, so it exists only where that branch does */
+#if defined(SOCK_NONBLOCK) && defined(SOCK_CLOEXEC) && !(defined(__BEOS__) || defined(__HAIKU__))
 done:
+#endif
 	return sck;
 
 oops:
@@ -221,13 +225,11 @@ oops:
 static hio_syshnd_t open_async_qx (hio_t* hio, hio_syshnd_t* side_chan)
 {
 	int fd[2];
-	int type = SOCK_DGRAM;
-
-#if defined(__BEOS__) || defined(__HAIKU__)
+#if defined(HIO_DEV_SCK_QX_STREAM)
 	/* on haiku os r6beta, SOCK_DGRAM isn't reliable. more than one write() on it causes SIGPIPE */
-	type = SOCK_STREAM;
+	int type = SOCK_STREAM;
 #else
-	type = SOCK_DGRAM;
+	int type = SOCK_DGRAM;
 #endif
 
 #if defined(SOCK_NONBLOCK) && defined(SOCK_CLOEXEC) && !(defined(__BEOS__) || defined(__HAIKU__))
@@ -265,7 +267,11 @@ open_socket:
 		return HIO_SYSHND_INVALID;
 	}
 
+/* the label is only jumped to from the branch that asks socketpair() for the
+ * flags directly, so it exists only where that branch does */
+#if defined(SOCK_NONBLOCK) && defined(SOCK_CLOEXEC) && !(defined(__BEOS__) || defined(__HAIKU__))
 done:
+#endif
 	*side_chan = fd[1]; /* write end of the pipe */
 	return fd[0]; /* read end of the pipe */
 }
@@ -2114,7 +2120,7 @@ static int dev_sck_ioctl (hio_dev_t* dev, int cmd, void* arg)
 			}
 
 		#if defined(USE_BPF)
-			if (rdev->u.bpf.state)
+			if (sck_type_map[rdev->type].domain == __AF_BPF)
 			{
 				/* a bpf device attaches to an interface by name, and what the
 				 * caller gave is the ifindex hio_skad_init_for_eth() puts in an
@@ -3165,9 +3171,27 @@ static int dev_evcb_sck_on_read_qx (hio_dev_t* dev, const void* data, hio_iolen_
 
 	if (rdev->type == HIO_DEV_SCK_QX)
 	{
-	#if defined(__BEOS__) || defined(__HAIKU__)
-		const hio_uint8_t* p = (const hio_uint8_t*)data;
-		hio_oow_t rem = (hio_oow_t)dlen;
+	#if defined(HIO_DEV_SCK_QX_STREAM)
+		const hio_uint8_t* p;
+		hio_oow_t rem;
+	#else
+		hio_dev_sck_qxmsg_t* qxmsg;
+	#endif
+
+		if (dlen <= 0)
+		{
+			/* the writing end of the side channel is gone. a qx device carries
+			 * no stream capability bit, so the loop has nothing to recognise
+			 * end-of-file by and would keep reading a handle that stays
+			 * readable with nothing on it. report it as a read failure and let
+			 * the device be halted. */
+			hio_seterrbfmt(hio, HIO_EINVAL, "qx side channel closed");
+			return -1;
+		}
+
+	#if defined(HIO_DEV_SCK_QX_STREAM)
+		p = (const hio_uint8_t*)data;
+		rem = (hio_oow_t)dlen;
 
 		while (rem > 0)
 		{
@@ -3179,7 +3203,6 @@ static int dev_evcb_sck_on_read_qx (hio_dev_t* dev, const void* data, hio_iolen_
 			p += take;
 			rem -= take;
 
-
 			if (rdev->u.qx.qxacc_len < HIO_SIZEOF(rdev->u.qx.qxacc)) break; /* wait for more */
 			rdev->u.qx.qxacc_len = 0;
 
@@ -3188,21 +3211,24 @@ static int dev_evcb_sck_on_read_qx (hio_dev_t* dev, const void* data, hio_iolen_
 				if (make_accepted_client_connection(rdev, rdev->u.qx.qxacc.syshnd, &rdev->u.qx.qxacc.remoteaddr, rdev->u.qx.qxacc.scktype) <= -1)
 				{
 /*printf ("unable to accept new client connection %d\n", qxmsg->syshnd);*/
-					return (rdev->state & HIO_DEV_SCK_LENIENT)? 0: -1;
+					if (!(rdev->state & HIO_DEV_SCK_LENIENT)) return -1;
+					/* one read can carry several messages. the accumulator is
+					 * empty again, so the framing is intact and the messages
+					 * queued behind this one are still deliverable - returning
+					 * here would throw them away along with their handles. */
 				}
 			}
 			else
 			{
 				/* the stream is framed by size alone, so a bad command means
 				 * the two ends disagree about the message layout and nothing
-				 * after this point can be trusted to be a message boundary. */
+				 * after this point can be trusted to be a message boundary.
+				 * there is no resynchronising from that, so the device goes. */
 				hio_seterrbfmt(hio, HIO_EINVAL, "wrong qx command code");
-				return 0;
+				return -1;
 			}
 		}
 	#else
-		hio_dev_sck_qxmsg_t* qxmsg;
-
 		if (dlen != HIO_SIZEOF(*qxmsg))
 		{
 			hio_seterrbfmt(hio, HIO_EINVAL, "wrong qx packet size");
@@ -3987,12 +4013,54 @@ int hio_dev_sck_writetosidechan (hio_dev_sck_t* dev, const void* dptr, hio_oow_t
 		return -1;
 	}
 
+#if defined(HIO_DEV_SCK_QX_STREAM)
+	/* the reader recovers message boundaries by counting octets, so a message
+	 * left half-written would shift every message behind it and there is no
+	 * recovering from that. a channel that has taken nothing yet is reported as
+	 * a failure, the way a datagram channel reports a full socket buffer; once
+	 * part of a message is out the channel is committed and the remainder is
+	 * pushed out here. the reader drains this channel from the event loop, so
+	 * the room it needs does come back. */
+	{
+		const hio_uint8_t* p = (const hio_uint8_t*)dptr;
+		hio_oow_t rem = dlen;
+
+		while (rem > 0)
+		{
+			ssize_t n = write(dev->u.qx.side_chan, p, rem);
+			if (n > 0)
+			{
+				p += n;
+				rem -= n;
+			}
+			else if (n == 0)
+			{
+				/* neither progress nor an error to wait on. it cannot happen on
+				 * a socket, but looping on it would hang the caller. */
+				errno = EIO;
+				return -1;
+			}
+			else if (errno == EINTR ||
+			         ((errno == EAGAIN || errno == EWOULDBLOCK) && rem < dlen))
+			{
+				/* retry: interrupted, or out of room part-way through a message */
+			}
+			else
+			{
+				/* this doesn't set the error information on the main socket. if you may check errno, though */
+				/* TODO: make hio_seterrbfmt() thread safe and set the error information properly. still the caller may be in the thread-unsafe context */
+				return -1;
+			}
+		}
+	}
+#else
 	if (write(dev->u.qx.side_chan, dptr, dlen) <= -1)
 	{
 		/* this doesn't set the error information on the main socket. if you may check errno, though */
 		/* TODO: make hio_seterrbfmt() thread safe and set the error information properly. still the caller may be in the thread-unsafe context */
 		return -1;
 	}
+#endif
 
 	return 0;
 }
