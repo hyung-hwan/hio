@@ -928,7 +928,7 @@ static int dev_sck_kill (hio_dev_t* dev, int force)
 	}
 
 #if defined(USE_BPF)
-	if (rdev->type == HIO_DEV_SCK_PACKET && rdev->u.bpf.state)
+	if (sck_type_map[rdev->type].domain == __AF_BPF && rdev->u.bpf.state)
 	{
 		bpf_state_t* st = (bpf_state_t*)rdev->u.bpf.state;
 		if (st->buf) hio_freemem(hio, st->buf);
@@ -3981,12 +3981,19 @@ int hio_dev_sck_sendfileok (hio_dev_sck_t* dev)
 
 int hio_dev_sck_writetosidechan (hio_dev_sck_t* dev, const void* dptr, hio_oow_t dlen)
 {
-	if (dev->type == HIO_DEV_SCK_QX && write(dev->u.qx.side_chan, dptr, dlen) <= -1)
+	if (dev->type != HIO_DEV_SCK_QX)
+	{
+		errno = EINVAL;
+		return -1;
+	}
+
+	if (write(dev->u.qx.side_chan, dptr, dlen) <= -1)
 	{
 		/* this doesn't set the error information on the main socket. if you may check errno, though */
 		/* TODO: make hio_seterrbfmt() thread safe and set the error information properly. still the caller may be in the thread-unsafe context */
 		return -1;
 	}
+
 	return 0;
 }
 
