@@ -646,9 +646,9 @@ int hio_sys_ctrlmux (hio_t* hio, hio_sys_mux_cmd_t cmd, hio_dev_t* dev, int dev_
 			if (x >= 0)
 			{
 				if (i_flag == EV_DISABLE && o_flag == EV_DISABLE)
-					dev->dev_cap &= ~HIO_DEV_CAP_WATCH_SUSPENDED;
-				else
 					dev->dev_cap |= HIO_DEV_CAP_WATCH_SUSPENDED;
+				else
+					dev->dev_cap &= ~HIO_DEV_CAP_WATCH_SUSPENDED;
 			}
 			break;
 		}
@@ -876,6 +876,7 @@ int hio_sys_waitmux (hio_t* hio, const hio_ntime_t* tmout, hio_sys_mux_evtcb_t e
 	for (i = 0; i < nentries; i++)
 	{
 		int events = 0;
+		int rdhup = 0;
 		hio_dev_t* dev;
 
 		dev = mux->revs[i].udata;
@@ -887,7 +888,11 @@ int hio_sys_waitmux (hio_t* hio, const hio_ntime_t* tmout, hio_sys_mux_evtcb_t e
 			if (mux->revs[i].ident != dev->dev_mth->getsyshnd(dev)) continue; /* already closed or something mid-loop? */
 
 			if (mux->revs[i].flags & EV_ERROR) events |= HIO_DEV_EVENT_ERR;
-			if (mux->revs[i].flags & EV_EOF) events |= HIO_DEV_EVENT_HUP;
+			if (mux->revs[i].flags & EV_EOF)
+			{
+				if (mux->revs[i].filter == EVFILT_READ) rdhup = 1;
+				else events |= HIO_DEV_EVENT_HUP;
+			}
 			if (mux->revs[i].filter == EVFILT_READ) events |= HIO_DEV_EVENT_IN;
 			else if (mux->revs[i].filter == EVFILT_WRITE) events |= HIO_DEV_EVENT_OUT;
 		#else
@@ -903,13 +908,17 @@ int hio_sys_waitmux (hio_t* hio, const hio_ntime_t* tmout, hio_sys_mux_evtcb_t e
 			{
 				if (mux->revs[j].udata != dev) continue;
 				if (mux->revs[j].flags & EV_ERROR) events |= HIO_DEV_EVENT_ERR;
-				if (mux->revs[j].flags & EV_EOF) events |= HIO_DEV_EVENT_HUP;
+				if (mux->revs[j].flags & EV_EOF)
+				{
+					if (mux->revs[j].filter == EVFILT_READ) rdhup = 1;
+					else events |= HIO_DEV_EVENT_HUP;
+				}
 				if (mux->revs[j].filter == EVFILT_READ) events |= HIO_DEV_EVENT_IN;
 				else if (mux->revs[j].filter == EVFILT_WRITE) events |= HIO_DEV_EVENT_OUT;
 			}
 		#endif
 
-			if (HIO_LIKELY(events)) event_handler(hio, dev, events, 0);
+			if (HIO_LIKELY(events)) event_handler(hio, dev, events, rdhup);
 		}
 		else if (mux->ctrlp[0] != HIO_SYSHND_INVALID)
 		{

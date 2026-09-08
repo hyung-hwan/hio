@@ -2320,6 +2320,11 @@ fcntl(rdev->hnd, F_SETFL, flags | O_NONBLOCK);
 				/* as i know it's connected already,
 				 * i don't schedule a connection timeout job */
 
+				/* the connection is up already, so there is no connect timeout
+				 * to schedule. the field must still be marked unset: the ssl
+				 * handshake inherits it as its deadline, and a zero there is a
+				 * deadline already in the past. set it to a negative value */
+				HIO_INIT_NTIME(&rdev->tmout, -1, 0);
 				rdev->remoteaddr = conn->remoteaddr;
 			#if defined(USE_SSL)
 				rdev->ssl_ctx = ssl_ctx;
