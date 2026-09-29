@@ -465,7 +465,7 @@ static void set_ip4_skad (hio_skad_t* dst, hio_uint16_t port, hio_uint32_t netor
 	hio_skad_init_for_ip4 (dst, port, &ad);
 }
 
-static void reply_dstaddr (const hio_dhcp4_pktinf_t* req, hio_skad_t* dst)
+static void fill_reply_dstaddr (const hio_dhcp4_pktinf_t* req, hio_skad_t* dst)
 {
 	if (req->hdr->giaddr != 0)
 	{
@@ -583,7 +583,7 @@ int hio_svc_dhcs_process (hio_svc_dhcs_t* dhcs, const hio_dhcp4_pktinf_t* req, h
 			if (hio_dhcp4_add_option_uint8(rep, HIO_DHCP4_OPT_MESSAGE_TYPE, HIO_DHCP4_MSG_OFFER) <= -1) return -1;
 			if (add_config_options(dhcs, req, rep, lease_secs) <= -1) return -1;
 			if (hio_dhcp4_add_option(rep, HIO_DHCP4_OPT_END, HIO_NULL, 0) <= -1) return -1;
-			reply_dstaddr(req, dstaddr);
+			fill_reply_dstaddr(req, dstaddr);
 			return 1;
 
 		case HIO_DHCP4_MSG_REQUEST:
@@ -634,7 +634,7 @@ int hio_svc_dhcs_process (hio_svc_dhcs_t* dhcs, const hio_dhcp4_pktinf_t* req, h
 			if (hio_dhcp4_add_option_uint8(rep, HIO_DHCP4_OPT_MESSAGE_TYPE, HIO_DHCP4_MSG_ACK) <= -1) return -1;
 			if (add_config_options(dhcs, req, rep, lease_secs) <= -1) return -1;
 			if (hio_dhcp4_add_option(rep, HIO_DHCP4_OPT_END, HIO_NULL, 0) <= -1) return -1;
-			reply_dstaddr(req, dstaddr);
+			fill_reply_dstaddr(req, dstaddr);
 			return 1;
 
 		case HIO_DHCP4_MSG_RELEASE:
@@ -675,7 +675,7 @@ int hio_svc_dhcs_process (hio_svc_dhcs_t* dhcs, const hio_dhcp4_pktinf_t* req, h
 			if (hio_dhcp4_add_option_uint8(rep, HIO_DHCP4_OPT_MESSAGE_TYPE, HIO_DHCP4_MSG_ACK) <= -1) return -1;
 			if (add_config_options(dhcs, req, rep, 0) <= -1) return -1;
 			if (hio_dhcp4_add_option(rep, HIO_DHCP4_OPT_END, HIO_NULL, 0) <= -1) return -1;
-			reply_dstaddr(req, dstaddr);
+			fill_reply_dstaddr(req, dstaddr);
 			return 1;
 
 		default:

@@ -329,7 +329,33 @@ HIO_EXPORT int hio_dhcp4_delete_option (
 	int                 code
 );
 
-HIO_EXPORT void hio_dhcp4_compact_options (
+/**
+ * The hio_dhcp4_compact_options() function moves options out of the options
+ * area into the \b sname and \b file fields, which a packet carrying neither
+ * a server host name nor a boot file name has no other use for. The
+ * #HIO_DHCP4_OPT_OVERLOAD option it adds is what tells a reader to interpret
+ * them that way, and it is what hio_dhcp4_find_option() and
+ * hio_dhcp4_walk_options() already honour. It buys up to 190 octets of option
+ * space without growing the packet.
+ *
+ * A reader takes the fields after the options area, so the options that move
+ * are the trailing ones and they keep their order: a walk over the compacted
+ * packet reports the same options in the same sequence as before.
+ *
+ * Only a field that is entirely zero is taken over, so a caller that has set a
+ * boot file name keeps it - RFC 2132 gives options 66 and 67 for carrying
+ * those by name when the fields are wanted for options instead. The packet is
+ * left alone if neither field is free, if it already carries an overload
+ * option, or if the move would not pay for the three octets that option costs.
+ *
+ * Call this before appending #HIO_DHCP4_OPT_END. The end option terminates the
+ * options area, and anything hio_dhcp4_add_option() appends past it is
+ * invisible to a reader.
+ *
+ * \return the number of octets freed from the options area, 0 if the packet
+ *         was left as it was, or -1 if the packet is malformed.
+ */
+HIO_EXPORT int hio_dhcp4_compact_options (
 	hio_dhcp4_pktbuf_t* pkt
 );
 

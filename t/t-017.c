@@ -713,6 +713,250 @@ static void test_overload_at_the_very_end (void)
 
 /* ------------------------------------------------------------------ */
 
+/* the sname and file fields are dead weight in a packet that names neither a
+ * server nor a boot file - 192 octets of it. option 52 hands them to the
+ * options area, and hio_dhcp4_compact_options() is what performs the move. */
+
+#define COMPACT_OPT_CODE(i) (200 + (i))  /* site-specific range, nothing reads these */
+#define COMPACT_OPT_DLEN    18
+
+/* fills the packet with 'n' distinguishable options of a known size, so that
+ * both what moved and what stayed can be identified afterwards */
+static void fill_compactable (hio_dhcp4_pktbuf_t* pkt, int n)
+{
+	hio_uint8_t val[COMPACT_OPT_DLEN];
+	int i;
+
+	hio_dhcp4_init_pktbuf (pkt, g_buf, BUFCAPA);
+	for (i = 0; i < n; i++)
+	{
+		memset (val, (hio_uint8_t)COMPACT_OPT_CODE(i), sizeof(val));
+		hio_dhcp4_add_option (pkt, COMPACT_OPT_CODE(i), val, sizeof(val));
+	}
+}
+
+/* every option still carries the payload fill_compactable() gave it, wherever
+ * it now lives */
+static int compact_values_intact (const hio_dhcp4_pktinf_t* inf, int n)
+{
+	int i, j;
+
+	for (i = 0; i < n; i++)
+	{
+		hio_dhcp4_opt_hdr_t* o = hio_dhcp4_find_option(inf, COMPACT_OPT_CODE(i));
+		hio_uint8_t* v;
+
+		if (!o || o->len != COMPACT_OPT_DLEN) return 0;
+		v = (hio_uint8_t*)(o + 1);
+		for (j = 0; j < COMPACT_OPT_DLEN; j++)
+		{
+			if (v[j] != (hio_uint8_t)COMPACT_OPT_CODE(i)) return 0;
+		}
+	}
+
+	return 1;
+}
+
+static void test_compact_options (void)
+{
+	hio_dhcp4_pktbuf_t pkt;
+	hio_dhcp4_pktinf_t inf;
+	int before_codes[32];
+	int before_walked;
+	hio_oow_t before_len;
+	int freed, i;
+	hio_dhcp4_opt_hdr_t* ov;
+
+	/* ten options of twenty octets each - more than either field holds on its
+	 * own, so a full compaction has to use both */
+	fill_compactable (&pkt, 10);
+	as_pktinf (&inf, &pkt);
+
+	g_walked = 0;
+	hio_dhcp4_walk_options (&inf, count_opt);
+	before_walked = g_walked;
+	for (i = 0; i < before_walked; i++) before_codes[i] = g_walk_codes[i];
+	before_len = pkt.len;
+
+	freed = hio_dhcp4_compact_options(&pkt);
+	OK (freed > 0, "compacting a packet with free sname and file frees space");
+	OK (pkt.len == before_len - freed, "and the packet shrinks by what it reports");
+	OK (pkt.len < before_len, "so the options area is genuinely smaller");
+
+	as_pktinf (&inf, &pkt);
+
+	/* the move is only useful if a reader still finds everything */
+	ov = hio_dhcp4_find_option(&inf, HIO_DHCP4_OPT_OVERLOAD);
+	OK (ov != HIO_NULL && ov->len == 1, "the overload option is added to say so");
+	OK ((*(hio_uint8_t*)(ov + 1) & (HIO_DHCP4_OPT_OVERLOAD_FILE | HIO_DHCP4_OPT_OVERLOAD_SNAME)) ==
+	    (HIO_DHCP4_OPT_OVERLOAD_FILE | HIO_DHCP4_OPT_OVERLOAD_SNAME),
+	    "naming both fields when both were needed");
+
+	g_walked = 0;
+	OK (hio_dhcp4_walk_options(&inf, count_opt) == 0, "the compacted packet walks cleanly");
+	OK (g_walked == before_walked, "reporting exactly as many options as before");
+
+	/* order is the part that is easy to get wrong: the fields are read after
+	 * the options area, so what moves has to be the tail */
+	{
+		int same = 1;
+		for (i = 0; i < before_walked; i++)
+		{
+			if (g_walk_codes[i] != before_codes[i]) same = 0;
+		}
+		OK (same, "in the very same order");
+	}
+
+	OK (compact_values_intact(&inf, 10), "and every option still carries its own value");
+}
+
+static void test_compact_respects_used_fields (void)
+{
+	hio_dhcp4_pktbuf_t pkt;
+	hio_dhcp4_pktinf_t inf;
+	hio_dhcp4_opt_hdr_t* ov;
+	static const char bootfile[] = "pxelinux.0";
+
+	/* a packet that names a boot file needs that field left alone */
+	fill_compactable (&pkt, 10);
+	memcpy (pkt.hdr->file, bootfile, sizeof(bootfile));
+
+	OK (hio_dhcp4_compact_options(&pkt) > 0, "a packet with only sname free still compacts");
+	OK (memcmp(pkt.hdr->file, bootfile, sizeof(bootfile)) == 0,
+	    "and the boot file name it was carrying is untouched");
+
+	as_pktinf (&inf, &pkt);
+	ov = hio_dhcp4_find_option(&inf, HIO_DHCP4_OPT_OVERLOAD);
+	OK (ov != HIO_NULL && (*(hio_uint8_t*)(ov + 1) & HIO_DHCP4_OPT_OVERLOAD_FILE) == 0,
+	    "the overload option does not claim the file field");
+	OK (ov != HIO_NULL && (*(hio_uint8_t*)(ov + 1) & HIO_DHCP4_OPT_OVERLOAD_SNAME) != 0,
+	    "only the one it did take");
+	OK (compact_values_intact(&inf, 10), "with every option still readable");
+
+	/* both fields spoken for leaves nothing to move into */
+	fill_compactable (&pkt, 10);
+	memcpy (pkt.hdr->file, bootfile, sizeof(bootfile));
+	memcpy (pkt.hdr->sname, "tftp.example", 13);
+	{
+		hio_oow_t len = pkt.len;
+		OK (hio_dhcp4_compact_options(&pkt) == 0, "a packet with neither field free is left alone");
+		OK (pkt.len == len, "its length included");
+	}
+}
+
+static void test_compact_declines_when_pointless (void)
+{
+	hio_dhcp4_pktbuf_t pkt;
+	hio_oow_t len;
+
+	/* the overload option costs three octets, so moving less than that out
+	 * would make the packet bigger */
+	hio_dhcp4_init_pktbuf (&pkt, g_buf, BUFCAPA);
+	hio_dhcp4_add_option_uint8 (&pkt, HIO_DHCP4_OPT_MESSAGE_TYPE, HIO_DHCP4_MSG_OFFER);
+	len = pkt.len;
+	OK (hio_dhcp4_compact_options(&pkt) == 0, "a packet too small to gain is left alone");
+	OK (pkt.len == len, "at exactly the length it had");
+
+	/* a packet that has had no option added yet has no magic cookie either,
+	 * so it has no options area to compact. the walkers refuse such a packet
+	 * and this refuses it the same way rather than inventing an answer. */
+	{
+		hio_dhcp4_pktinf_t inf;
+
+		hio_dhcp4_init_pktbuf (&pkt, g_buf, BUFCAPA);
+		len = pkt.len;
+		as_pktinf (&inf, &pkt);
+		OK (hio_dhcp4_walk_options(&inf, count_opt) <= -1,
+		    "a packet with no options area is refused by the walker");
+		OK (hio_dhcp4_compact_options(&pkt) <= -1, "and refused here too");
+		OK (pkt.len == len, "with the packet left as it was");
+	}
+}
+
+static void test_compact_is_not_repeated (void)
+{
+	hio_dhcp4_pktbuf_t pkt;
+	hio_oow_t len;
+
+	fill_compactable (&pkt, 10);
+	OK (hio_dhcp4_compact_options(&pkt) > 0, "the first compaction moves options");
+
+	len = pkt.len;
+	OK (hio_dhcp4_compact_options(&pkt) == 0,
+	    "a second finds the fields already spoken for and declines");
+	OK (pkt.len == len, "leaving the packet exactly as the first left it");
+}
+
+static void test_compact_keeps_the_end_option (void)
+{
+	hio_dhcp4_pktbuf_t pkt;
+	hio_dhcp4_pktinf_t inf;
+	hio_uint8_t* optr;
+
+	/* a finished packet ends with END. compaction rewrites the area it sits
+	 * in, so it has to put it back - otherwise a reader runs off the options
+	 * into whatever follows. */
+	fill_compactable (&pkt, 10);
+	hio_dhcp4_add_option (&pkt, HIO_DHCP4_OPT_END, HIO_NULL, 0);
+
+	OK (hio_dhcp4_compact_options(&pkt) > 0, "a finished packet compacts");
+
+	optr = (hio_uint8_t*)pkt.hdr;
+	OK (optr[pkt.len - 1] == HIO_DHCP4_OPT_END, "and still ends with the end option");
+	OK (pkt.hdr->file[HIO_SIZEOF(pkt.hdr->file) - 1] == 0 ||
+	    pkt.hdr->sname[HIO_SIZEOF(pkt.hdr->sname) - 1] == 0,
+	    "the overloaded fields are not filled to the brim");
+
+	as_pktinf (&inf, &pkt);
+	g_walked = 0;
+	OK (hio_dhcp4_walk_options(&inf, count_opt) == 0 && g_walked == 10,
+	    "and every option is still reported");
+	OK (compact_values_intact(&inf, 10), "with its value intact");
+}
+
+static void test_compact_then_delete (void)
+{
+	hio_dhcp4_pktbuf_t pkt;
+	hio_dhcp4_pktinf_t inf;
+
+	/* deleting an option that compaction moved exercises the overload-aware
+	 * path in hio_dhcp4_delete_option() */
+	fill_compactable (&pkt, 10);
+	OK (hio_dhcp4_compact_options(&pkt) > 0, "options move into the fields");
+
+	as_pktinf (&inf, &pkt);
+	OK (hio_dhcp4_find_option(&inf, COMPACT_OPT_CODE(9)) != HIO_NULL,
+	    "the last option is found in the field it moved to");
+	OK (hio_dhcp4_delete_option(&pkt, COMPACT_OPT_CODE(9)) == 0,
+	    "and can be deleted from there");
+
+	as_pktinf (&inf, &pkt);
+	OK (hio_dhcp4_find_option(&inf, COMPACT_OPT_CODE(9)) == HIO_NULL,
+	    "after which it is gone");
+	OK (compact_values_intact(&inf, 9), "and the options around it are untouched");
+}
+
+static void test_compact_refuses_a_malformed_packet (void)
+{
+	hio_dhcp4_pktbuf_t pkt;
+	hio_uint8_t* optr;
+
+	/* a length field that runs past the options area cannot be walked, so the
+	 * options cannot be relocated either */
+	fill_compactable (&pkt, 3);
+	optr = (hio_uint8_t*)pkt.hdr + HIO_SIZEOF(*pkt.hdr) + 4;
+	optr[1] = 0xff; /* the first option now claims 255 octets it does not have */
+
+	OK (hio_dhcp4_compact_options(&pkt) <= -1, "a packet that cannot be walked is refused");
+
+	/* and so is one whose own bookkeeping is impossible */
+	fill_compactable (&pkt, 3);
+	pkt.len = HIO_SIZEOF(*pkt.hdr) - 1;
+	OK (hio_dhcp4_compact_options(&pkt) <= -1, "as is one shorter than its own header");
+}
+
+/* ------------------------------------------------------------------ */
+
 int main (void)
 {
 	no_plan ();
@@ -736,6 +980,13 @@ int main (void)
 	test_suboption_code_zero ();
 	test_code_must_fit_an_octet ();
 	test_overload_at_the_very_end ();
+	test_compact_options ();
+	test_compact_respects_used_fields ();
+	test_compact_declines_when_pointless ();
+	test_compact_is_not_repeated ();
+	test_compact_keeps_the_end_option ();
+	test_compact_then_delete ();
+	test_compact_refuses_a_malformed_packet ();
 
 	return exit_status();
 }

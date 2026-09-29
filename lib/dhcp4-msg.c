@@ -57,7 +57,6 @@ int hio_dhcp4_add_option (hio_dhcp4_pktbuf_t* pkt, int code, void* optr, hio_uin
 	 * allowed. */
 	if (code < 0 || code > 255) return -1;
 
-/* TODO: support to override sname and file */
 	if (pkt->len < HIO_SIZEOF(*pkt->hdr) || pkt->capa < pkt->len)
 	{
 		/* the pktbuf_t structure got messy */
@@ -137,9 +136,160 @@ int hio_dhcp4_delete_option (hio_dhcp4_pktbuf_t* pkt, int code)
 	return 0;
 }
 
-void hio_dhcp4_compact_options (hio_dhcp4_pktbuf_t* pkt)
+/* defined with the option walkers further down, next to the readers that rely
+ * on it to agree with this on where the options area begins. */
+static hio_uint8_t* get_option_start (const hio_dhcp4_pkt_hdr_t* pkt, hio_oow_t len, hio_oow_t* olen);
+
+/* option 52 on the wire - the code, the length octet, and the single octet of
+ * flags that says which fields were taken over. */
+#define OVERLOAD_OPT_SIZE (HIO_SIZEOF(hio_dhcp4_opt_hdr_t) + 1)
+
+/* the offset just past the option starting at 'off'. PADDING and END are a
+ * single octet carrying no length field; every other option carries one. an
+ * option whose length runs past 'end' stops the walk at 'end' rather than
+ * stepping outside the area. */
+static hio_oow_t next_option_offset (const hio_uint8_t* optr, hio_oow_t end, hio_oow_t off)
 {
-	/* TODO: move some optiosn to sname or file fields if they are not in use. */
+	hio_oow_t n;
+
+	if (off >= end) return end;
+	if (optr[off] == HIO_DHCP4_OPT_PADDING || optr[off] == HIO_DHCP4_OPT_END) return off + 1;
+	if (off + HIO_SIZEOF(hio_dhcp4_opt_hdr_t) > end) return end;
+
+	n = off + HIO_SIZEOF(hio_dhcp4_opt_hdr_t) + optr[off + 1];
+	return (n > end)? end: n;
+}
+
+static int is_all_zero (const void* ptr, hio_oow_t len)
+{
+	const hio_uint8_t* p = (const hio_uint8_t*)ptr;
+	const hio_uint8_t* e = p + len;
+
+	while (p < e)
+	{
+		if (*p) return 0;
+		p++;
+	}
+
+	return 1;
+}
+
+int hio_dhcp4_compact_options (hio_dhcp4_pktbuf_t* pkt)
+{
+	hio_uint8_t* optr;
+	hio_oow_t olen, off, endpos, oldlen, newlen;
+	hio_oow_t file_capa, sname_capa, file_off, sname_off, file_len, sname_len;
+	int had_end = 0;
+	hio_uint8_t flags;
+
+	if (pkt->len < HIO_SIZEOF(*pkt->hdr) || pkt->capa < pkt->len) return -1;
+
+	optr = get_option_start(pkt->hdr, pkt->len, &olen);
+	if (!optr) return -1;
+
+	/* measure the options area first. everything before END is an option, so
+	 * where END sits is also how many octets of options there are. a length
+	 * field that runs past the area makes the packet unusable rather than
+	 * merely uncompactable - there is no safe way to relocate what cannot be
+	 * parsed. */
+	for (off = 0; off < olen; )
+	{
+		hio_oow_t vlen;
+
+		if (optr[off] == HIO_DHCP4_OPT_END)
+		{
+			had_end = 1;
+			break;
+		}
+
+		if (optr[off] == HIO_DHCP4_OPT_PADDING)
+		{
+			off++;
+			continue;
+		}
+
+		if (off + HIO_SIZEOF(hio_dhcp4_opt_hdr_t) > olen) return -1;
+
+		/* a packet that already carries the overload option has spoken for the
+		 * fields, and whatever is in them is options this walk has not seen.
+		 * appending to those areas is a different operation from this one. */
+		if (optr[off] == HIO_DHCP4_OPT_OVERLOAD) return 0;
+
+		vlen = optr[off + 1];
+		if (off + HIO_SIZEOF(hio_dhcp4_opt_hdr_t) + vlen > olen) return -1;
+		off += HIO_SIZEOF(hio_dhcp4_opt_hdr_t) + vlen;
+	}
+	endpos = off;
+
+	/* only a field with nothing in it is free to be taken over. a caller that
+	 * has set a boot file name keeps it - RFC 2132 gives options 66 and 67 for
+	 * carrying those by name when the fields are needed for options instead.
+	 * one octet of each field is held back for the END that terminates it. */
+	file_capa = is_all_zero(pkt->hdr->file, HIO_SIZEOF(pkt->hdr->file))? HIO_SIZEOF(pkt->hdr->file) - 1: 0;
+	sname_capa = is_all_zero(pkt->hdr->sname, HIO_SIZEOF(pkt->hdr->sname))? HIO_SIZEOF(pkt->hdr->sname) - 1: 0;
+	if (file_capa == 0 && sname_capa == 0) return 0;
+
+	/* a reader takes the areas in a fixed order - the options area, then file,
+	 * then sname - so the options that move out are the trailing ones, the
+	 * earlier of those go to file and the later to sname. that ordering is
+	 * what keeps a walk over the compacted packet reporting the same options
+	 * in the same sequence.
+	 *
+	 * so the split points are found from the end backwards: sname takes as
+	 * much of the tail as it holds, file takes as much as it holds of what is
+	 * left before that, and whatever still precedes both stays put. both loops
+	 * advance by whole options, because an area boundary falling inside an
+	 * option would cut it in half. */
+	sname_off = 0;
+	while (endpos - sname_off > sname_capa) sname_off = next_option_offset(optr, endpos, sname_off);
+
+	file_off = 0;
+	while (sname_off - file_off > file_capa) file_off = next_option_offset(optr, sname_off, file_off);
+
+	file_len = sname_off - file_off;
+	sname_len = endpos - sname_off;
+
+	/* the overload option has to go into the options area itself, or a reader
+	 * never learns to look at the fields. moving less than it costs would
+	 * leave the packet bigger than it started. */
+	if (endpos - file_off <= OVERLOAD_OPT_SIZE) return 0;
+
+	/* the two fields are declared as character arrays because that is what
+	 * they hold when they are not overloaded. the option octets written into
+	 * them here are unsigned, END among them, so they go through a pointer
+	 * that says so - the same view the option readers take of these fields. */
+	flags = 0;
+	if (file_len > 0)
+	{
+		hio_uint8_t* fld = (hio_uint8_t*)pkt->hdr->file;
+
+		HIO_MEMCPY (fld, &optr[file_off], file_len);
+		fld[file_len] = HIO_DHCP4_OPT_END;
+		flags |= HIO_DHCP4_OPT_OVERLOAD_FILE;
+	}
+	if (sname_len > 0)
+	{
+		hio_uint8_t* fld = (hio_uint8_t*)pkt->hdr->sname;
+
+		HIO_MEMCPY (fld, &optr[sname_off], sname_len);
+		fld[sname_len] = HIO_DHCP4_OPT_END;
+		flags |= HIO_DHCP4_OPT_OVERLOAD_SNAME;
+	}
+
+	/* the relocated options are replaced in place by the option that accounts
+	 * for them. the area keeps its END only if it had one - a caller still
+	 * adding options needs the area left open, as anything appended past END
+	 * is invisible to a reader. */
+	optr[file_off] = HIO_DHCP4_OPT_OVERLOAD;
+	optr[file_off + 1] = 1;
+	optr[file_off + 2] = flags;
+	newlen = file_off + OVERLOAD_OPT_SIZE;
+	if (had_end) optr[newlen++] = HIO_DHCP4_OPT_END;
+
+	oldlen = pkt->len;
+	pkt->len = (hio_oow_t)(optr - (hio_uint8_t*)pkt->hdr) + newlen;
+
+	return (int)(oldlen - pkt->len);
 }
 
 /* ------------------------------------------------------------------------- */
