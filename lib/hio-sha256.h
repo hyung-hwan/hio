@@ -22,54 +22,61 @@
     THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  */
 
-#ifndef _HIO_MD5_H_
-#define _HIO_MD5_H_
+#ifndef _HIO_SHA256_H_
+#define _HIO_SHA256_H_
 
 #include <hio.h>
 
-#define HIO_MD5_DIGEST_LEN (16)
-#define HIO_MD5_BLOCK_LEN  (64)
+#define HIO_SHA256_DIGEST_LEN (32)
+#define HIO_SHA256_BLOCK_LEN  (64)
 
-struct hio_md5_ctx_t
+struct hio_sha256_ctx_t
 {
-	hio_uint32_t  count[2];
-	hio_uint32_t  state[4];
-	hio_uint8_t   buffer[HIO_MD5_BLOCK_LEN];
+	hio_uint8_t  data[HIO_SHA256_BLOCK_LEN];
+	hio_uint8_t  datalen;
+
+	/* the padding encodes the message length in bits as a 64-bit quantity.
+	 * it is held as two 32-bit halves so that nothing here depends on a
+	 * 64-bit integer type being available. */
+	hio_uint32_t bitlen_lo;
+	hio_uint32_t bitlen_hi;
+
+	hio_uint32_t state[8];
 };
-typedef struct hio_md5_ctx_t hio_md5_ctx_t;
+typedef struct hio_sha256_ctx_t hio_sha256_ctx_t;
 
 #ifdef __cplusplus
 extern "C" {
 #endif
 
-HIO_EXPORT void hio_md5_init (
-	hio_md5_ctx_t* ctx
+HIO_EXPORT void hio_sha256_init (
+	hio_sha256_ctx_t* ctx
 );
 
-HIO_EXPORT void hio_md5_update (
-	hio_md5_ctx_t*  ctx,
-	const void*     data,
-	hio_oow_t       len
+HIO_EXPORT void hio_sha256_update (
+	hio_sha256_ctx_t*  ctx,
+	const void*        data,
+	hio_oow_t          len
 );
 
 /**
- * The hio_md5_final() function writes the digest of everything fed to
- * hio_md5_update() so far. The context is spent once this returns; feed a
- * fresh one through hio_md5_init() to hash anything else.
+ * The hio_sha256_final() function writes the digest of everything fed to
+ * hio_sha256_update() so far. The context is spent once this returns; feed a
+ * fresh one through hio_sha256_init() to hash anything else.
  */
-HIO_EXPORT void hio_md5_final (
-	hio_md5_ctx_t* ctx,
-	hio_uint8_t    hash[HIO_MD5_DIGEST_LEN]
+HIO_EXPORT void hio_sha256_final (
+	hio_sha256_ctx_t* ctx,
+	hio_uint8_t       hash[HIO_SHA256_DIGEST_LEN]
 );
 
 /**
- * The hio_md5_digest() function hashes one buffer that is already whole,
+ * The hio_sha256_digest() function hashes one buffer that is already whole,
  * which is the init/update/final sequence with nothing in between.
  */
-HIO_EXPORT void hio_md5_digest (
-	hio_uint8_t    hash[HIO_MD5_DIGEST_LEN],
-	const void*    data,
-	hio_oow_t      dlen
+HIO_EXPORT void hio_sha256_digest (
+	hio_uint8_t       hash[HIO_SHA256_DIGEST_LEN],
+	const void*       data,
+	hio_oow_t         dlen
 );
 
 #ifdef __cplusplus

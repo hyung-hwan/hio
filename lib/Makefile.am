@@ -48,6 +48,8 @@ include_HEADERS = \
 	hio-http.h \
 	hio-json.h \
 	hio-md5.h \
+	hio-sha1.h \
+	hio-sha256.h \
 	hio-nwif.h \
 	hio-opt.h \
 	hio-pac1.h \
@@ -97,6 +99,8 @@ libhio_la_SOURCES = \
 	hio-prv.h \
 	hio.c \
 	md5.c \
+	sha1.c \
+	sha256.c \
 	nwif.c \
 	opt.c \
 	opt-imp.h \

@@ -917,7 +917,7 @@ hio_rad_vsattr_hdr_t* hio_rad_insert_vsattr (hio_rad_hdr_t* auth, int max, hio_u
 
 int hio_rad_set_user_password (hio_rad_hdr_t* auth, int max, const hio_bch_t* password, const hio_bch_t* secret)
 {
-	hio_md5_t md5;
+	hio_md5_ctx_t md5;
 
 	hio_uint8_t hashed[HIO_RAD_MAX_ATTR_VALUE_LEN]; /* can't be longer than this */
 	hio_uint8_t tmp[HIO_RAD_USER_PASSWORD_BLKSIZE];
@@ -951,19 +951,19 @@ int hio_rad_set_user_password (hio_rad_hdr_t* auth, int max, const hio_bch_t* pa
 	 * ...
 	 * cn = pn XOR MD5(secret + cn-1)
 	 */
-	hio_md5_initialize (&md5);
+	hio_md5_init (&md5);
 	hio_md5_update (&md5, secret, hio_count_bcstr(secret));
 	hio_md5_update (&md5, auth->authenticator, HIO_SIZEOF(auth->authenticator));
-	hio_md5_digest (&md5, tmp, HIO_SIZEOF(tmp));
+	hio_md5_final (&md5, tmp);
 
 	xor (&hashed[0], tmp, HIO_SIZEOF(tmp));
 
 	for (i = 1; i < (padlen >> 4); i++)
 	{
-		hio_md5_initialize (&md5);
+		hio_md5_init (&md5);
 		hio_md5_update (&md5, secret, hio_count_bcstr(secret));
 		hio_md5_update (&md5, &hashed[(i - 1) * HIO_RAD_USER_PASSWORD_BLKSIZE], HIO_RAD_USER_PASSWORD_BLKSIZE);
-		hio_md5_digest (&md5, tmp, HIO_SIZEOF(tmp));
+		hio_md5_final (&md5, tmp);
 		xor (&hashed[i * HIO_RAD_USER_PASSWORD_BLKSIZE], tmp, HIO_SIZEOF(tmp));
 	}
 
@@ -995,33 +995,33 @@ void hio_rad_copy_authenticator (hio_rad_hdr_t* dst, const hio_rad_hdr_t* src)
 
 int hio_rad_set_authenticator (hio_rad_hdr_t* req, const hio_bch_t* secret)
 {
-	hio_md5_t md5;
+	hio_md5_ctx_t md5;
 
 	/* this assumes that req->authentcator at this point
 	 * is filled with zeros. so make sure that it contains zeros
 	 * before you call this function */
 
-	hio_md5_initialize (&md5);
+	hio_md5_init (&md5);
 	hio_md5_update (&md5, req, hio_ntoh16(req->length));
 	if (*secret) hio_md5_update (&md5, secret, hio_count_bcstr(secret));
-	hio_md5_digest (&md5, req->authenticator, HIO_SIZEOF(req->authenticator));
+	hio_md5_final (&md5, req->authenticator);
 
 	return 0;
 }
 
 int hio_rad_verify_request (hio_rad_hdr_t* req, const hio_bch_t* secret)
 {
-	hio_md5_t md5;
+	hio_md5_ctx_t md5;
 	hio_uint8_t orgauth[HIO_RAD_AUTHENTICATOR_LEN];
 	int ret;
 
 	HIO_MEMCPY(orgauth, req->authenticator, HIO_SIZEOF(req->authenticator));
 	HIO_MEMSET(req->authenticator, 0, HIO_SIZEOF(req->authenticator));
 
-	hio_md5_initialize (&md5);
+	hio_md5_init (&md5);
 	hio_md5_update (&md5, req, hio_ntoh16(req->length));
 	if (*secret) hio_md5_update (&md5, secret, hio_count_bcstr(secret));
-	hio_md5_digest (&md5, req->authenticator, HIO_SIZEOF(req->authenticator));
+	hio_md5_final (&md5, req->authenticator);
 
 	ret = (HIO_MEMCMP (req->authenticator, orgauth, HIO_SIZEOF(req->authenticator)) == 0)? 1: 0;
 	HIO_MEMCPY(req->authenticator, orgauth, HIO_SIZEOF(req->authenticator));
@@ -1031,7 +1031,7 @@ int hio_rad_verify_request (hio_rad_hdr_t* req, const hio_bch_t* secret)
 
 int hio_rad_verify_response (hio_rad_hdr_t* res, const hio_rad_hdr_t* req, const hio_bch_t* secret)
 {
-	hio_md5_t md5;
+	hio_md5_ctx_t md5;
 
 	hio_uint8_t calculated[HIO_RAD_AUTHENTICATOR_LEN];
 	hio_uint8_t reply[HIO_RAD_AUTHENTICATOR_LEN];
@@ -1048,7 +1048,7 @@ int hio_rad_verify_response (hio_rad_hdr_t* res, const hio_rad_hdr_t* req, const
 	HIO_MEMCPY(res->authenticator, req->authenticator, HIO_SIZEOF(req->authenticator)); /* sent authenticator */
 
 	/* MD5(response packet header + authenticator + response packet data + secret) */
-	hio_md5_initialize (&md5);
+	hio_md5_init (&md5);
 	hio_md5_update (&md5, res, hio_ntoh16(res->length));
 
 	/*
@@ -1061,7 +1061,7 @@ int hio_rad_verify_response (hio_rad_hdr_t* res, const hio_rad_hdr_t* req, const
 	 * to the secret!
 	 */
 	if (*secret) hio_md5_update (&md5, secret, hio_count_bcstr(secret));
-	hio_md5_digest (&md5, calculated, HIO_SIZEOF(calculated));
+	hio_md5_final (&md5, calculated);
 
 	/* Did he use the same random authenticator + shared secret? */
 	return (HIO_MEMCMP(calculated, reply, HIO_SIZEOF(reply)) != 0)? 0: 1;

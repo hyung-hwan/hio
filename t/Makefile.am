@@ -18,7 +18,7 @@ check_SCRIPTS = s-001.sh s-002.sh
 EXTRA_DIST = $(check_SCRIPTS) tap.inc t-cgi.sh
 
 ## programs run as tests
-TESTPROGS = t-001 t-002 t-003 t-004 t-005 t-006 t-007 t-008 t-009 t-010 t-011 t-012 t-013 t-014 t-015 t-016 t-017 t-018 t-019
+TESTPROGS = t-001 t-002 t-003 t-004 t-005 t-006 t-007 t-008 t-009 t-010 t-011 t-012 t-013 t-014 t-015 t-016 t-017 t-018 t-019 t-020
 
 ## helpers the test scripts drive. built with the tests, but not tests
 ## themselves - they are servers and would never exit.
@@ -175,6 +175,16 @@ t_019_CPPFLAGS = $(CPPFLAGS_COMMON)
 t_019_CFLAGS = $(CFLAGS_COMMON)
 t_019_LDFLAGS = $(LDFLAGS_COMMON)
 t_019_LDADD = $(LIBADD_COMMON)
+
+## t-020 covers the sha-1 and sha-256 digests. they are pure functions with
+## published vectors, so they are checked against those rather than against
+## each other - and the block-boundary cases the vectors do not reach are
+## checked by feeding the same message whole and one octet at a time.
+t_020_SOURCES = t-020.c tap.h
+t_020_CPPFLAGS = $(CPPFLAGS_COMMON)
+t_020_CFLAGS = $(CFLAGS_COMMON)
+t_020_LDFLAGS = $(LDFLAGS_COMMON)
+t_020_LDADD = $(LIBADD_COMMON)
 
 ## a minimal FastCGI responder, driven by s-002.sh
 fcgis_SOURCES = fcgis.c
