@@ -127,6 +127,7 @@ libhio_la_SOURCES = \
 	tmr.c \
 	utf8.c \
 	utl.c \
+	utl-b64.c \
 	utl-mime.c \
 	utl-siph.c \
 	utl-str.c

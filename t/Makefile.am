@@ -18,7 +18,7 @@ check_SCRIPTS = s-001.sh s-002.sh
 EXTRA_DIST = $(check_SCRIPTS) tap.inc t-cgi.sh
 
 ## programs run as tests
-TESTPROGS = t-001 t-002 t-003 t-004 t-005 t-006 t-007 t-008 t-009 t-010 t-011 t-012 t-013 t-014 t-015 t-016 t-017 t-018 t-019 t-020
+TESTPROGS = t-001 t-002 t-003 t-004 t-005 t-006 t-007 t-008 t-009 t-010 t-011 t-012 t-013 t-014 t-015 t-016 t-017 t-018 t-019 t-020 t-021
 
 ## helpers the test scripts drive. built with the tests, but not tests
 ## themselves - they are servers and would never exit.
@@ -185,6 +185,16 @@ t_020_CPPFLAGS = $(CPPFLAGS_COMMON)
 t_020_CFLAGS = $(CFLAGS_COMMON)
 t_020_LDFLAGS = $(LDFLAGS_COMMON)
 t_020_LDADD = $(LIBADD_COMMON)
+
+## t-021 covers base64. the encoder is checked against the rfc 4648 vectors and
+## the decoder against the same ones read backwards, before the two are run
+## against each other - a round trip alone would pass a pair of mistakes that
+## happen to be each other's inverse.
+t_021_SOURCES = t-021.c tap.h
+t_021_CPPFLAGS = $(CPPFLAGS_COMMON)
+t_021_CFLAGS = $(CFLAGS_COMMON)
+t_021_LDFLAGS = $(LDFLAGS_COMMON)
+t_021_LDADD = $(LIBADD_COMMON)
 
 ## a minimal FastCGI responder, driven by s-002.sh
 fcgis_SOURCES = fcgis.c
