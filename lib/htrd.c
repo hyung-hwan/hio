@@ -1078,6 +1078,7 @@ int hio_htrd_feed (hio_htrd_t* htrd, const hio_bch_t* req, hio_oow_t len, hio_oo
 	{
 		/* treat everything as contents.
 		 * i don't care about headers or whatsoever. */
+		if (rem) *rem = 0;
 		return push_content(htrd, req, len);
 	}
 
@@ -1188,6 +1189,17 @@ int hio_htrd_feed (hio_htrd_t* htrd, const hio_bch_t* req, hio_oow_t len, hio_oo
 						/* need to clear request on error?
 						clear_feed(htrd); */
 						return -1;
+					}
+
+					/* the peek handler may have switched the reader to the raw mode,
+					 * probably upgraded to some other protocol. what follows the header
+					 * is that protocol rather than a message body. so it goes straight
+					 * to the content handler and no request completion is reported */
+					if (htrd->flags & FEEDING_DUMMIFIED)
+					{
+						clear_feed(htrd);
+						if (rem) *rem = 0;
+						return (ptr < end)? push_content(htrd, ptr, end - ptr): 0;
 					}
 ////////////////////////////////////////////////////////////////////////////////////////////////////
 
@@ -1437,6 +1449,15 @@ hio_printf (HIO_T("CONTENT_LENGTH %d, RAW HEADER LENGTH %d\n"),
 #endif
 					clear_feed(htrd);
 
+					/* the handler may have taken over the connection and switched
+					 * to raw mode. that is, it called hio_htrd_dummify(). it wants
+					 * everything left as it belongs to the new switched protocol. */
+					if (htrd->flags & FEEDING_DUMMIFIED)
+					{
+						if (rem) *rem = 0;
+						return (ptr < end)? push_content(htrd, ptr, end - ptr): 0;
+					}
+
 					if (rem)
 					{
 						/* stop even if there are fed data left */
@@ -1453,17 +1474,6 @@ hio_printf (HIO_T("CONTENT_LENGTH %d, RAW HEADER LENGTH %d\n"),
 					{
 						htrd->errnum = HIO_HTRD_ESUSPENDED;
 						return -1;
-					}
-
-					/*if (htrd->option & HIO_HTRD_DUMMY)*/
-					if (htrd->flags & FEEDING_DUMMIFIED) /* in case the callback called hio_htrd_dummify() */
-					{
-						/* once the mode changes to RAW in a callback,
-						 * left-over is pushed as contents */
-						if (ptr < end)
-							return push_content(htrd, ptr, end - ptr);
-						else
-							return 0;
 					}
 
 					/* let ptr point to the next character to LF or

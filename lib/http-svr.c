@@ -1120,6 +1120,10 @@ void hio_svc_htts_task_unbindfromclient (hio_svc_htts_task_t* task, int rcdown)
 			task->task_client_htrd_recbs_changed = 0;
 		}
 
+		/* a task that took the connection over leaves the reader in raw mode.
+		 * the connection is only usable as http again once that is undone. */
+		hio_htrd_undummify(task->task_client->htrd);
+
 		/* there is some ordering issue in using HIO_SVC_HTTS_TASK_UNREF()
 		 * because it can destroy the task itself. so reset
 		 * task->task_client->task to null and call RCDOWN() later */
