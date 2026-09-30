@@ -50,6 +50,7 @@ include_HEADERS = \
 	hio-md5.h \
 	hio-sha1.h \
 	hio-sha256.h \
+	hio-ws.h \
 	hio-nwif.h \
 	hio-opt.h \
 	hio-pac1.h \
@@ -127,6 +128,7 @@ libhio_la_SOURCES = \
 	tmr.c \
 	utf8.c \
 	utl.c \
+	ws-msg.c \
 	utl-b64.c \
 	utl-mime.c \
 	utl-siph.c \
