@@ -293,9 +293,9 @@ typedef struct hio_svc_https_bind_t hio_svc_https_bind_t;
 HIO_EXPORT hio_svc_https_t* hio_svc_https_start (
 	hio_t*                       hio,
 	hio_oow_t                    xtnsize,
-	hio_svc_https_bind_t*         binds,
+	hio_svc_https_bind_t*        binds,
 	hio_oow_t                    nbinds,
-	hio_svc_https_proc_req_t      proc_req
+	hio_svc_https_proc_req_t     proc_req
 );
 
 HIO_EXPORT void hio_svc_https_stop (
@@ -315,29 +315,29 @@ static HIO_INLINE hio_t* hio_svc_https_gethio(hio_svc_https_t* svc) { return hio
 HIO_EXPORT int hio_svc_https_getoption (
 	hio_svc_https_t*       https,
 	hio_svc_https_option_t id,
-	void*                 value
+	void*                  value
 );
 
 HIO_EXPORT int hio_svc_https_setoption (
 	hio_svc_https_t*       https,
 	hio_svc_https_option_t id,
-	const void*           value
+	const void*            value
 );
 
 HIO_EXPORT int hio_svc_https_enablefcgic (
-	hio_svc_https_t*        https,
+	hio_svc_https_t*       https,
 	hio_svc_fcgic_tmout_t* tmout
 );
 
 HIO_EXPORT int hio_svc_https_writetosidechan (
 	hio_svc_https_t* https,
-	hio_oow_t       idx, /* listener index */
-	const void*     dptr,
-	hio_oow_t       dlen
+	hio_oow_t        idx, /* listener index */
+	const void*      dptr,
+	hio_oow_t        dlen
 );
 
 HIO_EXPORT int hio_svc_https_setservernamewithbcstr (
-	hio_svc_https_t*  https,
+	hio_svc_https_t* https,
 	const hio_bch_t* server_name
 );
 
@@ -345,7 +345,7 @@ HIO_EXPORT int hio_svc_https_setservernamewithbcstr (
  * not all devices may be up and running */
 HIO_EXPORT hio_dev_sck_t* hio_svc_https_getlistendev (
 	hio_svc_https_t* https,
-	hio_oow_t       idx
+	hio_oow_t        idx
 );
 
 /* return the total number of listening devices requested to start.
@@ -355,71 +355,71 @@ HIO_EXPORT hio_oow_t hio_sv_https_getnlistendevs (
 );
 
 HIO_EXPORT int hio_svc_https_getsockaddr (
-	hio_svc_https_t*  https,
+	hio_svc_https_t* https,
 	hio_oow_t        idx, /* listener index */
 	hio_skad_t*      skad
 );
 
 HIO_EXPORT int hio_svc_https_docgi (
 	hio_svc_https_t*             https,
-	hio_dev_sck_t*              csck,
-	hio_htre_t*                 req,
-	const hio_bch_t*            docroot,
-	const hio_bch_t*            script,
-	int                         options,
+	hio_dev_sck_t*               csck,
+	hio_htre_t*                  req,
+	const hio_bch_t*             docroot,
+	const hio_bch_t*             script,
+	int                          options,
 	hio_svc_https_task_on_kill_t on_kill
 );
 
 HIO_EXPORT int hio_svc_https_dofcgi (
 	hio_svc_https_t*             https,
-	hio_dev_sck_t*              csck,
-	hio_htre_t*                 req,
-	const hio_skad_t*           fcgis_addr,
-	const hio_bch_t*            docroot,
-	const hio_bch_t*            script,
-	int                         options, /**< 0 or bitwise-Ored of #hio_svc_https_file_option_t enumerators */
+	hio_dev_sck_t*               csck,
+	hio_htre_t*                  req,
+	const hio_skad_t*            fcgis_addr,
+	const hio_bch_t*             docroot,
+	const hio_bch_t*             script,
+	int                          options, /**< 0 or bitwise-Ored of #hio_svc_https_file_option_t enumerators */
 	hio_svc_https_task_on_kill_t on_kill
 );
 
 HIO_EXPORT int hio_svc_https_dofile (
 	hio_svc_https_t*             https,
-	hio_dev_sck_t*              csck,
-	hio_htre_t*                 req,
-	const hio_bch_t*            docroot,
-	const hio_bch_t*            filepath,
-	const hio_bch_t*            mime_type,
-	int                         options,
+	hio_dev_sck_t*               csck,
+	hio_htre_t*                  req,
+	const hio_bch_t*             docroot,
+	const hio_bch_t*             filepath,
+	const hio_bch_t*             mime_type,
+	int                          options,
 	hio_svc_https_task_on_kill_t on_kill,
 	hio_svc_https_file_cbs_t*    cbs
 );
 
 HIO_EXPORT int hio_svc_https_dofcgi (
 	hio_svc_https_t*             https,
-	hio_dev_sck_t*              csck,
-	hio_htre_t*                 req,
-	const hio_skad_t*           fcgis_addr,
-	const hio_bch_t*            docroot,
-	const hio_bch_t*            script,
-	int                         options, /**< 0 or bitwise-Ored of #hio_svc_https_file_option_t enumerators */
+	hio_dev_sck_t*               csck,
+	hio_htre_t*                  req,
+	const hio_skad_t*            fcgis_addr,
+	const hio_bch_t*             docroot,
+	const hio_bch_t*             script,
+	int                          options, /**< 0 or bitwise-Ored of #hio_svc_https_file_option_t enumerators */
 	hio_svc_https_task_on_kill_t on_kill
 );
 
 HIO_EXPORT int hio_svc_https_dopxy (
 	hio_svc_https_t*             https,
-	hio_dev_sck_t*              csck,
-	hio_htre_t*                 req,
-	const hio_skad_t*           tgt_addr,
-	int                         options,
+	hio_dev_sck_t*               csck,
+	hio_htre_t*                  req,
+	const hio_skad_t*            tgt_addr,
+	int                          options,
 	hio_svc_https_task_on_kill_t on_kill
 );
 
 HIO_EXPORT int hio_svc_https_dothr (
 	hio_svc_https_t*             https,
-	hio_dev_sck_t*              csck,
-	hio_htre_t*                 req,
+	hio_dev_sck_t*               csck,
+	hio_htre_t*                  req,
 	hio_svc_https_thr_func_t     func,
-	void*                       ctx,
-	int                         options,
+	void*                        ctx,
+	int                          options,
 	hio_svc_https_task_on_kill_t on_kill
 );
 
@@ -487,11 +487,11 @@ struct hio_svc_https_ws_opt_t
  */
 HIO_EXPORT int hio_svc_https_dows (
 	hio_svc_https_t*                https,
-	hio_dev_sck_t*                 csck,
-	hio_htre_t*                    req,
+	hio_dev_sck_t*                  csck,
+	hio_htre_t*                     req,
 	const hio_svc_https_ws_opt_t*   opt,
 	const hio_svc_https_ws_cbs_t*   cbs,
-	void*                          ctx,
+	void*                           ctx,
 	hio_svc_https_task_on_kill_t    on_kill
 );
 
@@ -512,9 +512,9 @@ HIO_EXPORT hio_t* hio_svc_https_ws_gethio (
  */
 HIO_EXPORT int hio_svc_https_ws_write (
 	hio_svc_https_ws_t* ws,
-	int                opcode,
-	const void*        ptr,
-	hio_oow_t          len
+	int                 opcode,
+	const void*         ptr,
+	hio_oow_t           len
 );
 
 /**
@@ -524,10 +524,10 @@ HIO_EXPORT int hio_svc_https_ws_write (
  */
 HIO_EXPORT int hio_svc_https_ws_writeframe (
 	hio_svc_https_ws_t* ws,
-	int                fin,
-	int                opcode,
-	const void*        ptr,
-	hio_oow_t          len
+	int                 fin,
+	int                 opcode,
+	const void*         ptr,
+	hio_oow_t           len
 );
 
 /**
@@ -537,27 +537,27 @@ HIO_EXPORT int hio_svc_https_ws_writeframe (
  */
 HIO_EXPORT int hio_svc_https_ws_close (
 	hio_svc_https_ws_t* ws,
-	int                code,
-	const hio_bch_t*   reason
+	int                 code,
+	const hio_bch_t*    reason
 );
 
 /* -------------------------------------------------------------- */
 
 HIO_EXPORT int hio_svc_https_dotxt (
 	hio_svc_https_t*             https,
-	hio_dev_sck_t*              csck,
-	hio_htre_t*                 req,
-	int                         res_status_code,
-	const hio_bch_t*            content_type,
-	const hio_bch_t*            content_text,
-	int                         options,
+	hio_dev_sck_t*               csck,
+	hio_htre_t*                  req,
+	int                          res_status_code,
+	const hio_bch_t*             content_type,
+	const hio_bch_t*             content_text,
+	int                          options,
 	hio_svc_https_task_on_kill_t on_kill
 );
 
 HIO_EXPORT hio_svc_https_task_t* hio_svc_https_task_make (
-	hio_svc_https_t*              https,
+	hio_svc_https_t*             https,
 	hio_oow_t                    task_size,
-	hio_svc_https_task_on_kill_t  on_kill,
+	hio_svc_https_task_on_kill_t on_kill,
 	hio_htre_t*                  req,
 	hio_dev_sck_t*               csck
 );
@@ -566,7 +566,7 @@ HIO_EXPORT hio_svc_https_task_t* hio_svc_https_task_make (
  * on top of the socket's current handlers and make the task the client's
  * current one. Undone by hio_svc_https_task_unbindfromclient(). */
 HIO_EXPORT void hio_svc_https_task_bindtoclient (
-	hio_svc_https_task_t*      task,
+	hio_svc_https_task_t*     task,
 	hio_dev_sck_t*            csck,
 	const hio_dev_sck_evcb_t* evcb
 );
@@ -596,37 +596,37 @@ HIO_EXPORT void hio_svc_https_client_default_on_disconnect (
  * the binding took; pass 0 when the caller is already inside the task's own
  * destruction path. */
 HIO_EXPORT void hio_svc_https_task_unbindfromclient (
-	hio_svc_https_task_t*      task,
-	int                       rcdown
+	hio_svc_https_task_t* task,
+	int                   rcdown
 );
 
 /* Stop watching the client for input. For a task that has read all it
  * needs from the request. */
 HIO_EXPORT void hio_svc_https_task_stopreadingclient (
-	hio_svc_https_task_t*      task
+	hio_svc_https_task_t* task
 );
 
 /* Give up on the client connection, without trying to keep it alive. */
 HIO_EXPORT void hio_svc_https_task_haltclient (
-	hio_svc_https_task_t*      task
+	hio_svc_https_task_t* task
 );
 
 /* Release the client: keep the connection for the next request on it, or
  * shut it down. The task may be destroyed by this call. */
 HIO_EXPORT void hio_svc_https_task_finishclient (
-	hio_svc_https_task_t*      task
+	hio_svc_https_task_t* task
 );
 
 HIO_EXPORT void hio_svc_https_task_kill (
-	hio_svc_https_task_t*         task
+	hio_svc_https_task_t* task
 );
 
 HIO_EXPORT int hio_svc_https_task_sendfinalres (
 	hio_svc_https_task_t* task,
-	int                  status_code,
-	const hio_bch_t*     content_type,
-	const hio_bch_t*     content_text,
-	int                  force_close
+	int                   status_code,
+	const hio_bch_t*      content_type,
+	const hio_bch_t*      content_text,
+	int                   force_close
 );
 
 enum hio_svc_https_task_reshdr_flag_t
@@ -648,27 +648,27 @@ typedef enum hio_svc_https_task_reshdr_flag_t hio_svc_https_task_reshdr_flag_t;
 
 HIO_EXPORT int hio_svc_https_task_startreshdr (
 	hio_svc_https_task_t* task,
-	int                  status_code,
-	const hio_bch_t*     status_desc,
-	int                  flags /**< 0 or bitwise-OR'ed #hio_svc_https_task_reshdr_flag_t enumerators */
+	int                   status_code,
+	const hio_bch_t*      status_desc,
+	int                   flags /**< 0 or bitwise-OR'ed #hio_svc_https_task_reshdr_flag_t enumerators */
 );
 
 HIO_EXPORT int hio_svc_https_task_addreshdrs (
-	hio_svc_https_task_t*     task,
+	hio_svc_https_task_t*    task,
 	const hio_bch_t*         key,
 	const hio_htre_hdrval_t* value
 );
 
 HIO_EXPORT int hio_svc_https_task_addreshdr (
 	hio_svc_https_task_t* task,
-	const hio_bch_t*     key,
-	const hio_bch_t*     value
+	const hio_bch_t*      key,
+	const hio_bch_t*      value
 );
 
 HIO_EXPORT int hio_svc_https_task_addreshdrfmt (
 	hio_svc_https_task_t* task,
-	const hio_bch_t*     key,
-	const hio_bch_t*     vfmt,
+	const hio_bch_t*      key,
+	const hio_bch_t*      vfmt,
 	...
 );
 
@@ -678,15 +678,15 @@ HIO_EXPORT int hio_svc_https_task_endreshdr (
 
 HIO_EXPORT int hio_svc_https_task_addresbody (
 	hio_svc_https_task_t* task,
-	const void*          data,
-	hio_iolen_t          dlen
+	const void*           data,
+	hio_iolen_t           dlen
 );
 
 HIO_EXPORT int hio_svc_https_task_addresbodyfromfile (
 	hio_svc_https_task_t* task,
-	int                 fd,
-	hio_foff_t          foff,
-	hio_iolen_t         len
+	int                   fd,
+	hio_foff_t            foff,
+	hio_iolen_t           len
 );
 
 HIO_EXPORT int hio_svc_https_task_endbody (
@@ -695,20 +695,20 @@ HIO_EXPORT int hio_svc_https_task_endbody (
 
 HIO_EXPORT int hio_svc_https_task_handleexpect100 (
 	hio_svc_https_task_t* task,
-	int                  no_continue
+	int                   no_continue
 );
 
 HIO_EXPORT void hio_svc_https_fmtgmtime (
 	hio_svc_https_t*    https,
-	const hio_ntime_t* nt,
-	hio_bch_t*         buf,
-	hio_oow_t          len
+	const hio_ntime_t*  nt,
+	hio_bch_t*          buf,
+	hio_oow_t           len
 );
 
 HIO_EXPORT hio_bch_t* hio_svc_https_dupmergepaths (
-	hio_svc_https_t*    https,
-	const hio_bch_t*   base,
-	const hio_bch_t*   path
+	hio_svc_https_t* https,
+	const hio_bch_t* base,
+	const hio_bch_t* path
 );
 
 #if defined(__cplusplus)
