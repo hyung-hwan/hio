@@ -150,14 +150,14 @@ libhio_la_DEPENDENCIES = $(am__DEPENDENCIES_2) $(am__DEPENDENCIES_1) \
 	$(am__DEPENDENCIES_3) $(am__DEPENDENCIES_4)
 am__libhio_la_SOURCES_DIST = chr.c dhcp-svr.c dhcp4-msg.c dhcp6-msg.c \
 	dns.c dns-cli.c ecs.c ecs-imp.h err.c fcgi-cli.c fmt.c \
-	fmt-imp.h htb.c htrd.c htre.c http.c http-cgi.c http-fcgi.c \
-	http-file.c http-prv.h http-pxy.c http-svr.c http-thr.c \
-	http-txt.c json.c hio-prv.h hio.c md5.c sha1.c sha256.c nwif.c \
-	opt.c opt-imp.h path.c pipe.c pro.c pty.c rad-msg.c rco.c \
-	sck.c shw.c skad.c sys.c sys-ass.c sys-err.c sys-log.c \
-	sys-mux.c sys-prv.h sys-tim.c thr.c uch-case.h uch-prop.h \
-	tar.c tmr.c utf8.c utl.c ws-msg.c utl-b64.c utl-mime.c \
-	utl-siph.c utl-str.c mar.c mar-cli.c
+	fmt-imp.h htb.c htrd.c htre.c http.c https.c https-cgi.c \
+	https-fcgi.c https-file.c https-prv.h https-pxy.c https-thr.c \
+	https-txt.c https-ws.c json.c hio-prv.h hio.c md5.c sha1.c \
+	sha256.c nwif.c opt.c opt-imp.h path.c pipe.c pro.c pty.c \
+	rad-msg.c rco.c sck.c shw.c skad.c sys.c sys-ass.c sys-err.c \
+	sys-log.c sys-mux.c sys-prv.h sys-tim.c thr.c uch-case.h \
+	uch-prop.h tar.c tmr.c utf8.c utl.c ws-msg.c utl-b64.c \
+	utl-mime.c utl-siph.c utl-str.c mar.c mar-cli.c
 @ENABLE_MARIADB_TRUE@am__objects_1 = libhio_la-mar.lo \
 @ENABLE_MARIADB_TRUE@	libhio_la-mar-cli.lo
 am_libhio_la_OBJECTS = libhio_la-chr.lo libhio_la-dhcp-svr.lo \
@@ -165,21 +165,21 @@ am_libhio_la_OBJECTS = libhio_la-chr.lo libhio_la-dhcp-svr.lo \
 	libhio_la-dns-cli.lo libhio_la-ecs.lo libhio_la-err.lo \
 	libhio_la-fcgi-cli.lo libhio_la-fmt.lo libhio_la-htb.lo \
 	libhio_la-htrd.lo libhio_la-htre.lo libhio_la-http.lo \
-	libhio_la-http-cgi.lo libhio_la-http-fcgi.lo \
-	libhio_la-http-file.lo libhio_la-http-pxy.lo \
-	libhio_la-http-svr.lo libhio_la-http-thr.lo \
-	libhio_la-http-txt.lo libhio_la-json.lo libhio_la-hio.lo \
-	libhio_la-md5.lo libhio_la-sha1.lo libhio_la-sha256.lo \
-	libhio_la-nwif.lo libhio_la-opt.lo libhio_la-path.lo \
-	libhio_la-pipe.lo libhio_la-pro.lo libhio_la-pty.lo \
-	libhio_la-rad-msg.lo libhio_la-rco.lo libhio_la-sck.lo \
-	libhio_la-shw.lo libhio_la-skad.lo libhio_la-sys.lo \
-	libhio_la-sys-ass.lo libhio_la-sys-err.lo libhio_la-sys-log.lo \
-	libhio_la-sys-mux.lo libhio_la-sys-tim.lo libhio_la-thr.lo \
-	libhio_la-tar.lo libhio_la-tmr.lo libhio_la-utf8.lo \
-	libhio_la-utl.lo libhio_la-ws-msg.lo libhio_la-utl-b64.lo \
-	libhio_la-utl-mime.lo libhio_la-utl-siph.lo \
-	libhio_la-utl-str.lo $(am__objects_1)
+	libhio_la-https.lo libhio_la-https-cgi.lo \
+	libhio_la-https-fcgi.lo libhio_la-https-file.lo \
+	libhio_la-https-pxy.lo libhio_la-https-thr.lo \
+	libhio_la-https-txt.lo libhio_la-https-ws.lo libhio_la-json.lo \
+	libhio_la-hio.lo libhio_la-md5.lo libhio_la-sha1.lo \
+	libhio_la-sha256.lo libhio_la-nwif.lo libhio_la-opt.lo \
+	libhio_la-path.lo libhio_la-pipe.lo libhio_la-pro.lo \
+	libhio_la-pty.lo libhio_la-rad-msg.lo libhio_la-rco.lo \
+	libhio_la-sck.lo libhio_la-shw.lo libhio_la-skad.lo \
+	libhio_la-sys.lo libhio_la-sys-ass.lo libhio_la-sys-err.lo \
+	libhio_la-sys-log.lo libhio_la-sys-mux.lo libhio_la-sys-tim.lo \
+	libhio_la-thr.lo libhio_la-tar.lo libhio_la-tmr.lo \
+	libhio_la-utf8.lo libhio_la-utl.lo libhio_la-ws-msg.lo \
+	libhio_la-utl-b64.lo libhio_la-utl-mime.lo \
+	libhio_la-utl-siph.lo libhio_la-utl-str.lo $(am__objects_1)
 libhio_la_OBJECTS = $(am_libhio_la_OBJECTS)
 AM_V_lt = $(am__v_lt_@AM_V@)
 am__v_lt_ = $(am__v_lt_@AM_DEFAULT_V@)
@@ -213,15 +213,15 @@ am__depfiles_remade = ./$(DEPDIR)/libhio_la-chr.Plo \
 	./$(DEPDIR)/libhio_la-fcgi-cli.Plo \
 	./$(DEPDIR)/libhio_la-fmt.Plo ./$(DEPDIR)/libhio_la-hio.Plo \
 	./$(DEPDIR)/libhio_la-htb.Plo ./$(DEPDIR)/libhio_la-htrd.Plo \
-	./$(DEPDIR)/libhio_la-htre.Plo \
-	./$(DEPDIR)/libhio_la-http-cgi.Plo \
-	./$(DEPDIR)/libhio_la-http-fcgi.Plo \
-	./$(DEPDIR)/libhio_la-http-file.Plo \
-	./$(DEPDIR)/libhio_la-http-pxy.Plo \
-	./$(DEPDIR)/libhio_la-http-svr.Plo \
-	./$(DEPDIR)/libhio_la-http-thr.Plo \
-	./$(DEPDIR)/libhio_la-http-txt.Plo \
-	./$(DEPDIR)/libhio_la-http.Plo ./$(DEPDIR)/libhio_la-json.Plo \
+	./$(DEPDIR)/libhio_la-htre.Plo ./$(DEPDIR)/libhio_la-http.Plo \
+	./$(DEPDIR)/libhio_la-https-cgi.Plo \
+	./$(DEPDIR)/libhio_la-https-fcgi.Plo \
+	./$(DEPDIR)/libhio_la-https-file.Plo \
+	./$(DEPDIR)/libhio_la-https-pxy.Plo \
+	./$(DEPDIR)/libhio_la-https-thr.Plo \
+	./$(DEPDIR)/libhio_la-https-txt.Plo \
+	./$(DEPDIR)/libhio_la-https-ws.Plo \
+	./$(DEPDIR)/libhio_la-https.Plo ./$(DEPDIR)/libhio_la-json.Plo \
 	./$(DEPDIR)/libhio_la-mar-cli.Plo \
 	./$(DEPDIR)/libhio_la-mar.Plo ./$(DEPDIR)/libhio_la-md5.Plo \
 	./$(DEPDIR)/libhio_la-nwif.Plo ./$(DEPDIR)/libhio_la-opt.Plo \
@@ -273,11 +273,11 @@ am__can_run_installinfo = \
   esac
 am__include_HEADERS_DIST = hio-chr.h hio-cmn.h hio-dhcp.h hio-dns.h \
 	hio-ecs.h hio-fcgi.h hio-fmt.h hio-htb.h hio-htrd.h hio-htre.h \
-	hio-http.h hio-json.h hio-md5.h hio-sha1.h hio-sha256.h \
-	hio-ws.h hio-nwif.h hio-opt.h hio-pac1.h hio-path.h hio-pipe.h \
-	hio-pro.h hio-pty.h hio-rad.h hio-sck.h hio-shw.h hio-skad.h \
-	hio-spl.h hio-str.h hio-tar.h hio-thr.h hio-upac.h hio-utl.h \
-	hio.h hio-mar.h
+	hio-http.h hio-https.h hio-json.h hio-md5.h hio-sha1.h \
+	hio-sha256.h hio-ws.h hio-nwif.h hio-opt.h hio-pac1.h \
+	hio-path.h hio-pipe.h hio-pro.h hio-pty.h hio-rad.h hio-sck.h \
+	hio-shw.h hio-skad.h hio-spl.h hio-str.h hio-tar.h hio-thr.h \
+	hio-upac.h hio-utl.h hio.h hio-mar.h
 HEADERS = $(include_HEADERS)
 am__tagged_files = $(HEADERS) $(SOURCES) $(TAGS_FILES) $(LISP) \
 	hio-cfg.h.in
@@ -485,22 +485,22 @@ LIBADD_LIB_COMMON = $(LIBM)
 # Never list hio-cfg.h in include_HEADERS.
 include_HEADERS = hio-chr.h hio-cmn.h hio-dhcp.h hio-dns.h hio-ecs.h \
 	hio-fcgi.h hio-fmt.h hio-htb.h hio-htrd.h hio-htre.h \
-	hio-http.h hio-json.h hio-md5.h hio-sha1.h hio-sha256.h \
-	hio-ws.h hio-nwif.h hio-opt.h hio-pac1.h hio-path.h hio-pipe.h \
-	hio-pro.h hio-pty.h hio-rad.h hio-sck.h hio-shw.h hio-skad.h \
-	hio-spl.h hio-str.h hio-tar.h hio-thr.h hio-upac.h hio-utl.h \
-	hio.h $(am__append_1)
+	hio-http.h hio-https.h hio-json.h hio-md5.h hio-sha1.h \
+	hio-sha256.h hio-ws.h hio-nwif.h hio-opt.h hio-pac1.h \
+	hio-path.h hio-pipe.h hio-pro.h hio-pty.h hio-rad.h hio-sck.h \
+	hio-shw.h hio-skad.h hio-spl.h hio-str.h hio-tar.h hio-thr.h \
+	hio-upac.h hio-utl.h hio.h $(am__append_1)
 lib_LTLIBRARIES = libhio.la
 libhio_la_SOURCES = chr.c dhcp-svr.c dhcp4-msg.c dhcp6-msg.c dns.c \
 	dns-cli.c ecs.c ecs-imp.h err.c fcgi-cli.c fmt.c fmt-imp.h \
-	htb.c htrd.c htre.c http.c http-cgi.c http-fcgi.c http-file.c \
-	http-prv.h http-pxy.c http-svr.c http-thr.c http-txt.c json.c \
-	hio-prv.h hio.c md5.c sha1.c sha256.c nwif.c opt.c opt-imp.h \
-	path.c pipe.c pro.c pty.c rad-msg.c rco.c sck.c shw.c skad.c \
-	sys.c sys-ass.c sys-err.c sys-log.c sys-mux.c sys-prv.h \
-	sys-tim.c thr.c uch-case.h uch-prop.h tar.c tmr.c utf8.c utl.c \
-	ws-msg.c utl-b64.c utl-mime.c utl-siph.c utl-str.c \
-	$(am__append_2)
+	htb.c htrd.c htre.c http.c https.c https-cgi.c https-fcgi.c \
+	https-file.c https-prv.h https-pxy.c https-thr.c https-txt.c \
+	https-ws.c json.c hio-prv.h hio.c md5.c sha1.c sha256.c nwif.c \
+	opt.c opt-imp.h path.c pipe.c pro.c pty.c rad-msg.c rco.c \
+	sck.c shw.c skad.c sys.c sys-ass.c sys-err.c sys-log.c \
+	sys-mux.c sys-prv.h sys-tim.c thr.c uch-case.h uch-prop.h \
+	tar.c tmr.c utf8.c utl.c ws-msg.c utl-b64.c utl-mime.c \
+	utl-siph.c utl-str.c $(am__append_2)
 libhio_la_CPPFLAGS = $(CPPFLAGS_LIB_COMMON)
 libhio_la_CFLAGS = $(CFLAGS_LIB_COMMON) $(am__append_3)
 libhio_la_LDFLAGS = $(LDFLAGS_LIB_COMMON) $(am__append_4)
@@ -612,14 +612,15 @@ distclean-compile:
 @AMDEP_TRUE@@am__include@ @am__quote@./$(DEPDIR)/libhio_la-htb.Plo@am__quote@ # am--include-marker
 @AMDEP_TRUE@@am__include@ @am__quote@./$(DEPDIR)/libhio_la-htrd.Plo@am__quote@ # am--include-marker
 @AMDEP_TRUE@@am__include@ @am__quote@./$(DEPDIR)/libhio_la-htre.Plo@am__quote@ # am--include-marker
-@AMDEP_TRUE@@am__include@ @am__quote@./$(DEPDIR)/libhio_la-http-cgi.Plo@am__quote@ # am--include-marker
-@AMDEP_TRUE@@am__include@ @am__quote@./$(DEPDIR)/libhio_la-http-fcgi.Plo@am__quote@ # am--include-marker
-@AMDEP_TRUE@@am__include@ @am__quote@./$(DEPDIR)/libhio_la-http-file.Plo@am__quote@ # am--include-marker
-@AMDEP_TRUE@@am__include@ @am__quote@./$(DEPDIR)/libhio_la-http-pxy.Plo@am__quote@ # am--include-marker
-@AMDEP_TRUE@@am__include@ @am__quote@./$(DEPDIR)/libhio_la-http-svr.Plo@am__quote@ # am--include-marker
-@AMDEP_TRUE@@am__include@ @am__quote@./$(DEPDIR)/libhio_la-http-thr.Plo@am__quote@ # am--include-marker
-@AMDEP_TRUE@@am__include@ @am__quote@./$(DEPDIR)/libhio_la-http-txt.Plo@am__quote@ # am--include-marker
 @AMDEP_TRUE@@am__include@ @am__quote@./$(DEPDIR)/libhio_la-http.Plo@am__quote@ # am--include-marker
+@AMDEP_TRUE@@am__include@ @am__quote@./$(DEPDIR)/libhio_la-https-cgi.Plo@am__quote@ # am--include-marker
+@AMDEP_TRUE@@am__include@ @am__quote@./$(DEPDIR)/libhio_la-https-fcgi.Plo@am__quote@ # am--include-marker
+@AMDEP_TRUE@@am__include@ @am__quote@./$(DEPDIR)/libhio_la-https-file.Plo@am__quote@ # am--include-marker
+@AMDEP_TRUE@@am__include@ @am__quote@./$(DEPDIR)/libhio_la-https-pxy.Plo@am__quote@ # am--include-marker
+@AMDEP_TRUE@@am__include@ @am__quote@./$(DEPDIR)/libhio_la-https-thr.Plo@am__quote@ # am--include-marker
+@AMDEP_TRUE@@am__include@ @am__quote@./$(DEPDIR)/libhio_la-https-txt.Plo@am__quote@ # am--include-marker
+@AMDEP_TRUE@@am__include@ @am__quote@./$(DEPDIR)/libhio_la-https-ws.Plo@am__quote@ # am--include-marker
+@AMDEP_TRUE@@am__include@ @am__quote@./$(DEPDIR)/libhio_la-https.Plo@am__quote@ # am--include-marker
 @AMDEP_TRUE@@am__include@ @am__quote@./$(DEPDIR)/libhio_la-json.Plo@am__quote@ # am--include-marker
 @AMDEP_TRUE@@am__include@ @am__quote@./$(DEPDIR)/libhio_la-mar-cli.Plo@am__quote@ # am--include-marker
 @AMDEP_TRUE@@am__include@ @am__quote@./$(DEPDIR)/libhio_la-mar.Plo@am__quote@ # am--include-marker
@@ -782,54 +783,61 @@ libhio_la-http.lo: http.c
 @AMDEP_TRUE@@am__fastdepCC_FALSE@	DEPDIR=$(DEPDIR) $(CCDEPMODE) $(depcomp) @AMDEPBACKSLASH@
 @am__fastdepCC_FALSE@	$(AM_V_CC@am__nodep@)$(LIBTOOL) $(AM_V_lt) --tag=CC $(AM_LIBTOOLFLAGS) $(LIBTOOLFLAGS) --mode=compile $(CC) $(DEFS) $(DEFAULT_INCLUDES) $(INCLUDES) $(libhio_la_CPPFLAGS) $(CPPFLAGS) $(libhio_la_CFLAGS) $(CFLAGS) -c -o libhio_la-http.lo `test -f 'http.c' || echo '$(srcdir)/'`http.c
 
-libhio_la-http-cgi.lo: http-cgi.c
-@am__fastdepCC_TRUE@	$(AM_V_CC)$(LIBTOOL) $(AM_V_lt) --tag=CC $(AM_LIBTOOLFLAGS) $(LIBTOOLFLAGS) --mode=compile $(CC) $(DEFS) $(DEFAULT_INCLUDES) $(INCLUDES) $(libhio_la_CPPFLAGS) $(CPPFLAGS) $(libhio_la_CFLAGS) $(CFLAGS) -MT libhio_la-http-cgi.lo -MD -MP -MF $(DEPDIR)/libhio_la-http-cgi.Tpo -c -o libhio_la-http-cgi.lo `test -f 'http-cgi.c' || echo '$(srcdir)/'`http-cgi.c
-@am__fastdepCC_TRUE@	$(AM_V_at)$(am__mv) $(DEPDIR)/libhio_la-http-cgi.Tpo $(DEPDIR)/libhio_la-http-cgi.Plo
-@AMDEP_TRUE@@am__fastdepCC_FALSE@	$(AM_V_CC)source='http-cgi.c' object='libhio_la-http-cgi.lo' libtool=yes @AMDEPBACKSLASH@
+libhio_la-https.lo: https.c
+@am__fastdepCC_TRUE@	$(AM_V_CC)$(LIBTOOL) $(AM_V_lt) --tag=CC $(AM_LIBTOOLFLAGS) $(LIBTOOLFLAGS) --mode=compile $(CC) $(DEFS) $(DEFAULT_INCLUDES) $(INCLUDES) $(libhio_la_CPPFLAGS) $(CPPFLAGS) $(libhio_la_CFLAGS) $(CFLAGS) -MT libhio_la-https.lo -MD -MP -MF $(DEPDIR)/libhio_la-https.Tpo -c -o libhio_la-https.lo `test -f 'https.c' || echo '$(srcdir)/'`https.c
+@am__fastdepCC_TRUE@	$(AM_V_at)$(am__mv) $(DEPDIR)/libhio_la-https.Tpo $(DEPDIR)/libhio_la-https.Plo
+@AMDEP_TRUE@@am__fastdepCC_FALSE@	$(AM_V_CC)source='https.c' object='libhio_la-https.lo' libtool=yes @AMDEPBACKSLASH@
 @AMDEP_TRUE@@am__fastdepCC_FALSE@	DEPDIR=$(DEPDIR) $(CCDEPMODE) $(depcomp) @AMDEPBACKSLASH@
-@am__fastdepCC_FALSE@	$(AM_V_CC@am__nodep@)$(LIBTOOL) $(AM_V_lt) --tag=CC $(AM_LIBTOOLFLAGS) $(LIBTOOLFLAGS) --mode=compile $(CC) $(DEFS) $(DEFAULT_INCLUDES) $(INCLUDES) $(libhio_la_CPPFLAGS) $(CPPFLAGS) $(libhio_la_CFLAGS) $(CFLAGS) -c -o libhio_la-http-cgi.lo `test -f 'http-cgi.c' || echo '$(srcdir)/'`http-cgi.c
+@am__fastdepCC_FALSE@	$(AM_V_CC@am__nodep@)$(LIBTOOL) $(AM_V_lt) --tag=CC $(AM_LIBTOOLFLAGS) $(LIBTOOLFLAGS) --mode=compile $(CC) $(DEFS) $(DEFAULT_INCLUDES) $(INCLUDES) $(libhio_la_CPPFLAGS) $(CPPFLAGS) $(libhio_la_CFLAGS) $(CFLAGS) -c -o libhio_la-https.lo `test -f 'https.c' || echo '$(srcdir)/'`https.c
 
-libhio_la-http-fcgi.lo: http-fcgi.c
-@am__fastdepCC_TRUE@	$(AM_V_CC)$(LIBTOOL) $(AM_V_lt) --tag=CC $(AM_LIBTOOLFLAGS) $(LIBTOOLFLAGS) --mode=compile $(CC) $(DEFS) $(DEFAULT_INCLUDES) $(INCLUDES) $(libhio_la_CPPFLAGS) $(CPPFLAGS) $(libhio_la_CFLAGS) $(CFLAGS) -MT libhio_la-http-fcgi.lo -MD -MP -MF $(DEPDIR)/libhio_la-http-fcgi.Tpo -c -o libhio_la-http-fcgi.lo `test -f 'http-fcgi.c' || echo '$(srcdir)/'`http-fcgi.c
-@am__fastdepCC_TRUE@	$(AM_V_at)$(am__mv) $(DEPDIR)/libhio_la-http-fcgi.Tpo $(DEPDIR)/libhio_la-http-fcgi.Plo
-@AMDEP_TRUE@@am__fastdepCC_FALSE@	$(AM_V_CC)source='http-fcgi.c' object='libhio_la-http-fcgi.lo' libtool=yes @AMDEPBACKSLASH@
+libhio_la-https-cgi.lo: https-cgi.c
+@am__fastdepCC_TRUE@	$(AM_V_CC)$(LIBTOOL) $(AM_V_lt) --tag=CC $(AM_LIBTOOLFLAGS) $(LIBTOOLFLAGS) --mode=compile $(CC) $(DEFS) $(DEFAULT_INCLUDES) $(INCLUDES) $(libhio_la_CPPFLAGS) $(CPPFLAGS) $(libhio_la_CFLAGS) $(CFLAGS) -MT libhio_la-https-cgi.lo -MD -MP -MF $(DEPDIR)/libhio_la-https-cgi.Tpo -c -o libhio_la-https-cgi.lo `test -f 'https-cgi.c' || echo '$(srcdir)/'`https-cgi.c
+@am__fastdepCC_TRUE@	$(AM_V_at)$(am__mv) $(DEPDIR)/libhio_la-https-cgi.Tpo $(DEPDIR)/libhio_la-https-cgi.Plo
+@AMDEP_TRUE@@am__fastdepCC_FALSE@	$(AM_V_CC)source='https-cgi.c' object='libhio_la-https-cgi.lo' libtool=yes @AMDEPBACKSLASH@
 @AMDEP_TRUE@@am__fastdepCC_FALSE@	DEPDIR=$(DEPDIR) $(CCDEPMODE) $(depcomp) @AMDEPBACKSLASH@
-@am__fastdepCC_FALSE@	$(AM_V_CC@am__nodep@)$(LIBTOOL) $(AM_V_lt) --tag=CC $(AM_LIBTOOLFLAGS) $(LIBTOOLFLAGS) --mode=compile $(CC) $(DEFS) $(DEFAULT_INCLUDES) $(INCLUDES) $(libhio_la_CPPFLAGS) $(CPPFLAGS) $(libhio_la_CFLAGS) $(CFLAGS) -c -o libhio_la-http-fcgi.lo `test -f 'http-fcgi.c' || echo '$(srcdir)/'`http-fcgi.c
+@am__fastdepCC_FALSE@	$(AM_V_CC@am__nodep@)$(LIBTOOL) $(AM_V_lt) --tag=CC $(AM_LIBTOOLFLAGS) $(LIBTOOLFLAGS) --mode=compile $(CC) $(DEFS) $(DEFAULT_INCLUDES) $(INCLUDES) $(libhio_la_CPPFLAGS) $(CPPFLAGS) $(libhio_la_CFLAGS) $(CFLAGS) -c -o libhio_la-https-cgi.lo `test -f 'https-cgi.c' || echo '$(srcdir)/'`https-cgi.c
 
-libhio_la-http-file.lo: http-file.c
-@am__fastdepCC_TRUE@	$(AM_V_CC)$(LIBTOOL) $(AM_V_lt) --tag=CC $(AM_LIBTOOLFLAGS) $(LIBTOOLFLAGS) --mode=compile $(CC) $(DEFS) $(DEFAULT_INCLUDES) $(INCLUDES) $(libhio_la_CPPFLAGS) $(CPPFLAGS) $(libhio_la_CFLAGS) $(CFLAGS) -MT libhio_la-http-file.lo -MD -MP -MF $(DEPDIR)/libhio_la-http-file.Tpo -c -o libhio_la-http-file.lo `test -f 'http-file.c' || echo '$(srcdir)/'`http-file.c
-@am__fastdepCC_TRUE@	$(AM_V_at)$(am__mv) $(DEPDIR)/libhio_la-http-file.Tpo $(DEPDIR)/libhio_la-http-file.Plo
-@AMDEP_TRUE@@am__fastdepCC_FALSE@	$(AM_V_CC)source='http-file.c' object='libhio_la-http-file.lo' libtool=yes @AMDEPBACKSLASH@
+libhio_la-https-fcgi.lo: https-fcgi.c
+@am__fastdepCC_TRUE@	$(AM_V_CC)$(LIBTOOL) $(AM_V_lt) --tag=CC $(AM_LIBTOOLFLAGS) $(LIBTOOLFLAGS) --mode=compile $(CC) $(DEFS) $(DEFAULT_INCLUDES) $(INCLUDES) $(libhio_la_CPPFLAGS) $(CPPFLAGS) $(libhio_la_CFLAGS) $(CFLAGS) -MT libhio_la-https-fcgi.lo -MD -MP -MF $(DEPDIR)/libhio_la-https-fcgi.Tpo -c -o libhio_la-https-fcgi.lo `test -f 'https-fcgi.c' || echo '$(srcdir)/'`https-fcgi.c
+@am__fastdepCC_TRUE@	$(AM_V_at)$(am__mv) $(DEPDIR)/libhio_la-https-fcgi.Tpo $(DEPDIR)/libhio_la-https-fcgi.Plo
+@AMDEP_TRUE@@am__fastdepCC_FALSE@	$(AM_V_CC)source='https-fcgi.c' object='libhio_la-https-fcgi.lo' libtool=yes @AMDEPBACKSLASH@
 @AMDEP_TRUE@@am__fastdepCC_FALSE@	DEPDIR=$(DEPDIR) $(CCDEPMODE) $(depcomp) @AMDEPBACKSLASH@
-@am__fastdepCC_FALSE@	$(AM_V_CC@am__nodep@)$(LIBTOOL) $(AM_V_lt) --tag=CC $(AM_LIBTOOLFLAGS) $(LIBTOOLFLAGS) --mode=compile $(CC) $(DEFS) $(DEFAULT_INCLUDES) $(INCLUDES) $(libhio_la_CPPFLAGS) $(CPPFLAGS) $(libhio_la_CFLAGS) $(CFLAGS) -c -o libhio_la-http-file.lo `test -f 'http-file.c' || echo '$(srcdir)/'`http-file.c
+@am__fastdepCC_FALSE@	$(AM_V_CC@am__nodep@)$(LIBTOOL) $(AM_V_lt) --tag=CC $(AM_LIBTOOLFLAGS) $(LIBTOOLFLAGS) --mode=compile $(CC) $(DEFS) $(DEFAULT_INCLUDES) $(INCLUDES) $(libhio_la_CPPFLAGS) $(CPPFLAGS) $(libhio_la_CFLAGS) $(CFLAGS) -c -o libhio_la-https-fcgi.lo `test -f 'https-fcgi.c' || echo '$(srcdir)/'`https-fcgi.c
 
-libhio_la-http-pxy.lo: http-pxy.c
-@am__fastdepCC_TRUE@	$(AM_V_CC)$(LIBTOOL) $(AM_V_lt) --tag=CC $(AM_LIBTOOLFLAGS) $(LIBTOOLFLAGS) --mode=compile $(CC) $(DEFS) $(DEFAULT_INCLUDES) $(INCLUDES) $(libhio_la_CPPFLAGS) $(CPPFLAGS) $(libhio_la_CFLAGS) $(CFLAGS) -MT libhio_la-http-pxy.lo -MD -MP -MF $(DEPDIR)/libhio_la-http-pxy.Tpo -c -o libhio_la-http-pxy.lo `test -f 'http-pxy.c' || echo '$(srcdir)/'`http-pxy.c
-@am__fastdepCC_TRUE@	$(AM_V_at)$(am__mv) $(DEPDIR)/libhio_la-http-pxy.Tpo $(DEPDIR)/libhio_la-http-pxy.Plo
-@AMDEP_TRUE@@am__fastdepCC_FALSE@	$(AM_V_CC)source='http-pxy.c' object='libhio_la-http-pxy.lo' libtool=yes @AMDEPBACKSLASH@
+libhio_la-https-file.lo: https-file.c
+@am__fastdepCC_TRUE@	$(AM_V_CC)$(LIBTOOL) $(AM_V_lt) --tag=CC $(AM_LIBTOOLFLAGS) $(LIBTOOLFLAGS) --mode=compile $(CC) $(DEFS) $(DEFAULT_INCLUDES) $(INCLUDES) $(libhio_la_CPPFLAGS) $(CPPFLAGS) $(libhio_la_CFLAGS) $(CFLAGS) -MT libhio_la-https-file.lo -MD -MP -MF $(DEPDIR)/libhio_la-https-file.Tpo -c -o libhio_la-https-file.lo `test -f 'https-file.c' || echo '$(srcdir)/'`https-file.c
+@am__fastdepCC_TRUE@	$(AM_V_at)$(am__mv) $(DEPDIR)/libhio_la-https-file.Tpo $(DEPDIR)/libhio_la-https-file.Plo
+@AMDEP_TRUE@@am__fastdepCC_FALSE@	$(AM_V_CC)source='https-file.c' object='libhio_la-https-file.lo' libtool=yes @AMDEPBACKSLASH@
 @AMDEP_TRUE@@am__fastdepCC_FALSE@	DEPDIR=$(DEPDIR) $(CCDEPMODE) $(depcomp) @AMDEPBACKSLASH@
-@am__fastdepCC_FALSE@	$(AM_V_CC@am__nodep@)$(LIBTOOL) $(AM_V_lt) --tag=CC $(AM_LIBTOOLFLAGS) $(LIBTOOLFLAGS) --mode=compile $(CC) $(DEFS) $(DEFAULT_INCLUDES) $(INCLUDES) $(libhio_la_CPPFLAGS) $(CPPFLAGS) $(libhio_la_CFLAGS) $(CFLAGS) -c -o libhio_la-http-pxy.lo `test -f 'http-pxy.c' || echo '$(srcdir)/'`http-pxy.c
+@am__fastdepCC_FALSE@	$(AM_V_CC@am__nodep@)$(LIBTOOL) $(AM_V_lt) --tag=CC $(AM_LIBTOOLFLAGS) $(LIBTOOLFLAGS) --mode=compile $(CC) $(DEFS) $(DEFAULT_INCLUDES) $(INCLUDES) $(libhio_la_CPPFLAGS) $(CPPFLAGS) $(libhio_la_CFLAGS) $(CFLAGS) -c -o libhio_la-https-file.lo `test -f 'https-file.c' || echo '$(srcdir)/'`https-file.c
 
-libhio_la-http-svr.lo: http-svr.c
-@am__fastdepCC_TRUE@	$(AM_V_CC)$(LIBTOOL) $(AM_V_lt) --tag=CC $(AM_LIBTOOLFLAGS) $(LIBTOOLFLAGS) --mode=compile $(CC) $(DEFS) $(DEFAULT_INCLUDES) $(INCLUDES) $(libhio_la_CPPFLAGS) $(CPPFLAGS) $(libhio_la_CFLAGS) $(CFLAGS) -MT libhio_la-http-svr.lo -MD -MP -MF $(DEPDIR)/libhio_la-http-svr.Tpo -c -o libhio_la-http-svr.lo `test -f 'http-svr.c' || echo '$(srcdir)/'`http-svr.c
-@am__fastdepCC_TRUE@	$(AM_V_at)$(am__mv) $(DEPDIR)/libhio_la-http-svr.Tpo $(DEPDIR)/libhio_la-http-svr.Plo
-@AMDEP_TRUE@@am__fastdepCC_FALSE@	$(AM_V_CC)source='http-svr.c' object='libhio_la-http-svr.lo' libtool=yes @AMDEPBACKSLASH@
+libhio_la-https-pxy.lo: https-pxy.c
+@am__fastdepCC_TRUE@	$(AM_V_CC)$(LIBTOOL) $(AM_V_lt) --tag=CC $(AM_LIBTOOLFLAGS) $(LIBTOOLFLAGS) --mode=compile $(CC) $(DEFS) $(DEFAULT_INCLUDES) $(INCLUDES) $(libhio_la_CPPFLAGS) $(CPPFLAGS) $(libhio_la_CFLAGS) $(CFLAGS) -MT libhio_la-https-pxy.lo -MD -MP -MF $(DEPDIR)/libhio_la-https-pxy.Tpo -c -o libhio_la-https-pxy.lo `test -f 'https-pxy.c' || echo '$(srcdir)/'`https-pxy.c
+@am__fastdepCC_TRUE@	$(AM_V_at)$(am__mv) $(DEPDIR)/libhio_la-https-pxy.Tpo $(DEPDIR)/libhio_la-https-pxy.Plo
+@AMDEP_TRUE@@am__fastdepCC_FALSE@	$(AM_V_CC)source='https-pxy.c' object='libhio_la-https-pxy.lo' libtool=yes @AMDEPBACKSLASH@
 @AMDEP_TRUE@@am__fastdepCC_FALSE@	DEPDIR=$(DEPDIR) $(CCDEPMODE) $(depcomp) @AMDEPBACKSLASH@
-@am__fastdepCC_FALSE@	$(AM_V_CC@am__nodep@)$(LIBTOOL) $(AM_V_lt) --tag=CC $(AM_LIBTOOLFLAGS) $(LIBTOOLFLAGS) --mode=compile $(CC) $(DEFS) $(DEFAULT_INCLUDES) $(INCLUDES) $(libhio_la_CPPFLAGS) $(CPPFLAGS) $(libhio_la_CFLAGS) $(CFLAGS) -c -o libhio_la-http-svr.lo `test -f 'http-svr.c' || echo '$(srcdir)/'`http-svr.c
+@am__fastdepCC_FALSE@	$(AM_V_CC@am__nodep@)$(LIBTOOL) $(AM_V_lt) --tag=CC $(AM_LIBTOOLFLAGS) $(LIBTOOLFLAGS) --mode=compile $(CC) $(DEFS) $(DEFAULT_INCLUDES) $(INCLUDES) $(libhio_la_CPPFLAGS) $(CPPFLAGS) $(libhio_la_CFLAGS) $(CFLAGS) -c -o libhio_la-https-pxy.lo `test -f 'https-pxy.c' || echo '$(srcdir)/'`https-pxy.c
 
-libhio_la-http-thr.lo: http-thr.c
-@am__fastdepCC_TRUE@	$(AM_V_CC)$(LIBTOOL) $(AM_V_lt) --tag=CC $(AM_LIBTOOLFLAGS) $(LIBTOOLFLAGS) --mode=compile $(CC) $(DEFS) $(DEFAULT_INCLUDES) $(INCLUDES) $(libhio_la_CPPFLAGS) $(CPPFLAGS) $(libhio_la_CFLAGS) $(CFLAGS) -MT libhio_la-http-thr.lo -MD -MP -MF $(DEPDIR)/libhio_la-http-thr.Tpo -c -o libhio_la-http-thr.lo `test -f 'http-thr.c' || echo '$(srcdir)/'`http-thr.c
-@am__fastdepCC_TRUE@	$(AM_V_at)$(am__mv) $(DEPDIR)/libhio_la-http-thr.Tpo $(DEPDIR)/libhio_la-http-thr.Plo
-@AMDEP_TRUE@@am__fastdepCC_FALSE@	$(AM_V_CC)source='http-thr.c' object='libhio_la-http-thr.lo' libtool=yes @AMDEPBACKSLASH@
+libhio_la-https-thr.lo: https-thr.c
+@am__fastdepCC_TRUE@	$(AM_V_CC)$(LIBTOOL) $(AM_V_lt) --tag=CC $(AM_LIBTOOLFLAGS) $(LIBTOOLFLAGS) --mode=compile $(CC) $(DEFS) $(DEFAULT_INCLUDES) $(INCLUDES) $(libhio_la_CPPFLAGS) $(CPPFLAGS) $(libhio_la_CFLAGS) $(CFLAGS) -MT libhio_la-https-thr.lo -MD -MP -MF $(DEPDIR)/libhio_la-https-thr.Tpo -c -o libhio_la-https-thr.lo `test -f 'https-thr.c' || echo '$(srcdir)/'`https-thr.c
+@am__fastdepCC_TRUE@	$(AM_V_at)$(am__mv) $(DEPDIR)/libhio_la-https-thr.Tpo $(DEPDIR)/libhio_la-https-thr.Plo
+@AMDEP_TRUE@@am__fastdepCC_FALSE@	$(AM_V_CC)source='https-thr.c' object='libhio_la-https-thr.lo' libtool=yes @AMDEPBACKSLASH@
 @AMDEP_TRUE@@am__fastdepCC_FALSE@	DEPDIR=$(DEPDIR) $(CCDEPMODE) $(depcomp) @AMDEPBACKSLASH@
-@am__fastdepCC_FALSE@	$(AM_V_CC@am__nodep@)$(LIBTOOL) $(AM_V_lt) --tag=CC $(AM_LIBTOOLFLAGS) $(LIBTOOLFLAGS) --mode=compile $(CC) $(DEFS) $(DEFAULT_INCLUDES) $(INCLUDES) $(libhio_la_CPPFLAGS) $(CPPFLAGS) $(libhio_la_CFLAGS) $(CFLAGS) -c -o libhio_la-http-thr.lo `test -f 'http-thr.c' || echo '$(srcdir)/'`http-thr.c
+@am__fastdepCC_FALSE@	$(AM_V_CC@am__nodep@)$(LIBTOOL) $(AM_V_lt) --tag=CC $(AM_LIBTOOLFLAGS) $(LIBTOOLFLAGS) --mode=compile $(CC) $(DEFS) $(DEFAULT_INCLUDES) $(INCLUDES) $(libhio_la_CPPFLAGS) $(CPPFLAGS) $(libhio_la_CFLAGS) $(CFLAGS) -c -o libhio_la-https-thr.lo `test -f 'https-thr.c' || echo '$(srcdir)/'`https-thr.c
 
-libhio_la-http-txt.lo: http-txt.c
-@am__fastdepCC_TRUE@	$(AM_V_CC)$(LIBTOOL) $(AM_V_lt) --tag=CC $(AM_LIBTOOLFLAGS) $(LIBTOOLFLAGS) --mode=compile $(CC) $(DEFS) $(DEFAULT_INCLUDES) $(INCLUDES) $(libhio_la_CPPFLAGS) $(CPPFLAGS) $(libhio_la_CFLAGS) $(CFLAGS) -MT libhio_la-http-txt.lo -MD -MP -MF $(DEPDIR)/libhio_la-http-txt.Tpo -c -o libhio_la-http-txt.lo `test -f 'http-txt.c' || echo '$(srcdir)/'`http-txt.c
-@am__fastdepCC_TRUE@	$(AM_V_at)$(am__mv) $(DEPDIR)/libhio_la-http-txt.Tpo $(DEPDIR)/libhio_la-http-txt.Plo
-@AMDEP_TRUE@@am__fastdepCC_FALSE@	$(AM_V_CC)source='http-txt.c' object='libhio_la-http-txt.lo' libtool=yes @AMDEPBACKSLASH@
+libhio_la-https-txt.lo: https-txt.c
+@am__fastdepCC_TRUE@	$(AM_V_CC)$(LIBTOOL) $(AM_V_lt) --tag=CC $(AM_LIBTOOLFLAGS) $(LIBTOOLFLAGS) --mode=compile $(CC) $(DEFS) $(DEFAULT_INCLUDES) $(INCLUDES) $(libhio_la_CPPFLAGS) $(CPPFLAGS) $(libhio_la_CFLAGS) $(CFLAGS) -MT libhio_la-https-txt.lo -MD -MP -MF $(DEPDIR)/libhio_la-https-txt.Tpo -c -o libhio_la-https-txt.lo `test -f 'https-txt.c' || echo '$(srcdir)/'`https-txt.c
+@am__fastdepCC_TRUE@	$(AM_V_at)$(am__mv) $(DEPDIR)/libhio_la-https-txt.Tpo $(DEPDIR)/libhio_la-https-txt.Plo
+@AMDEP_TRUE@@am__fastdepCC_FALSE@	$(AM_V_CC)source='https-txt.c' object='libhio_la-https-txt.lo' libtool=yes @AMDEPBACKSLASH@
 @AMDEP_TRUE@@am__fastdepCC_FALSE@	DEPDIR=$(DEPDIR) $(CCDEPMODE) $(depcomp) @AMDEPBACKSLASH@
-@am__fastdepCC_FALSE@	$(AM_V_CC@am__nodep@)$(LIBTOOL) $(AM_V_lt) --tag=CC $(AM_LIBTOOLFLAGS) $(LIBTOOLFLAGS) --mode=compile $(CC) $(DEFS) $(DEFAULT_INCLUDES) $(INCLUDES) $(libhio_la_CPPFLAGS) $(CPPFLAGS) $(libhio_la_CFLAGS) $(CFLAGS) -c -o libhio_la-http-txt.lo `test -f 'http-txt.c' || echo '$(srcdir)/'`http-txt.c
+@am__fastdepCC_FALSE@	$(AM_V_CC@am__nodep@)$(LIBTOOL) $(AM_V_lt) --tag=CC $(AM_LIBTOOLFLAGS) $(LIBTOOLFLAGS) --mode=compile $(CC) $(DEFS) $(DEFAULT_INCLUDES) $(INCLUDES) $(libhio_la_CPPFLAGS) $(CPPFLAGS) $(libhio_la_CFLAGS) $(CFLAGS) -c -o libhio_la-https-txt.lo `test -f 'https-txt.c' || echo '$(srcdir)/'`https-txt.c
+
+libhio_la-https-ws.lo: https-ws.c
+@am__fastdepCC_TRUE@	$(AM_V_CC)$(LIBTOOL) $(AM_V_lt) --tag=CC $(AM_LIBTOOLFLAGS) $(LIBTOOLFLAGS) --mode=compile $(CC) $(DEFS) $(DEFAULT_INCLUDES) $(INCLUDES) $(libhio_la_CPPFLAGS) $(CPPFLAGS) $(libhio_la_CFLAGS) $(CFLAGS) -MT libhio_la-https-ws.lo -MD -MP -MF $(DEPDIR)/libhio_la-https-ws.Tpo -c -o libhio_la-https-ws.lo `test -f 'https-ws.c' || echo '$(srcdir)/'`https-ws.c
+@am__fastdepCC_TRUE@	$(AM_V_at)$(am__mv) $(DEPDIR)/libhio_la-https-ws.Tpo $(DEPDIR)/libhio_la-https-ws.Plo
+@AMDEP_TRUE@@am__fastdepCC_FALSE@	$(AM_V_CC)source='https-ws.c' object='libhio_la-https-ws.lo' libtool=yes @AMDEPBACKSLASH@
+@AMDEP_TRUE@@am__fastdepCC_FALSE@	DEPDIR=$(DEPDIR) $(CCDEPMODE) $(depcomp) @AMDEPBACKSLASH@
+@am__fastdepCC_FALSE@	$(AM_V_CC@am__nodep@)$(LIBTOOL) $(AM_V_lt) --tag=CC $(AM_LIBTOOLFLAGS) $(LIBTOOLFLAGS) --mode=compile $(CC) $(DEFS) $(DEFAULT_INCLUDES) $(INCLUDES) $(libhio_la_CPPFLAGS) $(CPPFLAGS) $(libhio_la_CFLAGS) $(CFLAGS) -c -o libhio_la-https-ws.lo `test -f 'https-ws.c' || echo '$(srcdir)/'`https-ws.c
 
 libhio_la-json.lo: json.c
 @am__fastdepCC_TRUE@	$(AM_V_CC)$(LIBTOOL) $(AM_V_lt) --tag=CC $(AM_LIBTOOLFLAGS) $(LIBTOOLFLAGS) --mode=compile $(CC) $(DEFS) $(DEFAULT_INCLUDES) $(INCLUDES) $(libhio_la_CPPFLAGS) $(CPPFLAGS) $(libhio_la_CFLAGS) $(CFLAGS) -MT libhio_la-json.lo -MD -MP -MF $(DEPDIR)/libhio_la-json.Tpo -c -o libhio_la-json.lo `test -f 'json.c' || echo '$(srcdir)/'`json.c
@@ -1242,14 +1250,15 @@ distclean: distclean-am
 	-rm -f ./$(DEPDIR)/libhio_la-htb.Plo
 	-rm -f ./$(DEPDIR)/libhio_la-htrd.Plo
 	-rm -f ./$(DEPDIR)/libhio_la-htre.Plo
-	-rm -f ./$(DEPDIR)/libhio_la-http-cgi.Plo
-	-rm -f ./$(DEPDIR)/libhio_la-http-fcgi.Plo
-	-rm -f ./$(DEPDIR)/libhio_la-http-file.Plo
-	-rm -f ./$(DEPDIR)/libhio_la-http-pxy.Plo
-	-rm -f ./$(DEPDIR)/libhio_la-http-svr.Plo
-	-rm -f ./$(DEPDIR)/libhio_la-http-thr.Plo
-	-rm -f ./$(DEPDIR)/libhio_la-http-txt.Plo
 	-rm -f ./$(DEPDIR)/libhio_la-http.Plo
+	-rm -f ./$(DEPDIR)/libhio_la-https-cgi.Plo
+	-rm -f ./$(DEPDIR)/libhio_la-https-fcgi.Plo
+	-rm -f ./$(DEPDIR)/libhio_la-https-file.Plo
+	-rm -f ./$(DEPDIR)/libhio_la-https-pxy.Plo
+	-rm -f ./$(DEPDIR)/libhio_la-https-thr.Plo
+	-rm -f ./$(DEPDIR)/libhio_la-https-txt.Plo
+	-rm -f ./$(DEPDIR)/libhio_la-https-ws.Plo
+	-rm -f ./$(DEPDIR)/libhio_la-https.Plo
 	-rm -f ./$(DEPDIR)/libhio_la-json.Plo
 	-rm -f ./$(DEPDIR)/libhio_la-mar-cli.Plo
 	-rm -f ./$(DEPDIR)/libhio_la-mar.Plo
@@ -1343,14 +1352,15 @@ maintainer-clean: maintainer-clean-am
 	-rm -f ./$(DEPDIR)/libhio_la-htb.Plo
 	-rm -f ./$(DEPDIR)/libhio_la-htrd.Plo
 	-rm -f ./$(DEPDIR)/libhio_la-htre.Plo
-	-rm -f ./$(DEPDIR)/libhio_la-http-cgi.Plo
-	-rm -f ./$(DEPDIR)/libhio_la-http-fcgi.Plo
-	-rm -f ./$(DEPDIR)/libhio_la-http-file.Plo
-	-rm -f ./$(DEPDIR)/libhio_la-http-pxy.Plo
-	-rm -f ./$(DEPDIR)/libhio_la-http-svr.Plo
-	-rm -f ./$(DEPDIR)/libhio_la-http-thr.Plo
-	-rm -f ./$(DEPDIR)/libhio_la-http-txt.Plo
 	-rm -f ./$(DEPDIR)/libhio_la-http.Plo
+	-rm -f ./$(DEPDIR)/libhio_la-https-cgi.Plo
+	-rm -f ./$(DEPDIR)/libhio_la-https-fcgi.Plo
+	-rm -f ./$(DEPDIR)/libhio_la-https-file.Plo
+	-rm -f ./$(DEPDIR)/libhio_la-https-pxy.Plo
+	-rm -f ./$(DEPDIR)/libhio_la-https-thr.Plo
+	-rm -f ./$(DEPDIR)/libhio_la-https-txt.Plo
+	-rm -f ./$(DEPDIR)/libhio_la-https-ws.Plo
+	-rm -f ./$(DEPDIR)/libhio_la-https.Plo
 	-rm -f ./$(DEPDIR)/libhio_la-json.Plo
 	-rm -f ./$(DEPDIR)/libhio_la-mar-cli.Plo
 	-rm -f ./$(DEPDIR)/libhio_la-mar.Plo

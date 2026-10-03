@@ -1,7 +1,7 @@
 #!/bin/sh
 
 # End-to-end coverage for the http task modules that s-001.sh does not
-# reach. httssvr routes by path prefix, so txt, thr and fcgi are all
+# reach. httpsvr routes by path prefix, so txt, thr and fcgi are all
 # exercisable here; fcgi talks to fcgis, the minimal responder in
 # this directory.
 #
@@ -17,7 +17,7 @@ SRVADDR="127.0.0.1:${SRVPORT}"
 
 start_server()
 {
-	# the fcgi task needs a responder listening on the port httssvr targets
+	# the fcgi task needs a responder listening on the port httpsvr targets
 	fcgiready="/tmp/s-002-fcgi.$$.ready"
 	rm -f "${fcgiready}"
 	./fcgis 127.0.0.1:9000 "${fcgiready}" >/dev/null 2>&1 &
@@ -45,7 +45,7 @@ start_server()
 	# the header deadline defaults to 60s and the idle timeout to 10s. shorten
 	# the first and lengthen the second so test_slowloris finishes quickly and
 	# so it is unambiguous which of the two closed the connection.
-	HTTS_HDR_TMOUT=3 HTTS_IDLE_TMOUT=30 ./httssvr >/dev/null 2>&1 &
+	HTTS_HDR_TMOUT=3 HTTS_IDLE_TMOUT=30 ./httpsvr >/dev/null 2>&1 &
 	srvpid=$!
 	# wait for the listener rather than sleeping a fixed amount
 	if tap_have_cmd curl; then
@@ -85,7 +85,7 @@ stop_server()
 
 test_pxy()
 {
-	local msg="httssvr pxy task"
+	local msg="httpsvr pxy task"
 
 	tap_have_cmd curl || { tap_skip "$msg - curl is not installed"; return; }
 
@@ -132,7 +132,7 @@ test_pxy()
 
 test_fcgi()
 {
-	local msg="httssvr fcgi task"
+	local msg="httpsvr fcgi task"
 
 	tap_have_cmd curl || { tap_skip "$msg - curl is not installed"; return; }
 
@@ -161,7 +161,7 @@ test_fcgi()
 
 test_txt()
 {
-	local msg="httssvr txt task"
+	local msg="httpsvr txt task"
 
 	tap_have_cmd curl || { tap_skip "$msg - curl is not installed"; return; }
 
@@ -182,7 +182,7 @@ test_txt()
 
 test_thr()
 {
-	local msg="httssvr thr task"
+	local msg="httpsvr thr task"
 
 	tap_have_cmd curl || { tap_skip "$msg - curl is not installed"; return; }
 
@@ -212,7 +212,7 @@ test_thr()
 
 test_hdrlimits()
 {
-	local msg="httssvr header limits"
+	local msg="httpsvr header limits"
 
 	tap_have_cmd curl || { tap_skip "$msg - curl is not installed"; return; }
 
@@ -241,11 +241,11 @@ test_hdrlimits()
 
 test_slowloris()
 {
-	local msg="httssvr slow client"
+	local msg="httpsvr slow client"
 
 	tap_have_cmd curl || { tap_skip "$msg - curl is not installed"; return; }
 
-	# the harness starts httssvr with HTTS_HDR_TMOUT=3 and a long idle
+	# the harness starts httpsvr with HTTS_HDR_TMOUT=3 and a long idle
 	# timeout, so only the header deadline can be what closes these.
 
 	# a client that dribbles one octet at a time and never finishes its
@@ -274,9 +274,9 @@ test_slowloris()
 
 test_sctp()
 {
-	local msg="httssvr over sctp"
+	local msg="httpsvr over sctp"
 
-	# httssvr binds the same service on 9989 over sctp. the address family
+	# httpsvr binds the same service on 9989 over sctp. the address family
 	# cannot say which transport to use, so the bind descriptor states it -
 	# that is the whole point of the case.
 	#
@@ -298,7 +298,7 @@ test_sctp()
 	# sendfile is usable. the sctp method tables have no sendfile - it would
 	# bypass sendmsg() and lose the ancillary data - so this only works if
 	# that query answers from the transport rather than from the build flags.
-	# httssvr routes anything without a known prefix to the file task.
+	# httpsvr routes anything without a known prefix to the file task.
 	local tmpf="/tmp/s-002-sctp.$$.txt"
 	echo "sctp-file-payload" > "${tmpf}"
 	# the body, not the status: the 200 goes out before the body is produced,
@@ -311,7 +311,7 @@ test_sctp()
 
 test_mixed_load()
 {
-	local msg="httssvr mixed task load"
+	local msg="httpsvr mixed task load"
 
 	tap_have_cmd curl || { tap_skip "$msg - curl is not installed"; return; }
 	local ok=0 i=0
@@ -343,7 +343,7 @@ if start_server; then
 	test_mixed_load
 	stop_server
 else
-	tap_skip "httssvr did not come up"
+	tap_skip "httpsvr did not come up"
 fi
 
 tap_end

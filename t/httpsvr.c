@@ -1,5 +1,5 @@
 #include <hio-sck.h>
-#include <hio-http.h>
+#include <hio-https.h>
 #include <hio-utl.h>
 #include <stdio.h>
 #include <string.h>
@@ -12,9 +12,9 @@
 
 #define MAX_NUM_THRS 256
 static int g_num_thrs = 2;
-static hio_svc_htts_t* g_htts[MAX_NUM_THRS];
-static int g_htts_no = 0;
-static pthread_mutex_t g_htts_mutex = PTHREAD_MUTEX_INITIALIZER;
+static hio_svc_https_t* g_https[MAX_NUM_THRS];
+static int g_https_no = 0;
+static pthread_mutex_t g_https_mutex = PTHREAD_MUTEX_INITIALIZER;
 static int g_dev_type4 = HIO_DEV_SCK_TCP4;
 static int g_dev_type6 = HIO_DEV_SCK_TCP6;
 
@@ -26,7 +26,7 @@ static int print_qparam (hio_bcs_t* key, hio_bcs_t* val, void* ctx)
 	return 0;
 }
 
-static void on_htts_thr_request (hio_svc_htts_t* htts, hio_dev_thr_iopair_t* iop, hio_svc_htts_thr_func_info_t* tfi, void* ctx)
+static void on_https_thr_request (hio_svc_https_t* https, hio_dev_thr_iopair_t* iop, hio_svc_https_thr_func_info_t* tfi, void* ctx)
 {
 	FILE* fp;
 	int i;
@@ -58,10 +58,10 @@ static void on_htts_thr_request (hio_svc_htts_t* htts, hio_dev_thr_iopair_t* iop
 	/* invalid iop->wfd to mark that this function closed this file descriptor. 
 	 * no invalidation will lead to double closes on the same file descriptor. */
 	iop->wfd = HIO_SYSHND_INVALID; 
-	fclose (fp);
+	fclose(fp);
 }
 
-static void on_htts_thr2_request (hio_svc_htts_t* htts, hio_dev_thr_iopair_t* iop, hio_svc_htts_thr_func_info_t* tfi, void* ctx)
+static void on_https_thr2_request (hio_svc_https_t* https, hio_dev_thr_iopair_t* iop, hio_svc_https_thr_func_info_t* tfi, void* ctx)
 {
 	FILE* fp, * sf;
 
@@ -107,21 +107,48 @@ static void on_htts_thr2_request (hio_svc_htts_t* htts, hio_dev_thr_iopair_t* io
 			if (n > 0) fwrite (buf, 1, n, fp);
 		}
 
-		fclose (sf);
+		fclose(sf);
 	}
 
 	/* invalid iop->wfd to mark that this function closed this file descriptor. 
 	 * no invalidation will lead to double closes on the same file descriptor. 
 	 * the hio library attempt to close it if it's not INVALID after this handler. */
 	iop->wfd = HIO_SYSHND_INVALID; 
-	fclose (fp);
+	fclose(fp);
 }
 
 /* ========================================================================= */
-int process_http_request (hio_svc_htts_t* htts, hio_dev_sck_t* csck, hio_htre_t* req)
+/* ---------------------------------------------------------------------- */
+/* a websocket endpoint that echoes whatever it is sent.
+ *
+ * a message arrives in as many pieces as the network delivered it in, and each
+ * is written straight back in the shape it came - the opcode and the fin flag
+ * are what on_data() reports, so nothing is held on to here. */
+
+static int on_ws_data (hio_svc_https_ws_t* ws, int opcode, int fin, const void* ptr, hio_oow_t len)
 {
-	hio_t* hio = hio_svc_htts_gethio(htts);
-//	hio_svc_htts_cli_t* cli = hio_dev_sck_getxtn(csck);
+	return hio_svc_https_ws_writeframe(ws, fin, opcode, ptr, len);
+}
+
+static int on_ws_open (hio_svc_https_ws_t* ws)
+{
+	static const hio_bch_t greeting[] = "welcome";
+	return hio_svc_https_ws_write(ws, HIO_WS_OPCODE_TEXT, greeting, sizeof(greeting) - 1);
+}
+
+static hio_svc_https_ws_cbs_t ws_cbs =
+{
+	on_ws_open,
+	on_ws_data,
+	HIO_NULL
+};
+
+/* ---------------------------------------------------------------------- */
+
+int process_http_request (hio_svc_https_t* https, hio_dev_sck_t* csck, hio_htre_t* req)
+{
+	hio_t* hio = hio_svc_https_gethio(https);
+//	hio_svc_https_cli_t* cli = hio_dev_sck_getxtn(csck);
 //	hio_http_method_t mth;
 
 	/* percent-decode the query path to the original buffer
@@ -188,7 +215,7 @@ if (hio_htre_getcontentlen(req) > 0)
 	}
 	else 
 	{
-/* this part can be checked in actual hio_svc_htts_doXXX() functions.
+/* this part can be checked in actual hio_svc_https_doXXX() functions.
  * some doXXX handlers may not require length for POST.
  * it may be able to simply accept till EOF? or  treat as if CONTENT_LENGTH is 0*/
 		if (mth == HIO_HTTP_POST && !(req->flags & (HIO_HTRE_ATTR_LENGTH | HIO_HTRE_ATTR_CHUNKED)))
@@ -197,7 +224,7 @@ if (hio_htre_getcontentlen(req) > 0)
 			hio_htre_discardcontent (req); 
 			/* 411 Length Required - can't keep alive. Force disconnect */
 			req->flags &= ~HIO_HTRE_ATTR_KEEPALIVE; /* to cause sendstatus() to close */
-			if (hio_svc_htts_sendstatus(htts, csck, req, HIO_HTTP_STATUS_LENGTH_REQUIRED, HIO_NULL) <= -1) goto oops;
+			if (hio_svc_https_sendstatus(https, csck, req, HIO_HTTP_STATUS_LENGTH_REQUIRED, HIO_NULL) <= -1) goto oops;
 		}
 		else
 
@@ -206,30 +233,39 @@ if (hio_htre_getcontentlen(req) > 0)
 			const hio_bch_t* qpath = hio_htre_getqpath(req);
 			int x;
 
-			if (hio_comp_bcstr_limited(qpath, "/thr/", 5, 1) == 0)
-				x = hio_svc_htts_dothr(htts, csck, req, on_htts_thr_request, HIO_NULL, 0, HIO_NULL);
+			if (hio_comp_bcstr_limited(qpath, "/ws/", 4, 1) == 0)
+			{
+				hio_svc_https_ws_opt_t wsopt;
+				wsopt.subproto = HIO_NULL;
+				wsopt.max_msg_size = 16 * 1024 * 1024;
+				HIO_INIT_NTIME(&wsopt.ping_interval, 30, 0);
+				HIO_INIT_NTIME(&wsopt.pong_timeout, 10, 0);
+				x = hio_svc_https_dows(https, csck, req, &wsopt, &ws_cbs, HIO_NULL, HIO_NULL);
+			}
+			else if (hio_comp_bcstr_limited(qpath, "/thr/", 5, 1) == 0)
+				x = hio_svc_https_dothr(https, csck, req, on_https_thr_request, HIO_NULL, 0, HIO_NULL);
 			else if (hio_comp_bcstr_limited(qpath, "/thr2/", 6, 1) == 0)
-				x = hio_svc_htts_dothr(htts, csck, req, on_htts_thr2_request, HIO_NULL, 0, HIO_NULL);
+				x = hio_svc_https_dothr(https, csck, req, on_https_thr2_request, HIO_NULL, 0, HIO_NULL);
 			else if (hio_comp_bcstr_limited(qpath, "/txt/", 5, 1) == 0)
-				x = hio_svc_htts_dotxt(htts, csck, req, HIO_HTTP_STATUS_OK, "text/plain", qpath, 0, HIO_NULL);
+				x = hio_svc_https_dotxt(https, csck, req, HIO_HTTP_STATUS_OK, "text/plain", qpath, 0, HIO_NULL);
 			else if (hio_comp_bcstr_limited(qpath, "/cgi/", 5, 1) == 0)
-				x = hio_svc_htts_docgi(htts, csck, req, "", qpath + 4, 0, HIO_NULL);
+				x = hio_svc_https_docgi(https, csck, req, "", qpath + 4, 0, HIO_NULL);
 			else if (hio_comp_bcstr_limited(qpath, "/pxy/", 5, 1) == 0)
 			{
 				/* forward to an upstream http server. the test harness runs
 				 * one on this port. */
 				hio_skad_t pxy_addr;
 				hio_bcstrtoskad(hio, "127.0.0.1:9001", &pxy_addr);
-				x = hio_svc_htts_dopxy(htts, csck, req, &pxy_addr, 0, HIO_NULL);
+				x = hio_svc_https_dopxy(https, csck, req, &pxy_addr, 0, HIO_NULL);
 			}
 			else if (hio_comp_bcstr_limited(qpath, "/fcgi/", 5, 1) == 0)
 			{
 				hio_skad_t fcgis_addr;
 				hio_bcstrtoskad(hio, "127.0.0.1:9000", &fcgis_addr);
-				x = hio_svc_htts_dofcgi(htts, csck, req, &fcgis_addr, "", qpath + 5, 0, HIO_NULL);
+				x = hio_svc_https_dofcgi(https, csck, req, &fcgis_addr, "", qpath + 5, 0, HIO_NULL);
 			}
 			else
-				x = hio_svc_htts_dofile(htts, csck, req, "", qpath, "text/plain", 0, HIO_NULL, HIO_NULL);
+				x = hio_svc_https_dofile(https, csck, req, "", qpath, "text/plain", 0, HIO_NULL, HIO_NULL);
 			if (x <= -1) goto oops;
 		}
 #if 0
@@ -246,9 +282,9 @@ oops:
 void* thr_func (void* arg)
 {
 	hio_t* hio = HIO_NULL;
-	hio_svc_htts_t* htts = HIO_NULL;
-	hio_svc_htts_bind_t htts_bind_info[3];
-	int htts_no = -1;
+	hio_svc_https_t* https = HIO_NULL;
+	hio_svc_https_bind_t https_bind_info[3];
+	int https_no = -1;
 
 	hio = hio_open(HIO_NULL, 0, HIO_NULL, HIO_FEATURE_ALL, 512, HIO_NULL);
 	if (!hio)
@@ -259,29 +295,29 @@ void* thr_func (void* arg)
 
 	hio_setoption (hio, HIO_LOG_TARGET_BCSTR, "/dev/stderr");
 
-	memset (&htts_bind_info, 0, HIO_SIZEOF(htts_bind_info));
-	hio_skad_init_for_qx (&htts_bind_info[0].bind.localaddr); /* QX socket device */
+	memset (&https_bind_info, 0, HIO_SIZEOF(https_bind_info));
+	hio_skad_init_for_qx (&https_bind_info[0].bind.localaddr); /* QX socket device */
 
-	hio_bcstrtoskad (hio, "0.0.0.0:9988", &htts_bind_info[1].bind.localaddr);
-	htts_bind_info[1].bind.options = HIO_DEV_SCK_BIND_REUSEADDR | HIO_DEV_SCK_BIND_REUSEPORT | HIO_DEV_SCK_BIND_IGNERR;
+	hio_bcstrtoskad (hio, "0.0.0.0:9988", &https_bind_info[1].bind.localaddr);
+	https_bind_info[1].bind.options = HIO_DEV_SCK_BIND_REUSEADDR | HIO_DEV_SCK_BIND_REUSEPORT | HIO_DEV_SCK_BIND_IGNERR;
 #if 0
-	htts_bind_info[1].bind.options |= HIO_DEV_SCK_BIND_SSL;
-	htts_bind_info[1].bind.ssl_certfile = "localhost.crt";
-	htts_bind_info[1].bind.ssl_keyfile = "localhost.key";
+	https_bind_info[1].bind.options |= HIO_DEV_SCK_BIND_SSL;
+	https_bind_info[1].bind.ssl_certfile = "localhost.crt";
+	https_bind_info[1].bind.ssl_keyfile = "localhost.key";
 #endif
 
 	/* the same service over sctp. only the transport differs - the address
-	 * family cannot express it, which is what hio_svc_htts_bind_t is for.
+	 * family cannot express it, which is what hio_svc_https_bind_t is for.
 	 * where the build has no sctp the service skips this bind and carries on
 	 * with the others, so this costs nothing when it is unavailable. */
-	hio_bcstrtoskad (hio, "0.0.0.0:9989", &htts_bind_info[2].bind.localaddr);
-	htts_bind_info[2].bind.options = HIO_DEV_SCK_BIND_REUSEADDR | HIO_DEV_SCK_BIND_REUSEPORT | HIO_DEV_SCK_BIND_IGNERR;
-	htts_bind_info[2].proto = HIO_SVC_HTTS_BIND_PROTO_SCTP;
-	htts_bind_info[2].sctp_ostreams = 8;
-	htts_bind_info[2].sctp_instreams = 8;
+	hio_bcstrtoskad (hio, "0.0.0.0:9989", &https_bind_info[2].bind.localaddr);
+	https_bind_info[2].bind.options = HIO_DEV_SCK_BIND_REUSEADDR | HIO_DEV_SCK_BIND_REUSEPORT | HIO_DEV_SCK_BIND_IGNERR;
+	https_bind_info[2].proto = HIO_SVC_HTTPS_BIND_PROTO_SCTP;
+	https_bind_info[2].sctp_ostreams = 8;
+	https_bind_info[2].sctp_instreams = 8;
 
-	htts = hio_svc_htts_start(hio, 0, htts_bind_info, HIO_COUNTOF(htts_bind_info), process_http_request);
-	if (htts)
+	https = hio_svc_https_start(hio, 0, https_bind_info, HIO_COUNTOF(https_bind_info), process_http_request);
+	if (https)
 	{
 		/* the client deadlines default to 60s and 10s, which would make the
 		 * slowloris test wait a minute. the harness shortens them through the
@@ -290,20 +326,20 @@ void* thr_func (void* arg)
 		const char* e;
 		hio_ntime_t t;
 
-		if ((e = getenv("HTTS_HDR_TMOUT")))
+		if ((e = getenv("HTTPS_HDR_TMOUT")))
 		{
-			HIO_INIT_NTIME (&t, atoi(e), 0);
-			hio_svc_htts_setoption (htts, HIO_SVC_HTTS_CLIENT_HDR_TMOUT, &t);
+			HIO_INIT_NTIME(&t, atoi(e), 0);
+			hio_svc_https_setoption (https, HIO_SVC_HTTPS_CLIENT_HDR_TMOUT, &t);
 		}
-		if ((e = getenv("HTTS_IDLE_TMOUT")))
+		if ((e = getenv("HTTPS_IDLE_TMOUT")))
 		{
-			HIO_INIT_NTIME (&t, atoi(e), 0);
-			hio_svc_htts_setoption (htts, HIO_SVC_HTTS_CLIENT_IDLE_TMOUT, &t);
+			HIO_INIT_NTIME(&t, atoi(e), 0);
+			hio_svc_https_setoption (https, HIO_SVC_HTTPS_CLIENT_IDLE_TMOUT, &t);
 		}
 	}
-	if (!htts) 
+	if (!https) 
 	{
-		printf ("Unable to start htts\n");
+		printf ("Unable to start https\n");
 		goto oops;
 	}
 
@@ -313,29 +349,29 @@ void* thr_func (void* arg)
 		 * deadline, so the peer is untied before it ever connects. */
 		hio_svc_fcgic_tmout_t fcgic_tmout;
 		memset (&fcgic_tmout, 0, HIO_SIZEOF(fcgic_tmout));
-		HIO_INIT_NTIME (&fcgic_tmout.c, 5, 0);
-		HIO_INIT_NTIME (&fcgic_tmout.r, 60, 0);
-		HIO_INIT_NTIME (&fcgic_tmout.w, -1, 0);
-		hio_svc_htts_enablefcgic (htts, &fcgic_tmout);
+		HIO_INIT_NTIME(&fcgic_tmout.c, 5, 0);
+		HIO_INIT_NTIME(&fcgic_tmout.r, 60, 0);
+		HIO_INIT_NTIME(&fcgic_tmout.w, -1, 0);
+		hio_svc_https_enablefcgic(https, &fcgic_tmout);
 	}
 
-	pthread_mutex_lock (&g_htts_mutex);
-	htts_no = g_htts_no;
-	g_htts[htts_no] = htts;
-	g_htts_no = (g_htts_no + 1) % g_num_thrs;
-	pthread_mutex_unlock (&g_htts_mutex);
+	pthread_mutex_lock (&g_https_mutex);
+	https_no = g_https_no;
+	g_https[https_no] = https;
+	g_https_no = (g_https_no + 1) % g_num_thrs;
+	pthread_mutex_unlock (&g_https_mutex);
 
 	hio_loop (hio);
 
 oops:
-	pthread_mutex_lock (&g_htts_mutex);
-	if (htts) 
+	pthread_mutex_lock (&g_https_mutex);
+	if (https) 
 	{
-		hio_svc_htts_stop (htts);
-		g_htts[htts_no] = HIO_NULL;
+		hio_svc_https_stop (https);
+		g_https[https_no] = HIO_NULL;
 	}
-	pthread_mutex_unlock (&g_htts_mutex);
-	if (hio) hio_close (hio);
+	pthread_mutex_unlock (&g_https_mutex);
+	if (hio) hio_close(hio);
 
 	pthread_exit (HIO_NULL);
 	return HIO_NULL;
@@ -349,31 +385,31 @@ static void tcp_sck_on_disconnect (hio_dev_sck_t* tcp)
 	switch (HIO_DEV_SCK_GET_PROGRESS(tcp))
 	{
 		case HIO_DEV_SCK_CONNECTING:
-			HIO_INFO1 (tcp->hio, "OUTGOING SESSION DISCONNECTED - FAILED TO CONNECT (%d) TO REMOTE SERVER\n", (int)tcp->hnd);
+			HIO_INFO1(tcp->hio, "OUTGOING SESSION DISCONNECTED - FAILED TO CONNECT (%d) TO REMOTE SERVER\n", (int)tcp->hnd);
 			break;
 
 		case HIO_DEV_SCK_CONNECTING_SSL:
-			HIO_INFO1 (tcp->hio, "OUTGOING SESSION DISCONNECTED - FAILED TO SSL-CONNECT (%d) TO REMOTE SERVER\n", (int)tcp->hnd);
+			HIO_INFO1(tcp->hio, "OUTGOING SESSION DISCONNECTED - FAILED TO SSL-CONNECT (%d) TO REMOTE SERVER\n", (int)tcp->hnd);
 			break;
 
 		case HIO_DEV_SCK_LISTENING:
-			HIO_INFO1 (tcp->hio, "SHUTTING DOWN THE SERVER SOCKET(%d)...\n", (int)tcp->hnd);
+			HIO_INFO1(tcp->hio, "SHUTTING DOWN THE SERVER SOCKET(%d)...\n", (int)tcp->hnd);
 			break;
 
 		case HIO_DEV_SCK_CONNECTED:
-			HIO_INFO1 (tcp->hio, "OUTGOING CLIENT CONNECTION GOT TORN DOWN(%d).......\n", (int)tcp->hnd);
+			HIO_INFO1(tcp->hio, "OUTGOING CLIENT CONNECTION GOT TORN DOWN(%d).......\n", (int)tcp->hnd);
 			break;
 
 		case HIO_DEV_SCK_ACCEPTING_SSL:
-			HIO_INFO1 (tcp->hio, "INCOMING SSL-ACCEPT GOT DISCONNECTED(%d) ....\n", (int)tcp->hnd);
+			HIO_INFO1(tcp->hio, "INCOMING SSL-ACCEPT GOT DISCONNECTED(%d) ....\n", (int)tcp->hnd);
 			break;
 
 		case HIO_DEV_SCK_ACCEPTED:
-			HIO_INFO1 (tcp->hio, "INCOMING CLIENT BEING SERVED GOT DISCONNECTED(%d).......\n", (int)tcp->hnd);
+			HIO_INFO1(tcp->hio, "INCOMING CLIENT BEING SERVED GOT DISCONNECTED(%d).......\n", (int)tcp->hnd);
 			break;
 
 		default:
-			HIO_INFO2 (tcp->hio, "SOCKET DEVICE DISCONNECTED (%d - %x)\n", (int)tcp->hnd, (unsigned int)tcp->state);
+			HIO_INFO2(tcp->hio, "SOCKET DEVICE DISCONNECTED (%d - %x)\n", (int)tcp->hnd, (unsigned int)tcp->state);
 			break;
 	}
 }
@@ -382,8 +418,8 @@ static void tcp_sck_on_connect (hio_dev_sck_t* tcp)
 {
 	hio_bch_t buf1[128], buf2[128];
 
-	hio_skadtobcstr (tcp->hio, &tcp->localaddr, buf1, HIO_COUNTOF(buf1), HIO_SKAD_TO_BCSTR_ADDR | HIO_SKAD_TO_BCSTR_PORT);
-	hio_skadtobcstr (tcp->hio, &tcp->remoteaddr, buf2, HIO_COUNTOF(buf2), HIO_SKAD_TO_BCSTR_ADDR | HIO_SKAD_TO_BCSTR_PORT);
+	hio_skadtobcstr(tcp->hio, &tcp->localaddr, buf1, HIO_COUNTOF(buf1), HIO_SKAD_TO_BCSTR_ADDR | HIO_SKAD_TO_BCSTR_PORT);
+	hio_skadtobcstr(tcp->hio, &tcp->remoteaddr, buf2, HIO_COUNTOF(buf2), HIO_SKAD_TO_BCSTR_ADDR | HIO_SKAD_TO_BCSTR_PORT);
 
 	if (tcp->state & HIO_DEV_SCK_CONNECTED)
 	{
@@ -452,15 +488,15 @@ printf ("DISASTER.... UNABLE TO ENABLE READ ON ACCEPTOR\n");
 static int try_to_accept (hio_dev_sck_t* sck, hio_dev_sck_qxmsg_t* qxmsg, int in_mq)
 {
 	hio_t* hio = sck->hio;
-	hio_svc_htts_t* htts;
+	hio_svc_https_t* https;
 
-	pthread_mutex_lock (&g_htts_mutex);
-	htts = g_htts[g_htts_no];
-	g_htts_no = (g_htts_no + 1) % g_num_thrs;
-	pthread_mutex_unlock (&g_htts_mutex);
+	pthread_mutex_lock (&g_https_mutex);
+	https = g_https[g_https_no];
+	g_https_no = (g_https_no + 1) % g_num_thrs;
+	pthread_mutex_unlock (&g_https_mutex);
 
-	/* 0: index to the QX socket device (see the the first binding address to hi_svc_htts_start) */
-	if (hio_svc_htts_writetosidechan(htts, 0, qxmsg, HIO_SIZEOF(*qxmsg)) <= -1)
+	/* 0: index to the QX socket device (see the the first binding address to hi_svc_https_start) */
+	if (hio_svc_https_writetosidechan(https, 0, qxmsg, HIO_SIZEOF(*qxmsg)) <= -1)
 	{
 		hio_bch_t buf[128];
 
@@ -489,13 +525,13 @@ static int try_to_accept (hio_dev_sck_t* sck, hio_dev_sck_qxmsg_t* qxmsg, int in
 			const char* msg;
 		sidechan_write_error:
 //printf ("sidechannel write error errno=%d strerror=%s\n", errno, strerror(errno));
-			hio_skadtobcstr (hio, &qxmsg->remoteaddr, buf, HIO_COUNTOF(buf), HIO_SKAD_TO_BCSTR_ADDR | HIO_SKAD_TO_BCSTR_PORT); 
-			HIO_INFO2 (hio, "unable to handle the accepted connection %ld from %hs\n", (long int)qxmsg->syshnd, buf);
+			hio_skadtobcstr(hio, &qxmsg->remoteaddr, buf, HIO_COUNTOF(buf), HIO_SKAD_TO_BCSTR_ADDR | HIO_SKAD_TO_BCSTR_PORT); 
+			HIO_INFO2(hio, "unable to handle the accepted connection %ld from %hs\n", (long int)qxmsg->syshnd, buf);
 
 			msg = "HTTP/1.0 503 Service unavailable\r\nConnection: close\r\nContent-Length: 0\r\n\r\n";
 			write (qxmsg->syshnd, msg, strlen(msg));
-	printf ("close %d\n", qxmsg->syshnd);
-			close (qxmsg->syshnd);
+//	printf ("close %d\n", qxmsg->syshnd);
+			close(qxmsg->syshnd);
 
 			return -1; /* failed to accept */
 		}
@@ -563,7 +599,7 @@ static int add_listener (hio_t* hio, hio_bch_t* addrstr)
 	memset (&bi, 0, HIO_SIZEOF(bi));
 	if (hio_bcstrtoskad(hio, addrstr, &bi.localaddr) <= -1)
 	{
-		HIO_INFO1 (hio, "invalid listening address - %hs\n", addrstr);
+		HIO_INFO1(hio, "invalid listening address - %hs\n", addrstr);
 		return -1;
 	}
 	bi.options = HIO_DEV_SCK_BIND_REUSEADDR /*| HIO_DEV_SCK_BIND_REUSEPORT |*/;
@@ -581,7 +617,7 @@ static int add_listener (hio_t* hio, hio_bch_t* addrstr)
 	else if (f == HIO_AF_UNIX) mi.type = HIO_DEV_SCK_UNIX;
 	else
 	{
-		HIO_INFO1 (hio, "unsupported address type - %hs\n", addrstr);
+		HIO_INFO1(hio, "unsupported address type - %hs\n", addrstr);
 		return -1;
 	}
 
@@ -595,31 +631,31 @@ static int add_listener (hio_t* hio, hio_bch_t* addrstr)
 	tcp = hio_dev_sck_make(hio, 0, &mi);
 	if (!tcp)
 	{
-		HIO_INFO2 (hio, "Cannot make tcp for %hs - %js\n", addrstr, hio_geterrmsg(hio));
+		HIO_INFO2(hio, "Cannot make tcp for %hs - %js\n", addrstr, hio_geterrmsg(hio));
 		return -1;
 	}
 
 	if (hio_dev_sck_bind(tcp, &bi) <= -1)
 	{
-		HIO_INFO2 (hio, "tcp hio_dev_sck_bind() failed with %hs - %js\n", addrstr, hio_geterrmsg(hio));
+		HIO_INFO2(hio, "tcp hio_dev_sck_bind() failed with %hs - %js\n", addrstr, hio_geterrmsg(hio));
 		return -1;
 	}
 
 	memset (&li, 0, HIO_SIZEOF(li));
 	li.backlogs = 4096;
-	HIO_INIT_NTIME (&li.accept_tmout, 5, 1);
+	HIO_INIT_NTIME(&li.accept_tmout, 5, 1);
 	if (hio_dev_sck_listen(tcp, &li) <= -1)
 	{
-		HIO_INFO2 (hio, "tcp hio_dev_sck_listen() failed on %hs - %js\n", addrstr, hio_geterrmsg(hio));
+		HIO_INFO2(hio, "tcp hio_dev_sck_listen() failed on %hs - %js\n", addrstr, hio_geterrmsg(hio));
 		return -1;
 	}
 	else
 	{
 		hio_skad_t skad;
 		hio_bch_t buf[HIO_SKAD_IP_STRLEN + 1];
-		hio_dev_sck_getsockaddr (tcp, &skad);
-		hio_skadtobcstr (hio, &skad, buf, HIO_COUNTOF(buf), HIO_SKAD_TO_BCSTR_ADDR | HIO_SKAD_TO_BCSTR_PORT);
-		HIO_INFO1 (hio, "main listener on %hs\n", buf);
+		hio_dev_sck_getsockaddr(tcp, &skad);
+		hio_skadtobcstr(hio, &skad, buf, HIO_COUNTOF(buf), HIO_SKAD_TO_BCSTR_ADDR | HIO_SKAD_TO_BCSTR_PORT);
+		HIO_INFO1(hio, "main listener on %hs\n", buf);
 	}
 
 	return 0;
@@ -733,19 +769,19 @@ oops:
 	sigact.sa_handler = SIG_IGN;
 	sigaction (SIGINT, &sigact, HIO_NULL);
 
-	pthread_mutex_lock (&g_htts_mutex);
+	pthread_mutex_lock (&g_https_mutex);
 	for (i = 0; i < g_num_thrs; i++)
 	{
-		if (g_htts[i]) hio_stop (hio_svc_htts_gethio(g_htts[i]), HIO_STOPREQ_TERMINATION);
+		if (g_https[i]) hio_stop (hio_svc_https_gethio(g_https[i]), HIO_STOPREQ_TERMINATION);
 	}
-	pthread_mutex_unlock (&g_htts_mutex);
+	pthread_mutex_unlock (&g_https_mutex);
 
 	for (i = 0; i < g_num_thrs; i++)
 	{
 		pthread_join (t[i], HIO_NULL);
 	}
 
-	if (hio) hio_close (hio);
+	if (hio) hio_close(hio);
 	return xret;
 }
 

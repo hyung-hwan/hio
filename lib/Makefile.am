@@ -46,6 +46,7 @@ include_HEADERS = \
 	hio-htrd.h \
 	hio-htre.h \
 	hio-http.h \
+	hio-https.h \
 	hio-json.h \
 	hio-md5.h \
 	hio-sha1.h \
@@ -88,14 +89,15 @@ libhio_la_SOURCES = \
 	htrd.c \
 	htre.c \
 	http.c \
-	http-cgi.c \
-	http-fcgi.c \
-	http-file.c \
-	http-prv.h \
-	http-pxy.c \
-	http-svr.c \
-	http-thr.c \
-	http-txt.c \
+	https.c \
+	https-cgi.c \
+	https-fcgi.c \
+	https-file.c \
+	https-prv.h \
+	https-pxy.c \
+	https-thr.c \
+	https-txt.c \
+	https-ws.c \
 	json.c \
 	hio-prv.h \
 	hio.c \

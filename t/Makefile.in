@@ -115,7 +115,7 @@ am__EXEEXT_1 = t-001$(EXEEXT) t-002$(EXEEXT) t-003$(EXEEXT) \
 	t-012$(EXEEXT) t-013$(EXEEXT) t-014$(EXEEXT) t-015$(EXEEXT) \
 	t-016$(EXEEXT) t-017$(EXEEXT) t-018$(EXEEXT) t-019$(EXEEXT) \
 	t-020$(EXEEXT) t-021$(EXEEXT) t-022$(EXEEXT)
-am__EXEEXT_2 = fcgis$(EXEEXT) httpecho$(EXEEXT) httssvr$(EXEEXT) \
+am__EXEEXT_2 = fcgis$(EXEEXT) httpecho$(EXEEXT) httpsvr$(EXEEXT) \
 	slowclient$(EXEEXT) sctpget$(EXEEXT)
 am_fcgis_OBJECTS = fcgis-fcgis.$(OBJEXT)
 fcgis_OBJECTS = $(am_fcgis_OBJECTS)
@@ -135,12 +135,12 @@ httpecho_DEPENDENCIES = $(am__DEPENDENCIES_2)
 httpecho_LINK = $(LIBTOOL) $(AM_V_lt) --tag=CC $(AM_LIBTOOLFLAGS) \
 	$(LIBTOOLFLAGS) --mode=link $(CCLD) $(httpecho_CFLAGS) \
 	$(CFLAGS) $(httpecho_LDFLAGS) $(LDFLAGS) -o $@
-am_httssvr_OBJECTS = httssvr-httssvr.$(OBJEXT)
-httssvr_OBJECTS = $(am_httssvr_OBJECTS)
-httssvr_DEPENDENCIES = $(am__DEPENDENCIES_2)
-httssvr_LINK = $(LIBTOOL) $(AM_V_lt) --tag=CC $(AM_LIBTOOLFLAGS) \
-	$(LIBTOOLFLAGS) --mode=link $(CCLD) $(httssvr_CFLAGS) \
-	$(CFLAGS) $(httssvr_LDFLAGS) $(LDFLAGS) -o $@
+am_httpsvr_OBJECTS = httpsvr-httpsvr.$(OBJEXT)
+httpsvr_OBJECTS = $(am_httpsvr_OBJECTS)
+httpsvr_DEPENDENCIES = $(am__DEPENDENCIES_2)
+httpsvr_LINK = $(LIBTOOL) $(AM_V_lt) --tag=CC $(AM_LIBTOOLFLAGS) \
+	$(LIBTOOLFLAGS) --mode=link $(CCLD) $(httpsvr_CFLAGS) \
+	$(CFLAGS) $(httpsvr_LDFLAGS) $(LDFLAGS) -o $@
 am_sctpget_OBJECTS = sctpget-sctpget.$(OBJEXT)
 sctpget_OBJECTS = $(am_sctpget_OBJECTS)
 sctpget_DEPENDENCIES = $(am__DEPENDENCIES_2)
@@ -303,7 +303,7 @@ depcomp = $(SHELL) $(top_srcdir)/ac/depcomp
 am__maybe_remake_depfiles = depfiles
 am__depfiles_remade = ./$(DEPDIR)/fcgis-fcgis.Po \
 	./$(DEPDIR)/httpecho-httpecho.Po \
-	./$(DEPDIR)/httssvr-httssvr.Po ./$(DEPDIR)/sctpget-sctpget.Po \
+	./$(DEPDIR)/httpsvr-httpsvr.Po ./$(DEPDIR)/sctpget-sctpget.Po \
 	./$(DEPDIR)/slowclient-slowclient.Po \
 	./$(DEPDIR)/t_001-t-001.Po ./$(DEPDIR)/t_002-t-002.Po \
 	./$(DEPDIR)/t_003-t-003.Po ./$(DEPDIR)/t_004-t-004.Po \
@@ -335,7 +335,7 @@ AM_V_CCLD = $(am__v_CCLD_@AM_V@)
 am__v_CCLD_ = $(am__v_CCLD_@AM_DEFAULT_V@)
 am__v_CCLD_0 = @echo "  CCLD    " $@;
 am__v_CCLD_1 = 
-SOURCES = $(fcgis_SOURCES) $(httpecho_SOURCES) $(httssvr_SOURCES) \
+SOURCES = $(fcgis_SOURCES) $(httpecho_SOURCES) $(httpsvr_SOURCES) \
 	$(sctpget_SOURCES) $(slowclient_SOURCES) $(t_001_SOURCES) \
 	$(t_002_SOURCES) $(t_003_SOURCES) $(t_004_SOURCES) \
 	$(t_005_SOURCES) $(t_006_SOURCES) $(t_007_SOURCES) \
@@ -344,7 +344,7 @@ SOURCES = $(fcgis_SOURCES) $(httpecho_SOURCES) $(httssvr_SOURCES) \
 	$(t_014_SOURCES) $(t_015_SOURCES) $(t_016_SOURCES) \
 	$(t_017_SOURCES) $(t_018_SOURCES) $(t_019_SOURCES) \
 	$(t_020_SOURCES) $(t_021_SOURCES) $(t_022_SOURCES)
-DIST_SOURCES = $(fcgis_SOURCES) $(httpecho_SOURCES) $(httssvr_SOURCES) \
+DIST_SOURCES = $(fcgis_SOURCES) $(httpecho_SOURCES) $(httpsvr_SOURCES) \
 	$(sctpget_SOURCES) $(slowclient_SOURCES) $(t_001_SOURCES) \
 	$(t_002_SOURCES) $(t_003_SOURCES) $(t_004_SOURCES) \
 	$(t_005_SOURCES) $(t_006_SOURCES) $(t_007_SOURCES) \
@@ -743,10 +743,10 @@ CPPFLAGS_COMMON = \
 CFLAGS_COMMON = 
 LDFLAGS_COMMON = -L$(abs_builddir)/../lib  -L$(libdir)
 LIBADD_COMMON = ../lib/libhio.la $(LIBM)
-check_SCRIPTS = s-001.sh s-002.sh
-EXTRA_DIST = $(check_SCRIPTS) tap.inc t-cgi.sh
+check_SCRIPTS = s-001.sh s-002.sh s-003.sh
+EXTRA_DIST = $(check_SCRIPTS) tap.inc t-cgi.sh ws-check.py
 TESTPROGS = t-001 t-002 t-003 t-004 t-005 t-006 t-007 t-008 t-009 t-010 t-011 t-012 t-013 t-014 t-015 t-016 t-017 t-018 t-019 t-020 t-021 t-022
-HELPERPROGS = fcgis httpecho httssvr slowclient sctpget
+HELPERPROGS = fcgis httpecho httpsvr slowclient sctpget
 t_001_SOURCES = t-001.c tap.h
 t_001_CPPFLAGS = $(CPPFLAGS_COMMON)
 t_001_CFLAGS = $(CFLAGS_COMMON)
@@ -867,11 +867,11 @@ httpecho_CPPFLAGS = $(CPPFLAGS_COMMON)
 httpecho_CFLAGS = $(CFLAGS_COMMON)
 httpecho_LDFLAGS = $(LDFLAGS_COMMON)
 httpecho_LDADD = $(LIBADD_COMMON)
-httssvr_SOURCES = httssvr.c
-httssvr_CPPFLAGS = $(CPPFLAGS_COMMON)
-httssvr_CFLAGS = $(CFLAGS_COMMON)
-httssvr_LDFLAGS = $(LDFLAGS_COMMON)
-httssvr_LDADD = $(LIBADD_COMMON)
+httpsvr_SOURCES = httpsvr.c
+httpsvr_CPPFLAGS = $(CPPFLAGS_COMMON)
+httpsvr_CFLAGS = $(CFLAGS_COMMON)
+httpsvr_LDFLAGS = $(LDFLAGS_COMMON)
+httpsvr_LDADD = $(LIBADD_COMMON)
 CLEANFILES = t009-cert.pem t009-key.pem
 slowclient_SOURCES = slowclient.c
 slowclient_CPPFLAGS = $(CPPFLAGS_COMMON)
@@ -933,9 +933,9 @@ httpecho$(EXEEXT): $(httpecho_OBJECTS) $(httpecho_DEPENDENCIES) $(EXTRA_httpecho
 	@rm -f httpecho$(EXEEXT)
 	$(AM_V_CCLD)$(httpecho_LINK) $(httpecho_OBJECTS) $(httpecho_LDADD) $(LIBS)
 
-httssvr$(EXEEXT): $(httssvr_OBJECTS) $(httssvr_DEPENDENCIES) $(EXTRA_httssvr_DEPENDENCIES) 
-	@rm -f httssvr$(EXEEXT)
-	$(AM_V_CCLD)$(httssvr_LINK) $(httssvr_OBJECTS) $(httssvr_LDADD) $(LIBS)
+httpsvr$(EXEEXT): $(httpsvr_OBJECTS) $(httpsvr_DEPENDENCIES) $(EXTRA_httpsvr_DEPENDENCIES) 
+	@rm -f httpsvr$(EXEEXT)
+	$(AM_V_CCLD)$(httpsvr_LINK) $(httpsvr_OBJECTS) $(httpsvr_LDADD) $(LIBS)
 
 sctpget$(EXEEXT): $(sctpget_OBJECTS) $(sctpget_DEPENDENCIES) $(EXTRA_sctpget_DEPENDENCIES) 
 	@rm -f sctpget$(EXEEXT)
@@ -1041,7 +1041,7 @@ distclean-compile:
 
 @AMDEP_TRUE@@am__include@ @am__quote@./$(DEPDIR)/fcgis-fcgis.Po@am__quote@ # am--include-marker
 @AMDEP_TRUE@@am__include@ @am__quote@./$(DEPDIR)/httpecho-httpecho.Po@am__quote@ # am--include-marker
-@AMDEP_TRUE@@am__include@ @am__quote@./$(DEPDIR)/httssvr-httssvr.Po@am__quote@ # am--include-marker
+@AMDEP_TRUE@@am__include@ @am__quote@./$(DEPDIR)/httpsvr-httpsvr.Po@am__quote@ # am--include-marker
 @AMDEP_TRUE@@am__include@ @am__quote@./$(DEPDIR)/sctpget-sctpget.Po@am__quote@ # am--include-marker
 @AMDEP_TRUE@@am__include@ @am__quote@./$(DEPDIR)/slowclient-slowclient.Po@am__quote@ # am--include-marker
 @AMDEP_TRUE@@am__include@ @am__quote@./$(DEPDIR)/t_001-t-001.Po@am__quote@ # am--include-marker
@@ -1125,19 +1125,19 @@ httpecho-httpecho.obj: httpecho.c
 @AMDEP_TRUE@@am__fastdepCC_FALSE@	DEPDIR=$(DEPDIR) $(CCDEPMODE) $(depcomp) @AMDEPBACKSLASH@
 @am__fastdepCC_FALSE@	$(AM_V_CC@am__nodep@)$(CC) $(DEFS) $(DEFAULT_INCLUDES) $(INCLUDES) $(httpecho_CPPFLAGS) $(CPPFLAGS) $(httpecho_CFLAGS) $(CFLAGS) -c -o httpecho-httpecho.obj `if test -f 'httpecho.c'; then $(CYGPATH_W) 'httpecho.c'; else $(CYGPATH_W) '$(srcdir)/httpecho.c'; fi`
 
-httssvr-httssvr.o: httssvr.c
-@am__fastdepCC_TRUE@	$(AM_V_CC)$(CC) $(DEFS) $(DEFAULT_INCLUDES) $(INCLUDES) $(httssvr_CPPFLAGS) $(CPPFLAGS) $(httssvr_CFLAGS) $(CFLAGS) -MT httssvr-httssvr.o -MD -MP -MF $(DEPDIR)/httssvr-httssvr.Tpo -c -o httssvr-httssvr.o `test -f 'httssvr.c' || echo '$(srcdir)/'`httssvr.c
-@am__fastdepCC_TRUE@	$(AM_V_at)$(am__mv) $(DEPDIR)/httssvr-httssvr.Tpo $(DEPDIR)/httssvr-httssvr.Po
-@AMDEP_TRUE@@am__fastdepCC_FALSE@	$(AM_V_CC)source='httssvr.c' object='httssvr-httssvr.o' libtool=no @AMDEPBACKSLASH@
+httpsvr-httpsvr.o: httpsvr.c
+@am__fastdepCC_TRUE@	$(AM_V_CC)$(CC) $(DEFS) $(DEFAULT_INCLUDES) $(INCLUDES) $(httpsvr_CPPFLAGS) $(CPPFLAGS) $(httpsvr_CFLAGS) $(CFLAGS) -MT httpsvr-httpsvr.o -MD -MP -MF $(DEPDIR)/httpsvr-httpsvr.Tpo -c -o httpsvr-httpsvr.o `test -f 'httpsvr.c' || echo '$(srcdir)/'`httpsvr.c
+@am__fastdepCC_TRUE@	$(AM_V_at)$(am__mv) $(DEPDIR)/httpsvr-httpsvr.Tpo $(DEPDIR)/httpsvr-httpsvr.Po
+@AMDEP_TRUE@@am__fastdepCC_FALSE@	$(AM_V_CC)source='httpsvr.c' object='httpsvr-httpsvr.o' libtool=no @AMDEPBACKSLASH@
 @AMDEP_TRUE@@am__fastdepCC_FALSE@	DEPDIR=$(DEPDIR) $(CCDEPMODE) $(depcomp) @AMDEPBACKSLASH@
-@am__fastdepCC_FALSE@	$(AM_V_CC@am__nodep@)$(CC) $(DEFS) $(DEFAULT_INCLUDES) $(INCLUDES) $(httssvr_CPPFLAGS) $(CPPFLAGS) $(httssvr_CFLAGS) $(CFLAGS) -c -o httssvr-httssvr.o `test -f 'httssvr.c' || echo '$(srcdir)/'`httssvr.c
+@am__fastdepCC_FALSE@	$(AM_V_CC@am__nodep@)$(CC) $(DEFS) $(DEFAULT_INCLUDES) $(INCLUDES) $(httpsvr_CPPFLAGS) $(CPPFLAGS) $(httpsvr_CFLAGS) $(CFLAGS) -c -o httpsvr-httpsvr.o `test -f 'httpsvr.c' || echo '$(srcdir)/'`httpsvr.c
 
-httssvr-httssvr.obj: httssvr.c
-@am__fastdepCC_TRUE@	$(AM_V_CC)$(CC) $(DEFS) $(DEFAULT_INCLUDES) $(INCLUDES) $(httssvr_CPPFLAGS) $(CPPFLAGS) $(httssvr_CFLAGS) $(CFLAGS) -MT httssvr-httssvr.obj -MD -MP -MF $(DEPDIR)/httssvr-httssvr.Tpo -c -o httssvr-httssvr.obj `if test -f 'httssvr.c'; then $(CYGPATH_W) 'httssvr.c'; else $(CYGPATH_W) '$(srcdir)/httssvr.c'; fi`
-@am__fastdepCC_TRUE@	$(AM_V_at)$(am__mv) $(DEPDIR)/httssvr-httssvr.Tpo $(DEPDIR)/httssvr-httssvr.Po
-@AMDEP_TRUE@@am__fastdepCC_FALSE@	$(AM_V_CC)source='httssvr.c' object='httssvr-httssvr.obj' libtool=no @AMDEPBACKSLASH@
+httpsvr-httpsvr.obj: httpsvr.c
+@am__fastdepCC_TRUE@	$(AM_V_CC)$(CC) $(DEFS) $(DEFAULT_INCLUDES) $(INCLUDES) $(httpsvr_CPPFLAGS) $(CPPFLAGS) $(httpsvr_CFLAGS) $(CFLAGS) -MT httpsvr-httpsvr.obj -MD -MP -MF $(DEPDIR)/httpsvr-httpsvr.Tpo -c -o httpsvr-httpsvr.obj `if test -f 'httpsvr.c'; then $(CYGPATH_W) 'httpsvr.c'; else $(CYGPATH_W) '$(srcdir)/httpsvr.c'; fi`
+@am__fastdepCC_TRUE@	$(AM_V_at)$(am__mv) $(DEPDIR)/httpsvr-httpsvr.Tpo $(DEPDIR)/httpsvr-httpsvr.Po
+@AMDEP_TRUE@@am__fastdepCC_FALSE@	$(AM_V_CC)source='httpsvr.c' object='httpsvr-httpsvr.obj' libtool=no @AMDEPBACKSLASH@
 @AMDEP_TRUE@@am__fastdepCC_FALSE@	DEPDIR=$(DEPDIR) $(CCDEPMODE) $(depcomp) @AMDEPBACKSLASH@
-@am__fastdepCC_FALSE@	$(AM_V_CC@am__nodep@)$(CC) $(DEFS) $(DEFAULT_INCLUDES) $(INCLUDES) $(httssvr_CPPFLAGS) $(CPPFLAGS) $(httssvr_CFLAGS) $(CFLAGS) -c -o httssvr-httssvr.obj `if test -f 'httssvr.c'; then $(CYGPATH_W) 'httssvr.c'; else $(CYGPATH_W) '$(srcdir)/httssvr.c'; fi`
+@am__fastdepCC_FALSE@	$(AM_V_CC@am__nodep@)$(CC) $(DEFS) $(DEFAULT_INCLUDES) $(INCLUDES) $(httpsvr_CPPFLAGS) $(CPPFLAGS) $(httpsvr_CFLAGS) $(CFLAGS) -c -o httpsvr-httpsvr.obj `if test -f 'httpsvr.c'; then $(CYGPATH_W) 'httpsvr.c'; else $(CYGPATH_W) '$(srcdir)/httpsvr.c'; fi`
 
 sctpget-sctpget.o: sctpget.c
 @am__fastdepCC_TRUE@	$(AM_V_CC)$(CC) $(DEFS) $(DEFAULT_INCLUDES) $(INCLUDES) $(sctpget_CPPFLAGS) $(CPPFLAGS) $(sctpget_CFLAGS) $(CFLAGS) -MT sctpget-sctpget.o -MD -MP -MF $(DEPDIR)/sctpget-sctpget.Tpo -c -o sctpget-sctpget.o `test -f 'sctpget.c' || echo '$(srcdir)/'`sctpget.c
@@ -1949,7 +1949,7 @@ clean-am: clean-checkPROGRAMS clean-generic clean-libtool \
 distclean: distclean-am
 	-rm -f ./$(DEPDIR)/fcgis-fcgis.Po
 	-rm -f ./$(DEPDIR)/httpecho-httpecho.Po
-	-rm -f ./$(DEPDIR)/httssvr-httssvr.Po
+	-rm -f ./$(DEPDIR)/httpsvr-httpsvr.Po
 	-rm -f ./$(DEPDIR)/sctpget-sctpget.Po
 	-rm -f ./$(DEPDIR)/slowclient-slowclient.Po
 	-rm -f ./$(DEPDIR)/t_001-t-001.Po
@@ -2021,7 +2021,7 @@ installcheck-am:
 maintainer-clean: maintainer-clean-am
 	-rm -f ./$(DEPDIR)/fcgis-fcgis.Po
 	-rm -f ./$(DEPDIR)/httpecho-httpecho.Po
-	-rm -f ./$(DEPDIR)/httssvr-httssvr.Po
+	-rm -f ./$(DEPDIR)/httpsvr-httpsvr.Po
 	-rm -f ./$(DEPDIR)/sctpget-sctpget.Po
 	-rm -f ./$(DEPDIR)/slowclient-slowclient.Po
 	-rm -f ./$(DEPDIR)/t_001-t-001.Po

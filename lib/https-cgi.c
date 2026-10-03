@@ -22,7 +22,7 @@
     THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  */
 
-#include "http-prv.h"
+#include "https-prv.h"
 #include <hio-pro.h>
 #include <hio-fmt.h>
 #include <hio-chr.h>
@@ -57,9 +57,9 @@
 
 struct cgi_t
 {
-	HIO_SVC_HTTS_TASK_HEADER;
+	HIO_SVC_HTTPS_TASK_HEADER;
 
-	hio_svc_htts_task_on_kill_t on_kill; /* user-provided on_kill callback */
+	hio_svc_https_task_on_kill_t on_kill; /* user-provided on_kill callback */
 
 	int options;
 	hio_oow_t peer_pending_writes;
@@ -86,49 +86,49 @@ static void unbind_task_from_peer (cgi_t* cgi, int rcdown);
 
 /* ----------------------------------------------------------------------- */
 
-static int inc_ntask_cgis (hio_svc_htts_t* htts)
+static int inc_ntask_cgis (hio_svc_https_t* https)
 {
 #if !(defined(HCL_ATOMIC_LOAD) && defined(HCL_ATOMIC_CMP_XCHG))
-	hio_spl_lock (&htts->stat.spl_ntask_cgis);
-	if (htts->stat.ntask_cgis >= htts->option.task_cgi_max)
+	hio_spl_lock (&https->stat.spl_ntask_cgis);
+	if (https->stat.ntask_cgis >= https->option.task_cgi_max)
 	{
-		hio_spl_unlock (&htts->stat.spl_ntask_cgis);
-		hio_seterrbfmt(htts->hio, HIO_ENOCAPA, "too many cgi tasks");
+		hio_spl_unlock (&https->stat.spl_ntask_cgis);
+		hio_seterrbfmt(https->hio, HIO_ENOCAPA, "too many cgi tasks");
 		return -1;
 	}
-	htts->stat.ntask_cgis++;
-	hio_spl_unlock (&htts->stat.spl_ntask_cgis);
+	https->stat.ntask_cgis++;
+	hio_spl_unlock (&https->stat.spl_ntask_cgis);
 #else
 	int ok;
 	do
 	{
 		hio_oow_t ntask_cgis;
-		ntask_cgis = HCL_ATOMIC_LOAD(&htts->stat.ntask_cgis);
-		if (ntask_cgis >= htts->option.task_cgi_max)
+		ntask_cgis = HCL_ATOMIC_LOAD(&https->stat.ntask_cgis);
+		if (ntask_cgis >= https->option.task_cgi_max)
 		{
-			hio_seterrbfmt(htts->hio, HIO_ENOCAPA, "too many cgi tasks");
+			hio_seterrbfmt(https->hio, HIO_ENOCAPA, "too many cgi tasks");
 			return -1;
 		}
-		ok = HCL_ATOMIC_CMP_XCHG(&htts->stat.ntask_cgis, &ntask_cgis, ntask_cgis + 1);
+		ok = HCL_ATOMIC_CMP_XCHG(&https->stat.ntask_cgis, &ntask_cgis, ntask_cgis + 1);
 	}
 	while (!ok);
 #endif
 	return 0;
 }
 
-static void dec_ntask_cgis (hio_svc_htts_t* htts)
+static void dec_ntask_cgis (hio_svc_https_t* https)
 {
 #if !(defined(HCL_ATOMIC_LOAD) && defined(HCL_ATOMIC_CMP_XCHG))
-	hio_spl_lock (&htts->stat.spl_ntask_cgis);
-	htts->stat.ntask_cgis--;
-	hio_spl_unlock (&htts->stat.spl_ntask_cgis);
+	hio_spl_lock (&https->stat.spl_ntask_cgis);
+	https->stat.ntask_cgis--;
+	hio_spl_unlock (&https->stat.spl_ntask_cgis);
 #else
 	int ok;
 	do
 	{
 		hio_oow_t ntask_cgis;
-		ntask_cgis = HCL_ATOMIC_LOAD(&htts->stat.ntask_cgis);
-		ok = HCL_ATOMIC_CMP_XCHG(&htts->stat.ntask_cgis, &ntask_cgis, ntask_cgis - 1);
+		ntask_cgis = HCL_ATOMIC_LOAD(&https->stat.ntask_cgis);
+		ok = HCL_ATOMIC_CMP_XCHG(&https->stat.ntask_cgis, &ntask_cgis, ntask_cgis - 1);
 	}
 	while (!ok);
 #endif
@@ -138,7 +138,7 @@ static void dec_ntask_cgis (hio_svc_htts_t* htts)
 
 static void cgi_halt_participating_devices (cgi_t* cgi)
 {
-	hio_svc_htts_task_haltclient((hio_svc_htts_task_t*)cgi);
+	hio_svc_https_task_haltclient((hio_svc_https_task_t*)cgi);
 	if (cgi->peer) hio_dev_pro_halt(cgi->peer);
 }
 
@@ -171,29 +171,29 @@ static void cgi_mark_over (cgi_t* cgi, int over_bits)
 	old_over = cgi->over;
 	cgi->over |= over_bits;
 
-	HIO_DEBUG4 (cgi->htts->hio, "HTTS(%p) - cgi(c=%p) updating mark - new-bits=%x => over=%x\n", cgi->htts, cgi->task_csck, (int)over_bits, (int)cgi->over);
+	HIO_DEBUG4 (cgi->https->hio, "HTTPS(%p) - cgi(c=%p) updating mark - new-bits=%x => over=%x\n", cgi->https, cgi->task_csck, (int)over_bits, (int)cgi->over);
 
 	if (!(old_over & CGI_OVER_READ_FROM_CLIENT) && (cgi->over & CGI_OVER_READ_FROM_CLIENT))
-		hio_svc_htts_task_stopreadingclient((hio_svc_htts_task_t*)cgi);
+		hio_svc_https_task_stopreadingclient((hio_svc_https_task_t*)cgi);
 
 	if (old_over != CGI_OVER_ALL && cgi->over == CGI_OVER_ALL)
 	{
 		if (cgi->peer) hio_dev_pro_halt(cgi->peer);
-		hio_svc_htts_task_finishclient((hio_svc_htts_task_t*)cgi);
+		hio_svc_https_task_finishclient((hio_svc_https_task_t*)cgi);
 	}
 }
 
-static void cgi_on_kill (hio_svc_htts_task_t* task)
+static void cgi_on_kill (hio_svc_https_task_t* task)
 {
 	cgi_t* cgi = (cgi_t*)task;
-	hio_t* hio = cgi->htts->hio;
+	hio_t* hio = cgi->https->hio;
 
-	HIO_DEBUG5 (hio, "HTTS(%p) - cgi(t=%p,c=%p[%d],p=%p) - killing the task\n", cgi->htts, cgi, cgi->task_client, (cgi->task_csck? cgi->task_csck->hnd: -1), cgi->peer);
+	HIO_DEBUG5 (hio, "HTTPS(%p) - cgi(t=%p,c=%p[%d],p=%p) - killing the task\n", cgi->https, cgi, cgi->task_client, (cgi->task_csck? cgi->task_csck->hnd: -1), cgi->peer);
 
 	if (cgi->on_kill) cgi->on_kill (task);
 
 	/* [NOTE]
-	 * 1. if hio_svc_htts_task_kill() is called, cgi->peer, cgi->peer_htrd, cgi->task_csck,
+	 * 1. if hio_svc_https_task_kill() is called, cgi->peer, cgi->peer_htrd, cgi->task_csck,
 	 *    cgi->task_client may not not null.
 	 * 2. this callback function doesn't decrement the reference count on cgi because
 	 *    it is the task destruction callback. (passing 0 to unbind_task_from_peer/client)
@@ -204,18 +204,18 @@ static void cgi_on_kill (hio_svc_htts_task_t* task)
 	if (cgi->task_csck)
 	{
 		HIO_ASSERT(hio, cgi->task_client != HIO_NULL);
-		hio_svc_htts_task_unbindfromclient((hio_svc_htts_task_t*)cgi, 0);
+		hio_svc_https_task_unbindfromclient((hio_svc_https_task_t*)cgi, 0);
 	}
 
-	if (cgi->task_next) HIO_SVC_HTTS_TASKL_UNLINK_TASK (cgi); /* detach from the htts service only if it's attached */
+	if (cgi->task_next) HIO_SVC_HTTPS_TASKL_UNLINK_TASK (cgi); /* detach from the https service only if it's attached */
 
 	if (cgi->ntask_cgis_inced)
 	{
-		dec_ntask_cgis (cgi->htts);
+		dec_ntask_cgis (cgi->https);
 		cgi->ntask_cgis_inced = 0;
 	}
 
-	HIO_DEBUG5 (hio, "HTTS(%p) - cgi(t=%p,c=%p[%d],p=%p) - killed the task\n", cgi->htts, cgi, cgi->task_client, (cgi->task_csck? cgi->task_csck->hnd: -1), cgi->peer);
+	HIO_DEBUG5 (hio, "HTTPS(%p) - cgi(t=%p,c=%p[%d],p=%p) - killed the task\n", cgi->https, cgi, cgi->task_client, (cgi->task_csck? cgi->task_csck->hnd: -1), cgi->peer);
 }
 
 static void cgi_peer_on_close (hio_dev_pro_t* pro, hio_dev_pro_sid_t sid)
@@ -229,11 +229,11 @@ static void cgi_peer_on_close (hio_dev_pro_t* pro, hio_dev_pro_sid_t sid)
 	switch (sid)
 	{
 		case HIO_DEV_PRO_MASTER:
-			HIO_DEBUG3 (hio, "HTTS(%p) - peer %p(pid=%d) closing master\n", cgi->htts, pro, (int)pro->child_pid);
+			HIO_DEBUG3 (hio, "HTTPS(%p) - peer %p(pid=%d) closing master\n", cgi->https, pro, (int)pro->child_pid);
 
 			/* reset cgi->peer before calling unbind_task_from_peer() because this is the peer close callback */
 			cgi->peer = HIO_NULL;
-			HIO_SVC_HTTS_TASK_RCDOWN((hio_svc_htts_task_t*)cgi); /* if not reset, this would be done in unbind_task_from_peer */
+			HIO_SVC_HTTPS_TASK_RCDOWN((hio_svc_https_task_t*)cgi); /* if not reset, this would be done in unbind_task_from_peer */
 
 			unbind_task_from_peer (cgi, 1);
 			break;
@@ -241,11 +241,11 @@ static void cgi_peer_on_close (hio_dev_pro_t* pro, hio_dev_pro_sid_t sid)
 		case HIO_DEV_PRO_OUT:
 			/* the output from peer closing. input to the client must be ended */
 			HIO_ASSERT(hio, cgi->peer == pro);
-			HIO_DEBUG4 (hio, "HTTS(%p) - peer %p(pid=%d) closing slave[%d]\n", cgi->htts, pro, (int)pro->child_pid, sid);
+			HIO_DEBUG4 (hio, "HTTPS(%p) - peer %p(pid=%d) closing slave[%d]\n", cgi->https, pro, (int)pro->child_pid, sid);
 
 			if (!(cgi->over & CGI_OVER_READ_FROM_PEER))
 			{
-				if (hio_svc_htts_task_endbody((hio_svc_htts_task_t*)cgi) <= -1)
+				if (hio_svc_https_task_endbody((hio_svc_https_task_t*)cgi) <= -1)
 					cgi_halt_participating_devices(cgi);
 				else
 					cgi_mark_over(cgi, CGI_OVER_READ_FROM_PEER);
@@ -253,13 +253,13 @@ static void cgi_peer_on_close (hio_dev_pro_t* pro, hio_dev_pro_sid_t sid)
 			break;
 
 		case HIO_DEV_PRO_IN:
-			HIO_DEBUG4 (hio, "HTTS(%p) - peer %p(pid=%d) closing slave[%d]\n", cgi->htts, pro, (int)pro->child_pid, sid);
+			HIO_DEBUG4 (hio, "HTTPS(%p) - peer %p(pid=%d) closing slave[%d]\n", cgi->https, pro, (int)pro->child_pid, sid);
 			cgi_mark_over(cgi, CGI_OVER_WRITE_TO_PEER);
 			break;
 
 		case HIO_DEV_PRO_ERR:
 		default:
-			HIO_DEBUG4 (hio, "HTTS(%p) - peer %p(pid=%d) closing slave[%d]\n", cgi->htts, pro, (int)pro->child_pid, sid);
+			HIO_DEBUG4 (hio, "HTTPS(%p) - peer %p(pid=%d) closing slave[%d]\n", cgi->https, pro, (int)pro->child_pid, sid);
 			/* do nothing */
 			break;
 	}
@@ -276,13 +276,13 @@ static int cgi_peer_on_read (hio_dev_pro_t* pro, hio_dev_pro_sid_t sid, const vo
 
 	if (dlen <= -1)
 	{
-		HIO_DEBUG3 (hio, "HTTS(%p) - read error from peer %p(pid=%u)\n", cgi->htts, pro, (unsigned int)pro->child_pid);
+		HIO_DEBUG3 (hio, "HTTPS(%p) - read error from peer %p(pid=%u)\n", cgi->https, pro, (unsigned int)pro->child_pid);
 		goto oops;
 	}
 
 	if (dlen == 0)
 	{
-		HIO_DEBUG3 (hio, "HTTS(%p) - EOF from peer %p(pid=%u)\n", cgi->htts, pro, (unsigned int)pro->child_pid);
+		HIO_DEBUG3 (hio, "HTTPS(%p) - EOF from peer %p(pid=%u)\n", cgi->https, pro, (unsigned int)pro->child_pid);
 
 		if (!(cgi->over & CGI_OVER_READ_FROM_PEER))
 		{
@@ -290,7 +290,7 @@ static int cgi_peer_on_read (hio_dev_pro_t* pro, hio_dev_pro_sid_t sid, const vo
 			/* the cgi script could be misbehaving.
 			 * it still has to read more but EOF is read.
 			 * otherwise peer_htrd_poke() should have been called */
-			n = hio_svc_htts_task_endbody((hio_svc_htts_task_t*)cgi);
+			n = hio_svc_https_task_endbody((hio_svc_https_task_t*)cgi);
 			cgi_mark_over(cgi, CGI_OVER_READ_FROM_PEER);
 			if (n <= -1) goto oops;
 		}
@@ -303,11 +303,11 @@ static int cgi_peer_on_read (hio_dev_pro_t* pro, hio_dev_pro_sid_t sid, const vo
 
 		if (hio_htrd_feed(cgi->peer_htrd, data, dlen, &rem) <= -1)
 		{
-			HIO_DEBUG3 (hio, "HTTS(%p) - unable to feed peer htrd - peer %p(pid=%u)\n", cgi->htts, pro, (unsigned int)pro->child_pid);
+			HIO_DEBUG3 (hio, "HTTPS(%p) - unable to feed peer htrd - peer %p(pid=%u)\n", cgi->https, pro, (unsigned int)pro->child_pid);
 
 			if (!cgi->task_res_started && !(cgi->over & CGI_OVER_WRITE_TO_CLIENT))
 			{
-				hio_svc_htts_task_sendfinalres ((hio_svc_htts_task_t*)cgi, HIO_HTTP_STATUS_BAD_GATEWAY, HIO_NULL, HIO_NULL, 1); /* don't care about error because it jumps to oops below anyway */
+				hio_svc_https_task_sendfinalres ((hio_svc_https_task_t*)cgi, HIO_HTTP_STATUS_BAD_GATEWAY, HIO_NULL, HIO_NULL, 1); /* don't care about error because it jumps to oops below anyway */
 			}
 
 			goto oops;
@@ -338,7 +338,7 @@ static int cgi_peer_on_write (hio_dev_pro_t* pro, hio_iolen_t wrlen, void* wrctx
 
 	if (wrlen <= -1)
 	{
-		HIO_DEBUG3 (hio, "HTTS(%p) - unable to write to peer %p(pid=%u)\n", cgi->htts, pro, (int)pro->child_pid);
+		HIO_DEBUG3 (hio, "HTTPS(%p) - unable to write to peer %p(pid=%u)\n", cgi->https, pro, (int)pro->child_pid);
 		goto oops;
 	}
 	else if (wrlen == 0)
@@ -348,7 +348,7 @@ static int cgi_peer_on_write (hio_dev_pro_t* pro, hio_iolen_t wrlen, void* wrctx
 
 		cgi->peer_pending_writes--;
 		HIO_ASSERT(hio, cgi->peer_pending_writes == 0);
-		HIO_DEBUG3 (hio, "HTTS(%p) - indicated EOF to peer %p(pid=%u)\n", cgi->htts, pro, (int)pro->child_pid);
+		HIO_DEBUG3 (hio, "HTTPS(%p) - indicated EOF to peer %p(pid=%u)\n", cgi->https, pro, (int)pro->child_pid);
 		/* indicated EOF to the peer side. i need no more data from the client side.
 		 * i don't need to enable input watching in the client side either */
 		cgi_mark_over(cgi, CGI_OVER_WRITE_TO_PEER);
@@ -384,14 +384,14 @@ oops:
 
 static int peer_capture_response_header (hio_htre_t* req, const hio_bch_t* key, const hio_htre_hdrval_t* val, void* ctx)
 {
-	return hio_svc_htts_task_addreshdrs((hio_svc_htts_task_t*)(cgi_t*)ctx, key, val);
+	return hio_svc_https_task_addreshdrs((hio_svc_https_task_t*)(cgi_t*)ctx, key, val);
 }
 
 static int peer_htrd_peek (hio_htrd_t* htrd, hio_htre_t* req)
 {
 	cgi_peer_xtn_t* peer = hio_htrd_getxtn(htrd);
 	cgi_t* cgi = peer->cgi;
-	hio_svc_htts_cli_t* cli = cgi->task_client;
+	hio_svc_https_cli_t* cli = cgi->task_client;
 
 	if (HIO_LIKELY(cli))
 	{
@@ -403,9 +403,9 @@ static int peer_htrd_peek (hio_htrd_t* htrd, hio_htre_t* req)
 
 		chunked = cgi->task_keep_client_alive && !req->attr.content_length;
 
-		if (hio_svc_htts_task_startreshdr((hio_svc_htts_task_t*)cgi, status_code, status_desc, chunked) <= -1 ||
+		if (hio_svc_https_task_startreshdr((hio_svc_https_task_t*)cgi, status_code, status_desc, chunked) <= -1 ||
 		    hio_htre_walkheaders(req, peer_capture_response_header, cgi) <= -1 ||
-		    hio_svc_htts_task_endreshdr((hio_svc_htts_task_t*)cgi) <= -1) return -1;
+		    hio_svc_https_task_endreshdr((hio_svc_https_task_t*)cgi) <= -1) return -1;
 	}
 
 	return 0;
@@ -418,7 +418,7 @@ static int peer_htrd_poke (hio_htrd_t* htrd, hio_htre_t* req)
 	cgi_t* cgi = peer->cgi;
 	int n;
 
-	n = hio_svc_htts_task_endbody((hio_svc_htts_task_t*)cgi);
+	n = hio_svc_https_task_endbody((hio_svc_https_task_t*)cgi);
 	cgi_mark_over(cgi, CGI_OVER_READ_FROM_PEER);
 	return n;
 }
@@ -429,9 +429,9 @@ static int peer_htrd_push_content (hio_htrd_t* htrd, hio_htre_t* req, const hio_
 	cgi_t* cgi = peer->cgi;
 	int n;
 
-	HIO_ASSERT(cgi->htts->hio, htrd == cgi->peer_htrd);
+	HIO_ASSERT(cgi->https->hio, htrd == cgi->peer_htrd);
 
-	n = hio_svc_htts_task_addresbody((hio_svc_htts_task_t*)cgi, data, dlen);
+	n = hio_svc_https_task_addresbody((hio_svc_https_task_t*)cgi, data, dlen);
 	if (!cgi->peer_read_suspended && cgi->task_csck &&
 	    hio_dev_getwqsize((hio_dev_t*)cgi->task_csck) > CGI_PENDING_BYTES_THRESHOLD)
 	{
@@ -452,14 +452,14 @@ static hio_htrd_recbs_t peer_htrd_recbs =
 static int cgi_client_htrd_poke (hio_htrd_t* htrd, hio_htre_t* req)
 {
 	/* client request got completed */
-	hio_svc_htts_cli_htrd_xtn_t* htrdxtn = (hio_svc_htts_cli_htrd_xtn_t*)hio_htrd_getxtn(htrd);
+	hio_svc_https_cli_htrd_xtn_t* htrdxtn = (hio_svc_https_cli_htrd_xtn_t*)hio_htrd_getxtn(htrd);
 	hio_dev_sck_t* sck = htrdxtn->sck;
 #if 0
-	hio_svc_htts_cli_t* cli = hio_dev_sck_getxtn(sck);
+	hio_svc_https_cli_t* cli = hio_dev_sck_getxtn(sck);
 	cgi_t* cgi = (cgi_t*)cli->task;
 #else
 	/* this one is one call only. it must return the same value as the above two lines */
-	hio_svc_htts_cli_t* cli = hio_dev_sck_getxtn(sck);
+	hio_svc_https_cli_t* cli = hio_dev_sck_getxtn(sck);
 	cgi_t* cgi = (cgi_t*)cli->task;
 #endif
 
@@ -472,9 +472,9 @@ static int cgi_client_htrd_poke (hio_htrd_t* htrd, hio_htre_t* req)
 
 static int cgi_client_htrd_push_content (hio_htrd_t* htrd, hio_htre_t* req, const hio_bch_t* data, hio_oow_t dlen)
 {
-	hio_svc_htts_cli_htrd_xtn_t* htrdxtn = (hio_svc_htts_cli_htrd_xtn_t*)hio_htrd_getxtn(htrd);
+	hio_svc_https_cli_htrd_xtn_t* htrdxtn = (hio_svc_https_cli_htrd_xtn_t*)hio_htrd_getxtn(htrd);
 	hio_dev_sck_t* sck = htrdxtn->sck;
-	hio_svc_htts_cli_t* cli = hio_dev_sck_getxtn(sck);
+	hio_svc_https_cli_t* cli = hio_dev_sck_getxtn(sck);
 	cgi_t* cgi = (cgi_t*)cli->task;
 
 	HIO_ASSERT(sck->hio, cli->sck == sck);
@@ -502,59 +502,59 @@ static hio_htrd_recbs_t cgi_client_htrd_recbs =
 
 static void cgi_client_on_disconnect (hio_dev_sck_t* sck)
 {
-	hio_svc_htts_cli_t* cli = hio_dev_sck_getxtn(sck);
-	hio_svc_htts_t* htts = cli->htts;
+	hio_svc_https_cli_t* cli = hio_dev_sck_getxtn(sck);
+	hio_svc_https_t* https = cli->https;
 	cgi_t* cgi = (cgi_t*)cli->task;
 	hio_t* hio = sck->hio;
 
 	HIO_ASSERT(hio, sck == cgi->task_csck);
-	HIO_DEBUG4 (hio, "HTTS(%p) - cgi(t=%p,c=%p,csck=%p) - client socket disconnect notified\n", htts, cgi, cli, sck);
+	HIO_DEBUG4 (hio, "HTTPS(%p) - cgi(t=%p,c=%p,csck=%p) - client socket disconnect notified\n", https, cgi, cli, sck);
 
 	if (cgi)
 	{
-		HIO_SVC_HTTS_TASK_RCUP((hio_svc_htts_task_t*)cgi); /* for temporary protection */
+		HIO_SVC_HTTPS_TASK_RCUP((hio_svc_https_task_t*)cgi); /* for temporary protection */
 
 		/* detach the task from the client and the client socket */
-		hio_svc_htts_task_unbindfromclient((hio_svc_htts_task_t*)cgi, 1);
+		hio_svc_https_task_unbindfromclient((hio_svc_https_task_t*)cgi, 1);
 
 		/* call the parent handler*/
 		/*if (fcgi->client_org_on_disconnect) fcgi->client_org_on_disconnect (sck);*/
-		hio_svc_htts_client_default_on_disconnect (sck); /* restored to the orginal parent handler in unbind_task_from_client() */
+		hio_svc_https_client_default_on_disconnect (sck); /* restored to the orginal parent handler in unbind_task_from_client() */
 
 		/* if the client side is closed, the data from the child process is not read and the write() of the child process call may block.
 		 * just close the input side of the pipe to the child to prevense this situation */
 		if (cgi->peer) hio_dev_pro_close(cgi->peer, HIO_DEV_PRO_IN);
 		if (cgi->peer) hio_dev_pro_close(cgi->peer, HIO_DEV_PRO_OUT);
 
-		HIO_SVC_HTTS_TASK_RCDOWN((hio_svc_htts_task_t*)cgi);
+		HIO_SVC_HTTPS_TASK_RCDOWN((hio_svc_https_task_t*)cgi);
 	}
 
-	HIO_DEBUG4 (hio, "HTTS(%p) - cgi(t=%p,c=%p,csck=%p) - client socket disconnect handled\n", htts, cgi, cli, sck);
+	HIO_DEBUG4 (hio, "HTTPS(%p) - cgi(t=%p,c=%p,csck=%p) - client socket disconnect handled\n", https, cgi, cli, sck);
 	/* Note: after this callback, the actual device pointed to by 'sck' will be freed in the main loop. */
 }
 
 static int cgi_client_on_read (hio_dev_sck_t* sck, const void* buf, hio_iolen_t len, const hio_skad_t* srcaddr)
 {
 	hio_t* hio = sck->hio;
-	hio_svc_htts_cli_t* cli = hio_dev_sck_getxtn(sck);
+	hio_svc_https_cli_t* cli = hio_dev_sck_getxtn(sck);
 	cgi_t* cgi = (cgi_t*)cli->task;
 	int n;
 
 	HIO_ASSERT(hio, sck == cli->sck);
 
-	n = hio_svc_htts_client_default_on_read(sck, buf, len, srcaddr);
+	n = hio_svc_https_client_default_on_read(sck, buf, len, srcaddr);
 
 	if (len <= -1)
 	{
 		/* read error */
-		HIO_DEBUG3 (cli->htts->hio, "HTTS(%p) - read error on client %p(%d)\n", cgi->htts, sck, (int)sck->hnd);
+		HIO_DEBUG3 (cli->https->hio, "HTTPS(%p) - read error on client %p(%d)\n", cgi->https, sck, (int)sck->hnd);
 		goto oops;
 	}
 
 	if (len == 0)
 	{
 		/* EOF on the client side. arrange to close */
-		HIO_DEBUG3 (hio, "HTTS(%p) - EOF from client %p(hnd=%d)\n", cgi->htts, sck, (int)sck->hnd);
+		HIO_DEBUG3 (hio, "HTTPS(%p) - EOF from client %p(hnd=%d)\n", cgi->https, sck, (int)sck->hnd);
 
 		if (!(cgi->over & CGI_OVER_READ_FROM_CLIENT)) /* if this is true, EOF is received without cgi_client_htrd_poke() */
 		{
@@ -576,16 +576,16 @@ oops:
 static int cgi_client_on_write (hio_dev_sck_t* sck, hio_iolen_t wrlen, void* wrctx, const hio_skad_t* dstaddr)
 {
 	hio_t* hio = sck->hio;
-	hio_svc_htts_cli_t* cli = hio_dev_sck_getxtn(sck);
+	hio_svc_https_cli_t* cli = hio_dev_sck_getxtn(sck);
 	cgi_t* cgi = (cgi_t*)cli->task;
 	int n;
 
-	n = hio_svc_htts_client_default_on_write(sck, wrlen, wrctx, dstaddr);
+	n = hio_svc_https_client_default_on_write(sck, wrlen, wrctx, dstaddr);
 
 	if (wrlen == 0)
 	{
 		/* if the connect is keep-alive, this part may not be called */
-		HIO_DEBUG3 (hio, "HTTS(%p) - indicated EOF to client %p(%d)\n", cgi->htts, sck, (int)sck->hnd);
+		HIO_DEBUG3 (hio, "HTTPS(%p) - indicated EOF to client %p(%d)\n", cgi->https, sck, (int)sck->hnd);
 		/* since EOF has been indicated to the client, it must not write to the client any further.
 		 * this also means that i don't need any data from the peer side either.
 		 * i don't need to enable input watching on the peer side */
@@ -616,7 +616,7 @@ static int cgi_client_on_write (hio_dev_sck_t* sck, hio_iolen_t wrlen, void* wrc
 
 struct peer_fork_ctx_t
 {
-	hio_svc_htts_cli_t* cli;
+	hio_svc_https_cli_t* cli;
 	hio_htre_t* req;
 	const hio_bch_t* docroot;
 	const hio_bch_t* script;
@@ -739,7 +739,7 @@ static int cgi_peer_on_fork (hio_dev_pro_t* pro, void* fork_ctx)
 		/* content length unknown, neither is it 0 - this is not standard */
 		setenv ("CONTENT_LENGTH", "-1", 1);
 	}
-	setenv ("SERVER_SOFTWARE", fc->cli->htts->server_name, 1);
+	setenv ("SERVER_SOFTWARE", fc->cli->https->server_name, 1);
 
 	hio_skadtobcstr (hio, &fc->cli->sck->localaddr, tmp, HIO_COUNTOF(tmp), HIO_SKAD_TO_BCSTR_ADDR);
 	setenv ("SERVER_ADDR", tmp, 1);
@@ -774,9 +774,9 @@ static int cgi_peer_on_fork (hio_dev_pro_t* pro, void* fork_ctx)
 
 static int bind_task_to_peer (cgi_t* cgi, hio_dev_sck_t* csck, hio_htre_t* req, const hio_bch_t* docroot, const hio_bch_t* script)
 {
-	hio_svc_htts_cli_t* cli = hio_dev_sck_getxtn(csck);
-	hio_svc_htts_t* htts = cgi->htts;
-	hio_t* hio = htts->hio;
+	hio_svc_https_cli_t* cli = hio_dev_sck_getxtn(csck);
+	hio_svc_https_t* https = cgi->https;
+	hio_t* hio = https->hio;
 	peer_fork_ctx_t fc;
 	hio_dev_pro_make_t mi;
 	cgi_peer_xtn_t* peer_xtn;
@@ -786,7 +786,7 @@ static int bind_task_to_peer (cgi_t* cgi, hio_dev_sck_t* csck, hio_htre_t* req, 
 	fc.req = req;
 	fc.docroot = docroot;
 	fc.script = script;
-	fc.actual_script = hio_svc_htts_dupmergepaths(htts, docroot, script);
+	fc.actual_script = hio_svc_https_dupmergepaths(https, docroot, script);
 	if (!fc.actual_script) return -1;
 
 	HIO_MEMSET(&mi, 0, HIO_SIZEOF(mi));
@@ -829,11 +829,11 @@ static int bind_task_to_peer (cgi_t* cgi, hio_dev_sck_t* csck, hio_htre_t* req, 
 
 	peer_xtn = hio_dev_pro_getxtn(cgi->peer);
 	peer_xtn->cgi = cgi;
-	HIO_SVC_HTTS_TASK_RCUP(cgi);
+	HIO_SVC_HTTPS_TASK_RCUP(cgi);
 
 	peer_xtn = hio_htrd_getxtn(cgi->peer_htrd);
 	peer_xtn->cgi = cgi;
-	HIO_SVC_HTTS_TASK_RCUP(cgi);
+	HIO_SVC_HTTPS_TASK_RCUP(cgi);
 
 	return 0;
 }
@@ -865,7 +865,7 @@ static void unbind_task_from_peer (cgi_t* cgi, int rcdown)
 		while (n > 0)
 		{
 			n--;
-			HIO_SVC_HTTS_TASK_RCDOWN((hio_svc_htts_task_t*)cgi);
+			HIO_SVC_HTTPS_TASK_RCDOWN((hio_svc_https_task_t*)cgi);
 		}
 	}
 }
@@ -903,10 +903,10 @@ static int setup_for_content_length(cgi_t* cgi, hio_htre_t* req)
 
 /* ----------------------------------------------------------------------- */
 
-int hio_svc_htts_docgi (hio_svc_htts_t* htts, hio_dev_sck_t* csck, hio_htre_t* req, const hio_bch_t* docroot, const hio_bch_t* script, int options, hio_svc_htts_task_on_kill_t on_kill)
+int hio_svc_https_docgi (hio_svc_https_t* https, hio_dev_sck_t* csck, hio_htre_t* req, const hio_bch_t* docroot, const hio_bch_t* script, int options, hio_svc_https_task_on_kill_t on_kill)
 {
-	hio_t* hio = htts->hio;
-	hio_svc_htts_cli_t* cli = hio_dev_sck_getxtn(csck);
+	hio_t* hio = https->hio;
+	hio_svc_https_cli_t* cli = hio_dev_sck_getxtn(csck);
 	cgi_t* cgi = HIO_NULL;
 	int n, status_code = HIO_HTTP_STATUS_INTERNAL_SERVER_ERROR;
 	int bound_to_client = 0, bound_to_peer = 0, ntask_cgi_inced = 0;
@@ -921,10 +921,10 @@ int hio_svc_htts_docgi (hio_svc_htts_t* htts, hio_dev_sck_t* csck, hio_htre_t* r
 		goto oops;
 	}
 
-	cgi = (cgi_t*)hio_svc_htts_task_make(htts, HIO_SIZEOF(*cgi), cgi_on_kill, req, csck);
+	cgi = (cgi_t*)hio_svc_https_task_make(https, HIO_SIZEOF(*cgi), cgi_on_kill, req, csck);
 	if (HIO_UNLIKELY(!cgi)) goto oops;
-	HIO_SVC_HTTS_TASK_RCUP((hio_svc_htts_task_t*)cgi);
-	if (inc_ntask_cgis(htts) <= -1)
+	HIO_SVC_HTTPS_TASK_RCUP((hio_svc_https_task_t*)cgi);
+	if (inc_ntask_cgis(https) <= -1)
 	{
 		status_code = HIO_HTTP_STATUS_SERVICE_UNAVAILABLE;
 		goto oops;
@@ -932,7 +932,7 @@ int hio_svc_htts_docgi (hio_svc_htts_t* htts, hio_dev_sck_t* csck, hio_htre_t* r
 	cgi->ntask_cgis_inced = 1;
 	cgi->options = options;
 
-	hio_svc_htts_task_bindtoclient((hio_svc_htts_task_t*)cgi, csck, &cgi_client_evcb);
+	hio_svc_https_task_bindtoclient((hio_svc_https_task_t*)cgi, csck, &cgi_client_evcb);
 	bound_to_client = 1;
 
 	if ((n = bind_task_to_peer(cgi, csck, req, docroot, script)) <= -1)
@@ -942,14 +942,14 @@ int hio_svc_htts_docgi (hio_svc_htts_t* htts, hio_dev_sck_t* csck, hio_htre_t* r
 	}
 	bound_to_peer = 1;
 
-	if (hio_svc_htts_task_handleexpect100((hio_svc_htts_task_t*)cgi, 0) <= -1) goto oops;
+	if (hio_svc_https_task_handleexpect100((hio_svc_https_task_t*)cgi, 0) <= -1) goto oops;
 	if (setup_for_content_length(cgi, req) <= -1) goto oops;
 
 	/* TODO: store current input watching state and use it when destroying the cgi data */
 	if (hio_dev_sck_read(csck, !(cgi->over & CGI_OVER_READ_FROM_CLIENT)) <= -1) goto oops;
 
-	HIO_SVC_HTTS_TASKL_APPEND_TASK (&htts->task, (hio_svc_htts_task_t*)cgi);
-	HIO_SVC_HTTS_TASK_RCDOWN((hio_svc_htts_task_t*)cgi);
+	HIO_SVC_HTTPS_TASKL_APPEND_TASK (&https->task, (hio_svc_https_task_t*)cgi);
+	HIO_SVC_HTTPS_TASK_RCDOWN((hio_svc_https_task_t*)cgi);
 
 	/* set the on_kill callback only if this function can return success.
 	 * the on_kill callback won't be executed if this function returns failure.
@@ -958,14 +958,14 @@ int hio_svc_htts_docgi (hio_svc_htts_t* htts, hio_dev_sck_t* csck, hio_htre_t* r
 	return 0;
 
 oops:
-	HIO_DEBUG3 (hio, "HTTS(%p) - FAILURE in docgi - socket(%p) - %js\n", htts, csck, hio_geterrmsg(hio));
+	HIO_DEBUG3 (hio, "HTTPS(%p) - FAILURE in docgi - socket(%p) - %js\n", https, csck, hio_geterrmsg(hio));
 	if (cgi)
 	{
-		hio_svc_htts_task_sendfinalres((hio_svc_htts_task_t*)cgi, status_code, HIO_NULL, HIO_NULL, 1);
+		hio_svc_https_task_sendfinalres((hio_svc_https_task_t*)cgi, status_code, HIO_NULL, HIO_NULL, 1);
 		if (bound_to_peer) unbind_task_from_peer (cgi, 1);
-		if (bound_to_client) hio_svc_htts_task_unbindfromclient((hio_svc_htts_task_t*)cgi, 1);
+		if (bound_to_client) hio_svc_https_task_unbindfromclient((hio_svc_https_task_t*)cgi, 1);
 		cgi_halt_participating_devices(cgi);
-		HIO_SVC_HTTS_TASK_RCDOWN((hio_svc_htts_task_t*)cgi);
+		HIO_SVC_HTTPS_TASK_RCDOWN((hio_svc_https_task_t*)cgi);
 	}
 	return -1;
 }

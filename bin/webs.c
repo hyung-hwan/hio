@@ -1,4 +1,4 @@
-#include <hio-http.h>
+#include <hio-https.h>
 #include <hio-tar.h>
 #include <hio-opt.h>
 #include <hio-prv.h>
@@ -24,11 +24,11 @@ struct arg_info_t
 };
 typedef struct arg_info_t arg_info_t;
 
-struct htts_ext_t
+struct https_ext_t
 {
 	const arg_info_t* ai;
 };
-typedef struct htts_ext_t htts_ext_t;
+typedef struct https_ext_t https_ext_t;
 
 struct buff_t
 {
@@ -54,17 +54,17 @@ static void untar_write_status_code (int fd, int code)
 	}
 }
 
-static void untar (hio_svc_htts_t* htts, hio_dev_thr_iopair_t* iop, hio_svc_htts_thr_func_info_t* tfi, void* ctx)
+static void untar (hio_svc_https_t* https, hio_dev_thr_iopair_t* iop, hio_svc_https_thr_func_info_t* tfi, void* ctx)
 {
 	FILE* wfp = HIO_NULL;
 	hio_t* hio;
-	htts_ext_t* ext;
+	https_ext_t* ext;
 	hio_tar_t* tar = HIO_NULL;
 	hio_uint8_t buf[4096];
 	ssize_t n;
 
-	hio = hio_svc_htts_gethio(htts);
-	ext = hio_svc_htts_getxtn(htts);
+	hio = hio_svc_https_gethio(https);
+	ext = hio_svc_https_getxtn(https);
 
 /* TODO: error handling on write() failure */
 	wfp = fdopen(iop->wfd, "w");
@@ -174,7 +174,7 @@ static int write_buff_to_fd (int fd, buff_t* buf, const void* ptr, hio_oow_t len
 
 /* ------------------------------------------------------------------------- */
 
-static const hio_bch_t* file_get_mime_type (hio_svc_htts_t* htts, const hio_bch_t* qpath, const hio_bch_t* file_path, void* ctx)
+static const hio_bch_t* file_get_mime_type (hio_svc_https_t* https, const hio_bch_t* qpath, const hio_bch_t* file_path, void* ctx)
 {
 	const hio_bch_t* mt = HIO_NULL;
 	const hio_bch_t* dot;
@@ -183,10 +183,10 @@ static const hio_bch_t* file_get_mime_type (hio_svc_htts_t* htts, const hio_bch_
 	return mt;
 }
 
-static int file_open_dir_list (hio_svc_htts_t* htts, const hio_bch_t* qpath, const hio_bch_t* dir_path, const hio_bch_t** res_mime_type, void* ctx)
+static int file_open_dir_list (hio_svc_https_t* https, const hio_bch_t* qpath, const hio_bch_t* dir_path, const hio_bch_t** res_mime_type, void* ctx)
 {
-	htts_ext_t* ext = hio_svc_htts_getxtn(htts);
-	hio_t* hio = hio_svc_htts_gethio(htts);
+	https_ext_t* ext = hio_svc_https_getxtn(https);
+	hio_t* hio = hio_svc_https_gethio(https);
 	DIR* dp = HIO_NULL;
 	hio_bch_t file_path[] = "/tmp/.XXXXXX";
 	int fd = -1;
@@ -197,7 +197,7 @@ static int file_open_dir_list (hio_svc_htts_t* htts, const hio_bch_t* qpath, con
 	{
 		hio_bch_t* index_path;
 
-		index_path = hio_svc_htts_dupmergepaths(htts, dir_path, "index.html");
+		index_path = hio_svc_https_dupmergepaths(https, dir_path, "index.html");
 		if (HIO_UNLIKELY(!index_path)) goto oops;
 
 		fd = open(index_path, O_RDONLY, 0644);
@@ -206,7 +206,7 @@ static int file_open_dir_list (hio_svc_htts_t* htts, const hio_bch_t* qpath, con
 			if (res_mime_type)
 			{
 				const hio_bch_t* mt;
-				mt = file_get_mime_type(htts, qpath, index_path, ctx);
+				mt = file_get_mime_type(https, qpath, index_path, ctx);
 				if (mt) *res_mime_type = mt;
 			}
 			hio_freemem (hio, index_path);
@@ -245,7 +245,7 @@ static int file_open_dir_list (hio_svc_htts_t* htts, const hio_bch_t* qpath, con
 		if ((de->d_name[0] == '.' && de->d_name[1] == '\0') ||
 			(de->d_name[0] == '.' && de->d_name[1] == '.' && de->d_name[2] == '\0')) continue;
 
-		tptr = hio_svc_htts_dupmergepaths(htts, dir_path, de->d_name);
+		tptr = hio_svc_https_dupmergepaths(https, dir_path, de->d_name);
 		if (HIO_UNLIKELY(!tptr)) continue;
 		n = stat(tptr, &st);
 		hio_freemem (hio, tptr);
@@ -301,24 +301,24 @@ oops:
 	return -1;
 }
 
-static void htts_task_on_kill (hio_svc_htts_task_t* task)
+static void https_task_on_kill (hio_svc_https_task_t* task)
 {
-	hio_svc_htts_t* htts = task->htts;
-	hio_t* hio = hio_svc_htts_gethio(htts);
+	hio_svc_https_t* https = task->https;
+	hio_t* hio = hio_svc_https_gethio(https);
 
 	/* TODO: pretty log message */
 	HIO_INFO3 (hio, "DONE [%hs] [%hs] [%d] ......................................\n", task->task_req_qmth, task->task_req_qpath, (int)task->task_status_code);
 }
 
-static int process_http_request (hio_svc_htts_t* htts, hio_dev_sck_t* csck, hio_htre_t* req)
+static int process_http_request (hio_svc_https_t* https, hio_dev_sck_t* csck, hio_htre_t* req)
 {
-	htts_ext_t* ext = hio_svc_htts_getxtn(htts);
-	hio_t* hio = hio_svc_htts_gethio(htts);
+	https_ext_t* ext = hio_svc_https_getxtn(https);
+	hio_t* hio = hio_svc_https_gethio(https);
 	hio_http_method_t mth;
 	const hio_bch_t* qpath, * qpath_ext;
 	int proto_len;
 
-	static hio_svc_htts_file_cbs_t fcbs = { file_get_mime_type, file_open_dir_list, HIO_NULL };
+	static hio_svc_https_file_cbs_t fcbs = { file_get_mime_type, file_open_dir_list, HIO_NULL };
 
 	hio_htre_perdecqpath (req);
 
@@ -343,18 +343,18 @@ static int process_http_request (hio_svc_htts_t* htts, hio_dev_sck_t* csck, hio_
 	if (mth == HIO_HTTP_OTHER && hio_comp_bcstr(hio_htre_getqmethodname(req), "UNTAR", 1) == 0 && hio_comp_bcstr(qpath_ext, ".tar", 0) == 0)
 	{
 		/* don't care about the path for now. TODO: make this secure and reasonable */
-		if (hio_svc_htts_dothr(htts, csck, req, untar, HIO_NULL, 0, htts_task_on_kill) <= -1) goto oops;
+		if (hio_svc_https_dothr(https, csck, req, untar, HIO_NULL, 0, https_task_on_kill) <= -1) goto oops;
 	}
 	else if (mth == HIO_HTTP_OPTIONS)
 	{
 /* TODO: write proper handler for preflight */
-		//if (hio_svc_htts_dofun(htts, csck, req, options, HIO_NULL, 0) <= -1) goto oops;
+		//if (hio_svc_https_dofun(https, csck, req, options, HIO_NULL, 0) <= -1) goto oops;
 		const hio_bch_t* msg = "HTTP/1.1 200 OK\r\nContent-Length: 0\r\nAccess-Control-Allow-Origin: *\r\nAccess-Control-Allow-Methods: *\r\nAccess-Control-Allow-Headers: *\r\nAccess-Control-Allow-Credentials: true\r\n\r\n";
 		hio_dev_sck_write(csck, msg, strlen(msg), HIO_NULL, HIO_NULL);
 	}
 	else if (hio_comp_bcstr(qpath_ext, ".cgi", 0) == 0)
 	{
-		if (hio_svc_htts_docgi(htts, csck, req, ext->ai->docroot, qpath, 0, htts_task_on_kill) <= -1) goto oops;
+		if (hio_svc_https_docgi(https, csck, req, ext->ai->docroot, qpath, 0, https_task_on_kill) <= -1) goto oops;
 	}
 	else if (hio_comp_bcstr(qpath_ext, ".php", 0) == 0 || hio_comp_bcstr(qpath_ext, ".ant", 0) == 0 /*|| hio_comp_bcstr_limited(qpath, "http://", 7, 1) == 0*/)
 	{
@@ -363,22 +363,22 @@ static int process_http_request (hio_svc_htts_t* htts, hio_dev_sck_t* csck, hio_
 
 		HIO_DEBUG2 (hio, "fcgi %hs %hs\n", ext->ai->docroot, qpath);
 	#if 0
-		if (hio_svc_htts_dotxt(htts, csck, req, HIO_HTTP_STATUS_INTERNAL_SERVER_ERROR, "text/plain", "what the...", 0, htts_task_on_kill) <= -1) goto oops;
+		if (hio_svc_https_dotxt(https, csck, req, HIO_HTTP_STATUS_INTERNAL_SERVER_ERROR, "text/plain", "what the...", 0, https_task_on_kill) <= -1) goto oops;
 	#else
 		/* TODO: accept a separate document root for the fcgi server and use it below */
-		if (hio_svc_htts_dofcgi(htts, csck, req, &skad, ext->ai->docroot, qpath, 0, htts_task_on_kill) <= -1) goto oops;
+		if (hio_svc_https_dofcgi(https, csck, req, &skad, ext->ai->docroot, qpath, 0, https_task_on_kill) <= -1) goto oops;
 	#endif
 	}
 	else // if (mth == HIO_HTTP_GET || mth == HIO_HTTP_POST)
 	{
 		/* TODO: proper mime-type */
-		/* TODO: make HIO_SVC_HTTS_FILE_DIR a cli option */
-		if (hio_svc_htts_dofile(htts, csck, req, ext->ai->docroot, qpath, HIO_NULL, 0, htts_task_on_kill, &fcbs) <= -1) goto oops;
+		/* TODO: make HIO_SVC_HTTPS_FILE_DIR a cli option */
+		if (hio_svc_https_dofile(https, csck, req, ext->ai->docroot, qpath, HIO_NULL, 0, https_task_on_kill, &fcbs) <= -1) goto oops;
 	}
 #if 0
 	else
 	{
-		if (hio_svc_htts_dotxt(htts, csck, req, HIO_HTTP_STATUS_FORBIDDEN, "text/plain", hio_http_status_to_bcstr(403), 0, htts_task_on_kill) <= -1) goto oops;
+		if (hio_svc_https_dotxt(https, csck, req, HIO_HTTP_STATUS_FORBIDDEN, "text/plain", hio_http_status_to_bcstr(403), 0, https_task_on_kill) <= -1) goto oops;
 	}
 #endif
 	return 0;
@@ -392,10 +392,10 @@ int webs_start (hio_t* hio, const arg_info_t* ai)
 {
 	const hio_bch_t* ptr, * end;
 	hio_bcs_t tok;
-	hio_svc_htts_bind_t bi[100];
+	hio_svc_https_bind_t bi[100];
 	hio_oow_t bic;
-	hio_svc_htts_t* webs;
-	htts_ext_t* ext;
+	hio_svc_https_t* webs;
+	https_ext_t* ext;
 	hio_svc_fcgic_tmout_t fcgic_tmout;
 
 	bic = 0;
@@ -413,7 +413,7 @@ int webs_start (hio_t* hio, const arg_info_t* ai)
 			}
 			bi[bic].bind.options = HIO_DEV_SCK_BIND_REUSEADDR | HIO_DEV_SCK_BIND_REUSEPORT | HIO_DEV_SCK_BIND_IGNERR;
 
-			if (ai->use_sctp) bi[bic].proto = HIO_SVC_HTTS_BIND_PROTO_SCTP;
+			if (ai->use_sctp) bi[bic].proto = HIO_SVC_HTTPS_BIND_PROTO_SCTP;
 			bic++;
 
 			if (bic >= HIO_COUNTOF(bi)) break; /* TODO: make 'bi' dynamic */
@@ -425,23 +425,23 @@ int webs_start (hio_t* hio, const arg_info_t* ai)
 	HIO_INIT_NTIME(&fcgic_tmout.r, 60, 0);
 	HIO_INIT_NTIME(&fcgic_tmout.w, -1, 0);
 
-	webs = hio_svc_htts_start(hio, HIO_SIZEOF(htts_ext_t), bi, bic, process_http_request);
+	webs = hio_svc_https_start(hio, HIO_SIZEOF(https_ext_t), bi, bic, process_http_request);
 	if (!webs) return -1; /* TODO: logging */
 
 	{
 		hio_oow_t ov;
 		ov = 200;
-		hio_svc_htts_setoption (webs, HIO_SVC_HTTS_TASK_CGI_MAX, &ov);
+		hio_svc_https_setoption (webs, HIO_SVC_HTTPS_TASK_CGI_MAX, &ov);
 	}
 
-	if (hio_svc_htts_enablefcgic(webs, &fcgic_tmout) <= -1)
+	if (hio_svc_https_enablefcgic(webs, &fcgic_tmout) <= -1)
 	{
 		/* TODO: logging */
-		hio_svc_htts_stop (webs);
+		hio_svc_https_stop (webs);
 		return -1;
 	}
 
-	ext = hio_svc_htts_getxtn(webs);
+	ext = hio_svc_https_getxtn(webs);
 	ext->ai = ai;
 
 	return 0;
@@ -571,7 +571,7 @@ static int handle_dbgopt (hio_t* hio, const hio_bch_t* str)
 
 		cm = hio_find_bchar_in_bcstr(flt, ',');
 		len = cm? (cm - flt): hio_count_bcstr(flt);
-		if (hio_comp_bchars_bcstr(flt, len, "htts") == 0)  dbgopt |= HIO_TRAIT_DEBUG_HTTS;
+		if (hio_comp_bchars_bcstr(flt, len, "https") == 0)  dbgopt |= HIO_TRAIT_DEBUG_HTTPS;
 		else if (hio_comp_bchars_bcstr(flt, len, "bigint") == 0)  dbgopt |= HIO_TRAIT_DEBUG_BIGINT;
 		else
 		{

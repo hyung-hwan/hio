@@ -22,47 +22,45 @@
     THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  */
 
-#ifndef _HIO_HTTP_PRV_H_
-#define _HIO_HTTP_PRV_H_
+#ifndef _HIO_HTTPS_PRV_H_
+#define _HIO_HTTPS_PRV_H_
 
-#include <hio-http.h>
-#include <hio-htrd.h>
-#include <hio-sck.h>
+#include <hio-https.h>
 #include <hio-spl.h>
 #include "hio-prv.h"
 
-struct hio_svc_htts_cli_t
+struct hio_svc_https_cli_t
 {
-	hio_svc_htts_cli_t* cli_prev;
-	hio_svc_htts_cli_t* cli_next;
+	hio_svc_https_cli_t* cli_prev;
+	hio_svc_https_cli_t* cli_next;
 
-	/* a listener socket sets htts, sck, and l_idx fields only */
+	/* a listener socket sets https, sck, and l_idx fields only */
 	/* a client sockets uses all the fields in this struct */
-	hio_svc_htts_t* htts;
+	hio_svc_https_t* https;
 	hio_dev_sck_t* sck;
 	hio_skad_t cli_addr;
 	hio_bch_t cli_addr_bcstr[HIO_SKAD_IP_STRLEN + 1];
-	hio_oow_t l_idx; /* listening socket: < htts->l.count, client socket: >= htts->l.count */
+	hio_oow_t l_idx; /* listening socket: < https->l.count, client socket: >= https->l.count */
 
 	hio_htrd_t* htrd;
 	hio_becs_t* sbuf; /* temporary buffer for status line formatting */
 
-	hio_svc_htts_task_t* task;
+	hio_svc_https_task_t* task;
 	hio_ntime_t last_active; /* refreshed on every read - an idle measure */
 	hio_ntime_t req_started; /* start of the current request - a deadline, not refreshed by input */
 };
 
-struct hio_svc_htts_cli_htrd_xtn_t
+struct hio_svc_https_cli_htrd_xtn_t
 {
 	hio_dev_sck_t* sck;
 };
-typedef struct hio_svc_htts_cli_htrd_xtn_t hio_svc_htts_cli_htrd_xtn_t;
+typedef struct hio_svc_https_cli_htrd_xtn_t hio_svc_https_cli_htrd_xtn_t;
 
-struct hio_svc_htts_t
+struct hio_svc_https_t
 {
 	HIO_SVC_HEADER;
 
-	hio_svc_htts_proc_req_t proc_req;
+	hio_svc_https_proc_req_t proc_req;
 
 	struct
 	{
@@ -72,8 +70,8 @@ struct hio_svc_htts_t
 	/*hio_dev_sck_t* lsck;*/
 	hio_svc_fcgic_t* fcgic;
 
-	hio_svc_htts_cli_t cli; /* list head for client list */
-	hio_svc_htts_task_t task; /* list head for task list */
+	hio_svc_https_cli_t cli; /* list head for client list */
+	hio_svc_https_task_t task; /* list head for task list */
 	hio_tmridx_t idle_tmridx;
 
 	hio_bch_t* server_name;
@@ -100,62 +98,57 @@ struct hio_svc_htts_t
 	} stat;
 };
 
-struct hio_svc_httc_t
-{
-	HIO_SVC_HEADER;
-};
-
 /* client list */
-#define HIO_SVC_HTTS_CLIL_APPEND_CLI(lh,cli) do { \
+#define HIO_SVC_HTTPS_CLIL_APPEND_CLI(lh,cli) do { \
 	(cli)->cli_next = (lh); \
 	(cli)->cli_prev = (lh)->cli_prev; \
 	(cli)->cli_prev->cli_next = (cli); \
 	(lh)->cli_prev = (cli); \
 } while(0)
 
-#define HIO_SVC_HTTS_CLIL_UNLINK_CLI(cli) do { \
+#define HIO_SVC_HTTPS_CLIL_UNLINK_CLI(cli) do { \
 	(cli)->cli_prev->cli_next = (cli)->cli_next; \
 	(cli)->cli_next->cli_prev = (cli)->cli_prev; \
 } while (0)
 
-#define HIO_SVC_HTTS_CLIL_UNLINK_CLI_CLEAN(cli) do { \
+#define HIO_SVC_HTTPS_CLIL_UNLINK_CLI_CLEAN(cli) do { \
 	(cli)->cli_prev->cli_next = (cli)->cli_next; \
 	(cli)->cli_next->cli_prev = (cli)->cli_prev; \
 	(cli)->cli_prev = (cli); \
 	(cli)->cli_next = (cli); \
 } while (0)
 
-#define HIO_SVC_HTTS_CLIL_INIT(lh) ((lh)->cli_next = (lh)->cli_prev = lh)
-#define HIO_SVC_HTTS_CLIL_FIRST_CLI(lh) ((lh)->cli_next)
-#define HIO_SVC_HTTS_CLIL_LAST_CLI(lh) ((lh)->cli_prev)
-#define HIO_SVC_HTTS_CLIL_IS_EMPTY(lh) (HIO_SVC_HTTS_CLIL_FIRST_CLI(lh) == (lh))
-#define HIO_SVC_HTTS_CLIL_IS_NIL_CLI(lh,cli) ((cli) == (lh))
+#define HIO_SVC_HTTPS_CLIL_INIT(lh) ((lh)->cli_next = (lh)->cli_prev = lh)
+#define HIO_SVC_HTTPS_CLIL_FIRST_CLI(lh) ((lh)->cli_next)
+#define HIO_SVC_HTTPS_CLIL_LAST_CLI(lh) ((lh)->cli_prev)
+#define HIO_SVC_HTTPS_CLIL_IS_EMPTY(lh) (HIO_SVC_HTTPS_CLIL_FIRST_CLI(lh) == (lh))
+#define HIO_SVC_HTTPS_CLIL_IS_NIL_CLI(lh,cli) ((cli) == (lh))
 
 
 /* task list */
-#define HIO_SVC_HTTS_TASKL_APPEND_TASK(lh,task) do { \
+#define HIO_SVC_HTTPS_TASKL_APPEND_TASK(lh,task) do { \
 	(task)->task_next = (lh); \
 	(task)->task_prev = (lh)->task_prev; \
 	(task)->task_prev->task_next = (task); \
 	(lh)->task_prev = (task); \
 } while(0)
 
-#define HIO_SVC_HTTS_TASKL_UNLINK_TASK(task) do { \
+#define HIO_SVC_HTTPS_TASKL_UNLINK_TASK(task) do { \
 	(task)->task_prev->task_next = (task)->task_next; \
 	(task)->task_next->task_prev = (task)->task_prev; \
 } while (0)
 
-#define HIO_SVC_HTTS_TASKL_UNLINK_TASK_CLEAN(task) do { \
+#define HIO_SVC_HTTPS_TASKL_UNLINK_TASK_CLEAN(task) do { \
 	(task)->task_prev->task_next = (task)->task_next; \
 	(task)->task_next->task_prev = (task)->task_prev; \
 	(task)->task_prev = (task); \
 	(task)->task_next = (task); \
 } while (0)
 
-#define HIO_SVC_HTTS_TASKL_INIT(lh) ((lh)->task_next = (lh)->task_prev = lh)
-#define HIO_SVC_HTTS_TASKL_FIRST_TASK(lh) ((lh)->task_next)
-#define HIO_SVC_HTTS_TASKL_LAST_TASK(lh) ((lh)->task_prev)
-#define HIO_SVC_HTTS_TASKL_IS_EMPTY(lh) (HIO_SVC_HTTS_TASKL_FIRST_TASK(lh) == (lh))
-#define HIO_SVC_HTTS_TASKL_IS_NIL_TASK(lh,task) ((task) == (lh))
+#define HIO_SVC_HTTPS_TASKL_INIT(lh) ((lh)->task_next = (lh)->task_prev = lh)
+#define HIO_SVC_HTTPS_TASKL_FIRST_TASK(lh) ((lh)->task_next)
+#define HIO_SVC_HTTPS_TASKL_LAST_TASK(lh) ((lh)->task_prev)
+#define HIO_SVC_HTTPS_TASKL_IS_EMPTY(lh) (HIO_SVC_HTTPS_TASKL_FIRST_TASK(lh) == (lh))
+#define HIO_SVC_HTTPS_TASKL_IS_NIL_TASK(lh,task) ((task) == (lh))
 
 #endif

@@ -874,7 +874,7 @@ HIO_EXPORT int hio_dev_sck_sendfileok (
 );
 
 HIO_EXPORT int hio_dev_sck_writetosidechan (
-	hio_dev_sck_t* htts,
+	hio_dev_sck_t* https,
 	const void*    dptr,
 	hio_oow_t      dlen
 );

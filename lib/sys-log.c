@@ -265,14 +265,14 @@ void hio_sys_writelog (hio_t* hio, hio_bitmask_t mask, const hio_ooch_t* msg, hi
 			tslen = sprintf(ts, "%04d-%02d-%02d %02d:%02d:%02d ", tmp->tm_year + 1900, tmp->tm_mon + 1, tmp->tm_mday, tmp->tm_hour, tmp->tm_min, tmp->tm_sec);
 		}
 	#endif
-		write_log (hio, logfd, mask, ts, tslen);
+		write_log(hio, logfd, mask, ts, tslen);
 	}
 
 	if (logfd == log->fd && (log->fd_flag & LOGFD_TTY))
 	{
-		if (mask & HIO_LOG_FATAL) write_log (hio, logfd, mask, "\x1B[1;31m", 7);
-		else if (mask & HIO_LOG_ERROR) write_log (hio, logfd, mask, "\x1B[1;32m", 7);
-		else if (mask & HIO_LOG_WARN) write_log (hio, logfd, mask, "\x1B[1;33m", 7);
+		if (mask & HIO_LOG_FATAL) write_log(hio, logfd, mask, "\x1B[1;31m", 7);
+		else if (mask & HIO_LOG_ERROR) write_log(hio, logfd, mask, "\x1B[1;32m", 7);
+		else if (mask & HIO_LOG_WARN) write_log(hio, logfd, mask, "\x1B[1;33m", 7);
 	}
 
 #if defined(HIO_OOCH_IS_UCH)
@@ -310,15 +310,15 @@ void hio_sys_writelog (hio_t* hio, hio_bitmask_t mask, const hio_ooch_t* msg, hi
 		}
 	}
 #else
-	write_log (hio, logfd, mask, msg, len);
+	write_log(hio, logfd, mask, msg, len);
 #endif
 
 	if (logfd == log->fd && (log->fd_flag & LOGFD_TTY))
 	{
-		if (mask & (HIO_LOG_FATAL | HIO_LOG_ERROR | HIO_LOG_WARN)) write_log (hio, logfd, mask, "\x1B[0m", 4);
+		if (mask & (HIO_LOG_FATAL | HIO_LOG_ERROR | HIO_LOG_WARN)) write_log(hio, logfd, mask, "\x1B[0m", 4);
 	}
 
-	flush_log (hio, logfd, mask);
+	flush_log(hio, logfd, mask);
 }
 
 int hio_sys_initlog (hio_t* hio)
@@ -335,7 +335,7 @@ int hio_sys_initlog (hio_t* hio)
 		log->fd = -1;
 	}
 
-	pthread_mutex_init (&log->mtx, HIO_NULL);
+	pthread_mutex_init(&log->mtx, HIO_NULL);
 	return 0;
 }
 
@@ -349,7 +349,7 @@ void hio_sys_finilog (hio_t* hio)
 	{
 		if ((log->fd_flag & LOGFD_OPENED_HERE) && log->fd >= 0)
 		{
-			close (log->fd);
+			close(log->fd);
 			log->fd = -1;
 			log->fd_flag = 0;
 		}
@@ -386,16 +386,16 @@ void hio_sys_resetlog (hio_t* hio)
 		log->fd = fd;
 		log->fd_flag = fd_flag;
 
-		if (kill_fd >= 0) close (kill_fd);
+		if (kill_fd >= 0) close(kill_fd);
 	}
 }
 
 void hio_sys_locklog (hio_t* hio)
 {
-	pthread_mutex_lock (&hio->sysdep->log.mtx);
+	pthread_mutex_lock(&hio->sysdep->log.mtx);
 }
 
 void hio_sys_unlocklog (hio_t* hio)
 {
-	pthread_mutex_unlock (&hio->sysdep->log.mtx);
+	pthread_mutex_unlock(&hio->sysdep->log.mtx);
 }

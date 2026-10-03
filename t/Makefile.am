@@ -14,15 +14,15 @@ LDFLAGS_COMMON=-L$(abs_builddir)/../lib  -L$(libdir)
 LIBADD_COMMON = ../lib/libhio.la $(LIBM)
 
 
-check_SCRIPTS = s-001.sh s-002.sh
-EXTRA_DIST = $(check_SCRIPTS) tap.inc t-cgi.sh
+check_SCRIPTS = s-001.sh s-002.sh s-003.sh
+EXTRA_DIST = $(check_SCRIPTS) tap.inc t-cgi.sh ws-check.py
 
 ## programs run as tests
 TESTPROGS = t-001 t-002 t-003 t-004 t-005 t-006 t-007 t-008 t-009 t-010 t-011 t-012 t-013 t-014 t-015 t-016 t-017 t-018 t-019 t-020 t-021 t-022
 
 ## helpers the test scripts drive. built with the tests, but not tests
 ## themselves - they are servers and would never exit.
-HELPERPROGS = fcgis httpecho httssvr slowclient sctpget
+HELPERPROGS = fcgis httpecho httpsvr slowclient sctpget
 
 check_PROGRAMS = $(TESTPROGS) $(HELPERPROGS)
 
@@ -219,12 +219,12 @@ httpecho_CFLAGS = $(CFLAGS_COMMON)
 httpecho_LDFLAGS = $(LDFLAGS_COMMON)
 httpecho_LDADD = $(LIBADD_COMMON)
 
-## an http server exercising the htts task types, driven by s-002.sh
-httssvr_SOURCES = httssvr.c
-httssvr_CPPFLAGS = $(CPPFLAGS_COMMON)
-httssvr_CFLAGS = $(CFLAGS_COMMON)
-httssvr_LDFLAGS = $(LDFLAGS_COMMON)
-httssvr_LDADD = $(LIBADD_COMMON)
+## an http server exercising the https task types, driven by s-002.sh
+httpsvr_SOURCES = httpsvr.c
+httpsvr_CPPFLAGS = $(CPPFLAGS_COMMON)
+httpsvr_CFLAGS = $(CFLAGS_COMMON)
+httpsvr_LDFLAGS = $(LDFLAGS_COMMON)
+httpsvr_LDADD = $(LIBADD_COMMON)
 
 ## t-009 writes a throwaway certificate into the build directory and removes
 ## it on the way out. this catches the case where it dies before that.

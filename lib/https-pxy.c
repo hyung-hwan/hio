@@ -22,7 +22,7 @@
     THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  */
 
-#include "http-prv.h"
+#include "https-prv.h"
 #include <hio-sck.h>
 #include <hio-fmt.h>
 #include <hio-chr.h>
@@ -55,9 +55,9 @@
 
 struct pxy_t
 {
-	HIO_SVC_HTTS_TASK_HEADER;
+	HIO_SVC_HTTPS_TASK_HEADER;
 
-	hio_svc_htts_task_on_kill_t on_kill; /* user-provided on_kill callback */
+	hio_svc_https_task_on_kill_t on_kill; /* user-provided on_kill callback */
 
 	int options;
 	hio_oow_t peer_pending_writes;
@@ -89,7 +89,7 @@ static void unbind_task_from_peer (pxy_t* pxy, int rcdown);
 
 static void pxy_halt_participating_devices (pxy_t* pxy)
 {
-	hio_svc_htts_task_haltclient((hio_svc_htts_task_t*)pxy);
+	hio_svc_https_task_haltclient((hio_svc_https_task_t*)pxy);
 	if (pxy->peer) hio_dev_sck_halt(pxy->peer);
 }
 
@@ -135,24 +135,24 @@ static void pxy_mark_over (pxy_t* pxy, int over_bits)
 	old_over = pxy->over;
 	pxy->over |= over_bits;
 
-	HIO_DEBUG4 (pxy->htts->hio, "HTTS(%p) - pxy(c=%p) updating mark - new-bits=%x => over=%x\n", pxy->htts, pxy->task_csck, (int)over_bits, (int)pxy->over);
+	HIO_DEBUG4 (pxy->https->hio, "HTTPS(%p) - pxy(c=%p) updating mark - new-bits=%x => over=%x\n", pxy->https, pxy->task_csck, (int)over_bits, (int)pxy->over);
 
 	if (!(old_over & PXY_OVER_READ_FROM_CLIENT) && (pxy->over & PXY_OVER_READ_FROM_CLIENT))
-		hio_svc_htts_task_stopreadingclient((hio_svc_htts_task_t*)pxy);
+		hio_svc_https_task_stopreadingclient((hio_svc_https_task_t*)pxy);
 
 	if (old_over != PXY_OVER_ALL && pxy->over == PXY_OVER_ALL)
 	{
 		if (pxy->peer) hio_dev_sck_halt(pxy->peer);
-		hio_svc_htts_task_finishclient((hio_svc_htts_task_t*)pxy);
+		hio_svc_https_task_finishclient((hio_svc_https_task_t*)pxy);
 	}
 }
 
-static void pxy_on_kill (hio_svc_htts_task_t* task)
+static void pxy_on_kill (hio_svc_https_task_t* task)
 {
 	pxy_t* pxy = (pxy_t*)task;
-	hio_t* hio = pxy->htts->hio;
+	hio_t* hio = pxy->https->hio;
 
-	HIO_DEBUG5(hio, "HTTS(%p) - pxy(t=%p,c=%p[%d],p=%p) - killing the task\n", pxy->htts, pxy, pxy->task_client, (pxy->task_csck? pxy->task_csck->hnd: -1), pxy->peer);
+	HIO_DEBUG5(hio, "HTTPS(%p) - pxy(t=%p,c=%p[%d],p=%p) - killing the task\n", pxy->https, pxy, pxy->task_client, (pxy->task_csck? pxy->task_csck->hnd: -1), pxy->peer);
 
 	if (pxy->on_kill) pxy->on_kill(task);
 
@@ -163,7 +163,7 @@ static void pxy_on_kill (hio_svc_htts_task_t* task)
 	}
 
 	/* [NOTE]
-	 * 1. if hio_svc_htts_task_kill() is called, pxy->peer, pxy->peer_htrd, pxy->task_csck,
+	 * 1. if hio_svc_https_task_kill() is called, pxy->peer, pxy->peer_htrd, pxy->task_csck,
 	 *    pxy->task_client may not not null.
 	 * 2. this callback function doesn't decrement the reference count on pxy because
 	 *    it is the task destruction callback. (passing 0 to unbind_task_from_peer/client)
@@ -174,11 +174,11 @@ static void pxy_on_kill (hio_svc_htts_task_t* task)
 	if (pxy->task_csck)
 	{
 		HIO_ASSERT(hio, pxy->task_client != HIO_NULL);
-		hio_svc_htts_task_unbindfromclient((hio_svc_htts_task_t*)pxy, 0);
+		hio_svc_https_task_unbindfromclient((hio_svc_https_task_t*)pxy, 0);
 	}
 
-	if (pxy->task_next) HIO_SVC_HTTS_TASKL_UNLINK_TASK(pxy); /* detach from the htts service only if it's attached */
-	HIO_DEBUG5(hio, "HTTS(%p) - pxy(t=%p,c=%p[%d],p=%p) - killed the task\n", pxy->htts, pxy, pxy->task_client, (pxy->task_csck? pxy->task_csck->hnd: -1), pxy->peer);
+	if (pxy->task_next) HIO_SVC_HTTPS_TASKL_UNLINK_TASK(pxy); /* detach from the https service only if it's attached */
+	HIO_DEBUG5(hio, "HTTPS(%p) - pxy(t=%p,c=%p[%d],p=%p) - killed the task\n", pxy->https, pxy, pxy->task_client, (pxy->task_csck? pxy->task_csck->hnd: -1), pxy->peer);
 }
 
 /* hand the buffered request head - and anything the client sent while we
@@ -216,7 +216,7 @@ static void pxy_peer_on_connect (hio_dev_sck_t* sck)
 	pxy->peer_connected = 1;
 	if (flush_to_peer(pxy) <= -1)
 	{
-		HIO_DEBUG1(sck->hio, "HTTS(%p) - pxy unable to send the request to the peer\n", pxy->htts);
+		HIO_DEBUG1(sck->hio, "HTTPS(%p) - pxy unable to send the request to the peer\n", pxy->https);
 		pxy_halt_participating_devices(pxy);
 	}
 }
@@ -229,7 +229,7 @@ static void pxy_peer_on_disconnect (hio_dev_sck_t* sck)
 
 	if (!pxy) return; /* pxy task already gone */
 
-	HIO_DEBUG3(hio, "HTTS(%p) - peer %p(hnd=%d) disconnectd\n", pxy->htts, sck, (int)sck->hnd);
+	HIO_DEBUG3(hio, "HTTPS(%p) - peer %p(hnd=%d) disconnectd\n", pxy->https, sck, (int)sck->hnd);
 
 	/* reset pxy->peer before calling unbind_task_from_peer() because this is the peer close callback */
 	pxy->peer = HIO_NULL;
@@ -238,7 +238,7 @@ static void pxy_peer_on_disconnect (hio_dev_sck_t* sck)
 	/*
 			if (!(pxy->over & PXY_OVER_READ_FROM_PEER))
 			{
-				if (hio_svc_htts_task_endbody(pxy) <= -1)
+				if (hio_svc_https_task_endbody(pxy) <= -1)
 					pxy_halt_participating_devices(pxy);
 				else
 					pxy_mark_over(pxy, PXY_OVER_READ_FROM_PEER);
@@ -256,13 +256,13 @@ static int pxy_peer_on_read (hio_dev_sck_t* sck, const void* data, hio_iolen_t d
 
 	if (dlen <= -1)
 	{
-		HIO_DEBUG3(hio, "HTTS(%p) - read error from peer %p(hnd=%d)\n", pxy->htts, sck, (unsigned int)sck->hnd);
+		HIO_DEBUG3(hio, "HTTPS(%p) - read error from peer %p(hnd=%d)\n", pxy->https, sck, (unsigned int)sck->hnd);
 		goto oops;
 	}
 
 	if (dlen == 0)
 	{
-		HIO_DEBUG3(hio, "HTTS(%p) - EOF from peer %p(hnd=%d)\n", pxy->htts, sck, (int)sck->hnd);
+		HIO_DEBUG3(hio, "HTTPS(%p) - EOF from peer %p(hnd=%d)\n", pxy->https, sck, (int)sck->hnd);
 
 		if (!(pxy->over & PXY_OVER_READ_FROM_PEER))
 		{
@@ -270,7 +270,7 @@ static int pxy_peer_on_read (hio_dev_sck_t* sck, const void* data, hio_iolen_t d
 			/* the pxy script could be misbehaving.
 			 * it still has to read more but EOF is read.
 			 * otherwise peer_htrd_poke() should have been called */
-			n = hio_svc_htts_task_endbody((hio_svc_htts_task_t*)pxy);
+			n = hio_svc_https_task_endbody((hio_svc_https_task_t*)pxy);
 			pxy_mark_over(pxy, PXY_OVER_READ_FROM_PEER);
 			if (n <= -1) goto oops;
 		}
@@ -283,11 +283,11 @@ static int pxy_peer_on_read (hio_dev_sck_t* sck, const void* data, hio_iolen_t d
 
 		if (hio_htrd_feed(pxy->peer_htrd, data, dlen, &rem) <= -1)
 		{
-			HIO_DEBUG3(hio, "HTTS(%p) - unable to feed peer htrd - peer %p(hnd=%d)\n", pxy->htts, sck, (int)sck->hnd);
+			HIO_DEBUG3(hio, "HTTPS(%p) - unable to feed peer htrd - peer %p(hnd=%d)\n", pxy->https, sck, (int)sck->hnd);
 
 			if (!pxy->task_res_started && !(pxy->over & PXY_OVER_WRITE_TO_CLIENT))
 			{
-				hio_svc_htts_task_sendfinalres ((hio_svc_htts_task_t*)pxy, HIO_HTTP_STATUS_BAD_GATEWAY, HIO_NULL, HIO_NULL, 1); /* don't care about error because it jumps to oops below anyway */
+				hio_svc_https_task_sendfinalres ((hio_svc_https_task_t*)pxy, HIO_HTTP_STATUS_BAD_GATEWAY, HIO_NULL, HIO_NULL, 1); /* don't care about error because it jumps to oops below anyway */
 			}
 
 			goto oops;
@@ -318,7 +318,7 @@ static int pxy_peer_on_write (hio_dev_sck_t* sck, hio_iolen_t wrlen, void* wrctx
 
 	if (wrlen <= -1)
 	{
-		HIO_DEBUG3(hio, "HTTS(%p) - unable to write to peer %p(hnd=%d)\n", pxy->htts, sck, (int)sck->hnd);
+		HIO_DEBUG3(hio, "HTTPS(%p) - unable to write to peer %p(hnd=%d)\n", pxy->https, sck, (int)sck->hnd);
 		goto oops;
 	}
 	else if (wrlen == 0)
@@ -328,7 +328,7 @@ static int pxy_peer_on_write (hio_dev_sck_t* sck, hio_iolen_t wrlen, void* wrctx
 
 		pxy->peer_pending_writes--;
 		HIO_ASSERT(hio, pxy->peer_pending_writes == 0);
-		HIO_DEBUG3(hio, "HTTS(%p) - indicated EOF to peer %p(hnd=%d)\n", pxy->htts, sck, (int)sck->hnd);
+		HIO_DEBUG3(hio, "HTTPS(%p) - indicated EOF to peer %p(hnd=%d)\n", pxy->https, sck, (int)sck->hnd);
 		/* indicated EOF to the peer side. i need no more data from the client side.
 		 * i don't need to enable input watching in the client side either */
 		pxy_mark_over(pxy, PXY_OVER_WRITE_TO_PEER);
@@ -362,14 +362,14 @@ oops:
 
 static int peer_capture_response_header (hio_htre_t* req, const hio_bch_t* key, const hio_htre_hdrval_t* val, void* ctx)
 {
-	return hio_svc_htts_task_addreshdrs((hio_svc_htts_task_t*)(pxy_t*)ctx, key, val);
+	return hio_svc_https_task_addreshdrs((hio_svc_https_task_t*)(pxy_t*)ctx, key, val);
 }
 
 static int peer_htrd_peek (hio_htrd_t* htrd, hio_htre_t* req)
 {
 	pxy_peer_xtn_t* peer = hio_htrd_getxtn(htrd);
 	pxy_t* pxy = peer->pxy;
-	hio_svc_htts_cli_t* cli = pxy->task_client;
+	hio_svc_https_cli_t* cli = pxy->task_client;
 
 	if (HIO_LIKELY(cli))
 	{
@@ -388,9 +388,9 @@ static int peer_htrd_peek (hio_htrd_t* htrd, hio_htre_t* req)
 
 		chunked = pxy->task_keep_client_alive && !req->attr.content_length;
 
-		if (hio_svc_htts_task_startreshdr((hio_svc_htts_task_t*)pxy, status_code, status_desc, chunked) <= -1 ||
+		if (hio_svc_https_task_startreshdr((hio_svc_https_task_t*)pxy, status_code, status_desc, chunked) <= -1 ||
 			hio_htre_walkheaders(req, peer_capture_response_header, pxy) <= -1 ||
-			hio_svc_htts_task_endreshdr((hio_svc_htts_task_t*)pxy) <= -1) return -1;
+			hio_svc_https_task_endreshdr((hio_svc_https_task_t*)pxy) <= -1) return -1;
 	}
 
 	return 0;
@@ -403,7 +403,7 @@ static int peer_htrd_poke (hio_htrd_t* htrd, hio_htre_t* req)
 	pxy_t* pxy = peer->pxy;
 	int n;
 
-	n = hio_svc_htts_task_endbody((hio_svc_htts_task_t*)pxy);
+	n = hio_svc_https_task_endbody((hio_svc_https_task_t*)pxy);
 	pxy_mark_over(pxy, PXY_OVER_READ_FROM_PEER);
 	return n;
 }
@@ -414,9 +414,9 @@ static int peer_htrd_push_content (hio_htrd_t* htrd, hio_htre_t* req, const hio_
 	pxy_t* pxy = peer->pxy;
 	int n;
 
-	HIO_ASSERT(pxy->htts->hio, htrd == pxy->peer_htrd);
+	HIO_ASSERT(pxy->https->hio, htrd == pxy->peer_htrd);
 
-	n = hio_svc_htts_task_addresbody((hio_svc_htts_task_t*)pxy, data, dlen);
+	n = hio_svc_https_task_addresbody((hio_svc_https_task_t*)pxy, data, dlen);
 	if (!pxy->peer_read_suspended && pxy->task_csck &&
 	    hio_dev_getwqsize((hio_dev_t*)pxy->task_csck) > PXY_PENDING_BYTES_THRESHOLD)
 	{
@@ -437,9 +437,9 @@ static hio_htrd_recbs_t peer_htrd_recbs =
 static int pxy_client_htrd_poke (hio_htrd_t* htrd, hio_htre_t* req)
 {
 	/* client request got completed */
-	hio_svc_htts_cli_htrd_xtn_t* htrdxtn = (hio_svc_htts_cli_htrd_xtn_t*)hio_htrd_getxtn(htrd);
+	hio_svc_https_cli_htrd_xtn_t* htrdxtn = (hio_svc_https_cli_htrd_xtn_t*)hio_htrd_getxtn(htrd);
 	hio_dev_sck_t* sck = htrdxtn->sck;
-	hio_svc_htts_cli_t* cli = hio_dev_sck_getxtn(sck);
+	hio_svc_https_cli_t* cli = hio_dev_sck_getxtn(sck);
 	pxy_t* pxy = (pxy_t*)cli->task;
 
 	/* indicate EOF to the client peer */
@@ -451,9 +451,9 @@ static int pxy_client_htrd_poke (hio_htrd_t* htrd, hio_htre_t* req)
 
 static int pxy_client_htrd_push_content (hio_htrd_t* htrd, hio_htre_t* req, const hio_bch_t* data, hio_oow_t dlen)
 {
-	hio_svc_htts_cli_htrd_xtn_t* htrdxtn = (hio_svc_htts_cli_htrd_xtn_t*)hio_htrd_getxtn(htrd);
+	hio_svc_https_cli_htrd_xtn_t* htrdxtn = (hio_svc_https_cli_htrd_xtn_t*)hio_htrd_getxtn(htrd);
 	hio_dev_sck_t* sck = htrdxtn->sck;
-	hio_svc_htts_cli_t* cli = hio_dev_sck_getxtn(sck);
+	hio_svc_https_cli_t* cli = hio_dev_sck_getxtn(sck);
 	pxy_t* pxy = (pxy_t*)cli->task;
 
 	HIO_ASSERT(sck->hio, cli->sck == sck);
@@ -481,54 +481,54 @@ static hio_htrd_recbs_t pxy_client_htrd_recbs =
 
 static void pxy_client_on_disconnect (hio_dev_sck_t* sck)
 {
-	hio_svc_htts_cli_t* cli = hio_dev_sck_getxtn(sck);
-	hio_svc_htts_t* htts = cli->htts;
+	hio_svc_https_cli_t* cli = hio_dev_sck_getxtn(sck);
+	hio_svc_https_t* https = cli->https;
 	pxy_t* pxy = (pxy_t*)cli->task;
 	hio_t* hio = sck->hio;
 
 	HIO_ASSERT(hio, sck == pxy->task_csck);
-	HIO_DEBUG4(hio, "HTTS(%p) - pxy(t=%p,c=%p,csck=%p) - client socket disconnect notified\n", htts, pxy, cli, sck);
+	HIO_DEBUG4(hio, "HTTPS(%p) - pxy(t=%p,c=%p,csck=%p) - client socket disconnect notified\n", https, pxy, cli, sck);
 
 	if (pxy)
 	{
-		HIO_SVC_HTTS_TASK_RCUP((hio_svc_htts_task_t*)pxy);
+		HIO_SVC_HTTPS_TASK_RCUP((hio_svc_https_task_t*)pxy);
 
 		/* detach the task from the client and the client socket */
-		hio_svc_htts_task_unbindfromclient((hio_svc_htts_task_t*)pxy, 1);
+		hio_svc_https_task_unbindfromclient((hio_svc_https_task_t*)pxy, 1);
 
 		/* call the parent handler*/
 		/*if (fpxy->client_org_on_disconnect) fpxy->client_org_on_disconnect (sck);*/
-		hio_svc_htts_client_default_on_disconnect(sck); /* restored to the orginal parent handler in unbind_task_from_client() */
+		hio_svc_https_client_default_on_disconnect(sck); /* restored to the orginal parent handler in unbind_task_from_client() */
 
-		HIO_SVC_HTTS_TASK_RCDOWN((hio_svc_htts_task_t*)pxy);
+		HIO_SVC_HTTPS_TASK_RCDOWN((hio_svc_https_task_t*)pxy);
 	}
 
-	HIO_DEBUG4(hio, "HTTS(%p) - pxy(t=%p,c=%p,csck=%p) - client socket disconnect handled\n", htts, pxy, cli, sck);
+	HIO_DEBUG4(hio, "HTTPS(%p) - pxy(t=%p,c=%p,csck=%p) - client socket disconnect handled\n", https, pxy, cli, sck);
 	/* Note: after this callback, the actual device pointed to by 'sck' will be freed in the main loop. */
 }
 
 static int pxy_client_on_read (hio_dev_sck_t* sck, const void* buf, hio_iolen_t len, const hio_skad_t* srcaddr)
 {
 	hio_t* hio = sck->hio;
-	hio_svc_htts_cli_t* cli = hio_dev_sck_getxtn(sck);
+	hio_svc_https_cli_t* cli = hio_dev_sck_getxtn(sck);
 	pxy_t* pxy = (pxy_t*)cli->task;
 	int n;
 
 	HIO_ASSERT(hio, sck == cli->sck);
 
-	n = hio_svc_htts_client_default_on_read(sck, buf, len, srcaddr);
+	n = hio_svc_https_client_default_on_read(sck, buf, len, srcaddr);
 
 	if (len <= -1)
 	{
 		/* read error */
-		HIO_DEBUG3(cli->htts->hio, "HTTS(%p) - read error on client %p(%d)\n", pxy->htts, sck, (int)sck->hnd);
+		HIO_DEBUG3(cli->https->hio, "HTTPS(%p) - read error on client %p(%d)\n", pxy->https, sck, (int)sck->hnd);
 		goto oops;
 	}
 
 	if (len == 0)
 	{
 		/* EOF on the client side. arrange to close */
-		HIO_DEBUG3(hio, "HTTS(%p) - EOF from client %p(hnd=%d)\n", pxy->htts, sck, (int)sck->hnd);
+		HIO_DEBUG3(hio, "HTTPS(%p) - EOF from client %p(hnd=%d)\n", pxy->https, sck, (int)sck->hnd);
 
 		if (!(pxy->over & PXY_OVER_READ_FROM_CLIENT)) /* if this is true, EOF is received without pxy_client_htrd_poke() */
 		{
@@ -550,16 +550,16 @@ oops:
 static int pxy_client_on_write (hio_dev_sck_t* sck, hio_iolen_t wrlen, void* wrctx, const hio_skad_t* dstaddr)
 {
 	hio_t* hio = sck->hio;
-	hio_svc_htts_cli_t* cli = hio_dev_sck_getxtn(sck);
+	hio_svc_https_cli_t* cli = hio_dev_sck_getxtn(sck);
 	pxy_t* pxy = (pxy_t*)cli->task;
 	int n;
 
-	n = hio_svc_htts_client_default_on_write(sck, wrlen, wrctx, dstaddr);
+	n = hio_svc_https_client_default_on_write(sck, wrlen, wrctx, dstaddr);
 
 	if (wrlen == 0)
 	{
 		/* if the connect is keep-alive, this part may not be called */
-		HIO_DEBUG3(hio, "HTTS(%p) - indicated EOF to client %p(%d)\n", pxy->htts, sck, (int)sck->hnd);
+		HIO_DEBUG3(hio, "HTTPS(%p) - indicated EOF to client %p(%d)\n", pxy->https, sck, (int)sck->hnd);
 		/* since EOF has been indicated to the client, it must not write to the client any further.
 		 * this also means that i don't need any data from the peer side either.
 		 * i don't need to enable input watching on the peer side */
@@ -590,7 +590,7 @@ static int pxy_client_on_write (hio_dev_sck_t* sck, hio_iolen_t wrlen, void* wrc
 
 struct peer_fork_ctx_t
 {
-	hio_svc_htts_cli_t* cli;
+	hio_svc_https_cli_t* cli;
 	hio_htre_t* req;
 	const hio_bch_t* docroot;
 	const hio_bch_t* script;
@@ -670,9 +670,9 @@ static int build_request_head (pxy_t* pxy, hio_htre_t* req)
 
 static int bind_task_to_peer (pxy_t* pxy, hio_dev_sck_t* csck, hio_htre_t* req, const hio_skad_t* skad)
 {
-	hio_svc_htts_cli_t* cli = hio_dev_sck_getxtn(csck);
-	hio_svc_htts_t* htts = pxy->htts;
-	hio_t* hio = htts->hio;
+	hio_svc_https_cli_t* cli = hio_dev_sck_getxtn(csck);
+	hio_svc_https_t* https = pxy->https;
+	hio_t* hio = https->hio;
 	hio_dev_sck_make_t m;
 	hio_dev_sck_connect_t c;
 	hio_dev_sck_t* sck = HIO_NULL;
@@ -691,7 +691,7 @@ static int bind_task_to_peer (pxy_t* pxy, hio_dev_sck_t* csck, hio_htre_t* req, 
 			if (hio_bcstrtoskad(hio, host, &resolved_skad) <= -1)
 			{
 				/*
-				if (hio_svc_dnc_resolve(htts->dnc, qpath + , qtype, 0, on_peer_ipaddr_resolved, 0) <= -1)
+				if (hio_svc_dnc_resolve(https->dnc, qpath + , qtype, 0, on_peer_ipaddr_resolved, 0) <= -1)
 				{
 				}*/
 			}
@@ -722,11 +722,11 @@ static int bind_task_to_peer (pxy_t* pxy, hio_dev_sck_t* csck, hio_htre_t* req, 
 
 	pxtn = hio_dev_sck_getxtn(pxy->peer);
 	pxtn->pxy = pxy;
-	HIO_SVC_HTTS_TASK_RCUP(pxy);
+	HIO_SVC_HTTPS_TASK_RCUP(pxy);
 
 	pxtn = hio_htrd_getxtn(pxy->peer_htrd);
 	pxtn->pxy = pxy;
-	HIO_SVC_HTTS_TASK_RCUP(pxy);
+	HIO_SVC_HTTPS_TASK_RCUP(pxy);
 
 	/* Serialize the request now, while 'req' is still valid. It is only
 	 * handed over once the connection completes. */
@@ -772,7 +772,7 @@ static void unbind_task_from_peer (pxy_t* pxy, int rcdown)
 		while (n > 0)
 		{
 			n--;
-			HIO_SVC_HTTS_TASK_RCDOWN((hio_svc_htts_task_t*)pxy);
+			HIO_SVC_HTTPS_TASK_RCDOWN((hio_svc_https_task_t*)pxy);
 		}
 	}
 }
@@ -810,10 +810,10 @@ static int setup_for_content_length(pxy_t* pxy, hio_htre_t* req)
 
 /* ----------------------------------------------------------------------- */
 
-int hio_svc_htts_dopxy (hio_svc_htts_t* htts, hio_dev_sck_t* csck, hio_htre_t* req, const hio_skad_t* tgt_addr, int options, hio_svc_htts_task_on_kill_t on_kill)
+int hio_svc_https_dopxy (hio_svc_https_t* https, hio_dev_sck_t* csck, hio_htre_t* req, const hio_skad_t* tgt_addr, int options, hio_svc_https_task_on_kill_t on_kill)
 {
-	hio_t* hio = htts->hio;
-	hio_svc_htts_cli_t* cli = hio_dev_sck_getxtn(csck);
+	hio_t* hio = https->hio;
+	hio_svc_https_cli_t* cli = hio_dev_sck_getxtn(csck);
 	pxy_t* pxy = HIO_NULL;
 	int n, status_code = HIO_HTTP_STATUS_INTERNAL_SERVER_ERROR;
 	int bound_to_client = 0, bound_to_peer = 0;
@@ -828,13 +828,13 @@ int hio_svc_htts_dopxy (hio_svc_htts_t* htts, hio_dev_sck_t* csck, hio_htre_t* r
 		goto oops;
 	}
 
-	pxy = (pxy_t*)hio_svc_htts_task_make(htts, HIO_SIZEOF(*pxy), pxy_on_kill, req, csck);
+	pxy = (pxy_t*)hio_svc_https_task_make(https, HIO_SIZEOF(*pxy), pxy_on_kill, req, csck);
 	if (HIO_UNLIKELY(!pxy)) goto oops;
-	HIO_SVC_HTTS_TASK_RCUP((hio_svc_htts_task_t*)pxy);
+	HIO_SVC_HTTPS_TASK_RCUP((hio_svc_https_task_t*)pxy);
 
 	pxy->options = options;
 
-	hio_svc_htts_task_bindtoclient((hio_svc_htts_task_t*)pxy, csck, &pxy_client_evcb);
+	hio_svc_https_task_bindtoclient((hio_svc_https_task_t*)pxy, csck, &pxy_client_evcb);
 	bound_to_client = 1;
 
 	pxy->peer_buf = hio_becs_open(hio, 0, 512);
@@ -842,19 +842,19 @@ int hio_svc_htts_dopxy (hio_svc_htts_t* htts, hio_dev_sck_t* csck, hio_htre_t* r
 
 	if ((n = bind_task_to_peer(pxy, csck, req, tgt_addr)) <= -1)
 	{
-		hio_svc_htts_task_sendfinalres((hio_svc_htts_task_t*)pxy, (n == 2? HIO_HTTP_STATUS_FORBIDDEN: HIO_HTTP_STATUS_INTERNAL_SERVER_ERROR), HIO_NULL, HIO_NULL, 1);
+		hio_svc_https_task_sendfinalres((hio_svc_https_task_t*)pxy, (n == 2? HIO_HTTP_STATUS_FORBIDDEN: HIO_HTTP_STATUS_INTERNAL_SERVER_ERROR), HIO_NULL, HIO_NULL, 1);
 		goto oops; /* TODO: must not go to oops.  just destroy the pxy and finalize the request .. */
 	}
 	bound_to_peer = 1;
 
-	if (hio_svc_htts_task_handleexpect100((hio_svc_htts_task_t*)pxy, 0) <= -1) goto oops;
+	if (hio_svc_https_task_handleexpect100((hio_svc_https_task_t*)pxy, 0) <= -1) goto oops;
 	if (setup_for_content_length(pxy, req) <= -1) goto oops;
 
 	/* TODO: store current input watching state and use it when destroying the pxy data */
 	if (hio_dev_sck_read(csck, !(pxy->over & PXY_OVER_READ_FROM_CLIENT)) <= -1) goto oops;
 
-	HIO_SVC_HTTS_TASKL_APPEND_TASK(&htts->task, (hio_svc_htts_task_t*)pxy);
-	HIO_SVC_HTTS_TASK_RCDOWN((hio_svc_htts_task_t*)pxy);
+	HIO_SVC_HTTPS_TASKL_APPEND_TASK(&https->task, (hio_svc_https_task_t*)pxy);
+	HIO_SVC_HTTPS_TASK_RCDOWN((hio_svc_https_task_t*)pxy);
 
 	/* set the on_kill callback only if this function can return success.
 	 * the on_kill callback won't be executed if this function returns failure. */
@@ -862,14 +862,14 @@ int hio_svc_htts_dopxy (hio_svc_htts_t* htts, hio_dev_sck_t* csck, hio_htre_t* r
 	return 0;
 
 oops:
-	HIO_DEBUG2(hio, "HTTS(%p) - FAILURE in dopxy - socket(%p)\n", htts, csck);
+	HIO_DEBUG2(hio, "HTTPS(%p) - FAILURE in dopxy - socket(%p)\n", https, csck);
 	if (pxy)
 	{
-		hio_svc_htts_task_sendfinalres((hio_svc_htts_task_t*)pxy, status_code, HIO_NULL, HIO_NULL, 1);
+		hio_svc_https_task_sendfinalres((hio_svc_https_task_t*)pxy, status_code, HIO_NULL, HIO_NULL, 1);
 		if (bound_to_peer) unbind_task_from_peer (pxy, 1);
-		if (bound_to_client) hio_svc_htts_task_unbindfromclient((hio_svc_htts_task_t*)pxy, 1);
+		if (bound_to_client) hio_svc_https_task_unbindfromclient((hio_svc_https_task_t*)pxy, 1);
 		pxy_halt_participating_devices(pxy);
-		HIO_SVC_HTTS_TASK_RCDOWN((hio_svc_htts_task_t*)pxy);
+		HIO_SVC_HTTPS_TASK_RCDOWN((hio_svc_https_task_t*)pxy);
 	}
 	return -1;
 }

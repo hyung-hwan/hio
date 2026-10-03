@@ -22,7 +22,7 @@
     THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  */
 
-#include "http-prv.h"
+#include "https-prv.h"
 #include <hio-pro.h>
 #include <hio-fmt.h>
 #include <hio-chr.h>
@@ -44,12 +44,12 @@
 
 struct file_t
 {
-	HIO_SVC_HTTS_TASK_HEADER;
+	HIO_SVC_HTTPS_TASK_HEADER;
 
-	hio_svc_htts_task_on_kill_t on_kill; /* user-provided on_kill callback */
+	hio_svc_https_task_on_kill_t on_kill; /* user-provided on_kill callback */
 
 	int options;
-	hio_svc_htts_file_cbs_t* cbs;
+	hio_svc_https_file_cbs_t* cbs;
 	int csck_tcp_cork;
 
 	hio_oow_t num_pending_writes_to_peer;
@@ -99,7 +99,7 @@ static HIO_INLINE void set_tcp_cork (hio_dev_sck_t* sck, int tcp_cork)
 
 static void file_halt_participating_devices (file_t* file)
 {
-	hio_svc_htts_task_haltclient((hio_svc_htts_task_t*)file);
+	hio_svc_https_task_haltclient((hio_svc_https_task_t*)file);
 	unbind_task_from_peer(file, 1);
 }
 
@@ -110,10 +110,10 @@ static void file_mark_over (file_t* file, int over_bits)
 	old_over = file->over;
 	file->over |= over_bits;
 
-	HIO_DEBUG4 (file->htts->hio, "HTTS(%p) - file(c=%p) updating mark - new-bits=%x => over=%x\n", file->htts, file->task_csck, (int)over_bits, (int)file->over);
+	HIO_DEBUG4 (file->https->hio, "HTTPS(%p) - file(c=%p) updating mark - new-bits=%x => over=%x\n", file->https, file->task_csck, (int)over_bits, (int)file->over);
 
 	if (!(old_over & FILE_OVER_READ_FROM_CLIENT) && (file->over & FILE_OVER_READ_FROM_CLIENT))
-		hio_svc_htts_task_stopreadingclient((hio_svc_htts_task_t*)file);
+		hio_svc_https_task_stopreadingclient((hio_svc_https_task_t*)file);
 
 	if (old_over != FILE_OVER_ALL && file->over == FILE_OVER_ALL)
 	{
@@ -121,13 +121,13 @@ static void file_mark_over (file_t* file, int over_bits)
 		/* the cork is only worth restoring on a connection that lives on */
 		if (file->task_keep_client_alive && file->task_csck && file->csck_tcp_cork >= 0)
 			set_tcp_cork (file->task_csck, file->csck_tcp_cork);
-		hio_svc_htts_task_finishclient((hio_svc_htts_task_t*)file);
+		hio_svc_https_task_finishclient((hio_svc_https_task_t*)file);
 	}
 }
 
 static int file_write_to_peer (file_t* file, const void* data, hio_iolen_t dlen)
 {
-	/* hio_t* hio = file->htts->hio; */
+	/* hio_t* hio = file->https->hio; */
 
 	if (dlen <= 0)
 	{
@@ -154,12 +154,12 @@ static int file_write_to_peer (file_t* file, const void* data, hio_iolen_t dlen)
 	return 0;
 }
 
-static void file_on_kill (hio_svc_htts_task_t* task)
+static void file_on_kill (hio_svc_https_task_t* task)
 {
 	file_t* file = (file_t*)task;
-	hio_t* hio = file->htts->hio;
+	hio_t* hio = file->https->hio;
 
-	HIO_DEBUG5 (hio, "HTTS(%p) - file(t=%p,c=%p[%d],p=%d) - killing the task\n", file->htts, file, file->task_client, (file->task_csck? file->task_csck->hnd: -1), file->peer);
+	HIO_DEBUG5 (hio, "HTTPS(%p) - file(t=%p,c=%p[%d],p=%d) - killing the task\n", file->https, file, file->task_client, (file->task_csck? file->task_csck->hnd: -1), file->peer);
 
 	if (file->on_kill) file->on_kill(task);
 
@@ -170,32 +170,32 @@ static void file_on_kill (hio_svc_htts_task_t* task)
 	if (file->task_csck)
 	{
 		HIO_ASSERT(hio, file->task_client != HIO_NULL);
-		hio_svc_htts_task_unbindfromclient((hio_svc_htts_task_t*)file, 0);
+		hio_svc_https_task_unbindfromclient((hio_svc_https_task_t*)file, 0);
 	}
 
-	if (file->task_next) HIO_SVC_HTTS_TASKL_UNLINK_TASK(file); /* detach from the htts service only if it's attached */
+	if (file->task_next) HIO_SVC_HTTPS_TASKL_UNLINK_TASK(file); /* detach from the https service only if it's attached */
 
-	HIO_DEBUG5 (hio, "HTTS(%p) - file(t=%p,c=%p[%d],p=%d) - killed the task\n", file->htts, file, file->task_client, (file->task_csck? file->task_csck->hnd: -1), file->peer);
+	HIO_DEBUG5 (hio, "HTTPS(%p) - file(t=%p,c=%p[%d],p=%d) - killed the task\n", file->https, file, file->task_client, (file->task_csck? file->task_csck->hnd: -1), file->peer);
 }
 
 static void file_client_on_disconnect (hio_dev_sck_t* sck)
 {
 	hio_t* hio = sck->hio;
-	hio_svc_htts_cli_t* cli = hio_dev_sck_getxtn(sck);
+	hio_svc_https_cli_t* cli = hio_dev_sck_getxtn(sck);
 	file_t* file = (file_t*)cli->task;
-	hio_svc_htts_t* htts = file->htts;
+	hio_svc_https_t* https = file->https;
 
 	HIO_ASSERT(hio, sck == cli->sck);
 	HIO_ASSERT(hio, sck == file->task_csck);
 
-	HIO_DEBUG4 (hio, "HTTS(%p) - file(t=%p,c=%p,csck=%p) - client socket disconnect notified\n", htts, file, sck, cli);
+	HIO_DEBUG4 (hio, "HTTPS(%p) - file(t=%p,c=%p,csck=%p) - client socket disconnect notified\n", https, file, sck, cli);
 
 	if (file)
 	{
-		HIO_SVC_HTTS_TASK_RCUP((hio_svc_htts_task_t*)file);
+		HIO_SVC_HTTPS_TASK_RCUP((hio_svc_https_task_t*)file);
 
 		/* detach the task from the client and the client socket */
-		hio_svc_htts_task_unbindfromclient((hio_svc_htts_task_t*)file, 1);
+		hio_svc_https_task_unbindfromclient((hio_svc_https_task_t*)file, 1);
 
 		/* the current file peer implemenation is not async. so there is no IO event associated
 		 * when the client side is disconnected, simple close the peer side as it's not needed.
@@ -205,19 +205,19 @@ static void file_client_on_disconnect (hio_dev_sck_t* sck)
 		/* call the parent handler. unbind_task_from_client() above popped
 		 * this task's layer off, so sck->on_disconnect is the handler that
 		 * was displaced when the layer was pushed. */
-		hio_svc_htts_client_default_on_disconnect (sck);
+		hio_svc_https_client_default_on_disconnect (sck);
 
-		HIO_SVC_HTTS_TASK_RCDOWN((hio_svc_htts_task_t*)file);
+		HIO_SVC_HTTPS_TASK_RCDOWN((hio_svc_https_task_t*)file);
 	}
 
-	HIO_DEBUG4(hio, "HTTS(%p) - file(t=%p,c=%p,csck=%p) - client socket disconnect handled\n", htts, file, sck, cli);
+	HIO_DEBUG4(hio, "HTTPS(%p) - file(t=%p,c=%p,csck=%p) - client socket disconnect handled\n", https, file, sck, cli);
 	/* Note: after this callback, the actual device pointed to by 'sck' will be freed in the main loop. */
 }
 
 static int file_client_on_read (hio_dev_sck_t* sck, const void* buf, hio_iolen_t len, const hio_skad_t* srcaddr)
 {
 	hio_t* hio = sck->hio;
-	hio_svc_htts_cli_t* cli = hio_dev_sck_getxtn(sck);
+	hio_svc_https_cli_t* cli = hio_dev_sck_getxtn(sck);
 	file_t* file = (file_t*)cli->task;
 
 	HIO_ASSERT(hio, sck == cli->sck);
@@ -226,21 +226,21 @@ static int file_client_on_read (hio_dev_sck_t* sck, const void* buf, hio_iolen_t
 	if (len <= -1)
 	{
 		/* read error */
-		HIO_DEBUG3 (cli->htts->hio, "HTTS(%p) - file(c=%d,p=%d) read error on client\n", file->htts, (int)sck->hnd, file->peer);
+		HIO_DEBUG3 (cli->https->hio, "HTTPS(%p) - file(c=%d,p=%d) read error on client\n", file->https, (int)sck->hnd, file->peer);
 		goto oops;
 	}
 
 	if (file->peer <= -1)
 	{
 		/* the peer is gone or not even opened */
-		HIO_DEBUG3 (cli->htts->hio, "HTTS(%p) - file(c=%d,p=%d) read on client, no peer to write\n", file->htts, (int)sck->hnd, file->peer);
+		HIO_DEBUG3 (cli->https->hio, "HTTPS(%p) - file(c=%d,p=%d) read on client, no peer to write\n", file->https, (int)sck->hnd, file->peer);
 		goto oops; /* do what?  just return 0? */
 	}
 
 	if (len == 0)
 	{
 		/* EOF on the client side. arrange to close */
-		HIO_DEBUG3 (cli->htts->hio, "HTTS(%p) - file(c=%d,p=%d) EOF detected on client\n", file->htts, (int)sck->hnd, file->peer);
+		HIO_DEBUG3 (cli->https->hio, "HTTPS(%p) - file(c=%d,p=%d) EOF detected on client\n", file->https, (int)sck->hnd, file->peer);
 
 		if (!(file->over & FILE_OVER_READ_FROM_CLIENT)) /* if this is true, EOF is received without file_client_htrd_poke() */
 		{
@@ -261,7 +261,7 @@ static int file_client_on_read (hio_dev_sck_t* sck, const void* buf, hio_iolen_t
 		if (rem > 0)
 		{
 			/* TODO store this to client buffer. once the current resource is completed, arrange to call on_read() with it */
-			HIO_DEBUG3 (cli->htts->hio, "HTTS(%p) - file(c=%d,p=%d) excessive data after contents on client\n", file->htts, (int)sck->hnd, file->peer);
+			HIO_DEBUG3 (cli->https->hio, "HTTPS(%p) - file(c=%d,p=%d) excessive data after contents on client\n", file->https, (int)sck->hnd, file->peer);
 		}
 	}
 
@@ -275,11 +275,11 @@ oops:
 static int file_client_on_write (hio_dev_sck_t* sck, hio_iolen_t wrlen, void* wrctx, const hio_skad_t* dstaddr)
 {
 	hio_t* hio = sck->hio;
-	hio_svc_htts_cli_t* cli = hio_dev_sck_getxtn(sck);
+	hio_svc_https_cli_t* cli = hio_dev_sck_getxtn(sck);
 	file_t* file = (file_t*)cli->task;
 	int n;
 
-	n = hio_svc_htts_client_default_on_write(sck, wrlen, wrctx, dstaddr);
+	n = hio_svc_https_client_default_on_write(sck, wrlen, wrctx, dstaddr);
 
 	if (wrlen == 0)
 	{
@@ -313,9 +313,9 @@ static hio_dev_sck_evcb_t file_client_evcb = {
 static int file_client_htrd_poke (hio_htrd_t* htrd, hio_htre_t* req)
 {
 	/* client request got completed */
-	hio_svc_htts_cli_htrd_xtn_t* htrdxtn = (hio_svc_htts_cli_htrd_xtn_t*)hio_htrd_getxtn(htrd);
+	hio_svc_https_cli_htrd_xtn_t* htrdxtn = (hio_svc_https_cli_htrd_xtn_t*)hio_htrd_getxtn(htrd);
 	hio_dev_sck_t* sck = htrdxtn->sck;
-	hio_svc_htts_cli_t* cli = hio_dev_sck_getxtn(sck);
+	hio_svc_https_cli_t* cli = hio_dev_sck_getxtn(sck);
 	file_t* file = (file_t*)cli->task;
 
 	/* indicate EOF to the client peer */
@@ -323,7 +323,7 @@ static int file_client_htrd_poke (hio_htrd_t* htrd, hio_htre_t* req)
 
 	if (file->task_req_method != HIO_HTTP_GET)
 	{
-		if (hio_svc_htts_task_sendfinalres((hio_svc_htts_task_t*)file, HIO_HTTP_STATUS_OK, HIO_NULL, HIO_NULL, 0) <= -1) return -1;
+		if (hio_svc_https_task_sendfinalres((hio_svc_https_task_t*)file, HIO_HTTP_STATUS_OK, HIO_NULL, HIO_NULL, 0) <= -1) return -1;
 	}
 
 	file_mark_over(file, FILE_OVER_READ_FROM_CLIENT);
@@ -332,9 +332,9 @@ static int file_client_htrd_poke (hio_htrd_t* htrd, hio_htre_t* req)
 
 static int file_client_htrd_push_content (hio_htrd_t* htrd, hio_htre_t* req, const hio_bch_t* data, hio_oow_t dlen)
 {
-	hio_svc_htts_cli_htrd_xtn_t* htrdxtn = (hio_svc_htts_cli_htrd_xtn_t*)hio_htrd_getxtn(htrd);
+	hio_svc_https_cli_htrd_xtn_t* htrdxtn = (hio_svc_https_cli_htrd_xtn_t*)hio_htrd_getxtn(htrd);
 	hio_dev_sck_t* sck = htrdxtn->sck;
-	hio_svc_htts_cli_t* cli = hio_dev_sck_getxtn(sck);
+	hio_svc_https_cli_t* cli = hio_dev_sck_getxtn(sck);
 	file_t* file = (file_t*)cli->task;
 
 	HIO_ASSERT(sck->hio, cli->sck == sck);
@@ -352,7 +352,7 @@ static hio_htrd_recbs_t file_client_htrd_recbs =
 
 static int file_send_header_to_client (file_t* file, int status_code, int force_close, const hio_bch_t* mime_type)
 {
-	hio_svc_htts_cli_t* cli = file->task_client;
+	hio_svc_https_cli_t* cli = file->task_client;
 	hio_foff_t content_length;
 
 	if (HIO_UNLIKELY(!cli))
@@ -364,25 +364,25 @@ static int file_send_header_to_client (file_t* file, int status_code, int force_
 	content_length = file->end_offset - file->start_offset + 1;
 	if (status_code == HIO_HTTP_STATUS_OK && file->total_size != content_length) status_code = HIO_HTTP_STATUS_PARTIAL_CONTENT;
 
-	if (hio_svc_htts_task_startreshdr((hio_svc_htts_task_t*)file, status_code, HIO_NULL, 0) <= -1) return -1;
+	if (hio_svc_https_task_startreshdr((hio_svc_https_task_t*)file, status_code, HIO_NULL, 0) <= -1) return -1;
 
-	if (mime_type && mime_type[0] != '\0' && hio_svc_htts_task_addreshdr((hio_svc_htts_task_t*)file, "Content-Type", mime_type) <= -1) return -1;
+	if (mime_type && mime_type[0] != '\0' && hio_svc_https_task_addreshdr((hio_svc_https_task_t*)file, "Content-Type", mime_type) <= -1) return -1;
 
 	if ((file->task_req_method == HIO_HTTP_GET || file->task_req_method == HIO_HTTP_HEAD) &&
-	    hio_svc_htts_task_addreshdr((hio_svc_htts_task_t*)file, "ETag", file->peer_etag) <= -1) return -1;
+	    hio_svc_https_task_addreshdr((hio_svc_https_task_t*)file, "ETag", file->peer_etag) <= -1) return -1;
 
 	if (status_code == HIO_HTTP_STATUS_PARTIAL_CONTENT &&
-	    hio_svc_htts_task_addreshdrfmt((hio_svc_htts_task_t*)file, "Content-Ranges", "bytes %ju-%ju/%ju", (hio_uintmax_t)file->start_offset, (hio_uintmax_t)file->end_offset, (hio_uintmax_t)file->total_size) <= -1) return -1;
+	    hio_svc_https_task_addreshdrfmt((hio_svc_https_task_t*)file, "Content-Ranges", "bytes %ju-%ju/%ju", (hio_uintmax_t)file->start_offset, (hio_uintmax_t)file->end_offset, (hio_uintmax_t)file->total_size) <= -1) return -1;
 
 /* ----- */
 // TODO: Allow-Contents
 // Allow-Headers... support custom headers...
-	if (hio_svc_htts_task_addreshdr((hio_svc_htts_task_t*)file, "Access-Control-Allow-Origin", "*") <= -1) return -1;
+	if (hio_svc_https_task_addreshdr((hio_svc_https_task_t*)file, "Access-Control-Allow-Origin", "*") <= -1) return -1;
 /* ----- */
 
-	if (hio_svc_htts_task_addreshdrfmt((hio_svc_htts_task_t*)file, "Content-Length", "%ju", (hio_uintmax_t)content_length) <= -1) return -1;
+	if (hio_svc_https_task_addreshdrfmt((hio_svc_https_task_t*)file, "Content-Length", "%ju", (hio_uintmax_t)content_length) <= -1) return -1;
 
-	if (hio_svc_htts_task_endreshdr((hio_svc_htts_task_t*)file) <= -1) return -1;
+	if (hio_svc_https_task_endreshdr((hio_svc_https_task_t*)file) <= -1) return -1;
 
 	return 0;
 }
@@ -395,7 +395,7 @@ static void send_contents_to_client_later (hio_t* hio, const hio_ntime_t* now, h
 
 static int file_send_contents_to_client (file_t* file)
 {
-	hio_t* hio = file->htts->hio;
+	hio_t* hio = file->https->hio;
 	hio_foff_t lim;
 
 	if (file->cur_offset > file->end_offset)
@@ -409,7 +409,7 @@ static int file_send_contents_to_client (file_t* file)
 	if (file->sendfile_ok)
 	{
 		if (lim > 0x7FFF0000) lim = 0x7FFF0000; /* TODO: change this... */
-		if (hio_svc_htts_task_addresbodyfromfile((hio_svc_htts_task_t*)file, file->peer, file->cur_offset, lim) <= -1) return -1;
+		if (hio_svc_https_task_addresbodyfromfile((hio_svc_https_task_t*)file, file->peer, file->cur_offset, lim) <= -1) return -1;
 		file->cur_offset += lim;
 	}
 	else
@@ -441,7 +441,7 @@ static int file_send_contents_to_client (file_t* file)
 			return -1;
 		}
 		/*if (file_write_to_client(file, file->peer_buf, n) <= -1) return -1;*/
-		if (hio_svc_htts_task_addresbody((hio_svc_htts_task_t*)file, file->peer_buf, n) <= -1) return -1;
+		if (hio_svc_https_task_addresbody((hio_svc_https_task_t*)file, file->peer_buf, n) <= -1) return -1;
 
 		file->cur_offset += n;
 
@@ -586,7 +586,7 @@ static int open_peer_with_mode (file_t* file, const hio_bch_t* actual_file, int 
 			return -1;
 		}
 
-		alt_fd = file->cbs->open_dir_list(file->htts, file->task_req_qpath, actual_file, res_mime_type, file->cbs->ctx);
+		alt_fd = file->cbs->open_dir_list(file->https, file->task_req_qpath, actual_file, res_mime_type, file->cbs->ctx);
 		if (alt_fd >= 0)
 		{
 			close(file->peer);
@@ -598,7 +598,7 @@ static int open_peer_with_mode (file_t* file, const hio_bch_t* actual_file, int 
 		if (res_mime_type && file->cbs && file->cbs->get_mime_type)
 		{
 			const hio_bch_t* mime_type;
-			mime_type = file->cbs->get_mime_type(file->htts, file->task_req_qpath, actual_file, file->cbs->ctx);
+			mime_type = file->cbs->get_mime_type(file->https, file->task_req_qpath, actual_file, file->cbs->ctx);
 			if (mime_type) *res_mime_type = mime_type;
 		}
 	}
@@ -652,7 +652,7 @@ static int bind_task_to_peer (file_t* file, hio_htre_t* req, const hio_bch_t* fi
 
 		case HIO_HTTP_POST:
 		case HIO_HTTP_PUT:
-			if (file->options & HIO_SVC_HTTS_FILE_READ_ONLY)
+			if (file->options & HIO_SVC_HTTPS_FILE_READ_ONLY)
 			{
 				status_code = HIO_HTTP_STATUS_METHOD_NOT_ALLOWED;
 				goto oops_with_status_code;
@@ -665,7 +665,7 @@ static int bind_task_to_peer (file_t* file, hio_htre_t* req, const hio_bch_t* fi
 			break;
 
 		case HIO_HTTP_DELETE:
-			if (file->options & HIO_SVC_HTTS_FILE_READ_ONLY)
+			if (file->options & HIO_SVC_HTTPS_FILE_READ_ONLY)
 			{
 				status_code = HIO_HTTP_STATUS_METHOD_NOT_ALLOWED;
 				goto oops_with_status_code;
@@ -688,14 +688,14 @@ static int bind_task_to_peer (file_t* file, hio_htre_t* req, const hio_bch_t* fi
 			goto oops_with_status_code;
 	}
 
-	HIO_SVC_HTTS_TASK_RCUP(file); /* for file->peer opened */
+	HIO_SVC_HTTPS_TASK_RCUP(file); /* for file->peer opened */
 	return 0;
 
 
 	/* the task can be terminated because the requested job has been
 	 * completed or it can't proceed for various reasons */
 oops_with_status_code:
-	hio_svc_htts_task_sendfinalres((hio_svc_htts_task_t*)file, status_code, HIO_NULL, HIO_NULL, 0);
+	hio_svc_https_task_sendfinalres((hio_svc_https_task_t*)file, status_code, HIO_NULL, HIO_NULL, 0);
 oops_with_status_code_2:
 	file_mark_over(file, FILE_OVER_READ_FROM_PEER | FILE_OVER_WRITE_TO_PEER);
 oops:
@@ -704,8 +704,8 @@ oops:
 
 static void unbind_task_from_peer (file_t* file, int rcdown)
 {
-	hio_svc_htts_t* htts = file->htts;
-	hio_t* hio = htts->hio;
+	hio_svc_https_t* https = file->https;
+	hio_t* hio = https->hio;
 	int n = 0;
 
 	if (file->peer_tmridx != HIO_TMRIDX_INVALID)
@@ -726,7 +726,7 @@ static void unbind_task_from_peer (file_t* file, int rcdown)
 		while (n > 0)
 		{
 			n--;
-			HIO_SVC_HTTS_TASK_RCDOWN((hio_svc_htts_task_t*)file);
+			HIO_SVC_HTTPS_TASK_RCDOWN((hio_svc_https_task_t*)file);
 		}
 	}
 }
@@ -768,10 +768,10 @@ static int setup_for_content_length(file_t* file, hio_htre_t* req)
 	return 0;
 }
 
-int hio_svc_htts_dofile (hio_svc_htts_t* htts, hio_dev_sck_t* csck, hio_htre_t* req, const hio_bch_t* docroot, const hio_bch_t* filepath, const hio_bch_t* mime_type, int options, hio_svc_htts_task_on_kill_t on_kill, hio_svc_htts_file_cbs_t* cbs)
+int hio_svc_https_dofile (hio_svc_https_t* https, hio_dev_sck_t* csck, hio_htre_t* req, const hio_bch_t* docroot, const hio_bch_t* filepath, const hio_bch_t* mime_type, int options, hio_svc_https_task_on_kill_t on_kill, hio_svc_https_file_cbs_t* cbs)
 {
-	hio_t* hio = htts->hio;
-	hio_svc_htts_cli_t* cli = hio_dev_sck_getxtn(csck);
+	hio_t* hio = https->hio;
+	hio_svc_https_cli_t* cli = hio_dev_sck_getxtn(csck);
 	file_t* file = HIO_NULL;
 	hio_bch_t* actual_file = HIO_NULL;
 	int status_code = HIO_HTTP_STATUS_INTERNAL_SERVER_ERROR;
@@ -781,7 +781,7 @@ int hio_svc_htts_dofile (hio_svc_htts_t* htts, hio_dev_sck_t* csck, hio_htre_t* 
 	HIO_ASSERT(hio, hio_htre_getcontentlen(req) == 0);
 	HIO_ASSERT(hio, cli->sck == csck);
 
-	HIO_DEBUG5 (hio, "HTTS(%p) - file(c=%d) - [%hs] %hs%hs\n", htts, (int)csck->hnd, cli->cli_addr_bcstr, (docroot[0] == '/' && docroot[1] == '\0' && filepath[0] == '/'? "": docroot), filepath);
+	HIO_DEBUG5 (hio, "HTTPS(%p) - file(c=%d) - [%hs] %hs%hs\n", https, (int)csck->hnd, cli->cli_addr_bcstr, (docroot[0] == '/' && docroot[1] == '\0' && filepath[0] == '/'? "": docroot), filepath);
 
 	if (cli->task)
 	{
@@ -789,11 +789,11 @@ int hio_svc_htts_dofile (hio_svc_htts_t* htts, hio_dev_sck_t* csck, hio_htre_t* 
 		goto oops;
 	}
 
-	file = (file_t*)hio_svc_htts_task_make(htts, HIO_SIZEOF(*file), file_on_kill, req, csck);
+	file = (file_t*)hio_svc_https_task_make(https, HIO_SIZEOF(*file), file_on_kill, req, csck);
 	if (HIO_UNLIKELY(!file)) goto oops;
-	HIO_SVC_HTTS_TASK_RCUP((hio_svc_htts_task_t*)file); /* for temporary protection */
+	HIO_SVC_HTTPS_TASK_RCUP((hio_svc_https_task_t*)file); /* for temporary protection */
 
-	actual_file = hio_svc_htts_dupmergepaths(htts, docroot, filepath);
+	actual_file = hio_svc_https_dupmergepaths(https, docroot, filepath);
 	if (HIO_UNLIKELY(!actual_file)) goto oops;
 
 	file->options = options;
@@ -802,10 +802,10 @@ int hio_svc_htts_dofile (hio_svc_htts_t* htts, hio_dev_sck_t* csck, hio_htre_t* 
 	file->peer_tmridx = HIO_TMRIDX_INVALID;
 	file->peer = -1;
 
-	hio_svc_htts_task_bindtoclient((hio_svc_htts_task_t*)file, csck, &file_client_evcb); /* the file task's reference count is incremented */
+	hio_svc_https_task_bindtoclient((hio_svc_https_task_t*)file, csck, &file_client_evcb); /* the file task's reference count is incremented */
 	bound_to_client = 1;
 
-	if (hio_svc_htts_task_handleexpect100((hio_svc_htts_task_t*)file, 0) <= -1) goto oops;
+	if (hio_svc_https_task_handleexpect100((hio_svc_https_task_t*)file, 0) <= -1) goto oops;
 	if (setup_for_content_length(file, req) <= -1) goto oops;
 
 	if (bind_task_to_peer(file, req, actual_file, mime_type) <= -1) goto oops;
@@ -815,8 +815,8 @@ int hio_svc_htts_dofile (hio_svc_htts_t* htts, hio_dev_sck_t* csck, hio_htre_t* 
 	if (hio_dev_sck_read(csck, !(file->over & FILE_OVER_READ_FROM_CLIENT)) <= -1) goto oops;
 	hio_freemem(hio, actual_file);
 
-	HIO_SVC_HTTS_TASKL_APPEND_TASK (&htts->task, (hio_svc_htts_task_t*)file);
-	HIO_SVC_HTTS_TASK_RCDOWN((hio_svc_htts_task_t*)file);
+	HIO_SVC_HTTPS_TASKL_APPEND_TASK (&https->task, (hio_svc_https_task_t*)file);
+	HIO_SVC_HTTPS_TASK_RCDOWN((hio_svc_https_task_t*)file);
 
 	/* set the on_kill callback only if this function can return success.
 	 * the on_kill callback won't be executed if this function returns failure. */
@@ -824,15 +824,15 @@ int hio_svc_htts_dofile (hio_svc_htts_t* htts, hio_dev_sck_t* csck, hio_htre_t* 
 	return 0;
 
 oops:
-	HIO_DEBUG2 (hio, "HTTS(%p) - file(c=%d) failure\n", htts, csck->hnd);
+	HIO_DEBUG2 (hio, "HTTPS(%p) - file(c=%d) failure\n", https, csck->hnd);
 	if (file)
 	{
-		hio_svc_htts_task_sendfinalres((hio_svc_htts_task_t*)file, status_code, HIO_NULL, HIO_NULL, 1);
+		hio_svc_https_task_sendfinalres((hio_svc_https_task_t*)file, status_code, HIO_NULL, HIO_NULL, 1);
 		if (bound_to_peer) unbind_task_from_peer(file, 0);
-		if (bound_to_client) hio_svc_htts_task_unbindfromclient((hio_svc_htts_task_t*)file, 0);
+		if (bound_to_client) hio_svc_https_task_unbindfromclient((hio_svc_https_task_t*)file, 0);
 		file_halt_participating_devices(file);
 		if (actual_file) hio_freemem(hio, actual_file);
-		HIO_SVC_HTTS_TASK_RCDOWN((hio_svc_htts_task_t*)file);
+		HIO_SVC_HTTPS_TASK_RCDOWN((hio_svc_https_task_t*)file);
 	}
 	return -1;
 }
