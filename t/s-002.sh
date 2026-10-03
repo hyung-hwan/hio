@@ -45,7 +45,7 @@ start_server()
 	# the header deadline defaults to 60s and the idle timeout to 10s. shorten
 	# the first and lengthen the second so test_slowloris finishes quickly and
 	# so it is unambiguous which of the two closed the connection.
-	HTTS_HDR_TMOUT=3 HTTS_IDLE_TMOUT=30 ./httpsvr >/dev/null 2>&1 &
+	HTTPS_HDR_TMOUT=3 HTTPS_IDLE_TMOUT=30 ./httpsvr >/dev/null 2>&1 &
 	srvpid=$!
 	# wait for the listener rather than sleeping a fixed amount
 	if tap_have_cmd curl; then

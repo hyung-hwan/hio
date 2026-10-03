@@ -1,7 +1,7 @@
 /*
  * the dhcpv4 server service.
  *
- * the state machine is hio_svc_dhcs_process(), a function from a request to a
+ * the state machine is hio_svc_dhcps_process(), a function from a request to a
  * reply that does no I/O, so the protocol is driven here by handing it packets
  * rather than by standing up a network. that is the point of exposing it: the
  * parts of DHCP that are easy to get wrong are the state transitions and the
@@ -11,7 +11,7 @@
  * than the shape of the implementation.
  */
 
-#include <hio-dhcp.h>
+#include <hio-dhcps.h>
 #include <hio-prv.h>
 #include "tap.h"
 
@@ -53,7 +53,7 @@ static void fi_free (hio_mmgr_t* mmgr, void* ptr) { free (ptr); }
 static hio_mmgr_t g_fi_mmgr = { fi_alloc, fi_realloc, fi_free, HIO_NULL };
 
 static hio_t* g_hio = HIO_NULL;
-static hio_svc_dhcs_t* g_dhcs = HIO_NULL;
+static hio_svc_dhcps_t* g_dhcps = HIO_NULL;
 
 static hio_uint8_t g_reqbuf[576];
 static hio_uint8_t g_repbuf[576];
@@ -66,7 +66,7 @@ static void quiet_logging (hio_t* hio)
 
 static int start_server (void)
 {
-	hio_svc_dhcs_cfg_t cfg;
+	hio_svc_dhcps_cfg_t cfg;
 
 	HIO_MEMSET (&cfg, 0, HIO_SIZEOF(cfg));
 	if (hio_bcstrtoskad(g_hio, "0.0.0.0:0", &cfg.bind_addr) <= -1) return -1;
@@ -79,13 +79,13 @@ static int start_server (void)
 	cfg.lease_secs = LEASE_SECS;
 	cfg.domain = "example.test";
 
-	g_dhcs = hio_svc_dhcs_start(g_hio, &cfg);
-	return g_dhcs? 0: -1;
+	g_dhcps = hio_svc_dhcps_start(g_hio, &cfg);
+	return g_dhcps? 0: -1;
 }
 
 static void stop_server (void)
 {
-	if (g_dhcs) { hio_svc_dhcs_stop (g_dhcs); g_dhcs = HIO_NULL; }
+	if (g_dhcps) { hio_svc_dhcps_stop (g_dhcps); g_dhcps = HIO_NULL; }
 	hio_exec (g_hio);
 }
 
@@ -167,7 +167,7 @@ static int run_x (hio_uint8_t mtype, hio_uint8_t client, hio_uint32_t requested,
 	rep.len = 0;
 	rep.capa = HIO_SIZEOF(g_repbuf);
 
-	n = hio_svc_dhcs_process(g_dhcs, &reqinf, &rep, &dst);
+	n = hio_svc_dhcps_process(g_dhcps, &reqinf, &rep, &dst);
 	if (out_rep) { out_rep->hdr = rep.hdr; out_rep->len = rep.len; }
 	if (out_dst) *out_dst = dst;
 	return n;
@@ -201,7 +201,7 @@ static int run (hio_uint8_t mtype, hio_uint8_t client, hio_uint32_t requested,
 	rep.len = 0;
 	rep.capa = HIO_SIZEOF(g_repbuf);
 
-	n = hio_svc_dhcs_process(g_dhcs, &reqinf, &rep, &dst);
+	n = hio_svc_dhcps_process(g_dhcps, &reqinf, &rep, &dst);
 	if (n == 1)
 	{
 		repinf.hdr = rep.hdr;
@@ -226,7 +226,7 @@ static void test_discover_offers (void)
 
 	/* the offer is recorded, or a second client discovering before the first
 	 * requests would be offered the same address */
-	OK (hio_svc_dhcs_getleasecount(g_dhcs) == 1, "and the offer is recorded as a lease");
+	OK (hio_svc_dhcps_getleasecount(g_dhcps) == 1, "and the offer is recorded as a lease");
 }
 
 static void test_offer_is_held_against_other_clients (void)
@@ -256,7 +256,7 @@ static void test_request_acks_and_binds (void)
 {
 	hio_uint8_t mt = 0;
 	hio_uint32_t offered = 0, acked = 0;
-	hio_svc_dhcs_lease_t lease;
+	hio_svc_dhcps_lease_t lease;
 
 	run (HIO_DHCP4_MSG_DISCOVER, 4, 0, 0, 0, HIO_NULL, &offered);
 	OK (run(HIO_DHCP4_MSG_REQUEST, 4, offered, SERVER_ID, 0, &mt, &acked) == 1,
@@ -267,12 +267,12 @@ static void test_request_acks_and_binds (void)
 	/* and the lease moves from offered to bound, which is what makes it
 	 * survive longer than the brief offer hold */
 	{
-		hio_oow_t i, n = hio_svc_dhcs_getleasecount(g_dhcs);
+		hio_oow_t i, n = hio_svc_dhcps_getleasecount(g_dhcps);
 		int found = 0;
 		for (i = 0; i < n; i++)
 		{
-			if (hio_svc_dhcs_getlease(g_dhcs, i, &lease) == 0 &&
-			    lease.ipaddr == acked && lease.state == HIO_SVC_DHCS_LEASE_BOUND) found = 1;
+			if (hio_svc_dhcps_getlease(g_dhcps, i, &lease) == 0 &&
+			    lease.ipaddr == acked && lease.state == HIO_SVC_DHCPS_LEASE_BOUND) found = 1;
 		}
 		OK (found, "and the lease is recorded as bound");
 	}
@@ -284,7 +284,7 @@ static void test_request_for_another_server_is_ignored (void)
 	hio_oow_t before, after;
 
 	run (HIO_DHCP4_MSG_DISCOVER, 5, 0, 0, 0, HIO_NULL, &offered);
-	before = hio_svc_dhcs_getleasecount(g_dhcs);
+	before = hio_svc_dhcps_getleasecount(g_dhcps);
 
 	OK (run(HIO_DHCP4_MSG_REQUEST, 5, offered, SERVER_ID + 1, 0, HIO_NULL, HIO_NULL) == 0,
 	    "a REQUEST that selected another server draws no reply");
@@ -292,7 +292,7 @@ static void test_request_for_another_server_is_ignored (void)
 	/* and the address we offered goes back to the pool at once rather than
 	 * being held until the offer lapses - the client has told us it went
 	 * elsewhere */
-	after = hio_svc_dhcs_getleasecount(g_dhcs);
+	after = hio_svc_dhcps_getleasecount(g_dhcps);
 	OK (after == before - 1, "and the address offered to it is released immediately");
 }
 
@@ -344,18 +344,18 @@ static void test_release_frees_the_address (void)
 
 	run (HIO_DHCP4_MSG_DISCOVER, 10, 0, 0, 0, HIO_NULL, &ip);
 	run (HIO_DHCP4_MSG_REQUEST, 10, ip, SERVER_ID, 0, HIO_NULL, HIO_NULL);
-	before = hio_svc_dhcs_getleasecount(g_dhcs);
+	before = hio_svc_dhcps_getleasecount(g_dhcps);
 
 	OK (run(HIO_DHCP4_MSG_RELEASE, 10, 0, 0, ip, HIO_NULL, HIO_NULL) == 0,
 	    "a RELEASE draws no reply");
-	after = hio_svc_dhcs_getleasecount(g_dhcs);
+	after = hio_svc_dhcps_getleasecount(g_dhcps);
 	OK (after == before - 1, "and gives the address back");
 }
 
 static void test_decline_takes_the_address_out_of_service (void)
 {
 	hio_uint32_t ip = 0;
-	hio_svc_dhcs_lease_t lease;
+	hio_svc_dhcps_lease_t lease;
 	hio_oow_t i, n;
 	int declined = 0;
 
@@ -363,11 +363,11 @@ static void test_decline_takes_the_address_out_of_service (void)
 	OK (run(HIO_DHCP4_MSG_DECLINE, 11, ip, SERVER_ID, 0, HIO_NULL, HIO_NULL) == 0,
 	    "a DECLINE draws no reply");
 
-	n = hio_svc_dhcs_getleasecount(g_dhcs);
+	n = hio_svc_dhcps_getleasecount(g_dhcps);
 	for (i = 0; i < n; i++)
 	{
-		if (hio_svc_dhcs_getlease(g_dhcs, i, &lease) == 0 &&
-		    lease.ipaddr == ip && lease.state == HIO_SVC_DHCS_LEASE_DECLINED) declined = 1;
+		if (hio_svc_dhcps_getlease(g_dhcps, i, &lease) == 0 &&
+		    lease.ipaddr == ip && lease.state == HIO_SVC_DHCPS_LEASE_DECLINED) declined = 1;
 	}
 	OK (declined, "and the address is marked declined rather than freed");
 
@@ -389,13 +389,13 @@ static void test_inform_returns_options_without_a_lease (void)
 	hio_uint32_t nm = 0;
 	hio_oow_t before;
 
-	before = hio_svc_dhcs_getleasecount(g_dhcs);
+	before = hio_svc_dhcps_getleasecount(g_dhcps);
 
 	build (&req, HIO_DHCP4_MSG_INFORM, 13, 0, 0, 0x0a0000c8u);
 	reqinf.hdr = req.hdr; reqinf.len = req.len;
 	rep.hdr = (hio_dhcp4_pkt_hdr_t*)g_repbuf; rep.len = 0; rep.capa = HIO_SIZEOF(g_repbuf);
 
-	OK (hio_svc_dhcs_process(g_dhcs, &reqinf, &rep, &dst) == 1, "an INFORM is answered");
+	OK (hio_svc_dhcps_process(g_dhcps, &reqinf, &rep, &dst) == 1, "an INFORM is answered");
 	repinf.hdr = rep.hdr; repinf.len = rep.len;
 	OK (hio_dhcp4_get_msg_type(&repinf, &mt) == 0 && mt == HIO_DHCP4_MSG_ACK,
 	    "with an ACK");
@@ -407,7 +407,7 @@ static void test_inform_returns_options_without_a_lease (void)
 	OK (rep.hdr->yiaddr == 0, "but no address");
 	OK (hio_dhcp4_get_option_uint32(&repinf, HIO_DHCP4_OPT_LEASE_TIME, &nm) <= -1,
 	    "and no lease time");
-	OK (hio_svc_dhcs_getleasecount(g_dhcs) == before, "and no lease is recorded");
+	OK (hio_svc_dhcps_getleasecount(g_dhcps) == before, "and no lease is recorded");
 }
 
 static void test_offer_and_ack_agree (void)
@@ -424,7 +424,7 @@ static void test_offer_and_ack_agree (void)
 	build (&req, HIO_DHCP4_MSG_DISCOVER, 14, 0, 0, 0);
 	reqinf.hdr = req.hdr; reqinf.len = req.len;
 	rep.hdr = (hio_dhcp4_pkt_hdr_t*)g_repbuf; rep.len = 0; rep.capa = HIO_SIZEOF(g_repbuf);
-	if (hio_svc_dhcs_process(g_dhcs, &reqinf, &rep, &dst) != 1) { skip ("no offer", 1); return; }
+	if (hio_svc_dhcps_process(g_dhcps, &reqinf, &rep, &dst) != 1) { skip ("no offer", 1); return; }
 	repinf.hdr = rep.hdr; repinf.len = rep.len;
 	offered = hio_ntoh32(rep.hdr->yiaddr);
 	hio_dhcp4_get_option_uint32 (&repinf, HIO_DHCP4_OPT_SUBNET, &off_nm);
@@ -434,7 +434,7 @@ static void test_offer_and_ack_agree (void)
 	build (&req, HIO_DHCP4_MSG_REQUEST, 14, offered, SERVER_ID, 0);
 	reqinf.hdr = req.hdr; reqinf.len = req.len;
 	rep.hdr = (hio_dhcp4_pkt_hdr_t*)g_repbuf; rep.len = 0; rep.capa = HIO_SIZEOF(g_repbuf);
-	if (hio_svc_dhcs_process(g_dhcs, &reqinf, &rep, &dst) != 1) { skip ("no ack", 1); return; }
+	if (hio_svc_dhcps_process(g_dhcps, &reqinf, &rep, &dst) != 1) { skip ("no ack", 1); return; }
 	repinf.hdr = rep.hdr; repinf.len = rep.len;
 	hio_dhcp4_get_option_uint32 (&repinf, HIO_DHCP4_OPT_SUBNET, &ack_nm);
 	hio_dhcp4_get_option_uint32 (&repinf, HIO_DHCP4_OPT_ROUTER, &ack_rt);
@@ -481,7 +481,7 @@ static void test_malformed_and_foreign_packets (void)
 	 * reads past. */
 	build (&req, HIO_DHCP4_MSG_DISCOVER, 30, 0, 0, 0);
 	reqinf.hdr = req.hdr; reqinf.len = 4;
-	OK (hio_svc_dhcs_process(g_dhcs, &reqinf, &rep, &dst) <= -1,
+	OK (hio_svc_dhcps_process(g_dhcps, &reqinf, &rep, &dst) <= -1,
 	    "a truncated packet is refused");
 
 	/* a reply, not a request - this server's own words coming back at it
@@ -490,7 +490,7 @@ static void test_malformed_and_foreign_packets (void)
 	req.hdr->op = HIO_DHCP4_OP_BOOTREPLY;
 	reqinf.hdr = req.hdr; reqinf.len = req.len;
 	rep.len = 0;
-	OK (hio_svc_dhcs_process(g_dhcs, &reqinf, &rep, &dst) == 0,
+	OK (hio_svc_dhcps_process(g_dhcps, &reqinf, &rep, &dst) == 0,
 	    "and a packet marked as a reply is passed over in silence");
 
 	/* no option 53 at all is bootp, which this server does not serve */
@@ -501,47 +501,47 @@ static void test_malformed_and_foreign_packets (void)
 	hio_dhcp4_add_option_uint8 (&req, HIO_DHCP4_OPT_IP_TTL, 64);
 	reqinf.hdr = req.hdr; reqinf.len = req.len;
 	rep.len = 0;
-	OK (hio_svc_dhcs_process(g_dhcs, &reqinf, &rep, &dst) == 0,
+	OK (hio_svc_dhcps_process(g_dhcps, &reqinf, &rep, &dst) == 0,
 	    "and a bootp packet with no message type is passed over too");
 }
 
 static void test_config_refusals (void)
 {
-	hio_svc_dhcs_cfg_t cfg;
-	hio_svc_dhcs_t* d;
+	hio_svc_dhcps_cfg_t cfg;
+	hio_svc_dhcps_t* d;
 
 	HIO_MEMSET (&cfg, 0, HIO_SIZEOF(cfg));
 	hio_bcstrtoskad (g_hio, "0.0.0.0:0", &cfg.bind_addr);
 	cfg.server_id = SERVER_ID;
 	cfg.pool_first = POOL_LAST;
 	cfg.pool_last = POOL_FIRST;   /* inverted */
-	d = hio_svc_dhcs_start(g_hio, &cfg);
+	d = hio_svc_dhcps_start(g_hio, &cfg);
 	OK (!d && hio_geterrnum(g_hio) == HIO_EINVAL, "an inverted pool is refused");
-	if (d) hio_svc_dhcs_stop (d);
+	if (d) hio_svc_dhcps_stop (d);
 
 	/* a pool the size of the address space would be an allocation nobody
 	 * intended, so the bound is a refusal rather than a clamp */
 	cfg.pool_first = 0x0a000000u;
 	cfg.pool_last = 0x0affffffu;
-	d = hio_svc_dhcs_start(g_hio, &cfg);
+	d = hio_svc_dhcps_start(g_hio, &cfg);
 	OK (!d && hio_geterrnum(g_hio) == HIO_EINVAL, "and so is one larger than the bound");
-	if (d) hio_svc_dhcs_stop (d);
+	if (d) hio_svc_dhcps_stop (d);
 
 	/* without option 54 a client cannot tell this server's replies from
 	 * another's, so it is required rather than defaulted */
 	cfg.pool_first = POOL_FIRST;
 	cfg.pool_last = POOL_LAST;
 	cfg.server_id = 0;
-	d = hio_svc_dhcs_start(g_hio, &cfg);
+	d = hio_svc_dhcps_start(g_hio, &cfg);
 	OK (!d && hio_geterrnum(g_hio) == HIO_EINVAL, "and a missing server identifier is refused");
-	if (d) hio_svc_dhcs_stop (d);
+	if (d) hio_svc_dhcps_stop (d);
 
 	/* dhcpv6 is a different protocol, not this one over another family */
 	cfg.server_id = SERVER_ID;
 	hio_bcstrtoskad (g_hio, "[::]:0", &cfg.bind_addr);
-	d = hio_svc_dhcs_start(g_hio, &cfg);
+	d = hio_svc_dhcps_start(g_hio, &cfg);
 	OK (!d, "and an ipv6 bind address is refused by the v4 server");
-	if (d) hio_svc_dhcs_stop (d);
+	if (d) hio_svc_dhcps_stop (d);
 }
 
 static void test_lease_allocation_failure (void)
@@ -551,7 +551,7 @@ static void test_lease_allocation_failure (void)
 	hio_oow_t before;
 	int rc;
 
-	before = hio_svc_dhcs_getleasecount(g_dhcs);
+	before = hio_svc_dhcps_getleasecount(g_dhcps);
 
 	/* the first allocation the DISCOVER path reaches is the copy of the
 	 * client identifier that the lease will own. with that refused, the
@@ -564,7 +564,7 @@ static void test_lease_allocation_failure (void)
 
 	OK (g_failed_allocs == 1, "the injected allocation failure was reached");
 	OK (rc <= -1, "a DISCOVER whose lease cannot be recorded is reported as an error");
-	OK (hio_svc_dhcs_getleasecount(g_dhcs) == before,
+	OK (hio_svc_dhcps_getleasecount(g_dhcps) == before,
 	    "and records no lease rather than a half-built one");
 
 	/* and the server is still serving afterwards - a failed allocation is not
@@ -595,8 +595,8 @@ static void test_request_allocation_failure_naks (void)
 
 static void test_start_allocation_failure (void)
 {
-	hio_svc_dhcs_cfg_t cfg;
-	hio_svc_dhcs_t* d;
+	hio_svc_dhcps_cfg_t cfg;
+	hio_svc_dhcps_t* d;
 
 	HIO_MEMSET (&cfg, 0, HIO_SIZEOF(cfg));
 	hio_bcstrtoskad (g_hio, "0.0.0.0:0", &cfg.bind_addr);
@@ -610,17 +610,17 @@ static void test_start_allocation_failure (void)
 	 * behind - which is what the leak checker over this test really decides. */
 	g_failed_allocs = 0;
 	g_fail_next_alloc = 1;
-	d = hio_svc_dhcs_start(g_hio, &cfg);
+	d = hio_svc_dhcps_start(g_hio, &cfg);
 	g_fail_next_alloc = 0;
 
 	OK (g_failed_allocs == 1 && !d,
 	    "a service whose first allocation fails does not start");
-	if (d) hio_svc_dhcs_stop (d);
+	if (d) hio_svc_dhcps_stop (d);
 
 	/* and starting normally afterwards still works */
-	d = hio_svc_dhcs_start(g_hio, &cfg);
+	d = hio_svc_dhcps_start(g_hio, &cfg);
 	OK (d != HIO_NULL, "and the next attempt starts normally");
-	if (d) hio_svc_dhcs_stop (d);
+	if (d) hio_svc_dhcps_stop (d);
 }
 
 /* ------------------------------------------------------------------ */
@@ -790,7 +790,7 @@ static void test_requested_lease_time (void)
 	reqx_t x;
 	hio_dhcp4_pktinf_t rep;
 	hio_uint32_t secs = 0, t1 = 0, t2 = 0, mine = 0;
-	hio_svc_dhcs_lease_t lease;
+	hio_svc_dhcps_lease_t lease;
 	hio_ntime_t now;
 	hio_ntime_t left;
 
@@ -827,12 +827,12 @@ static void test_requested_lease_time (void)
 	/* found by address, not by index: the discovers above left offered leases
 	 * of their own, and index 0 is one of those */
 	{
-		hio_oow_t i, n = hio_svc_dhcs_getleasecount(g_dhcs);
+		hio_oow_t i, n = hio_svc_dhcps_getleasecount(g_dhcps);
 		int found = 0;
 		for (i = 0; i < n; i++)
 		{
-			if (hio_svc_dhcs_getlease(g_dhcs, i, &lease) == 0 &&
-			    lease.ipaddr == mine && lease.state == HIO_SVC_DHCS_LEASE_BOUND) { found = 1; break; }
+			if (hio_svc_dhcps_getlease(g_dhcps, i, &lease) == 0 &&
+			    lease.ipaddr == mine && lease.state == HIO_SVC_DHCPS_LEASE_BOUND) { found = 1; break; }
 		}
 		OK (found, "with a bound lease recorded against it");
 		if (found)

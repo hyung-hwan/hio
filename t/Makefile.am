@@ -159,7 +159,7 @@ t_017_LDFLAGS = $(LDFLAGS_COMMON)
 t_017_LDADD = $(LIBADD_COMMON)
 
 ## t-018 drives the dhcp server's state machine directly through
-## hio_svc_dhcs_process(), which does no i/o - so the protocol is exercised by
+## hio_svc_dhcps_process(), which does no i/o - so the protocol is exercised by
 ## handing it packets rather than by standing up a network.
 t_018_SOURCES = t-018.c tap.h
 t_018_CPPFLAGS = $(CPPFLAGS_COMMON)

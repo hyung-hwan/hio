@@ -30,7 +30,7 @@
  * derived from any GPL implementation: hio is BSD-licensed, so a port of one
  * would have relicensed this file.
  *
- * The state machine is hio_svc_dhcs_process(), which is a function from a
+ * The state machine is hio_svc_dhcps_process(), which is a function from a
  * request to a reply and takes no part in any I/O. The read callback below is
  * a thin wrapper over it. That split is deliberate - it is what lets the
  * protocol be tested by feeding it packets rather than by standing up a
@@ -38,7 +38,7 @@
  * get subtly wrong.
  */
 
-#include <hio-dhcp.h>
+#include <hio-dhcps.h>
 #include <hio-sck.h>
 #include "hio-prv.h"
 
@@ -62,13 +62,13 @@
  * currently serves. */
 #define PURGE_INTERVAL_SECS (60)
 
-struct hio_svc_dhcs_t
+struct hio_svc_dhcps_t
 {
 	HIO_SVC_HEADER;
 
 	int stopping;
 	hio_dev_sck_t* sck;
-	hio_svc_dhcs_cfg_t cfg;
+	hio_svc_dhcps_cfg_t cfg;
 
 	/* the domain is copied because the caller is not asked to keep its
 	 * string alive for the life of the service */
@@ -78,7 +78,7 @@ struct hio_svc_dhcs_t
 	 * and small, and this avoids a second structure to keep consistent with
 	 * the first. the cost is O(n) per lookup, which is the honest trade and
 	 * not one that matters at pool sizes this serves. */
-	hio_svc_dhcs_lease_t* leases;
+	hio_svc_dhcps_lease_t* leases;
 	hio_oow_t nleases;
 	hio_oow_t leases_capa;
 
@@ -88,47 +88,47 @@ struct hio_svc_dhcs_t
 };
 
 /* the extension on the socket, so the read callback can find its service */
-struct dhcs_sck_xtn_t
+struct dhcps_sck_xtn_t
 {
-	hio_svc_dhcs_t* dhcs;
+	hio_svc_dhcps_t* dhcps;
 };
-typedef struct dhcs_sck_xtn_t dhcs_sck_xtn_t;
+typedef struct dhcps_sck_xtn_t dhcps_sck_xtn_t;
 
 /* ------------------------------------------------------------------------- */
 /* leases                                                                    */
 /* ------------------------------------------------------------------------- */
 
-static void free_lease_at (hio_svc_dhcs_t* dhcs, hio_oow_t i)
+static void free_lease_at (hio_svc_dhcps_t* dhcps, hio_oow_t i)
 {
-	hio_t* hio = dhcs->hio;
+	hio_t* hio = dhcps->hio;
 
-	if (dhcs->leases[i].cid) hio_freemem(hio, dhcs->leases[i].cid);
+	if (dhcps->leases[i].cid) hio_freemem(hio, dhcps->leases[i].cid);
 
 	/* the order of leases carries no meaning, so the last one fills the gap
 	 * rather than shifting everything down */
-	dhcs->nleases--;
-	if (i != dhcs->nleases) dhcs->leases[i] = dhcs->leases[dhcs->nleases];
-	HIO_MEMSET(&dhcs->leases[dhcs->nleases], 0, HIO_SIZEOF(dhcs->leases[0]));
+	dhcps->nleases--;
+	if (i != dhcps->nleases) dhcps->leases[i] = dhcps->leases[dhcps->nleases];
+	HIO_MEMSET(&dhcps->leases[dhcps->nleases], 0, HIO_SIZEOF(dhcps->leases[0]));
 }
 
-hio_oow_t hio_svc_dhcs_purgeexpiredleases (hio_svc_dhcs_t* dhcs)
+hio_oow_t hio_svc_dhcps_purgeexpiredleases (hio_svc_dhcps_t* dhcps)
 {
-	hio_t* hio = dhcs->hio;
+	hio_t* hio = dhcps->hio;
 	hio_ntime_t now;
 	hio_oow_t i, n = 0;
 
 	hio_gettime(hio, &now);
 
 	i = 0;
-	while (i < dhcs->nleases)
+	while (i < dhcps->nleases)
 	{
 		/* a declined address is not reclaimed on a timer. the client told us
 		 * something is already using it, and nothing since then says
 		 * otherwise. */
-		if (dhcs->leases[i].state != HIO_SVC_DHCS_LEASE_DECLINED &&
-		    HIO_CMP_NTIME(&dhcs->leases[i].expiry, &now) <= 0)
+		if (dhcps->leases[i].state != HIO_SVC_DHCPS_LEASE_DECLINED &&
+		    HIO_CMP_NTIME(&dhcps->leases[i].expiry, &now) <= 0)
 		{
-			free_lease_at(dhcs, i);
+			free_lease_at(dhcps, i);
 			n++;
 			/* free_lease_at moved a different lease into this slot, so the
 			 * index is not advanced */
@@ -140,26 +140,26 @@ hio_oow_t hio_svc_dhcs_purgeexpiredleases (hio_svc_dhcs_t* dhcs)
 	return n;
 }
 
-static hio_svc_dhcs_lease_t* find_lease_by_cid (hio_svc_dhcs_t* dhcs, const hio_uint8_t* cid, hio_uint8_t cidlen)
+static hio_svc_dhcps_lease_t* find_lease_by_cid (hio_svc_dhcps_t* dhcps, const hio_uint8_t* cid, hio_uint8_t cidlen)
 {
 	hio_oow_t i;
 
-	for (i = 0; i < dhcs->nleases; i++)
+	for (i = 0; i < dhcps->nleases; i++)
 	{
-		if (dhcs->leases[i].cidlen == cidlen && dhcs->leases[i].cid &&
-		    HIO_MEMCMP(dhcs->leases[i].cid, cid, cidlen) == 0) return &dhcs->leases[i];
+		if (dhcps->leases[i].cidlen == cidlen && dhcps->leases[i].cid &&
+		    HIO_MEMCMP(dhcps->leases[i].cid, cid, cidlen) == 0) return &dhcps->leases[i];
 	}
 
 	return HIO_NULL;
 }
 
-static hio_svc_dhcs_lease_t* find_lease_by_ip (hio_svc_dhcs_t* dhcs, hio_uint32_t ipaddr)
+static hio_svc_dhcps_lease_t* find_lease_by_ip (hio_svc_dhcps_t* dhcps, hio_uint32_t ipaddr)
 {
 	hio_oow_t i;
 
-	for (i = 0; i < dhcs->nleases; i++)
+	for (i = 0; i < dhcps->nleases; i++)
 	{
-		if (dhcs->leases[i].ipaddr == ipaddr) return &dhcs->leases[i];
+		if (dhcps->leases[i].ipaddr == ipaddr) return &dhcps->leases[i];
 	}
 
 	return HIO_NULL;
@@ -168,49 +168,49 @@ static hio_svc_dhcs_lease_t* find_lease_by_ip (hio_svc_dhcs_t* dhcs, hio_uint32_
 /* room for one more lease. the array grows by doubling; a failure here is
  * reported rather than papered over, because the alternative is handing out an
  * address the server will not remember having handed out. */
-static int ensure_lease_room (hio_svc_dhcs_t* dhcs)
+static int ensure_lease_room (hio_svc_dhcps_t* dhcps)
 {
-	hio_t* hio = dhcs->hio;
-	hio_svc_dhcs_lease_t* tmp;
+	hio_t* hio = dhcps->hio;
+	hio_svc_dhcps_lease_t* tmp;
 	hio_oow_t newcapa;
 
-	if (dhcs->nleases < dhcs->leases_capa) return 0;
+	if (dhcps->nleases < dhcps->leases_capa) return 0;
 
-	newcapa = (dhcs->leases_capa <= 0)? 16: dhcs->leases_capa * 2;
+	newcapa = (dhcps->leases_capa <= 0)? 16: dhcps->leases_capa * 2;
 
 	/* the pool bounds the number of leases that can ever be live, so a
 	 * capacity beyond it means something has gone wrong in the accounting */
-	if (newcapa > HIO_SVC_DHCS_MAX_POOL_SIZE) newcapa = HIO_SVC_DHCS_MAX_POOL_SIZE;
-	if (newcapa <= dhcs->leases_capa)
+	if (newcapa > HIO_SVC_DHCPS_MAX_POOL_SIZE) newcapa = HIO_SVC_DHCPS_MAX_POOL_SIZE;
+	if (newcapa <= dhcps->leases_capa)
 	{
-		hio_seterrbfmt(hio, HIO_ENOCAPA, "dhcp lease table full at %zu entries", dhcs->leases_capa);
+		hio_seterrbfmt(hio, HIO_ENOCAPA, "dhcp lease table full at %zu entries", dhcps->leases_capa);
 		return -1;
 	}
 
-	tmp = (hio_svc_dhcs_lease_t*)hio_reallocmem(hio, dhcs->leases, HIO_SIZEOF(*tmp) * newcapa);
+	tmp = (hio_svc_dhcps_lease_t*)hio_reallocmem(hio, dhcps->leases, HIO_SIZEOF(*tmp) * newcapa);
 	if (HIO_UNLIKELY(!tmp)) return -1; /* hio_reallocmem has set the error */
 
 	/* the new tail is zeroed so a partially filled array never presents a
 	 * stale cid pointer as if it were live */
-	HIO_MEMSET(&tmp[dhcs->leases_capa], 0, HIO_SIZEOF(*tmp) * (newcapa - dhcs->leases_capa));
+	HIO_MEMSET(&tmp[dhcps->leases_capa], 0, HIO_SIZEOF(*tmp) * (newcapa - dhcps->leases_capa));
 
-	dhcs->leases = tmp;
-	dhcs->leases_capa = newcapa;
+	dhcps->leases = tmp;
+	dhcps->leases_capa = newcapa;
 	return 0;
 }
 
 /* record a lease, or update the one this client already holds. returns the
  * lease, or HIO_NULL with the error set - which the caller must treat as "no
  * address granted" rather than ignoring. */
-static hio_svc_dhcs_lease_t* put_lease (
-	hio_svc_dhcs_t* dhcs, const hio_uint8_t* cid, hio_uint8_t cidlen,
+static hio_svc_dhcps_lease_t* put_lease (
+	hio_svc_dhcps_t* dhcps, const hio_uint8_t* cid, hio_uint8_t cidlen,
 	hio_uint32_t ipaddr, int state, hio_uint32_t secs)
 {
-	hio_t* hio = dhcs->hio;
-	hio_svc_dhcs_lease_t* lease;
+	hio_t* hio = dhcps->hio;
+	hio_svc_dhcps_lease_t* lease;
 	hio_ntime_t now, dur;
 
-	lease = find_lease_by_cid(dhcs, cid, cidlen);
+	lease = find_lease_by_cid(dhcps, cid, cidlen);
 	if (!lease)
 	{
 		hio_uint8_t* cidcopy;
@@ -220,7 +220,7 @@ static hio_svc_dhcs_lease_t* put_lease (
 		cidcopy = (hio_uint8_t*)hio_allocmem(hio, cidlen);
 		if (HIO_UNLIKELY(!cidcopy)) return HIO_NULL;
 
-		if (ensure_lease_room(dhcs) <= -1)
+		if (ensure_lease_room(dhcps) <= -1)
 		{
 			hio_freemem(hio, cidcopy);
 			return HIO_NULL;
@@ -228,7 +228,7 @@ static hio_svc_dhcs_lease_t* put_lease (
 
 		HIO_MEMCPY(cidcopy, cid, cidlen);
 
-		lease = &dhcs->leases[dhcs->nleases++];
+		lease = &dhcps->leases[dhcps->nleases++];
 		lease->cid = cidcopy;
 		lease->cidlen = cidlen;
 	}
@@ -245,16 +245,16 @@ static hio_svc_dhcs_lease_t* put_lease (
 
 /* is this address one this server may hand out, and is it free for this
  * client? a lease the same client already holds does not count as taken. */
-static int addr_available_for (hio_svc_dhcs_t* dhcs, hio_uint32_t ipaddr, const hio_uint8_t* cid, hio_uint8_t cidlen)
+static int addr_available_for (hio_svc_dhcps_t* dhcps, hio_uint32_t ipaddr, const hio_uint8_t* cid, hio_uint8_t cidlen)
 {
-	hio_svc_dhcs_lease_t* held;
+	hio_svc_dhcps_lease_t* held;
 
-	if (ipaddr < dhcs->cfg.pool_first || ipaddr > dhcs->cfg.pool_last) return 0;
+	if (ipaddr < dhcps->cfg.pool_first || ipaddr > dhcps->cfg.pool_last) return 0;
 
-	held = find_lease_by_ip(dhcs, ipaddr);
+	held = find_lease_by_ip(dhcps, ipaddr);
 	if (!held) return 1;
 
-	if (held->state == HIO_SVC_DHCS_LEASE_DECLINED) return 0;
+	if (held->state == HIO_SVC_DHCPS_LEASE_DECLINED) return 0;
 
 	return (held->cidlen == cidlen && held->cid && HIO_MEMCMP(held->cid, cid, cidlen) == 0);
 }
@@ -263,27 +263,27 @@ static int addr_available_for (hio_svc_dhcs_t* dhcs, hio_uint32_t ipaddr, const 
  * asked for if that is free, else the lowest free one. 0 if the pool is
  * exhausted. */
 static hio_uint32_t select_addr (
-	hio_svc_dhcs_t* dhcs, const hio_uint8_t* cid, hio_uint8_t cidlen, hio_uint32_t requested)
+	hio_svc_dhcps_t* dhcps, const hio_uint8_t* cid, hio_uint8_t cidlen, hio_uint32_t requested)
 {
-	hio_svc_dhcs_lease_t* mine;
+	hio_svc_dhcps_lease_t* mine;
 	hio_uint32_t ip;
 	int purged = 0;
 
-	mine = find_lease_by_cid(dhcs, cid, cidlen);
-	if (mine && mine->state != HIO_SVC_DHCS_LEASE_DECLINED &&
-	    mine->ipaddr >= dhcs->cfg.pool_first && mine->ipaddr <= dhcs->cfg.pool_last)
+	mine = find_lease_by_cid(dhcps, cid, cidlen);
+	if (mine && mine->state != HIO_SVC_DHCPS_LEASE_DECLINED &&
+	    mine->ipaddr >= dhcps->cfg.pool_first && mine->ipaddr <= dhcps->cfg.pool_last)
 	{
 		/* giving a returning client the same address is not merely tidy - it
 		 * is what lets it keep using the address across a restart */
 		return mine->ipaddr;
 	}
 
-	if (requested != 0 && addr_available_for(dhcs, requested, cid, cidlen)) return requested;
+	if (requested != 0 && addr_available_for(dhcps, requested, cid, cidlen)) return requested;
 
 again:
-	for (ip = dhcs->cfg.pool_first; ip <= dhcs->cfg.pool_last; ip++)
+	for (ip = dhcps->cfg.pool_first; ip <= dhcps->cfg.pool_last; ip++)
 	{
-		if (addr_available_for(dhcs, ip, cid, cidlen)) return ip;
+		if (addr_available_for(dhcps, ip, cid, cidlen)) return ip;
 		if (ip == 0xFFFFFFFFu) break; /* the loop counter would wrap */
 	}
 
@@ -293,26 +293,26 @@ again:
 		 * dry, so that a client returning after its lease lapsed still tends
 		 * to get its old address back. */
 		purged = 1;
-		if (hio_svc_dhcs_purgeexpiredleases(dhcs) > 0) goto again;
+		if (hio_svc_dhcps_purgeexpiredleases(dhcps) > 0) goto again;
 	}
 
 	return 0;
 }
 
-hio_oow_t hio_svc_dhcs_getleasecount (hio_svc_dhcs_t* dhcs)
+hio_oow_t hio_svc_dhcps_getleasecount (hio_svc_dhcps_t* dhcps)
 {
-	return dhcs->nleases;
+	return dhcps->nleases;
 }
 
-int hio_svc_dhcs_getlease (hio_svc_dhcs_t* dhcs, hio_oow_t index, hio_svc_dhcs_lease_t* lease)
+int hio_svc_dhcps_getlease (hio_svc_dhcps_t* dhcps, hio_oow_t index, hio_svc_dhcps_lease_t* lease)
 {
-	if (index >= dhcs->nleases)
+	if (index >= dhcps->nleases)
 	{
-		hio_seterrbfmt(dhcs->hio, HIO_ENOENT, "no lease at index %zu", index);
+		hio_seterrbfmt(dhcps->hio, HIO_ENOENT, "no lease at index %zu", index);
 		return -1;
 	}
 
-	*lease = dhcs->leases[index];
+	*lease = dhcps->leases[index];
 	return 0;
 }
 
@@ -328,9 +328,9 @@ int hio_svc_dhcs_getlease (hio_svc_dhcs_t* dhcs, hio_oow_t index, hio_svc_dhcs_l
  *
  * a code nothing is configured for is silently skipped: RFC 2131 asks the
  * server for the parameters it can supply and says nothing about the rest. */
-static int add_one_option (hio_svc_dhcs_t* dhcs, hio_dhcp4_pktbuf_t* rep, int code)
+static int add_one_option (hio_svc_dhcps_t* dhcps, hio_dhcp4_pktbuf_t* rep, int code)
 {
-	const hio_svc_dhcs_cfg_t* cfg = &dhcs->cfg;
+	const hio_svc_dhcps_cfg_t* cfg = &dhcps->cfg;
 
 	switch (code)
 	{
@@ -359,13 +359,13 @@ static int add_one_option (hio_svc_dhcs_t* dhcs, hio_dhcp4_pktbuf_t* rep, int co
 		case HIO_DHCP4_OPT_DOMAIN_NAME:
 		{
 			hio_oow_t len;
-			if (!dhcs->domain) return 0;
-			len = hio_count_bcstr(dhcs->domain);
+			if (!dhcps->domain) return 0;
+			len = hio_count_bcstr(dhcps->domain);
 			/* an option payload length is one octet, so a longer name cannot
 			 * be expressed. it is dropped rather than truncated into a
 			 * different domain name. */
 			if (len == 0 || len > 255) return 0;
-			return hio_dhcp4_add_option(rep, code, dhcs->domain, (hio_uint8_t)len);
+			return hio_dhcp4_add_option(rep, code, dhcps->domain, (hio_uint8_t)len);
 		}
 
 		default:
@@ -384,7 +384,7 @@ static int add_one_option (hio_svc_dhcs_t* dhcs, hio_dhcp4_pktbuf_t* rep, int co
  * narrow the reply down to. the server identifier and the lease times are sent
  * either way: RFC 2131 requires them and the reply is unusable without them,
  * so they are not the client's to ask for or decline. */
-static int add_config_options (hio_svc_dhcs_t* dhcs, const hio_dhcp4_pktinf_t* req, hio_dhcp4_pktbuf_t* rep, hio_uint32_t lease_secs)
+static int add_config_options (hio_svc_dhcps_t* dhcps, const hio_dhcp4_pktinf_t* req, hio_dhcp4_pktbuf_t* rep, hio_uint32_t lease_secs)
 {
 	static const hio_uint8_t everything[] =
 	{
@@ -398,7 +398,7 @@ static int add_config_options (hio_svc_dhcs_t* dhcs, const hio_dhcp4_pktinf_t* r
 	hio_uint8_t sent[32]; /* one bit per code, so nothing is emitted twice */
 	hio_uint8_t i;
 
-	if (hio_dhcp4_add_option_uint32(rep, HIO_DHCP4_OPT_SERVER_ID, dhcs->cfg.server_id) <= -1) return -1;
+	if (hio_dhcp4_add_option_uint32(rep, HIO_DHCP4_OPT_SERVER_ID, dhcps->cfg.server_id) <= -1) return -1;
 
 	if (lease_secs > 0)
 	{
@@ -425,7 +425,7 @@ static int add_config_options (hio_svc_dhcs_t* dhcs, const hio_dhcp4_pktinf_t* r
 		 * last wins - so each is emitted once. */
 		if (sent[code >> 3] & (1 << (code & 7))) continue;
 		sent[code >> 3] |= (hio_uint8_t)(1 << (code & 7));
-		if (add_one_option(dhcs, rep, code) <= -1) return -1;
+		if (add_one_option(dhcps, rep, code) <= -1) return -1;
 	}
 
 	return 0;
@@ -437,9 +437,9 @@ static int add_config_options (hio_svc_dhcs_t* dhcs, const hio_dhcp4_pktinf_t* r
  * the configured lease time and no further - the configuration is the server's
  * limit, not a suggestion - and a client asking for nothing, or for more than
  * is allowed, gets the configured value. */
-static hio_uint32_t lease_secs_for (hio_svc_dhcs_t* dhcs, const hio_dhcp4_pktinf_t* req)
+static hio_uint32_t lease_secs_for (hio_svc_dhcps_t* dhcps, const hio_dhcp4_pktinf_t* req)
 {
-	hio_uint32_t cfg_secs = (dhcs->cfg.lease_secs > 0)? dhcs->cfg.lease_secs: HIO_SVC_DHCS_DFL_LEASE_SECS;
+	hio_uint32_t cfg_secs = (dhcps->cfg.lease_secs > 0)? dhcps->cfg.lease_secs: HIO_SVC_DHCPS_DFL_LEASE_SECS;
 	hio_uint32_t want = 0;
 
 	if (hio_dhcp4_get_option_uint32(req, HIO_DHCP4_OPT_LEASE_TIME, &want) <= -1) return cfg_secs;
@@ -491,11 +491,11 @@ static void fill_reply_dstaddr (const hio_dhcp4_pktinf_t* req, hio_skad_t* dst)
 /* the state machine                                                         */
 /* ------------------------------------------------------------------------- */
 
-static int make_nak (hio_svc_dhcs_t* dhcs, const hio_dhcp4_pktinf_t* req, hio_dhcp4_pktbuf_t* rep, hio_skad_t* dst)
+static int make_nak (hio_svc_dhcps_t* dhcps, const hio_dhcp4_pktinf_t* req, hio_dhcp4_pktbuf_t* rep, hio_skad_t* dst)
 {
 	if (hio_dhcp4_init_reply_pktbuf(rep, rep->hdr, rep->capa, req) <= -1) return -1;
 	if (hio_dhcp4_add_option_uint8(rep, HIO_DHCP4_OPT_MESSAGE_TYPE, HIO_DHCP4_MSG_NAK) <= -1) return -1;
-	if (hio_dhcp4_add_option_uint32(rep, HIO_DHCP4_OPT_SERVER_ID, dhcs->cfg.server_id) <= -1) return -1;
+	if (hio_dhcp4_add_option_uint32(rep, HIO_DHCP4_OPT_SERVER_ID, dhcps->cfg.server_id) <= -1) return -1;
 	if (hio_dhcp4_add_option(rep, HIO_DHCP4_OPT_END, HIO_NULL, 0) <= -1) return -1;
 
 	if (req->hdr->giaddr != 0)
@@ -517,15 +517,15 @@ static int make_nak (hio_svc_dhcs_t* dhcs, const hio_dhcp4_pktinf_t* req, hio_dh
 	return 1;
 }
 
-int hio_svc_dhcs_process (hio_svc_dhcs_t* dhcs, const hio_dhcp4_pktinf_t* req, hio_dhcp4_pktbuf_t* rep, hio_skad_t* dstaddr)
+int hio_svc_dhcps_process (hio_svc_dhcps_t* dhcps, const hio_dhcp4_pktinf_t* req, hio_dhcp4_pktbuf_t* rep, hio_skad_t* dstaddr)
 {
-	hio_t* hio = dhcs->hio;
+	hio_t* hio = dhcps->hio;
 	hio_uint8_t mtype;
 	const hio_uint8_t* cid;
 	hio_uint8_t cidlen;
 	hio_uint32_t requested = 0, server_id = 0;
 	hio_uint32_t lease_secs;
-	hio_svc_dhcs_lease_t* lease;
+	hio_svc_dhcps_lease_t* lease;
 	hio_uint32_t yiaddr;
 	void* repbuf = rep->hdr;
 	hio_oow_t repcapa = rep->capa;
@@ -558,30 +558,30 @@ int hio_svc_dhcs_process (hio_svc_dhcs_t* dhcs, const hio_dhcp4_pktinf_t* req, h
 
 	/* settled once, so that the duration recorded against the lease and the
 	 * duration advertised in the reply cannot drift apart */
-	lease_secs = lease_secs_for(dhcs, req);
+	lease_secs = lease_secs_for(dhcps, req);
 
 	switch (mtype)
 	{
 		case HIO_DHCP4_MSG_DISCOVER:
-			yiaddr = select_addr(dhcs, cid, cidlen, requested);
+			yiaddr = select_addr(dhcps, cid, cidlen, requested);
 			if (yiaddr == 0)
 			{
 				/* nothing to offer. silence is the correct answer - another
 				 * server on the segment may be able to help. */
-				HIO_INFO1(hio, "DHCS(%p) - no address available to offer\n", dhcs);
+				HIO_INFO1(hio, "DHCPS(%p) - no address available to offer\n", dhcps);
 				return 0;
 			}
 
 			/* the offer is recorded so that a second client discovering
 			 * before this one requests is not offered the same address */
-			lease = put_lease(dhcs, cid, cidlen, yiaddr, HIO_SVC_DHCS_LEASE_OFFERED, OFFER_HOLD_SECS);
+			lease = put_lease(dhcps, cid, cidlen, yiaddr, HIO_SVC_DHCPS_LEASE_OFFERED, OFFER_HOLD_SECS);
 			if (HIO_UNLIKELY(!lease)) return -1; /* out of memory - grant nothing */
 
 			if (hio_dhcp4_init_reply_pktbuf(rep, repbuf, repcapa, req) <= -1) return -1;
 			rep->hdr->yiaddr = hio_hton32(yiaddr);
-			rep->hdr->siaddr = hio_hton32(dhcs->cfg.server_id);
+			rep->hdr->siaddr = hio_hton32(dhcps->cfg.server_id);
 			if (hio_dhcp4_add_option_uint8(rep, HIO_DHCP4_OPT_MESSAGE_TYPE, HIO_DHCP4_MSG_OFFER) <= -1) return -1;
-			if (add_config_options(dhcs, req, rep, lease_secs) <= -1) return -1;
+			if (add_config_options(dhcps, req, rep, lease_secs) <= -1) return -1;
 			if (hio_dhcp4_add_option(rep, HIO_DHCP4_OPT_END, HIO_NULL, 0) <= -1) return -1;
 			fill_reply_dstaddr(req, dstaddr);
 			return 1;
@@ -590,15 +590,15 @@ int hio_svc_dhcs_process (hio_svc_dhcs_t* dhcs, const hio_dhcp4_pktinf_t* req, h
 			/* a REQUEST carrying a server identifier is the client announcing
 			 * which offer it took. if that was not ours, the address it names
 			 * is not ours to confirm or deny. */
-			if (server_id != 0 && server_id != dhcs->cfg.server_id)
+			if (server_id != 0 && server_id != dhcps->cfg.server_id)
 			{
 				/* and any address we offered it is released, rather than held
 				 * until the offer times out */
-				lease = find_lease_by_cid(dhcs, cid, cidlen);
-				if (lease && lease->state == HIO_SVC_DHCS_LEASE_OFFERED)
+				lease = find_lease_by_cid(dhcps, cid, cidlen);
+				if (lease && lease->state == HIO_SVC_DHCPS_LEASE_OFFERED)
 				{
-					hio_oow_t i = (hio_oow_t)(lease - dhcs->leases);
-					free_lease_at(dhcs, i);
+					hio_oow_t i = (hio_oow_t)(lease - dhcps->leases);
+					free_lease_at(dhcps, i);
 				}
 				return 0;
 			}
@@ -606,41 +606,41 @@ int hio_svc_dhcs_process (hio_svc_dhcs_t* dhcs, const hio_dhcp4_pktinf_t* req, h
 			/* which address is being requested: the option if present, else
 			 * ciaddr for a client renewing one it already holds */
 			yiaddr = (requested != 0)? requested: hio_ntoh32(req->hdr->ciaddr);
-			if (yiaddr == 0) return make_nak(dhcs, req, rep, dstaddr);
+			if (yiaddr == 0) return make_nak(dhcps, req, rep, dstaddr);
 
-			if (!addr_available_for(dhcs, yiaddr, cid, cidlen))
+			if (!addr_available_for(dhcps, yiaddr, cid, cidlen))
 			{
 				/* outside the pool, or held by somebody else. the client must
 				 * be told so it starts over rather than using it. */
-				HIO_INFO2(hio, "DHCS(%p) - refusing request for unavailable address %u\n", dhcs, (unsigned int)yiaddr);
-				return make_nak(dhcs, req, rep, dstaddr);
+				HIO_INFO2(hio, "DHCPS(%p) - refusing request for unavailable address %u\n", dhcps, (unsigned int)yiaddr);
+				return make_nak(dhcps, req, rep, dstaddr);
 			}
 
-			lease = put_lease(dhcs, cid, cidlen, yiaddr, HIO_SVC_DHCS_LEASE_BOUND, lease_secs);
+			lease = put_lease(dhcps, cid, cidlen, yiaddr, HIO_SVC_DHCPS_LEASE_BOUND, lease_secs);
 			if (HIO_UNLIKELY(!lease))
 			{
 				/* the lease could not be recorded, so it must not be
 				 * acknowledged - an address the server will not remember
 				 * issuing is worse than no address */
-				HIO_INFO1(hio, "DHCS(%p) - unable to record lease. sending nak\n", dhcs);
-				return make_nak(dhcs, req, rep, dstaddr);
+				HIO_INFO1(hio, "DHCPS(%p) - unable to record lease. sending nak\n", dhcps);
+				return make_nak(dhcps, req, rep, dstaddr);
 			}
 
 			if (hio_dhcp4_init_reply_pktbuf(rep, repbuf, repcapa, req) <= -1) return -1;
 			rep->hdr->yiaddr = hio_hton32(yiaddr);
-			rep->hdr->siaddr = hio_hton32(dhcs->cfg.server_id);
+			rep->hdr->siaddr = hio_hton32(dhcps->cfg.server_id);
 			/* ciaddr is echoed so a renewing client can match the reply */
 			rep->hdr->ciaddr = req->hdr->ciaddr;
 			if (hio_dhcp4_add_option_uint8(rep, HIO_DHCP4_OPT_MESSAGE_TYPE, HIO_DHCP4_MSG_ACK) <= -1) return -1;
-			if (add_config_options(dhcs, req, rep, lease_secs) <= -1) return -1;
+			if (add_config_options(dhcps, req, rep, lease_secs) <= -1) return -1;
 			if (hio_dhcp4_add_option(rep, HIO_DHCP4_OPT_END, HIO_NULL, 0) <= -1) return -1;
 			fill_reply_dstaddr(req, dstaddr);
 			return 1;
 
 		case HIO_DHCP4_MSG_RELEASE:
 			/* the client is done with it. a release is not answered. */
-			lease = find_lease_by_cid(dhcs, cid, cidlen);
-			if (lease) free_lease_at(dhcs, (hio_oow_t)(lease - dhcs->leases));
+			lease = find_lease_by_cid(dhcps, cid, cidlen);
+			if (lease) free_lease_at(dhcps, (hio_oow_t)(lease - dhcps->leases));
 			return 0;
 
 		case HIO_DHCP4_MSG_DECLINE:
@@ -650,18 +650,18 @@ int hio_svc_dhcs_process (hio_svc_dhcs_t* dhcs, const hio_dhcp4_pktinf_t* req, h
 			yiaddr = (requested != 0)? requested: hio_ntoh32(req->hdr->ciaddr);
 			if (yiaddr != 0)
 			{
-				lease = find_lease_by_ip(dhcs, yiaddr);
-				if (lease) lease->state = HIO_SVC_DHCS_LEASE_DECLINED;
+				lease = find_lease_by_ip(dhcps, yiaddr);
+				if (lease) lease->state = HIO_SVC_DHCPS_LEASE_DECLINED;
 				else
 				{
 					/* not currently leased, but still not to be handed out */
-					lease = put_lease(dhcs, cid, cidlen, yiaddr, HIO_SVC_DHCS_LEASE_DECLINED, 0);
+					lease = put_lease(dhcps, cid, cidlen, yiaddr, HIO_SVC_DHCPS_LEASE_DECLINED, 0);
 					if (HIO_UNLIKELY(!lease))
 					{
 						/* nothing can be done about it, and there is nothing
 						 * to reply to a DECLINE anyway - so this is logged
 						 * and the address may be offered again later */
-						HIO_INFO1(hio, "DHCS(%p) - unable to record a declined address\n", dhcs);
+						HIO_INFO1(hio, "DHCPS(%p) - unable to record a declined address\n", dhcps);
 					}
 				}
 			}
@@ -673,7 +673,7 @@ int hio_svc_dhcs_process (hio_svc_dhcs_t* dhcs, const hio_dhcp4_pktinf_t* req, h
 			if (hio_dhcp4_init_reply_pktbuf(rep, repbuf, repcapa, req) <= -1) return -1;
 			rep->hdr->ciaddr = req->hdr->ciaddr;
 			if (hio_dhcp4_add_option_uint8(rep, HIO_DHCP4_OPT_MESSAGE_TYPE, HIO_DHCP4_MSG_ACK) <= -1) return -1;
-			if (add_config_options(dhcs, req, rep, 0) <= -1) return -1;
+			if (add_config_options(dhcps, req, rep, 0) <= -1) return -1;
 			if (hio_dhcp4_add_option(rep, HIO_DHCP4_OPT_END, HIO_NULL, 0) <= -1) return -1;
 			fill_reply_dstaddr(req, dstaddr);
 			return 1;
@@ -697,52 +697,52 @@ static void on_purge_timer (hio_t* hio, const hio_ntime_t* now, hio_tmrjob_t* jo
  * accumulate drift, and a caller driving the timers with an explicit clock -
  * which is how this is tested - sees the sweep move forward instead of falling
  * due again immediately. HIO_NULL reads the clock, for the first one. */
-static int schedule_purge (hio_svc_dhcs_t* dhcs, const hio_ntime_t* from)
+static int schedule_purge (hio_svc_dhcps_t* dhcps, const hio_ntime_t* from)
 {
-	hio_t* hio = dhcs->hio;
+	hio_t* hio = dhcps->hio;
 	hio_tmrjob_t tmrjob;
 	hio_ntime_t interval;
 
 	HIO_MEMSET (&tmrjob, 0, HIO_SIZEOF(tmrjob));
-	tmrjob.ctx = dhcs;
+	tmrjob.ctx = dhcps;
 	if (from) tmrjob.when = *from;
 	else hio_gettime(hio, &tmrjob.when);
 	HIO_INIT_NTIME(&interval, PURGE_INTERVAL_SECS, 0);
 	HIO_ADD_NTIME(&tmrjob.when, &tmrjob.when, &interval);
 	tmrjob.handler = on_purge_timer;
-	tmrjob.idxptr = &dhcs->purge_tmridx;
+	tmrjob.idxptr = &dhcps->purge_tmridx;
 
-	dhcs->purge_tmridx = hio_instmrjob(hio, &tmrjob);
-	return (dhcs->purge_tmridx == HIO_TMRIDX_INVALID)? -1: 0;
+	dhcps->purge_tmridx = hio_instmrjob(hio, &tmrjob);
+	return (dhcps->purge_tmridx == HIO_TMRIDX_INVALID)? -1: 0;
 }
 
 static void on_purge_timer (hio_t* hio, const hio_ntime_t* now, hio_tmrjob_t* job)
 {
-	hio_svc_dhcs_t* dhcs = (hio_svc_dhcs_t*)job->ctx;
+	hio_svc_dhcps_t* dhcps = (hio_svc_dhcps_t*)job->ctx;
 	hio_oow_t n;
 
-	if (dhcs->stopping) return;
+	if (dhcps->stopping) return;
 
-	n = hio_svc_dhcs_purgeexpiredleases(dhcs);
-	if (n > 0) HIO_DEBUG2(hio, "DHCS(%p) - reclaimed %zu expired lease(s)\n", dhcs, n);
+	n = hio_svc_dhcps_purgeexpiredleases(dhcps);
+	if (n > 0) HIO_DEBUG2(hio, "DHCPS(%p) - reclaimed %zu expired lease(s)\n", dhcps, n);
 
 	/* rescheduled from the handler rather than run as a repeating job, so a
 	 * sweep that cannot be scheduled again is visible in the log instead of
 	 * silently ending the housekeeping. the service keeps working either way:
 	 * exhaustion still triggers a sweep of its own. */
-	if (schedule_purge(dhcs, now) <= -1)
-		HIO_INFO1(hio, "DHCS(%p) - unable to reschedule the lease sweep\n", dhcs);
+	if (schedule_purge(dhcps, now) <= -1)
+		HIO_INFO1(hio, "DHCPS(%p) - unable to reschedule the lease sweep\n", dhcps);
 }
 
 /* ------------------------------------------------------------------------- */
 /* the socket, which is only a carrier for the above                         */
 /* ------------------------------------------------------------------------- */
 
-static int dhcs_on_read (hio_dev_sck_t* sck, const void* data, hio_iolen_t dlen, const hio_skad_t* srcaddr)
+static int dhcps_on_read (hio_dev_sck_t* sck, const void* data, hio_iolen_t dlen, const hio_skad_t* srcaddr)
 {
 	hio_t* hio = sck->hio;
-	dhcs_sck_xtn_t* xtn = (dhcs_sck_xtn_t*)hio_dev_sck_getxtn(sck);
-	hio_svc_dhcs_t* dhcs = xtn->dhcs;
+	dhcps_sck_xtn_t* xtn = (dhcps_sck_xtn_t*)hio_dev_sck_getxtn(sck);
+	hio_svc_dhcps_t* dhcps = xtn->dhcps;
 	hio_dhcp4_pktinf_t req;
 	hio_dhcp4_pktbuf_t rep;
 	hio_uint8_t repbuf[REPLY_BUFSIZE];
@@ -758,47 +758,47 @@ static int dhcs_on_read (hio_dev_sck_t* sck, const void* data, hio_iolen_t dlen,
 	rep.len = 0;
 	rep.capa = HIO_SIZEOF(repbuf);
 
-	n = hio_svc_dhcs_process(dhcs, &req, &rep, &dstaddr);
+	n = hio_svc_dhcps_process(dhcps, &req, &rep, &dstaddr);
 	if (n <= -1)
 	{
 		/* one bad datagram is not a reason to stop serving everyone else. a
 		 * dhcp server is exposed to whatever is on the segment, so a packet
 		 * it cannot make sense of is an expected event, not a fault. */
-		HIO_INFO2(hio, "DHCS(%p) - ignoring a request that could not be handled - %js\n", dhcs, hio_geterrmsg(hio));
+		HIO_INFO2(hio, "DHCPS(%p) - ignoring a request that could not be handled - %js\n", dhcps, hio_geterrmsg(hio));
 		return 0;
 	}
 	if (n == 0) return 0; /* nothing to say */
 
 	if (hio_dev_sck_write(sck, rep.hdr, (hio_iolen_t)rep.len, HIO_NULL, &dstaddr) <= -1)
 	{
-		HIO_INFO2(hio, "DHCS(%p) - unable to send a reply - %js\n", dhcs, hio_geterrmsg(hio));
+		HIO_INFO2(hio, "DHCPS(%p) - unable to send a reply - %js\n", dhcps, hio_geterrmsg(hio));
 		/* and again, not a reason to take the server down */
 	}
 
 	return 0;
 }
 
-static int dhcs_on_write (hio_dev_sck_t* sck, hio_iolen_t wrlen, void* wrctx, const hio_skad_t* dstaddr)
+static int dhcps_on_write (hio_dev_sck_t* sck, hio_iolen_t wrlen, void* wrctx, const hio_skad_t* dstaddr)
 {
 	return 0;
 }
 
-static void dhcs_on_disconnect (hio_dev_sck_t* sck)
+static void dhcps_on_disconnect (hio_dev_sck_t* sck)
 {
-	dhcs_sck_xtn_t* xtn = (dhcs_sck_xtn_t*)hio_dev_sck_getxtn(sck);
-	if (xtn->dhcs && xtn->dhcs->sck == sck) xtn->dhcs->sck = HIO_NULL;
+	dhcps_sck_xtn_t* xtn = (dhcps_sck_xtn_t*)hio_dev_sck_getxtn(sck);
+	if (xtn->dhcps && xtn->dhcps->sck == sck) xtn->dhcps->sck = HIO_NULL;
 }
 
-static hio_dev_sck_t* open_socket (hio_svc_dhcs_t* dhcs)
+static hio_dev_sck_t* open_socket (hio_svc_dhcps_t* dhcps)
 {
-	hio_t* hio = dhcs->hio;
+	hio_t* hio = dhcps->hio;
 	hio_dev_sck_make_t m;
 	hio_dev_sck_bind_t b;
 	hio_dev_sck_t* sck = HIO_NULL;
-	dhcs_sck_xtn_t* xtn;
+	dhcps_sck_xtn_t* xtn;
 	int f;
 
-	f = hio_skad_get_family(&dhcs->cfg.bind_addr);
+	f = hio_skad_get_family(&dhcps->cfg.bind_addr);
 	if (f != HIO_AF_INET)
 	{
 		/* this service speaks DHCPv4. DHCPv6 is a different protocol with a
@@ -810,18 +810,18 @@ static hio_dev_sck_t* open_socket (hio_svc_dhcs_t* dhcs)
 
 	HIO_MEMSET(&m, 0, HIO_SIZEOF(m));
 	m.type = HIO_DEV_SCK_UDP4;
-	m.on_read = dhcs_on_read;
-	m.on_write = dhcs_on_write;
-	m.on_disconnect = dhcs_on_disconnect;
+	m.on_read = dhcps_on_read;
+	m.on_write = dhcps_on_write;
+	m.on_disconnect = dhcps_on_disconnect;
 
 	sck = hio_dev_sck_make(hio, HIO_SIZEOF(*xtn), &m);
 	if (HIO_UNLIKELY(!sck)) return HIO_NULL;
 
-	xtn = (dhcs_sck_xtn_t*)hio_dev_sck_getxtn(sck);
-	xtn->dhcs = dhcs;
+	xtn = (dhcps_sck_xtn_t*)hio_dev_sck_getxtn(sck);
+	xtn->dhcps = dhcps;
 
 	HIO_MEMSET(&b, 0, HIO_SIZEOF(b));
-	b.localaddr = dhcs->cfg.bind_addr;
+	b.localaddr = dhcps->cfg.bind_addr;
 	/* BROADCAST because a reply to a client that has no address yet has to go
 	 * to 255.255.255.255, and REUSEADDR so a restart does not have to wait
 	 * out the previous socket. */
@@ -837,9 +837,9 @@ static hio_dev_sck_t* open_socket (hio_svc_dhcs_t* dhcs)
 
 /* ------------------------------------------------------------------------- */
 
-hio_svc_dhcs_t* hio_svc_dhcs_start (hio_t* hio, const hio_svc_dhcs_cfg_t* cfg)
+hio_svc_dhcps_t* hio_svc_dhcps_start (hio_t* hio, const hio_svc_dhcps_cfg_t* cfg)
 {
-	hio_svc_dhcs_t* dhcs = HIO_NULL;
+	hio_svc_dhcps_t* dhcps = HIO_NULL;
 
 	if (cfg->pool_first > cfg->pool_last)
 	{
@@ -850,9 +850,9 @@ hio_svc_dhcs_t* hio_svc_dhcs_start (hio_t* hio, const hio_svc_dhcs_cfg_t* cfg)
 	/* the pool bounds every allocation this service makes, so a mistyped
 	 * pool is refused here rather than turning into an allocation the size of
 	 * the address space later */
-	if (cfg->pool_last - cfg->pool_first + 1 > HIO_SVC_DHCS_MAX_POOL_SIZE)
+	if (cfg->pool_last - cfg->pool_first + 1 > HIO_SVC_DHCPS_MAX_POOL_SIZE)
 	{
-		hio_seterrbfmt(hio, HIO_EINVAL, "dhcp pool larger than %d addresses", (int)HIO_SVC_DHCS_MAX_POOL_SIZE);
+		hio_seterrbfmt(hio, HIO_EINVAL, "dhcp pool larger than %d addresses", (int)HIO_SVC_DHCPS_MAX_POOL_SIZE);
 		return HIO_NULL;
 	}
 
@@ -865,85 +865,85 @@ hio_svc_dhcs_t* hio_svc_dhcs_start (hio_t* hio, const hio_svc_dhcs_cfg_t* cfg)
 		return HIO_NULL;
 	}
 
-	dhcs = (hio_svc_dhcs_t*)hio_callocmem(hio, HIO_SIZEOF(*dhcs));
-	if (HIO_UNLIKELY(!dhcs)) goto oops;
+	dhcps = (hio_svc_dhcps_t*)hio_callocmem(hio, HIO_SIZEOF(*dhcps));
+	if (HIO_UNLIKELY(!dhcps)) goto oops;
 
-	dhcs->hio = hio;
-	dhcs->svc_stop = (hio_svc_stop_t)hio_svc_dhcs_stop;
-	dhcs->cfg = *cfg;
+	dhcps->hio = hio;
+	dhcps->svc_stop = (hio_svc_stop_t)hio_svc_dhcps_stop;
+	dhcps->cfg = *cfg;
 
 	if (cfg->domain)
 	{
-		dhcs->domain = hio_dupbcstr(hio, cfg->domain, HIO_NULL);
-		if (HIO_UNLIKELY(!dhcs->domain)) goto oops;
+		dhcps->domain = hio_dupbcstr(hio, cfg->domain, HIO_NULL);
+		if (HIO_UNLIKELY(!dhcps->domain)) goto oops;
 		/* and the copy is what the config points at from here on, so nothing
 		 * reads the caller's string after this returns */
-		dhcs->cfg.domain = dhcs->domain;
+		dhcps->cfg.domain = dhcps->domain;
 	}
 
-	dhcs->purge_tmridx = HIO_TMRIDX_INVALID;
+	dhcps->purge_tmridx = HIO_TMRIDX_INVALID;
 
-	dhcs->sck = open_socket(dhcs);
-	if (HIO_UNLIKELY(!dhcs->sck)) goto oops;
+	dhcps->sck = open_socket(dhcps);
+	if (HIO_UNLIKELY(!dhcps->sck)) goto oops;
 
-	if (schedule_purge(dhcs, HIO_NULL) <= -1) goto oops;
+	if (schedule_purge(dhcps, HIO_NULL) <= -1) goto oops;
 
-	HIO_SVCL_APPEND_SVC(&hio->actsvc, (hio_svc_t*)dhcs);
+	HIO_SVCL_APPEND_SVC(&hio->actsvc, (hio_svc_t*)dhcps);
 
-	HIO_DEBUG1(hio, "DHCS - STARTED SERVICE %p\n", dhcs);
-	return dhcs;
+	HIO_DEBUG1(hio, "DHCPS - STARTED SERVICE %p\n", dhcps);
+	return dhcps;
 
 oops:
-	if (dhcs)
+	if (dhcps)
 	{
-		if (dhcs->purge_tmridx != HIO_TMRIDX_INVALID) hio_deltmrjob(hio, dhcs->purge_tmridx);
+		if (dhcps->purge_tmridx != HIO_TMRIDX_INVALID) hio_deltmrjob(hio, dhcps->purge_tmridx);
 
 		/* the socket is killed before the service it points back at is freed,
 		 * or its disconnect callback would run against freed memory */
-		if (dhcs->sck)
+		if (dhcps->sck)
 		{
-			dhcs_sck_xtn_t* xtn = (dhcs_sck_xtn_t*)hio_dev_sck_getxtn(dhcs->sck);
-			xtn->dhcs = HIO_NULL;
-			hio_dev_sck_kill(dhcs->sck);
+			dhcps_sck_xtn_t* xtn = (dhcps_sck_xtn_t*)hio_dev_sck_getxtn(dhcps->sck);
+			xtn->dhcps = HIO_NULL;
+			hio_dev_sck_kill(dhcps->sck);
 		}
-		if (dhcs->domain) hio_freemem(hio, dhcs->domain);
-		hio_freemem(hio, dhcs);
+		if (dhcps->domain) hio_freemem(hio, dhcps->domain);
+		hio_freemem(hio, dhcps);
 	}
 	return HIO_NULL;
 }
 
-void hio_svc_dhcs_stop (hio_svc_dhcs_t* dhcs)
+void hio_svc_dhcps_stop (hio_svc_dhcps_t* dhcps)
 {
-	hio_t* hio = dhcs->hio;
+	hio_t* hio = dhcps->hio;
 	hio_oow_t i;
 
-	HIO_DEBUG1(hio, "DHCS - STOPPING SERVICE %p\n", dhcs);
-	dhcs->stopping = 1;
+	HIO_DEBUG1(hio, "DHCPS - STOPPING SERVICE %p\n", dhcps);
+	dhcps->stopping = 1;
 
 	/* before the memory it points at goes, or the sweep would run against a
 	 * freed service */
-	if (dhcs->purge_tmridx != HIO_TMRIDX_INVALID) hio_deltmrjob(hio, dhcs->purge_tmridx);
+	if (dhcps->purge_tmridx != HIO_TMRIDX_INVALID) hio_deltmrjob(hio, dhcps->purge_tmridx);
 
-	if (dhcs->sck)
+	if (dhcps->sck)
 	{
 		/* the callback must not find a service that is being torn down */
-		dhcs_sck_xtn_t* xtn = (dhcs_sck_xtn_t*)hio_dev_sck_getxtn(dhcs->sck);
-		xtn->dhcs = HIO_NULL;
-		hio_dev_sck_kill(dhcs->sck);
-		dhcs->sck = HIO_NULL;
+		dhcps_sck_xtn_t* xtn = (dhcps_sck_xtn_t*)hio_dev_sck_getxtn(dhcps->sck);
+		xtn->dhcps = HIO_NULL;
+		hio_dev_sck_kill(dhcps->sck);
+		dhcps->sck = HIO_NULL;
 	}
 
 	/* each lease owns its copy of the client identifier */
-	for (i = 0; i < dhcs->nleases; i++)
+	for (i = 0; i < dhcps->nleases; i++)
 	{
-		if (dhcs->leases[i].cid) hio_freemem(hio, dhcs->leases[i].cid);
+		if (dhcps->leases[i].cid) hio_freemem(hio, dhcps->leases[i].cid);
 	}
-	if (dhcs->leases) hio_freemem(hio, dhcs->leases);
+	if (dhcps->leases) hio_freemem(hio, dhcps->leases);
 
-	if (dhcs->domain) hio_freemem(hio, dhcs->domain);
+	if (dhcps->domain) hio_freemem(hio, dhcps->domain);
 
-	HIO_SVCL_UNLINK_SVC(dhcs);
-	hio_freemem(hio, dhcs);
+	HIO_SVCL_UNLINK_SVC(dhcps);
+	hio_freemem(hio, dhcps);
 
-	HIO_DEBUG1(hio, "DHCS - STOPPED SERVICE %p\n", dhcs);
+	HIO_DEBUG1(hio, "DHCPS - STOPPED SERVICE %p\n", dhcps);
 }
