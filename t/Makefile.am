@@ -15,14 +15,14 @@ LIBADD_COMMON = ../lib/libhio.la $(LIBM)
 
 
 check_SCRIPTS = s-001.sh s-002.sh s-003.sh
-EXTRA_DIST = $(check_SCRIPTS) tap.inc t-cgi.sh ws-check.py
+EXTRA_DIST = $(check_SCRIPTS) tap.inc t-cgi.sh
 
 ## programs run as tests
 TESTPROGS = t-001 t-002 t-003 t-004 t-005 t-006 t-007 t-008 t-009 t-010 t-011 t-012 t-013 t-014 t-015 t-016 t-017 t-018 t-019 t-020 t-021 t-022
 
 ## helpers the test scripts drive. built with the tests, but not tests
 ## themselves - they are servers and would never exit.
-HELPERPROGS = fcgis httpecho httpsvr slowclient sctpget
+HELPERPROGS = fcgis httpecho httpsvr slowclient sctpget wscli
 
 check_PROGRAMS = $(TESTPROGS) $(HELPERPROGS)
 
@@ -237,6 +237,15 @@ slowclient_CPPFLAGS = $(CPPFLAGS_COMMON)
 slowclient_CFLAGS = $(CFLAGS_COMMON)
 slowclient_LDFLAGS = $(LDFLAGS_COMMON)
 slowclient_LDADD = $(LIBADD_COMMON)
+
+## a websocket client for s-003.sh. it speaks the protocol itself rather than
+## through the library it is testing - a server checked only against the code
+## it is built from passes whether or not that code is right.
+wscli_SOURCES = wscli.c
+wscli_CPPFLAGS = $(CPPFLAGS_COMMON)
+wscli_CFLAGS = $(CFLAGS_COMMON)
+wscli_LDFLAGS = $(LDFLAGS_COMMON)
+wscli_LDADD = $(LIBADD_COMMON)
 
 ## a minimal http client that speaks sctp. curl cannot, so the harness needs
 ## this to reach the sctp listener at all.

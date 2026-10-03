@@ -116,7 +116,7 @@ am__EXEEXT_1 = t-001$(EXEEXT) t-002$(EXEEXT) t-003$(EXEEXT) \
 	t-016$(EXEEXT) t-017$(EXEEXT) t-018$(EXEEXT) t-019$(EXEEXT) \
 	t-020$(EXEEXT) t-021$(EXEEXT) t-022$(EXEEXT)
 am__EXEEXT_2 = fcgis$(EXEEXT) httpecho$(EXEEXT) httpsvr$(EXEEXT) \
-	slowclient$(EXEEXT) sctpget$(EXEEXT)
+	slowclient$(EXEEXT) sctpget$(EXEEXT) wscli$(EXEEXT)
 am_fcgis_OBJECTS = fcgis-fcgis.$(OBJEXT)
 fcgis_OBJECTS = $(am_fcgis_OBJECTS)
 am__DEPENDENCIES_1 =
@@ -286,6 +286,12 @@ t_022_DEPENDENCIES = $(am__DEPENDENCIES_2)
 t_022_LINK = $(LIBTOOL) $(AM_V_lt) --tag=CC $(AM_LIBTOOLFLAGS) \
 	$(LIBTOOLFLAGS) --mode=link $(CCLD) $(t_022_CFLAGS) $(CFLAGS) \
 	$(t_022_LDFLAGS) $(LDFLAGS) -o $@
+am_wscli_OBJECTS = wscli-wscli.$(OBJEXT)
+wscli_OBJECTS = $(am_wscli_OBJECTS)
+wscli_DEPENDENCIES = $(am__DEPENDENCIES_2)
+wscli_LINK = $(LIBTOOL) $(AM_V_lt) --tag=CC $(AM_LIBTOOLFLAGS) \
+	$(LIBTOOLFLAGS) --mode=link $(CCLD) $(wscli_CFLAGS) $(CFLAGS) \
+	$(wscli_LDFLAGS) $(LDFLAGS) -o $@
 AM_V_P = $(am__v_P_@AM_V@)
 am__v_P_ = $(am__v_P_@AM_DEFAULT_V@)
 am__v_P_0 = false
@@ -315,7 +321,8 @@ am__depfiles_remade = ./$(DEPDIR)/fcgis-fcgis.Po \
 	./$(DEPDIR)/t_015-t-015.Po ./$(DEPDIR)/t_016-t-016.Po \
 	./$(DEPDIR)/t_017-t-017.Po ./$(DEPDIR)/t_018-t-018.Po \
 	./$(DEPDIR)/t_019-t-019.Po ./$(DEPDIR)/t_020-t-020.Po \
-	./$(DEPDIR)/t_021-t-021.Po ./$(DEPDIR)/t_022-t-022.Po
+	./$(DEPDIR)/t_021-t-021.Po ./$(DEPDIR)/t_022-t-022.Po \
+	./$(DEPDIR)/wscli-wscli.Po
 am__mv = mv -f
 COMPILE = $(CC) $(DEFS) $(DEFAULT_INCLUDES) $(INCLUDES) $(AM_CPPFLAGS) \
 	$(CPPFLAGS) $(AM_CFLAGS) $(CFLAGS)
@@ -343,7 +350,8 @@ SOURCES = $(fcgis_SOURCES) $(httpecho_SOURCES) $(httpsvr_SOURCES) \
 	$(t_011_SOURCES) $(t_012_SOURCES) $(t_013_SOURCES) \
 	$(t_014_SOURCES) $(t_015_SOURCES) $(t_016_SOURCES) \
 	$(t_017_SOURCES) $(t_018_SOURCES) $(t_019_SOURCES) \
-	$(t_020_SOURCES) $(t_021_SOURCES) $(t_022_SOURCES)
+	$(t_020_SOURCES) $(t_021_SOURCES) $(t_022_SOURCES) \
+	$(wscli_SOURCES)
 DIST_SOURCES = $(fcgis_SOURCES) $(httpecho_SOURCES) $(httpsvr_SOURCES) \
 	$(sctpget_SOURCES) $(slowclient_SOURCES) $(t_001_SOURCES) \
 	$(t_002_SOURCES) $(t_003_SOURCES) $(t_004_SOURCES) \
@@ -352,7 +360,8 @@ DIST_SOURCES = $(fcgis_SOURCES) $(httpecho_SOURCES) $(httpsvr_SOURCES) \
 	$(t_011_SOURCES) $(t_012_SOURCES) $(t_013_SOURCES) \
 	$(t_014_SOURCES) $(t_015_SOURCES) $(t_016_SOURCES) \
 	$(t_017_SOURCES) $(t_018_SOURCES) $(t_019_SOURCES) \
-	$(t_020_SOURCES) $(t_021_SOURCES) $(t_022_SOURCES)
+	$(t_020_SOURCES) $(t_021_SOURCES) $(t_022_SOURCES) \
+	$(wscli_SOURCES)
 am__can_run_installinfo = \
   case $$AM_UPDATE_INFO_DIR in \
     n|no|NO) false;; \
@@ -744,9 +753,9 @@ CFLAGS_COMMON =
 LDFLAGS_COMMON = -L$(abs_builddir)/../lib  -L$(libdir)
 LIBADD_COMMON = ../lib/libhio.la $(LIBM)
 check_SCRIPTS = s-001.sh s-002.sh s-003.sh
-EXTRA_DIST = $(check_SCRIPTS) tap.inc t-cgi.sh ws-check.py
+EXTRA_DIST = $(check_SCRIPTS) tap.inc t-cgi.sh
 TESTPROGS = t-001 t-002 t-003 t-004 t-005 t-006 t-007 t-008 t-009 t-010 t-011 t-012 t-013 t-014 t-015 t-016 t-017 t-018 t-019 t-020 t-021 t-022
-HELPERPROGS = fcgis httpecho httpsvr slowclient sctpget
+HELPERPROGS = fcgis httpecho httpsvr slowclient sctpget wscli
 t_001_SOURCES = t-001.c tap.h
 t_001_CPPFLAGS = $(CPPFLAGS_COMMON)
 t_001_CFLAGS = $(CFLAGS_COMMON)
@@ -878,6 +887,11 @@ slowclient_CPPFLAGS = $(CPPFLAGS_COMMON)
 slowclient_CFLAGS = $(CFLAGS_COMMON)
 slowclient_LDFLAGS = $(LDFLAGS_COMMON)
 slowclient_LDADD = $(LIBADD_COMMON)
+wscli_SOURCES = wscli.c
+wscli_CPPFLAGS = $(CPPFLAGS_COMMON)
+wscli_CFLAGS = $(CFLAGS_COMMON)
+wscli_LDFLAGS = $(LDFLAGS_COMMON)
+wscli_LDADD = $(LIBADD_COMMON)
 sctpget_SOURCES = sctpget.c
 sctpget_CPPFLAGS = $(CPPFLAGS_COMMON)
 sctpget_CFLAGS = $(CFLAGS_COMMON)
@@ -1033,6 +1047,10 @@ t-022$(EXEEXT): $(t_022_OBJECTS) $(t_022_DEPENDENCIES) $(EXTRA_t_022_DEPENDENCIE
 	@rm -f t-022$(EXEEXT)
 	$(AM_V_CCLD)$(t_022_LINK) $(t_022_OBJECTS) $(t_022_LDADD) $(LIBS)
 
+wscli$(EXEEXT): $(wscli_OBJECTS) $(wscli_DEPENDENCIES) $(EXTRA_wscli_DEPENDENCIES) 
+	@rm -f wscli$(EXEEXT)
+	$(AM_V_CCLD)$(wscli_LINK) $(wscli_OBJECTS) $(wscli_LDADD) $(LIBS)
+
 mostlyclean-compile:
 	-rm -f *.$(OBJEXT)
 
@@ -1066,6 +1084,7 @@ distclean-compile:
 @AMDEP_TRUE@@am__include@ @am__quote@./$(DEPDIR)/t_020-t-020.Po@am__quote@ # am--include-marker
 @AMDEP_TRUE@@am__include@ @am__quote@./$(DEPDIR)/t_021-t-021.Po@am__quote@ # am--include-marker
 @AMDEP_TRUE@@am__include@ @am__quote@./$(DEPDIR)/t_022-t-022.Po@am__quote@ # am--include-marker
+@AMDEP_TRUE@@am__include@ @am__quote@./$(DEPDIR)/wscli-wscli.Po@am__quote@ # am--include-marker
 
 $(am__depfiles_remade):
 	@$(MKDIR_P) $(@D)
@@ -1474,6 +1493,20 @@ t_022-t-022.obj: t-022.c
 @AMDEP_TRUE@@am__fastdepCC_FALSE@	$(AM_V_CC)source='t-022.c' object='t_022-t-022.obj' libtool=no @AMDEPBACKSLASH@
 @AMDEP_TRUE@@am__fastdepCC_FALSE@	DEPDIR=$(DEPDIR) $(CCDEPMODE) $(depcomp) @AMDEPBACKSLASH@
 @am__fastdepCC_FALSE@	$(AM_V_CC@am__nodep@)$(CC) $(DEFS) $(DEFAULT_INCLUDES) $(INCLUDES) $(t_022_CPPFLAGS) $(CPPFLAGS) $(t_022_CFLAGS) $(CFLAGS) -c -o t_022-t-022.obj `if test -f 't-022.c'; then $(CYGPATH_W) 't-022.c'; else $(CYGPATH_W) '$(srcdir)/t-022.c'; fi`
+
+wscli-wscli.o: wscli.c
+@am__fastdepCC_TRUE@	$(AM_V_CC)$(CC) $(DEFS) $(DEFAULT_INCLUDES) $(INCLUDES) $(wscli_CPPFLAGS) $(CPPFLAGS) $(wscli_CFLAGS) $(CFLAGS) -MT wscli-wscli.o -MD -MP -MF $(DEPDIR)/wscli-wscli.Tpo -c -o wscli-wscli.o `test -f 'wscli.c' || echo '$(srcdir)/'`wscli.c
+@am__fastdepCC_TRUE@	$(AM_V_at)$(am__mv) $(DEPDIR)/wscli-wscli.Tpo $(DEPDIR)/wscli-wscli.Po
+@AMDEP_TRUE@@am__fastdepCC_FALSE@	$(AM_V_CC)source='wscli.c' object='wscli-wscli.o' libtool=no @AMDEPBACKSLASH@
+@AMDEP_TRUE@@am__fastdepCC_FALSE@	DEPDIR=$(DEPDIR) $(CCDEPMODE) $(depcomp) @AMDEPBACKSLASH@
+@am__fastdepCC_FALSE@	$(AM_V_CC@am__nodep@)$(CC) $(DEFS) $(DEFAULT_INCLUDES) $(INCLUDES) $(wscli_CPPFLAGS) $(CPPFLAGS) $(wscli_CFLAGS) $(CFLAGS) -c -o wscli-wscli.o `test -f 'wscli.c' || echo '$(srcdir)/'`wscli.c
+
+wscli-wscli.obj: wscli.c
+@am__fastdepCC_TRUE@	$(AM_V_CC)$(CC) $(DEFS) $(DEFAULT_INCLUDES) $(INCLUDES) $(wscli_CPPFLAGS) $(CPPFLAGS) $(wscli_CFLAGS) $(CFLAGS) -MT wscli-wscli.obj -MD -MP -MF $(DEPDIR)/wscli-wscli.Tpo -c -o wscli-wscli.obj `if test -f 'wscli.c'; then $(CYGPATH_W) 'wscli.c'; else $(CYGPATH_W) '$(srcdir)/wscli.c'; fi`
+@am__fastdepCC_TRUE@	$(AM_V_at)$(am__mv) $(DEPDIR)/wscli-wscli.Tpo $(DEPDIR)/wscli-wscli.Po
+@AMDEP_TRUE@@am__fastdepCC_FALSE@	$(AM_V_CC)source='wscli.c' object='wscli-wscli.obj' libtool=no @AMDEPBACKSLASH@
+@AMDEP_TRUE@@am__fastdepCC_FALSE@	DEPDIR=$(DEPDIR) $(CCDEPMODE) $(depcomp) @AMDEPBACKSLASH@
+@am__fastdepCC_FALSE@	$(AM_V_CC@am__nodep@)$(CC) $(DEFS) $(DEFAULT_INCLUDES) $(INCLUDES) $(wscli_CPPFLAGS) $(CPPFLAGS) $(wscli_CFLAGS) $(CFLAGS) -c -o wscli-wscli.obj `if test -f 'wscli.c'; then $(CYGPATH_W) 'wscli.c'; else $(CYGPATH_W) '$(srcdir)/wscli.c'; fi`
 
 mostlyclean-libtool:
 	-rm -f *.lo
@@ -1974,6 +2007,7 @@ distclean: distclean-am
 	-rm -f ./$(DEPDIR)/t_020-t-020.Po
 	-rm -f ./$(DEPDIR)/t_021-t-021.Po
 	-rm -f ./$(DEPDIR)/t_022-t-022.Po
+	-rm -f ./$(DEPDIR)/wscli-wscli.Po
 	-rm -f Makefile
 distclean-am: clean-am distclean-compile distclean-generic \
 	distclean-tags
@@ -2046,6 +2080,7 @@ maintainer-clean: maintainer-clean-am
 	-rm -f ./$(DEPDIR)/t_020-t-020.Po
 	-rm -f ./$(DEPDIR)/t_021-t-021.Po
 	-rm -f ./$(DEPDIR)/t_022-t-022.Po
+	-rm -f ./$(DEPDIR)/wscli-wscli.Po
 	-rm -f Makefile
 maintainer-clean-am: distclean-am maintainer-clean-generic
 

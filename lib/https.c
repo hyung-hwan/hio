@@ -30,7 +30,7 @@
 
 #define INVALID_LIDX HIO_TYPE_MAX(hio_oow_t)
 
-static int https_svr_wrctx;
+static int https_wrctx;
 
 /* ------------------------------------------------------------------------ */
 
@@ -439,7 +439,7 @@ int hio_svc_https_client_default_on_write (hio_dev_sck_t* sck, hio_iolen_t wrlen
 	HIO_ASSERT(hio, cli->l_idx == INVALID_LIDX);
 
 	/* handle event if it's write by self */
-	if (wrctx == &https_svr_wrctx)
+	if (wrctx == &https_wrctx)
 	{
 		if (wrlen <= -1)
 		{
@@ -1306,7 +1306,7 @@ static int write_raw_to_client (hio_svc_https_task_t* task, const void* data, hi
 
 	task->task_res_ever_sent = 1;
 	task->task_res_pending_writes++;
-	if (hio_dev_sck_write(task->task_csck, data, dlen, &https_svr_wrctx, HIO_NULL) <= -1)
+	if (hio_dev_sck_write(task->task_csck, data, dlen, &https_wrctx, HIO_NULL) <= -1)
 	{
 		task->task_res_pending_writes--;
 		return -1;
@@ -1341,7 +1341,7 @@ static int write_chunk_to_client (hio_svc_https_task_t* task, const void* data, 
 
 	task->task_res_ever_sent = 1;
 	task->task_res_pending_writes++;
-	if (hio_dev_sck_writev(task->task_csck, iov, HIO_COUNTOF(iov), &https_svr_wrctx, HIO_NULL) <= -1)
+	if (hio_dev_sck_writev(task->task_csck, iov, HIO_COUNTOF(iov), &https_wrctx, HIO_NULL) <= -1)
 	{
 		task->task_res_pending_writes--;
 		return -1;
@@ -1375,7 +1375,7 @@ int hio_svc_https_task_addresbodyfromfile (hio_svc_https_task_t* task, int fd, h
 	if (task->task_csck)
 	{
 		task->task_res_pending_writes++;
-		if (hio_dev_sck_sendfile(task->task_csck, fd, foff, len, &https_svr_wrctx) <= -1)
+		if (hio_dev_sck_sendfile(task->task_csck, fd, foff, len, &https_wrctx) <= -1)
 		{
 			task->task_res_pending_writes--;
 			return -1;
