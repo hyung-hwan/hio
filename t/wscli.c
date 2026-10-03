@@ -10,7 +10,11 @@
  * comparing against the published answer checks the computation without
  * repeating it.
  *
- * usage: wscli <ipaddr:port>
+ * usage: wscli <ipaddr:port> [ready]
+ *
+ * with 'ready' it only opens a connection and completes the handshake, which
+ * is what a harness polls with while waiting for the server to bind. the
+ * checks themselves are far too slow to poll with.
  *
  * each check prints one line - "OK " or "FAIL " and what was checked - which
  * s-003.sh turns into tap output. the exit status is 1 if anything failed.
@@ -32,6 +36,15 @@
 /* the key and its answer, both from RFC 6455 section 1.3 */
 #define WS_KEY    "dGhlIHNhbXBsZSBub25jZQ=="
 #define WS_ACCEPT "s3pPLMBiTxaQ9kYGzzhZRbK+xOo="
+
+/* the sizes the checks move. they only have to be large enough to cross the
+ * server's internal chunking many times over and to put several sessions in
+ * flight at once - past that they only cost time, and a debug build on a slow
+ * machine pays that cost for every frame it logs. */
+#define BIG_MSG_LEN      (256 * 1024)
+#define RAPID_MSG_COUNT  50
+#define CONCURRENT_COUNT 8
+#define SESSION_MSG_LEN  20000
 
 #define OP_CONT  0x0
 #define OP_TEXT  0x1
@@ -295,6 +308,41 @@ static int read_close_code (int fd)
 /* the checks                                                          */
 /* ------------------------------------------------------------------ */
 
+/* an echo endpoint writes the reply while this is still writing the message.
+ * a client that sends the whole of a large one before reading any of it fills
+ * the server's send buffer, which makes the server stop reading, which blocks
+ * this in send() - a deadlock neither side is at fault for, and one a browser
+ * never hits because it reads and writes at once.
+ *
+ * the send is handed to a child so that this side does both at once as well.
+ * it only matters for a message too large for the socket buffers to absorb,
+ * which is exactly the message worth sending. */
+static int echo_big (int fd, int op, const void* msg, size_t len, const char* what)
+{
+	unsigned char* buf;
+	size_t rlen;
+	int rop, ok, st;
+	pid_t pid;
+
+	buf = malloc(len + 16);
+	if (!buf) { ck(0, what); return -1; }
+
+	pid = fork();
+	if (pid == 0)
+	{
+		_exit (send_frame(fd, 1, op, msg, len, 1, 0) == 0? 0: 1);
+	}
+	if (pid < 0) { free(buf); ck(0, what); return -1; }
+
+	ok = (recv_msg(fd, &rop, buf, len + 16, &rlen) == 0);
+	if (waitpid(pid, &st, 0) < 0 || !WIFEXITED(st) || WEXITSTATUS(st) != 0) ok = 0;
+
+	ok = ok && (rop == op && rlen == len && memcmp(buf, msg, len) == 0);
+	free (buf);
+	ck (ok, what);
+	return 0;
+}
+
 static int echo_once (int fd, int op, const void* msg, size_t len, const char* what)
 {
 	unsigned char* buf;
@@ -343,15 +391,15 @@ static void test_conforming (void)
 	/* larger than any single read, so it crosses the server's buffering and
 	 * comes back as a message rather than as the pieces it travelled in */
 	{
-		size_t n = 1024 * 1024;
+		size_t n = BIG_MSG_LEN;
 		char* big = malloc(n);
 		if (big)
 		{
 			memset (big, 'x', n);
-			echo_once (fd, OP_TEXT, big, n, "a 1MB message echoes back intact");
+			echo_big (fd, OP_TEXT, big, n, "a message far larger than one read echoes back intact");
 			free (big);
 		}
-		else ck(0, "a 1MB message echoes back intact");
+		else ck(0, "a message far larger than one read echoes back intact");
 	}
 
 	/* a fragmented message, ended by a continuation frame carrying nothing
@@ -399,10 +447,10 @@ static void test_many_messages (void)
 	size_t len;
 	int fd, op, i, ok = 1;
 
-	if (ws_open(&fd, 0) <= -1) { ck(0, "200 messages back to back on one connection all echo correctly"); return; }
+	if (ws_open(&fd, 0) <= -1) { ck(0, "messages sent back to back on one connection all echo correctly"); return; }
 	if (recv_msg(fd, &op, buf, sizeof(buf), &len) <= -1) ok = 0;
 
-	for (i = 0; ok && i < 200; i++)
+	for (i = 0; ok && i < RAPID_MSG_COUNT; i++)
 	{
 		char m[32];
 		int mlen = snprintf(m, sizeof(m), "m%d", i);
@@ -411,7 +459,7 @@ static void test_many_messages (void)
 		    len != (size_t)mlen || memcmp(buf, m, mlen) != 0) ok = 0;
 	}
 
-	ck (ok, "200 messages back to back on one connection all echo correctly");
+	ck (ok, "messages sent back to back on one connection all echo correctly");
 	close (fd);
 }
 
@@ -419,7 +467,7 @@ static void test_many_messages (void)
  * rather than one after another */
 static int one_session (int i)
 {
-	unsigned char buf[262144];
+	unsigned char buf[BIG_MSG_LEN + 1024];
 	size_t len, n;
 	int fd, op, j;
 	char* big;
@@ -436,13 +484,22 @@ static int one_session (int i)
 		    len != (size_t)mlen || memcmp(buf, m, mlen) != 0) { close(fd); return -1; }
 	}
 
-	n = 100000;
+	n = SESSION_MSG_LEN;
 	big = malloc(n);
 	if (!big) { close(fd); return -1; }
 	memset (big, 'a' + (i % 26), n);
-	if (send_frame(fd, 1, OP_BIN, big, n, 1, 0) <= -1 ||
-	    recv_msg(fd, &op, buf, sizeof(buf), &len) <= -1 ||
-	    len != n || memcmp(buf, big, n) != 0) { free(big); close(fd); return -1; }
+	{
+		/* the same interleaving the large message needs, for the same reason */
+		pid_t w = fork();
+		int st, ok;
+
+		if (w == 0) _exit(send_frame(fd, 1, OP_BIN, big, n, 1, 0) == 0? 0: 1);
+		if (w < 0) { free(big); close(fd); return -1; }
+
+		ok = (recv_msg(fd, &op, buf, sizeof(buf), &len) == 0);
+		if (waitpid(w, &st, 0) < 0 || !WIFEXITED(st) || WEXITSTATUS(st) != 0) ok = 0;
+		if (!ok || len != n || memcmp(buf, big, n) != 0) { free(big); close(fd); return -1; }
+	}
 	free (big);
 
 	close (fd);
@@ -452,16 +509,16 @@ static int one_session (int i)
 static void test_concurrent (void)
 {
 	int i, ok = 1;
-	pid_t pid[16];
+	pid_t pid[CONCURRENT_COUNT];
 
-	for (i = 0; i < 16; i++)
+	for (i = 0; i < CONCURRENT_COUNT; i++)
 	{
 		pid[i] = fork();
 		if (pid[i] == 0) _exit(one_session(i) == 0? 0: 1);
 		if (pid[i] < 0) { ok = 0; break; }
 	}
 
-	for (i = 0; i < 16; i++)
+	for (i = 0; i < CONCURRENT_COUNT; i++)
 	{
 		int st;
 		if (pid[i] > 0)
@@ -470,7 +527,7 @@ static void test_concurrent (void)
 		}
 	}
 
-	ck (ok, "16 concurrent sessions each echo everything correctly");
+	ck (ok, "concurrent sessions each echo everything correctly");
 }
 
 /* ------------------------------------------------------------------ */
@@ -575,9 +632,9 @@ static void test_bad_handshakes (void)
 
 int main (int argc, char* argv[])
 {
-	if (argc != 2)
+	if (argc < 2 || argc > 3)
 	{
-		fprintf (stderr, "usage: %s <ipaddr:port>\n", argv[0]);
+		fprintf (stderr, "usage: %s <ipaddr:port> [ready]\n", argv[0]);
 		return 2;
 	}
 	g_addr = argv[1];
@@ -585,6 +642,16 @@ int main (int argc, char* argv[])
 	/* writing to a connection the server has closed is an expected part of
 	 * the refusal checks */
 	signal (SIGPIPE, SIG_IGN);
+
+	if (argc == 3 && strcmp(argv[2], "ready") == 0)
+	{
+		/* is the server answering yet? nothing is printed - the exit status
+		 * is the whole answer */
+		int fd;
+		if (ws_open(&fd, 0) <= -1) return 1;
+		close (fd);
+		return 0;
+	}
 
 	test_conforming ();
 	test_many_messages ();

@@ -19,13 +19,13 @@ SRVADDR="127.0.0.1:${SRVPORT}"
 ./httpsvr >/dev/null 2>&1 &
 srvpid=$!
 
-# wait for the listener rather than sleeping a fixed amount. wscli reports a
-# failed connect the same way it reports anything else, so a poll of it is
-# enough to tell when the server is answering.
+# wait for the listener rather than sleeping a fixed amount. 'ready' completes
+# a handshake and exits, which is cheap enough to poll with - the checks
+# themselves move a megabyte and fork sixteen times.
 i=0
 up=0
 while [ $i -lt 50 ]; do
-	if ./wscli "${SRVADDR}" >/dev/null 2>&1; then
+	if ./wscli "${SRVADDR}" ready >/dev/null 2>&1; then
 		up=1
 		break
 	fi
@@ -34,21 +34,13 @@ while [ $i -lt 50 ]; do
 done
 
 if [ $up -eq 0 ]; then
-	# one more run, with the output kept, so a genuine failure is reported as
-	# itself rather than as a server that never came up
-	./wscli "${SRVADDR}" > /tmp/wscli.$$ 2>&1
-	if [ -s /tmp/wscli.$$ ]; then
-		up=1
-	else
-		tap_fail "httpsvr did not come up"
-		rm -f /tmp/wscli.$$
-		kill -TERM ${srvpid} 2>/dev/null
-		tap_end
-		exit 0
-	fi
-else
-	./wscli "${SRVADDR}" > /tmp/wscli.$$ 2>&1
+	tap_fail "httpsvr did not come up"
+	kill -TERM ${srvpid} 2>/dev/null
+	tap_end
+	exit 0
 fi
+
+./wscli "${SRVADDR}" > /tmp/wscli.$$ 2>&1
 
 # each check prints one line, which is turned into tap here so that the reason
 # a case failed survives into the test output
