@@ -294,16 +294,19 @@ static int secure_poll_data_slot_for_insert (hio_t* hio)
 
 		tmp1 = hio_reallocmem(hio, mux->pd.pfd, new_capa * HIO_SIZEOF(*tmp1));
 		if (HIO_UNLIKELY(!tmp1)) return -1;
+		/* assign tmp1 to mux->pd.pfd before dealing with mux->pd.dptr.
+		 * if the reallocation of mux->pd.dptr fails, there is no good way to
+		 * roll back the reallocation of mux->pd.pfd. so just assign it
+		 * and expect that the physicall allocation size of mux->pd.pfd
+		 * may not match the given capacity until both reallocations get
+		 * successful */
+		mux->pd.pfd = tmp1;
 
 		tmp2 = hio_reallocmem(hio, mux->pd.dptr, new_capa * HIO_SIZEOF(*tmp2));
-		if (HIO_UNLIKELY(!tmp2))
-		{
-			hio_freemem(hio, tmp1);
-			return -1;
-		}
-
-		mux->pd.pfd = tmp1;
+		if (HIO_UNLIKELY(!tmp2)) return -1;
 		mux->pd.dptr = tmp2;
+
+		/* update the capacity now */
 		mux->pd.capa = new_capa;
 	}
 
