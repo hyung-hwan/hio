@@ -23,6 +23,7 @@
 #include <errno.h>
 #include <time.h>
 #include <signal.h>
+#include <sys/types.h>
 #include <sys/socket.h>
 #include <sys/select.h>
 #include <netinet/in.h>
@@ -31,7 +32,7 @@
 static double now_secs (void)
 {
 	struct timespec ts;
-	clock_gettime (CLOCK_MONOTONIC, &ts);
+	clock_gettime(CLOCK_MONOTONIC, &ts);
 	return (double)ts.tv_sec + (double)ts.tv_nsec / 1000000000.0;
 }
 
