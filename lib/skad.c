@@ -1610,7 +1610,9 @@ void hio_skad_init_for_ip4 (hio_skad_t* skad, hio_uint16_t port, hio_ip4ad_t* ip
 {
 #if (HIO_SIZEOF_STRUCT_SOCKADDR_IN > 0)
 	struct sockaddr_in* sin = (struct sockaddr_in*)skad;
-	HIO_MEMSET(sin, 0, HIO_SIZEOF(*sin));
+
+	/* Clear the SCTP metadata along with the native address. */
+	HIO_MEMSET(sin, 0, HIO_SIZEOF(*skad));
 	sin->sin_family = AF_INET;
 	sin->sin_port = hio_hton16(port);
 	if (ip4ad) HIO_MEMCPY(&sin->sin_addr, ip4ad->v, HIO_IP4AD_LEN);
@@ -1621,7 +1623,9 @@ void hio_skad_init_for_ip6 (hio_skad_t* skad, hio_uint16_t port, hio_ip6ad_t* ip
 {
 #if (HIO_SIZEOF_STRUCT_SOCKADDR_IN6 > 0)
 	struct sockaddr_in6* sin = (struct sockaddr_in6*)skad;
-	HIO_MEMSET(sin, 0, HIO_SIZEOF(*sin));
+
+	/* Clear the SCTP metadata along with the native address. */
+	HIO_MEMSET(sin, 0, HIO_SIZEOF(*skad));
 	sin->sin6_family = AF_INET6;
 	sin->sin6_port = hio_hton16(port);
 	sin->sin6_scope_id = scope_id;
@@ -1637,7 +1641,9 @@ void hio_skad_init_for_ip_with_bytes (hio_skad_t* skad, hio_uint16_t port, const
 		case HIO_IP4AD_LEN:
 		{
 			struct sockaddr_in* sin = (struct sockaddr_in*)skad;
-			HIO_MEMSET(sin, 0, HIO_SIZEOF(*sin));
+
+			/* Clear the SCTP metadata along with the native address. */
+			HIO_MEMSET(sin, 0, HIO_SIZEOF(*skad));
 			sin->sin_family = AF_INET;
 			sin->sin_port = hio_hton16(port);
 			HIO_MEMCPY(&sin->sin_addr, bytes, len);
@@ -1648,7 +1654,9 @@ void hio_skad_init_for_ip_with_bytes (hio_skad_t* skad, hio_uint16_t port, const
 		case HIO_IP6AD_LEN:
 		{
 			struct sockaddr_in6* sin = (struct sockaddr_in6*)skad;
-			HIO_MEMSET(sin, 0, HIO_SIZEOF(*sin));
+
+			/* Clear the SCTP metadata along with the native address. */
+			HIO_MEMSET(sin, 0, HIO_SIZEOF(*skad));
 			sin->sin6_family = AF_INET6;
 			sin->sin6_port = hio_hton16(port);
 			HIO_MEMCPY(&sin->sin6_addr, bytes, len);

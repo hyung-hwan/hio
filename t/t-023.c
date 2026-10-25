@@ -1123,6 +1123,130 @@ static void test_interface_descriptor_cleanup (hio_t* hio)
 #endif
 }
 
+static void test_sctp_initializers (void)
+{
+	const hio_bch_t* labels[] =
+	{
+		"IPv4 initializer resets SCTP metadata in fresh and reused storage",
+		"raw IPv4 initializer resets SCTP metadata in fresh and reused storage",
+		"IPv6 initializer resets SCTP metadata in fresh and reused storage",
+		"raw IPv6 initializer resets SCTP metadata in fresh and reused storage"
+	};
+	hio_skad_t address;
+	hio_ip4ad_t ip4 = { { 192, 0, 2, 1 } };
+	hio_ip6ad_t ip6 = { { 0x20, 1, 0x0d, 0xb8, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 1 } };
+	hio_uint8_t raw[HIO_IP6AD_LEN];
+	const hio_uint8_t* expected;
+	hio_oow_t len;
+	int mode, reused, family, scope, good;
+
+	for (mode = 0; mode < 4; mode++)
+	{
+#if (HIO_SIZEOF_STRUCT_SOCKADDR_IN6 <= 0)
+		if (mode >= 2)
+		{
+			skip("IPv6 addresses are unavailable", 2);
+			continue;
+		}
+#endif
+		for (reused = 0; reused < 2; reused++)
+		{
+			HIO_MEMSET(&address, 0xa5, HIO_SIZEOF(address));
+			if (reused)
+			{
+#if (HIO_SIZEOF_STRUCT_SOCKADDR_IN6 > 0)
+				/* Switching families also exposes stale bytes at the new
+				 * family's metadata offsets. */
+				if (mode < 2) hio_skad_init_for_ip6(&address, 1, &ip6, 7);
+				else
+#endif
+					hio_skad_init_for_ip4(&address, 1, &ip4);
+				hio_skad_set_chan(&address, 1234);
+				hio_skad_set_ppid(&address, 0x89abcdefu);
+				hio_skad_set_assoc(&address, 123456);
+			}
+
+			scope = 0;
+			if (mode < 2)
+			{
+				family = HIO_AF_INET;
+				expected = ip4.v;
+				len = HIO_IP4AD_LEN;
+				if (mode == 0) hio_skad_init_for_ip4(&address, 80, &ip4);
+				else hio_skad_init_for_ip_with_bytes(&address, 80, ip4.v, HIO_IP4AD_LEN);
+			}
+			else
+			{
+				family = HIO_AF_INET6;
+				expected = ip6.v;
+				len = HIO_IP6AD_LEN;
+				scope = mode == 2? 7: 0;
+				if (mode == 2) hio_skad_init_for_ip6(&address, 80, &ip6, scope);
+				else hio_skad_init_for_ip_with_bytes(&address, 80, ip6.v, HIO_IP6AD_LEN);
+			}
+			good = hio_skad_get_family(&address) == family && hio_skad_get_port(&address) == 80 &&
+				hio_skad_get_scope_id(&address) == scope &&
+				hio_skad_get_ipad_bytes(&address, raw, HIO_SIZEOF(raw)) == len &&
+				HIO_MEMCMP(raw, expected, len) == 0 &&
+				hio_skad_get_chan(&address) == 0 && hio_skad_get_ppid(&address) == 0 &&
+				hio_skad_get_assoc(&address) == 0;
+			OK(good, labels[mode]);
+		}
+	}
+}
+
+static void test_interface_small_buffers (hio_t* hio)
+{
+	hio_bch_t name[128];
+	hio_bch_t bytes[132];
+	hio_uch_t wide[132];
+	hio_oow_t namelen, cap, expected, i;
+	int n, byte_len, wide_len, good;
+
+	n = hio_ifindextobcstr(hio, 1, name, HIO_COUNTOF(name));
+	if (n <= 0)
+	{
+		skip("a suitable interface name is unavailable", 1);
+		return;
+	}
+	namelen = n;
+	for (i = 0; i < namelen; i++)
+	{
+		if ((hio_uint8_t)name[i] >= 128)
+		{
+			skip("interface name is not ASCII", 1);
+			return;
+		}
+	}
+
+	for (cap = 0; cap <= namelen + 1; cap++)
+	{
+		for (i = 0; i < HIO_COUNTOF(bytes); i++) bytes[i] = wide[i] = '!';
+		byte_len = hio_ifindextobcstr(hio, 1, bytes + 1, cap);
+		wide_len = hio_ifindextoucstr(hio, 1, wide + 1, cap);
+		expected = cap == 0? 0: cap - 1;
+		if (expected > namelen) expected = namelen;
+		good = byte_len >= 0 && wide_len >= 0 &&
+			(hio_oow_t)byte_len == expected && (hio_oow_t)wide_len == expected;
+		for (i = 0; i < expected; i++)
+		{
+			if (bytes[i + 1] != name[i] || wide[i + 1] != (hio_uch_t)name[i]) good = 0;
+		}
+		if (cap > 0 && (bytes[expected + 1] != '\0' || wide[expected + 1] != '\0')) good = 0;
+		for (i = 0; i < HIO_COUNTOF(bytes); i++)
+		{
+			if ((i == 0 || i > cap) && (bytes[i] != '!' || wide[i] != '!')) good = 0;
+		}
+		OK(good, "byte and wide interface lookups agree for empty, one-character, truncated, and full buffers");
+	}
+	OK(hio_ifindextobcstr(hio, 1, HIO_NULL, 0) == 0 &&
+	   hio_ifindextoucstr(hio, 1, HIO_NULL, 0) == 0,
+		"zero-capacity interface lookups accept a null output without entering conversion size-query mode");
+	OK(hio_ifindextobcstr(hio, 0, HIO_NULL, 0) <= -1 &&
+	   hio_ifindextoucstr(hio, 0, HIO_NULL, 0) <= -1,
+		"zero-capacity interface lookups still reject an invalid interface index");
+}
+
 int main (void)
 {
 	hio_t* hio;
@@ -1132,6 +1256,7 @@ int main (void)
 
 	no_plan();
 	test_native_alignment();
+	test_sctp_initializers();
 	test_invalid_lengths();
 	test_unaligned_loopback();
 	test_ipv4_buffers();
@@ -1149,6 +1274,7 @@ int main (void)
 	test_interface_lookup_errors(hio);
 	test_interface_name_nuls(hio);
 	test_reverse_lookup_errors(hio);
+	test_interface_small_buffers(hio);
 #if defined(AF_UNIX) && (HIO_SIZEOF_STRUCT_SOCKADDR_UN > 0)
 	test_unix_path_limits(hio);
 	test_unix_embedded_nuls(hio);

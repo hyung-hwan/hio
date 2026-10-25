@@ -575,7 +575,7 @@ int hio_ifindextobcstr (hio_t* hio, unsigned int index, hio_bch_t* buf, hio_oow_
 	}
 
 	close(h);
-	return hio_copy_bcstr(buf, len, ifr.ifr_name);
+	return (len > 0)? hio_copy_bcstr(buf, len, ifr.ifr_name): 0;
 
 #elif defined(HAVE_IF_INDEXTONAME)
 	hio_bch_t tmp[IF_NAMESIZE + 1];
@@ -584,7 +584,7 @@ int hio_ifindextobcstr (hio_t* hio, unsigned int index, hio_bch_t* buf, hio_oow_
 		hio_seterrwithsyserr(hio, 0, errno);
 		return -1;
 	}
-	return hio_copy_bcstr(buf, len, tmp);
+	return (len > 0)? hio_copy_bcstr(buf, len, tmp): 0;
 
 #elif defined(SIOCGIFCONF) && (defined(SIOCGIFANUM) || defined(SIOCGIFNUM))
 
@@ -607,7 +607,7 @@ int hio_ifindextobcstr (hio_t* hio, unsigned int index, hio_bch_t* buf, hio_oow_
 		return -1;
 	}
 
-	ml = hio_copy_bcstr(buf, len, ifc.ifc_req[index - 1].ifr_name);
+	ml = (len > 0)? hio_copy_bcstr(buf, len, ifc.ifc_req[index - 1].ifr_name): 0;
 	free_sco_ifconf (hio, &ifc);
 	return ml;
 
@@ -662,9 +662,10 @@ int hio_ifindextoucstr (hio_t* hio, unsigned int index, hio_uch_t* buf, hio_oow_
 
 	close(h);
 
+	/* Zero capacity must not invoke the converter's size-query mode. */
 	wl = len;
-	x = hio_convbtoucstr(hio, ifr.ifr_name, &ml, buf, &wl, 0);
-	if (x == -2 && wl > 1) buf[--wl] = '\0';
+	x = (len > 0)? hio_convbtoucstr(hio, ifr.ifr_name, &ml, buf, &wl, 0): 0;
+	if (x == -2 && wl > 0) buf[--wl] = '\0';
 	else if (x != 0) return -1;
 	return wl;
 
@@ -679,8 +680,8 @@ int hio_ifindextoucstr (hio_t* hio, unsigned int index, hio_uch_t* buf, hio_oow_
 		return -1;
 	}
 	wl = len;
-	x = hio_convbtoucstr(hio, tmp, &ml, buf, &wl, 0);
-	if (x == -2 && wl > 1) buf[--wl] = '\0';
+	x = (len > 0)? hio_convbtoucstr(hio, tmp, &ml, buf, &wl, 0): 0;
+	if (x == -2 && wl > 0) buf[--wl] = '\0';
 	else if (x != 0) return -1;
 	return wl;
 
@@ -706,10 +707,10 @@ int hio_ifindextoucstr (hio_t* hio, unsigned int index, hio_uch_t* buf, hio_oow_
 	}
 
 	wl = len;
-	x = hio_convbtoucstr(hio, ifc.ifc_req[index - 1].ifr_name, &ml, buf, &wl, 0);
+	x = (len > 0)? hio_convbtoucstr(hio, ifc.ifc_req[index - 1].ifr_name, &ml, buf, &wl, 0): 0;
 	free_sco_ifconf(hio, &ifc);
 
-	if (x == -2 && wl > 1) buf[--wl] = '\0';
+	if (x == -2 && wl > 0) buf[--wl] = '\0';
 	else if (x != 0) return -1;
 
 	return wl;
