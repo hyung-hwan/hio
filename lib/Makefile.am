@@ -120,6 +120,7 @@ libhio_la_SOURCES = \
 	sck.c \
 	shw.c \
 	skad.c \
+	skad-prv.h \
 	sys.c \
 	sys-ass.c \
 	sys-err.c \

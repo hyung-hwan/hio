@@ -18,7 +18,7 @@ check_SCRIPTS = s-001.sh s-002.sh s-003.sh
 EXTRA_DIST = $(check_SCRIPTS) tap.inc t-cgi.sh
 
 ## programs run as tests
-TESTPROGS = t-001 t-002 t-003 t-004 t-005 t-006 t-007 t-008 t-009 t-010 t-011 t-012 t-013 t-014 t-015 t-016 t-017 t-018 t-019 t-020 t-021 t-022
+TESTPROGS = t-001 t-002 t-003 t-004 t-005 t-006 t-007 t-008 t-009 t-010 t-011 t-012 t-013 t-014 t-015 t-016 t-017 t-018 t-019 t-020 t-021 t-022 t-023 t-024 t-025 t-026 t-027 t-028
 
 ## helpers the test scripts drive. built with the tests, but not tests
 ## themselves - they are servers and would never exit.
@@ -204,6 +204,44 @@ t_022_CPPFLAGS = $(CPPFLAGS_COMMON)
 t_022_CFLAGS = $(CFLAGS_COMMON)
 t_022_LDFLAGS = $(LDFLAGS_COMMON)
 t_022_LDADD = $(LIBADD_COMMON)
+
+
+## Address parsing, alignment, buffer boundaries, and interface lookup backends.
+t_023_SOURCES = t-023.c tap.h ../lib/skad-prv.h
+t_023_CPPFLAGS = $(CPPFLAGS_COMMON)
+t_023_CFLAGS = $(CFLAGS_COMMON)
+t_023_LDFLAGS = $(LDFLAGS_COMMON)
+t_023_LDADD = $(LIBADD_COMMON)
+
+t_024_SOURCES = t-024.c tap.h ../lib/skad-prv.h
+t_024_CPPFLAGS = $(CPPFLAGS_COMMON)
+t_024_CFLAGS = $(CFLAGS_COMMON)
+t_024_LDFLAGS = $(LDFLAGS_COMMON)
+t_024_LDADD = $(LIBADD_COMMON)
+
+t_025_SOURCES = t-025.c tap.h ../lib/skad-prv.h
+t_025_CPPFLAGS = $(CPPFLAGS_COMMON)
+t_025_CFLAGS = $(CFLAGS_COMMON)
+t_025_LDFLAGS = $(LDFLAGS_COMMON)
+t_025_LDADD = $(LIBADD_COMMON)
+
+t_026_SOURCES = t-026.c tap.h ../lib/skad-prv.h
+t_026_CPPFLAGS = $(CPPFLAGS_COMMON)
+t_026_CFLAGS = $(CFLAGS_COMMON)
+t_026_LDFLAGS = $(LDFLAGS_COMMON)
+t_026_LDADD = $(LIBADD_COMMON)
+
+t_027_SOURCES = t-027.c tap.h ../lib/skad-prv.h
+t_027_CPPFLAGS = $(CPPFLAGS_COMMON)
+t_027_CFLAGS = $(CFLAGS_COMMON)
+t_027_LDFLAGS = $(LDFLAGS_COMMON)
+t_027_LDADD = $(LIBADD_COMMON)
+
+t_028_SOURCES = t-028.c tap.h ../lib/skad-prv.h
+t_028_CPPFLAGS = $(CPPFLAGS_COMMON)
+t_028_CFLAGS = $(CFLAGS_COMMON)
+t_028_LDFLAGS = $(LDFLAGS_COMMON)
+t_028_LDADD = $(LIBADD_COMMON)
 
 ## a minimal FastCGI responder, driven by s-002.sh
 fcgis_SOURCES = fcgis.c

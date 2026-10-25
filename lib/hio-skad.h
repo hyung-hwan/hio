@@ -69,11 +69,15 @@
 #	define HIO_AF_QX (65530)
 #endif
 
-struct hio_skad_t
+/* Pointer-sized alignment covers the native socket-address structures without
+ * imposing extended alignment requirements on containing objects. */
+union hio_skad_t
 {
 	hio_uint8_t data[HIO_SIZEOF_SKAD_T];
+	hio_uintptr_t _align_word;
+	void* _align_ptr;
 };
-typedef struct hio_skad_t hio_skad_t;
+typedef union hio_skad_t hio_skad_t;
 
 
 #define HIO_SKAD_TO_OOCSTR_ADDR (1 << 0)
@@ -311,8 +315,8 @@ HIO_EXPORT int hio_bchars_to_ipad_bytes (
 );
 
 
-#define hio_ucstr_to_ipad_bytes(str,buf,blen) hio_uchars_to_ipad_bytes(str, hio_count_ucstr(str,buf,len)
-#define hio_bcstr_to_ipad_bytes(str,buf,blen) hio_bchars_to_ipad_bytes(str, hio_count_bcstr(str,buf,len)
+#define hio_ucstr_to_ipad_bytes(str,buf,blen) hio_uchars_to_ipad_bytes(str, hio_count_ucstr(str), buf, blen)
+#define hio_bcstr_to_ipad_bytes(str,buf,blen) hio_bchars_to_ipad_bytes(str, hio_count_bcstr(str), buf, blen)
 
 #if defined(HIO_OOCH_IS_UCH)
 #	define hio_ipad_bytes_to_oocstr hio_ipad_bytes_to_ucstr

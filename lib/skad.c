@@ -27,80 +27,7 @@
 #include <hio-fmt.h>
 #include "hio-prv.h"
 
-#include <sys/types.h>
-#include <sys/socket.h>
-#if defined(HAVE_NETINET_IN_H)
-#	include <netinet/in.h>
-#endif
-#if defined(HAVE_SYS_UN_H)
-#	include <sys/un.h>
-#endif
-#if defined(HAVE_NETPACKET_PACKET_H)
-#	include <netpacket/packet.h>
-#endif
-#if defined(HAVE_NET_IF_DL_H)
-#	include <net/if_dl.h>
-#endif
-
-struct sockaddr_extra_t
-{
-	hio_uint16_t chan;
-	hio_uint32_t ppid;
-	hio_int32_t assoc;
-};
-typedef struct sockaddr_extra_t sockaddr_extra_t;
-
-#if (HIO_SIZEOF_STRUCT_SOCKADDR_IN > 0)
-/* dirty hack to secure more space at the end of the actual socket address.
- * the extra fiels must be transparent to unaware parties.
- * if you add/delete extra fields or change the size of existing fields,
- * you must update the corresponding checks in configure.ac.
- *
- * extra fields:
- *   chan - used as a stream number for SCTP PACKETSEQ sockets.
- *          use hio_skad_get_chan() and hio_skad_set_chan() for safe access.
- *   ppid - the SCTP payload protocol identifier, opaque to SCTP itself and
- *          passed through unchanged. use hio_skad_get_ppid()/set_ppid().
- *   assoc - the SCTP association identifier (sctp_assoc_t, an int32 on the
- *          systems that have it). the stable name for an association: its
- *          addresses can change under multi-homing, this does not. use
- *          hio_skad_get_assoc()/set_assoc().
- */
-struct sockaddr_in_x
-{
-	struct sockaddr_in a;
-	sockaddr_extra_t x;
-};
-#endif
-
-#if (HIO_SIZEOF_STRUCT_SOCKADDR_IN6 > 0)
-struct sockaddr_in6_x
-{
-	struct sockaddr_in6 a;
-	sockaddr_extra_t x;
-};
-#endif
-
-union hio_skad_alt_t
-{
-	struct sockaddr    sa;
-#if (HIO_SIZEOF_STRUCT_SOCKADDR_IN > 0)
-	struct sockaddr_in_x in4;
-#endif
-#if (HIO_SIZEOF_STRUCT_SOCKADDR_IN6 > 0)
-	struct sockaddr_in6_x in6;
-#endif
-#if (HIO_SIZEOF_STRUCT_SOCKADDR_LL > 0)
-	struct sockaddr_ll ll;
-#endif
-#if (HIO_SIZEOF_STRUCT_SOCKADDR_DL > 0)
-	struct sockaddr_dl dl;
-#endif
-#if (HIO_SIZEOF_STRUCT_SOCKADDR_UN > 0)
-	struct sockaddr_un un;
-#endif
-};
-typedef union hio_skad_alt_t hio_skad_alt_t;
+#include "skad-prv.h"
 
 
 static int uchars_to_ipv4 (const hio_uch_t* str, hio_oow_t len, struct in_addr* inaddr)
@@ -193,7 +120,7 @@ static int uchars_to_ipv6 (const hio_uch_t* src, hio_oow_t len, struct in6_addr*
 	hio_uint8_t* tp, * endp, * colonp;
 	const hio_uch_t* curtok;
 	hio_uch_t ch;
-	int saw_xdigit;
+	int xdigits;
 	unsigned int val;
 	const hio_uch_t* src_end;
 
@@ -204,7 +131,7 @@ static int uchars_to_ipv6 (const hio_uch_t* src, hio_oow_t len, struct in6_addr*
 	endp = &inaddr->s6_addr[HIO_COUNTOF(inaddr->s6_addr)];
 	colonp = HIO_NULL;
 
-	/* Leading :: requires some special handling. */
+	/* leading :: requires some special handling. */
 	if (src < src_end && *src == ':')
 	{
 		src++;
@@ -212,7 +139,7 @@ static int uchars_to_ipv6 (const hio_uch_t* src, hio_oow_t len, struct in6_addr*
 	}
 
 	curtok = src;
-	saw_xdigit = 0;
+	xdigits = 0;
 	val = 0;
 
 	while (src < src_end)
@@ -224,17 +151,17 @@ static int uchars_to_ipv6 (const hio_uch_t* src, hio_oow_t len, struct in6_addr*
 		v1 = HIO_XDIGIT_TO_NUM(ch);
 		if (v1 >= 0)
 		{
+			/* count leading zeros too. a group has at most four digits. */
+			if (++xdigits > 4) return -1;
 			val <<= 4;
 			val |= v1;
-			if (val > 0xffff) return -1;
-			saw_xdigit = 1;
 			continue;
 		}
 
 		if (ch == ':')
 		{
 			curtok = src;
-			if (!saw_xdigit)
+			if (!xdigits)
 			{
 				if (colonp) return -1;
 				colonp = tp;
@@ -246,27 +173,34 @@ static int uchars_to_ipv6 (const hio_uch_t* src, hio_oow_t len, struct in6_addr*
 				return -1;
 			}
 
+			/* check each group before storing, not only the final group. */
+			if (tp > endp - HIO_SIZEOF(hio_uint16_t)) return -1;
+
 			*tp++ = (hio_uint8_t)(val >> 8) & 0xff;
 			*tp++ = (hio_uint8_t)val & 0xff;
-			saw_xdigit = 0;
+			xdigits = 0;
 			val = 0;
 			continue;
 		}
 
-		if (ch == '.' && ((tp + HIO_SIZEOF(struct in_addr)) <= endp) &&
-		    uchars_to_ipv4(curtok, src_end - curtok, (struct in_addr*)tp) == 0)
+		if (ch == '.' && tp <= endp - HIO_SIZEOF(struct in_addr))
 		{
-			tp += HIO_SIZEOF(struct in_addr*);
-			saw_xdigit = 0;
+			struct in_addr ip4ad;
+
+			/* tp may be only two-byte aligned. parse before copying. */
+			if (uchars_to_ipv4(curtok, src_end - curtok, &ip4ad) <= -1) return -1;
+			HIO_MEMCPY(tp, &ip4ad, HIO_SIZEOF(ip4ad));
+			tp += HIO_SIZEOF(ip4ad);
+			xdigits = 0;
 			break;
 		}
 
 		return -1;
 	}
 
-	if (saw_xdigit)
+	if (xdigits)
 	{
-		if (tp + HIO_SIZEOF(hio_uint16_t) > endp) return -1;
+		if (tp > endp - HIO_SIZEOF(hio_uint16_t)) return -1;
 		*tp++ = (hio_uint8_t)(val >> 8) & 0xff;
 		*tp++ = (hio_uint8_t)val & 0xff;
 	}
@@ -278,6 +212,9 @@ static int uchars_to_ipv6 (const hio_uch_t* src, hio_oow_t len, struct in6_addr*
 		 */
 		hio_oow_t n = tp - colonp;
 		hio_oow_t i;
+
+		/* :: must stand for at least one omitted 16-bit group. */
+		if (tp > endp - HIO_SIZEOF(hio_uint16_t)) return -1;
 
 		for (i = 1; i <= n; i++)
 		{
@@ -297,7 +234,7 @@ static int bchars_to_ipv6 (const hio_bch_t* src, hio_oow_t len, struct in6_addr*
 	hio_uint8_t* tp, * endp, * colonp;
 	const hio_bch_t* curtok;
 	hio_bch_t ch;
-	int saw_xdigit;
+	int xdigits;
 	unsigned int val;
 	const hio_bch_t* src_end;
 
@@ -308,7 +245,7 @@ static int bchars_to_ipv6 (const hio_bch_t* src, hio_oow_t len, struct in6_addr*
 	endp = &inaddr->s6_addr[HIO_COUNTOF(inaddr->s6_addr)];
 	colonp = HIO_NULL;
 
-	/* Leading :: requires some special handling. */
+	/* leading :: requires some special handling. */
 	if (src < src_end && *src == ':')
 	{
 		src++;
@@ -316,7 +253,7 @@ static int bchars_to_ipv6 (const hio_bch_t* src, hio_oow_t len, struct in6_addr*
 	}
 
 	curtok = src;
-	saw_xdigit = 0;
+	xdigits = 0;
 	val = 0;
 
 	while (src < src_end)
@@ -328,17 +265,17 @@ static int bchars_to_ipv6 (const hio_bch_t* src, hio_oow_t len, struct in6_addr*
 		v1 = HIO_XDIGIT_TO_NUM(ch);
 		if (v1 >= 0)
 		{
+			/* count leading zeros too. a group has at most four digits. */
+			if (++xdigits > 4) return -1;
 			val <<= 4;
 			val |= v1;
-			if (val > 0xffff) return -1;
-			saw_xdigit = 1;
 			continue;
 		}
 
 		if (ch == ':')
 		{
 			curtok = src;
-			if (!saw_xdigit)
+			if (!xdigits)
 			{
 				if (colonp) return -1;
 				colonp = tp;
@@ -350,38 +287,48 @@ static int bchars_to_ipv6 (const hio_bch_t* src, hio_oow_t len, struct in6_addr*
 				return -1;
 			}
 
+			/* check each group before storing, not only the final group. */
+			if (tp > endp - HIO_SIZEOF(hio_uint16_t)) return -1;
+
 			*tp++ = (hio_uint8_t)(val >> 8) & 0xff;
 			*tp++ = (hio_uint8_t)val & 0xff;
-			saw_xdigit = 0;
+			xdigits = 0;
 			val = 0;
 			continue;
 		}
 
-		if (ch == '.' && ((tp + HIO_SIZEOF(struct in_addr)) <= endp) &&
-		    bchars_to_ipv4(curtok, src_end - curtok, (struct in_addr*)tp) == 0)
+		if (ch == '.' && tp <= endp - HIO_SIZEOF(struct in_addr))
 		{
-			tp += HIO_SIZEOF(struct in_addr*);
-			saw_xdigit = 0;
+			struct in_addr ip4ad;
+
+			/* tp may be only two-byte aligned. parse before copying. */
+			if (bchars_to_ipv4(curtok, src_end - curtok, &ip4ad) <= -1) return -1;
+			HIO_MEMCPY(tp, &ip4ad, HIO_SIZEOF(ip4ad));
+			tp += HIO_SIZEOF(ip4ad);
+			xdigits = 0;
 			break;
 		}
 
 		return -1;
 	}
 
-	if (saw_xdigit)
+	if (xdigits)
 	{
-		if (tp + HIO_SIZEOF(hio_uint16_t) > endp) return -1;
+		if (tp > endp - HIO_SIZEOF(hio_uint16_t)) return -1;
 		*tp++ = (hio_uint8_t)(val >> 8) & 0xff;
 		*tp++ = (hio_uint8_t)val & 0xff;
 	}
 	if (colonp != HIO_NULL)
 	{
 		/*
-		 * Since some memmove()'s erroneously fail to handle
+		 * since some memmove()'s erroneously fail to handle
 		 * overlapping regions, we'll do the shift by hand.
 		 */
 		hio_oow_t n = tp - colonp;
 		hio_oow_t i;
+
+		/* :: must stand for at least one omitted 16-bit group. */
+		if (tp > endp - HIO_SIZEOF(hio_uint16_t)) return -1;
 
 		for (i = 1; i <= n; i++)
 		{
@@ -418,9 +365,8 @@ int hio_ucharstoskad (hio_t* hio, const hio_uch_t* str, hio_oow_t len, hio_skad_
 	/* use HIO_SIZEOF(*_skad) instead of HIO_SIZEOF(*skad) in case they are different */
 	HIO_MEMSET(skad, 0, HIO_SIZEOF(*_skad));
 
-	if (p[0] == '<' && p[1] == 'q' && p[2] == 'x' && p[3] == '>' && p[4] == '\0')
+	if (len == 4 && p[0] == '<' && p[1] == 'q' && p[2] == 'x' && p[3] == '>')
 	{
-		/* this is HIO specific. the rest isn't important */
 		skad->sa.sa_family = HIO_AF_QX;
 		return 0;
 	}
@@ -432,6 +378,11 @@ int hio_ucharstoskad (hio_t* hio, const hio_uch_t* str, hio_oow_t len, hio_skad_
 		hio_oow_t srclen, dstlen;
 		dstlen = HIO_COUNTOF(skad->un.sun_path) - 1;
 		srclen = len - 1;
+		if (hio_find_uchar_in_uchars(p + 1, srclen, '\0'))
+		{
+			hio_seterrbfmt(hio, HIO_EINVAL, "unix address path contains a null character");
+			return -1;
+		}
 		if (hio_convutobchars(hio, p + 1, &srclen, skad->un.sun_path, &dstlen) <= -1) return -1;
 		skad->un.sun_path[dstlen] = '\0';
 		skad->un.sun_family = AF_UNIX;
@@ -473,13 +424,13 @@ int hio_ucharstoskad (hio_t* hio, const hio_uch_t* str, hio_oow_t len, hio_skad_
 				skad->in6.a.sin6_scope_id = 0;
 				do
 				{
-					x = skad->in6.a.sin6_scope_id * 10 + (*p - '0');
-					if (x < skad->in6.a.sin6_scope_id)
+					x = *p - '0';
+					if (skad->in6.a.sin6_scope_id > (HIO_TYPE_MAX(hio_uint32_t) - x) / 10)
 					{
 						hio_seterrbfmt(hio, HIO_EINVAL, "scope id too large");
 						return -1; /* overflow */
 					}
-					skad->in6.a.sin6_scope_id = x;
+					skad->in6.a.sin6_scope_id = skad->in6.a.sin6_scope_id * 10 + x;
 					p++;
 				}
 				while (p < end && *p >= '0' && *p <= '9');
@@ -490,6 +441,11 @@ int hio_ucharstoskad (hio_t* hio, const hio_uch_t* str, hio_oow_t len, hio_skad_
 				const hio_uch_t* stmp = p;
 				unsigned int index;
 				do p++; while (p < end && *p != ']');
+				if (hio_find_uchar_in_uchars(stmp, p - stmp, '\0'))
+				{
+					hio_seterrbfmt(hio, HIO_EINVAL, "scope id contains a null character");
+					return -1;
+				}
 				if (hio_ucharstoifindex(hio, stmp, p - stmp, &index) <= -1) return -1;
 				skad->in6.a.sin6_scope_id = index;
 			}
@@ -545,13 +501,13 @@ int hio_ucharstoskad (hio_t* hio, const hio_uch_t* str, hio_oow_t len, hio_skad_
 					skad->in6.a.sin6_scope_id = 0;
 					do
 					{
-						x = skad->in6.a.sin6_scope_id * 10 + (*p - '0');
-						if (x < skad->in6.a.sin6_scope_id)
+						x = *p - '0';
+						if (skad->in6.a.sin6_scope_id > (HIO_TYPE_MAX(hio_uint32_t) - x) / 10)
 						{
 							hio_seterrbfmt(hio, HIO_EINVAL, "scope id too large");
 							return -1; /* overflow */
 						}
-						skad->in6.a.sin6_scope_id = x;
+						skad->in6.a.sin6_scope_id = skad->in6.a.sin6_scope_id * 10 + x;
 						p++;
 					}
 					while (p < end && *p >= '0' && *p <= '9');
@@ -562,6 +518,11 @@ int hio_ucharstoskad (hio_t* hio, const hio_uch_t* str, hio_oow_t len, hio_skad_
 					const hio_uch_t* stmp = p;
 					unsigned int index;
 					do p++; while (p < end);
+					if (hio_find_uchar_in_uchars(stmp, p - stmp, '\0'))
+					{
+						hio_seterrbfmt(hio, HIO_EINVAL, "scope id contains a null character");
+						return -1;
+					}
 					if (hio_ucharstoifindex(hio, stmp, p - stmp, &index) <= -1) return -1;
 					skad->in6.a.sin6_scope_id = index;
 				}
@@ -613,6 +574,7 @@ int hio_ucharstoskad (hio_t* hio, const hio_uch_t* str, hio_oow_t len, hio_skad_
 	#endif
 	}
 
+	if (p != end) goto unrecog; /* garbage at the back? e.g. 127.0.0.1:80junk, [::1]junk */
 	return 0;
 
 unrecog:
@@ -645,9 +607,8 @@ int hio_bcharstoskad (hio_t* hio, const hio_bch_t* str, hio_oow_t len, hio_skad_
 	/* use HIO_SIZEOF(*_skad) instead of HIO_SIZEOF(*skad) in case they are different */
 	HIO_MEMSET(skad, 0, HIO_SIZEOF(*_skad));
 
-	if (p[0] == '<' && p[1] == 'q' && p[2] == 'x' && p[3] == '>' && p[4] == '\0')
+	if (len == 4 && p[0] == '<' && p[1] == 'q' && p[2] == 'x' && p[3] == '>')
 	{
-		/* this is HIO specific. the rest isn't important */
 		skad->sa.sa_family = HIO_AF_QX;
 		return 0;
 	}
@@ -655,8 +616,22 @@ int hio_bcharstoskad (hio_t* hio, const hio_bch_t* str, hio_oow_t len, hio_skad_
 	if (*p == '@')
 	{
 #if defined(AF_UNIX) && (HIO_SIZEOF_STRUCT_SOCKADDR_UN > 0)
-		/* @aaa,  @/tmp/aaa ... */
-		hio_copy_bchars_to_bcstr (skad->un.sun_path, HIO_COUNTOF(skad->un.sun_path), str + 1, len - 1);
+		/* @aaa,  @/tmp/aaa  /tmp/aaa ... */
+		hio_oow_t pathlen;
+
+		pathlen = len - 1;
+		/* The path must fit with its terminator; @ is only a syntax prefix. */
+		if (pathlen >= HIO_COUNTOF(skad->un.sun_path))
+		{
+			hio_seterrbfmt(hio, HIO_EBUFFULL, "unix address path too long");
+			return -1;
+		}
+		if (hio_find_bchar_in_bchars(p + 1, pathlen, '\0'))
+		{
+			hio_seterrbfmt(hio, HIO_EINVAL, "unix address path contains a null character");
+			return -1;
+		}
+		hio_copy_bchars_to_bcstr(skad->un.sun_path, HIO_COUNTOF(skad->un.sun_path), str + 1, pathlen);
 		skad->un.sun_family = AF_UNIX;
 		return 0;
 #else
@@ -695,13 +670,13 @@ int hio_bcharstoskad (hio_t* hio, const hio_bch_t* str, hio_oow_t len, hio_skad_
 				skad->in6.a.sin6_scope_id = 0;
 				do
 				{
-					x = skad->in6.a.sin6_scope_id * 10 + (*p - '0');
-					if (x < skad->in6.a.sin6_scope_id)
+					x = *p - '0';
+					if (skad->in6.a.sin6_scope_id > (HIO_TYPE_MAX(hio_uint32_t) - x) / 10)
 					{
 						hio_seterrbfmt(hio, HIO_EINVAL, "scope id too large");
 						return -1; /* overflow */
 					}
-					skad->in6.a.sin6_scope_id = x;
+					skad->in6.a.sin6_scope_id = skad->in6.a.sin6_scope_id * 10 + x;
 					p++;
 				}
 				while (p < end && *p >= '0' && *p <= '9');
@@ -712,6 +687,11 @@ int hio_bcharstoskad (hio_t* hio, const hio_bch_t* str, hio_oow_t len, hio_skad_
 				const hio_bch_t* stmp = p;
 				unsigned int index;
 				do p++; while (p < end && *p != ']');
+				if (hio_find_bchar_in_bchars(stmp, p - stmp, '\0'))
+				{
+					hio_seterrbfmt(hio, HIO_EINVAL, "scope id contains a null character");
+					return -1;
+				}
 				if (hio_bcharstoifindex(hio, stmp, p - stmp, &index) <= -1) return -1;
 				skad->in6.a.sin6_scope_id = index;
 			}
@@ -768,13 +748,13 @@ int hio_bcharstoskad (hio_t* hio, const hio_bch_t* str, hio_oow_t len, hio_skad_
 					skad->in6.a.sin6_scope_id = 0;
 					do
 					{
-						x = skad->in6.a.sin6_scope_id * 10 + (*p - '0');
-						if (x < skad->in6.a.sin6_scope_id)
+						x = *p - '0';
+						if (skad->in6.a.sin6_scope_id > (HIO_TYPE_MAX(hio_uint32_t) - x) / 10)
 						{
 							hio_seterrbfmt(hio, HIO_EINVAL, "scope id too large");
 							return -1; /* overflow */
 						}
-						skad->in6.a.sin6_scope_id = x;
+						skad->in6.a.sin6_scope_id = skad->in6.a.sin6_scope_id * 10 + x;
 						p++;
 					}
 					while (p < end && *p >= '0' && *p <= '9');
@@ -785,6 +765,11 @@ int hio_bcharstoskad (hio_t* hio, const hio_bch_t* str, hio_oow_t len, hio_skad_
 					const hio_bch_t* stmp = p;
 					unsigned int index;
 					do p++; while (p < end);
+					if (hio_find_bchar_in_bchars(stmp, p - stmp, '\0'))
+					{
+						hio_seterrbfmt(hio, HIO_EINVAL, "scope id contains a null character");
+						return -1;
+					}
 					if (hio_bcharstoifindex(hio, stmp, p - stmp, &index) <= -1) return -1;
 					skad->in6.a.sin6_scope_id = index;
 				}
@@ -836,6 +821,7 @@ int hio_bcharstoskad (hio_t* hio, const hio_bch_t* str, hio_oow_t len, hio_skad_
 	#endif
 	}
 
+	if (p != end) goto unrecog; /* garbage at the back? e.g. 127.0.0.1:80junk, [::1]junk */
 	return 0;
 
 unrecog:
@@ -909,6 +895,7 @@ static hio_oow_t ip4ad_to_ucstr (const struct in_addr* ipad, hio_uch_t* buf, hio
 	return p - buf;
 }
 
+#if (HIO_SIZEOF_STRUCT_SOCKADDR_IN6 > 0)
 static hio_oow_t ip6ad_to_ucstr (const struct in6_addr* ipad, hio_uch_t* buf, hio_oow_t size)
 {
 	/*
@@ -1007,6 +994,7 @@ static hio_oow_t ip6ad_to_ucstr (const struct in6_addr* ipad, hio_uch_t* buf, hi
 
 #undef IP6AD_NWORDS
 }
+#endif
 
 
 hio_oow_t hio_skadtoucstr (hio_t* hio, const hio_skad_t* _skad, hio_uch_t* buf, hio_oow_t len, int flags)
@@ -1041,6 +1029,7 @@ hio_oow_t hio_skadtoucstr (hio_t* hio, const hio_skad_t* _skad, hio_uch_t* buf, 
 			}
 			break;
 
+#if (HIO_SIZEOF_STRUCT_SOCKADDR_IN6 > 0)
 		case HIO_AF_INET6:
 			if (flags & HIO_SKAD_TO_UCSTR_PORT)
 			{
@@ -1097,6 +1086,9 @@ hio_oow_t hio_skadtoucstr (hio_t* hio, const hio_skad_t* _skad, hio_uch_t* buf, 
 
 			break;
 
+#endif
+
+#if (HIO_SIZEOF_STRUCT_SOCKADDR_UN > 0)
 		case HIO_AF_UNIX:
 			if (flags & HIO_SKAD_TO_UCSTR_ADDR)
 			{
@@ -1106,14 +1098,20 @@ hio_oow_t hio_skadtoucstr (hio_t* hio, const hio_skad_t* _skad, hio_uch_t* buf, 
 				if (xlen + 1 >= len) goto done;
 				else
 				{
-					hio_oow_t mbslen, wcslen = len - xlen;
-					hio_convbtoucstr (hio, skad->un.sun_path, &mbslen, &buf[xlen], &wcslen, 1);
+					hio_oow_t mbslen, wcslen;
+
+					/* sun_path may not be null-terminated and may be full */
+					mbslen = hio_count_bcstr_limited(skad->un.sun_path, HIO_COUNTOF(skad->un.sun_path));
+					wcslen = len - xlen - 1; /* reserve the output terminator */
+					hio_convbtouchars(hio, skad->un.sun_path, &mbslen, &buf[xlen], &wcslen, 1);
 					/* i don't care about conversion errors */
 					xlen += wcslen;
 				}
 			}
 
 			break;
+
+#endif
 
 		case HIO_AF_QX:
 			if (flags & HIO_SKAD_TO_UCSTR_ADDR)
@@ -1170,6 +1168,7 @@ static hio_oow_t ip4ad_to_bcstr (const struct in_addr* ipad, hio_bch_t* buf, hio
 }
 
 
+#if (HIO_SIZEOF_STRUCT_SOCKADDR_IN6 > 0)
 static hio_oow_t ip6ad_to_bcstr (const struct in6_addr* ipad, hio_bch_t* buf, hio_oow_t size)
 {
 	/*
@@ -1268,6 +1267,7 @@ static hio_oow_t ip6ad_to_bcstr (const struct in6_addr* ipad, hio_bch_t* buf, hi
 
 #undef IP6AD_NWORDS
 }
+#endif
 
 
 hio_oow_t hio_skadtobcstr (hio_t* hio, const hio_skad_t* _skad, hio_bch_t* buf, hio_oow_t len, int flags)
@@ -1302,6 +1302,7 @@ hio_oow_t hio_skadtobcstr (hio_t* hio, const hio_skad_t* _skad, hio_bch_t* buf, 
 			}
 			break;
 
+#if (HIO_SIZEOF_STRUCT_SOCKADDR_IN6 > 0)
 		case HIO_AF_INET6:
 			if (flags & HIO_SKAD_TO_BCSTR_PORT)
 			{
@@ -1359,6 +1360,9 @@ hio_oow_t hio_skadtobcstr (hio_t* hio, const hio_skad_t* _skad, hio_bch_t* buf, 
 
 			break;
 
+#endif
+
+#if (HIO_SIZEOF_STRUCT_SOCKADDR_UN > 0)
 		case HIO_AF_UNIX:
 			if (flags & HIO_SKAD_TO_BCSTR_ADDR)
 			{
@@ -1366,10 +1370,12 @@ hio_oow_t hio_skadtobcstr (hio_t* hio, const hio_skad_t* _skad, hio_bch_t* buf, 
 				buf[xlen++] = '@';
 
 				if (xlen + 1 >= len) goto done;
-				xlen += hio_copy_bcstr(&buf[xlen], len - xlen, skad->un.sun_path);
+				xlen += hio_copy_bchars_to_bcstr(&buf[xlen], len - xlen, skad->un.sun_path,
+					hio_count_bcstr_limited(skad->un.sun_path, HIO_COUNTOF(skad->un.sun_path)));
 			}
 
 			break;
+#endif
 
 		case HIO_AF_QX:
 			if (flags & HIO_SKAD_TO_BCSTR_ADDR)
@@ -1733,7 +1739,8 @@ int hio_equal_skads (const hio_skad_t* addr1, const hio_skad_t* addr2, int stric
 
 	#if defined(AF_UNIX) && (HIO_SIZEOF_STRUCT_SOCKADDR_UN > 0)
 		case AF_UNIX:
-			return hio_comp_bcstr(((struct sockaddr_un*)addr1)->sun_path, ((struct sockaddr_un*)addr2)->sun_path, 0) == 0;
+			return hio_comp_bcstr_limited(((struct sockaddr_un*)addr1)->sun_path, ((struct sockaddr_un*)addr2)->sun_path,
+				HIO_COUNTOF(((struct sockaddr_un*)addr1)->sun_path), 0) == 0;
 	#endif
 
 		default:
@@ -1752,15 +1759,17 @@ hio_oow_t hio_ipad_bytes_to_ucstr (const hio_uint8_t* iptr, hio_oow_t ilen, hio_
 			return ip4ad_to_ucstr(&ip4ad, buf, blen);
 		}
 
+#if (HIO_SIZEOF_STRUCT_SOCKADDR_IN6 > 0)
 		case HIO_IP6AD_LEN:
 		{
 			struct in6_addr ip6ad;
 			HIO_MEMCPY(&ip6ad.s6_addr, iptr, ilen);
 			return ip6ad_to_ucstr(&ip6ad, buf, blen);
 		}
+#endif
 
 		default:
-			if (blen > 0) buf[blen] = '\0';
+			if (blen > 0) buf[0] = '\0';
 			return 0;
 	}
 }
@@ -1776,32 +1785,37 @@ hio_oow_t hio_ipad_bytes_to_bcstr (const hio_uint8_t* iptr, hio_oow_t ilen, hio_
 			return ip4ad_to_bcstr(&ip4ad, buf, blen);
 		}
 
+#if (HIO_SIZEOF_STRUCT_SOCKADDR_IN6 > 0)
 		case HIO_IP6AD_LEN:
 		{
 			struct in6_addr ip6ad;
 			HIO_MEMCPY(&ip6ad.s6_addr, iptr, ilen);
 			return ip6ad_to_bcstr(&ip6ad, buf, blen);
 		}
+#endif
 
 		default:
-			if (blen > 0) buf[blen] = '\0';
+			if (blen > 0) buf[0] = '\0';
 			return 0;
 	}
 }
 
 int hio_uchars_to_ipad_bytes (const hio_uch_t* str, hio_oow_t slen, hio_uint8_t* buf, hio_oow_t blen)
 {
+#if (HIO_SIZEOF_STRUCT_SOCKADDR_IN6 > 0)
 	if (blen >= HIO_IP6AD_LEN)
 	{
 		struct in6_addr i6;
-		if (uchars_to_ipv6(str, slen, &i6) <= -1) goto ipv4;
-		HIO_MEMCPY(buf, i6.s6_addr, 16);
-		return HIO_IP6AD_LEN;
+		if (uchars_to_ipv6(str, slen, &i6) == 0)
+		{
+			HIO_MEMCPY(buf, i6.s6_addr, 16);
+			return HIO_IP6AD_LEN;
+		}
 	}
-	else if (blen >= HIO_IP4AD_LEN)
+#endif
+	if (blen >= HIO_IP4AD_LEN)
 	{
 		struct in_addr i4;
-	ipv4:
 		if (uchars_to_ipv4(str, slen, &i4) <= -1) return -1;
 		HIO_MEMCPY(buf, &i4.s_addr, 4);
 		return HIO_IP4AD_LEN;
@@ -1812,17 +1826,20 @@ int hio_uchars_to_ipad_bytes (const hio_uch_t* str, hio_oow_t slen, hio_uint8_t*
 
 int hio_bchars_to_ipad_bytes (const hio_bch_t* str, hio_oow_t slen, hio_uint8_t* buf, hio_oow_t blen)
 {
+#if (HIO_SIZEOF_STRUCT_SOCKADDR_IN6 > 0)
 	if (blen >= HIO_IP6AD_LEN)
 	{
 		struct in6_addr i6;
-		if (bchars_to_ipv6(str, slen, &i6) <= -1) goto ipv4;
-		HIO_MEMCPY(buf, i6.s6_addr, 16);
-		return HIO_IP6AD_LEN;
+		if (bchars_to_ipv6(str, slen, &i6) == 0)
+		{
+			HIO_MEMCPY(buf, i6.s6_addr, 16);
+			return HIO_IP6AD_LEN;
+		}
 	}
-	else if (blen >= HIO_IP4AD_LEN)
+#endif
+	if (blen >= HIO_IP4AD_LEN)
 	{
 		struct in_addr i4;
-	ipv4:
 		if (bchars_to_ipv4(str, slen, &i4) <= -1) return -1;
 		HIO_MEMCPY(buf, &i4.s_addr, 4);
 		return HIO_IP4AD_LEN;
@@ -1849,15 +1866,20 @@ int hio_ipad_bytes_is_loop_back (const hio_uint8_t* iptr, hio_oow_t ilen)
 	{
 		case HIO_IP4AD_LEN:
 		{
-			// 127.0.0.0/8
+			/* 127.0.0.0/8 */
 			return iptr[0] == 0x7F;
 		}
 
 		case HIO_IP6AD_LEN:
 		{
-			hio_uint32_t* x = (hio_uint32_t*)iptr;
-			return (x[0] == 0 && x[1] == 0 && x[2] == 0 && x[3] == HIO_CONST_HTON32(1)) || /* TODO: is this alignment safe?  */
-			       (hio_ipad_bytes_is_v4_mapped(iptr, ilen) && (x[3] & HIO_CONST_HTON32(0xFF000000u)) == HIO_CONST_HTON32(0x7F000000u));
+			static const hio_uint8_t loopback[HIO_IP6AD_LEN] =
+			{
+				0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 1
+			};
+
+			/* raw address bytes need not have integer alignment. */
+			return HIO_MEMCMP(iptr, loopback, HIO_SIZEOF(loopback)) == 0 ||
+			       (hio_ipad_bytes_is_v4_mapped(iptr, ilen) && iptr[12] == 0x7F);
 		}
 
 		default:

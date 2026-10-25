@@ -134,6 +134,14 @@ int hio_bcstrtoifindex (hio_t* hio, const hio_bch_t* ptr, unsigned int* index)
 	hio_oow_t len;
 	struct ifreq ifr;
 
+	HIO_MEMSET(&ifr, 0, HIO_SIZEOF(ifr));
+	len = hio_copy_bcstr(ifr.ifr_name, HIO_COUNTOF(ifr.ifr_name), ptr);
+	if (ptr[len] != '\0')
+	{
+		hio_seterrbfmt(hio, HIO_EBUFFULL, "interface name too long");
+		return -1;
+	}
+
 	h = socket(AF_INET, SOCK_DGRAM, 0);
 	if (h <= -1)
 	{
@@ -141,16 +149,13 @@ int hio_bcstrtoifindex (hio_t* hio, const hio_bch_t* ptr, unsigned int* index)
 		return -1;
 	}
 
-	HIO_MEMSET(&ifr, 0, HIO_SIZEOF(ifr));
-	len = hio_copy_bcstr(ifr.ifr_name, HIO_COUNTOF(ifr.ifr_name), ptr);
-	if (ptr[len] != '\0') return -1; /* name too long */
-
 	x = ioctl(h, SIOCGIFINDEX, &ifr);
-	close (h);
+	if (x <= -1) hio_seterrwithsyserr(hio, 0, errno);
+	close(h);
 
 	if (x >= 0)
 	{
-	#if defined(HAVE_STRUCT_IFREQ_IFR_IFINDEX)
+	#if defined(HAVE_STRUCT_IFREQ_IFR_IFINDEX) || defined(ifr_ifindex)
 		*index = ifr.ifr_ifindex;
 	#else
 		*index = ifr.ifr_index;
@@ -165,7 +170,11 @@ int hio_bcstrtoifindex (hio_t* hio, const hio_bch_t* ptr, unsigned int* index)
 	unsigned int tmpidx;
 
 	len = hio_copy_bcstr(tmp, HIO_COUNTOF(tmp), ptr);
-	if (ptr[len] != '\0') return -1; /* name too long */
+	if (ptr[len] != '\0')
+	{
+		hio_seterrbfmt(hio, HIO_EBUFFULL, "interface name too long");
+		return -1;
+	}
 
 	tmpidx = if_nametoindex(tmp);
 	if (tmpidx == 0)
@@ -188,16 +197,18 @@ int hio_bcstrtoifindex (hio_t* hio, const hio_bch_t* ptr, unsigned int* index)
 	{
 		if (hio_comp_bcstr(ptr, ifc.ifc_req[i].ifr_name, 0) == 0)
 		{
-			free_sco_ifconf(hio, &ifc);
+			free_sco_ifconf (hio, &ifc);
 			*index = i + 1;
 			return 0;
 		}
 	}
 
-	free_sco_ifconf(hio, &ifc);
+	free_sco_ifconf (hio, &ifc);
+	hio_seterrnum(hio, HIO_ENOENT);
 	return -1;
 
 #else
+	hio_seterrnum(hio, HIO_ENOIMPL);
 	return -1;
 #endif
 }
@@ -221,6 +232,18 @@ int hio_bcharstoifindex (hio_t* hio, const hio_bch_t* ptr, hio_oow_t len, unsign
 	int h, x;
 	struct ifreq ifr;
 
+	if (hio_find_bchar_in_bchars(ptr, len, '\0'))
+	{
+		hio_seterrbfmt(hio, HIO_EINVAL, "interface name contains a null character");
+		return -1;
+	}
+	HIO_MEMSET(&ifr, 0, HIO_SIZEOF(ifr));
+	if (hio_copy_bchars_to_bcstr(ifr.ifr_name, HIO_COUNTOF(ifr.ifr_name), ptr, len) < len)
+	{
+		hio_seterrbfmt(hio, HIO_EBUFFULL, "interface name too long");
+		return -1;
+	}
+
 	h = socket(AF_INET, SOCK_DGRAM, 0);
 	if (h <= -1)
 	{
@@ -228,15 +251,13 @@ int hio_bcharstoifindex (hio_t* hio, const hio_bch_t* ptr, hio_oow_t len, unsign
 		return -1;
 	}
 
-	HIO_MEMSET(&ifr, 0, HIO_SIZEOF(ifr));
-	if (hio_copy_bchars_to_bcstr(ifr.ifr_name, HIO_COUNTOF(ifr.ifr_name), ptr, len) < len) return -1; /* name too long */
-
 	x = ioctl(h, SIOCGIFINDEX, &ifr);
+	if (x <= -1) hio_seterrwithsyserr(hio, 0, errno);
 	close(h);
 
 	if (x >= 0)
 	{
-	#if defined(HAVE_STRUCT_IFREQ_IFR_IFINDEX)
+	#if defined(HAVE_STRUCT_IFREQ_IFR_IFINDEX) || defined(ifr_ifindex)
 		*index = ifr.ifr_ifindex;
 	#else
 		*index = ifr.ifr_index;
@@ -249,7 +270,16 @@ int hio_bcharstoifindex (hio_t* hio, const hio_bch_t* ptr, hio_oow_t len, unsign
 	hio_bch_t tmp[IF_NAMESIZE + 1];
 	unsigned int tmpidx;
 
-	if (hio_copy_bchars_to_bcstr(tmp, HIO_COUNTOF(tmp), ptr, len) < len) return -1;
+	if (hio_find_bchar_in_bchars(ptr, len, '\0'))
+	{
+		hio_seterrbfmt(hio, HIO_EINVAL, "interface name contains a null character");
+		return -1;
+	}
+	if (hio_copy_bchars_to_bcstr(tmp, HIO_COUNTOF(tmp), ptr, len) < len)
+	{
+		hio_seterrbfmt(hio, HIO_EBUFFULL, "interface name too long");
+		return -1;
+	}
 
 	tmpidx = if_nametoindex(tmp);
 	if (tmpidx == 0)
@@ -264,23 +294,30 @@ int hio_bcharstoifindex (hio_t* hio, const hio_bch_t* ptr, hio_oow_t len, unsign
 	struct ifconf ifc;
 	int num, i;
 
+	if (hio_find_bchar_in_bchars(ptr, len, '\0'))
+	{
+		hio_seterrbfmt(hio, HIO_EINVAL, "interface name contains a null character");
+		return -1;
+	}
 	if (get_sco_ifconf(hio, &ifc) <= -1) return -1;
 
 	num = ifc.ifc_len / HIO_SIZEOF(struct ifreq);
 	for (i = 0; i < num; i++)
 	{
-		if (hio_comp_bchars_bcstr(ptr, len, ifc.ifc_req[i].ifr_name) == 0)
+		if (hio_comp_bchars_bcstr(ptr, len, ifc.ifc_req[i].ifr_name, 0) == 0)
 		{
-			free_sco_ifconf(hio, &ifc);
+			free_sco_ifconf (hio, &ifc);
 			*index = i + 1;
 			return 0;
 		}
 	}
 
-	free_sco_ifconf(hio, &ifc);
+	free_sco_ifconf (hio, &ifc);
+	hio_seterrnum(hio, HIO_ENOENT);
 	return -1;
 
 #else
+	hio_seterrnum(hio, HIO_ENOIMPL);
 	return -1;
 #endif
 }
@@ -305,6 +342,10 @@ int hio_ucstrtoifindex (hio_t* hio, const hio_uch_t* ptr, unsigned int* index)
 	struct ifreq ifr;
 	hio_oow_t wl, ml;
 
+	/* Convert before opening a socket so conversion failures cannot leak it. */
+	ml = HIO_COUNTOF(ifr.ifr_name);
+	if (hio_convutobcstr(hio, ptr, &wl, ifr.ifr_name, &ml) <= -1) return -1;
+
 	h = socket(AF_INET, SOCK_DGRAM, 0);
 	if (h <= -1)
 	{
@@ -312,15 +353,13 @@ int hio_ucstrtoifindex (hio_t* hio, const hio_uch_t* ptr, unsigned int* index)
 		return -1;
 	}
 
-	ml = HIO_COUNTOF(ifr.ifr_name);
-	if (hio_convutobcstr(hio, ptr, &wl, ifr.ifr_name, &ml) <= -1) return -1;
-
 	x = ioctl(h, SIOCGIFINDEX, &ifr);
+	if (x <= -1) hio_seterrwithsyserr(hio, 0, errno);
 	close(h);
 
 	if (x >= 0)
 	{
-	#if defined(HAVE_STRUCT_IFREQ_IFR_IFINDEX)
+	#if defined(HAVE_STRUCT_IFREQ_IFR_IFINDEX) || defined(ifr_ifindex)
 		*index = ifr.ifr_ifindex;
 	#else
 		*index = ifr.ifr_index;
@@ -363,16 +402,18 @@ int hio_ucstrtoifindex (hio_t* hio, const hio_uch_t* ptr, unsigned int* index)
 	{
 		if (hio_comp_bcstr(tmp, ifc.ifc_req[i].ifr_name, 0) == 0)
 		{
-			free_sco_ifconf(hio, &ifc);
+			free_sco_ifconf (hio, &ifc);
 			*index = i + 1;
 			return 0;
 		}
 	}
 
-	free_sco_ifconf(hio, &ifc);
+	free_sco_ifconf (hio, &ifc);
+	hio_seterrnum(hio, HIO_ENOENT);
 	return -1;
 
 #else
+	hio_seterrnum(hio, HIO_ENOIMPL);
 	return -1;
 #endif
 }
@@ -397,6 +438,16 @@ int hio_ucharstoifindex (hio_t* hio, const hio_uch_t* ptr, hio_oow_t len, unsign
 	struct ifreq ifr;
 	hio_oow_t wl, ml;
 
+	if (hio_find_uchar_in_uchars(ptr, len, '\0'))
+	{
+		hio_seterrbfmt(hio, HIO_EINVAL, "interface name contains a null character");
+		return -1;
+	}
+	/* Convert before opening a socket so conversion failures cannot leak it. */
+	wl = len; ml = HIO_COUNTOF(ifr.ifr_name) - 1;
+	if (hio_convutobchars(hio, ptr, &wl, ifr.ifr_name, &ml) <= -1) return -1;
+	ifr.ifr_name[ml] = '\0';
+
 	h = socket(AF_INET, SOCK_DGRAM, 0);
 	if (h <= -1)
 	{
@@ -404,16 +455,13 @@ int hio_ucharstoifindex (hio_t* hio, const hio_uch_t* ptr, hio_oow_t len, unsign
 		return -1;
 	}
 
-	wl = len; ml = HIO_COUNTOF(ifr.ifr_name) - 1;
-	if (hio_convutobchars(hio, ptr, &wl, ifr.ifr_name, &ml) <= -1) return -1;
-	ifr.ifr_name[ml] = '\0';
-
 	x = ioctl(h, SIOCGIFINDEX, &ifr);
+	if (x <= -1) hio_seterrwithsyserr(hio, 0, errno);
 	close(h);
 
 	if (x >= 0)
 	{
-	#if defined(HAVE_STRUCT_IFREQ_IFR_IFINDEX)
+	#if defined(HAVE_STRUCT_IFREQ_IFR_IFINDEX) || defined(ifr_ifindex)
 		*index = ifr.ifr_ifindex;
 	#else
 		*index = ifr.ifr_index;
@@ -427,6 +475,11 @@ int hio_ucharstoifindex (hio_t* hio, const hio_uch_t* ptr, hio_oow_t len, unsign
 	hio_oow_t wl, ml;
 	unsigned int tmpidx;
 
+	if (hio_find_uchar_in_uchars(ptr, len, '\0'))
+	{
+		hio_seterrbfmt(hio, HIO_EINVAL, "interface name contains a null character");
+		return -1;
+	}
 	wl = len; ml = HIO_COUNTOF(tmp) - 1;
 	if (hio_convutobchars(hio, ptr, &wl, tmp, &ml) <= -1) return -1;
 	tmp[ml] = '\0';
@@ -446,8 +499,13 @@ int hio_ucharstoifindex (hio_t* hio, const hio_uch_t* ptr, hio_oow_t len, unsign
 	hio_bch_t tmp[IF_NAMESIZE + 1];
 	hio_oow_t wl, ml;
 
+	if (hio_find_uchar_in_uchars(ptr, len, '\0'))
+	{
+		hio_seterrbfmt(hio, HIO_EINVAL, "interface name contains a null character");
+		return -1;
+	}
 	wl = len; ml = HIO_COUNTOF(tmp) - 1;
-	if (hio_convutobchars(ptr, &wl, tmp, &ml) <= -1) return -1;
+	if (hio_convutobchars(hio, ptr, &wl, tmp, &ml) <= -1) return -1;
 	tmp[ml] = '\0';
 
 	if (get_sco_ifconf(hio, &ifc) <= -1) return -1;
@@ -457,15 +515,17 @@ int hio_ucharstoifindex (hio_t* hio, const hio_uch_t* ptr, hio_oow_t len, unsign
 	{
 		if (hio_comp_bcstr(tmp, ifc.ifc_req[i].ifr_name, 0) == 0)
 		{
-			free_sco_ifconf(hio, &ifc);
+			free_sco_ifconf (hio, &ifc);
 			*index = i + 1;
 			return 0;
 		}
 	}
 
-	free_sco_ifconf(hio, &ifc);
+	free_sco_ifconf (hio, &ifc);
+	hio_seterrnum(hio, HIO_ENOENT);
 	return -1;
 #else
+	hio_seterrnum(hio, HIO_ENOIMPL);
 	return -1;
 #endif
 }
@@ -500,26 +560,26 @@ int hio_ifindextobcstr (hio_t* hio, unsigned int index, hio_bch_t* buf, hio_oow_
 	}
 
 	HIO_MEMSET(&ifr, 0, HIO_SIZEOF(ifr));
-	#if defined(HAVE_STRUCT_IFREQ_IFR_IFINDEX)
+	#if defined(HAVE_STRUCT_IFREQ_IFR_IFINDEX) || defined(ifr_ifindex)
 	ifr.ifr_ifindex = index;
 	#else
 	ifr.ifr_index = index;
 	#endif
 
 	x = ioctl(h, SIOCGIFNAME, &ifr);
-	close (h);
-
 	if (x <= -1)
 	{
 		hio_seterrwithsyserr(hio, 0, errno);
+		close(h);
 		return -1;
 	}
 
+	close(h);
 	return hio_copy_bcstr(buf, len, ifr.ifr_name);
 
 #elif defined(HAVE_IF_INDEXTONAME)
 	hio_bch_t tmp[IF_NAMESIZE + 1];
-	if (if_indextoname(index, tmp) == HIO_NULL)
+	if (if_indextoname (index, tmp) == HIO_NULL)
 	{
 		hio_seterrwithsyserr(hio, 0, errno);
 		return -1;
@@ -532,22 +592,27 @@ int hio_ifindextobcstr (hio_t* hio, unsigned int index, hio_bch_t* buf, hio_oow_
 	hio_oow_t ml;
 	int num;
 
-	if (index <= 0) return -1;
+	if (index <= 0)
+	{
+		hio_seterrnum(hio, HIO_EINVAL);
+		return -1;
+	}
 	if (get_sco_ifconf(hio, &ifc) <= -1) return -1;
 
 	num = ifc.ifc_len / HIO_SIZEOF(struct ifreq);
 	if (index > num)
 	{
+		free_sco_ifconf (hio, &ifc);
 		hio_seterrnum(hio, HIO_ENOENT);
-		free_sco_ifconf(hio, &ifc);
 		return -1;
 	}
 
 	ml = hio_copy_bcstr(buf, len, ifc.ifc_req[index - 1].ifr_name);
-	free_sco_ifconf(hio, &ifc);
+	free_sco_ifconf (hio, &ifc);
 	return ml;
 
 #else
+	hio_seterrnum(hio, HIO_ENOIMPL);
 	return -1;
 #endif
 }
@@ -581,24 +646,25 @@ int hio_ifindextoucstr (hio_t* hio, unsigned int index, hio_uch_t* buf, hio_oow_
 	}
 
 	HIO_MEMSET(&ifr, 0, HIO_SIZEOF(ifr));
-	#if defined(HAVE_STRUCT_IFREQ_IFR_IFINDEX)
+	#if defined(HAVE_STRUCT_IFREQ_IFR_IFINDEX) || defined(ifr_ifindex)
 	ifr.ifr_ifindex = index;
 	#else
 	ifr.ifr_index = index;
 	#endif
 
 	x = ioctl(h, SIOCGIFNAME, &ifr);
-	close(h);
-
 	if (x <= -1)
 	{
 		hio_seterrwithsyserr(hio, 0, errno);
+		close(h);
 		return -1;
 	}
 
+	close(h);
+
 	wl = len;
 	x = hio_convbtoucstr(hio, ifr.ifr_name, &ml, buf, &wl, 0);
-	if (x == -2 && wl > 1) buf[wl - 1] = '\0';
+	if (x == -2 && wl > 1) buf[--wl] = '\0';
 	else if (x != 0) return -1;
 	return wl;
 
@@ -614,7 +680,7 @@ int hio_ifindextoucstr (hio_t* hio, unsigned int index, hio_uch_t* buf, hio_oow_
 	}
 	wl = len;
 	x = hio_convbtoucstr(hio, tmp, &ml, buf, &wl, 0);
-	if (x == -2 && wl > 1) buf[wl - 1] = '\0';
+	if (x == -2 && wl > 1) buf[--wl] = '\0';
 	else if (x != 0) return -1;
 	return wl;
 
@@ -624,25 +690,31 @@ int hio_ifindextoucstr (hio_t* hio, unsigned int index, hio_uch_t* buf, hio_oow_
 	hio_oow_t wl, ml;
 	int num, x;
 
-	if (index <= 0) return -1;
+	if (index <= 0)
+	{
+		hio_seterrnum(hio, HIO_EINVAL);
+		return -1;
+	}
 	if (get_sco_ifconf(hio, &ifc) <= -1) return -1;
 
 	num = ifc.ifc_len / HIO_SIZEOF(struct ifreq);
 	if (index > num)
 	{
 		free_sco_ifconf(hio, &ifc);
+		hio_seterrnum(hio, HIO_ENOENT);
 		return -1;
 	}
 
 	wl = len;
-	x = hio_convbtoucstr(ifc.ifc_req[index - 1].ifr_name, &ml, buf, &wl, 0);
+	x = hio_convbtoucstr(hio, ifc.ifc_req[index - 1].ifr_name, &ml, buf, &wl, 0);
 	free_sco_ifconf(hio, &ifc);
 
-	if (x == -2 && wl > 1) buf[wl - 1] = '\0';
+	if (x == -2 && wl > 1) buf[--wl] = '\0';
 	else if (x != 0) return -1;
 
 	return wl;
 #else
+	hio_seterrnum(hio, HIO_ENOIMPL);
 	return -1;
 #endif
 }

@@ -155,10 +155,10 @@ am__libhio_la_SOURCES_DIST = chr.c dhcp-msg4.c dhcp-msg6.c dhcps.c \
 	https-pxy.c https-thr.c https-txt.c https-ws.c json.c \
 	hio-prv.h hio.c md5.c sha1.c sha256.c nwif.c opt.c opt-imp.h \
 	path.c pipe.c pro.c pty.c rad-msg.c rco.c sck.c shw.c skad.c \
-	sys.c sys-ass.c sys-err.c sys-log.c sys-mux.c sys-prv.h \
-	sys-tim.c thr.c uch-case.h uch-prop.h tar.c tmr.c utf8.c utl.c \
-	ws-msg.c utl-b64.c utl-mime.c utl-siph.c utl-str.c mar.c \
-	mar-cli.c
+	skad-prv.h sys.c sys-ass.c sys-err.c sys-log.c sys-mux.c \
+	sys-prv.h sys-tim.c thr.c uch-case.h uch-prop.h tar.c tmr.c \
+	utf8.c utl.c ws-msg.c utl-b64.c utl-mime.c utl-siph.c \
+	utl-str.c mar.c mar-cli.c
 @ENABLE_MARIADB_TRUE@am__objects_1 = libhio_la-mar.lo \
 @ENABLE_MARIADB_TRUE@	libhio_la-mar-cli.lo
 am_libhio_la_OBJECTS = libhio_la-chr.lo libhio_la-dhcp-msg4.lo \
@@ -499,10 +499,11 @@ libhio_la_SOURCES = chr.c dhcp-msg4.c dhcp-msg6.c dhcps.c dns.c \
 	https-cgi.c https-fcgi.c https-file.c https-prv.h https-pxy.c \
 	https-thr.c https-txt.c https-ws.c json.c hio-prv.h hio.c \
 	md5.c sha1.c sha256.c nwif.c opt.c opt-imp.h path.c pipe.c \
-	pro.c pty.c rad-msg.c rco.c sck.c shw.c skad.c sys.c sys-ass.c \
-	sys-err.c sys-log.c sys-mux.c sys-prv.h sys-tim.c thr.c \
-	uch-case.h uch-prop.h tar.c tmr.c utf8.c utl.c ws-msg.c \
-	utl-b64.c utl-mime.c utl-siph.c utl-str.c $(am__append_2)
+	pro.c pty.c rad-msg.c rco.c sck.c shw.c skad.c skad-prv.h \
+	sys.c sys-ass.c sys-err.c sys-log.c sys-mux.c sys-prv.h \
+	sys-tim.c thr.c uch-case.h uch-prop.h tar.c tmr.c utf8.c utl.c \
+	ws-msg.c utl-b64.c utl-mime.c utl-siph.c utl-str.c \
+	$(am__append_2)
 libhio_la_CPPFLAGS = $(CPPFLAGS_LIB_COMMON)
 libhio_la_CFLAGS = $(CFLAGS_LIB_COMMON) $(am__append_3)
 libhio_la_LDFLAGS = $(LDFLAGS_LIB_COMMON) $(am__append_4)
