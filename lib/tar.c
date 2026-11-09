@@ -37,11 +37,21 @@ static int create_dir (hio_bch_t *pathname, int mode)
 
 	pathlen = hio_count_bcstr(pathname);
 
+	/* an empty path names nothing to create, and the test below would read -
+	 * and on a '/' write - the octet before the buffer. the recursion arrives
+	 * here once it has stripped a path down past its leading slash. */
+	if (pathlen == 0) return -1;
+
 	/* Strip trailing '/' TODO: improve ...*/
 	if (pathname[pathlen - 1] == '/')
 		pathname[pathlen - 1] = '\0';
 
 	n = mkdir(pathname, mode);
+	/* a directory that is already there is what was wanted. without this the
+	 * walk below treats it as a failure and goes looking for a parent to
+	 * create, every existing ancestor in turn, all the way to the root. */
+	if (n <= -1 && errno == EEXIST) n = 0;
+
 	if (n <= -1)
 	{
 		/* On failure, try creating parent directory. */
@@ -52,6 +62,7 @@ static int create_dir (hio_bch_t *pathname, int mode)
 			create_dir(pathname, 0755);
 			*p = '/';
 			n = mkdir(pathname, mode);
+			if (n <= -1 && errno == EEXIST) n = 0;
 		}
 	}
 
@@ -191,8 +202,21 @@ static int x_process_header (hio_tar_t* tar)
 
 				fchmod(fileno(fp), tar->x.hi.filemode);
 
-				tar->x.hi.fp = fp;
-				tar->x.state = HIO_TAR_STATE_FILE;
+				if (tar->x.hi.filesize == 0)
+				{
+					/* a file of no length is followed by no content blocks at
+					 * all, so the block after this header is the next header.
+					 * waiting for content would consume that header and read
+					 * everything after it at the wrong offset - every later
+					 * entry then comes from what is really file content. */
+					fclose(fp);
+					tar->x.state = HIO_TAR_STATE_START;
+				}
+				else
+				{
+					tar->x.hi.fp = fp;
+					tar->x.state = HIO_TAR_STATE_FILE;
+				}
 				goto done;
 			}
 		}
