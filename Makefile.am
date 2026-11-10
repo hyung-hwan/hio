@@ -24,6 +24,11 @@ rpm: dist-gzip
 ## image is the system libraries it links against and the dynamic loader, so each
 ## goes in at the path it is loaded from - there is no /etc/ld.so.cache in the
 ## image to redirect the search.
+##
+## libgcc_s.so.1 is copied in regardless of the dependency since i got an error
+## like this on some systems:
+##   libgcc_s.so.1 must be installed for pthread_exit to work
+##
 docker: all
 	rm -rf hio-webs-root hio-webs.tar
 	mkdir -p hio-webs-root/bin hio-webs-root/data
@@ -33,6 +38,8 @@ docker: all
 			mkdir -p "hio-webs-root$${so%/*}"; \
 			cp -L "$$so" "hio-webs-root$$so" || exit 1; \
 		done
+	if [ -f /lib64/libgcc_s.so.1 ]; then cp -L /lib64/libgcc_s.so.1 hio-webs-root/lib64/; \
+	elif [ -f /lib/libgcc_s.so.1 ]; then cp -L /lib/libgcc_s.so.1 hio-webs-root/lib/; fi
 	tar -C hio-webs-root -cvf hio-webs.tar .
 	docker build -t hio:webs -f Dockerfile .
 	rm -rf hio-webs-root hio-webs.tar

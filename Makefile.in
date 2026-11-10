@@ -875,6 +875,8 @@ docker: all
 			mkdir -p "hio-webs-root$${so%/*}"; \
 			cp -L "$$so" "hio-webs-root$$so" || exit 1; \
 		done
+	if [ -f /lib64/libgcc_s.so.1 ]; then cp -L /lib64/libgcc_s.so.1 hio-webs-root/lib64/; \
+	elif [ -f /lib/libgcc_s.so.1 ]; then cp -L /lib/libgcc_s.so.1 hio-webs-root/lib/; fi
 	tar -C hio-webs-root -cvf hio-webs.tar .
 	docker build -t hio:webs -f Dockerfile .
 	rm -rf hio-webs-root hio-webs.tar
